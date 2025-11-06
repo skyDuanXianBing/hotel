@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw:*)",
+      "Bash(curl:*)",
+      "Bash(bun run:*)",
+      "Bash(jps:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(wmic process where:*)",
+      "Bash(bunx eslint:*)",
+      "Bash(.mvnw compile)",
+      "Bash(find:*)",
+      "Bash(timeout:*)",
+      "Bash(bun add:*)",
+      "Bash(cmd /c:*)",
+      "Bash(Stop-Process -Id 31352 -Force)",
+      "Bash(bunx vue-tsc:*)",
+      "Bash(.mvnw.cmd compile)",
+      "Bash(psql:*)",
+      "Bash(./mvnw.cmd:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
