@@ -17,7 +17,12 @@ public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:8091", "http://127.0.0.1:8091")
+                .allowedOrigins(
+                    "http://localhost:8091",
+                    "http://127.0.0.1:8091",
+                    "http://13.112.235.194:8091",  // 外部 IP 访问
+                    "http://13.112.235.194:8082"   // 后端 IP 访问
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD")
                 .allowedHeaders("*")
                 .allowCredentials(true)
@@ -27,7 +32,12 @@ public class CorsConfig implements WebMvcConfigurer {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:8091", "http://127.0.0.1:8091"));
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:8091",
+            "http://127.0.0.1:8091",
+            "http://13.112.235.194:8091",  // 外部 IP 访问
+            "http://13.112.235.194:8082"   // 后端 IP 访问
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(Collections.singletonList("*"));
         configuration.setAllowCredentials(true);
