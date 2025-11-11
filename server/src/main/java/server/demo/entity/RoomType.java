@@ -41,6 +41,28 @@ public class RoomType {
     @Column(name = "weekend_price", precision = 10, scale = 2)
     private BigDecimal weekendPrice;
 
+    // 每天的价格
+    @Column(name = "monday_price", precision = 10, scale = 2)
+    private BigDecimal mondayPrice;
+
+    @Column(name = "tuesday_price", precision = 10, scale = 2)
+    private BigDecimal tuesdayPrice;
+
+    @Column(name = "wednesday_price", precision = 10, scale = 2)
+    private BigDecimal wednesdayPrice;
+
+    @Column(name = "thursday_price", precision = 10, scale = 2)
+    private BigDecimal thursdayPrice;
+
+    @Column(name = "friday_price", precision = 10, scale = 2)
+    private BigDecimal fridayPrice;
+
+    @Column(name = "saturday_price", precision = 10, scale = 2)
+    private BigDecimal saturdayPrice;
+
+    @Column(name = "sunday_price", precision = 10, scale = 2)
+    private BigDecimal sundayPrice;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -151,6 +173,62 @@ public class RoomType {
 
     public void setWeekendPrice(BigDecimal weekendPrice) {
         this.weekendPrice = weekendPrice;
+    }
+
+    public BigDecimal getMondayPrice() {
+        return mondayPrice;
+    }
+
+    public void setMondayPrice(BigDecimal mondayPrice) {
+        this.mondayPrice = mondayPrice;
+    }
+
+    public BigDecimal getTuesdayPrice() {
+        return tuesdayPrice;
+    }
+
+    public void setTuesdayPrice(BigDecimal tuesdayPrice) {
+        this.tuesdayPrice = tuesdayPrice;
+    }
+
+    public BigDecimal getWednesdayPrice() {
+        return wednesdayPrice;
+    }
+
+    public void setWednesdayPrice(BigDecimal wednesdayPrice) {
+        this.wednesdayPrice = wednesdayPrice;
+    }
+
+    public BigDecimal getThursdayPrice() {
+        return thursdayPrice;
+    }
+
+    public void setThursdayPrice(BigDecimal thursdayPrice) {
+        this.thursdayPrice = thursdayPrice;
+    }
+
+    public BigDecimal getFridayPrice() {
+        return fridayPrice;
+    }
+
+    public void setFridayPrice(BigDecimal fridayPrice) {
+        this.fridayPrice = fridayPrice;
+    }
+
+    public BigDecimal getSaturdayPrice() {
+        return saturdayPrice;
+    }
+
+    public void setSaturdayPrice(BigDecimal saturdayPrice) {
+        this.saturdayPrice = saturdayPrice;
+    }
+
+    public BigDecimal getSundayPrice() {
+        return sundayPrice;
+    }
+
+    public void setSundayPrice(BigDecimal sundayPrice) {
+        this.sundayPrice = sundayPrice;
     }
 
     public User getUser() {

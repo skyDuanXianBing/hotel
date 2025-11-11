@@ -7,32 +7,21 @@
     </div>
 
     <!-- 侧边栏菜单 -->
-    <el-menu 
-      class="sidebar-menu" 
-      :default-active="activeMenu" 
-      :default-openeds="['data-center', 'report-center']"
+    <el-menu
+      class="sidebar-menu"
+      :default-active="activeMenu"
+      :default-openeds="['data-center']"
       @select="handleMenuSelect"
     >
       <!-- 数据中心 -->
-      
-
-      <!-- 报表中心 -->
-      <el-sub-menu index="report-center">
+      <el-sub-menu index="data-center">
         <template #title>
-          <el-icon><Document /></el-icon>
-          <span>报表中心</span>
+          <el-icon><TrendCharts /></el-icon>
+          <span>数据中心</span>
         </template>
-        <el-menu-item index="business-summary">营业汇总</el-menu-item>
-        <!-- <el-menu-item index="revenue-summary">流水汇总</el-menu-item> -->
-        <el-menu-item index="channel-summary">渠道汇总</el-menu-item>
-         <el-menu-item index="notes-summary">记一笔汇总</el-menu-item>
-        <!-- <el-menu-item index="customer-type-summary">客户类型汇总</el-menu-item>
-        <el-menu-item index="sales-summary">销售汇总</el-menu-item>
-        <el-menu-item index="revenue-collection">收款汇总</el-menu-item>
-        <el-menu-item index="guest-business">客房营业汇总</el-menu-item>
-        <el-menu-item index="annual-business">全年营业汇总</el-menu-item>
-        <el-menu-item index="expense-detail">消费明细表</el-menu-item>
-        <el-menu-item index="payment-bill">扫码缴费水表</el-menu-item> -->
+        <el-menu-item index="data-overview">总览</el-menu-item>
+        <el-menu-item index="data-accommodation">住宿</el-menu-item>
+        <el-menu-item index="data-notes">记一笔</el-menu-item>
       </el-sub-menu>
     </el-menu>
   </div>
@@ -41,8 +30,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, TrendCharts, Document } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ArrowLeft, TrendCharts } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -51,42 +39,30 @@ const route = useRoute()
 const activeMenu = computed(() => {
   const routeName = route.name as string
   switch (routeName) {
-    case 'BusinessSummary':
-      return 'business-summary'
-    case 'ChannelSummary':
-      return 'channel-summary'
-    case 'NotesSummary':
-      return 'notes-summary'
-    case 'RevenueSummary':
-      return 'revenue-summary'
+    // 数据中心
+    case 'DataCenterOverview':
+      return 'data-overview'
+    case 'DataCenterAccommodation':
+      return 'data-accommodation'
+    case 'DataCenterNotes':
+      return 'data-notes'
     default:
-      return 'business-summary'
+      return 'data-overview'
   }
 })
 
 // 菜单选择处理
 const handleMenuSelect = (index: string) => {
   switch (index) {
-    case 'business-summary':
-      router.push('/statistics/business-summary')
+    // 数据中心
+    case 'data-overview':
+      router.push('/data-center/overview')
       break
-    case 'channel-summary':
-      router.push('/statistics/channel-summary')
+    case 'data-accommodation':
+      router.push('/data-center/accommodation')
       break
-    case 'notes-summary':
-      router.push('/statistics/notes-summary')
-      break
-    case 'revenue-summary':
-      router.push('/statistics/revenue-summary')
-      break
-    case 'customer-type-summary':
-      ElMessage.info('客户类型汇总功能开发中...')
-      break
-    case 'sales-summary':
-      ElMessage.info('销售汇总功能开发中...')
-      break
-    default:
-      ElMessage.info(`${index} 功能开发中...`)
+    case 'data-notes':
+      router.push('/data-center/notes')
       break
   }
 }

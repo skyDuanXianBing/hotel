@@ -12,15 +12,9 @@
       <el-menu class="sidebar-menu" :default-active="activeMenu" @select="handleMenuSelect">
         <el-menu-item index="order-management">
           <el-icon><Document /></el-icon>
-          <span>订单管理</span>
-        </el-menu-item>
-        <el-menu-item index="accommodation-orders">
           <span>住宿订单</span>
         </el-menu-item>
-        <el-menu-item index="order-collection">
-          <el-icon><Collection /></el-icon>
-          <span>订单牌收款</span>
-        </el-menu-item>
+
       </el-menu>
     </div>
 

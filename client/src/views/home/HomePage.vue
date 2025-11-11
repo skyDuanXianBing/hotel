@@ -111,20 +111,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Document, ArrowRight } from '@element-plus/icons-vue'
 import { getRoomStatusStatistics, type RoomStatusStatisticsDTO } from '@/api/roomStatus'
 import { getDailyOccupancy } from '@/api/business'
-import { getMemo, saveMemo } from '@/api/memo'
 import { ElMessage } from 'element-plus'
 import OccupancyChart from '@/components/OccupancyChart.vue'
+import { useMemoStore } from '@/stores/memo'
 
 const router = useRouter()
+const memoStore = useMemoStore()
 
-// 响应式数据
-const memo = ref('')
-const isLoadingMemo = ref(false)
+// 使用store中的备忘录内容
+const memo = computed({
+  get: () => memoStore.memoContent,
+  set: (value: string) => memoStore.saveMemoDebounced(value),
+})
 
 // 今日统计数据
 const todayStats = ref({
@@ -141,47 +144,6 @@ const loading = ref(false)
 
 // 近7天入住率数据
 const occupancyData = ref<Array<{ date: string; rate: number }>>([])
-
-// 加载备忘录数据
-const loadMemo = async () => {
-  isLoadingMemo.value = true
-  try {
-    const response = await getMemo()
-    if (response.success) {
-      memo.value = response.data || ''
-    }
-  } catch (error) {
-    console.error('加载备忘录失败:', error)
-  } finally {
-    isLoadingMemo.value = false
-  }
-}
-
-// 保存备忘录（防抖）
-let saveTimer: NodeJS.Timeout | null = null
-const handleMemoChange = (newValue: string) => {
-  // 清除之前的定时器
-  if (saveTimer) {
-    clearTimeout(saveTimer)
-  }
-
-  // 设置新的定时器，500ms后保存
-  saveTimer = setTimeout(async () => {
-    if (!isLoadingMemo.value) {
-      try {
-        await saveMemo(newValue)
-      } catch (error) {
-        console.error('保存备忘录失败:', error)
-        ElMessage.error('保存备忘录失败')
-      }
-    }
-  }, 500)
-}
-
-// 监听备忘录变化
-watch(memo, (newValue) => {
-  handleMemoChange(newValue)
-})
 
 // 加载入住率数据
 const loadOccupancyData = async () => {
@@ -262,7 +224,7 @@ const fetchRoomStatusStatistics = async () => {
 }
 
 onMounted(() => {
-  loadMemo()
+  // 备忘录在MainLayout中已加载，这里无需重复加载
   fetchRoomStatusStatistics()
   loadOccupancyData()
 })

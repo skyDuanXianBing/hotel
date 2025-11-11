@@ -45,7 +45,7 @@ export const useUserStore = defineStore('user', () => {
 
     loading.value = true
     try {
-      const response = await getCurrentUser()
+      const response = (await getCurrentUser()) as any
       if (!response.success || !response.data) {
         throw new Error(response.message || '获取用户信息失败')
       }
@@ -60,7 +60,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const updateProfile = async (payload: UpdateProfileRequest) => {
-    const response = await updateProfileApi(payload)
+    const response = (await updateProfileApi(payload)) as any
     if (!response.success || !response.data) {
       throw new Error(response.message || '更新个人资料失败')
     }
@@ -69,7 +69,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const changePassword = async (payload: ChangePasswordRequest) => {
-    const response = await changePasswordApi(payload)
+    const response = (await changePasswordApi(payload)) as any
     if (!response.success) {
       throw new Error(response.message || '修改密码失败')
     }

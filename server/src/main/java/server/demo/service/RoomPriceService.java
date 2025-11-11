@@ -2,7 +2,9 @@ package server.demo.service;
 
 import server.demo.dto.BulkPriceChangeRequest;
 import server.demo.dto.RoomPriceDTO;
+import server.demo.dto.RoomPriceManagementDTO;
 import server.demo.dto.UpdateRoomPriceRequest;
+import server.demo.dto.UpdatePriceByPlanRequest;
 import server.demo.entity.RoomType;
 import java.time.LocalDate;
 import java.util.List;
@@ -65,4 +67,19 @@ public interface RoomPriceService {
      * 批量改价（支持多房型、多日期范围、星期筛选、平日周末价）
      */
     List<RoomPriceDTO> bulkPriceChange(BulkPriceChangeRequest request);
+
+    /**
+     * 获取指定日期范围内的房价管理数据(包含价格计划)
+     */
+    List<RoomPriceManagementDTO> getRoomPriceManagementData(LocalDate startDate, LocalDate endDate, Long roomTypeId, Long userId);
+
+    /**
+     * 按价格计划更新价格
+     */
+    List<RoomPriceManagementDTO> updatePriceByPlan(UpdatePriceByPlanRequest request, Long userId, String operator);
+
+    /**
+     * 获取指定房型、价格计划和日期的价格
+     */
+    Optional<RoomPriceManagementDTO> getRoomPriceByPlan(Long roomTypeId, Long pricePlanId, LocalDate date);
 }

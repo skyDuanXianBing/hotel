@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.BulkPriceChangeRequest;
 import server.demo.dto.RoomPriceDTO;
+import server.demo.dto.RoomPriceManagementDTO;
+import server.demo.dto.UpdatePriceByPlanRequest;
 import server.demo.dto.UpdateRoomPriceRequest;
 import server.demo.service.RoomPriceService;
 
@@ -189,6 +191,49 @@ public class RoomPriceController {
         } catch (Exception e) {
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("批量改价失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 获取房价管理数据(包含价格计划)
+     */
+    @GetMapping("/management")
+    public ResponseEntity<ApiResponse<List<RoomPriceManagementDTO>>> getRoomPriceManagementData(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Long roomTypeId,
+            @RequestParam(required = false) Long userId) {
+        try {
+            List<RoomPriceManagementDTO> data = roomPriceService.getRoomPriceManagementData(
+                    startDate, endDate, roomTypeId, userId);
+            return ResponseEntity.ok(ApiResponse.success("获取房价管理数据成功", data));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("获取房价管理数据失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 按价格计划更新价格
+     */
+    @PostMapping("/update-by-plan")
+    public ResponseEntity<ApiResponse<List<RoomPriceManagementDTO>>> updatePriceByPlan(
+            @Valid @RequestBody UpdatePriceByPlanRequest request,
+            @RequestParam Long userId,
+            @RequestParam String operator) {
+        try {
+            List<RoomPriceManagementDTO> updatedPrices = roomPriceService.updatePriceByPlan(
+                    request, userId, operator);
+            return ResponseEntity.ok(ApiResponse.success(
+                    "价格更新成功，共更新 " + updatedPrices.size() + " 条记录",
+                    updatedPrices
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(400)
+                    .body(ApiResponse.error("参数错误: " + e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("价格更新失败: " + e.getMessage()));
         }
     }
 }

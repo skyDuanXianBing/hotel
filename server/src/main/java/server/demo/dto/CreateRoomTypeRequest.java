@@ -25,6 +25,15 @@ public class CreateRoomTypeRequest {
     private BigDecimal weekdayPrice;
     private BigDecimal weekendPrice;
 
+    // 周价格字段
+    private BigDecimal mondayPrice;
+    private BigDecimal tuesdayPrice;
+    private BigDecimal wednesdayPrice;
+    private BigDecimal thursdayPrice;
+    private BigDecimal fridayPrice;
+    private BigDecimal saturdayPrice;
+    private BigDecimal sundayPrice;
+
     @Size(min = 1, message = "至少需要一个房间号")
     private List<String> roomNumbers;
 
@@ -102,5 +111,61 @@ public class CreateRoomTypeRequest {
 
     public void setWeekendPrice(BigDecimal weekendPrice) {
         this.weekendPrice = weekendPrice;
+    }
+
+    public BigDecimal getMondayPrice() {
+        return mondayPrice;
+    }
+
+    public void setMondayPrice(BigDecimal mondayPrice) {
+        this.mondayPrice = mondayPrice;
+    }
+
+    public BigDecimal getTuesdayPrice() {
+        return tuesdayPrice;
+    }
+
+    public void setTuesdayPrice(BigDecimal tuesdayPrice) {
+        this.tuesdayPrice = tuesdayPrice;
+    }
+
+    public BigDecimal getWednesdayPrice() {
+        return wednesdayPrice;
+    }
+
+    public void setWednesdayPrice(BigDecimal wednesdayPrice) {
+        this.wednesdayPrice = wednesdayPrice;
+    }
+
+    public BigDecimal getThursdayPrice() {
+        return thursdayPrice;
+    }
+
+    public void setThursdayPrice(BigDecimal thursdayPrice) {
+        this.thursdayPrice = thursdayPrice;
+    }
+
+    public BigDecimal getFridayPrice() {
+        return fridayPrice;
+    }
+
+    public void setFridayPrice(BigDecimal fridayPrice) {
+        this.fridayPrice = fridayPrice;
+    }
+
+    public BigDecimal getSaturdayPrice() {
+        return saturdayPrice;
+    }
+
+    public void setSaturdayPrice(BigDecimal saturdayPrice) {
+        this.saturdayPrice = saturdayPrice;
+    }
+
+    public BigDecimal getSundayPrice() {
+        return sundayPrice;
+    }
+
+    public void setSundayPrice(BigDecimal sundayPrice) {
+        this.sundayPrice = sundayPrice;
     }
 }

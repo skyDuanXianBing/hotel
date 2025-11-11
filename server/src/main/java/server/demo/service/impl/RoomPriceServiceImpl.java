@@ -5,11 +5,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.dto.BulkPriceChangeRequest;
 import server.demo.dto.RoomPriceDTO;
+import server.demo.dto.RoomPriceManagementDTO;
+import server.demo.dto.UpdatePriceByPlanRequest;
 import server.demo.dto.UpdateRoomPriceRequest;
+import server.demo.entity.PricePlan;
+import server.demo.entity.Reservation;
 import server.demo.entity.RoomPrice;
 import server.demo.entity.RoomType;
+import server.demo.entity.RoomTypePricePlan;
+import server.demo.enums.ReservationStatus;
+import server.demo.repository.PricePlanRepository;
+import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomPriceRepository;
+import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.service.PriceChangeHistoryService;
 import server.demo.service.RoomPriceService;
 
 import java.math.BigDecimal;
@@ -30,6 +40,18 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Autowired
     private RoomTypeRepository roomTypeRepository;
+
+    @Autowired
+    private PricePlanRepository pricePlanRepository;
+
+    @Autowired
+    private RoomTypePricePlanRepository roomTypePricePlanRepository;
+
+    @Autowired
+    private PriceChangeHistoryService priceChangeHistoryService;
+
+    @Autowired
+    private ReservationRepository reservationRepository;
 
     @Override
     public List<RoomPriceDTO> getRoomPricesByDateRange(LocalDate startDate, LocalDate endDate) {
@@ -292,5 +314,441 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         boolean isWeekend = (dayOfWeek == DayOfWeek.FRIDAY || dayOfWeek == DayOfWeek.SATURDAY);
 
         return isWeekend ? weekendPrice : weekdayPrice;
+    }
+
+    @Override
+    public List<RoomPriceManagementDTO> getRoomPriceManagementData(LocalDate startDate, LocalDate endDate, Long roomTypeId, Long userId) {
+        // 查询所有房型价格计划关联
+        List<RoomTypePricePlan> roomTypePricePlans;
+
+        if (roomTypeId != null) {
+            // 查询特定房型的价格计划
+            roomTypePricePlans = roomTypePricePlanRepository.findByRoomTypeId(roomTypeId);
+        } else {
+            // 查询所有房型的价格计划
+            roomTypePricePlans = roomTypePricePlanRepository.findAll();
+        }
+
+        // 调试: 输出查询到的价格计划数量
+        System.out.println("===== 查询到的价格计划数量: " + roomTypePricePlans.size() + " =====");
+        for (RoomTypePricePlan plan : roomTypePricePlans) {
+            System.out.println("价格计划: 房型=" + plan.getRoomType().getName() +
+                             ", 计划=" + plan.getPricePlan().getName());
+        }
+
+        // 查询日期范围内的所有特定日期价格覆盖记录
+        List<RoomPrice> specificPrices = roomPriceRepository.findByDateRangeWithRoomType(startDate, endDate);
+
+        // 查询日期范围内的所有预订记录，用于计算可用房间数
+        // 使用findByDateRange一次性查询整个日期范围的预订
+        List<Reservation> reservations = reservationRepository.findByDateRange(startDate, endDate);
+
+        // 临时调试: 输出查询到的预订信息
+        System.out.println("===== 房价管理查询预订 =====");
+        System.out.println("查询日期范围: " + startDate + " 到 " + endDate);
+        System.out.println("查询到的预订总数: " + reservations.size());
+        for (Reservation r : reservations) {
+            System.out.println("预订ID=" + r.getId() +
+                             ", 房间=" + (r.getRoom() != null ? r.getRoom().getRoomNumber() : "null") +
+                             ", 房型=" + (r.getRoom() != null && r.getRoom().getRoomType() != null ? r.getRoom().getRoomType().getName() : "null") +
+                             ", 状态=" + r.getStatus() +
+                             ", 入住=" + r.getCheckInDate() +
+                             ", 退房=" + r.getCheckOutDate());
+        }
+        System.out.println("============================\n");
+
+        // 为每个房型价格计划和日期范围生成价格记录
+        List<RoomPriceManagementDTO> result = new ArrayList<>();
+
+        for (RoomTypePricePlan plan : roomTypePricePlans) {
+            LocalDate currentDate = startDate;
+
+            while (!currentDate.isAfter(endDate)) {
+                RoomPriceManagementDTO dto = new RoomPriceManagementDTO();
+                dto.setRoomTypeId(plan.getRoomType().getId());
+                dto.setRoomTypeName(plan.getRoomType().getName());
+                dto.setRoomTypeCode(plan.getRoomType().getCode());
+                dto.setPricePlanId(plan.getPricePlan().getId());
+                dto.setPricePlanName(plan.getPricePlan().getName());
+                dto.setPriceDate(currentDate);
+
+                // 首先检查是否有特定日期的价格覆盖
+                final LocalDate checkDate = currentDate;
+                Optional<RoomPrice> specificPrice = specificPrices.stream()
+                        .filter(sp -> sp.getRoomType().getId().equals(plan.getRoomType().getId())
+                                && sp.getPricePlan() != null
+                                && sp.getPricePlan().getId().equals(plan.getPricePlan().getId())
+                                && sp.getPriceDate().equals(checkDate))
+                        .findFirst();
+
+                BigDecimal price;
+                Integer availableRooms;
+
+                if (specificPrice.isPresent()) {
+                    // 使用特定日期的覆盖价格
+                    price = specificPrice.get().getPrice();
+                    // 如果有设置availableRooms，使用设置的值；否则动态计算
+                    if (specificPrice.get().getAvailableRooms() != null) {
+                        availableRooms = specificPrice.get().getAvailableRooms();
+                        if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
+                            System.out.println("  使用数据库中的availableRooms: " + availableRooms + " (RoomPrice ID: " + specificPrice.get().getId() + ")");
+                        }
+                    } else {
+                        availableRooms = calculateAvailableRooms(plan.getRoomType(), checkDate, reservations);
+                        if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
+                            System.out.println("  动态计算availableRooms: " + availableRooms);
+                        }
+                    }
+                } else {
+                    // 使用周价格
+                    price = getPriceForDayOfWeek(currentDate.getDayOfWeek(), plan);
+                    // 动态计算可用房间数
+                    availableRooms = calculateAvailableRooms(plan.getRoomType(), checkDate, reservations);
+                    if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
+                        System.out.println("  动态计算availableRooms(无specificPrice): " + availableRooms);
+                    }
+                }
+
+                dto.setPrice(price);
+                dto.setAvailableRooms(availableRooms);
+
+                // 判断是否为周末
+                dto.setIsWeekend(currentDate.getDayOfWeek() == DayOfWeek.SATURDAY ||
+                                 currentDate.getDayOfWeek() == DayOfWeek.SUNDAY);
+
+                // 调试: 输出每个DTO的详细信息（仅11-11到11-13）
+                if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
+                    System.out.println("生成DTO: 房型=" + plan.getRoomType().getName() +
+                                     ", 日期=" + checkDate +
+                                     ", 价格=" + price +
+                                     ", 可用房间=" + availableRooms);
+                }
+
+                result.add(dto);
+                currentDate = currentDate.plusDays(1);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * 计算指定日期指定房型的可用房间数
+     * @param roomType 房型
+     * @param date 日期
+     * @param reservations 预订记录列表
+     * @return 可用房间数 = 总房间数 - 已预订/已入住的房间数
+     */
+    private Integer calculateAvailableRooms(RoomType roomType, LocalDate date, List<Reservation> reservations) {
+        // 获取房型的总房间数
+        Integer totalRooms = roomType.getTotalRooms();
+
+        if (totalRooms == null || totalRooms == 0) {
+            System.out.println("警告: 房型 " + roomType.getName() + " 的总房间数为 " + totalRooms);
+            return 0;
+        }
+
+        // 计算该日期该房型已预订/已入住的房间数
+        long occupiedCount = reservations.stream()
+                .filter(r -> {
+                    // 检查预订状态：已确认、已入住状态都算占用
+                    boolean isOccupiedStatus = r.getStatus() == ReservationStatus.CONFIRMED ||
+                                             r.getStatus() == ReservationStatus.CHECKED_IN;
+
+                    // 检查日期是否在预订范围内: checkInDate <= date < checkOutDate
+                    boolean isInDateRange = !date.isBefore(r.getCheckInDate()) && date.isBefore(r.getCheckOutDate());
+
+                    // 检查是否为相同房型
+                    boolean isSameRoomType = r.getRoom() != null &&
+                                           r.getRoom().getRoomType() != null &&
+                                           r.getRoom().getRoomType().getId().equals(roomType.getId());
+
+                    return isOccupiedStatus && isInDateRange && isSameRoomType;
+                })
+                .count();
+
+        // 返回可用房间数
+        return totalRooms - (int) occupiedCount;
+    }
+
+    /**
+     * 根据星期几获取对应的价格
+     */
+    private BigDecimal getPriceForDayOfWeek(DayOfWeek dayOfWeek, RoomTypePricePlan plan) {
+        BigDecimal price = switch (dayOfWeek) {
+            case MONDAY -> plan.getMondayPrice();
+            case TUESDAY -> plan.getTuesdayPrice();
+            case WEDNESDAY -> plan.getWednesdayPrice();
+            case THURSDAY -> plan.getThursdayPrice();
+            case FRIDAY -> plan.getFridayPrice();
+            case SATURDAY -> plan.getSaturdayPrice();
+            case SUNDAY -> plan.getSundayPrice();
+        };
+        // 如果价格为null,返回0
+        return price != null ? price : BigDecimal.ZERO;
+    }
+
+    @Override
+    public List<RoomPriceManagementDTO> updatePriceByPlan(UpdatePriceByPlanRequest request, Long userId, String operator) {
+        // 验证房型和价格计划是否存在
+        RoomType roomType = roomTypeRepository.findById(request.getRoomTypeId())
+                .orElseThrow(() -> new IllegalArgumentException("房型不存在"));
+
+        PricePlan pricePlan = pricePlanRepository.findById(request.getPricePlanId())
+                .orElseThrow(() -> new IllegalArgumentException("价格计划不存在"));
+
+        // 查找房型价格计划关联
+        RoomTypePricePlan roomTypePricePlan = roomTypePricePlanRepository
+                .findByRoomTypeIdAndPricePlanId(request.getRoomTypeId(), request.getPricePlanId())
+                .orElseThrow(() -> new IllegalArgumentException("房型与价格计划未关联"));
+
+        // 记录旧价格用于历史记录
+        BigDecimal firstPreviousValue = null;
+
+        // 判断是更新周价格还是特定日期价格
+        boolean isWeekdayUpdate = request.getWeekdays() != null && !request.getWeekdays().isEmpty();
+
+        if (request.getPrice() != null) {
+            if (isWeekdayUpdate) {
+                // 场景1: 指定了星期几 - 更新room_type_price_plans表中对应的周价格字段
+                List<Integer> weekdaysToUpdate = request.getWeekdays();
+
+                // 如果包含0(全部),则更新所有星期
+                if (weekdaysToUpdate.contains(0)) {
+                    weekdaysToUpdate = List.of(1, 2, 3, 4, 5, 6, 7);
+                }
+
+                // 记录第一个要修改的星期几的旧价格
+                if (!weekdaysToUpdate.isEmpty()) {
+                    DayOfWeek firstDay = convertWeekdayValueToDayOfWeek(weekdaysToUpdate.get(0));
+                    firstPreviousValue = getPriceForDayOfWeek(firstDay, roomTypePricePlan);
+                }
+
+                // 更新对应星期几的价格
+                for (Integer weekday : weekdaysToUpdate) {
+                    updatePriceForWeekday(roomTypePricePlan, weekday, request.getPrice());
+                }
+
+                // 保存更新
+                roomTypePricePlanRepository.save(roomTypePricePlan);
+            } else {
+                // 场景2: 未指定星期几 - 为特定日期范围创建覆盖价格记录到room_prices表
+                LocalDate currentDate = request.getStartDate();
+
+                while (!currentDate.isAfter(request.getEndDate())) {
+                    Optional<RoomPrice> existingPrice = roomPriceRepository
+                            .findByRoomTypeIdAndPricePlanIdAndPriceDate(
+                                    request.getRoomTypeId(),
+                                    request.getPricePlanId(),
+                                    currentDate
+                            );
+
+                    RoomPrice roomPrice;
+                    if (existingPrice.isPresent()) {
+                        roomPrice = existingPrice.get();
+                        if (firstPreviousValue == null) {
+                            firstPreviousValue = roomPrice.getPrice();
+                        }
+                        roomPrice.setPrice(request.getPrice());
+                    } else {
+                        // 记录旧价格(从room_type_price_plans获取)
+                        if (firstPreviousValue == null) {
+                            firstPreviousValue = getPriceForDayOfWeek(currentDate.getDayOfWeek(), roomTypePricePlan);
+                        }
+                        roomPrice = new RoomPrice(roomType, pricePlan, currentDate, request.getPrice());
+                    }
+
+                    if (request.getAvailableRooms() != null) {
+                        roomPrice.setAvailableRooms(request.getAvailableRooms());
+                    }
+                    if (request.getMinStay() != null) {
+                        roomPrice.setMinStay(request.getMinStay());
+                    }
+                    if (request.getMaxStay() != null) {
+                        roomPrice.setMaxStay(request.getMaxStay());
+                    }
+                    if (request.getNotes() != null) {
+                        roomPrice.setNotes(request.getNotes());
+                    }
+
+                    roomPriceRepository.save(roomPrice);
+                    currentDate = currentDate.plusDays(1);
+                }
+            }
+        } else {
+            // 场景3: 只更新其他字段(如最小天数、最大天数等),不更新价格
+            LocalDate currentDate = request.getStartDate();
+
+            while (!currentDate.isAfter(request.getEndDate())) {
+                Optional<RoomPrice> existingPrice = roomPriceRepository
+                        .findByRoomTypeIdAndPricePlanIdAndPriceDate(
+                                request.getRoomTypeId(),
+                                request.getPricePlanId(),
+                                currentDate
+                        );
+
+                if (existingPrice.isPresent()) {
+                    // 只更新已存在记录的非价格字段
+                    RoomPrice roomPrice = existingPrice.get();
+
+                    if (request.getAvailableRooms() != null) {
+                        roomPrice.setAvailableRooms(request.getAvailableRooms());
+                    }
+                    if (request.getMinStay() != null) {
+                        roomPrice.setMinStay(request.getMinStay());
+                    }
+                    if (request.getMaxStay() != null) {
+                        roomPrice.setMaxStay(request.getMaxStay());
+                    }
+                    if (request.getNotes() != null) {
+                        roomPrice.setNotes(request.getNotes());
+                    }
+
+                    roomPriceRepository.save(roomPrice);
+                } else {
+                    // 如果没有现有记录,需要创建新记录,使用周价格作为默认值
+                    BigDecimal defaultPrice = getPriceForDayOfWeek(currentDate.getDayOfWeek(), roomTypePricePlan);
+                    RoomPrice roomPrice = new RoomPrice(roomType, pricePlan, currentDate, defaultPrice);
+
+                    if (request.getAvailableRooms() != null) {
+                        roomPrice.setAvailableRooms(request.getAvailableRooms());
+                    }
+                    if (request.getMinStay() != null) {
+                        roomPrice.setMinStay(request.getMinStay());
+                    }
+                    if (request.getMaxStay() != null) {
+                        roomPrice.setMaxStay(request.getMaxStay());
+                    }
+                    if (request.getNotes() != null) {
+                        roomPrice.setNotes(request.getNotes());
+                    }
+
+                    roomPriceRepository.save(roomPrice);
+                }
+
+                currentDate = currentDate.plusDays(1);
+            }
+        }
+
+        // 只有当价格被修改时才创建价格变更历史记录
+        if (request.getPrice() != null) {
+            String applyWeekdays = isWeekdayUpdate ? formatWeekdays(request.getWeekdays()) : "特定日期";
+            priceChangeHistoryService.createPriceChangeHistory(
+                    request.getRoomTypeId(),
+                    request.getPricePlanId(),
+                    request.getStartDate(),
+                    request.getEndDate(),
+                    applyWeekdays,
+                    request.getPrice(),
+                    firstPreviousValue,
+                    operator,
+                    userId
+            );
+        }
+
+        // 返回更新后的价格数据
+        return getRoomPriceManagementData(request.getStartDate(), request.getEndDate(), request.getRoomTypeId(), userId);
+    }
+
+    /**
+     * 根据星期几值更新价格
+     */
+    private void updatePriceForWeekday(RoomTypePricePlan plan, Integer weekday, BigDecimal price) {
+        switch (weekday) {
+            case 1 -> plan.setMondayPrice(price);
+            case 2 -> plan.setTuesdayPrice(price);
+            case 3 -> plan.setWednesdayPrice(price);
+            case 4 -> plan.setThursdayPrice(price);
+            case 5 -> plan.setFridayPrice(price);
+            case 6 -> plan.setSaturdayPrice(price);
+            case 7 -> plan.setSundayPrice(price);
+        }
+    }
+
+    /**
+     * 将weekday值(1-7)转换为DayOfWeek
+     */
+    private DayOfWeek convertWeekdayValueToDayOfWeek(Integer weekday) {
+        return switch (weekday) {
+            case 1 -> DayOfWeek.MONDAY;
+            case 2 -> DayOfWeek.TUESDAY;
+            case 3 -> DayOfWeek.WEDNESDAY;
+            case 4 -> DayOfWeek.THURSDAY;
+            case 5 -> DayOfWeek.FRIDAY;
+            case 6 -> DayOfWeek.SATURDAY;
+            case 7 -> DayOfWeek.SUNDAY;
+            default -> throw new IllegalArgumentException("无效的星期几值: " + weekday);
+        };
+    }
+
+    @Override
+    public Optional<RoomPriceManagementDTO> getRoomPriceByPlan(Long roomTypeId, Long pricePlanId, LocalDate date) {
+        Optional<RoomPrice> roomPrice = roomPriceRepository
+                .findByRoomTypeIdAndPricePlanIdAndPriceDate(roomTypeId, pricePlanId, date);
+
+        return roomPrice.map(this::convertToManagementDTO);
+    }
+
+    /**
+     * 将RoomPrice转换为RoomPriceManagementDTO
+     */
+    private RoomPriceManagementDTO convertToManagementDTO(RoomPrice roomPrice) {
+        RoomPriceManagementDTO dto = new RoomPriceManagementDTO();
+        dto.setId(roomPrice.getId());
+        dto.setRoomTypeId(roomPrice.getRoomType().getId());
+        dto.setRoomTypeName(roomPrice.getRoomType().getName());
+        dto.setRoomTypeCode(roomPrice.getRoomType().getCode());
+
+        if (roomPrice.getPricePlan() != null) {
+            dto.setPricePlanId(roomPrice.getPricePlan().getId());
+            dto.setPricePlanName(roomPrice.getPricePlan().getName());
+        }
+
+        dto.setPriceDate(roomPrice.getPriceDate());
+        dto.setPrice(roomPrice.getPrice());
+
+        // 如果没有设置availableRooms，则使用房型的总房间数
+        Integer availableRooms = roomPrice.getAvailableRooms();
+        if (availableRooms == null) {
+            availableRooms = roomPrice.getRoomType().getTotalRooms();
+        }
+        dto.setAvailableRooms(availableRooms);
+
+        dto.setMinStay(roomPrice.getMinStay());
+        dto.setMaxStay(roomPrice.getMaxStay());
+        dto.setIsWeekend(roomPrice.getIsWeekend());
+        dto.setIsHoliday(roomPrice.getIsHoliday());
+        dto.setNotes(roomPrice.getNotes());
+
+        return dto;
+    }
+
+    /**
+     * 检查日期是否符合指定的星期几
+     */
+    private boolean shouldApplyPriceForWeekday(LocalDate date, List<Integer> weekdays) {
+        if (weekdays == null || weekdays.isEmpty()) {
+            return true;
+        }
+
+        int dayOfWeek = date.getDayOfWeek().getValue();
+        int weekdayValue = (dayOfWeek == 7) ? 0 : dayOfWeek;
+
+        return weekdays.contains(weekdayValue);
+    }
+
+    /**
+     * 格式化星期几列表为字符串
+     */
+    private String formatWeekdays(List<Integer> weekdays) {
+        if (weekdays == null || weekdays.isEmpty() || weekdays.contains(0)) {
+            return "全部";
+        }
+
+        String[] dayNames = {"周日", "周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+        return weekdays.stream()
+                .sorted()
+                .map(day -> dayNames[day])
+                .collect(Collectors.joining(","));
     }
 }

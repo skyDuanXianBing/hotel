@@ -138,6 +138,106 @@ export const bulkPriceChange = async (
   return await request.post('/room-prices/bulk-change', requestData)
 }
 
+// 房价管理DTO
+export interface RoomPriceManagementDTO {
+  id: number
+  roomTypeId: number
+  roomTypeName: string
+  roomTypeCode: string
+  pricePlanId?: number
+  pricePlanName?: string
+  priceDate: string
+  price: number
+  availableRooms?: number
+  minStay?: number
+  maxStay?: number
+  isWeekend: boolean
+  isHoliday: boolean
+  notes?: string
+}
+
+// 按价格计划更新价格请求
+export interface UpdatePriceByPlanRequest {
+  roomTypeId: number
+  pricePlanId: number
+  startDate: string
+  endDate: string
+  weekdays?: number[] // 0=全部, 1=周一, 2=周二, ..., 7=周日
+  price?: number
+  availableRooms?: number
+  minStay?: number
+  maxStay?: number
+  notes?: string
+}
+
+// 改价记录数据结构
+export interface PriceChangeHistoryDTO {
+  id: number
+  roomTypeName: string // 房型名称
+  pricePlanName: string // 价格计划名称(如 Standard Rate, Rack Rate)
+  priceDate: string // 价格日期范围
+  applyDays: string // 适用周几(如 "全部")
+  changeType: string // 修改类型(如 "价格")
+  changeValue: number // 修改后的价格
+  previousValue?: number // 修改前的价格
+  operator: string // 操作人
+  operateTime: string // 操作时间
+  pmsPushTime?: string // PMS推送时间
+  notes?: string
+}
+
+// 改价记录查询参数
+export interface PriceChangeHistoryQueryParams {
+  operateDateStart?: string // 操作日期开始
+  operateDateEnd?: string // 操作日期结束
+  priceDateStart?: string // 价格日期开始
+  priceDateEnd?: string // 价格日期结束
+  pricePlanId?: string // 价格计划ID(如果"全部"则不传)
+  roomTypeId?: number // 房型ID
+  operator?: string // 操作人
+  pageNum?: number // 页码
+  pageSize?: number // 每页数量
+}
+
+// 改价记录分页响应
+export interface PriceChangeHistoryPageResponse {
+  total: number
+  records: PriceChangeHistoryDTO[]
+  pageNum: number
+  pageSize: number
+}
+
+// 获取房价管理数据(包含价格计划)
+export const getRoomPriceManagementData = async (
+  startDate: string,
+  endDate: string,
+  roomTypeId?: number,
+  userId?: number
+): Promise<ApiResponse<RoomPriceManagementDTO[]>> => {
+  const params: any = { startDate, endDate }
+  if (roomTypeId) params.roomTypeId = roomTypeId
+  if (userId) params.userId = userId
+  return await request.get('/room-prices/management', { params })
+}
+
+// 按价格计划更新价格
+export const updatePriceByPlan = async (
+  requestData: UpdatePriceByPlanRequest,
+  userId: number,
+  operator: string
+): Promise<ApiResponse<RoomPriceManagementDTO[]>> => {
+  return await request.post('/room-prices/update-by-plan', requestData, {
+    params: { userId, operator }
+  })
+}
+
+// 获取改价记录列表
+export const getPriceChangeHistory = async (
+  params: PriceChangeHistoryQueryParams
+): Promise<ApiResponse<PriceChangeHistoryPageResponse>> => {
+  return await request.get('/price-change-history', { params })
+}
+
 // 构建房价表格数据
 export const buildRoomPriceTableData = (
   roomTypes: any[],

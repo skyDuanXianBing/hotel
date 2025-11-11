@@ -17,7 +17,6 @@
             @change="onDateRangeChange"
           />
           <el-button @click="nextWeek" :icon="ArrowRight" circle />
-          <el-button @click="goToToday" type="primary" size="small">今天</el-button>
         </div>
 
         <div class="toolbar-actions">
@@ -1572,6 +1571,7 @@ import type { CalendarRoomData, DailyRoomStatus } from '@/types/room'
 import { request } from '@/utils/request'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRoomTypeByRoomId, getRoomCurrentPrice, getEffectiveRoomPrice, type RoomTypeDTO } from '@/api/roomType'
+import { calculateTotalPriceByDates } from '@/utils/priceHelper'
 import { createConsumption, getConsumptionsByReservationId, deleteConsumption, getTotalConsumption, type ConsumptionDTO } from '@/api/consumption'
 import { createPayment, getPaymentsByReservationId, deletePayment, getTotalPayment, type PaymentDTO } from '@/api/payment'
 
@@ -1912,11 +1912,6 @@ const nextWeek = () => {
   loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
 }
 
-// 跳转到今天
-const goToToday = () => {
-  currentBaseDate.value = new Date().toISOString().split('T')[0]
-  loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
-}
 
 // 跳转到房型管理页面
 const goToRoomTypeManagement = () => {
@@ -3282,7 +3277,7 @@ const updateBookingPrice = async () => {
   const checkIn = new Date(bookingForm.value.checkInDate)
   const checkOut = new Date(bookingForm.value.checkOutDate)
   const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
-  
+
   if (nights <= 0) {
     bookingForm.value.totalAmount = 0
     return
@@ -3290,33 +3285,29 @@ const updateBookingPrice = async () => {
 
   try {
     isLoadingPrice.value = true
-    
-    // 计算总价格（使用后端API获取每晚的有效价格）
-    let totalPrice = 0
-    const currentDate = new Date(checkIn)
-    
-    for (let i = 0; i < nights; i++) {
-      const dateStr = currentDate.toISOString().split('T')[0]
-      const nightPrice = await getEffectiveRoomPrice(currentRoomType.value.id, dateStr)
-      totalPrice += nightPrice
-      currentDate.setDate(currentDate.getDate() + 1)
-    }
-    
+
+    // 直接使用基于星期的价格计算方式
+    console.log('当前房型价格信息:', {
+      monPrice: currentRoomType.value.monPrice,
+      tuePrice: currentRoomType.value.tuePrice,
+      wedPrice: currentRoomType.value.wedPrice,
+      thuPrice: currentRoomType.value.thuPrice,
+      friPrice: currentRoomType.value.friPrice,
+      satPrice: currentRoomType.value.satPrice,
+      sunPrice: currentRoomType.value.sunPrice,
+    })
+
+    const totalPrice = calculateTotalPriceByDates(
+      currentRoomType.value,
+      bookingForm.value.checkInDate,
+      bookingForm.value.checkOutDate
+    )
+
+    console.log('计算的总价格:', totalPrice)
     bookingForm.value.totalAmount = totalPrice
   } catch (error) {
-    console.error('获取房间价格失败:', error)
-    // 如果API调用失败，回退到原来的计算方式
-    let totalPrice = 0
-    const currentDate = new Date(checkIn)
-    
-    for (let i = 0; i < nights; i++) {
-      const dateStr = currentDate.toISOString().split('T')[0]
-      const nightPrice = getRoomCurrentPrice(currentRoomType.value, dateStr)
-      totalPrice += nightPrice
-      currentDate.setDate(currentDate.getDate() + 1)
-    }
-    
-    bookingForm.value.totalAmount = totalPrice
+    console.error('计算价格失败:', error)
+    bookingForm.value.totalAmount = 0
   } finally {
     isLoadingPrice.value = false
   }

@@ -20,7 +20,9 @@
       "Bash(.mvnw.cmd compile)",
       "Bash(psql:*)",
       "Bash(./mvnw.cmd:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(mysql:*)",
+      "Bash(.mvnw.cmd compile:*)"
     ],
     "deny": [],
     "ask": []

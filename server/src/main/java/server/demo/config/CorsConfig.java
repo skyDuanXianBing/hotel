@@ -21,7 +21,7 @@ public class CorsConfig implements WebMvcConfigurer {
                     "http://localhost:8091",
                     "http://127.0.0.1:8091",
                     "http://13.112.235.194:8091",  // 外部 IP 访问
-                    "http://13.112.235.194:8082"   // 后端 IP 访问
+                    "http://13.112.235.194:8092"   // 后端 IP 访问
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD")
                 .allowedHeaders("*")

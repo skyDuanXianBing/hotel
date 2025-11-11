@@ -49,10 +49,22 @@ const router = createRouter({
               ],
             },
             {
-              path: 'room-price/management',
+              path: 'room-price-management',
               name: 'RoomPriceManagement',
               component: () => import('@/views/accommodation/RoomPriceManagement.vue'),
               meta: { title: '房价管理', requiresAuth: true },
+            },
+            {
+              path: 'room-price-bulk-update',
+              name: 'RoomPriceBulkUpdate',
+              component: () => import('@/views/accommodation/RoomPriceBulkUpdate.vue'),
+              meta: { title: '批量更新', requiresAuth: true },
+            },
+            {
+              path: 'room-price/change-history',
+              name: 'PriceChangeHistory',
+              component: () => import('@/views/accommodation/PriceChangeHistory.vue'),
+              meta: { title: '改价记录', requiresAuth: true },
             },
             {
               path: 'room-price/bulk-change',
@@ -67,10 +79,10 @@ const router = createRouter({
               meta: { title: '房情表', requiresAuth: true },
             },
             {
-              path: 'room-status-share',
-              name: 'RoomStatusShare',
-              component: () => import('@/views/accommodation/RoomStatusShare.vue'),
-              meta: { title: '房态分享', requiresAuth: true },
+              path: 'meals-management',
+              name: 'MealsManagement',
+              component: () => import('@/views/accommodation/MealsManagement.vue'),
+              meta: { title: '餐食', requiresAuth: true },
             },
             {
               path: 'breakfast-package',
@@ -89,6 +101,18 @@ const router = createRouter({
               name: 'HousekeeperList',
               component: () => import('@/views/accommodation/HousekeeperList.vue'),
               meta: { title: '保洁员列表', requiresAuth: true },
+            },
+            {
+              path: 'cleaning/overview',
+              name: 'CleaningOverview',
+              component: () => import('@/views/accommodation/cleaning/CleaningOverview.vue'),
+              meta: { title: '任务概览', requiresAuth: true },
+            },
+            {
+              path: 'cleaning/task-list',
+              name: 'CleaningTaskList',
+              component: () => import('@/views/accommodation/cleaning/CleaningTaskList.vue'),
+              meta: { title: '任务列表', requiresAuth: true },
             },
           ],
         },
@@ -174,8 +198,45 @@ const router = createRouter({
             {
               path: 'room-type',
               name: 'RoomTypeManagement',
-              component: () => import('@/views/settings/RoomTypeManagement.vue'),
-              meta: { title: '房型管理', requiresAuth: true },
+              component: () => import('@/views/settings/room/RoomSettings.vue'),
+              meta: { title: '房间设置', requiresAuth: true },
+            },
+            {
+              path: 'room/ownership',
+              name: 'RoomOwnership',
+              component: () => import('@/views/settings/room/RoomOwnership.vue'),
+              meta: { title: '房间归属', requiresAuth: true },
+            },
+            {
+              path: 'room-type/:id/details',
+              name: 'RoomTypeDetails',
+              component: () => import('@/views/settings/room/RoomTypeDetails.vue'),
+              meta: { title: '房型详情', requiresAuth: true },
+            },
+            // 住宿设置 - 新增页面
+            {
+              path: 'room/price-plan',
+              name: 'PricePlan',
+              component: () => import('@/views/settings/room/PricePlan.vue'),
+              meta: { title: '价格计划', requiresAuth: true },
+            },
+            {
+              path: 'room/consumption-items',
+              name: 'ConsumptionItems',
+              component: () => import('@/views/settings/room/ConsumptionItems.vue'),
+              meta: { title: '消费项设置', requiresAuth: true },
+            },
+            {
+              path: 'room/room-group',
+              name: 'RoomGroup',
+              component: () => import('@/views/settings/room/RoomGroup.vue'),
+              meta: { title: '房间分组设置', requiresAuth: true },
+            },
+            {
+              path: 'room/room-sort',
+              name: 'RoomSort',
+              component: () => import('@/views/settings/room/RoomSort.vue'),
+              meta: { title: '排序设置', requiresAuth: true },
             },
             {
               path: 'room-status-config',
@@ -225,6 +286,26 @@ const router = createRouter({
               component: () => import('@/views/settings/PaymentMethods.vue'),
               meta: { title: '收款方式', requiresAuth: true },
             },
+            // 财务管理
+            {
+              path: 'finance/note-settings',
+              name: 'NoteSettings',
+              component: () => import('@/views/settings/finance/NoteSettings.vue'),
+              meta: { title: '记一笔设置', requiresAuth: true },
+            },
+            // 账号管理
+            {
+              path: 'account/account-list',
+              name: 'AccountList',
+              component: () => import('@/views/settings/account/AccountList.vue'),
+              meta: { title: '账号列表', requiresAuth: true },
+            },
+            {
+              path: 'account/role-management',
+              name: 'RoleManagement',
+              component: () => import('@/views/settings/account/RoleManagement.vue'),
+              meta: { title: '角色管理', requiresAuth: true },
+            },
           ],
         },
         {
@@ -238,6 +319,25 @@ const router = createRouter({
           name: 'Order',
           component: () => import('@/views/order/OrderManagement.vue'),
           meta: { title: '订单管理', requiresAuth: true },
+        },
+        // 数据中心
+        {
+          path: 'data-center/overview',
+          name: 'DataCenterOverview',
+          component: () => import('@/views/data-center/DataCenterOverview.vue'),
+          meta: { title: '总览', requiresAuth: true },
+        },
+        {
+          path: 'data-center/accommodation',
+          name: 'DataCenterAccommodation',
+          component: () => import('@/views/data-center/DataCenterAccommodation.vue'),
+          meta: { title: '住宿', requiresAuth: true },
+        },
+        {
+          path: 'data-center/notes',
+          name: 'DataCenterNotes',
+          component: () => import('@/views/data-center/DataCenterNotes.vue'),
+          meta: { title: '记一笔', requiresAuth: true },
         },
         {
           path: 'statistics/business-summary',
@@ -264,6 +364,24 @@ const router = createRouter({
           meta: { title: '流水汇总', requiresAuth: true },
         },
         {
+          path: 'statistics/operation-report',
+          name: 'OperationReport',
+          component: () => import('@/views/statistics/OperationReport.vue'),
+          meta: { title: '经营报表', requiresAuth: true },
+        },
+        {
+          path: 'statistics/accommodation-report',
+          name: 'AccommodationReport',
+          component: () => import('@/views/statistics/AccommodationReport.vue'),
+          meta: { title: '住宿报表', requiresAuth: true },
+        },
+        {
+          path: 'statistics/finance-report',
+          name: 'FinanceReport',
+          component: () => import('@/views/statistics/FinanceReport.vue'),
+          meta: { title: '财务报表', requiresAuth: true },
+        },
+        {
           path: 'statistics',
           redirect: '/statistics/business-summary',
         },
@@ -284,6 +402,24 @@ const router = createRouter({
           name: 'Profile',
           component: () => import('@/views/profile/ProfileCenter.vue'),
           meta: { title: '个人中心', requiresAuth: true },
+        },
+        {
+          path: 'messages',
+          name: 'Messages',
+          component: () => import('@/views/messages/MessagesPage.vue'),
+          meta: { title: '消息', requiresAuth: true },
+        },
+        {
+          path: 'notifications/system',
+          name: 'SystemNotifications',
+          component: () => import('@/views/notifications/SystemNotifications.vue'),
+          meta: { title: '系统通知', requiresAuth: true },
+        },
+        {
+          path: 'notifications/order',
+          name: 'OrderNotifications',
+          component: () => import('@/views/notifications/OrderNotifications.vue'),
+          meta: { title: '订单通知', requiresAuth: true },
         },
       ],
     },

@@ -1,4 +1,5 @@
 import { request } from '@/utils/request'
+import { getPriceByDate } from '@/utils/priceHelper'
 
 // 房型数据结构
 export interface RoomTypeDTO {
@@ -10,6 +11,13 @@ export interface RoomTypeDTO {
   defaultPrice?: number
   weekdayPrice?: number
   weekendPrice?: number
+  monPrice?: number
+  tuePrice?: number
+  wedPrice?: number
+  thuPrice?: number
+  friPrice?: number
+  satPrice?: number
+  sunPrice?: number
   createdAt: string
   updatedAt: string
 }
@@ -24,6 +32,11 @@ export interface ApiResponse<T> {
 // 获取所有房型
 export const getAllRoomTypes = async (): Promise<ApiResponse<RoomTypeDTO[]>> => {
   return await request.get('/room-types')
+}
+
+// 获取所有房型(包含房间信息)
+export const getAllRoomTypesWithRooms = async (): Promise<ApiResponse<any[]>> => {
+  return await request.get('/room-types/with-rooms')
 }
 
 // 根据ID获取房型
@@ -47,15 +60,37 @@ interface RoomDTO {
 export const getRoomTypeByRoomId = async (roomId: number): Promise<ApiResponse<RoomTypeDTO>> => {
   try {
     // 获取所有房间信息
-    const response: ApiResponse<RoomDTO[]> = await request.get('/rooms')
+    const response: ApiResponse<any[]> = await request.get('/rooms')
     if (response.success && response.data) {
       // 查找指定ID的房间
-      const room = response.data.find((r: RoomDTO) => r.id === roomId)
+      const room = response.data.find((r: any) => r.id === roomId)
       if (room && room.roomType) {
+        // 将后端字段名映射到前端字段名
+        const roomType = room.roomType
+        const mappedRoomType: RoomTypeDTO = {
+          id: roomType.id,
+          name: roomType.name,
+          code: roomType.code,
+          totalRooms: roomType.totalRooms,
+          description: roomType.description,
+          defaultPrice: roomType.defaultPrice,
+          weekdayPrice: roomType.weekdayPrice,
+          weekendPrice: roomType.weekendPrice,
+          monPrice: roomType.mondayPrice,
+          tuePrice: roomType.tuesdayPrice,
+          wedPrice: roomType.wednesdayPrice,
+          thuPrice: roomType.thursdayPrice,
+          friPrice: roomType.fridayPrice,
+          satPrice: roomType.saturdayPrice,
+          sunPrice: roomType.sundayPrice,
+          createdAt: roomType.createdAt,
+          updatedAt: roomType.updatedAt
+        }
+
         return {
           success: true,
           message: '获取房型信息成功',
-          data: room.roomType
+          data: mappedRoomType
         }
       } else {
         return {
@@ -80,18 +115,9 @@ export const getRoomTypeByRoomId = async (roomId: number): Promise<ApiResponse<R
   }
 }
 
-// 获取房间当前价格（根据日期判断工作日/周末）
+// 获取房间当前价格（根据日期的星期几获取对应价格）
 export const getRoomCurrentPrice = (roomType: RoomTypeDTO, date: string): number => {
-  const targetDate = new Date(date)
-  const dayOfWeek = targetDate.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  
-  // 如果是周末（周六=6 或 周日=0），优先使用周末价格
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
-    return roomType.weekendPrice || roomType.defaultPrice || 0
-  }
-  
-  // 工作日价格
-  return roomType.weekdayPrice || roomType.defaultPrice || 0
+  return getPriceByDate(roomType, date)
 }
 
 // 获取房型的有效价格（从后端API获取，包含特定日期设置）
@@ -106,4 +132,38 @@ export const getEffectiveRoomPrice = async (roomTypeId: number, date: string): P
     console.error('获取有效房价失败:', error)
     return 0
   }
+}
+
+// 创建房型请求数据
+export interface CreateRoomTypeRequest {
+  name: string
+  code: string
+  description: string
+  totalRooms: number
+  defaultPrice?: number
+  weekdayPrice?: number
+  weekendPrice?: number
+  mondayPrice?: number
+  tuesdayPrice?: number
+  wednesdayPrice?: number
+  thursdayPrice?: number
+  fridayPrice?: number
+  saturdayPrice?: number
+  sundayPrice?: number
+  roomNumbers?: string[]  // 房间号列表
+}
+
+// 创建房型
+export const createRoomType = async (data: CreateRoomTypeRequest): Promise<ApiResponse<RoomTypeDTO>> => {
+  return await request.post('/room-types', data)
+}
+
+// 更新房型
+export const updateRoomType = async (id: number, data: Partial<CreateRoomTypeRequest>): Promise<ApiResponse<RoomTypeDTO>> => {
+  return await request.put(`/room-types/${id}`, data)
+}
+
+// 删除房型
+export const deleteRoomType = async (id: number): Promise<ApiResponse<void>> => {
+  return await request.delete(`/room-types/${id}`)
 }

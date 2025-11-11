@@ -76,26 +76,37 @@ const newRoomTypeForm = ref<NewRoomTypeForm>({
   roomNumbers: [],
 })
 
-// 计算生成的房间号
-const generateRoomNumbers = () => {
-  const { roomPrefix, roomCount } = newRoomTypeForm.value
-  const numbers = []
-  for (let i = 1; i <= roomCount; i++) {
-    const roomNumber = `${roomPrefix}${i.toString().padStart(2, '0')}`
-    numbers.push(roomNumber)
-  }
-  newRoomTypeForm.value.roomNumbers = numbers
-}
-
-// 监听房间数量和前缀变化
+// 监听房间数量变化,调整房间号数组长度
 watch(
-  [() => newRoomTypeForm.value.roomCount, () => newRoomTypeForm.value.roomPrefix],
-  () => {
-    if (newRoomTypeForm.value.roomPrefix) {
-      generateRoomNumbers()
+  () => newRoomTypeForm.value.roomCount,
+  (newCount) => {
+    const currentLength = newRoomTypeForm.value.roomNumbers.length
+
+    if (newCount > currentLength) {
+      // 增加房间号输入框
+      const roomsToAdd = newCount - currentLength
+      for (let i = 0; i < roomsToAdd; i++) {
+        // 如果有前缀,自动生成房间号;否则添加空字符串
+        if (newRoomTypeForm.value.roomPrefix) {
+          const roomNumber = `${newRoomTypeForm.value.roomPrefix}${(currentLength + i + 1).toString().padStart(2, '0')}`
+          newRoomTypeForm.value.roomNumbers.push(roomNumber)
+        } else {
+          newRoomTypeForm.value.roomNumbers.push('')
+        }
+      }
+    } else if (newCount < currentLength) {
+      // 减少房间号输入框
+      newRoomTypeForm.value.roomNumbers = newRoomTypeForm.value.roomNumbers.slice(0, newCount)
     }
   },
-  { immediate: true },
+)
+
+// 监听房间号数组变化,同步更新房间数量
+watch(
+  () => newRoomTypeForm.value.roomNumbers.length,
+  (newLength) => {
+    newRoomTypeForm.value.roomCount = newLength
+  },
 )
 
 // API调用相关方法
@@ -196,14 +207,20 @@ const resetForm = () => {
 }
 
 const addNewRoom = () => {
-  newRoomTypeForm.value.roomCount += 1
-  generateRoomNumbers()
+  // 添加新的房间号输入框,如果有前缀则自动生成,否则为空
+  if (newRoomTypeForm.value.roomPrefix) {
+    const nextNumber = newRoomTypeForm.value.roomNumbers.length + 1
+    const roomNumber = `${newRoomTypeForm.value.roomPrefix}${nextNumber.toString().padStart(2, '0')}`
+    newRoomTypeForm.value.roomNumbers.push(roomNumber)
+  } else {
+    newRoomTypeForm.value.roomNumbers.push('')
+  }
 }
 
 const removeRoom = (index: number) => {
-  if (newRoomTypeForm.value.roomNumbers.length > 1) {
+  // 至少保留一个房间号输入框
+  if (newRoomTypeForm.value.roomNumbers.length > 0) {
     newRoomTypeForm.value.roomNumbers.splice(index, 1)
-    newRoomTypeForm.value.roomCount = newRoomTypeForm.value.roomNumbers.length
   }
 }
 
@@ -585,17 +602,36 @@ onMounted(() => {
 
                   <div class="room-numbers-section">
                     <span class="section-label">房间号</span>
+                    <div
+                      v-if="newRoomTypeForm.roomNumbers.length === 0"
+                      class="empty-room-hint"
+                    >
+                      房间删除后,将不对关联的订单也将无法操作"撤销退房"和"恢复预订"。
+                    </div>
                     <div class="room-numbers-list">
                       <div
-                        v-for="(roomNumber, index) in newRoomTypeForm.roomNumbers"
+                        v-for="(_, index) in newRoomTypeForm.roomNumbers"
                         :key="index"
                         class="room-number-item"
                       >
-                        <span class="room-number">{{ roomNumber || `房间${index + 1}` }}</span>
+                        <el-input
+                          v-model="newRoomTypeForm.roomNumbers[index]"
+                          placeholder="请输入房间号"
+                          class="room-number-input"
+                        />
+                        <el-button
+                          type="danger"
+                          circle
+                          size="small"
+                          @click="removeRoom(index)"
+                          class="remove-room-btn"
+                        >
+                          <el-icon><Delete /></el-icon>
+                        </el-button>
                       </div>
                     </div>
                     <el-button type="primary" link @click="addNewRoom" class="add-room-btn">
-                      <el-icon><Plus /></el-icon> 新增房间
+                      <el-icon><Plus /></el-icon> 新增
                     </el-button>
                   </div>
                 </div>
@@ -893,29 +929,33 @@ onMounted(() => {
   gap: 12px;
 }
 
+.empty-room-hint {
+  color: #909399;
+  font-size: 12px;
+  padding: 8px 0;
+  line-height: 1.5;
+}
+
 .room-numbers-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-height: 40px;
-  padding: 8px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  background: white;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .room-number-item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  padding: 4px 8px;
-  background: #f3f4f6;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #374151;
+  gap: 8px;
 }
 
-.room-number {
-  margin-right: 4px;
+.room-number-input {
+  flex: 1;
+  max-width: 300px;
+}
+
+.remove-room-btn {
+  flex-shrink: 0;
 }
 
 .add-room-btn {

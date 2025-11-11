@@ -5,19 +5,8 @@ import {
   Setting,
   House,
   Grid,
-  Management,
-  DataBoard,
-  Box,
-  Sort,
-  Notebook,
-  Cpu,
   Shop,
-  Bell,
-  ChatDotRound,
-  MagicStick,
   BrushFilled,
-  Tools,
-  UserFilled,
   Connection,
   Coin,
 } from '@element-plus/icons-vue'
@@ -26,7 +15,6 @@ const router = useRouter()
 const route = useRoute()
 
 const activeCollapse = ref([
-  'channel',
   'room',
   'price',
   'finance',
@@ -34,7 +22,6 @@ const activeCollapse = ref([
   'store',
   'general',
   'cleaning',
-  'auto-checkin',
   'third-party',
 ])
 
@@ -47,6 +34,36 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
+  {
+    key: 'room',
+    label: '住宿设置',
+    icon: House,
+    children: [
+      { key: 'room-type', label: '房间设置', path: '/settings/room-type' },
+      { key: 'price-plan', label: '价格计划', path: '/settings/room/price-plan' },
+      { key: 'consumption-items', label: '消费项设置', path: '/settings/room/consumption-items' },
+      { key: 'room-group', label: '房间分组设置', path: '/settings/room/room-group' },
+      { key: 'room-sort', label: '排序设置', path: '/settings/room/room-sort' },
+    ],
+  },
+  {
+    key: 'finance',
+    label: '财务设置',
+    icon: Coin,
+    children: [
+      { key: 'payment-methods', label: '收款方式', path: '/settings/payment-methods' },
+      { key: 'note-settings', label: '记一笔设置', path: '/settings/finance/note-settings' },
+    ],
+  },
+  {
+    key: 'finance-account',
+    label: '账号管理',
+    icon: Grid,
+    children: [
+      { key: 'account-list', label: '账号列表', path: '/settings/account/account-list' },
+      { key: 'role-management', label: '角色管理', path: '/settings/account/role-management' },
+    ],
+  },
   {
     key: 'store',
     label: '门店设置',
@@ -77,14 +94,6 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    key: 'auto-checkin',
-    label: '自动入住',
-    icon: UserFilled,
-    children: [
-      { key: 'auto-checkin-settings', label: '自动入住设置', path: '/settings/auto-checkin/settings' },
-    ],
-  },
-  {
     key: 'third-party',
     label: '第三方集成',
     icon: Connection,
@@ -92,47 +101,6 @@ const menuItems: MenuItem[] = [
       { key: 'pricing-tools', label: '定价工具', path: '/settings/third-party/pricing-tools' },
       { key: 'payment-platforms', label: '支付平台', path: '/settings/third-party/payment-platforms' },
     ],
-  },
-  {
-    key: 'channel',
-    label: '渠道管理',
-    icon: DataBoard,
-    children: [{ key: 'channel-management', label: '渠道设置', path: '/settings/channel-settings' }],
-  },
-  {
-    key: 'room',
-    label: '住宿设置',
-    icon: House,
-    children: [
-      { key: 'room-type', label: '房型管理', path: '/settings/room-type' },
-      // { key: 'room-status-config', label: '房间分组设置', path: '/settings/room-status-config' },
-      // { key: 'room-management', label: '房间管理', path: '/settings/room-management' },
-      // { key: 'package-settings', label: '包栋设置', path: '/settings/package-settings' },
-      // { key: 'queue-settings', label: '排序设置', path: '/settings/queue-settings' },
-      // { key: 'booking-function', label: '订单功能设置', path: '/settings/booking-function' },
-      // { key: 'automation', label: '前台自动化', path: '/settings/automation' },
-    ],
-  },
-  // {
-  //   key: 'price',
-  //   label: '房价设置',
-  //   icon: Management,
-  //   children: [
-  //     { key: 'price-management', label: '房价管理', path: '/settings/price-management' },
-  //     { key: 'bulk-price-change', label: '批量改价', path: '/settings/bulk-price-change' },
-  //   ],
-  // },
-  {
-    key: 'finance',
-    label: '账号管理',
-    icon: Grid,
-    children: [],
-  },
-  {
-    key: 'finance-settings',
-    label: '财务设置',
-    icon: Box,
-    children: [{ key: 'payment-methods', label: '收款方式', path: '/settings/payment-methods' }],
   },
 ]
 

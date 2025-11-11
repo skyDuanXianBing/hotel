@@ -8,8 +8,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "room_prices", 
-       uniqueConstraints = @UniqueConstraint(columnNames = {"room_type_id", "price_date"}))
+@Table(name = "room_prices",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"room_type_id", "price_plan_id", "price_date"}))
 public class RoomPrice {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,6 +20,10 @@ public class RoomPrice {
     @JoinColumn(name = "room_type_id", nullable = false)
     private RoomType roomType;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "price_plan_id")
+    private PricePlan pricePlan;
+
     @NotNull
     @Column(name = "price_date", nullable = false)
     private LocalDate priceDate;
@@ -28,6 +32,19 @@ public class RoomPrice {
     @DecimalMin(value = "0.0", inclusive = false, message = "价格必须大于0")
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
+
+    @Column(name = "available_rooms")
+    private Integer availableRooms;
+
+    @jakarta.validation.constraints.Min(value = 1, message = "最小入住天数必须大于等于1")
+    @jakarta.validation.constraints.Max(value = 99, message = "最小入住天数必须小于等于99")
+    @Column(name = "min_stay")
+    private Integer minStay;
+
+    @jakarta.validation.constraints.Min(value = 1, message = "最大入住天数必须大于等于1")
+    @jakarta.validation.constraints.Max(value = 99, message = "最大入住天数必须小于等于99")
+    @Column(name = "max_stay")
+    private Integer maxStay;
 
     @Column(name = "is_weekend")
     private Boolean isWeekend = false;
@@ -69,6 +86,14 @@ public class RoomPrice {
     public RoomPrice(RoomType roomType, LocalDate priceDate, BigDecimal price, Boolean isHoliday) {
         this(roomType, priceDate, price);
         this.isHoliday = isHoliday;
+    }
+
+    public RoomPrice(RoomType roomType, PricePlan pricePlan, LocalDate priceDate, BigDecimal price) {
+        this.roomType = roomType;
+        this.pricePlan = pricePlan;
+        this.priceDate = priceDate;
+        this.price = price;
+        this.isWeekend = priceDate.getDayOfWeek().getValue() >= 6;
     }
 
     // Getters and Setters
@@ -142,5 +167,37 @@ public class RoomPrice {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public PricePlan getPricePlan() {
+        return pricePlan;
+    }
+
+    public void setPricePlan(PricePlan pricePlan) {
+        this.pricePlan = pricePlan;
+    }
+
+    public Integer getAvailableRooms() {
+        return availableRooms;
+    }
+
+    public void setAvailableRooms(Integer availableRooms) {
+        this.availableRooms = availableRooms;
+    }
+
+    public Integer getMinStay() {
+        return minStay;
+    }
+
+    public void setMinStay(Integer minStay) {
+        this.minStay = minStay;
+    }
+
+    public Integer getMaxStay() {
+        return maxStay;
+    }
+
+    public void setMaxStay(Integer maxStay) {
+        this.maxStay = maxStay;
     }
 }

@@ -67,6 +67,15 @@ public class RoomTypeController {
             roomType.setWeekdayPrice(request.getWeekdayPrice());
             roomType.setWeekendPrice(request.getWeekendPrice());
 
+            // 设置周价格字段
+            roomType.setMondayPrice(request.getMondayPrice());
+            roomType.setTuesdayPrice(request.getTuesdayPrice());
+            roomType.setWednesdayPrice(request.getWednesdayPrice());
+            roomType.setThursdayPrice(request.getThursdayPrice());
+            roomType.setFridayPrice(request.getFridayPrice());
+            roomType.setSaturdayPrice(request.getSaturdayPrice());
+            roomType.setSundayPrice(request.getSundayPrice());
+
             RoomType createdRoomType = roomTypeService.createRoomTypeWithRooms(userId, roomType, request.getRoomNumbers());
             return ApiResponse.success("房型创建成功", createdRoomType);
         } catch (Exception e) {
@@ -86,10 +95,31 @@ public class RoomTypeController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<RoomType> updateRoomType(@PathVariable Long id, @Valid @RequestBody RoomType roomType, HttpServletRequest request) {
+    public ApiResponse<RoomType> updateRoomType(@PathVariable Long id, @Valid @RequestBody CreateRoomTypeRequest request, HttpServletRequest httpRequest) {
         try {
-            Long userId = (Long) request.getAttribute("userId");
-            RoomType updatedRoomType = roomTypeService.updateRoomType(userId, id, roomType);
+            Long userId = (Long) httpRequest.getAttribute("userId");
+
+            RoomType roomType = new RoomType();
+            roomType.setName(request.getName());
+            roomType.setCode(request.getCode());
+            roomType.setTotalRooms(request.getTotalRooms());
+            roomType.setDescription(request.getDescription());
+
+            // 设置价格字段
+            roomType.setDefaultPrice(request.getDefaultPrice());
+            roomType.setWeekdayPrice(request.getWeekdayPrice());
+            roomType.setWeekendPrice(request.getWeekendPrice());
+
+            // 设置周价格字段
+            roomType.setMondayPrice(request.getMondayPrice());
+            roomType.setTuesdayPrice(request.getTuesdayPrice());
+            roomType.setWednesdayPrice(request.getWednesdayPrice());
+            roomType.setThursdayPrice(request.getThursdayPrice());
+            roomType.setFridayPrice(request.getFridayPrice());
+            roomType.setSaturdayPrice(request.getSaturdayPrice());
+            roomType.setSundayPrice(request.getSundayPrice());
+
+            RoomType updatedRoomType = roomTypeService.updateRoomTypeWithRooms(userId, id, roomType, request.getRoomNumbers());
             return ApiResponse.success("房型更新成功", updatedRoomType);
         } catch (Exception e) {
             return ApiResponse.error("房型更新失败: " + e.getMessage());

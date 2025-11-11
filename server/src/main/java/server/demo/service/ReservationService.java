@@ -72,6 +72,18 @@ public class ReservationService {
         List<Reservation> conflictReservations = reservationRepository.findByUserIdAndRoomIdAndDateRange(
                 userId, request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
 
+        System.out.println("===== 预订冲突检查 =====");
+        System.out.println("用户ID: " + userId + ", 房间ID: " + request.getRoomId());
+        System.out.println("入住日期: " + request.getCheckInDate() + ", 退房日期: " + request.getCheckOutDate());
+        System.out.println("查询到的冲突预订数量: " + conflictReservations.size());
+        for (Reservation r : conflictReservations) {
+            System.out.println("  冲突预订: ID=" + r.getId() +
+                             ", 状态=" + r.getStatus() +
+                             ", 入住=" + r.getCheckInDate() +
+                             ", 退房=" + r.getCheckOutDate());
+        }
+        System.out.println("========================\n");
+
         if (!conflictReservations.isEmpty()) {
             throw new RuntimeException("房间在指定日期已有预订，请选择其他日期或房间");
         }

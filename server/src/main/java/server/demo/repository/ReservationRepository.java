@@ -56,7 +56,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     // 按用户ID和房间ID查询日期范围内的预订
     @Query("SELECT r FROM Reservation r WHERE r.user.id = :userId AND r.room.id = :roomId AND " +
-           "(r.checkInDate <= :endDate AND r.checkOutDate > :startDate) " +
+           "(r.checkInDate < :endDate AND r.checkOutDate > :startDate) " +
            "AND r.status IN ('CONFIRMED', 'CHECKED_IN')")
     List<Reservation> findByUserIdAndRoomIdAndDateRange(@Param("userId") Long userId,
                                                          @Param("roomId") Long roomId,

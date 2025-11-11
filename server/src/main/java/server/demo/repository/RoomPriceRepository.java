@@ -56,4 +56,37 @@ public interface RoomPriceRepository extends JpaRepository<RoomPrice, Long> {
     
     // 检查是否存在指定房型和日期的价格
     boolean existsByRoomTypeIdAndPriceDate(Long roomTypeId, LocalDate priceDate);
+
+    // 根据房型ID、价格计划ID和日期查找价格
+    Optional<RoomPrice> findByRoomTypeIdAndPricePlanIdAndPriceDate(Long roomTypeId, Long pricePlanId, LocalDate priceDate);
+
+    // 根据房型ID、价格计划ID和日期范围查找价格
+    @Query("SELECT rp FROM RoomPrice rp WHERE rp.roomType.id = :roomTypeId " +
+           "AND rp.pricePlan.id = :pricePlanId " +
+           "AND rp.priceDate >= :startDate AND rp.priceDate <= :endDate " +
+           "ORDER BY rp.priceDate")
+    List<RoomPrice> findByRoomTypeIdAndPricePlanIdAndDateRange(@Param("roomTypeId") Long roomTypeId,
+                                                                @Param("pricePlanId") Long pricePlanId,
+                                                                @Param("startDate") LocalDate startDate,
+                                                                @Param("endDate") LocalDate endDate);
+
+    // 根据价格计划ID和日期范围查找所有价格
+    @Query("SELECT rp FROM RoomPrice rp JOIN FETCH rp.roomType JOIN FETCH rp.pricePlan " +
+           "WHERE rp.pricePlan.id = :pricePlanId " +
+           "AND rp.priceDate >= :startDate AND rp.priceDate <= :endDate " +
+           "ORDER BY rp.roomType.name, rp.priceDate")
+    List<RoomPrice> findByPricePlanIdAndDateRange(@Param("pricePlanId") Long pricePlanId,
+                                                   @Param("startDate") LocalDate startDate,
+                                                   @Param("endDate") LocalDate endDate);
+
+    // 根据日期范围查找所有价格(包含价格计划)
+    @Query("SELECT rp FROM RoomPrice rp JOIN FETCH rp.roomType " +
+           "LEFT JOIN FETCH rp.pricePlan " +
+           "WHERE rp.priceDate >= :startDate AND rp.priceDate <= :endDate " +
+           "ORDER BY rp.roomType.name, rp.pricePlan.id, rp.priceDate")
+    List<RoomPrice> findByDateRangeWithRoomTypeAndPricePlan(@Param("startDate") LocalDate startDate,
+                                                             @Param("endDate") LocalDate endDate);
+
+    // 删除指定房型的所有价格记录
+    void deleteByRoomTypeId(Long roomTypeId);
 }

@@ -10,21 +10,17 @@
       </div>
 
       <el-menu class="sidebar-menu" :default-active="activeMenu" @select="handleMenuSelect">
-        <el-menu-item index="channel-management">
-          <el-icon><Setting /></el-icon>
-          <span>渠道管理</span>
-        </el-menu-item>
         <el-menu-item index="channel-list">
           <span>渠道列表</span>
         </el-menu-item>
-        <el-menu-item index="channel-automation">
-          <span>渠道自动化</span>
+        <el-menu-item index="price-ratio">
+          <span>价格比例</span>
         </el-menu-item>
       </el-menu>
     </div>
 
     <!-- 主内容区域 -->
-    <div class="main-content" v-if="!showChannelSettings">
+    <div class="main-content" v-if="!showChannelSettings && !showPriceRatio && activeMenu === 'channel-list'">
       <div class="page-header">
         <h2>渠道管理</h2>
         <div class="header-tabs">
@@ -36,43 +32,55 @@
       </div>
 
       <!-- OTA渠道内容 -->
-      <div v-if="activeTab === 'ota'" class="channel-grid">
-        <div v-for="channel in channels" :key="channel.id" class="channel-card">
-          <div class="card-header">
-            <div class="channel-logo" :class="channel.logoClass">
-              <span class="logo-text">{{ channel.logoText }}</span>
-            </div>
-            <h3 class="channel-name">{{ channel.name }}</h3>
-            <div class="channel-status">
-              <el-tag v-if="channel.connected" type="success" size="small">
-                <el-icon><Connection /></el-icon>
-                直连中
-              </el-tag>
-              <el-tag v-else type="info" size="small">
-                <el-icon><Remove /></el-icon>
-                未直连
-              </el-tag>
-            </div>
-          </div>
-
-          <div class="card-content">
-            <div v-if="channel.connected" class="connected-info">
-              <p class="room-type-info">{{ channel.roomTypeText }}</p>
-              <el-button type="text" size="small" @click="openSettings(channel)"> 设置 </el-button>
-            </div>
-            <div v-else class="connect-action">
+      <div v-if="activeTab === 'ota'" class="channel-content">
+        <!-- OTA渠道区域 -->
+        <div class="channel-section">
+          <h3 class="section-title">OTA渠道</h3>
+          <div class="channel-grid">
+            <div v-for="channel in otaChannels" :key="channel.id" class="channel-card">
+              <div class="channel-logo-wrapper">
+                <img :src="channel.logoUrl" :alt="channel.name" class="channel-logo-img" />
+              </div>
+              <h4 class="channel-name">{{ channel.name }}</h4>
+              <div class="channel-status">
+                <span class="status-dot" :class="channel.connected ? 'connected' : 'disconnected'"></span>
+                <span class="status-text">{{ channel.connected ? '已设置' : '未设置' }}</span>
+              </div>
               <el-button
                 type="primary"
-                @click="connectChannel(channel)"
-                :class="channel.buttonClass"
+                size="small"
+                class="config-btn"
+                @click="openSettings(channel)"
               >
-                {{ channel.buttonText }}
+                配置
               </el-button>
             </div>
           </div>
+        </div>
 
-          <!-- 推荐标签 -->
-          <div v-if="channel.recommended" class="recommend-tag">推荐</div>
+        <!-- 渠道管理区域 -->
+        <div class="channel-section">
+          <h3 class="section-title">渠道管理</h3>
+          <div class="channel-grid">
+            <div v-for="channel in managementChannels" :key="channel.id" class="channel-card">
+              <div class="channel-logo-wrapper">
+                <img :src="channel.logoUrl" :alt="channel.name" class="channel-logo-img" />
+              </div>
+              <h4 class="channel-name">{{ channel.name }}</h4>
+              <div class="channel-status">
+                <span class="status-dot" :class="channel.connected ? 'connected' : 'disconnected'"></span>
+                <span class="status-text">{{ channel.connected ? '已设置' : '未设置' }}</span>
+              </div>
+              <el-button
+                type="primary"
+                size="small"
+                class="config-btn"
+                @click="openSettings(channel)"
+              >
+                配置
+              </el-button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -216,10 +224,8 @@
         <div class="breadcrumb">
           <el-button type="text" @click="closeChannelSettings" class="back-btn">
             <el-icon><ArrowLeft /></el-icon>
-            收起导航
+            直连设置
           </el-button>
-          <span class="breadcrumb-separator">/</span>
-          <span class="breadcrumb-item">直连设置</span>
           <span class="breadcrumb-separator">/</span>
           <span class="breadcrumb-item active">{{ currentSettingChannel?.name || '' }}渠道设置</span>
         </div>
@@ -229,148 +235,120 @@
         <!-- 渠道信息卡片 -->
         <div class="channel-info-card">
           <div class="channel-logo-section">
-            <div class="channel-logo-large" :class="currentSettingChannel?.logoClass">
-              <span class="logo-text-large">{{ currentSettingChannel?.logoText }}</span>
-            </div>
+            <img
+              :src="currentSettingChannel?.logoUrl"
+              :alt="currentSettingChannel?.name"
+              class="channel-logo-large-img"
+            />
           </div>
           <div class="channel-desc">
-            <h3>{{ currentSettingChannel?.name || '' }}渠道直连</h3>
+            <h3>{{ currentSettingChannel?.name || '' }}渠道设置</h3>
             <p>
-              您已开通{{ currentSettingChannel?.name || '' }}直连，下一步请在下方列表
-              <span class="highlight">关联房型</span>
-              ，建立连接关系。
+              渠道连接是指管理理层面（"您"）在订单来了系统中设置直连后，由订单来了与{{ currentSettingChannel?.name || '' }}系统自动建立直接连接，一旦连接匹配成功，Smart Order将能够获取渠道订单信息，并支持酒店在PMS更新房量、房价和限制条件。Smart Order将会即吧这些信息自动同步给渠道。如需详细操作说明，请访问帮助中心。
             </p>
-            <p>
-              直连后，渠道将自动同步PMS的房态、库存、价格，渠道订单将自动落入订单来了。注意，同步是
-              <span class="highlight">单向</span>
-              的，在渠道cbk修改的房态、库存、价格将不会同步到PMS，点击<a href="#" class="link"
-                >查看操作指南</a
-              >。
-            </p>
+          </div>
+          <div class="channel-actions">
+            <el-button @click="showConnectionHistory">连接历史</el-button>
+            <el-button type="primary" @click="showAddHotelDialog = true">添加酒店</el-button>
           </div>
         </div>
 
-        <!-- Tab 切换 -->
-        <div class="settings-tabs">
-          <el-tabs v-model="settingsTab">
-            <el-tab-pane label="房源管理" name="房源管理">
-              <div class="tab-content">
-                <div class="filter-bar">
-                  <div class="filter-item">
-                    <label>房东账号</label>
-                    <el-select v-model="selectedAccount" placeholder="请选择" style="width: 200px">
-                      <el-option label="全部" value="all"></el-option>
-                      <el-option
-                        v-for="account in channelAccounts"
-                        :key="account.id"
-                        :label="account.name"
-                        :value="account.id"
-                      ></el-option>
-                    </el-select>
-                  </div>
-                  <div class="filter-item">
-                    <label>直连状态</label>
-                    <el-select v-model="selectedStatus" placeholder="全部" style="width: 200px">
-                      <el-option label="全部" value="all"></el-option>
-                      <el-option label="已直连" value="connected"></el-option>
-                      <el-option label="未直连" value="disconnected"></el-option>
-                    </el-select>
-                  </div>
-                  <div class="filter-actions">
-                    <el-button type="primary">刷新房源信息</el-button>
-                  </div>
-                </div>
+        <!-- 酒店列表表格 -->
+        <div class="hotel-table-section">
+          <el-table :data="hotelList" border class="hotel-table">
+            <el-table-column prop="hotelCode" label="酒店代码" min-width="120" align="center" />
+            <el-table-column prop="hotelName" label="酒店名称" min-width="200" align="center" />
+            <el-table-column prop="storeType" label="Agoda门店类型" min-width="150" align="center" />
+            <el-table-column prop="priceMode" label="价格模式" min-width="120" align="center" />
+            <el-table-column prop="status" label="状态" min-width="100" align="center" />
+            <el-table-column label="操作" min-width="100" align="center" fixed="right">
+              <template #default="{ row }">
+                <el-button type="text" size="small">编辑</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
 
-                <!-- 表格 -->
-                <el-table :data="[]" class="room-source-table" empty-text="暂无房源">
-                  <el-table-column prop="channelRoom" label="渠道房源" />
-                  <el-table-column prop="status" label="状态" />
-                  <el-table-column prop="relatedRoom" label="关联房型/房间" />
-                  <el-table-column prop="actions" label="操作" />
-                </el-table>
-
-                <!-- 空状态 -->
-                <div class="empty-state">
-                  <div class="empty-icon">
-                    <svg
-                      width="120"
-                      height="120"
-                      viewBox="0 0 120 120"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M60 110C87.6142 110 110 87.6142 110 60C110 32.3858 87.6142 10 60 10C32.3858 10 10 32.3858 10 60C10 87.6142 32.3858 110 60 110Z"
-                        fill="#F0F2F5"
-                      />
-                      <path
-                        d="M45 50C48.3137 50 51 47.3137 51 44C51 40.6863 48.3137 38 45 38C41.6863 38 39 40.6863 39 44C39 47.3137 41.6863 50 45 50Z"
-                        fill="#D9D9D9"
-                      />
-                      <path
-                        d="M75 50C78.3137 50 81 47.3137 81 44C81 40.6863 78.3137 38 75 38C71.6863 38 69 40.6863 69 44C69 47.3137 71.6863 50 75 50Z"
-                        fill="#D9D9D9"
-                      />
-                      <path
-                        d="M80 68C80 75.732 71.046 82 60 82C48.954 82 40 75.732 40 68"
-                        stroke="#D9D9D9"
-                        stroke-width="4"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-                  </div>
-                  <p class="empty-text">
-                    暂无房源，请在{{ currentSettingChannel?.name || '' }}中添加房源信息，<br />
-                    或尝试添加<a href="#" class="link">其他美团民宿房源乐账号</a>
-                  </p>
-                </div>
-              </div>
-            </el-tab-pane>
-            <el-tab-pane label="账号管理" name="账号管理">
-              <div class="tab-content">
-                <!-- 账号说明 -->
-                <div class="account-notice">
-                  <el-icon><InfoFilled /></el-icon>
-                  <span>您可以添加多个美团民宿门店（最多5个），房源统一管理。</span>
-                </div>
-
-                <!-- 添加账号按钮 -->
-                <div class="account-actions">
-                  <el-button type="primary" @click="showAddAccountDialog = true">添加账号</el-button>
-                </div>
-
-                <!-- 账号列表表格 -->
-                <div class="account-table">
-                  <el-table :data="channelAccounts" style="width: 100%">
-                    <el-table-column prop="name" label="账号名" min-width="300"></el-table-column>
-                    <el-table-column prop="roomCount" label="关联房源数" width="150">
-                      <template #default="scope">
-                        <span>{{ scope.row.roomCount || 0 }}</span>
-                      </template>
-                    </el-table-column>
-                    <el-table-column label="操作" width="200">
-                      <template #default="scope">
-                        <el-button type="text" size="small" @click="viewAccountRooms(scope.row)">
-                          查看房源
-                        </el-button>
-                        <el-button
-                          type="text"
-                          size="small"
-                          @click="removeChannelAccount(scope.row)"
-                          class="danger-link"
-                        >
-                          解除直连
-                        </el-button>
-                      </template>
-                    </el-table-column>
-                  </el-table>
-                </div>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
+          <!-- 空状态 -->
+          <div v-if="hotelList.length === 0" class="empty-state">
+            <div class="empty-icon">
+              <svg
+                width="120"
+                height="120"
+                viewBox="0 0 120 120"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M60 110C87.6142 110 110 87.6142 110 60C110 32.3858 87.6142 10 60 10C32.3858 10 10 32.3858 10 60C10 87.6142 32.3858 110 60 110Z"
+                  fill="#F0F2F5"
+                />
+                <path
+                  d="M45 50C48.3137 50 51 47.3137 51 44C51 40.6863 48.3137 38 45 38C41.6863 38 39 40.6863 39 44C39 47.3137 41.6863 50 45 50Z"
+                  fill="#D9D9D9"
+                />
+                <path
+                  d="M75 50C78.3137 50 81 47.3137 81 44C81 40.6863 78.3137 38 75 38C71.6863 38 69 40.6863 69 44C69 47.3137 71.6863 50 75 50Z"
+                  fill="#D9D9D9"
+                />
+                <path
+                  d="M80 68C80 75.732 71.046 82 60 82C48.954 82 40 75.732 40 68"
+                  stroke="#D9D9D9"
+                  stroke-width="4"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </div>
+            <p class="empty-text">无数据</p>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- 价格比例页面 -->
+    <div class="main-content price-ratio-view" v-if="showPriceRatio">
+      <div class="settings-header">
+        <div class="breadcrumb">
+          <el-button type="text" @click="closePriceRatio" class="back-btn">
+            <el-icon><ArrowLeft /></el-icon>
+            收起导航
+          </el-button>
+          <span class="breadcrumb-separator">/</span>
+          <span class="breadcrumb-item active">价格比例</span>
+        </div>
+      </div>
+
+      <div class="settings-content">
+        <div class="price-ratio-table-container">
+          <el-table :data="priceRatioData" border stripe class="price-ratio-table">
+            <el-table-column prop="channel" label="渠道" min-width="150" align="center" />
+            <el-table-column prop="ratio" label="价格比例" min-width="200" align="center" />
+            <el-table-column label="操作" width="150" align="center">
+              <template #default="{ row }">
+                <el-button type="text" size="small" @click="editPriceRatio(row)">编辑</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 编辑价格比例对话框 -->
+    <el-dialog v-model="showEditRatioDialog" title="编辑价格比例" width="500px">
+      <div class="edit-ratio-form">
+        <el-form v-if="currentEditingRatio" :model="currentEditingRatio" label-width="100px">
+          <el-form-item label="渠道">
+            <el-input v-model="currentEditingRatio.channel" disabled></el-input>
+          </el-form-item>
+          <el-form-item label="价格比例">
+            <el-input v-model="currentEditingRatio.ratio" placeholder="请输入价格比例"></el-input>
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="showEditRatioDialog = false">取消</el-button>
+        <el-button type="primary" @click="savePriceRatio">保存</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 添加账号对话框 -->
     <el-dialog v-model="showAddAccountDialog" title="添加美团民宿账号" width="500px">
@@ -397,6 +375,90 @@
         <el-button type="primary" @click="addAccount">添加</el-button>
       </template>
     </el-dialog>
+
+    <!-- 添加酒店对话框 -->
+    <el-dialog v-model="showAddHotelDialog" :title="`直连${currentSettingChannel?.name || ''}`" width="700px">
+      <div class="add-hotel-dialog">
+        <div class="dialog-header-section">
+          <div class="dialog-description">
+            <p>{{ currentSettingChannel?.name || '' }}账户授权完成后，可以启动直连，申请按钮表示您已阅读并同意{{ currentSettingChannel?.name || '' }}的直连说明。</p>
+            <p class="notice-text">注意：如果你还未注册{{ currentSettingChannel?.name || '' }}，请先注册{{ currentSettingChannel?.name || '' }}</p>
+          </div>
+          <div class="dialog-logo">
+            <img
+              :src="currentSettingChannel?.logoUrl"
+              :alt="currentSettingChannel?.name"
+              class="dialog-logo-img"
+            />
+          </div>
+        </div>
+
+        <div class="agreement-section">
+          <h3 class="agreement-title">{{ currentSettingChannel?.name || '' }}直连</h3>
+          <div class="agreement-content">
+            <p>{{ currentSettingChannel?.name || '' }}直连服务功能（"直连服务"）是指在适当许可（"您"）在SmartOrder系统中设置直连服务后，SmartOrder系统和{{ currentSettingChannel?.name || '' }}系统自动建立直连，一旦您连接到{{ currentSettingChannel?.name || '' }}并完成联系，您可以在{{ currentSettingChannel?.name || '' }}平台上创建新的房源，管理将格可用性，并自动将订单输入SmartOrder系统，从而降低运营成本并提高运营效率。</p>
+
+            <p>在启用{{ currentSettingChannel?.name || '' }}直连服务之前，请务必仔细阅读并遵守本《用户须知》的条款内容，特别是免责条款理解纠纷解决和法律适用条款。如果您对协议有疑问或不同意内容，请立即停止使用服务。当您使用{{ currentSettingChannel?.name || '' }}直连时，协议表示在线确认后立即生效，协议以下：</p>
+
+            <h4>1 功能介绍</h4>
+            <p><!-- 功能介绍内容 --></p>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showAddHotelDialog = false">取消</el-button>
+          <el-button type="primary" @click="startAuthorization">同意并开始授权</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 连接历史对话框 -->
+    <el-dialog v-model="showHistoryDialog" title="连接历史" width="1000px">
+      <div class="history-dialog">
+        <el-table :data="connectionHistory" border class="history-table">
+          <el-table-column prop="hotelCode" label="酒店代码" min-width="120" align="center" />
+          <el-table-column prop="storeType" label="Agoda门店类型" min-width="150" align="center" />
+          <el-table-column prop="hotelName" label="酒店名称" min-width="200" align="center" />
+          <el-table-column prop="status" label="状态" min-width="100" align="center" />
+          <el-table-column prop="note" label="备注" min-width="150" align="center" />
+          <el-table-column prop="createTime" label="创建时间" min-width="180" align="center" />
+        </el-table>
+
+        <!-- 空状态 -->
+        <div v-if="connectionHistory.length === 0" class="empty-state">
+          <div class="empty-icon">
+            <svg
+              width="120"
+              height="120"
+              viewBox="0 0 120 120"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M60 110C87.6142 110 110 87.6142 110 60C110 32.3858 87.6142 10 60 10C32.3858 10 10 32.3858 10 60C10 87.6142 32.3858 110 60 110Z"
+                fill="#F0F2F5"
+              />
+              <path
+                d="M45 50C48.3137 50 51 47.3137 51 44C51 40.6863 48.3137 38 45 38C41.6863 38 39 40.6863 39 44C39 47.3137 41.6863 50 45 50Z"
+                fill="#D9D9D9"
+              />
+              <path
+                d="M75 50C78.3137 50 81 47.3137 81 44C81 40.6863 78.3137 38 75 38C71.6863 38 69 40.6863 69 44C69 47.3137 71.6863 50 75 50Z"
+                fill="#D9D9D9"
+              />
+              <path
+                d="M80 68C80 75.732 71.046 82 60 82C48.954 82 40 75.732 40 68"
+                stroke="#D9D9D9"
+                stroke-width="4"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <p class="empty-text">无数据</p>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -409,7 +471,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const router = useRouter()
 
 // 响应式数据
-const activeMenu = ref('channel-management')
+const activeMenu = ref('channel-list')
 const activeTab = ref('ota')
 const showConnectDialog = ref(false)
 const selectedChannel = ref<any>(null)
@@ -419,6 +481,31 @@ const settingsTab = ref('房源管理')
 const selectedAccount = ref('all')
 const selectedStatus = ref('all')
 const showAddAccountDialog = ref(false)
+const showEditRatioDialog = ref(false)
+const currentEditingRatio = ref<any>(null)
+const showPriceRatio = ref(false)
+const showAddHotelDialog = ref(false)
+const showHistoryDialog = ref(false)
+
+// 酒店列表数据
+const hotelList = ref<any[]>([])
+
+// 连接历史数据
+const connectionHistory = ref<any[]>([])
+
+// 价格比例数据
+const priceRatioData = ref([
+  { id: 1, channel: 'Agoda', ratio: '等同于基本价格' },
+  { id: 2, channel: 'Airbnb', ratio: '等同于基本价格' },
+  { id: 3, channel: 'Booking.com', ratio: '45 % 比基准价贵' },
+  { id: 4, channel: 'Traveloka', ratio: '等同于基本价格' },
+  { id: 5, channel: 'Trip.com', ratio: '等同于基本价格' },
+  { id: 6, channel: 'Expedia', ratio: '等同于基本价格' },
+  { id: 7, channel: 'Tiket.com', ratio: '等同于基本价格' },
+  { id: 8, channel: 'Neppan', ratio: '等同于基本价格' },
+  { id: 9, channel: 'HostelWorld', ratio: '等同于基本价格' },
+  { id: 10, channel: 'TuJia', ratio: '等同于基本价格' }
+])
 
 // 账号数据
 const channelAccounts = ref([
@@ -436,108 +523,71 @@ const newAccount = ref({
   password: '',
 })
 
-// 渠道数据
-const channels = ref([
+// OTA渠道数据
+const otaChannels = ref([
   {
     id: 1,
-    name: '美团民宿',
-    logoText: '美团',
-    logoClass: 'meituan-logo',
-    connected: true,
-    roomTypeText: '尚未关联房型',
-    buttonText: '',
-    buttonClass: '',
-    recommended: false,
+    name: 'Agoda',
+    logoUrl: 'https://cdn.worldvectorlogo.com/logos/agoda-1.svg',
+    connected: false,
   },
   {
     id: 2,
-    name: '途家',
-    logoText: '途家',
-    logoClass: 'tujia-logo',
+    name: 'Airbnb',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/69/Airbnb_Logo_B%C3%A9lo.svg',
     connected: false,
-    buttonText: '开通直连',
-    buttonClass: 'connect-btn',
-    recommended: false,
   },
   {
     id: 3,
-    name: '小猪民宿',
-    logoText: '小猪',
-    logoClass: 'xiaozhu-logo',
+    name: 'Booking.com',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/be/Booking.com_logo.svg',
     connected: false,
-    buttonText: '开通直连',
-    buttonClass: 'connect-btn',
-    recommended: false,
   },
   {
     id: 4,
-    name: '木鸟民宿',
-    logoText: '木鸟',
-    logoClass: 'muniao-logo',
+    name: 'Traveloka',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Traveloka_logo.svg',
     connected: false,
-    buttonText: '开通直连',
-    buttonClass: 'connect-btn',
-    recommended: false,
   },
   {
     id: 5,
-    name: '飞猪',
-    logoText: '飞猪',
-    logoClass: 'fliggy-logo',
+    name: 'Trip.com',
+    logoUrl: 'https://ak-d.tripcdn.com/images/0ww5h12000c6vhxm53B87.png',
     connected: false,
-    buttonText: '立即订购',
-    buttonClass: 'purchase-btn',
-    recommended: true,
   },
   {
     id: 6,
-    name: '携程',
-    logoText: '携程',
-    logoClass: 'ctrip-logo',
+    name: 'Expedia',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Expedia_2012_logo.svg',
     connected: false,
-    buttonText: '立即订购',
-    buttonClass: 'purchase-btn',
-    recommended: true,
   },
   {
     id: 7,
-    name: '美团酒店',
-    logoText: '美团',
-    logoClass: 'meituan-hotel-logo',
+    name: 'Tiket.com',
+    logoUrl: 'https://www.tiket.com/img/tiket-logo.svg',
     connected: false,
-    buttonText: '立即订购',
-    buttonClass: 'purchase-btn',
-    recommended: true,
   },
   {
     id: 8,
-    name: 'Agoda',
-    logoText: 'A',
-    logoClass: 'agoda-logo',
+    name: 'HostelWorld',
+    logoUrl: 'https://a.hwstatic.com/image/upload/f_auto,q_auto,h_63/v1/propertyimages/0/8914/x5ecdkqgtrzfmcyiykfb',
     connected: false,
-    buttonText: '立即订购',
-    buttonClass: 'purchase-btn',
-    recommended: true,
   },
   {
     id: 9,
-    name: 'Expedia',
-    logoText: 'E',
-    logoClass: 'expedia-logo',
+    name: 'TuJia',
+    logoUrl: 'https://pages.c-ctrip.com/hotels/wuhan/tujia-logo.png',
     connected: false,
-    buttonText: '立即订购',
-    buttonClass: 'purchase-btn',
-    recommended: true,
   },
+])
+
+// 渠道管理数据
+const managementChannels = ref([
   {
     id: 10,
-    name: 'Booking.com',
-    logoText: 'B',
-    logoClass: 'booking-logo',
+    name: 'Neppan',
+    logoUrl: 'https://via.placeholder.com/120x60/FF6B35/FFFFFF?text=Neppan',
     connected: false,
-    buttonText: '咨询开展开店',
-    buttonClass: 'consult-btn',
-    recommended: true,
   },
 ])
 
@@ -560,7 +610,13 @@ const channelCategories = ref([
 // 方法
 const handleMenuSelect = (index: string) => {
   activeMenu.value = index
-  // 这里可以添加菜单切换逻辑
+  if (index === 'price-ratio') {
+    showPriceRatio.value = true
+    showChannelSettings.value = false
+  } else if (index === 'channel-list') {
+    showPriceRatio.value = false
+    showChannelSettings.value = false
+  }
 }
 
 const handleTabClick = (tab: any) => {
@@ -583,6 +639,11 @@ const openSettings = (channel: any) => {
 const closeChannelSettings = () => {
   showChannelSettings.value = false
   currentSettingChannel.value = null
+}
+
+const closePriceRatio = () => {
+  showPriceRatio.value = false
+  activeMenu.value = 'channel-list'
 }
 
 const startConnection = () => {
@@ -653,6 +714,38 @@ const addAccount = () => {
   ElMessage.success('账号添加成功')
 }
 
+// 编辑价格比例
+const editPriceRatio = (row: any) => {
+  currentEditingRatio.value = { ...row }
+  showEditRatioDialog.value = true
+}
+
+// 保存价格比例
+const savePriceRatio = () => {
+  if (!currentEditingRatio.value) return
+
+  const index = priceRatioData.value.findIndex(item => item.id === currentEditingRatio.value.id)
+  if (index > -1) {
+    priceRatioData.value[index] = { ...currentEditingRatio.value }
+  }
+
+  showEditRatioDialog.value = false
+  currentEditingRatio.value = null
+  ElMessage.success('价格比例已更新')
+}
+
+// 显示连接历史
+const showConnectionHistory = () => {
+  showHistoryDialog.value = true
+}
+
+// 开始授权
+const startAuthorization = () => {
+  showAddHotelDialog.value = false
+  ElMessage.success('正在跳转到授权页面...')
+  // TODO: 实现实际的授权逻辑
+}
+
 onMounted(() => {
   // 组件挂载后的初始化逻辑
 })
@@ -716,163 +809,102 @@ onMounted(() => {
   margin: 0;
 }
 
+/* 渠道内容区域 */
+.channel-content {
+  padding: 20px;
+}
+
+.channel-section {
+  margin-bottom: 40px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #606266;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
 /* 渠道网格 */
 .channel-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 20px;
-  padding: 20px;
 }
 
 .channel-card {
   background: white;
+  border: 1px solid #e8e8e8;
   border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  position: relative;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.channel-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.card-header {
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 16px;
+  gap: 12px;
+  transition: all 0.3s ease;
 }
 
-.channel-logo {
-  width: 60px;
+.channel-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #409eff;
+}
+
+.channel-logo-wrapper {
+  width: 120px;
   height: 60px;
-  margin-bottom: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: #fff;
+  border-radius: 4px;
+  padding: 8px;
 }
 
-.channel-logo img {
-  width: 40px;
-  height: 40px;
+.channel-logo-img {
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
-.logo-text {
-  font-size: 14px;
-  font-weight: bold;
-  color: white;
-}
-
-/* 不同渠道的Logo样式 */
-.meituan-logo {
-  background: linear-gradient(135deg, #ffd900, #ffb700);
-}
-
-.tujia-logo {
-  background: linear-gradient(135deg, #ff6b35, #f7931e);
-}
-
-.xiaozhu-logo {
-  background: linear-gradient(135deg, #ff1493, #ff69b4);
-}
-
-.muniao-logo {
-  background: linear-gradient(135deg, #ff4500, #ff8c00);
-}
-
-.fliggy-logo {
-  background: linear-gradient(135deg, #1890ff, #40a9ff);
-}
-
-.ctrip-logo {
-  background: linear-gradient(135deg, #0066cc, #4096ff);
-}
-
-.meituan-hotel-logo {
-  background: linear-gradient(135deg, #52c41a, #73d13d);
-}
-
-.agoda-logo {
-  background: linear-gradient(135deg, #722ed1, #9254de);
-}
-
-.expedia-logo {
-  background: linear-gradient(135deg, #faad14, #ffc53d);
-}
-
-.booking-logo {
-  background: linear-gradient(135deg, #1890ff, #69c0ff);
-}
-
 .channel-name {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
-  margin: 0 0 8px 0;
+  color: #303133;
+  margin: 4px 0;
   text-align: center;
 }
 
 .channel-status {
-  text-align: center;
-}
-
-.card-content {
-  text-align: center;
-}
-
-.connected-info {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #909399;
 }
 
-.room-type-info {
-  font-size: 12px;
-  color: #666;
-  margin: 0;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
-.connect-action {
-  margin-top: 8px;
+.status-dot.connected {
+  background: #67c23a;
 }
 
-/* 按钮样式 */
-.connect-btn {
-  background: #1890ff;
-  border-color: #1890ff;
+.status-dot.disconnected {
+  background: #d9d9d9;
+}
+
+.status-text {
+  font-size: 13px;
+}
+
+.config-btn {
   width: 100%;
-}
-
-.purchase-btn {
-  background: #1890ff;
-  border-color: #1890ff;
-  width: 100%;
-}
-
-.consult-btn {
-  background: #52c41a;
-  border-color: #52c41a;
-  width: 100%;
-  font-size: 12px;
-}
-
-/* 推荐标签 */
-.recommend-tag {
-  position: absolute;
-  top: -1px;
-  right: -1px;
-  background: linear-gradient(135deg, #ff4d4f, #ff7875);
-  color: white;
-  font-size: 12px;
-  padding: 4px 12px;
-  border-radius: 0 8px 0 12px;
-  font-weight: 500;
+  margin-top: 4px;
 }
 
 /* 介绍内容 */
@@ -1137,24 +1169,53 @@ onMounted(() => {
 
 .channel-logo-section {
   flex-shrink: 0;
+  width: 100px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.channel-logo-large-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.channel-desc {
+  flex: 1;
 }
 
 .channel-desc h3 {
   font-size: 18px;
-  font-weight: 500;
-  color: #333;
-  margin: 0 0 16px 0;
-}
-
-.channel-desc p {
-  font-size: 14px;
-  line-height: 1.8;
-  color: #666;
+  font-weight: 600;
+  color: #303133;
   margin: 0 0 12px 0;
 }
 
-.channel-desc p:last-child {
-  margin-bottom: 0;
+.channel-desc p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #606266;
+  margin: 0;
+}
+
+.channel-actions {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.hotel-table-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.hotel-table {
+  width: 100%;
 }
 
 .highlight {
@@ -1265,5 +1326,112 @@ onMounted(() => {
   margin: 0 0 20px 0;
   font-size: 14px;
   color: #666;
+}
+
+/* 价格比例页面样式 */
+.price-ratio-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.price-ratio-table-container {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.price-ratio-table {
+  width: 100%;
+}
+
+.edit-ratio-form {
+  padding: 20px 0;
+}
+
+/* 添加酒店对话框样式 */
+.add-hotel-dialog {
+  padding: 0;
+}
+
+.dialog-header-section {
+  display: flex;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e8e8e8;
+  margin-bottom: 20px;
+}
+
+.dialog-description {
+  flex: 1;
+}
+
+.dialog-description p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #606266;
+  margin: 0 0 12px 0;
+}
+
+.notice-text {
+  color: #f56c6c;
+  font-weight: 500;
+}
+
+.dialog-logo {
+  flex-shrink: 0;
+  width: 100px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog-logo-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.agreement-section {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.agreement-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.agreement-content {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #606266;
+}
+
+.agreement-content p {
+  margin: 0 0 16px 0;
+  text-align: justify;
+}
+
+.agreement-content h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin: 20px 0 12px 0;
+}
+
+/* 连接历史对话框样式 */
+.history-dialog {
+  padding: 0;
+}
+
+.history-table {
+  width: 100%;
+  margin-bottom: 20px;
 }
 </style>
