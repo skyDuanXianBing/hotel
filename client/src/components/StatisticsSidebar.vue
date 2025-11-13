@@ -1,9 +1,11 @@
 <template>
-  <div class="statistics-sidebar">
-    <!-- 收起导航 -->
-    <div class="collapse-nav" @click="$router.go(-1)">
-      <span class="nav-text">收起导航</span>
-      <el-icon class="nav-icon"><ArrowLeft /></el-icon>
+  <div class="statistics-sidebar" :class="{ collapsed: isCollapsed }">
+    <!-- 收起导航按钮 -->
+    <div class="sidebar-header" @click="toggleSidebar">
+      <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
+      <span v-if="!isCollapsed" class="sidebar-title">收起导航</span>
+      <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
+      <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
     </div>
 
     <!-- 侧边栏菜单 -->
@@ -11,6 +13,7 @@
       class="sidebar-menu"
       :default-active="activeMenu"
       :default-openeds="['data-center']"
+      :collapse="isCollapsed"
       @select="handleMenuSelect"
     >
       <!-- 数据中心 -->
@@ -28,12 +31,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, TrendCharts } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, TrendCharts, Menu as MenuIcon } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
+
+// 侧边栏折叠状态
+const isCollapsed = ref(false)
+
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value
+}
 
 // 根据当前路由确定激活的菜单项
 const activeMenu = computed(() => {
@@ -76,33 +86,47 @@ const handleMenuSelect = (index: string) => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  transition: width 0.3s ease;
+}
+
+.statistics-sidebar.collapsed {
+  width: 64px;
 }
 
 /* 收起导航样式 */
-.collapse-nav {
-  padding: 16px 20px;
+.sidebar-header {
+  height: 56px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #e8e8e8;
   cursor: pointer;
   background: white;
-  border-bottom: 1px solid #e8e8e8;
-  transition: all 0.3s;
+  transition: background-color 0.3s;
+  flex-shrink: 0;
 }
 
-.collapse-nav:hover {
-  background: #f0f2f5;
+.sidebar-header:hover {
+  background-color: #f5f5f5;
 }
 
-.nav-text {
+.sidebar-icon {
+  font-size: 20px;
+  color: #1890ff;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  flex: 1;
+  margin-left: 12px;
   font-size: 14px;
-  color: #333;
   font-weight: 500;
+  color: #333;
 }
 
-.nav-icon {
-  color: #666;
+.collapse-icon {
   font-size: 16px;
+  color: #999;
 }
 
 /* 菜单样式 */

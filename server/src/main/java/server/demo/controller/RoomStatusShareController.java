@@ -1,6 +1,8 @@
 package server.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.RoomStatusShareRequest;
@@ -25,6 +27,22 @@ public class RoomStatusShareController {
 
     @Autowired
     private RoomStatusService roomStatusService;
+
+    /**
+     * 获取当前用户ID - 从JWT token中提取
+     */
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof String) {
+            String principal = (String) authentication.getPrincipal();
+            try {
+                return Long.parseLong(principal);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
 
     /**
      * 获取分享列表
@@ -107,7 +125,7 @@ public class RoomStatusShareController {
         try {
             // 验证分享链接有效性
             RoomStatusShare share = roomStatusShareService.getShareByToken(shareToken);
-            
+
             // 设置默认日期范围（从今天开始7天）
             if (startDate == null) {
                 startDate = LocalDate.now();
@@ -115,9 +133,13 @@ public class RoomStatusShareController {
             if (endDate == null) {
                 endDate = startDate.plusDays(6);
             }
-            
-            // 获取房态数据
-            RoomStatusCalendarDTO roomStatusData = roomStatusService.getRoomStatusCalendar(startDate, endDate);
+
+            // 获取房态数据 - 使用分享链接关联的用户ID
+            Long userId = share.getUserId();
+            if (userId == null) {
+                return ApiResponse.error("无法获取分享用户信息");
+            }
+            RoomStatusCalendarDTO roomStatusData = roomStatusService.getRoomStatusCalendar(userId, startDate, endDate);
             
             // 根据分享配置过滤房间数据
             RoomStatusCalendarDTO filteredData = roomStatusShareService.filterRoomStatusByShare(
@@ -139,15 +161,21 @@ public class RoomStatusShareController {
         try {
             // 验证分享链接有效性
             RoomStatusShare share = roomStatusShareService.getShareByToken(shareToken);
-            
+
             // 设置默认日期为今天
             if (date == null) {
                 date = LocalDate.now();
             }
-            
+
+            // 获取分享用户的ID
+            Long userId = share.getUserId();
+            if (userId == null) {
+                return ApiResponse.error("无法获取分享用户信息");
+            }
+
             // 获取统计数据
-            RoomStatusStatisticsDTO statistics = roomStatusService.getRoomStatusStatistics(date);
-            
+            RoomStatusStatisticsDTO statistics = roomStatusService.getRoomStatusStatistics(userId, date);
+
             return ApiResponse.success(statistics);
         } catch (Exception e) {
             return ApiResponse.error("获取统计数据失败: " + e.getMessage());

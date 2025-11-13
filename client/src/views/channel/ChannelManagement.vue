@@ -1,19 +1,22 @@
 <template>
   <div class="channel-management">
     <!-- 左侧导航菜单 -->
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <el-button type="text" @click="$router.go(-1)">
-          <el-icon><ArrowLeft /></el-icon>
-        </el-button>
-        <span class="sidebar-title">收起导航</span>
+    <div class="sidebar" :class="{ collapsed: isCollapsed }">
+      <!-- 收起导航按钮 -->
+      <div class="sidebar-header" @click="toggleSidebar">
+        <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
+        <span v-if="!isCollapsed" class="sidebar-title">收起导航</span>
+        <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
+        <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
       </div>
 
-      <el-menu class="sidebar-menu" :default-active="activeMenu" @select="handleMenuSelect">
+      <el-menu class="sidebar-menu" :default-active="activeMenu" @select="handleMenuSelect" :collapse="isCollapsed">
         <el-menu-item index="channel-list">
+          <el-icon><List /></el-icon>
           <span>渠道列表</span>
         </el-menu-item>
         <el-menu-item index="price-ratio">
+          <el-icon><Money /></el-icon>
           <span>价格比例</span>
         </el-menu-item>
       </el-menu>
@@ -465,10 +468,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Setting, Connection, Remove, InfoFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Setting, Connection, Remove, InfoFilled, Menu as MenuIcon, List, Money } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
+
+// 侧边栏折叠状态
+const isCollapsed = ref(false)
+
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value
+}
 
 // 响应式数据
 const activeMenu = ref('channel-list')
@@ -765,24 +775,51 @@ onMounted(() => {
   border-right: 1px solid #e8e8e8;
   display: flex;
   flex-direction: column;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 64px;
 }
 
 .sidebar-header {
-  padding: 16px;
-  border-bottom: 1px solid #e8e8e8;
+  height: 56px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid #e8e8e8;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  flex-shrink: 0;
+}
+
+.sidebar-header:hover {
+  background-color: #f5f5f5;
+}
+
+.sidebar-icon {
+  font-size: 20px;
+  color: #1890ff;
+  flex-shrink: 0;
 }
 
 .sidebar-title {
+  flex: 1;
+  margin-left: 12px;
   font-size: 14px;
-  color: #666;
+  font-weight: 500;
+  color: #333;
+}
+
+.collapse-icon {
+  font-size: 16px;
+  color: #999;
 }
 
 .sidebar-menu {
   flex: 1;
   border-right: none;
+  overflow-y: auto;
 }
 
 /* 主内容区域 */

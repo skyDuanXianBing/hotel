@@ -161,9 +161,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { getStoreById, updateStore, type StoreDTO } from '@/api/store'
+import { useStoreStore } from '@/stores/store'
 
 interface StoreInfo {
   id: string
@@ -184,8 +185,9 @@ const editDialogVisible = ref(false)
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 
-// 默认加载ID为1的门店
-const STORE_ID = 1
+// 使用 Pinia store 获取当前门店
+const storeStore = useStoreStore()
+const currentStoreId = computed(() => storeStore.currentStore?.id)
 
 const storeInfo = ref<StoreInfo>({
   id: '',
@@ -244,9 +246,14 @@ const handleCancelEdit = () => {
 
 // 加载门店信息
 const loadStoreInfo = async () => {
+  if (!currentStoreId.value) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+
   try {
     loading.value = true
-    const response = await getStoreById(STORE_ID)
+    const response = await getStoreById(currentStoreId.value)
     if (response.success && response.data) {
       const data = response.data
       storeInfo.value = {
@@ -275,11 +282,16 @@ const loadStoreInfo = async () => {
 }
 
 const handleSaveEdit = async () => {
+  if (!currentStoreId.value) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+
   try {
     const valid = await formRef.value?.validate()
     if (valid) {
       loading.value = true
-      const response = await updateStore(STORE_ID, {
+      const response = await updateStore(currentStoreId.value, {
         name: editForm.name,
         phone: editForm.phone,
         type: editForm.type,

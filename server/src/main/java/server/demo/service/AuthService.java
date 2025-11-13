@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import server.demo.dto.StoreDTO;
 import server.demo.dto.auth.*;
 import server.demo.entity.User;
 import server.demo.repository.UserRepository;
@@ -13,6 +14,7 @@ import server.demo.util.JwtUtil;
 import server.demo.util.RedisUtil;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -35,6 +37,9 @@ public class AuthService {
 
     @Autowired
     private EmailService emailService;
+
+    @Autowired
+    private StoreService storeService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -125,7 +130,7 @@ public class AuthService {
      * @return 登录响应
      */
     public LoginResponse loginByPassword(LoginByPasswordRequest request) {
-        // 查询用户
+        // 查询用户 - 仅查询User表中的管理员
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("邮箱或密码错误"));
 
@@ -137,8 +142,14 @@ public class AuthService {
         // 生成token
         String token = jwtUtil.generateToken(user.getId(), user.getEmail());
 
-        // 返回登录响应
-        return new LoginResponse(token, new UserDTO(user));
+        // 返回登录响应 - 管理员的isCleaner固定为false
+        UserDTO userDTO = new UserDTO(user);
+        userDTO.setIsCleaner(false);
+
+        // 获取用户的门店列表
+        List<StoreDTO> stores = storeService.getUserStores(user.getId());
+
+        return new LoginResponse(token, userDTO, stores);
     }
 
     /**
@@ -153,15 +164,21 @@ public class AuthService {
             throw new RuntimeException("验证码错误或已过期");
         }
 
-        // 查询用户
+        // 查询用户 - 仅查询User表中的管理员
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("该邮箱未注册"));
 
         // 生成token
         String token = jwtUtil.generateToken(user.getId(), user.getEmail());
 
-        // 返回登录响应
-        return new LoginResponse(token, new UserDTO(user));
+        // 返回登录响应 - 管理员的isCleaner固定为false
+        UserDTO userDTO = new UserDTO(user);
+        userDTO.setIsCleaner(false);
+
+        // 获取用户的门店列表
+        List<StoreDTO> stores = storeService.getUserStores(user.getId());
+
+        return new LoginResponse(token, userDTO, stores);
     }
 
     /**

@@ -39,6 +39,15 @@ public class CleanerController {
     }
 
     /**
+     * 根据门店ID获取保洁员列表
+     */
+    @GetMapping("/store/{storeId}")
+    public ApiResponse<List<Cleaner>> getCleanersByStoreId(@PathVariable Long storeId) {
+        List<Cleaner> cleaners = cleanerService.getCleanersByStoreId(storeId);
+        return ApiResponse.success("获取保洁员列表成功", cleaners);
+    }
+
+    /**
      * 根据ID获取保洁员详情
      */
     @GetMapping("/{id}")

@@ -22,6 +22,12 @@ public class Room {
     @JoinColumn(name = "room_type_id", nullable = false)
     private RoomType roomType;
 
+    /**
+     * 所属用户ID - 用于数据隔离
+     */
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @Column(name = "floor_number")
     private Integer floor;
 
@@ -58,6 +64,13 @@ public class Room {
         this.floor = floor;
     }
 
+    public Room(String roomNumber, RoomType roomType, Integer floor, Long userId) {
+        this.roomNumber = roomNumber;
+        this.roomType = roomType;
+        this.floor = floor;
+        this.userId = userId;
+    }
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -81,6 +94,14 @@ public class Room {
 
     public void setRoomType(RoomType roomType) {
         this.roomType = roomType;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public Integer getFloor() {

@@ -1,5 +1,6 @@
 package server.demo.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -34,10 +35,13 @@ public class PriceChangeHistoryController {
             @RequestParam(required = false) Long pricePlanId,
             @RequestParam(required = false) String operator,
             @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "25") Integer pageSize
+            @RequestParam(defaultValue = "25") Integer pageSize,
+            HttpServletRequest request
     ) {
         try {
+            Long userId = (Long) request.getAttribute("userId");
             PriceChangeHistoryPageResponse response = priceChangeHistoryService.getPriceChangeHistory(
+                    userId,
                     operateDateStart,
                     operateDateEnd,
                     priceDateStart,

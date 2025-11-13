@@ -44,6 +44,12 @@ public class RoomStatusShare {
     @Column(name = "associated_room_ids", columnDefinition = "TEXT")
     private String associatedRoomIds;
 
+    /**
+     * 分享所属的用户ID
+     */
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
@@ -160,6 +166,14 @@ public class RoomStatusShare {
 
     public void setAssociatedRoomIds(String associatedRoomIds) {
         this.associatedRoomIds = associatedRoomIds;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public Boolean getIsActive() {

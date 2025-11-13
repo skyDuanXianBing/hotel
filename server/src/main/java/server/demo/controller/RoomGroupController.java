@@ -1,5 +1,6 @@
 package server.demo.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +25,12 @@ public class RoomGroupController {
      * 获取用户的所有分组
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<RoomGroup>>> getAll(@RequestParam Long userId) {
+    public ResponseEntity<ApiResponse<List<RoomGroup>>> getAll(HttpServletRequest request) {
         try {
+            Long userId = (Long) request.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.ok(ApiResponse.error("无法获取用户信息"));
+            }
             List<RoomGroup> groups = roomGroupService.getAllByUserId(userId);
             return ResponseEntity.ok(ApiResponse.success("获取分组列表成功", groups));
         } catch (Exception e) {
@@ -52,8 +57,12 @@ public class RoomGroupController {
     @PostMapping
     public ResponseEntity<ApiResponse<RoomGroup>> create(
             @Valid @RequestBody RoomGroupDTO dto,
-            @RequestParam Long userId) {
+            HttpServletRequest request) {
         try {
+            Long userId = (Long) request.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.ok(ApiResponse.error("无法获取用户信息"));
+            }
             RoomGroup group = new RoomGroup(userId, dto.getName());
             group.setDescription(dto.getDescription());
             RoomGroup created = roomGroupService.create(group);

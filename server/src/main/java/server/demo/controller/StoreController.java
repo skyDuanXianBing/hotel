@@ -1,16 +1,19 @@
 package server.demo.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import server.demo.dto.ApiResponse;
-import server.demo.entity.Store;
-import server.demo.entity.StorePolicy;
+import server.demo.dto.*;
+import server.demo.entity.StoreUser;
 import server.demo.service.StoreService;
 
 import java.util.List;
 
 /**
- * 门店管理控制器
+ * Store management controller
  */
 @RestController
 @RequestMapping("/api/v1/stores")
@@ -20,75 +23,159 @@ public class StoreController {
     private StoreService storeService;
 
     /**
-     * 获取所有门店
+     * Get all stores for current user
      */
     @GetMapping
-    public ApiResponse<List<Store>> getAllStores() {
-        List<Store> stores = storeService.getAllStores();
-        return ApiResponse.success("获取门店列表成功", stores);
-    }
-
-    /**
-     * 根据ID获取门店详情
-     */
-    @GetMapping("/{id}")
-    public ApiResponse<Store> getStoreById(@PathVariable Long id) {
-        return storeService.getStoreById(id)
-                .map(store -> ApiResponse.success("获取门店详情成功", store))
-                .orElse(ApiResponse.error("门店不存在"));
-    }
-
-    /**
-     * 创建门店
-     */
-    @PostMapping
-    public ApiResponse<Store> createStore(@RequestBody Store store) {
-        Store createdStore = storeService.createStore(store);
-        return ApiResponse.success("创建门店成功", createdStore);
-    }
-
-    /**
-     * 更新门店
-     */
-    @PutMapping("/{id}")
-    public ApiResponse<Store> updateStore(@PathVariable Long id, @RequestBody Store store) {
+    public ResponseEntity<ApiResponse<List<StoreDTO>>> getUserStores(HttpServletRequest request) {
         try {
-            Store updatedStore = storeService.updateStore(id, store);
-            return ApiResponse.success("更新门店成功", updatedStore);
+            Long userId = (Long) request.getAttribute("userId");
+            List<StoreDTO> stores = storeService.getUserStores(userId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Get user stores success", stores));
         } catch (RuntimeException e) {
-            return ApiResponse.error(e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
         }
     }
 
     /**
-     * 删除门店
+     * Get store by ID
      */
-    @DeleteMapping("/{id}")
-    public ApiResponse<Void> deleteStore(@PathVariable Long id) {
-        storeService.deleteStore(id);
-        return ApiResponse.success("删除门店成功", null);
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<StoreDTO>> getStoreById(
+            @PathVariable Long id,
+            HttpServletRequest request
+    ) {
+        try {
+            Long userId = (Long) request.getAttribute("userId");
+            StoreDTO store = storeService.getStoreById(id, userId)
+                    .orElseThrow(() -> new RuntimeException("Store not found or no permission"));
+            return ResponseEntity.ok(new ApiResponse<>(true, "Get store success", store));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
     }
 
     /**
-     * 获取门店政策
+     * Create new store
+     */
+    @PostMapping
+    public ResponseEntity<ApiResponse<StoreDTO>> createStore(
+            @Valid @RequestBody CreateStoreRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            Long userId = (Long) httpRequest.getAttribute("userId");
+            StoreDTO store = storeService.createStore(userId, request);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ApiResponse<>(true, "Create store success", store));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Update store
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<StoreDTO>> updateStore(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateStoreRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            Long userId = (Long) httpRequest.getAttribute("userId");
+            StoreDTO store = storeService.updateStore(id, userId, request);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Update store success", store));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Invite user to store
+     */
+    @PostMapping("/{id}/members")
+    public ResponseEntity<ApiResponse<Void>> inviteUser(
+            @PathVariable Long id,
+            @Valid @RequestBody InviteMemberRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            Long userId = (Long) httpRequest.getAttribute("userId");
+            storeService.inviteUser(id, userId, request.getEmail(), request.getRole());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Invite user success", null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Remove member from store
+     */
+    @DeleteMapping("/{id}/members/{userId}")
+    public ResponseEntity<ApiResponse<Void>> removeStoreMember(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            Long operatorUserId = (Long) httpRequest.getAttribute("userId");
+            storeService.removeStoreMember(id, operatorUserId, userId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Remove member success", null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Get all store members
+     */
+    @GetMapping("/{id}/members")
+    public ResponseEntity<ApiResponse<List<StoreUser>>> getStoreMembers(@PathVariable Long id) {
+        try {
+            List<StoreUser> members = storeService.getStoreMembers(id);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Get store members success", members));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Get store policy
      */
     @GetMapping("/{id}/policy")
-    public ApiResponse<StorePolicy> getStorePolicy(@PathVariable Long id) {
-        return storeService.getStorePolicy(id)
-                .map(policy -> ApiResponse.success("获取门店政策成功", policy))
-                .orElse(ApiResponse.success("暂无政策信息", null));
+    public ResponseEntity<ApiResponse<StorePolicyDTO>> getStorePolicy(@PathVariable Long id) {
+        try {
+            StorePolicyDTO policy = storeService.getStorePolicy(id);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Get store policy success", policy));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
     }
 
     /**
-     * 更新或创建门店政策
+     * Update store policy
      */
     @PutMapping("/{id}/policy")
-    public ApiResponse<StorePolicy> saveStorePolicy(@PathVariable Long id, @RequestBody StorePolicy policy) {
+    public ResponseEntity<ApiResponse<StorePolicyDTO>> updateStorePolicy(
+            @PathVariable Long id,
+            @RequestBody StorePolicyDTO policyDTO,
+            HttpServletRequest httpRequest
+    ) {
         try {
-            StorePolicy savedPolicy = storeService.saveStorePolicy(id, policy);
-            return ApiResponse.success("保存门店政策成功", savedPolicy);
+            Long userId = (Long) httpRequest.getAttribute("userId");
+            StorePolicyDTO policy = storeService.updateStorePolicy(id, userId, policyDTO);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Update store policy success", policy));
         } catch (RuntimeException e) {
-            return ApiResponse.error(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
         }
     }
 }

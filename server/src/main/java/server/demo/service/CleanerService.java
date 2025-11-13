@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.entity.Cleaner;
 import server.demo.repository.CleanerRepository;
+import server.demo.repository.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,9 @@ public class CleanerService {
     @Autowired
     private CleanerRepository cleanerRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     /**
      * 根据用户ID和门店ID获取保洁员列表
      */
@@ -30,6 +34,13 @@ public class CleanerService {
      */
     public List<Cleaner> getCleanersByUserId(Long userId) {
         return cleanerRepository.findByUserId(userId);
+    }
+
+    /**
+     * 根据门店ID获取保洁员列表
+     */
+    public List<Cleaner> getCleanersByStoreId(Long storeId) {
+        return cleanerRepository.findByStoreId(storeId);
     }
 
     /**
@@ -65,10 +76,23 @@ public class CleanerService {
     }
 
     /**
-     * 删除保洁员
+     * 删除保洁员(同时删除关联的User账号)
      */
     @Transactional
     public void deleteCleaner(Long id) {
-        cleanerRepository.deleteById(id);
+        // 先查找保洁员记录
+        Optional<Cleaner> cleanerOpt = cleanerRepository.findById(id);
+        if (cleanerOpt.isPresent()) {
+            Cleaner cleaner = cleanerOpt.get();
+            Long userId = cleaner.getUserId();
+
+            // 删除保洁员记录
+            cleanerRepository.deleteById(id);
+
+            // 删除关联的User账号
+            if (userId != null) {
+                userRepository.deleteById(userId);
+            }
+        }
     }
 }

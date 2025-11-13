@@ -29,11 +29,11 @@ public class BusinessStatisticsService {
      * 获取营业汇总统计
      * 按消费记录的发生时间（入住日期）统计，不统计已取消的订单
      */
-    public BusinessSummaryDTO getBusinessSummary(LocalDate startDate, LocalDate endDate) {
+    public BusinessSummaryDTO getBusinessSummary(Long userId, LocalDate startDate, LocalDate endDate) {
         BusinessSummaryDTO summary = new BusinessSummaryDTO();
 
-        // 获取时间范围内的有效订单（不包括已取消的）
-        List<Reservation> reservations = reservationRepository.findAll().stream()
+        // 获取时间范围内的有效订单（不包括已取消的）- 只查询当前用户的订单
+        List<Reservation> reservations = reservationRepository.findByUserId(userId).stream()
                 .filter(r -> r.getStatus() != ReservationStatus.CANCELLED)
                 .filter(r -> isDateInRange(r.getCheckInDate(), r.getCheckOutDate(), startDate, endDate))
                 .collect(Collectors.toList());
@@ -61,9 +61,9 @@ public class BusinessStatisticsService {
             summary.setAverageRoomRate(BigDecimal.ZERO);
         }
 
-        // 计算出租率
+        // 计算出租率 - 只统计当前用户的房间
         long totalDays = ChronoUnit.DAYS.between(startDate, endDate) + 1;
-        long totalRoomCount = roomRepository.count();
+        long totalRoomCount = roomRepository.countByUserId(userId);
         long totalAvailableRoomNights = totalDays * totalRoomCount;
 
         if (totalAvailableRoomNights > 0) {
@@ -211,21 +211,22 @@ public class BusinessStatisticsService {
 
     /**
      * 获取每日入住率统计
+     * @param userId 用户ID
      * @param startDate 开始日期
      * @param endDate 结束日期
      * @return 每日入住率列表
      */
-    public List<DailyOccupancyDTO> getDailyOccupancy(LocalDate startDate, LocalDate endDate) {
+    public List<DailyOccupancyDTO> getDailyOccupancy(Long userId, LocalDate startDate, LocalDate endDate) {
         List<DailyOccupancyDTO> result = new ArrayList<>();
-        long totalRoomCount = roomRepository.count();
+        long totalRoomCount = roomRepository.countByUserId(userId);
 
         // 遍历日期范围内的每一天
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
             final LocalDate date = currentDate;
 
-            // 查询当天在住的预订（已入住状态，且当天在入住期间内）
-            long occupiedRooms = reservationRepository.findAll().stream()
+            // 查询当天在住的预订（已入住状态，且当天在入住期间内）- 只查询当前用户的订单
+            long occupiedRooms = reservationRepository.findByUserId(userId).stream()
                     .filter(r -> r.getStatus() == ReservationStatus.CHECKED_IN)
                     .filter(r -> !r.getCheckInDate().isAfter(date) && r.getCheckOutDate().isAfter(date))
                     .count();

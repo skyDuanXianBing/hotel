@@ -39,6 +39,18 @@ public class Cleaner {
     private String email;
 
     /**
+     * 保洁员密码(BCrypt加密)
+     */
+    @Column(nullable = false, length = 255)
+    private String password;
+
+    /**
+     * 账号状态:启用/停用
+     */
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+
+    /**
      * 创建时间
      */
     @Column(nullable = false, updatable = false)
@@ -100,6 +112,22 @@ public class Cleaner {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
     }
 
     public LocalDateTime getCreatedAt() {

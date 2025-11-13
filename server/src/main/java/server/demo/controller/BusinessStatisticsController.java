@@ -1,5 +1,6 @@
 package server.demo.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -29,14 +30,20 @@ public class BusinessStatisticsController {
     @GetMapping("/summary")
     public ApiResponse<BusinessSummaryDTO> getBusinessSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            HttpServletRequest request) {
 
         try {
+            Long userId = (Long) request.getAttribute("userId");
+            if (userId == null) {
+                return ApiResponse.error("无法获取用户信息");
+            }
+
             if (startDate.isAfter(endDate)) {
                 return ApiResponse.error("开始日期不能晚于结束日期");
             }
 
-            BusinessSummaryDTO summary = businessStatisticsService.getBusinessSummary(startDate, endDate);
+            BusinessSummaryDTO summary = businessStatisticsService.getBusinessSummary(userId, startDate, endDate);
             return ApiResponse.success("获取营业汇总成功", summary);
         } catch (Exception e) {
             e.printStackTrace();
@@ -54,14 +61,20 @@ public class BusinessStatisticsController {
     @GetMapping("/daily-occupancy")
     public ApiResponse<List<DailyOccupancyDTO>> getDailyOccupancy(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            HttpServletRequest request) {
 
         try {
+            Long userId = (Long) request.getAttribute("userId");
+            if (userId == null) {
+                return ApiResponse.error("无法获取用户信息");
+            }
+
             if (startDate.isAfter(endDate)) {
                 return ApiResponse.error("开始日期不能晚于结束日期");
             }
 
-            List<DailyOccupancyDTO> occupancyList = businessStatisticsService.getDailyOccupancy(startDate, endDate);
+            List<DailyOccupancyDTO> occupancyList = businessStatisticsService.getDailyOccupancy(userId, startDate, endDate);
             return ApiResponse.success("获取每日入住率成功", occupancyList);
         } catch (Exception e) {
             e.printStackTrace();

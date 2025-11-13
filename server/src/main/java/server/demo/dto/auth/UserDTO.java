@@ -16,6 +16,7 @@ public class UserDTO {
     private String gender;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Boolean isCleaner; // 是否是保洁员
 
     public UserDTO() {
     }
@@ -28,6 +29,7 @@ public class UserDTO {
         this.gender = user.getGender();
         this.createdAt = user.getCreatedAt();
         this.updatedAt = user.getUpdatedAt();
+        this.isCleaner = false; // 默认不是保洁员
     }
 
     public Long getId() {
@@ -84,5 +86,13 @@ public class UserDTO {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Boolean getIsCleaner() {
+        return isCleaner;
+    }
+
+    public void setIsCleaner(Boolean isCleaner) {
+        this.isCleaner = isCleaner;
     }
 }

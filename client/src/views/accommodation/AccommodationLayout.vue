@@ -1,12 +1,20 @@
 <template>
   <div class="accommodation-container">
     <!-- 左侧边栏 -->
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ collapsed: isCollapsed }">
+      <!-- 收起导航按钮 -->
+      <div class="sidebar-header" @click="toggleSidebar">
+        <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
+        <span v-if="!isCollapsed" class="sidebar-title">收起导航</span>
+        <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
+        <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
+      </div>
+
       <el-menu
         :default-active="activeMenuItem"
         class="sidebar-menu"
         @select="handleMenuSelect"
-        :collapse="false"
+        :collapse="isCollapsed"
         :unique-opened="true"
       >
         <!-- 房态 -->
@@ -44,7 +52,7 @@
         <!-- 保洁 -->
         <el-sub-menu index="cleaning">
           <template #title>
-            <el-icon><Service /></el-icon>
+            <el-icon><BrushFilled /></el-icon>
             <span>保洁</span>
           </template>
           <el-menu-item index="cleaning-overview">
@@ -67,10 +75,17 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { House, Service, Money, Tickets } from '@element-plus/icons-vue'
+import { House, BrushFilled, Money, Tickets, ArrowLeft, ArrowRight, Menu as MenuIcon } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
+
+// 侧边栏折叠状态
+const isCollapsed = ref(false)
+
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value
+}
 
 // 活动菜单项
 const activeMenuItem = ref('room-status-calendar')
@@ -127,11 +142,53 @@ const handleMenuSelect = (index: string) => {
   background: white;
   border-right: 1px solid #e8e8e8;
   overflow-y: auto;
+  transition: width 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar.collapsed {
+  width: 64px;
+}
+
+.sidebar-header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid #e8e8e8;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  flex-shrink: 0;
+}
+
+.sidebar-header:hover {
+  background-color: #f5f5f5;
+}
+
+.sidebar-icon {
+  font-size: 20px;
+  color: #1890ff;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  flex: 1;
+  margin-left: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.collapse-icon {
+  font-size: 16px;
+  color: #999;
 }
 
 .sidebar-menu {
-  height: 100%;
+  flex: 1;
   border-right: none;
+  overflow-y: auto;
 }
 
 .sidebar-menu :deep(.el-sub-menu__title) {

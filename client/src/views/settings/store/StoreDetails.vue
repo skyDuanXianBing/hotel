@@ -1,36 +1,10 @@
 <template>
   <div class="store-details-container">
-    <!-- 门店卡片列表 -->
-    <div v-if="!showConfigPage" class="stores-grid">
-      <div
-        v-for="store in stores"
-        :key="store.id"
-        class="store-card"
-      >
-        <div class="card-header">
-          <el-icon class="collapse-icon"><Remove /></el-icon>
-          <h3 class="store-name">{{ store.name }}</h3>
-        </div>
-        <el-button
-          type="primary"
-          class="config-button"
-          @click="handleConfig(store)"
-        >
-          配置
-        </el-button>
-      </div>
-    </div>
-
     <!-- 配置详情页面 -->
-    <div v-else class="config-page">
-      <!-- 面包屑导航 -->
-      <div class="breadcrumb-nav">
-        <el-breadcrumb separator="›">
-          <el-breadcrumb-item>
-            <a @click="handleBack">详情</a>
-          </el-breadcrumb-item>
-          <el-breadcrumb-item>{{ currentStore?.name }}</el-breadcrumb-item>
-        </el-breadcrumb>
+    <div class="config-page">
+      <!-- 页面标题 -->
+      <div class="page-header">
+        <h2 class="page-title">门店详情</h2>
       </div>
 
       <!-- 标签页 -->
@@ -39,7 +13,7 @@
           <div class="details-content">
             <!-- 门店名称和编辑按钮 -->
             <div class="store-header">
-              <h2 class="store-title">{{ currentStore?.name }}</h2>
+              <h2 class="store-title">{{ storeDetails.name }}</h2>
               <el-button type="primary" @click="handleEdit">编辑</el-button>
             </div>
 
@@ -121,7 +95,7 @@
           <div class="policy-content">
             <!-- 政策标题和编辑按钮 -->
             <div class="policy-header">
-              <h2 class="policy-title">{{ currentStore?.name }}</h2>
+              <h2 class="policy-title">{{ storeDetails.name }}</h2>
               <el-button type="primary" @click="handleEditPolicy">编辑</el-button>
             </div>
 
@@ -176,7 +150,7 @@
           <div class="facilities-content">
             <!-- 设施标题和编辑按钮 -->
             <div class="facilities-header">
-              <h2 class="facilities-title">{{ currentStore?.name }}</h2>
+              <h2 class="facilities-title">{{ storeDetails.name }}</h2>
               <el-button type="primary" @click="handleEditFacilities">编辑</el-button>
             </div>
 
@@ -213,7 +187,7 @@
           <div class="photos-content">
             <!-- 照片标题和编辑按钮 -->
             <div class="photos-header">
-              <h2 class="photos-title">{{ currentStore?.name }}</h2>
+              <h2 class="photos-title">{{ storeDetails.name }}</h2>
               <el-button type="primary" @click="handleEditPhotos">编辑</el-button>
             </div>
 
@@ -503,20 +477,15 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { Remove, UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
-  getAllStores,
   getStoreById,
   updateStore,
   getStorePolicy,
   saveStorePolicy,
 } from '@/api/store'
-
-interface Store {
-  id: number
-  name: string
-}
+import { useStoreStore } from '@/stores/store'
 
 interface StoreDetails {
   language: string
@@ -544,8 +513,10 @@ interface PolicyDetails {
   hotelTerms: string
 }
 
-const showConfigPage = ref(false)
-const currentStore = ref<Store | null>(null)
+// 使用 Pinia store 获取当前门店
+const storeStore = useStoreStore()
+const currentStoreId = computed(() => storeStore.currentStore?.id)
+
 const activeTab = ref('details')
 const editDialogVisible = ref(false)
 const editPolicyDialogVisible = ref(false)
@@ -571,22 +542,21 @@ const desktopPhotos = ref<string[]>([])
 const mobilePhotos = ref<string[]>([])
 const editPhotosDialogVisible = ref(false)
 
-const stores = ref<Store[]>([])
 const loading = ref(false)
 
 const storeDetails = ref<StoreDetails>({
   language: 'English',
   name: '',
   description: '',
-  phone: '13512345678',
-  email: '211890@qq.com',
+  phone: '',
+  email: '',
   wechat: '',
   whatsapp: '',
   line: '',
-  address: 'hhh',
-  city: 'hhh',
-  state: '-',
-  country: 'China',
+  address: '',
+  city: '',
+  state: '',
+  country: '',
 })
 
 const editForm = reactive<StoreDetails>({
@@ -605,13 +575,13 @@ const editForm = reactive<StoreDetails>({
 })
 
 const policyDetails = ref<PolicyDetails>({
-  checkinTime: '14:00 之后',
-  checkoutTime: '12:00 之前',
-  childPolicy: '儿童年龄0-3可随同成人免费入住',
-  smokingPolicy: '禁止吸烟',
-  petPolicy: '禁止携带宠物',
-  additionalRules: '-',
-  hotelTerms: '-',
+  checkinTime: '',
+  checkoutTime: '',
+  childPolicy: '',
+  smokingPolicy: '',
+  petPolicy: '',
+  additionalRules: '',
+  hotelTerms: '',
 })
 
 const editPolicyForm = reactive<PolicyDetails>({
@@ -628,29 +598,14 @@ const formRules: FormRules = {
   name: [{ required: true, message: '请输入门店名称', trigger: 'blur' }],
 }
 
-// 加载门店列表
-const loadStores = async () => {
-  try {
-    loading.value = true
-    const response = await getAllStores()
-    if (response.success && response.data) {
-      stores.value = response.data.map((store) => ({
-        id: store.id,
-        name: store.name,
-      }))
-    } else {
-      ElMessage.error(response.message || '加载门店列表失败')
-    }
-  } catch (error) {
-    console.error('加载门店列表失败:', error)
-    ElMessage.error('加载门店列表失败')
-  } finally {
-    loading.value = false
-  }
-}
-
 // 加载门店详情
-const loadStoreDetails = async (storeId: number) => {
+const loadStoreDetails = async () => {
+  if (!currentStoreId.value) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+
+  const storeId = currentStoreId.value
   try {
     loading.value = true
     const response = await getStoreById(storeId)
@@ -681,7 +636,12 @@ const loadStoreDetails = async (storeId: number) => {
 }
 
 // 加载门店政策
-const loadStorePolicy = async (storeId: number) => {
+const loadStorePolicy = async () => {
+  if (!currentStoreId.value) {
+    return
+  }
+
+  const storeId = currentStoreId.value
   try {
     const response = await getStorePolicy(storeId)
     if (response.success && response.data) {
@@ -701,18 +661,6 @@ const loadStorePolicy = async (storeId: number) => {
   }
 }
 
-const handleConfig = async (store: Store) => {
-  currentStore.value = store
-  showConfigPage.value = true
-  await loadStoreDetails(store.id)
-  await loadStorePolicy(store.id)
-}
-
-const handleBack = () => {
-  showConfigPage.value = false
-  currentStore.value = null
-}
-
 const handleEdit = () => {
   Object.assign(editForm, storeDetails.value)
   editDialogVisible.value = true
@@ -723,15 +671,20 @@ const handleCancelEdit = () => {
 }
 
 const handleSaveEdit = async () => {
+  if (!currentStoreId.value) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+
   try {
     const valid = await formRef.value?.validate()
-    if (valid && currentStore.value) {
+    if (valid) {
       loading.value = true
-      const response = await updateStore(currentStore.value.id, editForm)
+      const response = await updateStore(currentStoreId.value, editForm)
       if (response.success) {
         ElMessage.success('保存成功')
         editDialogVisible.value = false
-        await loadStoreDetails(currentStore.value.id)
+        await loadStoreDetails()
       } else {
         ElMessage.error(response.message || '保存失败')
       }
@@ -754,15 +707,18 @@ const handleCancelEditPolicy = () => {
 }
 
 const handleSaveEditPolicy = async () => {
-  if (!currentStore.value) return
+  if (!currentStoreId.value) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
 
   try {
     loading.value = true
-    const response = await saveStorePolicy(currentStore.value.id, editPolicyForm)
+    const response = await saveStorePolicy(currentStoreId.value, editPolicyForm)
     if (response.success) {
       ElMessage.success('保存成功')
       editPolicyDialogVisible.value = false
-      await loadStorePolicy(currentStore.value.id)
+      await loadStorePolicy()
     } else {
       ElMessage.error(response.message || '保存失败')
     }
@@ -805,7 +761,8 @@ const handleSaveEditPhotos = () => {
 }
 
 onMounted(() => {
-  loadStores()
+  loadStoreDetails()
+  loadStorePolicy()
 })
 </script>
 
@@ -816,60 +773,6 @@ onMounted(() => {
   min-height: calc(100vh - 100px);
 }
 
-.stores-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 20px;
-}
-
-.store-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s;
-  position: relative;
-}
-
-.store-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-}
-
-.card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.collapse-icon {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ecf5ff;
-  border-radius: 4px;
-  color: #409eff;
-  font-size: 16px;
-  margin-top: 2px;
-}
-
-.store-name {
-  flex: 1;
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-  line-height: 1.6;
-}
-
-.config-button {
-  width: 100%;
-}
-
 /* 配置页面样式 */
 .config-page {
   background: #fff;
@@ -878,21 +781,20 @@ onMounted(() => {
   min-height: calc(100vh - 140px);
 }
 
-.breadcrumb-nav {
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
 }
 
-:deep(.el-breadcrumb__item) {
-  font-size: 14px;
-}
-
-:deep(.el-breadcrumb__item a) {
-  color: #606266;
-  cursor: pointer;
-}
-
-:deep(.el-breadcrumb__item a:hover) {
-  color: #409eff;
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
 }
 
 .store-tabs {

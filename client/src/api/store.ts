@@ -28,6 +28,7 @@ export interface StoreDTO {
   whatsapp?: string
   line?: string
   language?: string
+  userRole: string // owner, admin, member
   createdAt: string
   updatedAt: string
 }
@@ -48,29 +49,44 @@ export interface StorePolicyDTO {
 // 创建/更新门店请求
 export interface StoreRequest {
   name: string
-  phone?: string
-  type?: string
-  timezone?: string
-  manager?: string
-  ownerEmail?: string
-  address?: string
+  phone: string
+  type: string
+  timezone: string
+  manager: string
+  country: string
   city?: string
   state?: string
-  country?: string
-  currency?: string
-  logo?: string
-  description?: string
-  email?: string
-  wechat?: string
-  whatsapp?: string
-  line?: string
-  language?: string
+  address?: string
+}
+
+// 邀请成员请求
+export interface InviteMemberRequest {
+  email: string
+  role: 'admin' | 'member'
+}
+
+// 门店成员信息
+export interface StoreMember {
+  id: number
+  store: {
+    id: number
+    name: string
+  }
+  user: {
+    id: number
+    email: string
+    nickname?: string
+  }
+  role: string
+  isActive: boolean
+  invitedBy?: number
+  joinedAt: string
 }
 
 /**
- * 获取所有门店
+ * 获取当前用户的所有门店
  */
-export const getAllStores = async (): Promise<ApiResponse<StoreDTO[]>> => {
+export const getUserStores = async (): Promise<ApiResponse<StoreDTO[]>> => {
   return await request.get('/stores')
 }
 
@@ -99,10 +115,32 @@ export const updateStore = async (
 }
 
 /**
- * 删除门店
+ * 邀请用户加入门店
  */
-export const deleteStore = async (id: number): Promise<ApiResponse<void>> => {
-  return await request.delete(`/stores/${id}`)
+export const inviteStoreMember = async (
+  storeId: number,
+  data: InviteMemberRequest
+): Promise<ApiResponse<void>> => {
+  return await request.post(`/stores/${storeId}/members`, data)
+}
+
+/**
+ * 移除门店成员
+ */
+export const removeStoreMember = async (
+  storeId: number,
+  userId: number
+): Promise<ApiResponse<void>> => {
+  return await request.delete(`/stores/${storeId}/members/${userId}`)
+}
+
+/**
+ * 获取门店成员列表
+ */
+export const getStoreMembers = async (
+  storeId: number
+): Promise<ApiResponse<StoreMember[]>> => {
+  return await request.get(`/stores/${storeId}/members`)
 }
 
 /**

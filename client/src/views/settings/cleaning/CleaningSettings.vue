@@ -265,13 +265,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getOrCreateCleaningConfig,
   updateCleaningConfig,
-  getCleanersByUserIdAndStoreId,
-  createCleaner,
+  getCleanersByStoreId,
   deleteCleaner,
   getCleaningSuppliesByUserId,
   createCleaningSupply,
   updateCleaningSupply,
   clearCleaningSupply,
+  sendCleanerInvitation,
 } from '@/api/cleaning'
 import { getAllStores, type StoreDTO } from '@/api/store'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
@@ -419,7 +419,7 @@ const loadCleaningConfig = async (storeId: number) => {
 const loadCleaners = async (storeId: number) => {
   try {
     loading.value = true
-    const response = await getCleanersByUserIdAndStoreId(1, storeId)
+    const response = await getCleanersByStoreId(storeId)
     if (response.success && response.data) {
       cleaners.value = response.data
     }
@@ -567,6 +567,14 @@ const handleSaveCleaner = async () => {
     ElMessage.warning('请输入邮箱')
     return
   }
+
+  // 验证邮箱格式
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(cleanerForm.email.trim())) {
+    ElMessage.warning('请输入有效的邮箱地址')
+    return
+  }
+
   if (!currentStore.value) {
     ElMessage.error('未选择门店')
     return
@@ -574,24 +582,24 @@ const handleSaveCleaner = async () => {
 
   try {
     loading.value = true
-    const response = await createCleaner({
+    const response = await sendCleanerInvitation({
+      email: cleanerForm.email.trim(),
+      name: cleanerForm.name.trim(),
       userId: 1,
       storeId: currentStore.value.id,
-      name: cleanerForm.name.trim(),
-      email: cleanerForm.email.trim(),
     })
 
     if (response.success) {
-      ElMessage.success('添加成功')
+      ElMessage.success('邀请邮件已发送,保洁员注册后将出现在列表中')
       showCleanerDialog.value = false
-      // 重新加载保洁员列表
-      await loadCleaners(currentStore.value.id)
+      cleanerForm.name = ''
+      cleanerForm.email = ''
     } else {
-      ElMessage.error(response.message || '添加失败')
+      ElMessage.error(response.message || '发送邀请失败')
     }
   } catch (error) {
-    console.error('添加保洁员失败:', error)
-    ElMessage.error('添加失败')
+    console.error('发送邀请失败:', error)
+    ElMessage.error('发送邀请失败')
   } finally {
     loading.value = false
   }

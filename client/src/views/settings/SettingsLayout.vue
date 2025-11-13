@@ -9,21 +9,23 @@ import {
   BrushFilled,
   Connection,
   Coin,
+  ArrowLeft,
+  ArrowRight,
+  Menu as MenuIcon,
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
 
-const activeCollapse = ref([
-  'room',
-  'price',
-  'finance',
-  'finance-settings',
-  'store',
-  'general',
-  'cleaning',
-  'third-party',
-])
+// 侧边栏折叠状态
+const isCollapsed = ref(false)
+
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value
+}
+
+// 菜单默认收起状态
+const activeCollapse = ref<string[]>([])
 
 interface MenuItem {
   key: string
@@ -124,20 +126,28 @@ const getMenuTitle = () => {
     <!-- 面包屑导航 -->
     <div class="breadcrumb-section">
       <el-breadcrumb separator="/">
-        <el-breadcrumb-item>收货导航</el-breadcrumb-item>
+        <el-breadcrumb-item>收起导航</el-breadcrumb-item>
         <el-breadcrumb-item>{{ getMenuTitle() }}</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
     <div class="settings-content">
       <!-- 左侧菜单 -->
-      <aside class="settings-sidebar">
+      <aside class="settings-sidebar" :class="{ collapsed: isCollapsed }">
+        <!-- 收起导航按钮 -->
+        <div class="sidebar-header" @click="toggleSidebar">
+          <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
+          <span v-if="!isCollapsed" class="sidebar-title">收起导航</span>
+          <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
+          <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
+        </div>
+
         <el-collapse v-model="activeCollapse" class="settings-menu">
           <el-collapse-item v-for="item in menuItems" :key="item.key" :name="item.key">
             <template #title>
               <div class="menu-title">
                 <el-icon><component :is="item.icon" /></el-icon>
-                <span>{{ item.label }}</span>
+                <span v-if="!isCollapsed">{{ item.label }}</span>
               </div>
             </template>
 
@@ -188,10 +198,53 @@ const getMenuTitle = () => {
   background: white;
   border-right: 1px solid #e8e8e8;
   overflow-y: auto;
+  transition: width 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-sidebar.collapsed {
+  width: 64px;
+}
+
+.sidebar-header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid #e8e8e8;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  flex-shrink: 0;
+}
+
+.sidebar-header:hover {
+  background-color: #f5f5f5;
+}
+
+.sidebar-icon {
+  font-size: 20px;
+  color: #1890ff;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  flex: 1;
+  margin-left: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.collapse-icon {
+  font-size: 16px;
+  color: #999;
 }
 
 .settings-menu {
+  flex: 1;
   border: none;
+  overflow-y: auto;
 }
 
 .settings-menu :deep(.el-collapse-item__header) {

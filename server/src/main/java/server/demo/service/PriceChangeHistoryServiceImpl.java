@@ -45,6 +45,7 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
 
     @Override
     public PriceChangeHistoryPageResponse getPriceChangeHistory(
+            Long userId,
             LocalDate operateDateStart,
             LocalDate operateDateEnd,
             LocalDate priceDateStart,
@@ -65,8 +66,9 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
                 pageSize != null && pageSize > 0 ? pageSize : 25
         );
 
-        // 查询数据
-        Page<PriceChangeHistory> page = priceChangeHistoryRepository.findByConditions(
+        // 查询数据 - 添加userId过滤
+        Page<PriceChangeHistory> page = priceChangeHistoryRepository.findByConditionsAndUserId(
+                userId,
                 roomTypeId,
                 pricePlanId,
                 operator,

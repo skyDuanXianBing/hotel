@@ -343,6 +343,13 @@ interface PriceTableRow {
 const priceTableData = computed<PriceTableRow[]>(() => {
   const rows: PriceTableRow[] = []
 
+  console.log('🔄 计算表格数据:', {
+    房型数量: roomTypes.value.length,
+    价格计划数量: pricePlans.value.length,
+    价格数据记录数: priceData.value.length,
+    日期列数: dateColumns.value.length
+  })
+
   // 筛选要显示的房型
   let displayRoomTypes = roomTypes.value
   if (selectedRoomTypeId.value !== null) {
@@ -390,6 +397,8 @@ const priceTableData = computed<PriceTableRow[]>(() => {
         .filter(id => id !== null && id !== undefined)
     )
 
+    console.log(`📋 房型 [${roomType.name}] 关联的价格计划:`, Array.from(roomTypePricePlans))
+
     pricePlans.value.forEach(plan => {
       // 只显示该房型已关联的价格计划
       if (!roomTypePricePlans.has(plan.id)) {
@@ -408,6 +417,10 @@ const priceTableData = computed<PriceTableRow[]>(() => {
         dates[dateCol.dateStr] = {
           price: priceRecord?.price || 0,
           rooms: priceRecord?.minStay || 1
+        }
+
+        if (priceRecord) {
+          console.log(`  📌 ${dateCol.dateStr}: 价格=${priceRecord.price}, 最小入住=${priceRecord.minStay}`)
         }
       })
 
@@ -490,12 +503,17 @@ const handleFilterChange = () => {
 // 加载房型列表
 const loadRoomTypes = async () => {
   try {
+    console.log('🏠 开始加载房型列表...')
     const response = await getAllRoomTypes()
+    console.log('🏠 房型API响应:', response)
     if (response.success && response.data) {
       roomTypes.value = response.data
+      console.log('✅ 房型列表已加载:', response.data)
+    } else {
+      console.warn('⚠️ 房型API返回失败:', response.message)
     }
   } catch (error) {
-    console.error('加载房型列表失败:', error)
+    console.error('❌ 加载房型列表失败:', error)
     ElMessage.error('加载房型列表失败')
   }
 }
@@ -503,15 +521,24 @@ const loadRoomTypes = async () => {
 // 加载价格计划列表
 const loadPricePlans = async () => {
   try {
+    console.log('💰 开始加载价格计划列表...')
     const userId = userStore.currentUser?.id
-    if (!userId) return
+    if (!userId) {
+      console.warn('⚠️ 用户ID不存在,无法加载价格计划')
+      return
+    }
 
+    console.log('💰 请求价格计划, userId:', userId)
     const response = await getAllPricePlans(userId)
+    console.log('💰 价格计划API响应:', response)
     if (response && response.data) {
       pricePlans.value = response.data
+      console.log('✅ 价格计划已加载:', response.data)
+    } else {
+      console.warn('⚠️ 价格计划API返回失败')
     }
   } catch (error) {
-    console.error('加载价格计划列表失败:', error)
+    console.error('❌ 加载价格计划列表失败:', error)
     ElMessage.error('加载价格计划列表失败')
   }
 }
@@ -521,13 +548,23 @@ const loadPriceData = async () => {
   try {
     loading.value = true
     const userId = userStore.currentUser?.id
-    if (!userId) return
+    if (!userId) {
+      console.warn('⚠️ 用户ID不存在,无法加载价格数据')
+      return
+    }
 
     // 计算日期范围
     const startDate = selectedDate.value
     const endDate = new Date(selectedDate.value)
     endDate.setDate(endDate.getDate() + 16)
     const endDateStr = endDate.toISOString().split('T')[0]
+
+    console.log('📅 加载价格数据:', {
+      userId,
+      startDate,
+      endDate: endDateStr,
+      roomTypeId: selectedRoomTypeId.value
+    })
 
     const response = await getRoomPriceManagementData(
       startDate,
@@ -536,11 +573,19 @@ const loadPriceData = async () => {
       userId
     )
 
+    console.log('📦 API响应:', response)
+
     if (response.success && response.data) {
       priceData.value = response.data
+      console.log('✅ 价格数据已加载:', {
+        记录数: response.data.length,
+        数据示例: response.data.slice(0, 2)
+      })
+    } else {
+      console.warn('⚠️ API返回失败:', response.message)
     }
   } catch (error) {
-    console.error('加载价格数据失败:', error)
+    console.error('❌ 加载价格数据失败:', error)
     ElMessage.error('加载价格数据失败')
   } finally {
     loading.value = false
@@ -641,11 +686,15 @@ const savePriceEdit = async () => {
       requestData.availableRooms = editForm.value.availableRooms || undefined
     } else if (editForm.value.settingType === 'minStay') {
       requestData.minStay = Number(editForm.value.minStay)
+      console.log('💾 准备保存最小入住天数:', requestData.minStay)
     } else if (editForm.value.settingType === 'maxStay') {
       requestData.maxStay = Number(editForm.value.maxStay)
+      console.log('💾 准备保存最大入住天数:', requestData.maxStay)
     }
 
+    console.log('💾 发送更新请求:', requestData)
     const response = await updatePriceByPlan(requestData, userId, operator)
+    console.log('💾 更新响应:', response)
 
     if (response.success) {
       const successMsg = editForm.value.settingType === 'price' ? '价格修改成功' :

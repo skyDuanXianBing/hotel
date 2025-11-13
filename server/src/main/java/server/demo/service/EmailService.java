@@ -149,4 +149,146 @@ public class EmailService {
                 </html>
                 """.formatted(purpose, code);
     }
+
+    /**
+     * 发送保洁员邀请邮件
+     *
+     * @param toEmail 收件人邮箱
+     * @param cleanerName 保洁员姓名
+     * @param storeName 门店名称
+     * @param invitationUrl 邀请链接
+     * @throws MessagingException 邮件发送异常
+     */
+    public void sendCleanerInvitation(String toEmail, String cleanerName, String storeName, String invitationUrl) throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        helper.setFrom(fromEmail);
+        helper.setTo(toEmail);
+        helper.setSubject("You have received an invitation to enter the " + storeName);
+
+        String content = buildInvitationEmailContent(cleanerName, storeName, invitationUrl);
+        helper.setText(content, true);
+
+        mailSender.send(message);
+    }
+
+    /**
+     * 构建邀请邮件内容
+     */
+    private String buildInvitationEmailContent(String cleanerName, String storeName, String invitationUrl) {
+        return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            margin: 0;
+                            padding: 0;
+                            background-color: #f5f5f5;
+                        }
+                        .container {
+                            max-width: 600px;
+                            margin: 40px auto;
+                            background: white;
+                            border-radius: 8px;
+                            overflow: hidden;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                        }
+                        .header {
+                            background: #1976d2;
+                            padding: 30px;
+                            text-align: left;
+                        }
+                        .logo {
+                            color: white;
+                            font-size: 24px;
+                            font-weight: 600;
+                            display: flex;
+                            align-items: center;
+                        }
+                        .logo-icon {
+                            width: 32px;
+                            height: 32px;
+                            background: white;
+                            border-radius: 4px;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 12px;
+                            color: #1976d2;
+                            font-weight: bold;
+                        }
+                        .content {
+                            padding: 40px 30px;
+                        }
+                        .greeting {
+                            font-size: 16px;
+                            margin-bottom: 20px;
+                            font-weight: 600;
+                        }
+                        .message {
+                            font-size: 14px;
+                            line-height: 1.8;
+                            margin-bottom: 30px;
+                        }
+                        .button-container {
+                            text-align: center;
+                            margin: 40px 0;
+                        }
+                        .accept-button {
+                            display: inline-block;
+                            background: #1565c0;
+                            color: white;
+                            padding: 14px 40px;
+                            text-decoration: none;
+                            border-radius: 4px;
+                            font-size: 16px;
+                            font-weight: 600;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                        }
+                        .accept-button:hover {
+                            background: #0d47a1;
+                        }
+                        .footer {
+                            padding: 20px 30px;
+                            color: #666;
+                            font-size: 14px;
+                        }
+                        .signature {
+                            margin-top: 30px;
+                            font-size: 14px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <div class="logo">
+                                <span class="logo-icon">◆</span>
+                                Smart Order
+                            </div>
+                        </div>
+                        <div class="content">
+                            <div class="greeting">Dear Housekeeper,</div>
+                            <div class="message">
+                                You have received an invitation to access %s. You can join their team clicking on the button below.
+                            </div>
+                            <div class="button-container">
+                                <a href="%s" class="accept-button">Accept the Invitation</a>
+                            </div>
+                            <div class="signature">
+                                Best regards,<br>
+                                %s
+                            </div>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """.formatted(storeName, invitationUrl, storeName);
+    }
 }

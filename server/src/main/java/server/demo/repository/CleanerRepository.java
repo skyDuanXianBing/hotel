@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import server.demo.entity.Cleaner;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 保洁员 Repository
@@ -21,4 +22,14 @@ public interface CleanerRepository extends JpaRepository<Cleaner, Long> {
      * 根据用户ID查找保洁员列表
      */
     List<Cleaner> findByUserId(Long userId);
+
+    /**
+     * 根据门店ID查找保洁员列表
+     */
+    List<Cleaner> findByStoreId(Long storeId);
+
+    /**
+     * 根据邮箱查找保洁员
+     */
+    Optional<Cleaner> findByEmail(String email);
 }

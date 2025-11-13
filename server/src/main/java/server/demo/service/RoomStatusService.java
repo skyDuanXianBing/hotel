@@ -29,9 +29,57 @@ public class RoomStatusService {
     @Autowired
     private ReservationRepository reservationRepository;
 
-    public RoomStatusCalendarDTO getRoomStatusCalendar(LocalDate startDate, LocalDate endDate) {
+    /**
+     * 获取房态日历数据 - 按用户过滤
+     *
+     * @param userId 用户ID,用于数据隔离
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 房态日历数据
+     */
+    public RoomStatusCalendarDTO getRoomStatusCalendar(Long userId, LocalDate startDate, LocalDate endDate) {
         try {
-            List<Room> rooms = roomRepository.findAllWithRoomType();
+            // 只查询当前用户的房间
+            System.out.println("===== 获取房态日历 =====");
+            System.out.println("当前用户ID: " + userId);
+            List<Room> rooms = roomRepository.findByUserIdWithRoomType(userId);
+            System.out.println("查询到的用户房间数: " + rooms.size());
+
+            // 如果当前用户没有房间，检查是否有未分配的房间（userId为null或0）
+            // 这是一个兼容处理，用于支持从旧系统升级
+            if (rooms.isEmpty()) {
+                System.out.println("当前用户没有房间，检查是否有未分配的房间...");
+
+                // 查找userId为null的房间
+                List<Room> unassignedRooms = roomRepository.findByUserId(null);
+                System.out.println("发现userId为null的房间数: " + (unassignedRooms != null ? unassignedRooms.size() : 0));
+
+                // 查找userId为0的房间
+                List<Room> zeroUserIdRooms = roomRepository.findByUserId(0L);
+                System.out.println("发现userId为0的房间数: " + (zeroUserIdRooms != null ? zeroUserIdRooms.size() : 0));
+
+                // 合并两个列表
+                List<Room> allUnassignedRooms = new ArrayList<>();
+                if (unassignedRooms != null) {
+                    allUnassignedRooms.addAll(unassignedRooms);
+                }
+                if (zeroUserIdRooms != null) {
+                    allUnassignedRooms.addAll(zeroUserIdRooms);
+                }
+
+                // 如果存在未分配的房间，将它们分配给当前用户
+                if (!allUnassignedRooms.isEmpty()) {
+                    System.out.println("将 " + allUnassignedRooms.size() + " 个未分配的房间分配给用户 " + userId);
+                    for (Room room : allUnassignedRooms) {
+                        room.setUserId(userId);
+                    }
+                    roomRepository.saveAll(allUnassignedRooms);
+
+                    // 重新查询带RoomType的房间数据
+                    rooms = roomRepository.findByUserIdWithRoomType(userId);
+                    System.out.println("迁移后重新查询,获得房间数: " + rooms.size());
+                }
+            }
             
             RoomStatusCalendarDTO.DateRangeDTO dateRange = 
                 new RoomStatusCalendarDTO.DateRangeDTO(startDate, endDate);
@@ -72,7 +120,10 @@ public class RoomStatusService {
                     System.err.println("处理房间 " + room.getRoomNumber() + " 时出错: " + e.getMessage());
                 }
             }
-            
+
+            System.out.println("===== 房态日历数据处理完成 =====");
+            System.out.println("最终返回的房间数据数量: " + roomDataList.size());
+
             return new RoomStatusCalendarDTO(dateRange, roomDataList);
         } catch (Exception e) {
             System.err.println("获取房态日历数据失败: " + e.getMessage());
@@ -157,27 +208,31 @@ public class RoomStatusService {
         return date.equals(LocalDate.now());
     }
 
-    public RoomStatusStatisticsDTO getRoomStatusStatistics(LocalDate date) {
+    public RoomStatusStatisticsDTO getRoomStatusStatistics(Long userId, LocalDate date) {
+        // 获取用户的房间列表
+        List<Room> userRooms = roomRepository.findByUserId(userId);
+        List<Long> roomIds = userRooms.stream().map(Room::getId).toList();
+
         // 今日预抵：今天预订的和到期的预订
-        long todayArrivals = reservationRepository.countTodayArrivals(date);
-        
+        long todayArrivals = reservationRepository.countTodayArrivalsForUser(date, roomIds);
+
         // 今日预离：今天退房的订单
-        long todayDepartures = reservationRepository.countByCheckOutDate(date);
-        
+        long todayDepartures = reservationRepository.countByCheckOutDateForUser(date, roomIds);
+
         // 今日新办：今天办理的补办、入住、预办
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
-        long todayNewOrders = reservationRepository.countTodayNewOrders(startOfDay, endOfDay);
-        
+        long todayNewOrders = reservationRepository.countTodayNewOrdersForUser(startOfDay, endOfDay, roomIds);
+
         // 今日可售：未被预订且非停用的房间
-        long availableRooms = roomRepository.countAvailableRoomsForDate(date);
-        
-        // 未排房：没有分配房间的订单
-        long unassignedOrders = reservationRepository.countByRoomIsNull();
-        
-        // 待处理：已确认但未入住的订单
-        long pendingOrders = reservationRepository.countPendingOrders();
-        
+        long availableRooms = roomRepository.countAvailableRoomsForDateAndUser(date, userId);
+
+        // 未排房：没有分配房间的订单(用户的订单)
+        long unassignedOrders = reservationRepository.countByRoomIsNullForUser(roomIds);
+
+        // 待处理：已确认但未入住的订单(用户的订单)
+        long pendingOrders = reservationRepository.countPendingOrdersForUser(roomIds);
+
         return new RoomStatusStatisticsDTO(
             date,
             todayArrivals,

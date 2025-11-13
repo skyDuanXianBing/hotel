@@ -442,6 +442,13 @@ const router = createRouter({
       component: () => import('@/views/housekeeping/TaskStatistics.vue'),
       meta: { title: '任务统计', requiresAuth: true },
     },
+    // 门店选择路由
+    {
+      path: '/store/selection',
+      name: 'StoreSelection',
+      component: () => import('@/views/store/StoreSelection.vue'),
+      meta: { title: '选择门店', requiresAuth: true },
+    },
     {
       path: '/login',
       name: 'Login',
@@ -453,6 +460,30 @@ const router = createRouter({
       name: 'Register',
       component: () => import('@/views/auth/RegisterPage.vue'),
       meta: { title: '注册' },
+    },
+    {
+      path: '/cleaner/register',
+      name: 'CleanerRegister',
+      component: () => import('@/views/cleaner/CleanerRegister.vue'),
+      meta: { title: '保洁员注册' },
+    },
+    {
+      path: '/cleaner/login',
+      name: 'CleanerLogin',
+      component: () => import('@/views/cleaner/CleanerLogin.vue'),
+      meta: { title: '保洁员登录' },
+    },
+    {
+      path: '/cleaner/dashboard',
+      name: 'CleanerDashboard',
+      component: () => import('@/views/cleaner/CleanerDashboard.vue'),
+      meta: { title: '保洁工作台', requiresAuth: true },
+    },
+    {
+      path: '/cleaner/task/:id',
+      name: 'CleanerTaskDetail',
+      component: () => import('@/views/cleaner/TaskDetail.vue'),
+      meta: { title: '任务详情', requiresAuth: true },
     },
     {
       path: '/forgot-password',
@@ -472,16 +503,79 @@ const router = createRouter({
 // 路由守卫：检查登录状态
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
+  const userStr = localStorage.getItem('user')
+  const currentStoreStr = localStorage.getItem('currentStore')
+  let isCleaner = false
+  let hasCurrentStore = false
 
-  // 如果路由需要认证但没有token，重定向到登录页
-  if (to.meta.requiresAuth && !token) {
-    next('/login')
-  } else if ((to.path === '/login' || to.path === '/register') && token) {
-    // 如果已登录访问登录/注册页，重定向到首页
-    next('/')
-  } else {
-    next()
+  // 尝试从localStorage获取用户信息
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr)
+      isCleaner = user.isCleaner === true
+    } catch {
+      // 解析失败,忽略
+    }
   }
+
+  // 检查是否有当前选中的门店
+  if (currentStoreStr) {
+    try {
+      const store = JSON.parse(currentStoreStr)
+      hasCurrentStore = !!store.id
+    } catch {
+      // 解析失败,忽略
+    }
+  }
+
+  // 如果路由需要认证但没有token，重定向到对应的登录页
+  if (to.meta.requiresAuth && !token) {
+    // 根据访问的路径决定重定向到哪个登录页
+    if (to.path.startsWith('/cleaner')) {
+      next('/cleaner/login')
+    } else {
+      next('/login')
+    }
+    return
+  }
+
+  // 如果已登录访问管理员登录/注册页，重定向到管理后台
+  if ((to.path === '/login' || to.path === '/register') && token) {
+    next('/')
+    return
+  }
+
+  // 如果已登录访问保洁员登录页，重定向到保洁员工作台
+  if (to.path === '/cleaner/login' && token) {
+    next('/cleaner/dashboard')
+    return
+  }
+
+  // 保洁员访问控制 - 保洁员只能访问 /cleaner 路径
+  if (token && isCleaner && !to.path.startsWith('/cleaner')) {
+    next('/cleaner/dashboard')
+    return
+  }
+
+  // 管理员访问控制 - 管理员不能访问保洁员路径 (除了登录页)
+  if (token && !isCleaner && to.path.startsWith('/cleaner') && to.path !== '/cleaner/login') {
+    next('/')
+    return
+  }
+
+  // 门店检查 - 管理员访问主要功能时必须先选择门店
+  // 排除门店相关页面和登录注册页面
+  const storeRelatedPaths = ['/store/selection', '/login', '/register', '/forgot-password']
+  const isStoreRelatedPath = storeRelatedPaths.some(path => to.path === path || to.path.startsWith(path))
+
+  if (token && !isCleaner && to.meta.requiresAuth && !isStoreRelatedPath && !hasCurrentStore) {
+    // 已登录且不是保洁员,访问需要认证的页面,但没有选择门店
+    // 重定向到门店选择页面
+    next('/store/selection')
+    return
+  }
+
+  next()
 })
 
 export default router

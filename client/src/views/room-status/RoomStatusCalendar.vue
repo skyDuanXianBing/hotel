@@ -2069,6 +2069,8 @@ const loadRoomStatusCalendarData = async () => {
     loading.value = true
 
     const response = await getRoomStatusCalendar(dateRange.value[0], dateRange.value[1])
+    console.log('loadRoomStatusCalendarData - 后端API响应:', response)
+    console.log('loadRoomStatusCalendarData - response.data.rooms:', response.data?.rooms)
 
     if (response.success && response.data) {
       // 转换后端数据格式为前端需要的格式
@@ -2099,11 +2101,20 @@ const loadRoomStatusCalendarData = async () => {
         })),
       }
 
-      calendarData.value = transformedData
-      console.log('房态日历数据加载成功:', transformedData)
+      // 只有在返回的房间数据不为空时才覆盖
+      if (transformedData.rooms && transformedData.rooms.length > 0) {
+        calendarData.value = transformedData
+        console.log('房态日历数据加载成功:', transformedData)
+        console.log('transformedData.rooms数量:', transformedData.rooms?.length)
+        console.log('calendarData.value.rooms数量:', calendarData.value.rooms?.length)
+      } else {
+        console.warn('后端返回的房间数据为空,保留已有的房型数据')
+        console.log('当前calendarData.value.rooms数量:', calendarData.value.rooms?.length)
+        // 不覆盖calendarData,保持使用loadRoomTypesData()加载的数据
+      }
     } else {
-      console.warn('使用模拟数据，API返回:', response)
-      // 如果API调用失败，保持使用模拟数据
+      console.warn('API调用失败,保留已有数据。API返回:', response)
+      // 如果API调用失败,保持使用已有数据
     }
   } catch (error) {
     console.error('加载房态日历数据失败:', error)
@@ -2176,9 +2187,13 @@ const loadRoomTypesData = async () => {
 
 const initFilterOptions = () => {
   // 获取所有房型
+  console.log('initFilterOptions - calendarData.value.rooms:', calendarData.value.rooms)
+  console.log('initFilterOptions - rooms数量:', calendarData.value.rooms?.length)
   const roomTypes = [...new Set(calendarData.value.rooms.map((room) => room.roomType))]
+  console.log('initFilterOptions - 提取的房型:', roomTypes)
   filterOptions.value.roomTypes = roomTypes
   filterOptions.value.selectedRoomTypes = [...roomTypes] // 默认全选
+  console.log('initFilterOptions - selectedRoomTypes:', filterOptions.value.selectedRoomTypes)
 }
 
 const toggleFilterSidebar = () => {
@@ -2205,13 +2220,19 @@ const handleSelectAll = (checked: boolean) => {
 
 // 计算筛选后的房间数据
 const filteredRooms = computed(() => {
+  console.log('filteredRooms computed - calendarData.value.rooms数量:', calendarData.value.rooms?.length)
+  console.log('filteredRooms computed - selectedRoomTypes:', filterOptions.value.selectedRoomTypes)
+
   if (filterOptions.value.selectedRoomTypes.length === 0) {
+    console.log('filteredRooms computed - selectedRoomTypes为空,返回所有房间')
     return calendarData.value.rooms
   }
 
-  return calendarData.value.rooms.filter((room) =>
+  const filtered = calendarData.value.rooms.filter((room) =>
     filterOptions.value.selectedRoomTypes.includes(room.roomType),
   )
+  console.log('filteredRooms computed - 筛选后房间数量:', filtered.length)
+  return filtered
 })
 
 // 批量操作相关方法

@@ -1,4 +1,5 @@
 import { request } from '@/utils/request'
+import type { StoreDTO } from './store'
 
 // API响应格式
 export interface ApiResponse<T> {
@@ -16,6 +17,7 @@ export interface UserDTO {
   gender?: 'male' | 'female' | 'private'
   createdAt: string
   updatedAt: string
+  isCleaner?: boolean // 是否是保洁员
 }
 
 // 更新个人资料请求
@@ -50,6 +52,7 @@ export interface LoginByCodeRequest {
 export interface LoginResponse {
   token: string
   user: UserDTO
+  stores: StoreDTO[]
 }
 
 // 注册请求

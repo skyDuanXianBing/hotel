@@ -34,14 +34,19 @@
           </el-select>
 
           <span class="filter-label">房型</span>
-          <el-select v-model="filters.roomType" placeholder="请选择" clearable class="filter-select">
-            <el-option label="全部" value="" />
-            <el-option label="要町201" value="要町201" />
-            <el-option label="要町401" value="要町401" />
-            <el-option label="要町403" value="要町403" />
-            <el-option label="束十条1F" value="束十条1F" />
-            <el-option label="束十条2F" value="束十条2F" />
-            <el-option label="束十条3/4F" value="束十条3/4F" />
+          <el-select
+            v-model="filters.roomTypeId"
+            placeholder="请选择"
+            clearable
+            class="filter-select"
+          >
+            <el-option label="全部" :value="undefined" />
+            <el-option
+              v-for="roomType in roomTypeList"
+              :key="roomType.id"
+              :label="roomType.name"
+              :value="roomType.id"
+            />
           </el-select>
         </div>
 
@@ -77,7 +82,7 @@
 
     <!-- 任务列表表格 -->
     <el-card class="table-card">
-      <el-table :data="taskList" border style="width: 100%">
+      <el-table :data="taskList" border style="width: 100%" v-loading="loading">
         <el-table-column prop="taskDate" label="日期" width="120" />
         <el-table-column prop="roomType" label="房型" width="120" />
         <el-table-column prop="roomNumber" label="房间" width="100" />
@@ -127,7 +132,7 @@
 
     <!-- 任务详情对话框 -->
     <el-dialog v-model="detailDialogVisible" title="任务详情" width="600px">
-      <el-descriptions :column="2" border>
+      <el-descriptions v-if="taskDetail" :column="2" border>
         <el-descriptions-item label="日期">{{ taskDetail.taskDate }}</el-descriptions-item>
         <el-descriptions-item label="房型">{{ taskDetail.roomType }}</el-descriptions-item>
         <el-descriptions-item label="房间号">{{ taskDetail.roomNumber }}</el-descriptions-item>
@@ -153,7 +158,7 @@
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
         <el-button
-          v-if="taskDetail.taskStatus === 'pending'"
+          v-if="taskDetail && taskDetail.taskStatus === 'pending'"
           type="primary"
           @click="handleAssignTask"
         >
@@ -161,7 +166,8 @@
         </el-button>
         <el-button
           v-if="
-            taskDetail.taskStatus === 'assigned' || taskDetail.taskStatus === 'in-progress'
+            taskDetail &&
+            (taskDetail.taskStatus === 'assigned' || taskDetail.taskStatus === 'in-progress')
           "
           type="success"
           @click="handleCompleteTask"
@@ -174,12 +180,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { getCleaningTasks, type CleaningTaskDTO } from '@/api/cleaning'
+import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 
 // 是否收起筛选
 const isCollapsed = ref(false)
+
+// 房型列表
+const roomTypeList = ref<RoomTypeDTO[]>([])
 
 // 筛选条件
 const filters = ref({
@@ -187,37 +198,42 @@ const filters = ref({
   taskType: '',
   status: '',
   roomType: '',
+  roomTypeId: undefined as number | undefined,
   startDate: '2025-11-08',
   endDate: '2025-11-08',
 })
 
 // 任务列表数据
-const taskList = ref([
-  {
-    taskDate: '2025/11/08',
-    roomType: '束十条3/4F',
-    roomNumber: '301/401',
-    taskStatus: 'expired',
-    taskType: '退房',
-    taskTime: '10:00-16:00',
-    cleaner: '',
-    approver: '',
-    createTime: '2025-11-08 08:00:00',
-    completeTime: '',
-    remark: '',
-  },
-])
+interface TaskListItem {
+  id: number
+  taskDate: string
+  roomType: string
+  roomNumber: string
+  taskStatus: string
+  taskType: string
+  taskTime: string
+  cleaner: string
+  approver: string
+  cleanerId?: number
+  approverId?: number
+  createTime: string
+  completeTime: string
+  remark: string
+}
+
+const taskList = ref<TaskListItem[]>([])
+const loading = ref(false)
 
 // 分页
 const pagination = ref({
   current: 1,
   size: 10,
-  total: 1,
+  total: 0,
 })
 
 // 详情对话框
 const detailDialogVisible = ref(false)
-const taskDetail = ref<any>({})
+const taskDetail = ref<TaskListItem | null>(null)
 
 // 获取状态类型
 const getStatusType = (status: string) => {
@@ -254,6 +270,106 @@ const getStatusDotClass = (status: string) => {
   }
 }
 
+// 获取任务类型文本
+const getTaskTypeText = (taskType: string) => {
+  const typeMap: Record<string, string> = {
+    checkout: '退房',
+    daily: '日常清洁',
+    deep: '深度清洁',
+  }
+  return typeMap[taskType] || taskType
+}
+
+// 格式化任务时间
+const formatTaskTime = (task: CleaningTaskDTO) => {
+  if (task.startTime && task.completeTime) {
+    const start = new Date(task.startTime).toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    const end = new Date(task.completeTime).toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    return `${start}-${end}`
+  } else if (task.estimatedTime) {
+    return new Date(task.estimatedTime).toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+  return '-'
+}
+
+// 格式化日期时间
+const formatDateTime = (datetime?: string) => {
+  if (!datetime) return '-'
+  return new Date(datetime).toLocaleString('zh-CN')
+}
+
+// 转换API数据到列表项
+const convertToListItem = (task: CleaningTaskDTO): TaskListItem => {
+  return {
+    id: task.id,
+    taskDate: task.taskDate,
+    roomType: task.roomType,
+    roomNumber: task.roomNumber,
+    taskStatus: task.status,
+    taskType: getTaskTypeText(task.taskType),
+    taskTime: formatTaskTime(task),
+    cleaner: task.cleanerName || '',
+    approver: task.approverName || '',
+    cleanerId: task.cleanerId,
+    approverId: task.approverId,
+    createTime: formatDateTime(task.createdAt),
+    completeTime: formatDateTime(task.completeTime),
+    remark: task.notes || '',
+  }
+}
+
+// 加载房型列表
+const loadRoomTypes = async () => {
+  try {
+    const response = await getAllRoomTypes()
+    if (response.success && response.data) {
+      roomTypeList.value = response.data
+    }
+  } catch (error: any) {
+    console.error('获取房型列表失败:', error)
+  }
+}
+
+// 加载任务列表
+const loadTasks = async () => {
+  try {
+    loading.value = true
+    const response = await getCleaningTasks({
+      startDate: filters.value.startDate || undefined,
+      endDate: filters.value.endDate || undefined,
+      status: filters.value.status || undefined,
+      taskType: filters.value.taskType || undefined,
+      roomTypeId: filters.value.roomTypeId,
+      search: filters.value.search || undefined,
+      page: pagination.value.current - 1,
+      size: pagination.value.size,
+      sortBy: 'taskDate',
+      sortDirection: 'DESC',
+    })
+
+    if (response.success && response.data) {
+      taskList.value = response.data.content.map(convertToListItem)
+      pagination.value.total = response.data.totalElements
+    } else {
+      ElMessage.error(response.message || '获取任务列表失败')
+    }
+  } catch (error: any) {
+    console.error('获取任务列表失败:', error)
+    ElMessage.error(error.message || '获取任务列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 // 收起/展开筛选
 const handleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
@@ -266,7 +382,7 @@ const handleExport = () => {
 }
 
 // 查看详情
-const handleViewDetail = (row: any) => {
+const handleViewDetail = (row: TaskListItem) => {
   taskDetail.value = { ...row }
   detailDialogVisible.value = true
 }
@@ -276,6 +392,7 @@ const handleAssignTask = () => {
   ElMessage.success('分配成功')
   detailDialogVisible.value = false
   // TODO: 实现分配逻辑
+  loadTasks()
 }
 
 // 完成任务
@@ -283,19 +400,42 @@ const handleCompleteTask = () => {
   ElMessage.success('任务已完成')
   detailDialogVisible.value = false
   // TODO: 实现完成逻辑
+  loadTasks()
 }
 
 // 分页事件
 const handlePageChange = (page: number) => {
   pagination.value.current = page
-  // TODO: 加载数据
+  loadTasks()
 }
 
 const handleSizeChange = (size: number) => {
   pagination.value.size = size
   pagination.value.current = 1
-  // TODO: 加载数据
+  loadTasks()
 }
+
+// 监听筛选条件变化
+watch(
+  () => [
+    filters.value.search,
+    filters.value.taskType,
+    filters.value.status,
+    filters.value.roomTypeId,
+    filters.value.startDate,
+    filters.value.endDate,
+  ],
+  () => {
+    pagination.value.current = 1
+    loadTasks()
+  }
+)
+
+// 页面加载时获取数据
+onMounted(() => {
+  loadRoomTypes()
+  loadTasks()
+})
 </script>
 
 <style scoped>

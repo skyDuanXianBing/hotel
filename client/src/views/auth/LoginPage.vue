@@ -179,6 +179,7 @@ import { useRouter } from 'vue-router'
 import { Message, Lock, Key, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useStoreStore } from '@/stores/store'
 import {
   loginByPassword as loginByPasswordAPI,
   loginByCode as loginByCodeAPI,
@@ -187,6 +188,7 @@ import {
 
 const router = useRouter()
 const userStore = useUserStore()
+const storeStore = useStoreStore()
 
 // 登录模式：password（密码登录）或 code（验证码登录）
 const loginMode = ref<'password' | 'code'>('password')
@@ -300,13 +302,31 @@ const handleLogin = async () => {
     }
 
     // 保存token和用户信息
-    const { token, user } = response.data
+    const { token, user, stores } = response.data
     localStorage.setItem('token', token)
     localStorage.setItem('user', JSON.stringify(user))
     userStore.setUser(user)
 
+    // 保存门店列表
+    if (stores && stores.length > 0) {
+      storeStore.setStores(stores)
+    }
+
     ElMessage.success('登录成功')
-    router.push('/')
+
+    // 判断是否有门店
+    if (!stores || stores.length === 0) {
+      // 没有门店,跳转到门店选择页面(在那里可以创建)
+      router.push('/store/selection')
+    } else if (stores.length === 1) {
+      // 只有一个门店,直接选择并进入首页
+      storeStore.setCurrentStore(stores[0])
+      router.push('/')
+    } else {
+      // 多个门店,跳转到门店选择页面
+      router.push('/store/selection')
+    }
+
     loading.value = false
   } catch (error: any) {
     loading.value = false

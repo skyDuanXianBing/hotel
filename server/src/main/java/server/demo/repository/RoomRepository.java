@@ -29,7 +29,23 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     
     @Query("SELECT r FROM Room r JOIN FETCH r.roomType ORDER BY r.roomType.name, r.roomNumber")
     List<Room> findAllWithRoomType();
-    
+
+    /**
+     * 按用户ID和房型查询房间(用于数据隔离)
+     */
+    @Query("SELECT r FROM Room r JOIN FETCH r.roomType WHERE r.userId = :userId ORDER BY r.roomType.name, r.roomNumber")
+    List<Room> findByUserIdWithRoomType(@Param("userId") Long userId);
+
+    /**
+     * 按用户ID查询房间列表
+     */
+    List<Room> findByUserId(Long userId);
+
+    /**
+     * 按用户ID统计房间数量
+     */
+    long countByUserId(Long userId);
+
     @Query("SELECT COUNT(r) FROM Room r WHERE r.roomType.id = :roomTypeId AND r.status = :status")
     long countByRoomTypeIdAndStatus(@Param("roomTypeId") Long roomTypeId, @Param("status") RoomStatus status);
     
@@ -44,4 +60,14 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     Optional<Room> findByIdWithRoomType(@Param("roomId") Long roomId);
     
     boolean existsByRoomNumber(String roomNumber);
+
+    /**
+     * 按用户ID和日期统计可售房间数(用于数据隔离)
+     * 未被预订且非停用的房间
+     */
+    @Query("SELECT COUNT(r) FROM Room r WHERE r.userId = :userId AND r.status NOT IN ('OUT_OF_ORDER', 'MAINTENANCE') " +
+           "AND NOT EXISTS (SELECT res FROM Reservation res WHERE res.room = r " +
+           "AND res.checkInDate <= :date AND res.checkOutDate > :date " +
+           "AND res.status IN ('CONFIRMED', 'CHECKED_IN'))")
+    long countAvailableRoomsForDateAndUser(@Param("date") java.time.LocalDate date, @Param("userId") Long userId);
 }

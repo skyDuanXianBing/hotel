@@ -22,7 +22,13 @@
       "Bash(./mvnw.cmd:*)",
       "Bash(cat:*)",
       "Bash(mysql:*)",
-      "Bash(.mvnw.cmd compile:*)"
+      "Bash(.mvnw.cmd compile:*)",
+      "Bash(git checkout:*)",
+      "Bash(mvnw.cmd compile:*)",
+      "Bash(nul)",
+      "Bash(dir:*)",
+      "Bash(echo:*)",
+      "Bash(StoreService.java)"
     ],
     "deny": [],
     "ask": []

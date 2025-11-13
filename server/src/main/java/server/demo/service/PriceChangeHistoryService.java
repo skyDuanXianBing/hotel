@@ -13,6 +13,7 @@ public interface PriceChangeHistoryService {
     /**
      * 分页查询改价历史
      *
+     * @param userId 用户ID
      * @param operateDateStart 操作日期开始
      * @param operateDateEnd 操作日期结束
      * @param priceDateStart 价格日期开始
@@ -25,6 +26,7 @@ public interface PriceChangeHistoryService {
      * @return 分页结果
      */
     PriceChangeHistoryPageResponse getPriceChangeHistory(
+            Long userId,
             LocalDate operateDateStart,
             LocalDate operateDateEnd,
             LocalDate priceDateStart,

@@ -19,6 +19,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     // ========== 新增：按用户ID查询的方法 ==========
 
+    // 按用户ID查询所有预订
+    List<Reservation> findByUserId(Long userId);
+
     // 按用户ID和订单号查询
     Optional<Reservation> findByUserIdAndOrderNumber(Long userId, String orderNumber);
 
@@ -256,6 +259,33 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     // 查询日期范围内的所有预订（用于远期房情表）
     @Query("SELECT r FROM Reservation r WHERE " +
            "(r.checkInDate <= :endDate AND r.checkOutDate > :startDate)")
-    List<Reservation> findByDateRange(@Param("startDate") LocalDate startDate, 
+    List<Reservation> findByDateRange(@Param("startDate") LocalDate startDate,
                                      @Param("endDate") LocalDate endDate);
+
+    // ========== 按房间ID列表查询的统计方法（用于用户数据隔离） ==========
+
+    // 按房间ID列表统计今日预抵
+    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.room.id IN :roomIds AND r.checkInDate = :date " +
+           "AND r.status IN ('CONFIRMED', 'CHECKED_IN')")
+    long countTodayArrivalsForUser(@Param("date") LocalDate date, @Param("roomIds") List<Long> roomIds);
+
+    // 按房间ID列表统计今日预离
+    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.room.id IN :roomIds AND r.checkOutDate = :date")
+    long countByCheckOutDateForUser(@Param("date") LocalDate date, @Param("roomIds") List<Long> roomIds);
+
+    // 按房间ID列表统计今日新办
+    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.room.id IN :roomIds AND " +
+           "((r.createdAt >= :startOfDay AND r.createdAt < :endOfDay) OR " +
+           "(r.actualCheckIn >= :startOfDay AND r.actualCheckIn < :endOfDay))")
+    long countTodayNewOrdersForUser(@Param("startOfDay") LocalDateTime startOfDay,
+                                    @Param("endOfDay") LocalDateTime endOfDay,
+                                    @Param("roomIds") List<Long> roomIds);
+
+    // 按房间ID列表统计未排房
+    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.room.id IN :roomIds AND r.room IS NULL")
+    long countByRoomIsNullForUser(@Param("roomIds") List<Long> roomIds);
+
+    // 按房间ID列表统计待处理
+    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.room.id IN :roomIds AND r.status = 'CONFIRMED' AND r.actualCheckIn IS NULL")
+    long countPendingOrdersForUser(@Param("roomIds") List<Long> roomIds);
 }

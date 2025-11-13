@@ -45,7 +45,13 @@
 
     <!-- 房态日历表格 -->
     <div class="calendar-container">
-      <el-table :data="roomList" border class="calendar-table" :row-class-name="getRowClassName">
+      <el-table
+        :data="roomList"
+        border
+        class="calendar-table"
+        :row-class-name="getRowClassName"
+        v-loading="loading"
+      >
         <!-- 房型列 -->
         <el-table-column label="房型" width="100" fixed>
           <template #default="{ row }">
@@ -267,9 +273,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ArrowLeft, ArrowRight, ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { getCalendarViewData, type CleaningTaskDTO } from '@/api/cleaning'
+import { getRooms, type RoomDTO } from '@/api/room'
 
 // 当前日期
 const currentDate = ref(new Date().toISOString().split('T')[0])
@@ -320,68 +328,105 @@ const dateColumns = computed(() => {
 })
 
 // 房间列表
-const roomList = ref([
-  { roomType: '要町201', roomNumber: '201' },
-  { roomType: '要町401', roomNumber: '401' },
-  { roomType: '要町403', roomNumber: '403' },
-  { roomType: '束十条1F', roomNumber: '101' },
-  { roomType: '束十条2F', roomNumber: '201' },
-  { roomType: '束十条3/4F', roomNumber: '301/401' },
-  { roomType: '北赤羽103', roomNumber: '103' },
-  { roomType: '北赤羽104', roomNumber: '104' },
-])
+interface RoomListItem {
+  id: number
+  roomType: string
+  roomNumber: string
+  roomTypeId: number
+}
+
+const roomList = ref<RoomListItem[]>([])
+
+// 加载房间列表
+const loadRooms = async () => {
+  try {
+    const response = await getRooms()
+    if (response.success && response.data) {
+      roomList.value = response.data.map((room: RoomDTO) => ({
+        id: room.id,
+        roomType: room.roomType.name,
+        roomNumber: room.roomNumber,
+        roomTypeId: room.roomType.id,
+      }))
+    }
+  } catch (error: any) {
+    console.error('获取房间列表失败:', error)
+  }
+}
 
 // 任务数据
-const tasks = ref([
-  {
-    id: 1,
-    roomNumber: '201',
-    date: '2025-11-06',
-    status: 'expired',
-    type: 'checkout',
-    label: '已过期',
-  },
-  {
-    id: 2,
-    roomNumber: '401',
-    date: '2025-11-09',
-    status: 'pending',
-    type: 'checkout',
-    label: '待分配',
-  },
-  {
-    id: 3,
-    roomNumber: '201',
-    date: '2025-11-12',
-    status: 'pending',
-    type: 'daily',
-    label: '待分配',
-  },
-  {
-    id: 4,
-    roomNumber: '201',
-    date: '2025-11-13',
-    status: 'pending',
-    type: 'daily',
-    label: '待分配',
-  },
-  {
-    id: 5,
-    roomNumber: '403',
-    date: '2025-11-09',
-    status: 'pending',
-    type: 'daily',
-    label: '待分配',
-  },
-  {
-    id: 6,
-    roomNumber: '101',
-    date: '2025-11-07',
-    status: 'expired',
-    type: 'checkout',
-    label: '已过期',
-  },
-])
+interface TaskItem {
+  id: number
+  roomNumber: string
+  date: string
+  status: string
+  type: string
+  label: string
+}
+
+const tasks = ref<TaskItem[]>([])
+const loading = ref(false)
+const currentFilter = ref('all')
+
+// 加载任务数据
+const loadTasks = async () => {
+  try {
+    loading.value = true
+    const startDate = dateColumns.value[0]?.date
+    const endDate = dateColumns.value[dateColumns.value.length - 1]?.date
+
+    if (!startDate || !endDate) {
+      return
+    }
+
+    const response = await getCalendarViewData({
+      startDate,
+      endDate,
+      status: currentFilter.value === 'all' ? undefined : currentFilter.value,
+    })
+
+    if (response.success && response.data) {
+      // 转换API数据到任务列表
+      const taskList: TaskItem[] = []
+      const tasksMap = response.data.tasks
+
+      for (const key in tasksMap) {
+        const taskArray = tasksMap[key]
+        taskArray.forEach((task: CleaningTaskDTO) => {
+          taskList.push({
+            id: task.id,
+            roomNumber: task.roomNumber,
+            date: task.taskDate,
+            status: task.status,
+            type: task.taskType,
+            label: getStatusLabel(task.status),
+          })
+        })
+      }
+
+      tasks.value = taskList
+    } else {
+      ElMessage.error(response.message || '获取任务数据失败')
+    }
+  } catch (error: any) {
+    console.error('获取任务数据失败:', error)
+    ElMessage.error(error.message || '获取任务数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 获取状态标签
+const getStatusLabel = (status: string) => {
+  const labelMap: Record<string, string> = {
+    expired: '已过期',
+    pending: '待分配',
+    assigned: '已分配',
+    in_progress: '清洁中',
+    completed: '已完成',
+  }
+  return labelMap[status] || status
+}
 
 // 获取单元格中的任务
 const getTasksForCell = (roomNumber: string, date: string) => {
@@ -411,7 +456,7 @@ const selectedCell = ref<any>(null)
 // 分配任务抽屉
 const assignDrawerVisible = ref(false)
 const assignForm = ref({
-  taskId: '',
+  taskId: 0,
   roomNumber: '',
   roomType: '',
   taskType: '',
@@ -549,7 +594,7 @@ const formatDateDisplay = (dateStr: string) => {
 const handleCancelAssign = () => {
   assignDrawerVisible.value = false
   assignForm.value = {
-    taskId: '',
+    taskId: 0,
     roomNumber: '',
     roomType: '',
     taskType: '',
@@ -641,19 +686,19 @@ const handleConfirmCreate = () => {
 // 处理日期变化
 const handleDateChange = () => {
   console.log('日期变化:', currentDate.value)
-  // TODO: 重新加载数据
+  loadTasks()
 }
 
 // 刷新
 const handleRefresh = () => {
+  loadTasks()
   ElMessage.success('刷新成功')
-  // TODO: 重新加载数据
 }
 
 // 筛选
 const handleFilter = (command: string) => {
-  console.log('筛选:', command)
-  // TODO: 应用筛选
+  currentFilter.value = command
+  loadTasks()
 }
 
 // 生成任务
@@ -673,6 +718,7 @@ const handlePreviousWeek = () => {
   const date = new Date(currentDate.value)
   date.setDate(date.getDate() - 7)
   currentDate.value = date.toISOString().split('T')[0]
+  loadTasks()
 }
 
 // 下一周
@@ -680,6 +726,7 @@ const handleNextWeek = () => {
   const date = new Date(currentDate.value)
   date.setDate(date.getDate() + 7)
   currentDate.value = date.toISOString().split('T')[0]
+  loadTasks()
 }
 
 // 全局点击事件监听,关闭右键菜单
@@ -687,9 +734,20 @@ const handleGlobalClick = () => {
   contextMenuVisible.value = false
 }
 
+// 监听日期列变化,重新加载任务
+watch(
+  () => dateColumns.value,
+  () => {
+    loadTasks()
+  },
+  { deep: true }
+)
+
 // 组件挂载时添加全局点击监听
 onMounted(() => {
   document.addEventListener('click', handleGlobalClick)
+  loadRooms()
+  loadTasks()
 })
 
 // 组件卸载时移除监听
