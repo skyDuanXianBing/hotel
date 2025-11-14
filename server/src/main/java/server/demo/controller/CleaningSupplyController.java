@@ -2,6 +2,7 @@ package server.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.entity.CleaningSupply;
 import server.demo.service.CleaningSupplyService;
@@ -13,14 +14,25 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/v1/cleaning-supplies")
+@StoreScoped
 public class CleaningSupplyController {
 
     @Autowired
     private CleaningSupplyService cleaningSupplyService;
 
     /**
-     * 根据用户ID获取易耗品列表
+     * 获取易耗品列表(门店级)
      */
+    @GetMapping
+    public ApiResponse<List<CleaningSupply>> getAllSupplies() {
+        List<CleaningSupply> supplies = cleaningSupplyService.getAllSupplies();
+        return ApiResponse.success("获取易耗品列表成功", supplies);
+    }
+
+    /**
+     * 根据用户ID获取易耗品列表(已废弃,使用getAllSupplies)
+     */
+    @Deprecated
     @GetMapping("/user/{userId}")
     public ApiResponse<List<CleaningSupply>> getSuppliesByUserId(@PathVariable Long userId) {
         List<CleaningSupply> supplies = cleaningSupplyService.getSuppliesByUserId(userId);

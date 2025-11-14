@@ -21,6 +21,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/v1/room-prices")
 @CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"}, allowCredentials = "true")
+@server.demo.annotation.StoreScoped
 public class RoomPriceController {
 
     @Autowired
@@ -201,11 +202,10 @@ public class RoomPriceController {
     public ResponseEntity<ApiResponse<List<RoomPriceManagementDTO>>> getRoomPriceManagementData(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) Long roomTypeId,
-            @RequestParam(required = false) Long userId) {
+            @RequestParam(required = false) Long roomTypeId) {
         try {
             List<RoomPriceManagementDTO> data = roomPriceService.getRoomPriceManagementData(
-                    startDate, endDate, roomTypeId, userId);
+                    startDate, endDate, roomTypeId);
             return ResponseEntity.ok(ApiResponse.success("获取房价管理数据成功", data));
         } catch (Exception e) {
             return ResponseEntity.status(500)
@@ -219,11 +219,10 @@ public class RoomPriceController {
     @PostMapping("/update-by-plan")
     public ResponseEntity<ApiResponse<List<RoomPriceManagementDTO>>> updatePriceByPlan(
             @Valid @RequestBody UpdatePriceByPlanRequest request,
-            @RequestParam Long userId,
             @RequestParam String operator) {
         try {
             List<RoomPriceManagementDTO> updatedPrices = roomPriceService.updatePriceByPlan(
-                    request, userId, operator);
+                    request, operator);
             return ResponseEntity.ok(ApiResponse.success(
                     "价格更新成功，共更新 " + updatedPrices.size() + " 条记录",
                     updatedPrices

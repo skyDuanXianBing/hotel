@@ -2,6 +2,7 @@ package server.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.entity.Cleaner;
 import server.demo.service.CleanerService;
@@ -13,38 +14,64 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/v1/cleaners")
+@StoreScoped
 public class CleanerController {
 
     @Autowired
     private CleanerService cleanerService;
 
     /**
-     * 根据用户ID和门店ID获取保洁员列表
+     * 获取当前门店的保洁员列表
      */
+    @GetMapping
+    public ApiResponse<List<Cleaner>> getCleaners() {
+        Long storeId = getCurrentStoreId();
+        List<Cleaner> cleaners = cleanerService.getCleanersByStoreId(storeId);
+        return ApiResponse.success("获取保洁员列表成功", cleaners);
+    }
+
+    /**
+     * 根据用户ID和门店ID获取保洁员列表(已废弃)
+     */
+    @Deprecated
     @GetMapping("/user/{userId}/store/{storeId}")
     public ApiResponse<List<Cleaner>> getCleanersByUserIdAndStoreId(
             @PathVariable Long userId,
             @PathVariable Long storeId) {
-        List<Cleaner> cleaners = cleanerService.getCleanersByUserIdAndStoreId(userId, storeId);
+        List<Cleaner> cleaners = cleanerService.getCleanersByStoreId(storeId);
         return ApiResponse.success("获取保洁员列表成功", cleaners);
     }
 
     /**
-     * 根据用户ID获取保洁员列表
+     * 根据用户ID获取保洁员列表(已废弃)
      */
+    @Deprecated
     @GetMapping("/user/{userId}")
     public ApiResponse<List<Cleaner>> getCleanersByUserId(@PathVariable Long userId) {
-        List<Cleaner> cleaners = cleanerService.getCleanersByUserId(userId);
+        Long storeId = getCurrentStoreId();
+        List<Cleaner> cleaners = cleanerService.getCleanersByStoreId(storeId);
         return ApiResponse.success("获取保洁员列表成功", cleaners);
     }
 
     /**
-     * 根据门店ID获取保洁员列表
+     * 根据门店ID获取保洁员列表(已废弃)
      */
+    @Deprecated
     @GetMapping("/store/{storeId}")
     public ApiResponse<List<Cleaner>> getCleanersByStoreId(@PathVariable Long storeId) {
         List<Cleaner> cleaners = cleanerService.getCleanersByStoreId(storeId);
         return ApiResponse.success("获取保洁员列表成功", cleaners);
+    }
+
+    /**
+     * 获取当前门店ID
+     */
+    private Long getCurrentStoreId() {
+        server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
+        if (storeContext == null || storeContext.getStoreId() == null) {
+            throw new RuntimeException("无法获取当前门店信息");
+        }
+        return storeContext.getStoreId();
     }
 
     /**

@@ -54,8 +54,29 @@
       <el-table-column type="selection" width="55" />
       <el-table-column prop="email" label="账号" min-width="200" />
       <el-table-column prop="name" label="员工姓名" min-width="120" />
-      <el-table-column prop="role" label="员工角色" min-width="120" />
-      <el-table-column label="状态" min-width="120">
+      <el-table-column prop="role" label="基础角色" min-width="100">
+        <template #default="{ row }">
+          <el-tag v-if="row.role === 'owner'" type="danger" size="small">所有者</el-tag>
+          <el-tag v-else-if="row.role === 'admin'" type="warning" size="small">管理员</el-tag>
+          <el-tag v-else type="info" size="small">成员</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="权限角色" min-width="200">
+        <template #default="{ row }">
+          <el-tag
+            v-for="role in row.roles"
+            :key="role.id"
+            size="small"
+            style="margin-right: 4px"
+          >
+            {{ role.name }}
+          </el-tag>
+          <span v-if="!row.roles || row.roles.length === 0" style="color: #909399; font-size: 12px">
+            无
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" min-width="100">
         <template #default="{ row }">
           <el-switch
             v-model="row.isActive"
@@ -64,7 +85,7 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="150" fixed="right">
+      <el-table-column label="操作" min-width="200" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="handleDetail(row)">详情</el-button>
           <el-button link type="primary" @click="handleSetPermission(row)">设置权限</el-button>
@@ -158,70 +179,68 @@
                 <div class="role-permission-section">
                   <h4 class="subsection-title">角色权限</h4>
                   <div class="role-checkboxes">
-                    <el-checkbox
-                      v-for="role in roleOptions"
-                      :key="role.id"
-                      v-model="selectedAccountRoles"
-                      :label="role.id"
-                    >
-                      {{ role.name }}
-                    </el-checkbox>
+                    <el-checkbox-group v-model="selectedAccountRoles">
+                      <el-checkbox
+                        v-for="role in roleOptions"
+                        :key="role.id"
+                        :label="role.id"
+                      >
+                        {{ role.name }}
+                      </el-checkbox>
+                    </el-checkbox-group>
                   </div>
                 </div>
 
                 <el-divider />
 
-                <h4 class="subsection-title">附加额外权限</h4>
+                <h4 class="subsection-title">
+                  附加额外权限
+                  <el-tag type="info" size="small" style="margin-left: 12px">预览模式</el-tag>
+                </h4>
+                <el-alert
+                  title="以下权限是通过上方选中的角色自动汇总的,如需修改请在角色管理中调整角色权限"
+                  type="info"
+                  :closable="false"
+                  show-icon
+                  style="margin-bottom: 16px"
+                />
                 <el-tabs v-model="activePermissionTab" class="permission-tabs">
                   <!-- 生意管理 -->
-                  <el-tab-pane label="生意管理" name="business">
+                  <el-tab-pane label="住宿管理" name="business">
                     <div class="permission-content">
                       <div class="permission-group">
-                        <el-checkbox
-                          v-model="permissions.business.selectAll"
-                          :indeterminate="permissions.business.indeterminate"
-                          @change="handleBusinessSelectAll"
-                        >
-                          房态页权限
-                        </el-checkbox>
+                        <h4 class="group-title">房型权限</h4>
                         <div class="permission-note">
-                          被设置该权限的员工将拥有查看房态页所选房源的权限
-                        </div>
-                        <div class="checkbox-group">
-                          <el-checkbox
-                            v-for="room in roomList"
-                            :key="room"
-                            v-model="permissions.business.rooms[room]"
-                            @change="updateBusinessIndeterminate"
-                          >
-                            {{ room }}
-                          </el-checkbox>
+                          房型权限在角色管理中配置,可以指定"所有房型"或特定房型
                         </div>
                       </div>
 
                       <div class="permission-group">
                         <h4 class="group-title">房态管理</h4>
                         <div class="checkbox-group">
-                          <el-checkbox v-model="permissions.business.roomManagement.viewRooms">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.ACCOMMODATION, PermissionAction.VIEW_ROOM_STATUS)"
+                            disabled
+                          >
                             查看房态
                           </el-checkbox>
                           <el-checkbox
-                            v-model="permissions.business.roomManagement.modifyReservation"
+                            :model-value="hasPermission(PermissionModule.ACCOMMODATION, PermissionAction.EDIT_ROOM_STATUS)"
+                            disabled
                           >
                             修改房态
                           </el-checkbox>
                           <el-checkbox
-                            v-model="permissions.business.roomManagement.viewReservationByDate"
+                            :model-value="hasPermission(PermissionModule.ACCOMMODATION, PermissionAction.VIEW_ROOM_OPERATION_LOG)"
+                            disabled
                           >
-                            查看房态所有日期范围内订单
+                            查看房态操作日志
                           </el-checkbox>
                           <el-checkbox
-                            v-model="permissions.business.roomManagement.viewReservationHistory"
+                            :model-value="hasPermission(PermissionModule.ACCOMMODATION, PermissionAction.VIEW_ROOM_INFO)"
+                            disabled
                           >
-                            放宽房态
-                          </el-checkbox>
-                          <el-checkbox v-model="permissions.business.roomManagement.updatePrice">
-                            房态房价
+                            查看房情表
                           </el-checkbox>
                         </div>
                       </div>
@@ -229,36 +248,41 @@
                       <div class="permission-group">
                         <h4 class="group-title">房价管理</h4>
                         <div class="checkbox-group">
-                          <el-checkbox v-model="permissions.business.priceManagement.viewPrice">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.ACCOMMODATION, PermissionAction.VIEW_ROOM_PRICE)"
+                            disabled
+                          >
                             查看房价
                           </el-checkbox>
-                          <el-checkbox v-model="permissions.business.priceManagement.modifyPrice">
-                            修改房价所有日期范围
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.ACCOMMODATION, PermissionAction.EDIT_ROOM_PRICE)"
+                            disabled
+                          >
+                            修改房价
                           </el-checkbox>
                           <el-checkbox
-                            v-model="permissions.business.priceManagement.updateRestrictions"
+                            :model-value="hasPermission(PermissionModule.ACCOMMODATION, PermissionAction.VIEW_PRICE_LOG)"
+                            disabled
                           >
-                            放宽房价
+                            查看改价记录
                           </el-checkbox>
                           <el-checkbox
-                            v-model="permissions.business.priceManagement.deleteRestrictions"
+                            :model-value="hasPermission(PermissionModule.ACCOMMODATION, PermissionAction.BATCH_CHANGE_PRICE)"
+                            disabled
                           >
-                            放宽房价
+                            批量改价
                           </el-checkbox>
                         </div>
                       </div>
 
                       <div class="permission-group">
-                        <h4 class="group-title">其他</h4>
+                        <h4 class="group-title">保洁管理</h4>
                         <div class="checkbox-group">
-                          <el-checkbox v-model="permissions.business.other.calendar">
-                            餐食管理
-                          </el-checkbox>
-                          <el-checkbox v-model="permissions.business.other.useHistory">
-                            使用历史
-                          </el-checkbox>
-                          <el-checkbox v-model="permissions.business.other.priceCalendar">
-                            任务列表
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.ACCOMMODATION, PermissionAction.TASK_LIST)"
+                            disabled
+                          >
+                            查看保洁任务
                           </el-checkbox>
                         </div>
                       </div>
@@ -270,14 +294,22 @@
                     <div class="permission-content">
                       <div class="permission-group">
                         <div class="checkbox-group">
-                          <el-checkbox v-model="permissions.order.viewOrders">查看订单</el-checkbox>
-                          <el-checkbox v-model="permissions.order.createOrder">
-                            创建订单
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.ORDER, PermissionAction.VIEW_ORDERS)"
+                            disabled
+                          >
+                            查看订单
                           </el-checkbox>
-                          <el-checkbox v-model="permissions.order.modifyOrder">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.ORDER, PermissionAction.MODIFY_ORDER)"
+                            disabled
+                          >
                             修改订单
                           </el-checkbox>
-                          <el-checkbox v-model="permissions.order.cancelOrder">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.ORDER, PermissionAction.CANCEL_ORDER)"
+                            disabled
+                          >
                             取消订单
                           </el-checkbox>
                         </div>
@@ -290,27 +322,17 @@
                     <div class="permission-content">
                       <div class="permission-group">
                         <div class="checkbox-group">
-                          <el-checkbox v-model="permissions.channel.viewChannels">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.CHANNEL, PermissionAction.VIEW_CHANNELS)"
+                            disabled
+                          >
                             查看渠道
                           </el-checkbox>
-                          <el-checkbox v-model="permissions.channel.manageChannels">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.CHANNEL, PermissionAction.MANAGE_CHANNELS)"
+                            disabled
+                          >
                             管理渠道
-                          </el-checkbox>
-                        </div>
-                      </div>
-                    </div>
-                  </el-tab-pane>
-
-                  <!-- 客户管理 -->
-                  <el-tab-pane label="客户管理" name="customer">
-                    <div class="permission-content">
-                      <div class="permission-group">
-                        <div class="checkbox-group">
-                          <el-checkbox v-model="permissions.customer.viewCustomers">
-                            查看客户
-                          </el-checkbox>
-                          <el-checkbox v-model="permissions.customer.manageCustomers">
-                            管理客户
                           </el-checkbox>
                         </div>
                       </div>
@@ -322,10 +344,16 @@
                     <div class="permission-content">
                       <div class="permission-group">
                         <div class="checkbox-group">
-                          <el-checkbox v-model="permissions.statistics.viewStats">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.STATISTICS, PermissionAction.VIEW_STATS)"
+                            disabled
+                          >
                             查看统计
                           </el-checkbox>
-                          <el-checkbox v-model="permissions.statistics.exportStats">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.STATISTICS, PermissionAction.EXPORT_STATS)"
+                            disabled
+                          >
                             导出统计
                           </el-checkbox>
                         </div>
@@ -338,11 +366,35 @@
                     <div class="permission-content">
                       <div class="permission-group">
                         <div class="checkbox-group">
-                          <el-checkbox v-model="permissions.settings.viewSettings">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.SETTINGS, PermissionAction.VIEW_SETTINGS)"
+                            disabled
+                          >
                             查看设置
                           </el-checkbox>
-                          <el-checkbox v-model="permissions.settings.modifySettings">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.SETTINGS, PermissionAction.MODIFY_SETTINGS)"
+                            disabled
+                          >
                             修改设置
+                          </el-checkbox>
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.SETTINGS, PermissionAction.MODIFY_STORE_SETTINGS)"
+                            disabled
+                          >
+                            修改门店设置
+                          </el-checkbox>
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.SETTINGS, PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)"
+                            disabled
+                          >
+                            管理员工账号
+                          </el-checkbox>
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.SETTINGS, PermissionAction.MANAGE_PAYMENT_METHODS)"
+                            disabled
+                          >
+                            管理收款方式
                           </el-checkbox>
                         </div>
                       </div>
@@ -354,10 +406,16 @@
                     <div class="permission-content">
                       <div class="permission-group">
                         <div class="checkbox-group">
-                          <el-checkbox v-model="permissions.dataCenter.viewData">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.DATA_CENTER, PermissionAction.VIEW_DATA)"
+                            disabled
+                          >
                             查看数据
                           </el-checkbox>
-                          <el-checkbox v-model="permissions.dataCenter.exportData">
+                          <el-checkbox
+                            :model-value="hasPermission(PermissionModule.DATA_CENTER, PermissionAction.EXPORT_DATA)"
+                            disabled
+                          >
                             导出数据
                           </el-checkbox>
                         </div>
@@ -381,30 +439,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  getAllAccounts,
-  getAccountById,
-  createAccount,
-  updateAccount,
-  deleteAccount,
-  batchDeleteAccounts,
-  updateAccountStatus,
-  batchUpdateStatus,
-  batchUpdateRoles,
-  type AccountDTO,
-  type CreateAccountRequest,
-  type UpdateAccountRequest,
-} from '@/api/account'
-import { getAllRoles, type RoleDTO } from '@/api/role'
+  getStoreMembers,
+  addStoreMember,
+  getStoreMemberDetail,
+  updateStoreMemberPermission,
+  removeStoreMember,
+  type StoreMember,
+  type AddStoreMemberRequest,
+} from '@/api/store'
+import { searchUsers, type UserDTO } from '@/api/auth'
+import {
+  getAllRoles,
+  getRolePermissions,
+  type RoleDTO,
+  type PermissionDTO,
+  PermissionModule,
+  PermissionAction
+} from '@/api/role'
+import { useStoreStore } from '@/stores/store'
 
 const router = useRouter()
+const storeStore = useStoreStore()
 
 interface Account {
   id: number
+  storeUserId?: number // StoreUser的ID，用于删除和更新
   email: string
   name: string
   role: string
@@ -449,79 +513,46 @@ const accountForm = ref<{
 // 当前账号选择的角色(用于设置权限)
 const selectedAccountRoles = ref<number[]>([])
 
-// 房源列表
-const roomList = [
-  '要町201',
-  '要町401',
-  '要町403',
-  '束十条1F',
-  '束十条2F',
-  '束十条3/4F',
-  '北赤羽103',
-  '北赤羽104',
-  '北赤羽204',
-  '北赤羽2301',
-  '北赤羽2303',
-  '北赤羽2304',
-]
+// 存储选中角色的所有权限数据
+const rolePermissionsMap = ref<Map<number, PermissionDTO[]>>(new Map())
 
-// 权限设置
-const permissions = ref({
-  business: {
-    selectAll: false,
-    indeterminate: false,
-    rooms: {} as Record<string, boolean>,
-    roomManagement: {
-      viewRooms: false,
-      modifyReservation: false,
-      viewReservationByDate: false,
-      viewReservationHistory: false,
-      updatePrice: false,
-    },
-    priceManagement: {
-      viewPrice: false,
-      modifyPrice: false,
-      updateRestrictions: false,
-      deleteRestrictions: false,
-    },
-    other: {
-      calendar: false,
-      useHistory: false,
-      priceCalendar: false,
-    },
-  },
-  order: {
-    viewOrders: false,
-    createOrder: false,
-    modifyOrder: false,
-    cancelOrder: false,
-  },
-  channel: {
-    viewChannels: false,
-    manageChannels: false,
-  },
-  customer: {
-    viewCustomers: false,
-    manageCustomers: false,
-  },
-  statistics: {
-    viewStats: false,
-    exportStats: false,
-  },
-  settings: {
-    viewSettings: false,
-    modifySettings: false,
-  },
-  dataCenter: {
-    viewData: false,
-    exportData: false,
-  },
+// 监听选中角色变化,加载对应的权限
+watch(selectedAccountRoles, async (newRoleIds) => {
+  // 清空旧的权限数据
+  rolePermissionsMap.value.clear()
+
+  if (!newRoleIds || newRoleIds.length === 0) {
+    return
+  }
+
+  // 加载每个角色的权限
+  for (const roleId of newRoleIds) {
+    try {
+      const response = await getRolePermissions(roleId)
+      if (response.success && response.data) {
+        rolePermissionsMap.value.set(roleId, response.data)
+      }
+    } catch (error) {
+      console.error(`加载角色 ${roleId} 的权限失败:`, error)
+    }
+  }
 })
 
-// 初始化房源权限
-roomList.forEach(room => {
-  permissions.value.business.rooms[room] = false
+// 计算汇总的权限(用于显示)
+const aggregatedPermissions = computed(() => {
+  const allPermissions: PermissionDTO[] = []
+  rolePermissionsMap.value.forEach(permissions => {
+    allPermissions.push(...permissions)
+  })
+  return allPermissions
 })
+
+// 检查是否拥有指定权限
+const hasPermission = (module: PermissionModule, action: PermissionAction): boolean => {
+  return aggregatedPermissions.value.some(
+    p => p.module === module && p.action === action
+  )
+}
 
 // 账号数据
 const accounts = ref<Account[]>([])
@@ -534,30 +565,44 @@ const filteredAccounts = computed(() => {
 
 // 加载账号列表
 const loadAccounts = async () => {
+  // 检查当前门店
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    accounts.value = []
+    return
+  }
+
   try {
     loading.value = true
-    const params: { keyword?: string; roleId?: number; isActive?: boolean } = {}
-
-    if (searchKeyword.value) {
-      params.keyword = searchKeyword.value
-    }
-    if (selectedRole.value !== '') {
-      params.roleId = selectedRole.value as number
-    }
-    if (selectedStatus.value !== '') {
-      params.isActive = selectedStatus.value as boolean
-    }
-
-    const response = await getAllAccounts(params)
+    // 使用门店成员API获取当前门店的成员列表
+    const response = await getStoreMembers(storeStore.currentStore.id)
     if (response.success && response.data) {
-      accounts.value = response.data.map((dto: AccountDTO) => ({
-        id: dto.id,
-        email: dto.email,
-        name: dto.name,
-        role: dto.roles.map(r => r.name).join(', ') || '无角色',
-        isActive: dto.isActive,
-        roles: dto.roles,
+      // 转换门店成员数据为账号格式
+      accounts.value = response.data.map((member: StoreMember) => ({
+        id: member.user.id,
+        storeUserId: member.id, // 保存StoreUser的ID，用于删除和更新
+        email: member.user.email,
+        name: member.user.nickname || member.user.email,
+        role: member.role,
+        isActive: member.isActive,
+        roles: member.roles || [], // 使用返回的权限角色列表
       }))
+
+      // 应用本地筛选
+      if (searchKeyword.value) {
+        const keyword = searchKeyword.value.toLowerCase()
+        accounts.value = accounts.value.filter(
+          (account) =>
+            (account.email?.toLowerCase().includes(keyword) || false) ||
+            (account.name?.toLowerCase().includes(keyword) || false)
+        )
+      }
+      if (selectedRole.value !== '') {
+        accounts.value = accounts.value.filter((account) => account.role === selectedRole.value)
+      }
+      if (selectedStatus.value !== '') {
+        accounts.value = accounts.value.filter((account) => account.isActive === selectedStatus.value)
+      }
     } else {
       ElMessage.error(response.message || '加载账号列表失败')
     }
@@ -602,24 +647,7 @@ const handleAdd = () => {
     name: '',
   }
   selectedAccountRoles.value = []
-  resetPermissions()
   addDrawerVisible.value = true
-}
-
-// 房态页权限全选
-const handleBusinessSelectAll = (val: boolean) => {
-  Object.keys(permissions.value.business.rooms).forEach(room => {
-    permissions.value.business.rooms[room] = val
-  })
-  permissions.value.business.indeterminate = false
-}
-
-// 更新房态页权限不确定状态
-const updateBusinessIndeterminate = () => {
-  const checkedCount = Object.values(permissions.value.business.rooms).filter(Boolean).length
-  permissions.value.business.selectAll = checkedCount === roomList.length
-  permissions.value.business.indeterminate =
-    checkedCount > 0 && checkedCount < roomList.length
 }
 
 // 取消添加
@@ -630,8 +658,6 @@ const handleCancelAdd = () => {
     email: '',
     name: '',
   }
-  // 重置权限
-  resetPermissions()
 }
 
 // 确认添加
@@ -640,8 +666,8 @@ const handleConfirmAdd = async () => {
     ElMessage.warning('请输入邮箱地址')
     return
   }
-  if (!accountForm.value.name) {
-    ElMessage.warning('请输入员工姓名')
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
     return
   }
 
@@ -649,32 +675,28 @@ const handleConfirmAdd = async () => {
     let response
 
     if (accountForm.value.id) {
-      // 更新账号
-      const updateRequest: UpdateAccountRequest = {
-        name: accountForm.value.name,
-        email: accountForm.value.email,
+      // 更新成员权限
+      response = await updateStoreMemberPermission(storeStore.currentStore.id, accountForm.value.id, {
         roleIds: selectedAccountRoles.value,
-      }
-      response = await updateAccount(accountForm.value.id, updateRequest)
+      })
       if (response.success) {
-        ElMessage.success('账号更新成功')
+        ElMessage.success('权限更新成功')
       } else {
-        ElMessage.error(response.message || '更新账号失败')
+        ElMessage.error(response.message || '更新权限失败')
         return
       }
     } else {
-      // 创建账号
-      const createRequest: CreateAccountRequest = {
-        username: accountForm.value.email.split('@')[0], // 使用邮箱前缀作为用户名
-        name: accountForm.value.name,
+      // 添加新成员
+      const addRequest: AddStoreMemberRequest = {
         email: accountForm.value.email,
+        role: 'member', // 默认为普通成员
         roleIds: selectedAccountRoles.value,
       }
-      response = await createAccount(createRequest)
+      response = await addStoreMember(storeStore.currentStore.id, addRequest)
       if (response.success) {
-        ElMessage.success('账号添加成功')
+        ElMessage.success('成员添加成功')
       } else {
-        ElMessage.error(response.message || '创建账号失败')
+        ElMessage.error(response.message || '添加成员失败')
         return
       }
     }
@@ -686,71 +708,15 @@ const handleConfirmAdd = async () => {
       name: '',
     }
     selectedAccountRoles.value = []
-    resetPermissions()
     loadAccounts()
-  } catch (error) {
+  } catch (error: any) {
     console.error('操作失败:', error)
-    ElMessage.error('操作失败')
+    if (error.response?.data?.message) {
+      ElMessage.error(error.response.data.message)
+    } else {
+      ElMessage.error('操作失败')
+    }
   }
-}
-
-// 重置权限
-const resetPermissions = () => {
-  permissions.value = {
-    business: {
-      selectAll: false,
-      indeterminate: false,
-      rooms: {},
-      roomManagement: {
-        viewRooms: false,
-        modifyReservation: false,
-        viewReservationByDate: false,
-        viewReservationHistory: false,
-        updatePrice: false,
-      },
-      priceManagement: {
-        viewPrice: false,
-        modifyPrice: false,
-        updateRestrictions: false,
-        deleteRestrictions: false,
-      },
-      other: {
-        calendar: false,
-        useHistory: false,
-        priceCalendar: false,
-      },
-    },
-    order: {
-      viewOrders: false,
-      createOrder: false,
-      modifyOrder: false,
-      cancelOrder: false,
-    },
-    channel: {
-      viewChannels: false,
-      manageChannels: false,
-    },
-    customer: {
-      viewCustomers: false,
-      manageCustomers: false,
-    },
-    statistics: {
-      viewStats: false,
-      exportStats: false,
-    },
-    settings: {
-      viewSettings: false,
-      modifySettings: false,
-    },
-    dataCenter: {
-      viewData: false,
-      exportData: false,
-    },
-  }
-  // 重新初始化房源权限
-  roomList.forEach(room => {
-    permissions.value.business.rooms[room] = false
-  })
 }
 
 const handleDetail = (row: Account) => {
@@ -758,6 +724,11 @@ const handleDetail = (row: Account) => {
 }
 
 const handleSetPermission = async (row: Account) => {
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+
   try {
     // 加载账号信息到表单
     accountForm.value = {
@@ -766,59 +737,71 @@ const handleSetPermission = async (row: Account) => {
       name: row.name,
     }
 
-    // 从API加载该账号的详细信息(包含角色)
-    const response = await getAccountById(row.id)
+    // 从API加载该成员的详细信息(包含角色)
+    const response = await getStoreMemberDetail(storeStore.currentStore.id, row.id)
     if (response.success && response.data) {
-      // 提取账号的角色ID列表
+      // 提取成员的权限角色ID列表
       selectedAccountRoles.value = response.data.roles.map(role => role.id)
     }
-
-    // TODO: 加载账号的详细权限设置(如果有额外权限)
 
     // 打开抽屉
     addDrawerVisible.value = true
   } catch (error) {
-    console.error('加载账号信息失败:', error)
-    ElMessage.error('加载账号信息失败')
+    console.error('加载成员信息失败:', error)
+    ElMessage.error('加载成员信息失败')
   }
 }
 
 const handleDelete = async (row: Account) => {
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+
   try {
-    await ElMessageBox.confirm(`确定要删除账号 "${row.name}" 吗?`, '删除确认', {
+    await ElMessageBox.confirm(`确定要将 "${row.name}" 从门店中移除吗?`, '移除确认', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
     })
 
-    const response = await deleteAccount(row.id)
+    // 使用storeUserId作为成员ID进行删除
+    const memberId = row.storeUserId || row.id
+    const response = await removeStoreMember(storeStore.currentStore.id, memberId)
     if (response.success) {
-      ElMessage.success('删除成功')
+      ElMessage.success('移除成功')
       loadAccounts()
     } else {
-      ElMessage.error(response.message || '删除失败')
+      ElMessage.error(response.message || '移除失败')
     }
   } catch (error: any) {
     if (error !== 'cancel') {
-      console.error('删除账号失败:', error)
-      ElMessage.error('删除账号失败')
+      console.error('移除成员失败:', error)
+      ElMessage.error('移除成员失败')
     }
   }
 }
 
 const handleStatusChange = async (row: Account) => {
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+
   try {
-    const response = await updateAccountStatus(row.id, row.isActive)
+    const response = await updateStoreMemberPermission(storeStore.currentStore.id, row.id, {
+      isActive: row.isActive,
+    })
     if (response.success) {
-      ElMessage.success(`已${row.isActive ? '启用' : '停用'}账号: ${row.name}`)
+      ElMessage.success(`已${row.isActive ? '启用' : '停用'}成员: ${row.name}`)
     } else {
       ElMessage.error(response.message || '更新状态失败')
       // 恢复原状态
       row.isActive = !row.isActive
     }
   } catch (error) {
-    console.error('更新账号状态失败:', error)
-    ElMessage.error('更新账号状态失败')
+    console.error('更新成员状态失败:', error)
+    ElMessage.error('更新成员状态失败')
     // 恢复原状态
     row.isActive = !row.isActive
   }

@@ -5,7 +5,7 @@
       <div class="header-content">
         <div class="brand-info">
           <el-icon class="brand-icon"><Headset /></el-icon>
-          <h1 class="brand-title">乐迪酒店管理系统</h1>
+          <h1 class="brand-title">房东智控中心（THE HOST HUB）</h1>
           <span class="brand-subtitle">住户聊天</span>
         </div>
         <div class="header-actions">

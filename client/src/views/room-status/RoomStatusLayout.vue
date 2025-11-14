@@ -5,7 +5,7 @@
       <el-tabs :model-value="activeTab" @tab-change="handleTabChange" class="room-status-tabs">
         <el-tab-pane label="日历" name="calendar" />
         <!-- <el-tab-pane label="单日" name="daily" /> -->
-        <el-tab-pane label="渠道" name="channel" />
+        <!-- <el-tab-pane label="渠道" name="channel" /> -->
       </el-tabs>
     </div>
 

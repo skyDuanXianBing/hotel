@@ -24,6 +24,7 @@ import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.UserRepository;
+import server.demo.util.StoreContextUtils;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -53,24 +54,34 @@ public class ReservationService {
     @Autowired
     private UserRepository userRepository;
 
+    private Long currentStoreId() {
+        return StoreContextUtils.requireStoreId();
+    }
+
+    private Long currentUserId() {
+        return StoreContextUtils.requireUserId();
+    }
+
     /**
      * 创建预订
      */
-    public ReservationDTO createReservation(Long userId, CreateReservationRequest request) {
-        // 验证用户是否存在
+    public ReservationDTO createReservation(CreateReservationRequest request) {
+        Long storeId = currentStoreId();
+        Long userId = currentUserId();
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
-        // 验证房间是否存在
-        Room room = roomRepository.findById(request.getRoomId())
-                .orElseThrow(() -> new RuntimeException("房间不存在"));
+
+        Room room = roomRepository.findByStoreIdAndId(storeId, request.getRoomId())
+                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
 
         // 验证渠道是否存在
         Channel channel = channelRepository.findById(request.getChannelId())
                 .orElseThrow(() -> new RuntimeException("渠道不存在"));
 
         // 检查房间在指定日期是否有冲突(仅检查当前用户的预订)
-        List<Reservation> conflictReservations = reservationRepository.findByUserIdAndRoomIdAndDateRange(
-                userId, request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
+        List<Reservation> conflictReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
+                storeId, request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
 
         System.out.println("===== 预订冲突检查 =====");
         System.out.println("用户ID: " + userId + ", 房间ID: " + request.getRoomId());
@@ -90,6 +101,7 @@ public class ReservationService {
 
         // 创建预订
         Reservation reservation = new Reservation();
+        reservation.setStoreId(storeId);
         reservation.setUser(user);
         reservation.setRoom(room);
         reservation.setChannel(channel);
@@ -125,14 +137,8 @@ public class ReservationService {
     /**
      * 办理入住
      */
-    public ReservationDTO checkIn(Long userId, Long reservationId) {
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("预订不存在"));
-
-        // 验证数据归属
-        if (!reservation.getUser().getId().equals(userId)) {
-            throw new RuntimeException("无权限操作此预订");
-        }
+    public ReservationDTO checkIn(Long reservationId) {
+        Reservation reservation = loadReservationInStore(reservationId);
 
         if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
             throw new RuntimeException("预订状态不正确，无法办理入住");
@@ -148,14 +154,8 @@ public class ReservationService {
     /**
      * 办理退房
      */
-    public ReservationDTO checkOut(Long userId, Long reservationId) {
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("预订不存在"));
-
-        // 验证数据归属
-        if (!reservation.getUser().getId().equals(userId)) {
-            throw new RuntimeException("无权限操作此预订");
-        }
+    public ReservationDTO checkOut(Long reservationId) {
+        Reservation reservation = loadReservationInStore(reservationId);
 
         if (reservation.getStatus() != ReservationStatus.CHECKED_IN) {
             throw new RuntimeException("预订状态不正确，无法办理退房");
@@ -171,20 +171,15 @@ public class ReservationService {
     /**
      * 取消预订
      */
-    public ReservationDTO cancelReservation(Long userId, Long reservationId) {
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("预订不存在"));
+    public ReservationDTO cancelReservation(Long reservationId) {
+        Reservation reservation = loadReservationInStore(reservationId);
 
-        // 验证数据归属
-        if (!reservation.getUser().getId().equals(userId)) {
-            throw new RuntimeException("无权限操作此预订");
-        }
-
-        if (reservation.getStatus() == ReservationStatus.CHECKED_IN) {
-            throw new RuntimeException("已入住的预订无法取消");
+        if (reservation.getStatus() == ReservationStatus.CHECKED_OUT) {
+            throw new RuntimeException("已退房订单无法取消");
         }
 
         reservation.setStatus(ReservationStatus.CANCELLED);
+        reservation.setActualCheckOut(LocalDateTime.now());
 
         Reservation savedReservation = reservationRepository.save(reservation);
         return convertToDTO(savedReservation);
@@ -193,25 +188,26 @@ public class ReservationService {
     /**
      * 根据ID获取预订
      */
-    public Optional<ReservationDTO> getReservationById(Long userId, Long id) {
+    public Optional<ReservationDTO> getReservationById(Long id) {
+        Long storeId = currentStoreId();
         return reservationRepository.findById(id)
-                .filter(reservation -> reservation.getUser().getId().equals(userId))
+                .filter(reservation -> storeId.equals(reservation.getStoreId()))
                 .map(this::convertToDTO);
     }
 
     /**
      * 根据订单号获取预订
      */
-    public Optional<ReservationDTO> getReservationByOrderNumber(Long userId, String orderNumber) {
-        return reservationRepository.findByUserIdAndOrderNumber(userId, orderNumber)
+    public Optional<ReservationDTO> getReservationByOrderNumber(String orderNumber) {
+        return reservationRepository.findByStoreIdAndOrderNumber(currentStoreId(), orderNumber)
                 .map(this::convertToDTO);
     }
 
     /**
      * 获取指定日期范围内的预订
      */
-    public List<ReservationDTO> getReservationsByDateRange(Long userId, LocalDate startDate, LocalDate endDate) {
-        List<Reservation> reservations = reservationRepository.findActiveReservationsByUserIdBetweenDates(userId, startDate, endDate);
+    public List<ReservationDTO> getReservationsByDateRange(LocalDate startDate, LocalDate endDate) {
+        List<Reservation> reservations = reservationRepository.findActiveReservationsByStoreIdBetweenDates(currentStoreId(), startDate, endDate);
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -220,8 +216,8 @@ public class ReservationService {
     /**
      * 获取指定房间的预订
      */
-    public List<ReservationDTO> getReservationsByRoomId(Long userId, Long roomId) {
-        List<Reservation> reservations = reservationRepository.findByUserIdAndRoomId(userId, roomId);
+    public List<ReservationDTO> getReservationsByRoomId(Long roomId) {
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndRoomId(currentStoreId(), roomId);
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -230,12 +226,17 @@ public class ReservationService {
     /**
      * 根据客人信息搜索预订
      */
-    public List<ReservationDTO> searchReservationsByGuestInfo(Long userId, String keyword) {
-        List<Reservation> reservations = reservationRepository.findByUserIdAndGuestNameContainingIgnoreCase(userId, keyword);
-        if (reservations.isEmpty() && keyword.matches("\\d+")) {
-            // 如果按姓名搜索无结果且关键词是数字，尝试按手机号搜索
-            reservations = reservationRepository.findByUserIdAndGuestPhone(userId, keyword);
+    public List<ReservationDTO> searchReservationsByGuestInfo(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
         }
+
+        Long storeId = currentStoreId();
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndGuestNameContainingIgnoreCase(storeId, keyword);
+        if (reservations.isEmpty()) {
+            reservations = reservationRepository.findByStoreIdAndGuestPhone(storeId, keyword);
+        }
+
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -244,9 +245,9 @@ public class ReservationService {
     /**
      * 获取今日入住的预订
      */
-    public List<ReservationDTO> getTodayCheckIns(Long userId) {
+    public List<ReservationDTO> getTodayCheckIns() {
         LocalDate today = LocalDate.now();
-        List<Reservation> reservations = reservationRepository.findByUserIdAndCheckInDateBetween(userId, today, today);
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndCheckInDateBetween(currentStoreId(), today, today);
         return reservations.stream()
                 .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED)
                 .map(this::convertToDTO)
@@ -256,9 +257,9 @@ public class ReservationService {
     /**
      * 获取今日退房的预订
      */
-    public List<ReservationDTO> getTodayCheckOuts(Long userId) {
+    public List<ReservationDTO> getTodayCheckOuts() {
         LocalDate today = LocalDate.now();
-        List<Reservation> reservations = reservationRepository.findByUserIdAndCheckOutDateBetween(userId, today, today);
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndCheckOutDateBetween(currentStoreId(), today, today);
         return reservations.stream()
                 .filter(r -> r.getStatus() == ReservationStatus.CHECKED_IN)
                 .map(this::convertToDTO)
@@ -268,41 +269,31 @@ public class ReservationService {
     /**
      * 获取指定房间在指定日期的预订
      */
-    public Optional<ReservationDTO> getReservationByRoomAndDate(Long userId, Long roomId, LocalDate date) {
-        return reservationRepository.findByUserIdAndRoomIdAndDate(userId, roomId, date)
+    public Optional<ReservationDTO> getReservationByRoomAndDate(Long roomId, LocalDate date) {
+        return reservationRepository.findByStoreIdAndRoomIdAndDate(currentStoreId(), roomId, date)
                 .map(this::convertToDTO);
     }
 
     /**
      * 更新预订
      */
-    public ReservationDTO updateReservation(Long userId, Long reservationId, CreateReservationRequest request) {
-        // 查找现有预订
-        Reservation existingReservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("预订不存在"));
+    public ReservationDTO updateReservation(Long reservationId, CreateReservationRequest request) {
+        Long storeId = currentStoreId();
+        Long userId = currentUserId();
 
-        // 验证数据归属
-        if (!existingReservation.getUser().getId().equals(userId)) {
-            throw new RuntimeException("无权限操作此预订");
-        }
-
-        // 验证房间是否存在
-        Room room = roomRepository.findById(request.getRoomId())
-                .orElseThrow(() -> new RuntimeException("房间不存在"));
-
-        // 验证渠道是否存在
+        Reservation existingReservation = loadReservationInStore(reservationId);
+        Room room = roomRepository.findByStoreIdAndId(storeId, request.getRoomId())
+                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
         Channel channel = channelRepository.findById(request.getChannelId())
                 .orElseThrow(() -> new RuntimeException("渠道不存在"));
 
-        // 如果房间或日期有变化，检查是否有冲突(仅检查当前用户的预订)
         if (!existingReservation.getRoom().getId().equals(request.getRoomId()) ||
-            !existingReservation.getCheckInDate().equals(request.getCheckInDate()) ||
-            !existingReservation.getCheckOutDate().equals(request.getCheckOutDate())) {
+                !existingReservation.getCheckInDate().equals(request.getCheckInDate()) ||
+                !existingReservation.getCheckOutDate().equals(request.getCheckOutDate())) {
 
-            List<Reservation> conflictReservations = reservationRepository.findByUserIdAndRoomIdAndDateRange(
-                    userId, request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
+            List<Reservation> conflictReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
+                    storeId, request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
 
-            // 排除当前正在更新的预订
             conflictReservations = conflictReservations.stream()
                     .filter(r -> !r.getId().equals(reservationId))
                     .collect(Collectors.toList());
@@ -312,7 +303,6 @@ public class ReservationService {
             }
         }
 
-        // 更新预订信息
         existingReservation.setRoom(room);
         existingReservation.setChannel(channel);
         existingReservation.setGuestName(request.getGuestName());
@@ -325,6 +315,9 @@ public class ReservationService {
         existingReservation.setTotalAmount(request.getTotalAmount());
         existingReservation.setChannelOrderNumber(request.getChannelOrderNumber());
         existingReservation.setNotes(request.getNotes());
+        existingReservation.setStoreId(storeId);
+        existingReservation.setUser(userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在")));
 
         Reservation savedReservation = reservationRepository.save(existingReservation);
         return convertToDTO(savedReservation);
@@ -358,18 +351,18 @@ public class ReservationService {
      * 带筛选条件的分页查询预订
      */
     public PagedReservationResponse getReservationsWithFilters(
-            Long userId, int page, int size, String searchKeyword, String channel,
+            int page, int size, String searchKeyword, String channel,
             String roomType, String checkinType, String status,
             String paymentStatus, String isPackage, LocalDate startDate,
             LocalDate endDate, String orderType) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Long storeId = currentStoreId();
 
         Specification<Reservation> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // 添加用户ID过滤条件
-            predicates.add(criteriaBuilder.equal(root.get("user").get("id"), userId));
+            predicates.add(criteriaBuilder.equal(root.get("storeId"), storeId));
             
             // 搜索关键词过滤
             if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
@@ -469,21 +462,19 @@ public class ReservationService {
     /**
      * 获取预订统计信息
      */
-    public ReservationStatistics getReservationStatistics(Long userId) {
+    public ReservationStatistics getReservationStatistics() {
+        Long storeId = currentStoreId();
         LocalDate today = LocalDate.now();
-
-        // 使用带用户ID的统计方法
-        long todayCheckinCount = reservationRepository.countTodayArrivalsByUserId(userId, today);
-        long todayCheckoutCount = reservationRepository.countByUserIdAndCheckOutDate(userId, today);
+        long todayCheckinCount = reservationRepository.countTodayArrivalsByStoreId(storeId, today);
+        long todayCheckoutCount = reservationRepository.countByStoreIdAndCheckOutDate(storeId, today);
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
-        long todayNewCount = reservationRepository.countTodayNewOrdersByUserId(userId, startOfDay, endOfDay);
-        long unassignedCount = reservationRepository.countByUserIdAndRoomIsNull(userId);
-        long pendingCount = reservationRepository.countPendingOrdersByUserId(userId);
+        long todayNewCount = reservationRepository.countTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
+        long unassignedCount = reservationRepository.countByStoreIdAndRoomIsNull(storeId);
+        long pendingCount = reservationRepository.countPendingOrdersByStoreId(storeId);
 
-        // 计算该用户的总预订数
         Specification<Reservation> spec = (root, query, criteriaBuilder) ->
-            criteriaBuilder.equal(root.get("user").get("id"), userId);
+                criteriaBuilder.equal(root.get("storeId"), storeId);
         long totalReservations = reservationRepository.count(spec);
 
         return new ReservationStatistics(
@@ -495,11 +486,10 @@ public class ReservationService {
     /**
      * 获取今日新增预订
      */
-    public List<ReservationDTO> getTodayNewReservations(Long userId) {
+    public List<ReservationDTO> getTodayNewReservations() {
         LocalDate today = LocalDate.now();
-        List<Reservation> reservations = reservationRepository.findByUserIdAndCreatedAtBetween(
-            userId, today.atStartOfDay(), today.plusDays(1).atStartOfDay()
-        );
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndCreatedAtBetween(
+                currentStoreId(), today.atStartOfDay(), today.plusDays(1).atStartOfDay());
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -508,8 +498,8 @@ public class ReservationService {
     /**
      * 获取未排房预订
      */
-    public List<ReservationDTO> getUnassignedReservations(Long userId) {
-        List<Reservation> reservations = reservationRepository.findByUserIdAndRoomIsNull(userId);
+    public List<ReservationDTO> getUnassignedReservations() {
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndRoomIsNull(currentStoreId());
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -518,8 +508,8 @@ public class ReservationService {
     /**
      * 获取待处理预订
      */
-    public List<ReservationDTO> getPendingReservations(Long userId) {
-        List<Reservation> reservations = reservationRepository.findByUserIdAndStatus(userId, ReservationStatus.CONFIRMED);
+    public List<ReservationDTO> getPendingReservations() {
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndStatus(currentStoreId(), ReservationStatus.CONFIRMED);
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -539,6 +529,15 @@ public class ReservationService {
             default:
                 return null;
         }
+    }
+
+    private Reservation loadReservationInStore(Long reservationId) {
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new RuntimeException("预订不存在"));
+        if (!currentStoreId().equals(reservation.getStoreId())) {
+            throw new RuntimeException("无权操作该预订");
+        }
+        return reservation;
     }
 
     /**
@@ -598,38 +597,32 @@ public class ReservationService {
     /**
      * 根据统计类型获取对应的订单列表
      */
-    public List<ReservationDTO> getReservationsByType(Long userId, String type) {
+    public List<ReservationDTO> getReservationsByType(String type) {
+        Long storeId = currentStoreId();
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
 
         List<Reservation> reservations;
-
         switch (type) {
             case "today-arrivals":
-                // 今日预抵：今天入住的订单
-                reservations = reservationRepository.findTodayArrivalsByUserId(userId, today);
+                reservations = reservationRepository.findTodayArrivalsByStoreId(storeId, today);
                 break;
             case "today-departures":
-                // 今日预离：今天退房的订单
-                reservations = reservationRepository.findTodayDeparturesByUserId(userId, today);
+                reservations = reservationRepository.findTodayDeparturesByStoreId(storeId, today);
                 break;
             case "today-new":
-                // 今日新办：今天创建的订单和今天实际入住的订单
-                reservations = reservationRepository.findTodayNewOrdersByUserId(userId, startOfDay, endOfDay);
+                reservations = reservationRepository.findTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
                 break;
             case "unassigned":
-                // 未排房：没有分配房间的订单
-                reservations = reservationRepository.findByUserIdAndRoomIsNull(userId);
+                reservations = reservationRepository.findByStoreIdAndRoomIsNull(storeId);
                 break;
             case "pending":
-                // 待处理：已确认但未入住的订单
-                reservations = reservationRepository.findPendingOrdersByUserId(userId);
+                reservations = reservationRepository.findPendingOrdersByStoreId(storeId);
                 break;
             default:
-                // 默认返回该用户的所有订单
                 Specification<Reservation> spec = (root, query, criteriaBuilder) ->
-                    criteriaBuilder.equal(root.get("user").get("id"), userId);
+                        criteriaBuilder.equal(root.get("storeId"), storeId);
                 reservations = reservationRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "createdAt"));
                 break;
         }

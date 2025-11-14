@@ -29,7 +29,6 @@ export interface AutoMessageRequest {
   channel: string
   room: string
   enabled: boolean
-  userId?: number
 }
 
 /**
@@ -41,6 +40,7 @@ export const getAllAutoMessages = async (): Promise<ApiResponse<AutoMessageDTO[]
 
 /**
  * 根据用户ID获取自动化消息列表
+ * @deprecated 使用 getAllAutoMessages() 替代,现在使用门店级数据隔离
  */
 export const getAutoMessagesByUserId = async (
   userId: number

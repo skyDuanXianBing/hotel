@@ -13,26 +13,69 @@ import java.util.Optional;
 @Repository
 public interface ChannelRepository extends JpaRepository<Channel, Long> {
 
-    // 按用户ID查询所有渠道
+    // 按门店ID查询所有渠道（门店级架构）
+    List<Channel> findByStoreId(Long storeId);
+
+    // 按门店ID和代码查询
+    Optional<Channel> findByStoreIdAndCode(Long storeId, String code);
+
+    // 按门店ID和类型查询
+    List<Channel> findByStoreIdAndType(Long storeId, ChannelType type);
+
+    // 按门店ID查询激活的渠道
+    List<Channel> findByStoreIdAndIsActiveTrue(Long storeId);
+
+    // 按门店ID和名称模糊查询
+    List<Channel> findByStoreIdAndNameContainingIgnoreCase(Long storeId, String name);
+
+    // 按门店ID查询激活的渠道并排序
+    @Query("SELECT c FROM Channel c WHERE c.storeId = :storeId AND c.isActive = true ORDER BY c.type, c.name")
+    List<Channel> findActiveChannelsByStoreIdOrderByTypeAndName(@Param("storeId") Long storeId);
+
+    // 检查门店的渠道代码是否存在
+    boolean existsByStoreIdAndCode(Long storeId, String code);
+
+    /**
+     * @deprecated 已废弃，使用findByStoreId替代
+     */
+    @Deprecated
     List<Channel> findByUserId(Long userId);
 
-    // 按用户ID和代码查询
+    /**
+     * @deprecated 已废弃，使用findByStoreIdAndCode替代
+     */
+    @Deprecated
     Optional<Channel> findByUserIdAndCode(Long userId, String code);
 
-    // 按用户ID和类型查询
+    /**
+     * @deprecated 已废弃，使用findByStoreIdAndType替代
+     */
+    @Deprecated
     List<Channel> findByUserIdAndType(Long userId, ChannelType type);
 
-    // 按用户ID查询激活的渠道
+    /**
+     * @deprecated 已废弃，使用findByStoreIdAndIsActiveTrue替代
+     */
+    @Deprecated
     List<Channel> findByUserIdAndIsActiveTrue(Long userId);
 
-    // 按用户ID和名称模糊查询
+    /**
+     * @deprecated 已废弃，使用findByStoreIdAndNameContainingIgnoreCase替代
+     */
+    @Deprecated
     List<Channel> findByUserIdAndNameContainingIgnoreCase(Long userId, String name);
 
-    // 按用户ID查询激活的渠道并排序
+    /**
+     * @deprecated 已废弃，使用findActiveChannelsByStoreIdOrderByTypeAndName替代
+     */
+    @Deprecated
     @Query("SELECT c FROM Channel c WHERE c.user.id = :userId AND c.isActive = true ORDER BY c.type, c.name")
     List<Channel> findActiveChannelsByUserIdOrderByTypeAndName(@Param("userId") Long userId);
 
-    // 检查用户的渠道代码是否存在
+    /**
+     * @deprecated 已废弃，使用existsByStoreIdAndCode替代
+     */
+    @Deprecated
     boolean existsByUserIdAndCode(Long userId, String code);
 
     // 以下为旧方法，保留用于数据迁移兼容

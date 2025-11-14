@@ -3,6 +3,8 @@ package server.demo.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.context.StoreContext;
+import server.demo.context.StoreContextHolder;
 import server.demo.entity.AutoMessage;
 import server.demo.repository.AutoMessageRepository;
 
@@ -19,24 +21,38 @@ public class AutoMessageService {
     private AutoMessageRepository autoMessageRepository;
 
     /**
-     * 获取所有自动化消息
+     * 获取当前门店ID
      */
-    public List<AutoMessage> getAllAutoMessages() {
-        return autoMessageRepository.findAll();
+    private Long getCurrentStoreId() {
+        StoreContext context = StoreContextHolder.getContext();
+        if (context == null || context.getStoreId() == null) {
+            throw new RuntimeException("无法获取当前门店信息");
+        }
+        return context.getStoreId();
     }
 
     /**
-     * 根据用户ID获取自动化消息列表
+     * 获取所有自动化消息(门店级)
      */
+    public List<AutoMessage> getAllAutoMessages() {
+        Long storeId = getCurrentStoreId();
+        return autoMessageRepository.findByStoreId(storeId);
+    }
+
+    /**
+     * 根据用户ID获取自动化消息列表(已废弃,使用getAllAutoMessages)
+     */
+    @Deprecated
     public List<AutoMessage> getAutoMessagesByUserId(Long userId) {
         return autoMessageRepository.findByUserId(userId);
     }
 
     /**
-     * 根据用户ID和启用状态获取自动化消息列表
+     * 获取启用的自动化消息(门店级)
      */
-    public List<AutoMessage> getEnabledAutoMessages(Long userId) {
-        return autoMessageRepository.findByUserIdAndEnabled(userId, true);
+    public List<AutoMessage> getEnabledAutoMessages() {
+        Long storeId = getCurrentStoreId();
+        return autoMessageRepository.findByStoreIdAndEnabled(storeId, true);
     }
 
     /**
@@ -47,24 +63,33 @@ public class AutoMessageService {
     }
 
     /**
-     * 创建自动化消息
+     * 创建自动化消息(门店级，storeId由StoreScopedEntityListener自动注入)
      */
     @Transactional
     public AutoMessage createAutoMessage(AutoMessage autoMessage) {
+        // storeId由StoreScopedEntityListener自动注入，无需手动设置
         return autoMessageRepository.save(autoMessage);
     }
 
     /**
-     * 更新自动化消息
+     * 更新自动化消息(门店级)
      */
     @Transactional
     public AutoMessage updateAutoMessage(Long id, AutoMessage autoMessage) {
+        Long storeId = getCurrentStoreId();
+
         Optional<AutoMessage> existingMessage = autoMessageRepository.findById(id);
         if (existingMessage.isEmpty()) {
             throw new RuntimeException("自动化消息不存在");
         }
 
         AutoMessage message = existingMessage.get();
+
+        // 验证消息属于当前门店
+        if (!storeId.equals(message.getStoreId())) {
+            throw new RuntimeException("无权限修改此自动化消息");
+        }
+
         message.setTitle(autoMessage.getTitle());
         message.setMessage(autoMessage.getMessage());
         message.setAutomationRule(autoMessage.getAutomationRule());
@@ -76,24 +101,46 @@ public class AutoMessageService {
     }
 
     /**
-     * 删除自动化消息
+     * 删除自动化消息(门店级)
      */
     @Transactional
     public void deleteAutoMessage(Long id) {
-        autoMessageRepository.deleteById(id);
-    }
+        Long storeId = getCurrentStoreId();
 
-    /**
-     * 切换自动化消息启用状态
-     */
-    @Transactional
-    public AutoMessage toggleAutoMessage(Long id) {
         Optional<AutoMessage> existingMessage = autoMessageRepository.findById(id);
         if (existingMessage.isEmpty()) {
             throw new RuntimeException("自动化消息不存在");
         }
 
         AutoMessage message = existingMessage.get();
+
+        // 验证消息属于当前门店
+        if (!storeId.equals(message.getStoreId())) {
+            throw new RuntimeException("无权限删除此自动化消息");
+        }
+
+        autoMessageRepository.deleteById(id);
+    }
+
+    /**
+     * 切换自动化消息启用状态(门店级)
+     */
+    @Transactional
+    public AutoMessage toggleAutoMessage(Long id) {
+        Long storeId = getCurrentStoreId();
+
+        Optional<AutoMessage> existingMessage = autoMessageRepository.findById(id);
+        if (existingMessage.isEmpty()) {
+            throw new RuntimeException("自动化消息不存在");
+        }
+
+        AutoMessage message = existingMessage.get();
+
+        // 验证消息属于当前门店
+        if (!storeId.equals(message.getStoreId())) {
+            throw new RuntimeException("无权限修改此自动化消息");
+        }
+
         message.setEnabled(!message.getEnabled());
         return autoMessageRepository.save(message);
     }

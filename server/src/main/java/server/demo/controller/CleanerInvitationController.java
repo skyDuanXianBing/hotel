@@ -1,8 +1,10 @@
 package server.demo.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.CleanerInvitationDTO;
 import server.demo.dto.CleanerRegistrationDTO;
@@ -24,8 +26,23 @@ public class CleanerInvitationController {
      * 发送邀请邮件
      */
     @PostMapping("/send")
-    public ApiResponse<String> sendInvitation(@Valid @RequestBody CleanerInvitationDTO invitationDTO) {
+    @StoreScoped
+    public ApiResponse<String> sendInvitation(
+            @Valid @RequestBody CleanerInvitationDTO invitationDTO,
+            HttpServletRequest request) {
         try {
+            // 从请求中获取userId和storeId
+            Long userId = (Long) request.getAttribute("userId");
+            server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
+
+            if (storeContext == null || storeContext.getStoreId() == null) {
+                return ApiResponse.error("无法获取当前门店信息");
+            }
+
+            // 设置userId和storeId
+            invitationDTO.setUserId(userId);
+            invitationDTO.setStoreId(storeContext.getStoreId());
+
             invitationService.sendInvitation(invitationDTO);
             return ApiResponse.success("邀请邮件已发送");
         } catch (Exception e) {

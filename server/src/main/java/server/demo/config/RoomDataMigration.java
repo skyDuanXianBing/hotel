@@ -1,6 +1,7 @@
 package server.demo.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import server.demo.entity.Room;
@@ -8,54 +9,51 @@ import server.demo.entity.User;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.UserRepository;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
- * 房间数据迁移 - 为现有的Room记录添加user_id字段
- * 由于新增了user_id字段用于数据隔离,需要为现有记录分配用户
+ * 旧数据兼容：为缺少 userId 的房间补齐拥有者，保持向后兼容。
  */
 @Component
 public class RoomDataMigration implements CommandLineRunner {
+    private static final Logger log = LoggerFactory.getLogger(RoomDataMigration.class);
 
-    @Autowired
-    private RoomRepository roomRepository;
+    private final RoomRepository roomRepository;
+    private final UserRepository userRepository;
 
-    @Autowired
-    private UserRepository userRepository;
+    public RoomDataMigration(RoomRepository roomRepository, UserRepository userRepository) {
+        this.roomRepository = roomRepository;
+        this.userRepository = userRepository;
+    }
 
     @Override
-    public void run(String... args) throws Exception {
-        // 查找所有user_id为null或0的Room记录
+    public void run(String... args) {
         List<Room> roomsWithoutUser = roomRepository.findAll().stream()
-                .filter(r -> r.getUserId() == null || r.getUserId() == 0L)
+                .filter(room -> room.getUserId() == null || room.getUserId() == 0L)
                 .toList();
 
-        if (!roomsWithoutUser.isEmpty()) {
-            System.out.println("===== 房间数据迁移：为现有房间分配用户 =====");
-            System.out.println("发现 " + roomsWithoutUser.size() + " 个房间需要迁移(userId为null或0)");
-
-            // 获取系统中的第一个用户(假设为管理员)
-            Optional<User> firstUser = userRepository.findAll().stream().findFirst();
-
-            if (firstUser.isEmpty()) {
-                System.out.println("⚠ 系统中没有用户,跳过房间迁移");
-                return;
-            }
-
-            Long adminUserId = firstUser.get().getId();
-            String adminEmail = firstUser.get().getEmail();
-
-            System.out.println("将为房间分配给用户: " + adminEmail + " (ID: " + adminUserId + ")");
-
-            // 为每个房间分配用户
-            for (Room room : roomsWithoutUser) {
-                room.setUserId(adminUserId);
-            }
-
-            roomRepository.saveAll(roomsWithoutUser);
-            System.out.println("✓ 已为 " + roomsWithoutUser.size() + " 个房间分配用户");
-            System.out.println("所有房间现在已与用户关联,支持多用户数据隔离");
+        if (roomsWithoutUser.isEmpty()) {
+            return;
         }
+
+        List<User> users = userRepository.findAll();
+        if (users.isEmpty()) {
+            log.warn("[RoomDataMigration] 系统中没有用户，跳过房间 userId 迁移");
+            return;
+        }
+
+        log.info("[RoomDataMigration] 准备为 {} 个房间补齐 userId", roomsWithoutUser.size());
+        List<Room> toSave = new ArrayList<>(roomsWithoutUser.size());
+        int index = 0;
+        for (Room room : roomsWithoutUser) {
+            User assignedUser = users.get(index % users.size());
+            room.setUserId(assignedUser.getId());
+            toSave.add(room);
+            index++;
+        }
+
+        roomRepository.saveAll(toSave);
+        log.info("[RoomDataMigration] 已为 {} 个房间重新分配 userId", toSave.size());
     }
 }

@@ -102,7 +102,9 @@ import {
   deleteQuickReply,
   type QuickReplyDTO,
 } from '@/api/quickReply'
+import { useStoreStore } from '@/stores/store'
 
+const storeStore = useStoreStore()
 const loading = ref(false)
 const dialogVisible = ref(false)
 const isEditing = ref(false)
@@ -123,6 +125,12 @@ const formRules: FormRules = {
 
 // 加载快捷回复列表
 const loadQuickReplies = async () => {
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    quickReplies.value = []
+    return
+  }
+
   try {
     loading.value = true
     const response = await getAllQuickReplies()
@@ -166,7 +174,6 @@ const handleSave = async () => {
       const data = {
         title: form.title,
         message: form.message,
-        userId: 1, // 默认用户ID为1
       }
 
       let response

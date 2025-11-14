@@ -71,12 +71,12 @@ public interface RoomPriceService {
     /**
      * 获取指定日期范围内的房价管理数据(包含价格计划)
      */
-    List<RoomPriceManagementDTO> getRoomPriceManagementData(LocalDate startDate, LocalDate endDate, Long roomTypeId, Long userId);
+    List<RoomPriceManagementDTO> getRoomPriceManagementData(LocalDate startDate, LocalDate endDate, Long roomTypeId);
 
     /**
      * 按价格计划更新价格
      */
-    List<RoomPriceManagementDTO> updatePriceByPlan(UpdatePriceByPlanRequest request, Long userId, String operator);
+    List<RoomPriceManagementDTO> updatePriceByPlan(UpdatePriceByPlanRequest request, String operator);
 
     /**
      * 获取指定房型、价格计划和日期的价格

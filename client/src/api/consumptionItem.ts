@@ -32,10 +32,10 @@ export interface ConsumptionCategoryDTO {
 }
 
 /**
- * 获取所有消费项
+ * 获取所有消费项（门店级架构，自动从X-Store-Id请求头获取门店）
  */
-export const getAllConsumptionItems = async (userId: number): Promise<ApiResponse<ConsumptionItemDTO[]>> => {
-  return await request.get('/consumption-items', { params: { userId } })
+export const getAllConsumptionItems = async (): Promise<ApiResponse<ConsumptionItemDTO[]>> => {
+  return await request.get('/consumption-items')
 }
 
 /**
@@ -46,33 +46,30 @@ export const getConsumptionItemById = async (id: number): Promise<ApiResponse<Co
 }
 
 /**
- * 根据分类获取消费项
+ * 根据分类获取消费项（门店级架构）
  */
 export const getConsumptionItemsByCategory = async (
-  userId: number,
   category: string
 ): Promise<ApiResponse<ConsumptionItemDTO[]>> => {
-  return await request.get(`/consumption-items/category/${category}`, { params: { userId } })
+  return await request.get(`/consumption-items/category/${category}`)
 }
 
 /**
- * 根据启用状态获取消费项
+ * 根据启用状态获取消费项（门店级架构）
  */
 export const getConsumptionItemsByEnabled = async (
-  userId: number,
   enabled: boolean
 ): Promise<ApiResponse<ConsumptionItemDTO[]>> => {
-  return await request.get(`/consumption-items/enabled/${enabled}`, { params: { userId } })
+  return await request.get(`/consumption-items/enabled/${enabled}`)
 }
 
 /**
- * 创建消费项
+ * 创建消费项（门店级架构，storeId由后端自动注入）
  */
 export const createConsumptionItem = async (
-  userId: number,
   data: ConsumptionItemDTO
 ): Promise<ApiResponse<ConsumptionItemDTO>> => {
-  return await request.post('/consumption-items', data, { params: { userId } })
+  return await request.post('/consumption-items', data)
 }
 
 /**
@@ -103,10 +100,10 @@ export const deleteConsumptionItem = async (id: number): Promise<ApiResponse<voi
 }
 
 /**
- * 获取所有分类
+ * 获取所有分类（门店级架构）
  */
-export const getAllConsumptionCategories = async (userId: number): Promise<ApiResponse<ConsumptionCategoryDTO[]>> => {
-  return await request.get('/consumption-categories', { params: { userId } })
+export const getAllConsumptionCategories = async (): Promise<ApiResponse<ConsumptionCategoryDTO[]>> => {
+  return await request.get('/consumption-categories')
 }
 
 /**
@@ -117,13 +114,12 @@ export const getConsumptionCategoryById = async (id: number): Promise<ApiRespons
 }
 
 /**
- * 创建分类
+ * 创建分类（门店级架构）
  */
 export const createConsumptionCategory = async (
-  userId: number,
   data: ConsumptionCategoryDTO
 ): Promise<ApiResponse<ConsumptionCategoryDTO>> => {
-  return await request.post('/consumption-categories', data, { params: { userId } })
+  return await request.post('/consumption-categories', data)
 }
 
 /**

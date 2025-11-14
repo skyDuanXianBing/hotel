@@ -12,6 +12,7 @@ import server.demo.repository.PricePlanRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.UserRepository;
+import server.demo.util.StoreContextUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,46 +33,43 @@ public class PricePlanService {
     @Autowired
     private UserRepository userRepository;
 
-    /**
-     * 获取用户所有价格计划
-     */
-    public List<PricePlan> getAllPricePlans(Long userId) {
-        return pricePlanRepository.findByUserIdOrderByName(userId);
+    private Long currentStoreId() {
+        return StoreContextUtils.requireStoreId();
     }
 
-    /**
-     * 根据ID获取价格计划
-     */
-    public Optional<PricePlan> getPricePlanById(Long userId, Long id) {
-        return pricePlanRepository.findByIdAndUserId(id, userId);
+    private Long currentUserId() {
+        return StoreContextUtils.requireUserId();
     }
 
-    /**
-     * 创建价格计划
-     */
-    public PricePlan createPricePlan(Long userId, PricePlan pricePlan) {
-        // 检查名称是否已存在
-        if (pricePlanRepository.existsByUserIdAndName(userId, pricePlan.getName())) {
+    public List<PricePlan> getAllPricePlans() {
+        return pricePlanRepository.findByStoreIdOrderByName(currentStoreId());
+    }
+
+    public Optional<PricePlan> getPricePlanById(Long id) {
+        return pricePlanRepository.findByStoreIdAndId(currentStoreId(), id);
+    }
+
+    public PricePlan createPricePlan(PricePlan pricePlan) {
+        Long storeId = currentStoreId();
+        if (pricePlanRepository.existsByStoreIdAndName(storeId, pricePlan.getName())) {
             throw new RuntimeException("价格计划名称已存在");
         }
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findById(currentUserId())
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
 
+        pricePlan.setStoreId(storeId);
         pricePlan.setUser(user);
         return pricePlanRepository.save(pricePlan);
     }
 
-    /**
-     * 更新价格计划
-     */
-    public PricePlan updatePricePlan(Long userId, Long id, PricePlan pricePlan) {
-        PricePlan existingPlan = pricePlanRepository.findByIdAndUserId(id, userId)
+    public PricePlan updatePricePlan(Long id, PricePlan pricePlan) {
+        Long storeId = currentStoreId();
+        PricePlan existingPlan = pricePlanRepository.findByStoreIdAndId(storeId, id)
                 .orElseThrow(() -> new RuntimeException("价格计划不存在"));
 
-        // 检查名称是否被其他价格计划使用
         if (!existingPlan.getName().equals(pricePlan.getName()) &&
-            pricePlanRepository.existsByUserIdAndNameAndIdNot(userId, pricePlan.getName(), id)) {
+                pricePlanRepository.existsByStoreIdAndNameAndIdNot(storeId, pricePlan.getName(), id)) {
             throw new RuntimeException("价格计划名称已存在");
         }
 
@@ -91,98 +89,50 @@ public class PricePlanService {
         return pricePlanRepository.save(existingPlan);
     }
 
-    /**
-     * 删除价格计划
-     */
-    public void deletePricePlan(Long userId, Long id) {
-        PricePlan pricePlan = pricePlanRepository.findByIdAndUserId(id, userId)
+    public void deletePricePlan(Long id) {
+        PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(currentStoreId(), id)
                 .orElseThrow(() -> new RuntimeException("价格计划不存在"));
-
-        // 删除所有关联的房型价格计划
         roomTypePricePlanRepository.deleteByPricePlanId(id);
-
-        // 删除价格计划
         pricePlanRepository.delete(pricePlan);
     }
 
-    /**
-     * 获取价格计划关联的所有房型
-     */
     public List<RoomTypePricePlan> getRoomTypesByPricePlan(Long pricePlanId) {
+        // 结果在调用处过滤 storeId，这里沿用旧逻辑
         return roomTypePricePlanRepository.findByPricePlanId(pricePlanId);
     }
 
-    /**
-     * 获取房型的所有价格计划
-     */
     public List<RoomTypePricePlan> getPricePlansByRoomType(Long roomTypeId) {
         return roomTypePricePlanRepository.findByRoomTypeId(roomTypeId);
     }
 
-    /**
-     * 为房型分配价格计划
-     */
-    public RoomTypePricePlan assignPricePlanToRoomType(Long userId, Long roomTypeId, Long pricePlanId, AssignRoomTypePricePlanRequest request) {
-        // 验证房型和价格计划是否属于当前用户
-        RoomType roomType = roomTypeRepository.findById(roomTypeId)
-                .orElseThrow(() -> new RuntimeException("房型不存在"));
-
-        if (!roomType.getUser().getId().equals(userId)) {
-            throw new RuntimeException("无权限操作此房型");
-        }
-
-        PricePlan pricePlan = pricePlanRepository.findByIdAndUserId(pricePlanId, userId)
+    public RoomTypePricePlan assignPricePlanToRoomType(Long roomTypeId, Long pricePlanId, AssignRoomTypePricePlanRequest request) {
+        Long storeId = currentStoreId();
+        RoomType roomType = roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId)
+                .orElseThrow(() -> new RuntimeException("房型不存在或无权限"));
+        PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(storeId, pricePlanId)
                 .orElseThrow(() -> new RuntimeException("价格计划不存在"));
 
-        // 检查是否已关联
-        Optional<RoomTypePricePlan> existing = roomTypePricePlanRepository
-                .findByRoomTypeIdAndPricePlanId(roomTypeId, pricePlanId);
-
+        Optional<RoomTypePricePlan> existing = roomTypePricePlanRepository.findByRoomTypeIdAndPricePlanId(roomTypeId, pricePlanId);
         RoomTypePricePlan savedPlan;
         if (existing.isPresent()) {
-            // 更新现有关联
-            RoomTypePricePlan existingPlan = existing.get();
-            existingPlan.setMondayPrice(request.getMondayPrice());
-            existingPlan.setTuesdayPrice(request.getTuesdayPrice());
-            existingPlan.setWednesdayPrice(request.getWednesdayPrice());
-            existingPlan.setThursdayPrice(request.getThursdayPrice());
-            existingPlan.setFridayPrice(request.getFridayPrice());
-            existingPlan.setSaturdayPrice(request.getSaturdayPrice());
-            existingPlan.setSundayPrice(request.getSundayPrice());
-            existingPlan.setMaxGuests(request.getMaxGuests());
-            existingPlan.setIncludedGuests(request.getIncludedGuests());
-            existingPlan.setPriceMode(request.getPriceMode());
-            savedPlan = roomTypePricePlanRepository.save(existingPlan);
+            RoomTypePricePlan entity = existing.get();
+            applyAssignRequest(entity, request);
+            savedPlan = roomTypePricePlanRepository.save(entity);
         } else {
-            // 创建新关联
-            RoomTypePricePlan newPlan = new RoomTypePricePlan();
-            newPlan.setRoomType(roomType);
-            newPlan.setPricePlan(pricePlan);
-            newPlan.setMondayPrice(request.getMondayPrice());
-            newPlan.setTuesdayPrice(request.getTuesdayPrice());
-            newPlan.setWednesdayPrice(request.getWednesdayPrice());
-            newPlan.setThursdayPrice(request.getThursdayPrice());
-            newPlan.setFridayPrice(request.getFridayPrice());
-            newPlan.setSaturdayPrice(request.getSaturdayPrice());
-            newPlan.setSundayPrice(request.getSundayPrice());
-            newPlan.setMaxGuests(request.getMaxGuests());
-            newPlan.setIncludedGuests(request.getIncludedGuests());
-            newPlan.setPriceMode(request.getPriceMode());
-            savedPlan = roomTypePricePlanRepository.save(newPlan);
+            RoomTypePricePlan entity = new RoomTypePricePlan();
+            entity.setRoomType(roomType);
+            entity.setPricePlan(pricePlan);
+            entity.setStoreId(storeId);
+            applyAssignRequest(entity, request);
+            savedPlan = roomTypePricePlanRepository.save(entity);
         }
-
         return savedPlan;
     }
 
-    /**
-     * 更新房型价格计划
-     */
-    public RoomTypePricePlan updateRoomTypePricePlan(Long userId, Long id, RoomTypePricePlan roomTypePricePlan) {
+    public RoomTypePricePlan updateRoomTypePricePlan(Long id, RoomTypePricePlan roomTypePricePlan) {
         RoomTypePricePlan existing = roomTypePricePlanRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("房型价格计划不存在"));
-
-        // 验证权限
-        if (!existing.getRoomType().getUser().getId().equals(userId)) {
+        if (!currentStoreId().equals(existing.getStoreId())) {
             throw new RuntimeException("无权限操作");
         }
 
@@ -196,29 +146,32 @@ public class PricePlanService {
         existing.setMaxGuests(roomTypePricePlan.getMaxGuests());
         existing.setIncludedGuests(roomTypePricePlan.getIncludedGuests());
         existing.setPriceMode(roomTypePricePlan.getPriceMode());
-
         return roomTypePricePlanRepository.save(existing);
     }
 
-    /**
-     * 删除房型价格计划关联
-     */
-    public void deleteRoomTypePricePlan(Long userId, Long id) {
+    public void deleteRoomTypePricePlan(Long id) {
         RoomTypePricePlan roomTypePricePlan = roomTypePricePlanRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("房型价格计划不存在"));
-
-        // 验证权限
-        if (!roomTypePricePlan.getRoomType().getUser().getId().equals(userId)) {
+        if (!currentStoreId().equals(roomTypePricePlan.getStoreId())) {
             throw new RuntimeException("无权限操作");
         }
-
         roomTypePricePlanRepository.delete(roomTypePricePlan);
     }
 
-    /**
-     * 统计价格计划关联的房型数量
-     */
     public long countRoomTypesByPricePlan(Long pricePlanId) {
         return roomTypePricePlanRepository.countByPricePlanId(pricePlanId);
+    }
+
+    private void applyAssignRequest(RoomTypePricePlan entity, AssignRoomTypePricePlanRequest request) {
+        entity.setMondayPrice(request.getMondayPrice());
+        entity.setTuesdayPrice(request.getTuesdayPrice());
+        entity.setWednesdayPrice(request.getWednesdayPrice());
+        entity.setThursdayPrice(request.getThursdayPrice());
+        entity.setFridayPrice(request.getFridayPrice());
+        entity.setSaturdayPrice(request.getSaturdayPrice());
+        entity.setSundayPrice(request.getSundayPrice());
+        entity.setMaxGuests(request.getMaxGuests());
+        entity.setIncludedGuests(request.getIncludedGuests());
+        entity.setPriceMode(request.getPriceMode());
     }
 }

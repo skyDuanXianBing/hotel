@@ -3,6 +3,8 @@ package server.demo.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 
 import java.time.LocalDateTime;
 
@@ -11,14 +13,25 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "memos")
-public class Memo {
+@EntityListeners(StoreScopedEntityListener.class)
+public class Memo implements StoreScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * 门店ID（门店级架构）
+     */
+    @Column(name = "store_id")
+    private Long storeId;
+
+    /**
+     * @deprecated 已废弃，使用门店级架构，由storeId替代
+     */
+    @Deprecated
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
     @Column(columnDefinition = "TEXT")
@@ -83,9 +96,20 @@ public class Memo {
     }
 
     @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
+    }
+
+    @Override
     public String toString() {
         return "Memo{" +
                 "id=" + id +
+                ", storeId=" + storeId +
                 ", userId=" + (user != null ? user.getId() : null) +
                 ", content='" + content + '\'' +
                 ", createdAt=" + createdAt +

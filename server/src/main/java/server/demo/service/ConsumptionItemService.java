@@ -3,6 +3,7 @@ package server.demo.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.context.StoreContextHolder;
 import server.demo.entity.ConsumptionItem;
 import server.demo.repository.ConsumptionItemRepository;
 
@@ -15,10 +16,11 @@ public class ConsumptionItemService {
     private ConsumptionItemRepository consumptionItemRepository;
 
     /**
-     * 获取用户的所有消费项
+     * 获取当前门店的所有消费项（门店级架构）
      */
-    public List<ConsumptionItem> getAllByUserId(Long userId) {
-        return consumptionItemRepository.findByUserId(userId);
+    public List<ConsumptionItem> getAll() {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        return consumptionItemRepository.findByStoreId(storeId);
     }
 
     /**
@@ -32,19 +34,21 @@ public class ConsumptionItemService {
     /**
      * 根据分类获取消费项
      */
-    public List<ConsumptionItem> getByCategory(Long userId, String category) {
-        return consumptionItemRepository.findByUserIdAndCategory(userId, category);
+    public List<ConsumptionItem> getByCategory(String category) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        return consumptionItemRepository.findByStoreIdAndCategory(storeId, category);
     }
 
     /**
      * 根据启用状态获取消费项
      */
-    public List<ConsumptionItem> getByEnabled(Long userId, Boolean enabled) {
-        return consumptionItemRepository.findByUserIdAndEnabled(userId, enabled);
+    public List<ConsumptionItem> getByEnabled(Boolean enabled) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        return consumptionItemRepository.findByStoreIdAndEnabled(storeId, enabled);
     }
 
     /**
-     * 创建消费项
+     * 创建消费项（storeId由StoreScopedEntityListener自动注入）
      */
     @Transactional
     public ConsumptionItem create(ConsumptionItem item) {

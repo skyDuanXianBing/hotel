@@ -1,8 +1,6 @@
 package server.demo.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import server.demo.entity.RoomType;
 
@@ -12,26 +10,41 @@ import java.util.Optional;
 @Repository
 public interface RoomTypeRepository extends JpaRepository<RoomType, Long> {
 
-    // 按用户ID查询所有房型
+    List<RoomType> findByStoreId(Long storeId);
+
+    List<RoomType> findByStoreIdOrderByName(Long storeId);
+
+    Optional<RoomType> findByStoreIdAndCode(Long storeId, String code);
+
+    List<RoomType> findByStoreIdAndNameContainingIgnoreCase(Long storeId, String name);
+
+    boolean existsByStoreIdAndCode(Long storeId, String code);
+
+    Optional<RoomType> findByStoreIdAndId(Long storeId, Long id);
+
+    // ===== 兼容旧逻辑的方法，后续将被移除 =====
+    @Deprecated
     List<RoomType> findByUserId(Long userId);
 
-    // 按用户ID和代码查询
+    @Deprecated
     Optional<RoomType> findByUserIdAndCode(Long userId, String code);
 
-    // 按用户ID和名称模糊查询
+    @Deprecated
     List<RoomType> findByUserIdAndNameContainingIgnoreCase(Long userId, String name);
 
-    // 按用户ID查询所有房型并排序
-    @Query("SELECT rt FROM RoomType rt WHERE rt.user.id = :userId ORDER BY rt.name")
-    List<RoomType> findByUserIdOrderByName(@Param("userId") Long userId);
+    @Deprecated
+    List<RoomType> findByUserIdOrderByName(Long userId);
 
-    // 检查用户的房型代码是否存在
+    @Deprecated
     boolean existsByUserIdAndCode(Long userId, String code);
 
-    // 以下为旧方法，保留用于数据迁移兼容
+    @Deprecated
     Optional<RoomType> findByCode(String code);
+
+    @Deprecated
     List<RoomType> findByNameContainingIgnoreCase(String name);
-    @Query("SELECT rt FROM RoomType rt ORDER BY rt.name")
+
+    @Deprecated
+    @org.springframework.data.jpa.repository.Query("SELECT rt FROM RoomType rt ORDER BY rt.name")
     List<RoomType> findAllOrderByName();
-    boolean existsByCode(String code);
 }

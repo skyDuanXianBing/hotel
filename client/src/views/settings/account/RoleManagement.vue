@@ -86,7 +86,6 @@
                 <el-checkbox v-model="permissions.editRoomStatus" label="修改房态" :disabled="!isEditing" />
                 <el-checkbox v-model="permissions.viewRoomOperationLog" label="查看房态操作日志" :disabled="!isEditing" />
                 <el-checkbox v-model="permissions.viewRoomInfo" label="查看房情表" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.roomShare" label="房态分享" :disabled="!isEditing" />
               </div>
             </div>
 
@@ -101,11 +100,9 @@
             </div>
 
             <div class="permission-section">
-              <h3 class="section-title">其他</h3>
+              <h3 class="section-title">保洁管理</h3>
               <div class="permission-checkboxes">
-                <el-checkbox v-model="permissions.breakfastPackage" label="餐食核销" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.reservationCalendar" label="保洁日历" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.taskList" label="任务列表" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.taskList" label="查看保洁任务" :disabled="!isEditing" />
               </div>
             </div>
           </el-tab-pane>
@@ -114,9 +111,8 @@
             <div class="permission-section">
               <div class="permission-checkboxes">
                 <el-checkbox label="查看订单" :disabled="!isEditing" />
-                <el-checkbox label="创建订单" :disabled="!isEditing" />
                 <el-checkbox label="修改订单" :disabled="!isEditing" />
-                <el-checkbox label="删除订单" :disabled="!isEditing" />
+                <el-checkbox label="取消订单" :disabled="!isEditing" />
               </div>
             </div>
           </el-tab-pane>
@@ -126,15 +122,6 @@
               <div class="permission-checkboxes">
                 <el-checkbox label="查看渠道" :disabled="!isEditing" />
                 <el-checkbox label="管理渠道" :disabled="!isEditing" />
-              </div>
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="客户管理" name="customer">
-            <div class="permission-section">
-              <div class="permission-checkboxes">
-                <el-checkbox label="查看客户信息" :disabled="!isEditing" />
-                <el-checkbox label="编辑客户信息" :disabled="!isEditing" />
               </div>
             </div>
           </el-tab-pane>
@@ -197,16 +184,17 @@ import {
   type PermissionDTO,
   type CreateRoleRequest,
   type UpdateRoleRequest,
+  PermissionModule,
+  PermissionAction,
 } from '@/api/role'
+import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 
 interface Role {
   id: number
   name: string
 }
 
-interface RoomType {
-  id: number
-  name: string
+interface RoomType extends RoomTypeDTO {
   checked: boolean
 }
 
@@ -216,13 +204,10 @@ interface Permissions {
   editRoomStatus: boolean
   viewRoomOperationLog: boolean
   viewRoomInfo: boolean
-  roomShare: boolean
   viewRoomPrice: boolean
   editRoomPrice: boolean
   viewPriceLog: boolean
   batchChangePrice: boolean
-  breakfastPackage: boolean
-  reservationCalendar: boolean
   taskList: boolean
 }
 
@@ -256,25 +241,31 @@ const loadRoles = async () => {
   }
 }
 
+// 加载房型列表
+const loadRoomTypes = async () => {
+  try {
+    const response = await getAllRoomTypes()
+    if (response.success && response.data) {
+      roomTypes.value = response.data.map(rt => ({
+        ...rt,
+        checked: false
+      }))
+    } else {
+      ElMessage.error(response.message || '加载房型列表失败')
+    }
+  } catch (error) {
+    console.error('加载房型列表失败:', error)
+    ElMessage.error('加载房型列表失败')
+  }
+}
+
 // 初始化
 onMounted(() => {
   loadRoles()
+  loadRoomTypes()
 })
 
-const roomTypes = ref<RoomType[]>([
-  { id: 1, name: '要町201', checked: false },
-  { id: 2, name: '要町401', checked: false },
-  { id: 3, name: '要町403', checked: false },
-  { id: 4, name: '東十条1F', checked: false },
-  { id: 5, name: '東十条2F', checked: false },
-  { id: 6, name: '東十条3/4F', checked: false },
-  { id: 7, name: '北赤羽103', checked: false },
-  { id: 8, name: '北赤羽104', checked: false },
-  { id: 9, name: '北赤羽204', checked: false },
-  { id: 10, name: '北赤羽301', checked: false },
-  { id: 11, name: '北赤羽303', checked: false },
-  { id: 12, name: '北赤羽304', checked: false },
-])
+const roomTypes = ref<RoomType[]>([])
 
 const permissions = ref<Permissions>({
   roomTypeAll: false,
@@ -282,13 +273,10 @@ const permissions = ref<Permissions>({
   editRoomStatus: false,
   viewRoomOperationLog: false,
   viewRoomInfo: false,
-  roomShare: false,
   viewRoomPrice: false,
   editRoomPrice: false,
   viewPriceLog: false,
   batchChangePrice: false,
-  breakfastPackage: false,
-  reservationCalendar: false,
   taskList: false,
 })
 
@@ -342,13 +330,10 @@ const loadRolePermissions = async (roleId: number) => {
         editRoomStatus: false,
         viewRoomOperationLog: false,
         viewRoomInfo: false,
-        roomShare: false,
         viewRoomPrice: false,
         editRoomPrice: false,
         viewPriceLog: false,
         batchChangePrice: false,
-        breakfastPackage: false,
-        reservationCalendar: false,
         taskList: false,
       }
 
@@ -386,9 +371,6 @@ const loadRolePermissions = async (roleId: number) => {
           case 'VIEW_ROOM_INFO':
             permissions.value.viewRoomInfo = true
             break
-          case 'ROOM_SHARE':
-            permissions.value.roomShare = true
-            break
           case 'VIEW_ROOM_PRICE':
             permissions.value.viewRoomPrice = true
             break
@@ -400,12 +382,6 @@ const loadRolePermissions = async (roleId: number) => {
             break
           case 'BATCH_CHANGE_PRICE':
             permissions.value.batchChangePrice = true
-            break
-          case 'BREAKFAST_PACKAGE':
-            permissions.value.breakfastPackage = true
-            break
-          case 'RESERVATION_CALENDAR':
-            permissions.value.reservationCalendar = true
             break
           case 'TASK_LIST':
             permissions.value.taskList = true
@@ -497,13 +473,13 @@ const handleSavePermissions = async () => {
     saving.value = true
 
     // 构建权限数据
-    const permissionDTOs: any[] = []
+    const permissionDTOs: PermissionDTO[] = []
 
     // 住宿管理权限
     if (permissions.value.roomTypeAll) {
       permissionDTOs.push({
-        module: 'ACCOMMODATION',
-        action: 'VIEW_ROOM_STATUS',
+        module: PermissionModule.ACCOMMODATION,
+        action: PermissionAction.VIEW_ROOM_STATUS,
         allRoomTypes: true
       })
     } else {
@@ -512,8 +488,8 @@ const handleSavePermissions = async () => {
         .filter(rt => rt.checked)
         .forEach(rt => {
           permissionDTOs.push({
-            module: 'ACCOMMODATION',
-            action: 'VIEW_ROOM_STATUS',
+            module: PermissionModule.ACCOMMODATION,
+            action: PermissionAction.VIEW_ROOM_STATUS,
             roomTypeId: rt.id
           })
         })
@@ -521,44 +497,35 @@ const handleSavePermissions = async () => {
 
     // 房态管理权限
     if (permissions.value.viewRoomStatus) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'VIEW_ROOM_STATUS' })
+      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_STATUS })
     }
     if (permissions.value.editRoomStatus) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'EDIT_ROOM_STATUS' })
+      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.EDIT_ROOM_STATUS })
     }
     if (permissions.value.viewRoomOperationLog) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'VIEW_ROOM_OPERATION_LOG' })
+      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_OPERATION_LOG })
     }
     if (permissions.value.viewRoomInfo) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'VIEW_ROOM_INFO' })
-    }
-    if (permissions.value.roomShare) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'ROOM_SHARE' })
+      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_INFO })
     }
 
     // 房价管理权限
     if (permissions.value.viewRoomPrice) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'VIEW_ROOM_PRICE' })
+      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_PRICE })
     }
     if (permissions.value.editRoomPrice) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'EDIT_ROOM_PRICE' })
+      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.EDIT_ROOM_PRICE })
     }
     if (permissions.value.viewPriceLog) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'VIEW_PRICE_LOG' })
+      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_PRICE_LOG })
     }
     if (permissions.value.batchChangePrice) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'BATCH_CHANGE_PRICE' })
+      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.BATCH_CHANGE_PRICE })
     }
 
-    // 其他权限
-    if (permissions.value.breakfastPackage) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'BREAKFAST_PACKAGE' })
-    }
-    if (permissions.value.reservationCalendar) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'RESERVATION_CALENDAR' })
-    }
+    // 保洁管理权限
     if (permissions.value.taskList) {
-      permissionDTOs.push({ module: 'ACCOMMODATION', action: 'TASK_LIST' })
+      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST })
     }
 
     // 调用 API 保存权限

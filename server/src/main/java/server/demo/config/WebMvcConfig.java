@@ -5,10 +5,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import server.demo.interceptor.JwtInterceptor;
+import server.demo.interceptor.StoreContextInterceptor;
 
 /**
  * Web MVC配置
- * 配置JWT拦截器
+ * 配置拦截器链路。
  */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -16,17 +17,23 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Autowired
     private JwtInterceptor jwtInterceptor;
 
+    @Autowired
+    private StoreContextInterceptor storeContextInterceptor;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
-                .addPathPatterns("/api/v1/**") // 拦截所有API请求
+                .addPathPatterns("/api/v1/**")
                 .excludePathPatterns(
-                        "/api/v1/auth/login/password", // 排除密码登录
-                        "/api/v1/auth/login/code", // 排除验证码登录
-                        "/api/v1/auth/register", // 排除注册
-                        "/api/v1/auth/send-code", // 排除发送验证码
-                        "/api/v1/auth/reset-password", // 排除重置密码
-                        "/api/v1/health" // 排除健康检查
+                        "/api/v1/auth/login/password",
+                        "/api/v1/auth/login/code",
+                        "/api/v1/auth/register",
+                        "/api/v1/auth/send-code",
+                        "/api/v1/auth/reset-password",
+                        "/api/v1/health"
                 );
+
+        registry.addInterceptor(storeContextInterceptor)
+                .addPathPatterns("/api/v1/**");
     }
 }

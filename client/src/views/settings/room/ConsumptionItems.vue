@@ -189,7 +189,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Menu } from '@element-plus/icons-vue'
-import { useUserStore } from '@/stores/user'
+import { useStoreStore } from '@/stores/store'
 import {
   getAllConsumptionItems,
   createConsumptionItem,
@@ -204,7 +204,7 @@ import {
   type ConsumptionCategoryDTO,
 } from '@/api/consumptionItem'
 
-const userStore = useUserStore()
+const storeStore = useStoreStore()
 
 interface ConsumptionItem {
   id: number
@@ -281,12 +281,16 @@ const categoryFormRules: FormRules = {
 const categories = ref<Category[]>([])
 const consumptionItems = ref<ConsumptionItem[]>([])
 
-// 加载消费项列表
+// 加载消费项列表（门店级架构）
 const loadConsumptionItems = async () => {
-  if (!userStore.currentUser?.id) return
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    consumptionItems.value = []
+    return
+  }
 
   try {
-    const response = await getAllConsumptionItems(userStore.currentUser.id)
+    const response = await getAllConsumptionItems()
     if (response.success) {
       consumptionItems.value = response.data.map((item: ConsumptionItemDTO) => ({
         id: item.id!,
@@ -306,12 +310,16 @@ const loadConsumptionItems = async () => {
   }
 }
 
-// 加载分类列表
+// 加载分类列表（门店级架构）
 const loadCategories = async () => {
-  if (!userStore.currentUser?.id) return
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    categories.value = []
+    return
+  }
 
   try {
-    const response = await getAllConsumptionCategories(userStore.currentUser.id)
+    const response = await getAllConsumptionCategories()
     if (response.success) {
       categories.value = response.data.map((cat: ConsumptionCategoryDTO) => ({
         id: cat.id!,
@@ -403,7 +411,7 @@ const handleCancel = () => {
 }
 
 const handleConfirm = async () => {
-  if (!formRef.value || !userStore.currentUser?.id) return
+  if (!formRef.value) return
 
   try {
     const valid = await formRef.value.validate()
@@ -422,8 +430,8 @@ const handleConfirm = async () => {
       // 编辑
       response = await updateConsumptionItem(currentEditId.value, itemData)
     } else {
-      // 新增
-      response = await createConsumptionItem(userStore.currentUser.id, itemData)
+      // 新增（storeId由后端自动注入）
+      response = await createConsumptionItem(itemData)
     }
 
     if (response.success) {
@@ -497,7 +505,7 @@ const handleCancelCategory = () => {
 }
 
 const handleConfirmCategory = async () => {
-  if (!categoryFormRef.value || !userStore.currentUser?.id) return
+  if (!categoryFormRef.value) return
 
   try {
     const valid = await categoryFormRef.value.validate()
@@ -513,8 +521,8 @@ const handleConfirmCategory = async () => {
       // 编辑
       response = await updateConsumptionCategory(currentEditCategoryId.value, categoryData)
     } else {
-      // 新增
-      response = await createConsumptionCategory(userStore.currentUser.id, categoryData)
+      // 新增（storeId由后端自动注入）
+      response = await createConsumptionCategory(categoryData)
     }
 
     if (response.success) {

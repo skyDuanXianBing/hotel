@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.FutureRoomTableResponse;
 import server.demo.service.FutureRoomTableService;
@@ -12,7 +13,7 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/future-room-table")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
+@StoreScoped
 public class FutureRoomTableController {
 
     @Autowired

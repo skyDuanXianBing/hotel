@@ -2,21 +2,32 @@ package server.demo.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 import java.time.LocalDateTime;
 
 /**
- * 消费项分类实体
+ * 消费项分类实体（门店级架构）
  */
 @Entity
 @Table(name = "consumption_categories")
-public class ConsumptionCategory {
+@EntityListeners(StoreScopedEntityListener.class)
+public class ConsumptionCategory implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "用户ID不能为空")
-    @Column(nullable = false)
+    /**
+     * 门店ID（门店级架构）
+     */
+    @Column(name = "store_id")
+    private Long storeId;
+
+    /**
+     * @deprecated 已废弃，使用门店级架构，由storeId替代
+     */
+    @Deprecated
+    @Column(nullable = true)
     private Long userId;
 
     @NotBlank(message = "分类名称不能为空")
@@ -112,5 +123,15 @@ public class ConsumptionCategory {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

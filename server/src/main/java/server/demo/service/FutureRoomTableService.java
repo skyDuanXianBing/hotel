@@ -10,6 +10,8 @@ import server.demo.enums.ReservationStatus;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.util.StoreContextUtils;
+import server.demo.util.StoreContextUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,6 +33,10 @@ public class FutureRoomTableService {
 
     private static final String[] WEEKDAYS = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
 
+    private Long currentStoreId() {
+        return StoreContextUtils.requireStoreId();
+    }
+
     /**
      * 获取远期房情表数据
      * @param startDate 开始日期
@@ -39,12 +45,13 @@ public class FutureRoomTableService {
      */
     public FutureRoomTableResponse getFutureRoomTableData(LocalDate startDate, int days) {
         LocalDate endDate = startDate.plusDays(days - 1);
+        Long storeId = currentStoreId();
         
         // 获取所有房型
-        List<RoomType> roomTypes = roomTypeRepository.findAll();
+        List<RoomType> roomTypes = roomTypeRepository.findByStoreId(storeId);
         
         // 获取日期范围内的所有预订
-        List<Reservation> reservations = reservationRepository.findByDateRange(startDate, endDate);
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndDateRange(storeId, startDate, endDate);
         
         // 为每个房型生成数据
         List<FutureRoomTypeData> roomTypeDataList = new ArrayList<>();
@@ -64,7 +71,7 @@ public class FutureRoomTableService {
         
         // 处理每个房型
         for (RoomType roomType : roomTypes) {
-            List<Room> roomsOfType = roomRepository.findByRoomType(roomType);
+            List<Room> roomsOfType = roomRepository.findByStoreIdAndRoomTypeId(storeId, roomType.getId());
             int roomCount = roomsOfType.size();
             totalRoomsCount += roomCount;
             
@@ -130,22 +137,34 @@ public class FutureRoomTableService {
     
     /**
      * 计算占用房间数
+     * 参考房价管理的calculateAvailableRooms逻辑
      */
     private int calculateOccupiedRooms(List<Room> rooms, LocalDate date, List<Reservation> allReservations) {
-        return (int) rooms.stream()
-            .filter(room -> {
-                // 查找该房间在指定日期的预订
-                return allReservations.stream()
-                    .anyMatch(reservation -> 
-                        reservation.getRoom() != null &&
-                        reservation.getRoom().getId().equals(room.getId()) &&
-                        !date.isBefore(reservation.getCheckInDate()) &&
-                        date.isBefore(reservation.getCheckOutDate()) &&
-                        (reservation.getStatus() == ReservationStatus.CONFIRMED ||
-                         reservation.getStatus() == ReservationStatus.CHECKED_IN)
-                    );
+        // 获取房间ID集合,用于快速查找
+        Set<Long> roomIds = rooms.stream()
+            .map(Room::getId)
+            .collect(Collectors.toSet());
+
+        // 直接从预订中筛选符合条件的房间数
+        long occupiedCount = allReservations.stream()
+            .filter(r -> {
+                // 检查预订状态：已确认、已入住状态都算占用
+                boolean isOccupiedStatus = r.getStatus() == ReservationStatus.CONFIRMED ||
+                                         r.getStatus() == ReservationStatus.CHECKED_IN;
+
+                // 检查日期是否在预订范围内: checkInDate <= date < checkOutDate
+                boolean isInDateRange = !date.isBefore(r.getCheckInDate()) &&
+                                      date.isBefore(r.getCheckOutDate());
+
+                // 检查是否属于当前房型的房间
+                boolean isTargetRoom = r.getRoom() != null &&
+                                      roomIds.contains(r.getRoom().getId());
+
+                return isOccupiedStatus && isInDateRange && isTargetRoom;
             })
             .count();
+
+        return (int) occupiedCount;
     }
     
     /**
@@ -200,12 +219,19 @@ public class FutureRoomTableService {
      * 计算预期客房收入（已预订房间的收入）
      */
     private double calculateExpectedRoomRevenue(List<RoomType> roomTypes, LocalDate date, int totalOccupiedRooms) {
+        // 获取当前门店ID
+        server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
+        if (storeContext == null || storeContext.getStoreId() == null) {
+            throw new RuntimeException("无法获取当前门店信息");
+        }
+        Long currentStoreId = storeContext.getStoreId();
+
         double totalRevenue = 0.0;
-        
+
         for (RoomType roomType : roomTypes) {
             // 获取该房型在指定日期的占用房间数
-            List<Room> roomsOfType = roomRepository.findByRoomType(roomType);
-            List<Reservation> reservations = reservationRepository.findByDateRange(date, date.plusDays(1));
+            List<Room> roomsOfType = roomRepository.findByStoreIdAndRoomTypeId(currentStoreId, roomType.getId());
+            List<Reservation> reservations = reservationRepository.findByStoreIdAndDateRange(currentStoreId, date, date.plusDays(1));
             
             int occupiedCount = (int) roomsOfType.stream()
                 .filter(room -> {
@@ -233,10 +259,11 @@ public class FutureRoomTableService {
      * 计算预期总房费（所有可售房间的潜在收入）
      */
     private double calculateExpectedTotalRoomFee(List<RoomType> roomTypes, LocalDate date, int totalEffectiveRooms) {
+        Long storeId = currentStoreId();
         double totalFee = 0.0;
-        
+
         for (RoomType roomType : roomTypes) {
-            List<Room> roomsOfType = roomRepository.findByRoomType(roomType);
+            List<Room> roomsOfType = roomRepository.findByStoreIdAndRoomTypeId(storeId, roomType.getId());
             int effectiveRoomsOfType = roomsOfType.size(); // 简化处理，假设所有房间都可售
             
             double roomPrice = getRoomPriceForDate(roomType, date);

@@ -17,6 +17,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/api/v1/price-change-history")
 @CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"}, allowCredentials = "true")
+@server.demo.annotation.StoreScoped
 public class PriceChangeHistoryController {
 
     @Autowired
@@ -35,13 +36,10 @@ public class PriceChangeHistoryController {
             @RequestParam(required = false) Long pricePlanId,
             @RequestParam(required = false) String operator,
             @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "25") Integer pageSize,
-            HttpServletRequest request
+            @RequestParam(defaultValue = "25") Integer pageSize
     ) {
         try {
-            Long userId = (Long) request.getAttribute("userId");
             PriceChangeHistoryPageResponse response = priceChangeHistoryService.getPriceChangeHistory(
-                    userId,
                     operateDateStart,
                     operateDateEnd,
                     priceDateStart,

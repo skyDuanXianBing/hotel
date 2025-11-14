@@ -10,33 +10,34 @@ import java.util.Optional;
 @Repository
 public interface RoomGroupMemberRepository extends JpaRepository<RoomGroupMember, Long> {
 
-    /**
-     * 根据分组ID查找所有成员
-     */
+    List<RoomGroupMember> findByStoreIdAndGroupId(Long storeId, Long groupId);
+
+    Optional<RoomGroupMember> findByStoreIdAndRoomId(Long storeId, Long roomId);
+
+    void deleteByStoreIdAndGroupId(Long storeId, Long groupId);
+
+    void deleteByStoreIdAndGroupIdAndRoomId(Long storeId, Long groupId, Long roomId);
+
+    boolean existsByStoreIdAndRoomId(Long storeId, Long roomId);
+
+    boolean existsByStoreIdAndGroupIdAndRoomId(Long storeId, Long groupId, Long roomId);
+
+    // 兼容旧逻辑接口
+    @Deprecated
     List<RoomGroupMember> findByGroupId(Long groupId);
 
-    /**
-     * 根据房间ID查找成员
-     */
+    @Deprecated
     Optional<RoomGroupMember> findByRoomId(Long roomId);
 
-    /**
-     * 根据分组ID删除所有成员
-     */
+    @Deprecated
     void deleteByGroupId(Long groupId);
 
-    /**
-     * 根据分组ID和房间ID删除成员
-     */
+    @Deprecated
     void deleteByGroupIdAndRoomId(Long groupId, Long roomId);
 
-    /**
-     * 检查房间是否已在某个分组中
-     */
+    @Deprecated
     boolean existsByRoomId(Long roomId);
 
-    /**
-     * 检查房间是否在指定分组中
-     */
+    @Deprecated
     boolean existsByGroupIdAndRoomId(Long groupId, Long roomId);
 }

@@ -21,7 +21,6 @@ export interface QuickReplyDTO {
 export interface QuickReplyRequest {
   title: string
   message: string
-  userId?: number
 }
 
 /**

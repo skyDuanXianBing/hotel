@@ -5,13 +5,17 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "room_types")
+@EntityListeners(StoreScopedEntityListener.class)
+@Table(name = "room_types",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "code"}))
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class RoomType {
+public class RoomType implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -21,7 +25,7 @@ public class RoomType {
     private String name;
 
     @NotBlank(message = "房型代码不能为空")
-    @Column(nullable = false, length = 20, unique = true)
+    @Column(nullable = false, length = 20)
     private String code;
 
     @NotNull(message = "房间总数不能为空")
@@ -72,6 +76,9 @@ public class RoomType {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @Column(name = "store_id", nullable = false)
+    private Long storeId;
 
     @PrePersist
     protected void onCreate() {
@@ -237,5 +244,15 @@ public class RoomType {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

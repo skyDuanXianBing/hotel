@@ -3,17 +3,23 @@ package server.demo.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notes")
-public class Note {
+@EntityListeners(StoreScopedEntityListener.class)
+public class Note implements StoreScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "store_id", nullable = false)
+    private Long storeId;
 
     @Column(nullable = false, length = 20)
     private String type; // income 或 expense
@@ -147,5 +153,15 @@ public class Note {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

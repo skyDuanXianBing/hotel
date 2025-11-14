@@ -3,18 +3,24 @@ package server.demo.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 import server.demo.enums.RoomStatus;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "rooms")
-public class Room {
+@EntityListeners(StoreScopedEntityListener.class)
+@Table(
+        name = "rooms",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "room_number"})
+)
+public class Room implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NotBlank(message = "房间号不能为空")
-    @Column(name = "room_number", nullable = false, length = 20, unique = true)
+    @Column(name = "room_number", nullable = false, length = 20)
     private String roomNumber;
 
     @NotNull(message = "房型不能为空")
@@ -27,6 +33,9 @@ public class Room {
      */
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    @Column(name = "store_id", nullable = false)
+    private Long storeId;
 
     @Column(name = "floor_number")
     private Integer floor;
@@ -64,11 +73,12 @@ public class Room {
         this.floor = floor;
     }
 
-    public Room(String roomNumber, RoomType roomType, Integer floor, Long userId) {
+    public Room(String roomNumber, RoomType roomType, Integer floor, Long userId, Long storeId) {
         this.roomNumber = roomNumber;
         this.roomType = roomType;
         this.floor = floor;
         this.userId = userId;
+        this.storeId = storeId;
     }
 
     // Getters and Setters
@@ -102,6 +112,16 @@ public class Room {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 
     public Integer getFloor() {

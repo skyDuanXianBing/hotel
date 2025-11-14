@@ -317,7 +317,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     }
 
     @Override
-    public List<RoomPriceManagementDTO> getRoomPriceManagementData(LocalDate startDate, LocalDate endDate, Long roomTypeId, Long userId) {
+    public List<RoomPriceManagementDTO> getRoomPriceManagementData(LocalDate startDate, LocalDate endDate, Long roomTypeId) {
         // 先查询所有房型(或特定房型)
         List<RoomType> roomTypes;
         if (roomTypeId != null) {
@@ -348,8 +348,13 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         List<RoomPrice> specificPrices = roomPriceRepository.findByDateRangeWithRoomType(startDate, endDate);
 
         // 查询日期范围内的所有预订记录，用于计算可用房间数
-        // 使用findByDateRange一次性查询整个日期范围的预订
-        List<Reservation> reservations = reservationRepository.findByDateRange(startDate, endDate);
+        // 使用findByStoreIdAndDateRange一次性查询整个日期范围的预订
+        server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
+        if (storeContext == null || storeContext.getStoreId() == null) {
+            throw new RuntimeException("无法获取当前门店信息");
+        }
+        Long currentStoreId = storeContext.getStoreId();
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndDateRange(currentStoreId, startDate, endDate);
 
         // 临时调试: 输出查询到的预订信息
         System.out.println("===== 房价管理查询预订 =====");
@@ -546,7 +551,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     }
 
     @Override
-    public List<RoomPriceManagementDTO> updatePriceByPlan(UpdatePriceByPlanRequest request, Long userId, String operator) {
+    public List<RoomPriceManagementDTO> updatePriceByPlan(UpdatePriceByPlanRequest request, String operator) {
         // 验证房型和价格计划是否存在
         RoomType roomType = roomTypeRepository.findById(request.getRoomTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("房型不存在"));
@@ -698,13 +703,12 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     applyWeekdays,
                     request.getPrice(),
                     firstPreviousValue,
-                    operator,
-                    userId
+                    operator
             );
         }
 
         // 返回更新后的价格数据
-        return getRoomPriceManagementData(request.getStartDate(), request.getEndDate(), request.getRoomTypeId(), userId);
+        return getRoomPriceManagementData(request.getStartDate(), request.getEndDate(), request.getRoomTypeId());
     }
 
     /**

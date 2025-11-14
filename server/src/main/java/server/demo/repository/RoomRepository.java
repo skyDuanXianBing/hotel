@@ -8,66 +8,106 @@ import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.enums.RoomStatus;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface RoomRepository extends JpaRepository<Room, Long> {
-    
+
+    Optional<Room> findByStoreIdAndId(Long storeId, Long id);
+
+    Optional<Room> findByStoreIdAndRoomNumber(Long storeId, String roomNumber);
+
+    List<Room> findByStoreId(Long storeId);
+
+    List<Room> findByStoreIdAndRoomTypeId(Long storeId, Long roomTypeId);
+
+    List<Room> findByStoreIdAndStatus(Long storeId, RoomStatus status);
+
+    @Query("SELECT r FROM Room r WHERE r.storeId = :storeId AND r.roomType.id = :roomTypeId AND r.status = :status")
+    List<Room> findByStoreIdAndRoomTypeIdAndStatus(@Param("storeId") Long storeId,
+                                                   @Param("roomTypeId") Long roomTypeId,
+                                                   @Param("status") RoomStatus status);
+
+    @Query("SELECT r FROM Room r JOIN FETCH r.roomType WHERE r.storeId = :storeId ORDER BY r.roomType.name, r.roomNumber")
+    List<Room> findByStoreIdWithRoomType(@Param("storeId") Long storeId);
+
+    long countByStoreId(Long storeId);
+
+    @Query("SELECT COUNT(r) FROM Room r WHERE r.storeId = :storeId AND r.roomType.id = :roomTypeId AND r.status = :status")
+    long countByStoreIdAndRoomTypeIdAndStatus(@Param("storeId") Long storeId,
+                                              @Param("roomTypeId") Long roomTypeId,
+                                              @Param("status") RoomStatus status);
+
+    @Query("SELECT COUNT(r) FROM Room r WHERE r.storeId = :storeId AND r.status NOT IN ('OUT_OF_ORDER', 'MAINTENANCE') " +
+            "AND NOT EXISTS (SELECT res FROM Reservation res WHERE res.room = r " +
+            "AND res.checkInDate <= :date AND res.checkOutDate > :date " +
+            "AND res.status IN ('CONFIRMED', 'CHECKED_IN'))")
+    long countAvailableRoomsForDateByStore(@Param("storeId") Long storeId, @Param("date") LocalDate date);
+
+    @Query("SELECT r FROM Room r JOIN FETCH r.roomType WHERE r.storeId = :storeId AND r.id = :roomId")
+    Optional<Room> findByStoreIdAndIdWithRoomType(@Param("storeId") Long storeId, @Param("roomId") Long roomId);
+
+    boolean existsByStoreIdAndRoomNumber(Long storeId, String roomNumber);
+
+    // ===== 以下为兼容旧逻辑的接口，后续会逐步淘汰 =====
+
+    @Deprecated
     Optional<Room> findByRoomNumber(String roomNumber);
-    
+
+    @Deprecated
     List<Room> findByRoomType(RoomType roomType);
-    
+
+    @Deprecated
     List<Room> findByRoomTypeId(Long roomTypeId);
-    
+
+    @Deprecated
     List<Room> findByStatus(RoomStatus status);
-    
+
+    @Deprecated
     List<Room> findByRoomTypeAndStatus(RoomType roomType, RoomStatus status);
-    
+
+    @Deprecated
     @Query("SELECT r FROM Room r WHERE r.roomType.id = :roomTypeId AND r.status = :status")
     List<Room> findByRoomTypeIdAndStatus(@Param("roomTypeId") Long roomTypeId, @Param("status") RoomStatus status);
-    
+
+    @Deprecated
     @Query("SELECT r FROM Room r JOIN FETCH r.roomType ORDER BY r.roomType.name, r.roomNumber")
     List<Room> findAllWithRoomType();
 
-    /**
-     * 按用户ID和房型查询房间(用于数据隔离)
-     */
+    @Deprecated
     @Query("SELECT r FROM Room r JOIN FETCH r.roomType WHERE r.userId = :userId ORDER BY r.roomType.name, r.roomNumber")
     List<Room> findByUserIdWithRoomType(@Param("userId") Long userId);
 
-    /**
-     * 按用户ID查询房间列表
-     */
+    @Deprecated
     List<Room> findByUserId(Long userId);
 
-    /**
-     * 按用户ID统计房间数量
-     */
+    @Deprecated
     long countByUserId(Long userId);
 
+    @Deprecated
     @Query("SELECT COUNT(r) FROM Room r WHERE r.roomType.id = :roomTypeId AND r.status = :status")
     long countByRoomTypeIdAndStatus(@Param("roomTypeId") Long roomTypeId, @Param("status") RoomStatus status);
-    
-    // 今日可售房间统计：未被预订且非停用的房间
+
+    @Deprecated
     @Query("SELECT COUNT(r) FROM Room r WHERE r.status NOT IN ('OUT_OF_ORDER', 'MAINTENANCE') " +
-           "AND NOT EXISTS (SELECT res FROM Reservation res WHERE res.room = r " +
-           "AND res.checkInDate <= :date AND res.checkOutDate > :date " +
-           "AND res.status IN ('CONFIRMED', 'CHECKED_IN'))")
-    long countAvailableRoomsForDate(@Param("date") java.time.LocalDate date);
-    
+            "AND NOT EXISTS (SELECT res FROM Reservation res WHERE res.room = r " +
+            "AND res.checkInDate <= :date AND res.checkOutDate > :date " +
+            "AND res.status IN ('CONFIRMED', 'CHECKED_IN'))")
+    long countAvailableRoomsForDate(@Param("date") LocalDate date);
+
+    @Deprecated
     @Query("SELECT r FROM Room r JOIN FETCH r.roomType WHERE r.id = :roomId")
     Optional<Room> findByIdWithRoomType(@Param("roomId") Long roomId);
-    
+
+    @Deprecated
     boolean existsByRoomNumber(String roomNumber);
 
-    /**
-     * 按用户ID和日期统计可售房间数(用于数据隔离)
-     * 未被预订且非停用的房间
-     */
+    @Deprecated
     @Query("SELECT COUNT(r) FROM Room r WHERE r.userId = :userId AND r.status NOT IN ('OUT_OF_ORDER', 'MAINTENANCE') " +
-           "AND NOT EXISTS (SELECT res FROM Reservation res WHERE res.room = r " +
-           "AND res.checkInDate <= :date AND res.checkOutDate > :date " +
-           "AND res.status IN ('CONFIRMED', 'CHECKED_IN'))")
-    long countAvailableRoomsForDateAndUser(@Param("date") java.time.LocalDate date, @Param("userId") Long userId);
+            "AND NOT EXISTS (SELECT res FROM Reservation res WHERE res.room = r " +
+            "AND res.checkInDate <= :date AND res.checkOutDate > :date " +
+            "AND res.status IN ('CONFIRMED', 'CHECKED_IN'))")
+    long countAvailableRoomsForDateAndUser(@Param("date") LocalDate date, @Param("userId") Long userId);
 }

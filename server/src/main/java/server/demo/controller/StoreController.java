@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import server.demo.dto.*;
-import server.demo.entity.StoreUser;
 import server.demo.service.StoreService;
 
 import java.util.List;
@@ -95,18 +94,19 @@ public class StoreController {
     }
 
     /**
-     * Invite user to store
+     * Add member to store (支持权限角色分配)
      */
     @PostMapping("/{id}/members")
-    public ResponseEntity<ApiResponse<Void>> inviteUser(
+    public ResponseEntity<ApiResponse<StoreUserDTO>> addStoreMember(
             @PathVariable Long id,
-            @Valid @RequestBody InviteMemberRequest request,
+            @Valid @RequestBody AddStoreMemberRequest request,
             HttpServletRequest httpRequest
     ) {
         try {
             Long userId = (Long) httpRequest.getAttribute("userId");
-            storeService.inviteUser(id, userId, request.getEmail(), request.getRole());
-            return ResponseEntity.ok(new ApiResponse<>(true, "Invite user success", null));
+            StoreUserDTO member = storeService.addStoreMember(id, userId, request);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ApiResponse<>(true, "添加成员成功", member));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -116,16 +116,16 @@ public class StoreController {
     /**
      * Remove member from store
      */
-    @DeleteMapping("/{id}/members/{userId}")
+    @DeleteMapping("/{id}/members/{memberId}")
     public ResponseEntity<ApiResponse<Void>> removeStoreMember(
             @PathVariable Long id,
-            @PathVariable Long userId,
+            @PathVariable Long memberId,
             HttpServletRequest httpRequest
     ) {
         try {
             Long operatorUserId = (Long) httpRequest.getAttribute("userId");
-            storeService.removeStoreMember(id, operatorUserId, userId);
-            return ResponseEntity.ok(new ApiResponse<>(true, "Remove member success", null));
+            storeService.removeStoreMember(id, operatorUserId, memberId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "移除成员成功", null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
@@ -133,15 +133,52 @@ public class StoreController {
     }
 
     /**
-     * Get all store members
+     * Get all store members (返回详细信息)
      */
     @GetMapping("/{id}/members")
-    public ResponseEntity<ApiResponse<List<StoreUser>>> getStoreMembers(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<StoreUserDTO>>> getStoreMembers(@PathVariable Long id) {
         try {
-            List<StoreUser> members = storeService.getStoreMembers(id);
-            return ResponseEntity.ok(new ApiResponse<>(true, "Get store members success", members));
+            List<StoreUserDTO> members = storeService.getStoreMembersDTO(id);
+            return ResponseEntity.ok(new ApiResponse<>(true, "获取门店成员列表成功", members));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Get store member detail
+     */
+    @GetMapping("/{id}/members/{userId}")
+    public ResponseEntity<ApiResponse<StoreUserDTO>> getStoreMemberDetail(
+            @PathVariable Long id,
+            @PathVariable Long userId
+    ) {
+        try {
+            StoreUserDTO member = storeService.getStoreMemberDetail(id, userId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "获取成员详情成功", member));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Update store member permission
+     */
+    @PutMapping("/{id}/members/{userId}")
+    public ResponseEntity<ApiResponse<StoreUserDTO>> updateStoreMemberPermission(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @Valid @RequestBody UpdateStoreMemberPermissionRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            Long operatorUserId = (Long) httpRequest.getAttribute("userId");
+            StoreUserDTO member = storeService.updateStoreMemberPermission(id, operatorUserId, userId, request);
+            return ResponseEntity.ok(new ApiResponse<>(true, "更新成员权限成功", member));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
         }
     }

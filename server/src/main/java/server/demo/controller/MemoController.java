@@ -1,33 +1,33 @@
 package server.demo.controller;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.service.MemoService;
 
 import java.util.Map;
 
 /**
- * 首页备忘录控制器
+ * 首页备忘录控制器（门店级架构）
  */
 @RestController
 @RequestMapping("/api/v1/memo")
 @CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"}, allowCredentials = "true")
+@StoreScoped
 public class MemoController {
 
     @Autowired
     private MemoService memoService;
 
     /**
-     * 获取当前用户的备忘录内容
+     * 获取当前门店的备忘录内容
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<String>> getMemo(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<String>> getMemo() {
         try {
-            Long userId = (Long) request.getAttribute("userId");
-            String content = memoService.getMemo(userId);
+            String content = memoService.getMemo();
             return ResponseEntity.ok(ApiResponse.success("获取备忘录成功", content));
         } catch (Exception e) {
             return ResponseEntity.status(500)
@@ -36,17 +36,13 @@ public class MemoController {
     }
 
     /**
-     * 保存当前用户的备忘录内容
+     * 保存当前门店的备忘录内容
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<String>> saveMemo(
-            @RequestBody Map<String, String> request,
-            HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<String>> saveMemo(@RequestBody Map<String, String> request) {
         try {
-            Long userId = (Long) httpRequest.getAttribute("userId");
             String content = request.get("content");
-
-            memoService.saveMemo(userId, content);
+            memoService.saveMemo(content);
             return ResponseEntity.ok(ApiResponse.success("保存备忘录成功", content));
         } catch (Exception e) {
             return ResponseEntity.status(500)

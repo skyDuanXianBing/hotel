@@ -3,6 +3,9 @@ package server.demo.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
+
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -12,19 +15,23 @@ import java.util.Set;
  */
 @Entity
 @Table(name = "roles")
+@EntityListeners(StoreScopedEntityListener.class)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class Role {
+public class Role implements StoreScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NotBlank(message = "角色名称不能为空")
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, length = 50)
     private String name;
 
     @Column(length = 200)
     private String description;
+
+    @Column(name = "store_id")
+    private Long storeId;
 
     @Column(name = "is_system", nullable = false)
     private Boolean isSystem = false; // 是否为系统内置角色
@@ -136,11 +143,22 @@ public class Role {
     }
 
     @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
+    }
+
+    @Override
     public String toString() {
         return "Role{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
                 ", description='" + description + '\'' +
+                ", storeId=" + storeId +
                 ", isSystem=" + isSystem +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +

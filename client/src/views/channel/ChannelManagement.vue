@@ -309,7 +309,7 @@
 
     <!-- 价格比例页面 -->
     <div class="main-content price-ratio-view" v-if="showPriceRatio">
-      <div class="settings-header">
+      <!-- <div class="settings-header">
         <div class="breadcrumb">
           <el-button type="text" @click="closePriceRatio" class="back-btn">
             <el-icon><ArrowLeft /></el-icon>
@@ -318,7 +318,7 @@
           <span class="breadcrumb-separator">/</span>
           <span class="breadcrumb-item active">价格比例</span>
         </div>
-      </div>
+      </div> -->
 
       <div class="settings-content">
         <div class="price-ratio-table-container">

@@ -4,7 +4,7 @@
     <div class="top-nav">
       <div class="logo">
         <el-icon :size="28" color="#1890ff"><HomeFilled /></el-icon>
-        <span class="logo-text">Smart Order</span>
+        <span class="logo-text">房东智控中心（THE HOST HUB）</span>
       </div>
       <div class="user-info">
         <el-dropdown trigger="click">

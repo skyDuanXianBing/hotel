@@ -6,11 +6,13 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
+import server.demo.entity.base.StoreScopedEntity;
 
 @Entity
-@Table(name = "price_plans")
+@Table(name = "price_plans",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "name"}))
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class PricePlan {
+public class PricePlan implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -63,6 +65,9 @@ public class PricePlan {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @Column(name = "store_id", nullable = false)
+    private Long storeId;
 
     @PrePersist
     protected void onCreate() {
@@ -221,5 +226,15 @@ public class PricePlan {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

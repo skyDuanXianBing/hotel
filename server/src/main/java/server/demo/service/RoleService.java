@@ -3,6 +3,8 @@ package server.demo.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.context.StoreContext;
+import server.demo.context.StoreContextHolder;
 import server.demo.dto.CreateRoleRequest;
 import server.demo.dto.PermissionDTO;
 import server.demo.dto.RoleDTO;
@@ -26,18 +28,31 @@ public class RoleService {
     private RolePermissionService rolePermissionService;
 
     /**
-     * 获取所有角色
+     * 获取当前门店ID
+     */
+    private Long getCurrentStoreId() {
+        StoreContext context = StoreContextHolder.getContext();
+        if (context == null || context.getStoreId() == null) {
+            throw new RuntimeException("无法获取当前门店信息");
+        }
+        return context.getStoreId();
+    }
+
+    /**
+     * 获取所有角色(门店级)
      */
     public List<RoleDTO> getAllRoles() {
-        List<Role> roles = roleRepository.findAll();
+        Long storeId = getCurrentStoreId();
+        List<Role> roles = roleRepository.findByStoreId(storeId);
         return roles.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     /**
-     * 搜索角色
+     * 搜索角色(门店级)
      */
     public List<RoleDTO> searchRoles(String keyword) {
-        List<Role> roles = roleRepository.searchRoles(keyword);
+        Long storeId = getCurrentStoreId();
+        List<Role> roles = roleRepository.searchRolesByStoreId(storeId, keyword);
         return roles.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -51,18 +66,21 @@ public class RoleService {
     }
 
     /**
-     * 创建角色
+     * 创建角色(门店级)
      */
     @Transactional
     public RoleDTO createRole(CreateRoleRequest request) {
-        // 检查角色名是否已存在
-        if (roleRepository.existsByName(request.getName())) {
+        Long storeId = getCurrentStoreId();
+
+        // 检查角色名在当前门店是否已存在
+        if (roleRepository.existsByStoreIdAndName(storeId, request.getName())) {
             throw new RuntimeException("角色名已存在");
         }
 
         Role role = new Role();
         role.setName(request.getName());
         role.setDescription(request.getDescription());
+        role.setStoreId(storeId);
         role.setIsSystem(false); // 用户创建的角色不是系统角色
 
         Role savedRole = roleRepository.save(role);
@@ -71,21 +89,28 @@ public class RoleService {
     }
 
     /**
-     * 更新角色
+     * 更新角色(门店级)
      */
     @Transactional
     public RoleDTO updateRole(Long id, UpdateRoleRequest request) {
+        Long storeId = getCurrentStoreId();
+
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("角色不存在"));
+
+        // 验证角色属于当前门店
+        if (!storeId.equals(role.getStoreId())) {
+            throw new RuntimeException("无权限修改此角色");
+        }
 
         // 如果是系统角色,不允许修改名称
         if (role.getIsSystem() && request.getName() != null && !request.getName().equals(role.getName())) {
             throw new RuntimeException("系统角色不允许修改名称");
         }
 
-        // 检查新名称是否已被其他角色使用
+        // 检查新名称在当前门店是否已被其他角色使用
         if (request.getName() != null && !request.getName().equals(role.getName())) {
-            if (roleRepository.existsByName(request.getName())) {
+            if (roleRepository.existsByStoreIdAndName(storeId, request.getName())) {
                 throw new RuntimeException("角色名已存在");
             }
             role.setName(request.getName());
@@ -101,12 +126,19 @@ public class RoleService {
     }
 
     /**
-     * 删除角色
+     * 删除角色(门店级)
      */
     @Transactional
     public void deleteRole(Long id) {
+        Long storeId = getCurrentStoreId();
+
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("角色不存在"));
+
+        // 验证角色属于当前门店
+        if (!storeId.equals(role.getStoreId())) {
+            throw new RuntimeException("无权限删除此角色");
+        }
 
         // 检查是否为系统角色
         if (role.getIsSystem()) {

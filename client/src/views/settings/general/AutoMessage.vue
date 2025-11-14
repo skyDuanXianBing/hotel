@@ -59,18 +59,24 @@
         <el-form-item label="渠道" prop="channel">
           <el-select v-model="form.channel" placeholder="请选择渠道" style="width: 100%">
             <el-option label="全部渠道" value="全部渠道" />
-            <el-option label="Booking.com" value="Booking.com" />
-            <el-option label="Airbnb" value="Airbnb" />
-            <el-option label="Agoda" value="Agoda" />
+            <el-option
+              v-for="channel in channels"
+              :key="channel.id"
+              :label="channel.name"
+              :value="channel.name"
+            />
           </el-select>
         </el-form-item>
 
         <el-form-item label="房间" prop="room">
           <el-select v-model="form.room" placeholder="请选择房间" style="width: 100%">
             <el-option label="全部房间" value="全部房间" />
-            <el-option label="要町201" value="要町201" />
-            <el-option label="要町401" value="要町401" />
-            <el-option label="東十条1F" value="東十条1F" />
+            <el-option
+              v-for="room in rooms"
+              :key="room.id"
+              :label="room.roomNumber"
+              :value="room.roomNumber"
+            />
           </el-select>
         </el-form-item>
 
@@ -93,13 +99,16 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
-  getAutoMessagesByUserId,
+  getAllAutoMessages,
   createAutoMessage,
   updateAutoMessage,
   deleteAutoMessage,
   toggleAutoMessage,
   type AutoMessageDTO,
 } from '@/api/autoMessage'
+import { getAllChannels, type ChannelDTO } from '@/api/channel'
+import { getRooms, type RoomDTO } from '@/api/room'
+import { useStoreStore } from '@/stores/store'
 
 interface AutoMessage {
   id: number
@@ -111,12 +120,15 @@ interface AutoMessage {
   enabled: boolean
 }
 
+const storeStore = useStoreStore()
 const loading = ref(false)
 const dialogVisible = ref(false)
 const formRef = ref<FormInstance>()
 const editingId = ref<number | null>(null)
 
 const messages = ref<AutoMessage[]>([])
+const channels = ref<ChannelDTO[]>([])
+const rooms = ref<RoomDTO[]>([])
 
 const form = reactive<AutoMessage>({
   id: 0,
@@ -140,11 +152,47 @@ const dialogTitle = computed(() => {
   return editingId.value ? '编辑自动化消息' : '创建自动化消息'
 })
 
+// 加载渠道列表
+const loadChannels = async () => {
+  try {
+    const response = await getAllChannels()
+    if (response.success && response.data) {
+      channels.value = response.data
+    } else {
+      ElMessage.error(response.message || '加载渠道列表失败')
+    }
+  } catch (error) {
+    console.error('加载渠道列表失败:', error)
+    ElMessage.error('加载渠道列表失败')
+  }
+}
+
+// 加载房间列表
+const loadRooms = async () => {
+  try {
+    const response = await getRooms()
+    if (response.success && response.data) {
+      rooms.value = response.data
+    } else {
+      ElMessage.error(response.message || '加载房间列表失败')
+    }
+  } catch (error) {
+    console.error('加载房间列表失败:', error)
+    ElMessage.error('加载房间列表失败')
+  }
+}
+
 // 加载自动化消息列表
 const loadAutoMessages = async () => {
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    messages.value = []
+    return
+  }
+
   try {
     loading.value = true
-    const response = await getAutoMessagesByUserId(1) // 默认用户ID为1
+    const response = await getAllAutoMessages()
     if (response.success && response.data) {
       messages.value = response.data
     } else {
@@ -247,7 +295,6 @@ const handleSave = async () => {
         channel: form.channel,
         room: form.room,
         enabled: form.enabled,
-        userId: 1, // 默认用户ID为1
       }
 
       let response
@@ -274,6 +321,8 @@ const handleSave = async () => {
 }
 
 onMounted(() => {
+  loadChannels()
+  loadRooms()
   loadAutoMessages()
 })
 </script>

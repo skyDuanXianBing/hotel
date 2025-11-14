@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.*;
 import server.demo.service.RoleService;
 
@@ -15,6 +16,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/v1/roles")
+@StoreScoped
 public class RoleController {
 
     @Autowired

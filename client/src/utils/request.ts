@@ -10,13 +10,27 @@ const request: AxiosInstance = axios.create({
   },
 })
 
-// 请求拦截器：添加token
+// 请求拦截器：添加token和storeId
 request.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // 添加当前门店ID到请求头
+    const currentStore = localStorage.getItem('currentStore')
+    if (currentStore) {
+      try {
+        const store = JSON.parse(currentStore)
+        if (store?.id) {
+          config.headers['X-Store-Id'] = store.id.toString()
+        }
+      } catch (e) {
+        console.error('解析currentStore失败:', e)
+      }
+    }
+
     return config
   },
   (error) => {
@@ -36,7 +50,14 @@ request.interceptors.response.use(
       localStorage.removeItem('user')
       window.location.href = '/login'
       ElMessage.error('登录已过期，请重新登录')
-    } else {
+    }
+    // 处理403权限不足错误
+    else if (error.response?.status === 403) {
+      const message = error.response?.data?.message || '您没有权限执行此操作'
+      ElMessage.error(message)
+    }
+    // 处理其他错误
+    else {
       const message = error.response?.data?.message || error.message || '请求失败'
       ElMessage.error(message)
     }

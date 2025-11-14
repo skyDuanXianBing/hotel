@@ -13,12 +13,19 @@ import java.util.List;
 public interface AutoMessageRepository extends JpaRepository<AutoMessage, Long> {
 
     /**
-     * 根据用户ID查找自动化消息列表
+     * 根据用户ID查找自动化消息列表(已废弃,使用门店级查询)
      */
+    @Deprecated
     List<AutoMessage> findByUserId(Long userId);
 
     /**
-     * 根据用户ID和启用状态查找自动化消息列表
+     * 根据用户ID和启用状态查找自动化消息列表(已废弃,使用门店级查询)
      */
+    @Deprecated
     List<AutoMessage> findByUserIdAndEnabled(Long userId, Boolean enabled);
+
+    // 门店级查询方法
+    List<AutoMessage> findByStoreId(Long storeId);
+
+    List<AutoMessage> findByStoreIdAndEnabled(Long storeId, Boolean enabled);
 }

@@ -1,6 +1,9 @@
 package server.demo.entity;
 
 import jakarta.persistence.*;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
+
 import java.time.LocalDateTime;
 
 /**
@@ -8,17 +11,25 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "cleaning_supplies")
-public class CleaningSupply {
+@EntityListeners(StoreScopedEntityListener.class)
+public class CleaningSupply implements StoreScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /**
-     * 用户ID
+     * 用户ID (已废弃,保留用于向后兼容)
      */
-    @Column(nullable = false)
+    @Deprecated
+    @Column(nullable = true)
     private Long userId;
+
+    /**
+     * 门店ID
+     */
+    @Column(name = "store_id")
+    private Long storeId;
 
     /**
      * 房型名称
@@ -102,5 +113,15 @@ public class CleaningSupply {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

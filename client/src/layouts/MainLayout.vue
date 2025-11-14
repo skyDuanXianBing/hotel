@@ -125,8 +125,7 @@ const handleLogout = async () => {
           <el-menu-item index="/accommodation">房态</el-menu-item>
           <el-menu-item index="/channel">渠道</el-menu-item>
           <el-menu-item index="/order">订单</el-menu-item>
-          <el-menu-item index="/statistics">统计</el-menu-item>
-          <el-menu-item index="/chat">客服</el-menu-item>
+          <el-menu-item index="/data-center/overview">统计</el-menu-item>
           <el-menu-item index="/settings">设置</el-menu-item>
         </el-menu>
       </nav>
@@ -160,9 +159,7 @@ const handleLogout = async () => {
               <el-icon><Document /></el-icon>
             </el-button>
           </el-tooltip>
-          <el-button text>
-            <el-icon><Bell /></el-icon>
-          </el-button>
+
           <el-tooltip content="记一笔" placement="bottom">
             <el-button text class="action-icon" @click="handleRecordClick">
               <el-icon><EditPen /></el-icon>

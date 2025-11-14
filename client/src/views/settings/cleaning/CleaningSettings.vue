@@ -273,7 +273,7 @@ import {
   clearCleaningSupply,
   sendCleanerInvitation,
 } from '@/api/cleaning'
-import { getAllStores, type StoreDTO } from '@/api/store'
+import { getUserStores, type StoreDTO } from '@/api/store'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 
 interface Store {
@@ -353,7 +353,7 @@ const currentSupply = ref<Supply | null>(null)
 const loadStores = async () => {
   try {
     loading.value = true
-    const response = await getAllStores()
+    const response = await getUserStores()
     if (response.success && response.data) {
       // 将门店数据映射到本地 Store 接口
       stores.value = response.data.map((store: StoreDTO) => ({
@@ -449,6 +449,8 @@ const loadSupplies = async () => {
 
 const handleConfig = async (store: Store) => {
   currentStore.value = store
+  // 同步到localStorage,以便请求拦截器能获取X-Store-Id
+  localStorage.setItem('currentStore', JSON.stringify(store))
   showConfigPage.value = true
   activeTab.value = 'task-time'
   isEditing.value = false
@@ -582,11 +584,13 @@ const handleSaveCleaner = async () => {
 
   try {
     loading.value = true
+    // 确保localStorage已同步当前门店信息(为请求拦截器提供X-Store-Id)
+    localStorage.setItem('currentStore', JSON.stringify(currentStore.value))
+
+    // userId和storeId由后端从请求上下文自动获取,无需前端传递
     const response = await sendCleanerInvitation({
       email: cleanerForm.email.trim(),
       name: cleanerForm.name.trim(),
-      userId: 1,
-      storeId: currentStore.value.id,
     })
 
     if (response.success) {
@@ -597,9 +601,9 @@ const handleSaveCleaner = async () => {
     } else {
       ElMessage.error(response.message || '发送邀请失败')
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('发送邀请失败:', error)
-    ElMessage.error('发送邀请失败')
+    ElMessage.error(error.response?.data?.message || error.message || '发送邀请失败')
   } finally {
     loading.value = false
   }

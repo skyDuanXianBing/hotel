@@ -13,7 +13,6 @@ public interface PriceChangeHistoryService {
     /**
      * 分页查询改价历史
      *
-     * @param userId 用户ID
      * @param operateDateStart 操作日期开始
      * @param operateDateEnd 操作日期结束
      * @param priceDateStart 价格日期开始
@@ -26,7 +25,6 @@ public interface PriceChangeHistoryService {
      * @return 分页结果
      */
     PriceChangeHistoryPageResponse getPriceChangeHistory(
-            Long userId,
             LocalDate operateDateStart,
             LocalDate operateDateEnd,
             LocalDate priceDateStart,
@@ -49,7 +47,6 @@ public interface PriceChangeHistoryService {
      * @param changeValue 修改后的值
      * @param previousValue 修改前的值
      * @param operator 操作人
-     * @param userId 用户ID
      */
     void createPriceChangeHistory(
             Long roomTypeId,
@@ -59,7 +56,6 @@ public interface PriceChangeHistoryService {
             String applyWeekdays,
             java.math.BigDecimal changeValue,
             java.math.BigDecimal previousValue,
-            String operator,
-            Long userId
+            String operator
     );
 }

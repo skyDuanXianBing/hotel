@@ -4,13 +4,17 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 
 /**
  * 房间分组实体
  */
 @Entity
-@Table(name = "room_groups")
-public class RoomGroup {
+@EntityListeners(StoreScopedEntityListener.class)
+@Table(name = "room_groups",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "name"}))
+public class RoomGroup implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -18,6 +22,9 @@ public class RoomGroup {
     @NotNull(message = "用户ID不能为空")
     @Column(nullable = false)
     private Long userId;
+
+    @Column(name = "store_id", nullable = false)
+    private Long storeId;
 
     @NotBlank(message = "分组名称不能为空")
     @Column(nullable = false, length = 100)
@@ -51,6 +58,12 @@ public class RoomGroup {
         this.name = name;
     }
 
+    public RoomGroup(Long userId, Long storeId, String name) {
+        this.userId = userId;
+        this.storeId = storeId;
+        this.name = name;
+    }
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -66,6 +79,16 @@ public class RoomGroup {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 
     public String getName() {

@@ -24,7 +24,7 @@
           type="date"
           placeholder="选择日期"
           format="YYYY/MM/DD"
-          value-format="YYYY/MM/DD"
+          value-format="YYYY-MM-DD"
         />
         <span class="date-separator">至</span>
         <el-date-picker
@@ -32,7 +32,7 @@
           type="date"
           placeholder="选择日期"
           format="YYYY/MM/DD"
-          value-format="YYYY/MM/DD"
+          value-format="YYYY-MM-DD"
         />
       </div>
 
@@ -120,85 +120,148 @@
         <div class="revenue-tabs">
           <el-button
             :type="revenueSubTab === 'payment' ? 'primary' : 'default'"
-            @click="revenueSubTab = 'payment'"
+            @click="handleRevenueSubTabChange('payment')"
           >
             支付方式
           </el-button>
           <el-button
             :type="revenueSubTab === 'category' ? 'primary' : 'default'"
-            @click="revenueSubTab = 'category'"
+            @click="handleRevenueSubTabChange('category')"
           >
             款项分类
           </el-button>
         </div>
 
-        <!-- 流水统计卡片 -->
-        <div class="revenue-stats">
-          <div class="stat-card large">
-            <div class="stat-label">总流水</div>
-            <div class="stat-value large">¥{{ revenueTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
-            <div class="stat-details">
-              <span>分账款: ¥{{ splitAccount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-              <span>实收款: ¥{{ actualReceived.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+        <!-- 支付方式内容 -->
+        <div v-if="revenueSubTab === 'payment'">
+          <!-- 流水统计卡片 -->
+          <div class="revenue-stats">
+            <div class="stat-card large">
+              <div class="stat-label">总流水</div>
+              <div class="stat-value large">¥{{ revenueTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+              <div class="stat-details">
+                <span>分账款: ¥{{ splitAccount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                <span>实收款: ¥{{ actualReceived.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+              </div>
+            </div>
+
+            <div class="revenue-cards">
+              <div class="revenue-card">
+                <div class="card-label">Booking代收</div>
+                <div class="card-value">¥{{ bookingRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+              </div>
+              <div class="revenue-card">
+                <div class="card-label">Airbnb代收</div>
+                <div class="card-value">¥{{ airbnbRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+              </div>
             </div>
           </div>
 
-          <div class="revenue-cards">
-            <div class="revenue-card">
-              <div class="card-label">Booking代收</div>
-              <div class="card-value">¥{{ bookingRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+          <!-- 收款分布和总支出饼图 -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <h3 class="chart-title">收款分布</h3>
+              <div ref="revenueDistChart" class="chart-container"></div>
             </div>
-            <div class="revenue-card">
-              <div class="card-label">Airbnb代收</div>
-              <div class="card-value">¥{{ airbnbRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+            <div class="chart-card">
+              <h3 class="chart-title">总支出</h3>
+              <div ref="expenseChart" class="chart-container"></div>
             </div>
+          </div>
+
+          <!-- 流水明细表格 -->
+          <div class="table-section">
+            <div class="table-header">
+              <h3 class="table-title">流水明细 ({{ startDate }} 至 {{ endDate }})</h3>
+              <el-button type="primary">导出明细</el-button>
+            </div>
+
+            <div class="table-tabs">
+              <el-button
+                v-for="tab in revenueTableTabs"
+                :key="tab.key"
+                :type="revenueTableTab === tab.key ? 'primary' : 'default'"
+                size="small"
+                @click="revenueTableTab = tab.key"
+              >
+                {{ tab.label }}
+              </el-button>
+            </div>
+
+            <el-table :data="revenueTableData" border stripe class="detail-table">
+              <el-table-column prop="paymentMethod" label="支付方式" min-width="120" align="center" />
+              <el-table-column prop="total" label="合计" min-width="150" align="center">
+                <template #default="{ row }">
+                  <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="nov8" label="11月8日" min-width="150" align="center">
+                <template #default="{ row }">
+                  ¥{{ row.nov8.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
+                </template>
+              </el-table-column>
+            </el-table>
           </div>
         </div>
 
-        <!-- 收款分布和总支出饼图 -->
-        <div class="charts-row">
-          <div class="chart-card">
-            <h3 class="chart-title">收款分布</h3>
-            <div ref="revenueDistChart" class="chart-container"></div>
-          </div>
-          <div class="chart-card">
-            <h3 class="chart-title">总支出</h3>
-            <div ref="expenseChart" class="chart-container"></div>
-          </div>
-        </div>
+        <!-- 款项分类内容 -->
+        <div v-if="revenueSubTab === 'category'">
+          <!-- 流水统计卡片 -->
+          <div class="revenue-stats">
+            <div class="stat-card large">
+              <div class="stat-label">总流水</div>
+              <div class="stat-value large">¥{{ categoryRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+              <div class="stat-details">
+                <span>总收款: ¥{{ categoryIncome.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                <span>总支出: ¥{{ Math.abs(categoryExpense).toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+              </div>
+            </div>
 
-        <!-- 流水明细表格 -->
-        <div class="table-section">
-          <div class="table-header">
-            <h3 class="table-title">流水明细 ({{ startDate }} 至 {{ endDate }})</h3>
-            <el-button type="primary">导出明细</el-button>
-          </div>
-
-          <div class="table-tabs">
-            <el-button
-              v-for="tab in revenueTableTabs"
-              :key="tab.key"
-              :type="revenueTableTab === tab.key ? 'primary' : 'default'"
-              size="small"
-              @click="revenueTableTab = tab.key"
-            >
-              {{ tab.label }}
-            </el-button>
+            <div class="revenue-cards">
+              <div class="revenue-card">
+                <div class="card-label">常规流水</div>
+                <div class="card-value">¥{{ normalRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+              </div>
+              <div class="revenue-card">
+                <div class="card-label">记一笔流水</div>
+                <div class="card-value">¥{{ notesRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+              </div>
+            </div>
           </div>
 
-          <el-table :data="revenueTableData" border stripe class="detail-table">
-            <el-table-column prop="paymentMethod" label="支付方式" min-width="120" align="center" />
-            <el-table-column prop="total" label="合计" min-width="150" align="center">
-              <template #default="{ row }">
-                <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="nov8" label="11月8日" min-width="150" align="center">
-              <template #default="{ row }">
-                ¥{{ row.nov8.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
-              </template>
-            </el-table-column>
-          </el-table>
+          <!-- 收款分布和总支出饼图 -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <h3 class="chart-title">收款分布</h3>
+              <div ref="categoryDistChart" class="chart-container"></div>
+            </div>
+            <div class="chart-card">
+              <h3 class="chart-title">总支出分布</h3>
+              <div ref="categoryExpenseChart" class="chart-container"></div>
+            </div>
+          </div>
+
+          <!-- 流水明细表格 -->
+          <div class="table-section">
+            <div class="table-header">
+              <h3 class="table-title">流水明细 ({{ startDate }} 至 {{ endDate }})</h3>
+              <el-button type="primary">导出明细</el-button>
+            </div>
+
+            <el-table :data="categoryTableData" border stripe class="detail-table">
+              <el-table-column prop="paymentMethod" label="支付方式" min-width="120" align="center" />
+              <el-table-column prop="total" label="合计" min-width="150" align="center">
+                <template #default="{ row }">
+                  <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="nov8" label="11月14日" min-width="150" align="center">
+                <template #default="{ row }">
+                  ¥{{ row.nov8.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
         </div>
       </div>
 
@@ -241,7 +304,7 @@
               :key="tab.key"
               :type="channelTableTab === tab.key ? 'primary' : 'default'"
               size="small"
-              @click="channelTableTab = tab.key"
+              @click="handleChannelTableTabChange(tab.key)"
             >
               {{ tab.label }}
             </el-button>
@@ -254,9 +317,9 @@
                 <span class="amount-bold">{{ row.total }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="nov8" label="11月8日" min-width="150" align="center">
+            <el-table-column prop="nov14" label="11月14日" min-width="150" align="center">
               <template #default="{ row }">
-                {{ row.nov8 }}
+                {{ row.nov14 }}
               </template>
             </el-table-column>
           </el-table>
@@ -346,16 +409,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { Search, Money } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import StatisticsLayout from '../statistics/StatisticsLayout.vue'
+import {
+  getBusinessOverview,
+  getRevenueSummary,
+  getChannelSummary,
+  getSalesSummary,
+  type BusinessOverviewDTO,
+  type RevenueSummaryDTO,
+  type ChannelSummaryDTO,
+  type SalesSummaryDTO
+} from '@/api/statistics'
 
 const activeTab = ref('business')
 const dateType = ref('today')
-const startDate = ref('2025/11/08')
-const endDate = ref('2025/11/08')
+const startDate = ref('2025-11-14')
+const endDate = ref('2025-11-14')
+const loading = ref(false)
 
 // 营业概况相关数据
 const totalRevenue = ref(181196.45)
@@ -396,6 +471,20 @@ const revenueTableData = ref([
   { paymentMethod: 'Airbnb代收', total: 94667.00, nov8: 94667.00 }
 ])
 
+// 款项分类相关数据
+const categoryRevenue = ref(390396.66) // 总流水
+const categoryIncome = ref(481398.66) // 总收款
+const categoryExpense = ref(-91002.00) // 总支出
+const normalRevenue = ref(390396.66) // 常规流水
+const arRevenue = ref(0.00) // AR收错流水
+const notesRevenue = ref(0.00) // 记一笔流水
+
+const categoryTableData = ref([
+  { paymentMethod: '常规流水', total: 390396.66, nov8: 390396.66 },
+  { paymentMethod: 'AR收错流水', total: 0.00, nov8: 0.00 },
+  { paymentMethod: '记一笔流水', total: 0.00, nov8: 0.00 }
+])
+
 // 渠道汇总相关数据
 const channelTableTab = ref('channel-fee')
 const channelTableTabs = [
@@ -403,10 +492,8 @@ const channelTableTabs = [
   { key: 'channel-nights', label: '间夜明细' }
 ]
 
-const channelTableData = ref([
-  { channel: 'Airbnb', total: '¥97,981.00', nov8: '¥97,981.00' },
-  { channel: 'Booking.com', total: '¥83,215.45', nov8: '¥83,215.45' }
-])
+// 当前显示的表格数据(根据tab切换)
+const channelTableData = ref<any[]>([])
 
 // 销售汇总相关数据
 const salesTotal = ref(59054.65)
@@ -442,6 +529,8 @@ const businessPieChart = ref<HTMLDivElement>()
 const businessBarChart = ref<HTMLDivElement>()
 const revenueDistChart = ref<HTMLDivElement>()
 const expenseChart = ref<HTMLDivElement>()
+const categoryDistChart = ref<HTMLDivElement>()
+const categoryExpenseChart = ref<HTMLDivElement>()
 const channelRevenueChart = ref<HTMLDivElement>()
 const channelNightsChart = ref<HTMLDivElement>()
 const channelRevenueTrendChart = ref<HTMLDivElement>()
@@ -452,23 +541,274 @@ let businessPie: ECharts | null = null
 let businessBar: ECharts | null = null
 let revenueDist: ECharts | null = null
 let expense: ECharts | null = null
+let categoryDistChart_instance: ECharts | null = null
+let categoryExpenseChart_instance: ECharts | null = null
 let channelRevenue: ECharts | null = null
 let channelNights: ECharts | null = null
 let channelRevenueTrend: ECharts | null = null
 let channelNightsTrend: ECharts | null = null
 let salesTrend: ECharts | null = null
 
+// ==================== 数据加载函数 ====================
+
+/**
+ * 加载营业概况数据
+ */
+const loadBusinessOverview = async () => {
+  // 检查日期参数是否有效
+  if (!startDate.value || !endDate.value) {
+    console.warn('日期参数无效，跳过加载营业概况数据')
+    return
+  }
+
+  try {
+    loading.value = true
+    const response = await getBusinessOverview({
+      startDate: startDate.value,
+      endDate: endDate.value
+    })
+
+    if (response.success && response.data) {
+      const data = response.data
+
+      // 更新统计卡片数据
+      totalRevenue.value = data.totalRevenue
+      roomFee.value = data.roomFee
+      deposit.value = data.deposit
+      checkout.value = data.checkoutFee
+      roomService.value = data.roomServiceFee
+
+      // 更新表格数据
+      businessDetailData.value = data.consumptionDetails.map(detail => ({
+        category: detail.category,
+        total: detail.total,
+        nov8: detail.dailyAmounts[0]?.amount || 0
+      }))
+
+      // 重新初始化图表
+      await nextTick()
+      initBusinessPieChart(data)
+      initBusinessBarChart(data)
+    } else {
+      ElMessage.error(response.message || '获取营业概况数据失败')
+    }
+  } catch (error) {
+    console.error('加载营业概况数据失败:', error)
+    ElMessage.error('加载营业概况数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+/**
+ * 加载流水汇总数据
+ */
+const loadRevenueSummary = async () => {
+  // 检查日期参数是否有效
+  if (!startDate.value || !endDate.value) {
+    console.warn('日期参数无效，跳过加载流水汇总数据')
+    return
+  }
+
+  try {
+    loading.value = true
+    const response = await getRevenueSummary({
+      startDate: startDate.value,
+      endDate: endDate.value
+    })
+
+    if (response.success && response.data) {
+      const data = response.data
+
+      // 更新统计数据
+      revenueTotal.value = data.totalRevenue
+      splitAccount.value = data.splitAccount
+      actualReceived.value = data.actualReceived
+
+      // 更新表格数据 - 支付方式
+      revenueTableData.value = data.paymentMethodStats.map(stat => ({
+        paymentMethod: stat.paymentMethod,
+        total: stat.amount,
+        nov8: stat.amount
+      }))
+
+      // 更新表格数据 - 款项分类
+      categoryRevenue.value = data.totalRevenue
+      categoryIncome.value = data.totalRevenue
+      categoryExpense.value = 0
+      normalRevenue.value = data.totalRevenue
+      notesRevenue.value = 0
+
+      categoryTableData.value = data.categoryStats.map(stat => ({
+        paymentMethod: stat.category,
+        total: stat.amount,
+        nov8: stat.amount
+      }))
+
+      // 重新初始化图表
+      await nextTick()
+      if (revenueSubTab.value === 'payment') {
+        initRevenueDistChart(data)
+        initExpenseChart()
+      } else {
+        initCategoryDistChart(data)
+        initCategoryExpenseChart(data)
+      }
+    } else {
+      ElMessage.error(response.message || '获取流水汇总数据失败')
+    }
+  } catch (error) {
+    console.error('加载流水汇总数据失败:', error)
+    ElMessage.error('加载流水汇总数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+/**
+ * 加载渠道汇总数据
+ */
+const loadChannelSummary = async () => {
+  // 检查日期参数是否有效
+  if (!startDate.value || !endDate.value) {
+    console.warn('日期参数无效，跳过加载渠道汇总数据')
+    return
+  }
+
+  try {
+    loading.value = true
+    const response = await getChannelSummary({
+      startDate: startDate.value,
+      endDate: endDate.value
+    })
+
+    if (response.success && response.data) {
+      const data = response.data
+
+      // 更新表格数据
+      const channelFeeData = data.channelDetails.map(detail => ({
+        channel: detail.channelName,
+        total: `¥${(detail.revenue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
+        nov14: `¥${(detail.revenue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
+      }))
+
+      const channelNightsData = data.channelDetails.map(detail => ({
+        channel: detail.channelName,
+        total: `${detail.roomNights || 0}间`,
+        nov14: `${detail.roomNights || 0}间`
+      }))
+
+      if (channelTableTab.value === 'channel-fee') {
+        channelTableData.value = channelFeeData
+      } else {
+        channelTableData.value = channelNightsData
+      }
+
+      // 重新初始化图表
+      await nextTick()
+      initChannelRevenueChart(data)
+      initChannelNightsChart(data)
+      initChannelRevenueTrendChart(data)
+      initChannelNightsTrendChart(data)
+    } else {
+      ElMessage.error(response.message || '获取渠道汇总数据失败')
+    }
+  } catch (error) {
+    console.error('加载渠道汇总数据失败:', error)
+    ElMessage.error('加载渠道汇总数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+/**
+ * 加载销售汇总数据
+ */
+const loadSalesSummary = async () => {
+  // 检查日期参数是否有效
+  if (!startDate.value || !endDate.value) {
+    console.warn('日期参数无效，跳过加载销售汇总数据')
+    return
+  }
+
+  try {
+    loading.value = true
+    const response = await getSalesSummary({
+      startDate: startDate.value,
+      endDate: endDate.value,
+      keyword: searchKeyword.value || undefined
+    })
+
+    if (response.success && response.data) {
+      const data = response.data
+
+      // 更新统计数据
+      salesTotal.value = data.totalSales
+
+      // 更新表格数据
+      salesTableData.value = data.orderDetails.map(order => ({
+        createdAt: order.createdAt,
+        guestName: order.guestName,
+        orderNumber: order.orderNumber,
+        channelNumber: order.channelNumber,
+        channel: order.channelName,
+        customerName: order.customerName,
+        phone: order.phone,
+        amount: order.amount
+      }))
+
+      // 重新初始化图表
+      await nextTick()
+      initSalesTrendChart(data)
+    } else {
+      ElMessage.error(response.message || '获取销售汇总数据失败')
+    }
+  } catch (error) {
+    console.error('加载销售汇总数据失败:', error)
+    ElMessage.error('加载销售汇总数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+/**
+ * 根据当前标签页加载对应数据
+ */
+const loadCurrentTabData = () => {
+  if (activeTab.value === 'business') {
+    loadBusinessOverview()
+  } else if (activeTab.value === 'revenue') {
+    loadRevenueSummary()
+  } else if (activeTab.value === 'channel') {
+    loadChannelSummary()
+  } else if (activeTab.value === 'sales') {
+    loadSalesSummary()
+  }
+}
+
+// ==================== 图表初始化函数 ====================
+
 // 初始化营业概况饼图
-const initBusinessPieChart = () => {
+const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
   if (!businessPieChart.value) return
+
+  // 销毁旧实例避免重复初始化
+  if (businessPie) {
+    businessPie.dispose()
+  }
 
   businessPie = echarts.init(businessPieChart.value)
 
-  const pieChartData = [
-    { value: 154256.45, name: '房费', percentage: '85.13%' },
-    { value: 0.00, name: '押金', percentage: '0%' },
-    { value: 0.00, name: '退房金', percentage: '0%' },
-    { value: 26940.00, name: '餐食/客房消费', percentage: '14.87%' }
+  // 使用API数据或默认数据
+  const pieChartData = data ? data.categoryDistribution.map(item => ({
+    value: item.value,
+    name: item.category,
+    percentage: `${item.percentage.toFixed(2)}%`
+  })) : [
+    { value: 0, name: '房费', percentage: '0%' },
+    { value: 0, name: '押金', percentage: '0%' },
+    { value: 0, name: '退房金', percentage: '0%' },
+    { value: 0, name: '餐食/客房消费', percentage: '0%' }
   ]
 
   const option = {
@@ -520,12 +860,22 @@ const initBusinessPieChart = () => {
 }
 
 // 初始化营业概况柱状图
-const initBusinessBarChart = () => {
+const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
   if (!businessBarChart.value) return
+
+  // 销毁旧实例避免重复初始化
+  if (businessBar) {
+    businessBar.dispose()
+  }
 
   businessBar = echarts.init(businessBarChart.value)
 
-  const dates = ['11月2日', '11月3日', '11月4日', '11月5日', '11月6日', '11月7日', '11月8日', '11月9日']
+  // 使用API数据或默认数据
+  const dates = data ? data.consumptionTrend.map(item => item.date) : []
+  const roomFeeData = data ? data.consumptionTrend.map(item => item.roomFee) : []
+  const checkoutFeeData = data ? data.consumptionTrend.map(item => item.checkoutFee) : []
+  const roomServiceData = data ? data.consumptionTrend.map(item => item.roomServiceFee) : []
+  const depositData = data ? data.consumptionTrend.map(item => item.deposit) : []
 
   const option = {
     tooltip: {
@@ -574,25 +924,25 @@ const initBusinessBarChart = () => {
         name: '房费',
         type: 'bar',
         stack: 'total',
-        data: [18000, 19500, 21000, 22000, 20500, 18500, 17500, 18000]
+        data: roomFeeData
       },
       {
         name: '退房金',
         type: 'bar',
         stack: 'total',
-        data: [0, 0, 0, 0, 0, 0, 0, 0]
+        data: checkoutFeeData
       },
       {
         name: '餐食/客房消费',
         type: 'bar',
         stack: 'total',
-        data: [3200, 3500, 3800, 4000, 3700, 3300, 3100, 3200]
+        data: roomServiceData
       },
       {
         name: '押金',
         type: 'bar',
         stack: 'total',
-        data: [0, 0, 0, 0, 0, 0, 0, 0]
+        data: depositData
       }
     ],
     color: ['#5b8ff9', '#ffd93d', '#f9c94a', '#ff6b6b']
@@ -602,10 +952,17 @@ const initBusinessBarChart = () => {
 }
 
 // 初始化流水分布饼图
-const initRevenueDistChart = () => {
+const initRevenueDistChart = (data?: RevenueSummaryDTO) => {
   if (!revenueDistChart.value) return
 
+  if (revenueDist) revenueDist.dispose()
   revenueDist = echarts.init(revenueDistChart.value)
+
+  // 使用API数据或默认数据
+  const chartData = data ? data.paymentMethodStats.map(stat => ({
+    value: stat.amount,
+    name: stat.paymentMethod
+  })) : []
 
   const option = {
     tooltip: {
@@ -630,10 +987,7 @@ const initRevenueDistChart = () => {
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['30%', '50%'],
-        data: [
-          { value: 182126.14, name: 'Booking代收' },
-          { value: 94667.00, name: 'Airbnb代收' }
-        ],
+        data: chartData,
         itemStyle: {
           borderRadius: 8,
           borderColor: '#fff',
@@ -654,6 +1008,7 @@ const initRevenueDistChart = () => {
 const initExpenseChart = () => {
   if (!expenseChart.value) return
 
+  if (expense) expense.dispose()
   expense = echarts.init(expenseChart.value)
 
   const option = {
@@ -686,11 +1041,114 @@ const initExpenseChart = () => {
   expense.setOption(option)
 }
 
+// 初始化款项分类收款分布饼图
+const initCategoryDistChart = () => {
+  if (!categoryDistChart.value) return
+
+  if (categoryDistChart_instance) categoryDistChart_instance.dispose()
+  categoryDistChart_instance = echarts.init(categoryDistChart.value)
+
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: ¥{c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      right: '5%',
+      top: 'center',
+      formatter: (name: string) => {
+        const percentages: Record<string, string> = {
+          '常规流水': '100%'
+        }
+        return `${name}  ${percentages[name] || ''}`
+      }
+    },
+    series: [
+      {
+        name: '收款分布',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['30%', '50%'],
+        data: [
+          { value: 481398.66, name: '常规流水' }
+        ],
+        itemStyle: {
+          borderRadius: 8,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: false
+        }
+      }
+    ],
+    color: ['#5470c6']
+  }
+
+  categoryDistChart_instance.setOption(option)
+}
+
+// 初始化款项分类总支出饼图
+const initCategoryExpenseChart = () => {
+  if (!categoryExpenseChart.value) return
+
+  if (categoryExpenseChart_instance) categoryExpenseChart_instance.dispose()
+  categoryExpenseChart_instance = echarts.init(categoryExpenseChart.value)
+
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: ¥{c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      right: '5%',
+      top: 'center',
+      formatter: (name: string) => {
+        const percentages: Record<string, string> = {
+          '常规流水': '100%'
+        }
+        return `${name}  ${percentages[name] || ''}`
+      }
+    },
+    series: [
+      {
+        name: '总支出',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['30%', '50%'],
+        data: [
+          { value: 91002.00, name: '常规流水' }
+        ],
+        itemStyle: {
+          borderRadius: 8,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: false
+        }
+      }
+    ],
+    color: ['#e5e5e5']
+  }
+
+  categoryExpenseChart_instance.setOption(option)
+}
+
 // 初始化渠道消费分布饼图
-const initChannelRevenueChart = () => {
+const initChannelRevenueChart = (data?: ChannelSummaryDTO) => {
   if (!channelRevenueChart.value) return
 
+  if (channelRevenue) channelRevenue.dispose()
   channelRevenue = echarts.init(channelRevenueChart.value)
+
+  // 使用API数据或默认数据
+  const chartData = data ? data.revenueDistribution.map(item => ({
+    value: item.value,
+    name: item.channelName
+  })) : []
 
   const option = {
     tooltip: {
@@ -715,10 +1173,7 @@ const initChannelRevenueChart = () => {
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['30%', '50%'],
-        data: [
-          { value: 97981.00, name: 'Airbnb' },
-          { value: 83215.45, name: 'Booking.com' }
-        ],
+        data: chartData,
         itemStyle: {
           borderRadius: 8,
           borderColor: '#fff',
@@ -736,10 +1191,17 @@ const initChannelRevenueChart = () => {
 }
 
 // 初始化渠道间夜分布饼图
-const initChannelNightsChart = () => {
+const initChannelNightsChart = (data?: ChannelSummaryDTO) => {
   if (!channelNightsChart.value) return
 
+  if (channelNights) channelNights.dispose()
   channelNights = echarts.init(channelNightsChart.value)
+
+  // 使用API数据或默认数据
+  const chartData = data ? data.nightsDistribution.map(item => ({
+    value: item.value,
+    name: item.channelName
+  })) : []
 
   const option = {
     tooltip: {
@@ -764,10 +1226,7 @@ const initChannelNightsChart = () => {
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['30%', '50%'],
-        data: [
-          { value: 8, name: 'Booking.com' },
-          { value: 4, name: 'Airbnb' }
-        ],
+        data: chartData,
         itemStyle: {
           borderRadius: 8,
           borderColor: '#fff',
@@ -785,19 +1244,44 @@ const initChannelNightsChart = () => {
 }
 
 // 初始化渠道消费趋势折线图
-const initChannelRevenueTrendChart = () => {
+const initChannelRevenueTrendChart = (data?: ChannelSummaryDTO) => {
   if (!channelRevenueTrendChart.value) return
 
+  if (channelRevenueTrend) channelRevenueTrend.dispose()
   channelRevenueTrend = echarts.init(channelRevenueTrendChart.value)
 
-  const dates = ['11月2日', '11月3日', '11月4日', '11月5日', '11月6日', '11月7日', '11月8日']
+  // 使用API数据或默认数据
+  const dates = data ? data.revenueTrend.map(item => item.date) : []
+  const seriesData: any[] = []
+
+  if (data && data.revenueTrend.length > 0) {
+    // 获取所有渠道名称
+    const channelNames = new Set<string>()
+    data.revenueTrend.forEach(trend => {
+      trend.channels.forEach(ch => channelNames.add(ch.channelName))
+    })
+
+    // 为每个渠道创建series
+    channelNames.forEach(channelName => {
+      seriesData.push({
+        name: channelName,
+        type: 'line',
+        smooth: true,
+        data: data.revenueTrend.map(trend => {
+          const channelData = trend.channels.find(ch => ch.channelName === channelName)
+          return channelData ? channelData.value : 0
+        }),
+        lineStyle: { width: 2 }
+      })
+    })
+  }
 
   const option = {
     tooltip: {
       trigger: 'axis'
     },
     legend: {
-      data: ['Airbnb', 'Booking.com'],
+      data: Array.from(new Set(seriesData.map(s => s.name))),
       bottom: 0
     },
     grid: {
@@ -818,22 +1302,7 @@ const initChannelRevenueTrendChart = () => {
         formatter: '¥{value}'
       }
     },
-    series: [
-      {
-        name: 'Airbnb',
-        type: 'line',
-        smooth: true,
-        data: [30000, 25000, 28000, 35000, 40000, 45000, 50000],
-        lineStyle: { width: 2 }
-      },
-      {
-        name: 'Booking.com',
-        type: 'line',
-        smooth: true,
-        data: [50000, 55000, 60000, 65000, 70000, 75000, 80000],
-        lineStyle: { width: 2 }
-      }
-    ],
+    series: seriesData,
     color: ['#5470c6', '#fac858']
   }
 
@@ -841,12 +1310,36 @@ const initChannelRevenueTrendChart = () => {
 }
 
 // 初始化渠道间夜趋势柱状图
-const initChannelNightsTrendChart = () => {
+const initChannelNightsTrendChart = (data?: ChannelSummaryDTO) => {
   if (!channelNightsTrendChart.value) return
 
+  if (channelNightsTrend) channelNightsTrend.dispose()
   channelNightsTrend = echarts.init(channelNightsTrendChart.value)
 
-  const dates = ['11月2日', '11月3日', '11月4日', '11月5日', '11月6日', '11月7日', '11月8日']
+  // 使用API数据或默认数据
+  const dates = data ? data.nightsTrend.map(item => item.date) : []
+  const seriesData: any[] = []
+
+  if (data && data.nightsTrend.length > 0) {
+    // 获取所有渠道名称
+    const channelNames = new Set<string>()
+    data.nightsTrend.forEach(trend => {
+      trend.channels.forEach(ch => channelNames.add(ch.channelName))
+    })
+
+    // 为每个渠道创建series
+    channelNames.forEach(channelName => {
+      seriesData.push({
+        name: channelName,
+        type: 'bar',
+        stack: 'total',
+        data: data.nightsTrend.map(trend => {
+          const channelData = trend.channels.find(ch => ch.channelName === channelName)
+          return channelData ? channelData.value : 0
+        })
+      })
+    })
+  }
 
   const option = {
     tooltip: {
@@ -856,7 +1349,7 @@ const initChannelNightsTrendChart = () => {
       }
     },
     legend: {
-      data: ['booking.com', 'Airbnb'],
+      data: Array.from(new Set(seriesData.map(s => s.name))),
       bottom: 0
     },
     grid: {
@@ -873,20 +1366,7 @@ const initChannelNightsTrendChart = () => {
     yAxis: {
       type: 'value'
     },
-    series: [
-      {
-        name: 'booking.com',
-        type: 'bar',
-        stack: 'total',
-        data: [4, 2, 1, 2, 4, 6, 4]
-      },
-      {
-        name: 'Airbnb',
-        type: 'bar',
-        stack: 'total',
-        data: [5, 6, 7, 6, 5, 4, 5]
-      }
-    ],
+    series: seriesData,
     color: ['#5470c6', '#fac858']
   }
 
@@ -894,12 +1374,15 @@ const initChannelNightsTrendChart = () => {
 }
 
 // 初始化销售趋势折线图
-const initSalesTrendChart = () => {
+const initSalesTrendChart = (data?: SalesSummaryDTO) => {
   if (!salesTrendChart.value) return
 
+  if (salesTrend) salesTrend.dispose()
   salesTrend = echarts.init(salesTrendChart.value)
 
-  const dates = ['11月2日', '11月3日', '11月4日', '11月5日', '11月6日', '11月7日', '11月8日']
+  // 使用API数据或默认数据
+  const dates = data ? data.dailySalesTrend.map(item => item.date) : []
+  const salesData = data ? data.dailySalesTrend.map(item => item.sales) : []
 
   const option = {
     tooltip: {
@@ -932,7 +1415,7 @@ const initSalesTrendChart = () => {
         name: '销售额',
         type: 'line',
         smooth: true,
-        data: [450000, 410000, 530000, 520000, 500000, 380000, 150000],
+        data: salesData,
         lineStyle: {
           width: 3,
           color: '#5470c6'
@@ -957,6 +1440,29 @@ const initSalesTrendChart = () => {
   salesTrend.setOption(option)
 }
 
+// 流水汇总子标签页切换处理
+const handleRevenueSubTabChange = async (tab: string) => {
+  revenueSubTab.value = tab
+  await nextTick()
+
+  if (tab === 'payment') {
+    initRevenueDistChart()
+    initExpenseChart()
+  } else if (tab === 'category') {
+    initCategoryDistChart()
+    initCategoryExpenseChart()
+  }
+
+  handleResize()
+}
+
+// 渠道表格标签切换处理
+const handleChannelTableTabChange = (tab: string) => {
+  channelTableTab.value = tab
+  // 重新加载渠道汇总数据以更新表格
+  loadChannelSummary()
+}
+
 // 标签页切换处理
 const handleTabChange = async () => {
   await nextTick()
@@ -965,8 +1471,14 @@ const handleTabChange = async () => {
     initBusinessPieChart()
     initBusinessBarChart()
   } else if (activeTab.value === 'revenue') {
-    initRevenueDistChart()
-    initExpenseChart()
+    // 根据当前子标签初始化对应图表
+    if (revenueSubTab.value === 'payment') {
+      initRevenueDistChart()
+      initExpenseChart()
+    } else if (revenueSubTab.value === 'category') {
+      initCategoryDistChart()
+      initCategoryExpenseChart()
+    }
   } else if (activeTab.value === 'channel') {
     initChannelRevenueChart()
     initChannelNightsChart()
@@ -985,6 +1497,8 @@ const handleResize = () => {
   businessBar?.resize()
   revenueDist?.resize()
   expense?.resize()
+  categoryDistChart_instance?.resize()
+  categoryExpenseChart_instance?.resize()
   channelRevenue?.resize()
   channelNights?.resize()
   channelRevenueTrend?.resize()
@@ -992,12 +1506,66 @@ const handleResize = () => {
   salesTrend?.resize()
 }
 
+/**
+ * 根据日期类型更新日期范围
+ */
+const updateDateRange = (type: string) => {
+  const today = new Date()
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  switch (type) {
+    case 'today':
+      startDate.value = formatDate(today)
+      endDate.value = formatDate(today)
+      break
+    case 'yesterday':
+      const yesterday = new Date(today)
+      yesterday.setDate(yesterday.getDate() - 1)
+      startDate.value = formatDate(yesterday)
+      endDate.value = formatDate(yesterday)
+      break
+    case 'week':
+      const weekStart = new Date(today)
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+      startDate.value = formatDate(weekStart)
+      endDate.value = formatDate(today)
+      break
+    case 'month':
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+      startDate.value = formatDate(monthStart)
+      endDate.value = formatDate(today)
+      break
+  }
+}
+
+// 监听日期类型变化
+watch(dateType, (newType) => {
+  if (newType) {
+    updateDateRange(newType)
+  }
+})
+
+// 监听日期变化
+watch([startDate, endDate], () => {
+  loadCurrentTabData()
+})
+
+// 监听标签页切换
+watch(activeTab, () => {
+  loadCurrentTabData()
+})
+
 onMounted(() => {
-  // 默认初始化营业概况图表
-  nextTick(() => {
-    initBusinessPieChart()
-    initBusinessBarChart()
-  })
+  // 初始化日期为今天
+  updateDateRange(dateType.value)
+
+  // 加载初始数据
+  loadCurrentTabData()
 
   window.addEventListener('resize', handleResize)
 })
@@ -1008,6 +1576,8 @@ onBeforeUnmount(() => {
   businessBar?.dispose()
   revenueDist?.dispose()
   expense?.dispose()
+  categoryDistChart_instance?.dispose()
+  categoryExpenseChart_instance?.dispose()
   channelRevenue?.dispose()
   channelNights?.dispose()
   channelRevenueTrend?.dispose()

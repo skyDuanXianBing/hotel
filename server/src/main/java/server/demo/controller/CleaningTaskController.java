@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.CleaningTaskCreateDTO;
 import server.demo.dto.CleaningTaskDTO;
@@ -24,6 +25,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/cleaning-tasks")
+@StoreScoped
 public class CleaningTaskController {
 
     @Autowired
@@ -160,6 +162,32 @@ public class CleaningTaskController {
             return ApiResponse.success("分配任务成功", task);
         } catch (Exception e) {
             return ApiResponse.error("分配任务失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 接受任务（保洁员）
+     */
+    @PostMapping("/{id}/accept")
+    public ApiResponse<CleaningTaskDTO> acceptTask(@PathVariable Long id) {
+        try {
+            CleaningTaskDTO task = cleaningTaskService.acceptTask(id);
+            return ApiResponse.success("接受任务成功", task);
+        } catch (Exception e) {
+            return ApiResponse.error("接受任务失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 拒绝任务（保洁员）
+     */
+    @PostMapping("/{id}/reject")
+    public ApiResponse<CleaningTaskDTO> rejectTask(@PathVariable Long id) {
+        try {
+            CleaningTaskDTO task = cleaningTaskService.rejectTask(id);
+            return ApiResponse.success("拒绝任务成功", task);
+        } catch (Exception e) {
+            return ApiResponse.error("拒绝任务失败: " + e.getMessage());
         }
     }
 

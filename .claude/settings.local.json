@@ -28,7 +28,16 @@
       "Bash(nul)",
       "Bash(dir:*)",
       "Bash(echo:*)",
-      "Bash(StoreService.java)"
+      "Bash(StoreService.java)",
+      "Bash(Select-String -Pattern \"ERROR|BUILD|符号\")",
+      "Bash(fix_cleaning_supplies.sql)",
+      "Bash(Select-String -Pattern \"CleaningOverview.vue\" -Context 0,2)",
+      "Bash(Select-String -Pattern \"BUILD SUCCESS|BUILD FAILURE|ERROR\" -Context 0,2)",
+      "Bash(Select-String -Pattern \"AccountList|ERROR\" -Context 0,2)",
+      "Bash(Select-String -Pattern \"RoleManagement|error\" -Context 0,2)",
+      "Bash(Select-String -Pattern \"QuickReply|BUILD|ERROR\" -Context 0,2)",
+      "Bash(Select-String -Pattern \"NoteSettings|error TS\" -Context 1,0)",
+      "Bash(Select-String -Pattern \"ConsumptionItem|error TS\" -Context 0,2)"
     ],
     "deny": [],
     "ask": []

@@ -219,13 +219,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { QuestionFilled, House, TrendCharts, SuccessFilled, Money, Calendar, Clock } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import StatisticsLayout from '../statistics/StatisticsLayout.vue'
+import { getOperationalMetrics, type OperationalMetricsDTO } from '@/api/statistics'
 
 const dateType = ref('today')
+const loading = ref(false)
 
 // 自动获取今天的日期
 const getTodayDate = () => {
@@ -233,7 +236,7 @@ const getTodayDate = () => {
   const year = today.getFullYear()
   const month = String(today.getMonth() + 1).padStart(2, '0')
   const day = String(today.getDate()).padStart(2, '0')
-  return `${year}/${month}/${day}`
+  return `${year}-${month}-${day}`
 }
 
 const startDate = ref(getTodayDate())
@@ -246,13 +249,47 @@ const dateRangeLabel = computed(() => {
 
 // 经营指标数据
 const metrics = ref({
-  totalRoomFee: 154256.45,
-  avgDailyRate: 12854.70,
-  occupancyRate: 100.00,
-  revPAR: 12854.70,
-  totalRoomNights: 12.00,
-  avgDailyRoomNights: 12.00,
+  totalRoomFee: 0,
+  avgDailyRate: 0,
+  occupancyRate: 0,
+  revPAR: 0,
+  totalRoomNights: 0,
+  avgDailyRoomNights: 0,
 })
+
+/**
+ * 加载经营指标数据
+ */
+const loadOperationalMetrics = async () => {
+  try {
+    loading.value = true
+    const response = await getOperationalMetrics({
+      startDate: startDate.value,
+      endDate: endDate.value
+    })
+
+    if (response.success && response.data) {
+      const data = response.data
+
+      // 更新经营指标数据
+      metrics.value = {
+        totalRoomFee: data.totalRoomFee,
+        avgDailyRate: data.averageDailyRate,
+        occupancyRate: data.occupancyRate,
+        revPAR: data.revPAR,
+        totalRoomNights: data.totalSoldRoomNights,
+        avgDailyRoomNights: data.days > 0 ? data.totalSoldRoomNights / data.days : 0
+      }
+    } else {
+      ElMessage.error(response.message || '获取经营指标数据失败')
+    }
+  } catch (error) {
+    console.error('加载经营指标数据失败:', error)
+    ElMessage.error('加载经营指标数据失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 // 趋势图选项卡
 const trendTabs = [
@@ -263,16 +300,14 @@ const trendTabs = [
 ]
 const activeTrendTab = ref('room-fee')
 
-// 日期数据
-const dates = ['11月2日', '11月3日', '11月4日', '11月5日', '11月6日', '11月7日', '11月8日']
-
-// 趋势数据
-const trendData: Record<string, number[]> = {
-  'room-fee': [18000, 19500, 21000, 22000, 20500, 18500, 17500],
-  'avg-price': [380, 390, 420, 440, 410, 370, 350],
-  'avg-revenue': [320, 330, 350, 370, 345, 310, 295],
-  'occupancy': [47, 50, 50, 50, 50, 50, 50]
-}
+// 趋势数据(待从后端获取)
+const dates = ref<string[]>([])
+const trendData = ref<Record<string, number[]>>({
+  'room-fee': [],
+  'avg-price': [],
+  'avg-revenue': [],
+  'occupancy': []
+})
 
 // 表格选项卡
 const tableTabs = [
@@ -299,18 +334,7 @@ interface RoomFeeItem {
   currentDate: number
 }
 
-const roomFeeData = ref<RoomFeeItem[]>([
-  { roomType: 'Tanpopo Inn204', roomNumber: '204', total: 8672.00, currentDate: 8672.00 },
-  { roomType: 'Tanpopo Inn204', roomNumber: '未排房', total: 0.00, currentDate: 0.00 },
-  { roomType: '', roomNumber: '合计', total: 8672.00, currentDate: 8672.00 },
-  { roomType: 'Tanpopo Inn104', roomNumber: '104', total: 6916.00, currentDate: 6916.00 },
-  { roomType: 'Tanpopo Inn104', roomNumber: '未排房', total: 0.00, currentDate: 0.00 },
-  { roomType: '', roomNumber: '合计', total: 6916.00, currentDate: 6916.00 },
-  { roomType: '美途ホテル　東十条1F', roomNumber: '101', total: 19117.00, currentDate: 19117.00 },
-  { roomType: '美途ホテル　東十条1F', roomNumber: '未排房', total: 0.00, currentDate: 0.00 },
-  { roomType: '', roomNumber: '合计', total: 19117.00, currentDate: 19117.00 },
-  { roomType: '美途ホテル　池袋403', roomNumber: '403', total: 9063.35, currentDate: 9063.35 },
-])
+const roomFeeData = ref<RoomFeeItem[]>([])
 
 // 间夜明细数据
 interface CheckinItem {
@@ -320,18 +344,7 @@ interface CheckinItem {
   currentDate: number
 }
 
-const checkinData = ref<CheckinItem[]>([
-  { roomType: 'Tanpopo Inn204', roomNumber: '204', total: 1, currentDate: 1 },
-  { roomType: 'Tanpopo Inn204', roomNumber: '未排房', total: 0, currentDate: 0 },
-  { roomType: '', roomNumber: '合计', total: 1, currentDate: 1 },
-  { roomType: 'Tanpopo Inn104', roomNumber: '104', total: 1, currentDate: 1 },
-  { roomType: 'Tanpopo Inn104', roomNumber: '未排房', total: 0, currentDate: 0 },
-  { roomType: '', roomNumber: '合计', total: 1, currentDate: 1 },
-  { roomType: '美途ホテル　東十条1F', roomNumber: '101', total: 1, currentDate: 1 },
-  { roomType: '美途ホテル　東十条1F', roomNumber: '未排房', total: 0, currentDate: 0 },
-  { roomType: '', roomNumber: '合计', total: 1, currentDate: 1 },
-  { roomType: '美途ホテル　池袋403', roomNumber: '403', total: 1, currentDate: 1 },
-])
+const checkinData = ref<CheckinItem[]>([])
 
 // 入住率明细数据
 interface OccupancyItem {
@@ -340,20 +353,7 @@ interface OccupancyItem {
   currentDate: string
 }
 
-const occupancyData = ref<OccupancyItem[]>([
-  { roomType: 'Tanpopo Inn204', total: '100%', currentDate: '100%' },
-  { roomType: 'Tanpopo Inn104', total: '100%', currentDate: '100%' },
-  { roomType: '美途ホテル　東十条1F', total: '100%', currentDate: '100%' },
-  { roomType: '美途ホテル　池袋403', total: '100%', currentDate: '100%' },
-  { roomType: 'Tanpopo Inn103', total: '100%', currentDate: '100%' },
-  { roomType: '美途ホテル　池袋201', total: '100%', currentDate: '100%' },
-  { roomType: 'Tanpopo Inn303', total: '100%', currentDate: '100%' },
-  { roomType: '美途ホテル　東十条3/4F', total: '100%', currentDate: '100%' },
-  { roomType: 'Tanpopo Inn301', total: '100%', currentDate: '100%' },
-  { roomType: '美途ホテル　東十条2F', total: '100%', currentDate: '100%' },
-  { roomType: 'Tanpopo Inn304', total: '100%', currentDate: '100%' },
-  { roomType: '美途ホテル　池袋401', total: '100%', currentDate: '100%' },
-])
+const occupancyData = ref<OccupancyItem[]>([])
 
 // RevPAR明细数据
 interface RevPARItem {
@@ -362,17 +362,7 @@ interface RevPARItem {
   currentDate: number
 }
 
-const revparData = ref<RevPARItem[]>([
-  { roomType: 'Tanpopo Inn204', total: 8672.00, currentDate: 8672.00 },
-  { roomType: 'Tanpopo Inn104', total: 6916.00, currentDate: 6916.00 },
-  { roomType: '美途ホテル　東十条1F', total: 19117.00, currentDate: 19117.00 },
-  { roomType: '美途ホテル　池袋403', total: 9063.35, currentDate: 9063.35 },
-  { roomType: 'Tanpopo Inn103', total: 8261.00, currentDate: 8261.00 },
-  { roomType: '美途ホテル　池袋201', total: 20944.00, currentDate: 20944.00 },
-  { roomType: 'Tanpopo Inn303', total: 9833.00, currentDate: 9833.00 },
-  { roomType: '美途ホテル　東十条3/4F', total: 19124.00, currentDate: 19124.00 },
-  { roomType: 'Tanpopo Inn301', total: 4239.00, currentDate: 4239.00 },
-])
+const revparData = ref<RevPARItem[]>([])
 
 // ECharts实例
 const lineChartRef = ref<HTMLDivElement>()
@@ -390,7 +380,7 @@ const initLineChart = () => {
 const updateLineChart = (tabKey: string) => {
   if (!lineChart) return
 
-  const data = trendData[tabKey]
+  const data = trendData.value[tabKey] || []
   const tabLabel = trendTabs.find(t => t.key === tabKey)?.label || ''
 
   const option = {
@@ -416,7 +406,7 @@ const updateLineChart = (tabKey: string) => {
     },
     xAxis: {
       type: 'category',
-      data: dates,
+      data: dates.value,
       boundaryGap: false,
       axisLabel: {
         interval: 0
@@ -476,7 +466,15 @@ const handleResize = () => {
   lineChart?.resize()
 }
 
+// 监听日期变化
+watch([startDate, endDate], () => {
+  loadOperationalMetrics()
+})
+
 onMounted(() => {
+  // 加载初始数据
+  loadOperationalMetrics()
+
   initLineChart()
   window.addEventListener('resize', handleResize)
 })

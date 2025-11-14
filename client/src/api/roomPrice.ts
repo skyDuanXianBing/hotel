@@ -211,23 +211,20 @@ export interface PriceChangeHistoryPageResponse {
 export const getRoomPriceManagementData = async (
   startDate: string,
   endDate: string,
-  roomTypeId?: number,
-  userId?: number
+  roomTypeId?: number
 ): Promise<ApiResponse<RoomPriceManagementDTO[]>> => {
   const params: any = { startDate, endDate }
   if (roomTypeId) params.roomTypeId = roomTypeId
-  if (userId) params.userId = userId
   return await request.get('/room-prices/management', { params })
 }
 
 // 按价格计划更新价格
 export const updatePriceByPlan = async (
   requestData: UpdatePriceByPlanRequest,
-  userId: number,
   operator: string
 ): Promise<ApiResponse<RoomPriceManagementDTO[]>> => {
   return await request.post('/room-prices/update-by-plan', requestData, {
-    params: { userId, operator }
+    params: { operator }
   })
 }
 

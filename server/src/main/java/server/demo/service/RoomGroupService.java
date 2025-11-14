@@ -3,10 +3,13 @@ package server.demo.service;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import server.demo.entity.Room;
 import server.demo.entity.RoomGroup;
 import server.demo.entity.RoomGroupMember;
 import server.demo.repository.RoomGroupMemberRepository;
 import server.demo.repository.RoomGroupRepository;
+import server.demo.repository.RoomRepository;
+import server.demo.util.StoreContextUtils;
 
 import java.util.List;
 
@@ -19,114 +22,104 @@ public class RoomGroupService {
     @Autowired
     private RoomGroupMemberRepository roomGroupMemberRepository;
 
-    /**
-     * 根据用户ID获取所有分组
-     */
-    public List<RoomGroup> getAllByUserId(Long userId) {
-        return roomGroupRepository.findByUserId(userId);
+    @Autowired
+    private RoomRepository roomRepository;
+
+    private Long currentStoreId() {
+        return StoreContextUtils.requireStoreId();
     }
 
-    /**
-     * 根据ID获取分组
-     */
+    private Long currentUserId() {
+        return StoreContextUtils.requireUserId();
+    }
+
+    public List<RoomGroup> getAllForCurrentStore() {
+        return roomGroupRepository.findByStoreId(currentStoreId());
+    }
+
     public RoomGroup getById(Long id) {
-        return roomGroupRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("分组不存在"));
+        return roomGroupRepository.findByStoreIdAndId(currentStoreId(), id)
+                .orElseThrow(() -> new RuntimeException("分组不存在或无访问权限"));
     }
 
-    /**
-     * 创建分组
-     */
     public RoomGroup create(RoomGroup roomGroup) {
+        Long storeId = currentStoreId();
+        if (roomGroupRepository.existsByStoreIdAndName(storeId, roomGroup.getName())) {
+            throw new RuntimeException("分组名称已存在");
+        }
+        roomGroup.setStoreId(storeId);
+        roomGroup.setUserId(currentUserId());
         return roomGroupRepository.save(roomGroup);
     }
 
-    /**
-     * 更新分组
-     */
     public RoomGroup update(Long id, RoomGroup updates) {
         RoomGroup existing = getById(id);
-
-        if (updates.getName() != null) {
+        if (updates.getName() != null && !updates.getName().equals(existing.getName())) {
+            if (roomGroupRepository.existsByStoreIdAndName(currentStoreId(), updates.getName())) {
+                throw new RuntimeException("分组名称已存在");
+            }
             existing.setName(updates.getName());
         }
         if (updates.getDescription() != null) {
             existing.setDescription(updates.getDescription());
         }
-
         return roomGroupRepository.save(existing);
     }
 
-    /**
-     * 删除分组(同时删除所有成员关系)
-     */
     @Transactional
     public void delete(Long id) {
-        // 先删除所有成员关系
-        roomGroupMemberRepository.deleteByGroupId(id);
-        // 再删除分组本身
-        roomGroupRepository.deleteById(id);
+        RoomGroup group = getById(id);
+        Long storeId = currentStoreId();
+        roomGroupMemberRepository.deleteByStoreIdAndGroupId(storeId, group.getId());
+        roomGroupRepository.delete(group);
     }
 
-    /**
-     * 获取分组的所有房间
-     */
     public List<RoomGroupMember> getGroupMembers(Long groupId) {
-        return roomGroupMemberRepository.findByGroupId(groupId);
+        RoomGroup group = getById(groupId);
+        return roomGroupMemberRepository.findByStoreIdAndGroupId(currentStoreId(), group.getId());
     }
 
-    /**
-     * 添加房间到分组
-     */
     public RoomGroupMember addRoomToGroup(Long groupId, Long roomId) {
-        // 检查房间是否已在其他分组中
-        if (roomGroupMemberRepository.existsByRoomId(roomId)) {
+        RoomGroup group = getById(groupId);
+        Room room = roomRepository.findByStoreIdAndId(currentStoreId(), roomId)
+                .orElseThrow(() -> new RuntimeException("房间不存在或无访问权限"));
+
+        if (roomGroupMemberRepository.existsByStoreIdAndRoomId(currentStoreId(), room.getId())) {
             throw new RuntimeException("房间已在其他分组中");
         }
 
-        // 检查分组是否存在
-        if (!roomGroupRepository.existsById(groupId)) {
-            throw new RuntimeException("分组不存在");
-        }
-
-        RoomGroupMember member = new RoomGroupMember(groupId, roomId);
+        RoomGroupMember member = new RoomGroupMember(group.getId(), room.getId(), currentStoreId());
         return roomGroupMemberRepository.save(member);
     }
 
-    /**
-     * 批量添加房间到分组
-     */
     @Transactional
     public void addRoomsToGroup(Long groupId, List<Long> roomIds) {
-        // 检查分组是否存在
-        if (!roomGroupRepository.existsById(groupId)) {
-            throw new RuntimeException("分组不存在");
-        }
+        RoomGroup group = getById(groupId);
+        Long storeId = currentStoreId();
 
         for (Long roomId : roomIds) {
-            // 跳过已在其他分组中的房间
-            if (!roomGroupMemberRepository.existsByRoomId(roomId)) {
-                RoomGroupMember member = new RoomGroupMember(groupId, roomId);
+            boolean exists = roomGroupMemberRepository.existsByStoreIdAndRoomId(storeId, roomId);
+            if (!exists) {
+                Room room = roomRepository.findByStoreIdAndId(storeId, roomId)
+                        .orElseThrow(() -> new RuntimeException("房间不存在或无访问权限"));
+                RoomGroupMember member = new RoomGroupMember(group.getId(), room.getId(), storeId);
                 roomGroupMemberRepository.save(member);
             }
         }
     }
 
-    /**
-     * 从分组中移除房间
-     */
     @Transactional
     public void removeRoomFromGroup(Long groupId, Long roomId) {
-        roomGroupMemberRepository.deleteByGroupIdAndRoomId(groupId, roomId);
+        RoomGroup group = getById(groupId);
+        roomGroupMemberRepository.deleteByStoreIdAndGroupIdAndRoomId(currentStoreId(), group.getId(), roomId);
     }
 
-    /**
-     * 批量从分组中移除房间
-     */
     @Transactional
     public void removeRoomsFromGroup(Long groupId, List<Long> roomIds) {
+        RoomGroup group = getById(groupId);
+        Long storeId = currentStoreId();
         for (Long roomId : roomIds) {
-            roomGroupMemberRepository.deleteByGroupIdAndRoomId(groupId, roomId);
+            roomGroupMemberRepository.deleteByStoreIdAndGroupIdAndRoomId(storeId, group.getId(), roomId);
         }
     }
 }

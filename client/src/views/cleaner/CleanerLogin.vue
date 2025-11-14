@@ -5,7 +5,7 @@
       <div class="header">
         <div class="logo">
           <span class="logo-icon">◆</span>
-          Smart Order
+           房东智控中心（THE HOST HUB）
         </div>
         <h1 class="title">保洁平台</h1>
         <p class="subtitle">登录您的账户以继续操作</p>
@@ -68,7 +68,7 @@
         </p>
         <div class="footer-logo">
           <el-icon><Pointer /></el-icon>
-          Smart Order
+         房东智控中心（THE HOST HUB）
         </div>
       </div>
     </div>

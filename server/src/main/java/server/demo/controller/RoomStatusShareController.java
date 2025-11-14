@@ -1,8 +1,6 @@
 package server.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.RoomStatusShareRequest;
@@ -27,22 +25,6 @@ public class RoomStatusShareController {
 
     @Autowired
     private RoomStatusService roomStatusService;
-
-    /**
-     * 获取当前用户ID - 从JWT token中提取
-     */
-    private Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof String) {
-            String principal = (String) authentication.getPrincipal();
-            try {
-                return Long.parseLong(principal);
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        }
-        return null;
-    }
 
     /**
      * 获取分享列表
@@ -139,7 +121,11 @@ public class RoomStatusShareController {
             if (userId == null) {
                 return ApiResponse.error("无法获取分享用户信息");
             }
-            RoomStatusCalendarDTO roomStatusData = roomStatusService.getRoomStatusCalendar(userId, startDate, endDate);
+            Long storeId = share.getStoreId();
+            if (storeId == null) {
+                return ApiResponse.error("无法获取分享门店信息");
+            }
+            RoomStatusCalendarDTO roomStatusData = roomStatusService.getRoomStatusCalendarForStore(storeId, startDate, endDate);
             
             // 根据分享配置过滤房间数据
             RoomStatusCalendarDTO filteredData = roomStatusShareService.filterRoomStatusByShare(
@@ -168,13 +154,12 @@ public class RoomStatusShareController {
             }
 
             // 获取分享用户的ID
-            Long userId = share.getUserId();
-            if (userId == null) {
-                return ApiResponse.error("无法获取分享用户信息");
+            Long storeId = share.getStoreId();
+            if (storeId == null) {
+                return ApiResponse.error("无法获取分享门店信息");
             }
 
-            // 获取统计数据
-            RoomStatusStatisticsDTO statistics = roomStatusService.getRoomStatusStatistics(userId, date);
+            RoomStatusStatisticsDTO statistics = roomStatusService.getRoomStatusStatisticsForStore(storeId, date);
 
             return ApiResponse.success(statistics);
         } catch (Exception e) {

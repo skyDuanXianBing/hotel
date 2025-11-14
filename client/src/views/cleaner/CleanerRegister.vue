@@ -63,7 +63,7 @@
         </el-form-item>
 
         <div class="login-link">
-          已有账户? <router-link to="/login">登录</router-link>
+          已有账户? <router-link to="/cleaner/login">登录</router-link>
         </div>
 
         <div class="terms-text">
@@ -74,7 +74,7 @@
       <!-- Footer Logo -->
       <div class="footer-logo">
         <svg viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
-          <text x="100" y="25" text-anchor="middle" fill="#999" font-size="16">Smart Order</text>
+          <text x="100" y="25" text-anchor="middle" fill="#999" font-size="16">房东智控中心（THE HOST HUB）</text>
         </svg>
       </div>
     </div>

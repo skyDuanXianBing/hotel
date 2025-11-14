@@ -23,8 +23,21 @@ public interface CleaningTaskRepository extends JpaRepository<CleaningTask, Long
     List<CleaningTask> findByTaskDateBetween(LocalDate startDate, LocalDate endDate);
 
     /**
-     * 根据日期范围和userId查询任务
+     * 根据日期范围和storeId查询任务
      */
+    @Query("SELECT ct FROM CleaningTask ct " +
+           "WHERE ct.room.storeId = :storeId " +
+           "AND ct.taskDate BETWEEN :startDate AND :endDate")
+    List<CleaningTask> findByTaskDateBetweenAndStoreId(
+            @Param("storeId") Long storeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * 根据日期范围和userId查询任务(已废弃,保留用于向后兼容)
+     */
+    @Deprecated
     @Query("SELECT ct FROM CleaningTask ct " +
            "WHERE ct.room.userId = :userId " +
            "AND ct.taskDate BETWEEN :startDate AND :endDate")
@@ -55,8 +68,33 @@ public interface CleaningTaskRepository extends JpaRepository<CleaningTask, Long
     List<CleaningTask> findByTaskType(String taskType);
 
     /**
-     * 综合查询(支持多条件筛选和分页)
+     * 综合查询(支持多条件筛选和分页) - 门店级
      */
+    @Query("SELECT ct FROM CleaningTask ct " +
+           "WHERE ct.room.storeId = :storeId " +
+           "AND (:startDate IS NULL OR ct.taskDate >= :startDate) " +
+           "AND (:endDate IS NULL OR ct.taskDate <= :endDate) " +
+           "AND (:status IS NULL OR ct.status = :status) " +
+           "AND (:taskType IS NULL OR ct.taskType = :taskType) " +
+           "AND (:roomId IS NULL OR ct.room.id = :roomId) " +
+           "AND (:cleanerId IS NULL OR ct.cleaner.id = :cleanerId) " +
+           "AND (:roomTypeId IS NULL OR ct.room.roomType.id = :roomTypeId)")
+    Page<CleaningTask> findWithFiltersByStore(
+            @Param("storeId") Long storeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("status") String status,
+            @Param("taskType") String taskType,
+            @Param("roomId") Long roomId,
+            @Param("cleanerId") Long cleanerId,
+            @Param("roomTypeId") Long roomTypeId,
+            Pageable pageable
+    );
+
+    /**
+     * 综合查询(支持多条件筛选和分页) - 已废弃
+     */
+    @Deprecated
     @Query("SELECT ct FROM CleaningTask ct " +
            "WHERE ct.room.userId = :userId " +
            "AND (:startDate IS NULL OR ct.taskDate >= :startDate) " +
@@ -79,8 +117,22 @@ public interface CleaningTaskRepository extends JpaRepository<CleaningTask, Long
     );
 
     /**
-     * 统计指定日期范围内各状态的任务数量
+     * 统计指定日期范围内各状态的任务数量 - 门店级
      */
+    @Query("SELECT ct.status, COUNT(ct) FROM CleaningTask ct " +
+           "WHERE ct.room.storeId = :storeId " +
+           "AND ct.taskDate BETWEEN :startDate AND :endDate " +
+           "GROUP BY ct.status")
+    List<Object[]> countByStatusInDateRangeByStore(
+            @Param("storeId") Long storeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * 统计指定日期范围内各状态的任务数量(已废弃)
+     */
+    @Deprecated
     @Query("SELECT ct.status, COUNT(ct) FROM CleaningTask ct " +
            "WHERE ct.room.userId = :userId " +
            "AND ct.taskDate BETWEEN :startDate AND :endDate " +

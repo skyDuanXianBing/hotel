@@ -5,12 +5,12 @@ import {
   getStoreById,
   createStore as createStoreApi,
   updateStore as updateStoreApi,
-  inviteStoreMember,
+  addStoreMember,
   removeStoreMember,
   getStoreMembers,
   type StoreDTO,
   type StoreRequest,
-  type InviteMemberRequest,
+  type AddStoreMemberRequest,
   type StoreMember,
 } from '@/api/store'
 
@@ -170,10 +170,10 @@ export const useStoreStore = defineStore('store', () => {
   /**
    * 邀请成员
    */
-  const inviteMember = async (storeId: number, data: InviteMemberRequest) => {
+  const inviteMember = async (storeId: number, data: AddStoreMemberRequest) => {
     loading.value = true
     try {
-      const response = await inviteStoreMember(storeId, data)
+      const response = await addStoreMember(storeId, data)
       if (!response.success) {
         throw new Error(response.message || '邀请成员失败')
       }

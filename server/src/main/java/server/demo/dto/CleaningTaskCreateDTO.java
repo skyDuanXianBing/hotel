@@ -1,8 +1,6 @@
 package server.demo.dto;
 
 import jakarta.validation.constraints.NotNull;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * 创建保洁任务DTO
@@ -10,7 +8,7 @@ import java.time.LocalDateTime;
 public class CleaningTaskCreateDTO {
 
     @NotNull(message = "任务日期不能为空")
-    private LocalDate taskDate;
+    private String taskDate;  // 改为String类型,接受 "YYYY-MM-DD" 格式
 
     @NotNull(message = "房间ID不能为空")
     private Long roomId;
@@ -19,18 +17,18 @@ public class CleaningTaskCreateDTO {
     private String taskType;
 
     private Long cleanerId;
-    private LocalDateTime estimatedTime;
+    private String estimatedTime;  // 改为String类型,接受 "HH:MM-HH:MM" 格式
     private String notes;
 
     // Constructors
     public CleaningTaskCreateDTO() {}
 
     // Getters and Setters
-    public LocalDate getTaskDate() {
+    public String getTaskDate() {
         return taskDate;
     }
 
-    public void setTaskDate(LocalDate taskDate) {
+    public void setTaskDate(String taskDate) {
         this.taskDate = taskDate;
     }
 
@@ -58,11 +56,11 @@ public class CleaningTaskCreateDTO {
         this.cleanerId = cleanerId;
     }
 
-    public LocalDateTime getEstimatedTime() {
+    public String getEstimatedTime() {
         return estimatedTime;
     }
 
-    public void setEstimatedTime(LocalDateTime estimatedTime) {
+    public void setEstimatedTime(String estimatedTime) {
         this.estimatedTime = estimatedTime;
     }
 

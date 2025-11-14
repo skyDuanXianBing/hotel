@@ -128,7 +128,7 @@
                 v-model="quickFillPrice"
                 :min="0"
                 :precision="0"
-                placeholder="0.00"
+                placeholder="输入价格后点击应用"
                 class="quick-fill-input"
               />
               <el-button @click="handleQuickFill" class="quick-fill-btn">应用到全部</el-button>
@@ -234,6 +234,7 @@ interface RoomTypeData {
   name: string
   shortName: string
   maxGuests: number
+  defaultPrice?: number
   mondayPrice: number
   tuesdayPrice: number
   wednesdayPrice: number
@@ -255,8 +256,8 @@ const total = ref(0)
 // 系统周期日期
 const systemPeriod = ref('12/12 ( 2025/11/04 ~ 2026/07/18 )')
 
-// 快速填充价格
-const quickFillPrice = ref(0)
+// 快速填充价格 - 默认为null避免误操作
+const quickFillPrice = ref<number | null>(null)
 
 // 房型数据列表
 const roomTypeList = ref<RoomTypeData[]>([])
@@ -334,18 +335,39 @@ watch(
 
 // 快速填充价格到所有天
 const handleQuickFill = () => {
-  if (quickFillPrice.value && quickFillPrice.value > 0) {
-    formData.value.mondayPrice = quickFillPrice.value
-    formData.value.tuesdayPrice = quickFillPrice.value
-    formData.value.wednesdayPrice = quickFillPrice.value
-    formData.value.thursdayPrice = quickFillPrice.value
-    formData.value.fridayPrice = quickFillPrice.value
-    formData.value.saturdayPrice = quickFillPrice.value
-    formData.value.sundayPrice = quickFillPrice.value
-    ElMessage.success('价格已应用到全部')
-  } else {
-    ElMessage.warning('请输入有效的价格')
+  if (quickFillPrice.value === null || quickFillPrice.value === undefined) {
+    ElMessage.warning('请先输入快速填充价格')
+    return
   }
+
+  if (quickFillPrice.value < 0) {
+    ElMessage.warning('价格不能为负数')
+    return
+  }
+
+  // 确认是否要应用到全部
+  ElMessageBox.confirm(
+    `确定要将价格 ¥${quickFillPrice.value} 应用到周一至周日吗?此操作将覆盖当前所有价格设置。`,
+    '确认快速填充',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(() => {
+      formData.value.mondayPrice = quickFillPrice.value!
+      formData.value.tuesdayPrice = quickFillPrice.value!
+      formData.value.wednesdayPrice = quickFillPrice.value!
+      formData.value.thursdayPrice = quickFillPrice.value!
+      formData.value.fridayPrice = quickFillPrice.value!
+      formData.value.saturdayPrice = quickFillPrice.value!
+      formData.value.sundayPrice = quickFillPrice.value!
+      ElMessage.success('价格已应用到全部')
+    })
+    .catch(() => {
+      // 用户取消,不执行任何操作
+    })
 }
 
 // 加载房型数据
@@ -354,26 +376,57 @@ const loadRoomTypes = async () => {
     loading.value = true
     const response = await getAllRoomTypesWithRooms()
     if (response.success && response.data) {
+      console.log('🔍 后端返回的原始数据:', response.data)
+
       // 将后端数据转换为前端格式
       roomTypeList.value = response.data.map((item: any) => {
         // 从rooms数组中提取房间号
         const roomNumbers = item.rooms ? item.rooms.map((room: any) => room.roomNumber) : []
 
-        return {
+        console.log(`📊 房型 ${item.name} 的价格数据:`, {
+          原始数据: {
+            mondayPrice: item.mondayPrice,
+            tuesdayPrice: item.tuesdayPrice,
+            wednesdayPrice: item.wednesdayPrice,
+            thursdayPrice: item.thursdayPrice,
+            fridayPrice: item.fridayPrice,
+            saturdayPrice: item.saturdayPrice,
+            sundayPrice: item.sundayPrice,
+            defaultPrice: item.defaultPrice,
+            weekdayPrice: item.weekdayPrice,
+            weekendPrice: item.weekendPrice,
+          }
+        })
+
+        const mappedData = {
           id: item.id,
           name: item.name,
           shortName: item.description || item.code,
           maxGuests: 4, // 默认最大入住人数,后端暂时不返回此字段
-          mondayPrice: item.mondayPrice || item.weekdayPrice || item.defaultPrice || 0,
-          tuesdayPrice: item.tuesdayPrice || item.weekdayPrice || item.defaultPrice || 0,
-          wednesdayPrice: item.wednesdayPrice || item.weekdayPrice || item.defaultPrice || 0,
-          thursdayPrice: item.thursdayPrice || item.weekdayPrice || item.defaultPrice || 0,
-          fridayPrice: item.fridayPrice || item.weekdayPrice || item.defaultPrice || 0,
-          saturdayPrice: item.saturdayPrice || item.weekendPrice || item.defaultPrice || 0,
-          sundayPrice: item.sundayPrice || item.weekendPrice || item.defaultPrice || 0,
+          defaultPrice: item.defaultPrice ?? 0, // 保存原始defaultPrice
+          mondayPrice: item.mondayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
+          tuesdayPrice: item.tuesdayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
+          wednesdayPrice: item.wednesdayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
+          thursdayPrice: item.thursdayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
+          fridayPrice: item.fridayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
+          saturdayPrice: item.saturdayPrice ?? item.weekendPrice ?? item.defaultPrice ?? 0,
+          sundayPrice: item.sundayPrice ?? item.weekendPrice ?? item.defaultPrice ?? 0,
           roomCount: item.totalRooms || roomNumbers.length,
           roomNumbers: roomNumbers, // 从rooms数组提取房间号
         }
+
+        console.log(`✅ 转换后的价格数据:`, {
+          defaultPrice: mappedData.defaultPrice,
+          mondayPrice: mappedData.mondayPrice,
+          tuesdayPrice: mappedData.tuesdayPrice,
+          wednesdayPrice: mappedData.wednesdayPrice,
+          thursdayPrice: mappedData.thursdayPrice,
+          fridayPrice: mappedData.fridayPrice,
+          saturdayPrice: mappedData.saturdayPrice,
+          sundayPrice: mappedData.sundayPrice,
+        })
+
+        return mappedData
       })
       total.value = roomTypeList.value.length
     } else {
@@ -404,6 +457,7 @@ const handleAdd = () => {
     name: '',
     shortName: '',
     maxGuests: 4,
+    defaultPrice: 25000,
     mondayPrice: 25000,
     tuesdayPrice: 25000,
     wednesdayPrice: 25000,
@@ -420,11 +474,15 @@ const handleAdd = () => {
 // 编辑
 const handleEdit = (row: RoomTypeData) => {
   isEdit.value = true
+  console.log('✏️ 编辑房型数据:', row)
+
   // 深拷贝数据,确保数组也是新的引用
   formData.value = {
     ...row,
     roomNumbers: row.roomNumbers && row.roomNumbers.length > 0 ? [...row.roomNumbers] : ['']
   }
+
+  console.log('📋 formData设置为:', formData.value)
   showDialog.value = true
 }
 
@@ -508,7 +566,10 @@ const handleSave = async () => {
       code: formData.value.shortName.substring(0, 3).toUpperCase(),
       description: formData.value.shortName,
       totalRooms: validRoomNumbers.length, // 使用实际房间号数量
-      defaultPrice: formData.value.mondayPrice, // 使用周一价格作为默认价格
+      // 编辑时保持原有defaultPrice,新增时使用周一价格作为默认价格
+      defaultPrice: isEdit.value && formData.value.defaultPrice !== undefined
+        ? formData.value.defaultPrice
+        : formData.value.mondayPrice,
       mondayPrice: formData.value.mondayPrice,
       tuesdayPrice: formData.value.tuesdayPrice,
       wednesdayPrice: formData.value.wednesdayPrice,
@@ -519,12 +580,17 @@ const handleSave = async () => {
       roomNumbers: validRoomNumbers, // 添加房间号列表
     }
 
+    console.log('💾 准备保存的数据:', requestData)
+    console.log('📝 编辑模式:', isEdit.value, '房型ID:', formData.value.id)
+
     let response
     if (isEdit.value && formData.value.id) {
       response = await updateRoomType(formData.value.id, requestData)
     } else {
       response = await createRoomType(requestData)
     }
+
+    console.log('✅ 保存响应:', response)
 
     if (response.success) {
       ElMessage.success(isEdit.value ? '更新成功' : '新增成功')

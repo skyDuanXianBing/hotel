@@ -1,6 +1,9 @@
 package server.demo.entity;
 
 import jakarta.persistence.*;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
+
 import java.time.LocalDateTime;
 
 /**
@@ -8,16 +11,24 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "auto_messages")
-public class AutoMessage {
+@EntityListeners(StoreScopedEntityListener.class)
+public class AutoMessage implements StoreScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /**
-     * 用户ID
+     * 门店ID（门店级架构）
      */
-    @Column(nullable = false)
+    @Column(name = "store_id")
+    private Long storeId;
+
+    /**
+     * @deprecated 已废弃，使用门店级架构，由storeId替代
+     */
+    @Deprecated
+    @Column(nullable = true)
     private Long userId;
 
     /**
@@ -158,5 +169,15 @@ public class AutoMessage {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

@@ -4,10 +4,11 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.List;
+import server.demo.entity.base.StoreScopedEntity;
 
 @Entity
 @Table(name = "room_status_shares")
-public class RoomStatusShare {
+public class RoomStatusShare implements StoreScopedEntity {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,6 +50,9 @@ public class RoomStatusShare {
      */
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    @Column(name = "store_id", nullable = false)
+    private Long storeId;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
@@ -174,6 +178,16 @@ public class RoomStatusShare {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 
     public Boolean getIsActive() {

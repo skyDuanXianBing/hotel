@@ -147,6 +147,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import draggable from 'vuedraggable'
 import { useUserStore } from '@/stores/user'
+import { useStoreStore } from '@/stores/store'
 import {
   getAllRoomGroups,
   createRoomGroup,
@@ -161,6 +162,7 @@ import {
 import { getRooms, type RoomDTO } from '@/api/room'
 
 const userStore = useUserStore()
+const storeStore = useStoreStore()
 
 interface Room {
   id: number
@@ -214,10 +216,13 @@ const loadRooms = async () => {
  * 加载房间分组
  */
 const loadRoomGroups = async () => {
-  if (!userStore.currentUser?.id) return
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
 
   try {
-    const response = await getAllRoomGroups(userStore.currentUser.id)
+    const response = await getAllRoomGroups()
     if (response.success) {
       // 加载每个分组的成员
       const groups: RoomGroup[] = []
@@ -351,8 +356,8 @@ const handleCancelEdit = () => {
 }
 
 const handleConfirmEdit = async () => {
-  if (!userStore.currentUser?.id) {
-    ElMessage.error('用户未登录')
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
     return
   }
 
@@ -379,7 +384,7 @@ const handleConfirmEdit = async () => {
 
       if (group.id < 0) {
         // 新建分组
-        const createResponse = await createRoomGroup(userStore.currentUser.id, {
+        const createResponse = await createRoomGroup({
           name: group.name,
           description: group.description,
         })

@@ -314,18 +314,8 @@ const handleLogin = async () => {
 
     ElMessage.success('登录成功')
 
-    // 判断是否有门店
-    if (!stores || stores.length === 0) {
-      // 没有门店,跳转到门店选择页面(在那里可以创建)
-      router.push('/store/selection')
-    } else if (stores.length === 1) {
-      // 只有一个门店,直接选择并进入首页
-      storeStore.setCurrentStore(stores[0])
-      router.push('/')
-    } else {
-      // 多个门店,跳转到门店选择页面
-      router.push('/store/selection')
-    }
+    // 登录成功后始终跳转到门店选择页面,让用户自己选择门店
+    router.push('/store/selection')
 
     loading.value = false
   } catch (error: any) {

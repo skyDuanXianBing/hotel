@@ -63,7 +63,6 @@ export interface CleanerRequest {
 }
 
 export interface CleaningSupplyRequest {
-  userId: number
   roomType: string
   supplies: string
 }
@@ -109,7 +108,15 @@ export const deleteCleaningConfig = async (id: number): Promise<ApiResponse<void
 // ==================== 保洁员 API ====================
 
 /**
+ * 获取当前门店的保洁员列表(使用门店上下文)
+ */
+export const getCleaners = async (): Promise<ApiResponse<CleanerDTO[]>> => {
+  return await request.get('/cleaners')
+}
+
+/**
  * 根据用户ID和门店ID获取保洁员列表
+ * @deprecated 使用 getCleaners() 替代,现在使用门店级数据隔离
  */
 export const getCleanersByUserIdAndStoreId = async (
   userId: number,
@@ -120,6 +127,7 @@ export const getCleanersByUserIdAndStoreId = async (
 
 /**
  * 根据用户ID获取保洁员列表
+ * @deprecated 使用 getCleaners() 替代,现在使用门店级数据隔离
  */
 export const getCleanersByUserId = async (
   userId: number
@@ -129,6 +137,7 @@ export const getCleanersByUserId = async (
 
 /**
  * 根据门店ID获取保洁员列表
+ * @deprecated 使用 getCleaners() 替代,现在使用门店级数据隔离
  */
 export const getCleanersByStoreId = async (
   storeId: number
@@ -165,7 +174,15 @@ export const deleteCleaner = async (id: number): Promise<ApiResponse<void>> => {
 // ==================== 易耗品 API ====================
 
 /**
+ * 获取易耗品列表(门店级)
+ */
+export const getAllCleaningSupplies = async (): Promise<ApiResponse<CleaningSupplyDTO[]>> => {
+  return await request.get('/cleaning-supplies')
+}
+
+/**
  * 根据用户ID获取易耗品列表
+ * @deprecated 使用 getAllCleaningSupplies() 替代,现在使用门店级数据隔离
  */
 export const getCleaningSuppliesByUserId = async (
   userId: number
@@ -354,6 +371,24 @@ export const assignCleaningTask = async (
   return await request.post(`/cleaning-tasks/${id}/assign`, null, {
     params: { cleanerId }
   })
+}
+
+/**
+ * 保洁员接受任务
+ */
+export const acceptCleaningTask = async (
+  id: number
+): Promise<ApiResponse<CleaningTaskDTO>> => {
+  return await request.post(`/cleaning-tasks/${id}/accept`)
+}
+
+/**
+ * 保洁员拒绝任务
+ */
+export const rejectCleaningTask = async (
+  id: number
+): Promise<ApiResponse<CleaningTaskDTO>> => {
+  return await request.post(`/cleaning-tasks/${id}/reject`)
 }
 
 /**

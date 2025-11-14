@@ -1,10 +1,10 @@
 package server.demo.controller;
 
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.RoomGroupDTO;
 import server.demo.dto.RoomGroupMemberDTO;
@@ -16,31 +16,21 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/room-groups")
-public class RoomGroupController {
+@StoreScoped
+public class RoomGroupController extends BaseStoreController {
 
     @Autowired
     private RoomGroupService roomGroupService;
 
-    /**
-     * 获取用户的所有分组
-     */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<RoomGroup>>> getAll(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<List<RoomGroup>>> getAll() {
         try {
-            Long userId = (Long) request.getAttribute("userId");
-            if (userId == null) {
-                return ResponseEntity.ok(ApiResponse.error("无法获取用户信息"));
-            }
-            List<RoomGroup> groups = roomGroupService.getAllByUserId(userId);
-            return ResponseEntity.ok(ApiResponse.success("获取分组列表成功", groups));
+            return ResponseEntity.ok(ApiResponse.success("获取分组列表成功", roomGroupService.getAllForCurrentStore()));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error("获取分组列表失败: " + e.getMessage()));
         }
     }
 
-    /**
-     * 根据ID获取分组
-     */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<RoomGroup>> getById(@PathVariable Long id) {
         try {
@@ -51,19 +41,11 @@ public class RoomGroupController {
         }
     }
 
-    /**
-     * 创建分组
-     */
     @PostMapping
-    public ResponseEntity<ApiResponse<RoomGroup>> create(
-            @Valid @RequestBody RoomGroupDTO dto,
-            HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<RoomGroup>> create(@Valid @RequestBody RoomGroupDTO dto) {
         try {
-            Long userId = (Long) request.getAttribute("userId");
-            if (userId == null) {
-                return ResponseEntity.ok(ApiResponse.error("无法获取用户信息"));
-            }
-            RoomGroup group = new RoomGroup(userId, dto.getName());
+            RoomGroup group = new RoomGroup();
+            group.setName(dto.getName());
             group.setDescription(dto.getDescription());
             RoomGroup created = roomGroupService.create(group);
             return ResponseEntity.ok(ApiResponse.success("创建分组成功", created));
@@ -72,13 +54,9 @@ public class RoomGroupController {
         }
     }
 
-    /**
-     * 更新分组
-     */
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<RoomGroup>> update(
-            @PathVariable Long id,
-            @Valid @RequestBody RoomGroupDTO dto) {
+    public ResponseEntity<ApiResponse<RoomGroup>> update(@PathVariable Long id,
+                                                         @Valid @RequestBody RoomGroupDTO dto) {
         try {
             RoomGroup updates = new RoomGroup();
             updates.setName(dto.getName());
@@ -90,9 +68,6 @@ public class RoomGroupController {
         }
     }
 
-    /**
-     * 删除分组
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         try {
@@ -103,9 +78,6 @@ public class RoomGroupController {
         }
     }
 
-    /**
-     * 获取分组的所有房间
-     */
     @GetMapping("/{id}/members")
     public ResponseEntity<ApiResponse<List<RoomGroupMember>>> getGroupMembers(@PathVariable Long id) {
         try {
@@ -116,13 +88,9 @@ public class RoomGroupController {
         }
     }
 
-    /**
-     * 添加房间到分组
-     */
     @PostMapping("/{id}/members/{roomId}")
-    public ResponseEntity<ApiResponse<RoomGroupMember>> addRoomToGroup(
-            @PathVariable Long id,
-            @PathVariable Long roomId) {
+    public ResponseEntity<ApiResponse<RoomGroupMember>> addRoomToGroup(@PathVariable Long id,
+                                                                       @PathVariable Long roomId) {
         try {
             RoomGroupMember member = roomGroupService.addRoomToGroup(id, roomId);
             return ResponseEntity.ok(ApiResponse.success("添加房间成功", member));
@@ -131,13 +99,9 @@ public class RoomGroupController {
         }
     }
 
-    /**
-     * 批量添加房间到分组
-     */
     @PostMapping("/{id}/members/batch")
-    public ResponseEntity<ApiResponse<Void>> addRoomsToGroup(
-            @PathVariable Long id,
-            @Valid @RequestBody RoomGroupMemberDTO dto) {
+    public ResponseEntity<ApiResponse<Void>> addRoomsToGroup(@PathVariable Long id,
+                                                             @Valid @RequestBody RoomGroupMemberDTO dto) {
         try {
             roomGroupService.addRoomsToGroup(id, dto.getRoomIds());
             return ResponseEntity.ok(ApiResponse.success("批量添加房间成功", null));
@@ -146,13 +110,9 @@ public class RoomGroupController {
         }
     }
 
-    /**
-     * 从分组中移除房间
-     */
     @DeleteMapping("/{id}/members/{roomId}")
-    public ResponseEntity<ApiResponse<Void>> removeRoomFromGroup(
-            @PathVariable Long id,
-            @PathVariable Long roomId) {
+    public ResponseEntity<ApiResponse<Void>> removeRoomFromGroup(@PathVariable Long id,
+                                                                 @PathVariable Long roomId) {
         try {
             roomGroupService.removeRoomFromGroup(id, roomId);
             return ResponseEntity.ok(ApiResponse.success("移除房间成功", null));
@@ -161,13 +121,9 @@ public class RoomGroupController {
         }
     }
 
-    /**
-     * 批量从分组中移除房间
-     */
     @DeleteMapping("/{id}/members/batch")
-    public ResponseEntity<ApiResponse<Void>> removeRoomsFromGroup(
-            @PathVariable Long id,
-            @Valid @RequestBody RoomGroupMemberDTO dto) {
+    public ResponseEntity<ApiResponse<Void>> removeRoomsFromGroup(@PathVariable Long id,
+                                                                  @Valid @RequestBody RoomGroupMemberDTO dto) {
         try {
             roomGroupService.removeRoomsFromGroup(id, dto.getRoomIds());
             return ResponseEntity.ok(ApiResponse.success("批量移除房间成功", null));

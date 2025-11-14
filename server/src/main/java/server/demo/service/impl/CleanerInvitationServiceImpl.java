@@ -122,6 +122,7 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
 
         // 创建保洁员记录 - 直接在Cleaner表中存储认证信息
         Cleaner cleaner = new Cleaner();
+        cleaner.setUserId(invitation.getUserId()); // 使用邀请人的userId
         cleaner.setStoreId(invitation.getStoreId());
         cleaner.setName(registrationDTO.getName());
         cleaner.setEmail(registrationDTO.getEmail());

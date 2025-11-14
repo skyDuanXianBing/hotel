@@ -668,7 +668,7 @@ import {
   type RoomTypePricePlanDTO,
 } from '@/api/pricePlan'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
-import { getAllStores, type StoreDTO } from '@/api/store'
+import { getUserStores, type StoreDTO } from '@/api/store'
 
 const userStore = useUserStore()
 
@@ -938,7 +938,7 @@ const loadStoreInfo = async () => {
   if (!userStore.currentUser?.id) return
 
   try {
-    const response = (await getAllStores()) as any
+    const response = (await getUserStores()) as any
     const stores = response.data || []
     // 获取第一个门店信息
     if (stores.length > 0) {

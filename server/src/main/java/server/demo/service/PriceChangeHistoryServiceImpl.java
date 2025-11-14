@@ -43,9 +43,19 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
+    /**
+     * 获取当前门店ID
+     */
+    private Long getCurrentStoreId() {
+        server.demo.context.StoreContext context = server.demo.context.StoreContextHolder.getContext();
+        if (context == null || context.getStoreId() == null) {
+            throw new RuntimeException("无法获取当前门店信息");
+        }
+        return context.getStoreId();
+    }
+
     @Override
     public PriceChangeHistoryPageResponse getPriceChangeHistory(
-            Long userId,
             LocalDate operateDateStart,
             LocalDate operateDateEnd,
             LocalDate priceDateStart,
@@ -56,6 +66,8 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
             Integer pageNum,
             Integer pageSize
     ) {
+        Long storeId = getCurrentStoreId();
+
         // 转换日期为时间范围
         LocalDateTime operateStartTime = operateDateStart != null ? operateDateStart.atStartOfDay() : null;
         LocalDateTime operateEndTime = operateDateEnd != null ? operateDateEnd.atTime(23, 59, 59) : null;
@@ -66,9 +78,9 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
                 pageSize != null && pageSize > 0 ? pageSize : 25
         );
 
-        // 查询数据 - 添加userId过滤
-        Page<PriceChangeHistory> page = priceChangeHistoryRepository.findByConditionsAndUserId(
-                userId,
+        // 查询数据 - 使用storeId过滤
+        Page<PriceChangeHistory> page = priceChangeHistoryRepository.findByConditionsAndStoreId(
+                storeId,
                 roomTypeId,
                 pricePlanId,
                 operator,
@@ -101,9 +113,10 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
             String applyWeekdays,
             BigDecimal changeValue,
             BigDecimal previousValue,
-            String operator,
-            Long userId
+            String operator
     ) {
+        Long storeId = getCurrentStoreId();
+
         RoomType roomType = roomTypeRepository.findById(roomTypeId)
                 .orElseThrow(() -> new IllegalArgumentException("房型不存在"));
 
@@ -111,11 +124,6 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
         if (pricePlanId != null) {
             pricePlan = pricePlanRepository.findById(pricePlanId)
                     .orElseThrow(() -> new IllegalArgumentException("价格计划不存在"));
-        }
-
-        User user = null;
-        if (userId != null) {
-            user = userRepository.findById(userId).orElse(null);
         }
 
         PriceChangeHistory history = new PriceChangeHistory();
@@ -128,7 +136,7 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
         history.setChangeValue(changeValue);
         history.setPreviousValue(previousValue);
         history.setOperator(operator);
-        history.setUser(user);
+        history.setStoreId(storeId);
         history.setOperateTime(LocalDateTime.now());
 
         priceChangeHistoryRepository.save(history);

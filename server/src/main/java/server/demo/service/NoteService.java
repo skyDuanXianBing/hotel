@@ -3,6 +3,7 @@ package server.demo.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.context.StoreContextHolder;
 import server.demo.dto.CreateNoteRequest;
 import server.demo.dto.NoteDTO;
 import server.demo.dto.NotesStatisticsDTO;
@@ -54,18 +55,19 @@ public class NoteService {
      */
     public List<NoteDTO> getNotesList(LocalDateTime startDate, LocalDateTime endDate,
                                       String type, String category, String paymentMethod, Long roomId) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
         List<Note> notes;
 
         if (type != null && !type.isEmpty()) {
-            notes = noteRepository.findByDateRangeAndType(startDate, endDate, type);
+            notes = noteRepository.findByStoreIdAndDateRangeAndType(storeId, startDate, endDate, type);
         } else if (category != null && !category.isEmpty()) {
-            notes = noteRepository.findByDateRangeAndCategory(startDate, endDate, category);
+            notes = noteRepository.findByStoreIdAndDateRangeAndCategory(storeId, startDate, endDate, category);
         } else if (paymentMethod != null && !paymentMethod.isEmpty()) {
-            notes = noteRepository.findByDateRangeAndPaymentMethod(startDate, endDate, paymentMethod);
+            notes = noteRepository.findByStoreIdAndDateRangeAndPaymentMethod(storeId, startDate, endDate, paymentMethod);
         } else if (roomId != null) {
-            notes = noteRepository.findByDateRangeAndRoomId(startDate, endDate, roomId);
+            notes = noteRepository.findByStoreIdAndDateRangeAndRoomId(storeId, startDate, endDate, roomId);
         } else {
-            notes = noteRepository.findByDateRange(startDate, endDate);
+            notes = noteRepository.findByStoreIdAndDateRange(storeId, startDate, endDate);
         }
 
         return notes.stream()
@@ -77,7 +79,8 @@ public class NoteService {
      * 获取记一笔统计数据
      */
     public NotesStatisticsDTO getNotesStatistics(LocalDateTime startDate, LocalDateTime endDate) {
-        List<Note> notes = noteRepository.findByDateRange(startDate, endDate);
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        List<Note> notes = noteRepository.findByStoreIdAndDateRange(storeId, startDate, endDate);
 
         NotesStatisticsDTO statistics = new NotesStatisticsDTO();
 

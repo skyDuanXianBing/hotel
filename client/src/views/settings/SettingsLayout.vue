@@ -124,12 +124,11 @@ const getMenuTitle = () => {
 <template>
   <div class="settings-layout">
     <!-- 面包屑导航 -->
-    <div class="breadcrumb-section">
+    <!-- <div class="breadcrumb-section">
       <el-breadcrumb separator="/">
-        <el-breadcrumb-item>收起导航</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ getMenuTitle() }}</el-breadcrumb-item>
+       
       </el-breadcrumb>
-    </div>
+    </div> -->
 
     <div class="settings-content">
       <!-- 左侧菜单 -->

@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -12,13 +14,23 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "consumption_items")
-public class ConsumptionItem {
+@EntityListeners(StoreScopedEntityListener.class)
+public class ConsumptionItem implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "用户ID不能为空")
-    @Column(nullable = false)
+    /**
+     * 门店ID（门店级架构）
+     */
+    @Column(name = "store_id")
+    private Long storeId;
+
+    /**
+     * @deprecated 已废弃，使用门店级架构，由storeId替代
+     */
+    @Deprecated
+    @Column(nullable = true)
     private Long userId;
 
     @NotBlank(message = "分类不能为空")
@@ -141,5 +153,15 @@ public class ConsumptionItem {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

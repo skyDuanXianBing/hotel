@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
+import server.demo.entity.base.StoreScopedEntity;
 import server.demo.enums.ReservationStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -11,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "reservations")
-public class Reservation {
+public class Reservation implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -86,6 +87,9 @@ public class Reservation {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "store_id", nullable = false)
+    private Long storeId;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -134,6 +138,9 @@ public class Reservation {
 
     public void setRoom(Room room) {
         this.room = room;
+        if (room != null) {
+            this.storeId = room.getStoreId();
+        }
     }
 
     public Channel getChannel() {
@@ -286,5 +293,15 @@ public class Reservation {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

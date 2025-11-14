@@ -48,11 +48,17 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
                 .orElseThrow(() -> new RuntimeException("房间不存在"));
 
         CleaningTask task = new CleaningTask();
-        task.setTaskDate(createDTO.getTaskDate());
+
+        // 将字符串日期转换为LocalDate
+        task.setTaskDate(LocalDate.parse(createDTO.getTaskDate()));
         task.setRoom(room);
         task.setTaskType(createDTO.getTaskType());
         task.setStatus("pending");
-        task.setEstimatedTime(createDTO.getEstimatedTime());
+
+        // estimatedTime暂时不设置,因为前端发送的是 "HH:MM-HH:MM" 格式,不是完整的日期时间
+        // TODO: 如果需要,可以在前端改为发送完整的日期时间,或者在这里构造
+        // task.setEstimatedTime(createDTO.getEstimatedTime());
+
         task.setNotes(createDTO.getNotes());
 
         if (createDTO.getCleanerId() != null) {
@@ -131,25 +137,42 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
             String search,
             Pageable pageable
     ) {
-        Page<CleaningTask> tasks = cleaningTaskRepository.findWithFilters(
-                userId, startDate, endDate, status, taskType, roomId, cleanerId, roomTypeId, pageable
+        // 获取当前门店ID
+        Long storeId = getCurrentStoreId();
+
+        Page<CleaningTask> tasks = cleaningTaskRepository.findWithFiltersByStore(
+                storeId, startDate, endDate, status, taskType, roomId, cleanerId, roomTypeId, pageable
         );
 
         return tasks.map(this::convertToDTO);
     }
 
+    /**
+     * 获取当前门店ID
+     */
+    private Long getCurrentStoreId() {
+        server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
+        if (storeContext == null || storeContext.getStoreId() == null) {
+            throw new RuntimeException("无法获取当前门店信息");
+        }
+        return storeContext.getStoreId();
+    }
+
     @Override
     public Map<String, Object> getCalendarViewData(Long userId, LocalDate startDate, LocalDate endDate, String status) {
+        // 获取当前门店ID
+        Long storeId = getCurrentStoreId();
+
         List<CleaningTask> tasks;
 
         if (status != null && !status.isEmpty()) {
             // 如果指定了状态,需要筛选
-            tasks = cleaningTaskRepository.findWithFilters(
-                    userId, startDate, endDate, status, null, null, null, null, Pageable.unpaged()
+            tasks = cleaningTaskRepository.findWithFiltersByStore(
+                    storeId, startDate, endDate, status, null, null, null, null, Pageable.unpaged()
             ).getContent();
         } else {
             // 否则查询所有
-            tasks = cleaningTaskRepository.findByTaskDateBetweenAndUserId(userId, startDate, endDate);
+            tasks = cleaningTaskRepository.findByTaskDateBetweenAndStoreId(storeId, startDate, endDate);
         }
 
         // 按房间和日期分组
@@ -183,6 +206,40 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
         task.setCleaner(cleaner);
         task.setStatus("assigned");
+
+        CleaningTask updatedTask = cleaningTaskRepository.save(task);
+        return convertToDTO(updatedTask);
+    }
+
+    @Override
+    @Transactional
+    public CleaningTaskDTO acceptTask(Long taskId) {
+        CleaningTask task = cleaningTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+
+        if (!"assigned".equals(task.getStatus())) {
+            throw new RuntimeException("只有已分配的任务才能接受");
+        }
+
+        task.setStatus("in_progress");
+
+        CleaningTask updatedTask = cleaningTaskRepository.save(task);
+        return convertToDTO(updatedTask);
+    }
+
+    @Override
+    @Transactional
+    public CleaningTaskDTO rejectTask(Long taskId) {
+        CleaningTask task = cleaningTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+
+        if (!"assigned".equals(task.getStatus())) {
+            throw new RuntimeException("只有已分配的任务才能拒绝");
+        }
+
+        // 拒绝后将任务状态改回待分配，并清除保洁员
+        task.setStatus("pending");
+        task.setCleaner(null);
 
         CleaningTask updatedTask = cleaningTaskRepository.save(task);
         return convertToDTO(updatedTask);
@@ -228,11 +285,13 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
                     .orElseThrow(() -> new RuntimeException("房间不存在"));
 
             CleaningTask task = new CleaningTask();
-            task.setTaskDate(createDTO.getTaskDate());
+            // 将字符串日期转换为LocalDate
+            task.setTaskDate(LocalDate.parse(createDTO.getTaskDate()));
             task.setRoom(room);
             task.setTaskType(createDTO.getTaskType());
             task.setStatus("pending");
-            task.setEstimatedTime(createDTO.getEstimatedTime());
+            // estimatedTime暂时不设置
+            // task.setEstimatedTime(createDTO.getEstimatedTime());
             task.setNotes(createDTO.getNotes());
 
             if (createDTO.getCleanerId() != null) {
@@ -251,7 +310,10 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
     @Override
     public Map<String, Long> getTaskStatusCount(Long userId, LocalDate startDate, LocalDate endDate) {
-        List<Object[]> results = cleaningTaskRepository.countByStatusInDateRange(userId, startDate, endDate);
+        // 获取当前门店ID
+        Long storeId = getCurrentStoreId();
+
+        List<Object[]> results = cleaningTaskRepository.countByStatusInDateRangeByStore(storeId, startDate, endDate);
 
         Map<String, Long> statusCount = new HashMap<>();
         for (Object[] result : results) {

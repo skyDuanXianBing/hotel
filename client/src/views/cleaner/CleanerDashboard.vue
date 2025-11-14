@@ -107,15 +107,77 @@
         <span>登出</span>
       </div>
     </div>
+
+    <!-- 任务详情弹窗 -->
+    <el-dialog
+      v-model="taskDetailVisible"
+      title="任务详情"
+      width="90%"
+      :close-on-click-modal="false"
+    >
+      <div v-if="selectedTask" class="task-detail">
+        <!-- 基本信息 -->
+        <div class="detail-section">
+          <h3>基本信息</h3>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="房间号">{{ selectedTask.roomNumber }}</el-descriptions-item>
+            <el-descriptions-item label="任务日期">{{ selectedTask.taskDate }}</el-descriptions-item>
+            <el-descriptions-item label="任务类型">{{ getTaskTypeLabel(selectedTask.taskType) }}</el-descriptions-item>
+            <el-descriptions-item label="任务状态">
+              <el-tag :type="getStatusTagType(selectedTask.status)">
+                {{ getStatusLabel(selectedTask.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="保洁员" v-if="selectedTask.cleanerName">
+              {{ selectedTask.cleanerName }}
+            </el-descriptions-item>
+            <el-descriptions-item label="备注" :span="2" v-if="selectedTask.notes">
+              {{ selectedTask.notes }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="action-buttons">
+          <!-- 待接受状态：显示接受和拒绝按钮 -->
+          <template v-if="selectedTask.status === 'assigned'">
+            <el-button type="danger" @click="handleReject" :loading="actionLoading">
+              拒绝任务
+            </el-button>
+            <el-button type="primary" @click="handleAccept" :loading="actionLoading">
+              接受任务
+            </el-button>
+          </template>
+
+          <!-- 进行中状态：显示开始和完成按钮 -->
+          <template v-else-if="selectedTask.status === 'in_progress'">
+            <el-button type="success" @click="handleComplete" :loading="actionLoading">
+              完成打扫
+            </el-button>
+          </template>
+
+          <!-- 已完成状态：只显示关闭按钮 -->
+          <template v-else-if="selectedTask.status === 'completed'">
+            <el-button @click="taskDetailVisible = false">关闭</el-button>
+          </template>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Document, Setting } from '@element-plus/icons-vue'
-import { getCalendarViewData, type CleaningTaskDTO } from '@/api/cleaning'
+import {
+  getCalendarViewData,
+  acceptCleaningTask,
+  rejectCleaningTask,
+  completeCleaningTask,
+  type CleaningTaskDTO,
+} from '@/api/cleaning'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -125,6 +187,11 @@ const loading = ref(false)
 const selectedMonth = ref(new Date())
 const selectedDate = ref('')
 const totalTasks = ref(0)
+
+// 任务详情弹窗
+const taskDetailVisible = ref(false)
+const selectedTask = ref<CleaningTaskDTO | null>(null)
+const actionLoading = ref(false)
 
 const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
@@ -246,8 +313,133 @@ const handleDateClick = (day: CalendarDay) => {
 }
 
 const handleTaskClick = (task: CleaningTaskDTO) => {
-  // 跳转到任务详情页
-  router.push(`/cleaner/task/${task.id}`)
+  // 显示任务详情弹窗
+  selectedTask.value = task
+  taskDetailVisible.value = true
+}
+
+// 获取任务类型标签
+const getTaskTypeLabel = (type: string) => {
+  const typeMap: Record<string, string> = {
+    daily: '日常清洁',
+    checkout: '退房清洁',
+    deep: '深度清洁',
+  }
+  return typeMap[type] || type
+}
+
+// 获取状态标签
+const getStatusLabel = (status: string) => {
+  const statusMap: Record<string, string> = {
+    pending: '待分配',
+    assigned: '待接受',
+    in_progress: '待打扫',
+    completed: '已完成',
+    expired: '已过期',
+  }
+  return statusMap[status] || status
+}
+
+// 获取状态标签类型
+const getStatusTagType = (status: string) => {
+  const typeMap: Record<string, any> = {
+    pending: 'info',
+    assigned: 'danger',
+    in_progress: 'warning',
+    completed: 'success',
+    expired: 'info',
+  }
+  return typeMap[status] || 'info'
+}
+
+// 接受任务
+const handleAccept = async () => {
+  if (!selectedTask.value) return
+
+  try {
+    actionLoading.value = true
+    const response = await acceptCleaningTask(selectedTask.value.id)
+
+    if (response.success) {
+      ElMessage.success('已接受任务')
+      taskDetailVisible.value = false
+      // 重新加载数据
+      await loadCalendarData()
+    } else {
+      ElMessage.error(response.message || '接受任务失败')
+    }
+  } catch (error: any) {
+    console.error('接受任务失败:', error)
+    ElMessage.error(error.message || '接受任务失败')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// 拒绝任务
+const handleReject = async () => {
+  if (!selectedTask.value) return
+
+  try {
+    await ElMessageBox.confirm('确定要拒绝这个任务吗？', '确认拒绝', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+
+    actionLoading.value = true
+    const response = await rejectCleaningTask(selectedTask.value.id)
+
+    if (response.success) {
+      ElMessage.success('已拒绝任务')
+      taskDetailVisible.value = false
+      // 重新加载数据
+      await loadCalendarData()
+    } else {
+      ElMessage.error(response.message || '拒绝任务失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('拒绝任务失败:', error)
+      ElMessage.error(error.message || '拒绝任务失败')
+    }
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// 完成任务
+const handleComplete = async () => {
+  if (!selectedTask.value) return
+
+  try {
+    await ElMessageBox.confirm('确认已完成打扫吗？', '确认完成', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'success',
+    })
+
+    actionLoading.value = true
+    // 完成任务需要approverId，这里使用当前用户ID
+    const approverId = userStore.currentUser?.id || 0
+    const response = await completeCleaningTask(selectedTask.value.id, approverId)
+
+    if (response.success) {
+      ElMessage.success('任务已完成')
+      taskDetailVisible.value = false
+      // 重新加载数据
+      await loadCalendarData()
+    } else {
+      ElMessage.error(response.message || '完成任务失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('完成任务失败:', error)
+      ElMessage.error(error.message || '完成任务失败')
+    }
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 const handleCommand = (command: string) => {
@@ -407,24 +599,28 @@ onMounted(() => {
   text-overflow: ellipsis;
 }
 
+/* 待分配任务 - 蓝色 */
 .task-badge.status-pending {
-  background: #f0f9ff;
-  color: #409eff;
+  background: #409eff;
+  color: #fff;
 }
 
+/* 已分配任务（待接受） - 红色 */
 .task-badge.status-assigned {
-  background: #fef0f0;
-  color: #f56c6c;
+  background: #f56c6c;
+  color: #fff;
 }
 
+/* 进行中任务（待打扫） - 橙色 */
 .task-badge.status-in_progress {
-  background: #fdf6ec;
-  color: #e6a23c;
+  background: #e6a23c;
+  color: #fff;
 }
 
+/* 已完成任务 - 绿色 */
 .task-badge.status-completed {
-  background: #f0f9ff;
-  color: #67c23a;
+  background: #67c23a;
+  color: #fff;
 }
 
 .more-tasks {
@@ -526,5 +722,30 @@ onMounted(() => {
 .task-badge:hover {
   opacity: 0.8;
   transform: scale(1.05);
+}
+
+/* 任务详情弹窗样式 */
+.task-detail {
+  padding: 12px 0;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 12px 0;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
 }
 </style>

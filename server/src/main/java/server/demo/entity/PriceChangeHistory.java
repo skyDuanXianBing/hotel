@@ -3,6 +3,8 @@ package server.demo.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,8 +20,9 @@ import java.time.LocalDateTime;
     @Index(name = "idx_operate_time", columnList = "operate_time"),
     @Index(name = "idx_price_date", columnList = "price_date_start,price_date_end")
 })
+@EntityListeners(StoreScopedEntityListener.class)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class PriceChangeHistory {
+public class PriceChangeHistory implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -72,6 +75,9 @@ public class PriceChangeHistory {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @Column(name = "store_id")
+    private Long storeId;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -219,5 +225,15 @@ public class PriceChangeHistory {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

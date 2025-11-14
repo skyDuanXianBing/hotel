@@ -59,29 +59,51 @@ export interface StoreRequest {
   address?: string
 }
 
-// 邀请成员请求
-export interface InviteMemberRequest {
+// 添加成员请求
+export interface AddStoreMemberRequest {
   email: string
-  role: 'admin' | 'member'
+  role: 'owner' | 'admin' | 'member'
+  roleIds?: number[] // 权限角色ID列表
 }
 
-// 门店成员信息
-export interface StoreMember {
+// 更新成员权限请求
+export interface UpdateStoreMemberPermissionRequest {
+  role?: 'owner' | 'admin' | 'member'
+  roleIds?: number[]
+  isActive?: boolean
+}
+
+// 角色信息
+export interface RoleDTO {
   id: number
-  store: {
-    id: number
-    name: string
-  }
-  user: {
-    id: number
-    email: string
-    nickname?: string
-  }
-  role: string
+  name: string
+  description?: string
+  isSystem?: boolean
+}
+
+// 用户简化信息
+export interface UserSimpleDTO {
+  id: number
+  username: string
+  email: string
+  nickname?: string
+  avatar?: string
+  isActive: boolean
+}
+
+// 门店成员详细信息（匹配后端StoreUserDTO）
+export interface StoreUserDTO {
+  id: number
+  user: UserSimpleDTO
+  role: string // 基础角色: owner, admin, member
+  roles: RoleDTO[] // 权限角色列表
   isActive: boolean
   invitedBy?: number
   joinedAt: string
 }
+
+// 保留旧的接口以兼容现有代码
+export type StoreMember = StoreUserDTO
 
 /**
  * 获取当前用户的所有门店
@@ -115,23 +137,13 @@ export const updateStore = async (
 }
 
 /**
- * 邀请用户加入门店
+ * 添加门店成员（支持权限角色）
  */
-export const inviteStoreMember = async (
+export const addStoreMember = async (
   storeId: number,
-  data: InviteMemberRequest
-): Promise<ApiResponse<void>> => {
+  data: AddStoreMemberRequest
+): Promise<ApiResponse<StoreUserDTO>> => {
   return await request.post(`/stores/${storeId}/members`, data)
-}
-
-/**
- * 移除门店成员
- */
-export const removeStoreMember = async (
-  storeId: number,
-  userId: number
-): Promise<ApiResponse<void>> => {
-  return await request.delete(`/stores/${storeId}/members/${userId}`)
 }
 
 /**
@@ -139,8 +151,39 @@ export const removeStoreMember = async (
  */
 export const getStoreMembers = async (
   storeId: number
-): Promise<ApiResponse<StoreMember[]>> => {
+): Promise<ApiResponse<StoreUserDTO[]>> => {
   return await request.get(`/stores/${storeId}/members`)
+}
+
+/**
+ * 获取门店成员详情
+ */
+export const getStoreMemberDetail = async (
+  storeId: number,
+  userId: number
+): Promise<ApiResponse<StoreUserDTO>> => {
+  return await request.get(`/stores/${storeId}/members/${userId}`)
+}
+
+/**
+ * 更新门店成员权限
+ */
+export const updateStoreMemberPermission = async (
+  storeId: number,
+  userId: number,
+  data: UpdateStoreMemberPermissionRequest
+): Promise<ApiResponse<StoreUserDTO>> => {
+  return await request.put(`/stores/${storeId}/members/${userId}`, data)
+}
+
+/**
+ * 移除门店成员
+ */
+export const removeStoreMember = async (
+  storeId: number,
+  memberId: number
+): Promise<ApiResponse<void>> => {
+  return await request.delete(`/stores/${storeId}/members/${memberId}`)
 }
 
 /**

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import server.demo.entity.base.StoreScopedEntity;
 
 /**
  * 房型价格计划关联实体
@@ -13,10 +14,10 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "room_type_price_plans", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"room_type_id", "price_plan_id"})
+    @UniqueConstraint(columnNames = {"store_id", "room_type_id", "price_plan_id"})
 })
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class RoomTypePricePlan {
+public class RoomTypePricePlan implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -70,6 +71,9 @@ public class RoomTypePricePlan {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "store_id", nullable = false)
+    private Long storeId;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -93,6 +97,9 @@ public class RoomTypePricePlan {
     public RoomTypePricePlan(RoomType roomType, PricePlan pricePlan) {
         this.roomType = roomType;
         this.pricePlan = pricePlan;
+        if (roomType != null) {
+            this.storeId = roomType.getStoreId();
+        }
     }
 
     // Getters and Setters
@@ -110,6 +117,9 @@ public class RoomTypePricePlan {
 
     public void setRoomType(RoomType roomType) {
         this.roomType = roomType;
+        if (roomType != null) {
+            this.storeId = roomType.getStoreId();
+        }
     }
 
     public PricePlan getPricePlan() {
@@ -214,5 +224,15 @@ public class RoomTypePricePlan {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

@@ -2,15 +2,24 @@ package server.demo.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 import server.demo.enums.ChannelType;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "channels")
-public class Channel {
+@EntityListeners(StoreScopedEntityListener.class)
+public class Channel implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * 门店ID（门店级架构）
+     */
+    @Column(name = "store_id")
+    private Long storeId;
 
     @NotBlank(message = "渠道名称不能为空")
     @Column(nullable = false, length = 100)
@@ -57,8 +66,12 @@ public class Channel {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * @deprecated 已废弃，使用门店级架构，由storeId替代
+     */
+    @Deprecated
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
     @PrePersist
@@ -208,5 +221,15 @@ public class Channel {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    @Override
+    public Long getStoreId() {
+        return storeId;
+    }
+
+    @Override
+    public void setStoreId(Long storeId) {
+        this.storeId = storeId;
     }
 }

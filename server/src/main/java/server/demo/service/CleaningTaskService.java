@@ -62,6 +62,16 @@ public interface CleaningTaskService {
     CleaningTaskDTO assignTask(Long taskId, Long cleanerId);
 
     /**
+     * 保洁员接受任务
+     */
+    CleaningTaskDTO acceptTask(Long taskId);
+
+    /**
+     * 保洁员拒绝任务
+     */
+    CleaningTaskDTO rejectTask(Long taskId);
+
+    /**
      * 开始任务
      */
     CleaningTaskDTO startTask(Long taskId);

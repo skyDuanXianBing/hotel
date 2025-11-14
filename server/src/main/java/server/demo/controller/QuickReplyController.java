@@ -2,6 +2,7 @@ package server.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.entity.QuickReply;
 import server.demo.service.QuickReplyService;
@@ -13,6 +14,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/v1/quick-replies")
+@StoreScoped
 public class QuickReplyController {
 
     @Autowired

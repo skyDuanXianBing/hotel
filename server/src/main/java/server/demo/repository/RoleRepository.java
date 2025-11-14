@@ -23,4 +23,14 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
 
     @Query("SELECT r FROM Role r JOIN r.users u WHERE u.id = :userId")
     List<Role> findRolesByUserId(@Param("userId") Long userId);
+
+    // 门店级查询方法
+    List<Role> findByStoreId(Long storeId);
+
+    @Query("SELECT r FROM Role r WHERE r.storeId = :storeId AND r.name LIKE %:keyword%")
+    List<Role> searchRolesByStoreId(@Param("storeId") Long storeId, @Param("keyword") String keyword);
+
+    boolean existsByStoreIdAndName(Long storeId, String name);
+
+    Optional<Role> findByStoreIdAndName(Long storeId, String name);
 }

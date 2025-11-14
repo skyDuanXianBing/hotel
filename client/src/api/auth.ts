@@ -171,3 +171,14 @@ export const changePassword = (data: ChangePasswordRequest) => {
     data,
   })
 }
+
+/**
+ * 搜索用户（通过邮箱或用户名）
+ */
+export const searchUsers = (keyword: string) => {
+  return request<ApiResponse<UserDTO[]>>({
+    url: '/users/search',
+    method: 'GET',
+    params: { keyword },
+  })
+}

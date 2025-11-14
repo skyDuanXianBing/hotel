@@ -11,12 +11,24 @@ import java.util.Optional;
 public interface ConsumptionCategoryRepository extends JpaRepository<ConsumptionCategory, Long> {
 
     /**
-     * 根据用户ID查找所有分类
+     * 根据门店ID查找所有分类（门店级架构）
      */
+    List<ConsumptionCategory> findByStoreId(Long storeId);
+
+    /**
+     * 根据门店ID和分类名称查找分类（门店级架构）
+     */
+    Optional<ConsumptionCategory> findByStoreIdAndName(Long storeId, String name);
+
+    /**
+     * @deprecated 已废弃，使用门店级架构
+     */
+    @Deprecated
     List<ConsumptionCategory> findByUserId(Long userId);
 
     /**
-     * 根据用户ID和分类名称查找分类
+     * @deprecated 已废弃，使用门店级架构
      */
+    @Deprecated
     Optional<ConsumptionCategory> findByUserIdAndName(Long userId, String name);
 }

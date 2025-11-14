@@ -701,11 +701,12 @@
       </el-drawer>
 
       <!-- 预订详情侧边栏 -->
-      <el-drawer v-model="showBookingDetailSidebar" direction="rtl" size="600px">
+      <el-drawer v-model="showBookingDetailSidebar" direction="rtl" size="1000px">
         <template #header>
           <div class="detail-header">
             <el-tabs v-model="activeDetailTab">
               <el-tab-pane label="订单详情" name="detail" />
+              <el-tab-pane label="账单信息" name="billing" />
               <el-tab-pane label="操作日志" name="log" />
             </el-tabs>
           </div>
@@ -928,6 +929,137 @@
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
+            </div>
+          </div>
+
+          <div v-if="activeDetailTab === 'billing'">
+            <div class="billing-content">
+              <!-- 财务统计卡片 -->
+              <div class="billing-summary">
+                <div class="billing-card">
+                  <div class="card-label">订单金额</div>
+                  <div class="card-value">¥{{ selectedReservation?.totalAmount || '0.00' }}</div>
+                  <div class="card-details">
+                    <span>已确认消费: ¥{{ totalConfirmedConsumption.toFixed(2) }}</span>
+                    <span>未确认消费: ¥{{ totalUnconfirmedConsumption.toFixed(2) }}</span>
+                  </div>
+                </div>
+
+                <div class="billing-card">
+                  <div class="card-label">已确认消费</div>
+                  <div class="card-value">¥{{ totalConfirmedConsumption.toFixed(2) }}</div>
+                  <div class="card-details">
+                    <span>已结账消费: ¥0.00</span>
+                    <span>未结账消费: ¥{{ totalConfirmedConsumption.toFixed(2) }}</span>
+                  </div>
+                </div>
+
+                <div class="billing-card">
+                  <div class="card-label">账户余额</div>
+                  <div class="card-value primary">¥{{ remainingPayment >= 0 ? '0.00' : Math.abs(remainingPayment).toFixed(2) }}</div>
+                  <div class="card-details">
+                    <span>累计收银: ¥{{ totalPayment.toFixed(2) }}</span>
+                    <span>已结账消费: ¥0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 账目子标签 -->
+              <div class="billing-tabs">
+                <el-button
+                  :type="billingSubTab === 'consumption' ? 'primary' : 'default'"
+                  size="small"
+                  @click="billingSubTab = 'consumption'"
+                >
+                  消费
+                </el-button>
+                <el-button
+                  :type="billingSubTab === 'payment' ? 'primary' : 'default'"
+                  size="small"
+                  @click="billingSubTab = 'payment'"
+                >
+                  收银
+                </el-button>
+                <el-button
+                  :type="billingSubTab === 'overview' ? 'primary' : 'default'"
+                  size="small"
+                  @click="billingSubTab = 'overview'"
+                >
+                  概览
+                </el-button>
+              </div>
+
+              <!-- 筛选区域 -->
+              <div class="billing-filters">
+                <div class="filter-item">
+                  <label>营业日</label>
+                  <div class="date-range">
+                    <el-date-picker
+                      v-model="billingStartDate"
+                      type="date"
+                      placeholder="开始日期"
+                      size="small"
+                      format="YYYY-MM-DD"
+                      value-format="YYYY-MM-DD"
+                    />
+                    <span class="date-separator">至</span>
+                    <el-date-picker
+                      v-model="billingEndDate"
+                      type="date"
+                      placeholder="结束日期"
+                      size="small"
+                      format="YYYY-MM-DD"
+                      value-format="YYYY-MM-DD"
+                    />
+                  </div>
+                </div>
+
+                <div class="filter-item">
+                  <label>账目状态</label>
+                  <el-select v-model="billingStatus" placeholder="全部" size="small">
+                    <el-option label="全部" value="" />
+                    <el-option label="未结账" value="unpaid" />
+                    <el-option label="已结账" value="paid" />
+                  </el-select>
+                </div>
+              </div>
+
+              <!-- 账目列表 -->
+              <div class="billing-table">
+                <el-table
+                  :data="filteredBillingList"
+                  border
+                  stripe
+                  style="width: 100%"
+                  :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
+                >
+                  <el-table-column prop="item" label="账目" min-width="120" align="center" />
+                  <el-table-column prop="amount" label="金额" width="100" align="center" />
+                  <el-table-column prop="businessDate" label="营业日" width="120" align="center" />
+                  <el-table-column prop="status" label="状态" width="80" align="center">
+                    <template #default="{ row }">
+                      {{ row.status === 'paid' ? '已结账' : '未结账' }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="80" align="center" fixed="right">
+                    <template #default>
+                      <el-button link type="primary" size="small">-</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+
+                <!-- 分页 -->
+                <div class="billing-pagination">
+                  <span class="total-info">共 {{ filteredBillingList.length }} 条</span>
+                  <el-pagination
+                    small
+                    layout="prev, pager, next"
+                    :total="filteredBillingList.length"
+                    :page-size="10"
+                    :current-page="1"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1610,6 +1742,27 @@ const showBookingDetailSidebar = ref(false)
 const selectedReservation = ref<any>(null)
 const activeDetailTab = ref('detail')
 
+// 账单信息相关
+const billingSubTab = ref('consumption')
+const billingStartDate = ref('')
+const billingEndDate = ref('')
+const billingStatus = ref('')
+
+// 消费标签页数据
+const billingConsumptionList = ref([
+  { item: '全日房费', amount: '¥11.00', businessDate: '2025-11-15', status: 'unpaid' }
+])
+
+// 收银标签页数据
+const billingPaymentList = ref([
+  { item: '订单金额-Agoda代收', amount: '¥11.00', businessDate: '2025-11-14', status: 'unpaid' }
+])
+
+// 概览标签页数据
+const billingOverviewList = ref([
+  { item: '全日房费', amount: '¥11.00', businessDate: '2025-11-15', status: 'unpaid' }
+])
+
 
 // 取消预约侧边栏
 const showCancelReservationSidebar = ref(false)
@@ -1658,6 +1811,42 @@ const remainingPayment = computed(() => {
   const payment = Number(totalPayment.value || 0)
   // 还需付款 = 订单金额 - 已收金额 - 其他消费
   return total - payment - consumption
+})
+
+// 计算已确认消费总额（订单金额 + 其他消费）
+const totalConfirmedConsumption = computed(() => {
+  const orderAmount = Number(selectedReservation.value?.totalAmount || 0)
+  const otherConsumption = Math.abs(Number(totalConsumption.value || 0))
+  return orderAmount + otherConsumption
+})
+
+// 计算未确认消费总额（暂时为0，后续可以从API获取）
+const totalUnconfirmedConsumption = computed(() => {
+  return 0
+})
+
+// 过滤后的账单列表
+const filteredBillingList = computed(() => {
+  // 根据当前标签页选择数据源
+  let list = billingSubTab.value === 'consumption'
+    ? billingConsumptionList.value
+    : billingSubTab.value === 'payment'
+    ? billingPaymentList.value
+    : billingOverviewList.value
+
+  // 根据状态过滤
+  if (billingStatus.value) {
+    list = list.filter((item: any) => item.status === billingStatus.value)
+  }
+
+  // 根据日期过滤
+  if (billingStartDate.value && billingEndDate.value) {
+    list = list.filter((item: any) => {
+      return item.businessDate >= billingStartDate.value && item.businessDate <= billingEndDate.value
+    })
+  }
+
+  return list
 })
 
 // 折叠面板展开状态（控制订单详情中的消费、收款、提醒面板）
@@ -5102,5 +5291,110 @@ onMounted(async () => {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+/* 账单信息样式 */
+.billing-content {
+  padding: 16px;
+}
+
+.billing-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.billing-card {
+  background: #f5f7fa;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.billing-card .card-label {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+
+.billing-card .card-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+}
+
+.billing-card .card-value.primary {
+  color: #409eff;
+}
+
+.billing-card .card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #606266;
+}
+
+.billing-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.billing-filters {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.billing-filters .filter-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.billing-filters .filter-item label {
+  font-size: 14px;
+  color: #606266;
+  min-width: 60px;
+}
+
+.billing-filters .date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.billing-filters .date-separator {
+  color: #909399;
+  font-size: 14px;
+}
+
+.billing-table {
+  margin-top: 16px;
+}
+
+.billing-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding: 12px 0;
+}
+
+.billing-pagination .total-info {
+  font-size: 14px;
+  color: #606266;
+}
+
+.operation-logs {
+  padding: 24px;
+  text-align: center;
+  color: #909399;
 }
 </style>

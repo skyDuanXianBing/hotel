@@ -3,20 +3,11 @@ package server.demo.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import server.demo.dto.CreateStoreRequest;
-import server.demo.dto.StoreDTO;
-import server.demo.dto.StorePolicyDTO;
-import server.demo.entity.Store;
-import server.demo.entity.StorePolicy;
-import server.demo.entity.StoreUser;
-import server.demo.entity.User;
-import server.demo.repository.StoreRepository;
-import server.demo.repository.StorePolicyRepository;
-import server.demo.repository.StoreUserRepository;
-import server.demo.repository.UserRepository;
+import server.demo.dto.*;
+import server.demo.entity.*;
+import server.demo.repository.*;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +24,9 @@ public class StoreService {
 
     @Autowired
     private StorePolicyRepository storePolicyRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
 
     public List<StoreDTO> getUserStores(Long userId) {
         List<StoreUser> storeUsers = storeUserRepository.findActiveStoresByUserId(userId);
@@ -115,6 +109,126 @@ public class StoreService {
         StoreUser storeUser = new StoreUser(inviter.getStore(), invitedUser, role);
         storeUser.setInvitedBy(inviterUserId);
         storeUserRepository.save(storeUser);
+    }
+
+    /**
+     * 添加门店成员（支持权限角色）
+     */
+    @Transactional
+    public StoreUserDTO addStoreMember(Long storeId, Long operatorUserId, AddStoreMemberRequest request) {
+        // 验证操作者权限
+        StoreUser operator = storeUserRepository.findByStoreIdAndUserId(storeId, operatorUserId)
+                .orElseThrow(() -> new RuntimeException("无权限"));
+
+        if (!"owner".equals(operator.getRole()) && !"admin".equals(operator.getRole())) {
+            throw new RuntimeException("只有管理员可以添加成员");
+        }
+
+        // 查找被邀请用户
+        User invitedUser = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("用户不存在，请先让该用户注册账号"));
+
+        // 检查是否已是成员
+        if (storeUserRepository.existsByStoreIdAndUserId(storeId, invitedUser.getId())) {
+            throw new RuntimeException("该用户已是门店成员");
+        }
+
+        // 创建门店用户关联
+        StoreUser storeUser = new StoreUser(operator.getStore(), invitedUser, request.getRole());
+        storeUser.setInvitedBy(operatorUserId);
+
+        // 分配权限角色
+        if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
+            Set<Role> roles = new HashSet<>();
+            for (Long roleId : request.getRoleIds()) {
+                Role role = roleRepository.findById(roleId)
+                        .orElseThrow(() -> new RuntimeException("角色不存在: " + roleId));
+
+                // 验证角色属于当前门店
+                if (!storeId.equals(role.getStoreId())) {
+                    throw new RuntimeException("角色不属于当前门店");
+                }
+
+                roles.add(role);
+            }
+            storeUser.setRoles(roles);
+        }
+
+        StoreUser savedStoreUser = storeUserRepository.save(storeUser);
+        return convertToStoreUserDTO(savedStoreUser);
+    }
+
+    /**
+     * 更新门店成员权限
+     */
+    @Transactional
+    public StoreUserDTO updateStoreMemberPermission(Long storeId, Long operatorUserId, Long targetUserId,
+                                                     UpdateStoreMemberPermissionRequest request) {
+        // 验证操作者权限
+        StoreUser operator = storeUserRepository.findByStoreIdAndUserId(storeId, operatorUserId)
+                .orElseThrow(() -> new RuntimeException("无权限"));
+
+        if (!"owner".equals(operator.getRole()) && !"admin".equals(operator.getRole())) {
+            throw new RuntimeException("只有管理员可以修改成员权限");
+        }
+
+        // 查找目标成员
+        StoreUser target = storeUserRepository.findByStoreIdAndUserId(storeId, targetUserId)
+                .orElseThrow(() -> new RuntimeException("目标用户不是门店成员"));
+
+        // 不能修改owner权限
+        if ("owner".equals(target.getRole()) && !"owner".equals(operator.getRole())) {
+            throw new RuntimeException("只有所有者可以修改所有者权限");
+        }
+
+        // 更新基础角色
+        if (request.getRole() != null) {
+            target.setRole(request.getRole());
+        }
+
+        // 更新权限角色
+        if (request.getRoleIds() != null) {
+            Set<Role> roles = new HashSet<>();
+            for (Long roleId : request.getRoleIds()) {
+                Role role = roleRepository.findById(roleId)
+                        .orElseThrow(() -> new RuntimeException("角色不存在: " + roleId));
+
+                // 验证角色属于当前门店
+                if (!storeId.equals(role.getStoreId())) {
+                    throw new RuntimeException("角色不属于当前门店");
+                }
+
+                roles.add(role);
+            }
+            target.setRoles(roles);
+        }
+
+        // 更新激活状态
+        if (request.getIsActive() != null) {
+            target.setIsActive(request.getIsActive());
+        }
+
+        StoreUser updatedStoreUser = storeUserRepository.save(target);
+        return convertToStoreUserDTO(updatedStoreUser);
+    }
+
+    /**
+     * 获取门店成员详细信息
+     */
+    public StoreUserDTO getStoreMemberDetail(Long storeId, Long userId) {
+        StoreUser storeUser = storeUserRepository.findByStoreIdAndUserId(storeId, userId)
+                .orElseThrow(() -> new RuntimeException("成员不存在"));
+        return convertToStoreUserDTO(storeUser);
+    }
+
+    /**
+     * 获取门店成员列表（返回DTO）
+     */
+    public List<StoreUserDTO> getStoreMembersDTO(Long storeId) {
+        List<StoreUser> storeUsers = storeUserRepository.findActiveUsersByStoreId(storeId);
+        return storeUsers.stream()
+                .map(this::convertToStoreUserDTO)
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -223,6 +337,49 @@ public class StoreService {
         dto.setPetPolicy(policy.getPetPolicy());
         dto.setAdditionalRules(policy.getAdditionalRules());
         dto.setHotelTerms(policy.getHotelTerms());
+        return dto;
+    }
+
+    /**
+     * 转换StoreUser到DTO
+     */
+    private StoreUserDTO convertToStoreUserDTO(StoreUser storeUser) {
+        StoreUserDTO dto = new StoreUserDTO();
+        dto.setId(storeUser.getId());
+        dto.setRole(storeUser.getRole());
+        dto.setIsActive(storeUser.getIsActive());
+        dto.setInvitedBy(storeUser.getInvitedBy());
+        dto.setJoinedAt(storeUser.getJoinedAt());
+
+        // 转换用户信息
+        User user = storeUser.getUser();
+        StoreUserDTO.UserSimpleDTO userDTO = new StoreUserDTO.UserSimpleDTO();
+        userDTO.setId(user.getId());
+        userDTO.setUsername(user.getUsername());
+        userDTO.setEmail(user.getEmail());
+        userDTO.setNickname(user.getNickname());
+        userDTO.setAvatar(user.getAvatar());
+        userDTO.setIsActive(user.getIsActive());
+        dto.setUser(userDTO);
+
+        // 转换权限角色列表
+        Set<Role> roles = storeUser.getRoles();
+        if (roles != null && !roles.isEmpty()) {
+            List<RoleDTO> roleDTOs = roles.stream()
+                    .map(role -> {
+                        RoleDTO roleDTO = new RoleDTO();
+                        roleDTO.setId(role.getId());
+                        roleDTO.setName(role.getName());
+                        roleDTO.setDescription(role.getDescription());
+                        roleDTO.setIsSystem(role.getIsSystem());
+                        return roleDTO;
+                    })
+                    .collect(Collectors.toList());
+            dto.setRoles(roleDTOs);
+        } else {
+            dto.setRoles(new ArrayList<>());
+        }
+
         return dto;
     }
 }

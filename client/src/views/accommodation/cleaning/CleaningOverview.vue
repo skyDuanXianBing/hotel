@@ -79,9 +79,9 @@
               <div class="date-label" :class="{ 'today-label': date.isToday }">
                 {{ date.label }}
               </div>
-              <div class="room-count" v-if="date.roomCount !== null && date.roomCount !== undefined">
+              <!-- <div class="room-count" v-if="date.roomCount !== null && date.roomCount !== undefined">
                 剩{{ date.roomCount }}间
-              </div>
+              </div> -->
             </div>
           </template>
           <template #default="{ row }">
@@ -98,7 +98,9 @@
               >
                 <span v-if="task.status === 'expired'">已过期</span>
                 <span v-else-if="task.status === 'pending'">待分配</span>
-                <span v-else-if="task.status === 'assigned'">已分配</span>
+                <span v-else-if="task.status === 'assigned'">待接受</span>
+                <span v-else-if="task.status === 'in_progress'">待打扫</span>
+                <span v-else-if="task.status === 'completed'">已完成</span>
                 <span v-else>{{ task.label }}</span>
               </div>
             </div>
@@ -151,9 +153,12 @@
                 style="width: 100%"
                 filterable
               >
-                <el-option label="张三" value="1" />
-                <el-option label="李四" value="2" />
-                <el-option label="王五" value="3" />
+                <el-option
+                  v-for="cleaner in cleanerList"
+                  :key="cleaner.id"
+                  :label="cleaner.name"
+                  :value="cleaner.id"
+                />
               </el-select>
             </el-form-item>
             <el-form-item label="任务时间">
@@ -220,9 +225,12 @@
                 filterable
                 clearable
               >
-                <el-option label="张三" value="1" />
-                <el-option label="李四" value="2" />
-                <el-option label="王五" value="3" />
+                <el-option
+                  v-for="cleaner in cleanerList"
+                  :key="cleaner.id"
+                  :label="cleaner.name"
+                  :value="cleaner.id"
+                />
               </el-select>
             </el-form-item>
             <el-form-item label="任务时间" required>
@@ -276,7 +284,15 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ArrowLeft, ArrowRight, ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getCalendarViewData, type CleaningTaskDTO } from '@/api/cleaning'
+import {
+  getCalendarViewData,
+  getCleaners,
+  assignCleaningTask,
+  createCleaningTask,
+  type CleaningTaskDTO,
+  type CleanerDTO,
+  type CleaningTaskCreateDTO,
+} from '@/api/cleaning'
 import { getRooms, type RoomDTO } from '@/api/room'
 
 // 当前日期
@@ -337,6 +353,9 @@ interface RoomListItem {
 
 const roomList = ref<RoomListItem[]>([])
 
+// 保洁员列表
+const cleanerList = ref<CleanerDTO[]>([])
+
 // 加载房间列表
 const loadRooms = async () => {
   try {
@@ -351,6 +370,19 @@ const loadRooms = async () => {
     }
   } catch (error: any) {
     console.error('获取房间列表失败:', error)
+  }
+}
+
+// 加载保洁员列表
+const loadCleaners = async () => {
+  try {
+    const response = await getCleaners()
+    if (response.success && response.data) {
+      cleanerList.value = response.data
+    }
+  } catch (error: any) {
+    console.error('获取保洁员列表失败:', error)
+    ElMessage.error(error.message || '获取保洁员列表失败')
   }
 }
 
@@ -421,8 +453,8 @@ const getStatusLabel = (status: string) => {
   const labelMap: Record<string, string> = {
     expired: '已过期',
     pending: '待分配',
-    assigned: '已分配',
-    in_progress: '清洁中',
+    assigned: '待接受',
+    in_progress: '待打扫',
     completed: '已完成',
   }
   return labelMap[status] || status
@@ -433,13 +465,14 @@ const getTasksForCell = (roomNumber: string, date: string) => {
   return tasks.value.filter((task) => task.roomNumber === roomNumber && task.date === date)
 }
 
-// 获取任务样式类
+// 获取任务样式类（只根据状态设置颜色，不受任务类型影响）
 const getTaskClass = (task: any) => {
   return {
     'task-expired': task.status === 'expired',
     'task-pending': task.status === 'pending',
     'task-assigned': task.status === 'assigned',
-    'task-checkout': task.type === 'checkout',
+    'task-in-progress': task.status === 'in_progress',
+    'task-completed': task.status === 'completed',
   }
 }
 
@@ -462,18 +495,19 @@ const assignForm = ref({
   taskType: '',
   taskDate: '',
   taskTime: '10:00-16:00',
-  cleaner: '',
+  cleaner: undefined as number | undefined,
   remark: '',
 })
 
 // 新增任务抽屉
 const createDrawerVisible = ref(false)
 const createForm = ref({
+  roomId: 0,
   roomNumber: '',
   roomType: '',
   taskDate: '',
   taskType: '',
-  cleaner: '',
+  cleaner: undefined as number | undefined,
   startTime: '10:00',
   endTime: '16:00',
   remark: '',
@@ -509,7 +543,7 @@ const handleCellClick = (row: any, date: any, event: MouseEvent) => {
         taskType: getTaskTypeText(task.type),
         taskDate: formatDateDisplay(date.date),
         taskTime: '10:00-16:00',
-        cleaner: '',
+        cleaner: undefined,
         remark: '',
       }
       assignDrawerVisible.value = true
@@ -552,11 +586,12 @@ const handleCreateTask = () => {
 
   const { row, date } = selectedCell.value
   createForm.value = {
+    roomId: row.id,
     roomNumber: row.roomNumber,
     roomType: row.roomType,
     taskDate: formatDateDisplay(date.date),
     taskType: '',
-    cleaner: '',
+    cleaner: undefined,
     startTime: '10:00',
     endTime: '16:00',
     remark: '',
@@ -600,39 +635,62 @@ const handleCancelAssign = () => {
     taskType: '',
     taskDate: '',
     taskTime: '10:00-16:00',
-    cleaner: '',
+    cleaner: undefined,
     remark: '',
   }
 }
 
 // 确认分配
-const handleConfirmAssign = () => {
+const handleConfirmAssign = async () => {
+  console.log('=== 开始分配任务 ===')
+  console.log('assignForm.value:', assignForm.value)
+
   if (!assignForm.value.cleaner) {
     ElMessage.warning('请选择保洁员')
     return
   }
 
-  // 更新任务状态
-  const taskIndex = tasks.value.findIndex((t) => t.id === assignForm.value.taskId)
-  if (taskIndex !== -1) {
-    tasks.value[taskIndex].status = 'assigned'
-    tasks.value[taskIndex].label = '已分配'
-  }
+  console.log('准备调用API - taskId:', assignForm.value.taskId, 'cleanerId:', assignForm.value.cleaner)
 
-  ElMessage.success('分配成功')
-  assignDrawerVisible.value = false
-  // TODO: 调用API保存分配信息
+  try {
+    // 调用后端API保存分配信息
+    const response = await assignCleaningTask(assignForm.value.taskId, assignForm.value.cleaner)
+    console.log('API响应:', response)
+
+    if (response.success) {
+      // 更新本地任务状态
+      const taskIndex = tasks.value.findIndex((t) => t.id === assignForm.value.taskId)
+      if (taskIndex !== -1) {
+        tasks.value[taskIndex].status = 'assigned'
+        tasks.value[taskIndex].label = '待接受'
+      }
+
+      ElMessage.success('分配成功')
+      assignDrawerVisible.value = false
+
+      // 重新加载任务数据以确保与后端同步
+      console.log('重新加载任务数据...')
+      await loadTasks()
+    } else {
+      console.error('分配失败:', response.message)
+      ElMessage.error(response.message || '分配失败')
+    }
+  } catch (error: any) {
+    console.error('分配任务失败:', error)
+    ElMessage.error(error.message || '分配任务失败')
+  }
 }
 
 // 取消新增任务
 const handleCancelCreate = () => {
   createDrawerVisible.value = false
   createForm.value = {
+    roomId: 0,
     roomNumber: '',
     roomType: '',
     taskDate: '',
     taskType: '',
-    cleaner: '',
+    cleaner: undefined,
     startTime: '10:00',
     endTime: '16:00',
     remark: '',
@@ -640,7 +698,10 @@ const handleCancelCreate = () => {
 }
 
 // 确认新增任务
-const handleConfirmCreate = () => {
+const handleConfirmCreate = async () => {
+  console.log('=== 开始创建任务 ===')
+  console.log('createForm.value:', createForm.value)
+
   if (!createForm.value.taskType) {
     ElMessage.warning('请选择任务类型')
     return
@@ -651,36 +712,54 @@ const handleConfirmCreate = () => {
     return
   }
 
-  // 从日期字符串解析出日期
-  const dateStr = createForm.value.taskDate.replace(/\//g, '-')
+  try {
+    // 从日期字符串解析出日期
+    const dateStr = createForm.value.taskDate.replace(/\//g, '-')
 
-  // 创建新任务
-  const newTask = {
-    id: tasks.value.length + 1,
-    roomNumber: createForm.value.roomNumber,
-    date: dateStr,
-    status: createForm.value.cleaner ? 'assigned' : 'pending',
-    type: createForm.value.taskType,
-    label: createForm.value.cleaner ? '已分配' : '待分配',
+    // 构造创建任务的DTO
+    const createDTO: CleaningTaskCreateDTO = {
+      taskDate: dateStr,
+      roomId: createForm.value.roomId,
+      taskType: createForm.value.taskType,
+      cleanerId: createForm.value.cleaner,
+      estimatedTime: `${createForm.value.startTime}-${createForm.value.endTime}`,
+      notes: createForm.value.remark || undefined,
+    }
+
+    console.log('准备调用创建任务API:', createDTO)
+
+    // 调用后端API创建任务
+    const response = await createCleaningTask(createDTO)
+    console.log('API响应:', response)
+
+    if (response.success) {
+      ElMessage.success('任务创建成功')
+      createDrawerVisible.value = false
+
+      // 重置表单
+      createForm.value = {
+        roomId: 0,
+        roomNumber: '',
+        roomType: '',
+        taskDate: '',
+        taskType: '',
+        cleaner: undefined,
+        startTime: '10:00',
+        endTime: '16:00',
+        remark: '',
+      }
+
+      // 重新加载任务数据
+      console.log('重新加载任务数据...')
+      await loadTasks()
+    } else {
+      console.error('创建任务失败:', response.message)
+      ElMessage.error(response.message || '创建任务失败')
+    }
+  } catch (error: any) {
+    console.error('创建任务失败:', error)
+    ElMessage.error(error.message || '创建任务失败')
   }
-
-  tasks.value.push(newTask)
-  ElMessage.success('任务创建成功')
-  createDrawerVisible.value = false
-
-  // 重置表单
-  createForm.value = {
-    roomNumber: '',
-    roomType: '',
-    taskDate: '',
-    taskType: '',
-    cleaner: '',
-    startTime: '10:00',
-    endTime: '16:00',
-    remark: '',
-  }
-
-  // TODO: 调用API保存任务信息
 }
 
 // 处理日期变化
@@ -747,6 +826,7 @@ watch(
 onMounted(() => {
   document.addEventListener('click', handleGlobalClick)
   loadRooms()
+  loadCleaners()
   loadTasks()
 })
 
@@ -875,19 +955,25 @@ onUnmounted(() => {
 
 /* 待分配任务 */
 .task-item.task-pending {
-  background-color: #ffa8a8;
+  background-color: #409eff;
   color: #fff;
 }
 
-/* 已分配任务 */
+/* 已分配任务（待接受） */
 .task-item.task-assigned {
-  background-color: #67c23a;
+  background-color: #f56c6c;
   color: #fff;
 }
 
-/* 退房任务 */
-.task-item.task-checkout {
-  background-color: #909399;
+/* 进行中任务（待打扫） */
+.task-item.task-in-progress {
+  background-color: #e6a23c;
+  color: #fff;
+}
+
+/* 已完成任务 */
+.task-item.task-completed {
+  background-color: #67c23a;
   color: #fff;
 }
 

@@ -89,11 +89,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { Grid, Check, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
-  getCleaningSuppliesByUserId,
+  getAllCleaningSupplies,
   createCleaningSupply,
   updateCleaningSupply,
 } from '@/api/cleaning'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
+import { useStoreStore } from '@/stores/store'
 
 interface SupplyItem {
   id: number
@@ -101,6 +102,7 @@ interface SupplyItem {
   supplies: string
 }
 
+const storeStore = useStoreStore()
 const loading = ref(false)
 const searchText = ref('')
 const showSupplyDialog = ref(false)
@@ -139,9 +141,15 @@ const loadRoomTypes = async () => {
 
 // 加载易耗品列表
 const loadSupplies = async () => {
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    supplies.value = []
+    return
+  }
+
   try {
     loading.value = true
-    const response = await getCleaningSuppliesByUserId(1) // 默认用户ID为1
+    const response = await getAllCleaningSupplies()
     if (response.success && response.data) {
       supplies.value = response.data
     } else {
@@ -184,7 +192,6 @@ const handleSaveNewSupply = async () => {
   try {
     loading.value = true
     const response = await createCleaningSupply({
-      userId: 1,
       roomType: newSupplyName.value.trim(),
       supplies: '',
     })
@@ -229,7 +236,6 @@ const handleSaveSupply = async () => {
     if (existingItem) {
       // 更新现有房型的易耗品
       response = await updateCleaningSupply(existingItem.id, {
-        userId: 1,
         roomType: supplyForm.roomType,
         supplies: supplyForm.supplies,
       })
@@ -239,7 +245,6 @@ const handleSaveSupply = async () => {
     } else {
       // 添加新的房型易耗品
       response = await createCleaningSupply({
-        userId: 1,
         roomType: supplyForm.roomType,
         supplies: supplyForm.supplies,
       })

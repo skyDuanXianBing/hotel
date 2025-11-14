@@ -3,6 +3,7 @@ package server.demo.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.RoomTableDataDTO;
 import server.demo.service.RoomTableService;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/api/v1/room-table")
 @CrossOrigin
+@StoreScoped
 public class RoomTableController {
 
     @Autowired

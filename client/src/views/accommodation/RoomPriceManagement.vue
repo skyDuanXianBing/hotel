@@ -547,11 +547,6 @@ const loadPricePlans = async () => {
 const loadPriceData = async () => {
   try {
     loading.value = true
-    const userId = userStore.currentUser?.id
-    if (!userId) {
-      console.warn('⚠️ 用户ID不存在,无法加载价格数据')
-      return
-    }
 
     // 计算日期范围
     const startDate = selectedDate.value
@@ -560,7 +555,6 @@ const loadPriceData = async () => {
     const endDateStr = endDate.toISOString().split('T')[0]
 
     console.log('📅 加载价格数据:', {
-      userId,
       startDate,
       endDate: endDateStr,
       roomTypeId: selectedRoomTypeId.value
@@ -569,8 +563,7 @@ const loadPriceData = async () => {
     const response = await getRoomPriceManagementData(
       startDate,
       endDateStr,
-      selectedRoomTypeId.value || undefined,
-      userId
+      selectedRoomTypeId.value || undefined
     )
 
     console.log('📦 API响应:', response)
@@ -663,13 +656,7 @@ const closePriceEditDialog = () => {
 const savePriceEdit = async () => {
   try {
     saving.value = true
-    const userId = userStore.currentUser?.id
     const operator = userStore.currentUser?.nickname || userStore.currentUser?.email || '系统'
-
-    if (!userId) {
-      ElMessage.error('用户信息不存在')
-      return
-    }
 
     // 准备请求数据
     const requestData: any = {
@@ -693,7 +680,7 @@ const savePriceEdit = async () => {
     }
 
     console.log('💾 发送更新请求:', requestData)
-    const response = await updatePriceByPlan(requestData, userId, operator)
+    const response = await updatePriceByPlan(requestData, operator)
     console.log('💾 更新响应:', response)
 
     if (response.success) {

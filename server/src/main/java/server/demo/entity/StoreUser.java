@@ -1,7 +1,10 @@
 package server.demo.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 门店-用户关联表
@@ -26,10 +29,22 @@ public class StoreUser {
     private User user;
 
     /**
-     * 用户在该门店的角色: owner(所有者), admin(管理员), member(普通成员)
+     * 用户在该门店的基础角色: owner(所有者), admin(管理员), member(普通成员)
      */
     @Column(nullable = false, length = 20)
     private String role = "member";
+
+    /**
+     * 用户在该门店的权限角色（细粒度权限控制）
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "store_user_roles",
+        joinColumns = @JoinColumn(name = "store_user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    @JsonIgnoreProperties({"users", "rolePermissions"})
+    private Set<Role> roles = new HashSet<>();
 
     /**
      * 是否激活
@@ -118,5 +133,13 @@ public class StoreUser {
 
     public void setJoinedAt(LocalDateTime joinedAt) {
         this.joinedAt = joinedAt;
+    }
+
+    public Set<Role> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<Role> roles) {
+        this.roles = roles;
     }
 }

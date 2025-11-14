@@ -386,12 +386,6 @@ const router = createRouter({
           redirect: '/statistics/business-summary',
         },
         {
-          path: 'chat',
-          name: 'Chat',
-          component: () => import('@/views/chat/ChatPage.vue'),
-          meta: { title: '智能客服', requiresAuth: true },
-        },
-        {
           path: 'wallet',
           name: 'Wallet',
           component: () => import('@/views/wallet/WalletPage.vue'),
@@ -557,16 +551,31 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  // 管理员访问控制 - 管理员不能访问保洁员路径 (除了登录页)
-  if (token && !isCleaner && to.path.startsWith('/cleaner') && to.path !== '/cleaner/login') {
+  // 管理员访问控制 - 管理员不能访问保洁员路径 (除了登录页和注册页)
+  if (
+    token &&
+    !isCleaner &&
+    to.path.startsWith('/cleaner') &&
+    to.path !== '/cleaner/login' &&
+    to.path !== '/cleaner/register'
+  ) {
     next('/')
     return
   }
 
   // 门店检查 - 管理员访问主要功能时必须先选择门店
-  // 排除门店相关页面和登录注册页面
-  const storeRelatedPaths = ['/store/selection', '/login', '/register', '/forgot-password']
-  const isStoreRelatedPath = storeRelatedPaths.some(path => to.path === path || to.path.startsWith(path))
+  // 排除门店相关页面、登录注册页面和保洁员公开页面
+  const storeRelatedPaths = [
+    '/store/selection',
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/cleaner/login',
+    '/cleaner/register',
+  ]
+  const isStoreRelatedPath = storeRelatedPaths.some(
+    (path) => to.path === path || to.path.startsWith(path)
+  )
 
   if (token && !isCleaner && to.meta.requiresAuth && !isStoreRelatedPath && !hasCurrentStore) {
     // 已登录且不是保洁员,访问需要认证的页面,但没有选择门店

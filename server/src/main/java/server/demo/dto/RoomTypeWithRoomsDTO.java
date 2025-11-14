@@ -19,6 +19,15 @@ public class RoomTypeWithRoomsDTO {
     private BigDecimal weekdayPrice;
     private BigDecimal weekendPrice;
 
+    // 每天的价格
+    private BigDecimal mondayPrice;
+    private BigDecimal tuesdayPrice;
+    private BigDecimal wednesdayPrice;
+    private BigDecimal thursdayPrice;
+    private BigDecimal fridayPrice;
+    private BigDecimal saturdayPrice;
+    private BigDecimal sundayPrice;
+
     // Constructors
     public RoomTypeWithRoomsDTO() {}
 
@@ -34,6 +43,13 @@ public class RoomTypeWithRoomsDTO {
         this.defaultPrice = roomType.getDefaultPrice();
         this.weekdayPrice = roomType.getWeekdayPrice();
         this.weekendPrice = roomType.getWeekendPrice();
+        this.mondayPrice = roomType.getMondayPrice();
+        this.tuesdayPrice = roomType.getTuesdayPrice();
+        this.wednesdayPrice = roomType.getWednesdayPrice();
+        this.thursdayPrice = roomType.getThursdayPrice();
+        this.fridayPrice = roomType.getFridayPrice();
+        this.saturdayPrice = roomType.getSaturdayPrice();
+        this.sundayPrice = roomType.getSundayPrice();
     }
 
     // Getters and Setters
@@ -123,6 +139,62 @@ public class RoomTypeWithRoomsDTO {
 
     public void setWeekendPrice(BigDecimal weekendPrice) {
         this.weekendPrice = weekendPrice;
+    }
+
+    public BigDecimal getMondayPrice() {
+        return mondayPrice;
+    }
+
+    public void setMondayPrice(BigDecimal mondayPrice) {
+        this.mondayPrice = mondayPrice;
+    }
+
+    public BigDecimal getTuesdayPrice() {
+        return tuesdayPrice;
+    }
+
+    public void setTuesdayPrice(BigDecimal tuesdayPrice) {
+        this.tuesdayPrice = tuesdayPrice;
+    }
+
+    public BigDecimal getWednesdayPrice() {
+        return wednesdayPrice;
+    }
+
+    public void setWednesdayPrice(BigDecimal wednesdayPrice) {
+        this.wednesdayPrice = wednesdayPrice;
+    }
+
+    public BigDecimal getThursdayPrice() {
+        return thursdayPrice;
+    }
+
+    public void setThursdayPrice(BigDecimal thursdayPrice) {
+        this.thursdayPrice = thursdayPrice;
+    }
+
+    public BigDecimal getFridayPrice() {
+        return fridayPrice;
+    }
+
+    public void setFridayPrice(BigDecimal fridayPrice) {
+        this.fridayPrice = fridayPrice;
+    }
+
+    public BigDecimal getSaturdayPrice() {
+        return saturdayPrice;
+    }
+
+    public void setSaturdayPrice(BigDecimal saturdayPrice) {
+        this.saturdayPrice = saturdayPrice;
+    }
+
+    public BigDecimal getSundayPrice() {
+        return sundayPrice;
+    }
+
+    public void setSundayPrice(BigDecimal sundayPrice) {
+        this.sundayPrice = sundayPrice;
     }
 
     // 内部类：房间信息DTO

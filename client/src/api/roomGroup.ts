@@ -27,10 +27,10 @@ export interface RoomGroupMemberBatchDTO {
 }
 
 /**
- * 获取用户的所有房间分组
+ * 获取当前门店的所有房间分组
  */
-export const getAllRoomGroups = async (userId: number): Promise<ApiResponse<RoomGroupDTO[]>> => {
-  return await request.get('/room-groups', { params: { userId } })
+export const getAllRoomGroups = async (): Promise<ApiResponse<RoomGroupDTO[]>> => {
+  return await request.get('/room-groups')
 }
 
 /**
@@ -44,10 +44,9 @@ export const getRoomGroupById = async (id: number): Promise<ApiResponse<RoomGrou
  * 创建房间分组
  */
 export const createRoomGroup = async (
-  userId: number,
   data: RoomGroupDTO
 ): Promise<ApiResponse<RoomGroupDTO>> => {
-  return await request.post('/room-groups', data, { params: { userId } })
+  return await request.post('/room-groups', data)
 }
 
 /**
