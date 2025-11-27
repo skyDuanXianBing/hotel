@@ -37,7 +37,9 @@
       "Bash(Select-String -Pattern \"RoleManagement|error\" -Context 0,2)",
       "Bash(Select-String -Pattern \"QuickReply|BUILD|ERROR\" -Context 0,2)",
       "Bash(Select-String -Pattern \"NoteSettings|error TS\" -Context 1,0)",
-      "Bash(Select-String -Pattern \"ConsumptionItem|error TS\" -Context 0,2)"
+      "Bash(Select-String -Pattern \"ConsumptionItem|error TS\" -Context 0,2)",
+      "Bash(Select-String -Pattern \"ERROR|BUILD|符号\" -Context 0,2)",
+      "Bash(Select-String -Pattern \"ChannelManagement|error TS\" -Context 0,2)"
     ],
     "deny": [],
     "ask": []

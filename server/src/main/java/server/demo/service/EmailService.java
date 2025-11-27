@@ -291,4 +291,73 @@ public class EmailService {
                 </html>
                 """.formatted(storeName, invitationUrl, storeName);
     }
+
+    /**
+     * 通用邮件发送方法
+     * 用于虚拟邮箱系统的邮件发送
+     *
+     * @param from 发件人邮箱
+     * @param to 收件人邮箱
+     * @param subject 邮件主题
+     * @param content 邮件内容(纯文本)
+     * @param htmlContent HTML内容(可选)
+     * @throws MessagingException 邮件发送异常
+     */
+    public void sendEmail(String from, String to, String subject, String content, String htmlContent) throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        // 设置发件人(如果提供了自定义发件人,则使用;否则使用默认)
+        helper.setFrom(from != null ? from : fromEmail);
+        helper.setTo(to);
+        helper.setSubject(subject);
+
+        // 设置邮件内容
+        if (htmlContent != null && !htmlContent.isEmpty()) {
+            helper.setText(content, htmlContent);
+        } else {
+            // 将纯文本转换为简单的HTML格式
+            String simpleHtml = buildSimpleHtmlContent(content);
+            helper.setText(content, simpleHtml);
+        }
+
+        mailSender.send(message);
+    }
+
+    /**
+     * 构建简单的HTML邮件内容
+     *
+     * @param textContent 纯文本内容
+     * @return HTML内容
+     */
+    private String buildSimpleHtmlContent(String textContent) {
+        // 将换行符转换为<br>
+        String htmlContent = textContent.replace("\n", "<br>");
+
+        return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            padding: 20px;
+                        }
+                        .content {
+                            max-width: 600px;
+                            margin: 0 auto;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="content">
+                        %s
+                    </div>
+                </body>
+                </html>
+                """.formatted(htmlContent);
+    }
 }

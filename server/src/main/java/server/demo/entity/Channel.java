@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import server.demo.entity.base.StoreScopedEntity;
 import server.demo.entity.listener.StoreScopedEntityListener;
 import server.demo.enums.ChannelType;
+import server.demo.enums.PriceAdjustmentType;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -59,6 +61,57 @@ public class Channel implements StoreScopedEntity {
 
     @Column(length = 500)
     private String notes;
+
+    // ==================== PriceLabs / OTA 集成字段 ====================
+
+    /**
+     * OTA API URL
+     */
+    @Column(name = "ota_api_url", length = 500)
+    private String otaApiUrl;
+
+    /**
+     * OTA API Key
+     */
+    @Column(name = "ota_api_key", length = 255)
+    private String otaApiKey;
+
+    /**
+     * OTA API Secret
+     */
+    @Column(name = "ota_api_secret", length = 255)
+    private String otaApiSecret;
+
+    /**
+     * OTA 物业/房源 ID
+     */
+    @Column(name = "ota_property_id", length = 100)
+    private String otaPropertyId;
+
+    /**
+     * 价格调整类型
+     * COMMISSION: 基于佣金率计算（使用 commissionRate 字段）
+     * FIXED: 固定金额调整
+     * PERCENTAGE: 百分比调整
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_adjustment_type")
+    private PriceAdjustmentType priceAdjustmentType = PriceAdjustmentType.PERCENTAGE;
+
+    /**
+     * 价格调整值
+     * 正数表示加价（更贵），负数表示减价（更便宜）
+     * 当 adjustmentType 为 PERCENTAGE 时，表示百分比（如 10 表示 +10%，-5 表示 -5%）
+     * 当 adjustmentType 为 FIXED 时，表示固定金额
+     */
+    @Column(name = "price_adjustment_value", precision = 10, scale = 2)
+    private BigDecimal priceAdjustmentValue;
+
+    /**
+     * 是否自动同步价格到此渠道
+     */
+    @Column(name = "auto_sync_price")
+    private Boolean autoSyncPrice = true;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -231,5 +284,108 @@ public class Channel implements StoreScopedEntity {
     @Override
     public void setStoreId(Long storeId) {
         this.storeId = storeId;
+    }
+
+    // ==================== PriceLabs / OTA 集成字段的 Getter/Setter ====================
+
+    public String getOtaApiUrl() {
+        return otaApiUrl;
+    }
+
+    public void setOtaApiUrl(String otaApiUrl) {
+        this.otaApiUrl = otaApiUrl;
+    }
+
+    public String getOtaApiKey() {
+        return otaApiKey;
+    }
+
+    public void setOtaApiKey(String otaApiKey) {
+        this.otaApiKey = otaApiKey;
+    }
+
+    public String getOtaApiSecret() {
+        return otaApiSecret;
+    }
+
+    public void setOtaApiSecret(String otaApiSecret) {
+        this.otaApiSecret = otaApiSecret;
+    }
+
+    public String getOtaPropertyId() {
+        return otaPropertyId;
+    }
+
+    public void setOtaPropertyId(String otaPropertyId) {
+        this.otaPropertyId = otaPropertyId;
+    }
+
+    public PriceAdjustmentType getPriceAdjustmentType() {
+        return priceAdjustmentType;
+    }
+
+    public void setPriceAdjustmentType(PriceAdjustmentType priceAdjustmentType) {
+        this.priceAdjustmentType = priceAdjustmentType;
+    }
+
+    public BigDecimal getPriceAdjustmentValue() {
+        return priceAdjustmentValue;
+    }
+
+    public void setPriceAdjustmentValue(BigDecimal priceAdjustmentValue) {
+        this.priceAdjustmentValue = priceAdjustmentValue;
+    }
+
+    public Boolean getAutoSyncPrice() {
+        return autoSyncPrice;
+    }
+
+    public void setAutoSyncPrice(Boolean autoSyncPrice) {
+        this.autoSyncPrice = autoSyncPrice;
+    }
+
+    /**
+     * 计算渠道价格
+     * @param basePrice 基础价格
+     * @return 渠道调整后的价格
+     */
+    public BigDecimal calculateChannelPrice(BigDecimal basePrice) {
+        if (basePrice == null) {
+            return null;
+        }
+
+        PriceAdjustmentType type = this.priceAdjustmentType;
+        if (type == null) {
+            type = PriceAdjustmentType.COMMISSION;
+        }
+
+        switch (type) {
+            case COMMISSION:
+                // 使用佣金率: 渠道价格 = 基础价格 × (1 + 佣金率)
+                if (commissionRate != null) {
+                    return basePrice.multiply(BigDecimal.valueOf(1 + commissionRate / 100));
+                }
+                return basePrice;
+
+            case PERCENTAGE:
+                // 百分比调整: 渠道价格 = 基础价格 × (1 + 百分比/100)
+                if (priceAdjustmentValue != null) {
+                    BigDecimal multiplier = BigDecimal.ONE.add(
+                        priceAdjustmentValue.divide(BigDecimal.valueOf(100), 4, java.math.RoundingMode.HALF_UP)
+                    );
+                    return basePrice.multiply(multiplier).setScale(2, java.math.RoundingMode.HALF_UP);
+                }
+                return basePrice;
+
+            case FIXED:
+                // 固定金额调整: 渠道价格 = 基础价格 + 固定金额
+                if (priceAdjustmentValue != null) {
+                    return basePrice.add(priceAdjustmentValue).setScale(2, java.math.RoundingMode.HALF_UP);
+                }
+                return basePrice;
+
+            default:
+                return basePrice;
+        }
     }
 }

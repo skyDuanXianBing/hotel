@@ -28,4 +28,9 @@ public interface AutoMessageRepository extends JpaRepository<AutoMessage, Long> 
     List<AutoMessage> findByStoreId(Long storeId);
 
     List<AutoMessage> findByStoreIdAndEnabled(Long storeId, Boolean enabled);
+
+    /**
+     * 根据门店ID查找启用的自动化消息
+     */
+    List<AutoMessage> findByStoreIdAndEnabledTrue(Long storeId);
 }

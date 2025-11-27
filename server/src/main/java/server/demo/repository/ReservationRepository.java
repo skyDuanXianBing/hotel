@@ -280,4 +280,14 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     @Query("SELECT COUNT(r) FROM Reservation r WHERE r.status = 'CONFIRMED' AND r.actualCheckIn IS NULL")
     long countPendingOrders();
+
+    /**
+     * 根据入住日期和状态查找订单(用于自动化消息触发)
+     */
+    List<Reservation> findByCheckInDateAndStatus(LocalDate checkInDate, ReservationStatus status);
+
+    /**
+     * 根据退房日期和状态查找订单(用于自动化消息触发)
+     */
+    List<Reservation> findByCheckOutDateAndStatus(LocalDate checkOutDate, ReservationStatus status);
 }

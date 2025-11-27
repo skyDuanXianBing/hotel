@@ -4,7 +4,7 @@
     <div class="conversations-panel">
       <div class="panel-header">
         <h2>收件箱</h2>
-        <el-button text size="small" @click="refreshChatRooms">
+        <el-button text size="small" @click="refreshMailboxes">
           <el-icon><Refresh /></el-icon>
         </el-button>
       </div>
@@ -21,10 +21,10 @@
       <div class="conversations-list">
         <div
           v-for="conversation in filteredConversations"
-          :key="conversation.roomId"
+          :key="conversation.id"
           class="conversation-item"
-          :class="{ active: activeRoomId === conversation.roomId }"
-          @click="selectConversation(conversation.roomId)"
+          :class="{ active: activeMailboxId === conversation.id }"
+          @click="selectConversation(conversation.id)"
         >
           <div class="conversation-avatar">
             <el-icon><User /></el-icon>
@@ -71,7 +71,7 @@
             </div>
           </div>
           <div class="header-actions">
-            <el-button size="small" @click="closeChatRoomDialog">
+            <el-button size="small" @click="closeMailboxDialog">
               <el-icon><Close /></el-icon>
               关闭会话
             </el-button>
@@ -156,23 +156,21 @@ import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { Search, ChatDotRound, User, Refresh, Close, MagicStick } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  sendRealTimeMessage,
-  getRoomMessages,
-  pollNewMessages,
-  getActiveChatRooms,
-  closeChatRoom,
-  type RealTimeChatRequest,
-  type RealTimeChatResponse,
-  type ChatRoomInfo,
-  SenderType,
-  MessageType,
-  ChatStatus,
-} from '@/api/realTimeChat'
+  getActiveMailboxes,
+  getMailboxMessages,
+  pollMailboxMessages,
+  sendMailboxMessage,
+  closeMailbox,
+  type VirtualMailboxDTO,
+  type EmailMessageDTO,
+  EmailSenderType,
+  MailboxStatus
+} from '@/api/virtualMailbox'
 import { sendChatMessage, type ChatMessageRequest } from '@/api/chat'
 
 interface Message {
   id: number
-  senderType: SenderType
+  senderType: EmailSenderType
   content: string
   timestamp: Date
   senderName?: string
@@ -182,7 +180,7 @@ interface Message {
 const searchQuery = ref('')
 
 // 当前选中的会话ID
-const activeRoomId = ref<string | null>(null)
+const activeMailboxId = ref<number | null>(null)
 
 // 新消息输入
 const newMessage = ref('')
@@ -191,7 +189,7 @@ const newMessage = ref('')
 const messagesListRef = ref<HTMLElement | null>(null)
 
 // 会话数据
-const conversations = ref<ChatRoomInfo[]>([])
+const conversations = ref<VirtualMailboxDTO[]>([])
 
 // 消息列表
 const messages = ref<Message[]>([])
@@ -222,24 +220,22 @@ const filteredConversations = computed(() => {
 
 // 当前活动的会话
 const activeConversation = computed(() => {
-  if (!activeRoomId.value) return null
-  return conversations.value.find((conv) => conv.roomId === activeRoomId.value) || null
+  if (!activeMailboxId.value) return null
+  return conversations.value.find((conv) => conv.id === activeMailboxId.value) || null
 })
 
 // 最后一条住客消息
 const lastGuestMessage = computed(() => {
-  const guestMessages = messages.value.filter(m => m.senderType === SenderType.GUEST)
+  const guestMessages = messages.value.filter(m => m.senderType === EmailSenderType.GUEST)
   return guestMessages.length > 0 ? guestMessages[guestMessages.length - 1].content : ''
 })
 
 // 获取状态类型
-const getStatusType = (status: ChatStatus) => {
+const getStatusType = (status: MailboxStatus) => {
   switch (status) {
-    case ChatStatus.ACTIVE:
+    case MailboxStatus.ACTIVE:
       return 'success'
-    case ChatStatus.WAITING:
-      return 'warning'
-    case ChatStatus.CLOSED:
+    case MailboxStatus.CLOSED:
       return 'info'
     default:
       return 'info'
@@ -247,84 +243,77 @@ const getStatusType = (status: ChatStatus) => {
 }
 
 // 获取状态文本
-const getStatusText = (status: ChatStatus) => {
+const getStatusText = (status: MailboxStatus) => {
   switch (status) {
-    case ChatStatus.ACTIVE:
+    case MailboxStatus.ACTIVE:
       return '活跃'
-    case ChatStatus.WAITING:
-      return '等待中'
-    case ChatStatus.CLOSED:
+    case MailboxStatus.CLOSED:
       return '已关闭'
     default:
       return '未知'
   }
 }
 
-// 刷新聊天室列表
-const refreshChatRooms = async () => {
+// 刷新邮箱列表
+const refreshMailboxes = async () => {
   try {
-    const response = await getActiveChatRooms()
+    const response = await getActiveMailboxes()
     if (response.success && response.data) {
       conversations.value = response.data
     }
   } catch (error) {
-    console.error('刷新聊天室列表失败:', error)
+    console.error('刷新邮箱列表失败:', error)
     ElMessage.error('刷新失败')
   }
 }
 
 // 选择会话
-const selectConversation = async (roomId: string) => {
-  activeRoomId.value = roomId
-  await loadRoomMessages(roomId)
+const selectConversation = async (mailboxId: number) => {
+  activeMailboxId.value = mailboxId
+  await loadMailboxMessages(mailboxId)
   lastPollTime.value = new Date().toISOString()
 }
 
-// 加载聊天室消息
-const loadRoomMessages = async (roomId: string) => {
+// 加载邮箱消息
+const loadMailboxMessages = async (mailboxId: number) => {
   try {
-    const response = await getRoomMessages(roomId)
+    const response = await getMailboxMessages(mailboxId)
     if (response.success && response.data) {
-      messages.value = response.data.map((msg: RealTimeChatResponse) => ({
-        id: msg.messageId,
+      messages.value = response.data.map((msg: EmailMessageDTO) => ({
+        id: msg.id,
         senderType: msg.senderType,
-        content: msg.messageContent,
-        timestamp: new Date(msg.sentAt),
+        content: msg.content,
+        timestamp: new Date(msg.timestamp),
         senderName: msg.senderName,
       }))
       await scrollToBottom()
     }
   } catch (error) {
-    console.error('加载聊天室消息失败:', error)
+    console.error('加载邮箱消息失败:', error)
     ElMessage.error('加载消息失败')
   }
 }
 
 // 发送消息
 const sendMessage = async () => {
-  if (!newMessage.value.trim() || !activeRoomId.value || isLoading.value) return
+  if (!newMessage.value.trim() || !activeMailboxId.value || isLoading.value) return
 
   const messageContent = newMessage.value.trim()
   isLoading.value = true
 
   try {
-    const chatRequest: RealTimeChatRequest = {
-      roomId: activeRoomId.value,
-      message: messageContent,
-      senderType: SenderType.STAFF,
-      senderName: '客服',
-      messageType: MessageType.TEXT,
-    }
-
-    const response = await sendRealTimeMessage(chatRequest)
+    const response = await sendMailboxMessage(activeMailboxId.value, {
+      content: messageContent,
+      senderName: '客服'
+    })
 
     if (response.success && response.data) {
       // 添加到消息列表
       messages.value.push({
-        id: response.data.messageId,
-        senderType: SenderType.STAFF,
-        content: messageContent,
-        timestamp: new Date(response.data.sentAt),
+        id: response.data.id,
+        senderType: response.data.senderType,
+        content: response.data.content,
+        timestamp: new Date(response.data.timestamp),
         senderName: response.data.senderName,
       })
 
@@ -344,7 +333,7 @@ const sendMessage = async () => {
 
 // AI回复
 const sendAiReply = async () => {
-  if (!lastGuestMessage.value || isAiReplying.value || !activeRoomId.value) return
+  if (!lastGuestMessage.value || isAiReplying.value || !activeMailboxId.value) return
 
   isAiReplying.value = true
 
@@ -359,23 +348,19 @@ const sendAiReply = async () => {
     if (response.success && response.data) {
       aiSessionId.value = response.data.sessionId
 
-      // 发送AI回复到实时聊天
-      const aiReplyRequest: RealTimeChatRequest = {
-        roomId: activeRoomId.value,
-        message: response.data.reply,
-        senderType: SenderType.STAFF,
-        senderName: 'AI客服',
-        messageType: MessageType.TEXT,
-      }
+      // 发送AI回复到虚拟邮箱
+      const mailboxResponse = await sendMailboxMessage(activeMailboxId.value, {
+        content: response.data.reply,
+        senderName: 'AI客服'
+      })
 
-      const realtimeResponse = await sendRealTimeMessage(aiReplyRequest)
-      if (realtimeResponse.success && realtimeResponse.data) {
+      if (mailboxResponse.success && mailboxResponse.data) {
         // 添加到消息列表
         messages.value.push({
-          id: realtimeResponse.data.messageId,
-          senderType: SenderType.STAFF,
+          id: mailboxResponse.data.id,
+          senderType: mailboxResponse.data.senderType,
           content: response.data.reply,
-          timestamp: new Date(realtimeResponse.data.sentAt),
+          timestamp: new Date(mailboxResponse.data.timestamp),
           senderName: 'AI客服',
         })
 
@@ -394,9 +379,9 @@ const sendAiReply = async () => {
   }
 }
 
-// 关闭聊天室
-const closeChatRoomDialog = async () => {
-  if (!activeRoomId.value) return
+// 关闭邮箱
+const closeMailboxDialog = async () => {
+  if (!activeMailboxId.value) return
 
   try {
     await ElMessageBox.confirm('确认关闭此会话吗？', '提示', {
@@ -405,11 +390,11 @@ const closeChatRoomDialog = async () => {
       type: 'warning',
     })
 
-    const response = await closeChatRoom(activeRoomId.value)
+    const response = await closeMailbox(activeMailboxId.value)
     if (response.success) {
       ElMessage.success('会话已关闭')
-      await refreshChatRooms()
-      activeRoomId.value = null
+      await refreshMailboxes()
+      activeMailboxId.value = null
       messages.value = []
     }
   } catch (error) {
@@ -422,23 +407,23 @@ const closeChatRoomDialog = async () => {
 
 // 轮询新消息
 const pollMessages = async () => {
-  if (!activeRoomId.value) return
+  if (!activeMailboxId.value) return
 
   try {
-    const response = await pollNewMessages(activeRoomId.value, lastPollTime.value)
+    const response = await pollMailboxMessages(activeMailboxId.value, lastPollTime.value)
 
     if (response.success && response.data && response.data.length > 0) {
       let hasNewMessages = false
 
-      response.data.forEach((msg: RealTimeChatResponse) => {
+      response.data.forEach((msg: EmailMessageDTO) => {
         // 检查消息是否已存在
-        const exists = messages.value.find((m) => m.id === msg.messageId)
+        const exists = messages.value.find((m) => m.id === msg.id)
         if (!exists) {
           messages.value.push({
-            id: msg.messageId,
+            id: msg.id,
             senderType: msg.senderType,
-            content: msg.messageContent,
-            timestamp: new Date(msg.sentAt),
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
             senderName: msg.senderName,
           })
           hasNewMessages = true
@@ -454,7 +439,7 @@ const pollMessages = async () => {
     lastPollTime.value = new Date().toISOString()
 
     // 刷新会话列表（以更新最后活动时间）
-    await refreshChatRooms()
+    await refreshMailboxes()
   } catch (error) {
     console.error('轮询消息失败:', error)
   }
@@ -516,11 +501,11 @@ const formatMessageTime = (date: Date) => {
 
 // 初始化
 const initialize = async () => {
-  await refreshChatRooms()
+  await refreshMailboxes()
 
   // 如果有会话，选择第一个
   if (conversations.value.length > 0) {
-    await selectConversation(conversations.value[0].roomId)
+    await selectConversation(conversations.value[0].id)
   }
 
   // 开始轮询
