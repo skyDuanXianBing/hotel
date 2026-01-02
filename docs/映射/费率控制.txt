@@ -1,0 +1,559 @@
+# Channel Rates API
+
+The Channel Rates API allows you to manage room availability, pricing, and stay restrictions for a specific hotel, room type, and rate plan across various distribution channels. It supports both date range-based and per-day updates, enabling flexible control over how inventory and rates are distributed.&#x20;
+
+The API also accommodates guest-based pricing and channel-specific configurations, making it suitable for dynamic and granular rate management across connected platforms.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/channel-rates
+```
+
+{% endcode %}
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`hotelid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The unique property ID as assigned by the provider upon creation of the property. Required existing hotel id to create rates for the room types.
+
+> Accepts alphanumeric values.
+>
+> Space and Special characters are not allowed except Hyphen (" - ").
+>
+> Maximum 20 characters allowed.
+
+***
+
+`rooms` <mark style="color:orange;">**array (Required)**</mark>
+
+This is an array represents the detail of the room.
+
+***
+
+<mark style="color:yellow;">`rooms`</mark>
+
+`roomid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The room ID / Listing ID as assigned by the provider.
+
+Needs to be an active room in the STAAH system and if room is not available in STAAH then we will create on request.
+
+> `roomid`, `RoomID`, `ListingID` & `InvCode` defines the same field.
+>
+> Amount of elements possible within parent: Min: 1 Max: unbounded
+>
+> Accepts alphanumeric values and hyphen ( - ).
+>
+> Space and other special characters are not allowed. Maximum 20 characters allowed.
+
+***
+
+`rates` <mark style="color:orange;">**array (Required)**</mark>
+
+IT provider's rate category ID which you are updating.
+
+Rates to be updated need to be active in the STAAH system.
+
+{% hint style="info" %}
+Note that rate elements become optional when updating only availability for a hotel.
+{% endhint %}
+
+***
+
+<mark style="color:yellow;">`rates`</mark>
+
+`from` <mark style="color:orange;">**datetime (Required)**</mark>
+
+Specifying a range in requests will update the date from and including the date specified.
+
+> Only current date to max up to 730 days in the future.
+>
+> Format: **YYYY-MM-DD**
+
+***
+
+`to` <mark style="color:orange;">**datetime (Required)**</mark>
+
+Specifying a range in requests will update the date until and not including the date specified.
+
+> Only current date to max up to 730 days in the future.
+>
+> Format: **YYYY-MM-DD**
+
+***
+
+`rate_id` <mark style="color:orange;">**string (Required)**</mark>
+
+Identifier of the rate plan (for example, "BAR", "NONREF").
+
+***
+
+`channel_id` <mark style="color:orange;">**integer (Required)**</mark>
+
+Identifier of the distribution channel (OTA).
+
+***
+
+`channel_connection_id` <mark style="color:orange;">**string (Optional)**</mark>
+
+Unique ID for the channel connection.
+
+***
+
+`roomstosell` <mark style="color:orange;">**integer (Required)**</mark>
+
+Set the amount of rooms that can be sold by OTAs to this number.
+
+> Rate should not be specified when updating `roomstosell.`
+>
+> It cannot be a negative number.
+
+Please note rate elements become optional when updating availability for a hotel.
+
+***
+
+`prices` <mark style="color:orange;">**array (Required)**</mark>
+
+The price for the given room for the given date for the given rate category.
+
+{% hint style="warning" %}
+Price cannot be removed after a value has been set, cannot be a negative number.
+{% endhint %}
+
+***
+
+`closed` <mark style="color:orange;">**boolean (Optional)**</mark>
+
+If set to 1 (or 0), this room will be closed (or opened) for the given date for the given rate category. All other information (such as `roomstosell` and `price`) is preserved.
+
+{% hint style="info" %}
+The `closed` element functions as a restriction and defines whether a room is bookable or not.
+{% endhint %}
+
+***
+
+`minimumstay` <mark style="color:orange;">**integer (Optional)**</mark>
+
+The minimum stay for the given room for the given date for the given rate category.
+
+The `minimumstay` element functions as a restriction. If a booking takes place on this day a minimum stay (for the whole booking) of this number of days is required.
+
+Each day in a stay has a room and rate category ID associated with it. Each set of consecutive days with the same rate category ID in a stay, must comply with the minimum stay setting of each of those days in that set (as if it were a separate stay).
+
+{% hint style="info" %}
+Note this minimum stay restrictions have an effect on any given day of a booking, whereas the 'minimum stay arrival' restriction only affects a search for availability or reservation on the arrival date.
+{% endhint %}
+
+***
+
+`maximumstay` <mark style="color:orange;">**integer (Optional)**</mark>
+
+The maximum stay for the given room for the given date for the given rate category.
+
+The `maximumstay` element functions as a restriction. If a booking takes place on this day a maximum stay (for the whole booking) of this number of days is required.
+
+Each day in a stay has a room and rate category ID associated with it. Each set of consecutive days with the same rate category ID in a stay, must comply with the maximum stay setting of each of those days in that set (as if it were a separate stay).
+
+{% hint style="info" %}
+Note this maximum stay restrictions has an effect on any given day of a booking, whereas the maximum stay arrival' restriction only affects a search for availability or reservation on the arrival date.
+{% endhint %}
+
+***
+
+`closedonarrival` <mark style="color:orange;">**boolean (Optional)**</mark>
+
+The closed on arrival setting (0 or 1). If set, the guest may not arrive in this room for the given room for the given date for the given rate category.
+
+> This restriction does not allow a reservation to be made when visitors want to arrive on the selected date. When the restriction is set to '0' for a certain date, guests are free to make a reservation with arrival on this date whereas a "1" will restrict guests to book rooms with this arrival date.
+
+***
+
+`extraadultrate` <mark style="color:orange;">**double (Optional)**</mark>
+
+The price for the extra adult for the given date for the given rate category.
+
+> `extraadultrate` cannot be removed after a value has been set, cannot be a negative number.
+
+***
+
+`extrachildrate` <mark style="color:orange;">**double (Optional)**</mark>
+
+The price for the extra child for the given date for the given rate category.
+
+> `extrachildrate` cannot be removed after a value has been set, cannot be a negative number.
+
+***
+
+`closedondeparture` <mark style="color:orange;">**boolean (Optional)**</mark>
+
+The `closedondeparture` setting (0 or 1). If set, the guest may not depart from this room for the given room for the given date for the given rate category.
+
+> This restriction does not allow a reservation to be made when visitors want to depart on the selected date.
+>
+> When the restriction is set to '0' for a certain date, guests are free to make a reservation with departure on this date whereas a "1" will restrict guests to book rooms with this departure date.
+
+***
+
+<mark style="color:yellow;">`prices`</mark>
+
+`number_of_guest` <mark style="color:orange;">**integer (Required)**</mark>
+
+Number of guests for which price is applied.
+
+> Needs to be non-negative integer and maximum 30.
+
+***
+
+`value` <mark style="color:orange;">**integer (Required)**</mark>
+
+Price value for the given guest count.
+
+***
+
+### <mark style="color:yellow;">Request</mark>
+
+<mark style="color:yellow;">**For date range**</mark>
+
+Allows you to update room availability, rates, and restrictions for a specific hotel, room type, and rate plan across a defined date range.
+
+```json
+{
+    "hotelid": "KC",
+    "rooms": [
+        {
+            "room_id": "STD",
+            "rates": [
+                {
+                    "from": "2025-05-28",
+                    "to": "2025-05-29",
+                    "rate_id": "BAR",
+                    "channel_id": 19,
+                    "roomstosell": 5,
+                    "prices": [
+                        {
+                            "number_of_guest": 1,
+                            "value": 100
+                        },
+                        {
+                            "number_of_guest": 2,
+                            "value": 200
+                        }
+                    ],
+                    "closed": 0,
+                    "minimumstay": 1,
+                    "maximumstay": 15,
+                    "closedonarrival": 0,
+                    "extraadultrate": 20,
+                    "extrachildrate": 25,
+                    "closedondeparture": 0
+                }
+            ]
+        }
+    ]
+}
+```
+
+***
+
+<mark style="color:yellow;">**For single date**</mark>
+
+Allows you to set the room availability, pricing, and stay restrictions for a specific hotel, room, and rate plan on a per-day basis. It supports channel-specific rate distribution with guest-based pricing.
+
+```json
+{
+    "hotelid": "KC",
+    "rooms": [
+        {
+            "room_id": "STD",
+            "rates": [
+                {
+                    "value": "2025-05-28",
+                    "rate_id": "BAR",
+                    "channel_id": 19,
+                    "roomstosell": 5,
+                    "channel_connection_id": "523654",
+                    "prices": [
+                        {
+                            "number_of_guest": 1,
+                            "value": 100
+                        },
+                        {
+                            "number_of_guest": 2,
+                            "value": 200
+                        }
+                    ],
+                    "closed": 0,
+                    "minimumstay": 1,
+                    "maximumstay": 15,
+                    "closedonarrival": 0,
+                    "extraadultrate": 20,
+                    "extrachildrate": 25,
+                    "closedondeparture": 0
+                }
+            ]
+        }
+    ]
+}
+```
+
+***
+
+<mark style="color:yellow;">**For multiple request with multiple date for same room:**</mark>
+
+```json
+{
+    "hotelid": "KC",
+    "rooms": [
+        {
+            "room_id": "STD",
+            "rates": [
+                {
+                    "value": "2025-05-28",
+                    "rate_id": "BAR",
+                    "channel_id": 19,
+                    "roomstosell": 5,
+                    "channel_connection_id": "523654",
+                    "prices": [
+                        {
+                            "number_of_guest": 1,
+                            "value": 100
+                        },
+                        {
+                            "number_of_guest": 2,
+                            "value": 200
+                        }
+                    ],
+                    "closed": 0,
+                    "minimumstay": 1,
+                    "maximumstay": 15,
+                    "closedonarrival": 0,
+                    "extraadultrate": 20,
+                    "extrachildrate": 25,
+                    "closedondeparture": 0
+                },
+                {
+                    "value": "2025-05-29",
+                    "rate_id": "BAR",
+                    "channel_id": 19,
+                    "roomstosell": 5,
+                    "channel_connection_id": "523654",
+                    "prices": [
+                        {
+                            "number_of_guest": 1,
+                            "value": 100
+                        },
+                        {
+                            "number_of_guest": 2,
+                            "value": 200
+                        }
+                    ],
+                    "closed": 0,
+                    "minimumstay": 1,
+                    "maximumstay": 15,
+                    "closedonarrival": 0,
+                    "extraadultrate": 20,
+                    "extrachildrate": 25,
+                    "closedondeparture": 0
+                },
+                {
+                    "value": "2025-05-30",
+                    "rate_id": "BAR",
+                    "channel_id": 19,
+                    "roomstosell": 5,
+                    "channel_connection_id": "523654",
+                    "prices": [
+                        {
+                            "number_of_guest": 1,
+                            "value": 100
+                        },
+                        {
+                            "number_of_guest": 2,
+                            "value": 200
+                        }
+                    ],
+                    "closed": 0,
+                    "minimumstay": 1,
+                    "maximumstay": 15,
+                    "closedonarrival": 0,
+                    "extraadultrate": 20,
+                    "extrachildrate": 25,
+                    "closedondeparture": 0
+                },
+                {
+                    "from": "2025-06-01",
+                    "to": "2025-06-15",
+                    "rate_id": "BAR",
+                    "channel_id": 19,
+                    "roomstosell": 5,
+                    "channel_connection_id": "523654",
+                    "prices": [
+                        {
+                            "number_of_guest": 1,
+                            "value": 100
+                        },
+                        {
+                            "number_of_guest": 2,
+                            "value": 200
+                        }
+                    ],
+                    "closed": 0,
+                    "minimumstay": 1,
+                    "maximumstay": 15,
+                    "closedonarrival": 0,
+                    "extraadultrate": 20,
+                    "extrachildrate": 25,
+                    "closedondeparture": 0
+                }
+            ]
+        }
+    ]
+}
+```
+
+***
+
+<mark style="color:yellow;">**For multiple request with diiferent room rate and different channels:**</mark>
+
+```json
+{
+    "hotelid": "KC",
+    "rooms": [
+        {
+            "room_id": "STD",
+            "rates": [
+                {
+                    "value": "2025-05-28",
+                    "rate_id": "BAR",
+                    "channel_id": 19,
+                    "roomstosell": 5,
+                    "channel_connection_id": "523654",
+                    "prices": [
+                        {
+                            "number_of_guest": 1,
+                            "value": 100
+                        },
+                        {
+                            "number_of_guest": 2,
+                            "value": 200
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "room_id": "DLX",
+            "rates": [
+                {
+                    "value": "2025-05-29",
+                    "rate_id": "BreakFastOnly",
+                    "channel_id": 189,
+                    "roomstosell": 5,
+                    "closed": 0,
+                    "minimumstay": 1,
+                    "maximumstay": 15,
+                    "closedonarrival": 0,
+                    "extraadultrate": 20,
+                    "extrachildrate": 25,
+                    "closedondeparture": 0
+                }
+            ]
+        },
+        {
+            "room_id": "STD",
+            "rates": [
+                {
+                    "value": "2025-05-30",
+                    "rate_id": "BAR",
+                    "channel_id": 19,
+                    "roomstosell": 5,
+                    "channel_connection_id": "523654",
+                    "prices": [
+                        {
+                            "number_of_guest": 1,
+                            "value": 100
+                        },
+                        {
+                            "number_of_guest": 2,
+                            "value": 200
+                        }
+                    ],
+                    "closed": 0,
+                    "minimumstay": 1,
+                    "maximumstay": 15,
+                    "closedonarrival": 0,
+                    "extraadultrate": 20,
+                    "extrachildrate": 25,
+                    "closedondeparture": 0
+                }
+            ]
+        },
+        {
+            "room_id": "RoomOnly",
+            "rates": [
+                {
+                    "from": "2025-06-01",
+                    "to": "2025-06-15",
+                    "rate_id": "RP",
+                    "channel_id": 19,
+                    "roomstosell": 5,
+                    "channel_connection_id": "523654",
+                    "prices": [
+                        {
+                            "number_of_guest": 1,
+                            "value": 100
+                        },
+                        {
+                            "number_of_guest": 2,
+                            "value": 200
+                        }
+                    ],
+                    "closed": 0,
+                    "minimumstay": 1,
+                    "maximumstay": 15,
+                    "closedonarrival": 0,
+                    "extraadultrate": 20,
+                    "extrachildrate": 25,
+                    "closedondeparture": 0
+                }
+            ]
+        }
+    ]
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+***
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Status of the request.
+
+***
+
+`TicketId` <mark style="color:orange;">**string**</mark>
+
+The ticket id if the status of the request is success.
+
+***
+
+#### <mark style="color:green;">**Success Response**</mark>
+
+```json
+{
+    "Status":"Success",
+    "TicketId":"174824274798589344913"
+}
+```

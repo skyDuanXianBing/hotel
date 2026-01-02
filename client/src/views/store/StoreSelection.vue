@@ -190,6 +190,12 @@
             <el-option label="GBP - 英镑" value="GBP" />
           </el-select>
         </el-form-item>
+
+        <el-form-item label="Su 直连" prop="createSuProperty">
+          <el-checkbox v-model="form.createSuProperty">
+            创建门店后同步创建/覆盖 Su 物业（用于后续打开授权 Widget）
+          </el-checkbox>
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -235,7 +241,7 @@ const phonePrefix = ref('+86')
 const userEmail = computed(() => userStore.currentUser?.email || '')
 
 // 表单数据
-const form = ref<StoreRequest & { currency?: string }>({
+const form = ref<StoreRequest>({
   name: '',
   phone: '',
   type: 'hotel',
@@ -246,6 +252,7 @@ const form = ref<StoreRequest & { currency?: string }>({
   state: '',
   address: '',
   currency: 'CNY',
+  createSuProperty: true,
 })
 
 // 表单验证规则
@@ -321,8 +328,14 @@ const handleCreateStore = async () => {
         phone: phoneWithPrefix,
       }
 
-      const newStore = await storeStore.createStore(requestData)
-      ElMessage.success('门店创建成功!')
+      const result = await storeStore.createStore(requestData)
+      const newStore = result.store
+      const message = result.message || '门店创建成功'
+      if (message.includes('失败')) {
+        ElMessage.warning(message)
+      } else {
+        ElMessage.success(message)
+      }
       createDialogVisible.value = false
 
       // 刷新门店列表

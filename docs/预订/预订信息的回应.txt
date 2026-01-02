@@ -1,0 +1,2381 @@
+# Response of Reservation Information
+
+The below represent some different response models for reservations. Please note that multiple `reservation` child elements of different `status` element types can be mixed in a single reservation's response element.
+
+***
+
+### <mark style="color:yellow;">Response Model — No Pending New, Modified, Cancelled Reservations</mark>
+
+In this case no messages are pending in queue for the provider based on the parameters provided in Step 1.
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+  "reservations": []
+}
+```
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`reservations` <mark style="color:orange;">**array (Required)**</mark>
+
+List of reservation objects.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`reservation` <mark style="color:orange;">**(Required)**</mark>
+
+Every reservation is indicated with a 'reservation' element.
+
+{% hint style="info" %}
+Min:1 Max:10
+
+**Children -** `commissionamount`, `currencycode`, `customer`, `address`, `cc_cvc`, `cc_expiration_date`, `cc_name`, `cc_number`, `cc_type`, `city`, `company`, `countrycode`, `dc_issue_number`, `dc_start_date`, `email`, `first_name`, `last_name`, `remarks`, `telephone`, `zip`, `date`, `hotel_id`, `hotel_name`, `id`, `room`, `addons`, `addon`, `name`, `nights`, `persons`, `price_mode`, `price_per_unit`, `totalprice`, `type`, `arrival_date`, `commissionamount`, `currencycode`, `departure_date`, `extra_info`, `guest_name`, `id`, `info`, `name`, `numberofguests`, `price`, `remarks`, `roomreservation_id`, `smoking`, `totalprice`, `status`, `time`, and `totalprice`
+{% endhint %}
+
+***
+
+`booked_at` <mark style="color:orange;">**date (Required)**</mark>
+
+Date when the booking has been made.
+
+{% hint style="info" %}
+Min:1 Max:1
+
+Format Date: <mark style="color:green;">**YYYY-MM-DD**</mark>
+{% endhint %}
+
+***
+
+`commissionamount` <mark style="color:orange;">**integer (Required)**</mark>
+
+The total commission a hotel has to pay to OTA per complete reservation.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`currencycode` <mark style="color:orange;">**string (Required)**</mark>
+
+Currency code in which the booking has been made.
+
+***
+
+`paymenttype` <mark style="color:orange;">**string (Required)**</mark>
+
+Payment type for the booking.
+
+***
+
+`hotel_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The hotel id as used by IT Provider.
+
+{% hint style="info" %}
+Min:1 Max:1
+
+Maximum 20 characters allowed.
+{% endhint %}
+
+***
+
+`hotel_name` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The hotel name as used by IT Provider.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`paymentdue` <mark style="color:orange;">**integer (Required)**</mark>
+
+The payment due details \*\* Currently only supported by Hostel world.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+#### <mark style="color:purple;">customer object</mark>  <mark style="color:orange;">**(Required)**</mark>
+
+This object contains customer details such as `address`, `cc _cvc`, `cc_expiration_date`, `cc_name`, `cc_number`, `cc_type`, `city`, `company`, `countrycode`, `dc_issue_number`, `dc_start_date`, `email`, `first_name`, `last_name`, `remarks`, `telephone`, and `zip`.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+<mark style="color:purple;">**corporate\_booking\_detail**</mark> <mark style="color:purple;">**object**</mark>  <mark style="color:orange;">**(Required)**</mark>
+
+The `corporate_booking_detail` element contains the corporate level B2B booking details for taxation and billing.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`booking_source` <mark style="color:orange;">**string (Required)**</mark>
+
+The source of the booking.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`tax_id` <mark style="color:orange;">**string (Required)**</mark>
+
+Tax Id of billing company.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`billing_company` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of billing company.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`billing_address` <mark style="color:orange;">**string (Required)**</mark>
+
+Address of billing company.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`payment_information` <mark style="color:orange;">**string (Required)**</mark>
+
+Payment information of B2B booking.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`payment_due_date` <mark style="color:orange;">**date (Required)**</mark>
+
+Payment due date of B2B booking.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`booker_address` <mark style="color:orange;">**string (Required)**</mark>
+
+Address of Booker.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`booker_taxid` <mark style="color:orange;">**string (Required)**</mark>
+
+Booker Tax Id.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`booking_type` <mark style="color:orange;">**string (Required)**</mark>
+
+Type of Booking.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`currencycode` <mark style="color:orange;">**string (Required)**</mark>
+
+In which currency OTA will charge the commission to the hotel.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`address` <mark style="color:orange;">**string (Required)**</mark>
+
+The address of the booker.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_cvc` <mark style="color:orange;">**integer (Required)**</mark>
+
+CVC number of the credit card.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_expiration_date` <mark style="color:orange;">**datetime (Optional)**</mark>
+
+The expiration date of the credit card.
+
+{% hint style="info" %}
+Min:0 Max:1
+
+Format <mark style="color:green;">**MMYY**</mark>
+{% endhint %}
+
+***
+
+`cc_name` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of the credit card holder.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_number` <mark style="color:orange;">**integer (Required)**</mark>
+
+The number of the credit card.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_type` <mark style="color:orange;">**string (Required)**</mark>
+
+The type of credit card.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_current_balance` <mark style="color:orange;">**string (Required)**</mark>
+
+Current balance of virtual credit card allocated by OTA.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_activation_date` <mark style="color:orange;">**string (Required)**</mark>
+
+The activation date of the virtual credit card allocated by OTA.
+
+{% hint style="info" %}
+Min:1 Max:1
+
+Format Date: <mark style="color:green;">**YYYY-MM-DD**</mark>
+{% endhint %}
+
+***
+
+`vcc_expiration_date` <mark style="color:orange;">**string (Required)**</mark>
+
+The expiration date of the virtual credit card allocated by OTA.
+
+{% hint style="info" %}
+Min:1 Max:1
+
+Format Date: <mark style="color:green;">**YYYY-MM-DD**</mark>
+{% endhint %}
+
+***
+
+`cc_token` <mark style="color:orange;">**string (Required)**</mark>
+
+The token of credit card.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_token_expiration` <mark style="color:orange;">**date (Required)**</mark>
+
+The expiry date of cc token generated.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_unique_code` <mark style="color:orange;">**string (Required)**</mark>
+
+cc unique code - Value is assigned if Partner is integrated with Airpay payment gateway. Otherwise, empty node is passed.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`city` <mark style="color:orange;">**string (Required)**</mark>
+
+The city where the booker is from.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`state` <mark style="color:orange;">**string (Required)**</mark>
+
+The state where the booker is from.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`countrycode` <mark style="color:orange;">**string (Required)**</mark>
+
+The country code of the country where the booker is from.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`email` <mark style="color:orange;">**string (Required)**</mark>
+
+Email address supplied by the customer.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`first_name` <mark style="color:orange;">**string (Required)**</mark>
+
+First name of the booker as supplied by the custome.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`last_name` <mark style="color:orange;">**string (Required)**</mark>
+
+Last name of the booker as supplied by the customer.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`remarks` <mark style="color:orange;">**string (Required)**</mark>
+
+Remarks regarding this reservation, supplied by the customer.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`telephone` <mark style="color:orange;">**string (Required)**</mark>
+
+Telephone number as supplied by the customer.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`zip` <mark style="color:orange;">**string (Required)**</mark>
+
+Zip/Postal code as supplied by the customer.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_vault_token` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Token for cc number.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cc_tracking_id` <mark style="color:orange;">**string (Required)**</mark>
+
+Tracking id for cc details.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+#### <mark style="color:purple;">rooms object</mark>
+
+Root element of room.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+#### <mark style="color:yellow;">Attribute</mark>
+
+`arrival_date` <mark style="color:orange;">**datetime (Required)**</mark>
+
+Date of arrival of the guests.
+
+{% hint style="info" %}
+Min:1 Max:1
+
+Format - <mark style="color:green;">**YYYY-MM-DD**</mark>
+{% endhint %}
+
+***
+
+`departure_date` <mark style="color:orange;">**datetime (Required)**</mark>
+
+Date of departure of the guests.
+
+{% hint style="info" %}
+Min:1 Max:1
+
+Format - <mark style="color:green;">**YYYY-MM-DD**</mark>
+{% endhint %}
+
+***
+
+`info` <mark style="color:orange;">**string (Required)**</mark>
+
+Extra information for the room.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`facilities` <mark style="color:orange;">**string (Required)**</mark>
+
+Information over facilities included for the room (if allocated).
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+#### <mark style="color:purple;">taxes object</mark>
+
+Information of taxes charged on booking.
+
+#### <mark style="color:yellow;">Attribute</mark>
+
+***
+
+`name` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of the tax charged.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`amount` <mark style="color:orange;">**string (Required)**</mark>
+
+Amount of tax applied / charged.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`specialrequest` <mark style="color:orange;">**string (Required)**</mark>
+
+Special request made while making booking for the room (if allocated).
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`eta` <mark style="color:orange;">**numerical (Required)**</mark>
+
+Estimate time for check in for this reservation as filled in on the website.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`guest_name` <mark style="color:orange;">**string (Required)**</mark>
+
+Guest name for this reservation as filled in on the website.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`first_name` <mark style="color:orange;">**string (Required)**</mark>
+
+Guest's First name for this reservation as filled in on the website.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`last_name` <mark style="color:orange;">**string (Required)**</mark>
+
+Guest's Last name for this reservation as filled in on the website.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The room type ID as used by IT Provider.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`max_children` <mark style="color:orange;">**integer (Optional)**</mark>
+
+The number of children included in the booked room.
+
+{% hint style="info" %}
+Min:0 Max:1
+{% endhint %}
+
+***
+
+`numberofguests` <mark style="color:orange;">**integer (Required)**</mark>
+
+It is the number of guests for this reservation as filled by the booker.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`numberofchildren` <mark style="color:orange;">**integer (Required)**</mark>
+
+It is the number of children for this reservation as filled by the booker.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`numberofadults` <mark style="color:orange;">**integer (Required)**</mark>
+
+It is the number of adults for this reservation as filled by the booker.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`roomstaystatus` <mark style="color:orange;">**string (Required)**</mark>
+
+The roomstaystatus ('new', 'modified' 'request' or 'cancelled') identifies the stay whether it is new, modified, request or cancelled.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`roomreservation_id` <mark style="color:orange;">**string (Required)**</mark>
+
+The room reservation ID as used by STAAH to identify the booked room within the reservation.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`totalbeforetax` <mark style="color:orange;">**integer (Required)**</mark>
+
+Total booking value before applying the taxes.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`totaltax` <mark style="color:orange;">**integer (Required)**</mark>
+
+The total amount of tax for this reservation. All rooms \* all nights combined.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`totalprice` <mark style="color:orange;">**integer (Required)**</mark>
+
+The total price for this room before tax(s) for all nights combined, sum of all prices known at the moment of reservation (Before Taxes). Note that there may be some excluded charges from this price.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`price` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Price and rate category ID per night as known at the moment of reservation. The currency used for pricing is always the same for the hotel and set by OTA.
+
+{% hint style="info" %}
+Min:1 Max:unbounded
+{% endhint %}
+
+***
+
+`amount` <mark style="color:orange;">**double (Required)**</mark>
+
+It contains the amount of per day pricing.
+
+{% hint style="info" %}
+Value for this parameter will be numeric with possible decimal point.
+
+Min:1 Max:unbounded
+{% endhint %}
+
+***
+
+`date` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Date and time.
+
+{% hint style="info" %}
+Format: <mark style="color:green;">**YYYY-MM-DD**</mark>
+{% endhint %}
+
+***
+
+`rate_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Rate category ID per night as known at the moment of reservation.
+
+***
+
+`mealplan_id` <mark style="color:orange;">**integer (Required)**</mark>
+
+Meal plan ID per night as known at the moment of reservation.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`mealplan` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Meal plan name per night as known at the moment of reservation.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`tax` <mark style="color:orange;">**integer (Required)**</mark>
+
+Tax amount per night of reservation (Date wise).
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`pricebeforetax` <mark style="color:orange;">**double (Required**</mark>
+
+Room rate amount per night of reservation before tax(s)(Date wise).
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`priceaftertax` <mark style="color:orange;">**double (Required**</mark>
+
+Room rate amount per night of reservation after tax(s)(Date wise).
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`extra_adult_rate` <mark style="color:orange;">**double (Required)**</mark>
+
+Extra rates for the additional adult.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`extra_child_rate` <mark style="color:orange;">**double (Required)**</mark>
+
+Extra rates for the additional child.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`adults` <mark style="color:orange;">**alphanumeric (Optional)**</mark>
+
+It is the name of additional adult/s for this reservation as filled by the booker.
+
+{% hint style="info" %}
+Min:0 Max:1
+{% endhint %}
+
+***
+
+`addons` <mark style="color:orange;">**alphanumeric (Optional)**</mark>
+
+Additional services added to the reservation.
+
+{% hint style="info" %}
+Min:0 Max:1
+{% endhint %}
+
+***
+
+`name` <mark style="color:orange;">**string (Optional)**</mark>
+
+The add-on name, in English.
+
+{% hint style="info" %}
+Min:0 Max:1
+{% endhint %}
+
+***
+
+`nights` <mark style="color:orange;">**integer (Optional)**</mark>
+
+Number of nights this customer has booked the addon for.
+
+{% hint style="info" %}
+Min:0 Max:1
+{% endhint %}
+
+***
+
+`priceperunit` <mark style="color:orange;">**integer (Optional)**</mark>
+
+The unitary price for this add-on.
+
+{% hint style="info" %}
+Min:0 Max:1
+{% endhint %}
+
+***
+
+`pricemode` <mark style="color:orange;">**integer (Optional)**</mark>
+
+An integer identifying the price mode (per stay, per night, per person per night). See table below for the values.
+
+{% hint style="info" %}
+Min:0 Max:1
+{% endhint %}
+
+| ID | PRICE MODE                      |
+| -- | ------------------------------- |
+| 0  | Not applicable                  |
+| 1  | Per stay                        |
+| 2  | Per person per stay             |
+| 3  | Per night                       |
+| 4  | Per person per night            |
+| 5  | Percentage                      |
+| 6  | Per person per night restricted |
+
+***
+
+`price` <mark style="color:orange;">**integer (Optional)**</mark>
+
+The total calculated price for the add-on, taking into consideration the price mode.
+
+{% hint style="info" %}
+Min:0 Max:1
+{% endhint %}
+
+***
+
+#### <mark style="color:blue;">taxes array</mark> <a href="#property-facilitiesarray" id="property-facilitiesarray"></a>
+
+This array represents the detailed information about the taxes applied to an item (such as a room booking, product, or service). Each object in the `taxes` array includes the name and value of the tax. See below attributes:
+
+#### <mark style="color:yellow;">Attributes</mark> <a href="#property-attributes.3" id="property-attributes.3"></a>
+
+***
+
+`name` <mark style="color:orange;">**string (Required)**</mark>
+
+The name or description of the tax.
+
+{% hint style="info" %}
+**Example Values**:
+
+* `"Slab %"`: Indicates a slab-based tax, possibly percentage-based where the rate varies based on predefined slabs or tiers.
+* `"Flat %"`: Indicates a flat rate percentage tax, where a constant percentage is applied.
+  {% endhint %}
+
+***
+
+`value` <mark style="color:orange;">**string (Required)**</mark>
+
+The value of the tax. This usually represents a percentage rate.
+
+***
+
+`extracomponents` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The tag contains details of all Extra / Other charges charged on a room. It is a room level value allocated from OTA and might vary as per rooms booked for multiple room reservation scenario.
+
+***
+
+`name` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of the charged.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`amount` <mark style="color:orange;">**string (Required)**</mark>
+
+Amount of extra component applied/charged.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`bed_type` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The tag contains details of bed type.
+
+***
+
+#### <mark style="color:purple;">affiliation object</mark>
+
+Source Information of reservation.
+
+***
+
+#### <mark style="color:orange;">Attribute</mark>
+
+***
+
+`pos` <mark style="color:orange;">**string (Required)**</mark>
+
+Point of sale of reservation.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`source` <mark style="color:orange;">**string (Required)**</mark>
+
+Source of reservation.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`OTA_Code` <mark style="color:orange;">**number (Required)**</mark>
+
+Source of reservation code or OTA code.
+
+***
+
+`gstno` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+GST No. of the company for B2B booking.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`companyname` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of B2B booking company (as allocated from OTA).
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`companyaddress` <mark style="color:orange;">**string (Required)**</mark>
+
+Address of B2B company (As allocated from OTA).
+
+***
+
+`chain_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The chain id allocated from IT provider for the property
+
+***
+
+`external_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Instant booking reference - In the event of a property migrating from Instant (STAAH product) to Su.
+
+***
+
+`otadue` <mark style="color:orange;">**string (Required)**</mark>
+
+The amount OTA needs to pay to the property for the booking.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+**`nettamount`** <mark style="color:orange;">**integer (Required)**</mark>
+
+The net amount of room of this reservation (Same value as of tag "totalprice"). All rooms \* all nights combined excluding Taxes.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`sellamount` <mark style="color:orange;">**integer (Required)**</mark>
+
+The sell amount of room of this reservation (Same value as of tag "totalprice"). All rooms \* all nights combined including Taxes.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cancelreason` <mark style="color:orange;">**string (Required)**</mark>
+
+It specifies the reason for canceling a reservation
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`confirmationlink`&#x20;
+
+The url through which one can confirm / deny the request of booking coming from VRBO. Only available under "request" booking from VRBO.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`payment_charge` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Payment charged from OTA on the booking. Currently data is being allocated by [http://Booking.com](http://booking.com) only.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`channel_booking_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Booking reference number of OTA.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`thread_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The thread ID as allocated by OTA / Channel (Supported by Airbnb only).
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`guest_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The guest ID as allocated by OTA / Channel (Supported by Airbnb only).
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`numberofpets` <mark style="color:orange;">**numeric (Required)**</mark>
+
+The number of pets as allocated by OTA / Channel.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`numberofinfants` <mark style="color:orange;">**numeric (Required)**</mark>
+
+The number of infants as allocated by OTA / Channel.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`listingbaseprice` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Base price of the listing allocated from OTA / Channel (Supported by Airbnb Only).
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`processed_at` <mark style="color:orange;">**datetime (Required)**</mark>
+
+Date and Time Stamp (HH:MM:SS) when the booking was processed (GMT Time).
+
+> Min:1 Max:1
+>
+> Format - Date Time
+
+***
+
+`deposit` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Deposit collected for a booking made / received.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`cancellation_fee` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Deposit collected for a booking made / received.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`vendor_booking_id` <mark style="color:orange;">**string (Required)**</mark>
+
+The vendor booking id provided by some of the OTAs. (Empty node will be passed if no value received from OTA for booking)
+
+***
+
+`id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The reservation ID as used by STAAH.
+
+***
+
+`reservation_notif_id` <mark style="color:orange;">**string (Required)**</mark>
+
+The reservation notification ID used to mark reservation as received.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`modified_at` <mark style="color:orange;">**date**</mark> <mark style="color:orange;">**(Required)**</mark>
+
+Date when the status is modified.
+
+***
+
+`status` <mark style="color:orange;">**string (Required)**</mark>
+
+The reservation status ('new', 'modified' or 'cancelled').
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`totalprice` <mark style="color:orange;">**integer (Required)**</mark>
+
+The total amount of room sales of this reservation. All rooms \* all nights combined including Taxes. Note that there may be some excluded charges from this price.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`totaltax` <mark style="color:orange;">**integer (Required)**</mark>
+
+The total amount of tax for this reservation. All rooms \* all nights combined.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`discount` <mark style="color:orange;">**double (Required)**</mark>
+
+Discount amount received from OTA.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+#### <mark style="color:purple;">extrafees object</mark>
+
+Information of extra fees charged on booking\
+\*\* Currently only supported by Airbnb. If no value allocated or for other channels, the node will be passed empty as "extrafees": \[], and "taxes": \[]
+
+***
+
+#### <mark style="color:yellow;">Attribute</mark>
+
+***
+
+`name` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of the extra fee charged.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`amount` <mark style="color:orange;">**string (Required)**</mark>
+
+Amount charged as extra fee.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+#### <mark style="color:purple;">taxes object</mark>
+
+Information of taxes charged on booking\
+\*\* Currently only supported by Airbnb. If no value allocated or for other channels, the node will be passed empty as \<taxes>\</taxes>
+
+***
+
+#### <mark style="color:yellow;">Attribute</mark>
+
+***
+
+`name` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of the tax charged.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+`amount` <mark style="color:orange;">**string (Required)**</mark>
+
+Amount of tax applied / charged.
+
+{% hint style="info" %}
+Min:1 Max:1
+{% endhint %}
+
+***
+
+### <mark style="color:yellow;">Response Model — New Reservation Confirmation</mark>
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "reservations": [
+        {
+            "booked_at": "2025-07-23 06:18:41",
+            "commissionamount": "",
+            "currencycode": "NZD",
+            "paymenttype": "Hotel Collect",
+            "hotel_id": "TPBE",
+            "hotel_name": "TPBE",
+            "paymentdue": "",
+            "customer": {
+                "corporate_booking_detail": {
+                    "booking_source": "",
+                    "tax_id": "",
+                    "billing_company": "",
+                    "billing_address": "",
+                    "payment_information": "",
+                    "payment_due_date": "",
+                    "booker_address": "",
+                    "booker_taxid": "",
+                    "booking_type": ""
+                },
+                "address": "",
+                "cc_cvc": "",
+                "cc_expiration_date": "",
+                "cc_name": "",
+                "cc_number": "",
+                "cc_type": "",
+                "cc_current_balance": "",
+                "cc_activation_date": "",
+                "vcc_expiration_date": "",
+                "cc_token": "",
+                "cc_token_expiration": "",
+                "cc_unique_code": "",
+                "city": "",
+                "state": "",
+                "countrycode": "IN",
+                "email": "john@abc.com",
+                "first_name": " john",
+                "last_name": "doe",
+                "remarks": " booking_fees :: 315.00 ||  booking_fees :: 28.00",
+                "telephone": "+915565855656",
+                "zip": "",
+                "guest_lang": "en",
+                "cc_vault_token": "",
+                "cc_tracking_id": "",
+                "tokensource": "",
+                "tokentype": "",
+                "token_id": "",
+                "cc_virtual": "0"
+            },
+            "rooms": [
+                {
+                    "arrival_date": "2025-08-14",
+                    "departure_date": "2025-08-15",
+                    "info": "",
+                    "facilities": "",
+                    "taxes": [
+                        {
+                            "name": "GST",
+                            "value": "135.00"
+                        },
+                        {
+                            "name": "Credit card fee (2.8%)",
+                            "value": "38.00"
+                        },
+                        {
+                            "name": "New sales",
+                            "value": "50.00"
+                        },
+                        {
+                            "name": "TAX",
+                            "value": "100.00"
+                        }
+                    ],
+                    "specialrequest": "",
+                    "eta": "01:30 am",
+                    "guest_name": "john doe",
+                    "first_name": "john",
+                    "last_name": "doe",
+                    "id": "1234441",
+                    "max_children": "0",
+                    "numberofguests": "2",
+                    "numberofchildren": "0",
+                    "numberofadults": "2",
+                    "child_age": "10, 15, 16",
+                    "roomstaystatus": "new",
+                    "roomreservation_id": "1753251542694",
+                    "totalbeforetax": "1376",
+                    "totaltax": "376",
+                    "totalprice": "1752",
+                    "price": [
+                        {
+                            "date": "2025-08-14",
+                            "rate_id": "BAR",
+                            "mealplan_id": "1",
+                            "mealplan": "All inclusive",
+                            "tax": "323",
+                            "pricebeforetax": "1351",
+                            "priceaftertax": "1674"
+                        }
+                    ],
+                    "adults": [],
+                    "addons": [],
+                    "extracomponents": [
+                        {
+                            "name": "test",
+                            "value": "78",
+                            "taxes": [
+                                {
+                                    "name": "GST",
+                                    "value": "3"
+                                },
+                                {
+                                    "name": "New sales",
+                                    "value": "50"
+                                }
+                            ]
+                        }
+                    ],
+                    "smoking_preference": "",
+                    "booking_condition": "",
+                    "promotion": "",
+                    "mealplan": "",
+                    "cancellation_penalties": []
+                }
+            ],
+            "affiliation": {
+                "pos": "mybookingsite.io",
+                "source": "Meta Channel",
+                "OTA_Code": "275",
+                "companyname": "",
+                "gstno": "",
+                "companyaddress": ""
+            },
+            "chain_id": "TPBE",
+            "external_id": "",
+            "otadue": "",
+            "cancelreason": "",
+            "sellamount": "2095",
+            "nettamount": "2095",
+            "discount": "",
+            "confirmationlink": "",
+            "payment_charge": "",
+            "booker_genius": "no",
+            "smoking_preference": "",
+            "promotion": "",
+            "channel_booking_id": "175325152113928",
+            "thread_id": "",
+            "guest_id": "",
+            "numberofpets": "",
+            "numberofinfants": "",
+            "listingbaseprice": "",
+            "processed_at": "2025-07-23 06:18:59",
+            "bookingcharged": "N",
+            "amountcharged": "0.00",
+            "pgtransactionid": "",
+            "su_payments": {
+                "action": "",
+                "tokenid": "",
+                "pgid": ""
+            },
+            "deposit": "",
+            "cvv_available": "false",
+            "source": "Su",
+            "pg_refid": "DirectConfimation1753251523",
+            "pg_type": "",
+            "cancellation_fee": "",
+            "vendor_booking_id": "",
+            "id": "175325152113928_TPBE",
+            "reservation_notif_id": "175325153100890355556",
+            "modified_at": "2025-07-23 06:18:41",
+            "status": "new",
+            "totalprice": "2095",
+            "totaltax": "323.00",
+            "extrafees": [
+                {
+                    "name": "SGST",
+                    "amount": "315.00"
+                },
+                {
+                    "name": "CGST",
+                    "amount": "28.00"
+                }
+            ],
+            "taxes": []
+        }
+    ]
+}
+
+```
+
+{% endcode %}
+
+***
+
+### <mark style="color:yellow;">Response Model — Modified Reservation</mark>
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "reservations": [
+        {
+            "booked_at": "2025-07-23 06:18:41",
+            "commissionamount": "",
+            "currencycode": "NZD",
+            "paymenttype": "Hotel Collect",
+            "hotel_id": "TPBE",
+            "hotel_name": "TPBE",
+            "paymentdue": "",
+            "customer": {
+                "corporate_booking_detail": {
+                    "booking_source": "",
+                    "tax_id": "",
+                    "billing_company": "",
+                    "billing_address": "",
+                    "payment_information": "",
+                    "payment_due_date": "",
+                    "booker_address": "",
+                    "booker_taxid": "",
+                    "booking_type": ""
+                },
+                "address": "",
+                "cc_cvc": "",
+                "cc_expiration_date": "",
+                "cc_name": "",
+                "cc_number": "",
+                "cc_type": "",
+                "cc_current_balance": "",
+                "cc_activation_date": "",
+                "vcc_expiration_date": "",
+                "cc_token": "",
+                "cc_token_expiration": "",
+                "cc_unique_code": "",
+                "city": "",
+                "state": "",
+                "countrycode": "IN",
+                "email": "john@abc.com",
+                "first_name": " john",
+                "last_name": "doe",
+                "remarks": " booking_fees :: 315.00 ||  booking_fees :: 28.00",
+                "telephone": "+919639859856",
+                "zip": "",
+                "cc_vault_token": "",
+                "cc_tracking_id": "",
+                "tokensource": "",
+                "tokentype": "",
+                "token_id": "",
+                "cc_virtual": "0"
+            },
+            "rooms": [
+                {
+                    "arrival_date": "2025-08-14",
+                    "departure_date": "2025-08-15",
+                    "info": "",
+                    "facilities": "",
+                    "taxes": [
+                        {
+                            "name": "GST",
+                            "value": "135.00"
+                        },
+                        {
+                            "name": "Credit card fee (2.8%)",
+                            "value": "38.00"
+                        },
+                        {
+                            "name": "New sales",
+                            "value": "50.00"
+                        },
+                        {
+                            "name": "TAX",
+                            "value": "100.00"
+                        }
+                    ],
+                    "specialrequest": "",
+                    "eta": "01:30 am",
+                    "guest_name": "john doe",
+                    "first_name": "john",
+                    "last_name": "doe",
+                    "id": "1234441",
+                    "max_children": "0",
+                    "numberofguests": "2",
+                    "numberofchildren": "0",
+                    "numberofadults": "2",
+                    "child_age": "10, 15, 16",
+                    "roomstaystatus": "new",
+                    "roomreservation_id": "1753251542694",
+                    "totalbeforetax": "1376",
+                    "totaltax": "376",
+                    "totalprice": "1752",
+                    "price": [
+                        {
+                            "date": "2025-08-14",
+                            "rate_id": "BAR",
+                            "mealplan_id": "1",
+                            "mealplan": "All inclusive",
+                            "tax": "323",
+                            "pricebeforetax": "1351",
+                            "priceaftertax": "1674"
+                        }
+                    ],
+                    "adults": [],
+                    "addons": [],
+                    "extracomponents": [
+                        {
+                            "name": "test",
+                            "value": "78",
+                            "taxes": [
+                                {
+                                    "name": "GST",
+                                    "value": "3"
+                                },
+                                {
+                                    "name": "New sales",
+                                    "value": "50"
+                                }
+                            ]
+                        }
+                    ],
+                    "smoking_preference": "",
+                    "booking_condition": "",
+                    "promotion": "",
+                    "mealplan": "",
+                    "cancellation_penalties": []
+                }
+            ],
+            "affiliation": {
+                "pos": "mybookingsite.io",
+                "source": "Meta Channel",
+                "OTA_Code": "275",
+                "companyname": "",
+                "gstno": "",
+                "companyaddress": ""
+            },
+            "chain_id": "TPBE",
+            "external_id": "",
+            "otadue": "",
+            "cancelreason": "",
+            "sellamount": "2095",
+            "nettamount": "2095",
+            "discount": "",
+            "confirmationlink": "",
+            "payment_charge": "",
+            "booker_genius": "no",
+            "smoking_preference": "",
+            "promotion": "",
+            "channel_booking_id": "175325152113928",
+            "thread_id": "",
+            "guest_id": "",
+            "numberofpets": "",
+            "numberofinfants": "",
+            "listingbaseprice": "",
+            "processed_at": "2025-07-23 06:18:59",
+            "bookingcharged": "N",
+            "amountcharged": "0.00",
+            "pgtransactionid": "",
+            "su_payments": {
+                "action": "",
+                "tokenid": "",
+                "pgid": ""
+            },
+            "deposit": "",
+            "cvv_available": "false",
+            "source": "Su",
+            "pg_refid": "DirectConfimation1753251523",
+            "pg_type": "",
+            "cancellation_fee": "",
+            "vendor_booking_id": "",
+            "id": "175325152113928_TPBE",
+            "reservation_notif_id": "175325153100890355556",
+            "modified_at": "2025-07-23 06:18:41",
+            "status": "modified",
+            "totalprice": "2095",
+            "totaltax": "323.00",
+            "extrafees": [
+                {
+                    "name": "SGST",
+                    "amount": "315.00"
+                },
+                {
+                    "name": "CGST",
+                    "amount": "28.00"
+                }
+            ],
+            "taxes": []
+        }
+    ]
+}
+
+```
+
+{% endcode %}
+
+***
+
+### <mark style="color:yellow;">Response Model — Request Booking</mark>
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+    "reservations": [
+        {
+            "booked_at": "2025-07-23 06:18:41",
+            "commissionamount": "",
+            "currencycode": "NZD",
+            "paymenttype": "Hotel Collect",
+            "hotel_id": "TPBE",
+            "hotel_name": "TPBE",
+            "paymentdue": "",
+            "customer": {
+                "corporate_booking_detail": {
+                    "booking_source": "",
+                    "tax_id": "",
+                    "billing_company": "",
+                    "billing_address": "",
+                    "payment_information": "",
+                    "payment_due_date": "",
+                    "booker_address": "",
+                    "booker_taxid": "",
+                    "booking_type": ""
+                },
+                "address": "",
+                "cc_cvc": "",
+                "cc_expiration_date": "",
+                "cc_name": "",
+                "cc_number": "",
+                "cc_type": "",
+                "cc_current_balance": "",
+                "cc_activation_date": "",
+                "vcc_expiration_date": "",
+                "cc_token": "",
+                "cc_token_expiration": "",
+                "cc_unique_code": "",
+                "city": "",
+                "state": "",
+                "countrycode": "IN",
+                "email": "john@abc.com",
+                "first_name": " john",
+                "last_name": "doe",
+                "remarks": " booking_fees :: 315.00 ||  booking_fees :: 28.00",
+                "telephone": "+919639859856",
+                "zip": "",
+                "guest_lang": "en",
+                "cc_vault_token": "",
+                "cc_tracking_id": "",
+                "tokensource": "",
+                "tokentype": "",
+                "token_id": "",
+                "cc_virtual": "0"
+            },
+            "rooms": [
+                {
+                    "arrival_date": "2025-08-14",
+                    "departure_date": "2025-08-15",
+                    "info": "",
+                    "facilities": "",
+                    "taxes": [
+                        {
+                            "name": "GST",
+                            "value": "135.00"
+                        },
+                        {
+                            "name": "Credit card fee (2.8%)",
+                            "value": "38.00"
+                        },
+                        {
+                            "name": "New sales",
+                            "value": "50.00"
+                        },
+                        {
+                            "name": "TAX",
+                            "value": "100.00"
+                        }
+                    ],
+                    "specialrequest": "",
+                    "eta": "01:30 am",
+                    "guest_name": "john doe",
+                    "first_name": "john",
+                    "last_name": "doe",
+                    "id": "1234441",
+                    "max_children": "0",
+                    "numberofguests": "2",
+                    "numberofchildren": "0",
+                    "numberofadults": "2",
+                    "child_age": "10, 15, 16",
+                    "roomstaystatus": "new",
+                    "roomreservation_id": "1753251542694",
+                    "totalbeforetax": "1376",
+                    "totaltax": "376",
+                    "totalprice": "1752",
+                    "price": [
+                        {
+                            "date": "2025-08-14",
+                            "rate_id": "BAR",
+                            "mealplan_id": "1",
+                            "mealplan": "All inclusive",
+                            "tax": "323",
+                            "pricebeforetax": "1351",
+                            "priceaftertax": "1674"
+                        }
+                    ],
+                    "adults": [],
+                    "addons": [],
+                    "extracomponents": [
+                        {
+                            "name": "test",
+                            "value": "78",
+                            "taxes": [
+                                {
+                                    "name": "GST",
+                                    "value": "3"
+                                },
+                                {
+                                    "name": "New sales",
+                                    "value": "50"
+                                }
+                            ]
+                        }
+                    ],
+                    "smoking_preference": "",
+                    "booking_condition": "",
+                    "promotion": "",
+                    "mealplan": "",
+                    "cancellation_penalties": []
+                }
+            ],
+            "affiliation": {
+                "pos": "mybookingsite.io",
+                "source": "Meta Channel",
+                "OTA_Code": "275",
+                "companyname": "",
+                "gstno": "",
+                "companyaddress": ""
+            },
+            "chain_id": "TPBE",
+            "external_id": "",
+            "otadue": "",
+            "cancelreason": "",
+            "sellamount": "2095",
+            "nettamount": "2095",
+            "discount": "",
+            "confirmationlink": "xxxxx.suissu.com/SUAPI/service/requesturls/1-TDhKTFbhp5pm-ulH7VrIUsPOD4qkRO0",
+            "payment_charge": "",
+            "booker_genius": "no",
+            "smoking_preference": "",
+            "promotion": "",
+            "channel_booking_id": "175325152113928",
+            "thread_id": "",
+            "guest_id": "",
+            "numberofpets": "",
+            "numberofinfants": "",
+            "listingbaseprice": "",
+            "processed_at": "2025-07-23 06:18:59",
+            "bookingcharged": "N",
+            "amountcharged": "0.00",
+            "pgtransactionid": "",
+            "su_payments": {
+                "action": "",
+                "tokenid": "",
+                "pgid": ""
+            },
+            "deposit": "",
+            "cvv_available": "false",
+            "source": "Su",
+            "pg_refid": "DirectConfimation1753251523",
+            "pg_type": "",
+            "cancellation_fee": "",
+            "vendor_booking_id": "",
+            "id": "175325152113928_TPBE",
+            "reservation_notif_id": "175325153100890355556",
+            "modified_at": "2025-07-23 06:18:41",
+            "status": "request",
+            "totalprice": "2095",
+            "totaltax": "323.00",
+            "extrafees": [
+                {
+                    "name": "SGST",
+                    "amount": "315.00"
+                },
+                {
+                    "name": "CGST",
+                    "amount": "28.00"
+                }
+            ],
+            "taxes": []
+        }
+    ]
+}
+
+```
+
+***
+
+### <mark style="color:yellow;">Response Model - Cancelled Reservation</mark>
+
+```json
+{
+    "reservations": [
+        {
+            "booked_at": "2025-07-23 06:18:41",
+            "commissionamount": "",
+            "currencycode": "NZD",
+            "paymenttype": "Hotel Collect",
+            "hotel_id": "TPBE",
+            "hotel_name": "TPBE",
+            "paymentdue": "",
+            "customer": {
+                "corporate_booking_detail": {
+                    "booking_source": "",
+                    "tax_id": "",
+                    "billing_company": "",
+                    "billing_address": "",
+                    "payment_information": "",
+                    "payment_due_date": "",
+                    "booker_address": "",
+                    "booker_taxid": "",
+                    "booking_type": ""
+                },
+                "address": "",
+                "cc_cvc": "",
+                "cc_expiration_date": "",
+                "cc_name": "",
+                "cc_number": "",
+                "cc_type": "",
+                "cc_current_balance": "",
+                "cc_activation_date": "",
+                "vcc_expiration_date": "",
+                "cc_token": "",
+                "cc_token_expiration": "",
+                "cc_unique_code": "",
+                "city": "",
+                "state": "",
+                "countrycode": "IN",
+                "email": "john@abc.com",
+                "first_name": " john",
+                "last_name": "doe",
+                "remarks": " booking_fees :: 315.00 ||  booking_fees :: 28.00",
+                "telephone": "+919639859856",
+                "zip": "",
+                "guest_lang": "en",
+                "cc_vault_token": "",
+                "cc_tracking_id": "",
+                "tokensource": "",
+                "tokentype": "",
+                "token_id": "",
+                "cc_virtual": "0"
+            },
+            "rooms": [
+                {
+                    "arrival_date": "2025-08-14",
+                    "departure_date": "2025-08-15",
+                    "info": "",
+                    "facilities": "",
+                    "taxes": [
+                        {
+                            "name": "GST",
+                            "value": "135.00"
+                        },
+                        {
+                            "name": "Credit card fee (2.8%)",
+                            "value": "38.00"
+                        },
+                        {
+                            "name": "New sales",
+                            "value": "50.00"
+                        },
+                        {
+                            "name": "TAX",
+                            "value": "100.00"
+                        }
+                    ],
+                    "specialrequest": "",
+                    "eta": "01:30 am",
+                    "guest_name": "john doe",
+                    "first_name": "john",
+                    "last_name": "doe",
+                    "id": "1234441",
+                    "max_children": "0",
+                    "numberofguests": "2",
+                    "numberofchildren": "0",
+                    "numberofadults": "2",
+                    "child_age": "10, 15, 16",
+                    "roomstaystatus": "cancelled",
+                    "roomreservation_id": "1753251542694",
+                    "totalbeforetax": "1376",
+                    "totaltax": "376",
+                    "totalprice": "1752",
+                    "price": [
+                        {
+                            "date": "2025-08-14",
+                            "rate_id": "BAR",
+                            "mealplan_id": "1",
+                            "mealplan": "All inclusive",
+                            "tax": "323",
+                            "pricebeforetax": "1351",
+                            "priceaftertax": "1674"
+                        }
+                    ],
+                    "adults": [],
+                    "addons": [],
+                    "extracomponents": [
+                        {
+                            "name": "test",
+                            "value": "78",
+                            "taxes": [
+                                {
+                                    "name": "GST",
+                                    "value": "3"
+                                },
+                                {
+                                    "name": "New sales",
+                                    "value": "50"
+                                }
+                            ]
+                        }
+                    ],
+                    "smoking_preference": "",
+                    "booking_condition": "",
+                    "promotion": "",
+                    "mealplan": "",
+                    "cancellation_penalties": []
+                }
+            ],
+            "affiliation": {
+                "pos": "mybookingsite.io",
+                "source": "Meta Channel",
+                "OTA_Code": "275",
+                "companyname": "",
+                "gstno": "",
+                "companyaddress": ""
+            },
+            "chain_id": "TPBE",
+            "external_id": "",
+            "otadue": "",
+            "cancelreason": "I made a mistake with the booking dates and need to cancel my reservation.",
+            "sellamount": "2095",
+            "nettamount": "2095",
+            "discount": "",
+            "confirmationlink": "xxxxx.suissu.com/SUAPI/service/requesturls/1-TDhKTFbhp5pm-ulH7VrIUsPOD4qkRO0",
+            "payment_charge": "",
+            "booker_genius": "no",
+            "smoking_preference": "",
+            "promotion": "",
+            "channel_booking_id": "175325152113928",
+            "thread_id": "",
+            "guest_id": "",
+            "numberofpets": "",
+            "numberofinfants": "",
+            "listingbaseprice": "",
+            "processed_at": "2025-07-23 06:18:59",
+            "bookingcharged": "N",
+            "amountcharged": "0.00",
+            "pgtransactionid": "",
+            "su_payments": {
+                "action": "",
+                "tokenid": "",
+                "pgid": ""
+            },
+            "deposit": "",
+            "cvv_available": "false",
+            "source": "Su",
+            "pg_refid": "DirectConfimation1753251523",
+            "pg_type": "",
+            "cancellation_fee": "",
+            "vendor_booking_id": "",
+            "id": "175325152113928_TPBE",
+            "reservation_notif_id": "175325153100890355556",
+            "modified_at": "2025-07-23 06:18:41",
+            "status": "cancelled",
+            "totalprice": "2095",
+            "totaltax": "323.00",
+            "extrafees": [
+                {
+                    "name": "SGST",
+                    "amount": "315.00"
+                },
+                {
+                    "name": "CGST",
+                    "amount": "28.00"
+                }
+            ],
+            "taxes": []
+        }
+    ]
+}
+
+```
+
+### <mark style="color:yellow;">Response Model — Multiple Room Reservation</mark>
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "reservations": [
+        {
+            "booked_at": "2025-07-23 06:37:31",
+            "commissionamount": "",
+            "currencycode": "NZD",
+            "paymenttype": "Hotel Collect",
+            "hotel_id": "TPBE",
+            "hotel_name": "TPBE",
+            "paymentdue": "",
+            "customer": {
+                "corporate_booking_detail": {
+                    "booking_source": "",
+                    "tax_id": "",
+                    "billing_company": "",
+                    "billing_address": "",
+                    "payment_information": "",
+                    "payment_due_date": "",
+                    "booker_address": "",
+                    "booker_taxid": "",
+                    "booking_type": ""
+                },
+                "address": "",
+                "cc_cvc": "",
+                "cc_expiration_date": "",
+                "cc_name": "",
+                "cc_number": "",
+                "cc_type": "",
+                "cc_current_balance": "",
+                "cc_activation_date": "",
+                "vcc_expiration_date": "",
+                "cc_token": "",
+                "cc_token_expiration": "",
+                "cc_unique_code": "",
+                "city": "",
+                "state": "",
+                "countrycode": "IN",
+                "email": "john@abc.com",
+                "first_name": " john",
+                "last_name": "doe",
+                "remarks": " booking_fees :: 566.00 ||  booking_fees :: 28.00",
+                "telephone": "+919639859856",
+                "zip": "",
+                "guest_lang": "en",
+                "cc_vault_token": "",
+                "cc_tracking_id": "",
+                "tokensource": "",
+                "tokentype": "",
+                "token_id": "",
+                "cc_virtual": "0"
+            },
+            "rooms": [
+                {
+                    "arrival_date": "2025-08-14",
+                    "departure_date": "2025-08-15",
+                    "info": "",
+                    "facilities": "",
+                    "taxes": [
+                        {
+                            "name": "GST",
+                            "value": "135.00"
+                        },
+                        {
+                            "name": "Credit card fee (2.8%)",
+                            "value": "38.00"
+                        },
+                        {
+                            "name": "New sales",
+                            "value": "50.00"
+                        },
+                        {
+                            "name": "TAX",
+                            "value": "100.00"
+                        }
+                    ],
+                    "specialrequest": "",
+                    "eta": "01:30 am",
+                    "guest_name": "john doe",
+                    "first_name": "john",
+                    "last_name": "doe",
+                    "id": "1234441",
+                    "max_children": "0",
+                    "numberofguests": "2",
+                    "numberofchildren": "0",
+                    "numberofadults": "2",
+                    "child_age": "10, 15, 16",
+                    "roomstaystatus": "new",
+                    "roomreservation_id": "1753252672384",
+                    "totalbeforetax": "1376",
+                    "totaltax": "376",
+                    "totalprice": "1752",
+                    "price": [
+                        {
+                            "date": "2025-08-14",
+                            "rate_id": "BAR",
+                            "mealplan_id": "1",
+                            "mealplan": "All inclusive",
+                            "tax": "323",
+                            "pricebeforetax": "1351",
+                            "priceaftertax": "1674"
+                        }
+                    ],
+                    "adults": [],
+                    "addons": [],
+                    "extracomponents": [
+                        {
+                            "name": "test",
+                            "value": "78",
+                            "taxes": [
+                                {
+                                    "name": "GST",
+                                    "value": "3"
+                                },
+                                {
+                                    "name": "New sales",
+                                    "value": "50"
+                                }
+                            ]
+                        }
+                    ],
+                    "smoking_preference": "",
+                    "booking_condition": "",
+                    "promotion": "",
+                    "mealplan": "",
+                    "cancellation_penalties": []
+                },
+                {
+                    "arrival_date": "2025-08-14",
+                    "departure_date": "2025-08-15",
+                    "info": "",
+                    "facilities": "",
+                    "taxes": [
+                        {
+                            "name": "GST",
+                            "value": "110.00"
+                        },
+                        {
+                            "name": "Credit card fee (2.8%)",
+                            "value": "31.00"
+                        },
+                        {
+                            "name": "New sales",
+                            "value": "50.00"
+                        },
+                        {
+                            "name": "TAX",
+                            "value": "100.00"
+                        }
+                    ],
+                    "specialrequest": "",
+                    "eta": "01:30 am",
+                    "guest_name": "John Doe",
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "id": "123444",
+                    "max_children": "0",
+                    "numberofguests": "1",
+                    "numberofchildren": "0",
+                    "numberofadults": "1",
+                    "child_age": "10, 15, 16",
+                    "roomstaystatus": "new",
+                    "roomreservation_id": "1753252676277",
+                    "totalbeforetax": "1100",
+                    "totaltax": "291",
+                    "totalprice": "1391",
+                    "price": [
+                        {
+                            "date": "2025-08-14",
+                            "rate_id": "BAR",
+                            "mealplan_id": "1",
+                            "mealplan": "All inclusive",
+                            "tax": "291",
+                            "pricebeforetax": "1100",
+                            "priceaftertax": "1391"
+                        }
+                    ],
+                    "adults": [],
+                    "addons": [],
+                    "extracomponents": [],
+                    "smoking_preference": "",
+                    "booking_condition": "",
+                    "promotion": "",
+                    "mealplan": "",
+                    "cancellation_penalties": []
+                }
+            ],
+            "affiliation": {
+                "pos": "mybookingsite.io",
+                "source": "Meta Channel",
+                "OTA_Code": "275",
+                "companyname": "",
+                "gstno": "",
+                "companyaddress": ""
+            },
+            "chain_id": "TPBE",
+            "external_id": "",
+            "otadue": "",
+            "cancelreason": "",
+            "sellamount": "3737",
+            "nettamount": "3737",
+            "discount": "",
+            "confirmationlink": "",
+            "payment_charge": "",
+            "booker_genius": "no",
+            "smoking_preference": "",
+            "promotion": "",
+            "channel_booking_id": "175325265161721",
+            "thread_id": "",
+            "guest_id": "",
+            "numberofpets": "",
+            "numberofinfants": "",
+            "listingbaseprice": "",
+            "processed_at": "2025-07-23 06:37:50",
+            "bookingcharged": "N",
+            "amountcharged": "0.00",
+            "pgtransactionid": "",
+            "su_payments": {
+                "action": "",
+                "tokenid": "",
+                "pgid": ""
+            },
+            "deposit": "",
+            "cvv_available": "false",
+            "source": "Su",
+            "pg_refid": "DirectConfimation1753252654",
+            "pg_type": "",
+            "cancellation_fee": "",
+            "vendor_booking_id": "",
+            "id": "175325265161721_TPBE",
+            "reservation_notif_id": "175325266175217432335",
+            "modified_at": "2025-07-23 06:37:31",
+            "status": "new",
+            "totalprice": "3737",
+            "totaltax": "614.00",
+            "extrafees": [
+                {
+                    "name": "SGST",
+                    "amount": "566.00"
+                },
+                {
+                    "name": "CGST",
+                    "amount": "28.00"
+                }
+            ],
+            "taxes": []
+        }
+    ]
+}
+
+```
+
+{% endcode %}
+
+***
+
+### <mark style="color:yellow;">Multiple Room Reservation</mark>
+
+System allows to have multiple rooms to be booked under same reservation with different Guest, Check In/Out dates, Room type, Rate Plan, etc. These reservations can be retrieved through the same API request. Refer to [Response Model — Multiple Room Reservation](#response-model-multiple-room-reservation) for reference.
+
+#### <mark style="color:red;">Errors</mark>
+
+<mark style="color:red;">**Errors due to Invalid Parameters**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "950",
+    "ShortText": "Reservation Not Found"
+  }
+}
+```
+
+{% endcode %}

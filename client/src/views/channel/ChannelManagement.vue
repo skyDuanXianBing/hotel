@@ -53,34 +53,9 @@
                 type="primary"
                 size="small"
                 class="config-btn"
-                @click="openSettings(channel)"
+                @click="connectChannel(channel)"
               >
-                配置
-              </el-button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 渠道管理区域 -->
-        <div class="channel-section">
-          <h3 class="section-title">渠道管理</h3>
-          <div class="channel-grid">
-            <div v-for="channel in managementChannels" :key="channel.id" class="channel-card">
-              <div class="channel-logo-wrapper">
-                <img :src="channel.logoUrl" :alt="channel.name" class="channel-logo-img" />
-              </div>
-              <h4 class="channel-name">{{ channel.name }}</h4>
-              <div class="channel-status">
-                <span class="status-dot" :class="channel.connected ? 'connected' : 'disconnected'"></span>
-                <span class="status-text">{{ channel.connected ? '已设置' : '未设置' }}</span>
-              </div>
-              <el-button
-                type="primary"
-                size="small"
-                class="config-btn"
-                @click="openSettings(channel)"
-              >
-                配置
+                {{ channel.connected ? '重新授权' : '配置' }}
               </el-button>
             </div>
           </div>
@@ -119,7 +94,7 @@
     <!-- 开通直连对话框 -->
     <el-dialog
       v-model="showConnectDialog"
-      :title="`开始${selectedChannel?.name || ''}直连`"
+      :title="`${selectedChannel?.name || ''}直连须知`"
       width="700px"
       :close-on-click-modal="false"
     >
@@ -402,7 +377,7 @@
                         </template>
                         <template v-else>
                           <div class="room-type-cell">
-                            <div class="room-name">{{ row.pmsRoomType }}</div>
+                            <div class="room-name">{{ formatPmsRoomTypeDisplay(row.pmsRoomType) }}</div>
                           </div>
                         </template>
                       </template>
@@ -599,7 +574,7 @@
                     </el-table-column>
                     <el-table-column label="PMS房型" width="180" fixed="left" align="center">
                       <template #default="{ row }">
-                        <span>{{ row.pmsRoomType }}</span>
+                        <span>{{ formatPmsRoomTypeDisplay(row.pmsRoomType) }}</span>
                       </template>
                     </el-table-column>
                     <el-table-column
@@ -700,29 +675,41 @@
       </template>
     </el-dialog>
 
-    <!-- 添加账号对话框 -->
-    <el-dialog v-model="showAddAccountDialog" title="添加美团民宿账号" width="500px">
-      <div class="add-account-form">
-        <p>请输入美团民宿门店账号信息：</p>
-        <el-form :model="newAccount" label-width="100px">
-          <el-form-item label="账号名称">
-            <el-input v-model="newAccount.name" placeholder="请输入账号名称"></el-input>
-          </el-form-item>
-          <el-form-item label="登录账号">
-            <el-input v-model="newAccount.username" placeholder="请输入登录账号"></el-input>
-          </el-form-item>
-          <el-form-item label="密码">
-            <el-input
-              v-model="newAccount.password"
-              type="password"
-              placeholder="请输入密码"
-            ></el-input>
-          </el-form-item>
-        </el-form>
+    <!-- Airbnb 直连对话框 -->
+    <el-dialog v-model="showAddAccountDialog" title="Airbnb 直连" width="700px">
+      <div class="airbnb-connect-dialog">
+        <div class="dialog-header-section">
+          <div class="dialog-description">
+            <p>点击<a href="#" class="link-text">相关内容</a>查看详情。注意：仅所有者账号可授权。</p>
+          </div>
+          <div class="dialog-logo">
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/6/69/Airbnb_Logo_B%C3%A9lo.svg"
+              alt="Airbnb"
+              class="dialog-logo-img airbnb-logo"
+            />
+          </div>
+        </div>
+
+        <div class="agreement-section">
+          <h3 class="agreement-title">Airbnb直连</h3>
+          <div class="agreement-content">
+            <p>Airbnb直连服务功能（"直连服务"）是指在酒店商户（"您"）在SmartOrder系统中设置直连服务后，SmartOrder系统和Airbnb系统自动建立直连。一旦您连接到Airbnb并完成授权，您可以在Airbnb平台上创建新的房源，管理价格和可用性，并自动将订单录入SmartOrder系统，从而降低酒店运营成本并提高效率。</p>
+
+            <p>在启用Airbnb直连服务之前，请务必仔细阅读并遵守本《用户须知》的条款内容，特别是免责或责任限制、纠纷解决和适用法律条款。如果您对协议有疑问或不同意内容，请立即停止使用服务。当您使用直连服务功能时，即表示您已充分阅读、理解并接受本"用户须知"的全部内容，此协议将在您在线确认后立即生效。协议条款如下：</p>
+
+            <h4>1 功能介绍</h4>
+            <p>1.1 在与Airbnb完成直连后，即可通过SmartOrder PMS管理Airbnb的渠道房价、房态，渠道订单将自动落入SmartOrder。</p>
+            <p>1.2 1个SmartOrder网络号可与多个Airbnb账号直连。点击"与Airbnb连接"后，将跳转至Airbnb页面进行授权。为确保授权账号无误，授权之前请确保您在Airbnb是未登录状态，完成授权后才可以关联房型。</p>
+            <p>1.3 Airbnb房源类型为集中式公寓、度假民宿、客栈、农家乐、房车的房源可以直接关联整个房型（允许多个库存），其他类型的房源只能关联单个房间（只允许1个库存）。</p>
+          </div>
+        </div>
       </div>
       <template #footer>
-        <el-button @click="showAddAccountDialog = false">取消</el-button>
-        <el-button type="primary" @click="addAccount">添加</el-button>
+        <div class="dialog-footer">
+          <el-button @click="showAddAccountDialog = false">取消</el-button>
+          <el-button type="primary" @click="connectToAirbnb">与Airbnb连接</el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -934,6 +921,15 @@
         </div>
       </template>
     </el-drawer>
+
+    <!-- Su Widget连接组件 -->
+    <ConnectOtaWidget
+      v-model="showWidgetDialog"
+      :ota-id="selectedOtaId"
+      :ota-name="selectedOtaName"
+      @success="handleWidgetSuccess"
+      @error="handleWidgetError"
+    />
   </div>
 </template>
 
@@ -942,13 +938,15 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, ArrowRight, Setting, Connection, Remove, InfoFilled, Menu as MenuIcon, List, Money, Refresh, QuestionFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getAllOtaIntegrations, type OtaIntegrationDTO } from '@/api/otaIntegration'
 import {
   getChannelPriceAdjustments,
   updateChannelPriceAdjustment,
   type ChannelPriceAdjustmentDTO,
-  type PriceAdjustmentType,
+  type PriceAdjustmentType as PriceLabsPriceAdjustmentType,
 } from '@/api/pricelabs'
-import { getAllChannels, type ChannelDTO } from '@/api/channel'
+import { getAllRoomTypes } from '@/api/roomType'
+import ConnectOtaWidget from '@/components/ConnectOtaWidget.vue'
 
 const router = useRouter()
 
@@ -980,13 +978,16 @@ interface PriceRatioEdit {
   adjustmentValue: number
   adjustmentUnit: '%' | '¥'
   autoSyncPrice: boolean
-  backendAdjustmentType: PriceAdjustmentType
+  backendAdjustmentType: PriceLabsPriceAdjustmentType
 }
 const currentEditingRatio = ref<PriceRatioEdit | null>(null)
 const priceRatioLoading = ref(false)
 const showPriceRatio = ref(false)
 const showAddHotelDialog = ref(false)
 const showHistoryDialog = ref(false)
+const showWidgetDialog = ref(false)
+const selectedOtaId = ref<number>(0)
+const selectedOtaName = ref<string>('')
 
 // 酒店列表数据
 const hotelList = ref<any[]>([])
@@ -1085,13 +1086,44 @@ const roomMappingData = ref<RoomMappingGroup[]>([])
 // 扁平化的映射数据（用于表格展示）
 const flattenedMappingData = ref<FlattenedMappingItem[]>([])
 
-// PMS房型选项
-const pmsRoomOptions = ref<{ value: string; label: string }[]>([
-  { value: 'Tanpopo Inn101', label: 'Tanpopo Inn101' },
-  { value: 'Tanpopo Inn102', label: 'Tanpopo Inn102' },
-  { value: 'Tanpopo Inn103', label: 'Tanpopo Inn103' },
-  { value: 'Tanpopo Inn104', label: 'Tanpopo Inn104' },
-])
+const formatPmsRoomTypeDisplay = (value: string | null): string => {
+  if (!value) {
+    return '-'
+  }
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return '-'
+  }
+  const idx1 = trimmed.indexOf('(')
+  const idx2 = trimmed.indexOf('（')
+  const idxCandidates = [idx1, idx2].filter((it) => it >= 0)
+  if (idxCandidates.length === 0) {
+    return trimmed
+  }
+  const idx = Math.min(...idxCandidates)
+  const head = trimmed.slice(0, idx).trim()
+  return head || trimmed
+}
+
+// PMS房型选项（仅房型名称）
+const pmsRoomOptions = ref<{ value: string; label: string }[]>([])
+
+const loadPmsRoomOptions = async () => {
+  try {
+    const resp = await getAllRoomTypes()
+    if (!resp.success || !resp.data) {
+      return
+    }
+
+    const names = resp.data
+      .map((rt: any) => (rt?.name ? String(rt.name).trim() : ''))
+      .filter((name: string) => !!name)
+
+    pmsRoomOptions.value = Array.from(new Set(names)).map((name) => ({ value: name, label: name }))
+  } catch (e) {
+    console.error('加载PMS房型列表失败:', e)
+  }
+}
 
 // PMS价格计划选项
 const pmsPricePlanOptions = ref<{ value: string; label: string }[]>([
@@ -1140,7 +1172,7 @@ interface PriceRatioItem {
   channelId: number
   channel: string
   ratio: string
-  adjustmentType: PriceAdjustmentType
+  adjustmentType: PriceLabsPriceAdjustmentType
   adjustmentValue: number | null
   autoSyncPrice: boolean
 }
@@ -1154,13 +1186,6 @@ const channelAccounts = ref([
     roomCount: 0,
   },
 ])
-
-// 新账号表单
-const newAccount = ref({
-  name: '',
-  username: '',
-  password: '',
-})
 
 // 渠道 Logo 映射表
 const channelLogoMap: Record<string, string> = {
@@ -1185,9 +1210,6 @@ interface ChannelItem {
 }
 const otaChannels = ref<ChannelItem[]>([])
 
-// 渠道管理数据（从后端加载）
-const managementChannels = ref<ChannelItem[]>([])
-
 // 加载状态
 const channelsLoading = ref(false)
 
@@ -1207,42 +1229,42 @@ const channelCategories = ref([
   },
 ])
 
-// 加载渠道数据
+// 加载OTA直连渠道数据
 const loadChannels = async () => {
   channelsLoading.value = true
   try {
-    const response = await getAllChannels()
+    const response = await getAllOtaIntegrations()
     if (response.success && response.data) {
-      // 将渠道数据转换为前端格式，并添加 logoUrl
-      const channels = response.data.map((channel: ChannelDTO) => ({
-        id: channel.id,
-        name: channel.name,
-        logoUrl: channelLogoMap[channel.name] || 'https://via.placeholder.com/120x60/409EFF/FFFFFF?text=' + encodeURIComponent(channel.name),
-        connected: false, // TODO: 从后端获取连接状态
+      // 将OTA直连数据转换为前端格式
+      otaChannels.value = response.data.map((ota: OtaIntegrationDTO) => ({
+        id: ota.id,
+        name: ota.name,
+        logoUrl: ota.logoUrl || channelLogoMap[ota.name] || 'https://via.placeholder.com/120x60/409EFF/FFFFFF?text=' + encodeURIComponent(ota.name),
+        connected: ota.isConnected,
       }))
-
-      // 根据渠道名称分类：Neppan 归入管理渠道，其他归入 OTA 渠道
-      otaChannels.value = channels.filter((ch: ChannelItem) => ch.name !== 'Neppan')
-      managementChannels.value = channels.filter((ch: ChannelItem) => ch.name === 'Neppan')
     }
   } catch (error) {
-    console.error('加载渠道数据失败:', error)
-    ElMessage.error('加载渠道数据失败')
+    console.error('加载OTA直连渠道数据失败:', error)
+    ElMessage.error('加载OTA直连渠道数据失败')
   } finally {
     channelsLoading.value = false
   }
 }
 
-// 加载价格比例数据
-const loadPriceRatioData = async () => {
+const loadPriceRatioDataFromChannelAdjustments = async () => {
   priceRatioLoading.value = true
   try {
     const response = await getChannelPriceAdjustments()
     if (response.success && response.data) {
-      priceRatioData.value = response.data.map((item: ChannelPriceAdjustmentDTO) => {
-        // 将后端数据转换为前端显示格式
+      const supported = response.data.filter(
+        (item: ChannelPriceAdjustmentDTO) =>
+          item.channelCode === 'AIRBNB' || item.channelCode === 'BOOKING',
+      )
+
+      priceRatioData.value = supported.map((item: ChannelPriceAdjustmentDTO) => {
         const adjustmentValue = item.adjustmentValue ?? 0
         let ratio: string
+
         if (adjustmentValue === 0) {
           ratio = '等同于基本价格'
         } else {
@@ -1250,13 +1272,14 @@ const loadPriceRatioData = async () => {
           const typeText = adjustmentValue > 0 ? '贵' : '便宜'
           ratio = `${Math.abs(adjustmentValue)} ${unit} 比基准价${typeText}`
         }
+
         return {
           channelId: item.channelId,
           channel: item.channelName,
           ratio: ratio,
-          adjustmentType: item.adjustmentType,
-          adjustmentValue: item.adjustmentValue,
-          autoSyncPrice: item.autoSyncPrice,
+          adjustmentType: item.adjustmentType ?? 'PERCENTAGE',
+          adjustmentValue: item.adjustmentValue ?? null,
+          autoSyncPrice: item.autoSyncPrice ?? true,
         }
       })
     }
@@ -1268,14 +1291,13 @@ const loadPriceRatioData = async () => {
   }
 }
 
-// 方法
 const handleMenuSelect = (index: string) => {
   activeMenu.value = index
   if (index === 'price-ratio') {
     showPriceRatio.value = true
     showChannelSettings.value = false
     // 加载价格比例数据
-    loadPriceRatioData()
+    loadPriceRatioDataFromChannelAdjustments()
   } else if (index === 'channel-list') {
     showPriceRatio.value = false
     showChannelSettings.value = false
@@ -1464,18 +1486,30 @@ const closePriceRatio = () => {
 
 const startConnection = () => {
   if (selectedChannel.value) {
-    // 模拟连接过程
+    // 关闭须知对话框
     showConnectDialog.value = false
-    ElMessage.success(`正在连接${selectedChannel.value.name}，请稍后...`)
 
-    // 模拟连接成功后更新状态
-    setTimeout(() => {
-      selectedChannel.value.connected = true
-      selectedChannel.value.roomTypeText = '尚未关联房型'
-      ElMessage.success(`${selectedChannel.value.name}连接成功！`)
-      selectedChannel.value = null
-    }, 2000)
+    // 打开Su Widget对话框
+    selectedOtaId.value = selectedChannel.value.id
+    selectedOtaName.value = selectedChannel.value.name
+    showWidgetDialog.value = true
   }
+}
+
+// Widget连接成功处理
+const handleWidgetSuccess = () => {
+  if (selectedChannel.value) {
+    ElMessage.success(`${selectedChannel.value.name}连接成功！`)
+    // 重新加载OTA列表以更新连接状态
+    loadChannels()
+  }
+  showWidgetDialog.value = false
+  selectedChannel.value = null
+}
+
+// Widget连接错误处理
+const handleWidgetError = (error: string) => {
+  console.error('Widget连接错误:', error)
 }
 
 // 账号管理方法
@@ -1505,29 +1539,18 @@ const removeChannelAccount = async (account: any) => {
   }
 }
 
-const addAccount = () => {
-  if (!newAccount.value.name || !newAccount.value.username || !newAccount.value.password) {
-    ElMessage.warning('请填写完整的账号信息')
-    return
-  }
+// 连接到 Airbnb（跳转到 Airbnb 授权页面）
+const connectToAirbnb = () => {
+  // TODO: 替换为实际的 Airbnb OAuth 授权 URL
+  const airbnbAuthUrl = 'https://www.airbnb.com/oauth2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&response_type=code&scope=YOUR_SCOPES'
 
-  // 添加新账号
-  const newId = (channelAccounts.value.length + 1).toString()
-  channelAccounts.value.push({
-    id: newId,
-    name: newAccount.value.name,
-    roomCount: 0,
-  })
-
-  // 清空表单
-  newAccount.value = {
-    name: '',
-    username: '',
-    password: '',
-  }
-
+  // 关闭弹窗
   showAddAccountDialog.value = false
-  ElMessage.success('账号添加成功')
+
+  // 跳转到 Airbnb 授权页面
+  window.open(airbnbAuthUrl, '_blank')
+
+  ElMessage.info('正在跳转到 Airbnb 授权页面...')
 }
 
 // 解析现有的 ratio 字符串到新数据结构
@@ -1584,7 +1607,7 @@ const savePriceRatio = async () => {
   const { channelId, adjustmentType, adjustmentValue, adjustmentUnit, autoSyncPrice } = currentEditingRatio.value
 
   // 将前端的调整类型转换为后端的类型
-  let backendAdjustmentType: PriceAdjustmentType
+  let backendAdjustmentType: PriceLabsPriceAdjustmentType
   let backendAdjustmentValue: number | null = adjustmentValue
 
   if (adjustmentValue === 0) {
@@ -2183,6 +2206,7 @@ const startAuthorization = () => {
 onMounted(() => {
   // 组件挂载后的初始化逻辑
   loadChannels()
+  loadPmsRoomOptions()
 })
 </script>
 

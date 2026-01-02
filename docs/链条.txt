@@ -1,0 +1,217 @@
+# Chain Users
+
+Chain users are typically individuals who have the authority to oversee and manage multiple properties or locations within a hotel chain or hospitality group. Chain users typically hold administrative or managerial positions and are responsible for supervising operations, reservations, and other aspects across multiple properties within the same chain or group.
+
+1. Chain ID can be created to link a group of properties together.
+2. Chain user associated to a chain ID will automatically have access to all listings linked to the same chain ID.
+3. Chain ID can be created or added for property via API or directly via extranet.
+4. Chain user must use a different email ID if they are also a Global user.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/users
+```
+
+{% endcode %}
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`Name` <mark style="color:orange;">**string (Required)**</mark>
+
+This field specifies the name of the user.
+
+***
+
+`Email` <mark style="color:orange;">**email (Required)**</mark>
+
+This field specifies the email id of the user.&#x20;
+
+> Valid email address required as reset link is triggered to registered email address.
+
+***
+
+#### <mark style="color:blue;">Phone</mark> <mark style="color:blue;"></mark><mark style="color:blue;">**array (Required)**</mark>
+
+This field is an array which has multiple fields such as `CountryCode` and `PhoneNumber.`
+
+> Phone number of the user which is the combination of the country code and the phone number.
+
+***
+
+`CountryCode` <mark style="color:orange;">**string (Required)**</mark>
+
+Country code of the user’s phone number.
+
+> Requires a country code.
+
+***
+
+`PhoneNumber` <mark style="color:orange;">**string (Required)**</mark>
+
+Phone number of user.
+
+> Requires an active phone number (Numeric values only).
+
+***
+
+`Status` <mark style="color:orange;">**string (Required)**</mark>
+
+Status of the user whether it’s active or deactive.
+
+> This field specifies the user's status. Active status indicates user can access extranet. Inactive remove user's access to Su extranet.
+
+***
+
+`Type` <mark style="color:orange;">**string (Required)**</mark>
+
+Type of the user.
+
+> This field specifies type of users.There are 2 types of users, Global and Chain.
+
+***
+
+`ChainID` <mark style="color:orange;">**string (Required)**</mark>
+
+This field specifies the id of the chain user which cannot be duplicated. It has a unique value.
+
+***
+
+`ContactPerson` <mark style="color:orange;">**string (Required)**</mark>
+
+This field specifies the name of the property user to whom the chain user can contact for details if required.
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+  "Name": "Joe Tohma",
+  "Email": "admin@examplehotel.co.nz",
+  "Phone": {
+    "CountryCode": "+64",
+    "PhoneNumber": "212345678"
+  },
+  "Status": "Active",
+  "Type": "Chain",
+  "ChainID": "NZCHAIN001",
+  "ContactPerson": "Mark Smith"
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+  "Status": "Success"
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when 'type' of user is not specified in the request.
+
+#### <mark style="color:red;">**Sample Error Response (990)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "990",
+    "ShortText": "User type must be either 'Global' or 'Chain'"
+  }
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when valid Email-ID is not passed in the request.
+
+<mark style="color:red;">**Sample Error Response (989)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "989",
+    "ShortText": "Enter valid email"
+  }
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when valid country code is not passed or if the field is empty in the request.
+
+<mark style="color:red;">**Sample Error Response (991)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "991",
+    "ShortText": "Enter valid countrycode"
+  }
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when valid phone/contact number is not passed or if the field is empty in the request.
+
+<mark style="color:red;">**Sample Error Response (988)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "988",
+    "ShortText": "Enter valid phone number"
+  }
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when valid Chain ID is not passed or if the field is empty in the request.
+
+<mark style="color:red;">**Sample Error Response (995)**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "995",
+    "ShortText": "ChainID should be alpha-numeric and length must be less than 40 characters"
+  }
+}
+```
+
+{% endcode %}
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when valid contact person is not passed or if the field is empty in the request.
+
+<mark style="color:red;">**Sample Error Response (1008)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "1008",
+    "ShortText": "Enter ContactPerson"
+  }
+}
+```

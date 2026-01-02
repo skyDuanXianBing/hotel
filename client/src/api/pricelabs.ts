@@ -49,6 +49,7 @@ export interface PriceLabsIntegrationDTO {
   id?: number
   storeId?: number
   isEnabled: boolean
+  priceLabsEmail?: string
   syncUrl?: string
   calendarTriggerUrl?: string
   hookUrl?: string
@@ -89,6 +90,8 @@ export interface ChannelPriceDTO {
   storeId: number
   roomTypeId: number
   roomTypeName: string
+  pricePlanId: number
+  pricePlanName: string
   channelId: number
   channelName: string
   channelCode: string
@@ -171,6 +174,15 @@ export const toggleIntegration = async (
   enabled: boolean,
 ): Promise<ApiResponse<PriceLabsIntegrationDTO>> => {
   return await request.patch('/pricelabs/integration/toggle', { enabled })
+}
+
+/**
+ * 更新集成配置
+ */
+export const updateIntegrationConfig = async (
+  config: Partial<PriceLabsIntegrationDTO>,
+): Promise<ApiResponse<PriceLabsIntegrationDTO>> => {
+  return await request.patch('/pricelabs/integration/config', config)
 }
 
 // ==================== 连接配置 API ====================
@@ -300,4 +312,13 @@ export const getRecentSyncLogs = async (
   limit: number = 10,
 ): Promise<ApiResponse<PriceLabsSyncLogDTO[]>> => {
   return await request.get(`/pricelabs/sync-logs/recent?limit=${limit}`)
+}
+
+// ==================== 手动同步 API ====================
+
+/**
+ * 手动触发同步
+ */
+export const manualSync = async (): Promise<ApiResponse<{ message: string }>> => {
+  return await request.post('/pricelabs/sync/manual')
 }

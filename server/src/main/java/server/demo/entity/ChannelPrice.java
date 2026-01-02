@@ -15,9 +15,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "channel_prices",
        uniqueConstraints = @UniqueConstraint(
-           columnNames = {"store_id", "room_type_id", "channel_id", "price_date"}),
+           columnNames = {"store_id", "room_type_id", "price_plan_id", "channel_id", "price_date"}),
        indexes = {
            @Index(name = "idx_channel_price_room_type_date", columnList = "room_type_id, price_date"),
+           @Index(name = "idx_channel_price_plan_date", columnList = "price_plan_id, price_date"),
            @Index(name = "idx_channel_price_channel_date", columnList = "channel_id, price_date"),
            @Index(name = "idx_channel_price_sync_status", columnList = "is_synced_to_ota")
        })
@@ -37,6 +38,13 @@ public class ChannelPrice implements StoreScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_type_id", nullable = false)
     private RoomType roomType;
+
+    /**
+     * 关联的价格计划
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "price_plan_id", nullable = false)
+    private PricePlan pricePlan;
 
     /**
      * 关联的渠道
@@ -115,9 +123,10 @@ public class ChannelPrice implements StoreScopedEntity {
     // Constructors
     public ChannelPrice() {}
 
-    public ChannelPrice(RoomType roomType, Channel channel, LocalDate priceDate,
+    public ChannelPrice(RoomType roomType, PricePlan pricePlan, Channel channel, LocalDate priceDate,
                         BigDecimal basePrice, BigDecimal channelPrice) {
         this.roomType = roomType;
+        this.pricePlan = pricePlan;
         this.channel = channel;
         this.priceDate = priceDate;
         this.basePrice = basePrice;
@@ -149,6 +158,14 @@ public class ChannelPrice implements StoreScopedEntity {
 
     public void setRoomType(RoomType roomType) {
         this.roomType = roomType;
+    }
+
+    public PricePlan getPricePlan() {
+        return pricePlan;
+    }
+
+    public void setPricePlan(PricePlan pricePlan) {
+        this.pricePlan = pricePlan;
     }
 
     public Channel getChannel() {

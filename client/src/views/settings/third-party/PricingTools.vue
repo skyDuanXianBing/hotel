@@ -54,6 +54,34 @@
             </div>
           </div>
 
+          <!-- 集成配置区域 -->
+          <div class="integration-config-section">
+            <div class="section-row">
+              <div class="section-label">
+                <h3 class="label-title">账户配置</h3>
+                <p class="label-desc">请输入您在 PriceLabs 注册的邮箱地址</p>
+              </div>
+              <div class="config-form">
+                <el-input
+                  v-model="integration.priceLabsEmail"
+                  placeholder="example@email.com"
+                  style="width: 300px; margin-right: 12px"
+                  :disabled="integration.isEnabled"
+                />
+                <el-button
+                  type="primary"
+                  :disabled="!integration.priceLabsEmail || integration.isEnabled"
+                  @click="handleSaveConfig"
+                >
+                  保存配置
+                </el-button>
+                <el-text v-if="integration.isEnabled" type="info" size="small">
+                  (需先禁用集成才能修改邮箱)
+                </el-text>
+              </div>
+            </div>
+          </div>
+
           <!-- 集成状态区域 -->
           <div class="integration-status-section">
             <div class="section-row">
@@ -65,6 +93,14 @@
                 <el-tag :type="integration.isEnabled ? 'success' : 'info'" size="large">
                   {{ integration.isEnabled ? '已启用' : '未启用' }}
                 </el-tag>
+                <el-button
+                  v-if="integration.isEnabled"
+                  type="primary"
+                  :loading="syncLoading"
+                  @click="handleManualSync"
+                >
+                  立即同步
+                </el-button>
                 <el-switch
                   v-model="integration.isEnabled"
                   :loading="toggleLoading"
@@ -355,12 +391,16 @@ import { Right } from '@element-plus/icons-vue'
 import * as priceLabsApi from '@/api/pricelabs'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { getAllPricePlans, type PricePlanDTO } from '@/api/pricePlan'
+import {
+  getAllOtaIntegrations,
+  updatePriceAdjustment,
+  type OtaIntegrationDTO,
+  type PriceAdjustmentType,
+} from '@/api/otaIntegration'
 import type {
   PriceLabsIntegrationDTO,
   PriceLabsConnectionDTO,
-  ChannelPriceAdjustmentDTO,
   PriceLabsSyncLogDTO,
-  PriceAdjustmentType,
 } from '@/api/pricelabs'
 
 // 视图状态
@@ -375,14 +415,25 @@ const integration = ref<PriceLabsIntegrationDTO>({
   successSyncCount: 0,
 })
 const toggleLoading = ref(false)
+const syncLoading = ref(false)
 
 // 连接列表
 const connections = ref<PriceLabsConnectionDTO[]>([])
 const connectionsLoading = ref(false)
 const connectionFilter = ref('all')
 
-// 渠道价格调整
-const channelAdjustments = ref<ChannelPriceAdjustmentDTO[]>([])
+// 渠道价格调整（使用 OTA 直连数据）
+interface ChannelAdjustmentItem {
+  channelId: number
+  channelName: string
+  channelCode: string
+  adjustmentType: PriceAdjustmentType
+  adjustmentValue: number | null
+  autoSyncPrice: boolean
+  exampleBasePrice: number
+  exampleChannelPrice: number
+}
+const channelAdjustments = ref<ChannelAdjustmentItem[]>([])
 const adjustmentsLoading = ref(false)
 
 // 同步日志
@@ -474,13 +525,33 @@ const loadConnections = async () => {
   }
 }
 
-// 加载渠道价格调整
+// 加载渠道价格调整（从 OTA 直连表获取）
 const loadChannelAdjustments = async () => {
   adjustmentsLoading.value = true
   try {
-    const res = await priceLabsApi.getChannelPriceAdjustments()
+    const res = await getAllOtaIntegrations()
     if (res.success) {
-      channelAdjustments.value = res.data
+      // 将 OTA 直连数据转换为价格调整格式
+      channelAdjustments.value = res.data.map((ota: OtaIntegrationDTO) => {
+        const basePrice = 1000
+        const adjustmentValue = ota.priceAdjustmentValue ?? 0
+        let channelPrice = basePrice
+        if (ota.priceAdjustmentType === 'PERCENTAGE') {
+          channelPrice = basePrice * (1 + adjustmentValue / 100)
+        } else if (ota.priceAdjustmentType === 'FIXED') {
+          channelPrice = basePrice + adjustmentValue
+        }
+        return {
+          channelId: ota.id,
+          channelName: ota.name,
+          channelCode: ota.code,
+          adjustmentType: ota.priceAdjustmentType ?? 'PERCENTAGE',
+          adjustmentValue: ota.priceAdjustmentValue ?? null,
+          autoSyncPrice: ota.autoSyncPrice ?? true,
+          exampleBasePrice: basePrice,
+          exampleChannelPrice: channelPrice,
+        }
+      })
     }
   } catch (error) {
     console.error('加载渠道价格调整失败:', error)
@@ -537,8 +608,38 @@ const loadPricePlans = async () => {
   }
 }
 
+// 保存配置
+const handleSaveConfig = async () => {
+  if (!integration.value.priceLabsEmail) {
+    ElMessage.warning('请输入 PriceLabs 邮箱地址')
+    return
+  }
+
+  try {
+    const res = await priceLabsApi.updateIntegrationConfig({
+      priceLabsEmail: integration.value.priceLabsEmail,
+    })
+    if (res.success) {
+      integration.value = res.data
+      ElMessage.success('配置保存成功')
+    } else {
+      ElMessage.error(res.message || '保存失败')
+    }
+  } catch (error) {
+    console.error('保存配置失败:', error)
+    ElMessage.error('保存失败')
+  }
+}
+
 // 切换集成状态
 const handleToggleIntegration = async (enabled: boolean) => {
+  // 启用前检查是否已配置邮箱
+  if (enabled && (!integration.value.priceLabsEmail || !integration.value.priceLabsEmail.trim())) {
+    ElMessage.warning('请先配置 PriceLabs 邮箱地址')
+    integration.value.isEnabled = false
+    return
+  }
+
   toggleLoading.value = true
   try {
     const res = await priceLabsApi.toggleIntegration(enabled)
@@ -555,6 +656,29 @@ const handleToggleIntegration = async (enabled: boolean) => {
     ElMessage.error('操作失败')
   } finally {
     toggleLoading.value = false
+  }
+}
+
+// 手动同步
+const handleManualSync = async () => {
+  console.log('[PricingTools] Starting manual sync...')
+  syncLoading.value = true
+  try {
+    ElMessage.info('开始同步，请稍候...')
+    const res = await priceLabsApi.manualSync()
+    console.log('[PricingTools] Sync response:', res)
+    if (res.success) {
+      ElMessage.success('同步成功')
+      await loadIntegration()
+      await loadConnections()
+    } else {
+      ElMessage.error(res.message || '同步失败')
+    }
+  } catch (error) {
+    console.error('[PricingTools] Sync failed:', error)
+    ElMessage.error('同步失败')
+  } finally {
+    syncLoading.value = false
   }
 }
 
@@ -632,7 +756,7 @@ const handleDeleteConnection = async (row: PriceLabsConnectionDTO) => {
 }
 
 // 编辑价格调整
-const handleEditAdjustment = (row: ChannelPriceAdjustmentDTO) => {
+const handleEditAdjustment = (row: ChannelAdjustmentItem) => {
   adjustmentForm.channelId = row.channelId
   adjustmentForm.channelName = row.channelName
   adjustmentForm.adjustmentType = row.adjustmentType || 'PERCENTAGE'
@@ -653,9 +777,9 @@ const handleSaveAdjustment = async () => {
     // 根据方向计算最终值
     const finalValue = adjustmentDirection.value === 'up' ? adjustmentFormValue.value : -adjustmentFormValue.value
 
-    const res = await priceLabsApi.updateChannelPriceAdjustment(adjustmentForm.channelId, {
-      adjustmentType: adjustmentForm.adjustmentType,
-      adjustmentValue: finalValue,
+    const res = await updatePriceAdjustment(adjustmentForm.channelId, {
+      priceAdjustmentType: adjustmentForm.adjustmentType,
+      priceAdjustmentValue: finalValue,
       autoSyncPrice: adjustmentForm.autoSyncPrice,
     })
 
@@ -674,11 +798,11 @@ const handleSaveAdjustment = async () => {
 }
 
 // 自动同步开关变化
-const handleAutoSyncChange = async (row: ChannelPriceAdjustmentDTO) => {
+const handleAutoSyncChange = async (row: ChannelAdjustmentItem) => {
   try {
-    await priceLabsApi.updateChannelPriceAdjustment(row.channelId, {
-      adjustmentType: row.adjustmentType,
-      adjustmentValue: row.adjustmentValue,
+    await updatePriceAdjustment(row.channelId, {
+      priceAdjustmentType: row.adjustmentType,
+      priceAdjustmentValue: row.adjustmentValue ?? 0,
       autoSyncPrice: row.autoSyncPrice,
     })
     ElMessage.success(row.autoSyncPrice ? '已开启自动同步' : '已关闭自动同步')
@@ -752,19 +876,19 @@ const getAdjustmentTypeText = (type: PriceAdjustmentType): string => {
 }
 
 // 格式化调整值
-const formatAdjustmentValue = (row: ChannelPriceAdjustmentDTO): string => {
+const formatAdjustmentValue = (row: ChannelAdjustmentItem): string => {
   const value = row.adjustmentValue
   if (value === null || value === undefined) return '-'
 
   const prefix = value >= 0 ? '+' : ''
-  if (row.adjustmentType === 'PERCENTAGE' || row.adjustmentType === 'COMMISSION') {
+  if (row.adjustmentType === 'PERCENTAGE') {
     return `${prefix}${value}%`
   }
   return `${prefix}¥${value}`
 }
 
 // 获取调整值样式类
-const getAdjustmentValueClass = (row: ChannelPriceAdjustmentDTO): string => {
+const getAdjustmentValueClass = (row: ChannelAdjustmentItem): string => {
   const value = row.adjustmentValue
   if (value === null || value === undefined) return ''
   return value >= 0 ? 'value-up' : 'value-down'

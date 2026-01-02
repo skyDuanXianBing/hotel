@@ -10,25 +10,58 @@ import java.util.List;
 public class PriceLabsWebhookRequest {
 
     /**
-     * 房源/listing ID
+     * 事件类型 (price_update, calendar_request, error)
      */
-    private String listingId;
+    private String type;
 
     /**
-     * 价格数据列表
+     * 时间戳
      */
-    private List<PriceData> prices;
+    private String timestamp;
 
     /**
-     * 最小入住天数数据
+     * 数据列表
      */
-    private List<MinStayData> minStays;
+    private List<ListingData> data;
 
-    // Inner classes for data structures
-    public static class PriceData {
+    // Nested class for listing data
+    public static class ListingData {
+        private String listingId;
+        private String ratePlanId;
+        private List<CalendarData> calendar;
+
+        public String getListingId() {
+            return listingId;
+        }
+
+        public void setListingId(String listingId) {
+            this.listingId = listingId;
+        }
+
+        public String getRatePlanId() {
+            return ratePlanId;
+        }
+
+        public void setRatePlanId(String ratePlanId) {
+            this.ratePlanId = ratePlanId;
+        }
+
+        public List<CalendarData> getCalendar() {
+            return calendar;
+        }
+
+        public void setCalendar(List<CalendarData> calendar) {
+            this.calendar = calendar;
+        }
+    }
+
+    public static class CalendarData {
         private String date;
         private BigDecimal price;
-        private String currency;
+        private Integer minStay;
+        private Integer maxStay;
+        private Boolean closedToArrival;
+        private Boolean closedToDeparture;
 
         public String getDate() {
             return date;
@@ -46,28 +79,6 @@ public class PriceLabsWebhookRequest {
             this.price = price;
         }
 
-        public String getCurrency() {
-            return currency;
-        }
-
-        public void setCurrency(String currency) {
-            this.currency = currency;
-        }
-    }
-
-    public static class MinStayData {
-        private String date;
-        private Integer minStay;
-        private Integer maxStay;
-
-        public String getDate() {
-            return date;
-        }
-
-        public void setDate(String date) {
-            this.date = date;
-        }
-
         public Integer getMinStay() {
             return minStay;
         }
@@ -83,30 +94,46 @@ public class PriceLabsWebhookRequest {
         public void setMaxStay(Integer maxStay) {
             this.maxStay = maxStay;
         }
+
+        public Boolean getClosedToArrival() {
+            return closedToArrival;
+        }
+
+        public void setClosedToArrival(Boolean closedToArrival) {
+            this.closedToArrival = closedToArrival;
+        }
+
+        public Boolean getClosedToDeparture() {
+            return closedToDeparture;
+        }
+
+        public void setClosedToDeparture(Boolean closedToDeparture) {
+            this.closedToDeparture = closedToDeparture;
+        }
     }
 
-    // Getters and Setters
-    public String getListingId() {
-        return listingId;
+    // Getters and Setters for main class
+    public String getType() {
+        return type;
     }
 
-    public void setListingId(String listingId) {
-        this.listingId = listingId;
+    public void setType(String type) {
+        this.type = type;
     }
 
-    public List<PriceData> getPrices() {
-        return prices;
+    public String getTimestamp() {
+        return timestamp;
     }
 
-    public void setPrices(List<PriceData> prices) {
-        this.prices = prices;
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
     }
 
-    public List<MinStayData> getMinStays() {
-        return minStays;
+    public List<ListingData> getData() {
+        return data;
     }
 
-    public void setMinStays(List<MinStayData> minStays) {
-        this.minStays = minStays;
+    public void setData(List<ListingData> data) {
+        this.data = data;
     }
 }

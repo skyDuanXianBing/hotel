@@ -51,15 +51,55 @@ public class AutoMessage implements StoreScopedEntity {
 
     /**
      * 渠道: 全部渠道, Booking.com, Airbnb, Agoda, 等
+     * @deprecated 使用 channels 替代，支持多选
      */
-    @Column(nullable = false, length = 100)
+    @Deprecated
+    @Column(nullable = true, length = 100)
     private String channel;
 
     /**
-     * 房间: 全部房间, 或具体房间名称
+     * 渠道列表（JSON数组格式，支持多选）
+     * 例如: ["Booking.com", "Airbnb"]
      */
-    @Column(nullable = false, length = 100)
+    @Column(columnDefinition = "TEXT")
+    private String channels;
+
+    /**
+     * 过时补发: 如果消息在触发时间之后创建，是否仍然发送
+     */
+    @Column(nullable = false)
+    private Boolean resendOnExpire = false;
+
+    /**
+     * 房间: 全部房间, 或具体房间名称
+     * @deprecated 使用 roomSelectionType 和 roomSelection 替代
+     */
+    @Deprecated
+    @Column(nullable = true, length = 100)
     private String room;
+
+    /**
+     * 房间选择类型: ALL_LOCAL(全部本地房型), BY_ROOM_TYPE(根据房型), BY_GROUP(根据分组), BY_ROOM(按房间)
+     */
+    @Column(length = 20)
+    private String roomSelectionType;
+
+    /**
+     * 房间选择值（JSON数组格式）
+     * 根据 roomSelectionType 存储不同内容:
+     * - ALL_LOCAL: 空或null
+     * - BY_ROOM_TYPE: 房型ID数组 ["1", "2"]
+     * - BY_GROUP: 分组ID数组 ["1", "2"]
+     * - BY_ROOM: 房间ID数组 ["1", "2"]
+     */
+    @Column(columnDefinition = "TEXT")
+    private String roomSelection;
+
+    /**
+     * 操作类型: BOOKING_CONFIRM(预订确认), CHECK_IN(入住), CHECK_OUT(离店)
+     */
+    @Column(length = 30)
+    private String action;
 
     /**
      * 是否启用
@@ -145,6 +185,46 @@ public class AutoMessage implements StoreScopedEntity {
 
     public void setRoom(String room) {
         this.room = room;
+    }
+
+    public String getChannels() {
+        return channels;
+    }
+
+    public void setChannels(String channels) {
+        this.channels = channels;
+    }
+
+    public Boolean getResendOnExpire() {
+        return resendOnExpire;
+    }
+
+    public void setResendOnExpire(Boolean resendOnExpire) {
+        this.resendOnExpire = resendOnExpire;
+    }
+
+    public String getRoomSelectionType() {
+        return roomSelectionType;
+    }
+
+    public void setRoomSelectionType(String roomSelectionType) {
+        this.roomSelectionType = roomSelectionType;
+    }
+
+    public String getRoomSelection() {
+        return roomSelection;
+    }
+
+    public void setRoomSelection(String roomSelection) {
+        this.roomSelection = roomSelection;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public void setAction(String action) {
+        this.action = action;
     }
 
     public Boolean getEnabled() {

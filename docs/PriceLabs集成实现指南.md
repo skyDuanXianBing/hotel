@@ -2,6 +2,23 @@
 
 > **基于当前项目架构设计，贴合现有实体结构和多门店架构**
 
+## 重要架构说明
+
+### OTA 集成架构变更 (2025-11-27)
+
+**本文档部分内容已过时**。系统已采用独立的 OTA 集成架构:
+
+- **OTA 直连渠道** (Airbnb, Booking.com): 使用独立的 `ota_integrations` 表
+  - 价格调整类型: `PERCENTAGE` (百分比) 和 `FIXED` (固定金额)
+  - API 端点: `/api/v1/ota-integrations`
+  - 详见 [PriceLabs集成测试指南.md](./PriceLabs集成测试指南.md)
+
+- **其他渠道** (携程、美团等): 可能仍使用 `channels` 表 (待实现)
+
+**注意**: 本文档中关于 `Channel` 表和 `COMMISSION` 价格调整类型的内容仅供参考,实际 OTA 集成请参考最新的测试指南文档。
+
+---
+
 ## 目录
 
 1. [概述](#1-概述)
@@ -108,7 +125,7 @@ X-Signature: <sha256_hmac_signature>
 └────┬────┘              └────────────┘                      │ │ 携程        │ │
      │                         ↑                             │ │ 美团        │ │
      │  ③ 渠道价格计算          │                             │ └─────────────┘ │
-     │  (基础价格 × 渠道加成率)  │                             └────────┬────────┘
+     │  (基础价格 + 价格调整)   │                             └────────┬────────┘
      │                         │                                      │
      ├─────────────────────────┼──────────────────────────────────────┤
      │                         │                                      │
@@ -128,19 +145,26 @@ X-Signature: <sha256_hmac_signature>
 
 ### 3.3 渠道价格计算逻辑
 
-PriceLabs 推送的是**基础定价**，需要根据各渠道的 `commissionRate`（佣金率）调整后再推送到 OTA：
+PriceLabs 推送的是**基础定价**，需要根据各渠道的价格调整配置进行调整后再推送到 OTA。
+
+**OTA 直连渠道** (使用 `ota_integrations` 表):
 
 ```
-渠道售价 = PriceLabs基础价格 × (1 + 渠道佣金率)
+计算公式:
+- PERCENTAGE 模式: 渠道售价 = 基础价格 × (1 + 调整值 / 100)
+- FIXED 模式: 渠道售价 = 基础价格 + 调整值
 
-示例：
-- PriceLabs 推送价格：¥500
-- Booking.com 佣金率：15%  → 售价 = 500 × 1.15 = ¥575
-- Airbnb 佣金率：12%      → 售价 = 500 × 1.12 = ¥560
-- 携程 佣金率：10%        → 售价 = 500 × 1.10 = ¥550
+示例 (PERCENTAGE 模式):
+- PriceLabs 推送价格: ¥500
+- Airbnb 价格上调 15%    → 售价 = 500 × (1 + 0.15) = ¥575
+- Booking.com 价格上调 17% → 售价 = 500 × (1 + 0.17) = ¥585
+
+示例 (FIXED 模式):
+- PriceLabs 推送价格: ¥500
+- Airbnb 固定加价 ¥50   → 售价 = 500 + 50 = ¥550
 ```
 
-> **注意**：现有 `Channel` 实体已有 `commissionRate` 字段，可直接使用。
+> **注意**: OTA 直连 (Airbnb, Booking.com) 使用独立的 `ota_integrations` 表管理价格调整配置,详见 [PriceLabs集成测试指南.md](./PriceLabs集成测试指南.md)。其他渠道的实现待定。
 
 ### 3.4 Webhook URL 配置
 
@@ -870,30 +894,33 @@ public class PriceLabsSyncLog implements StoreScopedEntity {
 }
 ```
 
-### 7.3 扩展 Channel 实体
+### 7.3 扩展 Channel 实体 (仅供参考)
 
-在现有 `Channel` 实体上添加 OTA API 配置字段：
+> **重要**: 本节内容已过时。OTA 直连 (Airbnb, Booking.com) 现在使用独立的 `ota_integrations` 表,不使用 `Channel` 表。本节内容仅作为其他渠道(如携程、美团等)的参考实现。
+
+如需为其他非 OTA 直连渠道添加配置,可参考以下字段设计:
 
 ```java
-// 在 Channel.java 中添加以下字段
+// 在 Channel.java 中添加以下字段(仅供参考)
 
-// OTA API 配置
-@Column(name = "ota_api_url", length = 500)
-private String otaApiUrl;
+// 渠道 API 配置
+@Column(name = "api_url", length = 500)
+private String apiUrl;
 
-@Column(name = "ota_api_key", length = 255)
-private String otaApiKey;
+@Column(name = "api_key", length = 255)
+private String apiKey;
 
-@Column(name = "ota_api_secret", length = 255)
-private String otaApiSecret;
+@Column(name = "api_secret", length = 255)
+private String apiSecret;
 
-@Column(name = "ota_property_id", length = 100)
-private String otaPropertyId;
+@Column(name = "property_id", length = 100)
+private String propertyId;
 
-// 价格调整方式: COMMISSION（佣金加成）, FIXED（固定金额）, PERCENTAGE（百分比）
+// 价格调整方式: PERCENTAGE（百分比）, FIXED（固定金额）
+// 注意: 已移除 COMMISSION 类型,统一使用 PERCENTAGE 模式
 @Enumerated(EnumType.STRING)
 @Column(name = "price_adjustment_type")
-private PriceAdjustmentType priceAdjustmentType = PriceAdjustmentType.COMMISSION;
+private PriceAdjustmentType priceAdjustmentType = PriceAdjustmentType.PERCENTAGE;
 
 // 价格调整值（根据 adjustmentType 解释）
 @Column(name = "price_adjustment_value", precision = 10, scale = 2)
@@ -1579,13 +1606,15 @@ CREATE TABLE pricelabs_sync_logs (
     FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4. 扩展 Channel 表（添加 OTA API 配置）
+-- 4. 扩展 Channel 表（添加 API 配置）【仅供参考】
+-- 注意: OTA 直连 (Airbnb, Booking.com) 使用 ota_integrations 表,不需要此扩展
+-- 此脚本仅供其他渠道(携程、美团等)参考
 ALTER TABLE channels
-    ADD COLUMN ota_api_url VARCHAR(500) AFTER notes,
-    ADD COLUMN ota_api_key VARCHAR(255) AFTER ota_api_url,
-    ADD COLUMN ota_api_secret VARCHAR(255) AFTER ota_api_key,
-    ADD COLUMN ota_property_id VARCHAR(100) AFTER ota_api_secret,
-    ADD COLUMN price_adjustment_type ENUM('COMMISSION', 'FIXED', 'PERCENTAGE') DEFAULT 'COMMISSION' AFTER ota_property_id,
+    ADD COLUMN api_url VARCHAR(500) AFTER notes,
+    ADD COLUMN api_key VARCHAR(255) AFTER api_url,
+    ADD COLUMN api_secret VARCHAR(255) AFTER api_key,
+    ADD COLUMN property_id VARCHAR(100) AFTER api_secret,
+    ADD COLUMN price_adjustment_type ENUM('PERCENTAGE', 'FIXED') DEFAULT 'PERCENTAGE' AFTER property_id,
     ADD COLUMN price_adjustment_value DECIMAL(10, 2) AFTER price_adjustment_type,
     ADD COLUMN auto_sync_price BOOLEAN DEFAULT TRUE AFTER price_adjustment_value;
 

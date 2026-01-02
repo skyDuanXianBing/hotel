@@ -13,7 +13,10 @@ import java.time.LocalDateTime;
 @Entity
 @EntityListeners(StoreScopedEntityListener.class)
 @Table(name = "room_types",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "code"}))
+        uniqueConstraints = {
+            @UniqueConstraint(name = "uk_room_types_store_code", columnNames = {"store_id", "code"}),
+            @UniqueConstraint(name = "uk_room_types_store_name", columnNames = {"store_id", "name"})
+        })
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class RoomType implements StoreScopedEntity {
     @Id

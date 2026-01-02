@@ -13,6 +13,8 @@ public class ChannelPriceDTO {
     private Long storeId;
     private Long roomTypeId;
     private String roomTypeName;
+    private Long pricePlanId;
+    private String pricePlanName;
     private Long channelId;
     private String channelName;
     private String channelCode;
@@ -61,6 +63,22 @@ public class ChannelPriceDTO {
 
     public void setRoomTypeName(String roomTypeName) {
         this.roomTypeName = roomTypeName;
+    }
+
+    public Long getPricePlanId() {
+        return pricePlanId;
+    }
+
+    public void setPricePlanId(Long pricePlanId) {
+        this.pricePlanId = pricePlanId;
+    }
+
+    public String getPricePlanName() {
+        return pricePlanName;
+    }
+
+    public void setPricePlanName(String pricePlanName) {
+        this.pricePlanName = pricePlanName;
     }
 
     public Long getChannelId() {

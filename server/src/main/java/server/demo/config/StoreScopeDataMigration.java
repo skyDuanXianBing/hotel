@@ -26,6 +26,7 @@ public class StoreScopeDataMigration implements org.springframework.boot.Command
     private final RoomTypeRepository roomTypeRepository;
     private final RoomRepository roomRepository;
     private final RoomPriceRepository roomPriceRepository;
+    private final ChannelRepository channelRepository;
     private final RoomGroupRepository roomGroupRepository;
     private final RoomGroupMemberRepository roomGroupMemberRepository;
     private final PricePlanRepository pricePlanRepository;
@@ -38,6 +39,7 @@ public class StoreScopeDataMigration implements org.springframework.boot.Command
                                    RoomTypeRepository roomTypeRepository,
                                    RoomRepository roomRepository,
                                    RoomPriceRepository roomPriceRepository,
+                                   ChannelRepository channelRepository,
                                    RoomGroupRepository roomGroupRepository,
                                    RoomGroupMemberRepository roomGroupMemberRepository,
                                    PricePlanRepository pricePlanRepository,
@@ -48,6 +50,7 @@ public class StoreScopeDataMigration implements org.springframework.boot.Command
         this.roomTypeRepository = roomTypeRepository;
         this.roomRepository = roomRepository;
         this.roomPriceRepository = roomPriceRepository;
+        this.channelRepository = channelRepository;
         this.roomGroupRepository = roomGroupRepository;
         this.roomGroupMemberRepository = roomGroupMemberRepository;
         this.pricePlanRepository = pricePlanRepository;
@@ -66,6 +69,7 @@ public class StoreScopeDataMigration implements org.springframework.boot.Command
         }
 
         log.info("[StoreScopeMigration] 开始执行历史数据 store_id 迁移");
+        migrateChannels(userStoreMap);
         migrateRoomTypes(userStoreMap);
         migrateRooms(userStoreMap);
         migrateRoomPrices();
@@ -152,6 +156,89 @@ public class StoreScopeDataMigration implements org.springframework.boot.Command
             toSave.add(roomType);
         }
         saveIfNeeded("RoomType", toSave, roomTypeRepository);
+    }
+
+    private void migrateChannels(Map<Long, Store> storeMap) {
+        List<Channel> pending = channelRepository.findAll().stream()
+                .filter(channel -> channel.getStoreId() == null)
+                .collect(Collectors.toList());
+        List<Channel> toSave = new ArrayList<>();
+
+        Set<String> reservedKeys = channelRepository.findAll().stream()
+                .filter(c -> c.getStoreId() != null && c.getCode() != null && !c.getCode().isBlank())
+                .map(c -> storeCodeKey(c.getStoreId(), c.getCode()))
+                .collect(Collectors.toSet());
+
+        for (Channel channel : pending) {
+            Long userId = channel.getUser() != null ? channel.getUser().getId() : null;
+            Store store = userId != null ? storeMap.get(userId) : null;
+            if (store == null) {
+                logMissingStore("Channel", channel.getId(), userId);
+                continue;
+            }
+
+            String code = channel.getCode() != null ? channel.getCode().trim() : null;
+            if (code == null || code.isBlank()) {
+                code = "CH" + (channel.getId() != null ? channel.getId() : "");
+            }
+
+            Long storeId = store.getId();
+            String key = storeCodeKey(storeId, code);
+            if (reservedKeys.contains(key)) {
+                String newCode = dedupeChannelCode(code, channel.getId(), reservedKeys, storeId);
+                log.warn("[StoreScopeMigration] Channel code duplicate under store. storeId={}, oldCode={}, newCode={}, channelId={}",
+                        storeId, code, newCode, channel.getId());
+                channel.setCode(newCode);
+                // 避免重复渠道影响业务逻辑：默认禁用历史重复数据
+                channel.setEnabled(false);
+                channel.setIsActive(false);
+                if (channel.getName() != null && !channel.getName().contains("历史重复")) {
+                    channel.setName(channel.getName() + "（历史重复）");
+                }
+                key = storeCodeKey(storeId, newCode);
+            } else {
+                channel.setCode(code);
+            }
+
+            channel.setStoreId(storeId);
+            reservedKeys.add(key);
+            toSave.add(channel);
+        }
+        saveIfNeeded("Channel", toSave, channelRepository);
+    }
+
+    private static String storeCodeKey(Long storeId, String code) {
+        return storeId + "-" + code;
+    }
+
+    private static String dedupeChannelCode(String baseCode, Long channelId, Set<String> reservedKeys, Long storeId) {
+        String normalized = baseCode != null ? baseCode.trim() : "CH";
+        String idPart = channelId != null ? String.valueOf(channelId) : "0";
+
+        // code 字段长度=20，尽量保留原 code + 短后缀
+        for (int attempt = 0; attempt < 1000; attempt++) {
+            String suffix = attempt == 0 ? "_D" + idPart : "_D" + idPart + "_" + attempt;
+            String candidate = shortenToMax(normalized, suffix, 20);
+            if (!reservedKeys.contains(storeCodeKey(storeId, candidate))) {
+                return candidate;
+            }
+        }
+
+        // 理论不会走到这里，兜底返回截断后的 code
+        return normalized.length() > 20 ? normalized.substring(0, 20) : normalized;
+    }
+
+    private static String shortenToMax(String base, String suffix, int maxLen) {
+        if (suffix.length() >= maxLen) {
+            // 极端情况：只保留后缀的尾部
+            return suffix.substring(suffix.length() - maxLen);
+        }
+        int maxBaseLen = maxLen - suffix.length();
+        String trimmedBase = base != null ? base : "";
+        if (trimmedBase.length() > maxBaseLen) {
+            trimmedBase = trimmedBase.substring(0, maxBaseLen);
+        }
+        return trimmedBase + suffix;
     }
 
     private void migrateRooms(Map<Long, Store> storeMap) {

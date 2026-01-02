@@ -1,0 +1,95 @@
+# List of Bookings
+
+The API is used to get the list of reservations depending on Booking / Creation Date.
+
+***
+
+**Request to get the list of Bookings**
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/Bookings
+```
+
+{% endcode %}
+
+* Works on booking creation date
+* System fetches bookings from system for 6 months in past
+* Date formate must be in, MM-DD-YYYY
+
+***
+
+### <mark style="color:yellow;">Sample Request</mark>
+
+```json
+{
+  "Su_hotelid": "JOE",
+  "date_from": "02-16-2024",
+  "date_to": "02-16-2024"
+}
+```
+
+The request body consists of a **date\_from / date\_to**. This is the booking creation date when the booking was created / received from OTA
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:green;">Success Response</mark>
+
+```json
+{
+  "BookingDetails": [
+    {
+      "booking_id": "4191611111_JOE",
+      "Channel_code": "19",
+      "Booking_date": "2024-02-16 08:30:40",
+      "checkindate": "2024-02-17",
+      "checkoutdate": "2024-02-17",
+      "status": "confirm"
+    },
+    {
+      "booking_id": "4291322222_JOE",
+      "Channel_code": "19",
+      "Booking_date": "2024-02-16 08:32:23",
+      "checkindate": "2024-02-17",
+      "checkoutdate": "2024-02-17",
+      "status": "confirm"
+    },
+    {
+      "booking_id": "4058433333_JOE",
+      "Channel_code": "19",
+      "Booking_date": "2023-10-16 15:46:49",
+      "checkindate": "2023-10-17",
+      "checkoutdate": "2023-10-17",
+      "status": "confirm"
+    }
+  ]
+}
+
+```
+
+* The response body consists of a **booking\_id**. This is Su booking id (channel booking id \_ Su property id)
+* The response body consists of a **Channel\_code**. It is a channel code of booking
+* The response body consists of a **Booking\_date**. It is a creation booking date and time. Date is formatted in YYYY-MM-DD and Time is in GMT
+
+#### <mark style="color:red;">Error Response</mark>
+
+```json
+{
+  "Error": {
+    "Code": "400",
+    "ShortText": "Invalid HotelCode"
+  },
+  "Status": "Fail"
+}
+```
+
+All the parameters of requests are required. If missed or passed unsupported values, system will throw an error in return

@@ -17,9 +17,8 @@ public class Reservation implements StoreScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "房间不能为空")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "room_id", nullable = false)
+    @JoinColumn(name = "room_id", nullable = true)
     private Room room;
 
     @NotNull(message = "渠道不能为空")
@@ -69,6 +68,25 @@ public class Reservation implements StoreScopedEntity {
 
     @Column(name = "channel_order_number", length = 100)
     private String channelOrderNumber;
+
+    /**
+     * OTA/IT Provider 回传的 rooms[].id（我们推送给 Su 的 roomid），格式通常为 {roomTypeId}-{roomNumber}
+     * 用于未排房时也能按房型统计占用/回传 PriceLabs booked_units。
+     */
+    @Column(name = "ota_room_id", length = 100)
+    private String otaRoomId;
+
+    /**
+     * 由 otaRoomId 解析出的房型ID（roomTypeId）。
+     */
+    @Column(name = "ota_room_type_id")
+    private Long otaRoomTypeId;
+
+    /**
+     * 由 otaRoomId 解析出的房间号（roomNumber）。
+     */
+    @Column(name = "ota_room_number", length = 50)
+    private String otaRoomNumber;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -253,6 +271,30 @@ public class Reservation implements StoreScopedEntity {
 
     public void setChannelOrderNumber(String channelOrderNumber) {
         this.channelOrderNumber = channelOrderNumber;
+    }
+
+    public String getOtaRoomId() {
+        return otaRoomId;
+    }
+
+    public void setOtaRoomId(String otaRoomId) {
+        this.otaRoomId = otaRoomId;
+    }
+
+    public Long getOtaRoomTypeId() {
+        return otaRoomTypeId;
+    }
+
+    public void setOtaRoomTypeId(Long otaRoomTypeId) {
+        this.otaRoomTypeId = otaRoomTypeId;
+    }
+
+    public String getOtaRoomNumber() {
+        return otaRoomNumber;
+    }
+
+    public void setOtaRoomNumber(String otaRoomNumber) {
+        this.otaRoomNumber = otaRoomNumber;
     }
 
     public ReservationStatus getStatus() {

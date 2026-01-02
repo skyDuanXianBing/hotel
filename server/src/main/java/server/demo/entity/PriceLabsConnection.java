@@ -80,7 +80,7 @@ public class PriceLabsConnection implements StoreScopedEntity {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
         // 自动生成 PriceLabs listing_id
-        if (priceLabsListingId == null && roomType != null && pricePlan != null) {
+        if (priceLabsListingId == null && roomType != null) {
             generatePriceLabsListingId();
         }
     }
@@ -94,9 +94,9 @@ public class PriceLabsConnection implements StoreScopedEntity {
      * 生成 PriceLabs listing_id
      */
     public void generatePriceLabsListingId() {
-        if (storeId != null && roomType != null && pricePlan != null) {
-            this.priceLabsListingId = String.format("store_%d_rt_%d_plan_%d",
-                storeId, roomType.getId(), pricePlan.getId());
+        if (storeId != null && roomType != null) {
+            this.priceLabsListingId = String.format("store_%d_room_type_%d",
+                storeId, roomType.getId());
         }
     }
 

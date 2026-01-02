@@ -118,14 +118,14 @@
               class="price-cell clickable"
               @click="openPriceEditDialog(row, date)"
             >
-              <div class="price-content">
-                <div class="price-value">
-                  {{ formatPrice(row.dates[date.dateStr]?.price) }}
-                </div>
-                <div class="rooms-count">
-                  <el-icon><Moon /></el-icon>
-                  {{ row.dates[date.dateStr]?.rooms || 0 }}
-                </div>
+                <div class="price-content">
+                  <div class="price-value">
+                  {{ formatPrice(getDisplayPrice(row, date.dateStr)) }}
+                  </div>
+                  <div class="rooms-count">
+                    <el-icon><Moon /></el-icon>
+                    {{ row.dates[date.dateStr]?.rooms || 0 }}
+                  </div>
               </div>
             </div>
           </template>
@@ -262,6 +262,7 @@ import { ElMessage } from 'element-plus'
 import { getAllRoomTypes } from '@/api/roomType'
 import { getAllPricePlans } from '@/api/pricePlan'
 import { getRoomPriceManagementData, updatePriceByPlan, type RoomPriceManagementDTO } from '@/api/roomPrice'
+import { getChannelPrices, type ChannelPriceDTO } from '@/api/pricelabs'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -277,6 +278,7 @@ const pricePlans = ref<any[]>([])
 const priceData = ref<RoomPriceManagementDTO[]>([])
 
 const showPriceEditDialog = ref(false)
+const priceLabsBasePriceMap = ref<Record<string, number>>({})
 
 // 保存上一次的星期几选择值
 let previousEditFormWeekdays: number[] = []
@@ -338,6 +340,26 @@ interface PriceTableRow {
       rooms?: number
     }
   }
+}
+
+const buildPriceLabsKey = (roomTypeId: number, pricePlanId: number, priceDate: string): string => {
+  return `${roomTypeId}_${pricePlanId}_${priceDate}`
+}
+
+const getPriceLabsBasePrice = (row: PriceTableRow, priceDate: string): number | undefined => {
+  if (row.isRoomHeader) return undefined
+  if (!row.pricePlanId) return undefined
+
+  const key = buildPriceLabsKey(row.roomTypeId, row.pricePlanId, priceDate)
+  return priceLabsBasePriceMap.value[key]
+}
+
+const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefined => {
+  const priceLabsBasePrice = getPriceLabsBasePrice(row, priceDate)
+  if (priceLabsBasePrice !== undefined && priceLabsBasePrice !== null) {
+    return priceLabsBasePrice
+  }
+  return row.dates[priceDate]?.price
 }
 
 const priceTableData = computed<PriceTableRow[]>(() => {
@@ -544,6 +566,37 @@ const loadPricePlans = async () => {
 }
 
 // 加载价格数据
+const loadPriceLabsBasePrices = async (
+  startDate: string,
+  endDate: string,
+  roomTypeId?: number,
+) => {
+  try {
+    const response = await getChannelPrices({
+      roomTypeId,
+      startDate,
+      endDate,
+    })
+
+    if (!response.success || !response.data) {
+      priceLabsBasePriceMap.value = {}
+      return
+    }
+
+    const nextMap: Record<string, number> = {}
+    for (const item of response.data as ChannelPriceDTO[]) {
+      const key = buildPriceLabsKey(item.roomTypeId, item.pricePlanId, item.priceDate)
+      if (nextMap[key] === undefined && item.basePrice !== undefined && item.basePrice !== null) {
+        nextMap[key] = item.basePrice
+      }
+    }
+    priceLabsBasePriceMap.value = nextMap
+  } catch (error) {
+    console.error('加载 PriceLabs 回传价格失败:', error)
+    priceLabsBasePriceMap.value = {}
+  }
+}
+
 const loadPriceData = async () => {
   try {
     loading.value = true
@@ -565,6 +618,8 @@ const loadPriceData = async () => {
       endDateStr,
       selectedRoomTypeId.value || undefined
     )
+
+    await loadPriceLabsBasePrices(startDate, endDateStr, selectedRoomTypeId.value || undefined)
 
     console.log('📦 API响应:', response)
 
@@ -605,7 +660,7 @@ const openPriceEditDialog = (row: PriceTableRow, date: any) => {
     endDate: date.dateStr,
     weekdays: [],
     settingType: 'price',
-    price: priceData?.price || 0,
+    price: getDisplayPrice(row, date.dateStr) || 0,
     availableRooms: priceData?.rooms || 0,
     minStay: '',
     maxStay: ''

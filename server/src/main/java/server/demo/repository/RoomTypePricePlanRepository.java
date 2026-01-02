@@ -12,6 +12,8 @@ import java.util.Optional;
 @Repository
 public interface RoomTypePricePlanRepository extends JpaRepository<RoomTypePricePlan, Long> {
 
+    boolean existsByStoreId(Long storeId);
+
     // 根据房型ID查找所有价格计划关联
     @Query("SELECT rtp FROM RoomTypePricePlan rtp JOIN FETCH rtp.pricePlan WHERE rtp.roomType.id = :roomTypeId")
     List<RoomTypePricePlan> findByRoomTypeId(@Param("roomTypeId") Long roomTypeId);
@@ -35,4 +37,10 @@ public interface RoomTypePricePlanRepository extends JpaRepository<RoomTypePrice
     // 统计价格计划关联的房型数量
     @Query("SELECT COUNT(rtp) FROM RoomTypePricePlan rtp WHERE rtp.pricePlan.id = :pricePlanId")
     long countByPricePlanId(@Param("pricePlanId") Long pricePlanId);
+
+    @Query("SELECT rtp FROM RoomTypePricePlan rtp " +
+            "JOIN FETCH rtp.roomType " +
+            "JOIN FETCH rtp.pricePlan " +
+            "WHERE rtp.storeId = :storeId")
+    List<RoomTypePricePlan> findByStoreIdWithRoomTypeAndPricePlan(@Param("storeId") Long storeId);
 }

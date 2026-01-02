@@ -1,0 +1,76 @@
+# Refetch Booking
+
+The API is used to refetch specific booking.
+
+***
+
+### Request to refetch Booking
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/getReservation 
+```
+
+{% endcode %}
+
+* Upon Request, system allocates with the booking Json
+* System is designed to reallocate the same booking to you for maximum of 5 times
+
+***
+
+### <mark style="color:yellow;">Sample Request</mark>
+
+```json
+{
+  "hotelid": "JOE",
+  "bookingid": "1134222_JOE"
+}
+```
+
+The request body consists of a **bookingid**. This is the booking id (channelbookingid\_hotelid) as allocated in booking list.
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:green;">Success Response</mark>
+
+```json
+{
+  "reservations": [
+    {
+      "booked_at": "2024-02-07",
+      "commissionamount": "",
+      "currencycode": "NZD",
+      "paymenttype": "Hotel Collect",
+      "hotel_id": "JOE",
+      "status": "new",
+      "totalprice": "563.4",
+      "totaltax": "261.75",
+      "extrafees": [],
+      "taxes": []
+    }
+  ]
+}
+```
+
+#### <mark style="color:red;">Error Response</mark>
+
+```json
+{
+  "Error": {
+    "Code": "400",
+    "ShortText": "Invalid HotelCode"
+  },
+  "Status": "Fail"
+}
+```
+
+All the parameters of requests are required. If missed or passed unsupported values, system will throw an error in return.

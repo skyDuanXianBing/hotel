@@ -1,0 +1,598 @@
+# Rates and Availability
+
+## <mark style="color:yellow;">Availability</mark>
+
+Rates and Availability API can be used to push the following information from the IT provider to STAAH:
+
+* Room Inventory count:
+  * per IT provider's room id
+  * per date
+* Room Rate amount:
+  * per IT provider's Room and Rate combination
+  * per date
+* Restrictions:
+  * per IT provider's Room and Rate combination
+  * per date)
+
+> At the time of fresh integration, STAAH requests that IT providers send rates/inventory/restrictions at least one full year from the current date (For example - on January 1, 2015, complete data should be loaded from January 1, 2015, until December 31, 2015, for all rooms, rates, and their applicable restrictions).
+
+> Maximum length of request should be less than or equal to 4 MB.
+
+> The maximum number of JSON requests permitted per property per hour is 5,000. When the limit is reached, JSON requests will not be processed, and the system will return error '**Limit has been reached**'. Reset for JSON request allocation is renewed every hour, every day.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/availability
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+***
+
+`hotelid / ClientID` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The unique property ID as assigned by the provider upon creation of the property. Required existing hotel id to create rates for the room types.
+
+> Accepts alphanumeric values. &#x20;
+>
+> Space and Special characters are not allowed except Hyphen (" - ").
+>
+> Maximum 20 characters allowed.
+
+***
+
+#### <mark style="color:purple;">room</mark> <mark style="color:purple;"></mark><mark style="color:purple;">**object**</mark>
+
+This is an object represents the detail of the room.
+
+***
+
+`roomid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+The room ID / Listing ID as assigned by the provider.
+
+Needs to be an active room in the STAAH system and if room is not available in STAAH then we will create on request.
+
+> `roomid`, `RoomID`, `ListingID` & `InvCode` defines the same field.&#x20;
+>
+> Amount of elements possible within parent: Min: 1 Max: unbounded
+>
+> Accepts alphanumeric values and hyphen ( - ).&#x20;
+>
+> Space and other special characters are not allowed. Maximum 20 characters allowed.
+
+***
+
+`date` <mark style="color:orange;">**datetime (Required)**</mark>
+
+The date(s) that you are updating. STAAH prefers IT Providers to issue one large request by updating the inventory with combined dates as much as possible. Which can be accomplished by using attributes {date "from":"..." "to":"..."}
+
+Needs to be an active room in the STAAH system and if room is not available in STAAH then we will create on request.
+
+{% hint style="info" %}
+Min:1 Max:unbounded
+{% endhint %}
+
+***
+
+`value` <mark style="color:orange;">**datetime (Optional)**</mark>
+
+Specifying a value in requests will update the date that is specified per value.
+
+> Only current date to max up to 500 days in the future.
+>
+> Format: <mark style="color:green;">**YYYY-MM-DD**</mark>
+
+***
+
+`from` <mark style="color:orange;">**datetime (Required)**</mark>
+
+Specifying a range in requests will update the date from and including the date specified.
+
+> Only current date to max up to 730 days in the future.
+>
+> Format: <mark style="color:green;">**YYYY-MM-DD**</mark>
+
+***
+
+`to` <mark style="color:orange;">**datetime (Required)**</mark>
+
+Specifying a range in requests will update the date until and including the date specified.
+
+> Only current date to max up to 730 days in the future.
+>
+> Format: <mark style="color:green;">**YYYY-MM-DD**</mark>
+
+***
+
+`rate` <mark style="color:orange;">**string (Optional)**</mark>
+
+IT provider's rate category ID which you are updating.
+
+Rates to be updated need to be active in the STAAH system.
+
+{% hint style="info" %}
+Note that rate elements become optional when updating only availability for a hotel.
+{% endhint %}
+
+***
+
+`rateplanid` <mark style="color:orange;">**alphanumeric (Optional)**</mark>
+
+IT provider's unique rateplan ID.
+
+{% hint style="info" %}
+Needs to be an active rate in the STAAH system.
+{% endhint %}
+
+***
+
+`roomstosell` <mark style="color:orange;">**integer (Optional)**</mark>
+
+Set the amount of rooms that can be sold by OTAs to this number.
+
+> Rate should not be specified when updating `roomstosell.`
+>
+> It cannot be a negative number.
+
+{% hint style="info" %}
+Please note rate elements become optional when updating availability for a hotel.
+{% endhint %}
+
+***
+
+`price` <mark style="color:orange;">**array (Required)**</mark>
+
+The price for the given room for the given date for the given rate category.
+
+{% hint style="danger" %}
+Price cannot be removed after a value has been set, cannot be a negative number.
+{% endhint %}
+
+`NumberOfGuests` <mark style="color:orange;">**integer (Required)**</mark>
+
+Number of guests for which price is applied.
+
+> Needs to be non-negative integer and maximum 30.
+
+`value` <mark style="color:orange;">**double (Required)**</mark>
+
+Price value for the given guest count.
+
+***
+
+`LosPrice` <mark style="color:orange;">**Array (Required if PMS wants to set the value for multiple nights with different rates)**</mark>
+
+Length-of-stay pricing for specific guest counts.
+
+`NumberOfGuests` <mark style="color:orange;">**integer (Required)**</mark>
+
+Number of guests applies to this LOS pricing.
+
+> Needs to be non-negative integer and maximum 30.
+
+`value` <mark style="color:orange;">**double (Required)**</mark>
+
+Comma-separated values representing prices for the stay of 1-night, 2-night, and so on.&#x20;
+
+For example: `"value": "100.00,190.00,270.00"` for 1, 2, and 3-night stays.
+
+{% hint style="info" %}
+**Example:** `"value": "100.00,190.00,270.00"`
+
+\
+This represents pricing for 1-night, 2-night, and 3-night stays, respectively.
+
+\
+**Note:** The values must be listed in ascending order, corresponding to the increasing length of stay.
+{% endhint %}
+
+***
+
+`closed` <mark style="color:orange;">**boolean (Optional)**</mark>
+
+If set to 1 (or 0), this room will be closed (or opened) for the given date for the given rate category. All other information (such as `roomstosell` and `price`) is preserved.
+
+{% hint style="info" %}
+The `closed` element functions as a restriction and defines whether a room is bookable or not.
+{% endhint %}
+
+***
+
+`minimumstay` <mark style="color:orange;">**integer (Optional)**</mark>
+
+The minimum stay for the given room for the given date for the given rate category.
+
+The `minimumstay` element functions as a restriction. If a booking takes place on this day a minimum stay (for the whole booking) of this number of days is required.&#x20;
+
+Each day in a stay has a room and rate category ID associated with it. Each set of consecutive days with the same rate category ID in a stay, must comply with the minimum stay setting of each of those days in that set (as if it were a separate stay).&#x20;
+
+{% hint style="info" %}
+Note this minimum stay restrictions have an effect on any given day of a booking, whereas the 'minimum stay arrival' restriction only affects a search for availability or reservation on the arrival date.
+{% endhint %}
+
+***
+
+`maximumstay` <mark style="color:orange;">**integer (Optional)**</mark>
+
+The maximum stay for the given room for the given date for the given rate category.
+
+The `maximumstay` element functions as a restriction. If a booking takes place on this day a maximum stay (for the whole booking) of this number of days is required.&#x20;
+
+Each day in a stay has a room and rate category ID associated with it. Each set of consecutive days with the same rate category ID in a stay, must comply with the maximum stay setting of each of those days in that set (as if it were a separate stay).&#x20;
+
+{% hint style="info" %}
+Note this maximum stay restrictions has an effect on any given day of a booking, whereas the maximum stay arrival' restriction only affects a search for availability or reservation on the arrival date.
+{% endhint %}
+
+***
+
+`minimumstaythrough` <mark style="color:orange;">**string (Optional)**</mark>
+
+The minimum stay through for the given room for the given date for the given rate category.
+
+Properties set a policy requiring guests to stay a minimum number of nights during a specific period, from check-out for the given room and rate category. Example: A three-night `minimumstaythrough` is set for August 28th. Any guest whose stay includes that day (August 28th) must select a check-out date of 3 days or more from August 28th.
+
+{% hint style="info" %}
+**Constraints:** Cannot be a negative number
+{% endhint %}
+
+***
+
+`maximumstaythrough` <mark style="color:orange;">**string (Optional)**</mark>
+
+The maximum stay through for the given room for the given date for the given rate category.
+
+Properties set a policy restricting guests to stay a maximum number of nights during a specific period, from check-out for the given room and rate category. Example: A fourteen-night `maximumstaythrough` is set for August 28th. Any guest whose stay includes that day (August 28th) can only select a check-out date within 14 days from August 28th.
+
+{% hint style="info" %}
+**Constraints:** Cannot be a negative number
+{% endhint %}
+
+***
+
+`closedonarrival` <mark style="color:orange;">**boolean (Optional)**</mark>
+
+The closed on arrival setting (0 or 1). If set, the guest may not arrive in this room for the given room for the given date for the given rate category.
+
+> This restriction does not allow a reservation to be made when visitors want to arrive on the selected date. When the restriction is set to '0' for a certain date, guests are free to make a reservation with arrival on this date whereas a "1" will restrict guests to book rooms with this arrival date.
+
+***
+
+`extraadultrate` <mark style="color:orange;">**double (Optional)**</mark>
+
+The price for the extra adult for the given date for the given rate category.
+
+> `extraadultrate` cannot be removed after a value has been set, cannot be a negative number.
+
+***
+
+`extrachildrate` <mark style="color:orange;">**double (Optional)**</mark>
+
+The price for the extra child for the given date for the given rate category.
+
+> `extrachildrate` cannot be removed after a value has been set, cannot be a negative number.
+
+***
+
+`closedondeparture` <mark style="color:orange;">**boolean (Optional)**</mark>
+
+The `closedondeparture` setting (0 or 1). If set, the guest may not depart from this room for the given room for the given date for the given rate category.
+
+> This restriction does not allow a reservation to be made when visitors want to depart on the selected date.&#x20;
+>
+> When the restriction is set to '0' for a certain date, guests are free to make a reservation with departure on this date whereas a "1" will restrict guests to book rooms with this departure date.
+
+***
+
+`minimumadvancereservation` <mark style="color:orange;">**integer (Optional)**</mark>
+
+Specifies the minimum number of days or hours a guest must book in advance, relative to the intended check-in or check-out date. The search date is included when calculating the minimum advance reservation period.
+
+{% hint style="info" %}
+**NOTE:**
+
+* When updating the `minimumadvancereservation`, the `rateplanid` parameter is required.
+* Negative values for hours are not allowed.
+* **Currently supported only for the Booking.com channel.**
+* **Expected value source:** PMS → SU.
+* **Accepted data type:** Integer (hours only; days are **not** accepted).
+
+  Example: `"minimumadvancereservation": "48"` (represents **48 hours**).
+* **Maximum allowed value:** **8640 hours** (equivalent to **360 days**) for both parameters.
+  {% endhint %}
+
+***
+
+`maximumadvancereservation` <mark style="color:orange;">**integer (Optional)**</mark>
+
+Specifies the maximum number of days or hours in advance a guest is allowed to make a booking, relative to the scheduled check-in or check-out date. The search date is included when calculating the restriction period.
+
+{% hint style="info" %}
+**NOTE:**
+
+* when updating the `maximumadvancereservation`, the `rateplanid` parameter is required.
+* Negative values for hours are not allowed.
+* **Currently supported only for the Booking.com channel.**
+* **Expected value source:** PMS → SU.
+* **Accepted data type:** Integer (hours only; days are **not** accepted).
+
+  Example: `"minimumadvancereservation": "48"` (represents **48 hours**).
+* **Maximum allowed value:** **8640 hours** (equivalent to **360 days**) for both parameters.
+  {% endhint %}
+
+***
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+**To push updates for a single day use:**
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "hotelid": "KC",
+    "room": [{
+        "roomid": "STD",
+        "date": [{
+            "value": "2020-08-17",
+            "rate": [{
+                "rateplanid": "BAR"
+            }],
+            "roomstosell": "15",
+            "price": [{
+                    "NumberOfGuests": "1",
+                    "value": "290.00"
+                },
+                {
+                    "NumberOfGuests": "2",
+                    "value": "350.00"
+                }
+            ],
+            "closed": "0",
+            "minimumstay": "1",
+            "maximumstay": "14",
+            "minimumstaythrough": "1",
+            "maximumstaythrough": "14",
+            "closedonarrival": "0",
+            "extraadultrate": "5.00",
+            "extrachildrate": "2.00",
+            "closedondeparture": "0",
+            "minimumadvancereservation":"48",
+            "maximumadvancereservation":"48"
+        }]
+    }]
+}
+```
+
+{% endcode %}
+
+**To push updates for a date range use:**
+
+```json
+{
+    "hotelid": "KC",
+    "room": [{
+        "roomid": "STD",
+        "date": [{
+            "from": "2020-08-15",
+            "to": "2020-12-31",
+            "rate": [{
+                "rateplanid": "BAR"
+            }],
+            "roomstosell": "8",
+            "price": [{
+                    "NumberOfGuests": "1",
+                    "value": "100.00"
+                },
+                {
+                    "NumberOfGuests": "2",
+                    "value": "120.00"
+                }
+            ],
+            "closed": "0",
+            "minimumstay": "1",
+            "maximumstay": "14",
+            "minimumstaythrough": "1",
+            "maximumstaythrough": "14",
+            "closedonarrival": "0",
+            "extraadultrate": "10.00",
+            "extrachildrate": "10.00",
+            "closedondeparture": "0",
+            "minimumadvancereservation":"48",
+            "maximumadvancereservation":"48"
+        }]
+    }]
+}
+```
+
+### <mark style="color:yellow;">LOS Price API</mark>
+
+{% hint style="info" %} <mark style="color:green;">**Supported Channel:**</mark> <mark style="color:green;"></mark><mark style="color:green;">Booking.com (channel code:19)</mark>
+
+<mark style="color:green;">**Supported days:**</mark> <mark style="color:green;"></mark><mark style="color:green;">90 days</mark>
+{% endhint %}
+
+Length of Stay (LOS) refers to the number of consecutive nights a guest is allowed or required to stay at the hotel for a particular booking.
+
+`LosPrice` field is used to define the price for multiple lengths of stay (LOS) in a single entry. This allows the PMS (Property Management System) to specify rates for various night counts using a **comma-separated** value format.
+
+This is particularly useful when different rates are applied depending on the number of nights a guest stays.
+
+```json
+{
+    "hotelid": "KC",
+    "room": [
+        {
+            "roomid": "STD",
+            "date": [
+                {
+                    "value": "2020-08-17",
+                    "rate": [
+                        {
+                            "rateplanid": "BAR"
+                        }
+                    ],
+                    "roomstosell": "15",
+                    "LosPrice": [
+                        {
+                            "NumberOfGuests": "1",
+                            "value": "100,190,350,420"
+                        },
+                        {
+                            "NumberOfGuests": "2",
+                            "value": "150,280,410,500"
+                        }
+                    ],
+                    "closed": "0",
+                    "minimumstay": "1",
+                    "maximumstay": "14",
+                    "closedonarrival": "0",
+                    "extraadultrate": "5.00",
+                    "extrachildrate": "2.00",
+                    "closedondeparture": "0",
+                    "minimumadvancereservation":"48",
+                    "maximumadvancereservation":"48"
+                }
+            ]
+        },
+        {
+            "roomid": "STDAR",
+            "date": [
+                {
+                    "from": "2025-05-13",
+                    "to": "2025-05-14",
+                    "rate": [
+                        {
+                            "rateplanid": "KIRT"
+                        }
+                    ],
+                    "roomstosell": "15",
+                    "LosPrice": [
+                        {
+                            "NumberOfGuests": "1",
+                            "value": "100,190,350,420"
+                        },
+                        {
+                            "NumberOfGuests": "2",
+                            "value": "150,280,410,500"
+                        }
+                    ],
+                    "closed": "0",
+                    "minimumstay": "1",
+                    "maximumstay": "99",
+                    "closedonarrival": "0",
+                    "extraadultrate": "10",
+                    "extrachildrate": "10",
+                    "closedondeparture": "0",
+                    "minimumadvancereservation":"48",
+                    "maximumadvancereservation":"48"
+                }
+            ]
+        }
+    ]
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+***
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Status of the request.
+
+***
+
+`TicketId` <mark style="color:orange;">**string**</mark>
+
+The ticket id if the status of the request is success.
+
+***
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+    "Status":"Success",
+    "TicketId":159870515681827209466
+}
+```
+
+***
+
+**You may receive some errors even if the response HTTP code is 200 OK.**
+
+#### <mark style="color:red;">Errors Due to Invalid Request Message Body</mark>
+
+This error will be received if you try to push inventory for date range which is more than 730 days in future starting from current date.
+
+#### <mark style="color:red;">**Sample Error Response (921)**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "Status": "Fail",
+	"Errors": [{
+		"Code": "921",
+		"ShortText": "Date : value should be less than 730 days from current date "
+	}]
+}
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:red;">Errors Due to Maximum Capping Limit Reached for Number of Requests (per hour per property)</mark>
+
+This error will occur if more than 5,000 updates are pushed per Hotel ID per hour. The maximum limit is 5,000 requests per property per hour. The cap is reset every hour, each day.
+
+#### <mark style="color:red;">**Sample Error Response**</mark>
+
+```json
+{
+    "Status": "Fail",
+    "Errors": [{
+        "ShortText": "Limit has been reached"
+    }]
+}
+```
+
+***
+
+#### <mark style="color:red;">Error Due to Invalid Request Message Body</mark>
+
+This will consist of one element error and its value will be a free text string of all errors happened due to invalid message body data. Errors will be separated by semicolon "**;".**
+
+#### <mark style="color:red;">**Sample Error Response (873)**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "Status": "Fail",
+	"Errors": [{
+		"Code": "873",
+		"ShortText": "price: Value is not a nonnegative (a non-negative number), found '2900r.00'"
+	}]
+}
+```
+
+{% endcode %}

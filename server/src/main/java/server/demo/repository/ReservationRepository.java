@@ -12,10 +12,21 @@ import server.demo.enums.ReservationStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 
 @Repository
 public interface ReservationRepository extends JpaRepository<Reservation, Long>, JpaSpecificationExecutor<Reservation> {
+
+    interface ReservationOccupancyRow {
+        LocalDate getCheckInDate();
+
+        LocalDate getCheckOutDate();
+
+        Long getOtaRoomTypeId();
+
+        Long getAssignedRoomTypeId();
+    }
 
     // ===== store-scoped APIs =====
     List<Reservation> findByStoreId(Long storeId);
@@ -46,17 +57,40 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
                                                                   @Param("startDate") LocalDate startDate,
                                                                   @Param("endDate") LocalDate endDate);
 
+    @Query("SELECT r.checkInDate as checkInDate, r.checkOutDate as checkOutDate, r.otaRoomTypeId as otaRoomTypeId, r.room.roomType.id as assignedRoomTypeId " +
+            "FROM Reservation r " +
+            "WHERE r.storeId = :storeId " +
+            "AND r.status IN :statuses " +
+            "AND r.checkInDate < :endExclusive " +
+            "AND r.checkOutDate > :startDate")
+    List<ReservationOccupancyRow> findOccupancyRowsByStoreIdAndDateRangeAndStatuses(
+            @Param("storeId") Long storeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endExclusive") LocalDate endExclusive,
+            @Param("statuses") Set<ReservationStatus> statuses
+    );
+
     @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.room.id = :roomId AND " +
            "(r.checkInDate < :endDate AND r.checkOutDate > :startDate) " +
-           "AND r.status IN ('CONFIRMED', 'CHECKED_IN')")
+           "AND r.status IN ('CONFIRMED', 'CHECKED_IN', 'REQUESTED')")
     List<Reservation> findByStoreIdAndRoomIdAndDateRange(@Param("storeId") Long storeId,
                                                          @Param("roomId") Long roomId,
                                                          @Param("startDate") LocalDate startDate,
                                                          @Param("endDate") LocalDate endDate);
 
+    @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.room.id IN :roomIds AND " +
+            "(r.checkInDate <= :endDate AND r.checkOutDate > :startDate) AND r.status IN :statuses")
+    List<Reservation> findByStoreIdAndRoomIdInAndDateRangeAndStatuses(
+            @Param("storeId") Long storeId,
+            @Param("roomIds") List<Long> roomIds,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("statuses") Set<ReservationStatus> statuses
+    );
+
     @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.room.id = :roomId AND " +
            "r.checkInDate <= :date AND r.checkOutDate > :date " +
-           "AND r.status IN ('CONFIRMED', 'CHECKED_IN')")
+           "AND r.status IN ('CONFIRMED', 'CHECKED_IN', 'REQUESTED')")
     Optional<Reservation> findByStoreIdAndRoomIdAndDate(@Param("storeId") Long storeId,
                                                         @Param("roomId") Long roomId,
                                                         @Param("date") LocalDate date);
@@ -254,13 +288,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
                                                          @Param("endDate") LocalDate endDate);
 
     @Query("SELECT r FROM Reservation r WHERE r.room.id = :roomId AND (r.checkInDate <= :endDate AND r.checkOutDate > :startDate) " +
-           "AND r.status IN ('CONFIRMED', 'CHECKED_IN')")
+           "AND r.status IN ('CONFIRMED', 'CHECKED_IN', 'REQUESTED')")
     List<Reservation> findByRoomIdAndDateRange(@Param("roomId") Long roomId,
                                                @Param("startDate") LocalDate startDate,
                                                @Param("endDate") LocalDate endDate);
 
     @Query("SELECT r FROM Reservation r WHERE r.room.id = :roomId AND r.checkInDate <= :date AND r.checkOutDate > :date " +
-           "AND r.status IN ('CONFIRMED', 'CHECKED_IN')")
+           "AND r.status IN ('CONFIRMED', 'CHECKED_IN', 'REQUESTED')")
     Optional<Reservation> findByRoomIdAndDate(@Param("roomId") Long roomId, @Param("date") LocalDate date);
 
     boolean existsByOrderNumber(String orderNumber);

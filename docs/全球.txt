@@ -1,0 +1,203 @@
+# Global Users
+
+Global user refers to a user account or profile that has access to all functionalities, features, or resources within the system.&#x20;
+
+In Su, Global users:
+
+1. Are defined as users who can access all the properties and can view details of properties as per their convenience.
+2. Allow partner to create multiple users for a property to access Su extranet.
+3. Assign specific properties to the user.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/users
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`Name` <mark style="color:orange;">**string (Required)**</mark>
+
+This field specifies the name of the user.
+
+***
+
+`Email` <mark style="color:orange;">**email (Required)**</mark>
+
+This field specifies the email id of the user.&#x20;
+
+{% hint style="info" %}
+Valid email address required as reset link is triggered to registered email address.
+{% endhint %}
+
+***
+
+#### <mark style="color:blue;">Phone</mark> <mark style="color:blue;"></mark><mark style="color:blue;">**array (Required)**</mark>
+
+This field is an array which has multiple fields such as `CountryCode` and `PhoneNumber`.
+
+***
+
+`CountryCode` <mark style="color:orange;">**string (Required)**</mark>
+
+Country code of the user’s phone number.
+
+***
+
+`PhoneNumber` <mark style="color:orange;">**string (Required)**</mark>
+
+Phone number of user.
+
+***
+
+`Status` <mark style="color:orange;">**string (Required)**</mark>
+
+Status of the user whether it’s active or inactive.
+
+{% hint style="info" %}
+Active status indicates user can access extranet. Inactive remove user's access to SU extranet.
+{% endhint %}
+
+***
+
+`Type` <mark style="color:orange;">**string (Required)**</mark>
+
+Type of the user.
+
+{% hint style="info" %}
+There are two types of users:
+
+* Global&#x20;
+* Chain
+  {% endhint %}
+
+***
+
+`Properties` <mark style="color:orange;">**string (Required)**</mark>
+
+Specifies property(s) to be assigned/linked to global user.
+
+{% hint style="info" %}
+Add the property id as the value in the request.
+{% endhint %}
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+  "Name": "Noah Brown",
+  "Email": "admin@examplehotel.co.nz",
+  "Phone": {
+    "CountryCode": "+64",
+    "PhoneNumber": "211234567"
+  },
+  "Status": "Active",
+  "Type": "Global",
+  "Properties": [
+    "Property ABC",
+    "Test Property"
+  ]
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+<mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+  "Status": "Success"
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when 'type' of user is not specified in the request.
+
+#### <mark style="color:red;">**Sample Error Response (990)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "990",
+    "ShortText": "User type must be either 'Global' or 'Chain'"
+  }
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when 'property name' field does not contain any valid property name or is empty in the request.
+
+#### <mark style="color:red;">**Sample Error Response (992)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "992",
+    "ShortText": "Please provide valid property ids"
+  }
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when valid Email-ID is not passed in the request.
+
+#### <mark style="color:red;">**Sample Error Response (989)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "989",
+    "ShortText": "Enter valid email"
+  }
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when valid country code is not passed or if the field is empty in the request.
+
+#### <mark style="color:red;">**Sample Error Response (991)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "991",
+    "ShortText": "Enter valid countrycode"
+  }
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+This error will occur when valid phone/contact number is not passed or if the field is empty in the request.
+
+#### <mark style="color:red;">**Sample Error Response (988)**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "988",
+    "ShortText": "Enter valid phone number"
+  }
+}
+```

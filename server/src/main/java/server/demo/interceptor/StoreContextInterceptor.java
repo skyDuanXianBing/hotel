@@ -2,6 +2,8 @@ package server.demo.interceptor;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -11,6 +13,7 @@ import server.demo.context.StoreContextHolder;
 import server.demo.entity.StoreUser;
 import server.demo.exception.StoreAccessDeniedException;
 import server.demo.repository.StoreUserRepository;
+import server.demo.service.ChannelPriceWarmupService;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -21,10 +24,14 @@ import java.util.Optional;
 @Component
 public class StoreContextInterceptor implements HandlerInterceptor {
 
-    private final StoreUserRepository storeUserRepository;
+    private static final Logger logger = LoggerFactory.getLogger(StoreContextInterceptor.class);
 
-    public StoreContextInterceptor(StoreUserRepository storeUserRepository) {
+    private final StoreUserRepository storeUserRepository;
+    private final ChannelPriceWarmupService channelPriceWarmupService;
+
+    public StoreContextInterceptor(StoreUserRepository storeUserRepository, ChannelPriceWarmupService channelPriceWarmupService) {
         this.storeUserRepository = storeUserRepository;
+        this.channelPriceWarmupService = channelPriceWarmupService;
     }
 
     @Override
@@ -66,6 +73,16 @@ public class StoreContextInterceptor implements HandlerInterceptor {
 
         StoreContextHolder.setContext(new StoreContext(userId, storeId, storeUser.getRole()));
         request.setAttribute("storeId", storeId);
+
+        // 方案A：第一次收到带 X-Store-Id 的 StoreScoped 请求时自动预热渠道价格（仅当未来区间内还没有任何 channel_prices 时才生成）
+        if (!"OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            try {
+                channelPriceWarmupService.warmupIfNeeded(storeId);
+            } catch (Exception ex) {
+                logger.warn("[StoreContext] channel price warmup failed. storeId={}, message={}", storeId, ex.getMessage(), ex);
+            }
+        }
+
         return true;
     }
 

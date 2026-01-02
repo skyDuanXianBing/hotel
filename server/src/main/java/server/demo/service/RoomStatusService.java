@@ -125,6 +125,9 @@ public class RoomStatusService {
             if (reservationStatus == ReservationStatus.CONFIRMED) {
                 return RoomStatus.RESERVED;
             }
+            if (reservationStatus == ReservationStatus.REQUESTED) {
+                return RoomStatus.RESERVED;
+            }
             if (reservationStatus == ReservationStatus.CHECKED_IN) {
                 return RoomStatus.OCCUPIED;
             }

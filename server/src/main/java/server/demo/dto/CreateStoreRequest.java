@@ -29,6 +29,21 @@ public class CreateStoreRequest {
 
     private String address;
 
+    /**
+     * 门店货币（例如：CNY / JPY / USD）
+     */
+    private String currency;
+
+    /**
+     * Su Channel Manager 的 hotelid / HotelCode（可选，不填则后端默认生成 STORE{storeId}）
+     */
+    private String suHotelId;
+
+    /**
+     * 创建门店后是否同步创建/覆盖 Su 物业（默认 true）
+     */
+    private Boolean createSuProperty;
+
     // Getters and Setters
     public String getName() {
         return name;
@@ -100,5 +115,29 @@ public class CreateStoreRequest {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public String getSuHotelId() {
+        return suHotelId;
+    }
+
+    public void setSuHotelId(String suHotelId) {
+        this.suHotelId = suHotelId;
+    }
+
+    public Boolean getCreateSuProperty() {
+        return createSuProperty;
+    }
+
+    public void setCreateSuProperty(Boolean createSuProperty) {
+        this.createSuProperty = createSuProperty;
     }
 }

@@ -1,0 +1,43 @@
+# Reservations Notification Push
+
+### <mark style="color:yellow;">HTTP Message Body Model</mark>
+
+```json
+{
+  "reservation_notif": {
+    "reservation_notif_id": [
+      "155411226779361384952"
+    ]
+  }
+}
+```
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`reservation_notif` <mark style="color:orange;">**root node**</mark>
+
+This is the parent node.
+
+{% hint style="info" %}
+Node multiplicity - 1
+{% endhint %}
+
+***
+
+`reservation_notif_id` <mark style="color:orange;">**alphanumeric**</mark>
+
+Contains the reservation notification ids for which they want to send acknowledgement. This is a unique id generated from Su for each reservation retrieved from OTA(s).
+
+{% hint style="info" %}
+Unbounded
+{% endhint %}
+
+***
+
+### <mark style="color:yellow;">Notification — Node Overview</mark>
+
+The message body for reservation notifications is designed to provide a structured format for sending notifications.
+
+* The request body consists of a **reservation\_notif** root node. This is the parent node.
+* The required child node **reservation\_notif\_id** of **reservation\_notif** contains the reservation notification ids for which thay want to send acknowledgement.
+* The required child node **reservation\_notif\_id** is a unique id generated from Su for each reservation retrieved from OTA(s).

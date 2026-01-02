@@ -1,0 +1,2825 @@
+﻿<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>API - Documentation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600" rel="stylesheet" />
+    <link href="css/font-awesome.min.css" rel="stylesheet" />
+    <link href="css/prism.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+
+    <style type="text/css">
+        
+    </style>
+</head>
+
+<body>
+    <header class="doc-header" id="doc-header">
+
+    </header>
+    <nav class="doc-side-nav">
+        <div class="side-main-nav-wrap" id="side-main-nav-wrap">
+        </div>
+        <div class="doc-main-nav-wrap">
+
+            <!-- <div class="doc-sub-menuWrap active" data-id="home">
+                <h4 class="doc-page-title">Home</h4>
+                <ul class="main-nav-list">
+                    <li class="active">
+                        <a href="javascript:void(0);" class="list-title">Home</a>
+                        <ul>
+                            <li><a class="scroll-link" href="#apimodules">API modules</a></li>
+                            <li><a class="scroll-link" href="#expectations">Expectations</a></li>
+                            <li><a class="scroll-link" href="#baseurl">Base URLs</a></li>
+                            <li><a class="scroll-link" href="javascript:void(0);">Request and response formats</a></li>
+                            <li><a class="scroll-link" href="javascript:void(0);">Security</a></li>
+                            <li><a class="scroll-link" href="javascript:void(0);">Disclaimer</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="javascript:void(0);" class="list-title">Authentication</a></li>
+                    <li><a href="javascript:void(0);" class="list-title">Curl Requests</a></li>
+                    <li><a href="javascript:void(0);" class="list-title">Glossary</a></li>
+                </ul>
+            </div> -->
+
+            <div class="doc-sub-menuWrap active" data-id="content">
+                <h4 class="doc-page-title">Content</h4>
+                <ul class="main-nav-list">
+                    <li id="propli" class="active">
+                        <a href="javascript:void(0);" id="prop" class="list-title scrollup">Create/Update Property</a>
+                        <ul id="pul">
+                            <li><a class="scroll-link" href="#url">URL</a></li>
+                            <li><a class="scroll-link" href="#reqbody">Request Body</a></li>
+                            <li><a class="scroll-link" href="#samplereq1">Sample Request</a></li>
+                            <!-- <li><a class="scroll-link" href="#samplereq1">Sample request 1 â Minimum property</a></li>
+                            <li><a class="scroll-link" href="#samplereq2">Sample request 2 â Independent Property</a></li>
+                            <li><a class="scroll-link" href="#samplereq3">Sample request 3 â Full</a></li>
+                            <li><a class="scroll-link" href="#samplereq4">Sample request 4 â Special bed options</a></li>  -->
+                            <li><a class="scroll-link" href="#resbody">Response Body</a></li>
+                            <li><a class="scroll-link" href="#sampleres">Sample Response</a></li>
+                        </ul>
+                    </li>
+                    <li id="roomli">
+                        <a href="javascript:void(0);" id="room" class="list-title scrollup">Create/Update RoomType</a>
+                        <ul id="pul1">
+                            <li><a class="scroll-link" href="#reqroom">Step 1: Request (RQ) sent with STAAH Room-Level Build Data</a></li>
+                            <li><a class="scroll-link" href="#resroom">Step 2: Response of success/warning/errors</a></li>
+                <li><a class="scroll-link" href="#modifyroom">Example: Update/Modify RoomType</a></li>
+                            <li><a class="scroll-link" href="#deactiveroom">Example: Deactivate Room Type</a></li>
+                            <li><a class="scroll-link" href="#activeroom">Example: Activate Room Type</a></li>
+                            <li><a class="scroll-link" href="#deleteroom">Example: Delete Room Type</a></li>
+                        </ul>
+                        
+                             </li>      
+                    <li id="rateli">
+                        <a href="javascript:void(0);" id="rate" class="list-title scrollup">Create/Update RatePlan</a>
+                        <ul id="pul2">
+                            <li><a class="scroll-link" href="#reqrate">Step 1: Request (RQ) sent with STAAH Rate-Level Build Data</a></li>
+                            <li><a class="scroll-link" href="#resrate">Step 2: Response of success/warning/errors</a></li>
+                <li><a class="scroll-link" href="#changerate">Example: Change Rate Plan Name</a></li>
+                            <li><a class="scroll-link" href="#deactiverate">Example: Deactivate Rate Plan</a></li>
+                            <li><a class="scroll-link" href="#activerate">Example: Activate Rate Plan</a></li>
+                            <li><a class="scroll-link" href="#deleterate">Example: Delete Rate Plan</a></li>
+                        </ul>
+                    </li>
+                    <li id="propertylist">
+                        <a href="javascript:void(0);" id="proplist" class="list-title scrollup">Listings</a>
+                        <!--
+                        <ul id="pulprop"> 
+                            <li><a class="scroll-link" href="#requestproperty">Request Body</a></li>
+                            <li><a class="scroll-link" href="#responseproperty">Response Body</a></li>
+                        </ul>
+                        !-->
+                        <ul>
+                        
+                        <a href="#property" class="list-title">Property Listing</a>
+                        <ul>
+                            <li><a class="scroll-link" href="#requestproperty">Request Body</a></li>
+                            <li><a class="scroll-link" href="#responseproperty">Response Body</a></li>
+                        </ul>
+                        <a href="#roomtype"  class="list-title">Room Type Listing</a>
+                        <ul>
+                            <li><a class="scroll-link" href="#requestroomtype">Request Body</a></li>
+                            <li><a class="scroll-link" href="#responseroomtype">Response Body</a></li>
+                        </ul>
+                        <a href="#rateplanlisting"  class="list-title">Rate Plan Listing</a>
+                        <ul>
+                            <li><a class="scroll-link" href="#requestrate">Request Body</a></li>
+                            <li><a class="scroll-link" href="#responserate">Response Body</a></li>
+                        </ul>
+                        <a href="#deletelisting"  class="list-title">Delete Property Listing</a>
+                        <ul>
+                            <li><a class="scroll-link" href="#requestdeleteprop">Request Body</a></li>
+                            <li><a class="scroll-link" href="#responsedeleteprop">Response Body</a></li>
+                        </ul>
+                        
+                        </ul>
+                </li>
+                </ul>
+            </div>
+
+<!--             <div class="doc-sub-menuWrap" data-id="otacodes">
+                <h4 class="doc-page-title">OTA Codes</h4>
+                <ul class="main-nav-list">
+                    <li class="active">
+                        <a href="javascript:void(0);" class="list-title">Home</a>
+                        <ul>
+                            <li><a class="scroll-link" href="#apimodules">API modules</a></li>
+                            <li><a class="scroll-link" href="#expectations">Expectations</a></li>
+                            <li><a class="scroll-link" href="#baseurl">Base URLs</a></li>
+                            <li><a class="scroll-link" href="javascript:void(0);">Request and response formats</a></li>
+                            <li><a class="scroll-link" href="javascript:void(0);">Security</a></li>
+                            <li><a class="scroll-link" href="javascript:void(0);">Disclaimer</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="javascript:void(0);" class="list-title">Authentication</a></li>
+                    <li><a href="javascript:void(0);" class="list-title">Curl Requests</a></li>
+                    <li><a href="javascript:void(0);" class="list-title">Glossary</a></li>
+                </ul>
+            </div>
+
+             <div class="doc-sub-menuWrap" data-id="objects">
+                <h4 class="doc-page-title">Objects</h4>
+                <ul class="main-nav-list">
+                    <li class="active">
+                        <a href="javascript:void(0);" class="list-title">Home</a>
+                        <ul>
+                            <li><a class="scroll-link" href="#apimodules">API modules</a></li>
+                            <li><a class="scroll-link" href="#expectations">Expectations</a></li>
+                            <li><a class="scroll-link" href="#baseurl">Base URLs</a></li>
+                            <li><a class="scroll-link" href="javascript:void(0);">Request and response formats</a></li>
+                            <li><a class="scroll-link" href="javascript:void(0);">Security</a></li>
+                            <li><a class="scroll-link" href="javascript:void(0);">Disclaimer</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="javascript:void(0);" class="list-title">Authentication</a></li>
+                    <li><a href="javascript:void(0);" class="list-title">Curl Requests</a></li>
+                    <li><a href="javascript:void(0);" class="list-title">Glossary</a></li>
+                </ul>
+            </div> -->
+
+        </div>
+    </nav>
+    <div class="mainPage" id="propmain">
+<!-- <h1>Copy div content to clipboard</h1>
+    <div id="div1">Div content First</div>
+    <button class="btn" data-clipboard-action="copy" data-clipboard-target="#div1">Copy</button>
+<br/><br/>
+<div id="div2">Div content Second</div>
+    <button class="btn" data-clipboard-action="copy" data-clipboard-target="#div2">Copy</button>
+<br/><br/>
+<div id="div3">Div content Third</div>
+    <button class="btn" data-clipboard-action="copy" data-clipboard-target="#div3">Copy</button>
+<br/><br/>
+<input type="text" value="Input Box Value" id="input1" >
+<button class="btn" data-clipboard-action="copy" data-clipboard-target="#input1">Copy</button>
+ -->
+        <section class="doc-main-section">
+            <h1 class="doc-title">Create/update property â OTA_HotelDescriptiveContentNotif</h1>
+            <div class="doc-cnt">
+                <p>Use this call to create or modify property details</p>
+            </div>
+        </section>
+
+        <section class="doc-card-section" id="url">
+            <h2 class="doc-title">URL</h2>
+            <!-- <span> POST <span class="doc-mark" > https://supply-xml.booking.com/hotels/ota/OTA_HotelDescriptiveContentNotif</span> </span> -->
+            <div class="doc-note">
+            <pre> <span> POST <span class="doc-mark" id="url_link"><a href="" id="prop_a" target="_blank"></a> </span> </span></pre></div>
+
+        </section>
+
+        <section class="doc-card-section" id="reqbody">
+            <h2 class="doc-title">Request body</h2>
+            <div class="doc-note">
+                <p><span>NOTE: </span>Because this request body is very complex, the table only shows elements and attributes up to 3 levels of nesting. Drill down further by following the links in the table. </p>
+<!-- TheÂ <a href="#samplereq1" class="doc-link"> Sample Request </a>Â further down the page does contain the full XML body. -->
+            </div>
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>FIELD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>HotelDescriptiveContents</code></td>
+                            <td>-</td>
+                            <td>array of <code>HotelDescriptiveContent</code></td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>HotelDescriptiveContent</code></td>
+                            <td>-</td>
+                            <td>object</td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>HotelName</code></td>
+                            <td>Name of the property as it should be displayed on STAAH.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Accepts alphanumeric values. Special characters are not allowed except Hyphen & Apostrophe mark<br>(" - ", " ' ")</td>
+                        </tr>
+                        <tr>
+                            <td><code>HotelType</code></td>
+                            <td>Type of the property</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Accepts values: [1, 2 or 3] 1-Hotel , 2-Motel , 3-Vacational Rental (Default value=1)<br></td>
+                        </tr>
+                        <tr>
+                            <td><code>Platform</code></td>
+                            <td>Pms service assigned as Both (SU & STAAH)</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Accepts values: ["SU" or "STAAH"] <br></td>
+                        </tr>
+                        <tr>
+                            <td><code>hotelid / HotelCode / ClientID</code></td>
+                          <td>The unique property ID as assigned by the provider upon creation of the property.</td>
+                            <td>string</td>
+                            <td>Required
+                            (hotelid / HotelCode / ClientID)</td>
+                            <td>Accepts alphanumeric values. Space and Special characters are not allowed except Hyphen (" - ")</td>
+                        </tr>
+                        <tr>
+                            <td><code>ChainID</code></td>
+                            <td>The Chain ID as assigned by the provider upon creation of the property.</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Accepts alphanumeric values. Space and Special characters are not allowed except Hyphen (" - "). Maximum 20 characters allowed</td>
+                        </tr>
+                        <tr>
+                            <td><code>LanguageCode</code></td>
+                            <td>See <a href="" id="url_lang" class="doc-link">STAAH Language Code</a>.</td>
+                            <td>enum</td>
+                            <td>Required</td>
+                            <td>Accepts the values listed underÂ <a href="" id="url_lang1" class="doc-link">LC</a>. Default: en</td>
+                        </tr>
+                        <tr>
+                            <td><code>CurrencyCode</code></td>
+                            <td>See <a href="" id="url_cur" class="doc-link">STAAH Currency Code</a>.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Accepts the values listed underÂ <a href="" id="url_cur1" class="doc-link">CC</a>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>closeoutdays</code></td>
+                            <td>The closeoutdays as allocated by the provider for the property.</td>
+                            <td>number</td>
+                            <td>Optional</td>
+                            <td>Accepts the values between 0 to 30 but must be in quotes. Default value is -1(no closeouts).</td>
+                        </tr>
+                        <tr>
+                            <td><code>closeouttime</code></td>
+                            <td>The closeouttime as allocated by the provider for the property.</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Accepts the values between 00:00 to 24:00(Interval must be 30 min). It is required only if you set closeoutdays value as 0. Default value is -1(no closeouts).</td>
+                        </tr>
+                        <tr>
+                            <td><code>Timezone</code></td>
+                            <td>See <a href="" id="url_cur12" class="doc-link">STAAH Timezone</a>.</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>If no value passed, system will take the default value of Timezone depending on the country. Accepts the values listed underÂ <a href="" id="url_cur12" class="doc-link">TZ</a>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>PropertyLicenseNumber</code></td>
+                            <td>The property license number, as provided by the local authority.</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Required for certain property types, in certain regions. Consult your account manager for details.</td>
+                        </tr>
+                        <tr>
+                            <td><code>OfficialCheckinTime</code></td>
+                            <td>Indicates Check-in Time for the earliest time a guest can check in.</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Format: HH:MM 24-hour check-in can be specified using 00:00</td>
+                        </tr>
+                        <tr>
+                            <td><code>OfficialCheckoutTime</code></td>
+                            <td>Indicates Check-out Time for the earliest time a guest can check out.</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Format: HH:MM 24-hour check-out can be specified using 00:00</td>
+                        </tr>
+                        <tr>
+                            <td><code>HotelDescriptiveContentNotifType</code></td>
+                            <td>Indicates whether the call is meant to create a new property or update an existing one.</td>
+                            <td>enum</td>
+                            <td>Required</td>
+                            <td>Accepts these values:Â New,Â Overlay.
+                            Default:Â New</td>                            
+                        </tr>
+                        <tr>
+                            <td><code>ContactInfos</code></td>
+                            <td>-</td>
+                            <td>array of <a href="#contactinfo" class="doc-link">ContactInfo</a></td>
+                            <td>Required</td>
+                            <td>-</td>
+                            <!-- <td>AnÂ <a href="">invoicing contact</a>Â isÂ  requiredÂ for new properties.</td> -->
+                        </tr>
+                        <tr>
+                            <td><code>HotelInfo</code></td>
+                            <td>SeeÂ <a href="#hotelinfo" class="doc-link">HotelInfo.</a></td>
+                            <td>object</td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>Facilities</code></td>
+                            <td>SeeÂ <a href="#hotelinfo" class="doc-link">facilities.</a></td>
+                            <td>Free Text</td>
+                            <td>Optional</td>
+                            <td>Free Text (No Special characters allowed)</td>
+                        </tr>
+                        <tr>
+                            <td><code>Images</code></td>
+                            <td>SeeÂ <a href="#hotelinfo" class="doc-link">images.</a></td>
+                            <td>url</td>
+                            <td>Optional</td>
+                            <td>Accepts jpg, JPG, jpeg, JPEG, gif, GIF, png, PNG format files</td>
+                        </tr>
+                         <tr>
+                            <td><code>HotelDescription</code></td>
+                            <td>Description of Property</td>
+                            <td>Free Text</td>
+                            <td>Optional</td>
+                            <td>Maximum 2000 characters. If exceeded, system will simply accept and will not return an error</td>
+                        </tr>
+                       <!--  <tr>
+                            <td><code>FacilityInfo</code></td>
+                            <td>SeeÂ <a href="" class="doc-link">FacilityInfo.</a></td>
+                            <td>object</td>
+                            <td>Optional</td>
+                            <td>-</td>
+                        </tr> -->
+                      <!--   <tr>
+                            <td>AreaInfo</td>
+                            <td>SeeÂ <a href="">AreaInfo.</a></td>
+                            <td>object</td>
+                            <td>Optional</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>Policies</td>
+                            <td>array of <a href="">Policy</a></td>
+                            <td>object</td>
+                            <td>Optional</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>AffiliationInfo</td>
+                            <td>array of <a href="">Awards</a></td>
+                            <td>object</td>
+                            <td>Optional</td>
+                            <td>-</td>
+                        </tr> -->
+
+
+
+                    </tbody>
+                </table>
+            </div>
+        <div class="doc-note">
+                <p><span>NOTE: </span><li>This API uses an overlay system. Every time you update an existing property, room type or other objects, the body of your request replaces previous information. <code>This means existing information will be deleted if you donât include in your request.</code> To update an object without deleting information, make sure your request contains both the fields you want to update and those you want to keep the same.</p></li> 
+        </div>     
+        </section>
+        <section class="doc-card-section" id="samplereq1">
+            <h2 class="doc-title">Sample request</h2>
+            <!-- <h2 class="doc-title">Sample request 1 â Minimum property</h2> -->
+            <div class="doc-cnt">
+                <p>This sample request contains the minimum content needed to get a successful response from the API and create a new property. </p>
+                <!-- For an example with more content, see theÂ <a href="" class="doc-link">full sample</a>.</p>                -->
+            </div>
+            <div class="doc-cnt">
+            <!-- <div  class="divbutton"> -->
+            <div class="posrelative">
+             <pre id="prop_req_div" class="prettyprint lang-html linenums:1">
+
+{
+    "HotelDescriptiveContents": {
+        "HotelDescriptiveContent": {
+            "HotelName": "Kings Cross",
+            "HotelType": "3",
+            "Platform": "SU",
+            "TimeZone": "Europe/London",
+            "hotelid": "KC",
+            "ChainID": "W1",
+            "LanguageCode": "en",
+            "CurrencyCode": "GBP",
+            "closeoutdays": "0",
+            "closeouttime": "00:30",
+            "HotelDescriptiveContentNotifType": "New",
+            "PropertyLicenseNumber": "AB-CD-1234",
+            "OfficialCheckinTime":"10:00",
+            "OfficialCheckoutTime":"11:00",
+            "ContactInfos": {
+                "ContactInfo": [{
+                        "ContactProfileType": "PhysicalLocation",
+                        "Addresses": {
+                            "Address": {
+                                "AddressLine": "36 Northwild Street",
+                                "CityName": "London",
+                                "PostalCode": "M16JD",
+                                "CountryName": "GB"
+                            }
+                        }
+                    },
+                    {
+                        "ContactProfileType": "availability",
+                        "Names": {
+                            "Name": {
+                                "GivenName": "Steve",
+                                "Surname": "Martin"
+                            }
+                        },
+                        "Addresses": {
+                            "Address": {
+                                "AddressLine": "36 Northwild Street",
+                                "CityName": "London",
+                                "CountryName": "GB",
+                                "PostalCode": "M16JD"
+                            }
+                        },
+                        "NotificationEmail": "no-reply@suissu.com",
+                        "Emails": {
+                            "Email": [
+                                "admin@fakehotel.com",
+                                "admin1@akehotel.com",
+                                "admin2@kehotel.com"
+                            ]
+                        },
+                        "Phones": {
+                            "Phone": [{
+                                    "PhoneNumber": "+3362211110",
+                                    "PhoneTechType": "1"
+                                },
+                                {
+                                    "PhoneNumber": "+3362211111",
+                                    "PhoneTechType": "1"
+                                },
+                                {
+                                    "PhoneNumber": "+3362211112",
+                                    "PhoneTechType": "5"
+                                },
+                                {
+                                    "PhoneNumber": "+3362211113",
+                                    "PhoneTechType": "5"
+                                },
+                                {
+                                    "PhoneNumber": "+3362211114",
+                                    "PhoneTechType": "3"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "HotelInfo": {
+                "Position": {
+                    "Latitude": "49.4092",
+                    "Longitude": "1.0900"
+                }
+            },
+            "Facilities": {
+                "Facility": [{
+                        "Group": "Parking",
+                        "name": "Free Parking"
+                    },
+                    {
+                        "Group": "Facilities",
+                        "name": "CCTV Camera"
+                    },
+                    {
+                        "Group": "Facilities",
+                        "name": "Gym"
+                    },
+                    {
+                        "Group": "Facilities",
+                        "name": "Convention Center"
+                    },
+                    {
+                        "Group": "Facilities",
+                        "name": "24 hours Frontdesk"
+                    }
+                ]
+            },
+            "Images": {
+                "Image": [{
+                        "name": "living room",
+                        "url": "https://suissu.s3.amazonaws.com/images/profile_44d7ae789ea376644ee88c19d5f23234.png"
+                    },
+                    {
+                        "name": "room1",
+                        "url": "https://suissu.s3.amazonaws.com/images/profile_21586d7df7fe06a6a2580618b8ecb622.png"
+                    }
+                ]
+            },
+            "HotelDescription": "Graceful Apartment in London is nearby airport with Free WiFi and other Amenities."
+        }
+    }
+}
+</pre>
+
+<button type="button" id="propreq_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#prop_req_div">Copy</button>
+</div>
+
+</div>
+</section>
+
+        <section class="doc-card-section" id="contactinfo">
+            <h2 class="doc-title">ContactInfo</h2>
+            <div class="doc-cnt">
+                <p>Contains names, addresses, and other types of contact details. Child of <code>ContactInfos</code>. </p>
+            </div>
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>CHILD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>ContactProfileType</code></td>
+                            <td>Indicates the type of contact.</td>
+                            <td>enum</td>
+                            <td>Required</td>
+                            <td>Accepts: <code>availability</code>, <code>PhysicalLocation</code>. See <a href="#ContactProfileType" class="doc-link">ContactProfileType</a> for details.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Addresses</code></td>
+                            <td>Indicates the address of the contact person.</td>
+                            <td>array of <a href="#addresses" class="doc-link">Addresses</a></td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>NotificationEmail</code></td>
+                            <td>Email address on which reservations will be notified.</td>
+                            <td>Email</td>
+                            <td>Optional</td>
+                            <td>Multiple NotificationEmail allowed</td>
+                        </tr>                        
+                        <tr>
+                            <td><code>Emails</code></td>
+                            <td>Contact Email Address</td>
+                            <td>array of <a href="#contact_email" class="doc-link">Email</a></td>
+                            <td>Required</td>
+                            <td>Maximum 5 email address can be added</td>
+                        </tr>
+                        <tr>
+                            <td><code>Names</code></td>
+                            <td>Indicates name of the contact person.</td>
+                            <td>array of <a href="#contact_name" class="doc-link">Name</a></td>
+                            <td>Required</td>
+                            <td>Max. occurrences of Name per ContactInfo element: 1</td>
+                        </tr>
+                        <tr>
+                            <td><code>Phones</code></td>
+                            <td>-</td>
+                            <td>array of <a href="#contact_phone" class="doc-link">Phone</a></td>
+                            <td>Required</td>
+                            <td>Maximum 5 Telephone Numbers can be added</td>
+                        </tr>                       
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+        <section class="doc-card-section" id="ContactProfileType">
+            <h2 class="doc-title">ContactProfileType</h2>
+            <div class="doc-cnt" >
+                <p>The <a href="#contactinfo" class="doc-link">ContactInfo</a> attribute <code>ContactProfileType</code> accepts the following values. Each value corresponds with a similarly named heading on the <strong>Contacts</strong> page in our <a href="" id="extranet" class="doc-link">extranet</a>. </p>
+            </div>
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>VALUE</th>
+                            <th>DESCRIPTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                       
+                        <tr>
+                            <td><code>availability</code></td>
+                            <td>Contact for questions about availability.</td>
+                        </tr>
+                        <tr>
+                            <td><code>PhysicalLocation</code></td>
+                            <td>Address details for the property's physical location.</td>
+                        </tr>                       
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+        <section class="doc-card-section" id="addresses">
+            <h2 class="doc-title">Address</h2>
+            <div class="doc-cnt">
+                <p>Contains address details. Child of Addresses (see <a href="#contactinfo" class="doc-link"> ContactInfo)</a>. </p>
+            </div>
+            <div class="doc-table"> 
+                <table>
+                    <thead>
+                        <tr>
+                            <th>CHILD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>                       
+                        <tr>
+                            <td><code>AddressLine</code></td>
+                            <td>The full street name and number.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>CityName</code></td>
+                            <td>The name of the city, town, or village.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Only editable via Extranet</td>
+                        </tr>
+                        <tr>
+                            <td><code>PostalCode</code></td>
+                            <td>The postal or zip code.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>   
+                        <tr>
+                            <td><code>CountryName</code></td>
+                            <td>The two-letter code for the country.</td>
+                            <td>countrycode</td>
+                            <td>Required</td>
+                            <td>Only editable via Extranet
+                                listed under <a href="" id="url_counc" class="doc-link">Country Code</a>.</td>
+                        </tr>                                               
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="doc-card-section" id="contact_name">
+            <h2 class="doc-title">Name</h2>
+            <div class="doc-cnt">
+                <p>Contains a contact person's name details. Child of <code>Names</code> (see <a href="#contactinfo" class="doc-link"> ContactInfo</a>). </p>
+            </div>
+            <div class="doc-table"> 
+                <table>
+                    <thead>
+                        <tr>
+                            <th>CHILD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>GivenName</code></td>
+                            <td>The contact's given (first) name.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>Surname</code></td>
+                            <td>The contact's last name or family name.</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>-</td>
+                        </tr>                                       
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    <section class="doc-card-section" id="Notification_email">
+            <h2 class="doc-title">Notification Email</h2>
+            <div class="doc-cnt">
+                <p>Contains an email address, on which reservation notification emails will be pushed. It is an optional field and If no value found, it will take the first available contact email address to notify on. Child of Emails (see <a href="#contactinfo" class="doc-link"> ContactInfo</a>). - see <a href="#samplereq1" class="doc-link"> Sample XML</a> for an example. </p>
+            </div>
+        </section>
+
+        <section class="doc-card-section" id="contact_email">
+            <h2 class="doc-title">Email</h2>
+            <div class="doc-cnt">
+                <p>Contains an email address. Child of Emails (see <a href="#contactinfo" class="doc-link"> ContactInfo</a>). This element has no child elements or attributesâsee <a href="#samplereq1" class="doc-link"> Sample JSON</a> for an example. </p>
+            </div>
+        </section>
+
+        <section class="doc-card-section" id="contact_phone">
+            <h2 class="doc-title">Phone</h2>
+            <div class="doc-cnt">
+                <p>Contains phone line details. Child of Phones (see <a href="#contactinfo" class="doc-link"> ContactInfo</a>). </p>
+            </div>
+            <div class="doc-table"> 
+                <table>
+                    <thead>
+                        <tr>
+                            <th>CHILD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>PhoneNumber</code></td>
+                            <td>The international phone number that must be dialed to reach the phone.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Must begin with +, followed by all digits required to dial internationally. No whitespace, hyphens, or other characters allowed. Not more than 15 numbers.</td>
+                        </tr>
+                        <tr>
+                            <td><code>PhoneTechType</code></td>
+                            <td>The type of phone line or device, expressed as a <a href="" id="phtechtype" class="doc-link">PTT code</a>.</td>
+                            <td>enum</td>
+                            <td>Required</td>
+                            <td>See <a href="" id="phtechtype1" class="doc-link">PTT codes</a> for accepted values.</td>
+                        </tr>                   
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+
+
+
+        <section class="doc-card-section" id="hotelinfo">
+            <h2 class="doc-title">HotelInfo</h2>
+            <div class="doc-cnt">
+                <p>Contains information about the position of a property.</p>
+            </div>
+            <div class="doc-table"> 
+                <table>
+                    <thead>
+                        <tr>
+                            <th>CHILD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>Position</code></td>
+                            <td>Container for child attributes.</td>
+                            <td>object</td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>Latitude</code></td>
+                            <td>Latitude of the property's location.</td>
+                            <td>latitude</td>
+                            <td>Required</td>
+                            <td>A valid Latitude value (-90) to 90</td>
+                        </tr>
+                        <tr>
+                            <td><code>Longitude</code></td>
+                            <td>Longitude of the property's location.</td>
+                            <td>longitude</td>
+                            <td>Required</td>
+                            <td>A valid Longitude value (-180) to 180</td>
+                        </tr>                                
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <section class="doc-card-section" id="facilities">
+            <h2 class="doc-title">Facilities</h2>
+            <div class="doc-cnt">
+                <p>Contains information on facilities / amenities of a property.</p>
+            </div>
+            <div class="doc-table"> 
+                <table>
+                    <thead>
+                        <tr>
+                            <th>CHILD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>Facility</code></td>
+                            <td>Option to add list of facilities / amenities at property</td>
+                            <td>Free Text</td>
+                            <td>Optional</td>
+                            <td>Accepts eveything being pushed (except & sign)</td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+
+
+<div class="doc-note">
+                <p><span>NOTE: </span><li>Both "Group" and "name" accepts Free Text - Special characters not allowed</p></li>
+                <p><li>If no Group name given, The amenitiy will be added under the Group "Common" (Auto created / Default)</p></li>   
+                <p><li>Once added, it cannot be removed individually</p></li>
+                <p><li>If needed to be updated / modified, entire mode will have to be passed &lt;Facilities&gt.....&lt;/Facilities&gt;</p></li> 
+        </div>  
+</section>
+
+</section>
+        <section class="doc-card-section" id="images">
+            <h2 class="doc-title">Images</h2>
+            <div class="doc-cnt">
+                <p>Contains images of a property.</p>
+            </div>
+            <div class="doc-table"> 
+                <table>
+                    <thead>
+                        <tr>
+                            <th>CHILD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>Image</code></td>
+                            <td>Option to add multiple images of property</td>
+                            <td>url</td>
+                            <td>Optional</td>
+                            <td>Accepted formats: jpg, JPG, png, PNG, jpeg, JPEG, gif, GIF </td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+
+
+<div class="doc-note">
+                <p><span>NOTE: </span><li>Images API DO NOT use the overlay system</p></li>
+                <p><li>You must use a valid image URL</li></p>
+                <p><li>You can send changes only. It will not remove existing images</p></li> 
+                <p><li>Images can only be deleted via extranet</li></p>
+                <p><li>Maximum image size: 20 MB</li></p>
+                <p><li>Maximum 20 images supported per call. If more than 20 images are passed, system will not return an error but we will only process the first 20 images</li></p>
+                <p><li>Multiple calls permitted</li></p>   
+        </div>  
+
+</section>
+        <section class="doc-card-section" id="resbody">
+            <h2 class="doc-title">Response body</h2>
+            <div class="doc-note">
+                <p><span>NOTE: </span>Because this request body is very complex, the table only shows elements and attributes up to 3 levels of nesting. Drill down further by following the links in the table. </p>
+<!-- TheÂ <a href="#samplereq3" class="doc-link"> Sample Request </a>Â further down the page does contain the full XML body. -->
+            </div>
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>FIELD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                       <!--  <tr>
+                            <td><code>UniqueID</code></td>
+                            <td>-</td>
+                            <td>object</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>UniqueID[@Type]</code></td>
+                            <td>The <a href="" class="doc-link">Unique ID Type Code</a> for the property.</td>
+                            <td>enum</td>
+                            <td>Accepts the values listed under <a href="" class="doc-link">UIT</a>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>UniqueID[@ID] </code></td>
+                            <td>The property ID as assigned by STAAH upon creation of the property.</td>
+                            <td>ID</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>TPA_Extensions</code></td>
+                            <td>-</td>
+                            <td>object</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>HotelCrossRefs</code></td>
+                            <td>-</td>
+                            <td>array of <code>HotelCrossRef</code></td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>HotelCrossRef</code></td>
+                            <td>-</td>
+                            <td>object</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>HotelCrossRef</code><br/><code>[@RequestHotelCode]</code></td>
+                            <td>The property ID as assigned by the provider upon creation of the property. Identical to <code>HotelDescriptiveContent</code> in the request.</td>
+                            <td>string</td>
+                            <td>We do not store your ID, but we do return it in the response, to help you map it to the right request.</td>
+                        </tr>
+                        <tr>
+                            <td><code>HotelCrossRef</code><br/><code>[@ResponseHotelCode]</code></td>
+                            <td>The property ID as assigned by STAAH upon creation of the property.</td>
+                            <td>ID</td>
+                            <td>-</td>
+                        </tr> -->
+                        <tr>
+                            <td><code>Success</code></td>
+                            <td>Indicates that the request was successful.</td>
+                            <td>object</td>
+                            <td>-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+<!--  <div id="div1">Div content First</div> -->
+   <!--  <button class="btn" data-clipboard-action="copy" data-clipboard-target="#div1">Copy</button> -->
+
+
+<section class="doc-card-section" id="sampleres">
+<h2 class="doc-title">Sample Response</h2>
+<div class="doc-cnt">
+<div class="posrelative">
+<pre id="div1" class="copypre prettyprint lang-html linenums:1">
+{
+    "Status": "Success"
+}</pre>
+<button type="button" id="propres_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#div1" >Copy</button>
+</div>
+</div>
+</section>
+
+</div>
+
+<div class="mainPage" id="propertylistmain">
+    
+<section class="doc-main-section" id="property">
+            <h1 class="doc-title">Property Listing</h1>
+            <div class="doc-cnt">
+                <p>The Property Listing call is used to retrieve the list of Properties created by PMS. It is a 'GET' Call designed to retrieve the details of the properties exist.</p>
+            </div>
+        </section>
+        <section class="doc-card-section" id="url">
+            <h2 class="doc-title">HTTP GET</h2>
+            <div class="doc-note" >
+             <pre style="color: #666 !important;"> <span> GET <span class="doc-mark"><a id="url_linkproperty" href="" target="_blank"></a> </span> </span></pre></div>
+        </section>
+
+       
+
+<section class="doc-card-section" id="requestproperty">
+    <div class="doc-cnt">
+      <h2 class="doc-title">Request</h2>
+     <div class="doc-cnt">
+                <p>PMS must pass along the Authorization (API) Key to get the list of the properties already created. It is 'GET' request.</p>
+                <p> One must pass along their unique API Authorization Key in header with empty body to get desired result.</p>
+</div>
+ </div>
+ <br>
+ <br>
+ <br>
+      <h3 class="doc-title">Mandatory elements</h3>
+      <h4 class="doc-title">Element name - request</h4>
+      <!-- <p><b>Short description</b> The request element is the root of every availability call. <b>Type</b> structural element <b>Amount of elements possible within parent</b> min:1, max:1 <b>Constraints Format Parent Children </b>room</p>
+ -->
+       <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Description</th>
+            <th>The request element is the root of every property listing call.</th>
+            </tr>
+            </thead>
+             <tbody>
+            <tr>
+            <td>Type</td>
+            <td>GET Request</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+
+
+      <h4 class="doc-title">Attribute Name</h4>
+<!--       <p><b>Short description</b> IT provider's hotel id for which you are sending availablity</p> -->
+      <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Attribute</th>
+            <th>Description</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+            <td>Header</td>
+            <td>PMS's unique API (Authorization) Key for which retrieving properties details.</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+        <!-- 
+      <p><b>Attribute description</b> IT provider's unique room id.<b>Attribute Type</b> alphanumeric <b>Attribute Constraints</b> needs to be an active room in the STAAH system and if room is not available in STAAH then we will create on request <b>Amount of elements possible within parent</b> Min:1 Max:1</p> -->
+</section>
+
+<section class="doc-card-section" id="responseproperty">
+    <div class="doc-cnt">
+    <h2 class="doc-title">Response</h2>
+    <h3 class="doc-title">Success</h3>
+    <pre class="prettyprint lang-html linenums:1">{
+  "properties": [
+    {
+      "propertyid": "11122010",
+      "propertyname": "The Rosehotel Motel",
+      "status": "Active",
+      "roomcount": "13"
+    },
+    {
+      "propertyid": "11122011",
+      "propertyname": "Malin House",
+      "status": "Active",
+      "roomcount": "20"
+    },
+    {
+      "propertyid": "101010",
+      "propertyname": "Fake Hotel",
+      "status": "Active",
+      "roomcount": "15"
+    },
+    {
+      "propertyid": "P103",
+      "propertyname": "The Grand Bhagawati",
+      "status": "Active",
+      "roomcount": "25"
+    }
+  ]
+}</pre>
+    <br>
+    <h3 class="doc-title">Errors</h3>
+        <h4 class="doc-title">Errors due to invalid API</h4>
+    <pre class="prettyprint lang-html linenums:1">{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "497",
+    "ShortText": "Authorization Required"
+  }
+}</pre>
+    <br>
+    <p>You may receive HTTP code 401 Unauthorized Error, if allocated with incorrect API Authorization Key.</p>
+    <br>
+</div>
+</section>
+
+<section class="doc-main-section" id="roomtype">
+            <h1 class="doc-title">Room Type Listing</h1>
+            <div class="doc-cnt">
+                <p>The Room Type Listing call is used to retrieve the list of Room Types created for existing property. By using this call, PMS will be able to fetch details on the property's existing room types and details related to the room types such as, Name, Type, Min/Max. Occupancy, Status, Size, etc...</p>
+            </div>
+        </section>
+        <section class="doc-card-section" id="url">
+            <h2 class="doc-title">HTTP POST</h2>
+            <div class="doc-note" >
+             <pre style="color: #666 !important;"> <span> POST <span class="doc-mark"><a id="url_linkroom" href="" target="_blank"></a> </span> </span></pre></div>
+        </section>
+
+       
+
+<section class="doc-card-section" id="requestroomtype">
+    <div class="doc-cnt">
+      <h2 class="doc-title">Request</h2>
+     <div class="doc-cnt">
+                <p>Please find an example input message below. </p>
+                <div class="posrelative">
+                  <pre id="avreq_room" class="prettyprint lang-html linenums:1">
+{
+   "hotelid": "new1"
+}
+</pre>
+<button type="button" id="avreq_roomtype" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#avreq_room">Copy</button>
+</div>
+ </div>
+ <br>
+ <br>
+ <br>
+      <h3 class="doc-title">Mandatory elements</h3>
+      <h4 class="doc-title">Element name - request</h4>
+      <!-- <p><b>Short description</b> The request element is the root of every availability call. <b>Type</b> structural element <b>Amount of elements possible within parent</b> min:1, max:1 <b>Constraints Format Parent Children </b>room</p>
+ -->
+       <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Description</th>
+            <th>The request element is the root of every room type listing call.</th>
+            </tr>
+            </thead>
+             <tbody>
+            <tr>
+            <td>Type</td>
+            <td>structural element</td>
+            </tr>
+            <tr>
+            <td>Children</td>
+            <td>n/a</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+
+
+      <h4 class="doc-title">Attribute Name</h4>
+<!--       <p><b>Short description</b> IT provider's hotel id for which you are sending availablity</p> -->
+      <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Attribute</th>
+            <th>Description</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+            <td>hotelid / hotel_id / ClientID</td>
+            <td>IT provider's hotel / client id for which retrieving room types and their details.</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+      <h4 class="doc-title">Syntax</h4>
+      <pre class="prettyprint lang-html linenums:1">
+{
+   "hotelid": "new1"
+}</pre>
+    <br>
+    <br>
+    <br>
+      <!-- <p><b>Short description</b> IT provider's room that you are updating. <b>Type</b> integer <b>Amount of elements possible within parent</b> min:1, max:unbounded <b>Constraints </b>rooms to be updated need to be active in the STAAH system <b>Format Parent</b> request <b>Children</b> date</p> -->
+      <h4 class="doc-title">Attribute Name - hotelid / hotel_id / ClientID</h4>
+
+      <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Description</th>
+                <th>IT provider's unique hotelid / hotel id / client id.</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+            <td>Type</td>
+            <td>alphanumeric</td>
+            </tr>
+            <tr>
+            <td>Constraints</td>
+            <td>needs to be a property registered in the STAAH (Existing)</td>
+            </tr>
+            <tr>
+            <td>Amount of elements possible within parent</td>
+            <td>1</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+<!-- 
+      <p><b>Attribute description</b> IT provider's unique room id.<b>Attribute Type</b> alphanumeric <b>Attribute Constraints</b> needs to be an active room in the STAAH system and if room is not available in STAAH then we will create on request <b>Amount of elements possible within parent</b> Min:1 Max:1</p> -->
+<br>
+
+</section>
+
+<section class="doc-card-section" id="responseroomtype">
+    <div class="doc-cnt">
+    <h2 class="doc-title">Response</h2>
+    <h3 class="doc-title">Response Model â No Rooms Found </h3>
+          <p>In this case there is no Room Type available for the provider based on the parameters provided.</p>
+          <pre class="prettyprint lang-html linenums:1">
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "938",
+    "ShortText": "No rooms found"
+  }
+}</pre>
+<br>
+    <h3 class="doc-title">Success</h3>
+    <pre class="prettyprint lang-html linenums:1">{
+	"rooms": [{
+		"roomid": "STD",
+		"roomname": "Superior Room with Balcony",
+		"roomtype": "Double",
+		"maximumoccupancy": "2",
+		"status": "Active",
+		"quantity": "8",
+		"sizemeasurement": "20",
+		"sizemeasurementunit": "sqm",
+		"rate": "200"
+	}, {
+		"roomid": "KNG",
+		"roomname": "Twin Room",
+		"roomtype": "Twin",
+		"maximumoccupancy": "4",
+		"status": "Active",
+		"quantity": "4",
+		"sizemeasurement": "20",
+		"sizemeasurementunit": "sqm",
+		"rate": "200"
+	}]
+}</pre>
+    <br>
+    <h3 class="doc-title">Errors</h3>
+    
+    <h4 class="doc-title">Errors due to invalid parameters</h4>
+    <pre class="prettyprint lang-html linenums:1">
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "400",
+    "ShortText": "Invalid HotelCode (ne1)"
+  }
+}</pre>
+    <br>
+    <p>This error will be received if allocated with incorrect Hotel / Client id.</p>
+    <br>
+
+</div>
+</section>
+
+
+<section class="doc-main-section" id="rateplanlisting">
+            <h1 class="doc-title">Rate Plan Listing</h1>
+            <div class="doc-cnt">
+                <p>The Rate Plan Listing call is used to retrieve the list of Rate Plans created for existing property. Response data contains information on rate plans' Name, Id, Meal Plan Id and Status.</p>
+            </div>
+        </section>
+        <section class="doc-card-section" id="url">
+            <h2 class="doc-title">HTTP POST</h2>
+            <div class="doc-note" >
+             <pre style="color: #666 !important;"> <span> POST <span class="doc-mark"><a id="url_linkrate" href="" target="_blank"></a> </span> </span></pre></div>
+        </section>
+       
+
+<section class="doc-card-section" id="requestrate">
+    <div class="doc-cnt">
+      <h2 class="doc-title">Request</h2>
+     <div class="doc-cnt">
+                <p>Please find an example input message below. </p>
+                <div class="posrelative">
+                  <pre id="avreq_rate" class="prettyprint lang-html linenums:1">
+{
+   "hotelid": "new1"
+} 
+</pre>
+<button type="button" id="avreq_rateplan" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#avreq_rate">Copy</button>
+</div>
+ </div>
+ <br>
+ <br>
+ <br>
+      <h3 class="doc-title">Mandatory elements</h3>
+      <h4 class="doc-title">Element name - request</h4>
+      <!-- <p><b>Short description</b> The request element is the root of every availability call. <b>Type</b> structural element <b>Amount of elements possible within parent</b> min:1, max:1 <b>Constraints Format Parent Children </b>room</p>
+ -->
+       <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Description</th>
+            <th>The request element is the root of every rate plan listing call.</th>
+            </tr>
+            </thead>
+             <tbody>
+            <tr>
+            <td>Type</td>
+            <td>structural element</td>
+            </tr>
+            <tr>
+            <td>Children</td>
+            <td>n/a</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+
+
+      <h4 class="doc-title">Attribute Name</h4>
+<!--       <p><b>Short description</b> IT provider's hotel id for which you are sending availablity</p> -->
+      <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Attribute</th>
+            <th>Description</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+            <td>hotelid / hotel_id / ClientID</td>
+            <td>IT provider's hotel / client id for which retrieving rate plan/s.</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+      <h4 class="doc-title">Syntax</h4>
+      <pre class="prettyprint lang-html linenums:1">
+{
+   "hotelid": "new1"
+} </pre>
+    <br>
+    <br>
+    <br>
+      <!-- <p><b>Short description</b> IT provider's room that you are updating. <b>Type</b> integer <b>Amount of elements possible within parent</b> min:1, max:unbounded <b>Constraints </b>rooms to be updated need to be active in the STAAH system <b>Format Parent</b> request <b>Children</b> date</p> -->
+      <h4 class="doc-title">Attribute Name - hotelid / hotel_id / ClientID</h4>
+
+      <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Description</th>
+                <th>IT provider's unique hotel id / client id.</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+            <td>Type</td>
+            <td>alphanumeric</td>
+            </tr>
+            <tr>
+            <td>Constraints</td>
+            <td>needs to be a property registered in the STAAH (Existing)</td>
+            </tr>
+            <tr>
+            <td>Amount of elements possible within parent</td>
+            <td>1</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+<!-- 
+      <p><b>Attribute description</b> IT provider's unique room id.<b>Attribute Type</b> alphanumeric <b>Attribute Constraints</b> needs to be an active room in the STAAH system and if room is not available in STAAH then we will create on request <b>Amount of elements possible within parent</b> Min:1 Max:1</p> -->
+<br>
+
+</section>
+
+<section class="doc-card-section" id="responserate">
+    <div class="doc-cnt">
+    <h2 class="doc-title">Response</h2>
+    <h3 class="doc-title">Response Model â No Rate Plan Found </h3>
+          <p>In this case there is no Rate Plan available for provider based on the parameters provided.</p>
+          <pre class="prettyprint lang-html linenums:1">
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "939",
+    "ShortText": "No rates found"
+  }
+}</pre>
+<br>
+    <h3 class="doc-title">Success</h3>
+    <pre class="prettyprint lang-html linenums:1">{
+	"rateplans": [{
+		"rateplanid": "BAR",
+		"rateplanname": "Early Booker Rate",
+		"mealplanid": "2",
+                "description": "Description of the rate plan",
+		"status": "Active"
+	}, {
+		"rateplanid": "NRF",
+		"rateplanname": "Non Refundable Rate",
+		"mealplanid": "2",
+                "description": "Description of the rate plan",
+		"status": "Active"
+	}]
+}</pre>
+    <br>
+    <h3 class="doc-title">Errors</h3>
+    
+    <h4 class="doc-title">Errors due to invalid parameters</h4>
+    <pre class="prettyprint lang-html linenums:1">
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "400",
+    "ShortText": "Invalid HotelCode (new)"
+  }
+}</pre>
+    <br>
+    <p>This error will be received if allocated with incorrect Hotel / client id.</p>
+    <br>
+
+</div>
+</section>
+<section class="doc-main-section" id="deletelisting">
+            <h1 class="doc-title">Delete Property Listing</h1>
+            <div class="doc-cnt">
+                <p>The Delete Property Listing call is used to remove / delete the existing property.</p>
+            </div>
+        </section>
+        <section class="doc-card-section" id="url">
+            <h2 class="doc-title">HTTP POST</h2>
+            <div class="doc-note" >
+             <pre style="color: #666 !important;"> <span> POST <span class="doc-mark"><a id="url_linkdltprop" href="" target="_blank"></a> </span> </span></pre></div>
+        </section>
+       
+
+<section class="doc-card-section" id="requestdeleteprop">
+    <div class="doc-cnt">
+      <h2 class="doc-title">Request</h2>
+     <div class="doc-cnt">
+                <p>Please find an example input message below. </p>
+                <div class="posrelative">
+                  <pre id="avreq_dltproperty" class="prettyprint lang-html linenums:1">{
+    "hotelid": "TRS1"
+}
+</pre>
+<button type="button" id="avreq_dltprop" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#avreq_dltproperty">Copy</button>
+</div>
+ </div>
+ <br>
+ <br>
+ <br>
+      <h3 class="doc-title">Mandatory elements</h3>
+      <h4 class="doc-title">Element name - request</h4>
+      <!-- <p><b>Short description</b> The request element is the root of every availability call. <b>Type</b> structural element <b>Amount of elements possible within parent</b> min:1, max:1 <b>Constraints Format Parent Children </b>room</p>
+ -->
+       <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Description</th>
+            <th>The request element is the root of property listing call.</th>
+            </tr>
+            </thead>
+             <tbody>
+            <tr>
+            <td>Type</td>
+            <td>structural element</td>
+            </tr>
+            <tr>
+            <td>Children</td>
+            <td>n/a</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+
+
+      <h4 class="doc-title">Attribute Name</h4>
+<!--       <p><b>Short description</b> IT provider's hotel id for which you are sending availablity</p> -->
+      <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Attribute</th>
+            <th>Description</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+            <td>hotelid / hotel_id / ClientID</td>
+            <td>IT provider's hotel / client id for which retrieving rate plan(s).</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+      <h4 class="doc-title">Syntax</h4>
+      <pre class="prettyprint lang-html linenums:1">{
+    "hotelid": "TRS1"
+}</pre>
+
+    <br>
+    <br>
+    <br>
+      <!-- <p><b>Short description</b> IT provider's room that you are updating. <b>Type</b> integer <b>Amount of elements possible within parent</b> min:1, max:unbounded <b>Constraints </b>rooms to be updated need to be active in the STAAH system <b>Format Parent</b> request <b>Children</b> date</p> -->
+      <h4 class="doc-title">Attribute Name - hotelid / hotel_id / ClientID</h4>
+
+      <div class="doc-table">
+           <table>
+            <thead>
+            <tr>
+            <th style="width:30%">Description</th>
+                <th>IT provider's unique hotel / client id.</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+            <td>Type</td>
+            <td>alphanumeric</td>
+            </tr>
+            <tr>
+            <td>Constraints</td>
+            <td>needs to be a property registered in the STAAH (Existing)</td>
+            </tr>
+            <tr>
+            <td>Amount of elements possible within parent</td>
+            <td>1</td>
+            </tr>
+            </tbody>
+            </table>
+            </div>
+<!-- 
+      <p><b>Attribute description</b> IT provider's unique room id.<b>Attribute Type</b> alphanumeric <b>Attribute Constraints</b> needs to be an active room in the STAAH system and if room is not available in STAAH then we will create on request <b>Amount of elements possible within parent</b> Min:1 Max:1</p> -->
+<br>
+
+</section>
+
+<section class="doc-card-section" id="responsedeleteprop">
+    <div class="doc-cnt">
+    <h2 class="doc-title">Response</h2>
+    <h3 class="doc-title">Success</h3>
+    <pre class="prettyprint lang-html linenums:1">{
+    "Status": "Success"
+}
+</pre>
+    <br>
+    <p>Upon success, Property along with its related room types, rate plans, etc... will be deleted and we will not be able to reinstate.<br>
+    ** System will not allow to delete property which has any connectivity / integration with any OTA channel.</p>
+    <br>
+    <h3 class="doc-title">Errors</h3>
+    
+    <h4 class="doc-title">Errors due to invalid parameters</h4>
+    <pre class="prettyprint lang-html linenums:1">{
+    "Status": "Fail",
+	"Errors": {
+		"Code": "953",
+		"ShortText": "This Property Have Mapping With Channels"
+	}
+}</pre>
+    <br>
+    <p>Above error will be received if allocated Hotel id which contains the mapping (Active or Inactive) with any of OTA channel(s).</p>
+    <br>
+    <pre class="prettyprint lang-html linenums:1">{
+    "Status": "Fail",
+	"Errors": {
+		"Code": "400",
+		"ShortText": "Invalid HotelCode (KC10)"
+	}
+}</pre>
+    <br>
+    <p>This error will be received if allocated with incorrect Hotel / client id.</p>
+    <br>
+
+</div>
+</section>
+
+</div>
+
+<div class="mainPage" id="roommain">
+
+        <section class="doc-main-section">
+            <h1 class="doc-title">Create/Update Room ï¿½</h1>
+            <div class="doc-cnt">
+                <p>This call is used to build new or add missing room types, including room sizes.</p>
+            </div>
+        </section>
+
+        <section class="doc-card-section" id="reqroom">
+            <h2 class="doc-title">Step 1: Request (RQ) sent with STAAH Room-Level Build Data</h2> 
+            <div class="doc-note">
+            <pre style="color: #666 !important;"> <span> POST <span class="doc-mark" id="room_a"></span> </span></pre></div>
+           <!--  <pre class="labeled-pre"><div style="width: 3.5em; text-align: center; display: inline-block;   font-size: 0.7em; margin-bottom: 2px; font-family: Open Sans Bold, Helvetica,Arial, sans-serif;   padding: 0 0.5em; border-radius: 3px; color: #fafafa; margin-right: 0.5em; background: #3E4853;    position: absolute; left: 1.4em; top: 1.4em; line-height: 2.25;">XML</div><a href="https://supply-xml.booking.com/hotels/ota/OTA_HotelInvNotif" target="_blank">https://supply-xml.booking.com/hotels/ota/OTA_HotelInvNotif</a></pre> -->
+            <!-- <span> XML <span class="doc-mark" > https://supply-xml.booking.com/hotels/ota/OTA_HotelInvNotif</span>  </span> -->
+
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>TYPE</th>
+                            <th>HTTP METHOD</th>
+                            <th>MESSAGE SENDER</th>
+                            <th>MESSAGE RECEIVER</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Request</td>
+                            <td>POST</td>
+                            <td>IT Provider</td>
+                            <td>STAAH</td>
+                        </tr>                       
+                    </tbody>
+                </table>
+            </div>
+
+
+            <div class="doc-cnt">    
+            <h3 class="doc-title">Attribute Notes</h3> 
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>FIELD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>SellableProducts</code></td>
+                            <td>Root element.</td>
+                            <td>object</td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>hotelid / HotelCode / ClientID</code></td>
+                            <td>The existing property / Client ID.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Required existing id to create or update roomtypes</td>
+                        </tr>
+                        <tr>
+                            <td><code>SellableProduct</code><br/><code>[InvStatusType]</code></td>
+                            <td>Indicates whether the call is meant to create new room type or update an existing one for property.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Accepts values:Â [Initial, Modify, Active, Deactivated, Delete]. To create use Initial,Â To Modify, Activate / Deactivate roomtype see <a href="#modifyroom" class="doc-link">Modify</a>, <a href="#activeroom" class="doc-link">Active</a>, <a href="#deactiveroom" class="doc-link">Deactivated</a> and <a href="#deleteroom" class="doc-link">Delete</a>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Occupancy[MaxOccupancy]</code></td>
+                            <td>Maximum number of guests</td>
+                            <td>integer</td>
+                            <td>Required</td>
+                            <td>Maximum occupancy of 999 guests per room type supported</td>
+                        </tr>
+                         <tr>
+                            <td><code>Occupancy[MaxChildOccupancy]</code></td>
+                            <td>Maximum number of Children</td>
+                            <td>integer</td>
+                            <td>Required</td>
+                            <td>Value must be less than Maximum occupancy of the room type</td>
+                        </tr>
+                        <tr>
+                            <td><code>Room [roomid / RoomID / ListingID]</code></td>
+                            <td>The room ID / Listing ID as assigned by the provider.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>roomid, RoomID, ListingID & InvCode defines the same field. Accepts alphanumeric values and hyphen ( - ). Space and other special characters are not allowed. Maximum 20 characters allowed.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Room [RoomRate]</code></td>
+                            <td>The default saleable rates of room.</td>
+                            <td>double</td>
+                            <td>Required</td>
+                            <td>Rate should be greater than 0.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Room[Quantity]</code></td>
+                            <td>Number of rooms of this room type.</td>
+                            <td>integer</td>
+                            <td>Optional / Auto Update</td>
+                            <td>Room type quantity is not a static value. If not passed when creating, default value will be passed as 0 and system automatically compares inventory values received with this value. It will override and replace it with the higher inventory value (if received).</td>
+                        </tr>
+                        <tr>
+                            <td><code>Room[RoomType]</code></td>
+                            <td>Name of the room type. See <a href="" id="roomtype_link" class="doc-link">RoomType</a>.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Accepts both code and name listed under <a href="" id="rtc_link" class="doc-link">RTC</a>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Room[SizeMeasurement]</code></td>
+                            <td>Size of guest room in square meters (by default).</td>
+                            <td>double</td>
+                            <td>Optional</td>
+                            <td>Use SizeMeasurementUnit to indicate square feet unit</td>
+                        </tr>
+                        <tr>
+                            <td><code>Room [SizeMeasurementUnit]</code></td>
+                            <td> The measurement unit ("sqm" or "sqft") for the value specified in SizeMeasurement.</td>
+                            <td>enum</td>
+                            <td>Optional</td>
+                            <td>This cannot be defined if the SizeMeasurement attribute is missing.<br>Default: sqm.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Description [Text]</code></td>
+                            <td>The room type name.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><code>RoomDescription</code></td>
+                            <td>Description of room type</td>
+                            <td>Free Text</td>
+                            <td>Optional</td>
+                            <td>Maximum 2000 characters. If exceeded, system will simply accept and will not return an error</td>
+                        </tr>
+                        <tr>
+                            <td><code>Address</code></td>
+                            <td>Indicates the address of the room type</td>
+                            <td>Address</td>
+                            <td>Optional</td>
+                            <td>Alpha numeric - Sepcial characters not allowed</td>
+                        </tr>
+                        <tr>
+                            <td><code>Latitude</code></td>
+                            <td>Latitude of the property's location.</td>
+                            <td>latitude</td>
+                            <td>Optional</td>
+                            <td>A valid Latitude value (-90) to 90</td>
+                        </tr>
+                        <tr>
+                            <td><code>Longitude</code></td>
+                            <td>Longitude of the property's location.</td>
+                            <td>longitude</td>
+                            <td>Optional</td>
+                            <td>A valid Longitude value (-180) to 180</td>
+                        </tr>
+                        <tr>
+                            <td><code>Facilities</code></td>
+                            <td> The facilities included in room type</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Facilities included in the room type can be assigned using this node. Both Group and Facility are free text - can create group and assign facilities on fly. No special characters allowed.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Image</code></td>
+                            <td>The image url of the room type</td>
+                            <td>jpg, JPG, png, PNG, gif, GIF, jpeg, JPEG</td>
+                            <td>Optional</td>
+                            <td>This node allows to add multiple images of the room type. Url is the place where image is accessible from</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+
+            <h3 class="doc-title">Request â HTTP Message Body Model</h3>
+            <div class="doc-cnt">
+            <div class="posrelative">
+
+           <pre id="room_req_div" class="prettyprint lang-html linenums:1">
+{
+    "SellableProducts": {
+        "hotelid": "KC",
+        "SellableProduct": [{
+                "InvStatusType": "Initial",
+                "GuestRoom": {
+                    "Occupancy": {
+                        "MaxOccupancy": "2",
+                        "MaxChildOccupancy": "1"
+                    },
+                    "Room": {
+                        "roomid": "123444",
+                        "RoomRate": "2000",
+                        "Quantity": "2",
+                        "RoomType": "Apartment",
+                        "SizeMeasurement": "16",
+                        "SizeMeasurementUnit": "sqm"  
+                    },
+                    "Facilities": {
+                        "Facility": [{
+                                "Group": "Amenities",
+                                "name": "Hairdyer"
+                            },
+                            {
+                                "Group": "Amenities",
+                                "name": "Free Wifi"
+                            },
+                            {
+                                "Group": "Amenities",
+                                "name": "Iron Facilities"
+                            },
+                            {
+                                "Group": "Kitchen",
+                                "name": "Microwave"
+                            },
+                            {
+                                "Group": "Kitchen",
+                                "name": "Coffee Maker"
+                            }
+                        ]
+                    },
+                    "Images": {
+                       "Image": [{
+                         "name": "1",
+                         "url": "https://suissu.s3.amazonaws.com/images/profile_a5b9bf1189b8d557dbbff8d9f7b9d542.jpg"
+                         },
+                         {
+                         "name": "2",
+                         "url": "https://suissu.s3.amazonaws.com/images/profile_44d7ae789ea376644ee88c19d5f23234.png"
+                          }
+                       ]
+                    },
+                    "Position": {
+                        "Latitude": "49.4092",
+                        "Longitude": "1.0900"
+                    },
+                    "Address": {
+                        "AddressLine": "15 Station Street",
+                        "CityName": "London",
+                        "CountryName": "GB",
+                        "PostalCode": "M16JD"
+                    },
+                    "Description": {
+                        "Text": "Deluxe Double Room with Sea View",
+                        "RoomDescription": "hello"
+                    }
+                }
+            },
+            {
+                "InvStatusType": "Initial",
+                "GuestRoom": {
+                    "Occupancy": {
+                        "MaxOccupancy": "2",
+                        "MaxChildOccupancy": "1"
+                    },
+                    "Room": {
+                        "roomid": "1234441",
+                        "RoomRate": "2000",
+                        "RoomType": "Double",
+                        "SizeMeasurement": "16"
+                    },
+                    "Description": {
+                        "Text": "Deluxe Double Room"
+                    }
+                }
+            }
+        ]
+    }
+}
+</pre>
+<button type="button" id="roomreq_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#room_req_div" >Copy</button>
+</div>
+
+
+        </div>
+
+        <br/><br>
+            <h3 class="doc-title">Request â Element Overview</h3>
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>NODE</th>
+                            <th>NAME</th>
+                            <th>NEST</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Description</td>
+                            <td>L3</td>                            
+                            <td>GuestRoom</td>
+                        </tr>    
+                        <tr>
+                            <td>GuestRoom</td>
+                            <td>L2</td>
+                            <td>SellableProduct</td>
+                        </tr>    
+                        <tr>
+                            <td>Occupancy</td>
+                            <td>L3</td>
+                            <td>GuestRoom</td>
+                        </tr>     
+                        <tr>
+                            <td>Room</td>
+                            <td>L3</td>
+                            <td>GuestRoom</td>
+                        </tr>    
+                        <tr>
+                            <td>SellableProduct</td>
+                            <td>L1</td>
+                            <td>SellableProducts</td>
+                        </tr>    
+                        <tr>
+                            <td>SellableProducts</td>
+                            <td>L0</td>
+                            <td>NULL(root)</td>
+                        </tr>    
+                        <tr>
+                            <td>Text</td>
+                            <td>L4</td>
+                            <td>Description</td>
+                        </tr>             
+                    </tbody>
+                </table>
+            </div> 
+    </section>
+    <section class="doc-card-section" id="resroom">
+        <h2 class="doc-title">Step 2: Response of success/warning/errors</h2> 
+        <div class="doc-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>TYPE</th>
+                        <th>HTTP METHOD</th>
+                        <th>MESSAGE SENDER</th>
+                        <th>MESSAGE RECEIVER</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Request</td>
+                        <td>POST</td>                           
+                        <td>STAAH</td>
+                        <td>IT Provider</td>
+                    </tr>                       
+                </tbody>
+            </table>
+        </div>
+
+
+        <h3 class="doc-title">Response â HTTP Message Body Model</h3>
+        <div class="doc-cnt">
+        <div class="posrelative">
+       <pre id="room_res_div" class="prettyprint lang-html linenums:1">{
+    "Status":"Success"
+}</pre>
+<br>
+<li><roomstatus>Upon creating a Room Type / Listing successfully, the status will be as "Incomplete" as there is no inventory available for it. Once inventory have been updated for the room type / listing, the status will be changed to "Active" automatically and it will appear as an option to map in channel mapping page.</li></roomstatus>
+
+<button type="button" id="roomres_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#room_res_div" >Copy</button>
+</div>
+    </div>
+
+    <br/><br>
+          
+   <!--  <div class="doc-cnt">
+        <h3 class="doc-title">Attribute(@) Notes</h3>  
+        <p><strong>InventoryCrossRef@RequestInvCode</strong> â This attribute will refer to the provider's room code reference id for cross-reference.  </p>
+    </div> -->
+
+    <div class="doc-cnt">
+        <h3 class="doc-title">Response â Errors</h3>
+        <p>As with every standard STAAH response, an "ID" is necessary for any JSON troubleshooting of requests to STAAH. Please note that you cannot create a room with the same id as a previous room. This will return an error:</p>
+        <div class="posrelative">
+        <pre id="room_reserr_div" class="prettyprint lang-html linenums:1">{
+  "Status": "Fail",
+  "Errors": [
+    {
+      "Code": "906",
+      "ShortText": "Requested room does not qualify. Room with id '123444198' already exists"
+    }
+  ]
+}</pre>
+<button type="button" id="roomreserr_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#room_reserr_div" >Copy</button>
+
+</div>
+    </div>
+
+    </section>
+
+    
+
+   <section class="doc-card-section" id="modifyroom">
+        <h2 class="doc-title">Example: Update/Modify Room Type</h2>             
+        <div class="doc-cnt">
+        <div class="doc-cnt">    
+            <h3 class="doc-title">Attribute Notes</h3> 
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>FIELD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>SellableProducts</code><br/><code>[InvNotifType]</code></td>
+                            <td>Indicates the call is meant to modify room type for property.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Accepts values: Overlay</td>
+                        </tr>
+                        <tr>
+                            <td><code>SellableProduct</code><br/><code>[InvStatusType]</code></td>
+                            <td>Indicates the call is meant to modify new room type for property.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Accepts values:Â [Modify, Active, Deactivated].</td>
+                        </tr>
+                        <tr>
+                            <td><code>SellableProduct</code><br/><code>[roomid / InvCode / ListingID]</code></td>
+                            <td>The existing Room Type / Listing Id.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Required existing room type / listing id to modify status.</td>
+                        </tr>
+                   </tbody>
+            </table>
+        </div>
+    </div>
+     <h3 class="doc-title">Request body</h3>
+        <div class="posrelative">
+        <pre id="room_update_div" class="prettyprint lang-html linenums:1">{
+	"SellableProducts": {
+		"hotelid": "KC",
+		"SellableProduct": [{
+			"InvNotifType": "Overlay",
+			"InvStatusType": "Modify",
+			"roomid": "STD",
+			"GuestRoom": {
+				"Room": {
+					"RoomRate": "200",
+					"RoomType": "Double",
+					"SizeMeasurement": "20",
+					"SizeMeasurementUnit": "sqm"
+				},
+				"Facilities": {
+					"Facility": [{
+							"Group": "Amenities",
+							"name": "Jacuzzi Tub"
+						},
+						{
+							"Group": "Amenities",
+							"name": "Radio"
+						},
+						{
+							"Group": "Amenities",
+							"name": "Hairdryer"
+						},
+						{
+							"Group": "Kitchen",
+							"name": "Refrigerator"
+						},
+						{
+							"Group": "Kitchen",
+							"name": "Garden view"
+						}
+					]
+				},
+				"Images": {
+					"Image": [{
+							"name": "1",
+							"url": "https://suissu.s3.amazonaws.com/images/profile_72b52abbb2fafbbd78150ee960554e00.png"
+						},
+						{
+							"name": "2",
+							"url": "https://suissu.s3.amazonaws.com/images/profile_cc4ab6bfb6e41fb413fb87f56355e036.png"
+						}
+					]
+				},
+				"Description": {
+					"RoomDescription": "Each room comes with a flat-screen TV with cable channels.",
+					"Text": "Superior Room with Balcony"
+				}
+			}
+		}]
+	}
+}</pre>
+<button type="button" id="roomdeact_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#room_update_div" >Copy</button>
+</div>
+        </div>
+    </section>
+
+    <section class="doc-card-section" id="deactiveroom">
+        <h2 class="doc-title">Example: Deactivate room</h2>             
+        <div class="doc-cnt">
+        <div class="posrelative">
+        <pre id="room_resdeact_div" class="prettyprint lang-html linenums:1">{
+    "SellableProducts": {
+        "hotelid": "KC",
+        "SellableProduct": [{
+            "InvNotifType": "Overlay",
+            "InvStatusType": "Deactivated",
+            "roomid": "STD"
+        }]
+    }
+}</pre>
+<button type="button" id="roomdeact_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#room_resdeact_div" >Copy</button>
+</div>
+        </div>
+    </section>
+
+        <section class="doc-card-section" id="activeroom">
+        <h2 class="doc-title">Example: Activate room</h2>             
+        <div class="doc-cnt">
+        <div class="posrelative">
+        <pre id="room_act_div" class="prettyprint lang-html linenums:1">{
+    "SellableProducts": {
+        "hotelid": "KC",
+        "SellableProduct": [{
+            "InvNotifType": "Overlay",
+            "InvStatusType": "Active",
+            "roomid": "STD"
+        }]
+    }
+}</pre>
+<button type="button" id="roomact_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#room_act_div" >Copy</button>
+</div>
+        </div>
+    </section>
+    
+        <section class="doc-card-section" id="deleteroom">
+        <h2 class="doc-title">Example: Delete room</h2>             
+        <div class="doc-cnt">
+        <div class="posrelative">
+        <pre id="room_del_div" class="prettyprint lang-html linenums:1">{
+    "SellableProducts": {
+        "hotelid": "KC",
+        "SellableProduct": [{
+            "InvNotifType": "Overlay",
+            "InvStatusType": "Delete",
+            "roomid": "STD"
+        }]
+    }
+}</pre>
+<button type="button" id="deleteroom_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#room_del_div" >Copy</button>
+</div>
+        </div>
+    </section>
+    </div>
+        </div>
+
+<div class="mainPage" id="ratemain">
+
+        <section class="doc-main-section">
+            <h1 class="doc-title">Create/Update Rate â±</h1>
+            <div class="doc-cnt">
+                <p>This call is used to build new rates or add missing rates. It is also possible to change the rate name or remove a rate plan.</p>
+            </div>
+        </section>
+
+        <section class="doc-card-section" id="reqrate">
+            <h2 class="doc-title">Step 1: Request (RQ) sent with STAAH Rate-Level Build Data</h2> 
+            <div class="doc-note" >
+                    <pre style="color: #666 !important;"> <span> POST <span class="doc-mark" id="rate_url">
+                <!-- <a href="https://supply-xml.booking.com/hotels/ota/OTA_HotelRatePlanNotif" target="_blank">https://supply-xml.booking.com/hotels/ota/OTA_HotelRatePlanNotif</a>  -->
+            </span> </span></pre></div>
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>TYPE</th>
+                            <th>HTTP METHOD</th>
+                            <th>MESSAGE SENDER</th>
+                            <th>MESSAGE RECEIVER</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Request</td>
+                            <td>POST</td>
+                            <td>IT Provider</td>
+                            <td>STAAH</td>
+                        </tr>                       
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="doc-cnt">    
+            <h3 class="doc-title">Attribute Notes</h3> 
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>FIELD</th>
+                            <th>DESCRIPTION</th>
+                            <th>TYPE</th>
+                            <th>REQUIRED</th>
+                            <th>NOTES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>RatePlans</code><br/><code>hotelid / HotelCode / ClientID</code></td>
+                            <td>The existing property ID.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Required existing id to create or update rateplans</td>
+                        </tr>
+                        <tr>
+                            <td><code>RatePlan</code><br/><code>[RatePlanNotifType]</code></td>
+                            <td>Indicates whether the call is meant to create new rateplan or update an existing one for property.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Accepts values:Â [New, Overlay, Remove, Activate]. To create use New,Â To update rateplan see <a href="#changerate" class="doc-link">Change</a>, <a href="#activerate" class="doc-link">Active</a>, <a href="#deactiverate" class="doc-link">Deactive</a> and <a href="#deleterate" class="doc-link">Delete</a>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>RatePlan [rateplanid / RatePlanID]</code></td>
+                            <td>The rateplan ID as assigned by the provider.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>Accepts alphanumeric values and "-" (Hyphen). Space and Special characters are not allowed. Maximum 20 characters allowed.</td>
+                        </tr>
+                        <tr>
+                            <td><code>RatePlan [MealPlanID]</code></td>
+                            <td>Name of the MealPlan. See <a href="" id="mealplan_link" class="doc-link">MealPlan</a>.</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Accepts the values listed under <a href="" id="mp_link" class="doc-link">MP</a>. If wrong mealplanID sent then it will take default value. Default: 15 (Room Only)</td>
+                        </tr>                        
+                        <tr>
+                            <td><code>RatePlan [closeoutdays]</code></td>
+                            <td>The closeoutdays as allocated by the provider for rateplan.</td>
+                            <td>number</td>
+                            <td>Optional</td>
+                            <td>Accepts the values between 0 to 30 but must be in quotes. Default value is -1(no closeouts).</td>
+                        </tr>
+                        <tr>
+                            <td><code>RatePlan [closeouttime]</code></td>
+                            <td>The closeouttime as allocated by the provider for rateplan.</td>
+                            <td>string</td>
+                            <td>Optional</td>
+                            <td>Accepts the values between 00:00 to 24:00(Interval must be 30 min). It is required only if you set closeoutdays value as 0. Default value is -1(no closeouts).</td>
+                        </tr>                        
+                        <tr>
+                            <td><code>Description[Name]</code></td>
+                            <td>The rate plan name.</td>
+                            <td>string</td>
+                            <td>Required</td>
+                            <td>-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+            <h3 class="doc-title">Request â HTTP Message Body Model</h3>
+            <div class="doc-cnt">
+            <div class="posrelative">
+            <pre id="ratereq_div" class="prettyprint lang-html linenums:1">{
+	"RatePlans": {
+		"hotelid": "KC",
+		"RatePlan": [{
+				"RatePlanNotifType": "New",
+				"rateplanid": "BAR",
+				"MealPlanID": "1",
+		                "closeoutdays": "0",
+		                "closeouttime": "00:30",
+				"Description": {
+					"Name": "BAR",
+                                        "Text" : "Best Rate Available Rate Plan"
+				}
+			},
+			{
+				"RatePlanNotifType": "New",
+				"rateplanid": "RACK",
+				"MealPlanID": "2",
+				"Description": {
+					"Name": "RACK",
+                                        "Text" : "max Daily Rate of the Rate Plan"
+				}
+			}
+		]
+	}
+}</pre>
+<button type="button" id="ratereq_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#ratereq_div" >Copy</button>
+</div>
+        </div>
+
+        <br/><br>
+            <h3 class="doc-title">Request â Element Overview</h3>
+            <div class="doc-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>NODE</th>
+                            <th>LEVEL</th>
+                            <th>PARENT</th>
+                        </tr>
+                    </thead>
+                    <tbody>    
+                        <tr>
+                            <td>Rate</td>
+                            <td>L3</td>
+                            <td>Rates</td>
+                        </tr>    
+                        <tr>
+                            <td>RatePlan</td>
+                            <td>L1</td>
+                            <td>RatePlans</td>
+                        </tr>    
+                        <tr>
+                            <td>RatePlans</td>
+                            <td>L0</td>
+                            <td>NULL (prolog)</td>
+                        </tr>    
+                        <tr>
+                            <td>Rates</td>
+                            <td>L2</td>
+                            <td>RatePlan</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div> 
+    </section>
+    <section class="doc-card-section" id="resrate">
+        <h2 class="doc-title">Step 2: Response of success/warning/errors</h2> 
+        <div class="doc-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>TYPE</th>
+                        <th>HTTP METHOD</th>
+                        <th>MESSAGE SENDER</th>
+                        <th>MESSAGE RECEIVER</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Request</td>
+                        <td>POST</td>                           
+                        <td>STAAH</td>
+                        <td>IT Provider</td>
+                    </tr>                       
+                </tbody>
+            </table>
+        </div>
+
+
+        <h3 class="doc-title">Response â HTTP Message Body Model</h3>
+        <div class="doc-cnt">
+        <div class="posrelative">
+        <pre id="rateres_div" class="prettyprint lang-html linenums:1">{
+    "Status":"Success"
+}</pre>
+<button type="button" id="rateres_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#rateres_div" >Copy</button>
+<br>
+<li><ratestatus>Upon creating a Rate Plan successfully, the status of the rate plan will be as "No Rates" as there is no rate updated for it. Once rates have been updated for the rate plan, the status will be changed to "Active" automatically and it will appear as an option to map in channel mapping page.</li></ratestatus>
+
+</div>
+    </div>
+
+
+    <br/><br>
+    <div class="doc-cnt">
+        <h3 class="doc-title">Response â Errors</h3>
+        <p>As with every standard STAAH response, The 'Code' is necessary for any JSON troubleshooting of requests to STAAH. Please note that you cannot create a rate with the same id as a previous rate. This will return an error:</p>
+        <div class="posrelative">
+        <pre id="ratereserrr_div" class="prettyprint lang-html linenums:1">{
+    "Status": "Fail",
+    "Errors": [{
+    	"Code": "896",
+    	"ShortText": "Requested rate does not qualify. Rate with id '12345889Ab' already exists"
+    }]
+}</pre>
+<button type="button" id="ratereserr_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#ratereserrr_div" >Copy</button>
+</div>
+        
+    </div>
+
+    </section>
+
+    
+    <section class="doc-card-section" id="changerate">
+        <h2 class="doc-title">Example: Change Rate Plan Name</h2>             
+        <div class="doc-cnt">
+        <div class="posrelative">
+        <pre id="ratechange_div" class="prettyprint lang-html linenums:1">{
+   "RatePlans": {
+      "hotelid": "KC",
+      "RatePlan": [{
+         "RatePlanNotifType": "Overlay",
+         "rateplanid": "12345889Ab",
+         "MealPlanID": "2",
+         "Description": {
+            "Name": "Early booker rate",
+            "Text": "Change can be made here"
+         }
+      }]
+   }
+}</pre>
+<button type="button" id="ratechange_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#ratechange_div" >Copy</button>
+</div>
+        </div>
+    </section>
+
+    <section class="doc-card-section" id="deactiverate">
+        <h2 class="doc-title">Example: Deactivate Rate Plan</h2>             
+        <div class="doc-cnt">
+        <div class="posrelative">
+        <pre id="rateact_div" class="prettyprint lang-html linenums:1">{
+    "RatePlans": {
+        "hotelid": "KC",
+        "RatePlan": [{
+            "RatePlanNotifType": "Remove",
+            "rateplanid": "BAR"
+        }]
+    }
+}</pre>
+<button type="button" id="rateact_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#rateact_div" >Copy</button>
+</div>
+        </div>
+    </section>
+
+        <section class="doc-card-section" id="activerate">
+        <h2 class="doc-title">Example: Activate Rate Plan</h2>             
+        <div class="doc-cnt">
+<div class="posrelative">
+        <pre id="ratedeact_div" class="prettyprint lang-html linenums:1">{
+    "RatePlans": {
+        "hotelid": "WA",
+        "RatePlan": [{
+            "RatePlanNotifType": "Activate",
+            "RatePlanID": "BAR"
+        }]
+    }
+}</pre>
+<button type="button" id="ratedeact_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#ratedeact_div" >Copy</button>
+</div>
+        </div>
+    </section>
+    <section class="doc-card-section" id="deleterate">
+        <h2 class="doc-title">Example: Delete Rate Plan</h2>             
+        <div class="doc-cnt">
+<div class="posrelative">
+        <pre id="ratedelet_div" class="prettyprint lang-html linenums:1">{
+    "RatePlans": {
+        "hotelid": "KC",
+        "RatePlan": [{
+            "RatePlanNotifType": "Delete",
+            "RatePlanID": "BAR"
+        }]
+    }
+}</pre>
+<button type="button" id="deleterate_copy" class="copybutton" data-clipboard-action="copy" data-clipboard-target="#ratedelet_div" >Copy</button>
+</div>
+        </div>
+    </section>
+</div>
+
+</body>
+<footer class="doc-footer" id="doc-footer"></footer>
+
+
+<script src="js/jquery.min.js" type="text/javascript"></script>
+<script src="js/main.js" type="text/javascript"></script>
+<script src="js/prism.js" type="text/javascript"></script>
+ <script src="js/clipboard.min.js"></script>
+<script src="js/run_prettify.js?lang=css&amp;skin=sons-of-obsidian"></script>
+ 
+<script type="text/javascript">
+
+    var extranet_url = "https://"+location.hostname+"/config/login.php";
+    $("#extranet").attr("href", extranet_url);
+    
+    var phtechtype_url = "https://"+location.hostname+"/api_json/otacodes.html#pphtechmain";
+    $("#phtechtype").attr("href", phtechtype_url);
+    $("#phtechtype1").attr("href", phtechtype_url);
+
+    var rtc = "https://"+location.hostname+"/api_json/otacodes.html#rma_main";
+    $("#rtc_url").attr("href", rtc);
+    $("#roomtype_link").attr("href", rtc);
+    $("#rtc_link").attr("href", rtc);
+
+
+    var mp = "https://"+location.hostname+"/api_json/otacodes.html#mp_main";
+    $("#mealplan_link").attr("href", mp);
+    $("#mp_link").attr("href", mp);
+
+    var url_ln = "https://"+location.hostname+"/api_json/otacodes.html#lanmain";
+    $("#url_lang").attr("href", url_ln);
+    $("#url_lang1").attr("href", url_ln);
+    $("#url_lang2").attr("href", url_ln);
+    $("#url_lang3").attr("href", url_ln);
+
+    var url_cc = "https://"+location.hostname+"/api_json/otacodes.html#curmain";
+    $("#url_cur").attr("href", url_cc);
+    $("#url_cur1").attr("href", url_cc);
+
+    var url_tz = "https://"+location.hostname+"/api_json/otacodes.html#tzone";
+    $("#url_cur12").attr("href", url_tz);
+
+     var url_counc = "https://"+location.hostname+"/api_json/otacodes.html#coun_main";
+    $("#url_counc").attr("href", url_counc);
+
+    var url_link= 'https://'+location.hostname+"/SUAPI/jservice/OTA_HotelDescriptiveContentNotif";
+    $('#url_link').html(url_link);
+    $('#prop_a').html(url_link);  
+
+    var url_linkproperty= 'https://'+location.hostname+"/SUAPI/jservice/pmsproperty";
+    $("#url_linkproperty").attr("href", url_linkproperty);    
+    $('#url_linkproperty').html(url_linkproperty);  
+
+    var url_linkroom= 'https://'+location.hostname+"/SUAPI/jservice/roomdetails";
+    $("#url_linkroom").attr("href", url_linkroom);    
+    $('#url_linkroom').html(url_linkroom);
+
+    var url_linkrate= 'https://'+location.hostname+"/SUAPI/jservice/ratedetails";
+    $("#url_linkrate").attr("href", url_linkrate);    
+    $('#url_linkrate').html(url_linkrate);
+
+    var url_linkdltprop= 'https://'+location.hostname+"/SUAPI/jservice/RemoveProperty";
+    $("#url_linkdltprop").attr("href", url_linkdltprop);    
+    $('#url_linkdltprop').html(url_linkdltprop);
+    
+    var room_a= 'https://'+location.hostname+"/SUAPI/jservice/OTA_HotelRoom";
+    $('#room_a').html(room_a);
+
+    var rate_url= 'https://'+location.hostname+"/SUAPI/jservice/OTA_HotelRatePlan";
+    $('#rate_url').html(rate_url);
+
+    var clipboard = new ClipboardJS('#propres_copy');
+    clipboard.on('success', function(e) {
+        console.log(e);
+    });
+    clipboard.on('error', function(e) {
+        console.log(e);
+    });
+
+
+    $('#propreq_copy').click(function () {
+        var clipboard = new ClipboardJS('#propreq_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#propreq_copy').click(function () {
+        var clipboard = new ClipboardJS('#propreq_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#roomreq_copy').click(function () {
+        var clipboard = new ClipboardJS('#roomreq_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#roomres_copy').click(function () {
+        var clipboard = new ClipboardJS('#roomres_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#roomreserr_copy').click(function () {
+        var clipboard = new ClipboardJS('#roomreserr_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#roomdeact_copy').click(function () {
+        var clipboard = new ClipboardJS('#roomdeact_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#roomact_copy').click(function () {
+        var clipboard = new ClipboardJS('#roomact_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#ratereq_copy').click(function () {
+        var clipboard = new ClipboardJS('#ratereq_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#rateres_copy').click(function () {
+        var clipboard = new ClipboardJS('#rateres_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#ratereserr_copy').click(function () {
+        var clipboard = new ClipboardJS('#ratereserr_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#ratechange_copy').click(function () {
+        var clipboard = new ClipboardJS('#ratechange_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#rateact_copy').click(function () {
+        var clipboard = new ClipboardJS('#rateact_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#ratedeact_copy').click(function () {
+        var clipboard = new ClipboardJS('#ratedeact_copy');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+    $('#avreq_roomtype').click(function () {
+        var clipboard = new ClipboardJS('#avreq_roomtype');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+    $('#avreq_rateplan').click(function () {
+        var clipboard = new ClipboardJS('#avreq_rateplan');
+        clipboard.on('success', function(e) {
+            console.log(e);
+        });
+        clipboard.on('error', function(e) {
+            console.log(e);
+        });
+    });
+
+
+    
+
+
+
+    $( document ).ready(function() {
+        console.log( "ready!" );  
+
+        $(document).on('mouseenter', '.divbutton', function () {
+            $(this).find(":button").show();
+        }).on('mouseleave', '.divbutton', function () {
+            $(this).find(":button").hide();
+        });
+
+        // $("#propres_copy").click(function(){
+        //     $(".resdiv").clone().appendTo("body");
+            
+        //     // $('.divbutton').focus();
+        //     // $('.divbutton').select();
+        //     // document.execCommand('copy');
+        //     // $(".copied").text("Copied to clipboard").show().fadeOut(1200);
+
+        //     // alert(1);
+        //     // jQuery('.divbutton').select();
+        //     // document.execCommand('copy');
+        //     // var copyText = document.getElementById("divbutton");
+        //     // copyText.select();
+        //     // document.execCommand("Copy");
+
+        //     // $('.divbutton').select();
+        //     // document.execCommand('copy');
+        //     // console.log(copyText.value);
+        // });
+        $("#propmain").show();
+        $("#propertylistmain").hide();
+        $("#roommain").hide();
+        $("#ratemain").hide();
+        $("html, body").animate({
+            scrollTop: 0
+        }, 600);
+        return false;
+    });
+
+    $("#prop").click(function(){
+        $("#propmain").show();
+        $("#propertylistmain").hide();
+        $("#roommain").hide();
+        $("#ratemain").hide();
+        $("#pul").show();
+        $("#pulprop").hide();
+        $("#pul1").hide();
+        $("#pul2").hide();
+        $("#propli").addClass("active");
+        $("#propertylist").removeClass("active");
+        $("#roomli").removeClass("active"); 
+        $("#rateli").removeClass( "active" );      
+    });
+    $("#proplist").click(function(){
+        $("#propertylistmain").show();
+        $("#roommain").hide();
+        $("#ratemain").hide();
+        $("#propmain").hide();
+        $("#pulprop").show();
+        $("#pul").hide();
+        $("#pul1").hide();
+        $("#pul2").hide();
+        $("#propertylist").addClass("active");
+        $("#propli").removeClass("active");
+        $("#roomli").removeClass("active"); 
+        $("#rateli").removeClass( "active" );      
+    });
+    $("#room").click(function(){
+        $("#propmain").hide();
+        $("#propertylistmain").hide();
+        $("#pulprop").hide();
+        $("#propertylist").removeClass("active");
+        $("#roommain").show();
+        $("#ratemain").hide();
+        $("#propli").removeClass("active");
+        $("#roomli").addClass( "active" );  
+        $("#rateli").removeClass( "active" );        
+        $("#pul1").show();
+        $("#pul").hide();
+        $("#pul2").hide();
+    });
+    $("#rate").click(function(){        
+        $("#propmain").hide();
+        $("#propertylistmain").hide();
+        $("#pulprop").hide();
+        $("#propertylist").removeClass("active");
+        $("#roommain").hide();
+        $("#ratemain").show();
+        $("#propli").removeClass("active");
+        $("#roomli").removeClass( "active" );  
+        $("#rateli").addClass( "active" );        
+        $("#pul2").show();
+        $("#pul1").hide();
+        $("#pul").hide();
+    }); 
+    $('.scrollup').click(function () {
+        $("html, body").animate({
+            scrollTop: 0
+        }, 600);
+        return false;
+    });   
+    $(function(){
+      $("#side-main-nav-wrap").load("sidebar.html");
+      $("#doc-header").load("header.html");
+      $("#doc-footer").load("footer.html");
+    });
+    setTimeout(function(){
+        $("#cn_menu").addClass("active");
+    },200)
+
+</script>
+
+
+</html>

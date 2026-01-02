@@ -1,0 +1,454 @@
+# Inventory Control
+
+Inventory control in a hotel, specifically focusing on room bookings and restrictions, involves managing and optimizing the availability of hotel rooms to maximize revenue and occupancy rates.
+
+**Su ARI Control API**
+
+* An API through which you can control inventory, rates and closed restrictions for specific OTAs.
+* If no data passed under the API for specific OTA, data will be pushed as passed and available in Su.
+* Request is the same in order to add, edit or remove the stipulations added.
+* To remove the applied restrictions and conditions from OTA, pass on the same request with having empty parameter.
+* API is live on sandbox environment to test and try.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/invratecontrol
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Step 1 - Request — HTTP Message Body Model</mark>
+
+#### <mark style="color:yellow;">**Attributes**</mark>
+
+***
+
+`hotelid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Property id for the hotel in Su.
+
+{% hint style="info" %}
+Needs to be an active property in Su.
+
+Maximum 20 characters allowed.
+{% endhint %}
+
+***
+
+`roomid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Room id for the room in Su.
+
+{% hint style="info" %}
+Needs to be an acive room in Su.
+{% endhint %}
+
+***
+
+`rateid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Rate id for the room type in Su.
+
+{% hint style="info" %}
+Needs to be an active room plan in Su.
+{% endhint %}
+
+***
+
+<mark style="color:purple;">`date`</mark> <mark style="color:purple;"></mark><mark style="color:purple;">**array (Required)**</mark>
+
+Array of objects, each representing a date.
+
+`from` <mark style="color:orange;">**string**</mark> <mark style="color:orange;">**(Required)**</mark>
+
+Represents a start date.
+
+{% hint style="info" %}
+Must be in `YYYY-MM-DD` format.
+{% endhint %}
+
+`to` <mark style="color:orange;">**string**</mark> <mark style="color:orange;">**(Required)**</mark>
+
+&#x20;Represents an end date.
+
+{% hint style="info" %}
+From the current date to max upto 500 days in the future.&#x20;
+
+Must be in `YYYY-MM-DD` format.
+{% endhint %}
+
+***
+
+<mark style="color:purple;">**OTARule array**</mark>
+
+OTA rules are defined as contractual agreements and policies established between hotels and online travel agencies. These rules govern how hotels can list their inventory on OTA platforms, as well as the terms of booking.
+
+***
+
+`OTACode` <mark style="color:orange;">**numeric (Required)**</mark>
+
+OTA Codes which are listed in Su.
+
+{% hint style="info" %}
+OTA Codes as per Su. Codes can be found in the API documentation [here](https://suissu.gitbook.io/su-api-documentation/codes/channel-or-ota-codes).
+{% endhint %}
+
+***
+
+`type` <mark style="color:orange;">**enum (Required)**</mark>
+
+Type determines the type of modification applied.
+
+{% hint style="info" %}
+**Possible value:**&#x20;
+
+* Fixed
+* Increase
+* Decrease
+* Multiply
+  {% endhint %}
+
+***
+
+`value` <mark style="color:orange;">**numeric (Required)**</mark>
+
+This is the modifier value. This value is the modification to rate or inventory (based on the type).
+
+***
+
+`closed` <mark style="color:orange;">**Boolean (Required)**</mark>
+
+This option is only available under rate control as stop-sells are handled on Rate Plan level in Su.
+
+{% hint style="info" %}
+Accpeted values are:
+
+* `true`
+* `false`
+  {% endhint %}
+
+***
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+	"hotelid": "RBT",
+	"inventorycontrol": [{
+		"roomid": "STD",
+		"date": [{
+			"from": "2021-09-02",
+			"to": "2021-09-16",
+			"OTARule": [{
+				"OTACode": [189],
+				"rule": {
+					"type": "Fixed",
+					"value": "6"
+				}
+
+			}]
+		}]
+	}],
+	"ratecontrol": [{
+		"roomid": "STD",
+		"rateid": "BAR",
+		"date": [{
+			"from": "2021-09-02",
+			"to": "2021-09-16",
+			"OTARule": [{
+				"OTACode": [
+					189,
+					150
+				],
+				"rule": {
+					"type": "Decrease",
+					"value": "500"
+				}
+			}]
+		}, {
+			"from": "2021-09-14",
+			"to": "2021-09-14",
+			"OTARule": [{
+				"OTACode": [
+					189,
+					150
+				],
+				"rule": {
+					"type": "Increase",
+					"value": "211"
+				}
+			}]
+		},{
+			"from": "2021-09-02",
+			"to": "2021-09-16",
+			"OTARule": [{
+				"OTACode": [
+					189,
+					150
+				],
+				"rule": {
+					"type": "Multiply",
+					"value": "1.50",
+					"closed": true
+				}
+			}]
+		}]
+	}]
+}
+```
+
+***
+
+### <mark style="color:yellow;">Request — Node Overview</mark>
+
+<mark style="color:purple;">**Inventory Object**</mark>
+
+To have the inventory as a Fix value. If the current inventory is 3 but want to have it as a fixed value on channel below payload will work. Please note that even if the booking will be received, inventory value will not be changed and will stay fixed.
+
+<pre class="language-json"><code class="lang-json"><strong>{
+</strong>  "hotelid": "TB1",
+  "inventorycontrol": [
+    {
+      "roomid": "K",
+      "date": [
+        {
+          "from": "2022-09-10",
+          "to": "2022-09-11",
+          "OTARule": [
+            {
+              "OTACode": [19],
+              "rule": {
+                "type": "Fixed",
+                "value": "5"
+              } } ]
+        } ] } ]
+<strong>}
+</strong></code></pre>
+
+To have the inventory increased by value. If the current inventory is 3 but want to have it increased by a value on channel below payload will work.
+
+```json
+{
+  "hotelid": "TB1",
+  "inventorycontrol": [
+    {
+      "roomid": "K",
+      "date": [
+        {
+          "from": "2022-09-10",
+          "to": "2022-09-11",
+          "OTARule": [
+            {
+              "OTACode": [19],
+              "rule": {
+                "type": "Increase",
+                "value": "5"
+              } } ]
+        } ] } ]
+}
+```
+
+To have the inventory decreased by value. If the current inventory is 3 but want to have it decreased by a value on channel below payload will work. If the calculated number goes in negative, system will post 0 as an inventory on specific OTA.
+
+```json
+{
+  "hotelid": "TB1",
+  "inventorycontrol": [
+    {
+      "roomid": "K",
+      "date": [
+        {
+          "from": "2022-09-10",
+          "to": "2022-09-11",
+          "OTARule": [
+            {
+              "OTACode": [19],
+              "rule": {
+                "type": "Decrease",
+                "value": "5"
+              } } ]
+        } ] } ]
+}
+
+```
+
+To get the changes applied removed, please remove the entire array of “OTARule” and pass it as empty / blank. Please note that the edit operations are not allowed. The API works on overwrite functionality.
+
+```json
+{
+  "hotelid": "TB1",
+  "inventorycontrol": [
+    {
+      "roomid": "K",
+      "date": [
+        {
+          "from": "2022-09-10",
+          "to": "2022-09-11",
+          "OTARule": [ ]
+        } ] } ]
+}
+
+```
+
+***
+
+<mark style="color:purple;">**Rate Object**</mark>
+
+To have the rate as a Fix value. If the current rate is 3000 but want to have it as a fixed value on channel below payload will work.
+
+```json
+{
+  "hotelid": "TB1",
+  "ratecontrol": [
+    {
+      "roomid": "K",
+      "rateid": "BAR",
+      "date": [
+        {
+          "from": "2022-09-14",
+          "to": "2022-09-16",
+          "OTARule": [
+            {
+              "OTACode": [19,284],
+              "rule": {
+                "type": "Fixed",
+                "value": "3500"
+              } } ]
+        } ] } ]
+}
+```
+
+To have the rate increased by specific value. If the current rate is 3000 but want to have it increased by amount on channel/s below payload will work.
+
+```json
+{
+  "hotelid": "TB1",
+  "ratecontrol": [
+    {
+      "roomid": "K",
+      "rateid": "BAR",
+      "date": [
+        {
+          "from": "2022-09-14",
+          "to": "2022-09-16",
+          "OTARule": [
+            {
+              "OTACode": [19,284],
+              "rule": {
+                "type": "Increase",
+                "value": "500"
+              } } ]
+        } ] } ]
+}
+```
+
+To have the rate decreased by specific value. If the current rate is 3000 but want to have it decreased by amount on channel/s below payload will work.
+
+```json
+{
+  "hotelid": "TB1",
+  "ratecontrol": [
+    {
+      "roomid": "K",
+      "rateid": "BAR",
+      "date": [
+        {
+          "from": "2022-09-14",
+          "to": "2022-09-16",
+          "OTARule": [
+            {
+              "OTACode": [19,284],
+              "rule": {
+                "type": "Decrease",
+                "value": "500"
+              } } ]
+        } ] } ]
+
+}
+```
+
+To have the rate multiplied by specific value. If the current rate is 3000 but want to have it multiplied by value on channel/s below payload will work.
+
+```json
+{
+  "hotelid": "TB1",
+  "ratecontrol": [
+    {
+      "roomid": "K",
+      "rateid": "BAR",
+      "date": [
+        {
+          "from": "2022-09-14",
+          "to": "2022-09-16",
+          "OTARule": [
+            {
+              "OTACode": [19,284],
+              "rule": {
+                "type": "Multiply",
+                "value": "1.50"
+              } } ]
+        } ] } ]
+}
+
+```
+
+To get the changes applied removed, please remove the entire array of “OTARule” and pass it as empty / blank. Please note that the edit operations are not allowed. The API works on overwrite functionality
+
+```json
+{
+  "hotelid": "TB1",
+  " ratecontrol": [
+    {
+      "roomid": "K",
+      "rateid": "BAR",
+      "date": [
+        {
+          "from": "2022-09-10",
+          "to": "2022-09-11",
+          "OTARule": [ ]
+        } ] } ]
+}
+
+```
+
+To have the rate plan closed on specific OTA, please pass the rule as closed
+
+```json
+{
+  "hotelid": "TB1",
+"ratecontrol": [
+    {
+      "roomid": "K",
+      "rateid": "BAR",
+      "date": [
+        {
+          "from": "2022-09-14",
+          "to": "2022-09-14",
+          "OTARule": [
+            {
+              "OTACode": [
+                19
+              ],
+              "rule": {
+                "closed": true
+              } } ]
+        } ] } ]
+}
+```
+
+{% hint style="info" %}
+You also can combine both Inventory (inventorycontrol) and Rate (ratecontrol) combined in a single request.
+
+Request can have multiple date ranges.
+{% endhint %}
+
+Please do email us on <support@suissu.com> for more details

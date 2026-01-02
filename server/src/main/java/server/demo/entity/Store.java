@@ -49,6 +49,13 @@ public class Store {
     @Column(length = 10)
     private String currency; // 货币
 
+    /**
+     * Su Channel Manager 的 Property ID（Su 文档中的 hotelid / HotelCode）。
+     * 建议仅使用字母 + 数字，长度 <= 20；一个门店对应一个 suHotelId（支持多门店分别配置）。
+     */
+    @Column(length = 20)
+    private String suHotelId;
+
     @Column(length = 255)
     private String logo; // Logo URL
 
@@ -191,6 +198,14 @@ public class Store {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getSuHotelId() {
+        return suHotelId;
+    }
+
+    public void setSuHotelId(String suHotelId) {
+        this.suHotelId = suHotelId;
     }
 
     public String getLogo() {

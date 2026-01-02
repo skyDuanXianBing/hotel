@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import server.demo.dto.*;
 import server.demo.service.StoreService;
+import server.demo.service.SuPropertyService;
 
 import java.util.List;
 
@@ -20,6 +21,9 @@ public class StoreController {
 
     @Autowired
     private StoreService storeService;
+
+    @Autowired
+    private SuPropertyService suPropertyService;
 
     /**
      * Get all stores for current user
@@ -66,8 +70,21 @@ public class StoreController {
         try {
             Long userId = (Long) httpRequest.getAttribute("userId");
             StoreDTO store = storeService.createStore(userId, request);
+
+            boolean shouldCreateSuProperty = request.getCreateSuProperty() == null || Boolean.TRUE.equals(request.getCreateSuProperty());
+            String message = "门店创建成功";
+            if (shouldCreateSuProperty) {
+                SuPropertyService.UpsertResult result = suPropertyService.upsertStoreProperty(store.getId());
+                if (result.success()) {
+                    message = message + "；" + result.message() + "（hotelid=" + result.hotelId() + "）";
+                } else {
+                    message = message + "；Su 物业创建/覆盖失败（hotelid=" + result.hotelId() + "）："
+                            + (result.message() != null ? result.message() : "未知错误");
+                }
+            }
+
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ApiResponse<>(true, "Create store success", store));
+                    .body(new ApiResponse<>(true, message, store));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));

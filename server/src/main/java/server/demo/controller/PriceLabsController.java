@@ -6,9 +6,12 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import server.demo.annotation.StoreScoped;
+import server.demo.context.StoreContextHolder;
 import server.demo.dto.*;
 import server.demo.enums.PriceAdjustmentType;
+import server.demo.service.ChannelPriceFallbackService;
 import server.demo.service.PriceLabsService;
+import server.demo.service.PriceLabsSyncService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,6 +29,12 @@ public class PriceLabsController {
 
     @Autowired
     private PriceLabsService priceLabsService;
+
+    @Autowired
+    private PriceLabsSyncService priceLabsSyncService;
+
+    @Autowired
+    private ChannelPriceFallbackService channelPriceFallbackService;
 
     // ==================== 集成配置 API ====================
 
@@ -74,6 +83,23 @@ public class PriceLabsController {
         } catch (Exception e) {
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("操作失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 更新集成配置
+     */
+    @PatchMapping("/integration/config")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<PriceLabsIntegrationDTO>> updateIntegrationConfig(
+            @RequestBody Map<String, String> request) {
+        try {
+            String priceLabsEmail = request.get("priceLabsEmail");
+            PriceLabsIntegrationDTO result = priceLabsService.updateIntegrationConfig(priceLabsEmail);
+            return ResponseEntity.ok(ApiResponse.success("配置更新成功", result));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("更新配置失败: " + e.getMessage()));
         }
     }
 
@@ -261,11 +287,56 @@ public class PriceLabsController {
         }
     }
 
+    // ==================== 手动同步 API ====================
+
+    /**
+     * 手动触发同步
+     */
+    @PostMapping("/sync/manual")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<Map<String, String>>> manualSync() {
+        try {
+            priceLabsSyncService.syncAll();
+            return ResponseEntity.ok(ApiResponse.success("同步任务已启动", Map.of("message", "同步成功")));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("同步失败: " + e.getMessage()));
+        }
+    }
+
     // ==================== 同步日志 API ====================
 
     /**
      * 获取同步日志（分页）
      */
+    /**
+     * 本地兜底生成渠道价格：当 PriceLabs 未回推价格时，按 room_prices > room_type_price_plans > room_type 计算 base_price 并生成 channel_prices。
+     * 若某天已有 PriceLabs 数据（pricelabs_updated_at != null 且 base_price != null），则优先使用其 base_price。
+     */
+    @PostMapping("/channel-prices/fallback-generate")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<Map<String, Object>>> generateFallbackChannelPrices(
+            @RequestParam(required = false) Integer days) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            ChannelPriceFallbackService.GenerateResult result = channelPriceFallbackService.generate(storeId, LocalDate.now(), days);
+            Map<String, Object> payload = Map.of(
+                    "storeId", result.storeId(),
+                    "startDate", result.startDate(),
+                    "endDate", result.endDate(),
+                    "channels", result.channels(),
+                    "roomTypePricePlans", result.roomTypePricePlans(),
+                    "created", result.created(),
+                    "updated", result.updated(),
+                    "skippedNoBasePrice", result.skippedNoBasePrice()
+            );
+            return ResponseEntity.ok(ApiResponse.success("本地兜底生成渠道价格完成", payload));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("本地兜底生成渠道价格失败: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/sync-logs")
     @StoreScoped
     public ResponseEntity<ApiResponse<Page<PriceLabsSyncLogDTO>>> getSyncLogs(
@@ -293,24 +364,6 @@ public class PriceLabsController {
         } catch (Exception e) {
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("获取最近同步日志失败: " + e.getMessage()));
-        }
-    }
-
-    // ==================== Webhook 回调 API ====================
-
-    /**
-     * PriceLabs 价格推送 Webhook
-     * 这是 PriceLabs 调用的端点，用于推送价格更新
-     * 注意：此端点不需要门店上下文，因为 listing_id 中包含门店信息
-     */
-    @PostMapping("/webhook/prices")
-    public ResponseEntity<ApiResponse<Void>> handlePriceWebhook(@RequestBody PriceLabsWebhookRequest request) {
-        try {
-            priceLabsService.handlePriceWebhook(request);
-            return ResponseEntity.ok(ApiResponse.success("价格更新处理成功", null));
-        } catch (Exception e) {
-            return ResponseEntity.status(500)
-                    .body(ApiResponse.error("价格更新处理失败: " + e.getMessage()));
         }
     }
 

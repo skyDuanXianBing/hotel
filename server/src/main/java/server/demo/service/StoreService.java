@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import server.demo.dto.*;
 import server.demo.entity.*;
 import server.demo.repository.*;
+import server.demo.util.SuHotelIdUtil;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,6 +28,9 @@ public class StoreService {
 
     @Autowired
     private RoleRepository roleRepository;
+
+    @Autowired
+    private ChannelBootstrapService channelBootstrapService;
 
     public List<StoreDTO> getUserStores(Long userId) {
         List<StoreUser> storeUsers = storeUserRepository.findActiveStoresByUserId(userId);
@@ -52,11 +56,26 @@ public class StoreService {
         store.setCity(request.getCity());
         store.setState(request.getState());
         store.setAddress(request.getAddress());
+        if (request.getCurrency() != null) {
+            store.setCurrency(request.getCurrency());
+        }
 
         Store savedStore = storeRepository.save(store);
 
+        // 生成并保存 Su hotelid（支持多门店分别配置）
+        String requestedHotelId = SuHotelIdUtil.normalize(request.getSuHotelId());
+        String suHotelId = requestedHotelId != null ? requestedHotelId : SuHotelIdUtil.buildDefault(savedStore.getId());
+        if (!SuHotelIdUtil.isValid(suHotelId)) {
+            throw new RuntimeException("Su HotelId 仅支持字母/数字，长度<=20");
+        }
+        savedStore.setSuHotelId(suHotelId);
+        savedStore = storeRepository.save(savedStore);
+
         StoreUser storeUser = new StoreUser(savedStore, user, "owner");
         storeUserRepository.save(storeUser);
+
+        // 为新门店补齐默认渠道（避免渠道价格比例/OTA 同步空数据）
+        channelBootstrapService.ensureDefaultChannelsForStore(savedStore.getId());
 
         return convertToDTO(savedStore, "owner");
     }
@@ -85,6 +104,16 @@ public class StoreService {
         store.setCity(request.getCity());
         store.setState(request.getState());
         store.setAddress(request.getAddress());
+        if (request.getCurrency() != null) {
+            store.setCurrency(request.getCurrency());
+        }
+        if (request.getSuHotelId() != null) {
+            String normalized = SuHotelIdUtil.normalize(request.getSuHotelId());
+            if (normalized != null && !SuHotelIdUtil.isValid(normalized)) {
+                throw new RuntimeException("Su HotelId 仅支持字母/数字，长度<=20");
+            }
+            store.setSuHotelId(normalized);
+        }
 
         Store updatedStore = storeRepository.save(store);
         return convertToDTO(updatedStore, storeUser.getRole());
@@ -313,6 +342,7 @@ public class StoreService {
         dto.setState(store.getState());
         dto.setCountry(store.getCountry());
         dto.setCurrency(store.getCurrency());
+        dto.setSuHotelId(store.getSuHotelId());
         dto.setLogo(store.getLogo());
         dto.setDescription(store.getDescription());
         dto.setEmail(store.getEmail());

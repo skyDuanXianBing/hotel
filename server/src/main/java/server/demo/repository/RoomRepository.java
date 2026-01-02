@@ -43,7 +43,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     @Query("SELECT COUNT(r) FROM Room r WHERE r.storeId = :storeId AND r.status NOT IN ('OUT_OF_ORDER', 'MAINTENANCE') " +
             "AND NOT EXISTS (SELECT res FROM Reservation res WHERE res.room = r " +
             "AND res.checkInDate <= :date AND res.checkOutDate > :date " +
-            "AND res.status IN ('CONFIRMED', 'CHECKED_IN'))")
+            "AND res.status IN ('CONFIRMED', 'CHECKED_IN', 'REQUESTED'))")
     long countAvailableRoomsForDateByStore(@Param("storeId") Long storeId, @Param("date") LocalDate date);
 
     @Query("SELECT r FROM Room r JOIN FETCH r.roomType WHERE r.storeId = :storeId AND r.id = :roomId")
@@ -94,7 +94,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     @Query("SELECT COUNT(r) FROM Room r WHERE r.status NOT IN ('OUT_OF_ORDER', 'MAINTENANCE') " +
             "AND NOT EXISTS (SELECT res FROM Reservation res WHERE res.room = r " +
             "AND res.checkInDate <= :date AND res.checkOutDate > :date " +
-            "AND res.status IN ('CONFIRMED', 'CHECKED_IN'))")
+            "AND res.status IN ('CONFIRMED', 'CHECKED_IN', 'REQUESTED'))")
     long countAvailableRoomsForDate(@Param("date") LocalDate date);
 
     @Deprecated

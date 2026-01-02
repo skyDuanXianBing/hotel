@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface StoreRepository extends JpaRepository<Store, Long> {
     Optional<Store> findByName(String name);
+    Optional<Store> findBySuHotelId(String suHotelId);
 }

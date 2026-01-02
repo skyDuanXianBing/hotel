@@ -21,6 +21,7 @@ export interface StoreDTO {
   state: string
   country: string
   currency: string
+  suHotelId?: string
   logo?: string
   description?: string
   email?: string
@@ -57,6 +58,9 @@ export interface StoreRequest {
   city?: string
   state?: string
   address?: string
+  currency?: string
+  suHotelId?: string
+  createSuProperty?: boolean
 }
 
 // 添加成员请求

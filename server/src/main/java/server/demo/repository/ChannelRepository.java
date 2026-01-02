@@ -35,6 +35,13 @@ public interface ChannelRepository extends JpaRepository<Channel, Long> {
     // 检查门店的渠道代码是否存在
     boolean existsByStoreIdAndCode(Long storeId, String code);
 
+    @Query("SELECT DISTINCT c.storeId FROM Channel c " +
+            "WHERE c.storeId IS NOT NULL " +
+            "AND c.enabled = true " +
+            "AND c.autoSyncPrice = true " +
+            "AND c.code IN :codes")
+    List<Long> findDistinctStoreIdsByEnabledAutoSyncAndCodes(@Param("codes") List<String> codes);
+
     /**
      * @deprecated 已废弃，使用findByStoreId替代
      */

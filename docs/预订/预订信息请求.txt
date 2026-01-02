@@ -1,0 +1,39 @@
+# Request for Reservation Information
+
+This method is used to send a request for the reservation information. You need to request with the hotel id attribute which is required to request the reservation information for that particular hotel.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/Reservation
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+***
+
+`hotelid / hotel_id / ClientID` <mark style="color:orange;">**string (Required)**</mark>
+
+The required node **hotelid / hotel\_id / ClientID** contains the IT provider's hotel id for which the provider wishes to check for reservation information.
+
+{% hint style="info" %}
+Maximum 20 characters allowed.
+{% endhint %}
+
+#### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+   "hotelid": "new1"
+}
+```

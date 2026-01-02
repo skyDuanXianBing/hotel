@@ -17,25 +17,60 @@ import java.util.Optional;
 @Repository
 public interface ChannelPriceRepository extends JpaRepository<ChannelPrice, Long> {
 
+    boolean existsByStoreIdAndPriceDateBetween(Long storeId, LocalDate startDate, LocalDate endDate);
+
     /**
      * 根据门店ID查找所有渠道价格
      */
     List<ChannelPrice> findByStoreId(Long storeId);
 
     /**
-     * 根据房型ID和日期范围查找渠道价格
+     * 根据门店、房型和日期范围查找渠道价格（门店级隔离）
      */
+    @Query("SELECT cp FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.roomType.id = :roomTypeId " +
+           "AND cp.priceDate BETWEEN :startDate AND :endDate ORDER BY cp.priceDate")
+    List<ChannelPrice> findByStoreIdAndRoomTypeIdAndPriceDateBetween(
+            @Param("storeId") Long storeId,
+            @Param("roomTypeId") Long roomTypeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    /**
+     * 根据房型ID和日期范围查找渠道价格
+     * @deprecated 请使用 findByStoreIdAndRoomTypeIdAndPriceDateBetween 以确保门店级隔离
+     */
+    @Deprecated
     List<ChannelPrice> findByRoomTypeIdAndPriceDateBetween(Long roomTypeId, LocalDate startDate, LocalDate endDate);
 
     /**
-     * 根据渠道ID和日期范围查找价格
+     * 根据门店、渠道和日期范围查找价格（门店级隔离）
      */
+    @Query("SELECT cp FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.channel.id = :channelId " +
+           "AND cp.priceDate BETWEEN :startDate AND :endDate ORDER BY cp.priceDate")
+    List<ChannelPrice> findByStoreIdAndChannelIdAndPriceDateBetween(
+            @Param("storeId") Long storeId,
+            @Param("channelId") Long channelId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    /**
+     * 根据渠道ID和日期范围查找价格
+     * @deprecated 请使用 findByStoreIdAndChannelIdAndPriceDateBetween 以确保门店级隔离
+     */
+    @Deprecated
     List<ChannelPrice> findByChannelIdAndPriceDateBetween(Long channelId, LocalDate startDate, LocalDate endDate);
 
     /**
-     * 根据房型、渠道和日期查找价格
+     * 根据门店、房型、价格计划、渠道和日期查找价格（门店级隔离）
      */
-    Optional<ChannelPrice> findByRoomTypeIdAndChannelIdAndPriceDate(Long roomTypeId, Long channelId, LocalDate priceDate);
+    Optional<ChannelPrice> findByStoreIdAndRoomTypeIdAndPricePlanIdAndChannelIdAndPriceDate(
+            Long storeId, Long roomTypeId, Long pricePlanId, Long channelId, LocalDate priceDate);
+
+    /**
+     * 根据房型、价格计划、渠道和日期查找价格
+     */
+    Optional<ChannelPrice> findByRoomTypeIdAndPricePlanIdAndChannelIdAndPriceDate(
+            Long roomTypeId, Long pricePlanId, Long channelId, LocalDate priceDate);
 
     /**
      * 根据门店、房型、渠道和日期范围查找价格
@@ -56,8 +91,35 @@ public interface ChannelPriceRepository extends JpaRepository<ChannelPrice, Long
     List<ChannelPrice> findByStoreIdAndIsSyncedToOtaFalse(Long storeId);
 
     /**
-     * 查找特定渠道未同步的价格
+     * 查找特定渠道未同步的价格（门店级隔离）
      */
+    @Query("SELECT cp FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.channel.id = :channelId " +
+           "AND cp.isSyncedToOta = false ORDER BY cp.priceDate")
+    List<ChannelPrice> findByStoreIdAndChannelIdAndIsSyncedToOtaFalse(
+            @Param("storeId") Long storeId,
+            @Param("channelId") Long channelId);
+
+    @Query("SELECT cp FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.channel.id = :channelId " +
+           "AND cp.isSyncedToOta = false AND cp.priceDate BETWEEN :startDate AND :endDate " +
+           "ORDER BY cp.roomType.id, cp.pricePlan.id, cp.priceDate")
+    List<ChannelPrice> findUnsyncedByStoreIdAndChannelIdAndDateRange(
+            @Param("storeId") Long storeId,
+            @Param("channelId") Long channelId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT DISTINCT cp.storeId FROM ChannelPrice cp WHERE cp.isSyncedToOta = false " +
+           "AND cp.priceDate BETWEEN :startDate AND :endDate AND cp.channel.code IN :channelCodes")
+    List<Long> findDistinctStoreIdsWithUnsyncedPricesInRange(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("channelCodes") List<String> channelCodes);
+
+    /**
+     * 查找特定渠道未同步的价格
+     * @deprecated 请使用 findByStoreIdAndChannelIdAndIsSyncedToOtaFalse 以确保门店级隔离
+     */
+    @Deprecated
     List<ChannelPrice> findByChannelIdAndIsSyncedToOtaFalse(Long channelId);
 
     /**
@@ -81,6 +143,17 @@ public interface ChannelPriceRepository extends JpaRepository<ChannelPrice, Long
     @Query("SELECT cp FROM ChannelPrice cp WHERE cp.storeId = :storeId " +
            "AND cp.priceDate BETWEEN :startDate AND :endDate ORDER BY cp.priceDate, cp.roomType.id, cp.channel.id")
     List<ChannelPrice> findByStoreIdAndDateRange(
+            @Param("storeId") Long storeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT cp FROM ChannelPrice cp " +
+            "JOIN FETCH cp.roomType " +
+            "JOIN FETCH cp.pricePlan " +
+            "JOIN FETCH cp.channel " +
+            "WHERE cp.storeId = :storeId " +
+            "AND cp.priceDate BETWEEN :startDate AND :endDate")
+    List<ChannelPrice> findByStoreIdAndDateRangeWithRelations(
             @Param("storeId") Long storeId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);

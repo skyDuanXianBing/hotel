@@ -4,7 +4,7 @@
     <div class="conversations-panel">
       <div class="panel-header">
         <h2>收件箱</h2>
-        <el-button text size="small" @click="refreshMailboxes">
+        <el-button text size="small" @click="refreshThreads">
           <el-icon><Refresh /></el-icon>
         </el-button>
       </div>
@@ -23,7 +23,7 @@
           v-for="conversation in filteredConversations"
           :key="conversation.id"
           class="conversation-item"
-          :class="{ active: activeMailboxId === conversation.id }"
+          :class="{ active: activeThreadId === conversation.id }"
           @click="selectConversation(conversation.id)"
         >
           <div class="conversation-avatar">
@@ -31,15 +31,17 @@
           </div>
           <div class="conversation-info">
             <div class="conversation-header">
-              <span class="channel-name">{{ conversation.guestName }}</span>
+              <span class="channel-name">{{
+                conversation.guestName || conversation.listingName || conversation.channelName
+              }}</span>
               <span class="message-time">{{ formatTime(conversation.lastActivity) }}</span>
             </div>
             <div class="last-message">
-              房间: {{ conversation.guestRoomNumber || '未分配' }}
+              {{ conversation.channelName }} | 订单: {{ conversation.bookingId || conversation.threadId || '-' }}
             </div>
             <div class="conversation-status">
-              <el-tag :type="getStatusType(conversation.status)" size="small">
-                {{ getStatusText(conversation.status) }}
+              <el-tag :type="getStatusType(conversation.closed)" size="small">
+                {{ getStatusText(conversation.closed) }}
               </el-tag>
             </div>
           </div>
@@ -63,18 +65,15 @@
               <el-icon><User /></el-icon>
             </div>
             <div class="channel-details">
-              <div class="channel-name">{{ activeConversation.guestName }}</div>
+              <div class="channel-name">{{
+                activeConversation.guestName || activeConversation.listingName || activeConversation.channelName
+              }}</div>
               <div class="channel-status">
-                房间: {{ activeConversation.guestRoomNumber || '未分配' }} |
-                {{ getStatusText(activeConversation.status) }}
+                渠道: {{ activeConversation.channelName }} |
+                订单: {{ activeConversation.bookingId || activeConversation.threadId || '-' }} |
+                {{ getStatusText(activeConversation.closed) }}
               </div>
             </div>
-          </div>
-          <div class="header-actions">
-            <el-button size="small" @click="closeMailboxDialog">
-              <el-icon><Close /></el-icon>
-              关闭会话
-            </el-button>
           </div>
         </div>
 
@@ -117,7 +116,7 @@
             type="textarea"
             :rows="3"
             placeholder="输入消息..."
-            :disabled="isLoading || activeConversation.status === 'CLOSED'"
+            :disabled="isLoading || activeConversation.closed"
             @keydown.enter.exact.prevent="sendMessage"
           />
           <div class="input-actions">
@@ -126,14 +125,14 @@
               :icon="MagicStick"
               @click="sendAiReply"
               :loading="isAiReplying"
-              :disabled="!lastGuestMessage || isLoading || activeConversation.status === 'CLOSED'"
+              :disabled="!lastGuestMessage || isLoading || activeConversation.closed"
             >
               AI回复
             </el-button>
             <el-button
               type="primary"
               @click="sendMessage"
-              :disabled="!newMessage.trim() || isLoading || activeConversation.status === 'CLOSED'"
+              :disabled="!newMessage.trim() || isLoading || activeConversation.closed"
               :loading="isLoading"
             >
               发送
@@ -153,24 +152,22 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
-import { Search, ChatDotRound, User, Refresh, Close, MagicStick } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, ChatDotRound, User, Refresh, MagicStick } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import {
-  getActiveMailboxes,
-  getMailboxMessages,
-  pollMailboxMessages,
-  sendMailboxMessage,
-  closeMailbox,
-  type VirtualMailboxDTO,
-  type EmailMessageDTO,
-  EmailSenderType,
-  MailboxStatus
-} from '@/api/virtualMailbox'
+  getSuThreads,
+  getSuThreadMessages,
+  pollSuThreadMessages,
+  sendSuThreadMessage,
+  type SuMessagingThreadDTO,
+  type SuMessagingMessageDTO,
+  SuMessagingSenderType
+} from '@/api/suMessaging'
 import { sendChatMessage, type ChatMessageRequest } from '@/api/chat'
 
 interface Message {
   id: number
-  senderType: EmailSenderType
+  senderType: SuMessagingSenderType
   content: string
   timestamp: Date
   senderName?: string
@@ -180,7 +177,7 @@ interface Message {
 const searchQuery = ref('')
 
 // 当前选中的会话ID
-const activeMailboxId = ref<number | null>(null)
+const activeThreadId = ref<number | null>(null)
 
 // 新消息输入
 const newMessage = ref('')
@@ -189,7 +186,7 @@ const newMessage = ref('')
 const messagesListRef = ref<HTMLElement | null>(null)
 
 // 会话数据
-const conversations = ref<VirtualMailboxDTO[]>([])
+const conversations = ref<SuMessagingThreadDTO[]>([])
 
 // 消息列表
 const messages = ref<Message[]>([])
@@ -213,73 +210,61 @@ const filteredConversations = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return conversations.value.filter(
     (conv) =>
-      conv.guestName.toLowerCase().includes(query) ||
-      conv.guestRoomNumber?.toLowerCase().includes(query)
+      (conv.guestName || '').toLowerCase().includes(query) ||
+      (conv.listingName || '').toLowerCase().includes(query) ||
+      (conv.bookingId || '').toLowerCase().includes(query) ||
+      (conv.threadId || '').toLowerCase().includes(query)
   )
 })
 
 // 当前活动的会话
 const activeConversation = computed(() => {
-  if (!activeMailboxId.value) return null
-  return conversations.value.find((conv) => conv.id === activeMailboxId.value) || null
+  if (!activeThreadId.value) return null
+  return conversations.value.find((conv) => conv.id === activeThreadId.value) || null
 })
 
 // 最后一条住客消息
 const lastGuestMessage = computed(() => {
-  const guestMessages = messages.value.filter(m => m.senderType === EmailSenderType.GUEST)
+  const guestMessages = messages.value.filter((m) => m.senderType === SuMessagingSenderType.GUEST)
   return guestMessages.length > 0 ? guestMessages[guestMessages.length - 1].content : ''
 })
 
 // 获取状态类型
-const getStatusType = (status: MailboxStatus) => {
-  switch (status) {
-    case MailboxStatus.ACTIVE:
-      return 'success'
-    case MailboxStatus.CLOSED:
-      return 'info'
-    default:
-      return 'info'
-  }
+const getStatusType = (closed: boolean) => {
+  return closed ? 'info' : 'success'
 }
 
 // 获取状态文本
-const getStatusText = (status: MailboxStatus) => {
-  switch (status) {
-    case MailboxStatus.ACTIVE:
-      return '活跃'
-    case MailboxStatus.CLOSED:
-      return '已关闭'
-    default:
-      return '未知'
-  }
+const getStatusText = (closed: boolean) => {
+  return closed ? '已关闭' : '活跃'
 }
 
-// 刷新邮箱列表
-const refreshMailboxes = async () => {
+// 刷新会话列表
+const refreshThreads = async () => {
   try {
-    const response = await getActiveMailboxes()
+    const response = await getSuThreads()
     if (response.success && response.data) {
       conversations.value = response.data
     }
   } catch (error) {
-    console.error('刷新邮箱列表失败:', error)
+    console.error('刷新会话列表失败:', error)
     ElMessage.error('刷新失败')
   }
 }
 
 // 选择会话
-const selectConversation = async (mailboxId: number) => {
-  activeMailboxId.value = mailboxId
-  await loadMailboxMessages(mailboxId)
+const selectConversation = async (threadId: number) => {
+  activeThreadId.value = threadId
+  await loadThreadMessages(threadId)
   lastPollTime.value = new Date().toISOString()
 }
 
-// 加载邮箱消息
-const loadMailboxMessages = async (mailboxId: number) => {
+// 加载会话消息
+const loadThreadMessages = async (threadId: number) => {
   try {
-    const response = await getMailboxMessages(mailboxId)
+    const response = await getSuThreadMessages(threadId)
     if (response.success && response.data) {
-      messages.value = response.data.map((msg: EmailMessageDTO) => ({
+      messages.value = response.data.map((msg: SuMessagingMessageDTO) => ({
         id: msg.id,
         senderType: msg.senderType,
         content: msg.content,
@@ -289,20 +274,20 @@ const loadMailboxMessages = async (mailboxId: number) => {
       await scrollToBottom()
     }
   } catch (error) {
-    console.error('加载邮箱消息失败:', error)
+    console.error('加载会话消息失败:', error)
     ElMessage.error('加载消息失败')
   }
 }
 
 // 发送消息
 const sendMessage = async () => {
-  if (!newMessage.value.trim() || !activeMailboxId.value || isLoading.value) return
+  if (!newMessage.value.trim() || !activeThreadId.value || isLoading.value) return
 
   const messageContent = newMessage.value.trim()
   isLoading.value = true
 
   try {
-    const response = await sendMailboxMessage(activeMailboxId.value, {
+    const response = await sendSuThreadMessage(activeThreadId.value, {
       content: messageContent,
       senderName: '客服'
     })
@@ -333,7 +318,7 @@ const sendMessage = async () => {
 
 // AI回复
 const sendAiReply = async () => {
-  if (!lastGuestMessage.value || isAiReplying.value || !activeMailboxId.value) return
+  if (!lastGuestMessage.value || isAiReplying.value || !activeThreadId.value) return
 
   isAiReplying.value = true
 
@@ -348,8 +333,8 @@ const sendAiReply = async () => {
     if (response.success && response.data) {
       aiSessionId.value = response.data.sessionId
 
-      // 发送AI回复到虚拟邮箱
-      const mailboxResponse = await sendMailboxMessage(activeMailboxId.value, {
+      // 发送AI回复到 Su Messaging
+      const mailboxResponse = await sendSuThreadMessage(activeThreadId.value, {
         content: response.data.reply,
         senderName: 'AI客服'
       })
@@ -379,43 +364,17 @@ const sendAiReply = async () => {
   }
 }
 
-// 关闭邮箱
-const closeMailboxDialog = async () => {
-  if (!activeMailboxId.value) return
-
-  try {
-    await ElMessageBox.confirm('确认关闭此会话吗？', '提示', {
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-
-    const response = await closeMailbox(activeMailboxId.value)
-    if (response.success) {
-      ElMessage.success('会话已关闭')
-      await refreshMailboxes()
-      activeMailboxId.value = null
-      messages.value = []
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('关闭会话失败:', error)
-      ElMessage.error('关闭会话失败')
-    }
-  }
-}
-
 // 轮询新消息
 const pollMessages = async () => {
-  if (!activeMailboxId.value) return
+  if (!activeThreadId.value) return
 
   try {
-    const response = await pollMailboxMessages(activeMailboxId.value, lastPollTime.value)
+    const response = await pollSuThreadMessages(activeThreadId.value, lastPollTime.value)
 
     if (response.success && response.data && response.data.length > 0) {
       let hasNewMessages = false
 
-      response.data.forEach((msg: EmailMessageDTO) => {
+      response.data.forEach((msg: SuMessagingMessageDTO) => {
         // 检查消息是否已存在
         const exists = messages.value.find((m) => m.id === msg.id)
         if (!exists) {
@@ -439,7 +398,7 @@ const pollMessages = async () => {
     lastPollTime.value = new Date().toISOString()
 
     // 刷新会话列表（以更新最后活动时间）
-    await refreshMailboxes()
+    await refreshThreads()
   } catch (error) {
     console.error('轮询消息失败:', error)
   }
@@ -501,7 +460,7 @@ const formatMessageTime = (date: Date) => {
 
 // 初始化
 const initialize = async () => {
-  await refreshMailboxes()
+  await refreshThreads()
 
   // 如果有会话，选择第一个
   if (conversations.value.length > 0) {

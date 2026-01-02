@@ -10,7 +10,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "channels")
+@Table(
+        name = "channels",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "code"})
+)
 @EntityListeners(StoreScopedEntityListener.class)
 public class Channel implements StoreScopedEntity {
     @Id
@@ -28,7 +31,7 @@ public class Channel implements StoreScopedEntity {
     private String name;
 
     @NotBlank(message = "渠道代码不能为空")
-    @Column(nullable = false, length = 20, unique = true)
+    @Column(nullable = false, length = 20)
     private String code;
 
     @Enumerated(EnumType.STRING)
@@ -112,6 +115,15 @@ public class Channel implements StoreScopedEntity {
      */
     @Column(name = "auto_sync_price")
     private Boolean autoSyncPrice = true;
+
+    /**
+     * 默认价格计划
+     * 用于推送到 OTA 时选择使用哪个价格计划的价格
+     * 如果为 null，则使用房型的默认价格计划
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_price_plan_id")
+    private PricePlan defaultPricePlan;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -342,6 +354,14 @@ public class Channel implements StoreScopedEntity {
 
     public void setAutoSyncPrice(Boolean autoSyncPrice) {
         this.autoSyncPrice = autoSyncPrice;
+    }
+
+    public PricePlan getDefaultPricePlan() {
+        return defaultPricePlan;
+    }
+
+    public void setDefaultPricePlan(PricePlan defaultPricePlan) {
+        this.defaultPricePlan = defaultPricePlan;
     }
 
     /**

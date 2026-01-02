@@ -10,6 +10,7 @@ public class PriceLabsIntegrationDTO {
     private Long id;
     private Long storeId;
     private Boolean isEnabled;
+    private String priceLabsEmail;
     private String syncUrl;
     private String calendarTriggerUrl;
     private String hookUrl;
@@ -50,6 +51,14 @@ public class PriceLabsIntegrationDTO {
 
     public void setIsEnabled(Boolean isEnabled) {
         this.isEnabled = isEnabled;
+    }
+
+    public String getPriceLabsEmail() {
+        return priceLabsEmail;
+    }
+
+    public void setPriceLabsEmail(String priceLabsEmail) {
+        this.priceLabsEmail = priceLabsEmail;
     }
 
     public String getSyncUrl() {

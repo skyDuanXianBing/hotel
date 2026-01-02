@@ -126,7 +126,7 @@ export const useStoreStore = defineStore('store', () => {
       // 设置为当前门店
       setCurrentStore(newStore)
 
-      return newStore
+      return { store: newStore, message: response.message }
     } catch (error) {
       throw error
     } finally {

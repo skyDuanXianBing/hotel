@@ -6,6 +6,7 @@ import server.demo.entity.listener.StoreScopedEntityListener;
 import server.demo.enums.SyncDirection;
 import server.demo.enums.SyncStatus;
 import server.demo.enums.SyncType;
+import server.demo.util.JsonColumnUtil;
 
 import java.time.LocalDateTime;
 
@@ -173,7 +174,7 @@ public class PriceLabsSyncLog implements StoreScopedEntity {
     }
 
     public void setRequestData(String requestData) {
-        this.requestData = requestData;
+        this.requestData = JsonColumnUtil.normalizeJsonText(requestData);
     }
 
     public String getResponseData() {
@@ -181,7 +182,7 @@ public class PriceLabsSyncLog implements StoreScopedEntity {
     }
 
     public void setResponseData(String responseData) {
-        this.responseData = responseData;
+        this.responseData = JsonColumnUtil.normalizeJsonText(responseData);
     }
 
     public LocalDateTime getCreatedAt() {

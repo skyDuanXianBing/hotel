@@ -30,6 +30,13 @@ public class PriceLabsIntegration implements StoreScopedEntity {
     private Boolean isEnabled = false;
 
     /**
+     * PriceLabs 账户邮箱 (user_token)
+     * 用于标识在 PriceLabs 注册的账户
+     */
+    @Column(name = "pricelabs_email", length = 255)
+    private String priceLabsEmail;
+
+    /**
      * 价格同步回调 URL
      * PriceLabs 会将价格更新推送到此 URL
      */
@@ -116,6 +123,14 @@ public class PriceLabsIntegration implements StoreScopedEntity {
 
     public void setIsEnabled(Boolean isEnabled) {
         this.isEnabled = isEnabled;
+    }
+
+    public String getPriceLabsEmail() {
+        return priceLabsEmail;
+    }
+
+    public void setPriceLabsEmail(String priceLabsEmail) {
+        this.priceLabsEmail = priceLabsEmail;
     }
 
     public String getSyncUrl() {

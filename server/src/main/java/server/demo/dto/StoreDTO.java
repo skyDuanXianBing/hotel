@@ -18,6 +18,7 @@ public class StoreDTO {
     private String state;
     private String country;
     private String currency;
+    private String suHotelId;
     private String logo;
     private String description;
     private String email;
@@ -124,6 +125,14 @@ public class StoreDTO {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getSuHotelId() {
+        return suHotelId;
+    }
+
+    public void setSuHotelId(String suHotelId) {
+        this.suHotelId = suHotelId;
     }
 
     public String getLogo() {

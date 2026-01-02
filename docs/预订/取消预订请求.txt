@@ -1,0 +1,106 @@
+# Deny/Cancel Request Booking
+
+The API is used to Deny/Cancel requested reservations.
+
+***
+
+**Request to Deny/Cancel Request Booking**
+
+* Customer ‘Request to Book’ via Request Booking platform.
+* Customer receives notification email from Request Booking platform clearly indicating booking is on request and host has to revert within 24 hours.
+* Booking arrives to channel manager with ‘REQUEST’ status.
+* Booking is delivered to PMS (if PMS supports ‘REQUEST’ status).
+* System triggers email to property.
+* Option to Deny / Cancel booking is found within the booking in channel manager extranet along with API.
+* If no action taken on request booking within 24 hours of receipt time, system automatically cancels the booking and pass on cancellation to Request Booking platform.
+
+***
+
+### <mark style="color:yellow;">Sample Request</mark>
+
+The request body consists of a **bookingid**. This is the booking id (`channelbookingid_hotelid`) as allocated in booking and **status** as cancel.
+
+```json
+{
+  "bookingid": "113463_TESTHOTEL",
+  "status": "cancel",
+  "decline_reason": "dates_not_available",
+  "message_guest": "Message to guest",
+  "message_airbnb": "Message to airbnb"
+}
+```
+
+***
+
+### <mark style="color:yellow;">Request Body Parameters</mark>
+
+`bookingid` <mark style="color:orange;">**(Required)**</mark>
+
+The unique identifier for the booking, formatted as `channelbookingid_hotelid` (example, `123456_ABC`).
+
+***
+
+`status` <mark style="color:orange;">**(Required)**</mark>
+
+The status of the booking. Set the value to `"cancel"` when declining the reservation.
+
+***
+
+`decline_reason` <mark style="color:orange;">**(Required for Airbnb)**</mark>
+
+A string that provides the reason for declining the reservation. This value will be shared with the guest.&#x20;
+
+{% hint style="info" %}
+**Accepted values are:**
+
+* `dates_not_available`
+* `not_a_good_fit`
+* `waiting_for_better_reservation`
+* `not_comfortable`
+  {% endhint %}
+
+***
+
+`message_guest` <mark style="color:orange;">**(Required for Airbnb)**</mark>
+
+A message explaining to the guest why the reservation was declined. This should provide context for the cancellation.
+
+***
+
+`message_airbnb` <mark style="color:orange;">**(Optional, Required for Airbnb)**</mark>
+
+A private message sent to Airbnb when the reservation is declined. This field is optional and is for communication between the hotel and Airbnb.
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+<mark style="color:green;">**Sample Success Response (200)**</mark>
+
+```json
+{
+    "Status": "Success",
+    "Code": "200",
+    "ShortText": "Booking cancelled"
+}
+```
+
+***
+
+#### <mark style="color:red;">Error</mark>
+
+If booking cancellation is received outside of 24 hours after receiving booking, an error is returned - Unable to cancel as request received more than 24 hours.
+
+<mark style="color:red;">**Sample Error Response (1035)**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "Status": "Fail",
+    "Code": "1035",
+    "ShortText": "Unable To Cancel Booking As Request Booking Not Found With Booking Id :: 201086"
+}
+```
+
+{% endcode %}

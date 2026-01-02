@@ -1,0 +1,25 @@
+# PUSH API Method
+
+### <mark style="color:yellow;">Flow</mark>
+
+1. A reservation is received in Su from one or more OTA(s).
+2. Su pushes the reservation data to your dedicated endpoint.
+3. Upon successfully receiving and retrieving the booking, you must acknowledge the reservation notification.
+4. Su will then continue to push subsequent bookings, if any, following the same process.
+
+{% hint style="success" %} <mark style="color:green;">**Su will be pushing only 1 booking at a time to your dedicated endpoint.**</mark>
+
+<mark style="color:green;">**If not received notification for pushed booking:**</mark>
+
+1. Su will re-push the booking again at 10 min interval
+2. will be attempting re-push for 3 times and if not successful, we will be sending a notification email to PMS giving the details of the reservation which is getting failed to be collected.
+
+<mark style="color:green;">**Until we receive notification for reservation pushed:**</mark>
+
+1. Su will not push any other booking to PMS for that Property - If there is any booking for different property
+2. The cycle continues and booking will be pushed on endpoint.
+
+<mark style="color:green;">**Upon receipt of pushed booking's notification only then:**</mark>
+
+Su will push next booking to endpoint for that property
+{% endhint %}

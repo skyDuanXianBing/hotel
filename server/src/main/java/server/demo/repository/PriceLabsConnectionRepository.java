@@ -43,7 +43,7 @@ public interface PriceLabsConnectionRepository extends JpaRepository<PriceLabsCo
     /**
      * 根据 PriceLabs listing_id 查找连接
      */
-    Optional<PriceLabsConnection> findByPriceLabsListingId(String priceLabsListingId);
+    List<PriceLabsConnection> findByPriceLabsListingId(String priceLabsListingId);
 
     /**
      * 根据门店ID和同步状态查找连接

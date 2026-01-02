@@ -1,0 +1,72 @@
+# Accept/Confirm Request Booking
+
+The API is used to accept/confirm requested reservations.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/service/requestbookings
+```
+
+{% endcode %}
+
+***
+
+**Request to Confirm/Accept Request Booking**
+
+* Customer ‘Request To Book’ through Request Booking platform.
+* Customer receives notification email from Request Booking platform clearly indicating booking is on request and host has to revert within 24 hours.
+* Booking arrives to channel manager with ‘REQUEST’ status.
+* Booking is delivered to PMS (if PMS supports ‘REQUEST’ status).
+* System triggers email to property.
+* Option to accept/ confirm booking is found within the booking in channel manager extranet along with API.
+* When host confirms booking, inventory is deducted in channel manager > delivered to PMS and pushed to Request Booking platform. Request Booking platform picks up bookings from feed once a day.
+* It is expected that the host will also send an email directly to customer when they confirm a booking.
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+    "bookingid": "113463_TESTHOTEL"
+}
+```
+
+The request body consists of a `bookingid`. This is the booking id (`channelbookingid_hotelid`) as allocated in the booking.
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:green;">**Sample Success Response (200)**</mark>
+
+```json
+{
+    "Status": "Success",
+    "Code": "200",
+    "ShortText": "Booking confirmed"
+}
+```
+
+#### <mark style="color:red;">Error</mark>
+
+If booking confirmation is received outside of 24 hours after receiving booking, an error is returned - Unable to confirm as request received more than 24 hours.
+
+#### <mark style="color:red;">**Sample Error Response (1035)**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "Status": "Fail",
+    "Code": "1035",
+    "ShortText": "Unable To Confirm Booking As Request Booking Not Found With Booking Id :: 201086"
+}
+```
+
+{% endcode %}

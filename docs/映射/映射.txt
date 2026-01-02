@@ -1,0 +1,137 @@
+# Currently Mapped OTA Channels
+
+Currently Mapped OTA Channels call is used to retrieve the information on mapped channel's room and rate ids along with basic mapping setup done in Su.
+
+***
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/mappings
+```
+
+{% endcode %}
+
+***
+
+### <mark style="color:yellow;">Sample Request</mark>
+
+Please find an example input message below.
+
+```json
+{
+  "hotelid": "KN-2",
+  "channelid": "9"
+}
+```
+
+***
+
+#### Mandatory elements
+
+**Element name - request**
+
+| Description | The request element is the root of every rate and inventory listing call. |
+| ----------- | ------------------------------------------------------------------------- |
+| Type        | structural element                                                        |
+| Children    | n/a                                                                       |
+
+**Attribute Name**
+
+| Attribute                      | Description                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| hotelid / hotel\_id / ClientID | IT provider's hotel id for which retrieving rates and inventory logs.                                        |
+| channelid / ChannelID          | Channel's specfic Id. If passed blank, will allocate information f all the channels mapped for the property. |
+
+**Attribute Name - hotelid / hotel\_id / ClientID**
+
+| Description                               | IT provider's unique hotel id / Client id.                |
+| ----------------------------------------- | --------------------------------------------------------- |
+| Type                                      | alphanumeric                                              |
+| Constraints                               | needs to be a property registered in the STAAH (Existing) |
+| Amount of elements possible within parent | 1                                                         |
+
+**Element name - ChannelID**
+
+| Description                               | Specifying a value in requests will give log for specific channel                         |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Type                                      | numeric                                                                                   |
+| Constraints                               | If not passed, will allocate with information of all the channels mapped for the property |
+| Amount of elements possible within parent | Min:0 Max:1                                                                               |
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:green;">Success Response</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+  "9": [
+    {
+      "ChannelID": "9",
+      "ChannelHotelID": "55225",
+      "Status": "Active",
+      "RoomIDs": [
+        "STD"
+      ],
+      "Rateplans": [
+        {
+          "PMSRoomID": "STD",
+          "PMSRateID": "BAR",
+          "ChannelRoomID": "201425808",
+          "ChannelRateID": "207058211",
+          "ChannelMappingName": "1 Queen Studio with Balcony Non-Smoking-Cancellation Policy",
+          "MappingStatus": "Active",
+          "PricingModel": "RBP",
+          "Pricing": {
+            "ApplicableNoOfGuest": "2",
+            "Multiplier": "1",
+            "Surcharge": "0"
+          },
+          "DisableRates": false,
+          "DisableAvailablity": false,
+          "ExtraRates": {
+            "Type": "none",
+            "DefaultAdultRate": "",
+            "DefaultChildRate": ""
+          },
+          "FixedMinStay": {
+            "Fixed": false,
+            "MinStay": ""
+          },
+          "ChannelExtraInfo": {}
+        }
+      ]
+    }
+  ]
+}
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:red;">Error Response</mark>
+
+**Errors due to invalid parameters**
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "400",
+    "ShortText": "Invalid HotelCode (KN-21)"
+  }
+}
+```
+
+This error will be received if allocated with incorrect Hotel ID / Client ID.

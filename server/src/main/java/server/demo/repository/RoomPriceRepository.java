@@ -89,4 +89,27 @@ public interface RoomPriceRepository extends JpaRepository<RoomPrice, Long> {
 
     // 删除指定房型的所有价格记录
     void deleteByRoomTypeId(Long roomTypeId);
+
+    // 根据门店ID、房型ID和日期范围查找价格（门店级查询）
+    @Query("SELECT rp FROM RoomPrice rp " +
+           "WHERE rp.storeId = :storeId " +
+           "AND rp.roomType.id = :roomTypeId " +
+           "AND rp.priceDate >= :startDate AND rp.priceDate <= :endDate " +
+           "ORDER BY rp.priceDate")
+    List<RoomPrice> findByStoreIdAndRoomTypeIdAndPriceDateBetween(
+            @Param("storeId") Long storeId,
+            @Param("roomTypeId") Long roomTypeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT rp FROM RoomPrice rp " +
+            "JOIN FETCH rp.roomType " +
+            "LEFT JOIN FETCH rp.pricePlan " +
+            "WHERE rp.storeId = :storeId " +
+            "AND rp.priceDate >= :startDate AND rp.priceDate <= :endDate " +
+            "ORDER BY rp.roomType.id, rp.pricePlan.id, rp.priceDate")
+    List<RoomPrice> findByStoreIdAndPriceDateBetweenWithRoomTypeAndPricePlan(
+            @Param("storeId") Long storeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

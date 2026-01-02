@@ -1,0 +1,397 @@
+# Review API
+
+{% hint style="success" %}
+This **Review API is only supported for Booking.com only**.
+
+\
+Use the correct OTA code for implementation: **Booking.com Channel ID = 19**.
+{% endhint %}
+
+Review is the way to share your stay experience with others, and it can be used not only by future travelers but also by competing hotels to see what others are saying about them so that they may improve their services.
+
+People are more likely to book a room in a hotel that has a large number of reviews. They always keen to get an idea of what the experience will be like before actually booking it.
+
+For hoteliers, positive reviews and the customer satisfaction are most important factors because they can encourage the business.
+
+* Su Review API allows delivery of guest reviews to property.
+* Reviews only shared for guests with booking.
+* API applicable for supported channel(s).
+
+***
+
+## <mark style="color:yellow;">Retrieve Review</mark>
+
+The reviews received from OTA are delivered to partner by post method. Reviews are posted to an endpoint provided by partner. Please note reviews can only be delivered to a single dedicated endpoint. Upon receipt, partners will need to filter reviews based on property ID.
+
+***
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+{% code overflow="wrap" %}
+
+```url
+Please provide endpoint for reviews delivery. 
+
+Authorization String: Partner has to provide Authorization credentials.
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`hotel_id` <mark style="color:orange;">**alphanumeric**</mark>
+
+Specifies the hotel ID for the property.
+
+***
+
+`channel_id` <mark style="color:orange;">**string**</mark>
+
+The identifier of the connected channel (e.g., Agoda, Booking.com).
+
+***
+
+`channel_property_id` <mark style="color:orange;">**string**</mark>&#x20;
+
+Specifies the channel-specific hotel ID&#x20;
+
+***
+
+`channel_review_id` <mark style="color:orange;">**string**</mark>&#x20;
+
+Specifies the channel-specific review for the property.
+
+***
+
+`review_title` <mark style="color:orange;">**string**</mark>&#x20;
+
+Specifies the title of review for the property.
+
+***
+
+`review_description` <mark style="color:orange;">**string**</mark>&#x20;
+
+Specifies the description for the review.&#x20;
+
+***
+
+`review_negative_description` <mark style="color:orange;">**string**</mark>&#x20;
+
+Specifies the negative description for the review.
+
+***
+
+`review_score` <mark style="color:orange;">**object**</mark>
+
+An object containing the rating scores given by the guest.
+
+***
+
+`cleanliness` <mark style="color:orange;">**integer**</mark>
+
+Rating for cleanliness (scale typically 1–5).
+
+***
+
+`location` <mark style="color:orange;">**integer**</mark>
+
+Rating for location (scale typically 1–5).
+
+***
+
+`overall` <mark style="color:orange;">**integer**</mark>
+
+Overall rating score (scale can vary, e.g., 1–100).
+
+***
+
+`review_type` <mark style="color:orange;">**string**</mark>
+
+Specifies the type of review.
+
+***
+
+`review_status` <mark style="color:orange;">**string**</mark>
+
+Indicates the status of the review.
+
+{% hint style="info" %}
+**Possible values:** `"published"`, `"created"`, `"in_review"`.
+{% endhint %}
+
+***
+
+`review_date` <mark style="color:orange;">**string**</mark>
+
+The date when the review was created. Format: `YYYY-MM-DD`.
+
+***
+
+`is_eligible_to_respond` <mark style="color:orange;">**boolean**</mark>
+
+Indicates whether the host is allowed to respond to the review.
+
+***
+
+`reviewee_name` <mark style="color:orange;">**string**</mark>
+
+The name of the host being reviewed.
+
+***
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+  "hotel_id": "AWSTEST",
+  "channel_id": "19",
+  "channel_property_id": "123456",
+  "channel_review_id": "19_HJDHDH",
+  "review_title": "Great stay!",
+  "review_description": "Loved the location and service.",
+  "review_negative_description": "Room was a bit small.",
+  "review_score": {
+    "cleanliness": 5,
+    "location": 5,
+    "overall": 55
+  },
+  "review_type": "guest_to_host",
+  "review_status": "published / created / in_review",
+  "review_date": "2025-01-01",
+  "is_eligible_to_respond": true,
+  "reviewee_name": "Vishal Potter"
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:yellow;">Sample Success Response</mark>&#x20;
+
+{% tabs %}
+{% tab title="Sample Success Response" %}
+
+```json
+{
+"status": "Success"
+}
+```
+
+{% endtab %}
+{% endtabs %}
+
+***
+
+#### <mark style="color:yellow;">Response Body Element</mark>
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates the result of the API call.&#x20;
+
+{% hint style="info" %}
+Will be `"Success"` for successful operations.
+
+Will be always `"Fail"` in case of an error response.
+{% endhint %}
+
+***
+
+## <mark style="color:yellow;">Review Reply</mark>
+
+Partners can reply to guest reviews on the supported channel, i.e., Booking.com.
+
+***
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FpsybX0n39kUB8Z8WOk4X%2FSandbox%20image.png?alt=media&#x26;token=4ae73d0f-0d1a-4d73-a4e2-673dbc081d6a" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/review/reply
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`hotel_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Specifies the hotel ID for the property.
+
+***
+
+`channel_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>&#x20;
+
+Identifier of the distribution channel (OTA).&#x20;
+
+***
+
+`channel_property_id` <mark style="color:orange;">**alphanumeric (Required)**</mark>&#x20;
+
+Specifies the channel-specific hotel ID.&#x20;
+
+***
+
+`channel_review_id` <mark style="color:orange;">**string (Required)**</mark>&#x20;
+
+Specifies the channel-specific review ID
+
+***
+
+`review_reply` <mark style="color:orange;">**string (Required)**</mark>&#x20;
+
+Specifies the reply from the partner for the review.
+
+***
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+  "hotel_id": "Test256",
+  "channel_id": "19",
+  "channel_property_id": "12837615",
+  "channel_review_id": "19_xyz",
+  "review_reply": "Thank you for your feedback!"
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:yellow;">Sample Success Response</mark>&#x20;
+
+{% tabs %}
+{% tab title="Sample Success Response" %}
+
+```json
+{
+  "Status": "Success",
+  "Warnings": [],
+  "Errors": [],
+  "Message": "Review replied successfully",
+  "Ruid": ""
+}
+```
+
+{% endtab %}
+{% endtabs %}
+
+***
+
+#### <mark style="color:yellow;">Sample Error Response</mark>&#x20;
+
+{% tabs %}
+{% tab title="Sample Error Response 1 " %}
+
+```json
+{
+  "Errors": {
+    "Code": "558",
+    "ShortText": "hotel_id: Invalid HotelCode (MEE1)"
+  },
+  "Status": "Fail"
+}
+```
+
+{% endtab %}
+
+{% tab title="Sample Error Response 2" %}
+
+```json
+{
+  "Errors": {
+    "Code": "947",
+    "ShortText": "Property is inactive"
+  },
+  "Status": "Fail"
+}
+```
+
+{% endtab %}
+
+{% tab title="Sample Error Response 3" %}
+
+```json
+{
+  "Errors": {
+    "Code": "573",
+    "ShortText": "channel-mapping not found for this property!"
+  },
+  "Status": "Fail"
+}
+```
+
+{% endtab %}
+
+{% tab title="Sample Error Response 4" %}
+
+```json
+{
+  "Status": "Fail",
+  "Errors": [],
+  "Message": "",
+  "Ruid": "e527c45a-f23a-4ee4-beb2-7d21f7699b1",
+}
+```
+
+{% endtab %}
+{% endtabs %}
+
+#### <mark style="color:yellow;">Response Body Element</mark>
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates the result of the API call.&#x20;
+
+{% hint style="info" %}
+Will be `"Success"` for successful operations.
+
+Will be always `"Fail"` in case of an error response.
+{% endhint %}
+
+***
+
+`Data` <mark style="color:orange;">**object**</mark>
+
+The response data, the root element.
+
+***
+
+`Message` <mark style="color:orange;">**string**</mark>
+
+The message in the response.
+
+***
+
+`Code` <mark style="color:orange;">**string**</mark>
+
+Specific error code that helps identify the type of error.
+
+***
+
+`ShortText` <mark style="color:orange;">**string**</mark>
+
+A short description of the error.
+
+Indicates channel room id and rate id.
+
+***
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates the result of the API call.&#x20;
+
+{% hint style="info" %}
+Will be `"Success"` for successful operations.
+{% endhint %}

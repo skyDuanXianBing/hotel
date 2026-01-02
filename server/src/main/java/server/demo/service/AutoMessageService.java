@@ -94,7 +94,12 @@ public class AutoMessageService {
         message.setMessage(autoMessage.getMessage());
         message.setAutomationRule(autoMessage.getAutomationRule());
         message.setChannel(autoMessage.getChannel());
+        message.setChannels(autoMessage.getChannels());
+        message.setResendOnExpire(autoMessage.getResendOnExpire());
         message.setRoom(autoMessage.getRoom());
+        message.setRoomSelectionType(autoMessage.getRoomSelectionType());
+        message.setRoomSelection(autoMessage.getRoomSelection());
+        message.setAction(autoMessage.getAction());
         message.setEnabled(autoMessage.getEnabled());
 
         return autoMessageRepository.save(message);

@@ -14,16 +14,26 @@ import java.util.Collections;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
+    private static final String[] ALLOWED_ORIGIN_PATTERNS = new String[] {
+            "http://localhost:8091",
+            "http://127.0.0.1:8091",
+
+            // 固定公网 IP（历史）
+            "http://13.112.235.194:8091",
+            "http://13.112.235.194:8092",
+
+            // cpolar 内网穿透（本地测试：域名经常变化，使用通配符）
+            "http://*.cpolar.top",
+            "https://*.cpolar.top",
+            "http://*.cpolar.cn",
+            "https://*.cpolar.cn"
+    };
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins(
-                    "http://localhost:8091",
-                    "http://127.0.0.1:8091",
-                    "http://13.112.235.194:8091",  // 外部 IP 访问
-                    "http://13.112.235.194:8092"   // 后端 IP 访问
-                )
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD")
+                .allowedOriginPatterns(ALLOWED_ORIGIN_PATTERNS)
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD")
                 .allowedHeaders("*")
                 .allowCredentials(true)
                 .maxAge(3600);
@@ -32,13 +42,8 @@ public class CorsConfig implements WebMvcConfigurer {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:8091",
-            "http://127.0.0.1:8091",
-            "http://13.112.235.194:8091",  // 外部 IP 访问
-            "http://13.112.235.194:8082"   // 后端 IP 访问
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
+        configuration.setAllowedOriginPatterns(Arrays.asList(ALLOWED_ORIGIN_PATTERNS));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(Collections.singletonList("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

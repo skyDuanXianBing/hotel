@@ -1,0 +1,91 @@
+# Reservation Notification
+
+The reservations\_notif call is used for acknowledgement of retrieval of reservations.
+
+**Step 1: Request for reservations notification**
+
+**Step 2: Response for reservations notification**
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/Reservation_notif
+```
+
+{% endcode %}
+
+***
+
+### <mark style="color:yellow;">Step 1: Request for Reservations Notification</mark>
+
+#### <mark style="color:yellow;">Request — HTTP Message Body Model</mark>
+
+`hotelid / hotel_id / ClientID` <mark style="color:orange;">**string (Required)**</mark>
+
+Hotel id for which the reservation notification they want to get acknowledged.
+
+> Maximum 20 characters allowed.
+
+***
+
+`reservation_notif_id` <mark style="color:orange;">**string (Required)**</mark>
+
+Reservation notification id for the particular reservation, this is a unique id.
+
+> Value - alphanumeric&#x20;
+
+#### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+   "hotelid": "new1",
+   "reservation_notif": {
+      "reservation_notif_id": ["155411226779361384952"]
+   }
+}
+```
+
+***
+
+#### <mark style="color:yellow;">Request — Node Overview</mark>
+
+* The request body consists of a **reservations\_notif** root node. This is the parent node to the required **hotelid / hotel\_id / ClientID.**
+* The required child node **hotelid / hotel\_id / ClientID** contains the IT provider's hotel id for which the provider wishes to acknowledge success reservation retrieval.
+* The required child node **reservation\_notif** root node for of reservation ids.
+* The required child node **reservation\_notif\_id** of **reservation\_notif** contains the reservation notification ids for which they want to send acknowledgement.
+
+***
+
+### <mark style="color:yellow;">Step 2: Response for Reservations Notification</mark>
+
+***
+
+#### <mark style="color:red;">**Sample Error Response**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "950",
+    "ShortText": "Reservation Not Found"
+  }
+}
+```
+
+***
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+    "Status":"Success"
+}
+```
+
+***
