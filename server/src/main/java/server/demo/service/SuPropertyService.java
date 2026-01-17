@@ -45,14 +45,14 @@ public class SuPropertyService {
 
         String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
         if (hotelId == null) {
-            hotelId = SuHotelIdUtil.buildDefault(storeId);
+            hotelId = generateUniqueRandomSuHotelId();
             store.setSuHotelId(hotelId);
             storeRepository.save(store);
         }
 
         // 使用缓存的 Su Access Token（自动复用/刷新）
 
-        Map<String, Object> payload = buildPropertyPayload(store, hotelId);
+        Map<String, Object> payload = buildPropertyPayload(store, hotelId, "New");
 
         try {
             JsonNode response = suAccessTokenService.executeWithTokenRetry(
@@ -61,16 +61,33 @@ public class SuPropertyService {
             );
             boolean ok = suApiClient.isSuSuccess(response);
             if (ok) {
-                return new UpsertResult(true, true, hotelId, "Su 物业创建/覆盖成功");
+                return new UpsertResult(true, true, hotelId, "渠道物业创建成功");
             }
             String err = suApiClient.extractSuErrorMessage(response);
-            return new UpsertResult(true, false, hotelId, err != null ? err : "Su 返回失败");
+            if (isPropertyAlreadyExists(err, response) || isAccessDenied(err, response)) {
+                return new UpsertResult(true, false, hotelId,
+                        "渠道物业创建失败：该酒店ID可能已被占用或不归属当前账号，请更换后重试。原始错误："
+                                + (err != null ? err : "未知"));
+            }
+            if (false && isPropertyAlreadyExists(err, response)) {
+                Map<String, Object> overlayPayload = buildPropertyPayload(store, hotelId, "Overlay");
+                JsonNode overlayResp = suAccessTokenService.executeWithTokenRetry(
+                        token -> suApiClient.upsertProperty(token, overlayPayload),
+                        "OTA_HotelDescriptiveContentNotif(Overlay)"
+                );
+                if (suApiClient.isSuSuccess(overlayResp)) {
+                    return new UpsertResult(true, true, hotelId, "渠道物业已存在，覆盖更新成功");
+                }
+                String overlayErr = suApiClient.extractSuErrorMessage(overlayResp);
+                return new UpsertResult(true, false, hotelId, overlayErr != null ? overlayErr : "渠道接口返回失败");
+            }
+            return new UpsertResult(true, false, hotelId, err != null ? err : "渠道接口返回失败");
         } catch (Exception e) {
             return new UpsertResult(true, false, hotelId, e.getMessage());
         }
     }
 
-    private static Map<String, Object> buildPropertyPayload(Store store, String hotelId) {
+    private static Map<String, Object> buildPropertyPayload(Store store, String hotelId, String notifType) {
         String currency = store.getCurrency() != null && !store.getCurrency().isBlank()
                 ? store.getCurrency()
                 : "CNY";
@@ -148,13 +165,47 @@ public class SuPropertyService {
         content.put("hotelid", hotelId);
         content.put("LanguageCode", "en");
         content.put("CurrencyCode", currency);
-        content.put("HotelDescriptiveContentNotifType", "New");
+        content.put("HotelDescriptiveContentNotifType", notifType != null && !notifType.isBlank() ? notifType : "New");
         content.put("HotelInfo", hotelInfo);
         content.put("ContactInfos", Map.of("ContactInfo", List.of(physicalLocationContact, availabilityContact)));
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("HotelDescriptiveContents", Map.of("HotelDescriptiveContent", content));
         return body;
+    }
+
+    private static boolean isPropertyAlreadyExists(String err, JsonNode response) {
+        String msg = err;
+        if (msg == null && response != null) {
+            msg = response.toString();
+        }
+        if (msg == null) {
+            return false;
+        }
+        String lower = msg.toLowerCase();
+        return lower.contains("property") && lower.contains("already") && lower.contains("exist");
+    }
+
+    private static boolean isAccessDenied(String err, JsonNode response) {
+        String msg = err;
+        if (msg == null && response != null) {
+            msg = response.toString();
+        }
+        if (msg == null) {
+            return false;
+        }
+        String lower = msg.toLowerCase();
+        return lower.contains("access denied") || lower.contains("authorization error");
+    }
+
+    private String generateUniqueRandomSuHotelId() {
+        for (int i = 0; i < 50; i++) {
+            String candidate = SuHotelIdUtil.generateRandom();
+            if (storeRepository.findBySuHotelId(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+        throw new RuntimeException("渠道酒店ID生成失败，请手动填写");
     }
 
     private static String normalizePhone(String raw) {

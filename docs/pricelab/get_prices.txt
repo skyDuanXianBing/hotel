@@ -1,0 +1,69 @@
+POST
+/get_prices
+Allows syncing of PriceLabs prices and settings
+
+
+
+This endpoint allows you to retrieve pricing information for properties based on specified parameters.
+
+Parameters
+Name	Description
+sync *
+object
+(body)
+Example Value
+Model
+{
+  "sync": {
+    "listing_id": "string",
+    "rate_plan_id": "string",
+    "delta_only": true
+  }
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Request was processed. Success will contain the prices and restrictions last synced from PriceLabs. Failure will contain an error
+
+Example Value
+Model
+{
+  "id": "string",
+  "pms": "string",
+  "group": "string",
+  "currency": "string",
+  "last_refreshed_at": "string",
+  "los_pricing": {
+    "los_night": {
+      "los_night": "string",
+      "max_price": "string",
+      "min_price": "string",
+      "los_adjustment": "string"
+    }
+  },
+  "data": [
+    {
+      "date": "string",
+      "price": 0,
+      "user_price": 0,
+      "uncustomized_price": 0,
+      "min_stay": 0,
+      "extra_person_fee": 0,
+      "extra_person_fee_trigger": 0,
+      "check_in": true,
+      "check_out": true
+    }
+  ]
+}
+401	
+Invalid integration API key value
+
+Example Value
+Model
+"string"

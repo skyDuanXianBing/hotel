@@ -31,6 +31,27 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     // ===== store-scoped APIs =====
     List<Reservation> findByStoreId(Long storeId);
 
+    @Query("SELECT DISTINCT r FROM Reservation r " +
+            "LEFT JOIN FETCH r.room room " +
+            "LEFT JOIN FETCH room.roomType " +
+            "WHERE r.storeId = :storeId " +
+            "AND r.checkOutDate >= :startDate " +
+            "AND r.checkInDate <= :endDate")
+    List<Reservation> findByStoreIdOverlappingDateRangeWithRoomType(
+            @Param("storeId") Long storeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("SELECT r FROM Reservation r " +
+            "LEFT JOIN FETCH r.room room " +
+            "LEFT JOIN FETCH room.roomType " +
+            "WHERE r.storeId = :storeId AND r.id = :id")
+    Optional<Reservation> findByStoreIdAndIdWithRoomType(
+            @Param("storeId") Long storeId,
+            @Param("id") Long id
+    );
+
     Optional<Reservation> findByStoreIdAndOrderNumber(Long storeId, String orderNumber);
 
     List<Reservation> findByStoreIdAndGuestNameContainingIgnoreCase(Long storeId, String guestName);
@@ -40,6 +61,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     List<Reservation> findByStoreIdAndStatus(Long storeId, ReservationStatus status);
 
     List<Reservation> findByStoreIdAndRoomId(Long storeId, Long roomId);
+
+    List<Reservation> findByStoreIdAndActualCheckInBetween(Long storeId, LocalDateTime start, LocalDateTime end);
+
+    List<Reservation> findByStoreIdAndActualCheckOutBetween(Long storeId, LocalDateTime start, LocalDateTime end);
 
     @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.checkInDate >= :startDate AND r.checkInDate <= :endDate")
     List<Reservation> findByStoreIdAndCheckInDateBetween(@Param("storeId") Long storeId,

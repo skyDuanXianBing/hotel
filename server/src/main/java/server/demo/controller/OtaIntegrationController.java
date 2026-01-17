@@ -123,9 +123,9 @@ public class OtaIntegrationController {
     public ApiResponse<Object> syncSuContent(@PathVariable Long id) {
         try {
             Object summary = otaIntegrationService.syncSuContent(id);
-            return ApiResponse.success("Su 房型/价格计划同步成功", summary);
+            return ApiResponse.success("渠道房型/价格计划同步成功", summary);
         } catch (RuntimeException e) {
-            return ApiResponse.error("Su 房型/价格计划同步失败: " + e.getMessage());
+            return ApiResponse.error("渠道房型/价格计划同步失败: " + e.getMessage());
         }
     }
 
@@ -143,10 +143,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuRooms. otaIntegrationId={}", id);
             Object summary = otaIntegrationService.syncSuRooms(id);
             logger.info("[OneClickSync] done syncSuRooms. otaIntegrationId={}", id);
-            return ApiResponse.success("Su 房间号列表同步成功", summary);
+            return ApiResponse.success("渠道房间号列表同步成功", summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuRooms. otaIntegrationId={}", id, e);
-            return ApiResponse.error("Su 房间号列表同步失败: " + e.getMessage());
+            return ApiResponse.error("渠道房间号列表同步失败: " + e.getMessage());
         }
     }
 
@@ -160,10 +160,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuRatePlans. otaIntegrationId={}", id);
             Object summary = otaIntegrationService.syncSuRatePlans(id);
             logger.info("[OneClickSync] done syncSuRatePlans. otaIntegrationId={}", id);
-            return ApiResponse.success("Su 价格计划列表同步成功", summary);
+            return ApiResponse.success("渠道价格计划列表同步成功", summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuRatePlans. otaIntegrationId={}", id, e);
-            return ApiResponse.error("Su 价格计划列表同步失败: " + e.getMessage());
+            return ApiResponse.error("渠道价格计划列表同步失败: " + e.getMessage());
         }
     }
 
@@ -181,10 +181,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuAri. otaIntegrationId={}, days={}", id, days);
             Object summary = otaIntegrationService.syncSuAri(id, days);
             logger.info("[OneClickSync] done syncSuAri. otaIntegrationId={}, days={}", id, days);
-            return ApiResponse.success("Su 基础ARI同步成功", summary);
+            return ApiResponse.success("渠道基础ARI同步成功", summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuAri. otaIntegrationId={}, days={}", id, days, e);
-            return ApiResponse.error("Su 基础ARI同步失败: " + e.getMessage());
+            return ApiResponse.error("渠道基础ARI同步失败: " + e.getMessage());
         }
     }
 
@@ -197,10 +197,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuRates. otaIntegrationId={}, days={}", id, days);
             Object summary = otaIntegrationService.syncSuRates(id, days);
             logger.info("[OneClickSync] done syncSuRates. otaIntegrationId={}, days={}", id, days);
-            return ApiResponse.success("Su 房价同步成功", summary);
+            return ApiResponse.success("渠道房价同步成功", summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuRates. otaIntegrationId={}, days={}", id, days, e);
-            return ApiResponse.error("Su 房价同步失败: " + e.getMessage());
+            return ApiResponse.error("渠道房价同步失败: " + e.getMessage());
         }
     }
 
@@ -213,10 +213,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuAvailability. otaIntegrationId={}, days={}", id, days);
             Object summary = otaIntegrationService.syncSuAvailability(id, days);
             logger.info("[OneClickSync] done syncSuAvailability. otaIntegrationId={}, days={}", id, days);
-            return ApiResponse.success("Su 可用性同步成功", summary);
+            return ApiResponse.success("渠道可用性同步成功", summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuAvailability. otaIntegrationId={}, days={}", id, days, e);
-            return ApiResponse.error("Su 可用性同步失败: " + e.getMessage());
+            return ApiResponse.error("渠道可用性同步失败: " + e.getMessage());
         }
     }
 
@@ -227,9 +227,9 @@ public class OtaIntegrationController {
     ) {
         try {
             JsonNode mappings = otaIntegrationService.getSuMappings(id, channelId);
-            return ApiResponse.success("获取 Su 映射成功", mappings);
+            return ApiResponse.success("获取渠道映射成功", mappings);
         } catch (RuntimeException e) {
-            return ApiResponse.error("获取 Su 映射失败: " + e.getMessage());
+            return ApiResponse.error("获取渠道映射失败: " + e.getMessage());
         }
     }
 

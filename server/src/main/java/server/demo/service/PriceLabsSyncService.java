@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.context.StoreContextHolder;
+import server.demo.dto.PriceLabsWebhookRequest;
+import server.demo.entity.PriceLabsConnection;
 import server.demo.entity.PriceLabsIntegration;
 import server.demo.entity.PriceLabsSyncLog;
 import server.demo.entity.PricePlan;
@@ -38,6 +40,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -46,6 +49,7 @@ public class PriceLabsSyncService {
     private static final Logger logger = LoggerFactory.getLogger(PriceLabsSyncService.class);
 
     @Autowired private PriceLabsApiClient apiClient;
+    @Autowired private PriceLabsService priceLabsService;
     @Autowired private RoomTypeRepository roomTypeRepo;
     @Autowired private PricePlanRepository pricePlanRepo;
     @Autowired private RoomTypePricePlanRepository rtppRepo;
@@ -122,6 +126,211 @@ public class PriceLabsSyncService {
             syncLogRepo.save(log);
 
             throw e;
+        }
+    }
+
+    /**
+     * PMS 主动从 PriceLabs 拉取推荐价（get_prices），并按 webhook 处理逻辑落库（room_prices/channel_prices/改价记录）。
+     * 用于“立即同步”场景的兜底拉取。
+     */
+    @Transactional
+    public void pullPricesForNextDays(Integer days) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        int pullDays = days != null && days > 0 ? days : 365;
+        if (pullDays > 540) {
+            pullDays = 540;
+        }
+
+        List<PriceLabsConnection> enabledConnections = connectionRepo.findByStoreId(storeId).stream()
+                .filter(conn -> Boolean.TRUE.equals(conn.getIsEnabled()))
+                .collect(Collectors.toList());
+
+        if (enabledConnections.isEmpty()) {
+            logger.warn("[PriceLabsPull] skip get_prices because no enabled PriceLabs connections. storeId={}", storeId);
+            return;
+        }
+
+        List<String> listingIds = enabledConnections.stream()
+                .map(conn -> {
+                    if (conn.getPriceLabsListingId() != null && !conn.getPriceLabsListingId().isBlank()) {
+                        return conn.getPriceLabsListingId().trim();
+                    }
+                    if (conn.getRoomType() != null && conn.getRoomType().getId() != null) {
+                        return PriceLabsIdUtil.formatListingId(storeId, conn.getRoomType().getId());
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (listingIds.isEmpty()) {
+            logger.warn("[PriceLabsPull] skip get_prices because listingIds empty. storeId={}", storeId);
+            return;
+        }
+
+        LocalDate startDate = LocalDate.now();
+        LocalDate endDate = startDate.plusDays(pullDays - 1L);
+
+        PriceLabsApiClient.GetPricesResponse res = apiClient.getPrices(listingIds, startDate, endDate, false);
+        if (res == null || !res.isSuccess() || res.getData() == null || res.getData().isEmpty()) {
+            String msg = res != null ? res.getMessage() : "no response";
+            throw new RuntimeException("get_prices 拉取失败: " + (msg != null ? msg : "unknown"));
+        }
+
+        PriceLabsWebhookRequest webhookRequest = new PriceLabsWebhookRequest();
+        webhookRequest.setType("price_update");
+
+        List<PriceLabsWebhookRequest.ListingData> data = new ArrayList<>();
+        for (PriceLabsApiClient.GetPricesCalendarData row : res.getData()) {
+            if (row == null || row.getListingId() == null || row.getListingId().isBlank()) {
+                continue;
+            }
+            PriceLabsWebhookRequest.ListingData ld = new PriceLabsWebhookRequest.ListingData();
+            ld.setListingId(row.getListingId());
+            if (row.getRatePlanId() != null && !row.getRatePlanId().isBlank()) {
+                ld.setRatePlanId(row.getRatePlanId());
+            }
+
+            List<PriceLabsWebhookRequest.CalendarData> calendar = new ArrayList<>();
+            if (row.getCalendar() != null) {
+                for (PriceLabsApiClient.GetPricesCalendarEntry ce : row.getCalendar()) {
+                    if (ce == null || ce.getDate() == null || ce.getPrice() == null) {
+                        continue;
+                    }
+                    PriceLabsWebhookRequest.CalendarData cd = new PriceLabsWebhookRequest.CalendarData();
+                    cd.setDate(ce.getDate());
+                    cd.setPrice(ce.getPrice());
+                    cd.setMinStay(ce.getMinStay());
+                    cd.setMaxStay(ce.getMaxStay());
+                    calendar.add(cd);
+                }
+            }
+            ld.setCalendar(calendar);
+            data.add(ld);
+        }
+
+        if (data.isEmpty()) {
+            logger.warn("[PriceLabsPull] get_prices returned empty calendar data. storeId={}", storeId);
+            return;
+        }
+
+        webhookRequest.setData(data);
+        priceLabsService.handleWebhookPriceUpdate(webhookRequest);
+        logger.info("[PriceLabsPull] get_prices applied. storeId={}, listingCount={}", storeId, data.size());
+    }
+
+    /**
+     * PriceLabs SwaggerHub pull_sync: POST /get_prices (body.sync)
+     * 稳定优先：delta_only 固定 false，按“启用连接”逐个 listing_id 拉取，再复用 webhook 落库逻辑。
+     */
+    @Transactional
+    public void pullPricesForNextDaysPullSync(Integer days) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        int pullDays = days != null && days > 0 ? days : 365;
+        if (pullDays > 540) {
+            pullDays = 540;
+        }
+
+        List<PriceLabsConnection> enabledConnections = connectionRepo.findByStoreId(storeId).stream()
+                .filter(conn -> Boolean.TRUE.equals(conn.getIsEnabled()))
+                .collect(Collectors.toList());
+
+        if (enabledConnections.isEmpty()) {
+            logger.warn("[PriceLabsPull] skip get_prices(pull_sync) because no enabled PriceLabs connections. storeId={}", storeId);
+            return;
+        }
+
+        LocalDate startDate = LocalDate.now();
+        LocalDate endDate = startDate.plusDays(pullDays - 1L);
+
+        List<String> failures = new ArrayList<>();
+        List<PriceLabsWebhookRequest.ListingData> data = new ArrayList<>();
+
+        for (PriceLabsConnection conn : enabledConnections) {
+            if (conn == null) continue;
+
+            String listingId = null;
+            if (conn.getPriceLabsListingId() != null && !conn.getPriceLabsListingId().isBlank()) {
+                listingId = conn.getPriceLabsListingId().trim();
+            } else if (conn.getRoomType() != null && conn.getRoomType().getId() != null) {
+                listingId = PriceLabsIdUtil.formatListingId(storeId, conn.getRoomType().getId());
+            }
+            if (listingId == null || listingId.isBlank()) {
+                continue;
+            }
+
+            String ratePlanId = null;
+            if (conn.getPricePlan() != null && conn.getPricePlan().getId() != null) {
+                ratePlanId = PriceLabsIdUtil.formatRatePlanId(conn.getPricePlan().getId());
+            }
+
+            try {
+                PriceLabsApiClient.PullSyncGetPricesResponse res = apiClient.pullSyncGetPrices(listingId, ratePlanId, false);
+                if (res == null || res.getData() == null || res.getData().isEmpty()) {
+                    continue;
+                }
+
+                List<PriceLabsWebhookRequest.CalendarData> calendar = new ArrayList<>();
+                for (PriceLabsApiClient.PullSyncPriceEntry ce : res.getData()) {
+                    if (ce == null || ce.getDate() == null || ce.getPrice() == null) {
+                        continue;
+                    }
+                    LocalDate d;
+                    try {
+                        d = LocalDate.parse(ce.getDate());
+                    } catch (Exception ignored) {
+                        continue;
+                    }
+                    if (d.isBefore(startDate) || d.isAfter(endDate)) {
+                        continue;
+                    }
+
+                    PriceLabsWebhookRequest.CalendarData cd = new PriceLabsWebhookRequest.CalendarData();
+                    cd.setDate(ce.getDate());
+                    cd.setPrice(ce.getPrice());
+                    cd.setMinStay(ce.getMinStay());
+                    if (ce.getCheckIn() != null) {
+                        cd.setClosedToArrival(!Boolean.TRUE.equals(ce.getCheckIn()));
+                    }
+                    if (ce.getCheckOut() != null) {
+                        cd.setClosedToDeparture(!Boolean.TRUE.equals(ce.getCheckOut()));
+                    }
+                    calendar.add(cd);
+                }
+
+                if (calendar.isEmpty()) {
+                    continue;
+                }
+
+                PriceLabsWebhookRequest.ListingData ld = new PriceLabsWebhookRequest.ListingData();
+                ld.setListingId(listingId);
+                if (ratePlanId != null && !ratePlanId.isBlank()) {
+                    ld.setRatePlanId(ratePlanId);
+                }
+                ld.setCalendar(calendar);
+                data.add(ld);
+            } catch (Exception e) {
+                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                failures.add("listing_id=" + listingId + (ratePlanId != null ? (" rate_plan_id=" + ratePlanId) : "") + " error=" + msg);
+            }
+        }
+
+        if (data.isEmpty()) {
+            if (!failures.isEmpty()) {
+                throw new RuntimeException("get_prices(pull_sync) failed: " + String.join("; ", failures));
+            }
+            logger.warn("[PriceLabsPull] get_prices(pull_sync) returned empty data. storeId={}", storeId);
+            return;
+        }
+
+        PriceLabsWebhookRequest webhookRequest = new PriceLabsWebhookRequest();
+        webhookRequest.setType("price_update");
+        webhookRequest.setData(data);
+        priceLabsService.handleWebhookPriceUpdate(webhookRequest);
+        logger.info("[PriceLabsPull] get_prices(pull_sync) applied. storeId={}, listingCount={}", storeId, data.size());
+        if (!failures.isEmpty()) {
+            logger.warn("[PriceLabsPull] get_prices(pull_sync) partial failures. storeId={}, details={}", storeId, String.join("; ", failures));
         }
     }
 

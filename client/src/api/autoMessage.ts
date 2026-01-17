@@ -7,15 +7,50 @@ export interface ApiResponse<T> {
   data: T
 }
 
+/** 房间选择类型 */
+export type RoomSelectionType = 'ALL_LOCAL' | 'BY_ROOM_TYPE' | 'BY_GROUP' | 'BY_ROOM'
+
+/** 操作类型 */
+export type AutoMessageAction = 'BOOKING_CONFIRM' | 'CHECK_IN' | 'CHECK_OUT'
+
+/** 发送时机 */
+export type SendTiming =
+  | 'IMMEDIATELY'
+  | '5_MIN'
+  | '10_MIN'
+  | '15_MIN'
+  | '30_MIN'
+  | '1_HOUR'
+  | '2_HOUR'
+  | '4_HOUR'
+  | '8_HOUR'
+  | '16_HOUR'
+  | '24_HOUR'
+
 // 自动化消息DTO
 export interface AutoMessageDTO {
   id: number
   userId: number
   title: string
   message: string
+  /** @deprecated 使用 action 替代 */
   automationRule: string
+  /** @deprecated 使用 channels 替代 */
   channel: string
+  /** 渠道列表（JSON数组格式） */
+  channels: string
+  /** 过时补发 */
+  resendOnExpire: boolean
+  /** @deprecated 使用 roomSelectionType 和 roomSelection 替代 */
   room: string
+  /** 房间选择类型 */
+  roomSelectionType: RoomSelectionType
+  /** 房间选择值（JSON数组格式） */
+  roomSelection: string
+  /** 操作类型 */
+  action: AutoMessageAction
+  /** 发送时机 */
+  sendTiming: SendTiming
   enabled: boolean
   createdAt: string
   updatedAt: string
@@ -25,9 +60,24 @@ export interface AutoMessageDTO {
 export interface AutoMessageRequest {
   title: string
   message: string
-  automationRule: string
-  channel: string
-  room: string
+  /** @deprecated 保留兼容性 */
+  automationRule?: string
+  /** @deprecated 保留兼容性 */
+  channel?: string
+  /** 渠道列表（JSON数组格式） */
+  channels: string
+  /** 过时补发 */
+  resendOnExpire: boolean
+  /** @deprecated 保留兼容性 */
+  room?: string
+  /** 房间选择类型 */
+  roomSelectionType: RoomSelectionType
+  /** 房间选择值（JSON数组格式） */
+  roomSelection: string
+  /** 操作类型 */
+  action: AutoMessageAction
+  /** 发送时机 */
+  sendTiming: SendTiming
   enabled: boolean
 }
 

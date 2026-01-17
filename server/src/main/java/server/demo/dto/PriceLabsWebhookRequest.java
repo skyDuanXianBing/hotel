@@ -1,5 +1,8 @@
 package server.demo.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -26,7 +29,12 @@ public class PriceLabsWebhookRequest {
 
     // Nested class for listing data
     public static class ListingData {
+        @JsonProperty("listingId")
+        @JsonAlias({"listing_id", "listingId"})
         private String listingId;
+
+        @JsonProperty("ratePlanId")
+        @JsonAlias({"rate_plan_id", "ratePlanId"})
         private String ratePlanId;
         private List<CalendarData> calendar;
 
@@ -58,9 +66,21 @@ public class PriceLabsWebhookRequest {
     public static class CalendarData {
         private String date;
         private BigDecimal price;
+
+        @JsonProperty("minStay")
+        @JsonAlias({"min_stay", "minStay"})
         private Integer minStay;
+
+        @JsonProperty("maxStay")
+        @JsonAlias({"max_stay", "maxStay"})
         private Integer maxStay;
+
+        @JsonProperty("closedToArrival")
+        @JsonAlias({"closed_to_arrival", "closedToArrival"})
         private Boolean closedToArrival;
+
+        @JsonProperty("closedToDeparture")
+        @JsonAlias({"closed_to_departure", "closedToDeparture"})
         private Boolean closedToDeparture;
 
         public String getDate() {

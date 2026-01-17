@@ -23,6 +23,29 @@ export type SyncDirection = 'OUTBOUND' | 'INBOUND'
 export type SyncStatus = 'SUCCESS' | 'FAILURE' | 'PARTIAL'
 
 /**
+ * PriceLabs /status 查询类型
+ */
+export type PriceLabsStatusType = 'calendar' | 'reservation' | 'listing'
+
+export interface PriceLabsStatusReq {
+  id: string
+  type: PriceLabsStatusType
+}
+
+export interface PriceLabsStatusResult {
+  success?: string[]
+  failure?: unknown[]
+}
+
+export interface PriceLabsPushReservationsResult {
+  listingCount: number
+  reservationCount: number
+  successCount: number
+  failureCount: number
+  failures: string[]
+}
+
+/**
  * API 响应格式
  */
 export interface ApiResponse<T> {
@@ -321,4 +344,28 @@ export const getRecentSyncLogs = async (
  */
 export const manualSync = async (): Promise<ApiResponse<{ message: string }>> => {
   return await request.post('/pricelabs/sync/manual')
+}
+
+/**
+ * PMS -> PriceLabs: /status 查询诊断
+ */
+export const queryStatus = async (
+  statuses: PriceLabsStatusReq[],
+): Promise<ApiResponse<PriceLabsStatusResult>> => {
+  return await request.post('/pricelabs/status/query', { statuses })
+}
+
+/**
+ * PMS -> PriceLabs: /reservations 推送（认证要求：需要推送 2020-01-01 至今/未来全部）
+ */
+export const pushReservations = async (params?: {
+  startDate?: string
+  endDate?: string
+}): Promise<ApiResponse<PriceLabsPushReservationsResult>> => {
+  const queryParams = new URLSearchParams()
+  if (params?.startDate) queryParams.append('startDate', params.startDate)
+  if (params?.endDate) queryParams.append('endDate', params.endDate)
+  const query = queryParams.toString()
+  const url = query ? `/pricelabs/reservations/push?${query}` : '/pricelabs/reservations/push'
+  return await request.post(url)
 }

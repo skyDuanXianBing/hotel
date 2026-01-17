@@ -29,6 +29,9 @@ public class PriceLabsConfig {
     @Value("${server.base-url:http://localhost:8092}")
     private String serverBaseUrl;
 
+    @Value("${pricelabs.debug:false}")
+    private boolean debug;
+
     public String getBaseUrl() {
         return baseUrl;
     }
@@ -51,6 +54,10 @@ public class PriceLabsConfig {
 
     public String getServerBaseUrl() {
         return serverBaseUrl;
+    }
+
+    public boolean isDebug() {
+        return debug;
     }
 
     /**

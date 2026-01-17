@@ -46,9 +46,9 @@
           </el-select>
         </div>
 
-        <!-- PMSI价格计划 -->
+        <!-- PMS价格计划 -->
         <div class="filter-group">
-          <span class="filter-label">PMSI价格计划</span>
+          <span class="filter-label">PMS价格计划</span>
           <el-select
             v-model="filters.pricePlanId"
             placeholder="全部价格计划"
@@ -135,7 +135,7 @@
         style="width: 100%"
       >
         <el-table-column prop="roomTypeName" label="本地房型" min-width="120" />
-        <el-table-column prop="pricePlanName" label="PMSI价格计划" min-width="150" />
+        <el-table-column prop="pricePlanName" label="PMS价格计划" min-width="150" />
         <el-table-column prop="priceDate" label="价格日期" min-width="180" />
         <el-table-column prop="applyDays" label="适用周几" width="100" />
         <el-table-column prop="changeType" label="调整类型" width="100" />

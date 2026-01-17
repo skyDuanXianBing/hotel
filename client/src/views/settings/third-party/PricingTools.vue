@@ -158,6 +158,13 @@
               <template #default="{ row }">
                 <el-button
                   link
+                  type="primary"
+                  @click="handleOpenStatusDialog({ type: 'listing', id: row.priceLabsListingId })"
+                >
+                  状态查询
+                </el-button>
+                <el-button
+                  link
                   :type="row.isEnabled ? 'warning' : 'success'"
                   @click="handleToggleConnection(row)"
                 >
@@ -242,6 +249,17 @@
 
         <!-- 同步日志标签页 -->
         <el-tab-pane label="同步日志" name="logs">
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <span class="filter-label">诊断工具</span>
+              <el-text type="info" size="small">用于认证/排查：查询 /status，手动推送 /reservations</el-text>
+            </div>
+            <div>
+              <el-button @click="handleOpenStatusDialog()">状态查询</el-button>
+              <el-button type="primary" @click="handleOpenPushReservationsDialog()">推送预订</el-button>
+            </div>
+          </div>
+
           <el-table :data="syncLogs" border stripe class="config-table" v-loading="logsLoading">
             <el-table-column label="时间" width="180" align="center">
               <template #default="{ row }">
@@ -294,6 +312,18 @@
       width="500px"
       :close-on-click-modal="false"
     >
+      <el-alert
+        title="提示"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 12px"
+      >
+        <template #default>
+          <div>为保证推价稳定性，同一房型仅允许绑定一个启用的价格计划连接。</div>
+          <div>如需更换价格计划，请先禁用或删除该房型的原连接后再添加。</div>
+        </template>
+      </el-alert>
       <el-form :model="connectionForm" label-width="100px">
         <el-form-item label="房型" required>
           <el-select
@@ -381,6 +411,130 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- PriceLabs 状态查询（PMS -> PriceLabs /status） -->
+    <el-dialog
+      v-model="showStatusDialog"
+      title="PriceLabs 状态查询（/status）"
+      width="760px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="statusForm" label-width="110px">
+        <el-form-item label="类型" required>
+          <el-select v-model="statusForm.type" style="width: 220px">
+            <el-option label="listing" value="listing" />
+            <el-option label="reservation" value="reservation" />
+            <el-option label="calendar" value="calendar" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item v-if="statusForm.type === 'listing'" label="Listing ID">
+          <el-select
+            v-model="statusListingId"
+            filterable
+            clearable
+            placeholder="从房源连接选择"
+            style="width: 520px"
+            @change="handleSelectStatusListingId"
+          >
+            <el-option
+              v-for="conn in connections"
+              :key="conn.id"
+              :label="`${conn.roomTypeName} - ${conn.pricePlanName} (${conn.priceLabsListingId})`"
+              :value="conn.priceLabsListingId"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="ID" required>
+          <el-input
+            v-model="statusForm.id"
+            placeholder="listing_id / reservation_id / calendar id"
+            style="width: 520px"
+          />
+          <el-text type="info" size="small" style="margin-left: 10px">
+            reservation 通常用预订单号(orderNumber)
+          </el-text>
+        </el-form-item>
+      </el-form>
+
+      <el-divider content-position="left">结果</el-divider>
+      <div v-if="statusResult" class="status-result">
+        <div class="result-block">
+          <div class="result-title">Success</div>
+          <div v-if="statusResult.success && statusResult.success.length" class="result-tags">
+            <el-tag v-for="(s, idx) in statusResult.success" :key="idx" size="small" style="margin: 0 8px 8px 0">
+              {{ s }}
+            </el-tag>
+          </div>
+          <el-empty v-else description="无" :image-size="60" />
+        </div>
+        <div class="result-block">
+          <div class="result-title">Failure</div>
+          <el-scrollbar height="220">
+            <pre class="result-json">{{ JSON.stringify(statusResult.failure ?? [], null, 2) }}</pre>
+          </el-scrollbar>
+        </div>
+      </div>
+      <el-empty v-else description="点击“查询”后显示结果" :image-size="80" />
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showStatusDialog = false">关闭</el-button>
+          <el-button type="primary" :loading="statusLoading" @click="handleQueryStatus">查询</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- PriceLabs 预订推送（PMS -> PriceLabs /reservations） -->
+    <el-dialog
+      v-model="showPushReservationsDialog"
+      title="PriceLabs 预订推送（/reservations）"
+      width="760px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-width="110px">
+        <el-form-item label="日期范围">
+          <el-date-picker
+            v-model="pushReservationsRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+          />
+          <el-text type="info" size="small" style="margin-left: 10px">
+            默认：2020-01-01 ~ today+365
+          </el-text>
+        </el-form-item>
+      </el-form>
+
+      <el-divider content-position="left">结果</el-divider>
+      <div v-if="pushReservationsResult">
+        <el-descriptions border :column="2" size="small">
+          <el-descriptions-item label="listingCount">{{ pushReservationsResult.listingCount }}</el-descriptions-item>
+          <el-descriptions-item label="reservationCount">{{ pushReservationsResult.reservationCount }}</el-descriptions-item>
+          <el-descriptions-item label="successCount">{{ pushReservationsResult.successCount }}</el-descriptions-item>
+          <el-descriptions-item label="failureCount">{{ pushReservationsResult.failureCount }}</el-descriptions-item>
+        </el-descriptions>
+        <div style="margin-top: 12px">
+          <div class="result-title">Failures</div>
+          <el-scrollbar height="220">
+            <pre class="result-json">{{ JSON.stringify(pushReservationsResult.failures ?? [], null, 2) }}</pre>
+          </el-scrollbar>
+        </div>
+      </div>
+      <el-empty v-else description="点击“推送”后显示结果" :image-size="80" />
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showPushReservationsDialog = false">关闭</el-button>
+          <el-button type="primary" :loading="pushReservationsLoading" @click="handlePushReservations">
+            推送
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -401,6 +555,9 @@ import type {
   PriceLabsIntegrationDTO,
   PriceLabsConnectionDTO,
   PriceLabsSyncLogDTO,
+  PriceLabsStatusType,
+  PriceLabsStatusResult,
+  PriceLabsPushReservationsResult,
 } from '@/api/pricelabs'
 
 // 视图状态
@@ -445,6 +602,21 @@ const logsPagination = reactive({
   total: 0,
 })
 
+// 诊断工具：/status & /reservations
+const showStatusDialog = ref(false)
+const statusLoading = ref(false)
+const statusListingId = ref<string | null>(null)
+const statusForm = reactive({
+  type: 'listing' as PriceLabsStatusType,
+  id: '',
+})
+const statusResult = ref<PriceLabsStatusResult | null>(null)
+
+const showPushReservationsDialog = ref(false)
+const pushReservationsLoading = ref(false)
+const pushReservationsRange = ref<[string, string]>(['2020-01-01', ''])
+const pushReservationsResult = ref<PriceLabsPushReservationsResult | null>(null)
+
 // 房型和价格计划选项
 const roomTypes = ref<RoomTypeDTO[]>([])
 const pricePlans = ref<PricePlanDTO[]>([])
@@ -481,10 +653,33 @@ const filteredConnections = computed(() => {
   )
 })
 
+const enabledConnectionByRoomTypeId = computed(() => {
+  const map = new Map<number, PriceLabsConnectionDTO>()
+  for (const conn of connections.value) {
+    if (conn.isEnabled) {
+      map.set(conn.roomTypeId, conn)
+    }
+  }
+  return map
+})
+
 // 进入配置页面
 const handleConfigure = () => {
   showConfigPage.value = true
   loadAllData()
+}
+
+const formatDateYYYYMMDD = (date: Date): string => {
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+const addDays = (date: Date, days: number): Date => {
+  const d = new Date(date)
+  d.setDate(d.getDate() + days)
+  return d
 }
 
 // 加载所有数据
@@ -695,6 +890,14 @@ const handleSaveConnection = async () => {
     ElMessage.warning('请选择房型')
     return
   }
+
+  const existing = enabledConnectionByRoomTypeId.value.get(connectionForm.roomTypeId)
+  if (existing) {
+    const planName = existing.pricePlanName || '（未知）'
+    ElMessage.warning(`该房型已绑定价格计划：${planName}。如需更换，请先禁用或删除原连接后再添加。`)
+    return
+  }
+
   if (!connectionForm.pricePlanId) {
     ElMessage.warning('请选择价格计划')
     return
@@ -898,6 +1101,71 @@ const getAdjustmentValueClass = (row: ChannelAdjustmentItem): string => {
 const handleTabChange = (tab: string) => {
   if (tab === 'logs' && syncLogs.value.length === 0) {
     loadSyncLogs()
+  }
+}
+
+const handleOpenStatusDialog = (preset?: { type?: PriceLabsStatusType; id?: string }) => {
+  statusForm.type = preset?.type || 'listing'
+  statusForm.id = preset?.id || ''
+  statusListingId.value = statusForm.type === 'listing' ? statusForm.id || null : null
+  statusResult.value = null
+  showStatusDialog.value = true
+}
+
+const handleSelectStatusListingId = (id: string) => {
+  statusForm.id = id
+}
+
+const handleQueryStatus = async () => {
+  const id = statusForm.id?.trim()
+  if (!id) {
+    ElMessage.warning('请输入 ID')
+    return
+  }
+
+  statusLoading.value = true
+  statusResult.value = null
+  try {
+    const res = await priceLabsApi.queryStatus([{ id, type: statusForm.type }])
+    if (res.success) {
+      statusResult.value = res.data
+    } else {
+      ElMessage.error(res.message || 'status 查询失败')
+    }
+  } catch (error) {
+    ElMessage.error('status 查询失败')
+  } finally {
+    statusLoading.value = false
+  }
+}
+
+const handleOpenPushReservationsDialog = () => {
+  pushReservationsRange.value = ['2020-01-01', formatDateYYYYMMDD(addDays(new Date(), 365))]
+  pushReservationsResult.value = null
+  showPushReservationsDialog.value = true
+}
+
+const handlePushReservations = async () => {
+  pushReservationsLoading.value = true
+  pushReservationsResult.value = null
+
+  try {
+    const [startDate, endDate] = pushReservationsRange.value || []
+    const res = await priceLabsApi.pushReservations({
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    })
+    if (res.success) {
+      pushReservationsResult.value = res.data
+      ElMessage.success('预订推送完成')
+      loadSyncLogs()
+    } else {
+      ElMessage.error(res.message || 'reservations 推送失败')
+    }
+  } catch (error) {
+    ElMessage.error('reservations 推送失败')
+  } finally {
+    pushReservationsLoading.value = false
   }
 }
 </script>
@@ -1173,6 +1441,40 @@ const handleTabChange = (tab: string) => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.status-result {
+  display: flex;
+  gap: 12px;
+}
+
+.result-block {
+  flex: 1;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  padding: 12px;
+  background: #fff;
+}
+
+.result-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.result-tags {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.result-json {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #606266;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .unit-label {

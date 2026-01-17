@@ -1,0 +1,1386 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "This API is used by PMS' (commercial or customer) to access PriceLabs' dynamic pricing product. \n\nHere is a detailed API document for the Integration API: <a href=\"https://docs.google.com/document/d/e/2PACX-1vQ4OB_ix8QwNrzayEWKRj4OS-8ylJS8nrTfyKzT9fxJtKKhMjfpwAvYqUUzHub6gvhsk9Nm3V8MU5kz/pub\" target=\"_blank\"><i>PriceLabs Integration API Document</i></a>\n\nIf you'd like to use this API please email us at support@pricelabs.co with the following details:\n1. Your PMS Name \n2. Are you a commercial or a custom PMS \n3. Email ID you want to use for the development account\n4. Commercial contact and email id\n\nBased on the above information, PriceLabs will provide you with the information needed to access the endpoints in our API:\n1. Your partner token (X-INTEGRATION-TOKEN)\n2. Your PMS identifier (X-INTEGRATION-NAME)\n3. Your user_token will be the email address used for the test account (in production, this user_token should be taken as input from your customers so that you can send their listings to the right PriceLabs account). \n\n## Rate limiting & Timeout configuration\n\nEach partner token accessing the API has a limit of 300 requests per minute.\nRate limiting information will be returned in the headers:\n  * Retry-After: Seconds remaining before rate limit ends\n\n**Note:** Reaching the rate limit will return a 429 Too Many Requests status code.\n\n  <i>Please be aware that the processing time for your request, especially the /calendar call, may vary depending on the current server load. We recommend setting the client timeout to 300 seconds to allow for any potential delays, even though our aim is to respond to all requests within that timeframe.</i>\n\n\n\n\n",
+    "version": "1.0.0",
+    "title": "PriceLabs API Integration",
+    "contact": {
+      "email": "support@pricelabs.co"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "host": "api.pricelabs.co",
+  "basePath": "/v1/integration/api",
+  "tags": [
+    {
+      "name": "Integration",
+      "description": "Minimum required APIs for your PMS to integrate to PriceLabs"
+    }
+  ],
+  "schemes": [
+    "https"
+  ],
+  "security": [
+    {
+      "integration_token": []
+    },
+    {
+      "integration_name": []
+    }
+  ],
+  "paths": {
+    "/listings": {
+      "post": {
+        "tags": [
+          "PMS"
+        ],
+        "summary": "Update or create listings",
+        "description": "This endpoint can update individual details of specific listings or be used to create new ones if the listing_id is not yet present.\n\n  #### <b> Please note: </b>\n    \n  1. When creating a new listing all fields are required.\n  2. The listing_id should be unique across all users in connected to the PMS. No two or more users within the connected PMS system should have the same listing_id. It should be sent as a string.\n  3. listing_id should not contain spaces and special characters except an underscore(_). It should always be sent as a string, eg., \"12345\" \n  4. If a listing is a property with multiple room types which need to be priced inidividually, then each room type should be created as listings. The listing_id in this case can be created by concatenating property id and room type id like so: propertyId___roomTypeId.\n  5. A list of supported amenities can be found <a href=\"https://docs.google.com/spreadsheets/d/1TR5PpVy0nP2ZOq7HM2IddCVezqoscx71plZRrqFHqok/edit?usp=sharing\">here</href>",
+        "operationId": "listings",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "listings",
+            "description": "The listing_id field is always required. The user_token is only required when adding listings to a users account for the first time, and is specific to the users PriceLabs account.",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "listings": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/ListingDetails"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Request was processed, and response contains successes and failures of individually edited listings\nSuccess will contain only an array of listing_ids\nFailure contains an error string describing the problem which halted processing, along with the item it was relevant to",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "Listing ids that were processed without detected errors"
+                  }
+                },
+                "failure": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "details": {
+                        "$ref": "#/definitions/ListingDetails"
+                      },
+                      "error": {
+                        "type": "string",
+                        "description": "Error message identifying why processing halted for that property"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid integration API key value",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/rate_plans": {
+      "post": {
+        "tags": [
+          "Add or Update Rate Plans"
+        ],
+        "summary": "This endpoint can be used to add or update rate plans for a listing.",
+        "description": "This endpoint should be called to add or update rate plans for a listing. It is important to note that there should be exactly only one default rate plan.\n\nThere can be only one default rate plan. After calling this endpoint, it is mandatory to call the calendar endpoint to update rates and availability for the default rate plan.\n\nIt is mandatory to call the /calendar endpoint for the new default rate plan to update rates and availability.\n\n\n\n",
+        "operationId": "rateplans",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "rate_plans",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "rate_plans": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "listing_id": {
+                        "type": "string",
+                        "description": "Unique listing ID of the listing for which rate plans need to be added or updated",
+                        "example": "33453___22342"
+                      },
+                      "data": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "description": "Each object in this array represents a rate plan object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "description": "unique ID of the rate plan",
+                              "example": "RP-BAR"
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "Name of the rate plan. This will be displayed to the users on PriceLabs for easy identification.",
+                              "example": "Best Available Rate"
+                            },
+                            "default": {
+                              "type": "string",
+                              "description": "This flag is used to set a default rate plan in PL. PL will show the calendar of the default rate plan to the users. It can be later updated via API only. There should be only and only 1 default rate plan."
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "rate_plans": [
+                  {
+                    "listing_id": "324567___234321",
+                    "data": [
+                      {
+                        "id": "IAPI-FLEX-SGL",
+                        "name": "Flexible",
+                        "default": "true"
+                      },
+                      {
+                        "id": "IAPI-BAR_SGL-SGL",
+                        "name": "Standard Rate",
+                        "default": "false"
+                      },
+                      {
+                        "id": "VIE-REFUNDABLEBAR-DBL",
+                        "name": "Refundable BAR",
+                        "default": "false"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "array",
+                        "description": "The success array will have the listing ID for which rate plans have been successfully updated",
+                        "items": {
+                          "type": "string",
+                          "description": "Listing ID for which rate plans have been successfully updated"
+                        }
+                      },
+                      "failed": {
+                        "type": "array",
+                        "description": "The failed array will have the listing ID for which rate plans updates have failed. For success scenario, this array will be empty.",
+                        "items": {
+                          "type": "object",
+                          "desctiption": "Listing ID for which rate plans update has failed."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar": {
+      "post": {
+        "tags": [
+          "PMS"
+        ],
+        "summary": "Update rates and availability",
+        "description": "This endpoint can update rates and availability of selected listings, along with the multi unit details of the listings.\n\nlisting_id should always be sent as a string, eg., \"12345\".\n\nThe first time a given date is entered in the data array for a listing it must contain both price, and available_units for the listing. The subsequent API calls can be a delta push or updates for specific date ranges. \n\nIf you need to price only one rate per listing, then you can ignore and skip the field rate_plan_id.\n\nIf you support multiple rate plans and need to update rates for all rate plans, then you should call the /rate_plans endpoint to first update the rate plan IDs and names. Further, you should call the /calendar endpoint mandatorily for default rate plan while providing the respective rate_plan_id of the default rate plan. \nIt is mandatory to set prices for the default rate plan using the /calendar API call.\n\n\n",
+        "operationId": "calendar",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "calendars",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "calendars": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Calendar"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Request was processed, and response contains successes and failures of individually edited listings\nSuccess will contain only an array of listing_ids\nFailure contains an error string describing the problem which halted processing, along with the item it was relevant to",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "Listing id processed without error"
+                  }
+                },
+                "failure": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "details": {
+                        "$ref": "#/definitions/Calendar"
+                      },
+                      "error": {
+                        "type": "string",
+                        "description": "Error message identifying why processing halted"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid integration API key value",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/integration": {
+      "post": {
+        "tags": [
+          "PMS"
+        ],
+        "summary": "Update integration information",
+        "description": "This endpoint can update integration specific details such as refreshing the API token if needed, or adjusting information that allows Pricelabs to send notices/updates.\n\n<b><i>sync_url</i></b>: Endpoint where Pricelabs can send a pricing data to be synced\n<b><i>calendar_trigger_url</i></b>: Endpoint where PriceLabs requests complete listing calendar information\n<b><i>hook_url</i></b>: Endpoint where PriceLabs can send error notifications.\n\nUpdating these three url endpoints results in a test body being sent with only the json body { verify => true } and no headers and requires a 200 response in return in order to be stored.\n\n When you call <b>/integration</b>, please note that if <b><i>regenerate_token</i></b> is true, you will receive a new token in response which should be used to make subsequent API calls.\n\n<b>Delta Push</b>: If you wish to receive only delta updates for prices and restrictions, then you can do so by setting <b><i>delta_only</i></b> flag as true. Once the flag is set to true, you will start to receive only those prices and restrictions which have changed since the last sync. If at any point, you wish to pull full data, you can do so by calling the /get_prices endpoint with the attribute <b><i>delta_only</i></b> as true.\n\n<b>IMPORTANT</b>: The <i>features</i> array should be used to configure only those settings that the PMS intends to actively read from PriceLabs for all connected listings. \n\n  <i>Please note that if a setting is marked as <b>true</b>, it becomes visible to users in PriceLabs, who may enable it with the expectation that the PMS will consume and apply it. Therefore, make sure to enable only those settings that are actually supported and intended to be consumed from PriceLabs.</i>\n  \n  <b>Once the integration is live, any updates to the supported features must first be discussed with PriceLabs. This allows us to coordinate the release of new features to all users and ensure they function as expected.</b>\n\n\n\n",
+        "operationId": "integration",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "integration",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "integration": {
+                  "$ref": "#/definitions/IntegrationData"
+                }
+              }
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Request was processed and returns a message holding new API if requested and successful, or a simple Success and an error message which is populated on errors. <i>Please note that this response will not contain the signed headers as with the other API call responses.</i>",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid integration API key value",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/get_prices": {
+      "post": {
+        "tags": [
+          "PMS"
+        ],
+        "summary": "Allows syncing of PriceLabs prices and settings",
+        "description": "This endpoint allows you to retrieve pricing information for properties based on specified parameters.",
+        "operationId": "pull_sync",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "sync",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "sync": {
+                  "type": "object",
+                  "required": [
+                    "listing_id"
+                  ],
+                  "properties": {
+                    "listing_id": {
+                      "type": "string"
+                    },
+                    "rate_plan_id": {
+                      "type": "string",
+                      "description": "If you don't have rate plans syncing with PL, skip this attribute."
+                    },
+                    "delta_only": {
+                      "type": "boolean",
+                      "description": "If true, you will receive prices and restrictions that have changed since the last sync. If false, you will receive full calendar data. <b>This flag will work only if you set delta_only as true in /integration call.</b>"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Request was processed. Success will contain the prices and restrictions last synced from PriceLabs. Failure will contain an error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "pms": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "last_refreshed_at": {
+                  "type": "string"
+                },
+                "los_pricing": {
+                  "type": "object",
+                  "description": "Each los night will be repeated inside los_pricing array. The los_night will have the number of nights.",
+                  "properties": {
+                    "los_night": {
+                      "type": "object",
+                      "properties": {
+                        "los_night": {
+                          "type": "string",
+                          "description": "The given max_price, min_price and los_adjustment should be applied for LOS nights greater than or equal to los_night."
+                        },
+                        "max_price": {
+                          "type": "string"
+                        },
+                        "min_price": {
+                          "type": "string"
+                        },
+                        "los_adjustment": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "date": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      },
+                      "user_price": {
+                        "type": "number"
+                      },
+                      "uncustomized_price": {
+                        "type": "number"
+                      },
+                      "min_stay": {
+                        "type": "number"
+                      },
+                      "extra_person_fee": {
+                        "type": "number"
+                      },
+                      "extra_person_fee_trigger": {
+                        "type": "number"
+                      },
+                      "check_in": {
+                        "type": "boolean"
+                      },
+                      "check_out": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid integration API key value",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/reservations": {
+      "post": {
+        "tags": [
+          "PMS"
+        ],
+        "summary": "Update property's reservations",
+        "description": "This API will be used to keep the reservations for the listing up to date. Note that the start date and end date are synonymous with check in and check out dates for this API and that total_cost is the complete cost including taxes and fees. Note that listing_id should always be sent as a string, eg., \"12345\".\n<b>IMPORTANT</b> Reservation IDs must be unique across all listings in the PMS. If they are not unique, please append a unique identifier (such as the listing ID) to the reservation ID before sending it to us and make sure to store this updated ID on your end for all future modifications to the same reservation.\nKindly note that once you implement this endpoint, you must push all reservations, including past(since 2020-01-01) and future reservations, to PriceLabs",
+        "operationId": "reservations",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "reservations",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "reservations": {
+                  "$ref": "#/definitions/Reservations"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request was processed, and response contains successes and failures of individually edited reservations\nSuccess will contain only an array of reservation_ids\nFailure contains an error string describing the problem which halted processing, along with the item it was relevant to",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "reservation id processed without error"
+                  }
+                },
+                "failure": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "details": {
+                        "$ref": "#/definitions/Reservations"
+                      },
+                      "error": {
+                        "type": "string",
+                        "description": "Error message identifying why processing halted"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid integration API key value",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "post": {
+        "tags": [
+          "PMS"
+        ],
+        "summary": "To fetch the current state of various objects",
+        "description": "This API will be used to query PriceLabs for the current state of the various objects. A type and id parameter are passed to identify which records are needed. The id corresponds to the reservation_id or listing_id of the record.",
+        "operationId": "status",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "statuses",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "statuses": {
+                  "$ref": "#/definitions/Statuses"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request was processed, and response contains successes and failures of records.\nSuccess will contain selected information from the queried record\nFailure contains an error string describing the problem which halted processing, along with the item it was relevant to",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "reservation id processed without error"
+                  }
+                },
+                "failure": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "details": {
+                        "$ref": "#/definitions/Reservations"
+                      },
+                      "error": {
+                        "type": "string",
+                        "description": "Error message identifying why processing halted"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid integration API key value",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/sync_url": {
+      "post": {
+        "tags": [
+          "PMS"
+        ],
+        "summary": "Allows syncing of PriceLabs prices and settings",
+        "description": "This endpoint must be created BY THE INTEGRATION and the URL will be provided through the \"sync_url\" in the /integration endpoint\nBy default these will be ready and change daily, but it can be more frequent when users trigger a manual sync",
+        "operationId": "sync",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-SOURCE",
+            "type": "string",
+            "description": "Denotes the source of the request"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-TIMESTAMP",
+            "type": "string",
+            "description": "The time stamp of when the request was created"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-REQUESTID",
+            "type": "string",
+            "description": "uuid generated to id the request"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-SIGNED-HEADERS",
+            "type": "string",
+            "description": "The signed combination of headers. 'X-SOURCE:X-PL-TIMESTAMP:X-PL-REQUESTID' signed with sha256 and the pms integration token. IF a version number is specified it is prepended before signing the header with 'VERSION' + ':' + header components. The signed value is then prepended with 'VERSION' + '.'"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-SIGNED-BODY",
+            "type": "string",
+            "description": "The signed combination of the final headers signature and body. 'X-PL-SIGNED-HEADERS' + 'request.body' signed with sha256 and the pms integration token"
+          },
+          {
+            "in": "body",
+            "name": "sync_prices",
+            "description": "Information is sent to the pms",
+            "schema": {
+              "$ref": "#/definitions/UpdateRatesMinStay"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Response was received and processed"
+          }
+        }
+      }
+    },
+    "/calendar_trigger_url": {
+      "post": {
+        "tags": [
+          "PMS"
+        ],
+        "summary": "Triggers a sync of complete calendar data FROM pms TO PriceLabs",
+        "description": "This endpoint must be created BY THE INTEGRATION and the URL will be provided through the \"calendar_trigger_url\" in the /integration endpoint\nThe use of this endpoint signifies that the pms should utilize the /calendar endpoint to update the stored data in PriceLabs. This should be a complete data refresh for all tracked information within the date range",
+        "operationId": "calendar_trigger",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-SOURCE",
+            "type": "string",
+            "description": "Denotes the source of the request"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-TIMESTAMP",
+            "type": "string",
+            "description": "The time stamp of when the request was created"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-REQUESTID",
+            "type": "string",
+            "description": "uuid generated to id the request"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-SIGNED-HEADERS",
+            "type": "string",
+            "description": "The signed combination of headers. 'X-SOURCE:X-PL-TIMESTAMP:X-PL-REQUESTID' signed with sha256 and the pms integration token. IF a version number is specified it is prepended before signing the header with 'VERSION' + ':' + header components. The signed value is then prepended with 'VERSION' + '.'"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-SIGNED-BODY",
+            "type": "string",
+            "description": "The signed combination of the final headers signature and body. 'X-PL-SIGNED-HEADERS' + 'request.body' signed with sha256 and the pms integration token"
+          },
+          {
+            "in": "body",
+            "name": "calendar_trigger",
+            "description": "start_date and end_date define inclusive range of necessary data",
+            "schema": {
+              "$ref": "#/definitions/CalendarTrigger"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Response was received and processed"
+          }
+        }
+      }
+    },
+    "/hook_url": {
+      "post": {
+        "tags": [
+          "PMS"
+        ],
+        "summary": "Allows notifications to be sent from PriceLabs to pms",
+        "description": "This endpoint must be created BY THE INTEGRATION and the URL will be provided through the \"hook_url\" in the /integration endpoint",
+        "operationId": "hook",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-SOURCE",
+            "type": "string",
+            "description": "Denotes the source of the request"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-TIMESTAMP",
+            "type": "string",
+            "description": "The time stamp of when the request was created"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-REQUESTID",
+            "type": "string",
+            "description": "uuid generated to id the request"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-SIGNED-HEADERS",
+            "type": "string",
+            "description": "The signed combination of headers. 'X-SOURCE:X-PL-TIMESTAMP:X-PL-REQUESTID' signed with sha256 and the pms integration token. IF a version number is specified it is prepended before signing the header with 'VERSION' + ':' + header components. The signed value is then prepended with 'VERSION' + '.'"
+          },
+          {
+            "in": "header",
+            "name": "X-PL-SIGNED-BODY",
+            "type": "string",
+            "description": "The signed combination of the final headers signature and body. 'X-PL-SIGNED-HEADERS' + 'request.body' signed with sha256 and the pms integration token"
+          },
+          {
+            "in": "body",
+            "name": "hook",
+            "description": "Request was processed. Success will contain the settings to sync from PriceLabs. Failure will contain an error",
+            "schema": {
+              "$ref": "#/definitions/HookData"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Response was received and processed"
+          }
+        }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "integration_token": {
+      "type": "apiKey",
+      "name": "X-INTEGRATION-TOKEN",
+      "in": "header",
+      "description": "This is an api token. This is generated and provided by PriceLabs."
+    },
+    "integration_name": {
+      "type": "apiKey",
+      "name": "X-INTEGRATION-NAME",
+      "in": "header",
+      "description": "This is a name field for the pms. The name must be approved and provided by PriceLabs."
+    }
+  },
+  "definitions": {
+    "Reservations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "listing_id"
+        ],
+        "properties": {
+          "listing_id": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Reservation"
+            }
+          }
+        }
+      }
+    },
+    "Reservation": {
+      "type": "object",
+      "required": [
+        "reservation_id",
+        "currency",
+        "start_date",
+        "end_date",
+        "booked_time",
+        "status",
+        "total_cost",
+        "total_days"
+      ],
+      "properties": {
+        "reservation_id": {
+          "type": "string",
+          "description": "Unique Reservation ID, should be unique across all listings in the PMS."
+        },
+        "cancel_time": {
+          "type": "string",
+          "description": "Should be sent for cancelled bookings. YYYY-MM-DD format"
+        },
+        "start_date": {
+          "type": "string",
+          "description": "YYYY-MM-DD format"
+        },
+        "end_date": {
+          "type": "string",
+          "description": "YYYY-MM-DD format"
+        },
+        "booked_time": {
+          "type": "string",
+          "description": "YYYY-MM-DD format"
+        },
+        "total_days": {
+          "type": "integer"
+        },
+        "total_cost": {
+          "description": "Cost with taxes and fees",
+          "type": "number"
+        },
+        "total_fees": {
+          "type": "number",
+          "description": "This should be the sum of all fees being charged for the reservation, such as cleaning fees, pet fees, extra person fees, parking fees, etc."
+        },
+        "total_taxes": {
+          "type": "number",
+          "description": "This should be the sum of all taxes charged for the reservation, including VAT, city tax, etc"
+        },
+        "host_payout": {
+          "type": "number",
+          "description": "This is the amount that a property manager will receive after commission deductions. Essentially, it is the revenue that a host earns from a reservation."
+        },
+        "ota_commission": {
+          "type": "number",
+          "description": "This is the commission charged by the platform for reservations."
+        },
+        "rental_revenue": {
+          "type": "number",
+          "description": "This is the base nightly amount of a reservation, excluding any fees and taxes (important)."
+        },
+        "currency": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "Reservation Statuses. booked: Confirmed Reservations, blocked -  maintenance or owner blocks, unconfirmed - unconfirmed reservations, canceled - cancelled reservations",
+          "enum": [
+            "booked",
+            "blocked",
+            "unconfirmed",
+            "canceled"
+          ]
+        }
+      }
+    },
+    "Sync": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/UpdateRatesMinStay"
+        }
+      }
+    },
+    "UpdateRatesMinStay": {
+      "type": "object",
+      "properties": {
+        "listing_id": {
+          "type": "string"
+        },
+        "last_refreshed": {
+          "type": "string"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RateMinStay"
+          }
+        }
+      }
+    },
+    "RateMinStay": {
+      "type": "object",
+      "required": [
+        "price",
+        "date"
+      ],
+      "properties": {
+        "price": {
+          "type": "number",
+          "example": 111,
+          "description": "price for the day"
+        },
+        "date": {
+          "type": "string",
+          "example": "2024-05-13",
+          "description": "Date on which the price applies in YYYY-MM-DD format"
+        },
+        "min_stay": {
+          "type": "number",
+          "example": 2,
+          "description": "minimum stay required on this day"
+        },
+        "check_in": {
+          "type": "boolean",
+          "example": true,
+          "description": "true if check-in allowed, false if check-in not allowed on this day"
+        },
+        "check_out": {
+          "type": "boolean",
+          "example": true,
+          "description": "true if check-out allowed, false if check-out not allowed on this day"
+        },
+        "weekly_discount": {
+          "type": "number",
+          "example": 0.9,
+          "description": "Discounted price if this day is a part of a booking with at leat 7 days stay. To calculate, multiple this factor with the daily price to arrive at the final price for the day with weekly discount. In this example, 0.9 means a 10% discount and so the day's price is 0.9*111=99.9"
+        },
+        "monthly_discount": {
+          "type": "number",
+          "example": 0.8,
+          "description": "Discounted price if this day is a part of a booking with at leat 28 days stay. To calculate, multiple this factor with the daily price to arrive at the final price for the day with weekly discount. In this example, 0.8 means a 20% monthly discount and so the day's price is 0.8 * 111= 88.8"
+        },
+        "extra_person_fee": {
+          "type": "number",
+          "example": 10,
+          "description": "Additional amount to be charged for per person per night"
+        },
+        "extra_person_fee_trigger": {
+          "type": "number",
+          "example": 4,
+          "description": "The number of guests after which extra person fees should be applied."
+        },
+        "los_discount_v2": {
+          "type": "object",
+          "properties": {
+            "los": {
+              "type": "object",
+              "properties": {
+                "los_night": {
+                  "type": "string",
+                  "example": "1",
+                  "desctiption": "No. of nights beyond which the included discount or premium applies"
+                },
+                "max_price": {
+                  "type": "string",
+                  "description": "If the daily price after appliying discount or premium is beyond this max price, then max price should be applied"
+                },
+                "min_price": {
+                  "type": "string",
+                  "description": "If the daily price after appliying discount or premium is less than this min price, then min price should be applied"
+                },
+                "los_adjustment": {
+                  "type": "string",
+                  "example": "10",
+                  "description": "A positive number is a premium, a negative number is a discount"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ListingDetails": {
+      "type": "object",
+      "required": [
+        "listing_id",
+        "user_token",
+        "location",
+        "name",
+        "status"
+      ],
+      "properties": {
+        "listing_id": {
+          "type": "string",
+          "description": "A unique identifier for the listing, should not contain any special characters and spaces. Can have underscore(_)",
+          "example": 12343456
+        },
+        "user_token": {
+          "type": "string",
+          "description": "Only used when adding a new listing to a users account and is the email they use for PriceLabs",
+          "example": "test@test.com"
+        },
+        "location": {
+          "$ref": "#/definitions/Location"
+        },
+        "name": {
+          "type": "string",
+          "example": "Test Listing"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "unavailable"
+          ]
+        },
+        "number_of_bedrooms": {
+          "type": "number",
+          "example": 3
+        },
+        "amenities": {
+          "type": "array",
+          "example": [
+            "washing machine",
+            "dishwasher"
+          ],
+          "items": {
+            "type": "string",
+            "description": "A list of supported amenities can be found here https://docs.google.com/spreadsheets/d/1TR5PpVy0nP2ZOq7HM2IddCVezqoscx71plZRrqFHqok/edit?usp=sharing"
+          }
+        },
+        "ota_listing_ids": {
+          "type": "object",
+          "description": "ID of the listing on various connected OTAs",
+          "properties": {
+            "vrbo": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "123_vrbo"
+                },
+                "url": {
+                  "type": "string",
+                  "example": "vrbo.com/en-ca/test-rental/p12345"
+                }
+              }
+            },
+            "other": {
+              "type": "object",
+              "description": "Any other connected OTA other than VRBO, Airbnb and Booking.com",
+              "properties": {
+                "tripadvisor": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": 32455
+                    },
+                    "url": {
+                      "type": "string",
+                      "example": "https://www.tripadvisor.com/rooms/123_trip"
+                    }
+                  }
+                },
+                "expedia": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": 32455
+                    },
+                    "url": {
+                      "type": "string",
+                      "example": "https://www.expedia.com/rooms/123_trip"
+                    }
+                  }
+                }
+              }
+            },
+            "airbnb": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "123_airbnb"
+                },
+                "url": {
+                  "type": "string",
+                  "example": "https://www.airbnb.com/rooms/123_airbnb"
+                }
+              }
+            },
+            "bookingcom": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "123_bcom"
+                },
+                "url": {
+                  "type": "string",
+                  "example": "https://booking.com/hotel/mx/test-listing.en.html"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Location": {
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "example": 50.394447150689544
+        },
+        "longitude": {
+          "type": "number",
+          "example": 60.177653256009094
+        },
+        "city": {
+          "type": "string",
+          "example": "Barcelona"
+        },
+        "country": {
+          "type": "string",
+          "example": "ESP"
+        }
+      }
+    },
+    "Calendar": {
+      "type": "object",
+      "required": [
+        "listing_id",
+        "currency",
+        "data"
+      ],
+      "properties": {
+        "listing_id": {
+          "type": "string",
+          "description": "An ID for the listing unique across the PMS system. Should be sent as a string."
+        },
+        "rate_plan_id": {
+          "type": "string",
+          "description": "Optional field for rate plan ID to be added if calendar is being updated for a specific rate plan.",
+          "example": "IAPI-FLEX-SGL"
+        },
+        "currency": {
+          "type": "string",
+          "description": "ISO code of currency of the listing in PMS"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CalendarData"
+          }
+        },
+        "multi_unit": {
+          "$ref": "#/definitions/MultiUnitInfo"
+        }
+      }
+    },
+    "CalendarData": {
+      "type": "object",
+      "required": [
+        "date",
+        "end_date",
+        "price",
+        "available_units",
+        "booked_units",
+        "blocked_units"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Start date(current date) in yyyy-mm-dd format"
+        },
+        "end_date": {
+          "type": "string",
+          "description": "Optional value. Allows an array input of correct size, AND causes non-array input to be applied to all dates in range. in yyyy-mm-dd format"
+        },
+        "price": {
+          "type": "integer",
+          "description": "Price set in the PMS for this date"
+        },
+        "available_units": {
+          "type": "integer",
+          "description": "No. of available units of the property on this day"
+        },
+        "booked_units": {
+          "type": "integer",
+          "description": "No. of booked units of the property on this day"
+        },
+        "blocked_units": {
+          "type": "integer",
+          "description": "No. of blocked units of the property on this day"
+        },
+        "settings": {
+          "$ref": "#/definitions/CalendarSettings"
+        }
+      }
+    },
+    "CalendarSettings": {
+      "type": "object",
+      "description": "You can send default values in these settings, we don't apply these discounts in PL since these are set up directly in PL",
+      "properties": {
+        "min_stay": {
+          "type": "integer",
+          "description": "minimum stay for this date"
+        },
+        "check_in": {
+          "type": "boolean",
+          "description": "Describes if the property is open for check-in on this day"
+        },
+        "check_out": {
+          "type": "boolean",
+          "description": "Describes if the property is open for check-out on this day"
+        },
+        "weekly_discount": {
+          "type": "number",
+          "description": "weekly discount if set in PMS"
+        },
+        "monthly_discount": {
+          "type": "number",
+          "description": "monthly discount if set in PMS"
+        },
+        "extra_person_fee": {
+          "type": "number",
+          "description": "extra guest fees if set in PMS"
+        },
+        "extra_person_fee_trigger": {
+          "type": "number",
+          "description": "describes after how many guests the extra person fees applies"
+        }
+      }
+    },
+    "MultiUnitInfo": {
+      "type": "object",
+      "required": [
+        "total_units",
+        "unit_ids"
+      ],
+      "properties": {
+        "total_units": {
+          "type": "integer",
+          "description": "The total number of units the listing has.",
+          "example": 5
+        },
+        "unit_ids": {
+          "type": "array",
+          "example": [
+            "101",
+            "102",
+            "103",
+            "104",
+            "105"
+          ],
+          "items": {
+            "type": "string",
+            "description": "An array of the IDs for the listing. For eg., room number.",
+            "example": "101"
+          }
+        }
+      }
+    },
+    "IntegrationData": {
+      "type": "object",
+      "required": [
+        "sync_url",
+        "calendar_trigger_url",
+        "hook_url",
+        "regenerate_token"
+      ],
+      "properties": {
+        "sync_url": {
+          "type": "string"
+        },
+        "calendar_trigger_url": {
+          "type": "string"
+        },
+        "regenerate_token": {
+          "type": "boolean",
+          "default": true,
+          "description": "If not sent, it will not regenerate token. If sent blank, it will regenerate the token by default."
+        },
+        "hook_url": {
+          "type": "string"
+        },
+        "features": {
+          "$ref": "#/definitions/FeaturesControl"
+        }
+      }
+    },
+    "CalendarTrigger": {
+      "type": "object",
+      "properties": {
+        "start_date": {
+          "type": "string",
+          "description": "YYYY-MM-DD format"
+        },
+        "end_date": {
+          "type": "string",
+          "description": "YYYY-MM-DD format"
+        },
+        "listing_id": {
+          "type": "string"
+        }
+      }
+    },
+    "HookData": {
+      "type": "object",
+      "properties": {
+        "_json": {
+          "API_FAILED_SYNC": "dc184546-1df5-46fd-b416-8b475044f553"
+        }
+      }
+    },
+    "FeaturesControl": {
+      "type": "object",
+      "properties": {
+        "min_stay": {
+          "type": "boolean"
+        },
+        "check_in": {
+          "type": "boolean"
+        },
+        "check_out": {
+          "type": "boolean"
+        },
+        "monthly_weekly_discounts": {
+          "type": "boolean"
+        },
+        "extra_person_fee": {
+          "type": "boolean"
+        },
+        "los_pricing": {
+          "type": "boolean"
+        },
+        "delta_only": {
+          "type": "boolean",
+          "description": "If this flag is set to true, PriceLabs will push only delta to the sync_url. In other words, only those prices and restrictions will be pushed which have changed since the last sync. If this flag is set to false, then all prices and restrictions will be pushed."
+        }
+      }
+    },
+    "Statuses": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/StatusReq"
+      }
+    },
+    "StatusReq": {
+      "type": "object",
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "calendar",
+            "reservation",
+            "listing"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -6,6 +6,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.*;
 import server.demo.entity.*;
@@ -33,8 +35,13 @@ import java.util.stream.Collectors;
 @Service
 public class PriceLabsService {
 
+    private static final Logger logger = LoggerFactory.getLogger(PriceLabsService.class);
+
     private static final int DEFAULT_FALLBACK_DAYS = 365;
     private static final int MAX_FALLBACK_DAYS = 500;
+
+    private static final String OTA_CHANNEL_CODE_AIRBNB = "AIRBNB";
+    private static final String OTA_CHANNEL_CODE_BOOKING = "BOOKING";
 
     @Autowired
     private PriceLabsIntegrationRepository integrationRepository;
@@ -56,6 +63,15 @@ public class PriceLabsService {
 
     @Autowired
     private PricePlanRepository pricePlanRepository;
+
+    @Autowired
+    private RoomTypePricePlanRepository roomTypePricePlanRepository;
+
+    @Autowired
+    private RoomPriceRepository roomPriceRepository;
+
+    @Autowired
+    private PriceChangeHistoryRepository priceChangeHistoryRepository;
 
     @Autowired
     private PriceLabsApiClient priceLabsApiClient;
@@ -183,6 +199,29 @@ public class PriceLabsService {
     public PriceLabsConnectionDTO createConnection(Long roomTypeId, Long pricePlanId) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
 
+        if (roomTypeId == null) {
+            throw new RuntimeException("房型不能为空");
+        }
+        if (pricePlanId == null) {
+            throw new RuntimeException("价格计划不能为空");
+        }
+
+        // 稳定优先：同一房型仅允许存在一个“启用”的连接，避免 webhook 推价（缺少 rate_plan_id）产生歧义
+        connectionRepository.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, roomTypeId).ifPresent(existing -> {
+            String planName = null;
+            try {
+                if (existing.getPricePlan() != null) {
+                    planName = existing.getPricePlan().getName();
+                }
+            } catch (Exception ignored) {
+                // ignore lazy load errors for message building
+            }
+            if (planName == null || planName.isBlank()) {
+                throw new RuntimeException("该房型已存在启用的 PriceLabs 连接，请先禁用或删除后再添加");
+            }
+            throw new RuntimeException("该房型已绑定价格计划：" + planName + "，请先禁用或删除后再添加");
+        });
+
         // 检查是否已存在
         if (connectionRepository.findByRoomTypeIdAndPricePlanId(roomTypeId, pricePlanId).isPresent()) {
             throw new RuntimeException("该房型与价格计划的连接已存在");
@@ -211,6 +250,26 @@ public class PriceLabsService {
         return connectionRepository.findById(connectionId)
                 .filter(conn -> conn.getStoreId().equals(storeId))
                 .map(conn -> {
+                    // 稳定优先：启用连接前，确保同一房型没有其它启用连接
+                    if (Boolean.TRUE.equals(enabled) && conn.getRoomType() != null && conn.getRoomType().getId() != null) {
+                        connectionRepository.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, conn.getRoomType().getId())
+                                .ifPresent(existing -> {
+                                    if (existing.getId() != null && !existing.getId().equals(conn.getId())) {
+                                        String planName = null;
+                                        try {
+                                            if (existing.getPricePlan() != null) {
+                                                planName = existing.getPricePlan().getName();
+                                            }
+                                        } catch (Exception ignored) {
+                                            // ignore
+                                        }
+                                        if (planName == null || planName.isBlank()) {
+                                            throw new RuntimeException("该房型已存在其它启用的 PriceLabs 连接，请先禁用后再启用");
+                                        }
+                                        throw new RuntimeException("该房型已绑定价格计划：" + planName + "，请先禁用后再启用");
+                                    }
+                                });
+                    }
                     conn.setIsEnabled(enabled);
                     return convertToConnectionDTO(connectionRepository.save(conn));
                 });
@@ -253,35 +312,73 @@ public class PriceLabsService {
             String listingId = listingData.getListingId();
             String ratePlanId = listingData.getRatePlanId();
 
+            if (listingId == null || listingId.isBlank()) {
+                throw new RuntimeException("listingId 为空");
+            }
+
             Long roomTypeId = PriceLabsIdUtil.parseRoomTypeId(listingId)
                     .orElseThrow(() -> new RuntimeException("listingId 格式不正确: " + listingId));
-            Long pricePlanId = PriceLabsIdUtil.parsePricePlanId(ratePlanId)
-                    .orElseThrow(() -> new RuntimeException("ratePlanId 格式不正确: " + ratePlanId));
 
-            // 查找对应的连接配置（listingId + ratePlanId）
-            PriceLabsConnection connection = connectionRepository.findByRoomTypeIdAndPricePlanId(roomTypeId, pricePlanId)
-                    .orElseThrow(() -> new RuntimeException("未找到对应的连接配置: listingId=" + listingId + ", ratePlanId=" + ratePlanId));
-
-            PriceLabsIdUtil.parseStoreId(listingId).ifPresent(parsedStoreId -> {
-                if (!parsedStoreId.equals(connection.getStoreId())) {
-                    throw new RuntimeException("listingId storeId 与连接不匹配: listingId=" + listingId + ", connStoreId=" + connection.getStoreId());
-                }
-            });
+            PriceLabsConnection connection = resolveConnectionForWebhook(roomTypeId, listingId, ratePlanId);
 
             storeId = connection.getStoreId();
             RoomType roomType = connection.getRoomType();
             PricePlan pricePlan = connection.getPricePlan(); // 获取价格计划
 
-            // 获取所有启用自动同步的渠道
-            List<Channel> channels = channelRepository.findByStoreId(storeId).stream()
-                    .filter(ch -> Boolean.TRUE.equals(ch.getEnabled()) && Boolean.TRUE.equals(ch.getAutoSyncPrice()))
-                    .collect(Collectors.toList());
+            // 仅同步到 SU 直连的 OTA 渠道（Airbnb/Booking）
+            List<Channel> channels = new ArrayList<>(2);
+            channels.addAll(channelRepository.findByStoreId(storeId).stream()
+                    .filter(PriceLabsService::isChannelAutoSyncEnabled)
+                    .collect(Collectors.toList()));
+
+            if (channels.isEmpty()) {
+                logger.warn("[PriceLabsWebhook] no enabled+autoSyncPrice channels for storeId={}, will update room_prices only", storeId);
+            }
 
             // 处理日历数据
             if (listingData.getCalendar() != null) {
                 for (PriceLabsWebhookRequest.CalendarData calendarData : listingData.getCalendar()) {
                     LocalDate priceDate = LocalDate.parse(calendarData.getDate(), formatter);
                     BigDecimal basePrice = calendarData.getPrice();
+
+                    if (basePrice == null) {
+                        continue;
+                    }
+
+                    // 写入 room_prices（房型 + 价格计划 + 日期 的基础房价），保证 PMS 房价管理可见
+                    Optional<RoomPrice> existingRpOpt = roomPriceRepository
+                            .findByRoomTypeIdAndPricePlanIdAndPriceDate(roomType.getId(), pricePlan.getId(), priceDate);
+                    BigDecimal previousPrice = existingRpOpt.map(RoomPrice::getPrice).orElse(null);
+
+                    RoomPrice rp = existingRpOpt
+                            .orElse(new RoomPrice(roomType, pricePlan, priceDate, basePrice));
+                    rp.setPrice(basePrice);
+                    if (calendarData.getMinStay() != null) {
+                        rp.setMinStay(calendarData.getMinStay());
+                    }
+                    if (calendarData.getMaxStay() != null) {
+                        rp.setMaxStay(calendarData.getMaxStay());
+                    }
+                    roomPriceRepository.save(rp);
+
+                    // 写入改价记录：每个日期一条，仅当价格确实变化时才记录
+                    boolean isPriceChanged = previousPrice == null || previousPrice.compareTo(basePrice) != 0;
+                    if (isPriceChanged) {
+                        PriceChangeHistory history = new PriceChangeHistory();
+                        history.setRoomType(roomType);
+                        history.setPricePlan(pricePlan);
+                        history.setPriceDateStart(priceDate);
+                        history.setPriceDateEnd(priceDate);
+                        history.setApplyWeekdays("特定日期");
+                        history.setChangeType("价格");
+                        history.setChangeValue(basePrice);
+                        history.setPreviousValue(previousPrice);
+                        history.setOperator("系统");
+                        history.setStoreId(storeId);
+                        history.setOperateTime(LocalDateTime.now());
+                        history.setNotes("PriceLabs同步");
+                        priceChangeHistoryRepository.save(history);
+                    }
 
                     // 为每个渠道计算并保存价格
                     for (Channel channel : channels) {
@@ -341,6 +438,75 @@ public class PriceLabsService {
                 integrationRepository.save(integration);
             });
         }
+    }
+
+    private PriceLabsConnection resolveConnectionForWebhook(Long roomTypeId, String listingId, String ratePlanId) {
+        Optional<Long> parsedStoreIdOpt = PriceLabsIdUtil.parseStoreId(listingId);
+
+        if (ratePlanId != null && !ratePlanId.isBlank()) {
+            Long pricePlanId = PriceLabsIdUtil.parsePricePlanId(ratePlanId)
+                    .orElseThrow(() -> new RuntimeException("ratePlanId 格式不正确: " + ratePlanId));
+
+            PriceLabsConnection conn = connectionRepository.findByRoomTypeIdAndPricePlanId(roomTypeId, pricePlanId)
+                    .orElseThrow(() -> new RuntimeException("未找到对应的连接配置: listingId=" + listingId + ", ratePlanId=" + ratePlanId));
+
+            if (Boolean.FALSE.equals(conn.getIsEnabled())) {
+                throw new RuntimeException("连接已禁用: listingId=" + listingId + ", ratePlanId=" + ratePlanId);
+            }
+
+            parsedStoreIdOpt.ifPresent(parsedStoreId -> {
+                if (!parsedStoreId.equals(conn.getStoreId())) {
+                    throw new RuntimeException("listingId storeId 与连接不匹配: listingId=" + listingId + ", connStoreId=" + conn.getStoreId());
+                }
+            });
+
+            return conn;
+        }
+
+        List<PriceLabsConnection> candidates = connectionRepository.findByRoomTypeId(roomTypeId).stream()
+                .filter(conn -> !Boolean.FALSE.equals(conn.getIsEnabled()))
+                .filter(conn -> parsedStoreIdOpt.map(id -> id.equals(conn.getStoreId())).orElse(true))
+                .collect(Collectors.toList());
+
+        if (candidates.isEmpty()) {
+            throw new RuntimeException("未找到对应的连接配置: listingId=" + listingId + ", ratePlanId 缺失");
+        }
+
+        if (candidates.size() == 1) {
+            return candidates.get(0);
+        }
+
+        Long defaultPlanId = roomTypePricePlanRepository.findByRoomTypeId(roomTypeId).stream()
+                .filter(rtp -> rtp.getPricePlan() != null && rtp.getPricePlan().getId() != null)
+                .min((a, b) -> {
+                    if (a.getId() == null && b.getId() == null) return 0;
+                    if (a.getId() == null) return 1;
+                    if (b.getId() == null) return -1;
+                    return a.getId().compareTo(b.getId());
+                })
+                .map(rtp -> rtp.getPricePlan().getId())
+                .orElse(null);
+
+        if (defaultPlanId != null) {
+            for (PriceLabsConnection c : candidates) {
+                if (c.getPricePlan() != null && defaultPlanId.equals(c.getPricePlan().getId())) {
+                    logger.warn("[PriceLabsWebhook] ratePlanId missing; resolved by default price plan. listingId={}, roomTypeId={}, pricePlanId={}", listingId, roomTypeId, defaultPlanId);
+                    return c;
+                }
+            }
+        }
+
+        PriceLabsConnection fallback = candidates.get(0);
+        logger.warn("[PriceLabsWebhook] ratePlanId missing and multiple connections found; fallback to first. listingId={}, roomTypeId={}, candidates={}", listingId, roomTypeId, candidates.size());
+        return fallback;
+    }
+
+    private static boolean isChannelAutoSyncEnabled(Channel channel) {
+        if (channel == null) {
+            return false;
+        }
+        // 兼容历史数据：enabled/auto_sync_price 可能为 NULL，默认按“启用”处理
+        return !Boolean.FALSE.equals(channel.getEnabled()) && !Boolean.FALSE.equals(channel.getAutoSyncPrice());
     }
 
     // ==================== 渠道价格调整管理 ====================

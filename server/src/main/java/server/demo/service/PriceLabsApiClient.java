@@ -23,6 +23,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -321,6 +322,240 @@ public class PriceLabsApiClient {
         public void setFailure(List<Object> v) { this.failure = v; }
     }
 
+    /**
+     * PriceLabs SwaggerHub pull_sync: POST /get_prices
+     * Request body: { "sync": { "listing_id": "...", "rate_plan_id": "...(optional)", "delta_only": false } }
+     * Response body is a flat object containing a "data" array (no success wrapper).
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PullSyncGetPricesResponse {
+        private String id;
+        private String pms;
+        private String group;
+        private String currency;
+
+        @JsonProperty("last_refreshed_at")
+        private String lastRefreshedAt;
+
+        @JsonProperty("data")
+        private List<PullSyncPriceEntry> data;
+
+        public String getId() { return id; }
+        public void setId(String v) { this.id = v; }
+        public String getPms() { return pms; }
+        public void setPms(String v) { this.pms = v; }
+        public String getGroup() { return group; }
+        public void setGroup(String v) { this.group = v; }
+        public String getCurrency() { return currency; }
+        public void setCurrency(String v) { this.currency = v; }
+        public String getLastRefreshedAt() { return lastRefreshedAt; }
+        public void setLastRefreshedAt(String v) { this.lastRefreshedAt = v; }
+        public List<PullSyncPriceEntry> getData() { return data; }
+        public void setData(List<PullSyncPriceEntry> v) { this.data = v; }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PullSyncPriceEntry {
+        private String date;
+        private BigDecimal price;
+
+        @JsonProperty("min_stay")
+        private Integer minStay;
+
+        @JsonProperty("check_in")
+        private Boolean checkIn;
+
+        @JsonProperty("check_out")
+        private Boolean checkOut;
+
+        public String getDate() { return date; }
+        public void setDate(String v) { this.date = v; }
+        public BigDecimal getPrice() { return price; }
+        public void setPrice(BigDecimal v) { this.price = v; }
+        public Integer getMinStay() { return minStay; }
+        public void setMinStay(Integer v) { this.minStay = v; }
+        public Boolean getCheckIn() { return checkIn; }
+        public void setCheckIn(Boolean v) { this.checkIn = v; }
+        public Boolean getCheckOut() { return checkOut; }
+        public void setCheckOut(Boolean v) { this.checkOut = v; }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class StatusReq {
+        private String id;
+        private String type; // calendar/reservation/listing
+
+        public String getId() { return id; }
+        public void setId(String v) { this.id = v; }
+        public String getType() { return type; }
+        public void setType(String v) { this.type = v; }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ReservationsByListing {
+        @JsonProperty("listing_id")
+        private String listingId;
+
+        @JsonProperty("data")
+        private List<ReservationData> data;
+
+        public String getListingId() { return listingId; }
+        public void setListingId(String v) { this.listingId = v; }
+        public List<ReservationData> getData() { return data; }
+        public void setData(List<ReservationData> v) { this.data = v; }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ReservationData {
+        @JsonProperty("reservation_id")
+        private String reservationId;
+
+        @JsonProperty("cancel_time")
+        private String cancelTime;
+
+        @JsonProperty("start_date")
+        private String startDate;
+
+        @JsonProperty("end_date")
+        private String endDate;
+
+        @JsonProperty("booked_time")
+        private String bookedTime;
+
+        @JsonProperty("total_days")
+        private Integer totalDays;
+
+        @JsonProperty("total_cost")
+        private BigDecimal totalCost;
+
+        @JsonProperty("currency")
+        private String currency;
+
+        @JsonProperty("status")
+        private String status; // booked/blocked/unconfirmed/canceled
+
+        public String getReservationId() { return reservationId; }
+        public void setReservationId(String v) { this.reservationId = v; }
+        public String getCancelTime() { return cancelTime; }
+        public void setCancelTime(String v) { this.cancelTime = v; }
+        public String getStartDate() { return startDate; }
+        public void setStartDate(String v) { this.startDate = v; }
+        public String getEndDate() { return endDate; }
+        public void setEndDate(String v) { this.endDate = v; }
+        public String getBookedTime() { return bookedTime; }
+        public void setBookedTime(String v) { this.bookedTime = v; }
+        public Integer getTotalDays() { return totalDays; }
+        public void setTotalDays(Integer v) { this.totalDays = v; }
+        public BigDecimal getTotalCost() { return totalCost; }
+        public void setTotalCost(BigDecimal v) { this.totalCost = v; }
+        public String getCurrency() { return currency; }
+        public void setCurrency(String v) { this.currency = v; }
+        public String getStatus() { return status; }
+        public void setStatus(String v) { this.status = v; }
+    }
+
+    // ===== legacy get_prices (old schema) =====
+    // 仅用于兼容历史代码/测试；当前“立即同步”已切换为 pull_sync（见 pullSyncGetPrices）。
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class GetPricesResponse {
+        @JsonProperty("success")
+        private Boolean success;
+
+        @JsonProperty("data")
+        private List<GetPricesCalendarData> data;
+
+        @JsonProperty("failure")
+        @com.fasterxml.jackson.annotation.JsonAlias({"errors", "failed"})
+        private List<Object> failure;
+
+        @JsonProperty("message")
+        private String message;
+
+        public Boolean getSuccess() { return success; }
+        public void setSuccess(Boolean v) { this.success = v; }
+        public List<GetPricesCalendarData> getData() { return data; }
+        public void setData(List<GetPricesCalendarData> v) { this.data = v; }
+        public List<Object> getFailure() { return failure; }
+        public void setFailure(List<Object> v) { this.failure = v; }
+        public String getMessage() { return message; }
+        public void setMessage(String v) { this.message = v; }
+
+        public boolean isSuccess() {
+            if (failure != null && !failure.isEmpty()) {
+                return false;
+            }
+            if (success == null) {
+                return data != null && !data.isEmpty();
+            }
+            return Boolean.TRUE.equals(success);
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class GetPricesCalendarData {
+        @JsonProperty("listing_id")
+        private String listingId;
+
+        @JsonProperty("rate_plan_id")
+        private String ratePlanId;
+
+        @JsonProperty("currency")
+        private String currency;
+
+        @JsonProperty("calendar")
+        private List<GetPricesCalendarEntry> calendar;
+
+        public String getListingId() { return listingId; }
+        public void setListingId(String v) { this.listingId = v; }
+        public String getRatePlanId() { return ratePlanId; }
+        public void setRatePlanId(String v) { this.ratePlanId = v; }
+        public String getCurrency() { return currency; }
+        public void setCurrency(String v) { this.currency = v; }
+        public List<GetPricesCalendarEntry> getCalendar() { return calendar; }
+        public void setCalendar(List<GetPricesCalendarEntry> v) { this.calendar = v; }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class GetPricesCalendarEntry {
+        private String date;
+
+        @JsonProperty("end_date")
+        private String endDate;
+
+        private BigDecimal price;
+
+        @JsonProperty("minStay")
+        @com.fasterxml.jackson.annotation.JsonAlias({"min_stay", "minStay"})
+        private Integer minStay;
+
+        @JsonProperty("maxStay")
+        @com.fasterxml.jackson.annotation.JsonAlias({"max_stay", "maxStay"})
+        private Integer maxStay;
+
+        @JsonProperty("closedToArrival")
+        @com.fasterxml.jackson.annotation.JsonAlias({"closed_to_arrival", "closedToArrival"})
+        private Boolean closedToArrival;
+
+        @JsonProperty("closedToDeparture")
+        @com.fasterxml.jackson.annotation.JsonAlias({"closed_to_departure", "closedToDeparture"})
+        private Boolean closedToDeparture;
+
+        public String getDate() { return date; }
+        public void setDate(String v) { this.date = v; }
+        public String getEndDate() { return endDate; }
+        public void setEndDate(String v) { this.endDate = v; }
+        public BigDecimal getPrice() { return price; }
+        public void setPrice(BigDecimal v) { this.price = v; }
+        public Integer getMinStay() { return minStay; }
+        public void setMinStay(Integer v) { this.minStay = v; }
+        public Integer getMaxStay() { return maxStay; }
+        public void setMaxStay(Integer v) { this.maxStay = v; }
+        public Boolean getClosedToArrival() { return closedToArrival; }
+        public void setClosedToArrival(Boolean v) { this.closedToArrival = v; }
+        public Boolean getClosedToDeparture() { return closedToDeparture; }
+        public void setClosedToDeparture(Boolean v) { this.closedToDeparture = v; }
+    }
+
     private PriceLabsResponse postForPriceLabsResponse(String url, HttpEntity<?> req) {
         try {
             ResponseEntity<String> rawRes = priceLabsRestTemplate.exchange(url, HttpMethod.POST, req, String.class);
@@ -334,6 +569,133 @@ public class PriceLabsApiClient {
         } catch (Exception e) {
             String msg = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             throw new RuntimeException("Parse PriceLabs response failed: " + msg, e);
+        }
+    }
+
+    public GetPricesResponse getPrices(List<String> listingIds, LocalDate startDate, LocalDate endDate, Boolean deltaOnly) {
+        if (listingIds == null || listingIds.isEmpty()) {
+            throw new IllegalArgumentException("listingIds 不能为空");
+        }
+        String url = priceLabsConfig.getBaseUrl() + "/get_prices";
+        HttpHeaders headers = createHeaders();
+
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("listing_ids", listingIds);
+        if (startDate != null) {
+            body.put("start_date", startDate.toString());
+        }
+        if (endDate != null) {
+            body.put("end_date", endDate.toString());
+        }
+        if (deltaOnly != null) {
+            body.put("delta_only", deltaOnly);
+        }
+
+        HttpEntity<Map<String, Object>> req = new HttpEntity<>(body, headers);
+        try {
+            logger.info("Pull PriceLabs get_prices. listings={}, start={}, end={}, delta_only={}",
+                    listingIds.size(), startDate, endDate, deltaOnly);
+            ResponseEntity<String> rawRes = priceLabsRestTemplate.exchange(url, HttpMethod.POST, req, String.class);
+            String rawBody = rawRes.getBody();
+            if (rawBody == null || rawBody.trim().isEmpty()) {
+                GetPricesResponse empty = new GetPricesResponse();
+                empty.setSuccess(false);
+                empty.setMessage("No response body");
+                return empty;
+            }
+            return objectMapper.readValue(rawBody, GetPricesResponse.class);
+        } catch (HttpStatusCodeException e) {
+            String bodyText = e.getResponseBodyAsString();
+            String snippet = bodyText == null ? "" : bodyText.substring(0, Math.min(800, bodyText.length()));
+            logger.error("PriceLabs get_prices failed: status={}, body={}", e.getStatusCode().value(), snippet);
+            throw new RuntimeException("PriceLabs get_prices failed: HTTP " + e.getStatusCode().value() + " " + e.getStatusText()
+                    + (snippet.isEmpty() ? "" : (": " + snippet)), e);
+        } catch (Exception e) {
+            logger.error("PriceLabs get_prices failed", e);
+            throw new RuntimeException("PriceLabs get_prices failed: " + e.getMessage(), e);
+        }
+    }
+
+    public PullSyncGetPricesResponse pullSyncGetPrices(String listingId, String ratePlanId, Boolean deltaOnly) {
+        if (listingId == null || listingId.isBlank()) {
+            throw new IllegalArgumentException("listingId 不能为空");
+        }
+        String url = priceLabsConfig.getBaseUrl() + "/get_prices";
+        HttpHeaders headers = createHeaders();
+
+        Map<String, Object> sync = new java.util.HashMap<>();
+        sync.put("listing_id", listingId.trim());
+        if (ratePlanId != null && !ratePlanId.isBlank()) {
+            sync.put("rate_plan_id", ratePlanId.trim());
+        }
+        if (deltaOnly != null) {
+            sync.put("delta_only", deltaOnly);
+        }
+
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("sync", sync);
+
+        HttpEntity<Map<String, Object>> req = new HttpEntity<>(body, headers);
+        try {
+            logger.info("Pull PriceLabs get_prices(pull_sync). listing_id={}, rate_plan_id={}, delta_only={}",
+                    listingId, ratePlanId, deltaOnly);
+            ResponseEntity<String> rawRes = priceLabsRestTemplate.exchange(url, HttpMethod.POST, req, String.class);
+            String rawBody = rawRes.getBody();
+            if (rawBody == null || rawBody.trim().isEmpty()) {
+                return new PullSyncGetPricesResponse();
+            }
+            return objectMapper.readValue(rawBody, PullSyncGetPricesResponse.class);
+        } catch (HttpStatusCodeException e) {
+            String bodyText = e.getResponseBodyAsString();
+            String snippet = bodyText == null ? "" : bodyText.substring(0, Math.min(800, bodyText.length()));
+            logger.error("PriceLabs get_prices(pull_sync) failed: status={}, body={}", e.getStatusCode().value(), snippet);
+            throw new RuntimeException("PriceLabs get_prices failed: HTTP " + e.getStatusCode().value() + " " + e.getStatusText()
+                    + (snippet.isEmpty() ? "" : (": " + snippet)), e);
+        } catch (Exception e) {
+            logger.error("PriceLabs get_prices(pull_sync) failed", e);
+            throw new RuntimeException("PriceLabs get_prices failed: " + e.getMessage(), e);
+        }
+    }
+
+    public PriceLabsResponse pushReservations(List<ReservationsByListing> reservations) {
+        String url = priceLabsConfig.getBaseUrl() + "/reservations";
+        HttpHeaders headers = createHeaders();
+        HttpEntity<Map<String, Object>> req = new HttpEntity<>(Map.of("reservations", reservations), headers);
+        try {
+            int listingCount = reservations != null ? reservations.size() : 0;
+            logger.info("Push reservations to PriceLabs. listingCount={}", listingCount);
+            PriceLabsResponse r = postForPriceLabsResponse(url, req);
+            if (r != null) {
+                logger.info("Reservations push ok. Success: {}, Fail: {}",
+                        r.getSuccess() != null ? r.getSuccess().size() : 0,
+                        r.getFailure() != null ? r.getFailure().size() : 0);
+            }
+            return r;
+        } catch (Exception e) {
+            logger.error("Push reservations failed", e);
+            throw new RuntimeException("Push reservations failed: " + e.getMessage(), e);
+        }
+    }
+
+    public PriceLabsResponse queryStatus(List<StatusReq> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            throw new IllegalArgumentException("statuses 不能为空");
+        }
+        String url = priceLabsConfig.getBaseUrl() + "/status";
+        HttpHeaders headers = createHeaders();
+        HttpEntity<Map<String, Object>> req = new HttpEntity<>(Map.of("statuses", statuses), headers);
+        try {
+            logger.info("Query PriceLabs status. count={}", statuses.size());
+            PriceLabsResponse r = postForPriceLabsResponse(url, req);
+            if (r != null) {
+                logger.info("Status query ok. Success: {}, Fail: {}",
+                        r.getSuccess() != null ? r.getSuccess().size() : 0,
+                        r.getFailure() != null ? r.getFailure().size() : 0);
+            }
+            return r;
+        } catch (Exception e) {
+            logger.error("Query status failed", e);
+            throw new RuntimeException("Query status failed: " + e.getMessage(), e);
         }
     }
 

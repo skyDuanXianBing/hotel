@@ -2,290 +2,176 @@ package server.demo.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.Reservation;
-import server.demo.entity.VirtualMailbox;
-import server.demo.enums.EmailSenderType;
+import server.demo.entity.Store;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.AutoMessageRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.StoreRepository;
+import server.demo.util.AutoMessageTimingUtil;
 
-import java.time.LocalDate;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 自动化消息触发服务
- * 负责在订单事件发生时自动发送邮件消息
+ * 自动化消息触发服务（基于前端 AutoMessage 页面模型）：
+ * - action: BOOKING_CONFIRM / CHECK_IN / CHECK_OUT
+ * - sendTiming: IMMEDIATELY / 5_MIN ... / 24_HOUR
+ *
+ * 发送通道：Su Messaging（仅渠道 19/244）。
  */
 @Service
 public class AutoMessageTriggerService {
 
     private static final Logger logger = LoggerFactory.getLogger(AutoMessageTriggerService.class);
+    private static final Logger reservationLogger = LoggerFactory.getLogger("SU_RESERVATION");
 
-    @Autowired
-    private AutoMessageRepository autoMessageRepository;
+    private final StoreRepository storeRepository;
+    private final AutoMessageRepository autoMessageRepository;
+    private final ReservationRepository reservationRepository;
+    private final SuBusinessAutoMessageService businessAutoMessageService;
 
-    @Autowired
-    private ReservationRepository reservationRepository;
-
-    @Autowired
-    private VirtualMailboxService virtualMailboxService;
-
-    @Autowired
-    private EmailMessageService emailMessageService;
+    public AutoMessageTriggerService(
+            StoreRepository storeRepository,
+            AutoMessageRepository autoMessageRepository,
+            ReservationRepository reservationRepository,
+            SuBusinessAutoMessageService businessAutoMessageService
+    ) {
+        this.storeRepository = storeRepository;
+        this.autoMessageRepository = autoMessageRepository;
+        this.reservationRepository = reservationRepository;
+        this.businessAutoMessageService = businessAutoMessageService;
+    }
 
     /**
-     * 订单创建时触发
-     * 异步执行,不阻塞订单创建流程
-     *
-     * @param reservation 订单对象
+     * 为了支持 5/10/15/30 分钟等 sendTiming，按分钟轮询处理。
      */
-    @Async
-    public void onReservationCreated(Reservation reservation) {
+    @Scheduled(cron = "0 * * * * *")
+    public void tick() {
+        LocalDateTime now = LocalDateTime.now();
         try {
-            logger.info("触发订单创建自动消息: 订单ID={}", reservation.getId());
-
-            // 查找匹配的自动消息模板
-            List<AutoMessage> messages = findMatchingMessages(
-                    "订单确认时",
-                    reservation.getChannel().getName(),
-                    reservation.getRoom().getRoomNumber(),
-                    reservation.getStoreId()
-            );
-
-            // 发送自动消息
-            for (AutoMessage message : messages) {
-                sendAutoMessage(reservation, message);
-            }
+            dispatchAllStores(now);
         } catch (Exception e) {
-            logger.error("发送订单创建自动消息失败: 订单ID={}, 错误={}",
-                    reservation.getId(), e.getMessage(), e);
+            logger.error("[AutoMessage] tick failed. err={}", e.getMessage(), e);
         }
     }
 
     /**
-     * 入住前24小时检查 (定时任务)
-     * 每小时执行一次
+     * 手动触发（用于预订创建/入住/退房后，尽快处理 IMMEDIATELY 的消息）。
      */
-    @Scheduled(cron = "0 0 * * * *")
-    public void check24HoursBeforeCheckIn() {
+    public void dispatchStoreOnce(Long storeId) {
+        if (storeId == null) {
+            return;
+        }
         try {
-            LocalDate tomorrow = LocalDate.now().plusDays(1);
-            logger.debug("检查入住前24小时的订单: 日期={}", tomorrow);
-
-            List<Reservation> reservations = reservationRepository
-                    .findByCheckInDateAndStatus(tomorrow, ReservationStatus.CONFIRMED);
-
-            for (Reservation reservation : reservations) {
-                triggerCheckInReminderMessages(reservation);
-            }
-
-            logger.info("入住前24小时检查完成,处理了{}个订单", reservations.size());
+            dispatchStore(storeId, LocalDateTime.now());
         } catch (Exception e) {
-            logger.error("入住前24小时检查失败: {}", e.getMessage(), e);
+            logger.warn("[AutoMessage] dispatchStoreOnce failed. storeId={}, err={}", storeId, e.getMessage(), e);
+            reservationLogger.error("[AutoMessage] dispatchStoreOnce failed. storeId={}, err={}", storeId, e.getMessage());
         }
     }
 
-    /**
-     * 入住当天检查 (定时任务)
-     * 每天早上8点执行
-     */
-    @Scheduled(cron = "0 0 8 * * *")
-    public void checkCheckInDay() {
-        try {
-            LocalDate today = LocalDate.now();
-            logger.debug("检查入住当天的订单: 日期={}", today);
-
-            List<Reservation> reservations = reservationRepository
-                    .findByCheckInDateAndStatus(today, ReservationStatus.CONFIRMED);
-
-            for (Reservation reservation : reservations) {
-                triggerCheckInDayMessages(reservation);
+    private void dispatchAllStores(LocalDateTime now) {
+        List<Store> stores = storeRepository.findAll();
+        for (Store store : stores) {
+            if (store == null || store.getId() == null) {
+                continue;
             }
-
-            logger.info("入住当天检查完成,处理了{}个订单", reservations.size());
-        } catch (Exception e) {
-            logger.error("入住当天检查失败: {}", e.getMessage(), e);
+            try {
+                dispatchStore(store.getId(), now);
+            } catch (Exception e) {
+                logger.warn("[AutoMessage] dispatch store failed. storeId={}, err={}", store.getId(), e.getMessage(), e);
+                reservationLogger.error("[AutoMessage] dispatch store failed. storeId={}, err={}", store.getId(), e.getMessage());
+            }
         }
     }
 
-    /**
-     * 退房当天检查 (定时任务)
-     * 每天早上10点执行
-     */
-    @Scheduled(cron = "0 0 10 * * *")
-    public void checkCheckOutDay() {
-        try {
-            LocalDate today = LocalDate.now();
-            logger.debug("检查退房当天的订单: 日期={}", today);
+    private void dispatchStore(Long storeId, LocalDateTime now) {
+        List<AutoMessage> templates = autoMessageRepository.findByStoreIdAndEnabledTrue(storeId);
+        if (templates.isEmpty()) {
+            return;
+        }
 
-            List<Reservation> reservations = reservationRepository
-                    .findByCheckOutDateAndStatus(today, ReservationStatus.CONFIRMED);
+        int totalCandidates = 0;
+        int totalTemplates = 0;
 
-            for (Reservation reservation : reservations) {
-                triggerCheckOutDayMessages(reservation);
+        for (AutoMessage template : templates) {
+            if (template == null) {
+                continue;
+            }
+            String action = template.getAction();
+            if (action == null || action.isBlank()) {
+                continue;
+            }
+            String sendTiming = template.getSendTiming();
+            if (sendTiming == null || sendTiming.isBlank()) {
+                continue;
             }
 
-            logger.info("退房当天检查完成,处理了{}个订单", reservations.size());
-        } catch (Exception e) {
-            logger.error("退房当天检查失败: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 退房后检查 (定时任务)
-     * 每天中午12点执行
-     */
-    @Scheduled(cron = "0 0 12 * * *")
-    public void checkAfterCheckOut() {
-        try {
-            LocalDate yesterday = LocalDate.now().minusDays(1);
-            logger.debug("检查退房后的订单: 日期={}", yesterday);
-
-            List<Reservation> reservations = reservationRepository
-                    .findByCheckOutDateAndStatus(yesterday, ReservationStatus.CONFIRMED);
-
-            for (Reservation reservation : reservations) {
-                triggerAfterCheckOutMessages(reservation);
+            Duration delay;
+            try {
+                delay = AutoMessageTimingUtil.parseSendTiming(sendTiming);
+            } catch (Exception e) {
+                reservationLogger.error("[AutoMessage] invalid sendTiming, skip. storeId={}, autoMessageId={}, sendTiming={}",
+                        storeId, template.getId(), sendTiming);
+                continue;
             }
 
-            logger.info("退房后检查完成,处理了{}个订单", reservations.size());
-        } catch (Exception e) {
-            logger.error("退房后检查失败: {}", e.getMessage(), e);
+            LocalDateTime earliest = businessAutoMessageService.computeEarliestEventTime(template, now);
+            LocalDateTime latest = now.minus(delay);
+            if (latest.isBefore(earliest)) {
+                continue;
+            }
+
+            List<Reservation> candidates = findCandidates(storeId, action, earliest, latest);
+            if (candidates.isEmpty()) {
+                continue;
+            }
+
+            totalTemplates++;
+            totalCandidates += candidates.size();
+
+            for (Reservation reservation : candidates) {
+                if (reservation == null) {
+                    continue;
+                }
+                if (!shouldConsiderForAction(reservation, action)) {
+                    continue;
+                }
+                businessAutoMessageService.trySendForReservation(storeId, reservation, template, now, delay);
+            }
+        }
+
+        if (totalTemplates > 0) {
+            reservationLogger.info("[AutoMessage] tick done. storeId={}, templates={}, candidates={}", storeId, totalTemplates, totalCandidates);
         }
     }
 
-    /**
-     * 触发入住前提醒消息
-     */
-    private void triggerCheckInReminderMessages(Reservation reservation) {
-        List<AutoMessage> messages = findMatchingMessages(
-                "入住前24小时",
-                reservation.getChannel().getName(),
-                reservation.getRoom().getRoomNumber(),
-                reservation.getStoreId()
-        );
-
-        for (AutoMessage message : messages) {
-            sendAutoMessage(reservation, message);
-        }
+    private List<Reservation> findCandidates(Long storeId, String action, LocalDateTime start, LocalDateTime end) {
+        String normalized = action.trim().toUpperCase();
+        return switch (normalized) {
+            case "BOOKING_CONFIRM" -> reservationRepository.findByStoreIdAndCreatedAtBetween(storeId, start, end);
+            case "CHECK_IN" -> reservationRepository.findByStoreIdAndActualCheckInBetween(storeId, start, end);
+            case "CHECK_OUT" -> reservationRepository.findByStoreIdAndActualCheckOutBetween(storeId, start, end);
+            default -> List.of();
+        };
     }
 
-    /**
-     * 触发入住当天消息
-     */
-    private void triggerCheckInDayMessages(Reservation reservation) {
-        List<AutoMessage> messages = findMatchingMessages(
-                "入住当天",
-                reservation.getChannel().getName(),
-                reservation.getRoom().getRoomNumber(),
-                reservation.getStoreId()
-        );
-
-        for (AutoMessage message : messages) {
-            sendAutoMessage(reservation, message);
+    private boolean shouldConsiderForAction(Reservation reservation, String action) {
+        if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.NO_SHOW) {
+            return false;
         }
-    }
-
-    /**
-     * 触发退房当天消息
-     */
-    private void triggerCheckOutDayMessages(Reservation reservation) {
-        List<AutoMessage> messages = findMatchingMessages(
-                "退房当天",
-                reservation.getChannel().getName(),
-                reservation.getRoom().getRoomNumber(),
-                reservation.getStoreId()
-        );
-
-        for (AutoMessage message : messages) {
-            sendAutoMessage(reservation, message);
-        }
-    }
-
-    /**
-     * 触发退房后消息
-     */
-    private void triggerAfterCheckOutMessages(Reservation reservation) {
-        List<AutoMessage> messages = findMatchingMessages(
-                "退房后",
-                reservation.getChannel().getName(),
-                reservation.getRoom().getRoomNumber(),
-                reservation.getStoreId()
-        );
-
-        for (AutoMessage message : messages) {
-            sendAutoMessage(reservation, message);
-        }
-    }
-
-    /**
-     * 查找匹配的自动消息模板
-     */
-    private List<AutoMessage> findMatchingMessages(String rule, String channelName,
-                                                   String roomNumber, Long storeId) {
-        return autoMessageRepository.findByStoreIdAndEnabledTrue(storeId).stream()
-                .filter(msg -> msg.getAutomationRule().equals(rule))
-                .filter(msg -> msg.getChannel().equals("全部渠道") || msg.getChannel().equals(channelName))
-                .filter(msg -> msg.getRoom().equals("全部房间") || msg.getRoom().equals(roomNumber))
-                .toList();
-    }
-
-    /**
-     * 发送自动消息
-     */
-    private void sendAutoMessage(Reservation reservation, AutoMessage autoMessage) {
-        try {
-            // 获取或创建虚拟邮箱
-            VirtualMailbox mailbox = virtualMailboxService.getMailboxByReservation(reservation.getId())
-                    .orElseGet(() -> virtualMailboxService.createMailboxForReservation(reservation.getId()));
-
-            // 替换消息模板中的变量
-            String content = replaceTemplateVariables(autoMessage.getMessage(), reservation);
-
-            // 发送邮件消息
-            emailMessageService.sendEmailMessage(
-                    mailbox.getId(),
-                    content,
-                    EmailSenderType.SYSTEM,
-                    "系统自动消息"
-            );
-
-            logger.info("自动消息已发送: 订单ID={}, 规则={}, 模板={}",
-                    reservation.getId(), autoMessage.getAutomationRule(), autoMessage.getTitle());
-
-        } catch (Exception e) {
-            logger.error("发送自动消息失败: 订单ID={}, 模板ID={}, 错误={}",
-                    reservation.getId(), autoMessage.getId(), e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 替换消息模板中的变量
-     * 支持的变量: {客人姓名}, {房间号}, {入住日期}, {退房日期}
-     */
-    private String replaceTemplateVariables(String template, Reservation reservation) {
-        String result = template;
-
-        // 替换客人姓名
-        result = result.replace("{客人姓名}", reservation.getGuestName());
-
-        // 替换房间号
-        if (reservation.getRoom() != null) {
-            result = result.replace("{房间号}", reservation.getRoom().getRoomNumber());
-        }
-
-        // 替换入住日期
-        result = result.replace("{入住日期}", reservation.getCheckInDate().toString());
-
-        // 替换退房日期
-        result = result.replace("{退房日期}", reservation.getCheckOutDate().toString());
-
-        return result;
+        String normalized = action != null ? action.trim().toUpperCase() : "";
+        return switch (normalized) {
+            case "BOOKING_CONFIRM" -> true;
+            case "CHECK_IN" -> reservation.getActualCheckIn() != null
+                    && (reservation.getStatus() == ReservationStatus.CHECKED_IN || reservation.getStatus() == ReservationStatus.CHECKED_OUT);
+            case "CHECK_OUT" -> reservation.getActualCheckOut() != null && reservation.getStatus() == ReservationStatus.CHECKED_OUT;
+            default -> false;
+        };
     }
 }

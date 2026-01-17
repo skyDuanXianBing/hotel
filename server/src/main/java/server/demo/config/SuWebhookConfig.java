@@ -23,5 +23,13 @@ public class SuWebhookConfig {
         }
         return base + "/api/v1/su/webhook/reservation-notif/" + hotelId;
     }
+
+    public String getReservationNotifWebhookUrl() {
+        String base = serverBaseUrl != null ? serverBaseUrl.trim() : "";
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/api/v1/su/webhook/reservation-notif";
+    }
 }
 

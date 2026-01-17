@@ -1,0 +1,96 @@
+POST
+/reservations
+Update property's reservations
+
+
+
+This API will be used to keep the reservations for the listing up to date. Note that the start date and end date are synonymous with check in and check out dates for this API and that total_cost is the complete cost including taxes and fees. Note that listing_id should always be sent as a string, eg., "12345".
+IMPORTANT Reservation IDs must be unique across all listings in the PMS. If they are not unique, please append a unique identifier (such as the listing ID) to the reservation ID before sending it to us and make sure to store this updated ID on your end for all future modifications to the same reservation.
+Kindly note that once you implement this endpoint, you must push all reservations, including past(since 2020-01-01) and future reservations, to PriceLabs
+
+Parameters
+Name	Description
+reservations *
+object
+(body)
+Example Value
+Model
+{
+  "reservations": [
+    {
+      "listing_id": "string",
+      "data": [
+        {
+          "reservation_id": "string",
+          "cancel_time": "string",
+          "start_date": "string",
+          "end_date": "string",
+          "booked_time": "string",
+          "total_days": 0,
+          "total_cost": 0,
+          "total_fees": 0,
+          "total_taxes": 0,
+          "host_payout": 0,
+          "ota_commission": 0,
+          "rental_revenue": 0,
+          "currency": "string",
+          "status": "booked"
+        }
+      ]
+    }
+  ]
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Request was processed, and response contains successes and failures of individually edited reservations
+Success will contain only an array of reservation_ids
+Failure contains an error string describing the problem which halted processing, along with the item it was relevant to
+
+Example Value
+Model
+{
+  "success": [
+    "string"
+  ],
+  "failure": [
+    {
+      "details": [
+        {
+          "listing_id": "string",
+          "data": [
+            {
+              "reservation_id": "string",
+              "cancel_time": "string",
+              "start_date": "string",
+              "end_date": "string",
+              "booked_time": "string",
+              "total_days": 0,
+              "total_cost": 0,
+              "total_fees": 0,
+              "total_taxes": 0,
+              "host_payout": 0,
+              "ota_commission": 0,
+              "rental_revenue": 0,
+              "currency": "string",
+              "status": "booked"
+            }
+          ]
+        }
+      ],
+      "error": "string"
+    }
+  ]
+}
+401	
+Invalid integration API key value
+
+Example Value
+Model
+"string"

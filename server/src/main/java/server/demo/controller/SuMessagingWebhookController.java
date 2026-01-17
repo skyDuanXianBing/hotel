@@ -14,10 +14,9 @@ import server.demo.config.SuMessagingWebhookAuthConfig;
 import server.demo.entity.Store;
 import server.demo.repository.StoreRepository;
 import server.demo.service.SuMessagingService;
+import server.demo.util.BasicAuthUtil;
 import server.demo.util.SuHotelIdUtil;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 
@@ -53,7 +52,7 @@ public class SuMessagingWebhookController {
             HttpServletRequest request,
             @RequestBody(required = false) String rawBody
     ) {
-        if (authConfig.isAuthEnabled() && !isBasicAuthOk(request)) {
+        if (authConfig.isAuthEnabled() && !BasicAuthUtil.isBasicAuthOk(request, authConfig.getUsername(), authConfig.getPassword())) {
             logger.warn("[SuMessagingWebhook] unauthorized request. remoteIp={}", request.getRemoteAddr());
             return ResponseEntity.status(401).body(Map.of("status", "Fail"));
         }
@@ -88,34 +87,6 @@ public class SuMessagingWebhookController {
         }
 
         return ResponseEntity.ok(Map.of("status", "Success"));
-    }
-
-    private boolean isBasicAuthOk(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header == null || header.isBlank()) {
-            return false;
-        }
-        String prefix = "Basic ";
-        if (!header.regionMatches(true, 0, prefix, 0, prefix.length())) {
-            return false;
-        }
-        String encoded = header.substring(prefix.length()).trim();
-        if (encoded.isBlank()) {
-            return false;
-        }
-        try {
-            byte[] decoded = Base64.getDecoder().decode(encoded);
-            String credential = new String(decoded, StandardCharsets.UTF_8);
-            int idx = credential.indexOf(':');
-            if (idx <= 0) {
-                return false;
-            }
-            String user = credential.substring(0, idx);
-            String pass = credential.substring(idx + 1);
-            return user.equals(authConfig.getUsername()) && pass.equals(authConfig.getPassword());
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     private Optional<Store> resolveStoreByHotelId(String hotelId) {

@@ -100,6 +100,7 @@ public class AutoMessageService {
         message.setRoomSelectionType(autoMessage.getRoomSelectionType());
         message.setRoomSelection(autoMessage.getRoomSelection());
         message.setAction(autoMessage.getAction());
+        message.setSendTiming(autoMessage.getSendTiming());
         message.setEnabled(autoMessage.getEnabled());
 
         return autoMessageRepository.save(message);

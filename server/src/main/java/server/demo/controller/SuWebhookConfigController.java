@@ -42,10 +42,11 @@ public class SuWebhookConfigController {
                 "storeId", storeId,
                 "hotelId", hotelId,
                 "serverBaseUrl", suWebhookConfig.getServerBaseUrl(),
-                "webhookUrl", suWebhookConfig.getReservationNotifWebhookUrl(hotelId)
+                "webhookUrl", suWebhookConfig.getReservationNotifWebhookUrl(),
+                "legacyWebhookUrl", suWebhookConfig.getReservationNotifWebhookUrl(hotelId)
         );
 
-        return ResponseEntity.ok(ApiResponse.success("获取 Su Webhook 回调地址成功", data));
+        return ResponseEntity.ok(ApiResponse.success("获取渠道Webhook回调地址成功", data));
     }
 }
 

@@ -305,7 +305,7 @@ public class SuContentSyncService {
         }
 
         if (!roomTypesOk || !ratePlansOk) {
-            throw new RuntimeException("同步 Su 房型/价格计划失败: "
+            throw new RuntimeException("同步渠道房型/价格计划失败: "
                     + (roomTypesOk ? "" : "房型=" + roomTypesError + "; ")
                     + (ratePlansOk ? "" : "价格计划=" + ratePlansError));
         }

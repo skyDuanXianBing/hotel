@@ -10,7 +10,10 @@ import server.demo.context.StoreContextHolder;
 import server.demo.dto.*;
 import server.demo.enums.PriceAdjustmentType;
 import server.demo.service.ChannelPriceFallbackService;
+import server.demo.service.PriceLabsApiClient;
 import server.demo.service.PriceLabsService;
+import server.demo.service.PriceLabsReservationSyncService;
+import server.demo.service.PriceLabsStatusService;
 import server.demo.service.PriceLabsSyncService;
 
 import java.math.BigDecimal;
@@ -32,6 +35,12 @@ public class PriceLabsController {
 
     @Autowired
     private PriceLabsSyncService priceLabsSyncService;
+
+    @Autowired
+    private PriceLabsReservationSyncService priceLabsReservationSyncService;
+
+    @Autowired
+    private PriceLabsStatusService priceLabsStatusService;
 
     @Autowired
     private ChannelPriceFallbackService channelPriceFallbackService;
@@ -297,6 +306,8 @@ public class PriceLabsController {
     public ResponseEntity<ApiResponse<Map<String, String>>> manualSync() {
         try {
             priceLabsSyncService.syncAll();
+            // 稳定优先：额外拉取 PriceLabs 推荐价（get_prices），用于“立即同步”兜底刷新
+            priceLabsSyncService.pullPricesForNextDaysPullSync(365);
             return ResponseEntity.ok(ApiResponse.success("同步任务已启动", Map.of("message", "同步成功")));
         } catch (Exception e) {
             return ResponseEntity.status(500)
@@ -372,6 +383,69 @@ public class PriceLabsController {
     /**
      * 渠道价格调整请求
      */
+    // ==================== Outbound: reservations/status ====================
+
+    /**
+     * PMS -> PriceLabs: push reservations (required for certification).
+     * PriceLabs 要求：实现后需要推送 2020-01-01 至今/未来所有 reservations。
+     */
+    @PostMapping("/reservations/push")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<Map<String, Object>>> pushReservationsToPriceLabs(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            PriceLabsReservationSyncService.PushSummary summary =
+                    priceLabsReservationSyncService.pushReservationsForDateRange(storeId, startDate, endDate);
+
+            Map<String, Object> payload = Map.of(
+                    "listingCount", summary.listingCount(),
+                    "reservationCount", summary.reservationCount(),
+                    "successCount", summary.successCount(),
+                    "failureCount", summary.failureCount(),
+                    "failures", summary.failureMessages()
+            );
+            return ResponseEntity.ok(ApiResponse.success("reservations 推送完成", payload));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("reservations 推送失败: " + e.getMessage()));
+        }
+    }
+
+    public static class StatusQueryRequest {
+        private List<PriceLabsApiClient.StatusReq> statuses;
+
+        public List<PriceLabsApiClient.StatusReq> getStatuses() {
+            return statuses;
+        }
+
+        public void setStatuses(List<PriceLabsApiClient.StatusReq> statuses) {
+            this.statuses = statuses;
+        }
+    }
+
+    /**
+     * PMS -> PriceLabs: query status for debugging/certification.
+     * Body example: { "statuses": [ { "id": "...", "type": "listing" } ] }
+     */
+    @PostMapping("/status/query")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<PriceLabsApiClient.PriceLabsResponse>> queryPriceLabsStatus(
+            @RequestBody StatusQueryRequest request
+    ) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            List<PriceLabsApiClient.StatusReq> statuses = request != null ? request.getStatuses() : null;
+            PriceLabsApiClient.PriceLabsResponse res = priceLabsStatusService.queryStatus(storeId, statuses);
+            return ResponseEntity.ok(ApiResponse.success("status 查询完成", res));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("status 查询失败: " + e.getMessage()));
+        }
+    }
+
     public static class ChannelPriceAdjustmentRequest {
         private PriceAdjustmentType adjustmentType;
         private BigDecimal adjustmentValue;

@@ -11,6 +11,8 @@ public interface SuMessageThreadRepository extends JpaRepository<SuMessageThread
 
     Optional<SuMessageThread> findByStoreIdAndChannelIdAndThreadKey(Long storeId, Integer channelId, String threadKey);
 
+    Optional<SuMessageThread> findFirstByStoreIdAndChannelIdAndBookingIdOrderByLastActivityDesc(Long storeId, Integer channelId, String bookingId);
+
     List<SuMessageThread> findByStoreIdOrderByLastActivityDesc(Long storeId);
 }
 

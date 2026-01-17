@@ -1,0 +1,140 @@
+POST
+/listings
+Update or create listings
+
+
+
+This endpoint can update individual details of specific listings or be used to create new ones if the listing_id is not yet present.
+
+Please note:
+When creating a new listing all fields are required.
+The listing_id should be unique across all users in connected to the PMS. No two or more users within the connected PMS system should have the same listing_id. It should be sent as a string.
+listing_id should not contain spaces and special characters except an underscore(_). It should always be sent as a string, eg., "12345"
+If a listing is a property with multiple room types which need to be priced inidividually, then each room type should be created as listings. The listing_id in this case can be created by concatenating property id and room type id like so: propertyId___roomTypeId.
+A list of supported amenities can be found here
+Parameters
+Name	Description
+listings *
+object
+(body)
+The listing_id field is always required. The user_token is only required when adding listings to a users account for the first time, and is specific to the users PriceLabs account.
+
+Example Value
+Model
+{
+  "listings": [
+    {
+      "listing_id": "12343456",
+      "user_token": "test@test.com",
+      "location": {
+        "latitude": 50.394447150689544,
+        "longitude": 60.177653256009094,
+        "city": "Barcelona",
+        "country": "ESP"
+      },
+      "name": "Test Listing",
+      "status": "available",
+      "number_of_bedrooms": 3,
+      "amenities": [
+        "washing machine",
+        "dishwasher"
+      ],
+      "ota_listing_ids": {
+        "vrbo": {
+          "id": "123_vrbo",
+          "url": "vrbo.com/en-ca/test-rental/p12345"
+        },
+        "other": {
+          "tripadvisor": {
+            "id": "32455",
+            "url": "https://www.tripadvisor.com/rooms/123_trip"
+          },
+          "expedia": {
+            "id": "32455",
+            "url": "https://www.expedia.com/rooms/123_trip"
+          }
+        },
+        "airbnb": {
+          "id": "123_airbnb",
+          "url": "https://www.airbnb.com/rooms/123_airbnb"
+        },
+        "bookingcom": {
+          "id": "123_bcom",
+          "url": "https://booking.com/hotel/mx/test-listing.en.html"
+        }
+      }
+    }
+  ]
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Request was processed, and response contains successes and failures of individually edited listings
+Success will contain only an array of listing_ids
+Failure contains an error string describing the problem which halted processing, along with the item it was relevant to
+
+Example Value
+Model
+{
+  "success": [
+    "string"
+  ],
+  "failure": [
+    {
+      "details": {
+        "listing_id": "12343456",
+        "user_token": "test@test.com",
+        "location": {
+          "latitude": 50.394447150689544,
+          "longitude": 60.177653256009094,
+          "city": "Barcelona",
+          "country": "ESP"
+        },
+        "name": "Test Listing",
+        "status": "available",
+        "number_of_bedrooms": 3,
+        "amenities": [
+          "washing machine",
+          "dishwasher"
+        ],
+        "ota_listing_ids": {
+          "vrbo": {
+            "id": "123_vrbo",
+            "url": "vrbo.com/en-ca/test-rental/p12345"
+          },
+          "other": {
+            "tripadvisor": {
+              "id": "32455",
+              "url": "https://www.tripadvisor.com/rooms/123_trip"
+            },
+            "expedia": {
+              "id": "32455",
+              "url": "https://www.expedia.com/rooms/123_trip"
+            }
+          },
+          "airbnb": {
+            "id": "123_airbnb",
+            "url": "https://www.airbnb.com/rooms/123_airbnb"
+          },
+          "bookingcom": {
+            "id": "123_bcom",
+            "url": "https://booking.com/hotel/mx/test-listing.en.html"
+          }
+        }
+      },
+      "error": "string"
+    }
+  ]
+}
+401	
+Invalid integration API key value
+
+Example Value
+Model
+"string"

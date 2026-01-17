@@ -78,7 +78,7 @@ public class StoreController {
                 if (result.success()) {
                     message = message + "；" + result.message() + "（hotelid=" + result.hotelId() + "）";
                 } else {
-                    message = message + "；Su 物业创建/覆盖失败（hotelid=" + result.hotelId() + "）："
+                    message = message + "；渠道物业创建失败（hotelid=" + result.hotelId() + "）："
                             + (result.message() != null ? result.message() : "未知错误");
                 }
             }

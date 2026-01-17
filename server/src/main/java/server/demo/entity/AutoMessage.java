@@ -102,6 +102,14 @@ public class AutoMessage implements StoreScopedEntity {
     private String action;
 
     /**
+     * 发送时机: IMMEDIATELY(立即发送), 5_MIN(5分钟后), 10_MIN(10分钟后),
+     * 15_MIN(15分钟后), 30_MIN(30分钟后), 1_HOUR(1小时后), 2_HOUR(2小时后),
+     * 4_HOUR(4小时后), 8_HOUR(8小时后), 16_HOUR(16小时后), 24_HOUR(24小时后)
+     */
+    @Column(length = 20)
+    private String sendTiming;
+
+    /**
      * 是否启用
      */
     @Column(nullable = false)
@@ -225,6 +233,14 @@ public class AutoMessage implements StoreScopedEntity {
 
     public void setAction(String action) {
         this.action = action;
+    }
+
+    public String getSendTiming() {
+        return sendTiming;
+    }
+
+    public void setSendTiming(String sendTiming) {
+        this.sendTiming = sendTiming;
     }
 
     public Boolean getEnabled() {

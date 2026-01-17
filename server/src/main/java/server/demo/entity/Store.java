@@ -51,9 +51,9 @@ public class Store {
 
     /**
      * Su Channel Manager 的 Property ID（Su 文档中的 hotelid / HotelCode）。
-     * 建议仅使用字母 + 数字，长度 <= 20；一个门店对应一个 suHotelId（支持多门店分别配置）。
+     * 建议仅使用 A-Z/0-9，长度 <= 15；一个门店对应一个 suHotelId（支持多门店分别配置）。
      */
-    @Column(length = 20)
+    @Column(length = 15)
     private String suHotelId;
 
     @Column(length = 255)

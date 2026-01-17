@@ -35,7 +35,7 @@ public class CreateStoreRequest {
     private String currency;
 
     /**
-     * Su Channel Manager 的 hotelid / HotelCode（可选，不填则后端默认生成 STORE{storeId}）
+     * Su Channel Manager 的 hotelid / HotelCode（可选，不填则后端随机生成不重复的编码）
      */
     private String suHotelId;
 

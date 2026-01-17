@@ -1,5 +1,7 @@
 package server.demo.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -8,6 +10,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import jakarta.persistence.criteria.Predicate;
 import server.demo.dto.CreateReservationRequest;
 import server.demo.dto.PagedReservationResponse;
@@ -39,6 +43,8 @@ import java.util.stream.Collectors;
 @Transactional
 public class ReservationService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ReservationService.class);
+
     @Autowired
     private ReservationRepository reservationRepository;
 
@@ -53,6 +59,12 @@ public class ReservationService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AutoMessageTriggerService autoMessageTriggerService;
+
+    @Autowired
+    private PriceLabsReservationSyncService priceLabsReservationSyncService;
 
     private Long currentStoreId() {
         return StoreContextUtils.requireStoreId();
@@ -131,6 +143,8 @@ public class ReservationService {
         }
 
         Reservation savedReservation = reservationRepository.save(reservation);
+        scheduleAutoMessageDispatchAfterCommit(storeId);
+        schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
         return convertToDTO(savedReservation);
     }
 
@@ -148,6 +162,8 @@ public class ReservationService {
         reservation.setActualCheckIn(LocalDateTime.now());
 
         Reservation savedReservation = reservationRepository.save(reservation);
+        scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
+        schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
         return convertToDTO(savedReservation);
     }
 
@@ -165,6 +181,8 @@ public class ReservationService {
         reservation.setActualCheckOut(LocalDateTime.now());
 
         Reservation savedReservation = reservationRepository.save(reservation);
+        scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
+        schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
         return convertToDTO(savedReservation);
     }
 
@@ -182,7 +200,50 @@ public class ReservationService {
         reservation.setActualCheckOut(LocalDateTime.now());
 
         Reservation savedReservation = reservationRepository.save(reservation);
+        schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
         return convertToDTO(savedReservation);
+    }
+
+    private void scheduleAutoMessageDispatchAfterCommit(Long storeId) {
+        if (storeId == null || autoMessageTriggerService == null) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            autoMessageTriggerService.dispatchStoreOnce(storeId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                autoMessageTriggerService.dispatchStoreOnce(storeId);
+            }
+        });
+    }
+
+    private void schedulePriceLabsReservationSyncAfterCommit(Long storeId, Long reservationId) {
+        if (storeId == null || reservationId == null || priceLabsReservationSyncService == null) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            try {
+                priceLabsReservationSyncService.pushReservationById(storeId, reservationId);
+            } catch (Exception e) {
+                logger.warn("[PriceLabsReservations] push reservation failed after commit (no tx). storeId={}, reservationId={}, error={}",
+                        storeId, reservationId, e.getMessage());
+            }
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    priceLabsReservationSyncService.pushReservationById(storeId, reservationId);
+                } catch (Exception e) {
+                    logger.warn("[PriceLabsReservations] push reservation failed after commit. storeId={}, reservationId={}, error={}",
+                            storeId, reservationId, e.getMessage());
+                }
+            }
+        });
     }
 
     /**
@@ -320,6 +381,7 @@ public class ReservationService {
                 .orElseThrow(() -> new RuntimeException("用户不存在")));
 
         Reservation savedReservation = reservationRepository.save(existingReservation);
+        schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
         return convertToDTO(savedReservation);
     }
 

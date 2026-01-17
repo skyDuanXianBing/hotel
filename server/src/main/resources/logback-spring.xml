@@ -89,6 +89,23 @@
             <maxHistory>7</maxHistory>
         </rollingPolicy>
     </appender>
+
+    <!-- Su Reservation 日志 -->
+    <appender name="SU_RESERVATION" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/su-reservation.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/su-reservation.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
     
     <!-- 安全日志 -->
     <appender name="SECURITY" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -114,6 +131,10 @@
     
     <logger name="PERFORMANCE" level="INFO" additivity="false">
         <appender-ref ref="PERFORMANCE"/>
+    </logger>
+
+    <logger name="SU_RESERVATION" level="INFO" additivity="false">
+        <appender-ref ref="SU_RESERVATION"/>
     </logger>
     
     <logger name="SECURITY" level="WARN" additivity="false">

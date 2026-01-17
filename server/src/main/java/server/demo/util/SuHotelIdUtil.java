@@ -1,5 +1,6 @@
 package server.demo.util;
 
+import java.security.SecureRandom;
 import java.util.Locale;
 
 /**
@@ -10,6 +11,9 @@ public final class SuHotelIdUtil {
     // Su 错误码 853：HotelCode 最大 15 个字符
     private static final int MAX_LENGTH = 15;
     private static final String VALID_PATTERN = "^[A-Z0-9]{1,15}$";
+
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final char[] ALPHANUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".toCharArray();
 
     private SuHotelIdUtil() {}
 
@@ -25,8 +29,25 @@ public final class SuHotelIdUtil {
         if (hotelId.length() <= MAX_LENGTH) {
             return hotelId;
         }
-        // 最后兜底：S + base36(storeId)，确保长度 <= 15
         return ("S" + Long.toString(storeId, 36)).toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * 生成随机 hotelid（仅 A-Z/0-9，长度 <= 15），用于避免不同账号/环境之间的 hotelid 冲突。
+     */
+    public static String generateRandom() {
+        return generateRandom(10);
+    }
+
+    public static String generateRandom(int length) {
+        if (length < 1 || length > MAX_LENGTH) {
+            throw new IllegalArgumentException("length must be between 1 and " + MAX_LENGTH);
+        }
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(ALPHANUM[RANDOM.nextInt(ALPHANUM.length)]);
+        }
+        return sb.toString();
     }
 
     public static String normalize(String hotelId) {

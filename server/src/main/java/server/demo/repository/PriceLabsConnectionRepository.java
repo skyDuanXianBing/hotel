@@ -30,6 +30,8 @@ public interface PriceLabsConnectionRepository extends JpaRepository<PriceLabsCo
      */
     List<PriceLabsConnection> findByRoomTypeId(Long roomTypeId);
 
+    Optional<PriceLabsConnection> findByStoreIdAndRoomTypeIdAndIsEnabledTrue(Long storeId, Long roomTypeId);
+
     /**
      * 根据价格计划ID查找连接
      */

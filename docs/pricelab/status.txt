@@ -1,0 +1,77 @@
+POST
+/status
+To fetch the current state of various objects
+
+
+
+This API will be used to query PriceLabs for the current state of the various objects. A type and id parameter are passed to identify which records are needed. The id corresponds to the reservation_id or listing_id of the record.
+
+Parameters
+Name	Description
+statuses *
+object
+(body)
+Example Value
+Model
+{
+  "statuses": [
+    {
+      "id": "string",
+      "type": "calendar"
+    }
+  ]
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Request was processed, and response contains successes and failures of records.
+Success will contain selected information from the queried record
+Failure contains an error string describing the problem which halted processing, along with the item it was relevant to
+
+Example Value
+Model
+{
+  "success": [
+    "string"
+  ],
+  "failure": [
+    {
+      "details": [
+        {
+          "listing_id": "string",
+          "data": [
+            {
+              "reservation_id": "string",
+              "cancel_time": "string",
+              "start_date": "string",
+              "end_date": "string",
+              "booked_time": "string",
+              "total_days": 0,
+              "total_cost": 0,
+              "total_fees": 0,
+              "total_taxes": 0,
+              "host_payout": 0,
+              "ota_commission": 0,
+              "rental_revenue": 0,
+              "currency": "string",
+              "status": "booked"
+            }
+          ]
+        }
+      ],
+      "error": "string"
+    }
+  ]
+}
+401	
+Invalid integration API key value
+
+Example Value
+Model
+"string"

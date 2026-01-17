@@ -31,6 +31,7 @@ import java.util.Set;
 public class OtaReservationSyncService {
 
     private static final Logger logger = LoggerFactory.getLogger(OtaReservationSyncService.class);
+    private static final Logger reservationLogger = LoggerFactory.getLogger("SU_RESERVATION");
 
     private static final String OTA_CHANNEL_CODE_AIRBNB = "AIRBNB";
     private static final String OTA_CHANNEL_CODE_BOOKING = "BOOKING";
@@ -48,6 +49,7 @@ public class OtaReservationSyncService {
     private final OtaReservationRoomAssignmentService roomAssignmentService;
     private final TransactionTemplate transactionTemplate;
     private final SuAccessTokenService suAccessTokenService;
+    private final AutoMessageTriggerService autoMessageTriggerService;
 
     public OtaReservationSyncService(
             SuApiClient suApiClient,
@@ -57,7 +59,8 @@ public class OtaReservationSyncService {
             ReservationRepository reservationRepository,
             OtaReservationRoomAssignmentService roomAssignmentService,
             PlatformTransactionManager transactionManager,
-            SuAccessTokenService suAccessTokenService
+            SuAccessTokenService suAccessTokenService,
+            AutoMessageTriggerService autoMessageTriggerService
     ) {
         this.suApiClient = suApiClient;
         this.storeRepository = storeRepository;
@@ -67,6 +70,7 @@ public class OtaReservationSyncService {
         this.roomAssignmentService = roomAssignmentService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.suAccessTokenService = suAccessTokenService;
+        this.autoMessageTriggerService = autoMessageTriggerService;
     }
 
     public List<String> getSupportedChannelCodes() {
@@ -102,17 +106,24 @@ public class OtaReservationSyncService {
                 .orElseThrow(() -> new IllegalArgumentException("门店不存在: " + storeId));
 
         String hotelId = resolveHotelId(store);
+        reservationLogger.info("[ReservationSync] start. storeId={}, hotelId={}, onlyAckNotifIds={}",
+                storeId, hotelId, onlyAckNotifIds != null ? onlyAckNotifIds.size() : null);
 
         JsonNode raw = suAccessTokenService.executeWithTokenRetry(
                 token -> suApiClient.pullReservations(token, hotelId),
                 "Reservation"
         );
         List<JsonNode> reservations = SuReservationParser.extractReservationNodes(raw);
+        reservationLogger.info("[ReservationSync] pulled reservations. storeId={}, hotelId={}, count={}",
+                storeId, hotelId, reservations.size());
 
         UpsertResult upsert = transactionTemplate.execute(status -> upsertReservationsInTx(store, reservations));
         if (upsert == null) {
             upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), List.of("事务执行失败：upsert结果为空"));
         }
+
+        reservationLogger.info("[ReservationSync] upsert done. storeId={}, hotelId={}, processed={}, created={}, updated={}, failed={}, notifIds={}",
+                storeId, hotelId, upsert.processedRoomStays(), upsert.createdCount(), upsert.updatedCount(), upsert.failedCount(), upsert.notifIds().size());
 
         List<String> ackNotifIds = buildAckNotifIds(upsert.notifIds(), onlyAckNotifIds);
         int ackRequested = ackNotifIds.size();
@@ -121,6 +132,7 @@ public class OtaReservationSyncService {
 
         if (ackRequested > 0) {
             try {
+                reservationLogger.info("[ReservationSync] ack start. storeId={}, hotelId={}, ackRequested={}", storeId, hotelId, ackRequested);
                 JsonNode ackResponse = suAccessTokenService.executeWithTokenRetry(
                         token -> suApiClient.ackReservationNotifs(token, hotelId, ackNotifIds),
                         "Reservation_notif"
@@ -128,12 +140,28 @@ public class OtaReservationSyncService {
                 if (!suApiClient.isSuSuccess(ackResponse)) {
                     ackErrorMessage = suApiClient.extractSuErrorMessage(ackResponse);
                     logger.warn("Su Reservation_notif returned non-success. storeId={}, hotelId={}, body={}", storeId, hotelId, ackResponse);
+                    reservationLogger.error("[ReservationSync] ack failed. storeId={}, hotelId={}, err={}, body={}",
+                            storeId, hotelId, ackErrorMessage, ackResponse);
                 } else {
                     ackSuccess = ackRequested;
+                    reservationLogger.info("[ReservationSync] ack success. storeId={}, hotelId={}, ackSuccess={}", storeId, hotelId, ackSuccess);
                 }
             } catch (Exception e) {
                 ackErrorMessage = e.getMessage();
                 logger.error("Ack reservation notif failed. storeId={}, hotelId={}", storeId, hotelId, e);
+                reservationLogger.error("[ReservationSync] ack exception. storeId={}, hotelId={}, err={}", storeId, hotelId, ackErrorMessage, e);
+            }
+        } else {
+            reservationLogger.info("[ReservationSync] ack skipped. storeId={}, hotelId={}, reason=no notif ids", storeId, hotelId);
+        }
+
+        // 尽快处理 IMMEDIATELY 的业务自动消息（例如 BOOKING_CONFIRM）
+        if (upsert.createdCount() > 0 || upsert.updatedCount() > 0) {
+            try {
+                autoMessageTriggerService.dispatchStoreOnce(storeId);
+            } catch (Exception e) {
+                logger.warn("Dispatch auto messages after reservation sync failed. storeId={}, err={}", storeId, e.getMessage(), e);
+                reservationLogger.error("[ReservationSync] dispatch auto messages failed. storeId={}, err={}", storeId, e.getMessage());
             }
         }
 

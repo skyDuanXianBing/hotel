@@ -64,9 +64,9 @@ public class StoreService {
 
         // 生成并保存 Su hotelid（支持多门店分别配置）
         String requestedHotelId = SuHotelIdUtil.normalize(request.getSuHotelId());
-        String suHotelId = requestedHotelId != null ? requestedHotelId : SuHotelIdUtil.buildDefault(savedStore.getId());
+        String suHotelId = requestedHotelId != null ? requestedHotelId : generateUniqueRandomSuHotelId();
         if (!SuHotelIdUtil.isValid(suHotelId)) {
-            throw new RuntimeException("Su HotelId 仅支持字母/数字，长度<=20");
+            throw new RuntimeException("渠道酒店ID仅支持 A-Z/0-9，长度<=15");
         }
         savedStore.setSuHotelId(suHotelId);
         savedStore = storeRepository.save(savedStore);
@@ -110,7 +110,7 @@ public class StoreService {
         if (request.getSuHotelId() != null) {
             String normalized = SuHotelIdUtil.normalize(request.getSuHotelId());
             if (normalized != null && !SuHotelIdUtil.isValid(normalized)) {
-                throw new RuntimeException("Su HotelId 仅支持字母/数字，长度<=20");
+                throw new RuntimeException("渠道酒店ID仅支持 A-Z/0-9，长度<=15");
             }
             store.setSuHotelId(normalized);
         }
@@ -326,6 +326,16 @@ public class StoreService {
 
         StorePolicy savedPolicy = storePolicyRepository.save(policy);
         return convertPolicyToDTO(savedPolicy);
+    }
+
+    private String generateUniqueRandomSuHotelId() {
+        for (int i = 0; i < 50; i++) {
+            String candidate = SuHotelIdUtil.generateRandom();
+            if (storeRepository.findBySuHotelId(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+        throw new RuntimeException("渠道酒店ID生成失败，请手动填写");
     }
 
     private StoreDTO convertToDTO(Store store, String userRole) {

@@ -1,0 +1,126 @@
+/calendar
+Update rates and availability
+
+
+
+This endpoint can update rates and availability of selected listings, along with the multi unit details of the listings.
+
+listing_id should always be sent as a string, eg., "12345".
+
+The first time a given date is entered in the data array for a listing it must contain both price, and available_units for the listing. The subsequent API calls can be a delta push or updates for specific date ranges.
+
+If you need to price only one rate per listing, then you can ignore and skip the field rate_plan_id.
+
+If you support multiple rate plans and need to update rates for all rate plans, then you should call the /rate_plans endpoint to first update the rate plan IDs and names. Further, you should call the /calendar endpoint mandatorily for default rate plan while providing the respective rate_plan_id of the default rate plan.
+It is mandatory to set prices for the default rate plan using the /calendar API call.
+
+Parameters
+Name	Description
+calendars *
+object
+(body)
+Example Value
+Model
+{
+  "calendars": [
+    {
+      "listing_id": "string",
+      "rate_plan_id": "IAPI-FLEX-SGL",
+      "currency": "string",
+      "data": [
+        {
+          "date": "string",
+          "end_date": "string",
+          "price": 0,
+          "available_units": 0,
+          "booked_units": 0,
+          "blocked_units": 0,
+          "settings": {
+            "min_stay": 0,
+            "check_in": true,
+            "check_out": true,
+            "weekly_discount": 0,
+            "monthly_discount": 0,
+            "extra_person_fee": 0,
+            "extra_person_fee_trigger": 0
+          }
+        }
+      ],
+      "multi_unit": {
+        "total_units": 5,
+        "unit_ids": [
+          "101",
+          "102",
+          "103",
+          "104",
+          "105"
+        ]
+      }
+    }
+  ]
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Request was processed, and response contains successes and failures of individually edited listings
+Success will contain only an array of listing_ids
+Failure contains an error string describing the problem which halted processing, along with the item it was relevant to
+
+Example Value
+Model
+{
+  "success": [
+    "string"
+  ],
+  "failure": [
+    {
+      "details": {
+        "listing_id": "string",
+        "rate_plan_id": "IAPI-FLEX-SGL",
+        "currency": "string",
+        "data": [
+          {
+            "date": "string",
+            "end_date": "string",
+            "price": 0,
+            "available_units": 0,
+            "booked_units": 0,
+            "blocked_units": 0,
+            "settings": {
+              "min_stay": 0,
+              "check_in": true,
+              "check_out": true,
+              "weekly_discount": 0,
+              "monthly_discount": 0,
+              "extra_person_fee": 0,
+              "extra_person_fee_trigger": 0
+            }
+          }
+        ],
+        "multi_unit": {
+          "total_units": 5,
+          "unit_ids": [
+            "101",
+            "102",
+            "103",
+            "104",
+            "105"
+          ]
+        }
+      },
+      "error": "string"
+    }
+  ]
+}
+401	
+Invalid integration API key value
+
+Example Value
+Model
+"string"
