@@ -347,6 +347,17 @@ export const manualSync = async (): Promise<ApiResponse<{ message: string }>> =>
 }
 
 /**
+ * 单房型手动同步
+ */
+export const syncRoomType = async (
+  roomTypeId: number,
+  days?: number,
+): Promise<ApiResponse<{ message: string }>> => {
+  const query = days ? `?days=${days}` : ''
+  return await request.post(`/pricelabs/sync/room-type/${roomTypeId}${query}`)
+}
+
+/**
  * PMS -> PriceLabs: /status 查询诊断
  */
 export const queryStatus = async (

@@ -46,6 +46,20 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     @Query("SELECT r FROM Reservation r " +
             "LEFT JOIN FETCH r.room room " +
             "LEFT JOIN FETCH room.roomType " +
+            "WHERE r.storeId = :storeId " +
+            "AND r.checkOutDate >= :startDate " +
+            "AND r.checkInDate <= :endDate " +
+            "AND (room.roomType.id = :roomTypeId OR r.otaRoomTypeId = :roomTypeId)")
+    List<Reservation> findByStoreIdAndRoomTypeIdOverlappingDateRangeWithRoomType(
+            @Param("storeId") Long storeId,
+            @Param("roomTypeId") Long roomTypeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("SELECT r FROM Reservation r " +
+            "LEFT JOIN FETCH r.room room " +
+            "LEFT JOIN FETCH room.roomType " +
             "WHERE r.storeId = :storeId AND r.id = :id")
     Optional<Reservation> findByStoreIdAndIdWithRoomType(
             @Param("storeId") Long storeId,

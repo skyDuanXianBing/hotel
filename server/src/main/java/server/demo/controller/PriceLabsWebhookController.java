@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import server.demo.config.PriceLabsConfig;
+import server.demo.constants.PriceLabsSyncDefaults;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.PriceLabsWebhookRequest;
 import server.demo.service.PriceLabsService;
@@ -15,6 +16,7 @@ import server.demo.service.PriceLabsSyncService;
 import server.demo.util.PriceLabsIdUtil;
 import server.demo.util.PriceLabsSignatureVerifier;
 import server.demo.util.PriceLabsWebhookPayloadNormalizer;
+import server.demo.util.PriceLabsWebhookListingIdsParser;
 
 import java.time.LocalDate;
 import java.util.Enumeration;
@@ -123,6 +125,26 @@ public class PriceLabsWebhookController {
             }
 
             // 2. 解析请求数据
+            PriceLabsWebhookListingIdsParser.ListingIdsPayload listingPayload =
+                    PriceLabsWebhookListingIdsParser.parse(objectMapper, rawBody);
+            if (!listingPayload.hasPriceData() && !listingPayload.listingIds().isEmpty()) {
+                int syncDays = PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS;
+                priceLabsSyncService.pullPricesForListingIds(listingPayload.listingIds(), syncDays);
+                priceLabsSyncService.syncCalendarForListingIds(listingPayload.listingIds(), syncDays);
+
+                response.put("success", true);
+                response.put("message", "listing_ids 已同步");
+                response.put("listing_count", listingPayload.listingIds().size());
+                if (config.isDebug()) {
+                    response.put("traceId", traceId);
+                }
+                logger.info("[PriceLabsWebhook][{}] /sync listing_ids processed. listingCount={}, costMs={}",
+                        traceId,
+                        listingPayload.listingIds().size(),
+                        System.currentTimeMillis() - startedAt);
+                return ResponseEntity.ok(response);
+            }
+
             PriceLabsWebhookPayloadNormalizer.NormalizedPayload normalized = PriceLabsWebhookPayloadNormalizer
                     .normalizeSyncPayload(objectMapper, rawBody);
             PriceLabsWebhookRequest webhookData = normalized.request();

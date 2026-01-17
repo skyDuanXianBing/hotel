@@ -3,6 +3,7 @@ package server.demo.entity;
 import jakarta.persistence.*;
 import server.demo.entity.base.StoreScopedEntity;
 import server.demo.entity.listener.StoreScopedEntityListener;
+import server.demo.constants.PriceLabsSyncStatus;
 
 import java.time.LocalDateTime;
 
@@ -61,7 +62,7 @@ public class PriceLabsConnection implements StoreScopedEntity {
      * 同步状态: connected, disconnected, error
      */
     @Column(name = "sync_status", length = 20)
-    private String syncStatus = "disconnected";
+    private String syncStatus = PriceLabsSyncStatus.DISCONNECTED;
 
     /**
      * 错误信息

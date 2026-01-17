@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import server.demo.constants.PriceLabsSyncDefaults;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.*;
 import server.demo.entity.*;
@@ -81,6 +82,9 @@ public class PriceLabsService {
 
     @Autowired
     private ChannelPriceFallbackService channelPriceFallbackService;
+
+    @Autowired
+    private PriceLabsSyncService priceLabsSyncService;
 
     // ==================== 集成配置管理 ====================
 
@@ -237,6 +241,12 @@ public class PriceLabsService {
         connection.generatePriceLabsListingId();
 
         PriceLabsConnection saved = connectionRepository.save(connection);
+        priceLabsSyncService.syncListingRatePlanAndCalendar(
+                storeId,
+                roomType,
+                pricePlan,
+                PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS
+        );
         return convertToConnectionDTO(saved);
     }
 
@@ -353,8 +363,9 @@ public class PriceLabsService {
                     RoomPrice rp = existingRpOpt
                             .orElse(new RoomPrice(roomType, pricePlan, priceDate, basePrice));
                     rp.setPrice(basePrice);
-                    if (calendarData.getMinStay() != null) {
-                        rp.setMinStay(calendarData.getMinStay());
+                    Integer minStay = normalizeMinStay(calendarData.getMinStay());
+                    if (minStay != null) {
+                        rp.setMinStay(minStay);
                     }
                     if (calendarData.getMaxStay() != null) {
                         rp.setMaxStay(calendarData.getMaxStay());
@@ -399,8 +410,9 @@ public class PriceLabsService {
                         cp.setChannelPrice(channelPrice);
 
                         // 设置最小/最大入住天数
-                        if (calendarData.getMinStay() != null) {
-                            cp.setMinStay(calendarData.getMinStay());
+                        Integer channelMinStay = normalizeMinStay(calendarData.getMinStay());
+                        if (channelMinStay != null) {
+                            cp.setMinStay(channelMinStay);
                         }
                         if (calendarData.getMaxStay() != null) {
                             cp.setMaxStay(calendarData.getMaxStay());
@@ -507,6 +519,13 @@ public class PriceLabsService {
         }
         // 兼容历史数据：enabled/auto_sync_price 可能为 NULL，默认按“启用”处理
         return !Boolean.FALSE.equals(channel.getEnabled()) && !Boolean.FALSE.equals(channel.getAutoSyncPrice());
+    }
+
+    private static Integer normalizeMinStay(Integer minStay) {
+        if (minStay == null) {
+            return null;
+        }
+        return minStay > 0 ? minStay : 1;
     }
 
     // ==================== 渠道价格调整管理 ====================

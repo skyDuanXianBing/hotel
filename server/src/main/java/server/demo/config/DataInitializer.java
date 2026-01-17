@@ -2,6 +2,7 @@ package server.demo.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.Channel;
@@ -32,14 +33,21 @@ import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StorePolicyRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
 // 数据初始化器,用于在应用启动时创建测试数据
+// 使用 @Profile("init-data") 注解，只在指定 profile 时才运行
+// 要启用数据初始化，在 application.properties 中添加: spring.profiles.active=init-data
 @Component
+@Profile("init-data")
 public class DataInitializer implements CommandLineRunner {
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private RoomTypeRepository roomTypeRepository;
@@ -108,11 +116,26 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
-        // 获取默认用户 (ID=1)
-        User defaultUser = userRepository.findById(1L)
-                .orElseThrow(() -> new RuntimeException("默认用户不存在,请先创建ID为1的用户"));
+        // 初始化默认用户 (ID=1)
+        System.out.println("===== 检查并创建默认用户 =====");
+        User defaultUser = userRepository.findById(1L).orElse(null);
+        if (defaultUser == null) {
+            defaultUser = new User();
+            defaultUser.setUsername("admin");
+            defaultUser.setEmail("admin@hotel.com");
+            defaultUser.setPassword(passwordEncoder.encode("admin123"));
+            defaultUser.setName("系统管理员");
+            defaultUser.setNickname("Admin");
+            defaultUser.setIsActive(true);
+            defaultUser = userRepository.save(defaultUser);
+            System.out.println("默认用户创建成功: username=admin, email=admin@hotel.com, password=admin123");
+        } else {
+            System.out.println("默认用户已存在: " + defaultUser.getUsername());
+        }
+        System.out.println("======================================\n");
 
         // 初始化门店数据
+        Store defaultStore = null;
         if (storeRepository.count() == 0) {
             Store store = new Store();
             store.setUserId(1L); // 设置默认用户ID为1
@@ -134,11 +157,11 @@ public class DataInitializer implements CommandLineRunner {
             store.setLanguage("日本語");
             store.setDescription("位于东京涩谷的精品日式旅馆,提供传统日式住宿体验");
 
-            Store savedStore = storeRepository.save(store);
+            defaultStore = storeRepository.save(store);
 
             // 初始化门店政策
             StorePolicy policy = new StorePolicy();
-            policy.setStore(savedStore);
+            policy.setStore(defaultStore);
             policy.setCheckinTime("14:00 之后");
             policy.setCheckoutTime("11:00 之前");
             policy.setChildPolicy("允许儿童入住。不提供加床服务。");
@@ -150,15 +173,26 @@ public class DataInitializer implements CommandLineRunner {
             storePolicyRepository.save(policy);
 
             System.out.println("门店数据初始化完成");
+        } else {
+            // 如果门店已存在，获取第一个门店
+            defaultStore = storeRepository.findById(1L).orElse(null);
+        }
+
+        // 确保有默认门店
+        if (defaultStore == null) {
+            throw new RuntimeException("默认门店不存在，无法初始化数据");
         }
 
         // 初始化房型数据
         RoomType daBedRoom = new RoomType("大床房", "DBF", 10, "舒适大床房");
         daBedRoom.setUser(defaultUser);
+        daBedRoom.setStoreId(defaultStore.getId());
         RoomType standardRoom = new RoomType("标准间", "BZJ", 15, "标准双人间");
         standardRoom.setUser(defaultUser);
+        standardRoom.setStoreId(defaultStore.getId());
         RoomType suite = new RoomType("套房", "TF", 5, "豪华套房");
         suite.setUser(defaultUser);
+        suite.setStoreId(defaultStore.getId());
 
         roomTypeRepository.save(daBedRoom);
         roomTypeRepository.save(standardRoom);
@@ -186,90 +220,105 @@ public class DataInitializer implements CommandLineRunner {
         // 初始化渠道数据
         Channel directChannel = new Channel("自来客", "DIRECT", ChannelType.DIRECT);
         directChannel.setUser(defaultUser);
+        directChannel.setStoreId(defaultStore.getId());
         directChannel.setColor("#409EFF");
         directChannel.setEnabled(true);
         directChannel.setDescription("直接预订客户");
 
         Channel manualChannel = new Channel("手动录入", "MANUAL", ChannelType.DIRECT);
         manualChannel.setUser(defaultUser);
+        manualChannel.setStoreId(defaultStore.getId());
         manualChannel.setColor("#409EFF");
         manualChannel.setEnabled(true);
         manualChannel.setDescription("手动录入订单");
 
         Channel airbnbChannel = new Channel("Airbnb", "AIRBNB", ChannelType.OTA);
         airbnbChannel.setUser(defaultUser);
+        airbnbChannel.setStoreId(defaultStore.getId());
         airbnbChannel.setColor("#F56C6C");
         airbnbChannel.setEnabled(true);
         airbnbChannel.setDescription("Airbnb");
 
         Channel agodaChannel = new Channel("阿凡达", "AGODA", ChannelType.OTA);
         agodaChannel.setUser(defaultUser);
+        agodaChannel.setStoreId(defaultStore.getId());
         agodaChannel.setColor("#E6A23C");
         agodaChannel.setEnabled(true);
         agodaChannel.setDescription("Agoda");
 
         Channel expediadChannel = new Channel("Expedia", "EXPEDIA", ChannelType.OTA);
         expediadChannel.setUser(defaultUser);
+        expediadChannel.setStoreId(defaultStore.getId());
         expediadChannel.setColor("#303133");
         expediadChannel.setEnabled(true);
         expediadChannel.setDescription("Expedia");
 
         Channel bookingChannel = new Channel("Booking.com", "BOOKING", ChannelType.OTA);
         bookingChannel.setUser(defaultUser);
+        bookingChannel.setStoreId(defaultStore.getId());
         bookingChannel.setColor("#003580");
         bookingChannel.setEnabled(true);
         bookingChannel.setDescription("Booking.com");
 
         Channel travelokaChannel = new Channel("Traveloka", "TRAVELOKA", ChannelType.OTA);
         travelokaChannel.setUser(defaultUser);
+        travelokaChannel.setStoreId(defaultStore.getId());
         travelokaChannel.setColor("#409EFF");
         travelokaChannel.setEnabled(true);
         travelokaChannel.setDescription("Traveloka");
 
         Channel tripChannel = new Channel("Trip.com", "TRIP", ChannelType.OTA);
         tripChannel.setUser(defaultUser);
+        tripChannel.setStoreId(defaultStore.getId());
         tripChannel.setColor("#409EFF");
         tripChannel.setEnabled(true);
         tripChannel.setDescription("Trip.com");
 
         Channel bookingEngineChannel = new Channel("预订引擎", "BOOKING_ENGINE", ChannelType.DIRECT);
         bookingEngineChannel.setUser(defaultUser);
+        bookingEngineChannel.setStoreId(defaultStore.getId());
         bookingEngineChannel.setColor("#409EFF");
         bookingEngineChannel.setEnabled(true);
         bookingEngineChannel.setDescription("在线预订引擎");
 
         Channel tiketChannel = new Channel("Tiket.com", "TIKET", ChannelType.OTA);
         tiketChannel.setUser(defaultUser);
+        tiketChannel.setStoreId(defaultStore.getId());
         tiketChannel.setColor("#409EFF");
         tiketChannel.setEnabled(true);
         tiketChannel.setDescription("Tiket.com");
 
         Channel chineseWebChannel = new Channel("中文网站", "CHINESE_WEB", ChannelType.DIRECT);
         chineseWebChannel.setUser(defaultUser);
+        chineseWebChannel.setStoreId(defaultStore.getId());
         chineseWebChannel.setColor("#67C23A");
         chineseWebChannel.setEnabled(true);
         chineseWebChannel.setDescription("中文官方网站");
 
         Channel rednotChannel = new Channel("红注", "REDNOT", ChannelType.OTA);
         rednotChannel.setUser(defaultUser);
+        rednotChannel.setStoreId(defaultStore.getId());
         rednotChannel.setColor("#F56C6C");
         rednotChannel.setEnabled(true);
         rednotChannel.setDescription("红注");
 
         Channel neppanChannel = new Channel("尼潘", "NEPPAN", ChannelType.OTA);
         neppanChannel.setUser(defaultUser);
+        neppanChannel.setStoreId(defaultStore.getId());
         neppanChannel.setColor("#E6A23C");
         neppanChannel.setEnabled(true);
         neppanChannel.setDescription("尼潘");
 
         Channel hostelWorldChannel = new Channel("青年旅舍世界", "HOSTELWORLD", ChannelType.OTA);
         hostelWorldChannel.setUser(defaultUser);
+        hostelWorldChannel.setStoreId(defaultStore.getId());
         hostelWorldChannel.setColor("#E6A23C");
         hostelWorldChannel.setEnabled(true);
         hostelWorldChannel.setDescription("青年旅舍世界");
 
         Channel tujiaChannel = new Channel("途家", "TUJIA", ChannelType.OTA);
         tujiaChannel.setUser(defaultUser);
+        tujiaChannel.setStoreId(defaultStore.getId());
         tujiaChannel.setColor("#E6A23C");
         tujiaChannel.setEnabled(true);
         tujiaChannel.setDescription("途家民宿");
@@ -331,6 +380,7 @@ public class DataInitializer implements CommandLineRunner {
         if (quickReplyRepository.count() == 0) {
             QuickReply quickReply1 = new QuickReply();
             quickReply1.setUserId(1L);
+            quickReply1.setStoreId(defaultStore.getId());
             quickReply1.setTitle("11");
             quickReply1.setMessage("11{Property name}");
             quickReplyRepository.save(quickReply1);
@@ -355,6 +405,7 @@ public class DataInitializer implements CommandLineRunner {
         if (autoMessageRepository.count() == 0) {
             AutoMessage autoMessage1 = new AutoMessage();
             autoMessage1.setUserId(1L);
+            autoMessage1.setStoreId(defaultStore.getId());
             autoMessage1.setTitle("入住前确认");
             autoMessage1.setMessage("您好,欢迎预订我们的酒店。您的入住时间为明天下午3点,请提前告知我们您的到达时间。");
             autoMessage1.setAutomationRule("入住前24小时");
@@ -365,6 +416,7 @@ public class DataInitializer implements CommandLineRunner {
 
             AutoMessage autoMessage2 = new AutoMessage();
             autoMessage2.setUserId(1L);
+            autoMessage2.setStoreId(defaultStore.getId());
             autoMessage2.setTitle("入住指南");
             autoMessage2.setMessage("感谢您选择我们!这里是入住指南:1.办理入住时间15:00-22:00 2.退房时间11:00前 3.WiFi密码将在入住时提供");
             autoMessage2.setAutomationRule("入住当天");
@@ -375,6 +427,7 @@ public class DataInitializer implements CommandLineRunner {
 
             AutoMessage autoMessage3 = new AutoMessage();
             autoMessage3.setUserId(1L);
+            autoMessage3.setStoreId(defaultStore.getId());
             autoMessage3.setTitle("退房提醒");
             autoMessage3.setMessage("温馨提醒:今天是您的退房日,退房时间为上午11点前。如需延迟退房,请提前联系前台。");
             autoMessage3.setAutomationRule("退房当天");
@@ -389,7 +442,6 @@ public class DataInitializer implements CommandLineRunner {
         // 初始化保洁配置数据
         if (cleaningConfigRepository.count() == 0) {
             // 为默认门店创建保洁配置
-            Store defaultStore = storeRepository.findById(1L).orElse(null);
             if (defaultStore != null) {
                 CleaningConfig cleaningConfig = new CleaningConfig();
                 cleaningConfig.setUserId(1L);
@@ -409,7 +461,6 @@ public class DataInitializer implements CommandLineRunner {
 
         // 初始化保洁员数据
         if (cleanerRepository.count() == 0) {
-            Store defaultStore = storeRepository.findById(1L).orElse(null);
             if (defaultStore != null) {
                 Cleaner cleaner1 = new Cleaner();
                 cleaner1.setUserId(1L);
@@ -433,18 +484,21 @@ public class DataInitializer implements CommandLineRunner {
         if (cleaningSupplyRepository.count() == 0) {
             CleaningSupply supply1 = new CleaningSupply();
             supply1.setUserId(1L);
+            supply1.setStoreId(defaultStore.getId());
             supply1.setRoomType("大床房");
             supply1.setSupplies("毛巾×2,浴巾×2,牙刷×2,牙膏×2,拖鞋×2,洗发水,沐浴露,护发素");
             cleaningSupplyRepository.save(supply1);
 
             CleaningSupply supply2 = new CleaningSupply();
             supply2.setUserId(1L);
+            supply2.setStoreId(defaultStore.getId());
             supply2.setRoomType("标准间");
             supply2.setSupplies("毛巾×4,浴巾×2,牙刷×2,牙膏×2,拖鞋×2,洗发水,沐浴露,护发素,棉签");
             cleaningSupplyRepository.save(supply2);
 
             CleaningSupply supply3 = new CleaningSupply();
             supply3.setUserId(1L);
+            supply3.setStoreId(defaultStore.getId());
             supply3.setRoomType("套房");
             supply3.setSupplies("毛巾×6,浴巾×4,牙刷×4,牙膏×4,拖鞋×4,洗发水×2,沐浴露×2,护发素×2,棉签,浴袍×2,茶包");
             cleaningSupplyRepository.save(supply3);

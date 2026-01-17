@@ -1,0 +1,84 @@
+POST
+/sync_url
+Allows syncing of PriceLabs prices and settings
+
+
+
+
+This endpoint must be created BY THE INTEGRATION and the URL will be provided through the "sync_url" in the /integration endpoint
+By default these will be ready and change daily, but it can be more frequent when users trigger a manual sync
+
+Parameters
+Name	Description
+X-SOURCE
+string
+(header)
+Denotes the source of the request
+
+X-SOURCE
+X-PL-TIMESTAMP
+string
+(header)
+The time stamp of when the request was created
+
+X-PL-TIMESTAMP
+X-PL-REQUESTID
+string
+(header)
+uuid generated to id the request
+
+X-PL-REQUESTID
+X-PL-SIGNED-HEADERS
+string
+(header)
+The signed combination of headers. 'X-SOURCE:X-PL-TIMESTAMP:X-PL-REQUESTID' signed with sha256 and the pms integration token. IF a version number is specified it is prepended before signing the header with 'VERSION' + ':' + header components. The signed value is then prepended with 'VERSION' + '.'
+
+X-PL-SIGNED-HEADERS
+X-PL-SIGNED-BODY
+string
+(header)
+The signed combination of the final headers signature and body. 'X-PL-SIGNED-HEADERS' + 'request.body' signed with sha256 and the pms integration token
+
+X-PL-SIGNED-BODY
+sync_prices
+object
+(body)
+Information is sent to the pms
+
+Example Value
+Model
+{
+  "listing_id": "string",
+  "last_refreshed": "string",
+  "data": [
+    {
+      "price": 111,
+      "date": "2024-05-13",
+      "min_stay": 2,
+      "check_in": true,
+      "check_out": true,
+      "weekly_discount": 0.9,
+      "monthly_discount": 0.8,
+      "extra_person_fee": 10,
+      "extra_person_fee_trigger": 4,
+      "los_discount_v2": {
+        "los": {
+          "los_night": "1",
+          "max_price": "string",
+          "min_price": "string",
+          "los_adjustment": "10"
+        }
+      }
+    }
+  ]
+}
+Parameter content type
+
+application/json
+Responses
+Response content type
+
+application/json
+Code	Description
+200	
+Response was received and processed

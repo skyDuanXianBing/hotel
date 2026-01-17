@@ -93,14 +93,6 @@
                 <el-tag :type="integration.isEnabled ? 'success' : 'info'" size="large">
                   {{ integration.isEnabled ? '已启用' : '未启用' }}
                 </el-tag>
-                <el-button
-                  v-if="integration.isEnabled"
-                  type="primary"
-                  :loading="syncLoading"
-                  @click="handleManualSync"
-                >
-                  立即同步
-                </el-button>
                 <el-switch
                   v-model="integration.isEnabled"
                   :loading="toggleLoading"
@@ -162,6 +154,14 @@
                   @click="handleOpenStatusDialog({ type: 'listing', id: row.priceLabsListingId })"
                 >
                   状态查询
+                </el-button>
+                <el-button
+                  link
+                  type="primary"
+                  :loading="syncingRoomTypeIds.includes(row.roomTypeId)"
+                  @click="handleSyncRoomType(row)"
+                >
+                  同步
                 </el-button>
                 <el-button
                   link
@@ -459,24 +459,84 @@
       </el-form>
 
       <el-divider content-position="left">结果</el-divider>
-      <div v-if="statusResult" class="status-result">
+      <div v-if="statusResult" class="status-result-vertical">
+        <!-- Success 区域 -->
         <div class="result-block">
-          <div class="result-title">Success</div>
-          <div v-if="statusResult.success && statusResult.success.length" class="result-tags">
-            <el-tag v-for="(s, idx) in statusResult.success" :key="idx" size="small" style="margin: 0 8px 8px 0">
-              {{ s }}
+          <div class="result-header">
+            <span class="result-title">Success</span>
+            <el-tag v-if="statusResult.success?.length" type="success" size="small">
+              {{ statusResult.success.length }} 条
             </el-tag>
           </div>
-          <el-empty v-else description="无" :image-size="60" />
-        </div>
-        <div class="result-block">
-          <div class="result-title">Failure</div>
-          <el-scrollbar height="220">
-            <pre class="result-json">{{ JSON.stringify(statusResult.failure ?? [], null, 2) }}</pre>
+          <el-scrollbar v-if="statusResult.success?.length" max-height="300">
+            <div
+              v-for="(item, idx) in statusResult.success"
+              :key="idx"
+              class="status-item"
+            >
+              <template v-if="typeof item === 'object' && item !== null">
+                <el-descriptions :column="2" size="small" border>
+                  <el-descriptions-item
+                    v-for="(value, key) in item"
+                    :key="key"
+                    :label="String(key)"
+                  >
+                    <template v-if="typeof value === 'boolean'">
+                      <el-tag :type="value ? 'success' : 'info'" size="small">
+                        {{ value ? '是' : '否' }}
+                      </el-tag>
+                    </template>
+                    <template v-else-if="value === null || value === undefined">
+                      <span class="text-muted">-</span>
+                    </template>
+                    <template v-else>
+                      {{ value }}
+                    </template>
+                  </el-descriptions-item>
+                </el-descriptions>
+              </template>
+              <template v-else>
+                <el-tag size="small">{{ item }}</el-tag>
+              </template>
+            </div>
           </el-scrollbar>
+          <el-empty v-else description="无成功记录" :image-size="50" />
+        </div>
+
+        <!-- Failure 区域 -->
+        <div class="result-block">
+          <div class="result-header">
+            <span class="result-title">Failure</span>
+            <el-tag v-if="statusResult.failure?.length" type="danger" size="small">
+              {{ statusResult.failure.length }} 条
+            </el-tag>
+          </div>
+          <el-scrollbar v-if="statusResult.failure?.length" max-height="200">
+            <div
+              v-for="(item, idx) in statusResult.failure"
+              :key="idx"
+              class="status-item"
+            >
+              <template v-if="typeof item === 'object' && item !== null">
+                <el-descriptions :column="2" size="small" border>
+                  <el-descriptions-item
+                    v-for="(value, key) in item"
+                    :key="key"
+                    :label="String(key)"
+                  >
+                    {{ value ?? '-' }}
+                  </el-descriptions-item>
+                </el-descriptions>
+              </template>
+              <template v-else>
+                <el-tag type="danger" size="small">{{ item }}</el-tag>
+              </template>
+            </div>
+          </el-scrollbar>
+          <el-empty v-else description="无失败记录" :image-size="50" />
         </div>
       </div>
-      <el-empty v-else description="点击“查询”后显示结果" :image-size="80" />
+      <el-empty v-else description="点击查询后显示结果" :image-size="80" />
 
       <template #footer>
         <div class="dialog-footer">
@@ -572,11 +632,11 @@ const integration = ref<PriceLabsIntegrationDTO>({
   successSyncCount: 0,
 })
 const toggleLoading = ref(false)
-const syncLoading = ref(false)
 
 // 连接列表
 const connections = ref<PriceLabsConnectionDTO[]>([])
 const connectionsLoading = ref(false)
+const syncingRoomTypeIds = ref<number[]>([])
 const connectionFilter = ref('all')
 
 // 渠道价格调整（使用 OTA 直连数据）
@@ -854,29 +914,6 @@ const handleToggleIntegration = async (enabled: boolean) => {
   }
 }
 
-// 手动同步
-const handleManualSync = async () => {
-  console.log('[PricingTools] Starting manual sync...')
-  syncLoading.value = true
-  try {
-    ElMessage.info('开始同步，请稍候...')
-    const res = await priceLabsApi.manualSync()
-    console.log('[PricingTools] Sync response:', res)
-    if (res.success) {
-      ElMessage.success('同步成功')
-      await loadIntegration()
-      await loadConnections()
-    } else {
-      ElMessage.error(res.message || '同步失败')
-    }
-  } catch (error) {
-    console.error('[PricingTools] Sync failed:', error)
-    ElMessage.error('同步失败')
-  } finally {
-    syncLoading.value = false
-  }
-}
-
 // 添加连接
 const handleAddConnection = () => {
   connectionForm.roomTypeId = null
@@ -905,12 +942,40 @@ const handleSaveConnection = async () => {
 
   saveConnectionLoading.value = true
   try {
+    if (!integration.value.isEnabled) {
+      if (!integration.value.priceLabsEmail || !integration.value.priceLabsEmail.trim()) {
+        ElMessage.warning('请先配置 PriceLabs 邮箱地址')
+        return
+      }
+
+      const toggleRes = await priceLabsApi.toggleIntegration(true)
+      if (toggleRes.success) {
+        if (toggleRes.data) {
+          integration.value = toggleRes.data
+        } else {
+          await loadIntegration()
+        }
+        ElMessage.success('已启用 PriceLabs 集成')
+      } else {
+        ElMessage.error(toggleRes.message || '启用 PriceLabs 集成失败')
+        return
+      }
+    }
+
     const res = await priceLabsApi.createConnection(connectionForm.roomTypeId, connectionForm.pricePlanId)
     if (res.success) {
       ElMessage.success('添加连接成功')
       showConnectionDialog.value = false
       await loadConnections()
       await loadIntegration()
+      return
+    }
+    if (res.data) {
+      ElMessage.warning(res.message || '连接已保存，但同步失败')
+      showConnectionDialog.value = false
+      await loadConnections()
+      await loadIntegration()
+      return
     } else {
       ElMessage.error(res.message || '添加连接失败')
     }
@@ -933,6 +998,33 @@ const handleToggleConnection = async (row: PriceLabsConnectionDTO) => {
     }
   } catch (error) {
     ElMessage.error('操作失败')
+  }
+}
+
+// 单房型同步
+const handleSyncRoomType = async (row: PriceLabsConnectionDTO) => {
+  if (!row.isEnabled) {
+    ElMessage.warning('请先启用连接')
+    return
+  }
+  if (syncingRoomTypeIds.value.includes(row.roomTypeId)) {
+    return
+  }
+
+  syncingRoomTypeIds.value = [...syncingRoomTypeIds.value, row.roomTypeId]
+  try {
+    const res = await priceLabsApi.syncRoomType(row.roomTypeId)
+    if (res.success) {
+      ElMessage.success('同步已触发')
+      await loadConnections()
+      await loadIntegration()
+    } else {
+      ElMessage.error(res.message || '同步失败')
+    }
+  } catch (error) {
+    ElMessage.error('同步失败')
+  } finally {
+    syncingRoomTypeIds.value = syncingRoomTypeIds.value.filter((id) => id !== row.roomTypeId)
   }
 }
 
@@ -1443,29 +1535,51 @@ const handlePushReservations = async () => {
   gap: 12px;
 }
 
-.status-result {
+.status-result-vertical {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .result-block {
-  flex: 1;
   border: 1px solid #e4e7ed;
   border-radius: 4px;
   padding: 12px;
-  background: #fff;
+  background: #fafafa;
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .result-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #303133;
-  margin-bottom: 8px;
 }
 
-.result-tags {
-  display: flex;
-  flex-wrap: wrap;
+.status-item {
+  margin-bottom: 12px;
+}
+
+.status-item:last-child {
+  margin-bottom: 0;
+}
+
+.status-item :deep(.el-descriptions) {
+  background: #fff;
+}
+
+.status-item :deep(.el-descriptions__label) {
+  min-width: 100px;
+  font-weight: 500;
+}
+
+.text-muted {
+  color: #909399;
 }
 
 .result-json {

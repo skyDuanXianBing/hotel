@@ -315,6 +315,24 @@ public class PriceLabsController {
         }
     }
 
+    /**
+     * 单房型同步：按房型拉取 PriceLabs 价格。
+     */
+    @PostMapping("/sync/room-type/{roomTypeId}")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<Map<String, String>>> syncRoomType(
+            @PathVariable Long roomTypeId,
+            @RequestParam(required = false) Integer days
+    ) {
+        try {
+            priceLabsSyncService.pullPricesForRoomType(roomTypeId, days);
+            return ResponseEntity.ok(ApiResponse.success("房型价格同步已触发", Map.of("message", "已发起拉取")));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("房型价格同步失败: " + e.getMessage()));
+        }
+    }
+
     // ==================== 同步日志 API ====================
 
     /**
@@ -425,6 +443,35 @@ public class PriceLabsController {
             this.statuses = statuses;
         }
     }
+    public static class StatusQueryByRoomTypeRequest {
+        private Long roomTypeId;
+        private LocalDate startDate;
+        private LocalDate endDate;
+
+        public Long getRoomTypeId() {
+            return roomTypeId;
+        }
+
+        public void setRoomTypeId(Long roomTypeId) {
+            this.roomTypeId = roomTypeId;
+        }
+
+        public LocalDate getStartDate() {
+            return startDate;
+        }
+
+        public void setStartDate(LocalDate startDate) {
+            this.startDate = startDate;
+        }
+
+        public LocalDate getEndDate() {
+            return endDate;
+        }
+
+        public void setEndDate(LocalDate endDate) {
+            this.endDate = endDate;
+        }
+    }
 
     /**
      * PMS -> PriceLabs: query status for debugging/certification.
@@ -439,6 +486,31 @@ public class PriceLabsController {
             Long storeId = StoreContextHolder.getContext().getStoreId();
             List<PriceLabsApiClient.StatusReq> statuses = request != null ? request.getStatuses() : null;
             PriceLabsApiClient.PriceLabsResponse res = priceLabsStatusService.queryStatus(storeId, statuses);
+            return ResponseEntity.ok(ApiResponse.success("status 查询完成", res));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("status 查询失败: " + e.getMessage()));
+        }
+    }
+    /**
+     * PMS -> PriceLabs: query reservation status by room type and date range.
+     */
+    @PostMapping("/status/query-by-room-type")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<PriceLabsApiClient.PriceLabsResponse>> queryPriceLabsStatusByRoomType(
+            @RequestBody StatusQueryByRoomTypeRequest request
+    ) {
+        try {
+            if (request == null) {
+                throw new IllegalArgumentException("request 不能为空");
+            }
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            PriceLabsApiClient.PriceLabsResponse res = priceLabsStatusService.queryReservationStatusByRoomType(
+                    storeId,
+                    request.getRoomTypeId(),
+                    request.getStartDate(),
+                    request.getEndDate()
+            );
             return ResponseEntity.ok(ApiResponse.success("status 查询完成", res));
         } catch (Exception e) {
             return ResponseEntity.status(500)
