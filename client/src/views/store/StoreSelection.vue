@@ -191,9 +191,9 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="Su 直连" prop="createSuProperty">
+        <el-form-item label="渠道直连" prop="createSuProperty">
           <el-checkbox v-model="form.createSuProperty">
-            创建门店后同步创建/覆盖 Su 物业（用于后续打开授权 Widget）
+            创建门店后同步创建/覆盖渠道物业（用于后续打开授权 Widget）
           </el-checkbox>
         </el-form-item>
       </el-form>
