@@ -17,6 +17,7 @@ import server.demo.util.PriceLabsIdUtil;
 import server.demo.util.PriceLabsSignatureVerifier;
 import server.demo.util.PriceLabsWebhookPayloadNormalizer;
 import server.demo.util.PriceLabsWebhookListingIdsParser;
+import server.demo.util.PriceLabsWebhookSignatureVerifier;
 
 import java.time.LocalDate;
 import java.util.Enumeration;
@@ -63,6 +64,11 @@ public class PriceLabsWebhookController {
     @PostMapping("/sync")
     public ResponseEntity<Map<String, Object>> handlePriceSync(
             @RequestHeader(value = "X-Signature", required = false) String signature,
+            @RequestHeader(value = "X-PL-SIGNED-HEADERS", required = false) String plSignedHeaders,
+            @RequestHeader(value = "X-PL-SIGNED-BODY", required = false) String plSignedBody,
+            @RequestHeader(value = "X-SOURCE", required = false) String plSource,
+            @RequestHeader(value = "X-PL-TIMESTAMP", required = false) String plTimestamp,
+            @RequestHeader(value = "X-PL-REQUESTID", required = false) String plRequestId,
             @RequestBody String rawBody,
             HttpServletRequest httpRequest) {
 
@@ -97,30 +103,57 @@ public class PriceLabsWebhookController {
                 return ResponseEntity.ok(response);
             }
 
-            boolean skipSignature = false;
-            if (signature == null || signature.isBlank()) {
-                if (config.isDebug()) {
-                    skipSignature = true;
-                    logger.warn("[PriceLabsWebhook][{}] /sync missing signature (debug mode: skip signature verification)", traceId);
-                } else {
-                    logger.warn("[PriceLabsWebhook][{}] /sync missing signature", traceId);
+            boolean hasPlSignature = (plSignedHeaders != null && !plSignedHeaders.isBlank())
+                    || (plSignedBody != null && !plSignedBody.isBlank());
+            if (hasPlSignature) {
+                if (plSignedHeaders == null || plSignedHeaders.isBlank()) {
+                    logger.warn("[PriceLabsWebhook][{}] /sync missing X-PL-SIGNED-HEADERS", traceId);
                     response.put("success", false);
                     response.put("message", "缺少签名");
                     return ResponseEntity.status(401).body(response);
                 }
-            }
+                if (plSignedBody == null || plSignedBody.isBlank()) {
+                    logger.warn("[PriceLabsWebhook][{}] /sync missing X-PL-SIGNED-BODY", traceId);
+                    response.put("success", false);
+                    response.put("message", "缺少签名");
+                    return ResponseEntity.status(401).body(response);
+                }
 
-            // 1. 验证签名
-            if (!skipSignature) {
-                PriceLabsSignatureVerifier verifier = new PriceLabsSignatureVerifier(config.getIntegrationToken());
-                if (!verifier.verifySignature(rawBody, signature)) {
-                    logger.warn("[PriceLabsWebhook][{}] /sync signature verification failed", traceId);
+                PriceLabsWebhookSignatureVerifier verifier = new PriceLabsWebhookSignatureVerifier(config.getIntegrationToken());
+                if (!verifier.verify(plSignedHeaders, plSignedBody, plSource, plTimestamp, plRequestId, rawBody)) {
+                    logger.warn("[PriceLabsWebhook][{}] /sync X-PL signature verification failed", traceId);
                     response.put("success", false);
                     response.put("message", "签名验证失败");
                     if (config.isDebug()) {
                         response.put("traceId", traceId);
                     }
                     return ResponseEntity.status(401).body(response);
+                }
+            } else {
+                boolean skipSignature = false;
+                if (signature == null || signature.isBlank()) {
+                    if (config.isDebug()) {
+                        skipSignature = true;
+                        logger.warn("[PriceLabsWebhook][{}] /sync missing signature (debug mode: skip signature verification)", traceId);
+                    } else {
+                        logger.warn("[PriceLabsWebhook][{}] /sync missing signature", traceId);
+                        response.put("success", false);
+                        response.put("message", "缺少签名");
+                        return ResponseEntity.status(401).body(response);
+                    }
+                }
+
+                if (!skipSignature) {
+                    PriceLabsSignatureVerifier verifier = new PriceLabsSignatureVerifier(config.getIntegrationToken());
+                    if (!verifier.verifySignature(rawBody, signature)) {
+                        logger.warn("[PriceLabsWebhook][{}] /sync signature verification failed", traceId);
+                        response.put("success", false);
+                        response.put("message", "签名验证失败");
+                        if (config.isDebug()) {
+                            response.put("traceId", traceId);
+                        }
+                        return ResponseEntity.status(401).body(response);
+                    }
                 }
             }
 
@@ -217,6 +250,8 @@ public class PriceLabsWebhookController {
                 "cookie",
                 "set-cookie",
                 "x-signature",
+                "x-pl-signed-headers",
+                "x-pl-signed-body",
                 "x-integration-token",
                 "x-api-key"
         );
@@ -284,9 +319,12 @@ public class PriceLabsWebhookController {
                     logger.warn("[PriceLabsWebhook][{}] /calendar-trigger missing signature (debug mode: skip signature verification)", traceId);
                 } else {
                     logger.warn("[PriceLabsWebhook][{}] /calendar-trigger missing signature", traceId);
-                    response.put("success", false);
-                    response.put("message", "缺少签名");
-                    return ResponseEntity.status(401).body(response);
+                    response.put("success", true);
+                    response.put("message", "日历刷新请求已接收，但缺少签名，已跳过校验");
+                    if (config.isDebug()) {
+                        response.put("traceId", traceId);
+                    }
+                    return ResponseEntity.ok(response);
                 }
             }
 
@@ -469,9 +507,12 @@ public class PriceLabsWebhookController {
                     logger.warn("[PriceLabsWebhook][{}] /hook missing signature (debug mode: skip signature verification)", traceId);
                 } else {
                     logger.warn("[PriceLabsWebhook][{}] /hook missing signature", traceId);
-                    response.put("success", false);
-                    response.put("message", "缺少签名");
-                    return ResponseEntity.status(401).body(response);
+                    response.put("success", true);
+                    response.put("message", "错误通知已接收，但缺少签名，已跳过校验");
+                    if (config.isDebug()) {
+                        response.put("traceId", traceId);
+                    }
+                    return ResponseEntity.ok(response);
                 }
             }
 

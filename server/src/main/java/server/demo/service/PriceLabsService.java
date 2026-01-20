@@ -741,7 +741,7 @@ public class PriceLabsService {
 
         // 附加统计信息
         dto.setConnectedRoomTypeCount(connectionRepository.countConnectedRoomTypes(entity.getStoreId()));
-        dto.setTotalSyncCount(syncLogRepository.count());
+        dto.setTotalSyncCount(syncLogRepository.countByStoreId(entity.getStoreId()));
         dto.setSuccessSyncCount(syncLogRepository.countByStoreIdAndStatus(entity.getStoreId(), SyncStatus.SUCCESS));
 
         return dto;

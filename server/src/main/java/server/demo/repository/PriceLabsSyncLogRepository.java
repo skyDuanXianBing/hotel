@@ -53,6 +53,8 @@ public interface PriceLabsSyncLogRepository extends JpaRepository<PriceLabsSyncL
      */
     long countByStoreIdAndStatus(Long storeId, SyncStatus status);
 
+    long countByStoreId(Long storeId);
+
     /**
      * 统计门店特定时间段内的同步次数
      */

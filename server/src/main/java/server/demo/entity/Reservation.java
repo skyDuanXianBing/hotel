@@ -11,7 +11,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reservations")
+@Table(
+        name = "reservations",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_reservations_store_order",
+                columnNames = {"store_id", "order_number"}
+        )
+)
 public class Reservation implements StoreScopedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -63,7 +69,7 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "paid_amount", precision = 10, scale = 2)
     private BigDecimal paidAmount = BigDecimal.ZERO;
 
-    @Column(name = "order_number", length = 50, unique = true)
+    @Column(name = "order_number", length = 50)
     private String orderNumber;
 
     @Column(name = "channel_order_number", length = 100)
