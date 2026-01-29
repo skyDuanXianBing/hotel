@@ -1,0 +1,61 @@
+﻿{
+    "body":  {
+                 "HotelDescriptiveContents":  {
+                                                  "HotelDescriptiveContent":  {
+                                                                                  "LanguageCode":  "en",
+                                                                                  "HotelName":  "SaitoShoji Test Property",
+                                                                                  "Platform":  "SU",
+                                                                                  "ContactInfos":  {
+                                                                                                       "ContactInfo":  [
+                                                                                                                           {
+                                                                                                                               "Addresses":  {
+                                                                                                                                                 "Address":  {
+                                                                                                                                                                 "PostalCode":  "000000",
+                                                                                                                                                                 "AddressLine":  "Test Address",
+                                                                                                                                                                 "CountryName":  "JP",
+                                                                                                                                                                 "CityName":  "Tokyo"
+                                                                                                                                                             }
+                                                                                                                                             },
+                                                                                                                               "ContactProfileType":  "PhysicalLocation"
+                                                                                                                           }
+                                                                                                                       ]
+                                                                                                   },
+                                                                                  "HotelInfo":  {
+                                                                                                    "Position":  {
+                                                                                                                     "Longitude":  "0",
+                                                                                                                     "Latitude":  "0"
+                                                                                                                 }
+                                                                                                },
+                                                                                  "hotelid":  "SS260130002450",
+                                                                                  "TimeZone":  "Asia/Tokyo",
+                                                                                  "HotelType":  "3",
+                                                                                  "CurrencyCode":  "JPY",
+                                                                                  "HotelDescriptiveContentNotifType":  "New"
+                                                                              }
+                                              }
+             },
+    "method":  "POST",
+    "url":  "https://connect-sandbox.su-api.com/SUAPI/jservice/OTA_HotelDescriptiveContentNotif",
+    "headers":  [
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "app-id"
+                    },
+                    {
+                        "value":  "Bearer sandbox_ZXlKcGRpSTZJbkpEZUdOb09FMWFOVWRGVkRWbE5WZFhXbU5SZEVFOVBTSXNJblpoYkhWbElqb2lUQ3RTWm1rME5rMWpSMEUyWkVWcWVYaEZWRWhwUVZsdU0xZFlXbXRPVURkWk1YQlJhM1pFYWxSaE9VOHpSbThyZVdWdldsbG1jR3BaVFVORlMxUm5SM05rWjBSUWFIVmtXSFVyUWpKUmJrNHlkMlF6VGxaNFNIUnVRalpzUlhONE9FNU9hbkpPSzI5TmFHZzJNMkppYTBWYWRrYzFaa0pwU204eGJHWkhabkpxS3l0M1NWSlBVbTQ0YVdJM1RVbEpOMVZFZG5WblJUQlVTamt2WVRORFFtWlhMMmRYT1VoUk9HSjNhemx3VVhkckszUlRiRzVOUTJ4bksxcERNRVJNTVc0NE1tdE5jVmczVjNOaVpWTjNLM1kwVm5vdlp6MDlJaXdpYldGaklqb2laVFpoWTJZNE5tWmtZMlF5TWpZNVl6azFPVE01TlRnME1tRmtObVZoTVdNME5XVTRNbVV3WmpFM016RXdaakJpTkdZMVpHRTNZMk16WldVMk5XSTJOaUlzSW5SaFp5STZJaUo5",
+                        "name":  "Authorization"
+                    },
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "client-id"
+                    },
+                    {
+                        "value":  "NVI4NWo1Yzc6WWl5OHY2OVc",
+                        "name":  "client-secret"
+                    },
+                    {
+                        "value":  "application/json",
+                        "name":  "Content-Type"
+                    }
+                ]
+}

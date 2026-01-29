@@ -2,18 +2,47 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { House, Message, Bell, User, EditPen, Headset, Wallet, Document, Phone } from '@element-plus/icons-vue'
+import { House, Message, Bell, User, EditPen, Headset, Wallet, Document, Phone, ArrowDown, HomeFilled } from '@element-plus/icons-vue'
 import CustomerService from '@/components/CustomerService.vue'
 import RecordTransaction from '@/components/RecordTransaction.vue'
 import { useUserStore } from '@/stores/user'
 import { useMemoStore } from '@/stores/memo'
+import { useStoreStore } from '@/stores/store'
+import type { StoreDTO } from '@/api/store'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const memoStore = useMemoStore()
+const storeStore = useStoreStore()
 
 const showCustomerService = ref(false)
+const stores = ref<StoreDTO[]>([])
+
+// 当前选中的门店
+const currentStore = computed(() => storeStore.currentStore)
+
+// 加载门店列表
+const loadStores = async () => {
+  try {
+    stores.value = await storeStore.fetchUserStores()
+  } catch (error) {
+    console.error('加载门店列表失败', error)
+  }
+}
+
+// 切换门店
+const handleStoreSelect = (store: StoreDTO) => {
+  storeStore.setCurrentStore(store)
+  ElMessage.success(`已切换到门店: ${store.name}`)
+  // 刷新当前页面数据
+  router.go(0)
+}
+
+// 跳转到门店选择/创建页面
+const goToStoreSelection = () => {
+  router.push('/store/selection')
+}
 const showRecordTransaction = ref(false)
 const showMemoDialog = ref(false)
 const showContactDialog = ref(false)
@@ -28,6 +57,8 @@ onMounted(() => {
     })
     // 加载备忘录
     memoStore.loadMemo()
+    // 加载门店列表
+    loadStores()
   }
 })
 
@@ -108,10 +139,40 @@ const handleLogout = async () => {
   <div class="main-layout">
     <header class="app-header">
       <div class="header-left">
-        <div class="logo">
-          <el-icon size="24"><House /></el-icon>
-          <span class="logo-text">酒店管理系统</span>
-        </div>
+        <el-dropdown trigger="click" placement="bottom-start" class="store-dropdown" @command="handleStoreSelect">
+          <div class="logo">
+            <el-icon size="24" color="#1890ff"><HomeFilled /></el-icon>
+            <span class="logo-text">{{ currentStore?.name || '房东智控中心' }}</span>
+            <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu class="store-dropdown-menu">
+              <div class="dropdown-header">
+                <el-icon size="20" color="#1890ff"><HomeFilled /></el-icon>
+                <span>PMS</span>
+              </div>
+              <el-dropdown-item
+                v-for="store in stores"
+                :key="store.id"
+                :command="store"
+                :class="{ 'is-active': currentStore?.id === store.id }"
+              >
+                <div class="store-item">
+                  <span class="store-name">{{ store.name }}</span>
+                  <span v-if="store.userRole === 'owner'" class="store-badge pro">Pro</span>
+                  <span v-else class="store-badge ess">Ess</span>
+                </div>
+              </el-dropdown-item>
+              <div class="dropdown-divider"></div>
+              <el-dropdown-item divided @click.stop="goToStoreSelection">
+                <div class="create-store-item">
+                  <span>创建门店</span>
+                  <el-icon><ArrowDown style="transform: rotate(-90deg)" /></el-icon>
+                </div>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
 
       <nav class="header-nav">
@@ -315,6 +376,10 @@ const handleLogout = async () => {
   align-items: center;
 }
 
+.store-dropdown {
+  cursor: pointer;
+}
+
 .logo {
   display: flex;
   align-items: center;
@@ -322,10 +387,27 @@ const handleLogout = async () => {
   font-size: 18px;
   font-weight: bold;
   color: #1890ff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.3s;
+}
+
+.logo:hover {
+  background: #f5f7fa;
 }
 
 .logo-text {
   font-size: 16px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arrow-icon {
+  font-size: 12px;
+  color: #999;
+  margin-left: 4px;
 }
 
 .header-nav {
@@ -597,5 +679,83 @@ const handleLogout = async () => {
 .contact-time {
   font-size: 13px;
   color: #999;
+}
+
+/* 门店下拉菜单样式 */
+:deep(.store-dropdown-menu) {
+  min-width: 280px;
+  padding: 8px 0;
+}
+
+:deep(.store-dropdown-menu .dropdown-header) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 4px;
+}
+
+:deep(.store-dropdown-menu .el-dropdown-menu__item) {
+  padding: 10px 16px;
+}
+
+:deep(.store-dropdown-menu .el-dropdown-menu__item.is-active) {
+  background: #e6f4ff;
+  color: #1890ff;
+}
+
+.store-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.store-item .store-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.store-badge.pro {
+  background: #fff3e0;
+  color: #e67e22;
+}
+
+.store-badge.ess {
+  background: #e8f5e9;
+  color: #27ae60;
+}
+
+:deep(.store-dropdown-menu .dropdown-divider) {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 4px 0;
+}
+
+.create-store-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: #666;
+}
+
+.create-store-item:hover {
+  color: #1890ff;
 }
 </style>

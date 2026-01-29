@@ -65,12 +65,18 @@ public class SuAvailabilitySyncService {
     }
 
     public SuAvailabilitySyncSummary syncRoomAvailabilityForNextDays(Long storeId, String hotelId, Integer days) {
+        return syncRoomAvailabilityForNextDays(storeId, hotelId, days, DEFAULT_SU_OTA_CODES);
+    }
+
+    public SuAvailabilitySyncSummary syncRoomAvailabilityForNextDays(Long storeId, String hotelId, Integer days, List<Integer> otaCodes) {
         if (storeId == null) {
             throw new IllegalArgumentException("storeId is required");
         }
         if (hotelId == null || hotelId.isBlank()) {
             throw new IllegalArgumentException("hotelId is required");
         }
+
+        List<Integer> effectiveOtaCodes = normalizeOtaCodes(otaCodes);
 
         int effectiveDays = normalizeDays(days);
         LocalDate startDate = LocalDate.now();
@@ -129,7 +135,7 @@ public class SuAvailabilitySyncService {
             }
             String roomId = SuRoomIdUtil.buildRoomId(room);
             boolean[] canSell = buildCanSellCalendar(room, reservationsByRoomId.get(room.getId()), startDate, effectiveDays);
-            List<Map<String, Object>> dateSegments = toDateSegments(canSell, startDate);
+            List<Map<String, Object>> dateSegments = toDateSegments(canSell, startDate, effectiveOtaCodes);
 
             if (dateSegments.isEmpty()) {
                 continue;
@@ -237,7 +243,7 @@ public class SuAvailabilitySyncService {
         return canSell;
     }
 
-    private static List<Map<String, Object>> toDateSegments(boolean[] canSell, LocalDate start) {
+    private static List<Map<String, Object>> toDateSegments(boolean[] canSell, LocalDate start, List<Integer> otaCodes) {
         if (canSell == null || canSell.length == 0) {
             return List.of();
         }
@@ -253,24 +259,24 @@ public class SuAvailabilitySyncService {
                 continue;
             }
             LocalDate segmentEnd = start.plusDays(i - 1L);
-            segments.add(buildSegment(segmentStart, segmentEnd, currentValue));
+            segments.add(buildSegment(segmentStart, segmentEnd, currentValue, otaCodes));
             segmentStart = start.plusDays(i);
             currentValue = value;
         }
 
         LocalDate lastEnd = start.plusDays(canSell.length - 1L);
-        segments.add(buildSegment(segmentStart, lastEnd, currentValue));
+        segments.add(buildSegment(segmentStart, lastEnd, currentValue, otaCodes));
 
         return segments;
     }
 
-    private static Map<String, Object> buildSegment(LocalDate from, LocalDate to, int value) {
+    private static Map<String, Object> buildSegment(LocalDate from, LocalDate to, int value, List<Integer> otaCodes) {
         Map<String, Object> rule = new LinkedHashMap<>();
         rule.put("type", "Fixed");
         rule.put("value", String.valueOf(value));
 
         Map<String, Object> otaRule = new LinkedHashMap<>();
-        otaRule.put("OTACode", DEFAULT_SU_OTA_CODES);
+        otaRule.put("OTACode", normalizeOtaCodes(otaCodes));
         otaRule.put("rule", rule);
 
         Map<String, Object> segment = new LinkedHashMap<>();
@@ -278,6 +284,17 @@ public class SuAvailabilitySyncService {
         segment.put("to", to.toString());
         segment.put("OTARule", List.of(otaRule));
         return segment;
+    }
+
+    private static List<Integer> normalizeOtaCodes(List<Integer> otaCodes) {
+        if (otaCodes == null || otaCodes.isEmpty()) {
+            return DEFAULT_SU_OTA_CODES;
+        }
+        List<Integer> out = otaCodes.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        return out.isEmpty() ? DEFAULT_SU_OTA_CODES : out;
     }
 
     public record SuAvailabilitySyncSummary(

@@ -34,5 +34,23 @@ class AutoMessageTimingUtilTest {
         assertThrows(IllegalArgumentException.class, () -> AutoMessageTimingUtil.parseSendTiming(""));
         assertThrows(IllegalArgumentException.class, () -> AutoMessageTimingUtil.parseSendTiming("3_HOUR"));
     }
+
+    @Test
+    void parseDayTimeTiming_supported() {
+        assertEquals(-1, AutoMessageTimingUtil.parseDayTimeTiming("DAY_-1_14:00").dayOffset());
+        assertEquals(0, AutoMessageTimingUtil.parseDayTimeTiming("day_0_00:00").dayOffset());
+        assertEquals(14, AutoMessageTimingUtil.parseDayTimeTiming("DAY_14_23:59").dayOffset());
+        assertEquals(java.time.LocalTime.of(14, 0), AutoMessageTimingUtil.parseDayTimeTiming("DAY_-1_14:00").time());
+    }
+
+    @Test
+    void parseDayTimeTiming_invalid_shouldThrow() {
+        assertThrows(IllegalArgumentException.class, () -> AutoMessageTimingUtil.parseDayTimeTiming(null));
+        assertThrows(IllegalArgumentException.class, () -> AutoMessageTimingUtil.parseDayTimeTiming(""));
+        assertThrows(IllegalArgumentException.class, () -> AutoMessageTimingUtil.parseDayTimeTiming("DAY_1_24:00"));
+        assertThrows(IllegalArgumentException.class, () -> AutoMessageTimingUtil.parseDayTimeTiming("DAY_a_10:00"));
+        assertThrows(IllegalArgumentException.class, () -> AutoMessageTimingUtil.parseDayTimeTiming("DAY_1_10:99"));
+        assertThrows(IllegalArgumentException.class, () -> AutoMessageTimingUtil.parseDayTimeTiming("IMMEDIATELY"));
+    }
 }
 

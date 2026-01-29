@@ -19,6 +19,10 @@ public class CreateRoomTypeRequest {
     @Min(value = 1, message = "房间总数必须大于0")
     private Integer totalRooms;
 
+    @NotNull(message = "最大入住人数不能为空")
+    @Min(value = 1, message = "最大入住人数必须大于0")
+    private Integer maxGuests;
+
     private String description;
 
     private BigDecimal defaultPrice;
@@ -71,6 +75,14 @@ public class CreateRoomTypeRequest {
 
     public void setTotalRooms(Integer totalRooms) {
         this.totalRooms = totalRooms;
+    }
+
+    public Integer getMaxGuests() {
+        return maxGuests;
+    }
+
+    public void setMaxGuests(Integer maxGuests) {
+        this.maxGuests = maxGuests;
     }
 
     public String getDescription() {

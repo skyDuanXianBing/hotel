@@ -1,0 +1,6 @@
+﻿{
+    "bodyJson":  null,
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Errors\":[{\"Code\":\"1072\",\"ShortText\":\"Requested rate does not qualify. Rate with id BAR2 not exists\"}],\"Status\":\"Fail\"}"
+}

@@ -1,0 +1,42 @@
+﻿{
+    "body":  {
+                 "RatePlans":  {
+                                   "hotelid":  "S15KQEKHXP",
+                                   "RatePlan":  [
+                                                    {
+                                                        "rateplanid":  "RP002508",
+                                                        "RatePlanNotifType":  "Overlay",
+                                                        "Description":  {
+                                                                            "Text":  "Rate-002519",
+                                                                            "Name":  "Rate-002519"
+                                                                        },
+                                                        "MealPlanID":  "15"
+                                                    }
+                                                ]
+                               }
+             },
+    "method":  "POST",
+    "url":  "https://connect-sandbox.su-api.com/SUAPI/jservice/OTA_HotelRatePlan",
+    "headers":  [
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "app-id"
+                    },
+                    {
+                        "value":  "Bearer sandbox_ZXlKcGRpSTZJbkpEZUdOb09FMWFOVWRGVkRWbE5WZFhXbU5SZEVFOVBTSXNJblpoYkhWbElqb2lUQ3RTWm1rME5rMWpSMEUyWkVWcWVYaEZWRWhwUVZsdU0xZFlXbXRPVURkWk1YQlJhM1pFYWxSaE9VOHpSbThyZVdWdldsbG1jR3BaVFVORlMxUm5SM05rWjBSUWFIVmtXSFVyUWpKUmJrNHlkMlF6VGxaNFNIUnVRalpzUlhONE9FNU9hbkpPSzI5TmFHZzJNMkppYTBWYWRrYzFaa0pwU204eGJHWkhabkpxS3l0M1NWSlBVbTQ0YVdJM1RVbEpOMVZFZG5WblJUQlVTamt2WVRORFFtWlhMMmRYT1VoUk9HSjNhemx3VVhkckszUlRiRzVOUTJ4bksxcERNRVJNTVc0NE1tdE5jVmczVjNOaVpWTjNLM1kwVm5vdlp6MDlJaXdpYldGaklqb2laVFpoWTJZNE5tWmtZMlF5TWpZNVl6azFPVE01TlRnME1tRmtObVZoTVdNME5XVTRNbVV3WmpFM016RXdaakJpTkdZMVpHRTNZMk16WldVMk5XSTJOaUlzSW5SaFp5STZJaUo5",
+                        "name":  "Authorization"
+                    },
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "client-id"
+                    },
+                    {
+                        "value":  "NVI4NWo1Yzc6WWl5OHY2OVc",
+                        "name":  "client-secret"
+                    },
+                    {
+                        "value":  "application/json",
+                        "name":  "Content-Type"
+                    }
+                ]
+}

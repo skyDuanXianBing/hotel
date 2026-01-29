@@ -26,6 +26,7 @@ export type SendTiming =
   | '8_HOUR'
   | '16_HOUR'
   | '24_HOUR'
+  | `DAY_${number}_${string}`
 
 // 自动化消息DTO
 export interface AutoMessageDTO {

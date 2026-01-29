@@ -87,6 +87,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   success: []
+  synced: []
   error: [error: string]
 }>()
 
@@ -108,10 +109,53 @@ const isLocalhost = (): boolean => {
   return host === 'localhost' || host === '127.0.0.1'
 }
 
+// 保存 React root 引用，用于正确卸载
+let suWidgetRoot: any = null
+
 const clearWidgetContainer = () => {
   const container = document.getElementById('su-widget-container')
   if (container) {
+    // 如果有保存的 React root，先卸载
+    if (suWidgetRoot) {
+      try {
+        suWidgetRoot.unmount()
+      } catch (e) {
+        console.warn('卸载 React root 失败:', e)
+      }
+      suWidgetRoot = null
+    }
+    
+    // 尝试使用 ReactDOM 的方式卸载（兼容旧版本）
+    if (window.ReactDOM && typeof (window.ReactDOM as any).unmountComponentAtNode === 'function') {
+      try {
+        (window.ReactDOM as any).unmountComponentAtNode(container)
+      } catch (e) {
+        // ignore
+      }
+    }
+    
+    // 清空容器内容
     container.innerHTML = ''
+    
+    // 移除 React 内部标记（React 18 会在容器上设置 _reactRootContainer）
+    delete (container as any)._reactRootContainer
+    delete (container as any).__reactContainer$
+    
+    // 移除所有以 __react 开头的属性
+    Object.keys(container).forEach(key => {
+      if (key.startsWith('__react')) {
+        delete (container as any)[key]
+      }
+    })
+    
+    // 完全替换容器元素以确保 React 不会检测到旧的 root
+    const parent = container.parentElement
+    if (parent) {
+      const newContainer = document.createElement('div')
+      newContainer.id = 'su-widget-container'
+      newContainer.className = container.className
+      parent.replaceChild(newContainer, container)
+    }
   }
 }
 
@@ -547,7 +591,7 @@ const handleSyncRooms = async () => {
       `已推送${roomsResp.data.roomCount}个房间、${ratePlansResp.data.pricePlanCount}个价格计划，推送未来${ariResp.data.days}天基础ARI，并推送未来${availabilityResp.data.days}天可用性到Su`,
     )
     await loadWidget()
-    emit('success')
+    emit('synced')
   } catch (err: any) {
     const message = err?.message || '同步失败'
     if (message.includes('roomid') && message.includes('20')) {

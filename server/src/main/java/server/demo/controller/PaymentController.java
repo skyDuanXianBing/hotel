@@ -2,6 +2,7 @@ package server.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.PaymentDTO;
 import server.demo.service.PaymentService;
@@ -12,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/payments")
 @CrossOrigin
+@StoreScoped
 public class PaymentController {
 
     @Autowired

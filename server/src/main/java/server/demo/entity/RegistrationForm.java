@@ -52,6 +52,9 @@ public class RegistrationForm implements StoreScopedEntity {
     @Column(name = "review_note", length = 2000)
     private String reviewNote;
 
+    @Column(name = "guest_count")
+    private Integer guestCount;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -157,6 +160,14 @@ public class RegistrationForm implements StoreScopedEntity {
 
     public void setReviewNote(String reviewNote) {
         this.reviewNote = reviewNote;
+    }
+
+    public Integer getGuestCount() {
+        return guestCount;
+    }
+
+    public void setGuestCount(Integer guestCount) {
+        this.guestCount = guestCount;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -9,6 +9,7 @@ import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.CreateReservationRequest;
 import server.demo.dto.PagedReservationResponse;
+import server.demo.dto.ReservationChannelInfoDTO;
 import server.demo.dto.ReservationDTO;
 import server.demo.dto.ReservationStatistics;
 import server.demo.service.ReservationService;
@@ -197,6 +198,16 @@ public class ReservationController extends BaseStoreController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("获取订单失败: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{id}/channel-info")
+    public ResponseEntity<ApiResponse<ReservationChannelInfoDTO>> getReservationChannelInfo(@PathVariable Long id) {
+        try {
+            ReservationChannelInfoDTO info = reservationService.getChannelInfo(id);
+            return ResponseEntity.ok(ApiResponse.success(info));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
 

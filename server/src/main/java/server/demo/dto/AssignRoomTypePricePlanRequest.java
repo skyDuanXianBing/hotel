@@ -19,6 +19,8 @@ public class AssignRoomTypePricePlanRequest {
     private Integer maxGuests;
 
     private Integer includedGuests;
+    private BigDecimal extraAdultRate;
+    private BigDecimal extraChildRate;
     private String priceMode;
 
     // Constructors
@@ -95,6 +97,22 @@ public class AssignRoomTypePricePlanRequest {
 
     public void setIncludedGuests(Integer includedGuests) {
         this.includedGuests = includedGuests;
+    }
+
+    public BigDecimal getExtraAdultRate() {
+        return extraAdultRate;
+    }
+
+    public void setExtraAdultRate(BigDecimal extraAdultRate) {
+        this.extraAdultRate = extraAdultRate;
+    }
+
+    public BigDecimal getExtraChildRate() {
+        return extraChildRate;
+    }
+
+    public void setExtraChildRate(BigDecimal extraChildRate) {
+        this.extraChildRate = extraChildRate;
     }
 
     public String getPriceMode() {

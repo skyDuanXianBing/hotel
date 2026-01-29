@@ -120,10 +120,32 @@ class SuAriSyncServiceTest {
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
         verify(suApiClient, Mockito.times(2)).postAvailability(eq("token"), payloadCaptor.capture());
         List<Object> payloads = payloadCaptor.getAllValues();
-        assertEquals(2, payloads.size());
+        assertTrue(payloads.size() >= 2, "should post at least availability + rates payloads");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> availabilityPayload = (Map<String, Object>) payloads.get(0);
+        Map<String, Object> availabilityPayload = (Map<String, Object>) payloads.stream()
+                .map(p -> (Map<String, Object>) p)
+                .filter(p -> {
+                    Object roomsObj = p.get("room");
+                    if (!(roomsObj instanceof List<?> rooms) || rooms.isEmpty()) {
+                        return false;
+                    }
+                    Object firstRoomObj = rooms.get(0);
+                    if (!(firstRoomObj instanceof Map<?, ?> firstRoom)) {
+                        return false;
+                    }
+                    Object datesObj = firstRoom.get("date");
+                    if (!(datesObj instanceof List<?> dates) || dates.isEmpty()) {
+                        return false;
+                    }
+                    Object firstDateObj = dates.get(0);
+                    if (!(firstDateObj instanceof Map<?, ?> firstDate)) {
+                        return false;
+                    }
+                    return firstDate.containsKey("roomstosell");
+                })
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("availability payload not found"));
         assertEquals("STORE5", availabilityPayload.get("hotelid"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> roomsNode1 = (List<Map<String, Object>>) availabilityPayload.get("room");
@@ -140,7 +162,29 @@ class SuAriSyncServiceTest {
         assertEquals("0", dates1.get(1).get("roomstosell"));
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> ratesPayload = (Map<String, Object>) payloads.get(1);
+        Map<String, Object> ratesPayload = (Map<String, Object>) payloads.stream()
+                .map(p -> (Map<String, Object>) p)
+                .filter(p -> {
+                    Object roomsObj = p.get("room");
+                    if (!(roomsObj instanceof List<?> rooms) || rooms.isEmpty()) {
+                        return false;
+                    }
+                    Object firstRoomObj = rooms.get(0);
+                    if (!(firstRoomObj instanceof Map<?, ?> firstRoom)) {
+                        return false;
+                    }
+                    Object datesObj = firstRoom.get("date");
+                    if (!(datesObj instanceof List<?> dates) || dates.isEmpty()) {
+                        return false;
+                    }
+                    Object firstDateObj = dates.get(0);
+                    if (!(firstDateObj instanceof Map<?, ?> firstDate)) {
+                        return false;
+                    }
+                    return firstDate.containsKey("price");
+                })
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("rates payload not found"));
         assertEquals("STORE5", ratesPayload.get("hotelid"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> roomsNode2 = (List<Map<String, Object>>) ratesPayload.get("room");
@@ -158,7 +202,7 @@ class SuAriSyncServiceTest {
         assertEquals("10", rate.get(0).get("rateplanid"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> price = (List<Map<String, Object>>) dates2.get(0).get("price");
-        assertEquals("2", price.get(0).get("NumberOfGuests"));
+        assertEquals(String.valueOf(roomType.getMaxGuests()), price.get(0).get("NumberOfGuests"));
         assertEquals("100.00", price.get(0).get("value"));
     }
 }

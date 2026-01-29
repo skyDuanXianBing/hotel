@@ -191,6 +191,9 @@
               <el-option label="价格" value="price" />
               <el-option label="最小入住天数" value="minStay" />
               <el-option label="最大入住天数" value="maxStay" />
+              <el-option label="关房" value="closeRoom" />
+              <el-option label="CTA" value="cta" />
+              <el-option label="CTD" value="ctd" />
             </el-select>
           </el-form-item>
 
@@ -237,6 +240,30 @@
               >
                 <template #append>天</template>
               </el-input>
+            </el-form-item>
+
+            <!-- 关房状态选择 -->
+            <el-form-item v-if="editForm.settingType === 'closeRoom'" label="关房" required>
+              <el-select v-model="editForm.closeRoomStatus" placeholder="请选择" style="width: 100%">
+                <el-option label="On" value="on" />
+                <el-option label="Off" value="off" />
+              </el-select>
+            </el-form-item>
+
+            <!-- CTA -->
+            <el-form-item v-if="editForm.settingType === 'cta'" label="CTA" required>
+              <el-select v-model="editForm.closeRoomStatus" placeholder="请选择" style="width: 100%">
+                <el-option label="On" value="on" />
+                <el-option label="Off" value="off" />
+              </el-select>
+            </el-form-item>
+
+            <!-- CTD -->
+            <el-form-item v-if="editForm.settingType === 'ctd'" label="CTD" required>
+              <el-select v-model="editForm.closeRoomStatus" placeholder="请选择" style="width: 100%">
+                <el-option label="On" value="on" />
+                <el-option label="Off" value="off" />
+              </el-select>
             </el-form-item>
           </div>
         </el-form>
@@ -298,7 +325,11 @@ const editForm = ref({
   price: 0,
   availableRooms: 0,
   minStay: '',
-  maxStay: ''
+  maxStay: '',
+  closeRoomStatus: 'off', // On/Off 选择器的当前值（用于 closeRoom/cta/ctd）
+  currentCloseRoom: false,
+  currentCta: false,
+  currentCtd: false
 })
 
 const dateColumns = computed(() => {
@@ -438,11 +469,11 @@ const priceTableData = computed<PriceTableRow[]>(() => {
 
         dates[dateCol.dateStr] = {
           price: priceRecord?.price || 0,
-          rooms: priceRecord?.minStay || 1
+          rooms: priceRecord?.availableRooms ?? 0
         }
 
         if (priceRecord) {
-          console.log(`  📌 ${dateCol.dateStr}: 价格=${priceRecord.price}, 最小入住=${priceRecord.minStay}`)
+          console.log(`  📌 ${dateCol.dateStr}: 价格=${priceRecord.price}, 可售房量=${priceRecord.availableRooms}`)
         }
       })
 
@@ -643,7 +674,13 @@ const loadPriceData = async () => {
 const openPriceEditDialog = (row: PriceTableRow, date: any) => {
   if (row.isRoomHeader) return
 
-  const priceData = row.dates[date.dateStr]
+  const cellData = row.dates[date.dateStr]
+
+  const record = priceData.value.find(
+    p => p.roomTypeId === row.roomTypeId &&
+      p.pricePlanId === row.pricePlanId &&
+      p.priceDate === date.dateStr
+  )
 
   // 获取房型代码
   const roomType = roomTypes.value.find(rt => rt.id === row.roomTypeId)
@@ -661,13 +698,44 @@ const openPriceEditDialog = (row: PriceTableRow, date: any) => {
     weekdays: [],
     settingType: 'price',
     price: getDisplayPrice(row, date.dateStr) || 0,
-    availableRooms: priceData?.rooms || 0,
-    minStay: '',
-    maxStay: ''
+    availableRooms: cellData?.rooms || 0,
+    minStay: record?.minStay != null ? String(record.minStay) : '',
+    maxStay: record?.maxStay != null ? String(record.maxStay) : '',
+    closeRoomStatus: 'off',
+    currentCloseRoom: record?.closeRoom ?? false,
+    currentCta: record?.cta ?? false,
+    currentCtd: record?.ctd ?? false
   }
 
   showPriceEditDialog.value = true
 }
+
+watch(
+  () => editForm.value.settingType,
+  (type) => {
+    if (type === 'closeRoom') {
+      editForm.value.closeRoomStatus = editForm.value.currentCloseRoom ? 'on' : 'off'
+    } else if (type === 'cta') {
+      editForm.value.closeRoomStatus = editForm.value.currentCta ? 'on' : 'off'
+    } else if (type === 'ctd') {
+      editForm.value.closeRoomStatus = editForm.value.currentCtd ? 'on' : 'off'
+    }
+  }
+)
+
+watch(
+  () => editForm.value.closeRoomStatus,
+  (val) => {
+    const on = val === 'on'
+    if (editForm.value.settingType === 'closeRoom') {
+      editForm.value.currentCloseRoom = on
+    } else if (editForm.value.settingType === 'cta') {
+      editForm.value.currentCta = on
+    } else if (editForm.value.settingType === 'ctd') {
+      editForm.value.currentCtd = on
+    }
+  }
+)
 
 const addMoreSegments = () => {
   ElMessage.info('增加时段功能开发中')
@@ -725,13 +793,22 @@ const savePriceEdit = async () => {
     // 根据设置类型添加对应的字段
     if (editForm.value.settingType === 'price') {
       requestData.price = Number(editForm.value.price)
-      requestData.availableRooms = editForm.value.availableRooms || undefined
+      requestData.availableRooms = editForm.value.availableRooms ?? undefined
     } else if (editForm.value.settingType === 'minStay') {
       requestData.minStay = Number(editForm.value.minStay)
       console.log('💾 准备保存最小入住天数:', requestData.minStay)
     } else if (editForm.value.settingType === 'maxStay') {
       requestData.maxStay = Number(editForm.value.maxStay)
       console.log('💾 准备保存最大入住天数:', requestData.maxStay)
+    } else if (editForm.value.settingType === 'closeRoom') {
+      requestData.closeRoom = editForm.value.closeRoomStatus === 'on'
+      console.log('💾 准备保存关房状态:', requestData.closeRoom)
+    } else if (editForm.value.settingType === 'cta') {
+      requestData.cta = editForm.value.closeRoomStatus === 'on'
+      console.log('💾 准备保存CTA状态:', requestData.cta)
+    } else if (editForm.value.settingType === 'ctd') {
+      requestData.ctd = editForm.value.closeRoomStatus === 'on'
+      console.log('💾 准备保存CTD状态:', requestData.ctd)
     }
 
     console.log('💾 发送更新请求:', requestData)
@@ -741,7 +818,11 @@ const savePriceEdit = async () => {
     if (response.success) {
       const successMsg = editForm.value.settingType === 'price' ? '价格修改成功' :
                          editForm.value.settingType === 'minStay' ? '最小入住天数修改成功' :
-                         '最大入住天数修改成功'
+                         editForm.value.settingType === 'maxStay' ? '最大入住天数修改成功' :
+                         editForm.value.settingType === 'closeRoom' ? '关房状态修改成功' :
+                         editForm.value.settingType === 'cta' ? 'CTA修改成功' :
+                         editForm.value.settingType === 'ctd' ? 'CTD修改成功' :
+                         '修改成功'
       ElMessage.success(successMsg)
       closePriceEditDialog()
       // 重新加载数据

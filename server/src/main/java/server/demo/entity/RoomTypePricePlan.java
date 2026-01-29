@@ -62,6 +62,12 @@ public class RoomTypePricePlan implements StoreScopedEntity {
     @Column(name = "included_guests")
     private Integer includedGuests; // 包含人数
 
+    @Column(name = "extra_adult_rate", precision = 10, scale = 2)
+    private BigDecimal extraAdultRate;
+
+    @Column(name = "extra_child_rate", precision = 10, scale = 2)
+    private BigDecimal extraChildRate;
+
     @Column(name = "price_mode", length = 20)
     private String priceMode; // unified 或 multiple
 
@@ -200,6 +206,22 @@ public class RoomTypePricePlan implements StoreScopedEntity {
 
     public void setIncludedGuests(Integer includedGuests) {
         this.includedGuests = includedGuests;
+    }
+
+    public BigDecimal getExtraAdultRate() {
+        return extraAdultRate;
+    }
+
+    public void setExtraAdultRate(BigDecimal extraAdultRate) {
+        this.extraAdultRate = extraAdultRate;
+    }
+
+    public BigDecimal getExtraChildRate() {
+        return extraChildRate;
+    }
+
+    public void setExtraChildRate(BigDecimal extraChildRate) {
+        this.extraChildRate = extraChildRate;
     }
 
     public String getPriceMode() {

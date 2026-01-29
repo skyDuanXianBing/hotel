@@ -42,7 +42,7 @@ public final class SuContentPayloadBuilder {
             room.put("RoomType", inferSuRoomType(roomType != null ? roomType.getName() : null));
 
             Map<String, Object> occupancy = new HashMap<>();
-            occupancy.put("MaxOccupancy", "2");
+            occupancy.put("MaxOccupancy", String.valueOf(resolveMaxOccupancy(roomType)));
             occupancy.put("MaxChildOccupancy", "0");
 
             Map<String, Object> description = new HashMap<>();
@@ -82,7 +82,7 @@ public final class SuContentPayloadBuilder {
             room.put("RoomType", inferSuRoomType(roomType.getName()));
 
             Map<String, Object> occupancy = new HashMap<>();
-            occupancy.put("MaxOccupancy", "2");
+            occupancy.put("MaxOccupancy", String.valueOf(resolveMaxOccupancy(roomType)));
             occupancy.put("MaxChildOccupancy", "0");
 
             Map<String, Object> description = new HashMap<>();
@@ -125,6 +125,10 @@ public final class SuContentPayloadBuilder {
             description.put("Text", SuRoomIdUtil.buildDisplayName(roomEntity));
 
             Map<String, Object> guestRoom = new HashMap<>();
+            Map<String, Object> occupancy = new HashMap<>();
+            occupancy.put("MaxOccupancy", String.valueOf(resolveMaxOccupancy(roomType)));
+            occupancy.put("MaxChildOccupancy", "0");
+            guestRoom.put("Occupancy", occupancy);
             guestRoom.put("Room", room);
             guestRoom.put("Description", description);
 
@@ -161,6 +165,10 @@ public final class SuContentPayloadBuilder {
             description.put("Text", roomType.getName());
 
             Map<String, Object> guestRoom = new HashMap<>();
+            Map<String, Object> occupancy = new HashMap<>();
+            occupancy.put("MaxOccupancy", String.valueOf(resolveMaxOccupancy(roomType)));
+            occupancy.put("MaxChildOccupancy", "0");
+            guestRoom.put("Occupancy", occupancy);
             guestRoom.put("Room", room);
             guestRoom.put("Description", description);
 
@@ -244,6 +252,18 @@ public final class SuContentPayloadBuilder {
             throw new IllegalArgumentException("Su roomid/rateplanid 长度不能超过20: " + value);
         }
         return value;
+    }
+
+    private static int resolveMaxOccupancy(RoomType roomType) {
+        // 用户确认：兜底希望为 1
+        final int fallback = 1;
+        final int maxLimit = 30;
+
+        Integer maxGuests = roomType != null ? roomType.getMaxGuests() : null;
+        if (maxGuests == null || maxGuests < 1) {
+            return fallback;
+        }
+        return Math.min(maxGuests, maxLimit);
     }
 
     private static String formatPositiveRate(BigDecimal value) {

@@ -1,0 +1,37 @@
+﻿{
+    "body":  {
+                 "SellableProducts":  {
+                                          "hotelid":  "SS260130001951",
+                                          "SellableProduct":  [
+                                                                  {
+                                                                      "roomid":  "15",
+                                                                      "InvStatusType":  "Deactivate"
+                                                                  }
+                                                              ]
+                                      }
+             },
+    "method":  "POST",
+    "url":  "https://connect-sandbox.su-api.com/SUAPI/jservice/OTA_HotelRoom",
+    "headers":  [
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "app-id"
+                    },
+                    {
+                        "value":  "Bearer sandbox_ZXlKcGRpSTZJbFJ0YUZoNGF6Tm5iMmhvTlN0dFRWUkNhVzgzTWxFOVBTSXNJblpoYkhWbElqb2lSVTVvWjNOdlZERXhSV1kyYVVsNWNtRmpXSEpPVWpaaE5qZHlNbmczYTAxWFYwaHpVbHBpVFVwVmN6QkhVRmMxUjFod2J6WlVWbFF5WW5wQmRrMVFSa3hPV2t0emFYaHdTMHhKVUd4RFRXczVla2haYVRkSk9GTjNWV2w2TDBNMGRrOVRlR3hrVXpsUFNEazJUV2g2UW5WMVdUWjZNa05FTmtkbWVpOXhka3BQVFZBeFdtUjVkelpTU1Zad2QzRm9aVlEwV1Raa1NETXZLM05rVWtseGFVVlNSamhLZFdsNVNGTlZWbUV5VVRrNFZuUnJXREZDTW1KWmNHdERhMHRLT1daQlNtdGpMM3BNTUZNeWIwaDBhMWwwYm1oa1p6MDlJaXdpYldGaklqb2lZMlV6T0RsbFlUVXpNall4WW1abFptRmhaREEwTW1FeU1qVmlaak5sWmpZMllqTmlOalJoWlRnNFptUmtZVGxrTlRJeE4ySmpNek15T1RrMU9UTXlPQ0lzSW5SaFp5STZJaUo5",
+                        "name":  "Authorization"
+                    },
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "client-id"
+                    },
+                    {
+                        "value":  "NVI4NWo1Yzc6WWl5OHY2OVc",
+                        "name":  "client-secret"
+                    },
+                    {
+                        "value":  "application/json",
+                        "name":  "Content-Type"
+                    }
+                ]
+}

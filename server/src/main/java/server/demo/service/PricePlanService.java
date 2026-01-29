@@ -8,7 +8,11 @@ import server.demo.entity.PricePlan;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
 import server.demo.entity.User;
+import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.PricePlanRepository;
+import server.demo.repository.PriceChangeHistoryRepository;
+import server.demo.repository.PriceLabsConnectionRepository;
+import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.UserRepository;
@@ -29,6 +33,18 @@ public class PricePlanService {
 
     @Autowired
     private RoomTypeRepository roomTypeRepository;
+
+    @Autowired
+    private RoomPriceRepository roomPriceRepository;
+
+    @Autowired
+    private ChannelPriceRepository channelPriceRepository;
+
+    @Autowired
+    private PriceChangeHistoryRepository priceChangeHistoryRepository;
+
+    @Autowired
+    private PriceLabsConnectionRepository priceLabsConnectionRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -90,10 +106,56 @@ public class PricePlanService {
     }
 
     public void deletePricePlan(Long id) {
-        PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(currentStoreId(), id)
+        Long storeId = currentStoreId();
+        PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(storeId, id)
                 .orElseThrow(() -> new RuntimeException("价格计划不存在"));
-        roomTypePricePlanRepository.deleteByPricePlanId(id);
+
+        // If this rate plan has been used to generate any derived/overridden data, do not allow deleting it,
+        // otherwise foreign keys or downstream integrations (PriceLabs etc.) may break.
+        boolean hasRoomPrices = roomPriceRepository.existsByStoreIdAndPricePlanId(storeId, id);
+        boolean hasChannelPrices = channelPriceRepository.existsByStoreIdAndPricePlanId(storeId, id);
+        boolean hasPriceChangeHistory = priceChangeHistoryRepository.existsByStoreIdAndPricePlanId(storeId, id);
+        boolean hasPriceLabsConnections = priceLabsConnectionRepository.existsByStoreIdAndPricePlanId(storeId, id);
+        if (hasRoomPrices || hasChannelPrices || hasPriceChangeHistory || hasPriceLabsConnections) {
+            StringBuilder msg = new StringBuilder("该价格计划已被使用，无法删除：");
+            boolean first = true;
+            if (hasRoomPrices) {
+                msg.append(first ? "" : "、").append("房价覆盖记录");
+                first = false;
+            }
+            if (hasChannelPrices) {
+                msg.append(first ? "" : "、").append("渠道价格记录");
+                first = false;
+            }
+            if (hasPriceChangeHistory) {
+                msg.append(first ? "" : "、").append("改价历史");
+                first = false;
+            }
+            if (hasPriceLabsConnections) {
+                msg.append(first ? "" : "、").append("PriceLabs 连接");
+            }
+            throw new RuntimeException(msg.toString());
+        }
+
+        roomTypePricePlanRepository.deleteByStoreIdAndPricePlanId(storeId, id);
         pricePlanRepository.delete(pricePlan);
+    }
+
+    /**
+     * 最小改动的“强制删除”：仅清理会直接阻塞删除的 channel_prices（渠道价格记录），然后复用常规删除流程。
+     * 若仍被其它引用（room_prices / 改价历史 / PriceLabs 连接）阻塞，则继续提示具体原因。
+     */
+    public void forceDeletePricePlan(Long id, boolean confirm) {
+        if (!confirm) {
+            throw new RuntimeException("请二次确认后再执行彻底删除");
+        }
+
+        Long storeId = currentStoreId();
+        pricePlanRepository.findByStoreIdAndId(storeId, id)
+                .orElseThrow(() -> new RuntimeException("价格计划不存在"));
+
+        channelPriceRepository.deleteByStoreIdAndPricePlanId(storeId, id);
+        deletePricePlan(id);
     }
 
     public List<RoomTypePricePlan> getRoomTypesByPricePlan(Long pricePlanId) {
@@ -129,23 +191,14 @@ public class PricePlanService {
         return savedPlan;
     }
 
-    public RoomTypePricePlan updateRoomTypePricePlan(Long id, RoomTypePricePlan roomTypePricePlan) {
+    public RoomTypePricePlan updateRoomTypePricePlan(Long id, AssignRoomTypePricePlanRequest request) {
         RoomTypePricePlan existing = roomTypePricePlanRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("房型价格计划不存在"));
         if (!currentStoreId().equals(existing.getStoreId())) {
             throw new RuntimeException("无权限操作");
         }
 
-        existing.setMondayPrice(roomTypePricePlan.getMondayPrice());
-        existing.setTuesdayPrice(roomTypePricePlan.getTuesdayPrice());
-        existing.setWednesdayPrice(roomTypePricePlan.getWednesdayPrice());
-        existing.setThursdayPrice(roomTypePricePlan.getThursdayPrice());
-        existing.setFridayPrice(roomTypePricePlan.getFridayPrice());
-        existing.setSaturdayPrice(roomTypePricePlan.getSaturdayPrice());
-        existing.setSundayPrice(roomTypePricePlan.getSundayPrice());
-        existing.setMaxGuests(roomTypePricePlan.getMaxGuests());
-        existing.setIncludedGuests(roomTypePricePlan.getIncludedGuests());
-        existing.setPriceMode(roomTypePricePlan.getPriceMode());
+        applyAssignRequest(existing, request);
         return roomTypePricePlanRepository.save(existing);
     }
 
@@ -172,6 +225,8 @@ public class PricePlanService {
         entity.setSundayPrice(request.getSundayPrice());
         entity.setMaxGuests(request.getMaxGuests());
         entity.setIncludedGuests(request.getIncludedGuests());
+        entity.setExtraAdultRate(request.getExtraAdultRate());
+        entity.setExtraChildRate(request.getExtraChildRate());
         entity.setPriceMode(request.getPriceMode());
     }
 }

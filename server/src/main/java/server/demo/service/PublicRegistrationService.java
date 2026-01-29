@@ -3,28 +3,41 @@ package server.demo.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.dto.registration.PublicRegistrationAttachmentDTO;
 import server.demo.dto.registration.PublicRegistrationGuestDTO;
 import server.demo.dto.registration.PublicRegistrationResponse;
 import server.demo.dto.registration.PublicRegistrationSaveRequest;
-import server.demo.entity.RegistrationForm;
 import server.demo.entity.RegistrationAttachment;
+import server.demo.entity.RegistrationForm;
 import server.demo.entity.RegistrationGuest;
 import server.demo.entity.Reservation;
+import server.demo.entity.Room;
+import server.demo.entity.RoomType;
+import server.demo.enums.RegistrationAttachmentType;
 import server.demo.enums.RegistrationFormStatus;
 import server.demo.enums.ResidenceType;
+import server.demo.repository.RegistrationAttachmentRepository;
 import server.demo.repository.RegistrationFormRepository;
 import server.demo.repository.RegistrationGuestRepository;
-import server.demo.repository.RegistrationAttachmentRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomTypeRepository;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 @Service
 public class PublicRegistrationService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired
+    private RoomTypeRepository roomTypeRepository;
 
     @Autowired
     private RegistrationFormRepository registrationFormRepository;
@@ -49,9 +62,17 @@ public class PublicRegistrationService {
                     return registrationFormRepository.save(created);
                 });
 
-        ensureGuestRows(form, reservation);
+        int maxGuests = resolveMaxGuests(storeId, reservation);
 
-        return toResponse(form, reservation);
+        Integer existingCount = form.getGuestCount();
+        int desired = existingCount != null ? clampGuestCount(existingCount, maxGuests) : clampGuestCount(sumGuests(reservation), maxGuests);
+        if (!Objects.equals(form.getGuestCount(), desired)) {
+            form.setGuestCount(desired);
+            registrationFormRepository.save(form);
+        }
+
+        syncGuestRows(form, desired);
+        return toResponse(form, reservation, maxGuests);
     }
 
     @Transactional
@@ -66,11 +87,24 @@ public class PublicRegistrationService {
             throw new RuntimeException("当前状态不可修改");
         }
 
-        upsertGuests(form, req.getGuests());
+        int maxGuests = resolveMaxGuests(storeId, reservation);
+
+        Integer requestedCount = req != null ? req.getGuestCount() : null;
+        int desired = requestedCount != null
+                ? clampGuestCount(requestedCount, maxGuests)
+                : (form.getGuestCount() != null ? clampGuestCount(form.getGuestCount(), maxGuests) : clampGuestCount(sumGuests(reservation), maxGuests));
+
+        if (!Objects.equals(form.getGuestCount(), desired)) {
+            form.setGuestCount(desired);
+        }
+
+        syncGuestRows(form, desired);
+        applyGuestUpdates(form, req != null ? req.getGuests() : null);
+
         form.setLastSavedAt(LocalDateTime.now());
         registrationFormRepository.save(form);
 
-        return toResponse(form, reservation);
+        return toResponse(form, reservation, maxGuests);
     }
 
     @Transactional
@@ -93,7 +127,7 @@ public class PublicRegistrationService {
         form.setLastSavedAt(LocalDateTime.now());
         registrationFormRepository.save(form);
 
-        return toResponse(form, reservation);
+        return toResponse(form, reservation, resolveMaxGuests(storeId, reservation));
     }
 
     private void validateForSubmit(List<RegistrationGuest> guests) {
@@ -102,65 +136,112 @@ public class PublicRegistrationService {
         }
 
         for (RegistrationGuest guest : guests) {
-            if (guest.getResidenceType() == ResidenceType.OTHER) {
-                if (guest.getPassportNumber() == null || guest.getPassportNumber().isBlank()) {
-                    throw new RuntimeException("海外住客必须填写Passport number");
+            if (isBlank(guest.getLastName()) || isBlank(guest.getFirstName())) {
+                throw new RuntimeException("姓名必填");
+            }
+            if (isBlank(guest.getPhone())) {
+                throw new RuntimeException("电话必填");
+            }
+            if (guest.getBirthday() == null) {
+                throw new RuntimeException("生日必填");
+            }
+            if (guest.getResidenceType() == null) {
+                throw new RuntimeException("请选择居住地");
+            }
+
+            if (guest.getResidenceType() == ResidenceType.JAPAN) {
+                if (isBlank(guest.getAddress()) || guest.getAddress().trim().length() < 5) {
+                    throw new RuntimeException("住所（地址）必填");
                 }
-                if (guest.getId() == null || !registrationAttachmentRepository.existsByGuestIdAndType(guest.getId(), server.demo.enums.RegistrationAttachmentType.PASSPORT)) {
+                continue;
+            }
+
+            if (guest.getResidenceType() == ResidenceType.OTHER) {
+                if (isBlank(guest.getNationality())) {
+                    throw new RuntimeException("国籍必填");
+                }
+                if (isBlank(guest.getCountry())) {
+                    throw new RuntimeException("国家必填");
+                }
+                if (isBlank(guest.getAddress1())) {
+                    throw new RuntimeException("Address1 必填");
+                }
+                if (isBlank(guest.getCity())) {
+                    throw new RuntimeException("City 必填");
+                }
+                if (isBlank(guest.getPassportNumber())) {
+                    throw new RuntimeException("海外住客必须填写 Passport number");
+                }
+                if (guest.getId() == null || !registrationAttachmentRepository.existsByGuestIdAndType(guest.getId(), RegistrationAttachmentType.PASSPORT)) {
                     throw new RuntimeException("海外住客必须上传护照照片");
                 }
             }
         }
     }
 
-    private void ensureGuestRows(RegistrationForm form, Reservation reservation) {
-        List<RegistrationGuest> existing = registrationGuestRepository.findByFormIdOrderBySortOrderAsc(form.getId());
-        if (existing != null && !existing.isEmpty()) {
+    private void syncGuestRows(RegistrationForm form, int desiredCount) {
+        if (form == null || form.getId() == null) {
             return;
         }
-        int count = 0;
-        if (reservation.getAdults() != null) {
-            count += reservation.getAdults();
+        int safeCount = Math.max(1, desiredCount);
+        List<RegistrationGuest> existing = registrationGuestRepository.findByFormIdOrderBySortOrderAsc(form.getId());
+
+        if (existing.size() > safeCount) {
+            for (RegistrationGuest g : existing) {
+                if (g.getSortOrder() != null && g.getSortOrder() > safeCount) {
+                    deleteGuestAttachmentsBestEffort(g);
+                    registrationGuestRepository.delete(g);
+                }
+            }
+            return;
         }
-        if (reservation.getChildren() != null) {
-            count += reservation.getChildren();
-        }
-        count = Math.max(count, 1);
-        for (int i = 1; i <= count; i++) {
-            RegistrationGuest g = new RegistrationGuest();
-            g.setForm(form);
-            g.setSortOrder(i);
-            registrationGuestRepository.save(g);
+
+        if (existing.size() < safeCount) {
+            int maxSort = 0;
+            for (RegistrationGuest g : existing) {
+                if (g.getSortOrder() != null) {
+                    maxSort = Math.max(maxSort, g.getSortOrder());
+                }
+            }
+            for (int i = maxSort + 1; i <= safeCount; i++) {
+                RegistrationGuest g = new RegistrationGuest();
+                g.setForm(form);
+                g.setSortOrder(i);
+                registrationGuestRepository.save(g);
+            }
         }
     }
 
-    private void upsertGuests(RegistrationForm form, List<PublicRegistrationGuestDTO> guestDTOs) {
+    private void applyGuestUpdates(RegistrationForm form, List<PublicRegistrationGuestDTO> guestDTOs) {
+        if (form == null || form.getId() == null || guestDTOs == null) {
+            return;
+        }
         List<RegistrationGuest> existing = registrationGuestRepository.findByFormIdOrderBySortOrderAsc(form.getId());
-        Map<Long, RegistrationGuest> existingById = new HashMap<>();
+        Map<Long, RegistrationGuest> byId = new HashMap<>();
+        Map<Integer, RegistrationGuest> bySort = new HashMap<>();
         for (RegistrationGuest g : existing) {
-            existingById.put(g.getId(), g);
-        }
-
-        Set<Long> keepIds = new HashSet<>();
-        if (guestDTOs != null) {
-            for (PublicRegistrationGuestDTO dto : guestDTOs) {
-                RegistrationGuest g;
-                if (dto.getId() != null && existingById.containsKey(dto.getId())) {
-                    g = existingById.get(dto.getId());
-                } else {
-                    g = new RegistrationGuest();
-                    g.setForm(form);
-                }
-                apply(dto, g);
-                RegistrationGuest saved = registrationGuestRepository.save(g);
-                keepIds.add(saved.getId());
+            if (g.getId() != null) {
+                byId.put(g.getId(), g);
+            }
+            if (g.getSortOrder() != null) {
+                bySort.put(g.getSortOrder(), g);
             }
         }
 
-        for (RegistrationGuest g : existing) {
-            if (!keepIds.contains(g.getId())) {
-                registrationGuestRepository.delete(g);
+        for (PublicRegistrationGuestDTO dto : guestDTOs) {
+            RegistrationGuest g = null;
+            if (dto.getId() != null) {
+                g = byId.get(dto.getId());
             }
+            if (g == null && dto.getSortOrder() != null) {
+                g = bySort.get(dto.getSortOrder());
+            }
+            if (g == null) {
+                continue;
+            }
+            apply(dto, g);
+            normalizeAddress(g);
+            registrationGuestRepository.save(g);
         }
     }
 
@@ -174,7 +255,14 @@ public class PublicRegistrationService {
         g.setBirthday(dto.getBirthday());
         g.setNationality(dto.getNationality());
         g.setResidenceType(dto.getResidenceType());
+
         g.setAddress(dto.getAddress());
+        g.setAddress1(dto.getAddress1());
+        g.setAddress2(dto.getAddress2());
+        g.setCity(dto.getCity());
+        g.setState(dto.getState());
+        g.setCountry(dto.getCountry());
+
         g.setPhone(dto.getPhone());
         g.setEmail(dto.getEmail());
         g.setPassportNumber(dto.getPassportNumber());
@@ -182,7 +270,34 @@ public class PublicRegistrationService {
         g.setNextDestination(dto.getNextDestination());
     }
 
-    private PublicRegistrationResponse toResponse(RegistrationForm form, Reservation reservation) {
+    private void normalizeAddress(RegistrationGuest g) {
+        if (g == null || g.getResidenceType() == null) {
+            return;
+        }
+        if (g.getResidenceType() == ResidenceType.JAPAN) {
+            g.setAddress1(null);
+            g.setAddress2(null);
+            g.setCity(null);
+            g.setState(null);
+            g.setCountry(null);
+            return;
+        }
+
+        if (g.getResidenceType() == ResidenceType.OTHER) {
+            List<String> parts = new ArrayList<>();
+            if (!isBlank(g.getAddress1())) parts.add(g.getAddress1().trim());
+            if (!isBlank(g.getAddress2())) parts.add(g.getAddress2().trim());
+            if (!isBlank(g.getCity())) parts.add(g.getCity().trim());
+            if (!isBlank(g.getState())) parts.add(g.getState().trim());
+            if (!isBlank(g.getCountry())) parts.add(g.getCountry().trim());
+            String composed = String.join(", ", parts);
+            if (!composed.isBlank()) {
+                g.setAddress(composed);
+            }
+        }
+    }
+
+    private PublicRegistrationResponse toResponse(RegistrationForm form, Reservation reservation, int maxGuests) {
         PublicRegistrationResponse resp = new PublicRegistrationResponse();
         resp.setFormId(form.getId());
         resp.setOrderNumber(reservation.getOrderNumber());
@@ -192,6 +307,8 @@ public class PublicRegistrationService {
         resp.setCheckOutDate(reservation.getCheckOutDate());
         resp.setAdults(reservation.getAdults());
         resp.setChildren(reservation.getChildren());
+        resp.setMaxGuests(maxGuests);
+        resp.setGuestCount(form.getGuestCount());
         resp.setLastSavedAt(form.getLastSavedAt());
 
         List<RegistrationGuest> guests = registrationGuestRepository.findByFormIdOrderBySortOrderAsc(form.getId());
@@ -209,6 +326,11 @@ public class PublicRegistrationService {
             dto.setNationality(g.getNationality());
             dto.setResidenceType(g.getResidenceType());
             dto.setAddress(g.getAddress());
+            dto.setAddress1(g.getAddress1());
+            dto.setAddress2(g.getAddress2());
+            dto.setCity(g.getCity());
+            dto.setState(g.getState());
+            dto.setCountry(g.getCountry());
             dto.setPhone(g.getPhone());
             dto.setEmail(g.getEmail());
             dto.setPassportNumber(g.getPassportNumber());
@@ -219,10 +341,10 @@ public class PublicRegistrationService {
         resp.setGuests(guestDTOs);
 
         List<RegistrationAttachment> atts = registrationAttachmentRepository.findByFormId(form.getId());
-        List<server.demo.dto.registration.PublicRegistrationAttachmentDTO> attDTOs = new ArrayList<>();
+        List<PublicRegistrationAttachmentDTO> attDTOs = new ArrayList<>();
         if (atts != null) {
             for (RegistrationAttachment a : atts) {
-                server.demo.dto.registration.PublicRegistrationAttachmentDTO ad = new server.demo.dto.registration.PublicRegistrationAttachmentDTO();
+                PublicRegistrationAttachmentDTO ad = new PublicRegistrationAttachmentDTO();
                 ad.setId(a.getId());
                 ad.setType(a.getType());
                 ad.setOriginalName(a.getOriginalName());
@@ -235,4 +357,72 @@ public class PublicRegistrationService {
         resp.setAttachments(attDTOs);
         return resp;
     }
+
+    private int resolveMaxGuests(Long storeId, Reservation reservation) {
+        if (reservation == null) {
+            return 4;
+        }
+        Room room = reservation.getRoom();
+        if (room != null && room.getRoomType() != null && room.getRoomType().getMaxGuests() != null) {
+            return Math.max(1, room.getRoomType().getMaxGuests());
+        }
+        Long otaRoomTypeId = reservation.getOtaRoomTypeId();
+        if (otaRoomTypeId != null) {
+            Optional<RoomType> rt = roomTypeRepository.findById(otaRoomTypeId)
+                    .filter(x -> storeId != null && storeId.equals(x.getStoreId()));
+            if (rt.isPresent() && rt.get().getMaxGuests() != null) {
+                return Math.max(1, rt.get().getMaxGuests());
+            }
+        }
+        return 4;
+    }
+
+    private int sumGuests(Reservation reservation) {
+        if (reservation == null) {
+            return 1;
+        }
+        int count = 0;
+        if (reservation.getAdults() != null) {
+            count += reservation.getAdults();
+        }
+        if (reservation.getChildren() != null) {
+            count += reservation.getChildren();
+        }
+        return Math.max(1, count);
+    }
+
+    private int clampGuestCount(Integer count, int maxGuests) {
+        int v = count == null ? 1 : Math.max(1, count);
+        if (maxGuests > 0) {
+            v = Math.min(v, maxGuests);
+        }
+        return v;
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    private void deleteGuestAttachmentsBestEffort(RegistrationGuest guest) {
+        if (guest == null || guest.getId() == null) {
+            return;
+        }
+        try {
+            List<RegistrationAttachment> atts = registrationAttachmentRepository.findByGuestId(guest.getId());
+            if (atts == null || atts.isEmpty()) {
+                return;
+            }
+            for (RegistrationAttachment att : atts) {
+                try {
+                    if (att.getFilePath() != null && !att.getFilePath().isBlank()) {
+                        java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(att.getFilePath()));
+                    }
+                } catch (Exception ignored) {
+                }
+                registrationAttachmentRepository.delete(att);
+            }
+        } catch (Exception ignored) {
+        }
+    }
 }
+

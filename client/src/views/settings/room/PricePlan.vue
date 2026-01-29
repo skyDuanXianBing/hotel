@@ -334,9 +334,9 @@
             >
               <div class="option-content">
                 <el-icon v-if="priceOption === 'multiple'" class="check-icon"><Check /></el-icon>
-                <span>多人价</span>
+                <span>额外加价</span>
               </div>
-              <el-tooltip content="根据入住人数设置不同价格" placement="top">
+              <el-tooltip content="设置额外成人/儿童加价（超过包含人数后生效）" placement="top">
                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
               </el-tooltip>
             </el-button>
@@ -344,14 +344,49 @@
         </div>
 
         <!-- 包含人数 -->
-        <div class="included-guests-section">
-          <div class="section-label">包含的人数</div>
+        <div v-if="priceOption === 'multiple'" class="included-guests-section">
+          <div class="section-label">基础价包含人数</div>
           <el-select v-model="includedGuestsCount" style="width: 300px">
-            <el-option label="/最多4名成人" value="4" />
-            <el-option label="/最多3名成人" value="3" />
-            <el-option label="/最多2名成人" value="2" />
-            <el-option label="/最多1名成人" value="1" />
+            <el-option
+              v-for="n in includedGuestsOptions"
+              :key="n"
+              :label="`${n} 人`"
+              :value="String(n)"
+            />
           </el-select>
+        </div>
+
+        <!-- 额外成人/儿童加价 -->
+        <div v-if="priceOption === 'multiple'" class="extra-guests-section">
+          <div class="section-label">额外成人/儿童加价（每晚 / 每人）</div>
+
+          <div class="extra-rate-row">
+            <div class="extra-rate-item">
+              <div class="extra-rate-label">额外成人加价</div>
+              <el-input-number
+                v-model="extraAdultRate"
+                :min="0"
+                :controls="false"
+                :precision="0"
+                class="extra-rate-input"
+              >
+                <template #prefix>+ ¥</template>
+              </el-input-number>
+            </div>
+
+            <div class="extra-rate-item">
+              <div class="extra-rate-label">额外儿童加价</div>
+              <el-input-number
+                v-model="extraChildRate"
+                :min="0"
+                :controls="false"
+                :precision="0"
+                class="extra-rate-input"
+              >
+                <template #prefix>+ ¥</template>
+              </el-input-number>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -650,6 +685,7 @@ import {
   House,
   ArrowLeft,
   Check,
+  User,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -658,6 +694,7 @@ import {
   createPricePlan,
   updatePricePlan,
   deletePricePlan,
+  forceDeletePricePlan,
   getPricePlansByRoomType,
   assignPricePlanToRoomType,
   updateRoomTypePricePlan,
@@ -717,6 +754,9 @@ interface RoomTypePricePlan {
   }
   maxGuests: number
   includedGuests: string
+  includedGuestsValue?: number | null
+  extraAdultRate?: number
+  extraChildRate?: number
   pricePlanId?: number
   roomTypeId?: number
   priceMode?: string
@@ -728,6 +768,7 @@ interface RoomType {
   code: string
   storeName?: string
   pricePlans: RoomTypePricePlan[]
+  roomTypePricePlanId?: number
 }
 
 const activeTab = ref('plan')
@@ -788,7 +829,15 @@ const currentEditRate = ref<{ roomType: RoomType; plan: RoomTypePricePlan; planN
 )
 const quickFillPrice = ref(0)
 const priceOption = ref<'unified' | 'multiple'>('unified')
-const includedGuestsCount = ref('4')
+const includedGuestsCount = ref('2')
+const extraAdultRate = ref(0)
+const extraChildRate = ref(0)
+
+const includedGuestsOptions = computed(() => {
+  const maxGuests = currentEditRate.value?.plan?.maxGuests ?? 4
+  const normalizedMax = Math.max(1, Number.isFinite(maxGuests) ? maxGuests : 4)
+  return Array.from({ length: normalizedMax }, (_, i) => i + 1)
+})
 
 // 每日价格
 const dailyPrices = reactive({
@@ -801,6 +850,10 @@ const dailyPrices = reactive({
   sun: 0,
 })
 
+// 额外人数加价（第1-4人）
+// 已移除“多人价阶梯表”相关状态：现在改为“额外成人/儿童加价（统一值）”
+
+// 额外人数快速填充价格
 // 星期配置
 const weekDays = [
   { key: 'mon', label: '一' },
@@ -860,6 +913,7 @@ const selectedPricePlanName = computed(() => {
   return plan?.name || ''
 })
 
+// 计算属性:需要显示的额外人数（超出包含人数的部分）
 // 获取房型名称
 const getRoomTypeName = (roomTypeId: number) => {
   const roomType = allRoomTypes.value.find(rt => rt.id === roomTypeId)
@@ -882,6 +936,7 @@ const handleQuickFill = (roomTypeId: number) => {
   }
 }
 
+// 额外人数快速填充
 // 加载价格计划列表
 const loadPricePlans = async () => {
   if (!userStore.currentUser?.id) return
@@ -980,6 +1035,9 @@ const loadRoomTypePrices = async () => {
           },
           maxGuests: pp.maxGuests,
           includedGuests: pp.includedGuests?.toString() || '-',
+          includedGuestsValue: pp.includedGuests ?? null,
+          extraAdultRate: pp.extraAdultRate ?? 0,
+          extraChildRate: pp.extraChildRate ?? 0,
           pricePlanId: pp.pricePlan?.id,
           roomTypeId: roomType.id,
           priceMode: pp.priceMode,
@@ -1064,12 +1122,44 @@ const handleDelete = async (row: PricePlan) => {
       }
     )
 
-    await deletePricePlan(row.id, userStore.currentUser.id)
-    ElMessage.success('价格计划删除成功')
+    const resp: any = await deletePricePlan(row.id, userStore.currentUser.id)
+    if (!resp?.success) {
+      throw new Error(resp?.message || '删除价格计划失败')
+    }
+    ElMessage.success(resp?.message || '价格计划删除成功')
     await loadPricePlans()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error('删除价格计划失败')
+      const msg = error?.message || '删除价格计划失败'
+
+      // 最小改动：仅在“渠道价格记录”阻塞时，引导用户走“彻底删除（只清理 channel_prices）”
+      if (typeof msg === 'string' && msg.includes('渠道价格记录')) {
+        try {
+          await ElMessageBox.confirm(
+            `该价格计划存在渠道价格记录（channel_prices），会导致无法删除。\n\n是否执行“彻底删除”？（仅清理渠道价格记录后再尝试删除；若仍被其它数据引用，将继续提示原因）`,
+            '彻底删除确认',
+            {
+              confirmButtonText: '彻底删除',
+              cancelButtonText: '取消',
+              type: 'warning',
+            }
+          )
+
+          const forceResp: any = await forceDeletePricePlan(row.id, userStore.currentUser.id)
+          if (!forceResp?.success) {
+            throw new Error(forceResp?.message || '彻底删除失败')
+          }
+          ElMessage.success(forceResp?.message || '彻底删除成功')
+          await loadPricePlans()
+          return
+        } catch (forceError: any) {
+          if (forceError !== 'cancel') {
+            ElMessage.error(forceError?.message || '彻底删除失败')
+          }
+          return
+        }
+      }
+      ElMessage.error(error?.message || '删除价格计划失败')
       console.error('删除价格计划失败:', error)
     }
   }
@@ -1211,6 +1301,7 @@ const handleShowAppliedRoomTypes = async (plan: PricePlan) => {
       name: rtp.roomType!.name,
       code: rtp.roomType!.nameEn || '',
       pricePlans: [],
+      roomTypePricePlanId: rtp.id,
     }))
 
     appliedRoomTypesDialogVisible.value = true
@@ -1220,9 +1311,36 @@ const handleShowAppliedRoomTypes = async (plan: PricePlan) => {
   }
 }
 
-const handleRemoveRoomType = (roomType: RoomType) => {
-  appliedRoomTypes.value = appliedRoomTypes.value.filter(rt => rt.id !== roomType.id)
-  ElMessage.success(`已移除房型: ${roomType.name} ${roomType.code}`)
+const handleRemoveRoomType = async (roomType: RoomType) => {
+  if (!userStore.currentUser?.id || !selectedPricePlanId.value) return
+
+  try {
+    let relationId = roomType.roomTypePricePlanId
+
+    // 兜底：如果前端没拿到关联ID，则从后端再查一次
+    if (!relationId) {
+      const response = (await getRoomTypesByPricePlan(selectedPricePlanId.value)) as any
+      const roomTypePricePlans: RoomTypePricePlanDTO[] = response.data || []
+      const matched = roomTypePricePlans.find(
+        rtp => rtp.roomType?.id === roomType.id && typeof rtp.id === 'number'
+      )
+      relationId = matched?.id
+    }
+
+    if (!relationId) {
+      ElMessage.error('移除失败：缺少房型与价格计划的关联ID')
+      return
+    }
+
+    await deleteRoomTypePricePlan(relationId, userStore.currentUser.id)
+    appliedRoomTypes.value = appliedRoomTypes.value.filter(rt => rt.id !== roomType.id)
+    ElMessage.success(`已移除房型：${roomType.name} ${roomType.code}`)
+
+    await loadPricePlans()
+  } catch (error) {
+    ElMessage.error('移除房型失败')
+    console.error('移除房型失败:', error)
+  }
 }
 
 const handleShowLinkRoomTypes = () => {
@@ -1365,8 +1483,10 @@ const handleEditRate = (roomType: RoomType, plan: RoomTypePricePlan) => {
 
   // 重置其他字段
   quickFillPrice.value = 0
-  priceOption.value = 'unified'
-  includedGuestsCount.value = String(plan.maxGuests)
+  priceOption.value = plan.priceMode === 'multiple' ? 'multiple' : 'unified'
+  includedGuestsCount.value = String(plan.includedGuestsValue ?? 2)
+  extraAdultRate.value = plan.extraAdultRate ?? 0
+  extraChildRate.value = plan.extraChildRate ?? 0
 
   editRateDialogVisible.value = true
 }
@@ -1395,7 +1515,8 @@ const handleConfirmEditRate = async () => {
   try {
     const { plan } = currentEditRate.value
 
-    await updateRoomTypePricePlan(plan.id, userStore.currentUser!.id, {
+    // 构建基础数据
+    const updateData: any = {
       mondayPrice: dailyPrices.mon,
       tuesdayPrice: dailyPrices.tue,
       wednesdayPrice: dailyPrices.wed,
@@ -1403,9 +1524,22 @@ const handleConfirmEditRate = async () => {
       fridayPrice: dailyPrices.fri,
       saturdayPrice: dailyPrices.sat,
       sundayPrice: dailyPrices.sun,
-      maxGuests: Number.parseInt(includedGuestsCount.value),
+      maxGuests: plan.maxGuests ?? 4,
       priceMode: priceOption.value,
-    })
+    }
+
+    if (priceOption.value === 'multiple') {
+      const included = Number.parseInt(includedGuestsCount.value)
+      updateData.includedGuests = Number.isFinite(included) ? included : 2
+      updateData.extraAdultRate = extraAdultRate.value
+      updateData.extraChildRate = extraChildRate.value
+    } else {
+      updateData.includedGuests = null
+      updateData.extraAdultRate = 0
+      updateData.extraChildRate = 0
+    }
+
+    await updateRoomTypePricePlan(plan.id, userStore.currentUser!.id, updateData)
 
     ElMessage.success('房价更新成功')
     await loadRoomTypePrices()
@@ -1503,6 +1637,27 @@ watch(selectedRoomTypeIds, (newIds) => {
   font-size: 13px;
   margin-bottom: 12px;
   line-height: 1.5;
+}
+
+.extra-rate-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.extra-rate-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.extra-rate-label {
+  color: #606266;
+  font-size: 13px;
+}
+
+.extra-rate-input {
+  width: 220px;
 }
 
 :deep(.el-radio) {

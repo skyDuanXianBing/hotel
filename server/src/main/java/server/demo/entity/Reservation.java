@@ -75,6 +75,42 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "channel_order_number", length = 100)
     private String channelOrderNumber;
 
+    @Column(name = "payment_method", length = 50)
+    private String paymentMethod;
+
+    @Column(name = "commission", precision = 10, scale = 2)
+    private BigDecimal commission;
+
+    @Column(name = "other_fees", precision = 10, scale = 2)
+    private BigDecimal otherFees;
+
+    @Column(name = "price_plan", length = 100)
+    private String pricePlan;
+
+    @Column(name = "special_requests", columnDefinition = "TEXT")
+    private String specialRequests;
+
+    @Column(name = "booking_date")
+    private LocalDateTime bookingDate;
+
+    @Column(name = "su_hotel_id", length = 50)
+    private String suHotelId;
+
+    @Column(name = "su_reservation_id", length = 100)
+    private String suReservationId;
+
+    @Column(name = "reservation_notif_id", length = 100)
+    private String reservationNotifId;
+
+    @Column(name = "room_reservation_id", length = 100)
+    private String roomReservationId;
+
+    @Column(name = "currency_code", length = 10)
+    private String currencyCode;
+
+    @Column(name = "modified_at")
+    private LocalDateTime modifiedAt;
+
     /**
      * OTA/IT Provider 回传的 rooms[].id（我们推送给 Su 的 roomid），格式通常为 {roomTypeId}-{roomNumber}
      * 用于未排房时也能按房型统计占用/回传 PriceLabs booked_units。
@@ -223,6 +259,54 @@ public class Reservation implements StoreScopedEntity {
         this.actualCheckIn = actualCheckIn;
     }
 
+    public String getSuHotelId() {
+        return suHotelId;
+    }
+
+    public void setSuHotelId(String suHotelId) {
+        this.suHotelId = suHotelId;
+    }
+
+    public String getSuReservationId() {
+        return suReservationId;
+    }
+
+    public void setSuReservationId(String suReservationId) {
+        this.suReservationId = suReservationId;
+    }
+
+    public String getReservationNotifId() {
+        return reservationNotifId;
+    }
+
+    public void setReservationNotifId(String reservationNotifId) {
+        this.reservationNotifId = reservationNotifId;
+    }
+
+    public String getRoomReservationId() {
+        return roomReservationId;
+    }
+
+    public void setRoomReservationId(String roomReservationId) {
+        this.roomReservationId = roomReservationId;
+    }
+
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public void setCurrencyCode(String currencyCode) {
+        this.currencyCode = currencyCode;
+    }
+
+    public LocalDateTime getModifiedAt() {
+        return modifiedAt;
+    }
+
+    public void setModifiedAt(LocalDateTime modifiedAt) {
+        this.modifiedAt = modifiedAt;
+    }
+
     public LocalDateTime getActualCheckOut() {
         return actualCheckOut;
     }
@@ -277,6 +361,54 @@ public class Reservation implements StoreScopedEntity {
 
     public void setChannelOrderNumber(String channelOrderNumber) {
         this.channelOrderNumber = channelOrderNumber;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public BigDecimal getCommission() {
+        return commission;
+    }
+
+    public void setCommission(BigDecimal commission) {
+        this.commission = commission;
+    }
+
+    public BigDecimal getOtherFees() {
+        return otherFees;
+    }
+
+    public void setOtherFees(BigDecimal otherFees) {
+        this.otherFees = otherFees;
+    }
+
+    public String getPricePlan() {
+        return pricePlan;
+    }
+
+    public void setPricePlan(String pricePlan) {
+        this.pricePlan = pricePlan;
+    }
+
+    public String getSpecialRequests() {
+        return specialRequests;
+    }
+
+    public void setSpecialRequests(String specialRequests) {
+        this.specialRequests = specialRequests;
+    }
+
+    public LocalDateTime getBookingDate() {
+        return bookingDate;
+    }
+
+    public void setBookingDate(LocalDateTime bookingDate) {
+        this.bookingDate = bookingDate;
     }
 
     public String getOtaRoomId() {

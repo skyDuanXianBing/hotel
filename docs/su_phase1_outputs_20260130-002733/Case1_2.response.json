@@ -1,0 +1,6 @@
+﻿{
+    "bodyJson":  null,
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Status\":\"Fail\",\"Errors\":[{\"Code\":\"547\",\"ShortText\":\"The property creation limit has been reached. Only 5 properties are allowed to be created.\"}]}"
+}

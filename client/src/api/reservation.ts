@@ -213,3 +213,29 @@ export const getReservationsByType = async (
     params: { type },
   })
 }
+
+export interface ReservationChannelInfoDTO {
+  channelName?: string
+  channelOrderNumber?: string
+  bookingDate?: string
+  paymentMethod?: string
+  status?: string
+  totalAmount?: number
+  commission?: number
+  otherFees?: number
+  roomType?: string
+  guestName?: string
+  adults?: number
+  children?: number
+  checkInDate?: string
+  checkOutDate?: string
+  nights?: number
+  pricePlan?: string
+  specialRequests?: string
+}
+
+export const getReservationChannelInfo = async (
+  reservationId: number,
+): Promise<ApiResponse<ReservationChannelInfoDTO>> => {
+  return await request.get(`/reservations/${reservationId}/channel-info`)
+}

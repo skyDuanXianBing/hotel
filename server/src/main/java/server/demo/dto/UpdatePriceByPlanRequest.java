@@ -35,6 +35,16 @@ public class UpdatePriceByPlanRequest {
     @jakarta.validation.constraints.Max(value = 99, message = "最大入住天数必须小于等于99")
     private Integer maxStay;
 
+    /**
+     * Restrictions
+     * closeRoom: closed (stop sell)
+     * cta: closed to arrival
+     * ctd: closed to departure
+     */
+    private Boolean closeRoom;
+    private Boolean cta;
+    private Boolean ctd;
+
     private String notes;
 
     // Constructors
@@ -111,6 +121,30 @@ public class UpdatePriceByPlanRequest {
 
     public void setMaxStay(Integer maxStay) {
         this.maxStay = maxStay;
+    }
+
+    public Boolean getCloseRoom() {
+        return closeRoom;
+    }
+
+    public void setCloseRoom(Boolean closeRoom) {
+        this.closeRoom = closeRoom;
+    }
+
+    public Boolean getCta() {
+        return cta;
+    }
+
+    public void setCta(Boolean cta) {
+        this.cta = cta;
+    }
+
+    public Boolean getCtd() {
+        return ctd;
+    }
+
+    public void setCtd(Boolean ctd) {
+        this.ctd = ctd;
     }
 
     public String getNotes() {

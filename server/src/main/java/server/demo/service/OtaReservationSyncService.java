@@ -10,14 +10,21 @@ import server.demo.entity.Channel;
 import server.demo.entity.Reservation;
 import server.demo.entity.Store;
 import server.demo.entity.User;
+import server.demo.entity.SuMessageThread;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.repository.SuMessageThreadRepository;
 import server.demo.repository.UserRepository;
 import server.demo.util.SuHotelIdUtil;
 import server.demo.util.SuReservationParser;
 import server.demo.util.SuRoomIdParser;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.UnexpectedRollbackException;
+
+import java.time.LocalDateTime;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -46,11 +53,13 @@ public class OtaReservationSyncService {
     private final UserRepository userRepository;
     private final ChannelRepository channelRepository;
     private final ReservationRepository reservationRepository;
+    private final SuMessageThreadRepository threadRepository;
     private final OtaReservationRoomAssignmentService roomAssignmentService;
     private final TransactionTemplate transactionTemplate;
     private final SuAccessTokenService suAccessTokenService;
     private final AutoMessageTriggerService autoMessageTriggerService;
     private final CleaningTaskAutoService cleaningTaskAutoService;
+    private final PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
 
     public OtaReservationSyncService(
             SuApiClient suApiClient,
@@ -58,22 +67,26 @@ public class OtaReservationSyncService {
             UserRepository userRepository,
             ChannelRepository channelRepository,
             ReservationRepository reservationRepository,
+            SuMessageThreadRepository threadRepository,
             OtaReservationRoomAssignmentService roomAssignmentService,
             PlatformTransactionManager transactionManager,
             SuAccessTokenService suAccessTokenService,
             AutoMessageTriggerService autoMessageTriggerService,
-            CleaningTaskAutoService cleaningTaskAutoService
+            CleaningTaskAutoService cleaningTaskAutoService,
+            PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer
     ) {
         this.suApiClient = suApiClient;
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
         this.channelRepository = channelRepository;
         this.reservationRepository = reservationRepository;
+        this.threadRepository = threadRepository;
         this.roomAssignmentService = roomAssignmentService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.suAccessTokenService = suAccessTokenService;
         this.autoMessageTriggerService = autoMessageTriggerService;
         this.cleaningTaskAutoService = cleaningTaskAutoService;
+        this.priceLabsCalendarSyncDebouncer = priceLabsCalendarSyncDebouncer;
     }
 
     public List<String> getSupportedChannelCodes() {
@@ -96,6 +109,18 @@ public class OtaReservationSyncService {
             List<String> errors
     ) {}
 
+    public record PullUpsertResult(
+            Long storeId,
+            String hotelId,
+            int pulledReservations,
+            int processedRoomStays,
+            int skippedUnsupportedOta,
+            int createdCount,
+            int updatedCount,
+            int failedCount,
+            List<String> errors
+    ) {}
+
     public record UpsertOnlyResult(
             int processedRoomStays,
             int skippedUnsupportedOta,
@@ -104,6 +129,56 @@ public class OtaReservationSyncService {
             int failedCount,
             List<String> errors
     ) {}
+
+    record CalendarSyncRequest(Long roomTypeId, LocalDate startDate, LocalDate endDate) {}
+
+    static List<CalendarSyncRequest> buildCalendarSyncRequests(
+            Long oldRoomTypeId,
+            LocalDate oldCheckIn,
+            LocalDate oldCheckOut,
+            Long newRoomTypeId,
+            LocalDate newCheckIn,
+            LocalDate newCheckOut
+    ) {
+        List<CalendarSyncRequest> out = new ArrayList<>();
+
+        CalendarSyncRequest oldReq = toCalendarSyncRequest(oldRoomTypeId, oldCheckIn, oldCheckOut);
+        if (oldReq != null) {
+            out.add(oldReq);
+        }
+
+        CalendarSyncRequest newReq = toCalendarSyncRequest(newRoomTypeId, newCheckIn, newCheckOut);
+        if (newReq != null) {
+            if (out.isEmpty()) {
+                out.add(newReq);
+            } else {
+                CalendarSyncRequest first = out.get(0);
+                boolean same = Objects.equals(first.roomTypeId, newReq.roomTypeId)
+                        && Objects.equals(first.startDate, newReq.startDate)
+                        && Objects.equals(first.endDate, newReq.endDate);
+                if (!same) {
+                    out.add(newReq);
+                }
+            }
+        }
+
+        return out;
+    }
+
+    private static CalendarSyncRequest toCalendarSyncRequest(Long roomTypeId, LocalDate checkIn, LocalDate checkOut) {
+        if (roomTypeId == null || checkIn == null || checkOut == null) {
+            return null;
+        }
+
+        // Reservation occupancy is [checkIn, checkOut) (checkOut is exclusive).
+        // PriceLabs /calendar uses inclusive [start_date, end_date], so we push until checkOut-1.
+        LocalDate start = checkIn;
+        LocalDate end = checkOut.minusDays(1);
+        if (end.isBefore(start)) {
+            end = start;
+        }
+        return new CalendarSyncRequest(roomTypeId, start, end);
+    }
 
     public ReservationSyncResult syncStoreReservations(Long storeId) {
         return syncStoreReservations(storeId, null);
@@ -125,7 +200,20 @@ public class OtaReservationSyncService {
             return new UpsertOnlyResult(0, 0, 0, 0, 0, List.of());
         }
 
-        UpsertResult result = transactionTemplate.execute(status -> upsertReservationsInTx(store, reservationNodes));
+        UpsertResult result;
+        try {
+            result = transactionTemplate.execute(status -> upsertReservationsInTx(store, reservationNodes));
+        } catch (UnexpectedRollbackException e) {
+            reservationLogger.error(
+                    "[ReservationWebhook] upsert tx rolled back (rollback-only). storeId={}, hotelId={}, reservations={}, sample={}",
+                    storeId,
+                    resolveHotelId(store),
+                    reservationNodes.size(),
+                    summarizeReservationNodes(reservationNodes, 3),
+                    e
+            );
+            throw e;
+        }
         if (result == null) {
             return new UpsertOnlyResult(0, 0, 0, 0, 0, List.of("upsert tx failed"));
         }
@@ -235,6 +323,86 @@ public class OtaReservationSyncService {
         );
     }
 
+    /**
+     * PUSH-mode: pull reservations and upsert locally, but DO NOT call Reservation_notif ack endpoint.
+     * Confirmation is done by replying to the webhook with reservation_notif_id list.
+     */
+    public PullUpsertResult pullAndUpsertReservationsWithoutAck(Long storeId, Set<String> onlyProcessNotifIds) {
+        if (storeId == null) {
+            throw new IllegalArgumentException("storeId is required");
+        }
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("闂ㄥ簵涓嶅瓨鍦? " + storeId));
+
+        String hotelId = resolveHotelId(store);
+        reservationLogger.info("[ReservationSyncPush] start. storeId={}, hotelId={}, onlyProcessNotifIds={}",
+                storeId, hotelId, onlyProcessNotifIds != null ? onlyProcessNotifIds.size() : null);
+
+        JsonNode raw = suAccessTokenService.executeWithTokenRetry(
+                token -> suApiClient.pullReservations(token, hotelId),
+                "Reservation"
+        );
+        List<JsonNode> reservations = SuReservationParser.extractReservationNodes(raw);
+        reservationLogger.info("[ReservationSyncPush] pulled reservations. storeId={}, hotelId={}, count={}",
+                storeId, hotelId, reservations.size());
+
+        List<JsonNode> filtered = filterReservationsByNotifIds(reservations, onlyProcessNotifIds);
+
+        UpsertResult upsert = transactionTemplate.execute(status -> upsertReservationsInTx(store, filtered));
+        if (upsert == null) {
+            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), List.of("浜嬪姟鎵ц澶辫触锛歶psert缁撴灉涓虹┖"));
+        }
+
+        reservationLogger.info("[ReservationSyncPush] upsert done. storeId={}, hotelId={}, processed={}, created={}, updated={}, failed={}, notifIds={}",
+                storeId, hotelId, upsert.processedRoomStays(), upsert.createdCount(), upsert.updatedCount(), upsert.failedCount(), upsert.notifIds().size());
+
+        if (upsert.createdCount() > 0 || upsert.updatedCount() > 0) {
+            try {
+                autoMessageTriggerService.dispatchStoreOnce(storeId);
+            } catch (Exception e) {
+                logger.warn("Dispatch auto messages after reservation push sync failed. storeId={}, err={}", storeId, e.getMessage(), e);
+                reservationLogger.error("[ReservationSyncPush] dispatch auto messages failed. storeId={}, err={}", storeId, e.getMessage());
+            }
+        }
+
+        return new PullUpsertResult(
+                storeId,
+                hotelId,
+                reservations.size(),
+                upsert.processedRoomStays(),
+                upsert.skippedUnsupportedOta(),
+                upsert.createdCount(),
+                upsert.updatedCount(),
+                upsert.failedCount(),
+                upsert.errors()
+        );
+    }
+
+    private static List<JsonNode> filterReservationsByNotifIds(List<JsonNode> reservations, Set<String> onlyProcessNotifIds) {
+        if (reservations == null || reservations.isEmpty()) {
+            return List.of();
+        }
+        if (onlyProcessNotifIds == null || onlyProcessNotifIds.isEmpty()) {
+            return reservations;
+        }
+
+        List<JsonNode> out = new ArrayList<>();
+        for (JsonNode reservationNode : reservations) {
+            if (reservationNode == null || reservationNode.isNull()) {
+                continue;
+            }
+            String notifId = SuReservationParser.extractReservationNotifId(reservationNode);
+            if (notifId == null || notifId.isBlank()) {
+                continue;
+            }
+            if (onlyProcessNotifIds.contains(notifId.trim())) {
+                out.add(reservationNode);
+            }
+        }
+        return out;
+    }
+
     private static List<String> buildAckNotifIds(Set<String> extracted, Set<String> onlyAck) {
         if (extracted == null || extracted.isEmpty()) {
             return List.of();
@@ -278,6 +446,8 @@ public class OtaReservationSyncService {
         List<String> errors = new ArrayList<>();
         Set<String> notifIds = new LinkedHashSet<>();
 
+        String suHotelId = resolveHotelId(store);
+
         int processedRoomStays = 0;
         int skippedUnsupported = 0;
         int created = 0;
@@ -301,6 +471,15 @@ public class OtaReservationSyncService {
 
             if (channelCode == null) {
                 skippedUnsupported++;
+                reservationLogger.info(
+                        "[ReservationUpsert] skip unsupported ota. storeId={}, hotelId={}, reservationId={}, notifId={}, otaCode={}, status={}",
+                        store.getId(),
+                        suHotelId,
+                        reservationId,
+                        notifId,
+                        otaCode,
+                        suStatus
+                );
                 continue;
             }
 
@@ -321,6 +500,21 @@ public class OtaReservationSyncService {
                     String roomReservationId = roomStay != null ? SuReservationParser.extractRoomReservationId(roomStay) : null;
                     String orderNumber = SuReservationParser.buildOrderNumber(store.getId(), reservationId, roomReservationId);
 
+                    reservationLogger.info(
+                            "[ReservationUpsert] begin. storeId={}, hotelId={}, channel={}, reservationId={}, notifId={}, channelBookingId={}, suStatus={}, orderNumber={}, checkIn={}, checkOut={}, roomReservationId={}",
+                            store.getId(),
+                            suHotelId,
+                            channelCode,
+                            reservationId,
+                            notifId,
+                            channelBookingId,
+                            suStatus,
+                            orderNumber,
+                            checkIn,
+                            checkOut,
+                            roomReservationId
+                    );
+
                     Channel channel = resolveChannel(store.getId(), channelCode)
                             .orElseThrow(() -> new IllegalStateException("渠道不存在: " + channelCode));
 
@@ -328,6 +522,18 @@ public class OtaReservationSyncService {
                             .orElseGet(Reservation::new);
 
                     boolean isNew = reservation.getId() == null;
+                    LocalDate oldCheckIn = isNew ? null : reservation.getCheckInDate();
+                    LocalDate oldCheckOut = isNew ? null : reservation.getCheckOutDate();
+                    Long oldRoomTypeId = isNew ? null : reservation.getOtaRoomTypeId();
+
+                    reservationLogger.info(
+                            "[ReservationUpsert] resolved target. storeId={}, hotelId={}, orderNumber={}, isNew={}, existingDbId={}",
+                            store.getId(),
+                            suHotelId,
+                            orderNumber,
+                            isNew,
+                            reservation.getId()
+                    );
 
                     reservation.setStoreId(store.getId());
                     reservation.setUser(user);
@@ -345,6 +551,26 @@ public class OtaReservationSyncService {
                     reservation.setChildren(SuReservationParser.extractChildren(reservationNode, roomStay));
                     reservation.setTotalAmount(SuReservationParser.extractTotalAmount(reservationNode, roomStay));
                     reservation.setChannelOrderNumber(channelBookingId);
+
+                    // Channel / Su fields (for channel-info UI and audit)
+                    reservation.setSuHotelId(suHotelId);
+                    reservation.setSuReservationId(reservationId);
+                    reservation.setReservationNotifId(notifId);
+                    reservation.setRoomReservationId(roomReservationId);
+                    reservation.setPaymentMethod(SuReservationParser.extractPaymentType(reservationNode));
+                    reservation.setCurrencyCode(SuReservationParser.extractCurrencyCode(reservationNode));
+                    reservation.setCommission(SuReservationParser.extractCommissionAmount(reservationNode));
+
+                    LocalDate bookedAt = SuReservationParser.extractBookedAt(reservationNode);
+                    reservation.setBookingDate(bookedAt != null ? bookedAt.atStartOfDay() : null);
+
+                    LocalDate modifiedAt = SuReservationParser.extractModifiedAt(reservationNode);
+                    reservation.setModifiedAt(modifiedAt != null ? modifiedAt.atStartOfDay() : null);
+
+                    String roomSpecialRequest = roomStay != null ? SuReservationParser.extractRoomSpecialRequest(roomStay) : null;
+                    String customerRemarks = SuReservationParser.extractCustomerRemarks(reservationNode);
+                    reservation.setSpecialRequests(combineSpecialRequests(roomSpecialRequest, customerRemarks));
+
                     reservation.setStatus(mapReservationStatus(suStatus));
                     reservation.setOrderNumber(orderNumber);
 
@@ -352,7 +578,8 @@ public class OtaReservationSyncService {
                     String itProviderRoomId = roomStay != null ? SuReservationParser.extractRoomTypeId(roomStay) : null;
                     reservation.setOtaRoomId(itProviderRoomId);
                     SuRoomIdParser.ParsedRoomId parsedRoomId = SuRoomIdParser.parse(itProviderRoomId);
-                    reservation.setOtaRoomTypeId(parsedRoomId != null ? parsedRoomId.roomTypeId() : null);
+                    Long newRoomTypeId = parsedRoomId != null ? parsedRoomId.roomTypeId() : null;
+                    reservation.setOtaRoomTypeId(newRoomTypeId);
                     reservation.setOtaRoomNumber(parsedRoomId != null ? parsedRoomId.roomNumber() : null);
 
                     // 自动排房（仅当当前预订未手动排房时尝试）
@@ -362,11 +589,54 @@ public class OtaReservationSyncService {
                         } catch (Exception ex) {
                             logger.warn("Auto-assign room skipped due to error. storeId={}, orderNumber={}, err={}",
                                     store.getId(), orderNumber, ex.getMessage(), ex);
+                            reservationLogger.error(
+                                    "[ReservationUpsert] auto-assign exception. storeId={}, hotelId={}, orderNumber={}, roomid={}, checkIn={}, checkOut={}, errType={}, err={}",
+                                    store.getId(),
+                                    suHotelId,
+                                    orderNumber,
+                                    itProviderRoomId,
+                                    checkIn,
+                                    checkOut,
+                                    ex.getClass().getSimpleName(),
+                                    ex.getMessage(),
+                                    ex
+                            );
                         }
                     }
 
                     reservationRepository.save(reservation);
+                    reservationLogger.info(
+                            "[ReservationUpsert] saved. storeId={}, hotelId={}, orderNumber={}, reservationDbId={}, assignedRoomId={}, otaRoomId={}, otaRoomTypeId={}, otaRoomNumber={}, status={}",
+                            store.getId(),
+                            suHotelId,
+                            orderNumber,
+                            reservation.getId(),
+                            reservation.getRoom() != null ? reservation.getRoom().getId() : null,
+                            reservation.getOtaRoomId(),
+                            reservation.getOtaRoomTypeId(),
+                            reservation.getOtaRoomNumber(),
+                            reservation.getStatus() != null ? reservation.getStatus().name() : null
+                    );
+
+                    // Ensure SuMessageThread exists so auto-messages (BOOKING_CONFIRM/IMMEDIATELY etc.) can send
+                    // without waiting for inbound messaging webhook.
+                    tryUpsertMessageThreadFromReservation(store.getId(), suHotelId, channelCode, reservationNode, reservation);
+
                     cleaningTaskAutoService.syncTaskForReservation(reservation);
+
+                    if (priceLabsCalendarSyncDebouncer != null) {
+                        List<CalendarSyncRequest> reqs = buildCalendarSyncRequests(
+                                oldRoomTypeId,
+                                oldCheckIn,
+                                oldCheckOut,
+                                newRoomTypeId,
+                                checkIn,
+                                checkOut
+                        );
+                        for (CalendarSyncRequest req : reqs) {
+                            priceLabsCalendarSyncDebouncer.requestSyncAfterCommit(store.getId(), req.roomTypeId(), req.startDate(), req.endDate());
+                        }
+                    }
 
                     if (isNew) {
                         created++;
@@ -383,6 +653,19 @@ public class OtaReservationSyncService {
                     errors.add("reservationId=" + rid + ", channel=" + channelCode + ", error=" + e.getMessage());
                     logger.warn("Upsert Su reservation failed. storeId={}, reservationId={}, channelCode={}",
                             store.getId(), reservationId, channelCode, e);
+                    reservationLogger.error(
+                            "[ReservationUpsert] failed. storeId={}, hotelId={}, reservationId={}, notifId={}, channel={}, channelBookingId={}, suStatus={}, errType={}, err={}",
+                            store.getId(),
+                            suHotelId,
+                            reservationId,
+                            notifId,
+                            channelCode,
+                            channelBookingId,
+                            suStatus,
+                            e.getClass().getSimpleName(),
+                            e.getMessage(),
+                            e
+                    );
                 }
             }
         }
@@ -423,5 +706,147 @@ public class OtaReservationSyncService {
             return ReservationStatus.CANCELLED;
         }
         return ReservationStatus.CONFIRMED;
+    }
+
+    private void tryUpsertMessageThreadFromReservation(
+            Long storeId,
+            String suHotelId,
+            String channelCode,
+            JsonNode reservationNode,
+            Reservation reservation
+    ) {
+        if (storeId == null || reservation == null || channelCode == null || channelCode.isBlank()) {
+            return;
+        }
+
+        Integer suChannelId = toSuChannelId(channelCode);
+        if (suChannelId == null) {
+            return;
+        }
+
+        String bookingId = reservation.getChannelOrderNumber();
+        if (bookingId == null || bookingId.isBlank()) {
+            bookingId = reservation.getOrderNumber();
+        }
+        if (bookingId == null || bookingId.isBlank()) {
+            return;
+        }
+
+        String threadId = SuReservationParser.extractThreadId(reservationNode);
+        String guestId = SuReservationParser.extractGuestId(reservationNode);
+
+        String threadKey;
+        if (suChannelId == SuMessagingService.CHANNEL_BOOKING) {
+            threadKey = bookingId.trim();
+        } else if (suChannelId == SuMessagingService.CHANNEL_AIRBNB) {
+            // For Airbnb, threadKey must be threadId (same behavior as inbound messaging webhook).
+            if (threadId == null || threadId.isBlank()) {
+                return;
+            }
+            threadKey = threadId.trim();
+        } else {
+            return;
+        }
+
+        String listingId = reservation.getOtaRoomId();
+        LocalDateTime now = LocalDateTime.now();
+
+        try {
+            SuMessageThread thread = threadRepository.findByStoreIdAndChannelIdAndThreadKey(storeId, suChannelId, threadKey)
+                    .orElseGet(() -> {
+                        SuMessageThread t = new SuMessageThread();
+                        t.setStoreId(storeId);
+                        t.setSuHotelId(suHotelId != null ? suHotelId : "UNKNOWN");
+                        t.setChannelId(suChannelId);
+                        t.setThreadKey(threadKey);
+                        return t;
+                    });
+
+            if (suHotelId != null && !suHotelId.isBlank()) {
+                thread.setSuHotelId(suHotelId);
+            }
+            thread.setChannelId(suChannelId);
+            thread.setThreadKey(threadKey);
+            thread.setBookingId(bookingId);
+
+            if (threadId != null && !threadId.isBlank()) {
+                thread.setThreadId(threadId);
+            }
+            if (guestId != null && !guestId.isBlank()) {
+                thread.setGuestId(guestId);
+            }
+            if (listingId != null && !listingId.isBlank()) {
+                thread.setListingId(listingId);
+            }
+            if (reservation.getGuestName() != null && !reservation.getGuestName().isBlank()) {
+                thread.setGuestName(reservation.getGuestName());
+            }
+            thread.setLastActivity(now);
+
+            threadRepository.save(thread);
+        } catch (DataIntegrityViolationException e) {
+            // Best-effort: ignore unique key races.
+            reservationLogger.warn(
+                    "[ReservationUpsert] thread upsert ignored (unique race). storeId={}, hotelId={}, channelCode={}, threadKey={}, bookingId={}, err={}",
+                    storeId,
+                    suHotelId,
+                    channelCode,
+                    threadKey,
+                    bookingId,
+                    e.getMessage()
+            );
+        }
+    }
+
+    private static Integer toSuChannelId(String channelCode) {
+        if (channelCode == null) {
+            return null;
+        }
+        String normalized = channelCode.trim().toUpperCase();
+        if ("BOOKING".equals(normalized) || "BOOKING.COM".equals(normalized)) {
+            return SuMessagingService.CHANNEL_BOOKING;
+        }
+        if ("AIRBNB".equals(normalized)) {
+            return SuMessagingService.CHANNEL_AIRBNB;
+        }
+        return null;
+    }
+
+    private static String summarizeReservationNodes(List<JsonNode> nodes, int maxItems) {
+        if (nodes == null || nodes.isEmpty()) {
+            return "[]";
+        }
+        int limit = Math.max(1, maxItems);
+        List<String> parts = new ArrayList<>();
+        for (JsonNode node : nodes) {
+            if (node == null || node.isNull()) {
+                continue;
+            }
+            String rid = SuReservationParser.extractReservationId(node);
+            String notifId = SuReservationParser.extractReservationNotifId(node);
+            String bookingId = SuReservationParser.extractChannelBookingId(node);
+            String status = SuReservationParser.extractSuStatus(node);
+            parts.add("{reservationId=" + rid + ", notifId=" + notifId + ", bookingId=" + bookingId + ", status=" + status + "}");
+            if (parts.size() >= limit) {
+                break;
+            }
+        }
+        return parts.toString() + (nodes.size() > parts.size() ? ("(+ " + (nodes.size() - parts.size()) + " more)") : "");
+    }
+
+    private static String combineSpecialRequests(String roomSpecialRequest, String customerRemarks) {
+        String a = roomSpecialRequest != null ? roomSpecialRequest.trim() : null;
+        String b = customerRemarks != null ? customerRemarks.trim() : null;
+
+        if (a == null || a.isBlank()) {
+            return (b == null || b.isBlank()) ? null : b;
+        }
+        if (b == null || b.isBlank()) {
+            return a;
+        }
+        if (a.equalsIgnoreCase(b)) {
+            return a;
+        }
+        return a + "\n" + b;
     }
 }

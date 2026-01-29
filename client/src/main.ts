@@ -1,3 +1,6 @@
+// 必须最先导入：在任何第三方脚本加载前安装 Su Config CORS 代理
+import './utils/suConfigProxy'
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'

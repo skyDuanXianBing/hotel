@@ -15,7 +15,10 @@ import server.demo.repository.StoreRepository;
 import server.demo.util.SuHotelIdUtil;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -355,7 +358,8 @@ public class OtaIntegrationService {
                 .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
-        return suRateSyncService.syncRoomRatesForNextDays(storeId, hotelId, days);
+        List<Integer> otaCodes = resolveSuOtaCodes(integration);
+        return suRateSyncService.syncRoomRatesForNextDays(storeId, hotelId, days, otaCodes);
     }
 
     @Transactional
@@ -366,7 +370,22 @@ public class OtaIntegrationService {
                 .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
-        return suAvailabilitySyncService.syncRoomAvailabilityForNextDays(storeId, hotelId, days);
+        List<Integer> otaCodes = resolveSuOtaCodes(integration);
+        return suAvailabilitySyncService.syncRoomAvailabilityForNextDays(storeId, hotelId, days, otaCodes);
+    }
+
+    private static List<Integer> resolveSuOtaCodes(OtaIntegration integration) {
+        if (integration == null || integration.getCode() == null) {
+            return List.of(19, 244);
+        }
+        String code = integration.getCode().trim().toUpperCase();
+        if ("BOOKING".equals(code) || "BOOKING.COM".equals(code)) {
+            return List.of(19);
+        }
+        if ("AIRBNB".equals(code)) {
+            return List.of(244);
+        }
+        return List.of(19, 244);
     }
 
     @Transactional(readOnly = true)
@@ -392,6 +411,157 @@ public class OtaIntegrationService {
                 token -> suApiClient.getMappings(token, resolvedHotelId, channelId),
                 "mappings"
         );
+    }
+
+    public record SuMappingStatusSummary(
+            String channelId,
+            boolean mappingReady,
+            int mappedRoomIdCount,
+            int mappedRatePlanCount,
+            int activeRatePlanCount,
+            String error
+    ) {}
+
+    /**
+     * 判断 Su 侧映射是否完成：必须“房型 + 价格计划”都已映射。
+     * <p>
+     * 数据来源：POST /SUAPI/jservice/mappings（见 docs/映射/映射.txt）。
+     */
+    @Transactional(readOnly = true)
+    public SuMappingStatusSummary getSuMappingStatus(Long id, String channelId) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        OtaIntegration integration = otaIntegrationRepository.findById(id)
+                .filter(ota -> ota.getStoreId().equals(storeId))
+                .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
+
+        String hotelId = integration.getSuPropertyId();
+        if (hotelId == null || hotelId.isBlank()) {
+            Store store = storeRepository.findById(storeId)
+                    .orElseThrow(() -> new RuntimeException("门店不存在"));
+            String storeHotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
+            if (storeHotelId == null) {
+                storeHotelId = SuHotelIdUtil.buildDefault(storeId);
+            }
+            hotelId = storeHotelId;
+        }
+
+        final String resolvedHotelId = hotelId;
+        try {
+            JsonNode mappings = suAccessTokenService.executeWithTokenRetry(
+                    token -> suApiClient.getMappings(token, resolvedHotelId, channelId),
+                    "mappings"
+            );
+            return parseSuMappingStatus(channelId, mappings);
+        } catch (Exception e) {
+            return new SuMappingStatusSummary(channelId, false, 0, 0, 0, e.getMessage());
+        }
+    }
+
+    private static SuMappingStatusSummary parseSuMappingStatus(String channelId, JsonNode root) {
+        if (root == null || root.isNull()) {
+            return new SuMappingStatusSummary(channelId, false, 0, 0, 0, "Empty response");
+        }
+
+        JsonNode statusNode = root.get("Status");
+        if (statusNode == null) {
+            statusNode = root.get("status");
+        }
+        if (statusNode != null && "Fail".equalsIgnoreCase(statusNode.asText(""))) {
+            String err = null;
+            JsonNode errors = root.get("Errors");
+            if (errors != null && errors.isObject()) {
+                JsonNode shortText = errors.get("ShortText");
+                if (shortText != null && !shortText.asText("").isBlank()) {
+                    err = shortText.asText("");
+                }
+            }
+            return new SuMappingStatusSummary(channelId, false, 0, 0, 0, err != null ? err : "Status=Fail");
+        }
+
+        // Success shape example:
+        // { "9": [ { "RoomIDs": ["STD"], "Rateplans": [ ... ] } ] }
+        JsonNode channelArray = null;
+        if (channelId != null && !channelId.isBlank()) {
+            channelArray = root.get(channelId);
+        }
+        if (channelArray == null || !channelArray.isArray()) {
+            channelArray = firstArrayField(root);
+        }
+        if (channelArray == null || !channelArray.isArray()) {
+            return new SuMappingStatusSummary(channelId, false, 0, 0, 0, "Unexpected mappings response shape");
+        }
+
+        int roomIdCount = 0;
+        int ratePlanCount = 0;
+        int activeRatePlanCount = 0;
+        boolean ready = false;
+
+        for (JsonNode item : channelArray) {
+            if (item == null || item.isNull() || !item.isObject()) {
+                continue;
+            }
+            String mappingStatus = text(item, "Status");
+
+            JsonNode roomIds = item.get("RoomIDs");
+            int rooms = roomIds != null && roomIds.isArray() ? roomIds.size() : 0;
+
+            JsonNode ratePlans = item.get("Rateplans");
+            int plans = ratePlans != null && ratePlans.isArray() ? ratePlans.size() : 0;
+            int activePlans = 0;
+            if (ratePlans != null && ratePlans.isArray()) {
+                for (JsonNode rp : ratePlans) {
+                    if (rp == null || rp.isNull() || !rp.isObject()) {
+                        continue;
+                    }
+                    String rpStatus = text(rp, "MappingStatus");
+                    if (rpStatus != null && "Active".equalsIgnoreCase(rpStatus)) {
+                        activePlans++;
+                    }
+                }
+            }
+
+            roomIdCount = Math.max(roomIdCount, rooms);
+            ratePlanCount = Math.max(ratePlanCount, plans);
+            activeRatePlanCount = Math.max(activeRatePlanCount, activePlans);
+
+            boolean statusOk = mappingStatus == null || mappingStatus.isBlank() || "Active".equalsIgnoreCase(mappingStatus);
+            if (statusOk && rooms > 0 && activePlans > 0) {
+                ready = true;
+            }
+        }
+
+        return new SuMappingStatusSummary(channelId, ready, roomIdCount, ratePlanCount, activeRatePlanCount, null);
+    }
+
+    private static JsonNode firstArrayField(JsonNode root) {
+        if (root == null || !root.isObject()) {
+            return null;
+        }
+        Iterator<Map.Entry<String, JsonNode>> it = root.fields();
+        while (it.hasNext()) {
+            Map.Entry<String, JsonNode> e = it.next();
+            JsonNode v = e.getValue();
+            if (v != null && v.isArray()) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    private static String text(JsonNode node, String field) {
+        if (node == null || node.isNull() || field == null) {
+            return null;
+        }
+        JsonNode v = node.get(field);
+        if (v == null || v.isNull()) {
+            return null;
+        }
+        String s = v.asText(null);
+        if (s == null) {
+            return null;
+        }
+        s = s.trim();
+        return s.isBlank() ? null : s;
     }
 
     private String resolveOrInitSuHotelId(Long storeId, OtaIntegration integration) {

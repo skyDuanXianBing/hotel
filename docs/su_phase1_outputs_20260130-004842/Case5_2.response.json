@@ -1,0 +1,7 @@
+﻿{
+    "bodyJson":  {
+                     "Status":  "Success"
+                 },
+    "httpStatus":  200,
+    "bodyText":  "{\r\n    \"Status\":  \"Success\"\r\n}"
+}

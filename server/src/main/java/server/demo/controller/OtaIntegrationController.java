@@ -233,6 +233,23 @@ public class OtaIntegrationController {
         }
     }
 
+    /**
+     * 查询 Su 映射是否完成（必须房型 + 价格计划都已映射）。
+     * GET /api/v1/ota-integrations/{id}/su-mapping-status?channelId=19
+     */
+    @GetMapping("/{id}/su-mapping-status")
+    public ApiResponse<OtaIntegrationService.SuMappingStatusSummary> getSuMappingStatus(
+            @PathVariable Long id,
+            @RequestParam(required = false) String channelId
+    ) {
+        try {
+            OtaIntegrationService.SuMappingStatusSummary status = otaIntegrationService.getSuMappingStatus(id, channelId);
+            return ApiResponse.success("获取映射状态成功", status);
+        } catch (RuntimeException e) {
+            return ApiResponse.error("获取映射状态失败: " + e.getMessage());
+        }
+    }
+
     public record ConnectOtaRequest(String apiKey, String apiSecret) {}
 
     /**

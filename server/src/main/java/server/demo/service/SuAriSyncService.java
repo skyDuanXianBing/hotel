@@ -47,6 +47,7 @@ public class SuAriSyncService {
     private static final int MAX_DAYS = 500;
 
     private static final int GUESTS = 2;
+    private static final BigDecimal ZERO_MONEY = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
     private static final Set<ReservationStatus> BLOCKING_RESERVATION_STATUSES = EnumSet.of(
             ReservationStatus.REQUESTED,
@@ -81,6 +82,15 @@ public class SuAriSyncService {
             String roomId,
             String ratePlanId,
             int missingDays
+    ) {}
+
+    private record DailyRateState(
+            String priceValue,
+            Boolean closed,
+            Integer minStay,
+            Integer maxStay,
+            Boolean cta,
+            Boolean ctd
     ) {}
 
     public record SuAriSyncSummary(
@@ -236,7 +246,11 @@ public class SuAriSyncService {
                 distinctPlans.add(planId);
                 RoomTypePricePlan rtpp = rtppByKey.get(roomPlanKey(roomType.getId(), planId));
 
-                List<String> dailyPrices = new ArrayList<>(effectiveDays);
+                int includedGuests = resolveIncludedGuests(rtpp, roomType);
+                String extraAdultRate = formatMoneyAllowZero(rtpp != null ? rtpp.getExtraAdultRate() : null);
+                String extraChildRate = formatMoneyAllowZero(rtpp != null ? rtpp.getExtraChildRate() : null);
+
+                List<DailyRateState> dailyStates = new ArrayList<>(effectiveDays);
                 int missingDays = 0;
                 for (int i = 0; i < effectiveDays; i++) {
                     LocalDate date = startDate.plusDays(i);
@@ -246,13 +260,27 @@ public class SuAriSyncService {
                     if (price == null) {
                         missingDays++;
                     }
-                    dailyPrices.add(price);
+                    dailyStates.add(new DailyRateState(
+                            price,
+                            rp != null ? rp.getCloseRoom() : null,
+                            rp != null ? rp.getMinStay() : null,
+                            rp != null ? rp.getMaxStay() : null,
+                            rp != null ? rp.getCta() : null,
+                            rp != null ? rp.getCtd() : null
+                    ));
                 }
                 if (missingDays > 0 && missingPrices.size() < 200) {
                     missingPrices.add(new MissingPrice(suRoomId, planId.toString(), missingDays));
                 }
 
-                List<Map<String, Object>> segments = toPriceSegments(dailyPrices, startDate, planId.toString());
+                List<Map<String, Object>> segments = toRateSegments(
+                        dailyStates,
+                        startDate,
+                        planId.toString(),
+                        includedGuests,
+                        extraAdultRate,
+                        extraChildRate
+                );
                 if (!segments.isEmpty()) {
                     rateSegments += segments.size();
                     rateDateItems.addAll(segments);
@@ -464,8 +492,15 @@ public class SuAriSyncService {
         return seg;
     }
 
-    private static List<Map<String, Object>> toPriceSegments(List<String> dailyPrices, LocalDate start, String ratePlanId) {
-        if (dailyPrices == null || dailyPrices.isEmpty()) {
+    private static List<Map<String, Object>> toRateSegments(
+            List<DailyRateState> dailyStates,
+            LocalDate start,
+            String ratePlanId,
+            int includedGuests,
+            String extraAdultRate,
+            String extraChildRate
+    ) {
+        if (dailyStates == null || dailyStates.isEmpty()) {
             return List.of();
         }
         if (ratePlanId == null || ratePlanId.isBlank()) {
@@ -474,41 +509,86 @@ public class SuAriSyncService {
 
         List<Map<String, Object>> segments = new ArrayList<>();
 
-        String currentPrice = dailyPrices.get(0);
+        DailyRateState current = dailyStates.get(0);
         LocalDate segmentStart = start;
-        boolean currentHasPrice = currentPrice != null;
+        boolean currentHasPrice = current != null && current.priceValue() != null;
 
-        for (int i = 1; i < dailyPrices.size(); i++) {
-            String price = dailyPrices.get(i);
-            boolean hasPrice = price != null;
+        for (int i = 1; i < dailyStates.size(); i++) {
+            DailyRateState next = dailyStates.get(i);
+            boolean hasPrice = next != null && next.priceValue() != null;
 
-            boolean same = Objects.equals(price, currentPrice) && hasPrice == currentHasPrice;
+            boolean same = Objects.equals(next, current) && hasPrice == currentHasPrice;
             if (same) {
                 continue;
             }
 
             LocalDate segmentEnd = start.plusDays(i - 1L);
             if (currentHasPrice) {
-                segments.add(buildRateSegment(segmentStart, segmentEnd, ratePlanId, currentPrice));
+                segments.add(buildRateSegment(
+                        segmentStart,
+                        segmentEnd,
+                        ratePlanId,
+                        current,
+                        includedGuests,
+                        extraAdultRate,
+                        extraChildRate
+                ));
             }
             segmentStart = start.plusDays(i);
-            currentPrice = price;
+            current = next;
             currentHasPrice = hasPrice;
         }
 
-        LocalDate lastEnd = start.plusDays(dailyPrices.size() - 1L);
+        LocalDate lastEnd = start.plusDays(dailyStates.size() - 1L);
         if (currentHasPrice) {
-            segments.add(buildRateSegment(segmentStart, lastEnd, ratePlanId, currentPrice));
+            segments.add(buildRateSegment(
+                    segmentStart,
+                    lastEnd,
+                    ratePlanId,
+                    current,
+                    includedGuests,
+                    extraAdultRate,
+                    extraChildRate
+            ));
         }
         return segments;
     }
 
-    private static Map<String, Object> buildRateSegment(LocalDate from, LocalDate to, String ratePlanId, String priceValue) {
+    private static Map<String, Object> buildRateSegment(
+            LocalDate from,
+            LocalDate to,
+            String ratePlanId,
+            DailyRateState state,
+            int includedGuests,
+            String extraAdultRate,
+            String extraChildRate
+    ) {
         Map<String, Object> seg = new LinkedHashMap<>();
         seg.put("from", from.toString());
         seg.put("to", to.toString());
         seg.put("rate", List.of(Map.of("rateplanid", ratePlanId)));
-        seg.put("price", List.of(Map.of("NumberOfGuests", String.valueOf(GUESTS), "value", priceValue)));
+        seg.put("price", List.of(Map.of("NumberOfGuests", String.valueOf(includedGuests), "value", state.priceValue())));
+
+        // Restrictions (Room + RatePlan + Date range)
+        if (state.closed() != null) {
+            seg.put("closed", state.closed() ? "1" : "0");
+        }
+        if (state.minStay() != null) {
+            seg.put("minimumstay", String.valueOf(state.minStay()));
+        }
+        if (state.maxStay() != null) {
+            seg.put("maximumstay", String.valueOf(state.maxStay()));
+        }
+        if (state.cta() != null) {
+            seg.put("closedonarrival", state.cta() ? "1" : "0");
+        }
+        if (state.ctd() != null) {
+            seg.put("closedondeparture", state.ctd() ? "1" : "0");
+        }
+
+        // Extra rates: treat missing as 0 (per user confirmation)
+        seg.put("extraadultrate", extraAdultRate);
+        seg.put("extrachildrate", extraChildRate);
         return seg;
     }
 
@@ -528,6 +608,38 @@ public class SuAriSyncService {
             return null;
         }
         return normalized.toPlainString();
+    }
+
+    private static String formatMoneyAllowZero(BigDecimal value) {
+        BigDecimal normalized = value == null ? ZERO_MONEY : value.setScale(2, RoundingMode.HALF_UP);
+        if (normalized.compareTo(BigDecimal.ZERO) < 0) {
+            normalized = ZERO_MONEY;
+        }
+        return normalized.toPlainString();
+    }
+
+    private static int resolveIncludedGuests(RoomTypePricePlan roomTypePricePlan, RoomType roomType) {
+        Integer configured = roomTypePricePlan != null ? roomTypePricePlan.getIncludedGuests() : null;
+        if (configured != null && configured > 0) {
+            return clampGuests(configured);
+        }
+
+        Integer fallbackMax = roomTypePricePlan != null ? roomTypePricePlan.getMaxGuests() : null;
+        if (fallbackMax == null || fallbackMax <= 0) {
+            fallbackMax = roomType != null ? roomType.getMaxGuests() : null;
+        }
+        if (fallbackMax != null && fallbackMax > 0) {
+            return clampGuests(fallbackMax);
+        }
+
+        return clampGuests(GUESTS);
+    }
+
+    private static int clampGuests(Integer guests) {
+        if (guests == null || guests <= 0) {
+            return GUESTS;
+        }
+        return Math.min(30, guests);
     }
 
     private static String roomPlanKey(Long roomTypeId, Long planId) {

@@ -7,6 +7,7 @@ export interface RoomTypeDTO {
   name: string
   code: string
   totalRooms: number
+  maxGuests?: number
   description?: string
   defaultPrice?: number
   weekdayPrice?: number
@@ -72,6 +73,7 @@ export const getRoomTypeByRoomId = async (roomId: number): Promise<ApiResponse<R
           name: roomType.name,
           code: roomType.code,
           totalRooms: roomType.totalRooms,
+          maxGuests: roomType.maxGuests,
           description: roomType.description,
           defaultPrice: roomType.defaultPrice,
           weekdayPrice: roomType.weekdayPrice,
@@ -140,6 +142,7 @@ export interface CreateRoomTypeRequest {
   code: string
   description: string
   totalRooms: number
+  maxGuests: number
   defaultPrice?: number
   weekdayPrice?: number
   weekendPrice?: number

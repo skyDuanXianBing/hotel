@@ -567,9 +567,16 @@
             <div class="booking-section">
               <h3>消费信息</h3>
               <div v-for="item in consumptionItems" :key="item.id" class="info-row">
-                <el-select v-model="item.type" placeholder="选择消费项目" style="width: 120px">
+                <el-select
+                  v-model="item.type"
+                  placeholder="选择消费项目"
+                  style="width: 120px"
+                  :loading="enabledConsumptionItemsLoading"
+                  filterable
+                  @change="handleBookingConsumptionItemChange($event, item)"
+                >
                   <el-option
-                    v-for="option in consumptionTypeOptions"
+                    v-for="option in enabledConsumptionItemOptions"
                     :key="option.value"
                     :label="option.label"
                     :value="option.value"
@@ -705,9 +712,9 @@
         <template #header>
           <div class="detail-header">
             <el-tabs v-model="activeDetailTab">
-              <el-tab-pane label="订单详情" name="detail" />
-              <el-tab-pane label="账单信息" name="billing" />
+              <el-tab-pane label="详细信息" name="detail" />
               <el-tab-pane label="操作日志" name="log" />
+              <el-tab-pane label="渠道信息" name="channel" />
             </el-tabs>
           </div>
         </template>
@@ -932,140 +939,202 @@
             </div>
           </div>
 
-          <div v-if="activeDetailTab === 'billing'">
-            <div class="billing-content">
-              <!-- 财务统计卡片 -->
-              <div class="billing-summary">
-                <div class="billing-card">
-                  <div class="card-label">订单金额</div>
-                  <div class="card-value">¥{{ selectedReservation?.totalAmount || '0.00' }}</div>
-                  <div class="card-details">
-                    <span>已确认消费: ¥{{ totalConfirmedConsumption.toFixed(2) }}</span>
-                    <span>未确认消费: ¥{{ totalUnconfirmedConsumption.toFixed(2) }}</span>
-                  </div>
-                </div>
-
-                <div class="billing-card">
-                  <div class="card-label">已确认消费</div>
-                  <div class="card-value">¥{{ totalConfirmedConsumption.toFixed(2) }}</div>
-                  <div class="card-details">
-                    <span>已结账消费: ¥0.00</span>
-                    <span>未结账消费: ¥{{ totalConfirmedConsumption.toFixed(2) }}</span>
-                  </div>
-                </div>
-
-                <div class="billing-card">
-                  <div class="card-label">账户余额</div>
-                  <div class="card-value primary">¥{{ remainingPayment >= 0 ? '0.00' : Math.abs(remainingPayment).toFixed(2) }}</div>
-                  <div class="card-details">
-                    <span>累计收银: ¥{{ totalPayment.toFixed(2) }}</span>
-                    <span>已结账消费: ¥0.00</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 账目子标签 -->
-              <div class="billing-tabs">
+          <div v-if="activeDetailTab === 'log'">
+            <div class="operation-logs" v-loading="operationLogsLoading">
+              <!-- 日志类型筛选按钮 -->
+              <div class="log-filter-buttons">
                 <el-button
-                  :type="billingSubTab === 'consumption' ? 'primary' : 'default'"
+                  :type="logFilterType === 'all' ? 'primary' : 'default'"
                   size="small"
-                  @click="billingSubTab = 'consumption'"
+                  @click="logFilterType = 'all'"
                 >
-                  消费
+                  全部日志
                 </el-button>
                 <el-button
-                  :type="billingSubTab === 'payment' ? 'primary' : 'default'"
+                  :type="logFilterType === 'order' ? 'primary' : 'default'"
                   size="small"
-                  @click="billingSubTab = 'payment'"
+                  @click="logFilterType = 'order'"
                 >
-                  收银
+                  订单日志
                 </el-button>
                 <el-button
-                  :type="billingSubTab === 'overview' ? 'primary' : 'default'"
+                  :type="logFilterType === 'billing' ? 'primary' : 'default'"
                   size="small"
-                  @click="billingSubTab = 'overview'"
+                  @click="logFilterType = 'billing'"
                 >
-                  概览
+                  账单日志
+                </el-button>
+                <el-button
+                  :type="logFilterType === 'compensation' ? 'primary' : 'default'"
+                  size="small"
+                  @click="handleOpenCompensationPanel"
+                >
+                  补偿/重试
                 </el-button>
               </div>
 
-              <!-- 筛选区域 -->
-              <div class="billing-filters">
-                <div class="filter-item">
-                  <label>营业日</label>
-                  <div class="date-range">
-                    <el-date-picker
-                      v-model="billingStartDate"
-                      type="date"
-                      placeholder="开始日期"
-                      size="small"
-                      format="YYYY-MM-DD"
-                      value-format="YYYY-MM-DD"
-                    />
-                    <span class="date-separator">至</span>
-                    <el-date-picker
-                      v-model="billingEndDate"
-                      type="date"
-                      placeholder="结束日期"
-                      size="small"
-                      format="YYYY-MM-DD"
-                      value-format="YYYY-MM-DD"
-                    />
+              <div v-if="logFilterType === 'compensation'" class="compensation-panel" v-loading="suWebhookEventsLoading">
+                <div class="compensation-toolbar">
+                  <div class="toolbar-left">
+                    <span class="toolbar-label">状态</span>
+                    <el-select v-model="suWebhookStatusFilter" style="width: 220px">
+                      <el-option
+                        v-for="opt in suWebhookStatusOptions"
+                        :key="opt.value"
+                        :label="opt.label"
+                        :value="opt.value"
+                      />
+                    </el-select>
+                  </div>
+                  <div class="toolbar-right">
+                    <el-button @click="loadSuWebhookEvents">刷新</el-button>
+                    <el-button type="primary" :loading="suWebhookEventsProcessing" @click="handleProcessSuWebhookEvents">
+                      立即处理
+                    </el-button>
                   </div>
                 </div>
 
-                <div class="filter-item">
-                  <label>账目状态</label>
-                  <el-select v-model="billingStatus" placeholder="全部" size="small">
-                    <el-option label="全部" value="" />
-                    <el-option label="未结账" value="unpaid" />
-                    <el-option label="已结账" value="paid" />
-                  </el-select>
-                </div>
-              </div>
-
-              <!-- 账目列表 -->
-              <div class="billing-table">
-                <el-table
-                  :data="filteredBillingList"
-                  border
-                  stripe
-                  style="width: 100%"
-                  :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
-                >
-                  <el-table-column prop="item" label="账目" min-width="120" align="center" />
-                  <el-table-column prop="amount" label="金额" width="100" align="center" />
-                  <el-table-column prop="businessDate" label="营业日" width="120" align="center" />
-                  <el-table-column prop="status" label="状态" width="80" align="center">
+                <el-table :data="suWebhookEvents" border size="small">
+                  <el-table-column prop="reservationNotifId" label="reservation_notif_id" min-width="200" />
+                  <el-table-column prop="hotelId" label="hotel_id" min-width="120" />
+                  <el-table-column prop="status" label="状态" width="120" align="center" />
+                  <el-table-column prop="retryCount" label="重试次数" width="100" align="center" />
+                  <el-table-column prop="nextRetryAt" label="下次重试" min-width="160" />
+                  <el-table-column prop="updatedAt" label="更新时间" min-width="160" />
+                  <el-table-column label="错误" min-width="260">
                     <template #default="{ row }">
-                      {{ row.status === 'paid' ? '已结账' : '未结账' }}
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="操作" width="80" align="center" fixed="right">
-                    <template #default>
-                      <el-button link type="primary" size="small">-</el-button>
+                      <el-tooltip v-if="row.lastError" placement="top" :content="row.lastError">
+                        <span class="error-ellipsis">{{ row.lastError }}</span>
+                      </el-tooltip>
+                      <span v-else>-</span>
                     </template>
                   </el-table-column>
                 </el-table>
 
-                <!-- 分页 -->
-                <div class="billing-pagination">
-                  <span class="total-info">共 {{ filteredBillingList.length }} 条</span>
-                  <el-pagination
-                    small
-                    layout="prev, pager, next"
-                    :total="filteredBillingList.length"
-                    :page-size="10"
-                    :current-page="1"
-                  />
-                </div>
+                <el-empty v-if="suWebhookEvents.length === 0" description="暂无补偿事件" />
               </div>
+
+              <template v-else>
+                <!-- 操作日志时间线 -->
+                <el-timeline class="operation-timeline">
+                  <el-timeline-item
+                    v-for="log in filteredOperationLogs"
+                    :key="log.id"
+                    :timestamp="log.timestamp"
+                    placement="top"
+                  >
+                    <div class="log-item">
+                      <div class="log-header">
+                        <span class="log-action">{{ log.action }}</span>
+                        <span class="log-operator">操作人: {{ log.operator }}</span>
+                      </div>
+                      <div class="log-content" v-if="log.content">
+                        {{ log.content }}
+                      </div>
+                      <div class="log-details" v-if="log.details">
+                        <div v-for="(detail, index) in log.details" :key="index" class="detail-item">
+                          <span class="detail-label">{{ detail.label }}:</span>
+                          <span class="detail-value">{{ detail.value }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </el-timeline-item>
+                </el-timeline>
+              </template>
+
+              <!-- 空状态 -->
+              <el-empty v-if="logFilterType !== 'compensation' && filteredOperationLogs.length === 0" description="暂无操作日志" />
             </div>
           </div>
 
-          <div v-if="activeDetailTab === 'log'">
-            <div class="operation-logs">
-              <p>暂无操作日志</p>
+          <div v-if="activeDetailTab === 'channel'">
+            <div class="channel-info-content" v-loading="channelInfoLoading">
+              <!-- 渠道Logo和名称 -->
+              <div class="channel-header">
+                <div class="channel-logo-wrapper">
+                  <div class="channel-logo">
+                    <span class="logo-text">{{ channelLogoText }}</span>
+                  </div>
+                  <h3>{{ channelInfo?.channelName || selectedReservation?.channelName || '自来客' }}</h3>
+                </div>
+              </div>
+
+              <!-- 订单详情 -->
+              <div class="channel-section">
+                <h4>订单详情</h4>
+                <div class="info-grid">
+                  <div class="info-item">
+                    <span class="label">渠道订单号:</span>
+                    <span class="value">{{ channelInfo?.channelOrderNumber || selectedReservation?.orderNumber || '-' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">预定状态:</span>
+                    <el-tag :type="getStatusTagType(selectedReservation?.status || 'CONFIRMED')">
+                      {{ getReservationStatusText(selectedReservation?.status || 'CONFIRMED') }}
+                    </el-tag>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">预定日期:</span>
+                    <span class="value">{{ channelInfo?.bookingDate || selectedReservation?.createdAt || '-' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">支付方式:</span>
+                    <el-tag v-if="channelInfo?.paymentMethod" type="warning">
+                      {{ channelInfo.paymentMethod }}
+                    </el-tag>
+                    <span v-else class="value">-</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 价格信息 -->
+              <div class="channel-section">
+                <h4>价格信息</h4>
+                <div class="price-table">
+                  <el-table :data="channelPriceRows" border>
+                    <el-table-column prop="label" label="" width="150" />
+                    <el-table-column prop="value" label="" align="right" />
+                  </el-table>
+                </div>
+              </div>
+
+              <!-- 房间详情 -->
+              <div class="channel-section">
+                <h4>房间详情</h4>
+                <div class="info-grid">
+                  <div class="info-item">
+                    <span class="label">房型:</span>
+                    <span class="value">{{ selectedReservation?.roomTypeName || '-' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">客人姓名:</span>
+                    <span class="value">{{ selectedReservation?.guestName || '-' }} ({{ selectedReservation?.adults || 1 }}成人, {{ selectedReservation?.children || 0 }}儿童)</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">入离日期:</span>
+                    <span class="value">{{ selectedReservation?.checkInDate }} ~ {{ selectedReservation?.checkOutDate }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">间夜数:</span>
+                    <span class="value">{{ channelNightsText }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">价格计划:</span>
+                    <span class="value">{{ channelInfo?.pricePlan || '-' }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 特殊需求 -->
+              <div class="channel-section">
+                <h4>特殊需求</h4>
+                <div class="special-requests">
+                  <p v-if="channelInfo?.specialRequests || selectedReservation?.notes">
+                    {{ channelInfo?.specialRequests || selectedReservation?.notes }}
+                  </p>
+                  <el-empty v-else description="无特殊需求" :image-size="60" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1204,13 +1273,22 @@
         </template>
 
         <div style="padding: 20px">
-          <el-form :model="consumptionForm" label-position="left" label-width="100px">
+            <el-form :model="consumptionForm" label-position="left" label-width="100px">
             <el-form-item label="消费项目" required>
-              <el-select v-model="consumptionForm.item" placeholder="项目" style="width: 100%">
-                <el-option label="佣金" value="佣金" />
-                <el-option label="餐饮" value="餐饮" />
-                <el-option label="饮料" value="饮料" />
-                <el-option label="其他" value="其他" />
+              <el-select
+                v-model="consumptionForm.item"
+                placeholder="项目"
+                style="width: 100%"
+                :loading="enabledConsumptionItemsLoading"
+                filterable
+                @change="handleConsumptionFormItemChange"
+              >
+                <el-option
+                  v-for="option in enabledConsumptionItemOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
             </el-form-item>
 
@@ -1686,15 +1764,18 @@ import {
   Loading,
 } from '@element-plus/icons-vue'
 import { useRoomStatusStore } from '@/stores/roomStatus'
+import { useUserStore } from '@/stores/user'
 import {
   createReservation,
   checkInReservation,
   cancelReservation,
   checkOutReservation,
   getReservationById,
+  getReservationChannelInfo,
   updateReservation,
   searchReservations,
   type ReservationDTO,
+  type ReservationChannelInfoDTO,
 } from '@/api/reservation'
 import { getRoomStatusCalendar } from '@/api/roomStatus'
 import type { CreateReservationRequest } from '@/api/reservation'
@@ -1706,10 +1787,19 @@ import { getRoomTypeByRoomId, getRoomCurrentPrice, getEffectiveRoomPrice, type R
 import { calculateTotalPriceByDates } from '@/utils/priceHelper'
 import { createConsumption, getConsumptionsByReservationId, deleteConsumption, getTotalConsumption, type ConsumptionDTO } from '@/api/consumption'
 import { createPayment, getPaymentsByReservationId, deletePayment, getTotalPayment, type PaymentDTO } from '@/api/payment'
+import { getOperationLogsByReservationId, type OperationLogDTO } from '@/api/operationLog'
+import { getConsumptionItemsByEnabled, type ConsumptionItemDTO } from '@/api/consumptionItem'
+import {
+  getSuWebhookEvents,
+  processSuWebhookEvents,
+  type SuReservationWebhookEventDTO,
+  type SuWebhookEventStatus,
+} from '@/api/suWebhookEvents'
 
 const router = useRouter()
 const route = useRoute()
 const roomStatusStore = useRoomStatusStore()
+const userStore = useUserStore()
 
 // 响应式数据
 const searchKeyword = ref('')
@@ -1742,27 +1832,225 @@ const showBookingDetailSidebar = ref(false)
 const selectedReservation = ref<any>(null)
 const activeDetailTab = ref('detail')
 
-// 账单信息相关
-const billingSubTab = ref('consumption')
-const billingStartDate = ref('')
-const billingEndDate = ref('')
-const billingStatus = ref('')
+const currentOperatorName = computed(() => {
+  return userStore.currentUser?.nickname || userStore.currentUser?.email || '系统'
+})
 
-// 消费标签页数据
-const billingConsumptionList = ref([
-  { item: '全日房费', amount: '¥11.00', businessDate: '2025-11-15', status: 'unpaid' }
+// 操作日志相关
+const logFilterType = ref<'all' | 'order' | 'billing' | 'compensation'>('all')
+const operationLogs = ref<OperationLogDTO[]>([])
+const operationLogsLoading = ref(false)
+
+const channelInfo = ref<ReservationChannelInfoDTO | null>(null)
+const channelInfoLoading = ref(false)
+
+// 操作日志接口
+interface OperationLogSample {
+  id: string
+  action: string
+  operator: string
+  timestamp: string
+  type: 'order' | 'billing'
+  content?: string
+  details?: Array<{ label: string; value: string }>
+}
+
+// 操作日志数据（示例数据）
+const operationLogSamples = ref<OperationLogSample[]>([
+  {
+    id: '1',
+    action: '办理入住',
+    operator: '齐藤 广志',
+    timestamp: '2026/01/31 16:34:20',
+    type: 'order',
+    content: '入住房间: Tanpopo Inn304-304',
+  },
+  {
+    id: '2',
+    action: '新增预订订单',
+    operator: '系统',
+    timestamp: '2025/11/24 19:30:52',
+    type: 'order',
+    details: [
+      { label: '联系人', value: 'KAZUKO KIMURA' },
+      { label: '手机号', value: '+81 9051835283' },
+      { label: '邮箱', value: 'kkimur.786937@guest.booking.com' },
+      { label: '渠道', value: 'Booking.com' },
+      { label: '渠道订单号', value: '6538219044' },
+      { label: '房间', value: '北赤羽304-304' },
+      { label: '入住类型', value: '正常入住' },
+      { label: '入离时间', value: '2026-01-31 16:00 至 2026-02-01 10:00，共1晚' },
+      { label: '成人数', value: '2' },
+      { label: '房费', value: '¥6,018.46' },
+      { label: '订单金额', value: '¥6,018.46' },
+    ],
+  },
+  {
+    id: '3',
+    action: '收银',
+    operator: '系统',
+    timestamp: '2025/11/24 19:30:52',
+    type: 'billing',
+    details: [
+      { label: '类型', value: '收款-订单金额' },
+      { label: '金额', value: '¥14,018.46' },
+      { label: '归属营业日', value: '2025-11-24' },
+      { label: '支付方式', value: 'Booking代收' },
+      { label: '备注', value: '-' },
+    ],
+  },
 ])
 
-// 收银标签页数据
-const billingPaymentList = ref([
-  { item: '订单金额-Agoda代收', amount: '¥11.00', businessDate: '2025-11-14', status: 'unpaid' }
-])
+// 过滤后的操作日志
+const filteredOperationLogs = computed(() => {
+  if (logFilterType.value === 'compensation') {
+    return []
+  }
+  if (logFilterType.value === 'all') {
+    return operationLogs.value
+  }
+  return operationLogs.value.filter(log => log.type === logFilterType.value)
+})
 
-// 概览标签页数据
-const billingOverviewList = ref([
-  { item: '全日房费', amount: '¥11.00', businessDate: '2025-11-15', status: 'unpaid' }
-])
+// SU webhook 补偿/重试
+const suWebhookStatusFilter = ref<SuWebhookEventStatus>('FAILED')
+const suWebhookEvents = ref<SuReservationWebhookEventDTO[]>([])
+const suWebhookEventsLoading = ref(false)
+const suWebhookEventsProcessing = ref(false)
 
+const suWebhookStatusOptions: Array<{ label: string; value: SuWebhookEventStatus }> = [
+  { label: '失败（FAILED）', value: 'FAILED' },
+  { label: '已进入死信（DEAD）', value: 'DEAD' },
+  { label: '已接收（RECEIVED）', value: 'RECEIVED' },
+  { label: '处理中（PROCESSING）', value: 'PROCESSING' },
+  { label: '已处理（PROCESSED）', value: 'PROCESSED' },
+]
+
+const loadSuWebhookEvents = async () => {
+  suWebhookEventsLoading.value = true
+  try {
+    const res = await getSuWebhookEvents({ status: suWebhookStatusFilter.value, size: 50 })
+    if (res.success) {
+      suWebhookEvents.value = res.data || []
+    } else {
+      suWebhookEvents.value = []
+    }
+  } catch (error) {
+    console.error('加载补偿事件失败:', error)
+    suWebhookEvents.value = []
+  } finally {
+    suWebhookEventsLoading.value = false
+  }
+}
+
+const handleProcessSuWebhookEvents = async () => {
+  if (suWebhookEventsProcessing.value) return
+  suWebhookEventsProcessing.value = true
+  try {
+    const res = await processSuWebhookEvents({ limit: 50 })
+    if (res.success) {
+      ElMessage.success(`已触发处理：${res.data ?? 0} 条`)
+    } else {
+      ElMessage.error(res.message || '触发处理失败')
+    }
+    await loadSuWebhookEvents()
+  } catch (error) {
+    console.error('触发补偿处理失败:', error)
+    ElMessage.error('触发处理失败，请稍后再试')
+  } finally {
+    suWebhookEventsProcessing.value = false
+  }
+}
+
+const handleOpenCompensationPanel = async () => {
+  logFilterType.value = 'compensation'
+  await loadSuWebhookEvents()
+}
+
+watch(suWebhookStatusFilter, async () => {
+  if (logFilterType.value !== 'compensation') return
+  await loadSuWebhookEvents()
+})
+
+const loadOperationLogs = async (reservationId: number) => {
+  operationLogsLoading.value = true
+  operationLogs.value = []
+  try {
+    const res = await getOperationLogsByReservationId(reservationId)
+    if (res.success) {
+      operationLogs.value = res.data || []
+    } else {
+      operationLogs.value = []
+    }
+  } catch (error) {
+    console.error('加载操作日志失败:', error)
+    operationLogs.value = []
+  } finally {
+    operationLogsLoading.value = false
+  }
+}
+
+const loadChannelInfo = async (reservationId: number) => {
+  channelInfoLoading.value = true
+  channelInfo.value = null
+  try {
+    const res = await getReservationChannelInfo(reservationId)
+    if (res.success) {
+      channelInfo.value = res.data || null
+    } else {
+      channelInfo.value = null
+    }
+  } catch (error) {
+    console.error('加载渠道信息失败:', error)
+    channelInfo.value = null
+  } finally {
+    channelInfoLoading.value = false
+  }
+}
+
+const formatMoney = (amount?: number | null) => {
+  if (amount === null || amount === undefined) return '-'
+  const num = Number(amount)
+  if (Number.isNaN(num)) return '-'
+  return `¥${num.toFixed(2)}`
+}
+
+const channelLogoText = computed(() => {
+  const name = channelInfo.value?.channelName || selectedReservation.value?.channelName || ''
+  const normalized = (name || '').replace(/\\.com$/i, '').trim()
+  if (!normalized) return 'OTA'
+  return normalized.length > 10 ? normalized.slice(0, 10) : normalized
+})
+
+const channelNights = computed(() => {
+  const nights = channelInfo.value?.nights
+  if (typeof nights === 'number' && nights > 0) return nights
+
+  const checkIn = channelInfo.value?.checkInDate || selectedReservation.value?.checkInDate
+  const checkOut = channelInfo.value?.checkOutDate || selectedReservation.value?.checkOutDate
+  if (!checkIn || !checkOut) return null
+
+  const start = new Date(checkIn)
+  const end = new Date(checkOut)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
+
+  const diff = end.getTime() - start.getTime()
+  const nightsByDiff = Math.round(diff / (1000 * 60 * 60 * 24))
+  return nightsByDiff > 0 ? nightsByDiff : null
+})
+
+const channelNightsText = computed(() => {
+  return channelNights.value ? `${channelNights.value} 晚` : '-'
+})
+
+const channelPriceRows = computed(() => {
+  const total = channelInfo.value?.totalAmount ?? selectedReservation.value?.totalAmount
+  return [
+    { label: '总价', value: formatMoney(total) },
+    { label: '佣金', value: formatMoney(channelInfo.value?.commission) },
+    { label: '其他附加费', value: formatMoney(channelInfo.value?.otherFees) },
+  ]
+})
 
 // 取消预约侧边栏
 const showCancelReservationSidebar = ref(false)
@@ -1811,42 +2099,6 @@ const remainingPayment = computed(() => {
   const payment = Number(totalPayment.value || 0)
   // 还需付款 = 订单金额 - 已收金额 - 其他消费
   return total - payment - consumption
-})
-
-// 计算已确认消费总额（订单金额 + 其他消费）
-const totalConfirmedConsumption = computed(() => {
-  const orderAmount = Number(selectedReservation.value?.totalAmount || 0)
-  const otherConsumption = Math.abs(Number(totalConsumption.value || 0))
-  return orderAmount + otherConsumption
-})
-
-// 计算未确认消费总额（暂时为0，后续可以从API获取）
-const totalUnconfirmedConsumption = computed(() => {
-  return 0
-})
-
-// 过滤后的账单列表
-const filteredBillingList = computed(() => {
-  // 根据当前标签页选择数据源
-  let list = billingSubTab.value === 'consumption'
-    ? billingConsumptionList.value
-    : billingSubTab.value === 'payment'
-    ? billingPaymentList.value
-    : billingOverviewList.value
-
-  // 根据状态过滤
-  if (billingStatus.value) {
-    list = list.filter((item: any) => item.status === billingStatus.value)
-  }
-
-  // 根据日期过滤
-  if (billingStartDate.value && billingEndDate.value) {
-    list = list.filter((item: any) => {
-      return item.businessDate >= billingStartDate.value && item.businessDate <= billingEndDate.value
-    })
-  }
-
-  return list
 })
 
 // 折叠面板展开状态（控制订单详情中的消费、收款、提醒面板）
@@ -1915,11 +2167,53 @@ const consumptionItems = ref<ConsumptionItem[]>([])
 // 收款记录列表
 const paymentItems = ref<PaymentItem[]>([])
 
-// 消费项目类型选项
-const consumptionTypeOptions = [
-  { label: '佣金', value: '佣金' }
- 
-]
+const enabledConsumptionItems = ref<ConsumptionItemDTO[]>([])
+const enabledConsumptionItemsLoading = ref(false)
+
+const getConsumptionItemKey = (item: ConsumptionItemDTO) => `${item.category} - ${item.name}`
+
+const enabledConsumptionItemOptions = computed(() => {
+  return enabledConsumptionItems.value.map((item) => ({
+    label: getConsumptionItemKey(item),
+    value: getConsumptionItemKey(item),
+  }))
+})
+
+const getEnabledConsumptionItemPrice = (key: string) => {
+  const found = enabledConsumptionItems.value.find((item) => getConsumptionItemKey(item) === key)
+  return found ? Number(found.price) : null
+}
+
+const loadEnabledConsumptionItems = async () => {
+  enabledConsumptionItemsLoading.value = true
+  try {
+    const res = await getConsumptionItemsByEnabled(true)
+    if (res.success) {
+      enabledConsumptionItems.value = res.data || []
+    } else {
+      enabledConsumptionItems.value = []
+    }
+  } catch (error) {
+    console.error('加载消费项目列表失败:', error)
+    enabledConsumptionItems.value = []
+  } finally {
+    enabledConsumptionItemsLoading.value = false
+  }
+}
+
+const handleBookingConsumptionItemChange = (key: string, item: ConsumptionItem) => {
+  const price = getEnabledConsumptionItemPrice(key)
+  if (price !== null && (!item.amount || item.amount <= 0)) {
+    item.amount = price
+  }
+}
+
+const handleConsumptionFormItemChange = (key: string) => {
+  const price = getEnabledConsumptionItemPrice(key)
+  if (price !== null && (!consumptionForm.value.amount || consumptionForm.value.amount <= 0)) {
+    consumptionForm.value.amount = price
+  }
+}
 
 // 收款类型选项
 const paymentTypeOptions = [
@@ -2684,6 +2978,10 @@ const loadReservationDetails = async (reservationId: number) => {
 
       // 加载消费和收款数据
       await loadConsumptionAndPaymentData()
+
+      // 加载操作日志与渠道信息
+      void loadOperationLogs(reservationId)
+      void loadChannelInfo(reservationId)
     } else {
       console.error('加载预订详情失败:', response.message)
     }
@@ -2747,7 +3045,7 @@ const addConsumptionItem = () => {
 
   consumptionItems.value.push({
     id: Date.now().toString(),
-    type: '佣金',
+    type: '',
     quantity: 1,
     amount: 0,
     date: dateStr,
@@ -2861,7 +3159,7 @@ const submitBooking = async () => {
             // 保存消费记录
             if (hasConsumption) {
               const consumptionPromises = consumptionItems.value
-                .filter(item => item.amount && item.amount > 0)
+                .filter(item => item.type && item.amount && item.amount > 0)
                 .map(item => {
                   const consumptionData: ConsumptionDTO = {
                     reservationId: reservationId,
@@ -2870,7 +3168,7 @@ const submitBooking = async () => {
                     amount: item.amount,
                     date: item.date,
                     remark: item.remark || '',
-                    createdBy: '当前用户', // TODO: 替换为实际用户信息
+                    createdBy: currentOperatorName.value,
                   }
                   return createConsumption(consumptionData)
                 })
@@ -2889,7 +3187,7 @@ const submitBooking = async () => {
                     amount: item.amount,
                     date: item.date,
                     remark: item.remark || '',
-                    createdBy: '当前用户', // TODO: 替换为实际用户信息
+                    createdBy: currentOperatorName.value,
                   }
                   return createPayment(paymentData)
                 })
@@ -3053,7 +3351,7 @@ const submitConsumption = async () => {
       amount: Math.abs(consumptionForm.value.amount), // 后端会自动转为负数
       date: consumptionForm.value.date,
       remark: consumptionForm.value.remark,
-      createdBy: '当前用户', // TODO: 替换为实际用户信息
+      createdBy: currentOperatorName.value,
     }
 
     const response = await createConsumption(consumptionData)
@@ -3099,7 +3397,7 @@ const submitPayment = async () => {
       amount: paymentForm.value.amount,
       date: paymentForm.value.date,
       remark: paymentForm.value.remark,
-      createdBy: '当前用户', // TODO: 替换为实际用户信息
+      createdBy: currentOperatorName.value,
     }
 
     const response = await createPayment(paymentData)
@@ -4023,6 +4321,7 @@ watch(
 // 生命周期
 onMounted(async () => {
   await loadChannels()
+  await loadEnabledConsumptionItems()
   loadCalendarData()
 })
 </script>
@@ -4683,6 +4982,10 @@ onMounted(async () => {
 
 /* 预订详情侧边栏样式 */
 .booking-detail-content {
+  padding: 0;
+}
+
+.booking-detail-content > div[v-if] {
   padding: 20px;
 }
 
@@ -4691,6 +4994,7 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  padding: 20px 20px 0 20px;
 }
 
 /* 取消预约侧边栏样式 */
@@ -5293,108 +5597,252 @@ onMounted(async () => {
   align-items: center;
 }
 
-/* 账单信息样式 */
-.billing-content {
-  padding: 16px;
+/* 操作日志样式 */
+.operation-logs {
+  padding: 20px 20px 20px 20px;
 }
 
-.billing-summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.billing-card {
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.billing-card .card-label {
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 8px;
-}
-
-.billing-card .card-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 12px;
-}
-
-.billing-card .card-value.primary {
-  color: #409eff;
-}
-
-.billing-card .card-details {
+.log-filter-buttons {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: #606266;
-}
-
-.billing-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.billing-filters {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 16px;
-  padding: 16px;
-  background: #f5f7fa;
-  border-radius: 8px;
-}
-
-.billing-filters .filter-item {
-  display: flex;
-  align-items: center;
   gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e7ed;
 }
 
-.billing-filters .filter-item label {
-  font-size: 14px;
-  color: #606266;
-  min-width: 60px;
+.operation-timeline {
+  margin-top: 0;
 }
 
-.billing-filters .date-range {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.log-item {
+  background: #f5f7fa;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
 }
 
-.billing-filters .date-separator {
-  color: #909399;
-  font-size: 14px;
-}
-
-.billing-table {
-  margin-top: 16px;
-}
-
-.billing-pagination {
+.log-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 16px;
-  padding: 12px 0;
+  margin-bottom: 8px;
 }
 
-.billing-pagination .total-info {
+.log-action {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.log-operator {
+  font-size: 13px;
+  color: #909399;
+}
+
+.log-content {
   font-size: 14px;
+  color: #606266;
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.log-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #dcdfe6;
+}
+
+.detail-item {
+  font-size: 13px;
+  color: #606266;
+  display: flex;
+  gap: 8px;
+}
+
+.detail-label {
+  color: #909399;
+  min-width: 80px;
+}
+
+.detail-value {
+  color: #303133;
+  font-weight: 500;
+}
+
+/* 补偿/重试样式 */
+.compensation-panel {
+  padding: 0;
+}
+
+.compensation-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toolbar-label {
+  font-size: 13px;
   color: #606266;
 }
 
-.operation-logs {
-  padding: 24px;
-  text-align: center;
-  color: #909399;
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
+
+.error-ellipsis {
+  display: inline-block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 渠道信息样式 */
+.channel-info-content {
+  padding: 0;
+}
+
+.channel-header {
+  padding: 32px 24px;
+  background: linear-gradient(135deg, #7B68EE 0%, #9370DB 100%);
+  margin-bottom: 0;
+}
+
+.channel-logo-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.channel-logo {
+  width: 100px;
+  height: 100px;
+  background: #003580;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  font-family: Arial, sans-serif;
+  letter-spacing: -0.5px;
+}
+
+.channel-header h3 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0;
+  color: white;
+}
+
+.channel-section {
+  margin-bottom: 0;
+  padding: 24px;
+  background: white;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.channel-section:last-of-type {
+  border-bottom: none;
+}
+
+.channel-section h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0 0 20px 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.info-item {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 16px;
+  font-size: 14px;
+  align-items: start;
+}
+
+.info-item .label {
+  color: #606266;
+  font-weight: 400;
+}
+
+.info-item .value {
+  color: #303133;
+  font-weight: 400;
+}
+
+.price-table {
+  margin-top: 0;
+}
+
+.price-table :deep(.el-table) {
+  border: 1px solid #e4e7ed;
+}
+
+.price-table :deep(.el-table th) {
+  background: #f5f7fa;
+  color: #606266;
+  font-weight: 600;
+}
+
+.price-table :deep(.el-table td) {
+  color: #303133;
+}
+
+.special-requests {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  min-height: auto;
+}
+
+.special-requests p {
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.special-requests ul {
+  list-style: disc;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.special-requests li {
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.8;
+  margin-bottom: 8px;
+}
+
 </style>

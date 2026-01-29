@@ -1,6 +1,7 @@
 package server.demo.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class SuContentSyncService {
 
     private static final Logger logger = LoggerFactory.getLogger(SuContentSyncService.class);
     private static final Logger pmsPushLogger = LoggerFactory.getLogger("SU_PMS_PUSH");
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final RoomTypeRepository roomTypeRepository;
     private final RoomRepository roomRepository;
@@ -200,40 +202,141 @@ public class SuContentSyncService {
             return new SuRatePlanSyncSummary(0, true, null);
         }
 
-        try {
-            JsonNode createResp = suAccessTokenService.executeWithTokenRetry(
-                    token -> suApiClient.postOtaHotelRatePlan(
-                            token,
-                            SuContentPayloadBuilder.buildRatePlanCreatePayload(hotelId, pricePlans)
-                    ),
-                    "OTA_HotelRatePlan"
-            );
+        String planSummary = pricePlans.stream()
+                .map(p -> p.getId() + ":" + (p.getName() != null ? p.getName() : ""))
+                .limit(200)
+                .toList()
+                .toString();
+        logger.info("[SuRatePlansSync] start. storeId={}, hotelId={}, count={}, plans={}", storeId, hotelId, pricePlans.size(), planSummary);
+        pmsPushLogger.info("[SuRatePlansSync] start. storeId={}, hotelId={}, count={}, plans={}", storeId, hotelId, pricePlans.size(), planSummary);
 
-            if (!suApiClient.isSuSuccess(createResp)) {
-                String err = suApiClient.extractSuErrorMessage(createResp);
-                logger.warn("Su rate plans create returned fail, retry overlay. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
-                pmsPushLogger.warn("[SuRatePlansSync] create returned fail, retry overlay. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
+        int successCount = 0;
+        int failedCount = 0;
+        StringBuilder errorBuilder = new StringBuilder();
 
-                JsonNode overlayResp = suAccessTokenService.executeWithTokenRetry(
-                        token -> suApiClient.postOtaHotelRatePlan(
-                                token,
-                                SuContentPayloadBuilder.buildRatePlanOverlayPayload(hotelId, pricePlans)
-                        ),
-                        "OTA_HotelRatePlan"
-                );
-
-                if (!suApiClient.isSuSuccess(overlayResp)) {
-                    String overlayErr = suApiClient.extractSuErrorMessage(overlayResp);
-                    throw new RuntimeException(overlayErr != null ? overlayErr : String.valueOf(overlayResp));
-                }
+        for (PricePlan plan : pricePlans) {
+            if (plan == null || plan.getId() == null) {
+                continue;
             }
 
-            return new SuRatePlanSyncSummary(pricePlans.size(), true, null);
-        } catch (RuntimeException e) {
-            logger.error("Su rate plans sync failed. storeId={}, hotelId={}", storeId, hotelId, e);
-            pmsPushLogger.error("[SuRatePlansSync] failed. storeId={}, hotelId={}, err={}", storeId, hotelId, e.getMessage());
-            return new SuRatePlanSyncSummary(pricePlans.size(), false, e.getMessage());
+            String planId = String.valueOf(plan.getId());
+            try {
+                UpsertOutcome outcome = upsertSingleRatePlan(storeId, hotelId, plan);
+                if (outcome.success) {
+                    successCount++;
+                } else {
+                    failedCount++;
+                    appendError(errorBuilder, planId, outcome.message);
+                }
+            } catch (RuntimeException e) {
+                failedCount++;
+                logger.error("[SuRatePlansSync] rate plan upsert failed. storeId={}, hotelId={}, planId={}", storeId, hotelId, planId, e);
+                pmsPushLogger.error("[SuRatePlansSync] rate plan upsert failed. storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, e.getMessage());
+                appendError(errorBuilder, planId, e.getMessage());
+            }
         }
+
+        boolean allOk = failedCount == 0;
+        String err = errorBuilder.length() > 0 ? errorBuilder.toString() : null;
+        logger.info("[SuRatePlansSync] done. storeId={}, hotelId={}, success={}, failed={}", storeId, hotelId, successCount, failedCount);
+        pmsPushLogger.info("[SuRatePlansSync] done. storeId={}, hotelId={}, success={}, failed={}", storeId, hotelId, successCount, failedCount);
+        if (!allOk) {
+            logger.warn("[SuRatePlansSync] failed summary. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
+            pmsPushLogger.warn("[SuRatePlansSync] failed summary. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
+        }
+
+        return new SuRatePlanSyncSummary(pricePlans.size(), allOk, err);
+    }
+
+    private UpsertOutcome upsertSingleRatePlan(Long storeId, String hotelId, PricePlan plan) {
+        String planId = String.valueOf(plan.getId());
+
+        Object createPayload = SuContentPayloadBuilder.buildRatePlanCreatePayload(hotelId, List.of(plan));
+        if (logger.isDebugEnabled()) {
+            try {
+                logger.debug("[SuRatePlansSync] create payload(single). storeId={}, hotelId={}, planId={}, payload={}", storeId, hotelId, planId, objectMapper.writeValueAsString(createPayload));
+            } catch (Exception e) {
+                logger.debug("[SuRatePlansSync] create payload serialize failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, e.getMessage());
+            }
+        }
+
+        JsonNode createResp = suAccessTokenService.executeWithTokenRetry(
+                token -> suApiClient.postOtaHotelRatePlan(token, createPayload),
+                "OTA_HotelRatePlan(create plan=" + planId + ")"
+        );
+
+        if (suApiClient.isSuSuccess(createResp)) {
+            return new UpsertOutcome(true, null);
+        }
+
+        String createErr = suApiClient.extractSuErrorMessage(createResp);
+        if (!isRatePlanAlreadyExists(createErr)) {
+            logger.warn("[SuRatePlansSync] create failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, createErr);
+            pmsPushLogger.warn("[SuRatePlansSync] create failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, createErr);
+            logger.warn("[SuRatePlansSync] create raw response(single). storeId={}, hotelId={}, planId={}, raw={}", storeId, hotelId, planId, createResp);
+            return new UpsertOutcome(false, createErr != null ? createErr : "Su 价格计划创建失败");
+        }
+
+        logger.info("[SuRatePlansSync] rate plan already exists, switching to overlay. storeId={}, hotelId={}, planId={}", storeId, hotelId, planId);
+
+        Object overlayPayload = SuContentPayloadBuilder.buildRatePlanOverlayPayload(hotelId, List.of(plan));
+        if (logger.isDebugEnabled()) {
+            try {
+                logger.debug("[SuRatePlansSync] overlay payload(single). storeId={}, hotelId={}, planId={}, payload={}", storeId, hotelId, planId, objectMapper.writeValueAsString(overlayPayload));
+            } catch (Exception e) {
+                logger.debug("[SuRatePlansSync] overlay payload serialize failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, e.getMessage());
+            }
+        }
+
+        JsonNode overlayResp = suAccessTokenService.executeWithTokenRetry(
+                token -> suApiClient.postOtaHotelRatePlan(token, overlayPayload),
+                "OTA_HotelRatePlan(overlay plan=" + planId + ")"
+        );
+
+        if (suApiClient.isSuSuccess(overlayResp)) {
+            return new UpsertOutcome(true, null);
+        }
+
+        String overlayErr = suApiClient.extractSuErrorMessage(overlayResp);
+        if (isRatePlanNotExists(overlayErr)) {
+            logger.warn("[SuRatePlansSync] overlay says rate does not exist, retry create once. storeId={}, hotelId={}, planId={}", storeId, hotelId, planId);
+            pmsPushLogger.warn("[SuRatePlansSync] overlay says rate does not exist, retry create once. storeId={}, hotelId={}, planId={}", storeId, hotelId, planId);
+
+            JsonNode retryCreateResp = suAccessTokenService.executeWithTokenRetry(
+                    token -> suApiClient.postOtaHotelRatePlan(
+                            token,
+                            SuContentPayloadBuilder.buildRatePlanCreatePayload(hotelId, List.of(plan))
+                    ),
+                    "OTA_HotelRatePlan(retry-create plan=" + planId + ")"
+            );
+            if (suApiClient.isSuSuccess(retryCreateResp)) {
+                return new UpsertOutcome(true, null);
+            }
+            String retryErr = suApiClient.extractSuErrorMessage(retryCreateResp);
+            logger.warn("[SuRatePlansSync] retry-create raw response(single). storeId={}, hotelId={}, planId={}, raw={}", storeId, hotelId, planId, retryCreateResp);
+            return new UpsertOutcome(false, retryErr != null ? retryErr : "Su 价格计划创建失败(重试)");
+        }
+
+        logger.warn("[SuRatePlansSync] overlay failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, overlayErr);
+        pmsPushLogger.warn("[SuRatePlansSync] overlay failed(single). storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, overlayErr);
+        logger.warn("[SuRatePlansSync] overlay raw response(single). storeId={}, hotelId={}, planId={}, raw={}", storeId, hotelId, planId, overlayResp);
+        return new UpsertOutcome(false, overlayErr != null ? overlayErr : "Su 价格计划覆盖失败");
+    }
+
+    private static boolean isRatePlanAlreadyExists(String err) {
+        if (err == null || err.isBlank()) {
+            return false;
+        }
+        String lower = err.toLowerCase();
+        return lower.contains("already") && lower.contains("exist");
+    }
+
+    private static boolean isRatePlanNotExists(String err) {
+        if (err == null || err.isBlank()) {
+            return false;
+        }
+        String lower = err.toLowerCase();
+        return (lower.contains("not") && lower.contains("exist")) || (lower.contains("does not") && lower.contains("exist"));
     }
 
     public SuContentSyncSummary syncRoomTypesAndRatePlans(Long storeId, String hotelId) {
@@ -285,29 +388,9 @@ public class SuContentSyncService {
 
         if (!pricePlans.isEmpty()) {
             try {
-                JsonNode createResp = suAccessTokenService.executeWithTokenRetry(
-                        token -> suApiClient.postOtaHotelRatePlan(
-                                token,
-                                SuContentPayloadBuilder.buildRatePlanCreatePayload(hotelId, pricePlans)
-                        ),
-                        "OTA_HotelRatePlan"
-                );
-
-                if (!suApiClient.isSuSuccess(createResp)) {
-                    String err = suApiClient.extractSuErrorMessage(createResp);
-                    logger.warn("Su OTA_HotelRatePlan create returned fail, retry overlay. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
-
-                    JsonNode overlayResp = suAccessTokenService.executeWithTokenRetry(
-                            token -> suApiClient.postOtaHotelRatePlan(
-                                    token,
-                                    SuContentPayloadBuilder.buildRatePlanOverlayPayload(hotelId, pricePlans)
-                            ),
-                            "OTA_HotelRatePlan"
-                    );
-                    if (!suApiClient.isSuSuccess(overlayResp)) {
-                        String overlayErr = suApiClient.extractSuErrorMessage(overlayResp);
-                        throw new RuntimeException(overlayErr != null ? overlayErr : String.valueOf(overlayResp));
-                    }
+                SuRatePlanSyncSummary summary = syncRatePlansForWidget(storeId, hotelId);
+                if (!summary.ratePlansSynced) {
+                    throw new RuntimeException(summary.ratePlansError != null ? summary.ratePlansError : "Su 价格计划同步失败");
                 }
             } catch (RuntimeException e) {
                 ratePlansOk = false;

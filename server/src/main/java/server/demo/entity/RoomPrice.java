@@ -37,6 +37,21 @@ public class RoomPrice implements StoreScopedEntity {
     @Column(name = "available_rooms")
     private Integer availableRooms;
 
+    /**
+     * Restrictions
+     * closeRoom: closed (stop sell)
+     * cta: closed to arrival
+     * ctd: closed to departure
+     */
+    @Column(name = "close_room")
+    private Boolean closeRoom;
+
+    @Column(name = "cta")
+    private Boolean cta;
+
+    @Column(name = "ctd")
+    private Boolean ctd;
+
     @jakarta.validation.constraints.Min(value = 1, message = "鏈€灏忓叆浣忓ぉ鏁板繀椤诲ぇ浜庣瓑浜?")
     @jakarta.validation.constraints.Max(value = 99, message = "鏈€灏忓叆浣忓ぉ鏁板繀椤诲皬浜庣瓑浜?9")
     @Column(name = "min_stay")
@@ -189,6 +204,30 @@ public class RoomPrice implements StoreScopedEntity {
 
     public void setAvailableRooms(Integer availableRooms) {
         this.availableRooms = availableRooms;
+    }
+
+    public Boolean getCloseRoom() {
+        return closeRoom;
+    }
+
+    public void setCloseRoom(Boolean closeRoom) {
+        this.closeRoom = closeRoom;
+    }
+
+    public Boolean getCta() {
+        return cta;
+    }
+
+    public void setCta(Boolean cta) {
+        this.cta = cta;
+    }
+
+    public Boolean getCtd() {
+        return ctd;
+    }
+
+    public void setCtd(Boolean ctd) {
+        this.ctd = ctd;
     }
 
     public Integer getMinStay() {

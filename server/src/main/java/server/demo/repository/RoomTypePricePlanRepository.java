@@ -34,6 +34,9 @@ public interface RoomTypePricePlanRepository extends JpaRepository<RoomTypePrice
     // 删除价格计划的所有房型关联
     void deleteByPricePlanId(Long pricePlanId);
 
+    // 删除门店下价格计划的所有房型关联（门店级隔离）
+    void deleteByStoreIdAndPricePlanId(Long storeId, Long pricePlanId);
+
     // 统计价格计划关联的房型数量
     @Query("SELECT COUNT(rtp) FROM RoomTypePricePlan rtp WHERE rtp.pricePlan.id = :pricePlanId")
     long countByPricePlanId(@Param("pricePlanId") Long pricePlanId);

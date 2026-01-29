@@ -252,3 +252,21 @@ export const syncSuAvailability = async (
     params: { days },
   })
 }
+
+export interface SuMappingStatusSummary {
+  channelId: string | null
+  mappingReady: boolean
+  mappedRoomIdCount: number
+  mappedRatePlanCount: number
+  activeRatePlanCount: number
+  error: string | null
+}
+
+export const getSuMappingStatus = async (
+  id: number,
+  channelId?: string,
+): Promise<ApiResponse<SuMappingStatusSummary>> => {
+  return await request.get(`/ota-integrations/${id}/su-mapping-status`, {
+    params: { channelId },
+  })
+}

@@ -76,6 +76,28 @@ public final class SuReservationParser {
                 .orElse(null);
     }
 
+    /**
+     * 用于消息系统的 thread id（常见于 Airbnb）。
+     * 兼容字段：thread_id / threadid / thread_id(大写)。
+     */
+    public static String extractThreadId(JsonNode reservation) {
+        return text(reservation, "thread_id")
+                .or(() -> text(reservation, "threadid"))
+                .or(() -> text(reservation, "thread_id".toUpperCase(Locale.ROOT)))
+                .orElse(null);
+    }
+
+    /**
+     * 用于消息系统的 guest id（常见于 Airbnb）。
+     * 兼容字段：guest_id / guestid / guest_id(大写)。
+     */
+    public static String extractGuestId(JsonNode reservation) {
+        return text(reservation, "guest_id")
+                .or(() -> text(reservation, "guestid"))
+                .or(() -> text(reservation, "guest_id".toUpperCase(Locale.ROOT)))
+                .orElse(null);
+    }
+
     public static String extractSuStatus(JsonNode reservation) {
         return text(reservation, "status").orElse(null);
     }
@@ -86,6 +108,58 @@ public final class SuReservationParser {
             return text(affiliation, "OTA_Code")
                     .or(() -> text(affiliation, "ota_code"))
                     .orElse(null);
+        }
+        return null;
+    }
+
+    public static LocalDate extractBookedAt(JsonNode reservation) {
+        return parseDate(text(reservation, "booked_at")
+                .or(() -> text(reservation, "bookedAt"))
+                .orElse(null));
+    }
+
+    public static LocalDate extractModifiedAt(JsonNode reservation) {
+        return parseDate(text(reservation, "modified_at")
+                .or(() -> text(reservation, "modifiedAt"))
+                .orElse(null));
+    }
+
+    public static String extractPaymentType(JsonNode reservation) {
+        return text(reservation, "paymenttype")
+                .or(() -> text(reservation, "payment_type"))
+                .orElse(null);
+    }
+
+    public static String extractCurrencyCode(JsonNode reservation) {
+        return text(reservation, "currencycode")
+                .or(() -> text(reservation, "currency_code"))
+                .orElse(null);
+    }
+
+    public static BigDecimal extractCommissionAmount(JsonNode reservation) {
+        BigDecimal v = parseBigDecimal(text(reservation, "commissionamount")
+                .or(() -> text(reservation, "commission_amount"))
+                .orElse(null));
+        return v;
+    }
+
+    public static String extractCustomerRemarks(JsonNode reservation) {
+        JsonNode customer = reservation != null ? reservation.get("customer") : null;
+        if (customer != null && customer.isObject()) {
+            String remarks = text(customer, "remarks").orElse(null);
+            if (remarks != null && !remarks.isBlank()) {
+                return remarks.trim();
+            }
+        }
+        return null;
+    }
+
+    public static String extractRoomSpecialRequest(JsonNode roomStay) {
+        String v = text(roomStay, "specialrequest")
+                .or(() -> text(roomStay, "special_request"))
+                .orElse(null);
+        if (v != null && !v.isBlank()) {
+            return v.trim();
         }
         return null;
     }

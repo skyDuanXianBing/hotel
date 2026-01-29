@@ -1,0 +1,18 @@
+﻿{
+    "bodyJson":  {
+                     "Errors":  [
+                                    {
+                                        "Code":  "925",
+                                        "ShortText":  "fromdate has passed (2020-08-30)"
+                                    },
+                                    {
+                                        "Code":  "925",
+                                        "ShortText":  "fromdate has passed (2020-08-30)"
+                                    }
+                                ],
+                     "Status":  "NotProcessed"
+                 },
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Errors\":[{\"Code\":\"925\",\"ShortText\":\"fromdate has passed (2020-08-30)\"},{\"Code\":\"925\",\"ShortText\":\"fromdate has passed (2020-08-30)\"}],\"Status\":\"NotProcessed\"}"
+}

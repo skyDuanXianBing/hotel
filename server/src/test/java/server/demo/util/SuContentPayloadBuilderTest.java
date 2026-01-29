@@ -20,6 +20,7 @@ class SuContentPayloadBuilderTest {
         roomType.setName("Deluxe King Room");
         roomType.setTotalRooms(2);
         roomType.setDefaultPrice(new BigDecimal("0"));
+        roomType.setMaxGuests(3);
 
         Map<String, Object> payload = SuContentPayloadBuilder.buildRoomCreatePayload("STORE5", List.of(roomType));
         Map<?, ?> sellableProducts = (Map<?, ?>) payload.get("SellableProducts");
@@ -35,7 +36,7 @@ class SuContentPayloadBuilderTest {
         assertNotNull(guestRoom);
 
         Map<?, ?> occupancy = (Map<?, ?>) guestRoom.get("Occupancy");
-        assertEquals("2", occupancy.get("MaxOccupancy"));
+        assertEquals("3", occupancy.get("MaxOccupancy"));
         assertEquals("0", occupancy.get("MaxChildOccupancy"));
 
         Map<?, ?> room = (Map<?, ?>) guestRoom.get("Room");
@@ -55,6 +56,7 @@ class SuContentPayloadBuilderTest {
         roomType.setName("Economy Double Room");
         roomType.setTotalRooms(10);
         roomType.setDefaultPrice(new BigDecimal("100.00"));
+        roomType.setMaxGuests(5);
 
         Room room = new Room();
         room.setId(1L);
@@ -86,6 +88,7 @@ class SuContentPayloadBuilderTest {
         roomType.setName("Studio");
         roomType.setTotalRooms(1);
         roomType.setDefaultPrice(new BigDecimal("100.50"));
+        roomType.setMaxGuests(4);
 
         Map<String, Object> payload = SuContentPayloadBuilder.buildRoomModifyPayload("STORE5", List.of(roomType));
         Map<?, ?> sellableProducts = (Map<?, ?>) payload.get("SellableProducts");
@@ -95,6 +98,10 @@ class SuContentPayloadBuilderTest {
         assertEquals("Overlay", sellableProduct.get("InvNotifType"));
         assertEquals("Modify", sellableProduct.get("InvStatusType"));
         assertEquals("12", sellableProduct.get("roomid"));
+
+        Map<?, ?> guestRoom = (Map<?, ?>) sellableProduct.get("GuestRoom");
+        Map<?, ?> occupancy = (Map<?, ?>) guestRoom.get("Occupancy");
+        assertEquals("4", occupancy.get("MaxOccupancy"));
     }
 
     @Test
@@ -104,6 +111,7 @@ class SuContentPayloadBuilderTest {
         roomType.setName("Studio");
         roomType.setTotalRooms(2);
         roomType.setDefaultPrice(new BigDecimal("100.50"));
+        roomType.setMaxGuests(2);
 
         Room room = new Room();
         room.setId(888L);
@@ -120,8 +128,28 @@ class SuContentPayloadBuilderTest {
         assertEquals("99-101", sellableProduct.get("roomid"));
 
         Map<?, ?> guestRoom = (Map<?, ?>) sellableProduct.get("GuestRoom");
+        Map<?, ?> occupancy = (Map<?, ?>) guestRoom.get("Occupancy");
+        assertEquals("2", occupancy.get("MaxOccupancy"));
         Map<?, ?> description = (Map<?, ?>) guestRoom.get("Description");
         assertEquals("Studio", description.get("Text"));
+    }
+
+    @Test
+    void buildRoomCreatePayload_shouldFallbackMaxOccupancyToOneWhenNull() {
+        RoomType roomType = new RoomType();
+        roomType.setId(2L);
+        roomType.setName("Loft");
+        roomType.setTotalRooms(1);
+        roomType.setDefaultPrice(new BigDecimal("120"));
+        roomType.setMaxGuests(null);
+
+        Map<String, Object> payload = SuContentPayloadBuilder.buildRoomCreatePayload("STORE5", List.of(roomType));
+        Map<?, ?> sellableProducts = (Map<?, ?>) payload.get("SellableProducts");
+        List<?> sellableProductList = (List<?>) sellableProducts.get("SellableProduct");
+        Map<?, ?> sellableProduct = (Map<?, ?>) sellableProductList.get(0);
+        Map<?, ?> guestRoom = (Map<?, ?>) sellableProduct.get("GuestRoom");
+        Map<?, ?> occupancy = (Map<?, ?>) guestRoom.get("Occupancy");
+        assertEquals("1", occupancy.get("MaxOccupancy"));
     }
 
     @Test

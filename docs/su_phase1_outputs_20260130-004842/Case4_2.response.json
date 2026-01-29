@@ -1,0 +1,14 @@
+﻿{
+    "bodyJson":  {
+                     "Errors":  [
+                                    {
+                                        "Code":  "902",
+                                        "ShortText":  "OTA_HotelRatePlanNotifRQ: Description content is required"
+                                    }
+                                ],
+                     "Status":  "Fail"
+                 },
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Errors\":[{\"Code\":\"902\",\"ShortText\":\"OTA_HotelRatePlanNotifRQ: Description content is required\"}],\"Status\":\"Fail\"}"
+}

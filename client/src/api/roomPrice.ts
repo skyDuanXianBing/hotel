@@ -151,6 +151,9 @@ export interface RoomPriceManagementDTO {
   availableRooms?: number
   minStay?: number
   maxStay?: number
+  closeRoom?: boolean
+  cta?: boolean
+  ctd?: boolean
   isWeekend: boolean
   isHoliday: boolean
   notes?: string
@@ -167,6 +170,9 @@ export interface UpdatePriceByPlanRequest {
   availableRooms?: number
   minStay?: number
   maxStay?: number
+  closeRoom?: boolean
+  cta?: boolean
+  ctd?: boolean
   notes?: string
 }
 

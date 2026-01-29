@@ -21,6 +21,8 @@ public interface PriceChangeHistoryRepository extends JpaRepository<PriceChangeH
     // 按价格计划ID查询
     List<PriceChangeHistory> findByPricePlanId(Long pricePlanId);
 
+    boolean existsByStoreIdAndPricePlanId(Long storeId, Long pricePlanId);
+
     // 按操作人查询
     List<PriceChangeHistory> findByOperator(String operator);
 

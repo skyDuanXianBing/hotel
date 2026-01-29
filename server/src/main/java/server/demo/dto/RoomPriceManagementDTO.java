@@ -19,6 +19,9 @@ public class RoomPriceManagementDTO {
     private Integer availableRooms;
     private Integer minStay;
     private Integer maxStay;
+    private Boolean closeRoom;
+    private Boolean cta;
+    private Boolean ctd;
     private Boolean isWeekend;
     private Boolean isHoliday;
     private String notes;
@@ -113,6 +116,30 @@ public class RoomPriceManagementDTO {
 
     public void setMaxStay(Integer maxStay) {
         this.maxStay = maxStay;
+    }
+
+    public Boolean getCloseRoom() {
+        return closeRoom;
+    }
+
+    public void setCloseRoom(Boolean closeRoom) {
+        this.closeRoom = closeRoom;
+    }
+
+    public Boolean getCta() {
+        return cta;
+    }
+
+    public void setCta(Boolean cta) {
+        this.cta = cta;
+    }
+
+    public Boolean getCtd() {
+        return ctd;
+    }
+
+    public void setCtd(Boolean ctd) {
+        this.ctd = ctd;
     }
 
     public Boolean getIsWeekend() {

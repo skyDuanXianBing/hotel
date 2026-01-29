@@ -928,6 +928,7 @@
       :ota-id="selectedOtaId"
       :ota-name="selectedOtaName"
       @success="handleWidgetSuccess"
+      @synced="handleWidgetSynced"
       @error="handleWidgetError"
     />
   </div>
@@ -938,7 +939,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, ArrowRight, Setting, Connection, Remove, InfoFilled, Menu as MenuIcon, List, Money, Refresh, QuestionFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getAllOtaIntegrations, type OtaIntegrationDTO } from '@/api/otaIntegration'
+import { getAllOtaIntegrations, getSuMappingStatus, type OtaIntegrationDTO } from '@/api/otaIntegration'
 import {
   getChannelPriceAdjustments,
   updateChannelPriceAdjustment,
@@ -1205,6 +1206,7 @@ const channelLogoMap: Record<string, string> = {
 interface ChannelItem {
   id: number
   name: string
+  code: string
   logoUrl: string
   connected: boolean
 }
@@ -1235,12 +1237,41 @@ const loadChannels = async () => {
   try {
     const response = await getAllOtaIntegrations()
     if (response.success && response.data) {
-      // 将OTA直连数据转换为前端格式
+      const resolveSuChannelId = (code: string): string | null => {
+        const normalized = (code || '').trim().toUpperCase()
+        if (normalized === 'BOOKING' || normalized === 'BOOKING.COM') return '19'
+        if (normalized === 'AIRBNB') return '244'
+        return null
+      }
+
+      const mappingReadyById = new Map<number, boolean>()
+      await Promise.all(
+        response.data.map(async (ota: OtaIntegrationDTO) => {
+          const channelId = resolveSuChannelId(ota.code)
+          if (!channelId) {
+            mappingReadyById.set(ota.id, false)
+            return
+          }
+          try {
+            const statusResp = await getSuMappingStatus(ota.id, channelId)
+            const ready = Boolean(statusResp.success && statusResp.data?.mappingReady)
+            mappingReadyById.set(ota.id, ready)
+          } catch {
+            mappingReadyById.set(ota.id, false)
+          }
+        }),
+      )
+
+      // 将OTA直连数据转换为前端格式（“已设置”以 Su 映射完成为准：房型 + 价格计划都映射）
       otaChannels.value = response.data.map((ota: OtaIntegrationDTO) => ({
         id: ota.id,
         name: ota.name,
-        logoUrl: ota.logoUrl || channelLogoMap[ota.name] || 'https://via.placeholder.com/120x60/409EFF/FFFFFF?text=' + encodeURIComponent(ota.name),
-        connected: ota.isConnected,
+        code: ota.code,
+        logoUrl:
+          ota.logoUrl ||
+          channelLogoMap[ota.name] ||
+          'https://via.placeholder.com/120x60/409EFF/FFFFFF?text=' + encodeURIComponent(ota.name),
+        connected: mappingReadyById.get(ota.id) === true,
       }))
     }
   } catch (error) {
@@ -1311,6 +1342,12 @@ const handleTabClick = (tab: any) => {
 const connectChannel = (channel: any) => {
   console.log('连接渠道:', channel.name)
   selectedChannel.value = channel
+  if (channel?.connected) {
+    selectedOtaId.value = channel.id
+    selectedOtaName.value = channel.name
+    showWidgetDialog.value = true
+    return
+  }
   showConnectDialog.value = true
 }
 
@@ -1505,6 +1542,11 @@ const handleWidgetSuccess = () => {
   }
   showWidgetDialog.value = false
   selectedChannel.value = null
+}
+
+// Widget“一键推送”完成：保持弹窗不关闭，仅刷新列表状态
+const handleWidgetSynced = () => {
+  loadChannels()
 }
 
 // Widget连接错误处理

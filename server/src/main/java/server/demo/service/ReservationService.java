@@ -14,7 +14,9 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import jakarta.persistence.criteria.Predicate;
 import server.demo.dto.CreateReservationRequest;
+import server.demo.dto.OperationLogDetailDTO;
 import server.demo.dto.PagedReservationResponse;
+import server.demo.dto.ReservationChannelInfoDTO;
 import server.demo.dto.ReservationDTO;
 import server.demo.dto.ReservationStatistics;
 import server.demo.entity.Channel;
@@ -22,6 +24,7 @@ import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.User;
+import server.demo.enums.OperationType;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.ReservationRepository;
@@ -34,8 +37,11 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -68,6 +74,9 @@ public class ReservationService {
 
     @Autowired
     private CleaningTaskAutoService cleaningTaskAutoService;
+
+    @Autowired
+    private OperationLogService operationLogService;
 
     private Long currentStoreId() {
         return StoreContextUtils.requireStoreId();
@@ -130,6 +139,12 @@ public class ReservationService {
         reservation.setTotalAmount(request.getTotalAmount());
         reservation.setChannelOrderNumber(request.getChannelOrderNumber());
         reservation.setNotes(request.getNotes());
+        reservation.setPaymentMethod(request.getPaymentMethod());
+        reservation.setCommission(request.getCommission());
+        reservation.setOtherFees(request.getOtherFees());
+        reservation.setPricePlan(request.getPricePlan());
+        reservation.setSpecialRequests(request.getSpecialRequests());
+        reservation.setBookingDate(request.getBookingDate());
 
         // 如果是直接入住，设置为已入住状态并记录入住时间
         System.out.println("=== 调试信息 ===");
@@ -149,6 +164,7 @@ public class ReservationService {
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         scheduleAutoMessageDispatchAfterCommit(storeId);
         schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
+        logCreateReservation(savedReservation);
         return convertToDTO(savedReservation);
     }
 
@@ -168,6 +184,14 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
+        operationLogService.logOperation(
+                savedReservation.getId(),
+                OperationType.ORDER,
+                "办理入住",
+                null,
+                null,
+                List.of(new OperationLogDetailDTO("房间", formatRoomDisplay(savedReservation)))
+        );
         return convertToDTO(savedReservation);
     }
 
@@ -187,6 +211,14 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
+        operationLogService.logOperation(
+                savedReservation.getId(),
+                OperationType.ORDER,
+                "办理退房",
+                null,
+                null,
+                List.of(new OperationLogDetailDTO("房间", formatRoomDisplay(savedReservation)))
+        );
         return convertToDTO(savedReservation);
     }
 
@@ -206,6 +238,17 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
+        operationLogService.logOperation(
+                savedReservation.getId(),
+                OperationType.ORDER,
+                "取消订单",
+                null,
+                null,
+                List.of(
+                        new OperationLogDetailDTO("订单号", savedReservation.getOrderNumber()),
+                        new OperationLogDetailDTO("状态", savedReservation.getStatus().name())
+                )
+        );
         return convertToDTO(savedReservation);
     }
 
@@ -369,6 +412,14 @@ public class ReservationService {
             }
         }
 
+        Room oldRoom = existingReservation.getRoom();
+        Channel oldChannel = existingReservation.getChannel();
+        LocalDate oldCheckIn = existingReservation.getCheckInDate();
+        LocalDate oldCheckOut = existingReservation.getCheckOutDate();
+        String oldGuestName = existingReservation.getGuestName();
+        String oldGuestPhone = existingReservation.getGuestPhone();
+        BigDecimal oldTotalAmount = existingReservation.getTotalAmount();
+
         existingReservation.setRoom(room);
         existingReservation.setChannel(channel);
         existingReservation.setGuestName(request.getGuestName());
@@ -381,6 +432,12 @@ public class ReservationService {
         existingReservation.setTotalAmount(request.getTotalAmount());
         existingReservation.setChannelOrderNumber(request.getChannelOrderNumber());
         existingReservation.setNotes(request.getNotes());
+        existingReservation.setPaymentMethod(request.getPaymentMethod());
+        existingReservation.setCommission(request.getCommission());
+        existingReservation.setOtherFees(request.getOtherFees());
+        existingReservation.setPricePlan(request.getPricePlan());
+        existingReservation.setSpecialRequests(request.getSpecialRequests());
+        existingReservation.setBookingDate(request.getBookingDate());
         existingReservation.setStoreId(storeId);
         existingReservation.setUser(userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在")));
@@ -388,6 +445,7 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(existingReservation);
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
+        logUpdateReservation(savedReservation, oldRoom, room, oldChannel, channel, oldCheckIn, oldCheckOut, oldGuestName, oldGuestPhone, oldTotalAmount);
         return convertToDTO(savedReservation);
     }
 
@@ -698,5 +756,143 @@ public class ReservationService {
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    public ReservationChannelInfoDTO getChannelInfo(Long reservationId) {
+        Reservation reservation = loadReservationInStore(reservationId);
+
+        ReservationChannelInfoDTO dto = new ReservationChannelInfoDTO();
+        dto.setChannelName(reservation.getChannel() == null ? null : reservation.getChannel().getName());
+        dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
+        dto.setPaymentMethod(reservation.getPaymentMethod());
+        dto.setStatus(reservation.getStatus() == null ? null : reservation.getStatus().name());
+        dto.setTotalAmount(reservation.getTotalAmount());
+        dto.setCommission(reservation.getCommission());
+        dto.setOtherFees(reservation.getOtherFees());
+        dto.setRoomType(reservation.getRoom() == null ? null : reservation.getRoom().getRoomType().getName());
+        dto.setGuestName(reservation.getGuestName());
+        dto.setAdults(reservation.getAdults());
+        dto.setChildren(reservation.getChildren());
+        dto.setCheckInDate(reservation.getCheckInDate() == null ? null : reservation.getCheckInDate().toString());
+        dto.setCheckOutDate(reservation.getCheckOutDate() == null ? null : reservation.getCheckOutDate().toString());
+        if (reservation.getCheckInDate() != null && reservation.getCheckOutDate() != null) {
+            dto.setNights(ChronoUnit.DAYS.between(reservation.getCheckInDate(), reservation.getCheckOutDate()));
+        }
+        dto.setPricePlan(reservation.getPricePlan());
+        dto.setSpecialRequests(reservation.getSpecialRequests());
+
+        LocalDateTime bookingDate = reservation.getBookingDate() != null ? reservation.getBookingDate() : reservation.getCreatedAt();
+        if (bookingDate != null) {
+            dto.setBookingDate(bookingDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        }
+        return dto;
+    }
+
+    private void logCreateReservation(Reservation reservation) {
+        List<OperationLogDetailDTO> details = new ArrayList<>();
+        details.add(new OperationLogDetailDTO("联系人", reservation.getGuestName()));
+        if (reservation.getGuestPhone() != null && !reservation.getGuestPhone().isBlank()) {
+            details.add(new OperationLogDetailDTO("手机号", reservation.getGuestPhone()));
+        }
+        if (reservation.getChannel() != null) {
+            details.add(new OperationLogDetailDTO("渠道", reservation.getChannel().getName()));
+        }
+        if (reservation.getChannelOrderNumber() != null && !reservation.getChannelOrderNumber().isBlank()) {
+            details.add(new OperationLogDetailDTO("渠道订单号", reservation.getChannelOrderNumber()));
+        }
+        details.add(new OperationLogDetailDTO("房间", formatRoomDisplay(reservation)));
+        details.add(new OperationLogDetailDTO("入住", reservation.getCheckInDate() == null ? "-" : reservation.getCheckInDate().toString()));
+        details.add(new OperationLogDetailDTO("离店", reservation.getCheckOutDate() == null ? "-" : reservation.getCheckOutDate().toString()));
+        details.add(new OperationLogDetailDTO("成人", String.valueOf(reservation.getAdults() == null ? 0 : reservation.getAdults())));
+        details.add(new OperationLogDetailDTO("儿童", String.valueOf(reservation.getChildren() == null ? 0 : reservation.getChildren())));
+        details.add(new OperationLogDetailDTO("订单金额", reservation.getTotalAmount() == null ? "0.00" : reservation.getTotalAmount().toPlainString()));
+
+        operationLogService.logOperation(
+                reservation.getId(),
+                OperationType.ORDER,
+                "新增预订订单",
+                null,
+                null,
+                details
+        );
+    }
+
+    private void logUpdateReservation(
+            Reservation reservation,
+            Room oldRoom,
+            Room newRoom,
+            Channel oldChannel,
+            Channel newChannel,
+            LocalDate oldCheckIn,
+            LocalDate oldCheckOut,
+            String oldGuestName,
+            String oldGuestPhone,
+            BigDecimal oldTotalAmount
+    ) {
+        boolean roomChanged = !Objects.equals(oldRoom == null ? null : oldRoom.getId(), newRoom == null ? null : newRoom.getId());
+
+        if (roomChanged) {
+            operationLogService.logOperation(
+                    reservation.getId(),
+                    OperationType.ORDER,
+                    "分配房间",
+                    null,
+                    null,
+                    List.of(
+                            new OperationLogDetailDTO("原房间", formatRoomDisplay(oldRoom)),
+                            new OperationLogDetailDTO("新房间", formatRoomDisplay(newRoom))
+                    )
+            );
+        }
+
+        List<OperationLogDetailDTO> details = new ArrayList<>();
+        if (!Objects.equals(oldGuestName, reservation.getGuestName())) {
+            details.add(new OperationLogDetailDTO("联系人", (oldGuestName == null ? "-" : oldGuestName) + " → " + (reservation.getGuestName() == null ? "-" : reservation.getGuestName())));
+        }
+        if (!Objects.equals(oldGuestPhone, reservation.getGuestPhone())) {
+            details.add(new OperationLogDetailDTO("手机号", (oldGuestPhone == null ? "-" : oldGuestPhone) + " → " + (reservation.getGuestPhone() == null ? "-" : reservation.getGuestPhone())));
+        }
+        if (!Objects.equals(oldChannel == null ? null : oldChannel.getId(), newChannel == null ? null : newChannel.getId())) {
+            details.add(new OperationLogDetailDTO("渠道", (oldChannel == null ? "-" : oldChannel.getName()) + " → " + (newChannel == null ? "-" : newChannel.getName())));
+        }
+        if (!Objects.equals(oldCheckIn, reservation.getCheckInDate())) {
+            details.add(new OperationLogDetailDTO("入住日期", (oldCheckIn == null ? "-" : oldCheckIn.toString()) + " → " + (reservation.getCheckInDate() == null ? "-" : reservation.getCheckInDate().toString())));
+        }
+        if (!Objects.equals(oldCheckOut, reservation.getCheckOutDate())) {
+            details.add(new OperationLogDetailDTO("离店日期", (oldCheckOut == null ? "-" : oldCheckOut.toString()) + " → " + (reservation.getCheckOutDate() == null ? "-" : reservation.getCheckOutDate().toString())));
+        }
+        if (!Objects.equals(oldTotalAmount, reservation.getTotalAmount())) {
+            details.add(new OperationLogDetailDTO("订单金额", (oldTotalAmount == null ? "0.00" : oldTotalAmount.toPlainString()) + " → " + (reservation.getTotalAmount() == null ? "0.00" : reservation.getTotalAmount().toPlainString())));
+        }
+
+        if (!details.isEmpty() || !roomChanged) {
+            operationLogService.logOperation(
+                    reservation.getId(),
+                    OperationType.ORDER,
+                    "修改订单",
+                    null,
+                    null,
+                    details
+            );
+        }
+    }
+
+    private String formatRoomDisplay(Reservation reservation) {
+        if (reservation == null || reservation.getRoom() == null) {
+            return "-";
+        }
+        return formatRoomDisplay(reservation.getRoom());
+    }
+
+    private String formatRoomDisplay(Room room) {
+        if (room == null) {
+            return "-";
+        }
+        String roomTypeName = room.getRoomType() == null ? "" : room.getRoomType().getName();
+        String roomNumber = room.getRoomNumber() == null ? "" : room.getRoomNumber();
+        if (!roomTypeName.isBlank() && !roomNumber.isBlank()) {
+            return roomTypeName + "-" + roomNumber;
+        }
+        return !roomNumber.isBlank() ? roomNumber : roomTypeName;
     }
 }

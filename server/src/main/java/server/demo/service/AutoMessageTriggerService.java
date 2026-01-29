@@ -14,13 +14,17 @@ import server.demo.repository.StoreRepository;
 import server.demo.util.AutoMessageTimingUtil;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 /**
  * 自动化消息触发服务（基于前端 AutoMessage 页面模型）：
  * - action: BOOKING_CONFIRM / CHECK_IN / CHECK_OUT
- * - sendTiming: IMMEDIATELY / 5_MIN ... / 24_HOUR
+ * - sendTiming:
+ *   - BOOKING_CONFIRM: IMMEDIATELY / 5_MIN ... / 24_HOUR
+ *   - CHECK_IN / CHECK_OUT: DAY_{dayOffset}_{HH:mm}锛堟寜 checkInDate/checkOutDate 涓哄熀鍑嗚绠?锛?DAY_-1_14:00锛?
  *
  * 发送通道：Su Messaging（仅渠道 19/244）。
  */
@@ -112,6 +116,16 @@ public class AutoMessageTriggerService {
                 continue;
             }
 
+            // DAY_{offset}_{HH:mm}锛?CHECK_IN/CHECK_OUT 鎸夐璁㈡棩鏈熻Е鍙?
+            if (AutoMessageTimingUtil.isDayTimeTiming(sendTiming)) {
+                int matched = dispatchDayTimeTemplate(storeId, template, action, sendTiming, now);
+                if (matched > 0) {
+                    totalTemplates++;
+                    totalCandidates += matched;
+                }
+                continue;
+            }
+
             Duration delay;
             try {
                 delay = AutoMessageTimingUtil.parseSendTiming(sendTiming);
@@ -149,6 +163,72 @@ public class AutoMessageTriggerService {
         if (totalTemplates > 0) {
             autoMessageLogger.info("[AutoMessage] tick done. storeId={}, templates={}, candidates={}", storeId, totalTemplates, totalCandidates);
         }
+    }
+
+    private int dispatchDayTimeTemplate(Long storeId, AutoMessage template, String action, String sendTiming, LocalDateTime now) {
+        if (storeId == null || template == null || action == null || sendTiming == null || now == null) {
+            return 0;
+        }
+
+        String normalizedAction = action.trim().toUpperCase();
+        if (!"CHECK_IN".equals(normalizedAction) && !"CHECK_OUT".equals(normalizedAction)) {
+            autoMessageLogger.error("[AutoMessage] DAY_ sendTiming only supported for CHECK_IN/CHECK_OUT, skip. storeId={}, autoMessageId={}, action={}, sendTiming={}",
+                    storeId, template.getId(), action, sendTiming);
+            return 0;
+        }
+
+        AutoMessageTimingUtil.DayTimeTiming dayTime;
+        try {
+            dayTime = AutoMessageTimingUtil.parseDayTimeTiming(sendTiming);
+        } catch (Exception e) {
+            autoMessageLogger.error("[AutoMessage] invalid DAY_ sendTiming, skip. storeId={}, autoMessageId={}, sendTiming={}",
+                    storeId, template.getId(), sendTiming);
+            return 0;
+        }
+
+        int dayOffset = dayTime.dayOffset();
+        LocalTime time = dayTime.time();
+
+        LocalDateTime earliest = businessAutoMessageService.computeEarliestEventTime(template, now);
+
+        // targetTime = baseDate(+dayOffset)@time锛屾棤娉曠洿鎺ョ敤 DB between 鎺掑嚭 targetTime锛
+        // 鍏堟寜 baseDate 鍋氬ぇ鑼冨洿鏌ヨ锛岀劧鍚庡唴瀛樹簩娆℃护娉?
+        LocalDate baseStartDate = earliest.toLocalDate().minusDays(dayOffset).minusDays(1);
+        LocalDate baseEndDate = now.toLocalDate().minusDays(dayOffset).plusDays(1);
+
+        List<Reservation> candidates = switch (normalizedAction) {
+            case "CHECK_IN" -> reservationRepository.findByStoreIdAndCheckInDateBetween(storeId, baseStartDate, baseEndDate);
+            case "CHECK_OUT" -> reservationRepository.findByStoreIdAndCheckOutDateBetween(storeId, baseStartDate, baseEndDate);
+            default -> List.of();
+        };
+        if (candidates.isEmpty()) {
+            return 0;
+        }
+
+        int matched = 0;
+        for (Reservation reservation : candidates) {
+            if (reservation == null) {
+                continue;
+            }
+            if (reservation.getStatus() == ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.NO_SHOW) {
+                continue;
+            }
+
+            LocalDate baseDate = "CHECK_IN".equals(normalizedAction) ? reservation.getCheckInDate() : reservation.getCheckOutDate();
+            if (baseDate == null) {
+                continue;
+            }
+
+            LocalDateTime targetTime = baseDate.plusDays(dayOffset).atTime(time);
+            if (targetTime.isBefore(earliest) || targetTime.isAfter(now)) {
+                continue;
+            }
+
+            matched++;
+            businessAutoMessageService.trySendForReservation(storeId, reservation, template, now, Duration.ZERO);
+        }
+
+        return matched;
     }
 
     private List<Reservation> findCandidates(Long storeId, String action, LocalDateTime start, LocalDateTime end) {

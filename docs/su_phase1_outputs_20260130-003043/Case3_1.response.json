@@ -1,0 +1,13 @@
+﻿{
+    "bodyJson":  {
+                     "Status":  "Fail",
+                     "Errors":  {
+                                    "Type":  "10",
+                                    "Code":  null,
+                                    "ShortText":  "Room does not Exists"
+                                }
+                 },
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Status\":\"Fail\",\"Errors\":{\"Type\":\"10\",\"Code\":null,\"ShortText\":\"Room does not Exists\"}}"
+}

@@ -89,12 +89,18 @@ public class SuRateSyncService {
     ) {}
 
     public SuRateSyncSummary syncRoomRatesForNextDays(Long storeId, String hotelId, Integer days) {
+        return syncRoomRatesForNextDays(storeId, hotelId, days, DEFAULT_SU_OTA_CODES);
+    }
+
+    public SuRateSyncSummary syncRoomRatesForNextDays(Long storeId, String hotelId, Integer days, List<Integer> otaCodes) {
         if (storeId == null) {
             throw new IllegalArgumentException("storeId is required");
         }
         if (hotelId == null || hotelId.isBlank()) {
             throw new IllegalArgumentException("hotelId is required");
         }
+
+        List<Integer> effectiveOtaCodes = normalizeOtaCodes(otaCodes);
 
         int effectiveDays = normalizeDays(days);
         LocalDate startDate = LocalDate.now();
@@ -220,7 +226,7 @@ public class SuRateSyncService {
                     continue;
                 }
 
-                List<Map<String, Object>> dateSegments = toDateSegments(dailyPriceValues, startDate);
+                List<Map<String, Object>> dateSegments = toDateSegments(dailyPriceValues, startDate, effectiveOtaCodes);
                 if (dateSegments.isEmpty()) {
                     combinationsSkippedNoPrice++;
                     if (missingRates.size() < 200) {
@@ -413,7 +419,7 @@ public class SuRateSyncService {
         return roomTypeId + ":" + planId + ":" + date;
     }
 
-    private static List<Map<String, Object>> toDateSegments(List<String> dailyValues, LocalDate start) {
+    private static List<Map<String, Object>> toDateSegments(List<String> dailyValues, LocalDate start, List<Integer> otaCodes) {
         if (dailyValues == null || dailyValues.isEmpty()) {
             return List.of();
         }
@@ -428,32 +434,43 @@ public class SuRateSyncService {
                 continue;
             }
             LocalDate segmentEnd = start.plusDays(i - 1L);
-            segments.add(buildSegment(segmentStart, segmentEnd, currentValue));
+            segments.add(buildSegment(segmentStart, segmentEnd, currentValue, otaCodes));
             segmentStart = start.plusDays(i);
             currentValue = value;
         }
 
         LocalDate lastEnd = start.plusDays(dailyValues.size() - 1L);
-        segments.add(buildSegment(segmentStart, lastEnd, currentValue));
+        segments.add(buildSegment(segmentStart, lastEnd, currentValue, otaCodes));
         return segments;
     }
 
-    private static Map<String, Object> buildSegment(LocalDate from, LocalDate to, String value) {
+    private static Map<String, Object> buildSegment(LocalDate from, LocalDate to, String value, List<Integer> otaCodes) {
         Map<String, Object> seg = new LinkedHashMap<>();
         seg.put("from", from.toString());
         seg.put("to", to.toString());
-        seg.put("OTARule", List.of(buildOtaRule(value)));
+        seg.put("OTARule", List.of(buildOtaRule(value, otaCodes)));
         return seg;
     }
 
-    private static Map<String, Object> buildOtaRule(String value) {
+    private static Map<String, Object> buildOtaRule(String value, List<Integer> otaCodes) {
         Map<String, Object> rule = new LinkedHashMap<>();
         rule.put("type", "Fixed");
         rule.put("value", value);
 
         Map<String, Object> wrapper = new LinkedHashMap<>();
-        wrapper.put("OTACode", DEFAULT_SU_OTA_CODES);
+        wrapper.put("OTACode", normalizeOtaCodes(otaCodes));
         wrapper.put("rule", rule);
         return wrapper;
+    }
+
+    private static List<Integer> normalizeOtaCodes(List<Integer> otaCodes) {
+        if (otaCodes == null || otaCodes.isEmpty()) {
+            return DEFAULT_SU_OTA_CODES;
+        }
+        List<Integer> out = otaCodes.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        return out.isEmpty() ? DEFAULT_SU_OTA_CODES : out;
     }
 }

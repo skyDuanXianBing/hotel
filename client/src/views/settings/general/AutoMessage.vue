@@ -149,8 +149,33 @@
           </el-select>
         </el-form-item>
 
-        <!-- 何时发送 -->
-        <el-form-item label="何时发送" prop="sendTiming" required>
+        <!-- 入住/离店：按预订入住/离店日期 + 天数偏移 + 时间 -->
+        <template v-if="form.action === 'CHECK_IN' || form.action === 'CHECK_OUT'">
+          <el-form-item label="天" prop="day" required>
+            <el-select v-model="form.day" placeholder="请选择" style="width: 100%">
+              <el-option
+                v-for="option in dayOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="时间" prop="time" required>
+            <el-select v-model="form.time" placeholder="请选择" style="width: 100%">
+              <el-option
+                v-for="option in timeOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
+        </template>
+
+        <!-- 预订确认：按预订创建时间 + 延迟 -->
+        <el-form-item v-else label="何时发送" prop="sendTiming" required>
           <el-select v-model="form.sendTiming" placeholder="请选择" style="width: 100%">
             <el-option label="立即发送" value="IMMEDIATELY" />
             <el-option label="5分钟后" value="5_MIN" />
@@ -246,6 +271,10 @@ interface AutoMessageForm {
   selectedRooms: number[]
   action: AutoMessageAction | ''
   sendTiming: SendTiming | ''
+  /** 入住/离店：天数偏移（-14~14） */
+  day: string
+  /** 入住/离店：时间（HH:mm） */
+  time: string
   enabled: boolean
 }
 
@@ -283,6 +312,8 @@ const form = reactive<AutoMessageForm>({
   selectedRooms: [],
   action: '',
   sendTiming: '',
+  day: '',
+  time: '',
   enabled: true,
 })
 
@@ -290,6 +321,38 @@ const form = reactive<AutoMessageForm>({
 const hasPasswordVariable = computed(() => {
   const passwordVars = ['{{smartlock_passcode}}', '{{checkin_code}}']
   return passwordVars.some((v) => form.message.includes(v))
+})
+
+interface SendTimingOption {
+  label: string
+  value: string
+}
+
+/** 天数选项（用于入住/离店） */
+const dayOptions = computed<SendTimingOption[]>(() => {
+  const options: SendTimingOption[] = []
+  for (let day = -14; day <= 14; day++) {
+    let label = ''
+    if (day < 0) {
+      label = `${Math.abs(day)}天前`
+    } else if (day === 0) {
+      label = '当天'
+    } else {
+      label = `${day}天后`
+    }
+    options.push({ label, value: String(day) })
+  }
+  return options
+})
+
+/** 时间选项（用于入住/离店） */
+const timeOptions = computed<SendTimingOption[]>(() => {
+  const options: SendTimingOption[] = []
+  for (let hour = 0; hour < 24; hour++) {
+    const value = `${hour.toString().padStart(2, '0')}:00`
+    options.push({ label: value, value })
+  }
+  return options
 })
 
 // 监听房间选择类型变化，清空已选房间
@@ -300,6 +363,16 @@ watch(
   }
 )
 
+// 监听操作类型变化，清空发送时机相关字段
+watch(
+  () => form.action,
+  () => {
+    form.sendTiming = ''
+    form.day = ''
+    form.time = ''
+  }
+)
+
 const formRules: FormRules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   message: [{ required: true, message: '请输入消息内容', trigger: 'blur' }],
@@ -307,6 +380,8 @@ const formRules: FormRules = {
   roomSelectionType: [{ required: true, message: '请选择房间类型', trigger: 'change' }],
   action: [{ required: true, message: '请选择操作', trigger: 'change' }],
   sendTiming: [{ required: true, message: '请选择发送时机', trigger: 'change' }],
+  day: [{ required: true, message: '请选择天', trigger: 'change' }],
+  time: [{ required: true, message: '请选择时间', trigger: 'change' }],
 }
 
 /** 插入变量到消息内容 */
@@ -508,6 +583,8 @@ const resetForm = () => {
   form.selectedRooms = []
   form.action = ''
   form.sendTiming = ''
+  form.day = ''
+  form.time = ''
   form.enabled = true
   formRef.value?.clearValidate()
 }
@@ -556,8 +633,27 @@ const fillFormFromDTO = async (id: number) => {
 
         // 操作类型
         form.action = dto.action || ''
-        // 发送时机
-        form.sendTiming = dto.sendTiming || ''
+        // 发送时机（入住/离店：拆分 DAY_{day}_{time}）
+        if (dto.action === 'CHECK_IN' || dto.action === 'CHECK_OUT') {
+          if (dto.sendTiming && dto.sendTiming.startsWith('DAY_')) {
+            const parts = dto.sendTiming.split('_')
+            if (parts.length === 3) {
+              form.day = parts[1]
+              form.time = parts[2]
+            } else {
+              form.day = ''
+              form.time = ''
+            }
+          } else {
+            form.day = ''
+            form.time = ''
+          }
+          form.sendTiming = ''
+        } else {
+          form.sendTiming = dto.sendTiming || ''
+          form.day = ''
+          form.time = ''
+        }
       }
     }
   } catch (error) {
@@ -631,9 +727,47 @@ const handleToggle = async (row: AutoMessageListItem) => {
 
 const handleSave = async () => {
   try {
-    const valid = await formRef.value?.validate()
+    if (!formRef.value) {
+      return
+    }
+
+    // 入住/离店 与 预订确认 的校验字段不同：
+    // - 入住/离店：day + time（sendTiming 不参与校验）
+    // - 预订确认：sendTiming
+    const fieldsToValidate = ['title', 'message', 'selectedChannels', 'roomSelectionType', 'action']
+    if (form.action === 'CHECK_IN' || form.action === 'CHECK_OUT') {
+      fieldsToValidate.push('day', 'time')
+    } else {
+      fieldsToValidate.push('sendTiming')
+    }
+
+    let valid = true
+    try {
+      await formRef.value.validateField(fieldsToValidate)
+    } catch {
+      valid = false
+    }
+
+    if (valid && (form.action === 'CHECK_IN' || form.action === 'CHECK_OUT')) {
+      if (!form.day) {
+        ElMessage.error('请选择天')
+        valid = false
+      } else if (!form.time || !/^[0-2]\\d:[0-5]\\d$/.test(form.time)) {
+        ElMessage.error('请选择时间（例如 14:00）')
+        valid = false
+      }
+    }
+
     if (valid) {
       loading.value = true
+
+      // 根据操作类型决定 sendTiming 的值
+      let sendTimingValue: SendTiming
+      if (form.action === 'CHECK_IN' || form.action === 'CHECK_OUT') {
+        sendTimingValue = `DAY_${form.day}_${form.time}` as SendTiming
+      } else {
+        sendTimingValue = form.sendTiming as SendTiming
+      }
 
       // 构建请求数据
       const data = {
@@ -645,7 +779,7 @@ const handleSave = async () => {
         roomSelectionType: form.roomSelectionType,
         roomSelection: form.roomSelectionType === 'ALL_LOCAL' ? '' : JSON.stringify(form.selectedRooms),
         action: form.action as AutoMessageAction,
-        sendTiming: form.sendTiming as SendTiming,
+        sendTiming: sendTimingValue,
         enabled: form.enabled,
         // 兼容旧字段（用于显示）
         automationRule: form.action ? actionLabelMap[form.action] : '',

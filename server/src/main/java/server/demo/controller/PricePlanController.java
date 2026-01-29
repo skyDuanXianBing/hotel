@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.AssignRoomTypePricePlanRequest;
+import server.demo.dto.ForceDeleteRequest;
 import server.demo.entity.PricePlan;
 import server.demo.entity.RoomTypePricePlan;
 import server.demo.service.PricePlanService;
@@ -65,6 +66,18 @@ public class PricePlanController extends BaseStoreController {
         }
     }
 
+    @PostMapping("/{id}/force-delete")
+    public ResponseEntity<ApiResponse<Void>> forceDeletePricePlan(
+            @PathVariable Long id,
+            @Valid @RequestBody ForceDeleteRequest request) {
+        try {
+            pricePlanService.forceDeletePricePlan(id, Boolean.TRUE.equals(request.getConfirm()));
+            return ResponseEntity.ok(ApiResponse.success("彻底删除价格计划成功", null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     @GetMapping("/{id}/room-types")
     public ResponseEntity<ApiResponse<List<RoomTypePricePlan>>> getRoomTypesByPricePlan(@PathVariable Long id) {
         List<RoomTypePricePlan> roomTypes = pricePlanService.getRoomTypesByPricePlan(id);
@@ -93,9 +106,9 @@ public class PricePlanController extends BaseStoreController {
     @PutMapping("/room-type-price-plans/{id}")
     public ResponseEntity<ApiResponse<RoomTypePricePlan>> updateRoomTypePricePlan(
             @PathVariable Long id,
-            @Valid @RequestBody RoomTypePricePlan roomTypePricePlan) {
+            @Valid @RequestBody AssignRoomTypePricePlanRequest request) {
         try {
-            RoomTypePricePlan updated = pricePlanService.updateRoomTypePricePlan(id, roomTypePricePlan);
+            RoomTypePricePlan updated = pricePlanService.updateRoomTypePricePlan(id, request);
             return ResponseEntity.ok(ApiResponse.success("更新房型价格计划成功", updated));
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));

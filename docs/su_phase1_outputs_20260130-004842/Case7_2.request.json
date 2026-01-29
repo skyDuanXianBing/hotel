@@ -1,0 +1,76 @@
+﻿{
+    "body":  {
+                 "inventorycontrol":  [
+                                          {
+                                              "roomid":  "15-999",
+                                              "date":  [
+                                                           {
+                                                               "from":  "2020-08-30",
+                                                               "to":  "2020-08-30",
+                                                               "OTARule":  [
+                                                                               {
+                                                                                   "rule":  {
+                                                                                                "value":  "1",
+                                                                                                "type":  "Fixed"
+                                                                                            },
+                                                                                   "OTACode":  [
+                                                                                                   19,
+                                                                                                   244
+                                                                                               ]
+                                                                               }
+                                                                           ]
+                                                           }
+                                                       ]
+                                          }
+                                      ],
+                 "ratecontrol":  [
+                                     {
+                                         "date":  [
+                                                      {
+                                                          "from":  "2020-08-30",
+                                                          "to":  "2020-08-30",
+                                                          "OTARule":  [
+                                                                          {
+                                                                              "rule":  {
+                                                                                           "value":  "1",
+                                                                                           "type":  "Fixed"
+                                                                                       },
+                                                                              "OTACode":  [
+                                                                                              19,
+                                                                                              244
+                                                                                          ]
+                                                                          }
+                                                                      ]
+                                                      }
+                                                  ],
+                                         "rateid":  "RP004910",
+                                         "roomid":  "15-999"
+                                     }
+                                 ],
+                 "hotelid":  "S15KQEKHXP"
+             },
+    "method":  "POST",
+    "url":  "https://connect-sandbox.su-api.com/SUAPI/jservice/invratecontrol",
+    "headers":  [
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "app-id"
+                    },
+                    {
+                        "value":  "Bearer sandbox_ZXlKcGRpSTZJa0pOZWsxQ01qSXlibk51TVZSVFprcHpkV1J3ZW5jOVBTSXNJblpoYkhWbElqb2lZbE51VEdFMmVITmtkRmRDUjNOSVdtUjJVVkZFT1hFckswOHZkemwxTTJSWWIwTTJZbXRFTWt4V2EwaFNUVFZhYnk5WlRuUldaSGhIUjJodE9DOWxOM2xDV2pKU1ZrdzRhM2w0TDBsc1pXZDBlVk41Y2tsb2RUWjFhbFowVEU1T1pWZGlkRk5MYW5aa2VqZDZXRVpKT1ROeFoweFhRbVJRY1ZNMVYzVk1Ta2x5YVdsM2VuWXZSa3BJYUM5MVdrNVJSREZxVDBGUlVXTkxVMm96TUhKT1VWRkNLM0o0ZFZCSWExUldVVTFWV0haeVpWaE1kR3R1V2xsaVVVVkJVV3haYVZSWFdHcGtNMVZzV0hGVGNUUXdNRGxXTDFKMFp6MDlJaXdpYldGaklqb2lPR1V5TjJFME1tTmxaRFE0T1dNNE1EZGhNV1l5TkdKaVl6WXlOakUzWlRFM016VTFaVEprTmpOa1pqQXhOR1V5WmpKaE9UUmpPV0k0TnpBM056RXpOQ0lzSW5SaFp5STZJaUo5",
+                        "name":  "Authorization"
+                    },
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "client-id"
+                    },
+                    {
+                        "value":  "NVI4NWo1Yzc6WWl5OHY2OVc",
+                        "name":  "client-secret"
+                    },
+                    {
+                        "value":  "application/json",
+                        "name":  "Content-Type"
+                    }
+                ]
+}

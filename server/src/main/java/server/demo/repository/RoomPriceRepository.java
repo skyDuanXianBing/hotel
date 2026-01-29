@@ -57,6 +57,9 @@ public interface RoomPriceRepository extends JpaRepository<RoomPrice, Long> {
     // 检查是否存在指定房型和日期的价格
     boolean existsByRoomTypeIdAndPriceDate(Long roomTypeId, LocalDate priceDate);
 
+    // 门店级：检查价格计划是否已产生覆盖价记录
+    boolean existsByStoreIdAndPricePlanId(Long storeId, Long pricePlanId);
+
     // 根据房型ID、价格计划ID和日期查找价格
     Optional<RoomPrice> findByRoomTypeIdAndPricePlanIdAndPriceDate(Long roomTypeId, Long pricePlanId, LocalDate priceDate);
 

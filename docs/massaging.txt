@@ -502,3 +502,39 @@ This error will be received if provided with incorrect `hotelid` / `hotelcode` o
 | 244  | Airbnb        |
 | 19   | Booking.com   |
 | 9    | Expedia       |
+
+***
+
+## <mark style="color:yellow;">Proactive First Message After Reservation Notification</mark>
+
+This section explains whether you can proactively send the **first** message right after receiving a reservation webhook (Reservation Notification Push) and what fields are required.
+
+### <mark style="color:yellow;">Can the property initiate the first message?</mark>
+
+- **Booking.com (19): Yes**. You can send a message after a booking is created, using `bookingid` + `listingid`.
+- **Expedia (9): Yes (per Su API doc)**. It follows the same pattern as Booking.com (requires `bookingid`).
+- **Airbnb (244): Only if you already have `threadid` + `guestid`**. In many integrations these fields are obtained from the **Messaging webhook payload** (guest initiated or an existing thread), and may be **empty in reservation push**.
+
+> Note: In this project codebase, the current server implementation supports sending for **Booking.com (19)** and **Airbnb (244)** only. Expedia (9) is not wired yet.
+
+### <mark style="color:yellow;">Required fields for sending the first message</mark>
+
+Use the same endpoint as “Reply to Message”:
+
+- `POST https://connect-*.su-api.com/SUAPI/jservice/messagingAB`
+
+Field mapping guidelines (typical):
+
+- `hotelid`: Su property ID (the hotel ID you use when calling Su APIs). Often corresponds to reservation `hotel_id`.
+- `channelid`: 19 (Booking.com) / 9 (Expedia) / 244 (Airbnb).
+- `listingid`: OTA listing / property id (channel property id). Often corresponds to reservation `hotel_id` (or Airbnb listing id).
+- `bookingid`:
+  - Booking.com / Expedia: use reservation `channel_booking_id`.
+  - Airbnb: if applicable, `bookingid` may be the same as `threadid` (when communication starts before booking).
+- `threadid` + `guestid`: **Airbnb only**, must be provided to send.
+
+### <mark style="color:yellow;">Content and encoding notes</mark>
+
+- Send JSON in **UTF-8 / Unicode** (especially when the message contains links or special characters).
+- Line breaks: Airbnb supports `\n`, Booking.com supports `\\\n` (per Su API notes).
+- Recommended: implement idempotency (send only once per booking) to avoid duplicate messages on reservation modifications.

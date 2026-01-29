@@ -2,6 +2,7 @@ package server.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.ConsumptionDTO;
 import server.demo.service.ConsumptionService;
@@ -12,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/consumptions")
 @CrossOrigin
+@StoreScoped
 public class ConsumptionController {
 
     @Autowired

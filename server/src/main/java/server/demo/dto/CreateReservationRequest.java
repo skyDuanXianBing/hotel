@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class CreateReservationRequest {
     
@@ -37,6 +38,18 @@ public class CreateReservationRequest {
     private BigDecimal totalAmount;
     
     private String channelOrderNumber;
+
+    private String paymentMethod;
+
+    private BigDecimal commission;
+
+    private BigDecimal otherFees;
+
+    private String pricePlan;
+
+    private String specialRequests;
+
+    private LocalDateTime bookingDate;
 
     private String notes;
 
@@ -130,6 +143,54 @@ public class CreateReservationRequest {
     
     public void setChannelOrderNumber(String channelOrderNumber) {
         this.channelOrderNumber = channelOrderNumber;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public BigDecimal getCommission() {
+        return commission;
+    }
+
+    public void setCommission(BigDecimal commission) {
+        this.commission = commission;
+    }
+
+    public BigDecimal getOtherFees() {
+        return otherFees;
+    }
+
+    public void setOtherFees(BigDecimal otherFees) {
+        this.otherFees = otherFees;
+    }
+
+    public String getPricePlan() {
+        return pricePlan;
+    }
+
+    public void setPricePlan(String pricePlan) {
+        this.pricePlan = pricePlan;
+    }
+
+    public String getSpecialRequests() {
+        return specialRequests;
+    }
+
+    public void setSpecialRequests(String specialRequests) {
+        this.specialRequests = specialRequests;
+    }
+
+    public LocalDateTime getBookingDate() {
+        return bookingDate;
+    }
+
+    public void setBookingDate(LocalDateTime bookingDate) {
+        this.bookingDate = bookingDate;
     }
     
     public String getNotes() {

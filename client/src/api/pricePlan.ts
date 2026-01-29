@@ -47,6 +47,8 @@ export interface RoomTypePricePlanDTO {
   sundayPrice?: number
   maxGuests: number
   includedGuests?: number
+  extraAdultRate?: number
+  extraChildRate?: number
   priceMode?: string // 'unified' 或 'multiple'
   createdAt?: string
   updatedAt?: string
@@ -101,6 +103,8 @@ export interface AssignRoomTypePricePlanRequest {
   sundayPrice?: number
   maxGuests: number
   includedGuests?: number
+  extraAdultRate?: number
+  extraChildRate?: number
   priceMode?: string
 }
 
@@ -158,6 +162,18 @@ export const deletePricePlan = (id: number, userId: number) => {
     url: `/price-plans/${id}`,
     method: 'DELETE',
     params: { userId },
+  })
+}
+
+/**
+ * 彻底删除价格计划（最小改动：仅清理渠道价格记录 channel_prices 后再尝试删除）
+ */
+export const forceDeletePricePlan = (id: number, userId: number) => {
+  return request<void>({
+    url: `/price-plans/${id}/force-delete`,
+    method: 'POST',
+    params: { userId },
+    data: { confirm: true },
   })
 }
 

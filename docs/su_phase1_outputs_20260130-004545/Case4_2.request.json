@@ -1,0 +1,38 @@
+﻿{
+    "body":  {
+                 "RatePlans":  {
+                                   "hotelid":  "S15KQEKHXP",
+                                   "RatePlan":  [
+                                                    {
+                                                        "rateplanid":  "RPMISS0046",
+                                                        "RatePlanNotifType":  "New",
+                                                        "MealPlanID":  "15"
+                                                    }
+                                                ]
+                               }
+             },
+    "method":  "POST",
+    "url":  "https://connect-sandbox.su-api.com/SUAPI/jservice/OTA_HotelRatePlan",
+    "headers":  [
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "app-id"
+                    },
+                    {
+                        "value":  "Bearer sandbox_ZXlKcGRpSTZJa1Z4ZEhBdmVsZDVlVmxMZDNSMk9XMHdXWE5ZVFdjOVBTSXNJblpoYkhWbElqb2lTMFpOYm5KdVpsaHRXakJKY0ZGbmVVRjRSME5yUXpSTWFGVlROUzl1VTJoWGRteHplbVZTVXpVd1NqZ3pOR3hpWVZwSFRuQjNNRnB0TkhBMlFpdGhjamwxYzFWWldEUkhXVk12ZFdOR1FrVXJjMlZuV0VoMmFVWjFRa2x1Um1wRE9XdG1iSGQyU2tKemVsUkJTV1ZNYUZWNWJURkdVMkZ2VEhGeVRTdE9ia056YUN0RFJITm5iR1oyWVhoTFJUTlZXamRyWTNobmFtWkJPVmw1ZGxGWWNIRmhja04wVFVvd1IwVmliMVpaYWtod1UxZHRPR0pRVTNKaFExTjFaM05QTWpSSGEyNVhNVmtyWVRoek9FWTJhemhOVkZFcmR6MDlJaXdpYldGaklqb2lNakJtWmpGa09ETmpOakpoWkRreU5qazVaVEJqT0RobE1EYzRaVGMxTjJFM1pUazNOamhqTnpZMk9EazBaak5qT1dFeE5tVXlZVE5rTm1RNFlqUmlaQ0lzSW5SaFp5STZJaUo5",
+                        "name":  "Authorization"
+                    },
+                    {
+                        "value":  "c2FpdG9zaG9qaWNvbHRkLnN1aXNzdS5jb20=",
+                        "name":  "client-id"
+                    },
+                    {
+                        "value":  "NVI4NWo1Yzc6WWl5OHY2OVc",
+                        "name":  "client-secret"
+                    },
+                    {
+                        "value":  "application/json",
+                        "name":  "Content-Type"
+                    }
+                ]
+}

@@ -459,6 +459,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     // 设置minStay和maxStay
                     dto.setMinStay(roomPrice.getMinStay());
                     dto.setMaxStay(roomPrice.getMaxStay());
+                    dto.setCloseRoom(roomPrice.getCloseRoom());
+                    dto.setCta(roomPrice.getCta());
+                    dto.setCtd(roomPrice.getCtd());
                     dto.setNotes(roomPrice.getNotes());
                 } else {
                     // 使用周价格
@@ -472,6 +475,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     // 没有特定价格记录时,minStay和maxStay为null
                     dto.setMinStay(null);
                     dto.setMaxStay(null);
+                    dto.setCloseRoom(null);
+                    dto.setCta(null);
+                    dto.setCtd(null);
                 }
 
                 dto.setPrice(price);
@@ -633,6 +639,15 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     if (request.getMaxStay() != null) {
                         roomPrice.setMaxStay(request.getMaxStay());
                     }
+                    if (request.getCloseRoom() != null) {
+                        roomPrice.setCloseRoom(request.getCloseRoom());
+                    }
+                    if (request.getCta() != null) {
+                        roomPrice.setCta(request.getCta());
+                    }
+                    if (request.getCtd() != null) {
+                        roomPrice.setCtd(request.getCtd());
+                    }
                     if (request.getNotes() != null) {
                         roomPrice.setNotes(request.getNotes());
                     }
@@ -666,6 +681,15 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     if (request.getMaxStay() != null) {
                         roomPrice.setMaxStay(request.getMaxStay());
                     }
+                    if (request.getCloseRoom() != null) {
+                        roomPrice.setCloseRoom(request.getCloseRoom());
+                    }
+                    if (request.getCta() != null) {
+                        roomPrice.setCta(request.getCta());
+                    }
+                    if (request.getCtd() != null) {
+                        roomPrice.setCtd(request.getCtd());
+                    }
                     if (request.getNotes() != null) {
                         roomPrice.setNotes(request.getNotes());
                     }
@@ -684,6 +708,15 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     }
                     if (request.getMaxStay() != null) {
                         roomPrice.setMaxStay(request.getMaxStay());
+                    }
+                    if (request.getCloseRoom() != null) {
+                        roomPrice.setCloseRoom(request.getCloseRoom());
+                    }
+                    if (request.getCta() != null) {
+                        roomPrice.setCta(request.getCta());
+                    }
+                    if (request.getCtd() != null) {
+                        roomPrice.setCtd(request.getCtd());
                     }
                     if (request.getNotes() != null) {
                         roomPrice.setNotes(request.getNotes());
@@ -795,6 +828,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
         dto.setMinStay(roomPrice.getMinStay());
         dto.setMaxStay(roomPrice.getMaxStay());
+        dto.setCloseRoom(roomPrice.getCloseRoom());
+        dto.setCta(roomPrice.getCta());
+        dto.setCtd(roomPrice.getCtd());
         dto.setIsWeekend(roomPrice.getIsWeekend());
         dto.setIsHoliday(roomPrice.getIsHoliday());
         dto.setNotes(roomPrice.getNotes());

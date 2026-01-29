@@ -21,6 +21,7 @@ import java.util.List;
 public class OtaReservationRoomAssignmentService {
 
     private static final Logger logger = LoggerFactory.getLogger(OtaReservationRoomAssignmentService.class);
+    private static final Logger reservationLogger = LoggerFactory.getLogger("SU_RESERVATION");
 
     private final RoomRepository roomRepository;
     private final ReservationRepository reservationRepository;
@@ -42,6 +43,8 @@ public class OtaReservationRoomAssignmentService {
         if (parsed == null) {
             logger.warn("[OtaReservationRoomAssign] skip auto-assign: invalid roomid. storeId={}, orderNumber={}, roomid={}",
                     storeId, reservation.getOrderNumber(), itProviderRoomId);
+            reservationLogger.warn("[ReservationAssign] invalid roomid. storeId={}, orderNumber={}, roomid={}",
+                    storeId, reservation.getOrderNumber(), itProviderRoomId);
             return;
         }
 
@@ -50,12 +53,16 @@ public class OtaReservationRoomAssignmentService {
         if (room == null) {
             logger.warn("[OtaReservationRoomAssign] skip auto-assign: room not found. storeId={}, orderNumber={}, roomNumber={}, roomid={}",
                     storeId, reservation.getOrderNumber(), parsed.roomNumber(), parsed.raw());
+            reservationLogger.warn("[ReservationAssign] room not found. storeId={}, orderNumber={}, roomNumber={}, roomid={}",
+                    storeId, reservation.getOrderNumber(), parsed.roomNumber(), parsed.raw());
             return;
         }
 
         Long localRoomTypeId = room.getRoomType() != null ? room.getRoomType().getId() : null;
         if (localRoomTypeId == null || !localRoomTypeId.equals(parsed.roomTypeId())) {
             logger.warn("[OtaReservationRoomAssign] skip auto-assign: roomType mismatch. storeId={}, orderNumber={}, roomNumber={}, expectedRoomTypeId={}, actualRoomTypeId={}, roomid={}",
+                    storeId, reservation.getOrderNumber(), parsed.roomNumber(), parsed.roomTypeId(), localRoomTypeId, parsed.raw());
+            reservationLogger.warn("[ReservationAssign] roomType mismatch. storeId={}, orderNumber={}, roomNumber={}, expectedRoomTypeId={}, actualRoomTypeId={}, roomid={}",
                     storeId, reservation.getOrderNumber(), parsed.roomNumber(), parsed.roomTypeId(), localRoomTypeId, parsed.raw());
             return;
         }
@@ -68,14 +75,38 @@ public class OtaReservationRoomAssignmentService {
         );
         boolean hasConflict = conflicts.stream().anyMatch(r -> reservation.getId() == null || r.getId() == null || !r.getId().equals(reservation.getId()));
         if (hasConflict) {
+            String conflictSummary = conflicts.stream()
+                    .filter(r -> reservation.getId() == null || r.getId() == null || !r.getId().equals(reservation.getId()))
+                    .limit(5)
+                    .map(r -> "{" +
+                            "id=" + r.getId() +
+                            ",orderNumber=" + r.getOrderNumber() +
+                            ",status=" + (r.getStatus() != null ? r.getStatus().name() : null) +
+                            ",checkIn=" + r.getCheckInDate() +
+                            ",checkOut=" + r.getCheckOutDate() +
+                            ",guest=" + r.getGuestName() +
+                            "}")
+                    .reduce((a, b) -> a + "," + b)
+                    .orElse("");
             logger.warn("[OtaReservationRoomAssign] skip auto-assign: conflicting reservations exist. storeId={}, orderNumber={}, roomNumber={}, roomid={}",
                     storeId, reservation.getOrderNumber(), parsed.roomNumber(), parsed.raw());
+            reservationLogger.warn("[ReservationAssign] conflict detected. storeId={}, orderNumber={}, roomId={}, roomNumber={}, checkIn={}, checkOut={}, conflicts={}, conflictSample={}",
+                    storeId,
+                    reservation.getOrderNumber(),
+                    room.getId(),
+                    parsed.roomNumber(),
+                    checkIn,
+                    checkOut,
+                    conflicts.size(),
+                    conflictSummary);
             return;
         }
 
         reservation.setRoom(room);
         logger.info("[OtaReservationRoomAssign] auto-assigned room. storeId={}, orderNumber={}, roomNumber={}, roomid={}",
                 storeId, reservation.getOrderNumber(), parsed.roomNumber(), parsed.raw());
+        reservationLogger.info("[ReservationAssign] assigned. storeId={}, orderNumber={}, roomId={}, roomNumber={}, checkIn={}, checkOut={}, roomid={}",
+                storeId, reservation.getOrderNumber(), room.getId(), parsed.roomNumber(), checkIn, checkOut, parsed.raw());
     }
 }
 

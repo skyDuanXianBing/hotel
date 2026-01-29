@@ -1,0 +1,14 @@
+﻿{
+    "bodyJson":  {
+                     "Errors":  [
+                                    {
+                                        "Code":  "900",
+                                        "ShortText":  "InvStatusType: Value should be Initial with no InvNotifType, found "
+                                    }
+                                ],
+                     "Status":  "Fail"
+                 },
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Errors\":[{\"Code\":\"900\",\"ShortText\":\"InvStatusType: Value should be Initial with no InvNotifType, found \"}],\"Status\":\"Fail\"}"
+}

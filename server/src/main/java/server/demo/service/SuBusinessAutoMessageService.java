@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.UriUtils;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.AutoMessageSendLog;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -172,6 +174,17 @@ public class SuBusinessAutoMessageService {
                 autoMessageLogger.info("[AutoMessage] waiting listingid. storeId={}, reservationId={}, autoMessageId={}, threadId={}",
                         storeId, reservation.getId(), template.getId(), thread.getId());
                 return;
+            }
+            
+            if (thread.getChannelId() != null && thread.getChannelId() == SuMessagingService.CHANNEL_AIRBNB) {
+                String threadId = thread.getThreadId();
+                String guestId = thread.getGuestId();
+                if (threadId == null || threadId.isBlank() || guestId == null || guestId.isBlank()) {
+                    markWaiting(log, "WAITING_THREAD_FIELDS", "Airbnb 会话缺少 threadid/guestid，暂不发送；等待下一次 webhook 补齐");
+                    autoMessageLogger.info("[AutoMessage] waiting airbnb thread fields. storeId={}, reservationId={}, autoMessageId={}, threadDbId={} ",
+                            storeId, reservation.getId(), template.getId(), thread.getId());
+                    return;
+                }
             }
 
             String rendered = renderTemplate(store, reservation, template.getMessage());
@@ -367,15 +380,25 @@ public class SuBusinessAutoMessageService {
     }
 
     private String buildRegistrationLink(Reservation reservation) {
-        if (reservation == null || reservation.getStoreId() == null || reservation.getOrderNumber() == null) {
+        if (reservation == null || reservation.getStoreId() == null) {
             return "";
         }
-        String token = registrationLinkService.generateToken(reservation.getStoreId(), reservation.getOrderNumber());
+
+        String bookingKey = reservation.getChannelOrderNumber();
+        if (bookingKey == null || bookingKey.isBlank()) {
+            bookingKey = reservation.getOrderNumber();
+        }
+        if (bookingKey == null || bookingKey.isBlank()) {
+            return "";
+        }
+
+        String token = registrationLinkService.generateToken(reservation.getStoreId(), bookingKey);
         String base = serverBaseUrl != null ? serverBaseUrl.trim() : "";
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }
-        return base + "/r/" + reservation.getOrderNumber() + "?t=" + token;
+        String encodedKey = UriUtils.encodePathSegment(bookingKey, StandardCharsets.UTF_8);
+        return base + "/rb/" + encodedKey + "?t=" + token;
     }
 
     private String resolveRoomTypeName(Reservation reservation) {

@@ -402,7 +402,7 @@ const loadRoomTypes = async () => {
           id: item.id,
           name: item.name,
           shortName: item.description || item.code,
-          maxGuests: 4, // 默认最大入住人数,后端暂时不返回此字段
+          maxGuests: item.maxGuests ?? 4,
           defaultPrice: item.defaultPrice ?? 0, // 保存原始defaultPrice
           mondayPrice: item.mondayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
           tuesdayPrice: item.tuesdayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
@@ -543,7 +543,9 @@ const handleSave = async () => {
   }
 
   // 过滤掉空的房间号
-  const validRoomNumbers = formData.value.roomNumbers.filter(num => num && num.trim())
+  const validRoomNumbers = formData.value.roomNumbers
+    .map(num => (num || '').trim())
+    .filter(num => num.length > 0)
 
   if (validRoomNumbers.length === 0) {
     ElMessage.warning('请至少输入一个房间号')
@@ -561,11 +563,35 @@ const handleSave = async () => {
     loading.value = true
 
     // 构建请求数据
+    // 后端当前规则：同一门店下房间号全局唯一（不同房型也不能重复）。
+    // 这里在前端先做一次冲突校验，避免保存后才失败。
+    const occupiedRoomNumberToRoomType = new Map<string, RoomTypeData>()
+    for (const rt of roomTypeList.value) {
+      // 编辑时允许与自己原有房间号重复
+      if (isEdit.value && formData.value.id && rt.id === formData.value.id) continue
+      for (const rn of rt.roomNumbers || []) {
+        const normalized = (rn || '').trim()
+        if (normalized) {
+          occupiedRoomNumberToRoomType.set(normalized, rt)
+        }
+      }
+    }
+
+    const conflictRoomNumbers = validRoomNumbers.filter(rn => occupiedRoomNumberToRoomType.has(rn))
+    if (conflictRoomNumbers.length > 0) {
+      const first = conflictRoomNumbers[0]
+      const conflictRoomType = occupiedRoomNumberToRoomType.get(first)
+      const roomTypeName = conflictRoomType ? `${conflictRoomType.name}（${conflictRoomType.shortName}）` : '其他房型'
+      ElMessage.warning(`房间号 ${first} 已存在于房型 ${roomTypeName}，请先删除/更换后再保存`)
+      return
+    }
+
     const requestData = {
       name: formData.value.name,
       code: formData.value.shortName.substring(0, 3).toUpperCase(),
       description: formData.value.shortName,
       totalRooms: validRoomNumbers.length, // 使用实际房间号数量
+      maxGuests: formData.value.maxGuests,
       // 编辑时保持原有defaultPrice,新增时使用周一价格作为默认价格
       defaultPrice: isEdit.value && formData.value.defaultPrice !== undefined
         ? formData.value.defaultPrice

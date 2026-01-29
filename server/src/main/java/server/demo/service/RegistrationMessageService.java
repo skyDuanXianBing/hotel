@@ -2,6 +2,7 @@ package server.demo.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriUtils;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.dto.registration.RegistrationMessageLogDTO;
@@ -26,6 +27,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class RegistrationMessageService {
@@ -200,15 +202,25 @@ public class RegistrationMessageService {
     }
 
     private String buildRegistrationLink(Reservation reservation) {
-        if (reservation == null || reservation.getStoreId() == null || reservation.getOrderNumber() == null) {
+        if (reservation == null || reservation.getStoreId() == null) {
             return "";
         }
-        String token = registrationLinkService.generateToken(reservation.getStoreId(), reservation.getOrderNumber());
+
+        String bookingKey = reservation.getChannelOrderNumber();
+        if (bookingKey == null || bookingKey.isBlank()) {
+            bookingKey = reservation.getOrderNumber();
+        }
+        if (bookingKey == null || bookingKey.isBlank()) {
+            return "";
+        }
+
+        String token = registrationLinkService.generateToken(reservation.getStoreId(), bookingKey);
         String base = serverBaseUrl != null ? serverBaseUrl.trim() : "";
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }
-        return base + "/r/" + reservation.getOrderNumber() + "?t=" + token;
+        String encodedKey = UriUtils.encodePathSegment(bookingKey, StandardCharsets.UTF_8);
+        return base + "/rb/" + encodedKey + "?t=" + token;
     }
 
     private static String resolveRoomTypeName(Reservation reservation) {

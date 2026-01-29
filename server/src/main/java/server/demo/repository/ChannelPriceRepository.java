@@ -19,6 +19,8 @@ public interface ChannelPriceRepository extends JpaRepository<ChannelPrice, Long
 
     boolean existsByStoreIdAndPriceDateBetween(Long storeId, LocalDate startDate, LocalDate endDate);
 
+    boolean existsByStoreIdAndPricePlanId(Long storeId, Long pricePlanId);
+
     /**
      * 根据门店ID查找所有渠道价格
      */
@@ -157,4 +159,8 @@ public interface ChannelPriceRepository extends JpaRepository<ChannelPrice, Long
             @Param("storeId") Long storeId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    @Modifying
+    @Query("DELETE FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.pricePlan.id = :pricePlanId")
+    int deleteByStoreIdAndPricePlanId(@Param("storeId") Long storeId, @Param("pricePlanId") Long pricePlanId);
 }

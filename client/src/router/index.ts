@@ -10,6 +10,13 @@ const router = createRouter({
       component: () => import('@/views/public/RegistrationFormPublic.vue'),
       meta: { title: '入住登记', requiresAuth: false },
     },
+    // Public booking summary (no login)
+    {
+      path: '/rb/:bookingKey',
+      name: 'PublicRegistrationBooking',
+      component: () => import('@/views/public/RegistrationBookingPublic.vue'),
+      meta: { title: '入住登记', requiresAuth: false },
+    },
     // 主布局路由（包含导航栏）
     {
       path: '/',

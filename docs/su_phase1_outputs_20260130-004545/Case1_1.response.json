@@ -1,0 +1,11 @@
+﻿{
+    "bodyJson":  {
+                     "Status":  "Fail",
+                     "Errors":  {
+                                    "ShortText":  "Property already exists"
+                                }
+                 },
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Status\":\"Fail\",\"Errors\":{\"ShortText\":\"Property already exists\"}}"
+}

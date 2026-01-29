@@ -1,0 +1,14 @@
+﻿{
+    "bodyJson":  {
+                     "Errors":  [
+                                    {
+                                        "Code":  "400",
+                                        "ShortText":  "HotelCode: Invalid HotelCode (XYZ)"
+                                    }
+                                ],
+                     "Status":  "Fail"
+                 },
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Errors\":[{\"Code\":\"400\",\"ShortText\":\"HotelCode: Invalid HotelCode (XYZ)\"}],\"Status\":\"Fail\"}"
+}

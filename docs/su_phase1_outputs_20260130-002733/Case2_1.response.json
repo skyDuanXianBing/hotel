@@ -1,0 +1,6 @@
+﻿{
+    "bodyJson":  null,
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Status\":\"Fail\",\"Errors\":{\"Type\":\"10\",\"Code\":\"RT002748\",\"ShortText\":\"Room Already Exists\"}}"
+}

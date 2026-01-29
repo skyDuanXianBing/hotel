@@ -82,5 +82,50 @@ class SuReservationParserTest {
         assertNotNull(orderNumber);
         assertTrue(orderNumber.length() <= 50, "orderNumber length should be <= 50");
     }
+
+    @Test
+    void extractBookedAtAndChannelFields_andSpecialRequests() throws Exception {
+        String json = """
+                {
+                  "reservations": [
+                    {
+                      "reservation": {
+                        "reservation_notif_id": "176973668024670264210",
+                        "id": "468944348_S15KQEKHXP",
+                        "channel_booking_id": "468944348",
+                        "hotel_id": "S15KQEKHXP",
+                        "booked_at": "2026-01-30",
+                        "modified_at": "2026-01-30",
+                        "currencycode": "JPY",
+                        "paymenttype": "Hotel Collect",
+                        "commissionamount": "0.19",
+                        "customer": { "remarks": "Approximate time of arrival: between 17:00 and 18:00" },
+                        "rooms": [
+                          {
+                            "roomreservation_id": "1769736696564",
+                            "arrival_date": "2026-01-31",
+                            "departure_date": "2026-02-01",
+                            "specialrequest": "No Smoking"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+                """;
+
+        JsonNode root = objectMapper.readTree(json);
+        JsonNode reservation = SuReservationParser.extractReservationNodes(root).get(0);
+        JsonNode roomStay = SuReservationParser.extractRoomStays(reservation).get(0);
+
+        assertEquals(LocalDate.of(2026, 1, 30), SuReservationParser.extractBookedAt(reservation));
+        assertEquals(LocalDate.of(2026, 1, 30), SuReservationParser.extractModifiedAt(reservation));
+        assertEquals("JPY", SuReservationParser.extractCurrencyCode(reservation));
+        assertEquals("Hotel Collect", SuReservationParser.extractPaymentType(reservation));
+        assertEquals(new BigDecimal("0.19"), SuReservationParser.extractCommissionAmount(reservation));
+
+        assertEquals("Approximate time of arrival: between 17:00 and 18:00", SuReservationParser.extractCustomerRemarks(reservation));
+        assertEquals("No Smoking", SuReservationParser.extractRoomSpecialRequest(roomStay));
+    }
 }
 

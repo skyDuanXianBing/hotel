@@ -1,0 +1,14 @@
+﻿{
+    "bodyJson":  {
+                     "Errors":  [
+                                    {
+                                        "Code":  "896",
+                                        "ShortText":  "Requested rate does not qualify. Rate with id RP004617 already exists"
+                                    }
+                                ],
+                     "Status":  "Fail"
+                 },
+    "error":  "The remote server returned an error: (400) Bad Request.",
+    "httpStatus":  400,
+    "bodyText":  "{\"Errors\":[{\"Code\":\"896\",\"ShortText\":\"Requested rate does not qualify. Rate with id RP004617 already exists\"}],\"Status\":\"Fail\"}"
+}
