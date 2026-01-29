@@ -36,6 +36,11 @@ public class RoomType implements StoreScopedEntity {
     @Column(nullable = false)
     private Integer totalRooms;
 
+    @NotNull(message = "最大入住人数不能为空")
+    @Min(value = 1, message = "最大入住人数必须大于0")
+    @Column(name = "max_guests", nullable = false)
+    private Integer maxGuests = 4;
+
     @Column(length = 500)
     private String description;
 
@@ -135,6 +140,14 @@ public class RoomType implements StoreScopedEntity {
 
     public void setTotalRooms(Integer totalRooms) {
         this.totalRooms = totalRooms;
+    }
+
+    public Integer getMaxGuests() {
+        return maxGuests;
+    }
+
+    public void setMaxGuests(Integer maxGuests) {
+        this.maxGuests = maxGuests;
     }
 
     public String getDescription() {

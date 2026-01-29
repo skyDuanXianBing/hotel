@@ -15,6 +15,8 @@ public class PublicRegistrationResponse {
     private String guestName;
     private Integer adults;
     private Integer children;
+    private Integer maxGuests;
+    private Integer guestCount;
     private LocalDateTime lastSavedAt;
     private List<PublicRegistrationGuestDTO> guests;
     private List<PublicRegistrationAttachmentDTO> attachments;
@@ -81,6 +83,22 @@ public class PublicRegistrationResponse {
 
     public void setChildren(Integer children) {
         this.children = children;
+    }
+
+    public Integer getMaxGuests() {
+        return maxGuests;
+    }
+
+    public void setMaxGuests(Integer maxGuests) {
+        this.maxGuests = maxGuests;
+    }
+
+    public Integer getGuestCount() {
+        return guestCount;
+    }
+
+    public void setGuestCount(Integer guestCount) {
+        this.guestCount = guestCount;
     }
 
     public LocalDateTime getLastSavedAt() {

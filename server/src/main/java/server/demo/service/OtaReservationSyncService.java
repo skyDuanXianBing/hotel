@@ -51,6 +51,7 @@ public class OtaReservationSyncService {
     private final SuAccessTokenService suAccessTokenService;
     private final AutoMessageTriggerService autoMessageTriggerService;
     private final CleaningTaskAutoService cleaningTaskAutoService;
+    private final PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
 
     public OtaReservationSyncService(
             SuApiClient suApiClient,
@@ -62,7 +63,8 @@ public class OtaReservationSyncService {
             PlatformTransactionManager transactionManager,
             SuAccessTokenService suAccessTokenService,
             AutoMessageTriggerService autoMessageTriggerService,
-            CleaningTaskAutoService cleaningTaskAutoService
+            CleaningTaskAutoService cleaningTaskAutoService,
+            PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer
     ) {
         this.suApiClient = suApiClient;
         this.storeRepository = storeRepository;
@@ -74,6 +76,7 @@ public class OtaReservationSyncService {
         this.suAccessTokenService = suAccessTokenService;
         this.autoMessageTriggerService = autoMessageTriggerService;
         this.cleaningTaskAutoService = cleaningTaskAutoService;
+        this.priceLabsCalendarSyncDebouncer = priceLabsCalendarSyncDebouncer;
     }
 
     public List<String> getSupportedChannelCodes() {
@@ -96,6 +99,18 @@ public class OtaReservationSyncService {
             List<String> errors
     ) {}
 
+    public record PullUpsertResult(
+            Long storeId,
+            String hotelId,
+            int pulledReservations,
+            int processedRoomStays,
+            int skippedUnsupportedOta,
+            int createdCount,
+            int updatedCount,
+            int failedCount,
+            List<String> errors
+    ) {}
+
     public record UpsertOnlyResult(
             int processedRoomStays,
             int skippedUnsupportedOta,
@@ -104,6 +119,56 @@ public class OtaReservationSyncService {
             int failedCount,
             List<String> errors
     ) {}
+
+    record CalendarSyncRequest(Long roomTypeId, LocalDate startDate, LocalDate endDate) {}
+
+    static List<CalendarSyncRequest> buildCalendarSyncRequests(
+            Long oldRoomTypeId,
+            LocalDate oldCheckIn,
+            LocalDate oldCheckOut,
+            Long newRoomTypeId,
+            LocalDate newCheckIn,
+            LocalDate newCheckOut
+    ) {
+        List<CalendarSyncRequest> out = new ArrayList<>();
+
+        CalendarSyncRequest oldReq = toCalendarSyncRequest(oldRoomTypeId, oldCheckIn, oldCheckOut);
+        if (oldReq != null) {
+            out.add(oldReq);
+        }
+
+        CalendarSyncRequest newReq = toCalendarSyncRequest(newRoomTypeId, newCheckIn, newCheckOut);
+        if (newReq != null) {
+            if (out.isEmpty()) {
+                out.add(newReq);
+            } else {
+                CalendarSyncRequest first = out.get(0);
+                boolean same = Objects.equals(first.roomTypeId, newReq.roomTypeId)
+                        && Objects.equals(first.startDate, newReq.startDate)
+                        && Objects.equals(first.endDate, newReq.endDate);
+                if (!same) {
+                    out.add(newReq);
+                }
+            }
+        }
+
+        return out;
+    }
+
+    private static CalendarSyncRequest toCalendarSyncRequest(Long roomTypeId, LocalDate checkIn, LocalDate checkOut) {
+        if (roomTypeId == null || checkIn == null || checkOut == null) {
+            return null;
+        }
+
+        // Reservation occupancy is [checkIn, checkOut) (checkOut is exclusive).
+        // PriceLabs /calendar uses inclusive [start_date, end_date], so we push until checkOut-1.
+        LocalDate start = checkIn;
+        LocalDate end = checkOut.minusDays(1);
+        if (end.isBefore(start)) {
+            end = start;
+        }
+        return new CalendarSyncRequest(roomTypeId, start, end);
+    }
 
     public ReservationSyncResult syncStoreReservations(Long storeId) {
         return syncStoreReservations(storeId, null);
@@ -235,6 +300,86 @@ public class OtaReservationSyncService {
         );
     }
 
+    /**
+     * PUSH-mode: pull reservations and upsert locally, but DO NOT call Reservation_notif ack endpoint.
+     * Confirmation is done by replying to the webhook with reservation_notif_id list.
+     */
+    public PullUpsertResult pullAndUpsertReservationsWithoutAck(Long storeId, Set<String> onlyProcessNotifIds) {
+        if (storeId == null) {
+            throw new IllegalArgumentException("storeId is required");
+        }
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("闂ㄥ簵涓嶅瓨鍦? " + storeId));
+
+        String hotelId = resolveHotelId(store);
+        reservationLogger.info("[ReservationSyncPush] start. storeId={}, hotelId={}, onlyProcessNotifIds={}",
+                storeId, hotelId, onlyProcessNotifIds != null ? onlyProcessNotifIds.size() : null);
+
+        JsonNode raw = suAccessTokenService.executeWithTokenRetry(
+                token -> suApiClient.pullReservations(token, hotelId),
+                "Reservation"
+        );
+        List<JsonNode> reservations = SuReservationParser.extractReservationNodes(raw);
+        reservationLogger.info("[ReservationSyncPush] pulled reservations. storeId={}, hotelId={}, count={}",
+                storeId, hotelId, reservations.size());
+
+        List<JsonNode> filtered = filterReservationsByNotifIds(reservations, onlyProcessNotifIds);
+
+        UpsertResult upsert = transactionTemplate.execute(status -> upsertReservationsInTx(store, filtered));
+        if (upsert == null) {
+            upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), List.of("浜嬪姟鎵ц澶辫触锛歶psert缁撴灉涓虹┖"));
+        }
+
+        reservationLogger.info("[ReservationSyncPush] upsert done. storeId={}, hotelId={}, processed={}, created={}, updated={}, failed={}, notifIds={}",
+                storeId, hotelId, upsert.processedRoomStays(), upsert.createdCount(), upsert.updatedCount(), upsert.failedCount(), upsert.notifIds().size());
+
+        if (upsert.createdCount() > 0 || upsert.updatedCount() > 0) {
+            try {
+                autoMessageTriggerService.dispatchStoreOnce(storeId);
+            } catch (Exception e) {
+                logger.warn("Dispatch auto messages after reservation push sync failed. storeId={}, err={}", storeId, e.getMessage(), e);
+                reservationLogger.error("[ReservationSyncPush] dispatch auto messages failed. storeId={}, err={}", storeId, e.getMessage());
+            }
+        }
+
+        return new PullUpsertResult(
+                storeId,
+                hotelId,
+                reservations.size(),
+                upsert.processedRoomStays(),
+                upsert.skippedUnsupportedOta(),
+                upsert.createdCount(),
+                upsert.updatedCount(),
+                upsert.failedCount(),
+                upsert.errors()
+        );
+    }
+
+    private static List<JsonNode> filterReservationsByNotifIds(List<JsonNode> reservations, Set<String> onlyProcessNotifIds) {
+        if (reservations == null || reservations.isEmpty()) {
+            return List.of();
+        }
+        if (onlyProcessNotifIds == null || onlyProcessNotifIds.isEmpty()) {
+            return reservations;
+        }
+
+        List<JsonNode> out = new ArrayList<>();
+        for (JsonNode reservationNode : reservations) {
+            if (reservationNode == null || reservationNode.isNull()) {
+                continue;
+            }
+            String notifId = SuReservationParser.extractReservationNotifId(reservationNode);
+            if (notifId == null || notifId.isBlank()) {
+                continue;
+            }
+            if (onlyProcessNotifIds.contains(notifId.trim())) {
+                out.add(reservationNode);
+            }
+        }
+        return out;
+    }
+
     private static List<String> buildAckNotifIds(Set<String> extracted, Set<String> onlyAck) {
         if (extracted == null || extracted.isEmpty()) {
             return List.of();
@@ -328,6 +473,9 @@ public class OtaReservationSyncService {
                             .orElseGet(Reservation::new);
 
                     boolean isNew = reservation.getId() == null;
+                    LocalDate oldCheckIn = isNew ? null : reservation.getCheckInDate();
+                    LocalDate oldCheckOut = isNew ? null : reservation.getCheckOutDate();
+                    Long oldRoomTypeId = isNew ? null : reservation.getOtaRoomTypeId();
 
                     reservation.setStoreId(store.getId());
                     reservation.setUser(user);
@@ -352,7 +500,8 @@ public class OtaReservationSyncService {
                     String itProviderRoomId = roomStay != null ? SuReservationParser.extractRoomTypeId(roomStay) : null;
                     reservation.setOtaRoomId(itProviderRoomId);
                     SuRoomIdParser.ParsedRoomId parsedRoomId = SuRoomIdParser.parse(itProviderRoomId);
-                    reservation.setOtaRoomTypeId(parsedRoomId != null ? parsedRoomId.roomTypeId() : null);
+                    Long newRoomTypeId = parsedRoomId != null ? parsedRoomId.roomTypeId() : null;
+                    reservation.setOtaRoomTypeId(newRoomTypeId);
                     reservation.setOtaRoomNumber(parsedRoomId != null ? parsedRoomId.roomNumber() : null);
 
                     // 自动排房（仅当当前预订未手动排房时尝试）
@@ -367,6 +516,20 @@ public class OtaReservationSyncService {
 
                     reservationRepository.save(reservation);
                     cleaningTaskAutoService.syncTaskForReservation(reservation);
+
+                    if (priceLabsCalendarSyncDebouncer != null) {
+                        List<CalendarSyncRequest> reqs = buildCalendarSyncRequests(
+                                oldRoomTypeId,
+                                oldCheckIn,
+                                oldCheckOut,
+                                newRoomTypeId,
+                                checkIn,
+                                checkOut
+                        );
+                        for (CalendarSyncRequest req : reqs) {
+                            priceLabsCalendarSyncDebouncer.requestSyncAfterCommit(store.getId(), req.roomTypeId(), req.startDate(), req.endDate());
+                        }
+                    }
 
                     if (isNew) {
                         created++;

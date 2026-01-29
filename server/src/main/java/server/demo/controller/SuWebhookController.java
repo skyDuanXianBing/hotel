@@ -11,16 +11,19 @@ import server.demo.config.SuMessagingWebhookAuthConfig;
 import server.demo.entity.Store;
 import server.demo.repository.StoreRepository;
 import server.demo.service.OtaReservationSyncService;
+import server.demo.service.SuWebhookAsyncProcessor;
 import server.demo.service.SuWebhookIdempotencyService;
 import server.demo.util.BasicAuthUtil;
 import server.demo.util.SuHotelIdUtil;
 import server.demo.util.SuReservationNotifPayloadParser;
 import server.demo.util.SuReservationParser;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Su Webhook 接收端（Reservation Notification Push）。
@@ -37,19 +40,22 @@ public class SuWebhookController {
     private final OtaReservationSyncService otaReservationSyncService;
     private final SuWebhookIdempotencyService idempotencyService;
     private final SuMessagingWebhookAuthConfig authConfig;
+    private final SuWebhookAsyncProcessor asyncProcessor;
 
     public SuWebhookController(
             ObjectMapper objectMapper,
             StoreRepository storeRepository,
             OtaReservationSyncService otaReservationSyncService,
             SuWebhookIdempotencyService idempotencyService,
-            SuMessagingWebhookAuthConfig authConfig
+            SuMessagingWebhookAuthConfig authConfig,
+            SuWebhookAsyncProcessor asyncProcessor
     ) {
         this.objectMapper = objectMapper;
         this.storeRepository = storeRepository;
         this.otaReservationSyncService = otaReservationSyncService;
         this.idempotencyService = idempotencyService;
         this.authConfig = authConfig;
+        this.asyncProcessor = asyncProcessor;
     }
 
     @RequestMapping(value = "/reservation-notif", method = {RequestMethod.GET, RequestMethod.HEAD})
@@ -99,10 +105,9 @@ public class SuWebhookController {
             hotelId = readHotelIdFromReservations(root);
         }
 
-        // Compatibility: Some Su flows deliver reservation details directly (reservations array) without reservation_notif_id.
-        // In that case, treat it as a reservation push (no ack via Reservation_notif API needed here) and return success
-        // once the reservations are upserted locally.
-        if ((notifIds == null || notifIds.isEmpty()) && isReservationPushPayload(root)) {
+        // PUSH: Su may deliver reservation details directly (reservations array). Prefer this path even if reservation_notif_id exists,
+        // because we can upsert locally without pulling again.
+        if (isReservationPushPayload(root)) {
             if (hotelId == null) {
                 reservationLogger.error("[ReservationWebhook] missing hotelid (reservation-push). remoteIp={}, raw={}",
                         request != null ? request.getRemoteAddr() : null, safeTrim(rawBody));
@@ -154,11 +159,12 @@ public class SuWebhookController {
             return ResponseEntity.ok(failBody("Invalid JSON"));
         }
 
+        if (isReservationPushPayload(root)) {
+            return handleReservationPushInternal(request, hotelId, root, rawBody);
+        }
+
         List<String> notifIds = SuReservationNotifPayloadParser.extractNotifIds(root);
         if (notifIds.isEmpty()) {
-            if (isReservationPushPayload(root)) {
-                return handleReservationPushInternal(request, hotelId, root, rawBody);
-            }
             reservationLogger.error("[ReservationWebhook] missing reservation_notif_id. remoteIp={}, hotelId={}, raw={}",
                     request != null ? request.getRemoteAddr() : null, hotelId, safeTrim(rawBody));
             return ResponseEntity.ok(failBody("Missing reservation_notif_id"));
@@ -199,40 +205,29 @@ public class SuWebhookController {
         if (toProcess.isEmpty()) {
             reservationLogger.info("[ReservationWebhook] idempotent hit. storeId={}, hotelId={}, notifIds={}",
                     store.getId(), normalizedHotelId, notifIds.size());
-            return ResponseEntity.ok(successBody());
+            return ResponseEntity.ok(webhookAckBody(notifIds));
         }
 
         try {
-            OtaReservationSyncService.ReservationSyncResult result = otaReservationSyncService.syncStoreReservations(store.getId(), toProcess);
-            boolean ackOk = result.ackErrorMessage() == null && result.ackSuccess() == result.ackRequested();
-            if (ackOk) {
-                idempotencyService.markDone(normalizedHotelId, toProcess);
-            } else {
-                idempotencyService.clearProcessing(normalizedHotelId, toProcess);
-            }
+            Long storeId = store.getId();
+            Set<String> toProcessCopy = Set.copyOf(toProcess);
+            String jobName = "reservation-notif:" + normalizedHotelId + ":" + toProcessCopy.size();
 
-            reservationLogger.info("[ReservationWebhook] processed. storeId={}, hotelId={}, toProcess={}, pulled={}, created={}, updated={}, failed={}, ackRequested={}, ackSuccess={}, ackErr={}",
-                    store.getId(),
-                    normalizedHotelId,
-                    toProcess.size(),
-                    result.pulledReservations(),
-                    result.createdCount(),
-                    result.updatedCount(),
-                    result.failedCount(),
-                    result.ackRequested(),
-                    result.ackSuccess(),
-                    result.ackErrorMessage());
+            asyncProcessor.submit(jobName, () -> runReservationNotifJob(storeId, normalizedHotelId, toProcessCopy));
 
-            if (!ackOk) {
-                reservationLogger.error("[ReservationWebhook] sync/ack failed; ask Su to retry. storeId={}, hotelId={}, err={}",
-                        store.getId(), normalizedHotelId, result.ackErrorMessage());
-                return ResponseEntity.ok(failBody(result.ackErrorMessage() != null ? result.ackErrorMessage() : "Ack failed"));
-            }
+            reservationLogger.info("[ReservationWebhook] ack returned (push-mode). remoteIp={}, storeId={}, hotelId={}, notifIds={}",
+                    request != null ? request.getRemoteAddr() : null, storeId, normalizedHotelId, notifIds.size());
 
-            return ResponseEntity.ok(successBody());
+            // PUSH-mode confirmation: echo reservation_notif_id list in response body.
+            return ResponseEntity.ok(webhookAckBody(notifIds));
+        } catch (RejectedExecutionException e) {
+            idempotencyService.clearProcessing(normalizedHotelId, toProcess);
+            reservationLogger.error("[ReservationWebhook] queue rejected. storeId={}, hotelId={}, toProcess={}, err={}",
+                    store.getId(), normalizedHotelId, toProcess.size(), e.getMessage(), e);
+            return ResponseEntity.ok(failBody("Queue rejected"));
         } catch (Exception e) {
             idempotencyService.clearProcessing(normalizedHotelId, toProcess);
-            reservationLogger.error("[ReservationWebhook] exception but webhook acked. storeId={}, hotelId={}, toProcess={}, err={}",
+            reservationLogger.error("[ReservationWebhook] queue exception. storeId={}, hotelId={}, toProcess={}, err={}",
                     store.getId(), normalizedHotelId, toProcess.size(), e.getMessage(), e);
             return ResponseEntity.ok(failBody(e.getMessage() != null ? e.getMessage() : "Exception"));
         }
@@ -266,23 +261,29 @@ public class SuWebhookController {
         }
 
         try {
-            OtaReservationSyncService.UpsertOnlyResult result = otaReservationSyncService.upsertReservationsFromWebhook(store.getId(), reservations);
-            boolean ok = result.createdCount() + result.updatedCount() > 0;
-            reservationLogger.info("[ReservationWebhook] reservation-push processed. remoteIp={}, storeId={}, hotelId={}, reservations={}, created={}, updated={}, failed={}",
+            Long storeId = store.getId();
+            List<JsonNode> reservationsCopy = List.copyOf(reservations);
+            String jobName = "reservation-push:" + normalizedHotelId + ":" + reservationsCopy.size();
+
+            asyncProcessor.submit(jobName, () -> runReservationPushJob(storeId, normalizedHotelId, reservationsCopy));
+
+            reservationLogger.info("[ReservationWebhook] reservation-push ack returned (push-mode). remoteIp={}, storeId={}, hotelId={}, reservations={}",
                     request != null ? request.getRemoteAddr() : null,
-                    store.getId(),
+                    storeId,
                     normalizedHotelId,
-                    reservations.size(),
-                    result.createdCount(),
-                    result.updatedCount(),
-                    result.failedCount());
-            if (!ok) {
-                String err = result.errors() != null && !result.errors().isEmpty() ? String.join("; ", result.errors()) : "Upsert failed";
-                return ResponseEntity.ok(failBody(err));
+                    reservationsCopy.size());
+
+            List<String> notifIds = extractNotifIdsFromReservations(reservationsCopy);
+            if (!notifIds.isEmpty()) {
+                return ResponseEntity.ok(webhookAckBody(notifIds));
             }
             return ResponseEntity.ok(successBody());
+        } catch (RejectedExecutionException e) {
+            reservationLogger.error("[ReservationWebhook] reservation-push queue rejected. remoteIp={}, storeId={}, hotelId={}, err={}",
+                    request != null ? request.getRemoteAddr() : null, store.getId(), normalizedHotelId, e.getMessage(), e);
+            return ResponseEntity.ok(failBody("Queue rejected"));
         } catch (Exception e) {
-            reservationLogger.error("[ReservationWebhook] reservation-push exception. remoteIp={}, storeId={}, hotelId={}, err={}",
+            reservationLogger.error("[ReservationWebhook] reservation-push queue exception. remoteIp={}, storeId={}, hotelId={}, err={}",
                     request != null ? request.getRemoteAddr() : null, store.getId(), normalizedHotelId, e.getMessage(), e);
             return ResponseEntity.ok(failBody(e.getMessage() != null ? e.getMessage() : "Exception"));
         }
@@ -322,8 +323,63 @@ public class SuWebhookController {
         return Optional.empty();
     }
 
+    private void runReservationNotifJob(Long storeId, String normalizedHotelId, Set<String> toProcess) {
+        try {
+            OtaReservationSyncService.PullUpsertResult result =
+                    otaReservationSyncService.pullAndUpsertReservationsWithoutAck(storeId, toProcess);
+            boolean ok = result.failedCount() == 0 && (result.errors() == null || result.errors().isEmpty());
+            if (ok) {
+                idempotencyService.markDone(normalizedHotelId, toProcess);
+            } else {
+                idempotencyService.clearProcessing(normalizedHotelId, toProcess);
+            }
+            reservationLogger.info("[ReservationWebhook] async processed (push-ack). storeId={}, hotelId={}, toProcess={}, pulled={}, created={}, updated={}, failed={}, ok={}",
+                    storeId,
+                    normalizedHotelId,
+                    toProcess.size(),
+                    result.pulledReservations(),
+                    result.createdCount(),
+                    result.updatedCount(),
+                    result.failedCount(),
+                    ok);
+        } catch (Exception e) {
+            idempotencyService.clearProcessing(normalizedHotelId, toProcess);
+            reservationLogger.error("[ReservationWebhook] async exception (push-ack). storeId={}, hotelId={}, toProcess={}, err={}",
+                    storeId, normalizedHotelId, toProcess.size(), e.getMessage(), e);
+        }
+    }
+
+    private void runReservationPushJob(Long storeId, String normalizedHotelId, List<JsonNode> reservations) {
+        try {
+            OtaReservationSyncService.UpsertOnlyResult result =
+                    otaReservationSyncService.upsertReservationsFromWebhook(storeId, reservations);
+            reservationLogger.info("[ReservationWebhook] async reservation-push processed. storeId={}, hotelId={}, reservations={}, created={}, updated={}, failed={}",
+                    storeId,
+                    normalizedHotelId,
+                    reservations != null ? reservations.size() : 0,
+                    result.createdCount(),
+                    result.updatedCount(),
+                    result.failedCount());
+        } catch (Exception e) {
+            reservationLogger.error("[ReservationWebhook] async reservation-push exception. storeId={}, hotelId={}, err={}",
+                    storeId, normalizedHotelId, e.getMessage(), e);
+        }
+    }
+
     private static Map<String, Object> successBody() {
         return Map.of("Status", "Success");
+    }
+
+    private static Map<String, Object> webhookAckBody(List<String> notifIds) {
+        List<String> safe = notifIds != null ? notifIds.stream()
+                .filter(id -> id != null && !id.trim().isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList() : List.of();
+        return Map.of(
+                "reservation_notif",
+                Map.of("reservation_notif_id", safe)
+        );
     }
 
     private static Map<String, Object> failBody(String shortText) {
@@ -398,5 +454,23 @@ public class SuWebhookController {
             return trimmed;
         }
         return trimmed.substring(0, 1000) + "...";
+    }
+
+    private static List<String> extractNotifIdsFromReservations(List<JsonNode> reservations) {
+        if (reservations == null || reservations.isEmpty()) {
+            return List.of();
+        }
+        List<String> ids = new ArrayList<>();
+        for (JsonNode node : reservations) {
+            if (node == null || node.isNull()) {
+                continue;
+            }
+            String id = SuReservationParser.extractReservationNotifId(node);
+            if (id == null || id.trim().isBlank()) {
+                continue;
+            }
+            ids.add(id.trim());
+        }
+        return ids.stream().distinct().toList();
     }
 }

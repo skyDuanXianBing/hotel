@@ -57,6 +57,7 @@ public class RoomTypeController extends BaseStoreController {
             RoomType roomType = new RoomType(request.getName(), request.getCode(),
                     request.getTotalRooms(), request.getDescription());
 
+            roomType.setMaxGuests(request.getMaxGuests());
             roomType.setDefaultPrice(request.getDefaultPrice());
             roomType.setWeekdayPrice(request.getWeekdayPrice());
             roomType.setWeekendPrice(request.getWeekendPrice());
@@ -91,6 +92,7 @@ public class RoomTypeController extends BaseStoreController {
             roomType.setName(request.getName());
             roomType.setCode(request.getCode());
             roomType.setTotalRooms(request.getTotalRooms());
+            roomType.setMaxGuests(request.getMaxGuests());
             roomType.setDescription(request.getDescription());
             roomType.setDefaultPrice(request.getDefaultPrice());
             roomType.setWeekdayPrice(request.getWeekdayPrice());

@@ -402,7 +402,7 @@ const loadRoomTypes = async () => {
           id: item.id,
           name: item.name,
           shortName: item.description || item.code,
-          maxGuests: 4, // 默认最大入住人数,后端暂时不返回此字段
+          maxGuests: item.maxGuests ?? 4,
           defaultPrice: item.defaultPrice ?? 0, // 保存原始defaultPrice
           mondayPrice: item.mondayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
           tuesdayPrice: item.tuesdayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
@@ -566,6 +566,7 @@ const handleSave = async () => {
       code: formData.value.shortName.substring(0, 3).toUpperCase(),
       description: formData.value.shortName,
       totalRooms: validRoomNumbers.length, // 使用实际房间号数量
+      maxGuests: formData.value.maxGuests,
       // 编辑时保持原有defaultPrice,新增时使用周一价格作为默认价格
       defaultPrice: isEdit.value && formData.value.defaultPrice !== undefined
         ? formData.value.defaultPrice

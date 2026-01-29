@@ -5,18 +5,21 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
 import server.demo.config.SuMessagingWebhookAuthConfig;
 import server.demo.entity.Store;
 import server.demo.service.OtaReservationSyncService;
+import server.demo.service.SuWebhookAsyncProcessor;
 import server.demo.service.SuWebhookIdempotencyService;
 import server.demo.repository.StoreRepository;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -25,22 +28,73 @@ class SuWebhookControllerReservationPushTest {
     private SuWebhookController controller;
     private StoreRepository storeRepository;
     private OtaReservationSyncService otaReservationSyncService;
+    private SuWebhookAsyncProcessor asyncProcessor;
+    private SuWebhookIdempotencyService idempotencyService;
 
     @BeforeEach
     void setUp() {
         storeRepository = Mockito.mock(StoreRepository.class);
         otaReservationSyncService = Mockito.mock(OtaReservationSyncService.class);
-        SuWebhookIdempotencyService idempotencyService = Mockito.mock(SuWebhookIdempotencyService.class);
+        idempotencyService = Mockito.mock(SuWebhookIdempotencyService.class);
         SuMessagingWebhookAuthConfig authConfig = Mockito.mock(SuMessagingWebhookAuthConfig.class);
         Mockito.when(authConfig.isAuthEnabled()).thenReturn(false);
+        asyncProcessor = Mockito.mock(SuWebhookAsyncProcessor.class);
 
         controller = new SuWebhookController(
                 new ObjectMapper(),
                 storeRepository,
                 otaReservationSyncService,
                 idempotencyService,
-                authConfig
+                authConfig,
+                asyncProcessor
         );
+    }
+
+    @Test
+    void reservationNotif_accountLevel_notifIds_returnsWebhookAckBodyAndQueuesJob() {
+        Store store = new Store();
+        ReflectionTestUtils.setField(store, "id", 14L);
+        Mockito.when(storeRepository.findBySuHotelId("S15KQEKHXP")).thenReturn(Optional.of(store));
+
+        Mockito.when(idempotencyService.markProcessingAndReturnNew(Mockito.eq("S15KQEKHXP"), Mockito.anyList()))
+                .thenReturn(Set.of("N1"));
+
+        Mockito.when(otaReservationSyncService.pullAndUpsertReservationsWithoutAck(Mockito.eq(14L), Mockito.eq(Set.of("N1"))))
+                .thenReturn(new OtaReservationSyncService.PullUpsertResult(
+                        14L,
+                        "S15KQEKHXP",
+                        1,
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        List.of()
+                ));
+
+        String body = """
+                {
+                  "hotel_id": "S15KQEKHXP",
+                  "reservation_notif": {
+                    "reservation_notif_id": ["N1"]
+                  }
+                }
+                """;
+
+        HttpServletRequest req = Mockito.mock(HttpServletRequest.class);
+        Mockito.when(req.getRemoteAddr()).thenReturn("127.0.0.1");
+
+        ResponseEntity<Map<String, Object>> response = controller.handleReservationNotif(req, body);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        Map<String, Object> reservationNotif = (Map<String, Object>) response.getBody().get("reservation_notif");
+        assertEquals(List.of("N1"), reservationNotif.get("reservation_notif_id"));
+
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        Mockito.verify(asyncProcessor).submit(Mockito.anyString(), taskCaptor.capture());
+        taskCaptor.getValue().run();
+
+        Mockito.verify(otaReservationSyncService).pullAndUpsertReservationsWithoutAck(Mockito.eq(14L), Mockito.eq(Set.of("N1")));
+        Mockito.verify(idempotencyService).markDone(Mockito.eq("S15KQEKHXP"), Mockito.eq(Set.of("N1")));
     }
 
     @Test
@@ -58,6 +112,7 @@ class SuWebhookControllerReservationPushTest {
                     {
                       "hotel_id": "S15KQEKHXP",
                       "id": "SU-1",
+                      "reservation_notif_id": "N1",
                       "channel_booking_id": "275986510",
                       "status": "new",
                       "affiliation": { "OTA_Code": "19" },
@@ -76,7 +131,12 @@ class SuWebhookControllerReservationPushTest {
 
         ResponseEntity<Map<String, Object>> response = controller.handleReservationNotif(req, body);
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("Success", response.getBody().get("Status"));
+        Map<String, Object> reservationNotif = (Map<String, Object>) response.getBody().get("reservation_notif");
+        assertEquals(List.of("N1"), reservationNotif.get("reservation_notif_id"));
+
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        Mockito.verify(asyncProcessor).submit(Mockito.anyString(), taskCaptor.capture());
+        taskCaptor.getValue().run();
         Mockito.verify(otaReservationSyncService).upsertReservationsFromWebhook(Mockito.eq(6L), Mockito.anyList());
     }
 
@@ -95,6 +155,7 @@ class SuWebhookControllerReservationPushTest {
                     {
                       "hotel_id": "S15KQEKHXP",
                       "id": "SU-1",
+                      "reservation_notif_id": "N1",
                       "channel_booking_id": "275986510",
                       "status": "new",
                       "affiliation": { "OTA_Code": "19" },
@@ -113,7 +174,12 @@ class SuWebhookControllerReservationPushTest {
 
         ResponseEntity<Map<String, Object>> response = controller.handleReservationNotif(req, "S15KQEKHXP", body);
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("Success", response.getBody().get("Status"));
+        Map<String, Object> reservationNotif = (Map<String, Object>) response.getBody().get("reservation_notif");
+        assertEquals(List.of("N1"), reservationNotif.get("reservation_notif_id"));
+
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        Mockito.verify(asyncProcessor).submit(Mockito.anyString(), taskCaptor.capture());
+        taskCaptor.getValue().run();
         Mockito.verify(otaReservationSyncService).upsertReservationsFromWebhook(Mockito.eq(6L), Mockito.anyList());
     }
 }

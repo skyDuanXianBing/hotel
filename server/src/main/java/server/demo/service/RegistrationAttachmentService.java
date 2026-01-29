@@ -18,6 +18,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.util.List;
 import java.util.HexFormat;
 import java.util.UUID;
 
@@ -62,6 +63,23 @@ public class RegistrationAttachmentService {
                 .orElseThrow(() -> new RuntimeException("人员不存在"));
         if (guest.getForm() == null || !guest.getForm().getId().equals(form.getId())) {
             throw new RuntimeException("人员不属于该登记表");
+        }
+
+        // Only keep one passport image per guest: replace existing ones (best-effort physical cleanup)
+        List<RegistrationAttachment> existingPassport = attachmentRepository.findByGuestId(guestId);
+        if (existingPassport != null) {
+            for (RegistrationAttachment att : existingPassport) {
+                if (att.getType() != RegistrationAttachmentType.PASSPORT) {
+                    continue;
+                }
+                try {
+                    if (att.getFilePath() != null && !att.getFilePath().isBlank()) {
+                        Files.deleteIfExists(Path.of(att.getFilePath()));
+                    }
+                } catch (Exception ignored) {
+                }
+                attachmentRepository.delete(att);
+            }
         }
 
         String originalName = file.getOriginalFilename();

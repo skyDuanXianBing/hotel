@@ -181,6 +181,7 @@ public class RoomTypeService {
         existingRoomType.setName(roomType.getName());
         existingRoomType.setCode(roomType.getCode());
         existingRoomType.setTotalRooms(roomType.getTotalRooms());
+        existingRoomType.setMaxGuests(roomType.getMaxGuests());
         existingRoomType.setDescription(roomType.getDescription());
         existingRoomType.setDefaultPrice(roomType.getDefaultPrice());
         existingRoomType.setWeekdayPrice(roomType.getWeekdayPrice());
