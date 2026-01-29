@@ -1,0 +1,51 @@
+POST
+/hook_url
+Allows notifications to be sent from PriceLabs to pms
+
+
+
+
+This endpoint must be created BY THE INTEGRATION and the URL will be provided through the "hook_url" in the /integration endpoint
+
+Parameters
+Name	Description
+X-SOURCE
+string
+(header)
+Denotes the source of the request
+
+X-SOURCE
+X-PL-TIMESTAMP
+string
+(header)
+The time stamp of when the request was created
+
+X-PL-TIMESTAMP
+X-PL-REQUESTID
+string
+(header)
+uuid generated to id the request
+
+X-PL-REQUESTID
+X-PL-SIGNED-HEADERS
+string
+(header)
+The signed combination of headers. 'X-SOURCE:X-PL-TIMESTAMP:X-PL-REQUESTID' signed with sha256 and the pms integration token. IF a version number is specified it is prepended before signing the header with 'VERSION' + ':' + header components. The signed value is then prepended with 'VERSION' + '.'
+
+X-PL-SIGNED-HEADERS
+X-PL-SIGNED-BODY
+string
+(header)
+The signed combination of the final headers signature and body. 'X-PL-SIGNED-HEADERS' + 'request.body' signed with sha256 and the pms integration token
+
+X-PL-SIGNED-BODY
+hook
+object
+(body)
+Request was processed. Success will contain the settings to sync from PriceLabs. Failure will contain an error
+
+Example Value
+Model
+{
+  "_json": "string"
+}

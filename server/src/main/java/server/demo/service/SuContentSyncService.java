@@ -22,6 +22,7 @@ import java.util.List;
 public class SuContentSyncService {
 
     private static final Logger logger = LoggerFactory.getLogger(SuContentSyncService.class);
+    private static final Logger pmsPushLogger = LoggerFactory.getLogger("SU_PMS_PUSH");
 
     private final RoomTypeRepository roomTypeRepository;
     private final RoomRepository roomRepository;
@@ -50,6 +51,7 @@ public class SuContentSyncService {
         List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
         if (rooms.isEmpty()) {
             logger.info("Skip Su rooms sync: no rooms. storeId={}, hotelId={}", storeId, hotelId);
+            pmsPushLogger.info("[SuRoomsSync] skip (no rooms). storeId={}, hotelId={}", storeId, hotelId);
             return new SuRoomSyncSummary(0, true, null);
         }
 
@@ -63,6 +65,7 @@ public class SuContentSyncService {
         StringBuilder errorBuilder = new StringBuilder();
 
         logger.info("[SuRoomsSync] start. storeId={}, hotelId={}, total={}", storeId, hotelId, rooms.size());
+        pmsPushLogger.info("[SuRoomsSync] start. storeId={}, hotelId={}, total={}", storeId, hotelId, rooms.size());
 
         for (Room room : rooms) {
             if (room == null || room.getRoomNumber() == null || room.getRoomNumber().isBlank()) {
@@ -82,6 +85,7 @@ public class SuContentSyncService {
             } catch (RuntimeException e) {
                 failedCount++;
                 logger.error("[SuRoomsSync] room upsert failed. storeId={}, hotelId={}, roomId={}", storeId, hotelId, roomId, e);
+                pmsPushLogger.error("[SuRoomsSync] room upsert failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, e.getMessage());
                 appendError(errorBuilder, roomId, e.getMessage());
             }
         }
@@ -89,8 +93,10 @@ public class SuContentSyncService {
         boolean allOk = failedCount == 0;
         String err = errorBuilder.length() > 0 ? errorBuilder.toString() : null;
         logger.info("[SuRoomsSync] done. storeId={}, hotelId={}, success={}, failed={}", storeId, hotelId, successCount, failedCount);
+        pmsPushLogger.info("[SuRoomsSync] done. storeId={}, hotelId={}, success={}, failed={}", storeId, hotelId, successCount, failedCount);
         if (!allOk) {
             logger.warn("[SuRoomsSync] failed summary. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
+            pmsPushLogger.warn("[SuRoomsSync] failed summary. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
         }
 
         return new SuRoomSyncSummary(rooms.size(), allOk, err);
@@ -116,6 +122,7 @@ public class SuContentSyncService {
         String createErr = suApiClient.extractSuErrorMessage(createResp);
         if (!isRoomAlreadyExists(createErr)) {
             logger.warn("[SuRoomsSync] create failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, createErr);
+            pmsPushLogger.warn("[SuRoomsSync] create failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, createErr);
             return new UpsertOutcome(false, createErr != null ? createErr : "Su 房间创建失败");
         }
 
@@ -136,6 +143,7 @@ public class SuContentSyncService {
         String modifyErr = suApiClient.extractSuErrorMessage(modifyResp);
         if (isRoomDoesNotExist(modifyErr)) {
             logger.warn("[SuRoomsSync] modify says room does not exist, retry create once. storeId={}, hotelId={}, roomId={}", storeId, hotelId, roomId);
+            pmsPushLogger.warn("[SuRoomsSync] modify says room does not exist, retry create once. storeId={}, hotelId={}, roomId={}", storeId, hotelId, roomId);
             JsonNode retryCreateResp = suAccessTokenService.executeWithTokenRetry(
                     token -> suApiClient.postOtaHotelRoom(
                             token,
@@ -151,6 +159,7 @@ public class SuContentSyncService {
         }
 
         logger.warn("[SuRoomsSync] modify failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, modifyErr);
+        pmsPushLogger.warn("[SuRoomsSync] modify failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, modifyErr);
         return new UpsertOutcome(false, modifyErr != null ? modifyErr : "Su 房间修改失败");
     }
 
@@ -187,6 +196,7 @@ public class SuContentSyncService {
         List<PricePlan> pricePlans = pricePlanRepository.findByStoreIdOrderByName(storeId);
         if (pricePlans.isEmpty()) {
             logger.info("Skip Su rate plans sync: no price plans. storeId={}, hotelId={}", storeId, hotelId);
+            pmsPushLogger.info("[SuRatePlansSync] skip (no price plans). storeId={}, hotelId={}", storeId, hotelId);
             return new SuRatePlanSyncSummary(0, true, null);
         }
 
@@ -202,6 +212,7 @@ public class SuContentSyncService {
             if (!suApiClient.isSuSuccess(createResp)) {
                 String err = suApiClient.extractSuErrorMessage(createResp);
                 logger.warn("Su rate plans create returned fail, retry overlay. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
+                pmsPushLogger.warn("[SuRatePlansSync] create returned fail, retry overlay. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
 
                 JsonNode overlayResp = suAccessTokenService.executeWithTokenRetry(
                         token -> suApiClient.postOtaHotelRatePlan(
@@ -220,6 +231,7 @@ public class SuContentSyncService {
             return new SuRatePlanSyncSummary(pricePlans.size(), true, null);
         } catch (RuntimeException e) {
             logger.error("Su rate plans sync failed. storeId={}, hotelId={}", storeId, hotelId, e);
+            pmsPushLogger.error("[SuRatePlansSync] failed. storeId={}, hotelId={}, err={}", storeId, hotelId, e.getMessage());
             return new SuRatePlanSyncSummary(pricePlans.size(), false, e.getMessage());
         }
     }

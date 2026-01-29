@@ -38,6 +38,7 @@ import java.util.TreeSet;
 public class SuRateSyncService {
 
     private static final Logger logger = LoggerFactory.getLogger(SuRateSyncService.class);
+    private static final Logger pmsPushLogger = LoggerFactory.getLogger("SU_PMS_PUSH");
 
     private static final int DEFAULT_DAYS = 365;
     private static final int MAX_DAYS = 500;
@@ -106,6 +107,14 @@ public class SuRateSyncService {
                 effectiveDays,
                 startDate,
                 endDate
+        );
+        pmsPushLogger.info(
+            "[SuRateSync] start. storeId={}, hotelId={}, days={}, startDate={}, endDate={}",
+            storeId,
+            hotelId,
+            effectiveDays,
+            startDate,
+            endDate
         );
 
         List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
@@ -239,6 +248,14 @@ public class SuRateSyncService {
                     combinationsConsidered,
                     combinationsSkippedNoPrice
             );
+            pmsPushLogger.warn(
+                "[SuRateSync] nothing to push (all skipped). storeId={}, hotelId={}, rooms={}, considered={}, skippedNoPrice={}",
+                storeId,
+                hotelId,
+                rooms.size(),
+                combinationsConsidered,
+                combinationsSkippedNoPrice
+            );
             return new SuRateSyncSummary(
                     rooms.size(),
                     distinctPlans.size(),
@@ -273,6 +290,14 @@ public class SuRateSyncService {
                         totalItems,
                         (from / BATCH_ITEMS) + 1
                 );
+                pmsPushLogger.info(
+                    "[SuRateSync] posting invratecontrol(ratecontrol). storeId={}, hotelId={}, batchItems={}, totalItems={}, batchIndex={}",
+                    storeId,
+                    hotelId,
+                    batch.size(),
+                    totalItems,
+                    (from / BATCH_ITEMS) + 1
+                );
 
                 JsonNode response = suAccessTokenService.executeWithTokenRetry(
                         token -> suApiClient.postInvRateControl(token, payload),
@@ -288,6 +313,13 @@ public class SuRateSyncService {
                             hotelId,
                             err,
                             response != null ? response.toString() : "null"
+                    );
+                    pmsPushLogger.error(
+                        "[SuRateSync] invratecontrol returned fail. storeId={}, hotelId={}, err={}, raw={}",
+                        storeId,
+                        hotelId,
+                        err,
+                        response != null ? response.toString() : "null"
                     );
                     return new SuRateSyncSummary(
                             rooms.size(),
@@ -313,6 +345,13 @@ public class SuRateSyncService {
                     rateControls.size(),
                     requestsPosted
             );
+                pmsPushLogger.info(
+                    "[SuRateSync] done. storeId={}, hotelId={}, ok=true, pushedItems={}, requests={}",
+                    storeId,
+                    hotelId,
+                    rateControls.size(),
+                    requestsPosted
+                );
             return new SuRateSyncSummary(
                     rooms.size(),
                     distinctPlans.size(),
@@ -329,6 +368,7 @@ public class SuRateSyncService {
             );
         } catch (RuntimeException e) {
             logger.error("Su rate sync failed. storeId={}, hotelId={}", storeId, hotelId, e);
+            pmsPushLogger.error("[SuRateSync] failed. storeId={}, hotelId={}, err={}", storeId, hotelId, e.getMessage());
             return new SuRateSyncSummary(
                     rooms.size(),
                     distinctPlans.size(),

@@ -17,6 +17,7 @@ import server.demo.dto.RoomTypeWithRoomsDTO;
 import server.demo.util.StoreContextUtils;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -85,9 +86,8 @@ public class RoomTypeService {
         Long storeId = currentStoreId();
         Long userId = currentUserId();
 
-        if (roomTypeRepository.existsByStoreIdAndCode(storeId, roomType.getCode())) {
-            throw new RuntimeException("房型代码已存在");
-        }
+        String uniqueCode = ensureUniqueRoomTypeCode(storeId, roomType.getCode());
+        roomType.setCode(uniqueCode);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
@@ -101,9 +101,8 @@ public class RoomTypeService {
         Long storeId = currentStoreId();
         Long userId = currentUserId();
 
-        if (roomTypeRepository.existsByStoreIdAndCode(storeId, roomType.getCode())) {
-            throw new RuntimeException("房型代码已存在");
-        }
+        String uniqueCode = ensureUniqueRoomTypeCode(storeId, roomType.getCode());
+        roomType.setCode(uniqueCode);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
@@ -133,6 +132,38 @@ public class RoomTypeService {
         return savedRoomType;
     }
 
+
+    private String ensureUniqueRoomTypeCode(Long storeId, String rawCode) {
+        if (storeId == null) {
+            throw new IllegalArgumentException("storeId is required");
+        }
+        if (rawCode == null || rawCode.trim().isEmpty()) {
+            throw new RuntimeException("room type code is required");
+        }
+
+        String normalized = rawCode.trim().toUpperCase(Locale.ROOT);
+        final int maxLen = 20;
+        if (normalized.length() > maxLen) {
+            normalized = normalized.substring(0, maxLen);
+        }
+
+        if (!roomTypeRepository.existsByStoreIdAndCode(storeId, normalized)) {
+            return normalized;
+        }
+
+        String base = normalized;
+        for (int i = 1; i <= 999; i++) {
+            String suffix = String.valueOf(i);
+            int maxBaseLen = maxLen - suffix.length();
+            String trimmedBase = base.length() > maxBaseLen ? base.substring(0, maxBaseLen) : base;
+            String candidate = trimmedBase + suffix;
+            if (!roomTypeRepository.existsByStoreIdAndCode(storeId, candidate)) {
+                return candidate;
+            }
+        }
+
+        throw new RuntimeException("room type code already exists");
+    }
     public RoomType updateRoomType(Long id, RoomType roomType) {
         Long storeId = currentStoreId();
         RoomType existingRoomType = roomTypeRepository.findById(id)

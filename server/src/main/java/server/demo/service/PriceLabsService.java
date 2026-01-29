@@ -20,6 +20,7 @@ import server.demo.repository.*;
 import server.demo.util.PriceLabsIdUtil;
 
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -646,8 +647,31 @@ public class PriceLabsService {
             LocalDate startDate, LocalDate endDate) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
 
-        int days = clampDays(startDate, endDate);
-        channelPriceFallbackService.generate(storeId, startDate, days, null, channelId != null ? List.of(channelId) : null);
+        // 方案A（最小改动）：查询接口尽量只读。
+        // 仅当该区间内完全没有任何 channel_prices 时才触发兜底生成，避免与 PriceLabs 大批量回推并发写入导致死锁。
+        boolean hasAnyChannelPricesInRange = false;
+        if (startDate != null && endDate != null) {
+            hasAnyChannelPricesInRange = channelPriceRepository.existsByStoreIdAndPriceDateBetween(storeId, startDate, endDate);
+        }
+        if (!hasAnyChannelPricesInRange) {
+            try {
+                int days = clampDays(startDate, endDate);
+                channelPriceFallbackService.generate(
+                        storeId,
+                        startDate,
+                        days,
+                        null,
+                        channelId != null ? List.of(channelId) : null
+                );
+            } catch (Exception ex) {
+                if (isDeadlockException(ex)) {
+                    logger.warn("[ChannelPriceQuery] fallback generate skipped due to deadlock. storeId={}, startDate={}, endDate={}, message={}",
+                            storeId, startDate, endDate, ex.getMessage());
+                } else {
+                    throw ex;
+                }
+            }
+        }
 
         List<ChannelPrice> prices;
         if (roomTypeId != null && channelId != null) {
@@ -666,6 +690,27 @@ public class PriceLabsService {
         return prices.stream()
                 .map(this::convertToChannelPriceDTO)
                 .collect(Collectors.toList());
+    }
+
+    private static boolean isDeadlockException(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof SQLException sqlException) {
+                if (sqlException.getErrorCode() == 1213) { // MySQL ER_LOCK_DEADLOCK
+                    return true;
+                }
+                String sqlState = sqlException.getSQLState();
+                if (sqlState != null && sqlState.equalsIgnoreCase("40001")) { // serialization failure / deadlock
+                    return true;
+                }
+            }
+            String message = current.getMessage();
+            if (message != null && message.toLowerCase().contains("deadlock found")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private static int clampDays(LocalDate startDate, LocalDate endDate) {

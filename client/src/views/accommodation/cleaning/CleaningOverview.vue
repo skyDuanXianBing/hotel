@@ -21,7 +21,7 @@
               <el-dropdown-item command="all">全部任务</el-dropdown-item>
               <el-dropdown-item command="pending">待分配</el-dropdown-item>
               <el-dropdown-item command="assigned">待清洁</el-dropdown-item>
-              <el-dropdown-item command="in-progress">清洁中</el-dropdown-item>
+              <el-dropdown-item command="in_progress">清洁中</el-dropdown-item>
               <el-dropdown-item command="completed">已完成</el-dropdown-item>
               <el-dropdown-item command="expired">已过期</el-dropdown-item>
             </el-dropdown-menu>
@@ -289,6 +289,7 @@ import {
   getCleaners,
   assignCleaningTask,
   createCleaningTask,
+  generateCleaningTasks,
   type CleaningTaskDTO,
   type CleanerDTO,
   type CleaningTaskCreateDTO,
@@ -781,9 +782,29 @@ const handleFilter = (command: string) => {
 }
 
 // 生成任务
-const handleGenerateTask = () => {
-  console.log('生成任务')
-  // TODO: 打开生成任务对话框
+const handleGenerateTask = async () => {
+  const startDate = dateColumns.value[0]?.date
+  const endDate = dateColumns.value[dateColumns.value.length - 1]?.date
+
+  if (!startDate || !endDate) {
+    ElMessage.warning('日期范围无效')
+    return
+  }
+
+  try {
+    const response = await generateCleaningTasks({ startDate, endDate })
+    if (response.success && response.data) {
+      ElMessage.success(
+        `已处理${response.data.processedReservations}条预订，新增${response.data.createdCount}，更新${response.data.updatedCount}，跳过${response.data.skippedCount}`
+      )
+      await loadTasks()
+    } else {
+      ElMessage.error(response.message || '生成任务失败')
+    }
+  } catch (error: any) {
+    console.error('生成任务失败:', error)
+    ElMessage.error(error.message || '生成任务失败')
+  }
 }
 
 // 设置

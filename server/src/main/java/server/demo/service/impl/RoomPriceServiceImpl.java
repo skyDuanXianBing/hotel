@@ -19,6 +19,7 @@ import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.service.PriceLabsCalendarSyncDebouncer;
 import server.demo.service.PriceChangeHistoryService;
 import server.demo.service.RoomPriceService;
 
@@ -52,6 +53,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired(required = false)
+    private PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
 
     @Override
     public List<RoomPriceDTO> getRoomPricesByDateRange(LocalDate startDate, LocalDate endDate) {
@@ -708,6 +712,20 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         }
 
         // 返回更新后的价格数据
+        // PriceLabs：当可售量发生变化（关房/封锁）时，合并并延迟推送一次 /calendar，避免批量操作导致请求风暴。
+        if (priceLabsCalendarSyncDebouncer != null && request.getAvailableRooms() != null) {
+            try {
+                priceLabsCalendarSyncDebouncer.requestSyncAfterCommit(
+                        roomType.getStoreId(),
+                        roomType.getId(),
+                        request.getStartDate(),
+                        request.getEndDate()
+                );
+            } catch (Exception ignored) {
+                // 不影响 PMS 主流程
+            }
+        }
+
         return getRoomPriceManagementData(request.getStartDate(), request.getEndDate(), request.getRoomTypeId());
     }
 

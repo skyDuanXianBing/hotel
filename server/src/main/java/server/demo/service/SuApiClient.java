@@ -780,22 +780,45 @@ public class SuApiClient {
      */
     public boolean isSuSuccess(JsonNode response) {
         if (response == null) {
-            return true;
+            return false;
         }
+
+        // 1) If Su returned errors, treat as failure even if Status is missing.
+        JsonNode errorsNode = response.get("Errors");
+        if (errorsNode == null) {
+            errorsNode = response.get("errors");
+        }
+        if (errorsNode != null) {
+            if (errorsNode.isArray()) {
+                if (errorsNode.size() > 0) {
+                    return false;
+                }
+            } else if (errorsNode.isObject()) {
+                // Some Su APIs return Errors as an object.
+                return false;
+            } else if (!errorsNode.isNull()) {
+                return false;
+            }
+        }
+
+        // 2) Explicit success fields.
         JsonNode successNode = response.get("Success");
-        if (successNode != null) {
+        if (successNode != null && !successNode.isNull()) {
             String success = successNode.asText("");
             return "Success".equalsIgnoreCase(success) || "SUCCESS".equalsIgnoreCase(success);
         }
+
         JsonNode statusNode = response.get("status");
         if (statusNode == null) {
             statusNode = response.get("Status");
         }
-        if (statusNode == null) {
-            return true;
+        if (statusNode != null && !statusNode.isNull()) {
+            String status = statusNode.asText("");
+            return "Success".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status);
         }
-        String status = statusNode.asText("");
-        return "Success".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status);
+
+        // 3) Unknown shape: treat as failure to avoid swallowing partial/structured errors.
+        return false;
     }
 
     /**

@@ -29,7 +29,7 @@
             <el-option label="已过期" value="expired" />
             <el-option label="待分配" value="pending" />
             <el-option label="待清洁" value="assigned" />
-            <el-option label="清洁中" value="in-progress" />
+            <el-option label="清洁中" value="in_progress" />
             <el-option label="已完成" value="completed" />
           </el-select>
 
@@ -167,7 +167,7 @@
         <el-button
           v-if="
             taskDetail &&
-            (taskDetail.taskStatus === 'assigned' || taskDetail.taskStatus === 'in-progress')
+            (taskDetail.taskStatus === 'assigned' || taskDetail.taskStatus === 'in_progress')
           "
           type="success"
           @click="handleCompleteTask"
@@ -241,7 +241,7 @@ const getStatusType = (status: string) => {
     expired: 'info',
     pending: 'warning',
     assigned: 'primary',
-    'in-progress': 'primary',
+    in_progress: 'primary',
     completed: 'success',
   }
   return typeMap[status] || 'info'
@@ -253,7 +253,7 @@ const getStatusText = (status: string) => {
     expired: '已过期',
     pending: '待分配',
     assigned: '待清洁',
-    'in-progress': '清洁中',
+    in_progress: '清洁中',
     completed: '已完成',
   }
   return textMap[status] || status
@@ -265,7 +265,7 @@ const getStatusDotClass = (status: string) => {
     'status-expired': status === 'expired',
     'status-pending': status === 'pending',
     'status-assigned': status === 'assigned',
-    'status-in-progress': status === 'in-progress',
+    'status-in-progress': status === 'in_progress',
     'status-completed': status === 'completed',
   }
 }

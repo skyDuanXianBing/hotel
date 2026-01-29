@@ -66,6 +66,9 @@ public class ReservationService {
     @Autowired
     private PriceLabsReservationSyncService priceLabsReservationSyncService;
 
+    @Autowired
+    private CleaningTaskAutoService cleaningTaskAutoService;
+
     private Long currentStoreId() {
         return StoreContextUtils.requireStoreId();
     }
@@ -143,6 +146,7 @@ public class ReservationService {
         }
 
         Reservation savedReservation = reservationRepository.save(reservation);
+        cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         scheduleAutoMessageDispatchAfterCommit(storeId);
         schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
         return convertToDTO(savedReservation);
@@ -200,6 +204,7 @@ public class ReservationService {
         reservation.setActualCheckOut(LocalDateTime.now());
 
         Reservation savedReservation = reservationRepository.save(reservation);
+        cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
         return convertToDTO(savedReservation);
     }
@@ -381,6 +386,7 @@ public class ReservationService {
                 .orElseThrow(() -> new RuntimeException("用户不存在")));
 
         Reservation savedReservation = reservationRepository.save(existingReservation);
+        cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
         return convertToDTO(savedReservation);
     }

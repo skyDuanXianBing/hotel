@@ -35,9 +35,9 @@ import server.demo.constants.PriceLabsSyncDefaults;
 import server.demo.constants.PriceLabsSyncStatus;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -400,8 +400,17 @@ public class PriceLabsSyncService {
     /**
      * PriceLabs sync_url listing_ids-only payload: push calendar data back.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public void syncCalendarForListingIds(List<String> listingIds, Integer days) {
+        int syncDays = clampSyncDays(days);
+        LocalDate startDate = LocalDate.now();
+        LocalDate endDate = startDate.plusDays(syncDays - 1L);
+
+        syncCalendarForListingIds(listingIds, startDate, endDate);
+    }
+
+    @Transactional
+    public void syncCalendarForListingIds(List<String> listingIds, LocalDate startDate, LocalDate endDate) {
         if (listingIds == null || listingIds.isEmpty()) {
             logger.warn("[PriceLabsCalendar] listing_ids empty, skip calendar push");
             return;
@@ -414,16 +423,26 @@ public class PriceLabsSyncService {
             return;
         }
 
-        int syncDays = clampSyncDays(days);
-        LocalDate startDate = LocalDate.now();
-        LocalDate endDate = startDate.plusDays(syncDays - 1L);
+        LocalDate resolvedStart = startDate != null ? startDate : LocalDate.now();
+        LocalDate resolvedEnd = endDate != null ? endDate : resolvedStart.plusDays(PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS - 1L);
+        if (resolvedEnd.isBefore(resolvedStart)) {
+            logger.warn("[PriceLabsCalendar] end_date before start_date, fallback to start_date. start={}, end={}",
+                    resolvedStart, resolvedEnd);
+            resolvedEnd = resolvedStart;
+        }
+        long requestedDays = ChronoUnit.DAYS.between(resolvedStart, resolvedEnd) + 1L;
+        if (requestedDays > PriceLabsSyncDefaults.MAX_SYNC_DAYS) {
+            resolvedEnd = resolvedStart.plusDays(PriceLabsSyncDefaults.MAX_SYNC_DAYS - 1L);
+            logger.warn("[PriceLabsCalendar] calendar range too large, clamped. requestedDays={}, maxDays={}, start={}, end={}",
+                    requestedDays, PriceLabsSyncDefaults.MAX_SYNC_DAYS, resolvedStart, resolvedEnd);
+        }
 
         for (Map.Entry<Long, List<PriceLabsConnection>> entry : connectionsByStore.entrySet()) {
-            syncCalendarForConnections(entry.getKey(), entry.getValue(), startDate, endDate);
+            syncCalendarForConnections(entry.getKey(), entry.getValue(), resolvedStart, resolvedEnd);
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void syncListings(Long storeId) {
         logger.info("Sync listings for store {}", storeId);
         Store store = storeRepo.findById(storeId).orElseThrow(() -> new RuntimeException("Store not found: " + storeId));
@@ -460,7 +479,7 @@ public class PriceLabsSyncService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void syncRatePlans(Long storeId) {
         logger.info("Sync rate plans for store {}", storeId);
         List<RoomType> rts = roomTypeRepo.findByStoreId(storeId);
@@ -498,7 +517,7 @@ public class PriceLabsSyncService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void syncCalendar(Long storeId, LocalDate start, LocalDate end) {
         logger.info("Sync calendar for store {} from {} to {}", storeId, start, end);
         Store store = storeRepo.findById(storeId)
@@ -657,22 +676,13 @@ public class PriceLabsSyncService {
         d.setName(rt.getName());
         d.setStatus("available");
 
-        d.setAddress(s.getAddress());
-        d.setState(s.getState());
-        d.setTimezone(s.getTimezone());
-
         String city = s.getCity();
-        d.setCity(city);
 
         String countryAlpha3 = PriceLabsCountryUtil.normalizeToAlpha3(s.getCountry());
         if (countryAlpha3 == null) {
             throw new RuntimeException("请先补全门店地址信息：国家必须为 ISO 三字码（例如 CHN），当前值=" + s.getCountry());
         }
-        d.setCountry(countryAlpha3);
-
         double[] coords = getCityCoordinates(city);
-        d.setLatitude(coords[0]);
-        d.setLongitude(coords[1]);
         PriceLabsApiClient.Location location = new PriceLabsApiClient.Location();
         location.setCity(city);
         location.setCountry(countryAlpha3);
@@ -681,20 +691,6 @@ public class PriceLabsSyncService {
         d.setLocation(location);
 
         d.setBedrooms(1);
-        d.setBathrooms(1.0);
-        d.setAccommodates(2);
-        d.setPropertyType("hotel_room");
-        d.setCurrency(s.getCurrency() != null && !s.getCurrency().trim().isEmpty() ? s.getCurrency() : "CNY");
-
-        BigDecimal base = rt.getDefaultPrice() != null ? rt.getDefaultPrice() : BigDecimal.valueOf(500);
-        d.setBasePrice(base);
-        d.setMinPrice(base.multiply(BigDecimal.valueOf(0.6)).setScale(0, RoundingMode.HALF_UP));
-        d.setMaxPrice(base.multiply(BigDecimal.valueOf(2.0)).setScale(0, RoundingMode.HALF_UP));
-        d.setActive(true);
-
-        Integer cnt = rt.getTotalRooms() != null ? rt.getTotalRooms() : 1;
-        d.setMultiUnit(cnt > 1);
-        d.setMultiUnitCount(cnt);
 
         return d;
     }

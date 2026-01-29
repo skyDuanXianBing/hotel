@@ -242,7 +242,7 @@ const getStatusText = (closed: boolean) => {
 // 刷新会话列表
 const refreshThreads = async () => {
   try {
-    const response = await getSuThreads()
+    const response = (await getSuThreads()) as any
     if (response.success && response.data) {
       conversations.value = response.data
     }
@@ -262,7 +262,7 @@ const selectConversation = async (threadId: number) => {
 // 加载会话消息
 const loadThreadMessages = async (threadId: number) => {
   try {
-    const response = await getSuThreadMessages(threadId)
+    const response = (await getSuThreadMessages(threadId)) as any
     if (response.success && response.data) {
       messages.value = response.data.map((msg: SuMessagingMessageDTO) => ({
         id: msg.id,
@@ -287,10 +287,10 @@ const sendMessage = async () => {
   isLoading.value = true
 
   try {
-    const response = await sendSuThreadMessage(activeThreadId.value, {
+    const response = (await sendSuThreadMessage(activeThreadId.value, {
       content: messageContent,
       senderName: '客服'
-    })
+    })) as any
 
     if (response.success && response.data) {
       // 添加到消息列表
@@ -334,10 +334,10 @@ const sendAiReply = async () => {
       aiSessionId.value = response.data.sessionId
 
       // 发送AI回复到 Su Messaging
-      const mailboxResponse = await sendSuThreadMessage(activeThreadId.value, {
+      const mailboxResponse = (await sendSuThreadMessage(activeThreadId.value, {
         content: response.data.reply,
         senderName: 'AI客服'
-      })
+      })) as any
 
       if (mailboxResponse.success && mailboxResponse.data) {
         // 添加到消息列表
@@ -369,7 +369,7 @@ const pollMessages = async () => {
   if (!activeThreadId.value) return
 
   try {
-    const response = await pollSuThreadMessages(activeThreadId.value, lastPollTime.value)
+    const response = (await pollSuThreadMessages(activeThreadId.value, lastPollTime.value)) as any
 
     if (response.success && response.data && response.data.length > 0) {
       let hasNewMessages = false

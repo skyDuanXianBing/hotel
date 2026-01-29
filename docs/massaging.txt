@@ -1,0 +1,504 @@
+# Messaging API
+
+Messaging refers to the direct communication between properties and the guests through the messages. With the help of messaging, customers with or without booking can ask questions or communicate to the properties.
+
+{% hint style="info" %}
+Su Messaging API helps you to collect guests' messages from the OTA and respond to them.
+
+* This feature enables properties to communicate with guests rather than having to login to channel extranet.
+* Messages can be from guest with a booking or without a booking.
+* Only available for supported channel(s).
+* Only available via API.
+  {% endhint %}
+
+***
+
+## <mark style="color:yellow;">Collection of Messages from OTA</mark>
+
+The messages received from OTA are delivered to partner by post method. Messages are posted to an endpoint provided by partner. Please note messages can only be delivered to a single dedicated endpoint. Upon receipt, partners will need to filter messages based on property ID.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+**END POINT:** Please provide endpoint for messages delivery.
+
+**Authorization String:** Partner to allocate with Basic Authentication credentials.
+
+<table data-full-width="false"><thead><tr><th>TYPE</th><th>JSON METHOD</th><th>MESSAGE SENDER</th><th>MESSAGE RECEIVER</th></tr></thead><tbody><tr><td>Request</td><td>PUSH</td><td>IT Provider</td><td>STAAH</td></tr></tbody></table>
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+***
+
+`message` <mark style="color:orange;">**string (Required)**</mark>
+
+The original message content received from OTA.
+
+***
+
+`guestid` <mark style="color:orange;">**string (Required)**</mark>
+
+The unique guest ID as assigned by the provider (OTA) upon creation.
+
+> ID can be both numeric, alphanumeric and may have special character such as hyphen ( - ).
+
+***
+
+`bookingid` <mark style="color:orange;">**string (Required)**</mark>
+
+Booking id of the customer’s booking.
+
+> Booking id can be both numeric, alphanumeric and may have special character such as hyphen ( - ).&#x20;
+>
+> For Airbnb, if communication started before booking is made, the parameter will be the thread ID.
+
+***
+
+`listingid` <mark style="color:orange;">**string (Required)**</mark>
+
+Property id of the hotel at the time of listing (Channel Hotel ID).
+
+***
+
+`bookingflag` <mark style="color:orange;">**string (Required)**</mark>
+
+The flag of the booking.
+
+> Values can be either B or T (B = Booking, T = Thread).&#x20;
+>
+> Note if there is no booking ID, the value will the same for both booking and thread ID.
+
+***
+
+`messageid` <mark style="color:orange;">**string (Required)**</mark>
+
+Message id of the message delivered from the OTA. Generated while delivering it from OTA.
+
+> ID can be both numeric, alphanumeric and may have special character such as hyphen ( - ).
+
+***
+
+`channel_id` <mark style="color:orange;">**string (Required)**</mark>
+
+Id of the channel through which the message delivered. Generated while delivering message from OTA.
+
+> Airbnb Channel ID: 244\
+> Booking.com ID: 19
+>
+> Expedia: 9
+
+***
+
+`threadid` <mark style="color:orange;">**string (Required)**</mark>
+
+The thread id created when communication takes place between guest and client.
+
+> ID can be both numeric, alphanumeric and may have special character such as hyphen ( - ).
+
+***
+
+#### <mark style="color:purple;">user\_details object</mark>
+
+This object contains all the details of the users and their roles. There are two arrays users and roles in this object.
+
+It is the user ID assigned by OTA to both Guest and Host communicating. It includes the details on user role and id. Role can be Owner, guest, co host, etc.
+
+{% hint style="info" %}
+OTA User Role and ID <mark style="color:orange;">**(only allocated for Airbnb**</mark><mark style="color:yellow;">**)**</mark>
+{% endhint %}
+
+***
+
+#### <mark style="color:blue;">roles array</mark>
+
+roles array contains all the different roles and the details which are involved in the messaging.
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+***
+
+`role` <mark style="color:orange;">**string (Required)**</mark>
+
+Role of the user.
+
+***
+
+`user_ids` <mark style="color:orange;">**string (Required)**</mark>
+
+User id of the specific role and user combination.
+
+***
+
+#### <mark style="color:blue;">users array</mark>
+
+users array contains all the user and their details such as name, location, preferred\_locale and ids.&#x20;
+
+{% hint style="info" %}
+OTA User details <mark style="color:orange;">**(only allocated for Airbnb)**</mark>
+{% endhint %}
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+***
+
+`first_name` <mark style="color:orange;">**string (Required)**</mark>
+
+First name of the user.
+
+***
+
+`location` <mark style="color:orange;">**string (Required)**</mark>
+
+Location of the user.
+
+***
+
+`preferred_locale` <mark style="color:orange;">**string (Required)**</mark>
+
+Preferred language of the user.
+
+***
+
+`id` <mark style="color:orange;">**string (Required)**</mark>
+
+Id of the user and role combination.
+
+#### <mark style="color:purple;">booking\_details object</mark>
+
+This object contains all the details of the booking for which the messaging is initiated by either property or guest. Details allocated from OTA for which guest looking for and communicating with host.
+
+{% hint style="info" %}
+OTA booking details <mark style="color:orange;">**(only allocated for Airbnb)**</mark>
+{% endhint %}
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+***
+
+`expected_payout_amount_accurate` <mark style="color:orange;">**string (Required)**</mark>
+
+Accurate amount which is expected to be paid for the booking.
+
+***
+
+`checkout_date` <mark style="color:orange;">**string (Required)**</mark>
+
+Check out date for the booking.
+
+***
+
+`number_of_infants` <mark style="color:orange;">**string (Required)**</mark>
+
+Number of infants attached to the booking.
+
+***
+
+`listing_name` <mark style="color:orange;">**string (Optional)**</mark>
+
+Name of the listing for which the booking was made.
+
+***
+
+`number_of_adults` <mark style="color:orange;">**string (Optional)**</mark>
+
+Total number of adults attached to the booking.
+
+***
+
+`reservation_confirmation_code` <mark style="color:orange;">**string (Optional)**</mark>
+
+Date when the reservation got confirmed.
+
+***
+
+`number_of_children` <mark style="color:orange;">**string (Required)**</mark>
+
+Number of children attached to the booking.
+
+***
+
+`nights` <mark style="color:orange;">**string (Required)**</mark>
+
+Total number of nights in the booking.
+
+***
+
+`listing_id` <mark style="color:orange;">**string (Required)**</mark>
+
+Hotel id / Property id / listing id of the property allocated by OTA.
+
+***
+
+`checkin_date` <mark style="color:orange;">**string (Required)**</mark>
+
+Date when the checkin will happen.
+
+***
+
+`number_of_guests` <mark style="color:orange;">**string (Required)**</mark>
+
+Total number of guests.
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+  "message": "Hello, How are you? How acan we help you.?",
+  "guestid": "320338222",
+  "bookingid": "ABCAJKYSJ8",
+  "listingid": "47522522",
+  "bookingflag": "B",
+  "messageid": "9623318922",
+  "channel_id": "244",
+  "threadid": "991462322",
+  "user_details": {
+    "roles": [{
+        "role": "owner",
+        "user_ids": [
+          22533556
+        ]
+      },
+      {
+        "role": "guest",
+        "user_ids": [
+          311357532
+        ]
+      },
+      {
+        "user_ids": [],
+        "role": "cohost"
+      }
+    ],
+    "users": [{
+        "first_name": "Joseph",
+        "location": "Cambridge, United Kingdom",
+        "preferred_locale": "en-GB",
+        "id": 22533556
+      },
+      {
+        "id": 311357532,
+        "first_name": "Chris",
+        "location": "England, United Kingdom",
+        "preferred_locale": "en"
+      }
+    ]
+  },
+  "booking_details": {
+    "expected_payout_amount_accurate": "451.00",
+    "checkout_date": "2021-07-11",
+    "number_of_infants": 0,
+    "non_response_at": null,
+    "listing_name": "Modern housewith Parking",
+    "number_of_adults": 3,
+    "reservation_confirmation_code": "ABCAJKYSJ8",
+    "number_of_children": 0,
+    "nights": 4,
+    "listing_id": "47501536",
+    "checkin_date": "2021-07-07",
+    "listing_id_str": "47511536",
+    "number_of_guests": 3
+  },
+  "attachment": [],
+  "hotelid": "abc123"
+}
+```
+
+{% endcode %}
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+{% hint style="info" %}
+If acknowledgement is not received as required, system will try to repost the message 3 times. After 3 attempts, message will be removed from queue.
+{% endhint %}
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+ "status": "Success"
+}
+```
+
+***
+
+## <mark style="color:yellow;">Reply to Message</mark>
+
+The response messages will be delivered to respective OTA accordingly.
+
+<table><thead><tr><th>TYPE</th><th>JSON METHOD</th><th>MESSAGE SENDER</th><th width="100">MESSAGE RECEIVER</th></tr></thead><tbody><tr><td>Request</td><td>POST</td><td>STAAH</td><td>IT Provider</td></tr></tbody></table>
+
+### <mark style="color:yellow;">Endpoint</mark> <a href="#roomtype-method" id="roomtype-method"></a>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/messagingAB
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+***
+
+`hotelid / hotelcode` <mark style="color:orange;">**string (Required)**</mark>
+
+Su property ID.
+
+***
+
+`channelcode` <mark style="color:orange;">**string (Required)**</mark>
+
+Channel Code.&#x20;
+
+{% hint style="info" %}
+Accepted values must be either 19 or 244 or 9:
+
+* Booking.com: 19
+* Airbnb: 244
+* Expedia: 9
+  {% endhint %}
+
+***
+
+`message` <mark style="color:orange;">**string (Required)**</mark>
+
+The message replied from property to OTA.&#x20;
+
+{% hint style="info" %}
+To use line breaker within message, **Airbnb supports: "\n"** and Booking.com **supports: "\\\n"**
+{% endhint %}
+
+***
+
+`threadid` <mark style="color:orange;">**string (Required for Airbnb)**</mark>
+
+Thread id of the conversation <mark style="color:yellow;">**(Required for Airbnb only)**</mark>
+
+***
+
+`guestid` <mark style="color:orange;">**string (Required for Airbnb)**</mark>
+
+Guest id generated when communication occurs guest and property <mark style="color:yellow;">**(Required for Airbnb only)**</mark>
+
+***
+
+`bookingid` <mark style="color:orange;">**string (Required for Booking.com and Expedia)**</mark>
+
+Booking id of the Booking
+
+***
+
+`listingid` <mark style="color:orange;">**string (Required)**</mark>
+
+Hotel id / Property id / listing id of the property allocated by OTA.
+
+***
+
+`channelhotelid` <mark style="color:orange;">**string (Optional, applicable only for Airbnb)**</mark>
+
+The channel hotel or host ID assigned to the property by the OTA.
+
+***
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+    "hotelid": "new1",
+    "channelid": "244",
+    "message": "Hello, How can we help?",
+    "threadid": "802166080",
+    "guestid": "190242146",
+    "bookingid": "802166080",
+    "listingid": "38740678",
+    "channelhoteid": "1234567890"
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+{% tabs %}
+{% tab title="Success Response (Airbnb and Booking.com)" %}
+
+```json
+{
+ "status": "Success",
+ "response": "Successfully posted"
+}
+```
+
+{% endtab %}
+
+{% tab title="Success Response (Expedia)" %}
+
+```json
+{
+ "status": "Success",
+ "response": "Successfully posted",
+ "ota_tracking_id": "44a135d0-dd8f-49e2-99be-a3179c4"
+}
+```
+
+{% endtab %}
+{% endtabs %}
+
+***
+
+#### <mark style="color:red;">Error</mark>
+
+This error will be received if provided with incorrect `hotelid` / `hotelcode` or required element is missing.
+
+#### <mark style="color:red;">**Sample Error Response**</mark>
+
+{% tabs %}
+{% tab title="Error Response" %}
+
+```json
+{
+  "status":"Fail",
+  "response":"No property found for given property id"
+}
+```
+
+{% endtab %}
+
+{% tab title="Error Response (Expedia)" %}
+
+```json
+{
+  "status": "Fail",
+  "response": [
+    {
+      "message": "Authentication failed"
+    }
+  ],
+  "ota_tracking_id": ""
+}
+```
+
+{% endtab %}
+{% endtabs %}
+
+***
+
+## <mark style="color:yellow;">Channel Code(s)</mark>
+
+| Code | Channel (OTA) |
+| ---- | ------------- |
+| 244  | Airbnb        |
+| 19   | Booking.com   |
+| 9    | Expedia       |

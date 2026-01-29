@@ -24,6 +24,8 @@ public class CleaningTaskDTO {
     private Long approverId;
     private String approverName;
     private String notes;
+    private Long reservationId;
+    private String source;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -157,6 +159,22 @@ public class CleaningTaskDTO {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public Long getReservationId() {
+        return reservationId;
+    }
+
+    public void setReservationId(Long reservationId) {
+        this.reservationId = reservationId;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
     }
 
     public LocalDateTime getCreatedAt() {

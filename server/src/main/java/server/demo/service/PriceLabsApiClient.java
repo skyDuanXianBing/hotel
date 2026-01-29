@@ -81,31 +81,8 @@ public class PriceLabsApiClient {
         private Location location;
         private String name;
         private String status;
-        private String address;
-        private String city;
-        private String state;
-        private String country;
-        private String timezone;
-        private Double latitude;
-        private Double longitude;
         @JsonProperty("number_of_bedrooms")
         private Integer bedrooms;
-        private Double bathrooms;
-        private Integer accommodates;
-        @JsonProperty("property_type")
-        private String propertyType;
-        private String currency;
-        @JsonProperty("base_price")
-        private BigDecimal basePrice;
-        @JsonProperty("min_price")
-        private BigDecimal minPrice;
-        @JsonProperty("max_price")
-        private BigDecimal maxPrice;
-        private Boolean active;
-        @JsonProperty("multi_unit")
-        private Boolean multiUnit;
-        @JsonProperty("multi_unit_count")
-        private Integer multiUnitCount;
 
         public String getListingId() { return listingId; }
         public void setListingId(String v) { this.listingId = v; }
@@ -117,42 +94,8 @@ public class PriceLabsApiClient {
         public void setName(String v) { this.name = v; }
         public String getStatus() { return status; }
         public void setStatus(String v) { this.status = v; }
-        public String getAddress() { return address; }
-        public void setAddress(String v) { this.address = v; }
-        public String getCity() { return city; }
-        public void setCity(String v) { this.city = v; }
-        public String getState() { return state; }
-        public void setState(String v) { this.state = v; }
-        public String getCountry() { return country; }
-        public void setCountry(String v) { this.country = v; }
-        public String getTimezone() { return timezone; }
-        public void setTimezone(String v) { this.timezone = v; }
-        public Double getLatitude() { return latitude; }
-        public void setLatitude(Double v) { this.latitude = v; }
-        public Double getLongitude() { return longitude; }
-        public void setLongitude(Double v) { this.longitude = v; }
         public Integer getBedrooms() { return bedrooms; }
         public void setBedrooms(Integer v) { this.bedrooms = v; }
-        public Double getBathrooms() { return bathrooms; }
-        public void setBathrooms(Double v) { this.bathrooms = v; }
-        public Integer getAccommodates() { return accommodates; }
-        public void setAccommodates(Integer v) { this.accommodates = v; }
-        public String getPropertyType() { return propertyType; }
-        public void setPropertyType(String v) { this.propertyType = v; }
-        public String getCurrency() { return currency; }
-        public void setCurrency(String v) { this.currency = v; }
-        public BigDecimal getBasePrice() { return basePrice; }
-        public void setBasePrice(BigDecimal v) { this.basePrice = v; }
-        public BigDecimal getMinPrice() { return minPrice; }
-        public void setMinPrice(BigDecimal v) { this.minPrice = v; }
-        public BigDecimal getMaxPrice() { return maxPrice; }
-        public void setMaxPrice(BigDecimal v) { this.maxPrice = v; }
-        public Boolean getActive() { return active; }
-        public void setActive(Boolean v) { this.active = v; }
-        public Boolean getMultiUnit() { return multiUnit; }
-        public void setMultiUnit(Boolean v) { this.multiUnit = v; }
-        public Integer getMultiUnitCount() { return multiUnitCount; }
-        public void setMultiUnitCount(Integer v) { this.multiUnitCount = v; }
     }
 
     public static class Location {

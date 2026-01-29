@@ -113,4 +113,47 @@ class PriceLabsApiClientTest {
         assertFalse(json.contains("\"available\""));
         assertFalse(json.contains("\"minStay\""));
     }
+
+    @Test
+    void listingData_serializesOnlySwaggerListingFields() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+
+        PriceLabsApiClient.Location loc = new PriceLabsApiClient.Location();
+        loc.setCity("Tokyo");
+        loc.setCountry("JPN");
+        loc.setLatitude(35.6762);
+        loc.setLongitude(139.6503);
+
+        PriceLabsApiClient.ListingData listing = new PriceLabsApiClient.ListingData();
+        listing.setListingId("store_1_room_type_1");
+        listing.setUserToken("test@test.com");
+        listing.setName("Test Listing");
+        listing.setStatus("available");
+        listing.setBedrooms(1);
+        listing.setLocation(loc);
+
+        String json = mapper.writeValueAsString(listing);
+        assertTrue(json.contains("\"listing_id\":\"store_1_room_type_1\""));
+        assertTrue(json.contains("\"user_token\":\"test@test.com\""));
+        assertTrue(json.contains("\"name\":\"Test Listing\""));
+        assertTrue(json.contains("\"status\":\"available\""));
+        assertTrue(json.contains("\"number_of_bedrooms\":1"));
+        assertTrue(json.contains("\"location\""));
+
+        // ensure removed/unsupported fields are not present in /listings payload
+        assertFalse(json.contains("\"timezone\""));
+        assertFalse(json.contains("\"bathroom\""));
+        assertFalse(json.contains("\"bathrooms\""));
+        assertFalse(json.contains("\"number_of_bathrooms\""));
+        assertFalse(json.contains("\"accommodates\""));
+        assertFalse(json.contains("\"property_type\""));
+        assertFalse(json.contains("\"currency\""));
+        assertFalse(json.contains("\"base_price\""));
+        assertFalse(json.contains("\"min_price\""));
+        assertFalse(json.contains("\"max_price\""));
+        assertFalse(json.contains("\"multi_unit\""));
+        assertFalse(json.contains("\"multi_unit_count\""));
+        assertFalse(json.contains("\"address\""));
+        assertFalse(json.contains("\"state\""));
+    }
 }

@@ -50,6 +50,7 @@ public class OtaReservationSyncService {
     private final TransactionTemplate transactionTemplate;
     private final SuAccessTokenService suAccessTokenService;
     private final AutoMessageTriggerService autoMessageTriggerService;
+    private final CleaningTaskAutoService cleaningTaskAutoService;
 
     public OtaReservationSyncService(
             SuApiClient suApiClient,
@@ -60,7 +61,8 @@ public class OtaReservationSyncService {
             OtaReservationRoomAssignmentService roomAssignmentService,
             PlatformTransactionManager transactionManager,
             SuAccessTokenService suAccessTokenService,
-            AutoMessageTriggerService autoMessageTriggerService
+            AutoMessageTriggerService autoMessageTriggerService,
+            CleaningTaskAutoService cleaningTaskAutoService
     ) {
         this.suApiClient = suApiClient;
         this.storeRepository = storeRepository;
@@ -71,6 +73,7 @@ public class OtaReservationSyncService {
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.suAccessTokenService = suAccessTokenService;
         this.autoMessageTriggerService = autoMessageTriggerService;
+        this.cleaningTaskAutoService = cleaningTaskAutoService;
     }
 
     public List<String> getSupportedChannelCodes() {
@@ -93,8 +96,58 @@ public class OtaReservationSyncService {
             List<String> errors
     ) {}
 
+    public record UpsertOnlyResult(
+            int processedRoomStays,
+            int skippedUnsupportedOta,
+            int createdCount,
+            int updatedCount,
+            int failedCount,
+            List<String> errors
+    ) {}
+
     public ReservationSyncResult syncStoreReservations(Long storeId) {
         return syncStoreReservations(storeId, null);
+    }
+
+    /**
+     * Compatibility: some Su flows deliver reservation details directly to webhook without reservation_notif_id.
+     * In that case, we can upsert the given reservations locally without pulling from Su.
+     */
+    public UpsertOnlyResult upsertReservationsFromWebhook(Long storeId, List<JsonNode> reservations) {
+        if (storeId == null) {
+            throw new IllegalArgumentException("storeId is required");
+        }
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("闂ㄥ簵涓嶅瓨鍦? " + storeId));
+
+        List<JsonNode> reservationNodes = reservations != null ? reservations : List.of();
+        if (reservationNodes.isEmpty()) {
+            return new UpsertOnlyResult(0, 0, 0, 0, 0, List.of());
+        }
+
+        UpsertResult result = transactionTemplate.execute(status -> upsertReservationsInTx(store, reservationNodes));
+        if (result == null) {
+            return new UpsertOnlyResult(0, 0, 0, 0, 0, List.of("upsert tx failed"));
+        }
+
+        // Best-effort dispatch auto messages after new/updated reservations.
+        if (result.createdCount() > 0 || result.updatedCount() > 0) {
+            try {
+                autoMessageTriggerService.dispatchStoreOnce(storeId);
+            } catch (Exception e) {
+                logger.warn("Dispatch auto messages after reservation webhook upsert failed. storeId={}, err={}", storeId, e.getMessage(), e);
+                reservationLogger.error("[ReservationWebhook] dispatch auto messages failed. storeId={}, err={}", storeId, e.getMessage());
+            }
+        }
+
+        return new UpsertOnlyResult(
+                result.processedRoomStays(),
+                result.skippedUnsupportedOta(),
+                result.createdCount(),
+                result.updatedCount(),
+                result.failedCount(),
+                result.errors()
+        );
     }
 
     public ReservationSyncResult syncStoreReservations(Long storeId, Set<String> onlyAckNotifIds) {
@@ -313,6 +366,7 @@ public class OtaReservationSyncService {
                     }
 
                     reservationRepository.save(reservation);
+                    cleaningTaskAutoService.syncTaskForReservation(reservation);
 
                     if (isNew) {
                         created++;

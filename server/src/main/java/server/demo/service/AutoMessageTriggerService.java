@@ -28,7 +28,7 @@ import java.util.List;
 public class AutoMessageTriggerService {
 
     private static final Logger logger = LoggerFactory.getLogger(AutoMessageTriggerService.class);
-    private static final Logger reservationLogger = LoggerFactory.getLogger("SU_RESERVATION");
+    private static final Logger autoMessageLogger = LoggerFactory.getLogger("SU_AUTO_MESSAGE");
 
     private final StoreRepository storeRepository;
     private final AutoMessageRepository autoMessageRepository;
@@ -71,7 +71,7 @@ public class AutoMessageTriggerService {
             dispatchStore(storeId, LocalDateTime.now());
         } catch (Exception e) {
             logger.warn("[AutoMessage] dispatchStoreOnce failed. storeId={}, err={}", storeId, e.getMessage(), e);
-            reservationLogger.error("[AutoMessage] dispatchStoreOnce failed. storeId={}, err={}", storeId, e.getMessage());
+            autoMessageLogger.error("[AutoMessage] dispatchStoreOnce failed. storeId={}, err={}", storeId, e.getMessage());
         }
     }
 
@@ -85,7 +85,7 @@ public class AutoMessageTriggerService {
                 dispatchStore(store.getId(), now);
             } catch (Exception e) {
                 logger.warn("[AutoMessage] dispatch store failed. storeId={}, err={}", store.getId(), e.getMessage(), e);
-                reservationLogger.error("[AutoMessage] dispatch store failed. storeId={}, err={}", store.getId(), e.getMessage());
+                autoMessageLogger.error("[AutoMessage] dispatch store failed. storeId={}, err={}", store.getId(), e.getMessage());
             }
         }
     }
@@ -116,7 +116,7 @@ public class AutoMessageTriggerService {
             try {
                 delay = AutoMessageTimingUtil.parseSendTiming(sendTiming);
             } catch (Exception e) {
-                reservationLogger.error("[AutoMessage] invalid sendTiming, skip. storeId={}, autoMessageId={}, sendTiming={}",
+                autoMessageLogger.error("[AutoMessage] invalid sendTiming, skip. storeId={}, autoMessageId={}, sendTiming={}",
                         storeId, template.getId(), sendTiming);
                 continue;
             }
@@ -147,7 +147,7 @@ public class AutoMessageTriggerService {
         }
 
         if (totalTemplates > 0) {
-            reservationLogger.info("[AutoMessage] tick done. storeId={}, templates={}, candidates={}", storeId, totalTemplates, totalCandidates);
+            autoMessageLogger.info("[AutoMessage] tick done. storeId={}, templates={}, candidates={}", storeId, totalTemplates, totalCandidates);
         }
     }
 

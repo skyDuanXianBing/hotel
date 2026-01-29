@@ -42,15 +42,15 @@
           <div class="instructions-banner">
             <div class="instruction-item">
               <span class="instruction-number">1.</span>
-              <span class="instruction-text">访问您的 PriceLabs 账号，创建API密钥并保存</span>
+              <span class="instruction-text">在添加房源之前，请先去设置门店资料</span>
             </div>
             <div class="instruction-item">
               <span class="instruction-number">2.</span>
-              <span class="instruction-text">选择房型与价格计划，建立与PriceLabs的连接</span>
+              <span class="instruction-text">添加房源后，需要一些时间与PriceLabs建立连接，如果长时间未连接成功，可以点击"同步"按钮再次尝试</span>
             </div>
             <div class="instruction-item">
               <span class="instruction-number">3.</span>
-              <span class="instruction-text">完成配置后，PriceLabs将自动推送动态价格</span>
+              <span class="instruction-text">默认情况下，PriceLabs每24小时同步一次价格给PMS，如果你需要立即同步或调整同步频率，请去PriceLabs进行对应的操作</span>
             </div>
           </div>
 

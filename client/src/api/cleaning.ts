@@ -245,6 +245,8 @@ export interface CleaningTaskDTO {
   approverId?: number
   approverName?: string
   notes?: string
+  reservationId?: number
+  source?: string
   createdAt: string
   updatedAt: string
 }
@@ -284,6 +286,13 @@ export interface CalendarViewData {
   tasks: Record<string, CleaningTaskDTO[]>
   totalCount: number
   statusCount: Record<string, number>
+}
+
+export interface CleaningTaskGenerateResult {
+  processedReservations: number
+  createdCount: number
+  updatedCount: number
+  skippedCount: number
 }
 
 /**
@@ -357,8 +366,19 @@ export const getCalendarViewData = async (params: {
   startDate: string
   endDate: string
   status?: string
+  cleanerId?: number
 }): Promise<ApiResponse<CalendarViewData>> => {
   return await request.get('/cleaning-tasks/calendar', { params })
+}
+
+/**
+ * 生成指定日期范围的保洁任务（基于预订入住日期）
+ */
+export const generateCleaningTasks = async (params: {
+  startDate: string
+  endDate: string
+}): Promise<ApiResponse<CleaningTaskGenerateResult>> => {
+  return await request.post('/cleaning-tasks/generate', null, { params })
 }
 
 /**

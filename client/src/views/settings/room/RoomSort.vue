@@ -198,7 +198,7 @@ const loadGroups = async () => {
 
   try {
     isLoading.value = true
-    const response = await getAllRoomGroups(userStore.currentUser.id)
+    const response = await getAllRoomGroups()
     if (response.success) {
       // 获取排序配置
       const sortMap = await getSortOrderMap(userStore.currentUser.id, 'GROUP')

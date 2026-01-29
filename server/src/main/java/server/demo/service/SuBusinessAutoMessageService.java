@@ -2,6 +2,7 @@ package server.demo.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +38,7 @@ import java.util.Set;
 public class SuBusinessAutoMessageService {
 
     private static final Logger logger = LoggerFactory.getLogger(SuBusinessAutoMessageService.class);
-    private static final Logger reservationLogger = LoggerFactory.getLogger("SU_RESERVATION");
+    private static final Logger autoMessageLogger = LoggerFactory.getLogger("SU_AUTO_MESSAGE");
 
     private static final String TARGET_TYPE_RESERVATION = "RESERVATION";
     private static final String SENDLOG_ACTION_PREFIX = "AM:";
@@ -50,6 +51,8 @@ public class SuBusinessAutoMessageService {
     private final RoomGroupMemberRepository roomGroupMemberRepository;
     private final SuMessageThreadRepository threadRepository;
     private final SuMessagingService suMessagingService;
+    private final RegistrationLinkService registrationLinkService;
+    private final String serverBaseUrl;
 
     public SuBusinessAutoMessageService(
             AutoMessageSendLogRepository sendLogRepository,
@@ -57,7 +60,9 @@ public class SuBusinessAutoMessageService {
             RoomTypeRepository roomTypeRepository,
             RoomGroupMemberRepository roomGroupMemberRepository,
             SuMessageThreadRepository threadRepository,
-            SuMessagingService suMessagingService
+            SuMessagingService suMessagingService,
+            RegistrationLinkService registrationLinkService,
+            @Value("${server.base-url}") String serverBaseUrl
     ) {
         this.sendLogRepository = sendLogRepository;
         this.storeRepository = storeRepository;
@@ -65,6 +70,8 @@ public class SuBusinessAutoMessageService {
         this.roomGroupMemberRepository = roomGroupMemberRepository;
         this.threadRepository = threadRepository;
         this.suMessagingService = suMessagingService;
+        this.registrationLinkService = registrationLinkService;
+        this.serverBaseUrl = serverBaseUrl;
     }
 
     public record DispatchDecision(boolean okToSend, String reason) {}
@@ -155,14 +162,14 @@ public class SuBusinessAutoMessageService {
             SuMessageThread thread = resolveThreadForReservation(storeId, reservation);
             if (thread == null) {
                 markWaiting(log, "WAITING_THREAD", "未找到会话(thread)，暂不发送；等待 Su messaging webhook 入库后自动重试");
-                reservationLogger.info("[AutoMessage] waiting thread. storeId={}, reservationId={}, autoMessageId={}, channelId={}",
+                autoMessageLogger.info("[AutoMessage] waiting thread. storeId={}, reservationId={}, autoMessageId={}, channelId={}",
                         storeId, reservation.getId(), template.getId(), reservation.getChannel() != null ? reservation.getChannel().getId() : null);
                 return;
             }
 
             if (thread.getListingId() == null || thread.getListingId().isBlank()) {
                 markWaiting(log, "WAITING_LISTINGID", "会话缺少 listingid，暂不发送；等待下一次 webhook 补齐");
-                reservationLogger.info("[AutoMessage] waiting listingid. storeId={}, reservationId={}, autoMessageId={}, threadId={}",
+                autoMessageLogger.info("[AutoMessage] waiting listingid. storeId={}, reservationId={}, autoMessageId={}, threadId={}",
                         storeId, reservation.getId(), template.getId(), thread.getId());
                 return;
             }
@@ -183,12 +190,12 @@ public class SuBusinessAutoMessageService {
             log.setErrorMessage(null);
             sendLogRepository.save(log);
 
-            reservationLogger.info("[AutoMessage] sent ok. storeId={}, reservationId={}, autoMessageId={}, action={}, sendTiming={}",
+                autoMessageLogger.info("[AutoMessage] sent ok. storeId={}, reservationId={}, autoMessageId={}, action={}, sendTiming={}",
                     storeId, reservation.getId(), template.getId(), template.getAction(), template.getSendTiming());
         } catch (Exception e) {
             logger.warn("[AutoMessage] send failed. storeId={}, reservationId={}, autoMessageId={}, err={}",
                     storeId, reservation.getId(), template.getId(), e.getMessage(), e);
-            reservationLogger.error("[AutoMessage] send failed. storeId={}, reservationId={}, autoMessageId={}, err={}",
+                autoMessageLogger.error("[AutoMessage] send failed. storeId={}, reservationId={}, autoMessageId={}, err={}",
                     storeId, reservation.getId(), template.getId(), e.getMessage());
             markFailed(log, e.getMessage());
         }
@@ -348,12 +355,27 @@ public class SuBusinessAutoMessageService {
         vars.put("rate_plan_name", "");
         vars.put("confirmation_code", reservation != null ? nullToEmpty(reservation.getChannelOrderNumber()) : "");
 
+        vars.put("order_number", reservation != null ? nullToEmpty(reservation.getOrderNumber()) : "");
+        vars.put("registration_link", buildRegistrationLink(reservation));
+
         vars.put("number_of_nights", resolveNights(reservation));
         vars.put("checkin_code", "");
         vars.put("smartlock_passcode", "");
         vars.put("room_number", resolveRoomNumber(reservation));
 
         return vars;
+    }
+
+    private String buildRegistrationLink(Reservation reservation) {
+        if (reservation == null || reservation.getStoreId() == null || reservation.getOrderNumber() == null) {
+            return "";
+        }
+        String token = registrationLinkService.generateToken(reservation.getStoreId(), reservation.getOrderNumber());
+        String base = serverBaseUrl != null ? serverBaseUrl.trim() : "";
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/r/" + reservation.getOrderNumber() + "?t=" + token;
     }
 
     private String resolveRoomTypeName(Reservation reservation) {

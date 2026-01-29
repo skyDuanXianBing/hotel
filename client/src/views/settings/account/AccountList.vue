@@ -451,12 +451,13 @@ import {
   removeStoreMember,
   type StoreMember,
   type AddStoreMemberRequest,
+  type RoleDTO as StoreRoleDTO,
 } from '@/api/store'
 import { searchUsers, type UserDTO } from '@/api/auth'
 import {
   getAllRoles,
   getRolePermissions,
-  type RoleDTO,
+  type RoleDTO as PermissionRoleDTO,
   type PermissionDTO,
   PermissionModule,
   PermissionAction
@@ -473,7 +474,7 @@ interface Account {
   name: string
   role: string
   isActive: boolean
-  roles?: RoleDTO[]
+  roles?: StoreRoleDTO[]
 }
 
 const searchKeyword = ref('')
@@ -484,7 +485,7 @@ const selectAll = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(25)
 const loading = ref(false)
-const roleOptions = ref<RoleDTO[]>([])
+const roleOptions = ref<PermissionRoleDTO[]>([])
 
 // 添加账号相关
 const addDrawerVisible = ref(false)

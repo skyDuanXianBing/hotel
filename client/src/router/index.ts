@@ -3,6 +3,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    // Public registration form (no login)
+    {
+      path: '/r/:orderNumber',
+      name: 'PublicRegistration',
+      component: () => import('@/views/public/RegistrationFormPublic.vue'),
+      meta: { title: '入住登记', requiresAuth: false },
+    },
     // 主布局路由（包含导航栏）
     {
       path: '/',
@@ -338,6 +345,18 @@ const router = createRouter({
           name: 'DataCenterNotes',
           component: () => import('@/views/data-center/DataCenterNotes.vue'),
           meta: { title: '记一笔', requiresAuth: true },
+        },
+        {
+          path: 'data-center/registrations',
+          name: 'DataCenterRegistrations',
+          component: () => import('@/views/data-center/RegistrationReviewList.vue'),
+          meta: { title: '人员信息审查', requiresAuth: true },
+        },
+        {
+          path: 'data-center/registrations/:formId',
+          name: 'DataCenterRegistrationDetail',
+          component: () => import('@/views/data-center/RegistrationReviewDetail.vue'),
+          meta: { title: '登记详情', requiresAuth: true },
         },
         {
           path: 'statistics/business-summary',

@@ -7,5 +7,11 @@ public final class PriceLabsSyncDefaults {
     public static final int DEFAULT_SYNC_DAYS = 365;
     public static final int MAX_SYNC_DAYS = 540;
 
+    /**
+     * When PMS changes availability (e.g. close-out / blocked), we debounce calendar pushes to PriceLabs
+     * so that bulk operations can be merged into a single /calendar call.
+     */
+    public static final long CALENDAR_PUSH_DEBOUNCE_MS = 2000L;
+
     private PriceLabsSyncDefaults() {}
 }

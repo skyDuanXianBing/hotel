@@ -80,6 +80,18 @@ public class CleaningTask {
     private String notes;
 
     /**
+     * 关联预订ID（自动生成任务用）
+     */
+    @Column(name = "reservation_id")
+    private Long reservationId;
+
+    /**
+     * 任务来源: reservation(预订自动), manual(手工)
+     */
+    @Column(name = "source", length = 20)
+    private String source = "manual";
+
+    /**
      * 创建时间
      */
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -199,6 +211,22 @@ public class CleaningTask {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public Long getReservationId() {
+        return reservationId;
+    }
+
+    public void setReservationId(Long reservationId) {
+        this.reservationId = reservationId;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
     }
 
     public LocalDateTime getCreatedAt() {

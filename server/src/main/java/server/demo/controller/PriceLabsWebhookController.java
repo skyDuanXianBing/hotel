@@ -280,6 +280,11 @@ public class PriceLabsWebhookController {
     @PostMapping("/calendar-trigger")
     public ResponseEntity<Map<String, Object>> handleCalendarTrigger(
             @RequestHeader(value = "X-Signature", required = false) String signature,
+            @RequestHeader(value = "X-PL-SIGNED-HEADERS", required = false) String plSignedHeaders,
+            @RequestHeader(value = "X-PL-SIGNED-BODY", required = false) String plSignedBody,
+            @RequestHeader(value = "X-SOURCE", required = false) String plSource,
+            @RequestHeader(value = "X-PL-TIMESTAMP", required = false) String plTimestamp,
+            @RequestHeader(value = "X-PL-REQUESTID", required = false) String plRequestId,
             @RequestBody String rawBody,
             HttpServletRequest httpRequest) {
 
@@ -292,17 +297,19 @@ public class PriceLabsWebhookController {
                 logger.info("[PriceLabsWebhook][{}] /calendar-trigger headers={}", traceId, readHeadersForLog(httpRequest));
             }
 
+            boolean signaturePresent = (plSignedHeaders != null && !plSignedHeaders.isBlank())
+                    || (plSignedBody != null && !plSignedBody.isBlank());
             if (config.isDebug()) {
                 String snippet = rawBody == null ? "null" : rawBody.substring(0, Math.min(1200, rawBody.length()));
                 logger.info("[PriceLabsWebhook][{}] /calendar-trigger received. signaturePresent={}, bodyLen={}, bodySnippet={}",
                         traceId,
-                        signature != null && !signature.isBlank(),
+                        signaturePresent,
                         rawBody != null ? rawBody.length() : -1,
                         snippet);
             } else {
                 logger.info("[PriceLabsWebhook][{}] /calendar-trigger received. signaturePresent={}, bodyLen={}",
                         traceId,
-                        signature != null && !signature.isBlank(),
+                        signaturePresent,
                         rawBody != null ? rawBody.length() : -1);
             }
             // 检查是否是PriceLabs的验证请求
@@ -312,34 +319,26 @@ public class PriceLabsWebhookController {
                 return ResponseEntity.ok(response);
             }
 
-            boolean skipSignature = false;
-            if (signature == null || signature.isBlank()) {
-                if (config.isDebug()) {
-                    skipSignature = true;
-                    logger.warn("[PriceLabsWebhook][{}] /calendar-trigger missing signature (debug mode: skip signature verification)", traceId);
-                } else {
-                    logger.warn("[PriceLabsWebhook][{}] /calendar-trigger missing signature", traceId);
-                    response.put("success", true);
-                    response.put("message", "日历刷新请求已接收，但缺少签名，已跳过校验");
-                    if (config.isDebug()) {
-                        response.put("traceId", traceId);
-                    }
-                    return ResponseEntity.ok(response);
-                }
+            if (plSignedHeaders == null || plSignedHeaders.isBlank()
+                    || plSignedBody == null || plSignedBody.isBlank()
+                    || plSource == null || plSource.isBlank()
+                    || plTimestamp == null || plTimestamp.isBlank()
+                    || plRequestId == null || plRequestId.isBlank()) {
+                logger.warn("[PriceLabsWebhook][{}] /calendar-trigger missing X-PL signature headers", traceId);
+                response.put("success", false);
+                response.put("message", "缺少签名");
+                return ResponseEntity.status(401).body(response);
             }
 
-            // 验证签名
-            if (!skipSignature) {
-                PriceLabsSignatureVerifier verifier = new PriceLabsSignatureVerifier(config.getIntegrationToken());
-                if (!verifier.verifySignature(rawBody, signature)) {
-                    logger.warn("[PriceLabsWebhook][{}] /calendar-trigger signature verification failed", traceId);
-                    response.put("success", false);
-                    response.put("message", "签名验证失败");
-                    if (config.isDebug()) {
-                        response.put("traceId", traceId);
-                    }
-                    return ResponseEntity.status(401).body(response);
+            PriceLabsWebhookSignatureVerifier verifier = new PriceLabsWebhookSignatureVerifier(config.getIntegrationToken());
+            if (!verifier.verify(plSignedHeaders, plSignedBody, plSource, plTimestamp, plRequestId, rawBody)) {
+                logger.warn("[PriceLabsWebhook][{}] /calendar-trigger X-PL signature verification failed", traceId);
+                response.put("success", false);
+                response.put("message", "签名验证失败");
+                if (config.isDebug()) {
+                    response.put("traceId", traceId);
                 }
+                return ResponseEntity.status(401).body(response);
             }
 
             // 解析请求
@@ -369,7 +368,7 @@ public class PriceLabsWebhookController {
 
             response.put("success", true);
 
-            if (storeId == null) {
+            if (listingId == null) {
                 logger.warn("[PriceLabsWebhook] calendar-trigger missing/invalid listing_id, skip sync. request={}", requestData);
                 response.put("message", "日历刷新请求已接收，但缺少可解析的 listing_id，已忽略");
                 if (config.isDebug()) {
@@ -379,25 +378,36 @@ public class PriceLabsWebhookController {
             }
 
             try {
-                priceLabsSyncService.syncCalendar(storeId, startDate, endDate);
+                if (listingId != null) {
+                    priceLabsSyncService.syncCalendarForListingIds(java.util.List.of(listingId), startDate, endDate);
+                } else {
+                    priceLabsSyncService.syncCalendar(storeId, startDate, endDate);
+                }
                 response.put("message", "日历刷新已触发");
-                response.put("storeId", storeId);
+                response.put("listingId", listingId);
+                if (storeId != null) {
+                    response.put("storeId", storeId);
+                }
                 response.put("startDate", startDate.toString());
                 response.put("endDate", endDate.toString());
                 if (config.isDebug()) {
                     response.put("traceId", traceId);
                 }
-                logger.info("[PriceLabsWebhook][{}] /calendar-trigger sync ok. storeId={}, range={}~{}, costMs={}",
+                logger.info("[PriceLabsWebhook][{}] /calendar-trigger sync ok. storeId={}, listingId={}, range={}~{}, costMs={}",
                         traceId,
                         storeId,
+                        listingId,
                         startDate,
                         endDate,
                         System.currentTimeMillis() - startedAt);
             } catch (Exception ex) {
-                logger.error("[PriceLabsWebhook] calendar-trigger sync failed. storeId={}, err={}", storeId, ex.getMessage(), ex);
+                logger.error("[PriceLabsWebhook] calendar-trigger sync failed. storeId={}, listingId={}, err={}", storeId, listingId, ex.getMessage(), ex);
                 response.put("success", false);
                 response.put("message", "日历刷新同步失败: " + ex.getMessage());
-                response.put("storeId", storeId);
+                response.put("listingId", listingId);
+                if (storeId != null) {
+                    response.put("storeId", storeId);
+                }
                 if (config.isDebug()) {
                     response.put("traceId", traceId);
                     return ResponseEntity.status(500).body(response);
@@ -469,6 +479,11 @@ public class PriceLabsWebhookController {
     @PostMapping("/hook")
     public ResponseEntity<Map<String, Object>> handleHook(
             @RequestHeader(value = "X-Signature", required = false) String signature,
+            @RequestHeader(value = "X-PL-SIGNED-HEADERS", required = false) String plSignedHeaders,
+            @RequestHeader(value = "X-PL-SIGNED-BODY", required = false) String plSignedBody,
+            @RequestHeader(value = "X-SOURCE", required = false) String plSource,
+            @RequestHeader(value = "X-PL-TIMESTAMP", required = false) String plTimestamp,
+            @RequestHeader(value = "X-PL-REQUESTID", required = false) String plRequestId,
             @RequestBody String rawBody,
             HttpServletRequest httpRequest) {
 
@@ -480,17 +495,19 @@ public class PriceLabsWebhookController {
                 logger.info("[PriceLabsWebhook][{}] /hook headers={}", traceId, readHeadersForLog(httpRequest));
             }
 
+            boolean signaturePresent = (plSignedHeaders != null && !plSignedHeaders.isBlank())
+                    || (plSignedBody != null && !plSignedBody.isBlank());
             if (config.isDebug()) {
                 String snippet = rawBody == null ? "null" : rawBody.substring(0, Math.min(1200, rawBody.length()));
                 logger.info("[PriceLabsWebhook][{}] /hook received. signaturePresent={}, bodyLen={}, bodySnippet={}",
                         traceId,
-                        signature != null && !signature.isBlank(),
+                        signaturePresent,
                         rawBody != null ? rawBody.length() : -1,
                         snippet);
             } else {
                 logger.info("[PriceLabsWebhook][{}] /hook received. signaturePresent={}, bodyLen={}",
                         traceId,
-                        signature != null && !signature.isBlank(),
+                        signaturePresent,
                         rawBody != null ? rawBody.length() : -1);
             }
             // 检查是否是PriceLabs的验证请求
@@ -500,34 +517,26 @@ public class PriceLabsWebhookController {
                 return ResponseEntity.ok(response);
             }
 
-            boolean skipSignature = false;
-            if (signature == null || signature.isBlank()) {
-                if (config.isDebug()) {
-                    skipSignature = true;
-                    logger.warn("[PriceLabsWebhook][{}] /hook missing signature (debug mode: skip signature verification)", traceId);
-                } else {
-                    logger.warn("[PriceLabsWebhook][{}] /hook missing signature", traceId);
-                    response.put("success", true);
-                    response.put("message", "错误通知已接收，但缺少签名，已跳过校验");
-                    if (config.isDebug()) {
-                        response.put("traceId", traceId);
-                    }
-                    return ResponseEntity.ok(response);
-                }
+            if (plSignedHeaders == null || plSignedHeaders.isBlank()
+                    || plSignedBody == null || plSignedBody.isBlank()
+                    || plSource == null || plSource.isBlank()
+                    || plTimestamp == null || plTimestamp.isBlank()
+                    || plRequestId == null || plRequestId.isBlank()) {
+                logger.warn("[PriceLabsWebhook][{}] /hook missing X-PL signature headers", traceId);
+                response.put("success", false);
+                response.put("message", "缺少签名");
+                return ResponseEntity.status(401).body(response);
             }
 
-            // 验证签名
-            if (!skipSignature) {
-                PriceLabsSignatureVerifier verifier = new PriceLabsSignatureVerifier(config.getIntegrationToken());
-                if (!verifier.verifySignature(rawBody, signature)) {
-                    logger.warn("[PriceLabsWebhook][{}] /hook signature verification failed", traceId);
-                    response.put("success", false);
-                    response.put("message", "签名验证失败");
-                    if (config.isDebug()) {
-                        response.put("traceId", traceId);
-                    }
-                    return ResponseEntity.status(401).body(response);
+            PriceLabsWebhookSignatureVerifier verifier = new PriceLabsWebhookSignatureVerifier(config.getIntegrationToken());
+            if (!verifier.verify(plSignedHeaders, plSignedBody, plSource, plTimestamp, plRequestId, rawBody)) {
+                logger.warn("[PriceLabsWebhook][{}] /hook X-PL signature verification failed", traceId);
+                response.put("success", false);
+                response.put("message", "签名验证失败");
+                if (config.isDebug()) {
+                    response.put("traceId", traceId);
                 }
+                return ResponseEntity.status(401).body(response);
             }
 
             // 解析错误通知

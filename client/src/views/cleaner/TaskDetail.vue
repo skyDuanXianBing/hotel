@@ -114,9 +114,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, OfficeBuilding } from '@element-plus/icons-vue'
 import {
   getCleaningTaskById,
-  startCleaningTask,
+  acceptCleaningTask,
   completeCleaningTask,
-  deleteCleaningTask,
+  rejectCleaningTask,
   type CleaningTaskDTO,
 } from '@/api/cleaning'
 import { useUserStore } from '@/stores/user'
@@ -164,7 +164,7 @@ const handleAccept = async () => {
 
   try {
     loading.value = true
-    const response = await startCleaningTask(task.value.id)
+    const response = await acceptCleaningTask(task.value.id)
 
     if (response.success) {
       ElMessage.success('已接受任务')
@@ -194,7 +194,7 @@ const handleReject = async () => {
     })
 
     loading.value = true
-    const response = await deleteCleaningTask(task.value.id)
+    const response = await rejectCleaningTask(task.value.id)
 
     if (response.success) {
       ElMessage.success('已拒绝任务')
@@ -250,6 +250,7 @@ const handleComplete = async () => {
 // 获取状态文本
 const getStatusText = (status: string): string => {
   const statusMap: Record<string, string> = {
+    expired: '已过期',
     pending: '待分配',
     assigned: '待接受',
     in_progress: '待打扫',
@@ -261,6 +262,7 @@ const getStatusText = (status: string): string => {
 // 获取状态类型
 const getStatusType = (status: string): string => {
   const typeMap: Record<string, string> = {
+    expired: 'info',
     pending: 'info',
     assigned: 'warning',
     in_progress: 'primary',
@@ -272,8 +274,9 @@ const getStatusType = (status: string): string => {
 // 获取任务类型文本
 const getTaskTypeText = (taskType: string): string => {
   const typeMap: Record<string, string> = {
-    checkout: '退房',
-    stay: '续住',
+    checkout: '退房清洁',
+    daily: '日常清洁',
+    deep: '深度清洁',
   }
   return typeMap[taskType] || taskType
 }

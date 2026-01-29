@@ -85,6 +85,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
                                                          @Param("startDate") LocalDate startDate,
                                                          @Param("endDate") LocalDate endDate);
 
+    List<Reservation> findByStoreIdAndCheckInDateBetweenAndStatusIn(Long storeId,
+                                                                    LocalDate startDate,
+                                                                    LocalDate endDate,
+                                                                    Set<ReservationStatus> statuses);
+
     @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.checkOutDate >= :startDate AND r.checkOutDate <= :endDate")
     List<Reservation> findByStoreIdAndCheckOutDateBetween(@Param("storeId") Long storeId,
                                                           @Param("startDate") LocalDate startDate,

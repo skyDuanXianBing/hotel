@@ -54,7 +54,13 @@ public interface CleaningTaskService {
     /**
      * 获取日历视图数据(按日期和房间分组)
      */
-    Map<String, Object> getCalendarViewData(Long userId, LocalDate startDate, LocalDate endDate, String status);
+    Map<String, Object> getCalendarViewData(
+            Long userId,
+            LocalDate startDate,
+            LocalDate endDate,
+            String status,
+            Long cleanerId
+    );
 
     /**
      * 分配任务给保洁员

@@ -684,13 +684,11 @@ const handleSaveSupply = async () => {
     // 如果有 id,则更新;否则创建新记录
     if (currentSupply.value.id) {
       response = await updateCleaningSupply(currentSupply.value.id, {
-        userId: 1,
         roomType: currentSupply.value.roomType,
         supplies: currentSupply.value.supplies,
       })
     } else {
       response = await createCleaningSupply({
-        userId: 1,
         roomType: currentSupply.value.roomType,
         supplies: currentSupply.value.supplies,
       })

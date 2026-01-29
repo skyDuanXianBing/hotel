@@ -126,6 +126,7 @@ const handleLogout = async () => {
           <el-menu-item index="/channel">渠道</el-menu-item>
           <el-menu-item index="/order">订单</el-menu-item>
           <el-menu-item index="/data-center/overview">统计</el-menu-item>
+          <el-menu-item index="/data-center/registrations">审查</el-menu-item>
           <el-menu-item index="/settings">设置</el-menu-item>
         </el-menu>
       </nav>

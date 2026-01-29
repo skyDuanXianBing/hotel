@@ -51,9 +51,9 @@ export interface StorePolicyDTO {
 export interface StoreRequest {
   name: string
   phone: string
-  type: string
-  timezone: string
-  manager: string
+  type?: string
+  timezone?: string
+  manager?: string
   country: string
   city?: string
   state?: string
@@ -61,6 +61,14 @@ export interface StoreRequest {
   currency?: string
   suHotelId?: string
   createSuProperty?: boolean
+  ownerEmail?: string
+  language?: string
+  description?: string
+  logo?: string
+  email?: string
+  wechat?: string
+  whatsapp?: string
+  line?: string
 }
 
 // 添加成员请求

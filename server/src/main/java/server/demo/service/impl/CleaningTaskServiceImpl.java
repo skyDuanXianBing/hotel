@@ -16,6 +16,7 @@ import server.demo.repository.CleanerRepository;
 import server.demo.repository.CleaningTaskRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.UserRepository;
+import server.demo.service.CleaningTaskAutoService;
 import server.demo.service.CleaningTaskService;
 
 import java.time.LocalDate;
@@ -41,6 +42,9 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private CleaningTaskAutoService cleaningTaskAutoService;
+
     @Override
     @Transactional
     public CleaningTaskDTO createTask(CleaningTaskCreateDTO createDTO) {
@@ -54,6 +58,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
         task.setRoom(room);
         task.setTaskType(createDTO.getTaskType());
         task.setStatus("pending");
+        task.setSource("manual");
 
         // estimatedTime暂时不设置,因为前端发送的是 "HH:MM-HH:MM" 格式,不是完整的日期时间
         // TODO: 如果需要,可以在前端改为发送完整的日期时间,或者在这里构造
@@ -125,6 +130,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     }
 
     @Override
+    @Transactional
     public Page<CleaningTaskDTO> getTasksWithFilters(
             Long userId,
             LocalDate startDate,
@@ -139,6 +145,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     ) {
         // 获取当前门店ID
         Long storeId = getCurrentStoreId();
+        cleaningTaskAutoService.markExpiredTasks(storeId, LocalDate.now());
 
         Page<CleaningTask> tasks = cleaningTaskRepository.findWithFiltersByStore(
                 storeId, startDate, endDate, status, taskType, roomId, cleanerId, roomTypeId, pageable
@@ -159,16 +166,24 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     }
 
     @Override
-    public Map<String, Object> getCalendarViewData(Long userId, LocalDate startDate, LocalDate endDate, String status) {
+    @Transactional
+    public Map<String, Object> getCalendarViewData(
+            Long userId,
+            LocalDate startDate,
+            LocalDate endDate,
+            String status,
+            Long cleanerId
+    ) {
         // 获取当前门店ID
         Long storeId = getCurrentStoreId();
+        cleaningTaskAutoService.markExpiredTasks(storeId, LocalDate.now());
 
         List<CleaningTask> tasks;
 
-        if (status != null && !status.isEmpty()) {
+        if ((status != null && !status.isEmpty()) || cleanerId != null) {
             // 如果指定了状态,需要筛选
             tasks = cleaningTaskRepository.findWithFiltersByStore(
-                    storeId, startDate, endDate, status, null, null, null, null, Pageable.unpaged()
+                    storeId, startDate, endDate, status, null, null, cleanerId, null, Pageable.unpaged()
             ).getContent();
         } else {
             // 否则查询所有
@@ -290,6 +305,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
             task.setRoom(room);
             task.setTaskType(createDTO.getTaskType());
             task.setStatus("pending");
+            task.setSource("manual");
             // estimatedTime暂时不设置
             // task.setEstimatedTime(createDTO.getEstimatedTime());
             task.setNotes(createDTO.getNotes());
@@ -338,6 +354,8 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
         dto.setStartTime(task.getStartTime());
         dto.setCompleteTime(task.getCompleteTime());
         dto.setNotes(task.getNotes());
+        dto.setReservationId(task.getReservationId());
+        dto.setSource(task.getSource());
         dto.setCreatedAt(task.getCreatedAt());
         dto.setUpdatedAt(task.getUpdatedAt());
 

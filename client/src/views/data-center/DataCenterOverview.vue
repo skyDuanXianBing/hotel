@@ -651,8 +651,8 @@ const loadRevenueSummary = async () => {
         initRevenueDistChart(data)
         initExpenseChart()
       } else {
-        initCategoryDistChart(data)
-        initCategoryExpenseChart(data)
+        initCategoryDistChart()
+        initCategoryExpenseChart()
       }
     } else {
       ElMessage.error(response.message || '获取流水汇总数据失败')

@@ -87,7 +87,7 @@
         <span class="count">{{ statusCount.in_progress || 0 }}</span>
       </div>
       <div class="status-item">
-        <span class="label">待审核</span>
+        <span class="label">待分配</span>
         <span class="count">{{ statusCount.pending || 0 }}</span>
       </div>
       <div class="status-item">
@@ -274,13 +274,26 @@ const loadCalendarData = async () => {
 
   try {
     loading.value = true
+    const cleanerId = userStore.currentUser?.id
     const response = await getCalendarViewData({
       startDate,
       endDate,
+      cleanerId,
     })
 
     if (response.success && response.data) {
       const { tasks, totalCount, statusCount: counts } = response.data
+
+      const tasksByDate: Record<string, CleaningTaskDTO[]> = {}
+      Object.values(tasks).forEach((taskArray) => {
+        taskArray.forEach((task) => {
+          const dateKey = task.taskDate
+          if (!tasksByDate[dateKey]) {
+            tasksByDate[dateKey] = []
+          }
+          tasksByDate[dateKey].push(task)
+        })
+      })
 
       // 更新统计数据
       totalTasks.value = totalCount
@@ -288,7 +301,7 @@ const loadCalendarData = async () => {
 
       // 将任务分配到对应的日期
       calendarDays.value.forEach((day) => {
-        const dayTasks = tasks[day.date] || []
+        const dayTasks = tasksByDate[day.date] || []
         day.tasks = dayTasks
       })
     }

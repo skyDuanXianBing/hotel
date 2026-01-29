@@ -27,7 +27,9 @@ public final class SuReservationNotifPayloadParser {
             reservationNotif = root.get("reservation_notif".toUpperCase(Locale.ROOT));
         }
         if (reservationNotif == null || reservationNotif.isNull()) {
-            return List.of();
+            // Fallback: PUSH API Method may deliver reservation details directly
+            // in a `reservations` array (each reservation contains `reservation_notif_id`).
+            return extractNotifIdsFromReservationsArray(root);
         }
 
         JsonNode ids = reservationNotif.get("reservation_notif_id");
@@ -35,7 +37,7 @@ public final class SuReservationNotifPayloadParser {
             ids = reservationNotif.get("reservation_notif_id".toUpperCase(Locale.ROOT));
         }
         if (ids == null || ids.isNull()) {
-            return List.of();
+            return extractNotifIdsFromReservationsArray(root);
         }
 
         Set<String> dedup = new LinkedHashSet<>();
@@ -61,6 +63,40 @@ public final class SuReservationNotifPayloadParser {
         }
 
         return new ArrayList<>(dedup);
+    }
+
+    private static List<String> extractNotifIdsFromReservationsArray(JsonNode root) {
+        JsonNode reservations = root != null ? root.get("reservations") : null;
+        if (reservations == null || !reservations.isArray()) {
+            return List.of();
+        }
+
+        Set<String> dedup = new LinkedHashSet<>();
+        for (JsonNode item : reservations) {
+            if (item == null || item.isNull()) {
+                continue;
+            }
+            JsonNode reservation = item.get("reservation");
+            JsonNode node = (reservation != null && reservation.isObject()) ? reservation : item;
+
+            JsonNode idNode = node.get("reservation_notif_id");
+            if (idNode == null) {
+                idNode = node.get("reservation_notif_id".toUpperCase(Locale.ROOT));
+            }
+            if (idNode == null || idNode.isNull()) {
+                continue;
+            }
+            String id = idNode.asText(null);
+            if (id == null) {
+                continue;
+            }
+            id = id.trim();
+            if (!id.isBlank()) {
+                dedup.add(id);
+            }
+        }
+
+        return dedup.isEmpty() ? List.of() : new ArrayList<>(dedup);
     }
 }
 

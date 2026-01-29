@@ -10,6 +10,7 @@ import server.demo.entity.CleaningTask;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Collection;
 
 /**
  * 保洁任务Repository接口
@@ -147,6 +148,30 @@ public interface CleaningTaskRepository extends JpaRepository<CleaningTask, Long
      * 查询指定日期和房间的任务
      */
     List<CleaningTask> findByTaskDateAndRoomId(LocalDate taskDate, Long roomId);
+
+    /**
+     * 根据预订ID查询任务
+     */
+    List<CleaningTask> findByReservationId(Long reservationId);
+
+    /**
+     * 根据预订ID删除任务
+     */
+    void deleteByReservationId(Long reservationId);
+
+    /**
+     * 批量标记过期任务
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE CleaningTask ct SET ct.status = 'expired' " +
+           "WHERE ct.room.storeId = :storeId " +
+           "AND ct.taskDate < :today " +
+           "AND ct.status IN :statuses")
+    int markExpiredTasks(
+            @Param("storeId") Long storeId,
+            @Param("today") LocalDate today,
+            @Param("statuses") Collection<String> statuses
+    );
 
     /**
      * 删除指定日期之前的任务

@@ -137,6 +137,9 @@ const handleLogin = async () => {
       }
       localStorage.setItem('user', JSON.stringify(userInfo))
       userStore.setUser(userInfo)
+      if (cleanerData.storeId) {
+        localStorage.setItem('currentStore', JSON.stringify({ id: cleanerData.storeId }))
+      }
 
       ElMessage.success('登录成功')
 

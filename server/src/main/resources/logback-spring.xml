@@ -106,6 +106,40 @@
             <totalSizeCap>3GB</totalSizeCap>
         </rollingPolicy>
     </appender>
+
+    <!-- Su PMS Push 日志（房间号/房型/费率计划/价格推送等） -->
+    <appender name="SU_PMS_PUSH" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/su-pms-push.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/su-pms-push.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Su Auto Message 日志（自动化发送消息） -->
+    <appender name="SU_AUTO_MESSAGE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/su-auto-message.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/su-auto-message.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
     
     <!-- 安全日志 -->
     <appender name="SECURITY" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -135,6 +169,14 @@
 
     <logger name="SU_RESERVATION" level="INFO" additivity="false">
         <appender-ref ref="SU_RESERVATION"/>
+    </logger>
+
+    <logger name="SU_PMS_PUSH" level="INFO" additivity="false">
+        <appender-ref ref="SU_PMS_PUSH"/>
+    </logger>
+
+    <logger name="SU_AUTO_MESSAGE" level="INFO" additivity="false">
+        <appender-ref ref="SU_AUTO_MESSAGE"/>
     </logger>
     
     <logger name="SECURITY" level="WARN" additivity="false">

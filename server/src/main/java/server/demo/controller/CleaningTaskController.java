@@ -13,7 +13,9 @@ import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.CleaningTaskCreateDTO;
 import server.demo.dto.CleaningTaskDTO;
+import server.demo.dto.CleaningTaskGenerateResult;
 import server.demo.dto.CleaningTaskUpdateDTO;
+import server.demo.service.CleaningTaskAutoService;
 import server.demo.service.CleaningTaskService;
 
 import java.time.LocalDate;
@@ -30,6 +32,9 @@ public class CleaningTaskController {
 
     @Autowired
     private CleaningTaskService cleaningTaskService;
+
+    @Autowired
+    private CleaningTaskAutoService cleaningTaskAutoService;
 
     /**
      * 创建保洁任务
@@ -140,13 +145,35 @@ public class CleaningTaskController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long cleanerId,
             HttpServletRequest request) {
         try {
             Long userId = (Long) request.getAttribute("userId");
-            Map<String, Object> data = cleaningTaskService.getCalendarViewData(userId, startDate, endDate, status);
+            Map<String, Object> data = cleaningTaskService.getCalendarViewData(
+                    userId,
+                    startDate,
+                    endDate,
+                    status,
+                    cleanerId
+            );
             return ApiResponse.success("获取日历数据成功", data);
         } catch (Exception e) {
             return ApiResponse.error("获取日历数据失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 补齐指定日期范围的保洁任务（基于预订入住日期）
+     */
+    @PostMapping("/generate")
+    public ApiResponse<CleaningTaskGenerateResult> generateTasks(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        try {
+            CleaningTaskGenerateResult result = cleaningTaskAutoService.generateTasksForRange(startDate, endDate);
+            return ApiResponse.success("生成任务成功", result);
+        } catch (Exception e) {
+            return ApiResponse.error("生成任务失败: " + e.getMessage());
         }
     }
 

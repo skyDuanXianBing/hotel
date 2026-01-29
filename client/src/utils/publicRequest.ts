@@ -1,0 +1,25 @@
+import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
+
+function resolvePublicBaseUrl(): string {
+  const base = (import.meta.env.VITE_API_BASE_URL as string) || '/api/v1'
+  // Prefer converting /api/v1 -> /api
+  const converted = base.replace(/\/api\/v1\/?$/, '/api')
+  return converted
+}
+
+const publicRequest: AxiosInstance = axios.create({
+  baseURL: resolvePublicBaseUrl(),
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json; charset=UTF-8',
+    Accept: 'application/json; charset=UTF-8',
+  },
+})
+
+publicRequest.interceptors.response.use(
+  (response: AxiosResponse) => response.data,
+  (error) => Promise.reject(error),
+)
+
+export default publicRequest
+export { publicRequest }

@@ -1246,7 +1246,18 @@
         "extra_person_fee_trigger": {
           "type": "number",
           "description": "describes after how many guests the extra person fees applies"
-        }
+        }  这个错误的意思是：
+  - PriceLabs尝试向您的系统拉取这些listing的现有
+  价格/日历数据
+  - 但是调用您系统的API时失败了
+
+  原因可能是：
+
+  1. PriceLabs正在调用您系统的API获取数据，但那
+  些API返回了错误
+    - PriceLabs需要通过您提供的API端点来获取当前
+  的价格和可用性数据
+    - 这些API可能还没有实现，或者返回了错误
       }
     },
     "MultiUnitInfo": {
