@@ -2,6 +2,7 @@ package server.demo.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriUtils;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -76,6 +77,25 @@ public class RegistrationLinkService {
         }
 
         return new Claims(storeId, exp);
+    }
+
+    public String buildPublicBookingLink(String serverBaseUrl, Long storeId, String bookingKey) {
+        if (storeId == null || bookingKey == null || bookingKey.isBlank()) {
+            return "";
+        }
+        String key = bookingKey.trim();
+        String token = generateToken(storeId, key);
+        String base = normalizeBaseUrl(serverBaseUrl);
+        String encodedKey = UriUtils.encodePathSegment(key, StandardCharsets.UTF_8);
+        return base + "/rb/" + encodedKey + "?t=" + token;
+    }
+
+    private String normalizeBaseUrl(String serverBaseUrl) {
+        String base = serverBaseUrl != null ? serverBaseUrl.trim() : "";
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base;
     }
 
     private String payload(Long storeId, String orderNumber, long exp) {

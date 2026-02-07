@@ -20,6 +20,7 @@ import server.demo.repository.ReservationRepository;
 import server.demo.service.RegistrationAttachmentService;
 import server.demo.service.RegistrationAdminService;
 import server.demo.service.RegistrationLinkService;
+import server.demo.service.RegistrationLinkInboxService;
 import server.demo.service.RegistrationMessageService;
 import server.demo.service.RegistrationPdfService;
 import server.demo.util.StoreContextUtils;
@@ -56,12 +57,21 @@ public class RegistrationAdminController {
     @Autowired
     private RegistrationMessageService registrationMessageService;
 
+    @Autowired
+    private RegistrationLinkInboxService registrationLinkInboxService;
+
     @org.springframework.beans.factory.annotation.Value("${server.base-url}")
     private String serverBaseUrl;
 
     @GetMapping
     public ApiResponse<List<AdminRegistrationListItemDTO>> list(@RequestParam(name = "status", required = false) RegistrationFormStatus status) {
         return ApiResponse.success("ok", registrationAdminService.list(status));
+    }
+
+    @GetMapping("/link-inbox")
+    public ApiResponse<List<RegistrationLinkInboxItemDTO>> linkInbox() {
+        Long storeId = StoreContextUtils.requireStoreId();
+        return ApiResponse.success("ok", registrationLinkInboxService.listTop200(storeId));
     }
 
     @GetMapping("/{formId}")

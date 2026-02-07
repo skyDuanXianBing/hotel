@@ -1,0 +1,82 @@
+package server.demo.service;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import server.demo.dto.registration.RegistrationLinkInboxItemDTO;
+import server.demo.entity.RegistrationLinkInboxItem;
+import server.demo.repository.RegistrationLinkInboxRepository;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class RegistrationLinkInboxService {
+
+    private final RegistrationLinkInboxRepository inboxRepository;
+    private final RegistrationLinkService registrationLinkService;
+    private final String serverBaseUrl;
+
+    public RegistrationLinkInboxService(
+            RegistrationLinkInboxRepository inboxRepository,
+            RegistrationLinkService registrationLinkService,
+            @Value("${server.base-url}") String serverBaseUrl
+    ) {
+        this.inboxRepository = inboxRepository;
+        this.registrationLinkService = registrationLinkService;
+        this.serverBaseUrl = serverBaseUrl;
+    }
+
+    public void recordIfAbsent(Long storeId,
+                               String bookingKey,
+                               String guestName,
+                               LocalDate checkInDate,
+                               LocalDate checkOutDate,
+                               Integer roomCount) {
+        if (storeId == null || bookingKey == null || bookingKey.isBlank()) {
+            return;
+        }
+
+        String key = bookingKey.trim();
+        Optional<RegistrationLinkInboxItem> existing = inboxRepository.findByStoreIdAndBookingKey(storeId, key);
+        if (existing.isPresent()) {
+            return;
+        }
+
+        RegistrationLinkInboxItem item = new RegistrationLinkInboxItem();
+        item.setStoreId(storeId);
+        item.setBookingKey(key);
+        item.setGuestName(guestName);
+        item.setCheckInDate(checkInDate);
+        item.setCheckOutDate(checkOutDate);
+        item.setRoomCount(roomCount != null && roomCount > 0 ? roomCount : 1);
+        item.setLinkUrl(registrationLinkService.buildPublicBookingLink(serverBaseUrl, storeId, key));
+
+        try {
+            inboxRepository.save(item);
+        } catch (DataIntegrityViolationException ignore) {
+            // unique constraint: someone else already inserted
+        }
+    }
+
+    public List<RegistrationLinkInboxItemDTO> listTop200(Long storeId) {
+        List<RegistrationLinkInboxItem> items = inboxRepository.findTop200ByStoreIdOrderByCreatedAtDesc(storeId);
+        List<RegistrationLinkInboxItemDTO> dtos = new ArrayList<>();
+        for (RegistrationLinkInboxItem it : items) {
+            RegistrationLinkInboxItemDTO dto = new RegistrationLinkInboxItemDTO();
+            dto.setId(it.getId());
+            dto.setBookingKey(it.getBookingKey());
+            dto.setLinkUrl(it.getLinkUrl());
+            dto.setGuestName(it.getGuestName());
+            dto.setCheckInDate(it.getCheckInDate());
+            dto.setCheckOutDate(it.getCheckOutDate());
+            dto.setRoomCount(it.getRoomCount());
+            dto.setCreatedAt(it.getCreatedAt());
+            dtos.add(dto);
+        }
+        return dtos;
+    }
+}
+

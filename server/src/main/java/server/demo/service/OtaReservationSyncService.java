@@ -60,6 +60,7 @@ public class OtaReservationSyncService {
     private final AutoMessageTriggerService autoMessageTriggerService;
     private final CleaningTaskAutoService cleaningTaskAutoService;
     private final PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
+    private final RegistrationLinkInboxService registrationLinkInboxService;
 
     public OtaReservationSyncService(
             SuApiClient suApiClient,
@@ -73,7 +74,8 @@ public class OtaReservationSyncService {
             SuAccessTokenService suAccessTokenService,
             AutoMessageTriggerService autoMessageTriggerService,
             CleaningTaskAutoService cleaningTaskAutoService,
-            PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer
+            PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer,
+            RegistrationLinkInboxService registrationLinkInboxService
     ) {
         this.suApiClient = suApiClient;
         this.storeRepository = storeRepository;
@@ -87,6 +89,7 @@ public class OtaReservationSyncService {
         this.autoMessageTriggerService = autoMessageTriggerService;
         this.cleaningTaskAutoService = cleaningTaskAutoService;
         this.priceLabsCalendarSyncDebouncer = priceLabsCalendarSyncDebouncer;
+        this.registrationLinkInboxService = registrationLinkInboxService;
     }
 
     public List<String> getSupportedChannelCodes() {
@@ -487,6 +490,7 @@ public class OtaReservationSyncService {
             if (roomStays.isEmpty()) {
                 roomStays = List.of((JsonNode) null);
             }
+            int roomStayCount = roomStays.size();
 
             for (JsonNode roomStay : roomStays) {
                 processedRoomStays++;
@@ -617,6 +621,18 @@ public class OtaReservationSyncService {
                             reservation.getOtaRoomNumber(),
                             reservation.getStatus() != null ? reservation.getStatus().name() : null
                     );
+
+                    if (isNew) {
+                        String bookingKey = (channelBookingId != null && !channelBookingId.isBlank()) ? channelBookingId : orderNumber;
+                        registrationLinkInboxService.recordIfAbsent(
+                                store.getId(),
+                                bookingKey,
+                                reservation.getGuestName(),
+                                reservation.getCheckInDate(),
+                                reservation.getCheckOutDate(),
+                                roomStayCount
+                        );
+                    }
 
                     // Ensure SuMessageThread exists so auto-messages (BOOKING_CONFIRM/IMMEDIATELY etc.) can send
                     // without waiting for inbound messaging webhook.
