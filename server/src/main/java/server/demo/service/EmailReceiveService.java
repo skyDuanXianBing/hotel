@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import server.demo.entity.VirtualMailbox;
@@ -25,6 +26,7 @@ import java.util.Optional;
  *     password: your-password
  */
 @Service
+@ConditionalOnProperty(prefix = "mail.imap", name = "enabled", havingValue = "true")
 public class EmailReceiveService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmailReceiveService.class);
@@ -47,7 +49,7 @@ public class EmailReceiveService {
     @Value("${mail.imap.password:#{null}}")
     private String imapPassword;
 
-    private boolean isConfigured = false;
+    private boolean warnedMissingConfig = false;
 
     /**
      * 定时轮询邮件
@@ -57,14 +59,14 @@ public class EmailReceiveService {
     public void pollEmails() {
         // 检查配置
         if (!checkConfiguration()) {
-            if (!isConfigured) {
+            if (!warnedMissingConfig) {
                 logger.warn("IMAP邮件接收未配置,跳过轮询。请在application.yml中配置mail.imap.*");
-                isConfigured = false;
+                warnedMissingConfig = true;
             }
             return;
         }
 
-        isConfigured = true;
+        warnedMissingConfig = false;
 
         try {
             logger.debug("开始轮询邮件...");

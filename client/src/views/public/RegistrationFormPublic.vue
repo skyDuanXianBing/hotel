@@ -10,7 +10,7 @@
       </div>
     </div>
 
-    <el-steps :active="step" finish-status="success" align-center class="steps">
+    <el-steps :active="stepsActive" finish-status="success" align-center class="steps">
       <el-step
         v-for="(s, idx) in stepItems"
         :key="idx"
@@ -36,7 +36,7 @@
           <el-form label-position="top">
             <el-form-item>
               <template #label>
-                <div class="mlabel">Number of guests / 宿泊人数 / 入住人数 / 숙박 인원 *</div>
+                <div class="mlabel">Number of guests / 宿泊人数 / 入住人数 / 숙박 인원 <span class="req">*</span></div>
               </template>
               <el-select v-model="guestCount" style="width: 220px" @change="onGuestCountChange">
                 <el-option v-for="n in guestCountOptions" :key="n" :label="String(n)" :value="n" />
@@ -64,7 +64,7 @@
 
         <el-form label-position="top" class="form">
           <template v-if="activeGuest">
-            <div class="mlabel">Residence / 居住地 / 居住地 / 거주지 *</div>
+            <div class="mlabel">Residence / 居住地 / 居住地 / 거주지 <span class="req">*</span></div>
             <el-radio-group v-model="activeGuest.residenceType" size="small">
               <el-radio-button label="JAPAN">Japan / 日本</el-radio-button>
               <el-radio-button label="OTHER">Other than Japan / 海外</el-radio-button>
@@ -73,13 +73,13 @@
             <div class="row">
               <el-form-item>
                 <template #label>
-                  <div class="mlabel">First Name / 名 / 名 / 이름 *</div>
+                  <div class="mlabel">First Name / 名 / 名 / 이름 <span class="req">*</span></div>
                 </template>
                 <el-input v-model="activeGuest.firstName" placeholder="First Name" />
               </el-form-item>
               <el-form-item>
                 <template #label>
-                  <div class="mlabel">Last Name / 姓 / 姓 / 성 *</div>
+                  <div class="mlabel">Last Name / 姓 / 姓 / 성 <span class="req">*</span></div>
                 </template>
                 <el-input v-model="activeGuest.lastName" placeholder="Last Name" />
               </el-form-item>
@@ -89,7 +89,7 @@
             <template v-if="activeGuest.residenceType === 'JAPAN'">
               <el-form-item>
                 <template #label>
-                  <div class="mlabel">Home Address / 住所 / 住址 / 주소 *</div>
+                  <div class="mlabel">Home Address / 住所 / 住址 / 주소 <span class="req">*</span></div>
                 </template>
                 <el-input v-model="activeGuest.address" type="textarea" :rows="3" placeholder="Address line" />
               </el-form-item>
@@ -97,13 +97,13 @@
               <div class="row">
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">Phone number / 電話番号 / 电话号码 / 전화번호 *</div>
+                    <div class="mlabel">Phone number / 電話番号 / 电话号码 / 전화번호 <span class="req">*</span></div>
                   </template>
                   <el-input v-model="activeGuest.phone" placeholder="Phone number" />
                 </el-form-item>
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">Date of Birth / 生年月日 / 出生日期 / 생년월일 *</div>
+                    <div class="mlabel">Date of Birth / 生年月日 / 出生日期 / 생년월일 <span class="req">*</span></div>
                   </template>
                   <el-date-picker
                     v-model="activeGuest.birthday"
@@ -119,7 +119,7 @@
             <!-- Overseas fields -->
             <template v-else>
               <div class="upload">
-                <div class="mlabel">Passport photo / 旅券写真 / 护照照片 / 여권사진 *</div>
+                <div class="mlabel">Passport photo / 旅券写真 / 护照照片 / 여권사진 <span class="req">*</span></div>
                 <el-upload
                   :show-file-list="false"
                   :auto-upload="false"
@@ -129,21 +129,37 @@
                   <el-button>Choose image</el-button>
                 </el-upload>
                 <div class="upload-hint">
-                  <span v-if="activeGuest.passportUploaded" class="ok">Uploaded</span>
+                  <span v-if="activeGuest.passportUploaded" class="ok">
+                    Uploaded{{ activeGuestPassportAttachment?.originalName ? `: ${activeGuestPassportAttachment.originalName}` : '' }}
+                  </span>
                   <span v-else class="warn">Not uploaded yet</span>
+                </div>
+
+                <div v-if="activeGuestPassportAttachment" class="passport-preview">
+                  <img
+                    class="passport-thumb"
+                    :src="buildPassportAttachmentUrl(activeGuestPassportAttachment.id, true)"
+                    alt="passport"
+                    @click="openPassportPreview(activeGuestPassportAttachment)"
+                  />
+                  <div class="passport-actions">
+                    <el-button link type="primary" @click="openPassportPreview(activeGuestPassportAttachment)">预览</el-button>
+                    <el-button link @click="downloadPassport(activeGuestPassportAttachment)">下载</el-button>
+                    <span class="passport-tip">重新上传将覆盖原图片</span>
+                  </div>
                 </div>
               </div>
 
               <div class="row">
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">Passport number / 旅券番号 / 护照号 / 여권번호 *</div>
+                    <div class="mlabel">Passport number / 旅券番号 / 护照号 / 여권번호 <span class="req">*</span></div>
                   </template>
                   <el-input v-model="activeGuest.passportNumber" placeholder="Passport number" />
                 </el-form-item>
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">Nationality / 国籍 / 国籍 / 국적 *</div>
+                    <div class="mlabel">Nationality / 国籍 / 国籍 / 국적 <span class="req">*</span></div>
                   </template>
                   <el-input v-model="activeGuest.nationality" placeholder="Nationality" />
                 </el-form-item>
@@ -152,13 +168,13 @@
               <div class="row">
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">Phone number / 電話番号 / 电话号码 / 전화번호 *</div>
+                    <div class="mlabel">Phone number / 電話番号 / 电话号码 / 전화번호 <span class="req">*</span></div>
                   </template>
                   <el-input v-model="activeGuest.phone" placeholder="Phone number" />
                 </el-form-item>
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">Date of Birth / 生年月日 / 出生日期 / 생년월일 *</div>
+                    <div class="mlabel">Date of Birth / 生年月日 / 出生日期 / 생년월일 <span class="req">*</span></div>
                   </template>
                   <el-date-picker
                     v-model="activeGuest.birthday"
@@ -173,7 +189,7 @@
               <div class="row">
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">Address1 / 住所1 / 地址1 / 주소1 *</div>
+                    <div class="mlabel">Address1 / 住所1 / 地址1 / 주소1 <span class="req">*</span></div>
                   </template>
                   <el-input v-model="activeGuest.address1" placeholder="Address1" />
                 </el-form-item>
@@ -188,7 +204,7 @@
               <div class="row">
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">City / 市区町村 / 城市 / 도시 *</div>
+                    <div class="mlabel">City / 市区町村 / 城市 / 도시 <span class="req">*</span></div>
                   </template>
                   <el-input v-model="activeGuest.city" placeholder="City" />
                 </el-form-item>
@@ -203,7 +219,7 @@
               <div class="row">
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">Country / 国 / 国家 / 국가 *</div>
+                    <div class="mlabel">Country / 国 / 国家 / 국가 <span class="req">*</span></div>
                   </template>
                   <el-input v-model="activeGuest.country" placeholder="Country" />
                 </el-form-item>
@@ -241,14 +257,25 @@
         <div class="hint">
           Overseas guests (Residence=Other) must upload passport photo and fill passport number.
         </div>
+        <div v-if="data?.status === 'SUBMITTED'" class="hint" style="margin-top: 8px; color: #67c23a">
+          已提交，等待审查。
+        </div>
         <div class="actions">
           <el-button @click="goPrev">Back</el-button>
           <el-button :loading="saving" @click="saveDraft">Save</el-button>
-          <el-button type="success" :loading="submitting" @click="submit">Send</el-button>
+          <el-button type="success" :loading="submitting" :disabled="data?.status === 'SUBMITTED'" @click="submit">
+            Send
+          </el-button>
         </div>
       </div>
     </div>
   </div>
+
+  <el-dialog v-model="passportPreviewVisible" :title="passportPreviewTitle" width="760px" append-to-body destroy-on-close>
+    <div class="passport-dialog-body">
+      <img v-if="passportPreviewUrl" class="passport-preview-img" :src="passportPreviewUrl" alt="passport" />
+    </div>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -257,6 +284,12 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadFile } from 'element-plus'
 import publicRequest from '@/utils/publicRequest'
+
+type ApiResponse<T> = {
+  success: boolean
+  message: string
+  data: T
+}
 
 type ResidenceType = 'JAPAN' | 'OTHER'
 
@@ -344,6 +377,18 @@ const data = ref<PublicRegistrationResponse | null>(null)
 const model = reactive<{ guests: GuestModel[] }>({ guests: [] })
 const guestCount = ref<number>(1)
 
+const passportPreviewVisible = ref(false)
+const passportPreviewUrl = ref('')
+const passportPreviewTitle = ref('Passport photo')
+
+const stepsActive = computed(() => {
+  const status = String(data.value?.status || '')
+  if (status === 'SUBMITTED' || status === 'APPROVED') {
+    return stepItems.value.length
+  }
+  return step.value
+})
+
 function token(): string {
   return (route.query.t as string) || ''
 }
@@ -378,6 +423,97 @@ const isSendStep = computed(() => step.value === model.guests.length + 1)
 const activeGuestIndex = computed(() => Math.max(0, step.value - 1))
 const activeGuest = computed(() => model.guests[activeGuestIndex.value] || null)
 
+function isBlank(v?: string): boolean {
+  return !v || String(v).trim().length === 0
+}
+
+function validateReservationStep(): string[] {
+  const errs: string[] = []
+  if (!guestCount.value || guestCount.value < 1) {
+    errs.push('Please select number of guests / 宿泊人数を選択してください')
+  }
+  if (!model.guests.length) {
+    errs.push('Guest list not ready, please wait / 宿泊者情報の準備中です')
+  }
+  return errs
+}
+
+function validateGuest(g: GuestModel): string[] {
+  const errs: string[] = []
+  const residence = g.residenceType || 'JAPAN'
+
+  if (isBlank(g.firstName)) errs.push('First Name is required / 名は必須です')
+  if (isBlank(g.lastName)) errs.push('Last Name is required / 姓は必須です')
+  if (isBlank(g.phone)) errs.push('Phone number is required / 電話番号は必須です')
+  if (isBlank(g.birthday)) errs.push('Date of Birth is required / 生年月日は必須です')
+
+  if (residence === 'JAPAN') {
+    if (isBlank(g.address)) errs.push('Home Address is required / 住所は必須です')
+  } else {
+    if (!g.passportUploaded) errs.push('Passport photo is required / パスポート写真のアップロードが必要です')
+    if (isBlank(g.passportNumber)) errs.push('Passport number is required / 旅券番号は必須です')
+    if (isBlank(g.nationality)) errs.push('Nationality is required / 国籍は必須です')
+    if (isBlank(g.address1)) errs.push('Address1 is required / 住所1は必須です')
+    if (isBlank(g.city)) errs.push('City is required / 市区町村は必須です')
+    if (isBlank(g.country)) errs.push('Country is required / 国は必須です')
+  }
+
+  return errs
+}
+
+function validateCurrentStep(): string[] {
+  if (step.value === 0) return validateReservationStep()
+  if (isGuestStep.value) {
+    if (!activeGuest.value) return ['Guest not found / 宿泊者が見つかりません']
+    return validateGuest(activeGuest.value)
+  }
+  return []
+}
+
+function showFirstError(errs: string[]) {
+  if (!errs.length) return
+  ElMessage.error(errs[0])
+}
+
+function getPassportAttachment(guestId?: number): AttachmentDTO | null {
+  if (!guestId || !data.value?.attachments || !Array.isArray(data.value.attachments)) {
+    return null
+  }
+  const list = data.value.attachments
+  for (let i = list.length - 1; i >= 0; i--) {
+    const a = list[i]
+    if (a && a.type === 'PASSPORT' && a.guestId === guestId) {
+      return a
+    }
+  }
+  return null
+}
+
+const activeGuestPassportAttachment = computed(() => getPassportAttachment(activeGuest.value?.id))
+
+function publicBaseUrl(): string {
+  const base = String((publicRequest.defaults as any).baseURL || '')
+  return base.endsWith('/') ? base.slice(0, -1) : base
+}
+
+function buildPassportAttachmentUrl(attachmentId: number, inline: boolean): string {
+  const encodedOrder = encodeURIComponent(orderNumber())
+  const encodedToken = encodeURIComponent(token())
+  const base = publicBaseUrl()
+  return `${base}/public/registration/${encodedOrder}/attachments/${attachmentId}?t=${encodedToken}&inline=${inline ? 'true' : 'false'}`
+}
+
+function openPassportPreview(att: AttachmentDTO) {
+  passportPreviewTitle.value = att.originalName ? `Passport photo - ${att.originalName}` : 'Passport photo'
+  passportPreviewUrl.value = buildPassportAttachmentUrl(att.id, true)
+  passportPreviewVisible.value = true
+}
+
+function downloadPassport(att: AttachmentDTO) {
+  const url = buildPassportAttachmentUrl(att.id, false)
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
 function hydrate(resp: PublicRegistrationResponse) {
   data.value = resp
   const attachments = resp.attachments || []
@@ -403,14 +539,73 @@ function hydrate(resp: PublicRegistrationResponse) {
     passportUploaded: attachments.some((a) => a.type === 'PASSPORT' && a.guestId === g.id),
   }))
   guestCount.value = resp.guestCount || model.guests.length || 1
+
+  if (resp.status === 'SUBMITTED' || resp.status === 'APPROVED') {
+    step.value = model.guests.length + 1
+  }
+}
+
+async function compressPassportImage(file: File): Promise<File> {
+  if (!file.type?.startsWith('image/')) {
+    return file
+  }
+
+  // Keep originals if already small enough
+  const maxBytes = 900 * 1024
+  if (file.size <= maxBytes) {
+    return file
+  }
+
+  const dataUrl: string = await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Read image failed'))
+    reader.readAsDataURL(file)
+  })
+
+  const img: HTMLImageElement = await new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('Load image failed'))
+    image.src = dataUrl
+  })
+
+  const maxSide = 2000
+  const scale = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1))
+  const targetW = Math.max(1, Math.round((img.width || 1) * scale))
+  const targetH = Math.max(1, Math.round((img.height || 1) * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = targetW
+  canvas.height = targetH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    return file
+  }
+  ctx.drawImage(img, 0, 0, targetW, targetH)
+
+  const blob: Blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => {
+        if (b) resolve(b)
+        else reject(new Error('Compress failed'))
+      },
+      'image/jpeg',
+      0.85,
+    )
+  })
+
+  const name = file.name?.replace(/\.(png|webp|jpeg|jpg)$/i, '') || 'passport'
+  return new File([blob], `${name}.jpg`, { type: 'image/jpeg' })
 }
 
 async function uploadPassport(guest: GuestModel, file: File) {
   if (!guest.id) {
     throw new Error('Missing guestId')
   }
+  const safeFile = await compressPassportImage(file)
   const form = new FormData()
-  form.append('file', file)
+  form.append('file', safeFile)
 
   const resp = (await publicRequest.post(`/public/registration/${orderNumber()}/attachments/passport`, form, {
     params: { t: token(), guestId: guest.id },
@@ -439,7 +634,12 @@ async function onPassportFileChange(guest: GuestModel, raw?: File) {
     await uploadPassport(guest, raw)
     ElMessage.success('Passport uploaded')
   } catch (e: any) {
-    ElMessage.error(e?.message || 'Upload failed')
+    const status = e?.response?.status
+    if (status === 413) {
+      ElMessage.error('图片过大，已超出服务器限制。请更换更小的图片后重试。')
+      return
+    }
+    ElMessage.error(e?.response?.data?.message || e?.message || 'Upload failed')
   }
 }
 
@@ -447,7 +647,10 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const resp = await publicRequest.get(`/public/registration/${orderNumber()}`, { params: { t: token() } })
+    const resp = (await publicRequest.get(`/public/registration/${orderNumber()}`, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
+    if (!resp?.success) {
+      throw new Error(resp?.message || 'Failed to load')
+    }
     hydrate(resp.data as PublicRegistrationResponse)
   } catch (e: any) {
     error.value = e?.response?.data?.message || e?.message || 'Failed to load'
@@ -482,7 +685,10 @@ async function saveDraft() {
         nextDestination: g.nextDestination,
       })),
     }
-    const resp = await publicRequest.put(`/public/registration/${orderNumber()}`, payload, { params: { t: token() } })
+    const resp = (await publicRequest.put(`/public/registration/${orderNumber()}`, payload, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
+    if (!resp?.success) {
+      throw new Error(resp?.message || 'Save failed')
+    }
     hydrate(resp.data as PublicRegistrationResponse)
     ElMessage.success('Saved')
   } catch (e: any) {
@@ -495,8 +701,20 @@ async function saveDraft() {
 async function submit() {
   submitting.value = true
   try {
+    // Validate all guests before submit
+    for (let i = 0; i < model.guests.length; i++) {
+      const errs = validateGuest(model.guests[i])
+      if (errs.length) {
+        step.value = i + 1
+        showFirstError(errs)
+        return
+      }
+    }
     await saveDraft()
-    const resp = await publicRequest.post(`/public/registration/${orderNumber()}/submit`, null, { params: { t: token() } })
+    const resp = (await publicRequest.post(`/public/registration/${orderNumber()}/submit`, null, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
+    if (!resp?.success) {
+      throw new Error(resp?.message || 'Submit failed')
+    }
     hydrate(resp.data as PublicRegistrationResponse)
     ElMessage.success('Submitted')
   } catch (e: any) {
@@ -533,6 +751,11 @@ async function onGuestCountChange(next: number) {
 }
 
 function goNext() {
+  const errs = validateCurrentStep()
+  if (errs.length) {
+    showFirstError(errs)
+    return
+  }
   const maxStep = model.guests.length + 1
   step.value = Math.min(step.value + 1, maxStep)
 }
@@ -628,12 +851,49 @@ onMounted(load)
   font-size: 12px;
   margin: 8px 0 6px;
 }
+.req {
+  color: var(--el-color-danger);
+}
 .upload {
   margin-top: 8px;
 }
 .upload-hint {
   margin-top: 6px;
   font-size: 12px;
+}
+.passport-preview {
+  margin-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.passport-thumb {
+  width: 140px;
+  height: 100px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  object-fit: cover;
+  cursor: pointer;
+}
+.passport-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.passport-tip {
+  font-size: 12px;
+  color: #909399;
+}
+.passport-dialog-body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.passport-preview-img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
 }
 .ok {
   color: #067647;
@@ -646,4 +906,3 @@ onMounted(load)
   font-size: 12px;
 }
 </style>
-

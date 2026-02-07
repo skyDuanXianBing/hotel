@@ -6,12 +6,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
+import server.demo.entity.RoomBlockout;
 import server.demo.entity.RoomPrice;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.RoomStatus;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
@@ -59,6 +61,7 @@ public class SuAriSyncService {
     private final ReservationRepository reservationRepository;
     private final RoomTypePricePlanRepository roomTypePricePlanRepository;
     private final RoomPriceRepository roomPriceRepository;
+    private final RoomBlockoutRepository roomBlockoutRepository;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
 
@@ -67,6 +70,7 @@ public class SuAriSyncService {
             ReservationRepository reservationRepository,
             RoomTypePricePlanRepository roomTypePricePlanRepository,
             RoomPriceRepository roomPriceRepository,
+            RoomBlockoutRepository roomBlockoutRepository,
             SuApiClient suApiClient,
             SuAccessTokenService suAccessTokenService
     ) {
@@ -74,6 +78,7 @@ public class SuAriSyncService {
         this.reservationRepository = reservationRepository;
         this.roomTypePricePlanRepository = roomTypePricePlanRepository;
         this.roomPriceRepository = roomPriceRepository;
+        this.roomBlockoutRepository = roomBlockoutRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
     }
@@ -163,6 +168,19 @@ public class SuAriSyncService {
                 .filter(r -> r.getRoom() != null && r.getRoom().getId() != null)
                 .collect(Collectors.groupingBy(r -> r.getRoom().getId()));
 
+        Map<Long, List<RoomBlockout>> blockoutsByRoomId = new HashMap<>();
+        if (!roomIds.isEmpty()) {
+            List<RoomBlockout> blockouts = roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(
+                    storeId,
+                    roomIds,
+                    startDate,
+                    endDate
+            );
+            blockoutsByRoomId = blockouts.stream()
+                    .filter(b -> b != null && b.getRoom() != null && b.getRoom().getId() != null && b.getBlockDate() != null)
+                    .collect(Collectors.groupingBy(b -> b.getRoom().getId()));
+        }
+
         Map<Long, Set<Long>> planIdsByRoomTypeId = new HashMap<>();
         Map<String, RoomTypePricePlan> rtppByKey = new HashMap<>();
 
@@ -226,7 +244,13 @@ public class SuAriSyncService {
 
             String suRoomId = SuRoomIdUtil.buildRoomId(room);
 
-            boolean[] canSell = buildCanSellCalendar(room, reservationsByRoomId.get(room.getId()), startDate, effectiveDays);
+            boolean[] canSell = buildCanSellCalendar(
+                    room,
+                    reservationsByRoomId.get(room.getId()),
+                    blockoutsByRoomId.get(room.getId()),
+                    startDate,
+                    effectiveDays
+            );
             List<Map<String, Object>> roomstosellSegments = toRoomstosellSegments(canSell, startDate);
             if (!roomstosellSegments.isEmpty()) {
                 availabilitySegments += roomstosellSegments.size();
@@ -411,7 +435,13 @@ public class SuAriSyncService {
         return Math.min(d, MAX_DAYS);
     }
 
-    private static boolean[] buildCanSellCalendar(Room room, List<Reservation> reservations, LocalDate start, int days) {
+    private static boolean[] buildCanSellCalendar(
+            Room room,
+            List<Reservation> reservations,
+            List<RoomBlockout> blockouts,
+            LocalDate start,
+            int days
+    ) {
         boolean roomAvailable = room.getStatus() == RoomStatus.AVAILABLE;
         boolean[] canSell = new boolean[days];
 
@@ -420,6 +450,19 @@ public class SuAriSyncService {
         }
         if (!roomAvailable) {
             return canSell;
+        }
+
+        if (blockouts != null && !blockouts.isEmpty()) {
+            for (RoomBlockout b : blockouts) {
+                if (b == null || b.getBlockDate() == null) {
+                    continue;
+                }
+                long offset = b.getBlockDate().toEpochDay() - start.toEpochDay();
+                if (offset < 0 || offset >= days) {
+                    continue;
+                }
+                canSell[(int) offset] = false;
+            }
         }
 
         if (reservations == null || reservations.isEmpty()) {

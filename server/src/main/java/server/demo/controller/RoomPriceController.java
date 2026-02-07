@@ -11,6 +11,8 @@ import server.demo.dto.RoomPriceDTO;
 import server.demo.dto.RoomPriceManagementDTO;
 import server.demo.dto.UpdatePriceByPlanRequest;
 import server.demo.dto.UpdateRoomPriceRequest;
+import server.demo.context.StoreContextHolder;
+import server.demo.service.SuAriAutoSyncService;
 import server.demo.service.RoomPriceService;
 
 import java.math.BigDecimal;
@@ -26,6 +28,9 @@ public class RoomPriceController {
 
     @Autowired
     private RoomPriceService roomPriceService;
+
+    @Autowired(required = false)
+    private SuAriAutoSyncService suAriAutoSyncService;
 
     /**
      * 获取指定日期范围内的房价数据
@@ -111,6 +116,10 @@ public class RoomPriceController {
             @Valid @RequestBody UpdateRoomPriceRequest request) {
         try {
             List<RoomPriceDTO> updatedPrices = roomPriceService.updateRoomPrice(request);
+            if (suAriAutoSyncService != null) {
+                Long storeId = StoreContextHolder.getContext().getStoreId();
+                suAriAutoSyncService.enqueueForStore(storeId, "room_price_update");
+            }
             return ResponseEntity.ok(ApiResponse.success("房价更新成功", updatedPrices));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400)
@@ -129,6 +138,10 @@ public class RoomPriceController {
             @Valid @RequestBody List<UpdateRoomPriceRequest> requests) {
         try {
             List<RoomPriceDTO> updatedPrices = roomPriceService.batchUpdateRoomPrices(requests);
+            if (suAriAutoSyncService != null) {
+                Long storeId = StoreContextHolder.getContext().getStoreId();
+                suAriAutoSyncService.enqueueForStore(storeId, "room_price_batch_update");
+            }
             return ResponseEntity.ok(ApiResponse.success("批量房价更新成功", updatedPrices));
         } catch (Exception e) {
             return ResponseEntity.status(500)
@@ -182,6 +195,10 @@ public class RoomPriceController {
             @Valid @RequestBody BulkPriceChangeRequest request) {
         try {
             List<RoomPriceDTO> updatedPrices = roomPriceService.bulkPriceChange(request);
+            if (suAriAutoSyncService != null) {
+                Long storeId = StoreContextHolder.getContext().getStoreId();
+                suAriAutoSyncService.enqueueForStore(storeId, "room_price_bulk_change");
+            }
             return ResponseEntity.ok(ApiResponse.success(
                 "批量改价成功，共更新 " + updatedPrices.size() + " 条房价记录",
                 updatedPrices
@@ -223,6 +240,10 @@ public class RoomPriceController {
         try {
             List<RoomPriceManagementDTO> updatedPrices = roomPriceService.updatePriceByPlan(
                     request, operator);
+            if (suAriAutoSyncService != null) {
+                Long storeId = StoreContextHolder.getContext().getStoreId();
+                suAriAutoSyncService.enqueueForStore(storeId, "room_price_update_by_plan");
+            }
             return ResponseEntity.ok(ApiResponse.success(
                     "价格更新成功，共更新 " + updatedPrices.size() + " 条记录",
                     updatedPrices

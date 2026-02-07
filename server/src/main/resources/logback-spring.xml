@@ -140,6 +140,23 @@
             <totalSizeCap>3GB</totalSizeCap>
         </rollingPolicy>
     </appender>
+
+    <!-- Public Registration 日志（预订链接/maxGuests/上传护照等定位日志） -->
+    <appender name="PUBLIC_REGISTRATION" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/public-registration.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/public-registration.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
     
     <!-- 安全日志 -->
     <appender name="SECURITY" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -177,6 +194,19 @@
 
     <logger name="SU_AUTO_MESSAGE" level="INFO" additivity="false">
         <appender-ref ref="SU_AUTO_MESSAGE"/>
+    </logger>
+
+    <!-- Public Registration: route key classes to dedicated file, keep additivity=true for application.log -->
+    <logger name="server.demo.controller.PublicRegistrationController" level="INFO" additivity="true">
+        <appender-ref ref="PUBLIC_REGISTRATION"/>
+    </logger>
+
+    <logger name="server.demo.controller.PublicRegistrationBookingController" level="INFO" additivity="true">
+        <appender-ref ref="PUBLIC_REGISTRATION"/>
+    </logger>
+
+    <logger name="server.demo.service.PublicRegistrationService" level="INFO" additivity="true">
+        <appender-ref ref="PUBLIC_REGISTRATION"/>
     </logger>
     
     <logger name="SECURITY" level="WARN" additivity="false">

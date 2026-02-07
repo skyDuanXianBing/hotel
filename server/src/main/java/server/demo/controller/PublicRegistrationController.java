@@ -5,6 +5,8 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import server.demo.dto.ApiResponse;
@@ -21,6 +23,8 @@ import java.nio.file.Path;
 @RestController
 @RequestMapping("/api/public/registration")
 public class PublicRegistrationController {
+
+    private static final Logger logger = LoggerFactory.getLogger(PublicRegistrationController.class);
 
     @Autowired
     private RegistrationLinkService registrationLinkService;
@@ -67,6 +71,13 @@ public class PublicRegistrationController {
             @RequestParam(name = "file") MultipartFile file
     ) {
         RegistrationLinkService.Claims claims = registrationLinkService.verifyToken(orderNumber, token);
+        logger.info("[PublicRegistration][UploadPassport] storeId={}, orderNumber={}, guestId={}, size={}, contentType={}",
+                claims.getStoreId(),
+                orderNumber,
+                guestId,
+                file != null ? file.getSize() : null,
+                file != null ? file.getContentType() : null
+        );
         PublicRegistrationAttachmentDTO dto = registrationAttachmentService.uploadPassport(claims.getStoreId(), orderNumber, guestId, file);
         return ApiResponse.success("ok", dto);
     }
@@ -75,7 +86,8 @@ public class PublicRegistrationController {
         public ResponseEntity<FileSystemResource> downloadAttachment(
             @PathVariable String orderNumber,
             @RequestParam(name = "t") String token,
-            @PathVariable Long attachmentId
+            @PathVariable Long attachmentId,
+            @RequestParam(name = "inline", required = false, defaultValue = "false") boolean inline
         ) {
         RegistrationLinkService.Claims claims = registrationLinkService.verifyToken(orderNumber, token);
         RegistrationAttachment att = registrationAttachmentService.requireAttachmentForPublicDownload(claims.getStoreId(), orderNumber, attachmentId);
@@ -88,8 +100,9 @@ public class PublicRegistrationController {
             ? ("attachment-" + att.getId())
             : att.getOriginalName();
 
+        String disposition = (inline ? "inline" : "attachment") + "; filename=\"" + filename + "\"";
         return ResponseEntity.ok()
-            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
             .contentType(MediaType.parseMediaType(contentType))
             .body(new FileSystemResource(p));
         }

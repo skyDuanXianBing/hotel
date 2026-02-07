@@ -9,6 +9,7 @@ import server.demo.entity.RoomType;
 import server.demo.enums.RoomStatus;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +21,8 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     Optional<Room> findByStoreIdAndRoomNumber(Long storeId, String roomNumber);
 
     List<Room> findByStoreId(Long storeId);
+
+    List<Room> findByStoreIdAndIdIn(Long storeId, Collection<Long> ids);
 
     List<Room> findByStoreIdAndRoomTypeId(Long storeId, Long roomTypeId);
 

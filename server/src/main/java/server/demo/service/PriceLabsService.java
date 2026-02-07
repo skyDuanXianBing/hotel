@@ -26,8 +26,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -77,6 +79,9 @@ public class PriceLabsService {
 
     @Autowired
     private PriceLabsApiClient priceLabsApiClient;
+
+    @Autowired(required = false)
+    private SuAriAutoSyncService suAriAutoSyncService;
 
     @Autowired
     private server.demo.config.PriceLabsConfig priceLabsConfig;
@@ -317,6 +322,7 @@ public class PriceLabsService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         int totalAffectedCount = 0;
         Long storeId = null;
+        Set<Long> affectedStoreIds = new HashSet<>();
 
         // 遍历所有房源数据
         for (PriceLabsWebhookRequest.ListingData listingData : request.getData()) {
@@ -333,6 +339,9 @@ public class PriceLabsService {
             PriceLabsConnection connection = resolveConnectionForWebhook(roomTypeId, listingId, ratePlanId);
 
             storeId = connection.getStoreId();
+            if (storeId != null) {
+                affectedStoreIds.add(storeId);
+            }
             RoomType roomType = connection.getRoomType();
             PricePlan pricePlan = connection.getPricePlan(); // 获取价格计划
 
@@ -450,6 +459,12 @@ public class PriceLabsService {
                 integration.setLastPriceSyncAt(LocalDateTime.now());
                 integrationRepository.save(integration);
             });
+        }
+
+        if (suAriAutoSyncService != null && !affectedStoreIds.isEmpty()) {
+            for (Long sid : affectedStoreIds) {
+                suAriAutoSyncService.enqueueForStore(sid, "pricelabs_webhook");
+            }
         }
     }
 

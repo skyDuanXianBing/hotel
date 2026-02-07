@@ -6,8 +6,11 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
+import server.demo.dto.OpenRoomBlockoutRequest;
+import server.demo.dto.RoomBlockoutSummaryDTO;
 import server.demo.dto.RoomStatusCalendarDTO;
 import server.demo.dto.RoomStatusStatisticsDTO;
+import server.demo.dto.UpsertRoomBlockoutRequest;
 import server.demo.dto.UpdateRoomStatusRequest;
 import server.demo.service.RoomStatusService;
 
@@ -42,6 +45,24 @@ public class RoomStatusController extends BaseStoreController {
             return ApiResponse.success("房间状态更新成功");
         } catch (Exception e) {
             return ApiResponse.error("房间状态更新失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/blockouts/close")
+    public ApiResponse<RoomBlockoutSummaryDTO> closeRooms(@Valid @RequestBody UpsertRoomBlockoutRequest request) {
+        try {
+            return ApiResponse.success(roomStatusService.closeRooms(request));
+        } catch (Exception e) {
+            return ApiResponse.error("关房失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/blockouts/open")
+    public ApiResponse<RoomBlockoutSummaryDTO> openRooms(@Valid @RequestBody OpenRoomBlockoutRequest request) {
+        try {
+            return ApiResponse.success(roomStatusService.openRooms(request));
+        } catch (Exception e) {
+            return ApiResponse.error("开房失败: " + e.getMessage());
         }
     }
 

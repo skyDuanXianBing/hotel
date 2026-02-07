@@ -5,6 +5,9 @@ export interface DailyRoomStatusDTO {
   date: string
   status: string
   reservation?: ReservationInfoDTO
+  closed?: boolean
+  closeType?: string
+  closeRemark?: string
 }
 
 export interface ReservationInfoDTO {
@@ -73,6 +76,28 @@ export const updateRoomStatus = async (
     status,
     reason,
   })
+}
+
+export interface RoomBlockoutSummaryDTO {
+  affectedDays: number
+}
+
+export const closeRoomBlockouts = async (data: {
+  roomIds: number[]
+  startDate: string
+  endDate: string
+  type: 'stop' | 'maintenance' | 'retain'
+  remark?: string
+}): Promise<ApiResponse<RoomBlockoutSummaryDTO>> => {
+  return await request.post('/room-status/blockouts/close', data)
+}
+
+export const openRoomBlockouts = async (data: {
+  roomIds: number[]
+  startDate: string
+  endDate: string
+}): Promise<ApiResponse<RoomBlockoutSummaryDTO>> => {
+  return await request.post('/room-status/blockouts/open', data)
 }
 
 // 获取房态统计数据

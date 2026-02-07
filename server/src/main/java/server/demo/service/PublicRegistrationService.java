@@ -3,6 +3,8 @@ package server.demo.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import server.demo.dto.registration.PublicRegistrationAttachmentDTO;
 import server.demo.dto.registration.PublicRegistrationGuestDTO;
 import server.demo.dto.registration.PublicRegistrationResponse;
@@ -21,6 +23,7 @@ import server.demo.repository.RegistrationFormRepository;
 import server.demo.repository.RegistrationGuestRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.util.SuRoomIdParser;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -32,6 +35,8 @@ import java.util.Optional;
 
 @Service
 public class PublicRegistrationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PublicRegistrationService.class);
 
     @Autowired
     private ReservationRepository reservationRepository;
@@ -275,11 +280,18 @@ public class PublicRegistrationService {
             return;
         }
         if (g.getResidenceType() == ResidenceType.JAPAN) {
+            // clear overseas-only fields when switching to JAPAN to avoid stale data
+            g.setNationality(null);
             g.setAddress1(null);
             g.setAddress2(null);
             g.setCity(null);
             g.setState(null);
             g.setCountry(null);
+            g.setPassportNumber(null);
+            g.setPriorStay(null);
+            g.setNextDestination(null);
+
+            deleteGuestPassportAttachmentsBestEffort(g);
             return;
         }
 
@@ -291,9 +303,33 @@ public class PublicRegistrationService {
             if (!isBlank(g.getState())) parts.add(g.getState().trim());
             if (!isBlank(g.getCountry())) parts.add(g.getCountry().trim());
             String composed = String.join(", ", parts);
-            if (!composed.isBlank()) {
-                g.setAddress(composed);
+            // Prevent carrying over a previously-saved JAPAN address when switching to OTHER.
+            g.setAddress(composed.isBlank() ? null : composed);
+        }
+    }
+
+    private void deleteGuestPassportAttachmentsBestEffort(RegistrationGuest guest) {
+        if (guest == null || guest.getId() == null) {
+            return;
+        }
+        try {
+            List<RegistrationAttachment> atts = registrationAttachmentRepository.findByGuestId(guest.getId());
+            if (atts == null || atts.isEmpty()) {
+                return;
             }
+            for (RegistrationAttachment att : atts) {
+                if (att.getType() != RegistrationAttachmentType.PASSPORT) {
+                    continue;
+                }
+                try {
+                    if (att.getFilePath() != null && !att.getFilePath().isBlank()) {
+                        java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(att.getFilePath()));
+                    }
+                } catch (Exception ignored) {
+                }
+                registrationAttachmentRepository.delete(att);
+            }
+        } catch (Exception ignored) {
         }
     }
 
@@ -363,18 +399,91 @@ public class PublicRegistrationService {
             return 4;
         }
         Room room = reservation.getRoom();
-        if (room != null && room.getRoomType() != null && room.getRoomType().getMaxGuests() != null) {
-            return Math.max(1, room.getRoomType().getMaxGuests());
-        }
-        Long otaRoomTypeId = reservation.getOtaRoomTypeId();
-        if (otaRoomTypeId != null) {
-            Optional<RoomType> rt = roomTypeRepository.findById(otaRoomTypeId)
-                    .filter(x -> storeId != null && storeId.equals(x.getStoreId()));
-            if (rt.isPresent() && rt.get().getMaxGuests() != null) {
-                return Math.max(1, rt.get().getMaxGuests());
+        Long assignedRoomTypeId = (room != null && room.getRoomType() != null) ? room.getRoomType().getId() : null;
+        String assignedRoomTypeName = (room != null && room.getRoomType() != null) ? room.getRoomType().getName() : null;
+        Integer assignedMaxGuests = (room != null && room.getRoomType() != null) ? room.getRoomType().getMaxGuests() : null;
+
+        Integer otaResolved = resolveMaxGuestsFromOta(storeId, reservation);
+
+        if (otaResolved != null) {
+            if (otaResolved <= 1) {
+                logger.info(
+                        "[PublicRegistration][MaxGuests] storeId={}, orderNumber={}, resolved={}, source=ota_room_type, assignedRoomId={}, assignedRoomTypeId={}, assignedRoomTypeName={}, assignedRoomTypeMaxGuests={}, otaResolved={}, otaRoomTypeId={}, otaRoomId={}",
+                        storeId,
+                        reservation.getOrderNumber(),
+                        otaResolved,
+                        room != null ? room.getId() : null,
+                        assignedRoomTypeId,
+                        assignedRoomTypeName,
+                        assignedMaxGuests,
+                        otaResolved,
+                        reservation.getOtaRoomTypeId(),
+                        reservation.getOtaRoomId()
+                );
             }
+            if (assignedMaxGuests != null) {
+                int assignedResolved = Math.max(1, assignedMaxGuests);
+                if (!Objects.equals(assignedResolved, otaResolved)) {
+                    logger.info(
+                            "[PublicRegistration][MaxGuests] storeId={}, orderNumber={}, resolved={}, source=ota_room_type, assignedRoomId={}, assignedRoomTypeId={}, assignedRoomTypeName={}, assignedRoomTypeMaxGuests={}, otaResolved={}, otaRoomTypeId={}, otaRoomId={}",
+                            storeId,
+                            reservation.getOrderNumber(),
+                            otaResolved,
+                            room != null ? room.getId() : null,
+                            assignedRoomTypeId,
+                            assignedRoomTypeName,
+                            assignedMaxGuests,
+                            otaResolved,
+                            reservation.getOtaRoomTypeId(),
+                            reservation.getOtaRoomId()
+                    );
+                }
+            }
+            return otaResolved;
+        }
+
+        if (assignedMaxGuests != null) {
+            int resolved = Math.max(1, assignedMaxGuests);
+            if (resolved <= 1) {
+                logger.info(
+                        "[PublicRegistration][MaxGuests] storeId={}, orderNumber={}, resolved={}, source=assigned_room, assignedRoomId={}, assignedRoomTypeId={}, assignedRoomTypeName={}, assignedRoomTypeMaxGuests={}, otaRoomTypeId={}, otaRoomId={}",
+                        storeId,
+                        reservation.getOrderNumber(),
+                        resolved,
+                        room != null ? room.getId() : null,
+                        assignedRoomTypeId,
+                        assignedRoomTypeName,
+                        assignedMaxGuests,
+                        reservation.getOtaRoomTypeId(),
+                        reservation.getOtaRoomId()
+                );
+            }
+            return resolved;
         }
         return 4;
+    }
+
+    private Integer resolveMaxGuestsFromOta(Long storeId, Reservation reservation) {
+        if (reservation == null) {
+            return null;
+        }
+
+        Long roomTypeId = reservation.getOtaRoomTypeId();
+        if (roomTypeId == null) {
+            SuRoomIdParser.ParsedRoomId parsed = SuRoomIdParser.parse(reservation.getOtaRoomId());
+            roomTypeId = parsed != null ? parsed.roomTypeId() : null;
+        }
+
+        if (roomTypeId == null) {
+            return null;
+        }
+
+        Optional<RoomType> rt = roomTypeRepository.findById(roomTypeId)
+                .filter(x -> storeId != null && storeId.equals(x.getStoreId()));
+        if (rt.isEmpty() || rt.get().getMaxGuests() == null) {
+            return null;
+        }
+        return Math.max(1, rt.get().getMaxGuests());
     }
 
     private int sumGuests(Reservation reservation) {
@@ -425,4 +534,3 @@ public class PublicRegistrationService {
         }
     }
 }
-

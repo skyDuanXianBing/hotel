@@ -14,6 +14,7 @@ import server.demo.entity.RoomTypePricePlan;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.RoomStatus;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
@@ -41,6 +42,7 @@ class SuAriSyncServiceTest {
         ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
         RoomTypePricePlanRepository rtppRepository = Mockito.mock(RoomTypePricePlanRepository.class);
         RoomPriceRepository roomPriceRepository = Mockito.mock(RoomPriceRepository.class);
+        RoomBlockoutRepository roomBlockoutRepository = Mockito.mock(RoomBlockoutRepository.class);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
 
@@ -49,6 +51,7 @@ class SuAriSyncServiceTest {
                 reservationRepository,
                 rtppRepository,
                 roomPriceRepository,
+                roomBlockoutRepository,
                 suApiClient,
                 suAccessTokenService
         );
@@ -88,6 +91,13 @@ class SuAriSyncServiceTest {
                 any(LocalDate.class),
                 any(Set.class)
         )).thenReturn(List.of(reservation));
+
+        when(roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(
+                eq(5L),
+                anyList(),
+                any(LocalDate.class),
+                any(LocalDate.class)
+        )).thenReturn(List.of());
 
         RoomPrice d0 = new RoomPrice(roomType, plan, today, new BigDecimal("100.00"));
         RoomPrice d1 = new RoomPrice(roomType, plan, today.plusDays(1), new BigDecimal("100.00"));

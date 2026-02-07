@@ -1777,7 +1777,7 @@ import {
   type ReservationDTO,
   type ReservationChannelInfoDTO,
 } from '@/api/reservation'
-import { getRoomStatusCalendar } from '@/api/roomStatus'
+import { closeRoomBlockouts, getRoomStatusCalendar, openRoomBlockouts } from '@/api/roomStatus'
 import type { CreateReservationRequest } from '@/api/reservation'
 import { RoomStatus, ReservationStatus } from '@/types/room'
 import type { CalendarRoomData, DailyRoomStatus } from '@/types/room'
@@ -2566,6 +2566,9 @@ const loadRoomStatusCalendarData = async () => {
           dailyStatus: room.dailyStatus.map((daily) => ({
             date: daily.date,
             status: daily.status as RoomStatus,
+            closed: daily.closed || false,
+            closeType: daily.closeType || '',
+            closeRemark: daily.closeRemark || '',
             reservation: daily.reservation
               ? {
                   id: daily.reservation.id,
@@ -2587,6 +2590,24 @@ const loadRoomStatusCalendarData = async () => {
       // 只有在返回的房间数据不为空时才覆盖
       if (transformedData.rooms && transformedData.rooms.length > 0) {
         calendarData.value = transformedData
+
+        // 同步后端落库的关房信息到 UI overlay（roomExtraStatus）
+        transformedData.rooms.forEach((room) => {
+          room.dailyStatus.forEach((daily) => {
+            const key = `${room.roomId}-${daily.date}`
+            const current = roomExtraStatus.value.get(key) || {
+              isDirty: false,
+              isClosed: false,
+              closeType: '',
+            }
+            roomExtraStatus.value.set(key, {
+              ...current,
+              isClosed: !!daily.closed,
+              closeType: daily.closed ? daily.closeType || '' : '',
+            })
+          })
+        })
+
         console.log('房态日历数据加载成功:', transformedData)
         console.log('transformedData.rooms数量:', transformedData.rooms?.length)
         console.log('calendarData.value.rooms数量:', calendarData.value.rooms?.length)
@@ -3005,19 +3026,34 @@ const handleClosedRoomAction = (action: string) => {
   const key = `${roomId}-${date}`
 
   if (action === 'open') {
-    // 开房操作 - 取消停用状态
-    const currentStatus = roomExtraStatus.value.get(key) || {
-      isDirty: false,
-      isClosed: false,
-      closeType: '',
-    }
-    roomExtraStatus.value.set(key, {
-      ...currentStatus,
-      isClosed: false,
-      closeType: '',
-    })
-    ElMessage.success('已开房')
-    hideClosedRoomActions() // 开房后关闭弹窗
+    ;(async () => {
+      try {
+        const resp = await openRoomBlockouts({
+          roomIds: [roomId],
+          startDate: date,
+          endDate: date,
+        })
+        if (!resp.success) {
+          ElMessage.error(resp.message || '开房失败')
+          return
+        }
+        const currentStatus = roomExtraStatus.value.get(key) || {
+          isDirty: false,
+          isClosed: false,
+          closeType: '',
+        }
+        roomExtraStatus.value.set(key, {
+          ...currentStatus,
+          isClosed: false,
+          closeType: '',
+        })
+        ElMessage.success('已开房')
+        hideClosedRoomActions()
+        await loadRoomStatusCalendarData()
+      } catch (error: any) {
+        ElMessage.error(error?.message || '开房失败')
+      }
+    })()
   } else if (action === 'reserve') {
     // 转预订操作
     console.log('转预订操作')
@@ -4057,31 +4093,34 @@ const cancelCloseRoom = () => {
   }
 }
 
-const confirmCloseRoom = () => {
+const confirmCloseRoom = async () => {
   if (!closeRoomData.value.room || !closeRoomForm.value.startDate || !closeRoomForm.value.endDate) {
     ElMessage.warning('请填写完整信息')
     return
   }
 
-  // 标记房间为关闭状态
-  const startDate = new Date(closeRoomForm.value.startDate)
-  const endDate = new Date(closeRoomForm.value.endDate)
-  const current = new Date(startDate)
-
-  while (current <= endDate) {
-    const dateStr = current.toISOString().split('T')[0]
-    const key = `${closeRoomData.value.room!.roomId}-${dateStr}`
-    roomExtraStatus.value.set(key, {
-      isDirty: false,
-      isClosed: true,
-      closeType: closeRoomForm.value.type,
+  try {
+    const roomId = closeRoomData.value.room.roomId
+    const resp = await closeRoomBlockouts({
+      roomIds: [roomId],
+      startDate: closeRoomForm.value.startDate,
+      endDate: closeRoomForm.value.endDate,
+      type: closeRoomForm.value.type as 'stop' | 'maintenance' | 'retain',
+      remark: closeRoomForm.value.remark,
     })
-    current.setDate(current.getDate() + 1)
-  }
 
-  ElMessage.success('关房操作已完成')
-  showCloseRoomDialog.value = false
-  cancelCloseRoom()
+    if (!resp.success) {
+      ElMessage.error(resp.message || '关房失败')
+      return
+    }
+
+    ElMessage.success(`关房已保存（${resp.data?.affectedDays ?? 0} 天）`)
+    showCloseRoomDialog.value = false
+    cancelCloseRoom()
+    await loadRoomStatusCalendarData()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '关房失败')
+  }
 }
 
 // 批量关房相关处理函数
@@ -4095,51 +4134,64 @@ const cancelBatchCloseRoom = () => {
   showBatchDialog.value = true
 }
 
-const confirmBatchCloseRoom = () => {
+const confirmBatchCloseRoom = async () => {
   if (!batchCloseForm.value.startDate || !batchCloseForm.value.endDate) {
     ElMessage.warning('请填写完整信息')
     return
   }
 
-  // 批量设置房间关闭状态
-  const startDate = new Date(batchCloseForm.value.startDate)
-  const endDate = new Date(batchCloseForm.value.endDate)
+  try {
+    const roomIds = calendarData.value.rooms
+      .filter((r) => batchCloseSelectedTypes.value.includes(r.roomType))
+      .map((r) => r.roomId)
 
-  batchCloseSelectedTypes.value.forEach((roomType) => {
-    // 找到该房型的所有房间
-    calendarData.value.rooms.forEach((room) => {
-      if (room.roomType === roomType) {
-        // 设置该房间在指定日期范围内的关房状态
-        const current = new Date(startDate)
-        while (current <= endDate) {
-          const dateStr = current.toISOString().split('T')[0]
-          const key = `${room.roomId}-${dateStr}`
-          roomExtraStatus.value.set(key, {
-            isDirty: roomExtraStatus.value.get(key)?.isDirty || false,
-            isClosed: batchAction.value === 'close', // 根据操作类型设置
-            closeType: batchAction.value === 'close' ? batchCloseForm.value.type : '',
-          })
-          current.setDate(current.getDate() + 1)
-        }
+    if (roomIds.length === 0) {
+      ElMessage.warning('未找到可操作的房间')
+      return
+    }
+
+    if (batchAction.value === 'close') {
+      const resp = await closeRoomBlockouts({
+        roomIds,
+        startDate: batchCloseForm.value.startDate,
+        endDate: batchCloseForm.value.endDate,
+        type: batchCloseForm.value.type as 'stop' | 'maintenance' | 'retain',
+        remark: batchCloseForm.value.remark,
+      })
+      if (!resp.success) {
+        ElMessage.error(resp.message || '批量关房失败')
+        return
       }
-    })
-  })
+      ElMessage.success(`批量关房已保存（${resp.data?.affectedDays ?? 0} 天）`)
+    } else {
+      const resp = await openRoomBlockouts({
+        roomIds,
+        startDate: batchCloseForm.value.startDate,
+        endDate: batchCloseForm.value.endDate,
+      })
+      if (!resp.success) {
+        ElMessage.error(resp.message || '批量开房失败')
+        return
+      }
+      ElMessage.success(`批量开房已保存（${resp.data?.affectedDays ?? 0} 天）`)
+    }
 
-  ElMessage.success(`${batchDialogTitle.value}操作已完成`)
-  showBatchCloseRoomDialog.value = false
+    showBatchCloseRoomDialog.value = false
+    batchMode.value = false
+    selectedCells.value.clear()
+    batchCloseSelectedTypes.value = []
+    batchCloseSelectedRooms.value = []
 
-  // 清空选择状态
-  batchMode.value = false
-  selectedCells.value.clear()
-  batchCloseSelectedTypes.value = []
-  batchCloseSelectedRooms.value = []
+    batchCloseForm.value = {
+      type: 'stop',
+      startDate: '',
+      endDate: '',
+      remark: '',
+    }
 
-  // 重置表单
-  batchCloseForm.value = {
-    type: 'stop',
-    startDate: '',
-    endDate: '',
-    remark: '',
+    await loadRoomStatusCalendarData()
+  } catch (error: any) {
+    ElMessage.error(error?.message || `${batchDialogTitle.value}失败`)
   }
 }
 

@@ -8,12 +8,34 @@ public class DailyRoomStatusDTO {
     private RoomStatus status;
     private ReservationInfoDTO reservation;
 
+    /**
+     * 房间关房（按房间号+日期落库）
+     * true 表示该日期不可售，SU /availability 将推 roomstosell=0
+     */
+    private Boolean closed;
+
+    /**
+     * closeType: stop / maintenance / retain（与前端一致）
+     */
+    private String closeType;
+
+    private String closeRemark;
+
     public DailyRoomStatusDTO() {}
 
     public DailyRoomStatusDTO(LocalDate date, RoomStatus status, ReservationInfoDTO reservation) {
         this.date = date;
         this.status = status;
         this.reservation = reservation;
+    }
+
+    public DailyRoomStatusDTO(LocalDate date, RoomStatus status, ReservationInfoDTO reservation, Boolean closed, String closeType, String closeRemark) {
+        this.date = date;
+        this.status = status;
+        this.reservation = reservation;
+        this.closed = closed;
+        this.closeType = closeType;
+        this.closeRemark = closeRemark;
     }
 
     public LocalDate getDate() {
@@ -38,6 +60,30 @@ public class DailyRoomStatusDTO {
 
     public void setReservation(ReservationInfoDTO reservation) {
         this.reservation = reservation;
+    }
+
+    public Boolean getClosed() {
+        return closed;
+    }
+
+    public void setClosed(Boolean closed) {
+        this.closed = closed;
+    }
+
+    public String getCloseType() {
+        return closeType;
+    }
+
+    public void setCloseType(String closeType) {
+        this.closeType = closeType;
+    }
+
+    public String getCloseRemark() {
+        return closeRemark;
+    }
+
+    public void setCloseRemark(String closeRemark) {
+        this.closeRemark = closeRemark;
     }
 
     public static class ReservationInfoDTO {

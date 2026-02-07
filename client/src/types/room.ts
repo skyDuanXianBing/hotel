@@ -166,6 +166,9 @@ export interface DailyRoomStatus {
   date: string
   status: RoomStatus
   reservation?: Reservation | null
+  closed?: boolean
+  closeType?: string
+  closeRemark?: string
 }
 
 // 房态日历房间数据接口

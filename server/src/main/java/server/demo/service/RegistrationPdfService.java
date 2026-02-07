@@ -1,35 +1,54 @@
 package server.demo.service;
 
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
+import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import server.demo.entity.RegistrationAttachment;
 import server.demo.entity.RegistrationForm;
 import server.demo.entity.RegistrationGuest;
 import server.demo.entity.Reservation;
+import server.demo.entity.Room;
+import server.demo.entity.RoomType;
+import server.demo.entity.Store;
 import server.demo.enums.RegistrationAttachmentType;
 import server.demo.repository.RegistrationAttachmentRepository;
+import server.demo.repository.StoreRepository;
 
 import java.io.ByteArrayOutputStream;
-import java.util.Base64;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.channels.SeekableByteChannel;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class RegistrationPdfService {
 
+    private static final Logger logger = LoggerFactory.getLogger(RegistrationPdfService.class);
+
     private final String fontPath;
     private final RegistrationAttachmentRepository registrationAttachmentRepository;
+    private final StoreRepository storeRepository;
 
     public RegistrationPdfService(
             @Value("${registration.pdf.font-path:}") String fontPath,
-            RegistrationAttachmentRepository registrationAttachmentRepository
+            RegistrationAttachmentRepository registrationAttachmentRepository,
+            StoreRepository storeRepository
     ) {
         this.fontPath = fontPath;
         this.registrationAttachmentRepository = registrationAttachmentRepository;
+        this.storeRepository = storeRepository;
     }
 
     public byte[] render(RegistrationForm form, Reservation reservation, List<RegistrationGuest> guests) {
@@ -39,8 +58,15 @@ public class RegistrationPdfService {
             builder.withHtmlContent(html, null);
             builder.useFastMode();
 
-            if (fontPath != null && !fontPath.isBlank() && Files.exists(Path.of(fontPath))) {
-                builder.useFont(Path.of(fontPath).toFile(), "custom");
+            List<FontCandidate> fonts = resolveFontCandidates();
+            if (fonts.isEmpty()) {
+                logger.warn("[RegistrationPdf][Font] no font candidates found. fontPath={}", fontPath);
+            }
+            for (FontCandidate c : fonts) {
+                FontEmbedDecision decision = decideFontEmbedding(c.path());
+                boolean subset = decision.subset();
+                builder.useFont(c.path().toFile(), c.family(), 400, BaseRendererBuilder.FontStyle.NORMAL, subset);
+                logger.info("[RegistrationPdf][Font] useFont family={}, path={}, subset={}, kind={}", c.family(), c.path(), subset, decision.kind());
             }
 
             builder.toStream(os);
@@ -62,69 +88,299 @@ public class RegistrationPdfService {
             }
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("<!doctype html><html><head><meta charset='utf-8'/>");
-        sb.append("<style>");
-        sb.append("body{font-family:custom, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, 'Noto Sans CJK SC', 'Noto Sans JP', sans-serif; font-size:12px;}");
-        sb.append("h1{font-size:16px;margin:0 0 8px 0;}");
-        sb.append(".meta{margin-bottom:10px;}");
-        sb.append("table{width:100%;border-collapse:collapse;}");
-        sb.append("th,td{border:1px solid #333;padding:6px;vertical-align:top;}");
-        sb.append("th{background:#f2f2f2;}");
-        sb.append(".small{font-size:10px;color:#444;}");
-        sb.append(".passport-img{width:120px;max-height:90px;object-fit:contain;display:block;}");
-        sb.append("</style></head><body>");
-
-        sb.append("<h1>Guest Registration / 宿泊者名簿 / 入住登记</h1>");
-        sb.append("<div class='meta'>");
-        sb.append("<div>Order: ").append(escape(reservation.getOrderNumber())).append("</div>");
-        sb.append("<div>Guest: ").append(escape(reservation.getGuestName())).append("</div>");
-        sb.append("<div>Stay: ").append(reservation.getCheckInDate()).append(" ~ ").append(reservation.getCheckOutDate()).append("</div>");
-        sb.append("<div>Status: ").append(form.getStatus()).append("</div>");
-        sb.append("</div>");
-
-        sb.append("<table>");
-        sb.append("<tr>");
-        sb.append("<th>#</th>");
-        sb.append("<th>Name<br/><span class='small'>姓名 / 氏名</span></th>");
-        sb.append("<th>Nationality<br/><span class='small'>国籍</span></th>");
-        sb.append("<th>Residence<br/><span class='small'>居住地</span></th>");
-        sb.append("<th>Passport No.<br/><span class='small'>旅券番号</span></th>");
-        sb.append("<th>Prior / Next<br/><span class='small'>前泊地 / 行先</span></th>");
-        sb.append("<th>Passport photo<br/><span class='small'>旅券写真 / 护照照片</span></th>");
-        sb.append("</tr>");
-
-        int i = 1;
-        for (RegistrationGuest g : guests) {
-            sb.append("<tr>");
-            sb.append("<td>").append(i++).append("</td>");
-            sb.append("<td>")
-                    .append(escape(nvl(g.getLastName()))).append(" ").append(escape(nvl(g.getFirstName())))
-                    .append("<br/><span class='small'>")
-                    .append(escape(nvl(g.getLastNameKana()))).append(" ").append(escape(nvl(g.getFirstNameKana())))
-                    .append("</span>")
-                    .append("</td>");
-            sb.append("<td>").append(escape(nvl(g.getNationality()))).append("</td>");
-            sb.append("<td>").append(g.getResidenceType() == null ? "" : g.getResidenceType().name()).append("</td>");
-            sb.append("<td>").append(escape(nvl(g.getPassportNumber()))).append("</td>");
-            sb.append("<td>")
-                    .append("<div>").append(escape(nvl(g.getPriorStay()))).append("</div>")
-                    .append("<div>").append(escape(nvl(g.getNextDestination()))).append("</div>")
-                    .append("</td>");
-
-            RegistrationAttachment passport = (g.getId() == null) ? null : passportByGuestId.get(g.getId());
-            String img = passport == null ? "" : toDataUri(passport);
-            if (img.isBlank()) {
-                sb.append("<td>-</td>");
-            } else {
-                sb.append("<td><img class='passport-img' src='").append(img).append("'/></td>");
-            }
-            sb.append("</tr>");
+        String storeName = "";
+        if (form != null && form.getStoreId() != null) {
+            Optional<Store> store = storeRepository.findById(form.getStoreId());
+            storeName = store.map(Store::getName).orElse("");
         }
 
+        Room room = reservation != null ? reservation.getRoom() : null;
+        RoomType roomType = (room != null) ? room.getRoomType() : null;
+        String roomTypeName = roomType != null ? nvl(roomType.getName()) : "";
+        String roomNumber = room != null ? nvl(room.getRoomNumber()) : nvl(reservation != null ? reservation.getOtaRoomNumber() : null);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
+        sb.append("<style>");
+        sb.append("body{font-family:custom, custom2, custom3, cjk, jp, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size:12px; color:#111;}");
+        sb.append(".lang-en{font-family:custom, custom2, custom3, cjk, jp, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
+        sb.append(".lang-ja{font-family:custom, custom2, custom3, jp, cjk, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
+        sb.append(".lang-zh{font-family:custom, custom2, custom3, cjk, jp, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
+        sb.append(".lang-ko{font-family:custom2, custom, custom3, kr, cjk, jp, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
+        sb.append(".header-table{width:100%;border-collapse:collapse;margin:0 0 10px 0;}");
+        sb.append(".header-table td{border:none;padding:0;vertical-align:bottom;}");
+        sb.append(".store{font-size:14px;font-weight:800;text-align:left;}");
+        sb.append(".title{font-size:16px;font-weight:900;text-align:right;}");
+        sb.append(".roomline{font-size:12px;font-weight:700;text-align:right;margin-top:2px;}");
+        sb.append(".section-title{font-size:13px;font-weight:900;margin:14px 0 6px 0;}");
+        sb.append("table{width:100%;border-collapse:collapse;}");
+        sb.append("td{border:1px solid #333;padding:8px;vertical-align:top;}");
+        sb.append("td.label{width:46%;background:#f6f7f9;font-weight:700;}");
+        sb.append("td.value{width:54%;}");
+        sb.append(".val{white-space:pre-wrap;}");
+        // Prevent important blocks (e.g., passport image row) from being split across pages.
+        sb.append(".avoid-break{page-break-inside:avoid;break-inside:avoid;}");
+        sb.append("tr.avoid-break{page-break-inside:avoid;break-inside:avoid;}");
+        sb.append("td.avoid-break{page-break-inside:avoid;break-inside:avoid;}");
+        sb.append(".passport-img{max-width:220px;max-height:160px;display:block;border:1px solid #ddd;}");
+        sb.append("</style></head><body>");
+
+        sb.append("<table class='header-table'>");
+        sb.append("<tr>");
+        sb.append("<td class='store'>").append(escape(storeName)).append("</td>");
+        sb.append("<td class='title'>REGISTRATION FORM</td>");
+        sb.append("</tr>");
+        sb.append("<tr>");
+        sb.append("<td></td>");
+        sb.append("<td class='roomline'>")
+            .append("Room Type: ").append(escape(roomTypeName))
+            .append("&#160;&#160;Room Number: ").append(escape(roomNumber))
+            .append("</td>");
+        sb.append("</tr>");
         sb.append("</table>");
+
+        sb.append("<table>");
+        sb.append(row("Name registered when booking", "予約者名", "预约人姓名", "예약자 이름", reservation != null ? reservation.getGuestName() : ""));
+        sb.append(row("Check-In Day", "チェックイン日", "入住日", "체크인 날짜", reservation != null && reservation.getCheckInDate() != null ? reservation.getCheckInDate().toString() : ""));
+        sb.append(row("Check-Out Day", "チェックアウト日", "退房日", "체크아웃 날짜", reservation != null && reservation.getCheckOutDate() != null ? reservation.getCheckOutDate().toString() : ""));
+        sb.append(row("Room Type", "部屋タイプ", "房型", "객실 유형", roomTypeName));
+        sb.append(row("Room Number", "部屋番号", "房间号", "객실 번호", roomNumber));
+        // requirement: if no data, show blank (no placeholder)
+        sb.append(row("Travel Agent of your booking", "予約の旅行代理店", "预订旅行社", "예약 여행사", ""));
+        sb.append(row("Order Number", "注文番号", "订单号", "주문 번호", reservation != null ? reservation.getOrderNumber() : ""));
+        sb.append("</table>");
+
+        int idx = 1;
+        for (RegistrationGuest g : guests) {
+            sb.append("<div class='section-title'>Guest ").append(idx++).append("</div>");
+            sb.append("<table>");
+            sb.append(row("Guest Name", "宿泊者名", "入住人姓名", "투숙자 이름", (nvl(g.getLastName()) + " " + nvl(g.getFirstName())).trim()));
+            sb.append(row("Residence", "居住地", "居住地", "거주지", g.getResidenceType() == null ? "" : g.getResidenceType().name()));
+            sb.append(row("Home Address", "住所", "住址", "주소", g.getAddress()));
+            sb.append(row("Phone number", "電話番号", "电话号码", "전화번호", g.getPhone()));
+            sb.append(row("Date of Birth", "生年月日", "出生日期", "생년월일", g.getBirthday() != null ? g.getBirthday().toString() : ""));
+
+            boolean isOther = (g.getResidenceType() == null) || "OTHER".equalsIgnoreCase(g.getResidenceType().name());
+            if (isOther) {
+                sb.append(row("Nationality", "国籍", "国籍", "국적", g.getNationality()));
+                sb.append(row("Passport number", "旅券番号", "护照号", "여권번호", g.getPassportNumber()));
+
+                RegistrationAttachment passport = (g.getId() == null) ? null : passportByGuestId.get(g.getId());
+                String img = passport == null ? "" : toDataUri(passport);
+                String passportCell = img.isBlank() ? "" : ("<img class='passport-img' src='" + img + "'/>");
+                sb.append(rowHtmlWithTrClass("avoid-break", labelHtml("Passport photo", "旅券写真", "护照照片", "여권사진"), passportCell));
+
+                sb.append(row("Previous location", "前泊地", "前泊地", "전 숙박지", g.getPriorStay()));
+                sb.append(row("Next destination", "行先", "行先", "다음 목적지", g.getNextDestination()));
+            }
+
+            sb.append("</table>");
+        }
+
         sb.append("</body></html>");
         return sb.toString();
+    }
+
+    private record FontCandidate(String family, Path path) {}
+
+    private record FontEmbedDecision(boolean subset, String kind) {}
+
+    private static FontEmbedDecision decideFontEmbedding(Path fontPath) {
+        // Goal: pick a setting that works on Linux servers with CJK fonts.
+        // - PDFBox subsetting fails for CFF OpenType fonts: "OTF fonts do not have a glyf table" => subset=false
+        // - Full embedding of TrueType Collections (TTC) is not supported => subset=true
+        try {
+            DetectedFontKind kind = detectFontKind(fontPath);
+            return switch (kind) {
+                case OTF_CFF -> new FontEmbedDecision(false, "otf_cff");
+                case OTF_TTF -> new FontEmbedDecision(true, "otf_ttf");
+                case TTC_TTF -> new FontEmbedDecision(true, "ttc_ttf");
+                case TTC_CFF -> new FontEmbedDecision(false, "ttc_cff");
+                case UNKNOWN -> new FontEmbedDecision(true, "unknown");
+            };
+        } catch (Exception e) {
+            return new FontEmbedDecision(true, "unknown:" + e.getClass().getSimpleName());
+        }
+    }
+
+    private enum DetectedFontKind {
+        OTF_CFF,
+        OTF_TTF,
+        TTC_TTF,
+        TTC_CFF,
+        UNKNOWN
+    }
+
+    private static DetectedFontKind detectFontKind(Path fontPath) throws IOException {
+        if (fontPath == null || !Files.exists(fontPath)) {
+            return DetectedFontKind.UNKNOWN;
+        }
+
+        try (SeekableByteChannel ch = Files.newByteChannel(fontPath)) {
+            ByteBuffer head = ByteBuffer.allocate(4);
+            readFully(ch, head, 0);
+            int tag = head.getInt(0);
+
+            // 'OTTO' => OpenType CFF
+            if (tag == 0x4F54544F) {
+                return DetectedFontKind.OTF_CFF;
+            }
+
+            // 'ttcf' => TrueType/OpenType collection (TTC/OTC)
+            if (tag == 0x74746366) {
+                ByteBuffer ttcHeader = ByteBuffer.allocate(16).order(ByteOrder.BIG_ENDIAN);
+                readFully(ch, ttcHeader, 0);
+                long numFonts = intToUnsignedLong(ttcHeader.getInt(8));
+                if (numFonts <= 0) {
+                    return DetectedFontKind.UNKNOWN;
+                }
+                long firstOffset = intToUnsignedLong(ttcHeader.getInt(12));
+
+                ByteBuffer sfnt = ByteBuffer.allocate(4);
+                readFully(ch, sfnt, firstOffset);
+                int sfntTag = sfnt.getInt(0);
+                if (sfntTag == 0x4F54544F) {
+                    return DetectedFontKind.TTC_CFF;
+                }
+                // 0x00010000 is typical for TrueType outlines; other legacy tags exist, treat as TrueType-ish.
+                return DetectedFontKind.TTC_TTF;
+            }
+
+            // 0x00010000 (or 'true', 'typ1') indicates TrueType outlines in an sfnt container.
+            return DetectedFontKind.OTF_TTF;
+        }
+    }
+
+    private static void readFully(SeekableByteChannel ch, ByteBuffer buf, long pos) throws IOException {
+        buf.clear();
+        ch.position(pos);
+        while (buf.hasRemaining()) {
+            int r = ch.read(buf);
+            if (r < 0) {
+                throw new IOException("Unexpected EOF while reading font file");
+            }
+        }
+        buf.flip();
+    }
+
+    private static long intToUnsignedLong(int v) {
+        return v & 0xFFFF_FFFFL;
+    }
+
+    private static List<String> splitFontPaths(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+
+        // Support comma/semicolon separated font paths, e.g.:
+        // /path/to/uming.ttc,/path/to/gulim.ttf
+        String normalized = raw.replace(";", ",");
+        String[] parts = normalized.split(",");
+        List<String> out = new ArrayList<>();
+        for (String p : parts) {
+            if (p == null) {
+                continue;
+            }
+            String t = p.trim();
+            if (!t.isEmpty()) {
+                out.add(t);
+            }
+        }
+        return out;
+    }
+
+    private List<FontCandidate> resolveFontCandidates() {
+        List<FontCandidate> out = new ArrayList<>();
+
+        int customIndex = 0;
+        for (String raw : splitFontPaths(fontPath)) {
+            try {
+                Path p = Path.of(raw);
+                if (Files.exists(p)) {
+                    customIndex++;
+                    String family = (customIndex == 1) ? "custom" : ("custom" + customIndex);
+                    out.add(new FontCandidate(family, p));
+                } else {
+                    logger.warn("[RegistrationPdf][Font] configured font path not found: {}", raw);
+                }
+            } catch (Exception e) {
+                logger.warn("[RegistrationPdf][Font] invalid font path: {}", raw, e);
+            }
+        }
+
+        String os = String.valueOf(System.getProperty("os.name", "")).toLowerCase(Locale.ROOT);
+        if (os.contains("windows")) {
+            addIfExists(out, "cjk", Path.of("C:\\Windows\\Fonts\\msyh.ttc"));
+            addIfExists(out, "cjk", Path.of("C:\\Windows\\Fonts\\msyh.ttf"));
+            addIfExists(out, "cjk", Path.of("C:\\Windows\\Fonts\\simsun.ttc"));
+            addIfExists(out, "cjk", Path.of("C:\\Windows\\Fonts\\simhei.ttf"));
+            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\meiryo.ttc"));
+            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\YuGothR.ttc"));
+            addIfExists(out, "kr", Path.of("C:\\Windows\\Fonts\\malgun.ttf"));
+        } else {
+            addIfExists(out, "cjk", Path.of("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"));
+            addIfExists(out, "cjk", Path.of("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"));
+            addIfExists(out, "cjk", Path.of("/usr/share/fonts/opentype/noto/NotoSansCJK.ttc"));
+            addIfExists(out, "cjk", Path.of("/usr/share/fonts/truetype/noto/NotoSansCJK.ttc"));
+        }
+
+        List<FontCandidate> dedup = new ArrayList<>();
+        for (FontCandidate c : out) {
+            boolean exists = false;
+            for (FontCandidate d : dedup) {
+                if (d.path().equals(c.path())) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                dedup.add(c);
+            }
+        }
+        return dedup;
+    }
+
+    private void addIfExists(List<FontCandidate> out, String family, Path p) {
+        try {
+            if (p != null && Files.exists(p)) {
+                out.add(new FontCandidate(family, p));
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String labelHtml(String en, String ja, String zh, String ko) {
+        return "<div>"
+                + "<span class='lang-en'>" + escape(en) + "</span><br/>"
+                + "<span class='lang-ja'>" + escape(ja) + "</span><br/>"
+                + "<span class='lang-zh'>" + escape(zh) + "</span><br/>"
+                + "<span class='lang-ko'>" + escape(ko) + "</span>"
+                + "</div>";
+    }
+
+    private String row(String en, String ja, String zh, String ko, String value) {
+        return rowHtml(labelHtml(en, ja, zh, ko), "<div class='val'>" + escape(value) + "</div>");
+    }
+
+    private String rowHtml(String labelHtml, String valueHtml) {
+        return "<tr><td class='label'>" + labelHtml + "</td><td class='value'>" + valueHtml + "</td></tr>";
+    }
+
+    private String rowHtmlWithTrClass(String trClass, String labelHtml, String valueHtml) {
+        String cls = (trClass == null || trClass.isBlank()) ? "" : (" class='" + escapeAttr(trClass) + "'");
+        return "<tr" + cls + "><td class='label'>" + labelHtml + "</td><td class='value'>" + valueHtml + "</td></tr>";
+    }
+
+    private String escapeAttr(String s) {
+        if (s == null) {
+            return "";
+        }
+        // Conservative: only used for internal constant class names.
+        return s.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 
     private String toDataUri(RegistrationAttachment att) {
