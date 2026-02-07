@@ -1,7 +1,7 @@
 package server.demo.service;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriUtils;
 import server.demo.dto.registration.PublicRegistrationBookingResponse;
 import server.demo.dto.registration.PublicRegistrationBookingRoomDTO;
@@ -22,20 +22,18 @@ public class PublicRegistrationBookingService {
     private final ReservationRepository reservationRepository;
     private final PublicRegistrationService publicRegistrationService;
     private final RegistrationLinkService registrationLinkService;
-    private final String serverBaseUrl;
 
     public PublicRegistrationBookingService(
             ReservationRepository reservationRepository,
             PublicRegistrationService publicRegistrationService,
-            RegistrationLinkService registrationLinkService,
-            @Value("${server.base-url}") String serverBaseUrl
+            RegistrationLinkService registrationLinkService
     ) {
         this.reservationRepository = reservationRepository;
         this.publicRegistrationService = publicRegistrationService;
         this.registrationLinkService = registrationLinkService;
-        this.serverBaseUrl = serverBaseUrl;
     }
 
+    @Transactional(readOnly = true)
     public PublicRegistrationBookingResponse getBooking(Long storeId, String bookingKey) {
         if (storeId == null || bookingKey == null || bookingKey.isBlank()) {
             throw new RuntimeException("bookingKey 不能为空");
@@ -91,6 +89,7 @@ public class PublicRegistrationBookingService {
         return resp;
     }
 
+    @Transactional(readOnly = true)
     public void assertRoomBelongsToBooking(Long storeId, String bookingKey, String orderNumber) {
         if (storeId == null || bookingKey == null || bookingKey.isBlank() || orderNumber == null || orderNumber.isBlank()) {
             throw new RuntimeException("参数错误");
@@ -118,12 +117,8 @@ public class PublicRegistrationBookingService {
 
     private String buildRoomRegistrationLink(Long storeId, String orderNumber) {
         String token = registrationLinkService.generateToken(storeId, orderNumber);
-        String base = serverBaseUrl != null ? serverBaseUrl.trim() : "";
-        if (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
         String encodedOrder = UriUtils.encodePathSegment(orderNumber, StandardCharsets.UTF_8);
-        return base + "/r/" + encodedOrder + "?t=" + token;
+        return "/r/" + encodedOrder + "?t=" + token;
     }
 
     private static String resolveRoomTypeName(Reservation reservation) {

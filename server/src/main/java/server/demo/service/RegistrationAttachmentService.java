@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.HexFormat;
@@ -39,7 +40,7 @@ public class RegistrationAttachmentService {
         this.attachmentRepository = attachmentRepository;
         this.formRepository = formRepository;
         this.guestRepository = guestRepository;
-        this.uploadDir = Path.of(uploadDir);
+        this.uploadDir = Paths.get(uploadDir).toAbsolutePath().normalize();
     }
 
     @Transactional

@@ -16,6 +16,22 @@ const publicRequest: AxiosInstance = axios.create({
   },
 })
 
+publicRequest.interceptors.request.use((config) => {
+  if (config.data instanceof FormData) {
+    if (config.headers) {
+      const headersAny = config.headers as any
+      if (typeof headersAny.delete === 'function') {
+        headersAny.delete('Content-Type')
+        headersAny.delete('content-type')
+      } else {
+        delete headersAny['Content-Type']
+        delete headersAny['content-type']
+      }
+    }
+  }
+  return config
+})
+
 publicRequest.interceptors.response.use(
   (response: AxiosResponse) => response.data,
   (error) => Promise.reject(error),
