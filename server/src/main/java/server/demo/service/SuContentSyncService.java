@@ -47,61 +47,55 @@ public class SuContentSyncService {
     }
 
     /**
-     * PMS -> Su：同步“房间号列表”（用于 Su Widget 映射到具体房间）。
+     * PMS -> Su：同步“房型列表（Room Types）”到 Su Content（用于 Su Widget/Extranet 映射与认证）。
      */
     public SuRoomSyncSummary syncRoomsForWidget(Long storeId, String hotelId) {
-        List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
-        if (rooms.isEmpty()) {
-            logger.info("Skip Su rooms sync: no rooms. storeId={}, hotelId={}", storeId, hotelId);
-            pmsPushLogger.info("[SuRoomsSync] skip (no rooms). storeId={}, hotelId={}", storeId, hotelId);
+        List<RoomType> roomTypes = roomTypeRepository.findByStoreIdOrderByName(storeId);
+        if (roomTypes.isEmpty()) {
+            logger.info("Skip Su room types sync: no room types. storeId={}, hotelId={}", storeId, hotelId);
+            pmsPushLogger.info("[SuRoomTypesSync] skip (no room types). storeId={}, hotelId={}", storeId, hotelId);
             return new SuRoomSyncSummary(0, true, null);
         }
-
-        List<Room> eligibleRooms = rooms.stream()
-                .filter(r -> r != null && r.getRoomNumber() != null && !r.getRoomNumber().isBlank())
-                .toList();
-        SuRoomIdUtil.assertRoomIdsWithinLimit(eligibleRooms);
 
         int successCount = 0;
         int failedCount = 0;
         StringBuilder errorBuilder = new StringBuilder();
 
-        logger.info("[SuRoomsSync] start. storeId={}, hotelId={}, total={}", storeId, hotelId, rooms.size());
-        pmsPushLogger.info("[SuRoomsSync] start. storeId={}, hotelId={}, total={}", storeId, hotelId, rooms.size());
+        logger.info("[SuRoomTypesSync] start. storeId={}, hotelId={}, total={}", storeId, hotelId, roomTypes.size());
+        pmsPushLogger.info("[SuRoomTypesSync] start. storeId={}, hotelId={}, total={}", storeId, hotelId, roomTypes.size());
 
-        for (Room room : rooms) {
-            if (room == null || room.getRoomNumber() == null || room.getRoomNumber().isBlank()) {
+        for (RoomType roomType : roomTypes) {
+            if (roomType == null || roomType.getId() == null) {
                 continue;
             }
 
-            String roomId = SuRoomIdUtil.buildRoomId(room);
-
+            String roomTypeId = String.valueOf(roomType.getId());
             try {
-                UpsertOutcome outcome = upsertSingleRoom(storeId, hotelId, room);
+                UpsertOutcome outcome = upsertSingleRoomType(storeId, hotelId, roomType);
                 if (outcome.success) {
                     successCount++;
                 } else {
                     failedCount++;
-                    appendError(errorBuilder, roomId, outcome.message);
+                    appendError(errorBuilder, roomTypeId, outcome.message);
                 }
             } catch (RuntimeException e) {
                 failedCount++;
-                logger.error("[SuRoomsSync] room upsert failed. storeId={}, hotelId={}, roomId={}", storeId, hotelId, roomId, e);
-                pmsPushLogger.error("[SuRoomsSync] room upsert failed. storeId={}, hotelId={}, roomId={}, err={}", storeId, hotelId, roomId, e.getMessage());
-                appendError(errorBuilder, roomId, e.getMessage());
+                logger.error("[SuRoomTypesSync] room type upsert failed. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId, e);
+                pmsPushLogger.error("[SuRoomTypesSync] room type upsert failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, e.getMessage());
+                appendError(errorBuilder, roomTypeId, e.getMessage());
             }
         }
 
         boolean allOk = failedCount == 0;
         String err = errorBuilder.length() > 0 ? errorBuilder.toString() : null;
-        logger.info("[SuRoomsSync] done. storeId={}, hotelId={}, success={}, failed={}", storeId, hotelId, successCount, failedCount);
-        pmsPushLogger.info("[SuRoomsSync] done. storeId={}, hotelId={}, success={}, failed={}", storeId, hotelId, successCount, failedCount);
+        logger.info("[SuRoomTypesSync] done. storeId={}, hotelId={}, success={}, failed={}", storeId, hotelId, successCount, failedCount);
+        pmsPushLogger.info("[SuRoomTypesSync] done. storeId={}, hotelId={}, success={}, failed={}", storeId, hotelId, successCount, failedCount);
         if (!allOk) {
-            logger.warn("[SuRoomsSync] failed summary. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
-            pmsPushLogger.warn("[SuRoomsSync] failed summary. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
+            logger.warn("[SuRoomTypesSync] failed summary. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
+            pmsPushLogger.warn("[SuRoomTypesSync] failed summary. storeId={}, hotelId={}, err={}", storeId, hotelId, err);
         }
 
-        return new SuRoomSyncSummary(rooms.size(), allOk, err);
+        return new SuRoomSyncSummary(roomTypes.size(), allOk, err);
     }
 
     private record UpsertOutcome(boolean success, String message) {}
@@ -194,6 +188,112 @@ public class SuContentSyncService {
     /**
      * PMS -> Su：同步“价格计划列表”（用于 Su Widget 费率计划映射下拉）。
      */
+
+    /**
+     * PMS -> Su：同步单个“房型（Room Type）”到 Su Content（OTA_HotelRoom）。
+     * <p>
+     * 认证严格模式下：失败直接抛错（由上层事务回滚）。
+     */
+    public void upsertSingleRoomTypeStrict(Long storeId, String hotelId, RoomType roomType) {
+        if (roomType == null || roomType.getId() == null) {
+            throw new IllegalArgumentException("roomType/id is required");
+        }
+        String roomTypeId = String.valueOf(roomType.getId());
+
+        logger.info("[SuRoomTypeUpsert] start. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId);
+        pmsPushLogger.info("[SuRoomTypeUpsert] start. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId);
+
+        UpsertOutcome outcome = upsertSingleRoomType(storeId, hotelId, roomType);
+        if (!outcome.success) {
+            String err = outcome.message != null ? outcome.message : "Su 房型同步失败";
+            logger.warn("[SuRoomTypeUpsert] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, err);
+            pmsPushLogger.warn("[SuRoomTypeUpsert] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, err);
+            throw new RuntimeException(err);
+        }
+
+        logger.info("[SuRoomTypeUpsert] done. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId);
+        pmsPushLogger.info("[SuRoomTypeUpsert] done. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId);
+    }
+
+    private UpsertOutcome upsertSingleRoomType(Long storeId, String hotelId, RoomType roomType) {
+        String roomId = String.valueOf(roomType.getId());
+
+        Object createPayload = SuContentPayloadBuilder.buildRoomCreatePayload(hotelId, List.of(roomType));
+        if (logger.isDebugEnabled()) {
+            try {
+                logger.debug("[SuRoomTypeUpsert] create payload(single). storeId={}, hotelId={}, roomTypeId={}, payload={}",
+                        storeId, hotelId, roomId, objectMapper.writeValueAsString(createPayload));
+            } catch (Exception e) {
+                logger.debug("[SuRoomTypeUpsert] create payload serialize failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}",
+                        storeId, hotelId, roomId, e.getMessage());
+            }
+        }
+
+        JsonNode createResp = suAccessTokenService.executeWithTokenRetry(
+                token -> suApiClient.postOtaHotelRoom(token, createPayload),
+                "OTA_HotelRoom(create roomType=" + roomId + ")"
+        );
+
+        if (suApiClient.isSuSuccess(createResp)) {
+            return new UpsertOutcome(true, null);
+        }
+
+        String createErr = suApiClient.extractSuErrorMessage(createResp);
+        if (!isRoomAlreadyExists(createErr)) {
+            logger.warn("[SuRoomTypeUpsert] create failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomId, createErr);
+            pmsPushLogger.warn("[SuRoomTypeUpsert] create failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomId, createErr);
+            logger.warn("[SuRoomTypeUpsert] create raw response(single). storeId={}, hotelId={}, roomTypeId={}, raw={}", storeId, hotelId, roomId, createResp);
+            return new UpsertOutcome(false, createErr != null ? createErr : "Su 房型创建失败");
+        }
+
+        logger.info("[SuRoomTypeUpsert] room type already exists, switching to overlay. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomId);
+
+        Object overlayPayload = SuContentPayloadBuilder.buildRoomModifyPayload(hotelId, List.of(roomType));
+        if (logger.isDebugEnabled()) {
+            try {
+                logger.debug("[SuRoomTypeUpsert] overlay payload(single). storeId={}, hotelId={}, roomTypeId={}, payload={}",
+                        storeId, hotelId, roomId, objectMapper.writeValueAsString(overlayPayload));
+            } catch (Exception e) {
+                logger.debug("[SuRoomTypeUpsert] overlay payload serialize failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}",
+                        storeId, hotelId, roomId, e.getMessage());
+            }
+        }
+
+        JsonNode overlayResp = suAccessTokenService.executeWithTokenRetry(
+                token -> suApiClient.postOtaHotelRoom(token, overlayPayload),
+                "OTA_HotelRoom(overlay roomType=" + roomId + ")"
+        );
+
+        if (suApiClient.isSuSuccess(overlayResp)) {
+            return new UpsertOutcome(true, null);
+        }
+
+        String overlayErr = suApiClient.extractSuErrorMessage(overlayResp);
+        if (isRoomDoesNotExist(overlayErr)) {
+            logger.warn("[SuRoomTypeUpsert] overlay says room type does not exist, retry create once. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomId);
+            pmsPushLogger.warn("[SuRoomTypeUpsert] overlay says room type does not exist, retry create once. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomId);
+
+            JsonNode retryCreateResp = suAccessTokenService.executeWithTokenRetry(
+                    token -> suApiClient.postOtaHotelRoom(
+                            token,
+                            SuContentPayloadBuilder.buildRoomCreatePayload(hotelId, List.of(roomType))
+                    ),
+                    "OTA_HotelRoom(retry-create roomType=" + roomId + ")"
+            );
+            if (suApiClient.isSuSuccess(retryCreateResp)) {
+                return new UpsertOutcome(true, null);
+            }
+            String retryErr = suApiClient.extractSuErrorMessage(retryCreateResp);
+            logger.warn("[SuRoomTypeUpsert] retry-create raw response(single). storeId={}, hotelId={}, roomTypeId={}, raw={}", storeId, hotelId, roomId, retryCreateResp);
+            return new UpsertOutcome(false, retryErr != null ? retryErr : "Su 房型创建失败(重试)");
+        }
+
+        logger.warn("[SuRoomTypeUpsert] overlay failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomId, overlayErr);
+        pmsPushLogger.warn("[SuRoomTypeUpsert] overlay failed(single). storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomId, overlayErr);
+        logger.warn("[SuRoomTypeUpsert] overlay raw response(single). storeId={}, hotelId={}, roomTypeId={}, raw={}", storeId, hotelId, roomId, overlayResp);
+        return new UpsertOutcome(false, overlayErr != null ? overlayErr : "Su 房型覆盖失败");
+    }
+
     public SuRatePlanSyncSummary syncRatePlansForWidget(Long storeId, String hotelId) {
         List<PricePlan> pricePlans = pricePlanRepository.findByStoreIdOrderByName(storeId);
         if (pricePlans.isEmpty()) {
@@ -246,6 +346,33 @@ public class SuContentSyncService {
         }
 
         return new SuRatePlanSyncSummary(pricePlans.size(), allOk, err);
+    }
+
+
+    /**
+     * PMS -> Su：同步单个“价格计划（Rate Plan）”到 Su Content（OTA_HotelRatePlan）。
+     * <p>
+     * 认证严格模式下：失败直接抛错（由上层事务回滚）。
+     */
+    public void upsertSingleRatePlanStrict(Long storeId, String hotelId, PricePlan plan) {
+        if (plan == null || plan.getId() == null) {
+            throw new IllegalArgumentException("plan/id is required");
+        }
+        String planId = String.valueOf(plan.getId());
+
+        logger.info("[SuRatePlanUpsert] start. storeId={}, hotelId={}, planId={}", storeId, hotelId, planId);
+        pmsPushLogger.info("[SuRatePlanUpsert] start. storeId={}, hotelId={}, planId={}", storeId, hotelId, planId);
+
+        UpsertOutcome outcome = upsertSingleRatePlan(storeId, hotelId, plan);
+        if (!outcome.success) {
+            String err = outcome.message != null ? outcome.message : "Su 价格计划同步失败";
+            logger.warn("[SuRatePlanUpsert] failed. storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, err);
+            pmsPushLogger.warn("[SuRatePlanUpsert] failed. storeId={}, hotelId={}, planId={}, err={}", storeId, hotelId, planId, err);
+            throw new RuntimeException(err);
+        }
+
+        logger.info("[SuRatePlanUpsert] done. storeId={}, hotelId={}, planId={}", storeId, hotelId, planId);
+        pmsPushLogger.info("[SuRatePlanUpsert] done. storeId={}, hotelId={}, planId={}", storeId, hotelId, planId);
     }
 
     private UpsertOutcome upsertSingleRatePlan(Long storeId, String hotelId, PricePlan plan) {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import server.demo.entity.PricePlan;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomBlockout;
@@ -23,6 +24,7 @@ import server.demo.util.SuRoomIdUtil;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -125,34 +127,99 @@ public class SuAriSyncService {
         LocalDate startDate = LocalDate.now();
         LocalDate endDate = startDate.plusDays(effectiveDays - 1L);
 
+        // Delegate to strict range method (RoomType-level roomid), to avoid sending physical-room roomids.
+        return syncAriForDateRange(
+                storeId,
+                hotelId,
+                startDate,
+                endDate,
+                null,
+                null,
+                true,
+                true,
+                true,
+                false
+        );
+    }
+
+    /**
+     * PMS -> Su: push base ARI via /SUAPI/jservice/availability, limited to the given scope.
+     * <p>
+     * Certification strict mode requirement:
+     * - payload must include ONLY specified room types / rate plans / date range (no extra data).
+     * - roomid uses RoomType-level id (roomTypeId), not physical room number.
+     */
+    public SuAriSyncSummary syncAriForDateRange(
+            Long storeId,
+            String hotelId,
+            LocalDate startDate,
+            LocalDate endDate,
+            Set<Long> roomTypeIds,
+            Set<Long> ratePlanIds,
+            boolean pushAvailability,
+            boolean pushRates,
+            boolean pushRestrictions,
+            boolean deriveClosedFromBlockouts
+    ) {
+        if (storeId == null) {
+            throw new IllegalArgumentException("storeId is required");
+        }
+        if (hotelId == null || hotelId.isBlank()) {
+            throw new IllegalArgumentException("hotelId is required");
+        }
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("startDate/endDate is required");
+        }
+        if (endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("endDate must be >= startDate");
+        }
+
+        int effectiveDays = (int) Math.min(MAX_DAYS, Math.max(1L, ChronoUnit.DAYS.between(startDate, endDate) + 1L));
+        LocalDate effectiveEndDate = startDate.plusDays(effectiveDays - 1L);
+
         logger.info(
-                "[SuAriSync] start. storeId={}, hotelId={}, days={}, startDate={}, endDate={}",
+                "[SuAriSync] start(range). storeId={}, hotelId={}, days={}, startDate={}, endDate={}, roomTypes={}, plans={}, pushAvailability={}, pushRates={}, pushRestrictions={}, deriveClosedFromBlockouts={}",
                 storeId,
                 hotelId,
                 effectiveDays,
                 startDate,
-                endDate
+                effectiveEndDate,
+                roomTypeIds != null ? roomTypeIds.size() : null,
+                ratePlanIds != null ? ratePlanIds.size() : null,
+                pushAvailability,
+                pushRates,
+                pushRestrictions,
+                deriveClosedFromBlockouts
         );
 
-        List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
-        if (rooms == null || rooms.isEmpty()) {
-            logger.info("Skip Su ARI sync: no rooms. storeId={}, hotelId={}", storeId, hotelId);
-            return new SuAriSyncSummary(0, 0, effectiveDays, startDate, endDate, true, true, 0, 0, 0, null, List.of());
+        List<Room> allRooms = roomRepository.findByStoreIdWithRoomType(storeId);
+        if (allRooms == null || allRooms.isEmpty()) {
+            logger.info("Skip Su ARI sync(range): no rooms. storeId={}, hotelId={}", storeId, hotelId);
+            return new SuAriSyncSummary(0, 0, effectiveDays, startDate, effectiveEndDate, true, true, 0, 0, 0, null, List.of());
         }
 
-        List<Room> eligibleRooms = rooms.stream()
+        List<Room> rooms = allRooms.stream()
                 .filter(r -> r != null
-                        && r.getRoomNumber() != null
-                        && !r.getRoomNumber().isBlank()
+                        && r.getId() != null
                         && r.getRoomType() != null
-                        && r.getRoomType().getId() != null)
+                        && r.getRoomType().getId() != null
+                        && (roomTypeIds == null || roomTypeIds.isEmpty() || roomTypeIds.contains(r.getRoomType().getId())))
                 .toList();
-        SuRoomIdUtil.assertRoomIdsWithinLimit(eligibleRooms);
 
-        List<Long> roomIds = rooms.stream()
-                .map(Room::getId)
-                .filter(Objects::nonNull)
-                .toList();
+        List<Long> roomIds = rooms.stream().map(Room::getId).filter(Objects::nonNull).toList();
+
+        Map<Long, RoomType> roomTypeById = new HashMap<>();
+        for (Room room : rooms) {
+            if (room == null || room.getRoomType() == null || room.getRoomType().getId() == null) {
+                continue;
+            }
+            roomTypeById.putIfAbsent(room.getRoomType().getId(), room.getRoomType());
+        }
+
+        if (roomTypeById.isEmpty()) {
+            logger.info("Skip Su ARI sync(range): no room types in scope. storeId={}, hotelId={}", storeId, hotelId);
+            return new SuAriSyncSummary(0, 0, effectiveDays, startDate, effectiveEndDate, true, true, 0, 0, 0, null, List.of());
+        }
 
         List<Reservation> reservations = roomIds.isEmpty()
                 ? List.of()
@@ -160,12 +227,12 @@ public class SuAriSyncService {
                         storeId,
                         roomIds,
                         startDate,
-                        endDate,
+                        effectiveEndDate,
                         BLOCKING_RESERVATION_STATUSES
                 );
 
         Map<Long, List<Reservation>> reservationsByRoomId = reservations.stream()
-                .filter(r -> r.getRoom() != null && r.getRoom().getId() != null)
+                .filter(r -> r != null && r.getRoom() != null && r.getRoom().getId() != null)
                 .collect(Collectors.groupingBy(r -> r.getRoom().getId()));
 
         Map<Long, List<RoomBlockout>> blockoutsByRoomId = new HashMap<>();
@@ -174,50 +241,131 @@ public class SuAriSyncService {
                     storeId,
                     roomIds,
                     startDate,
-                    endDate
+                    effectiveEndDate
             );
             blockoutsByRoomId = blockouts.stream()
                     .filter(b -> b != null && b.getRoom() != null && b.getRoom().getId() != null && b.getBlockDate() != null)
                     .collect(Collectors.groupingBy(b -> b.getRoom().getId()));
         }
 
+        Map<Long, Integer> totalRoomsByRoomTypeId = new HashMap<>();
+        Map<Long, int[]> blockedByRoomTypeId = new HashMap<>();
+        for (Room room : rooms) {
+            RoomType rt = room != null ? room.getRoomType() : null;
+            Long rtId = rt != null ? rt.getId() : null;
+            if (rtId == null) {
+                continue;
+            }
+            totalRoomsByRoomTypeId.merge(rtId, 1, Integer::sum);
+
+            if (pushRestrictions && deriveClosedFromBlockouts) {
+                boolean[] blocked = buildBlockedOutCalendar(blockoutsByRoomId.get(room.getId()), startDate, effectiveDays);
+                int[] counts = blockedByRoomTypeId.computeIfAbsent(rtId, ignored -> new int[effectiveDays]);
+                for (int i = 0; i < effectiveDays; i++) {
+                    if (blocked[i]) {
+                        counts[i]++;
+                    }
+                }
+            }
+        }
+
         Map<Long, Set<Long>> planIdsByRoomTypeId = new HashMap<>();
         Map<String, RoomTypePricePlan> rtppByKey = new HashMap<>();
+        Map<Long, PricePlan> pricePlanById = new HashMap<>();
 
         List<RoomTypePricePlan> rtpps = roomTypePricePlanRepository.findByStoreIdWithRoomTypeAndPricePlan(storeId);
         for (RoomTypePricePlan rtpp : rtpps) {
             if (rtpp == null || rtpp.getRoomType() == null || rtpp.getPricePlan() == null) {
                 continue;
             }
-            Long roomTypeId = rtpp.getRoomType().getId();
+            Long rtId = rtpp.getRoomType().getId();
             Long planId = rtpp.getPricePlan().getId();
-            if (roomTypeId == null || planId == null) {
+            if (rtId == null || planId == null) {
                 continue;
             }
-            rtppByKey.put(roomPlanKey(roomTypeId, planId), rtpp);
-            planIdsByRoomTypeId.computeIfAbsent(roomTypeId, ignored -> new TreeSet<>()).add(planId);
+            if (!roomTypeById.containsKey(rtId)) {
+                continue;
+            }
+            if (ratePlanIds != null && !ratePlanIds.isEmpty() && !ratePlanIds.contains(planId)) {
+                continue;
+            }
+            rtppByKey.put(roomPlanKey(rtId, planId), rtpp);
+            planIdsByRoomTypeId.computeIfAbsent(rtId, ignored -> new TreeSet<>()).add(planId);
+            pricePlanById.putIfAbsent(planId, rtpp.getPricePlan());
         }
 
         List<RoomPrice> roomPrices = roomPriceRepository.findByStoreIdAndPriceDateBetweenWithRoomTypeAndPricePlan(
                 storeId,
                 startDate,
-                endDate
+                effectiveEndDate
         );
         Map<String, RoomPrice> roomPriceByKey = new HashMap<>();
+        Map<String, Integer> availableRoomsOverrideByRoomTypeDate = new HashMap<>();
         for (RoomPrice rp : roomPrices) {
             if (rp == null || rp.getRoomType() == null || rp.getRoomType().getId() == null) {
-                continue;
-            }
-            if (rp.getPricePlan() == null || rp.getPricePlan().getId() == null) {
                 continue;
             }
             if (rp.getPriceDate() == null) {
                 continue;
             }
-            Long roomTypeId = rp.getRoomType().getId();
+            Long rtId = rp.getRoomType().getId();
+            if (!roomTypeById.containsKey(rtId)) {
+                continue;
+            }
+
+            if (rp.getAvailableRooms() != null && rp.getAvailableRooms() >= 0) {
+                String key = rtId + "|" + rp.getPriceDate();
+                Integer existing = availableRoomsOverrideByRoomTypeDate.get(key);
+                int v = rp.getAvailableRooms();
+                availableRoomsOverrideByRoomTypeDate.put(key, existing != null ? Math.min(existing, v) : v);
+            }
+
+            if (rp.getPricePlan() == null || rp.getPricePlan().getId() == null) {
+                continue;
+            }
             Long planId = rp.getPricePlan().getId();
-            roomPriceByKey.put(roomPlanDateKey(roomTypeId, planId, rp.getPriceDate()), rp);
-            planIdsByRoomTypeId.computeIfAbsent(roomTypeId, ignored -> new TreeSet<>()).add(planId);
+            pricePlanById.putIfAbsent(planId, rp.getPricePlan());
+            if (ratePlanIds != null && !ratePlanIds.isEmpty() && !ratePlanIds.contains(planId)) {
+                continue;
+            }
+            roomPriceByKey.put(roomPlanDateKey(rtId, planId, rp.getPriceDate()), rp);
+            planIdsByRoomTypeId.computeIfAbsent(rtId, ignored -> new TreeSet<>()).add(planId);
+        }
+
+        Map<Long, int[]> sellableByRoomTypeId = new HashMap<>();
+        if (pushAvailability) {
+            for (Room room : rooms) {
+                RoomType rt = room.getRoomType();
+                Long rtId = rt != null ? rt.getId() : null;
+                if (rtId == null) {
+                    continue;
+                }
+                int[] counts = sellableByRoomTypeId.computeIfAbsent(rtId, ignored -> new int[effectiveDays]);
+                boolean[] canSell = buildCanSellCalendar(
+                        room,
+                        reservationsByRoomId.get(room.getId()),
+                        blockoutsByRoomId.get(room.getId()),
+                        startDate,
+                        effectiveDays
+                );
+                for (int i = 0; i < effectiveDays; i++) {
+                    if (canSell[i]) {
+                        counts[i]++;
+                    }
+                }
+            }
+
+            for (Map.Entry<Long, int[]> entry : sellableByRoomTypeId.entrySet()) {
+                Long rtId = entry.getKey();
+                int[] counts = entry.getValue();
+                for (int i = 0; i < effectiveDays; i++) {
+                    LocalDate date = startDate.plusDays(i);
+                    Integer override = availableRoomsOverrideByRoomTypeDate.get(rtId + "|" + date);
+                    if (override != null) {
+                        counts[i] = override;
+                    }
+                }
+            }
         }
 
         List<MissingPrice> missingPrices = new ArrayList<>();
@@ -226,167 +374,223 @@ public class SuAriSyncService {
         int requestsPosted = 0;
 
         Set<Long> distinctPlans = new TreeSet<>();
+        Set<Long> distinctRoomTypesInPayload = new TreeSet<>();
 
         List<Map<String, Object>> availabilityRoomNodes = new ArrayList<>();
         List<Map<String, Object>> rateRoomNodes = new ArrayList<>();
 
-        for (Room room : rooms) {
-            if (room == null || room.getId() == null) {
-                continue;
-            }
-            if (room.getRoomNumber() == null || room.getRoomNumber().isBlank()) {
-                continue;
-            }
-            RoomType roomType = room.getRoomType();
-            if (roomType == null || roomType.getId() == null) {
-                continue;
-            }
-
-            String suRoomId = SuRoomIdUtil.buildRoomId(room);
-
-            boolean[] canSell = buildCanSellCalendar(
-                    room,
-                    reservationsByRoomId.get(room.getId()),
-                    blockoutsByRoomId.get(room.getId()),
-                    startDate,
-                    effectiveDays
-            );
-            List<Map<String, Object>> roomstosellSegments = toRoomstosellSegments(canSell, startDate);
-            if (!roomstosellSegments.isEmpty()) {
-                availabilitySegments += roomstosellSegments.size();
-                availabilityRoomNodes.add(buildRoomNode(suRoomId, roomstosellSegments));
-            }
-
-            Set<Long> planIds = planIdsByRoomTypeId.get(roomType.getId());
-            if (planIds == null || planIds.isEmpty()) {
-                continue;
-            }
-
-            List<Map<String, Object>> rateDateItems = new ArrayList<>();
-            for (Long planId : planIds) {
-                if (planId == null) {
+        if (pushAvailability) {
+            for (Map.Entry<Long, int[]> entry : sellableByRoomTypeId.entrySet()) {
+                Long rtId = entry.getKey();
+                List<Map<String, Object>> segments = toRoomstosellSegments(entry.getValue(), startDate);
+                if (segments.isEmpty()) {
                     continue;
                 }
-                distinctPlans.add(planId);
-                RoomTypePricePlan rtpp = rtppByKey.get(roomPlanKey(roomType.getId(), planId));
-
-                int includedGuests = resolveIncludedGuests(rtpp, roomType);
-                String extraAdultRate = formatMoneyAllowZero(rtpp != null ? rtpp.getExtraAdultRate() : null);
-                String extraChildRate = formatMoneyAllowZero(rtpp != null ? rtpp.getExtraChildRate() : null);
-
-                List<DailyRateState> dailyStates = new ArrayList<>(effectiveDays);
-                int missingDays = 0;
-                for (int i = 0; i < effectiveDays; i++) {
-                    LocalDate date = startDate.plusDays(i);
-                    RoomPrice rp = roomPriceByKey.get(roomPlanDateKey(roomType.getId(), planId, date));
-                    LocalBasePriceResolver.Result local = LocalBasePriceResolver.resolve(rp, rtpp, roomType, date);
-                    String price = formatPositiveMoney(local.basePrice());
-                    if (price == null) {
-                        missingDays++;
-                    }
-                    dailyStates.add(new DailyRateState(
-                            price,
-                            rp != null ? rp.getCloseRoom() : null,
-                            rp != null ? rp.getMinStay() : null,
-                            rp != null ? rp.getMaxStay() : null,
-                            rp != null ? rp.getCta() : null,
-                            rp != null ? rp.getCtd() : null
-                    ));
-                }
-                if (missingDays > 0 && missingPrices.size() < 200) {
-                    missingPrices.add(new MissingPrice(suRoomId, planId.toString(), missingDays));
-                }
-
-                List<Map<String, Object>> segments = toRateSegments(
-                        dailyStates,
-                        startDate,
-                        planId.toString(),
-                        includedGuests,
-                        extraAdultRate,
-                        extraChildRate
-                );
-                if (!segments.isEmpty()) {
-                    rateSegments += segments.size();
-                    rateDateItems.addAll(segments);
-                }
-            }
-
-            if (!rateDateItems.isEmpty()) {
-                rateRoomNodes.add(buildRoomNode(suRoomId, rateDateItems));
+                availabilitySegments += segments.size();
+                availabilityRoomNodes.add(buildRoomNode(String.valueOf(rtId), segments));
+                distinctRoomTypesInPayload.add(rtId);
             }
         }
 
-        boolean availabilityOk = true;
-        boolean ratesOk = true;
+        if (pushRates || pushRestrictions) {
+            for (Map.Entry<Long, RoomType> it : roomTypeById.entrySet()) {
+                Long rtId = it.getKey();
+                RoomType roomType = it.getValue();
+                if (rtId == null || roomType == null) {
+                    continue;
+                }
+                Set<Long> planIds = planIdsByRoomTypeId.get(rtId);
+                if (planIds == null || planIds.isEmpty()) {
+                    continue;
+                }
+
+                List<Map<String, Object>> rateDateItems = new ArrayList<>();
+                for (Long planId : planIds) {
+                    if (planId == null) {
+                        continue;
+                    }
+                    if (ratePlanIds != null && !ratePlanIds.isEmpty() && !ratePlanIds.contains(planId)) {
+                        continue;
+                    }
+                    distinctPlans.add(planId);
+
+                    RoomTypePricePlan rtpp = rtppByKey.get(roomPlanKey(rtId, planId));
+                    PricePlan pricePlan = (rtpp != null && rtpp.getPricePlan() != null) ? rtpp.getPricePlan() : pricePlanById.get(planId);
+                    Integer defaultMinStay = normalizeStayOrNull(pricePlan != null ? pricePlan.getMinNights() : null);
+                    Integer defaultMaxStay = normalizeStayOrNull(pricePlan != null ? pricePlan.getMaxNights() : null);
+                    int includedGuests = resolveIncludedGuests(rtpp, roomType);
+                    String extraAdultRate = formatMoneyAllowZero(rtpp != null ? rtpp.getExtraAdultRate() : null);
+                    String extraChildRate = formatMoneyAllowZero(rtpp != null ? rtpp.getExtraChildRate() : null);
+
+                    List<DailyRateState> dailyStates = new ArrayList<>(effectiveDays);
+                    int missingDays = 0;
+                    for (int i = 0; i < effectiveDays; i++) {
+                        LocalDate date = startDate.plusDays(i);
+                        RoomPrice rp = roomPriceByKey.get(roomPlanDateKey(rtId, planId, date));
+
+                        String price = null;
+                        if (pushRates) {
+                            LocalBasePriceResolver.Result local = LocalBasePriceResolver.resolve(rp, rtpp, roomType, date);
+                            price = formatPositiveMoney(local.basePrice());
+                            if (price == null) {
+                                missingDays++;
+                            }
+                        }
+
+                        Boolean closed = null;
+                        Integer minStay = null;
+                        Integer maxStay = null;
+                        Boolean cta = null;
+                        Boolean ctd = null;
+
+                        if (pushRestrictions) {
+                            Boolean closeRoom = rp != null ? rp.getCloseRoom() : null;
+
+                            if (deriveClosedFromBlockouts) {
+                                int totalRooms = totalRoomsByRoomTypeId.getOrDefault(rtId, 0);
+                                int[] blockedCounts = blockedByRoomTypeId.get(rtId);
+                                boolean closedByBlockouts = totalRooms > 0 && blockedCounts != null && blockedCounts.length > i && blockedCounts[i] >= totalRooms;
+                                closed = closedByBlockouts || Boolean.TRUE.equals(closeRoom);
+                            } else {
+                                closed = closeRoom;
+                            }
+
+                            minStay = normalizeStayOrNull(rp != null ? rp.getMinStay() : null);
+                            maxStay = normalizeStayOrNull(rp != null ? rp.getMaxStay() : null);
+
+                            if (minStay == null) {
+                                minStay = defaultMinStay;
+                            }
+                            if (maxStay == null) {
+                                maxStay = defaultMaxStay;
+                            }
+                            if (minStay != null && maxStay != null && maxStay < minStay) {
+                                maxStay = minStay;
+                            }
+                            cta = rp != null ? rp.getCta() : null;
+                            ctd = rp != null ? rp.getCtd() : null;
+                        }
+
+                        dailyStates.add(new DailyRateState(
+                                price,
+                                closed,
+                                minStay,
+                                maxStay,
+                                cta,
+                                ctd
+                        ));
+                    }
+                    if (pushRates && missingDays > 0 && missingPrices.size() < 200) {
+                        missingPrices.add(new MissingPrice(String.valueOf(rtId), planId.toString(), missingDays));
+                    }
+
+                    List<Map<String, Object>> segments = toRateSegments(
+                            dailyStates,
+                            startDate,
+                            planId.toString(),
+                            includedGuests,
+                            extraAdultRate,
+                            extraChildRate,
+                            pushRates,
+                            pushRestrictions,
+                            pushRates
+                    );
+                    if (!segments.isEmpty()) {
+                        rateSegments += segments.size();
+                        rateDateItems.addAll(segments);
+                    }
+                }
+
+                if (!rateDateItems.isEmpty()) {
+                    rateRoomNodes.add(buildRoomNode(String.valueOf(rtId), rateDateItems));
+                    distinctRoomTypesInPayload.add(rtId);
+                }
+            }
+        }
+
+        boolean availabilityOk = !pushAvailability;
+        boolean ratesOk = !(pushRates || pushRestrictions);
         String error = null;
 
         try {
-            if (!availabilityRoomNodes.isEmpty()) {
-                Map<String, Object> payload = new LinkedHashMap<>();
-                payload.put("hotelid", hotelId);
-                payload.put("room", availabilityRoomNodes);
+            if (pushAvailability) {
+                if (availabilityRoomNodes.isEmpty()) {
+                    availabilityOk = true;
+                } else {
+                    Map<String, Object> payload = new LinkedHashMap<>();
+                    payload.put("hotelid", hotelId);
+                    payload.put("room", availabilityRoomNodes);
 
-                logger.info(
-                        "[SuAriSync] posting availability(roomstosell). storeId={}, hotelId={}, rooms={}, segments={}",
-                        storeId,
-                        hotelId,
-                        availabilityRoomNodes.size(),
-                        availabilitySegments
-                );
-                JsonNode resp = suAccessTokenService.executeWithTokenRetry(
-                        token -> suApiClient.postAvailability(token, payload),
-                        "availability(roomstosell)"
-                );
-                requestsPosted++;
-
-                if (!suApiClient.isSuSuccess(resp)) {
-                    availabilityOk = false;
-                    error = suApiClient.extractSuErrorMessage(resp);
-                    logger.warn(
-                            "[SuAriSync] availability(roomstosell) returned fail. storeId={}, hotelId={}, err={}, raw={}",
+                    logger.info(
+                            "[SuAriSync] posting availability(roomstosell). storeId={}, hotelId={}, roomTypes={}, segments={}",
                             storeId,
                             hotelId,
-                            error,
-                            resp != null ? resp.toString() : "null"
+                            availabilityRoomNodes.size(),
+                            availabilitySegments
                     );
+                    JsonNode resp = suAccessTokenService.executeWithTokenRetry(
+                            token -> suApiClient.postAvailability(token, payload),
+                            "availability(roomstosell)"
+                    );
+                    requestsPosted++;
+
+                    if (!suApiClient.isSuSuccess(resp)) {
+                        availabilityOk = false;
+                        error = suApiClient.extractSuErrorMessage(resp);
+                        logger.warn(
+                                "[SuAriSync] availability(roomstosell) returned fail. storeId={}, hotelId={}, err={}, raw={}",
+                                storeId,
+                                hotelId,
+                                error,
+                                resp != null ? resp.toString() : "null"
+                        );
+                    } else {
+                        availabilityOk = true;
+                    }
                 }
             }
 
-            if (!rateRoomNodes.isEmpty()) {
-                Map<String, Object> payload = new LinkedHashMap<>();
-                payload.put("hotelid", hotelId);
-                payload.put("room", rateRoomNodes);
+            if (pushRates || pushRestrictions) {
+                if (rateRoomNodes.isEmpty()) {
+                    ratesOk = true;
+                } else {
+                    Map<String, Object> payload = new LinkedHashMap<>();
+                    payload.put("hotelid", hotelId);
+                    payload.put("room", rateRoomNodes);
 
-                logger.info(
-                        "[SuAriSync] posting availability(rates). storeId={}, hotelId={}, rooms={}, segments={}, plans={}",
-                        storeId,
-                        hotelId,
-                        rateRoomNodes.size(),
-                        rateSegments,
-                        distinctPlans.size()
-                );
-                JsonNode resp = suAccessTokenService.executeWithTokenRetry(
-                        token -> suApiClient.postAvailability(token, payload),
-                        "availability(rates)"
-                );
-                requestsPosted++;
-
-                if (!suApiClient.isSuSuccess(resp)) {
-                    ratesOk = false;
-                    String err = suApiClient.extractSuErrorMessage(resp);
-                    error = error != null ? error + "; " + err : err;
-                    logger.warn(
-                            "[SuAriSync] availability(rates) returned fail. storeId={}, hotelId={}, err={}, raw={}",
+                    logger.info(
+                            "[SuAriSync] posting availability(rates). storeId={}, hotelId={}, roomTypes={}, segments={}, plans={}",
                             storeId,
                             hotelId,
-                            err,
-                            resp != null ? resp.toString() : "null"
+                            rateRoomNodes.size(),
+                            rateSegments,
+                            distinctPlans.size()
                     );
+                    JsonNode resp = suAccessTokenService.executeWithTokenRetry(
+                            token -> suApiClient.postAvailability(token, payload),
+                            "availability(rates)"
+                    );
+                    requestsPosted++;
+
+                    if (!suApiClient.isSuSuccess(resp)) {
+                        ratesOk = false;
+                        String err = suApiClient.extractSuErrorMessage(resp);
+                        error = error != null ? error + "; " + err : err;
+                        logger.warn(
+                                "[SuAriSync] availability(rates) returned fail. storeId={}, hotelId={}, err={}, raw={}",
+                                storeId,
+                                hotelId,
+                                err,
+                                resp != null ? resp.toString() : "null"
+                        );
+                    } else {
+                        ratesOk = true;
+                    }
                 }
             }
 
             logger.info(
-                    "[SuAriSync] done. storeId={}, hotelId={}, availabilityOk={}, ratesOk={}, requests={}",
+                    "[SuAriSync] done(range). storeId={}, hotelId={}, availabilityOk={}, ratesOk={}, requests={}",
                     storeId,
                     hotelId,
                     availabilityOk,
@@ -395,11 +599,11 @@ public class SuAriSyncService {
             );
 
             return new SuAriSyncSummary(
-                    rooms.size(),
+                    distinctRoomTypesInPayload.size(),
                     distinctPlans.size(),
                     effectiveDays,
                     startDate,
-                    endDate,
+                    effectiveEndDate,
                     availabilityOk,
                     ratesOk,
                     availabilitySegments,
@@ -409,13 +613,13 @@ public class SuAriSyncService {
                     missingPrices
             );
         } catch (RuntimeException e) {
-            logger.error("Su ARI sync failed. storeId={}, hotelId={}", storeId, hotelId, e);
+            logger.error("Su ARI sync(range) failed. storeId={}, hotelId={}", storeId, hotelId, e);
             return new SuAriSyncSummary(
-                    rooms.size(),
+                    distinctRoomTypesInPayload.size(),
                     distinctPlans.size(),
                     effectiveDays,
                     startDate,
-                    endDate,
+                    effectiveEndDate,
                     false,
                     false,
                     availabilitySegments,
@@ -502,6 +706,24 @@ public class SuAriSyncService {
         return canSell;
     }
 
+    private static boolean[] buildBlockedOutCalendar(List<RoomBlockout> blockouts, LocalDate start, int days) {
+        boolean[] blocked = new boolean[days];
+        if (blockouts == null || blockouts.isEmpty() || start == null || days <= 0) {
+            return blocked;
+        }
+        for (RoomBlockout b : blockouts) {
+            if (b == null || b.getBlockDate() == null) {
+                continue;
+            }
+            long offset = b.getBlockDate().toEpochDay() - start.toEpochDay();
+            if (offset < 0 || offset >= days) {
+                continue;
+            }
+            blocked[(int) offset] = true;
+        }
+        return blocked;
+    }
+
     private static List<Map<String, Object>> toRoomstosellSegments(boolean[] canSell, LocalDate start) {
         if (canSell == null || canSell.length == 0) {
             return List.of();
@@ -527,6 +749,31 @@ public class SuAriSyncService {
         return segments;
     }
 
+    private static List<Map<String, Object>> toRoomstosellSegments(int[] roomstosellByDay, LocalDate start) {
+        if (roomstosellByDay == null || roomstosellByDay.length == 0) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> segments = new ArrayList<>();
+        int currentValue = roomstosellByDay[0];
+        LocalDate segmentStart = start;
+
+        for (int i = 1; i < roomstosellByDay.length; i++) {
+            int value = roomstosellByDay[i];
+            if (value == currentValue) {
+                continue;
+            }
+            LocalDate segmentEnd = start.plusDays(i - 1L);
+            segments.add(buildRoomstosellSegment(segmentStart, segmentEnd, currentValue));
+            segmentStart = start.plusDays(i);
+            currentValue = value;
+        }
+
+        LocalDate lastEnd = start.plusDays(roomstosellByDay.length - 1L);
+        segments.add(buildRoomstosellSegment(segmentStart, lastEnd, currentValue));
+        return segments;
+    }
+
     private static Map<String, Object> buildRoomstosellSegment(LocalDate from, LocalDate to, int value) {
         Map<String, Object> seg = new LinkedHashMap<>();
         seg.put("from", from.toString());
@@ -541,7 +788,10 @@ public class SuAriSyncService {
             String ratePlanId,
             int includedGuests,
             String extraAdultRate,
-            String extraChildRate
+            String extraChildRate,
+            boolean includePrice,
+            boolean includeRestrictions,
+            boolean includeExtraRates
     ) {
         if (dailyStates == null || dailyStates.isEmpty()) {
             return List.of();
@@ -552,21 +802,22 @@ public class SuAriSyncService {
 
         List<Map<String, Object>> segments = new ArrayList<>();
 
-        DailyRateState current = dailyStates.get(0);
         LocalDate segmentStart = start;
-        boolean currentHasPrice = current != null && current.priceValue() != null;
+        DailyRateState current = dailyStates.get(0);
+        boolean currentHasPayload = hasAnyRatePayload(current, includePrice, includeRestrictions);
 
         for (int i = 1; i < dailyStates.size(); i++) {
             DailyRateState next = dailyStates.get(i);
-            boolean hasPrice = next != null && next.priceValue() != null;
+            boolean nextHasPayload = hasAnyRatePayload(next, includePrice, includeRestrictions);
 
-            boolean same = Objects.equals(next, current) && hasPrice == currentHasPrice;
+            boolean same = sameRateStateForPayload(current, next, includePrice, includeRestrictions)
+                    && nextHasPayload == currentHasPayload;
             if (same) {
                 continue;
             }
 
             LocalDate segmentEnd = start.plusDays(i - 1L);
-            if (currentHasPrice) {
+            if (currentHasPayload) {
                 segments.add(buildRateSegment(
                         segmentStart,
                         segmentEnd,
@@ -574,16 +825,19 @@ public class SuAriSyncService {
                         current,
                         includedGuests,
                         extraAdultRate,
-                        extraChildRate
+                        extraChildRate,
+                        includePrice,
+                        includeRestrictions,
+                        includeExtraRates
                 ));
             }
             segmentStart = start.plusDays(i);
             current = next;
-            currentHasPrice = hasPrice;
+            currentHasPayload = nextHasPayload;
         }
 
         LocalDate lastEnd = start.plusDays(dailyStates.size() - 1L);
-        if (currentHasPrice) {
+        if (currentHasPayload) {
             segments.add(buildRateSegment(
                     segmentStart,
                     lastEnd,
@@ -591,7 +845,10 @@ public class SuAriSyncService {
                     current,
                     includedGuests,
                     extraAdultRate,
-                    extraChildRate
+                    extraChildRate,
+                    includePrice,
+                    includeRestrictions,
+                    includeExtraRates
             ));
         }
         return segments;
@@ -604,35 +861,82 @@ public class SuAriSyncService {
             DailyRateState state,
             int includedGuests,
             String extraAdultRate,
-            String extraChildRate
+            String extraChildRate,
+            boolean includePrice,
+            boolean includeRestrictions,
+            boolean includeExtraRates
     ) {
         Map<String, Object> seg = new LinkedHashMap<>();
         seg.put("from", from.toString());
         seg.put("to", to.toString());
         seg.put("rate", List.of(Map.of("rateplanid", ratePlanId)));
-        seg.put("price", List.of(Map.of("NumberOfGuests", String.valueOf(includedGuests), "value", state.priceValue())));
+        if (includePrice && state != null && state.priceValue() != null) {
+            seg.put("price", List.of(Map.of("NumberOfGuests", String.valueOf(includedGuests), "value", state.priceValue())));
+        }
 
         // Restrictions (Room + RatePlan + Date range)
-        if (state.closed() != null) {
-            seg.put("closed", state.closed() ? "1" : "0");
-        }
-        if (state.minStay() != null) {
-            seg.put("minimumstay", String.valueOf(state.minStay()));
-        }
-        if (state.maxStay() != null) {
-            seg.put("maximumstay", String.valueOf(state.maxStay()));
-        }
-        if (state.cta() != null) {
-            seg.put("closedonarrival", state.cta() ? "1" : "0");
-        }
-        if (state.ctd() != null) {
-            seg.put("closedondeparture", state.ctd() ? "1" : "0");
+        if (includeRestrictions && state != null) {
+            if (state.closed() != null) {
+                seg.put("closed", state.closed() ? "1" : "0");
+            }
+            if (state.minStay() != null) {
+                seg.put("minimumstay", String.valueOf(state.minStay()));
+            }
+            if (state.maxStay() != null) {
+                seg.put("maximumstay", String.valueOf(state.maxStay()));
+            }
+            if (state.cta() != null) {
+                seg.put("closedonarrival", state.cta() ? "1" : "0");
+            }
+            if (state.ctd() != null) {
+                seg.put("closedondeparture", state.ctd() ? "1" : "0");
+            }
         }
 
-        // Extra rates: treat missing as 0 (per user confirmation)
-        seg.put("extraadultrate", extraAdultRate);
-        seg.put("extrachildrate", extraChildRate);
+        if (includeExtraRates) {
+            // Extra rates: treat missing as 0 (per user confirmation)
+            seg.put("extraadultrate", extraAdultRate);
+            seg.put("extrachildrate", extraChildRate);
+        }
         return seg;
+    }
+
+    private static boolean hasAnyRestriction(DailyRateState state) {
+        return state != null && (state.closed() != null
+                || state.minStay() != null
+                || state.maxStay() != null
+                || state.cta() != null
+                || state.ctd() != null);
+    }
+
+    private static boolean hasAnyRatePayload(DailyRateState state, boolean includePrice, boolean includeRestrictions) {
+        if (state == null) {
+            return false;
+        }
+        if (includePrice && state.priceValue() != null) {
+            return true;
+        }
+        return includeRestrictions && hasAnyRestriction(state);
+    }
+
+    private static boolean sameRateStateForPayload(DailyRateState a, DailyRateState b, boolean includePrice, boolean includeRestrictions) {
+        if (a == b) {
+            return true;
+        }
+        if (a == null || b == null) {
+            return false;
+        }
+        if (includePrice && !Objects.equals(a.priceValue(), b.priceValue())) {
+            return false;
+        }
+        if (includeRestrictions) {
+            if (!Objects.equals(a.closed(), b.closed())) return false;
+            if (!Objects.equals(a.minStay(), b.minStay())) return false;
+            if (!Objects.equals(a.maxStay(), b.maxStay())) return false;
+            if (!Objects.equals(a.cta(), b.cta())) return false;
+            if (!Objects.equals(a.ctd(), b.ctd())) return false;
+        }
+        return true;
     }
 
     private static Map<String, Object> buildRoomNode(String roomId, List<Map<String, Object>> dateItems) {
@@ -659,6 +963,16 @@ public class SuAriSyncService {
             normalized = ZERO_MONEY;
         }
         return normalized.toPlainString();
+    }
+
+    private static Integer normalizeStayOrNull(Integer value) {
+        if (value == null) {
+            return null;
+        }
+        if (value <= 0) {
+            return null;
+        }
+        return value;
     }
 
     private static int resolveIncludedGuests(RoomTypePricePlan roomTypePricePlan, RoomType roomType) {

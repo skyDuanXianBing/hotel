@@ -124,7 +124,7 @@
                   </div>
                   <div class="rooms-count">
                     <el-icon><Moon /></el-icon>
-                    {{ row.dates[date.dateStr]?.rooms || 0 }}
+                    {{ row.dates[date.dateStr]?.minStay ?? 1 }}
                   </div>
               </div>
             </div>
@@ -369,6 +369,7 @@ interface PriceTableRow {
     [dateStr: string]: {
       price?: number
       rooms?: number
+      minStay?: number
     }
   }
 }
@@ -458,7 +459,7 @@ const priceTableData = computed<PriceTableRow[]>(() => {
         return
       }
 
-      const dates: { [dateStr: string]: { price: number; rooms: number } } = {}
+      const dates: { [dateStr: string]: { price: number; rooms: number; minStay: number } } = {}
 
       dateColumns.value.forEach(dateCol => {
         const priceRecord = priceData.value.find(
@@ -469,7 +470,8 @@ const priceTableData = computed<PriceTableRow[]>(() => {
 
         dates[dateCol.dateStr] = {
           price: priceRecord?.price || 0,
-          rooms: priceRecord?.availableRooms ?? 0
+          rooms: priceRecord?.availableRooms ?? 0,
+          minStay: priceRecord?.minStay ?? 1,
         }
 
         if (priceRecord) {

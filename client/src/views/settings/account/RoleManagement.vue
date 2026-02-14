@@ -64,7 +64,10 @@
             <div class="permission-section">
               <h3 class="section-title">房型权限</h3>
               <div class="permission-toggle">
-                <el-switch v-model="permissions.roomTypeAll" :disabled="!isEditing" />
+                <el-switch
+                  v-model="permissions.roomTypeAll"
+                  :disabled="!isEditing || !permissions.viewRoomStatus"
+                />
                 <span class="toggle-label">给该员工所有房型权限</span>
                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
               </div>
@@ -74,7 +77,7 @@
                   :key="roomType.id"
                   v-model="roomType.checked"
                   :label="roomType.name"
-                  :disabled="!isEditing"
+                  :disabled="!isEditing || !permissions.viewRoomStatus"
                 />
               </div>
             </div>
@@ -84,7 +87,7 @@
               <div class="permission-checkboxes">
                 <el-checkbox v-model="permissions.viewRoomStatus" label="查看房态" :disabled="!isEditing" />
                 <el-checkbox v-model="permissions.editRoomStatus" label="修改房态" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.viewRoomOperationLog" label="查看房态操作日志" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewRoomOperationLog" label="查看房态操作日志（暂未接入）" :disabled="true" />
                 <el-checkbox v-model="permissions.viewRoomInfo" label="查看房情表" :disabled="!isEditing" />
               </div>
             </div>
@@ -110,9 +113,9 @@
           <el-tab-pane label="订单管理" name="order">
             <div class="permission-section">
               <div class="permission-checkboxes">
-                <el-checkbox label="查看订单" :disabled="!isEditing" />
-                <el-checkbox label="修改订单" :disabled="!isEditing" />
-                <el-checkbox label="取消订单" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewOrders" label="查看订单" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.modifyOrder" label="修改订单" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.cancelOrder" label="取消订单" :disabled="!isEditing" />
               </div>
             </div>
           </el-tab-pane>
@@ -120,8 +123,8 @@
           <el-tab-pane label="渠道" name="channel">
             <div class="permission-section">
               <div class="permission-checkboxes">
-                <el-checkbox label="查看渠道" :disabled="!isEditing" />
-                <el-checkbox label="管理渠道" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewChannels" label="查看渠道" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.manageChannels" label="管理渠道" :disabled="!isEditing" />
               </div>
             </div>
           </el-tab-pane>
@@ -129,8 +132,8 @@
           <el-tab-pane label="统计分析" name="statistics">
             <div class="permission-section">
               <div class="permission-checkboxes">
-                <el-checkbox label="查看统计数据" :disabled="!isEditing" />
-                <el-checkbox label="导出报表" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewStats" label="查看统计数据" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.exportStats" label="导出报表（暂未接入）" :disabled="true" />
               </div>
             </div>
           </el-tab-pane>
@@ -138,9 +141,9 @@
           <el-tab-pane label="设置" name="settings">
             <div class="permission-section">
               <div class="permission-checkboxes">
-                <el-checkbox label="修改门店设置" :disabled="!isEditing" />
-                <el-checkbox label="管理员工账号" :disabled="!isEditing" />
-                <el-checkbox label="管理支付方式" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.modifyStoreSettings" label="修改门店设置" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.manageEmployeeAccounts" label="管理员工账号" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.managePaymentMethods" label="管理支付方式（暂未接入）" :disabled="true" />
               </div>
             </div>
           </el-tab-pane>
@@ -148,8 +151,8 @@
           <el-tab-pane label="敏感权限" name="sensitive">
             <div class="permission-section">
               <div class="permission-checkboxes">
-                <el-checkbox label="查看财务数据" :disabled="!isEditing" />
-                <el-checkbox label="删除重要数据" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewFinancialData" label="查看财务数据" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.deleteImportantData" label="删除重要数据" :disabled="!isEditing" />
               </div>
             </div>
           </el-tab-pane>
@@ -209,6 +212,18 @@ interface Permissions {
   viewPriceLog: boolean
   batchChangePrice: boolean
   taskList: boolean
+  viewOrders: boolean
+  modifyOrder: boolean
+  cancelOrder: boolean
+  viewChannels: boolean
+  manageChannels: boolean
+  viewStats: boolean
+  exportStats: boolean
+  modifyStoreSettings: boolean
+  manageEmployeeAccounts: boolean
+  managePaymentMethods: boolean
+  viewFinancialData: boolean
+  deleteImportantData: boolean
 }
 
 const roleSearchKeyword = ref('')
@@ -278,6 +293,18 @@ const permissions = ref<Permissions>({
   viewPriceLog: false,
   batchChangePrice: false,
   taskList: false,
+  viewOrders: false,
+  modifyOrder: false,
+  cancelOrder: false,
+  viewChannels: false,
+  manageChannels: false,
+  viewStats: false,
+  exportStats: false,
+  modifyStoreSettings: false,
+  manageEmployeeAccounts: false,
+  managePaymentMethods: false,
+  viewFinancialData: false,
+  deleteImportantData: false,
 })
 
 const filteredRoles = computed(() => {
@@ -335,6 +362,18 @@ const loadRolePermissions = async (roleId: number) => {
         viewPriceLog: false,
         batchChangePrice: false,
         taskList: false,
+        viewOrders: false,
+        modifyOrder: false,
+        cancelOrder: false,
+        viewChannels: false,
+        manageChannels: false,
+        viewStats: false,
+        exportStats: false,
+        modifyStoreSettings: false,
+        manageEmployeeAccounts: false,
+        managePaymentMethods: false,
+        viewFinancialData: false,
+        deleteImportantData: false,
       }
 
       // 重置房型选择
@@ -342,31 +381,62 @@ const loadRolePermissions = async (roleId: number) => {
         rt.checked = false
       })
 
-      // 根据权限数据回显
-      permissionList.forEach(permission => {
-        // 检查是否是全部房型权限
-        if (permission.allRoomTypes) {
+      // 房态查看权限（同时承载房型范围）
+      const viewRoomStatusPermissions = permissionList.filter(
+        p => p.module === PermissionModule.ACCOMMODATION && p.action === PermissionAction.VIEW_ROOM_STATUS
+      )
+      if (viewRoomStatusPermissions.length > 0) {
+        permissions.value.viewRoomStatus = true
+        const hasAllRoomTypes = viewRoomStatusPermissions.some(p => p.allRoomTypes)
+        if (hasAllRoomTypes) {
           permissions.value.roomTypeAll = true
+        } else {
+          viewRoomStatusPermissions.forEach(p => {
+            if (p.roomTypeId && p.roomTypeId > 0) {
+              const roomType = roomTypes.value.find(rt => rt.id === p.roomTypeId)
+              if (roomType) {
+                roomType.checked = true
+              }
+            }
+          })
         }
+      }
 
-        // 检查房型权限
-        if (permission.roomTypeId) {
-          const roomType = roomTypes.value.find(rt => rt.id === permission.roomTypeId)
-          if (roomType) {
-            roomType.checked = true
-          }
-        }
-
-        // 根据 action 回显权限
+      // 其它权限回显
+      permissionList.forEach(permission => {
         switch (permission.action) {
-          case 'VIEW_ROOM_STATUS':
-            permissions.value.viewRoomStatus = true
+          case 'VIEW_ORDERS':
+            permissions.value.viewOrders = true
+            break
+          case 'MODIFY_ORDER':
+            permissions.value.modifyOrder = true
+            break
+          case 'CANCEL_ORDER':
+            permissions.value.cancelOrder = true
+            break
+          case 'VIEW_CHANNELS':
+            permissions.value.viewChannels = true
+            break
+          case 'MANAGE_CHANNELS':
+            permissions.value.manageChannels = true
+            break
+          case 'VIEW_STATS':
+            permissions.value.viewStats = true
+            break
+          case 'MODIFY_STORE_SETTINGS':
+            permissions.value.modifyStoreSettings = true
+            break
+          case 'MANAGE_EMPLOYEE_ACCOUNTS':
+            permissions.value.manageEmployeeAccounts = true
+            break
+          case 'VIEW_FINANCIAL_DATA':
+            permissions.value.viewFinancialData = true
+            break
+          case 'DELETE_IMPORTANT_DATA':
+            permissions.value.deleteImportantData = true
             break
           case 'EDIT_ROOM_STATUS':
             permissions.value.editRoomStatus = true
-            break
-          case 'VIEW_ROOM_OPERATION_LOG':
-            permissions.value.viewRoomOperationLog = true
             break
           case 'VIEW_ROOM_INFO':
             permissions.value.viewRoomInfo = true
@@ -475,35 +545,33 @@ const handleSavePermissions = async () => {
     // 构建权限数据
     const permissionDTOs: PermissionDTO[] = []
 
-    // 住宿管理权限
-    if (permissions.value.roomTypeAll) {
-      permissionDTOs.push({
-        module: PermissionModule.ACCOMMODATION,
-        action: PermissionAction.VIEW_ROOM_STATUS,
-        allRoomTypes: true
-      })
-    } else {
-      // 添加选中的房型权限
-      roomTypes.value
-        .filter(rt => rt.checked)
-        .forEach(rt => {
+    // 房态查看权限（同时配置房型范围）
+    if (permissions.value.viewRoomStatus) {
+      if (permissions.value.roomTypeAll) {
+        permissionDTOs.push({
+          module: PermissionModule.ACCOMMODATION,
+          action: PermissionAction.VIEW_ROOM_STATUS,
+          allRoomTypes: true,
+        })
+      } else {
+        const selectedRoomTypes = roomTypes.value.filter(rt => rt.checked)
+        if (selectedRoomTypes.length === 0) {
+          ElMessage.warning('请至少选择一个房型，或开启“所有房型权限”')
+          return
+        }
+        selectedRoomTypes.forEach(rt => {
           permissionDTOs.push({
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.VIEW_ROOM_STATUS,
-            roomTypeId: rt.id
+            roomTypeId: rt.id,
           })
         })
+      }
     }
 
-    // 房态管理权限
-    if (permissions.value.viewRoomStatus) {
-      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_STATUS })
-    }
+    // 房态管理其它权限
     if (permissions.value.editRoomStatus) {
       permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.EDIT_ROOM_STATUS })
-    }
-    if (permissions.value.viewRoomOperationLog) {
-      permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_OPERATION_LOG })
     }
     if (permissions.value.viewRoomInfo) {
       permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_INFO })
@@ -526,6 +594,46 @@ const handleSavePermissions = async () => {
     // 保洁管理权限
     if (permissions.value.taskList) {
       permissionDTOs.push({ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST })
+    }
+
+    // 订单管理
+    if (permissions.value.viewOrders) {
+      permissionDTOs.push({ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS })
+    }
+    if (permissions.value.modifyOrder) {
+      permissionDTOs.push({ module: PermissionModule.ORDER, action: PermissionAction.MODIFY_ORDER })
+    }
+    if (permissions.value.cancelOrder) {
+      permissionDTOs.push({ module: PermissionModule.ORDER, action: PermissionAction.CANCEL_ORDER })
+    }
+
+    // 渠道
+    if (permissions.value.viewChannels) {
+      permissionDTOs.push({ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS })
+    }
+    if (permissions.value.manageChannels) {
+      permissionDTOs.push({ module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS })
+    }
+
+    // 统计分析
+    if (permissions.value.viewStats) {
+      permissionDTOs.push({ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS })
+    }
+
+    // 设置
+    if (permissions.value.modifyStoreSettings) {
+      permissionDTOs.push({ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS })
+    }
+    if (permissions.value.manageEmployeeAccounts) {
+      permissionDTOs.push({ module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS })
+    }
+
+    // 敏感权限
+    if (permissions.value.viewFinancialData) {
+      permissionDTOs.push({ module: PermissionModule.SENSITIVE, action: PermissionAction.VIEW_FINANCIAL_DATA })
+    }
+    if (permissions.value.deleteImportantData) {
+      permissionDTOs.push({ module: PermissionModule.SENSITIVE, action: PermissionAction.DELETE_IMPORTANT_DATA })
     }
 
     // 调用 API 保存权限

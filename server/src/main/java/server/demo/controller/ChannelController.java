@@ -3,11 +3,14 @@ package server.demo.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ChannelDTO;
 import server.demo.dto.CreateChannelRequest;
 import server.demo.service.ChannelService;
 import server.demo.dto.ApiResponse;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 
 import jakarta.validation.Valid;
 import java.util.List;
@@ -23,6 +26,7 @@ public class ChannelController {
     private ChannelService channelService;
 
     @GetMapping
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.VIEW_CHANNELS)
     public ResponseEntity<ApiResponse<List<ChannelDTO>>> getAllChannels() {
         try {
             List<ChannelDTO> channels = channelService.getAllChannels();
@@ -34,6 +38,7 @@ public class ChannelController {
     }
 
     @GetMapping("/{id}")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.VIEW_CHANNELS)
     public ResponseEntity<ApiResponse<ChannelDTO>> getChannelById(@PathVariable Long id) {
         try {
             return channelService.getChannelById(id)
@@ -47,6 +52,7 @@ public class ChannelController {
     }
 
     @PostMapping
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     public ResponseEntity<ApiResponse<ChannelDTO>> createChannel(@Valid @RequestBody CreateChannelRequest request) {
         try {
             ChannelDTO createdChannel = channelService.createChannel(request);
@@ -58,6 +64,7 @@ public class ChannelController {
     }
 
     @PutMapping("/{id}")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     public ResponseEntity<ApiResponse<ChannelDTO>> updateChannel(
             @PathVariable Long id,
             @Valid @RequestBody CreateChannelRequest request) {
@@ -73,6 +80,7 @@ public class ChannelController {
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     public ResponseEntity<ApiResponse<Void>> deleteChannel(@PathVariable Long id) {
         try {
             if (channelService.deleteChannel(id)) {
@@ -88,6 +96,7 @@ public class ChannelController {
     }
 
     @PatchMapping("/{id}/status")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     public ResponseEntity<ApiResponse<ChannelDTO>> toggleChannelStatus(
             @PathVariable Long id,
             @RequestBody Map<String, Boolean> request) {

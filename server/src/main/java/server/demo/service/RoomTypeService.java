@@ -1,20 +1,26 @@
 package server.demo.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.Reservation;
+import server.demo.entity.Store;
 import server.demo.entity.User;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.enums.RoomStatus;
 import server.demo.dto.RoomTypeWithRoomsDTO;
 import server.demo.util.StoreContextUtils;
+import server.demo.util.SuHotelIdUtil;
 
 import java.util.List;
 import java.util.Locale;
@@ -24,6 +30,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class RoomTypeService {
+
+    private static final Logger logger = LoggerFactory.getLogger(RoomTypeService.class);
 
     @Autowired
     private RoomTypeRepository roomTypeRepository;
@@ -41,6 +49,24 @@ public class RoomTypeService {
     private RoomTypePricePlanRepository roomTypePricePlanRepository;
 
     @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private SuContentSyncService suContentSyncService;
+
+    @Autowired
+    private SuAriAutoSyncService suAriAutoSyncService;
+
+    @Value("${su.content.autosync.roomtype.enabled:true}")
+    private boolean suRoomTypeAutoSyncEnabled;
+
+    @Value("${su.content.autosync.roomtype.strict:true}")
+    private boolean suRoomTypeAutoSyncStrict;
+
+    @Value("${su.ari.autosync.days:365}")
+    private int suAriWarmupDays;
+
+    @Autowired
     private server.demo.repository.RoomPriceRepository roomPriceRepository;
 
     @Autowired
@@ -52,6 +78,80 @@ public class RoomTypeService {
 
     private Long currentUserId() {
         return StoreContextUtils.requireUserId();
+    }
+
+    private String resolveOrInitSuHotelId(Long storeId) {
+        Store store = storeRepository.findById(storeId).orElse(null);
+        if (store == null) {
+            return null;
+        }
+        String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
+        if (hotelId != null) {
+            return hotelId;
+        }
+        String generated = SuHotelIdUtil.buildDefault(storeId);
+        store.setSuHotelId(generated);
+        storeRepository.save(store);
+        return generated;
+    }
+
+    private void syncRoomTypeToSuIfEnabled(RoomType roomType) {
+        if (!suRoomTypeAutoSyncEnabled) {
+            return;
+        }
+        Long storeId = currentStoreId();
+        String hotelId = resolveOrInitSuHotelId(storeId);
+        if (hotelId == null || hotelId.isBlank()) {
+            String msg = "Su hotelId 未配置，无法同步房型到 SU（stores.su_hotel_id）。";
+            if (suRoomTypeAutoSyncStrict) {
+                throw new RuntimeException(msg);
+            }
+            logger.warn("[SuRoomTypeUpsert] skip: {} storeId={}", msg, storeId);
+            return;
+        }
+
+        try {
+            // SU Content 的 Quantity 需要按“房型的物理房间数”配置。
+            // 这里以 PMS 内该房型下实际房间记录数为准（只增不减，避免触发 SU 不允许减少数量的问题）。
+            if (roomType != null && roomType.getId() != null) {
+                int actualRooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, roomType.getId()).size();
+                int currentTotal = roomType.getTotalRooms() != null ? roomType.getTotalRooms() : 0;
+                if (actualRooms > currentTotal) {
+                    roomType.setTotalRooms(actualRooms);
+                    roomType = roomTypeRepository.save(roomType);
+                }
+            }
+
+            suContentSyncService.upsertSingleRoomTypeStrict(storeId, hotelId, roomType);
+
+            // 为了让 SU 沙盒 UI（Price & Availability）能立刻看到新 roomid，创建/编辑房型后预热库存（roomstosell）。
+            if (suRoomTypeAutoSyncStrict && roomType != null && roomType.getId() != null) {
+                java.time.LocalDate start = java.time.LocalDate.now();
+                int d = Math.max(1, suAriWarmupDays);
+                java.time.LocalDate end = start.plusDays(d - 1L);
+                suAriAutoSyncService.enqueueForStoreScope(
+                        storeId,
+                        "room-type-upsert",
+                        start,
+                        end,
+                        java.util.Set.of(roomType.getId()),
+                        null,
+                        true,
+                        false,
+                        false,
+                        false
+                );
+            }
+        } catch (RuntimeException e) {
+            if (suRoomTypeAutoSyncStrict) {
+                throw e;
+            }
+            logger.warn("[SuRoomTypeUpsert] best-effort failed. storeId={}, hotelId={}, roomTypeId={}, err={}",
+                    storeId,
+                    hotelId,
+                    roomType != null ? roomType.getId() : null,
+                    e.getMessage());
+        }
     }
 
     public List<RoomType> getAllRoomTypes() {
@@ -86,6 +186,10 @@ public class RoomTypeService {
         Long storeId = currentStoreId();
         Long userId = currentUserId();
 
+        if (roomTypeRepository.existsByStoreIdAndName(storeId, roomType.getName())) {
+            throw new RuntimeException("房型创建失败：同一门店下已存在同名房型，请更换名称后重试");
+        }
+
         String uniqueCode = ensureUniqueRoomTypeCode(storeId, roomType.getCode());
         roomType.setCode(uniqueCode);
 
@@ -94,12 +198,18 @@ public class RoomTypeService {
 
         roomType.setStoreId(storeId);
         roomType.setUser(user);
-        return roomTypeRepository.save(roomType);
+        RoomType saved = roomTypeRepository.save(roomType);
+        syncRoomTypeToSuIfEnabled(saved);
+        return saved;
     }
 
     public RoomType createRoomTypeWithRooms(RoomType roomType, List<String> roomNumbers) {
         Long storeId = currentStoreId();
         Long userId = currentUserId();
+
+        if (roomTypeRepository.existsByStoreIdAndName(storeId, roomType.getName())) {
+            throw new RuntimeException("房型创建失败：同一门店下已存在同名房型，请更换名称后重试");
+        }
 
         String uniqueCode = ensureUniqueRoomTypeCode(storeId, roomType.getCode());
         roomType.setCode(uniqueCode);
@@ -129,6 +239,7 @@ public class RoomTypeService {
             }
         }
 
+        syncRoomTypeToSuIfEnabled(savedRoomType);
         return savedRoomType;
     }
 
@@ -178,8 +289,22 @@ public class RoomTypeService {
             throw new RuntimeException("房型代码已存在");
         }
 
+        if (!java.util.Objects.equals(existingRoomType.getName(), roomType.getName())
+                && roomTypeRepository.existsByStoreIdAndName(storeId, roomType.getName())) {
+            throw new RuntimeException("房型更新失败：同一门店下已存在同名房型，请更换名称后重试");
+        }
+
         existingRoomType.setName(roomType.getName());
         existingRoomType.setCode(roomType.getCode());
+
+        if (suRoomTypeAutoSyncEnabled && suRoomTypeAutoSyncStrict) {
+            Integer oldTotal = existingRoomType.getTotalRooms();
+            Integer newTotal = roomType.getTotalRooms();
+            if (oldTotal != null && newTotal != null && newTotal < oldTotal) {
+                throw new RuntimeException("SU 房型数量（Room Count/Quantity）不允许减少。若需减少请联系 SU Support。当前=" + oldTotal + "，请求=" + newTotal);
+            }
+        }
+
         existingRoomType.setTotalRooms(roomType.getTotalRooms());
         existingRoomType.setMaxGuests(roomType.getMaxGuests());
         existingRoomType.setDescription(roomType.getDescription());
@@ -234,6 +359,7 @@ public class RoomTypeService {
             }
         }
 
+        syncRoomTypeToSuIfEnabled(savedRoomType);
         return savedRoomType;
     }
 

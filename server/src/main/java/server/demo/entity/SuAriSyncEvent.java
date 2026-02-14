@@ -33,6 +33,37 @@ public class SuAriSyncEvent implements StoreScopedEntity {
     @Column(name = "source", length = 50)
     private String source;
 
+    /**
+     * JSON array of date ranges: [{"from":"2026-02-10","to":"2026-02-12"}, ...]
+     * Kept as TEXT to support strict minimal payload requirements (no extra dates).
+     */
+    @Column(name = "date_ranges", columnDefinition = "TEXT")
+    private String dateRanges;
+
+    /**
+     * JSON array of roomTypeIds. NULL/blank means "all room types".
+     */
+    @Column(name = "room_type_ids", columnDefinition = "TEXT")
+    private String roomTypeIds;
+
+    /**
+     * JSON array of ratePlanIds. NULL/blank means "all rate plans".
+     */
+    @Column(name = "rate_plan_ids", columnDefinition = "TEXT")
+    private String ratePlanIds;
+
+    @Column(name = "push_availability", nullable = false)
+    private Boolean pushAvailability = true;
+
+    @Column(name = "push_rates", nullable = false)
+    private Boolean pushRates = true;
+
+    @Column(name = "push_restrictions", nullable = false)
+    private Boolean pushRestrictions = true;
+
+    @Column(name = "derive_closed_from_blockouts", nullable = false)
+    private Boolean deriveClosedFromBlockouts = false;
+
     @Column(name = "coalesced_count", nullable = false)
     private Integer coalescedCount = 0;
 
@@ -68,6 +99,18 @@ public class SuAriSyncEvent implements StoreScopedEntity {
         if (status == null) {
             status = SuAriSyncEventStatus.QUEUED;
         }
+        if (pushAvailability == null) {
+            pushAvailability = true;
+        }
+        if (pushRates == null) {
+            pushRates = true;
+        }
+        if (pushRestrictions == null) {
+            pushRestrictions = true;
+        }
+        if (deriveClosedFromBlockouts == null) {
+            deriveClosedFromBlockouts = false;
+        }
         if (retryCount == null) {
             retryCount = 0;
         }
@@ -79,6 +122,18 @@ public class SuAriSyncEvent implements StoreScopedEntity {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        if (pushAvailability == null) {
+            pushAvailability = true;
+        }
+        if (pushRates == null) {
+            pushRates = true;
+        }
+        if (pushRestrictions == null) {
+            pushRestrictions = true;
+        }
+        if (deriveClosedFromBlockouts == null) {
+            deriveClosedFromBlockouts = false;
+        }
         if (retryCount == null) {
             retryCount = 0;
         }
@@ -123,6 +178,62 @@ public class SuAriSyncEvent implements StoreScopedEntity {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public String getDateRanges() {
+        return dateRanges;
+    }
+
+    public void setDateRanges(String dateRanges) {
+        this.dateRanges = dateRanges;
+    }
+
+    public String getRoomTypeIds() {
+        return roomTypeIds;
+    }
+
+    public void setRoomTypeIds(String roomTypeIds) {
+        this.roomTypeIds = roomTypeIds;
+    }
+
+    public String getRatePlanIds() {
+        return ratePlanIds;
+    }
+
+    public void setRatePlanIds(String ratePlanIds) {
+        this.ratePlanIds = ratePlanIds;
+    }
+
+    public Boolean getPushAvailability() {
+        return pushAvailability;
+    }
+
+    public void setPushAvailability(Boolean pushAvailability) {
+        this.pushAvailability = pushAvailability;
+    }
+
+    public Boolean getPushRates() {
+        return pushRates;
+    }
+
+    public void setPushRates(Boolean pushRates) {
+        this.pushRates = pushRates;
+    }
+
+    public Boolean getPushRestrictions() {
+        return pushRestrictions;
+    }
+
+    public void setPushRestrictions(Boolean pushRestrictions) {
+        this.pushRestrictions = pushRestrictions;
+    }
+
+    public Boolean getDeriveClosedFromBlockouts() {
+        return deriveClosedFromBlockouts;
+    }
+
+    public void setDeriveClosedFromBlockouts(Boolean deriveClosedFromBlockouts) {
+        this.deriveClosedFromBlockouts = deriveClosedFromBlockouts;
     }
 
     public Integer getCoalescedCount() {

@@ -69,8 +69,7 @@
         <div class="room-type-header">
           <div class="room-type-title">
             <el-icon><House /></el-icon>
-            <span class="room-type-name">{{ roomType.storeName }} {{ roomType.name }}</span>
-            <span class="room-type-code">{{ roomType.code }}</span>
+            <span class="room-type-name">{{ roomType.name }}</span>
           </div>
           <el-button type="primary" link @click="handleAssignPricePlan(roomType)">
             + 分配价格计划

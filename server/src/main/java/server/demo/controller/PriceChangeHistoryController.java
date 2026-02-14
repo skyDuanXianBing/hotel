@@ -5,8 +5,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.PriceChangeHistoryPageResponse;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.PriceChangeHistoryService;
 
 import java.time.LocalDate;
@@ -27,6 +30,7 @@ public class PriceChangeHistoryController {
      * 分页查询改价历史
      */
     @GetMapping
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.VIEW_PRICE_LOG)
     public ResponseEntity<ApiResponse<PriceChangeHistoryPageResponse>> getPriceChangeHistory(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate operateDateStart,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate operateDateEnd,

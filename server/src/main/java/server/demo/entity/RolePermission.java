@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "role_permissions",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"role_id", "module", "action"}))
+       uniqueConstraints = @UniqueConstraint(columnNames = {"role_id", "module", "action", "room_type_id"}))
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class RolePermission {
 
@@ -32,8 +32,8 @@ public class RolePermission {
     @Column(nullable = false, length = 100)
     private PermissionAction action;
 
-    @Column(name = "room_type_id")
-    private Long roomTypeId; // 房型ID,null表示所有房型
+    @Column(name = "room_type_id", nullable = false)
+    private Long roomTypeId = 0L; // 房型ID: 0表示不指定房型(全部/不需要房型范围)
 
     @Column(name = "all_room_types", nullable = false)
     private Boolean allRoomTypes = false; // 是否拥有所有房型权限
@@ -68,6 +68,9 @@ public class RolePermission {
         createdAt = LocalDateTime.now();
         if (allRoomTypes == null) {
             allRoomTypes = false;
+        }
+        if (roomTypeId == null) {
+            roomTypeId = 0L;
         }
     }
 

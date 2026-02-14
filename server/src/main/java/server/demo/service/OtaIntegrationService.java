@@ -303,7 +303,7 @@ public class OtaIntegrationService {
     }
 
     /**
-     * PMS -> Su：一键推送“PMS 房间号列表”（用于 Su Widget 映射到具体房间）。
+     * PMS -> Su：一键推送“PMS 房型列表（Room Types）”（认证要求：roomid=roomTypeId）。
      */
     @Transactional
     public SuContentSyncService.SuRoomSyncSummary syncSuRooms(Long id) {
@@ -341,7 +341,16 @@ public class OtaIntegrationService {
                 .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
-        return suAriSyncService.syncBaseAriForNextDays(storeId, hotelId, days);
+        int d = days != null ? days : 365;
+        if (d < 1) {
+            d = 1;
+        }
+        if (d > 500) {
+            d = 500;
+        }
+        java.time.LocalDate startDate = java.time.LocalDate.now();
+        java.time.LocalDate endDate = startDate.plusDays(d - 1L);
+        return suAriSyncService.syncAriForDateRange(storeId, hotelId, startDate, endDate, null, null, true, true, true, false);
     }
 
     /**

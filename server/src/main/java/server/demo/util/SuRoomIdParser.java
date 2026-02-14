@@ -21,6 +21,17 @@ public final class SuRoomIdParser {
         if (trimmed.isBlank()) {
             return null;
         }
+
+        // RoomType-level format: "21"
+        if (trimmed.indexOf('-') < 0) {
+            try {
+                Long roomTypeId = Long.parseLong(trimmed);
+                return new ParsedRoomId(roomTypeId, null, trimmed);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
         int idx = trimmed.indexOf('-');
         if (idx <= 0 || idx >= trimmed.length() - 1) {
             return null;

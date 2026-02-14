@@ -134,7 +134,7 @@ public class OtaIntegrationController {
      * GET /api/v1/ota-integrations/{id}/su-mappings?channelId=9
      */
     /**
-     * 一键推送 PMS 房间号列表（用于 Su Widget 映射到具体房间）。
+     * 一键推送 PMS 房型列表（Room Types，认证要求：roomid=roomTypeId）。
      * POST /api/v1/ota-integrations/{id}/su-content/sync-rooms
      */
     @PostMapping("/{id}/su-content/sync-rooms")
@@ -143,10 +143,10 @@ public class OtaIntegrationController {
             logger.info("[OneClickSync] start syncSuRooms. otaIntegrationId={}", id);
             Object summary = otaIntegrationService.syncSuRooms(id);
             logger.info("[OneClickSync] done syncSuRooms. otaIntegrationId={}", id);
-            return ApiResponse.success("渠道房间号列表同步成功", summary);
+            return ApiResponse.success("渠道房型列表同步成功", summary);
         } catch (RuntimeException e) {
             logger.error("[OneClickSync] failed syncSuRooms. otaIntegrationId={}", id, e);
-            return ApiResponse.error("渠道房间号列表同步失败: " + e.getMessage());
+            return ApiResponse.error("渠道房型列表同步失败: " + e.getMessage());
         }
     }
 

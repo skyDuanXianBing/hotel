@@ -12,6 +12,9 @@ import server.demo.dto.UpsertRoomBlockoutRequest;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomBlockout;
+import server.demo.exception.PermissionDeniedException;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.RoomBlockoutType;
 import server.demo.enums.RoomStatus;
@@ -43,6 +46,9 @@ public class RoomStatusService {
     @Autowired
     private RoomBlockoutRepository roomBlockoutRepository;
 
+    @Autowired
+    private PermissionService permissionService;
+
     @Autowired(required = false)
     private SuAriAutoSyncService suAriAutoSyncService;
 
@@ -50,12 +56,45 @@ public class RoomStatusService {
         return StoreContextUtils.requireStoreId();
     }
 
+    private Long currentUserId() {
+        return StoreContextUtils.requireUserId();
+    }
+
     public RoomStatusCalendarDTO getRoomStatusCalendar(LocalDate startDate, LocalDate endDate) {
-        return getRoomStatusCalendarForStore(currentStoreId(), startDate, endDate);
+        Long storeId = currentStoreId();
+
+        if (!permissionService.isEnforcementEnabled()) {
+            return getRoomStatusCalendarForStore(storeId, startDate, endDate);
+        }
+
+        Long userId = currentUserId();
+        PermissionService.RoomTypeScope scope = permissionService.resolveRoomTypeScope(
+                storeId,
+                userId,
+                PermissionModule.ACCOMMODATION,
+                PermissionAction.VIEW_ROOM_STATUS
+        );
+        if (scope.isEmpty()) {
+            throw new PermissionDeniedException("您没有权限查看房态");
+        }
+
+        List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
+        if (!scope.isAllRoomTypes()) {
+            Set<Long> allowedRoomTypeIds = scope.getRoomTypeIds();
+            rooms = rooms.stream()
+                    .filter(r -> r != null && r.getRoomType() != null && allowedRoomTypeIds.contains(r.getRoomType().getId()))
+                    .toList();
+        }
+
+        return buildRoomStatusCalendar(storeId, startDate, endDate, rooms);
     }
 
     public RoomStatusCalendarDTO getRoomStatusCalendarForStore(Long storeId, LocalDate startDate, LocalDate endDate) {
         List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
+        return buildRoomStatusCalendar(storeId, startDate, endDate, rooms);
+    }
+
+    private RoomStatusCalendarDTO buildRoomStatusCalendar(Long storeId, LocalDate startDate, LocalDate endDate, List<Room> rooms) {
         List<Long> roomIds = rooms.stream()
                 .map(Room::getId)
                 .filter(id -> id != null)
@@ -138,6 +177,29 @@ public class RoomStatusService {
             throw new RuntimeException("部分房间不存在或无权限");
         }
 
+        if (permissionService.isEnforcementEnabled()) {
+            Long userId = currentUserId();
+            PermissionService.RoomTypeScope scope = permissionService.resolveRoomTypeScope(
+                    storeId,
+                    userId,
+                    PermissionModule.ACCOMMODATION,
+                    PermissionAction.VIEW_ROOM_STATUS
+            );
+            if (scope.isEmpty()) {
+                throw new PermissionDeniedException("您没有权限操作房态");
+            }
+            if (!scope.isAllRoomTypes()) {
+                Set<Long> allowedRoomTypeIds = scope.getRoomTypeIds();
+                boolean anyForbidden = rooms.stream().anyMatch(r -> r == null
+                        || r.getRoomType() == null
+                        || r.getRoomType().getId() == null
+                        || !allowedRoomTypeIds.contains(r.getRoomType().getId()));
+                if (anyForbidden) {
+                    throw new PermissionDeniedException("您没有权限操作该房型的房态");
+                }
+            }
+        }
+
         // 不允许对已有阻塞预订的日期关房，避免破坏在住/已确认订单
         List<Long> normalizedRoomIds = rooms.stream().map(Room::getId).filter(id -> id != null).toList();
         Set<ReservationStatus> blocking = Set.of(ReservationStatus.CONFIRMED, ReservationStatus.CHECKED_IN, ReservationStatus.REQUESTED);
@@ -193,7 +255,22 @@ public class RoomStatusService {
         }
         roomBlockoutRepository.saveAll(toSave);
         if (suAriAutoSyncService != null) {
-            suAriAutoSyncService.enqueueForStore(storeId, "room_blockout_close");
+            Set<Long> roomTypeIds = rooms.stream()
+                    .filter(r -> r != null && r.getRoomType() != null && r.getRoomType().getId() != null)
+                    .map(r -> r.getRoomType().getId())
+                    .collect(Collectors.toSet());
+            suAriAutoSyncService.enqueueForStoreScope(
+                    storeId,
+                    "room_blockout_close",
+                    startDate,
+                    endDate,
+                    roomTypeIds,
+                    null,
+                    true,
+                    false,
+                    true,
+                    true
+            );
         }
         return new RoomBlockoutSummaryDTO(affected);
     }
@@ -218,6 +295,29 @@ public class RoomStatusService {
         if (rooms.size() != roomIds.stream().filter(id -> id != null).collect(Collectors.toSet()).size()) {
             throw new RuntimeException("部分房间不存在或无权限");
         }
+
+        if (permissionService.isEnforcementEnabled()) {
+            Long userId = currentUserId();
+            PermissionService.RoomTypeScope scope = permissionService.resolveRoomTypeScope(
+                    storeId,
+                    userId,
+                    PermissionModule.ACCOMMODATION,
+                    PermissionAction.VIEW_ROOM_STATUS
+            );
+            if (scope.isEmpty()) {
+                throw new PermissionDeniedException("您没有权限操作房态");
+            }
+            if (!scope.isAllRoomTypes()) {
+                Set<Long> allowedRoomTypeIds = scope.getRoomTypeIds();
+                boolean anyForbidden = rooms.stream().anyMatch(r -> r == null
+                        || r.getRoomType() == null
+                        || r.getRoomType().getId() == null
+                        || !allowedRoomTypeIds.contains(r.getRoomType().getId()));
+                if (anyForbidden) {
+                    throw new PermissionDeniedException("您没有权限操作该房型的房态");
+                }
+            }
+        }
         List<Long> normalizedRoomIds = rooms.stream().map(Room::getId).filter(id -> id != null).toList();
 
         long deleted = roomBlockoutRepository.deleteByStoreIdAndRoom_IdInAndBlockDateBetween(
@@ -227,15 +327,52 @@ public class RoomStatusService {
                 endDate
         );
         if (suAriAutoSyncService != null && deleted > 0) {
-            suAriAutoSyncService.enqueueForStore(storeId, "room_blockout_open");
+            Set<Long> roomTypeIds = rooms.stream()
+                    .filter(r -> r != null && r.getRoomType() != null && r.getRoomType().getId() != null)
+                    .map(r -> r.getRoomType().getId())
+                    .collect(Collectors.toSet());
+            suAriAutoSyncService.enqueueForStoreScope(
+                    storeId,
+                    "room_blockout_open",
+                    startDate,
+                    endDate,
+                    roomTypeIds,
+                    null,
+                    true,
+                    false,
+                    true,
+                    true
+            );
         }
         return new RoomBlockoutSummaryDTO(deleted);
     }
 
     public void updateRoomStatus(Long roomId, LocalDate date, RoomStatus newStatus, String reason) {
         Long storeId = currentStoreId();
-        Room room = roomRepository.findByStoreIdAndId(storeId, roomId)
+        Room room = roomRepository.findByStoreIdAndIdWithRoomType(storeId, roomId)
                 .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+
+        if (permissionService.isEnforcementEnabled()) {
+            Long userId = currentUserId();
+            Long roomTypeId = room.getRoomType() != null ? room.getRoomType().getId() : null;
+
+            boolean canEdit = permissionService.hasPermission(
+                    storeId,
+                    userId,
+                    PermissionModule.ACCOMMODATION,
+                    PermissionAction.EDIT_ROOM_STATUS
+            );
+            boolean canViewRoomType = permissionService.hasPermission(
+                    storeId,
+                    userId,
+                    PermissionModule.ACCOMMODATION,
+                    PermissionAction.VIEW_ROOM_STATUS,
+                    roomTypeId
+            );
+            if (!canEdit || !canViewRoomType) {
+                throw new PermissionDeniedException("您没有权限修改该房型的房态");
+            }
+        }
 
         Optional<Reservation> existingReservation =
                 reservationRepository.findByStoreIdAndRoomIdAndDate(storeId, room.getId(), date);
@@ -249,7 +386,23 @@ public class RoomStatusService {
             room.setStatus(newStatus);
             roomRepository.save(room);
             if (suAriAutoSyncService != null) {
-                suAriAutoSyncService.enqueueForStore(storeId, "room_status_update_today");
+                Long rtId = room.getRoomType() != null ? room.getRoomType().getId() : null;
+                if (rtId != null) {
+                    suAriAutoSyncService.enqueueForStoreScope(
+                            storeId,
+                            "room_status_update_today",
+                            date,
+                            date,
+                            Set.of(rtId),
+                            null,
+                            true,
+                            false,
+                            false,
+                            false
+                    );
+                } else {
+                    suAriAutoSyncService.enqueueForStore(storeId, "room_status_update_today");
+                }
             }
         }
 
@@ -257,6 +410,19 @@ public class RoomStatusService {
     }
 
     public RoomStatusStatisticsDTO getRoomStatusStatistics(LocalDate date) {
+        if (permissionService.isEnforcementEnabled()) {
+            Long storeId = currentStoreId();
+            Long userId = currentUserId();
+            PermissionService.RoomTypeScope scope = permissionService.resolveRoomTypeScope(
+                    storeId,
+                    userId,
+                    PermissionModule.ACCOMMODATION,
+                    PermissionAction.VIEW_ROOM_STATUS
+            );
+            if (scope.isEmpty()) {
+                throw new PermissionDeniedException("您没有权限查看房态");
+            }
+        }
         return getRoomStatusStatisticsForStore(currentStoreId(), date);
     }
 

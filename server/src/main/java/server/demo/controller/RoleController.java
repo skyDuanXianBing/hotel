@@ -5,8 +5,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.*;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.RoleService;
 
 import java.util.List;
@@ -26,6 +29,7 @@ public class RoleController {
      * 获取所有角色
      */
     @GetMapping
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<List<RoleDTO>>> getAllRoles(
             @RequestParam(required = false) String keyword
     ) {
@@ -47,6 +51,7 @@ public class RoleController {
      * 根据ID获取角色详情
      */
     @GetMapping("/{id}")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<RoleDTO>> getRoleById(@PathVariable Long id) {
         try {
             RoleDTO role = roleService.getRoleById(id);
@@ -61,6 +66,7 @@ public class RoleController {
      * 创建角色
      */
     @PostMapping
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<RoleDTO>> createRole(@Valid @RequestBody CreateRoleRequest request) {
         try {
             RoleDTO role = roleService.createRole(request);
@@ -76,6 +82,7 @@ public class RoleController {
      * 更新角色
      */
     @PutMapping("/{id}")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<RoleDTO>> updateRole(
             @PathVariable Long id,
             @Valid @RequestBody UpdateRoleRequest request
@@ -93,6 +100,7 @@ public class RoleController {
      * 删除角色
      */
     @DeleteMapping("/{id}")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<Void>> deleteRole(@PathVariable Long id) {
         try {
             roleService.deleteRole(id);
@@ -107,6 +115,7 @@ public class RoleController {
      * 获取角色的权限
      */
     @GetMapping("/{id}/permissions")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<List<PermissionDTO>>> getRolePermissions(@PathVariable Long id) {
         try {
             List<PermissionDTO> permissions = roleService.getRolePermissions(id);
@@ -121,6 +130,7 @@ public class RoleController {
      * 更新角色的权限
      */
     @PutMapping("/{id}/permissions")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<Void>> updateRolePermissions(
             @PathVariable Long id,
             @RequestBody List<PermissionDTO> permissions

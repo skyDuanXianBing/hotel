@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.CreateReservationRequest;
@@ -12,6 +13,8 @@ import server.demo.dto.PagedReservationResponse;
 import server.demo.dto.ReservationChannelInfoDTO;
 import server.demo.dto.ReservationDTO;
 import server.demo.dto.ReservationStatistics;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.ReservationService;
 
 import java.time.LocalDate;
@@ -28,6 +31,7 @@ public class ReservationController extends BaseStoreController {
     private ReservationService reservationService;
 
     @PostMapping
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.MODIFY_ORDER)
     public ResponseEntity<ApiResponse<ReservationDTO>> createReservation(
             @Valid @RequestBody CreateReservationRequest request) {
         try {
@@ -40,6 +44,7 @@ public class ReservationController extends BaseStoreController {
     }
 
     @PostMapping("/{id}/check-in")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.MODIFY_ORDER)
     public ResponseEntity<ApiResponse<ReservationDTO>> checkIn(@PathVariable Long id) {
         try {
             ReservationDTO reservation = reservationService.checkIn(id);
@@ -51,6 +56,7 @@ public class ReservationController extends BaseStoreController {
     }
 
     @PostMapping("/{id}/check-out")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.MODIFY_ORDER)
     public ResponseEntity<ApiResponse<ReservationDTO>> checkOut(@PathVariable Long id) {
         try {
             ReservationDTO reservation = reservationService.checkOut(id);
@@ -62,6 +68,7 @@ public class ReservationController extends BaseStoreController {
     }
 
     @PostMapping("/{id}/cancel")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.CANCEL_ORDER)
     public ResponseEntity<ApiResponse<ReservationDTO>> cancelReservation(@PathVariable Long id) {
         try {
             ReservationDTO reservation = reservationService.cancelReservation(id);
@@ -73,6 +80,7 @@ public class ReservationController extends BaseStoreController {
     }
 
     @GetMapping("/{id}")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<ReservationDTO>> getReservation(@PathVariable Long id) {
         Optional<ReservationDTO> reservation = reservationService.getReservationById(id);
         return reservation.map(res ->
@@ -81,6 +89,7 @@ public class ReservationController extends BaseStoreController {
     }
 
     @GetMapping("/order/{orderNumber}")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<ReservationDTO>> getReservationByOrderNumber(@PathVariable String orderNumber) {
         Optional<ReservationDTO> reservation = reservationService.getReservationByOrderNumber(orderNumber);
         return reservation.map(res ->
@@ -89,6 +98,7 @@ public class ReservationController extends BaseStoreController {
     }
 
     @GetMapping("/date-range")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getReservationsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -97,12 +107,14 @@ public class ReservationController extends BaseStoreController {
     }
 
     @GetMapping("/room/{roomId}")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getReservationsByRoomId(@PathVariable Long roomId) {
         List<ReservationDTO> reservations = reservationService.getReservationsByRoomId(roomId);
         return ResponseEntity.ok(ApiResponse.success("获取房间订单成功", reservations));
     }
 
     @GetMapping("/room/{roomId}/date/{date}")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<ReservationDTO>> getReservationByRoomAndDate(
             @PathVariable Long roomId,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -113,6 +125,7 @@ public class ReservationController extends BaseStoreController {
     }
 
     @GetMapping("/search")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> searchReservations(
             @RequestParam String keyword) {
         List<ReservationDTO> reservations = reservationService.searchReservationsByGuestInfo(keyword);
@@ -120,18 +133,21 @@ public class ReservationController extends BaseStoreController {
     }
 
     @GetMapping("/today/check-in")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getTodayCheckIns() {
         List<ReservationDTO> reservations = reservationService.getTodayCheckIns();
         return ResponseEntity.ok(ApiResponse.success("获取今日入住列表成功", reservations));
     }
 
     @GetMapping("/today/check-out")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getTodayCheckOuts() {
         List<ReservationDTO> reservations = reservationService.getTodayCheckOuts();
         return ResponseEntity.ok(ApiResponse.success("获取今日退房列表成功", reservations));
     }
 
     @PostMapping("/{id}/update")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.MODIFY_ORDER)
     public ResponseEntity<ApiResponse<ReservationDTO>> updateReservation(
             @PathVariable Long id,
             @Valid @RequestBody CreateReservationRequest request) {
@@ -145,6 +161,7 @@ public class ReservationController extends BaseStoreController {
     }
 
     @GetMapping
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<PagedReservationResponse>> getReservationsWithPagination(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size,
@@ -167,30 +184,35 @@ public class ReservationController extends BaseStoreController {
     }
 
     @GetMapping("/statistics")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<ReservationStatistics>> getReservationStatistics() {
         ReservationStatistics statistics = reservationService.getReservationStatistics();
         return ResponseEntity.ok(ApiResponse.success("获取订单统计成功", statistics));
     }
 
     @GetMapping("/today/new")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getTodayNewReservations() {
         List<ReservationDTO> reservations = reservationService.getTodayNewReservations();
         return ResponseEntity.ok(ApiResponse.success("获取今日新增订单成功", reservations));
     }
 
     @GetMapping("/unassigned")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getUnassignedReservations() {
         List<ReservationDTO> reservations = reservationService.getUnassignedReservations();
         return ResponseEntity.ok(ApiResponse.success("获取未排房订单成功", reservations));
     }
 
     @GetMapping("/pending")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getPendingReservations() {
         List<ReservationDTO> reservations = reservationService.getPendingReservations();
         return ResponseEntity.ok(ApiResponse.success("获取待处理订单成功", reservations));
     }
 
     @GetMapping("/by-type")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<List<ReservationDTO>>> getReservationsByType(@RequestParam String type) {
         try {
             List<ReservationDTO> reservations = reservationService.getReservationsByType(type);
@@ -202,6 +224,7 @@ public class ReservationController extends BaseStoreController {
     }
 
     @GetMapping("/{id}/channel-info")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
     public ResponseEntity<ApiResponse<ReservationChannelInfoDTO>> getReservationChannelInfo(@PathVariable Long id) {
         try {
             ReservationChannelInfoDTO info = reservationService.getChannelInfo(id);

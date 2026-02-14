@@ -2,9 +2,12 @@ package server.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.PaymentDTO;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.PaymentService;
 
 import java.math.BigDecimal;
@@ -23,6 +26,7 @@ public class PaymentController {
      * 创建收款记录
      */
     @PostMapping
+    @RequirePermission(module = PermissionModule.SENSITIVE, action = PermissionAction.VIEW_FINANCIAL_DATA)
     public ApiResponse<PaymentDTO> createPayment(@RequestBody PaymentDTO dto) {
         try {
             if (dto.getReservationId() == null) {
@@ -50,6 +54,7 @@ public class PaymentController {
      * 根据预订ID获取收款记录列表
      */
     @GetMapping("/reservation/{reservationId}")
+    @RequirePermission(module = PermissionModule.SENSITIVE, action = PermissionAction.VIEW_FINANCIAL_DATA)
     public ApiResponse<List<PaymentDTO>> getPaymentsByReservationId(@PathVariable Long reservationId) {
         try {
             List<PaymentDTO> payments = paymentService.getPaymentsByReservationId(reservationId);
@@ -64,6 +69,7 @@ public class PaymentController {
      * 删除收款记录
      */
     @DeleteMapping("/{id}")
+    @RequirePermission(module = PermissionModule.SENSITIVE, action = PermissionAction.DELETE_IMPORTANT_DATA)
     public ApiResponse<String> deletePayment(@PathVariable Long id) {
         try {
             paymentService.deletePayment(id);
@@ -78,6 +84,7 @@ public class PaymentController {
      * 根据预订ID获取总收款金额
      */
     @GetMapping("/reservation/{reservationId}/total")
+    @RequirePermission(module = PermissionModule.SENSITIVE, action = PermissionAction.VIEW_FINANCIAL_DATA)
     public ApiResponse<BigDecimal> getTotalPayment(@PathVariable Long reservationId) {
         try {
             BigDecimal total = paymentService.getTotalPaymentByReservationId(reservationId);

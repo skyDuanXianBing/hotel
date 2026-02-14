@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.OpenRoomBlockoutRequest;
@@ -12,6 +13,8 @@ import server.demo.dto.RoomStatusCalendarDTO;
 import server.demo.dto.RoomStatusStatisticsDTO;
 import server.demo.dto.UpsertRoomBlockoutRequest;
 import server.demo.dto.UpdateRoomStatusRequest;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.RoomStatusService;
 
 import java.time.LocalDate;
@@ -26,6 +29,7 @@ public class RoomStatusController extends BaseStoreController {
     private RoomStatusService roomStatusService;
 
     @GetMapping("/calendar")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.VIEW_ROOM_STATUS)
     public ApiResponse<RoomStatusCalendarDTO> getRoomStatusCalendar(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -37,6 +41,7 @@ public class RoomStatusController extends BaseStoreController {
     }
 
     @PutMapping("/{roomId}")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.EDIT_ROOM_STATUS)
     public ApiResponse<String> updateRoomStatus(
             @PathVariable Long roomId,
             @Valid @RequestBody UpdateRoomStatusRequest request) {
@@ -49,6 +54,7 @@ public class RoomStatusController extends BaseStoreController {
     }
 
     @PostMapping("/blockouts/close")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.EDIT_ROOM_STATUS)
     public ApiResponse<RoomBlockoutSummaryDTO> closeRooms(@Valid @RequestBody UpsertRoomBlockoutRequest request) {
         try {
             return ApiResponse.success(roomStatusService.closeRooms(request));
@@ -58,6 +64,7 @@ public class RoomStatusController extends BaseStoreController {
     }
 
     @PostMapping("/blockouts/open")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.EDIT_ROOM_STATUS)
     public ApiResponse<RoomBlockoutSummaryDTO> openRooms(@Valid @RequestBody OpenRoomBlockoutRequest request) {
         try {
             return ApiResponse.success(roomStatusService.openRooms(request));
@@ -67,6 +74,7 @@ public class RoomStatusController extends BaseStoreController {
     }
 
     @GetMapping("/statistics")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.VIEW_ROOM_STATUS)
     public ApiResponse<RoomStatusStatisticsDTO> getRoomStatusStatistics(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         try {

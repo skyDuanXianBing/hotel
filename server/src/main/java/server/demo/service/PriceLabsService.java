@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
@@ -343,6 +344,8 @@ public class PriceLabsService {
                 affectedStoreIds.add(storeId);
             }
             RoomType roomType = connection.getRoomType();
+            Set<LocalDate> affectedDates = new TreeSet<>();
+            boolean hasRestrictionUpdate = false;
             PricePlan pricePlan = connection.getPricePlan(); // 获取价格计划
 
             // 仅同步到 SU 直连的 OTA 渠道（Airbnb/Booking）
@@ -365,6 +368,8 @@ public class PriceLabsService {
                         continue;
                     }
 
+                    affectedDates.add(priceDate);
+
                     // 写入 room_prices（房型 + 价格计划 + 日期 的基础房价），保证 PMS 房价管理可见
                     Optional<RoomPrice> existingRpOpt = roomPriceRepository
                             .findByRoomTypeIdAndPricePlanIdAndPriceDate(roomType.getId(), pricePlan.getId(), priceDate);
@@ -376,9 +381,11 @@ public class PriceLabsService {
                     Integer minStay = normalizeMinStay(calendarData.getMinStay());
                     if (minStay != null) {
                         rp.setMinStay(minStay);
+                        hasRestrictionUpdate = true;
                     }
                     if (calendarData.getMaxStay() != null) {
                         rp.setMaxStay(calendarData.getMaxStay());
+                        hasRestrictionUpdate = true;
                     }
                     roomPriceRepository.save(rp);
 
@@ -437,6 +444,39 @@ public class PriceLabsService {
                 }
             }
 
+            if (suAriAutoSyncService != null && storeId != null && !affectedDates.isEmpty()) {
+                List<SuAriAutoSyncService.DateRange> ranges = new ArrayList<>();
+                LocalDate rangeStart = null;
+                LocalDate prev = null;
+                for (LocalDate d : affectedDates) {
+                    if (rangeStart == null) {
+                        rangeStart = d;
+                        prev = d;
+                    } else if (prev != null && d.equals(prev.plusDays(1))) {
+                        prev = d;
+                    } else {
+                        ranges.add(new SuAriAutoSyncService.DateRange(rangeStart, prev));
+                        rangeStart = d;
+                        prev = d;
+                    }
+                }
+                if (rangeStart != null && prev != null) {
+                    ranges.add(new SuAriAutoSyncService.DateRange(rangeStart, prev));
+                }
+
+                suAriAutoSyncService.enqueueForStoreDateRanges(
+                        storeId,
+                        "pricelabs_webhook",
+                        ranges,
+                        Set.of(roomType.getId()),
+                        Set.of(pricePlan.getId()),
+                        false,
+                        true,
+                        hasRestrictionUpdate,
+                        false
+                );
+            }
+
             // 更新连接状态
             connection.setLastSyncAt(LocalDateTime.now());
             connection.setSyncStatus("connected");
@@ -461,11 +501,7 @@ public class PriceLabsService {
             });
         }
 
-        if (suAriAutoSyncService != null && !affectedStoreIds.isEmpty()) {
-            for (Long sid : affectedStoreIds) {
-                suAriAutoSyncService.enqueueForStore(sid, "pricelabs_webhook");
-            }
-        }
+        // SU 推送已在 listing 维度按严格日期范围入队（避免发送多余日期/房型/计划）
     }
 
     private PriceLabsConnection resolveConnectionForWebhook(Long roomTypeId, String listingId, String ratePlanId) {

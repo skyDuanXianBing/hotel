@@ -12,7 +12,9 @@ import server.demo.repository.RoleRepository;
 import server.demo.repository.RoomTypeRepository;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -57,19 +59,89 @@ public class RolePermissionService {
         // 删除现有权限
         rolePermissionRepository.deleteByRoleId(roleId);
 
-        // 创建新权限
+        // 创建新权限（归一化+去重，避免重复插入导致唯一键冲突）
+        List<PermissionDTO> normalizedDtos = normalizeAndDedupe(permissionDTOs);
         List<RolePermission> permissions = new ArrayList<>();
-        for (PermissionDTO dto : permissionDTOs) {
+        for (PermissionDTO dto : normalizedDtos) {
             RolePermission permission = new RolePermission();
             permission.setRole(role);
             permission.setModule(dto.getModule());
             permission.setAction(dto.getAction());
-            permission.setRoomTypeId(dto.getRoomTypeId());
-            permission.setAllRoomTypes(dto.getAllRoomTypes() != null ? dto.getAllRoomTypes() : false);
+            permission.setRoomTypeId(normalizeRoomTypeId(dto.getRoomTypeId(), dto.getAllRoomTypes()));
+            permission.setAllRoomTypes(Boolean.TRUE.equals(dto.getAllRoomTypes()));
             permissions.add(permission);
         }
 
         rolePermissionRepository.saveAll(permissions);
+    }
+
+    private static Long normalizeRoomTypeId(Long roomTypeId, Boolean allRoomTypes) {
+        if (Boolean.TRUE.equals(allRoomTypes)) {
+            return 0L;
+        }
+        return roomTypeId != null ? roomTypeId : 0L;
+    }
+
+    private static List<PermissionDTO> normalizeAndDedupe(List<PermissionDTO> permissionDTOs) {
+        if (permissionDTOs == null || permissionDTOs.isEmpty()) {
+            return List.of();
+        }
+
+        // 规则：
+        // 1) 同一 (module, action) 若存在 allRoomTypes=true，则仅保留这一条（roomTypeId 归一化为 0），忽略其它房型条目。
+        // 2) 否则按 (module, action, roomTypeIdNormalized) 去重，roomTypeId 为空归一化为 0。
+        Map<String, PermissionDTO> deduped = new LinkedHashMap<>();
+        Map<String, Boolean> hasAllRoomTypesByAction = new LinkedHashMap<>();
+
+        for (PermissionDTO dto : permissionDTOs) {
+            if (dto == null || dto.getModule() == null || dto.getAction() == null) {
+                continue;
+            }
+
+            String moduleActionKey = dto.getModule().name() + "::" + dto.getAction().name();
+            boolean allRoomTypes = Boolean.TRUE.equals(dto.getAllRoomTypes());
+            if (allRoomTypes) {
+                hasAllRoomTypesByAction.put(moduleActionKey, true);
+            } else if (!hasAllRoomTypesByAction.containsKey(moduleActionKey)) {
+                hasAllRoomTypesByAction.put(moduleActionKey, false);
+            }
+        }
+
+        for (PermissionDTO dto : permissionDTOs) {
+            if (dto == null || dto.getModule() == null || dto.getAction() == null) {
+                continue;
+            }
+
+            String moduleActionKey = dto.getModule().name() + "::" + dto.getAction().name();
+            boolean hasAllRoomTypes = Boolean.TRUE.equals(hasAllRoomTypesByAction.get(moduleActionKey));
+            boolean allRoomTypes = Boolean.TRUE.equals(dto.getAllRoomTypes());
+
+            if (hasAllRoomTypes) {
+                if (!allRoomTypes) {
+                    continue;
+                }
+
+                PermissionDTO normalized = new PermissionDTO();
+                normalized.setModule(dto.getModule());
+                normalized.setAction(dto.getAction());
+                normalized.setAllRoomTypes(true);
+                normalized.setRoomTypeId(0L);
+
+                deduped.put(moduleActionKey + "::ALL", normalized);
+                continue;
+            }
+
+            Long roomTypeId = normalizeRoomTypeId(dto.getRoomTypeId(), dto.getAllRoomTypes());
+            PermissionDTO normalized = new PermissionDTO();
+            normalized.setModule(dto.getModule());
+            normalized.setAction(dto.getAction());
+            normalized.setAllRoomTypes(false);
+            normalized.setRoomTypeId(roomTypeId);
+
+            deduped.put(moduleActionKey + "::" + roomTypeId, normalized);
+        }
+
+        return new ArrayList<>(deduped.values());
     }
 
     /**
@@ -100,7 +172,7 @@ public class RolePermissionService {
         dto.setAllRoomTypes(permission.getAllRoomTypes());
 
         // 如果有房型ID,获取房型名称
-        if (permission.getRoomTypeId() != null) {
+        if (permission.getRoomTypeId() != null && permission.getRoomTypeId() > 0) {
             roomTypeRepository.findById(permission.getRoomTypeId())
                     .ifPresent(roomType -> dto.setRoomTypeName(roomType.getName()));
         }

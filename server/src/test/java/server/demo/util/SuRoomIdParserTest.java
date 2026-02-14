@@ -11,10 +11,10 @@ class SuRoomIdParserTest {
         assertNull(SuRoomIdParser.parse(null));
         assertNull(SuRoomIdParser.parse(""));
         assertNull(SuRoomIdParser.parse("   "));
-        assertNull(SuRoomIdParser.parse("1"));
         assertNull(SuRoomIdParser.parse("1-"));
         assertNull(SuRoomIdParser.parse("-101"));
         assertNull(SuRoomIdParser.parse("x-101"));
+        assertNull(SuRoomIdParser.parse("x"));
     }
 
     @Test
@@ -24,6 +24,15 @@ class SuRoomIdParserTest {
         assertEquals(1L, parsed.roomTypeId());
         assertEquals("101", parsed.roomNumber());
         assertEquals("1-101", parsed.raw());
+    }
+
+    @Test
+    void parse_shouldParseRoomTypeIdOnly() {
+        SuRoomIdParser.ParsedRoomId parsed = SuRoomIdParser.parse("1");
+        assertNotNull(parsed);
+        assertEquals(1L, parsed.roomTypeId());
+        assertNull(parsed.roomNumber());
+        assertEquals("1", parsed.raw());
     }
 
     @Test

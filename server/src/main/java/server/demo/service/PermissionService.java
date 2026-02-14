@@ -1,6 +1,7 @@
 package server.demo.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import server.demo.entity.Role;
 import server.demo.entity.RolePermission;
@@ -9,6 +10,8 @@ import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
 import server.demo.repository.StoreUserRepository;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
@@ -20,6 +23,107 @@ public class PermissionService {
 
     @Autowired
     private StoreUserRepository storeUserRepository;
+
+    @Value("${permission.enforcement.enabled:false}")
+    private boolean enforcementEnabled;
+
+    public boolean isEnforcementEnabled() {
+        return enforcementEnabled;
+    }
+
+    public static final class RoomTypeScope {
+        private final boolean allRoomTypes;
+        private final Set<Long> roomTypeIds;
+
+        private RoomTypeScope(boolean allRoomTypes, Set<Long> roomTypeIds) {
+            this.allRoomTypes = allRoomTypes;
+            this.roomTypeIds = roomTypeIds != null ? roomTypeIds : Collections.emptySet();
+        }
+
+        public static RoomTypeScope none() {
+            return new RoomTypeScope(false, Collections.emptySet());
+        }
+
+        public static RoomTypeScope all() {
+            return new RoomTypeScope(true, Collections.emptySet());
+        }
+
+        public static RoomTypeScope of(Set<Long> roomTypeIds) {
+            return new RoomTypeScope(false, roomTypeIds != null ? Set.copyOf(roomTypeIds) : Collections.emptySet());
+        }
+
+        public boolean isAllRoomTypes() {
+            return allRoomTypes;
+        }
+
+        public Set<Long> getRoomTypeIds() {
+            return roomTypeIds;
+        }
+
+        public boolean isEmpty() {
+            return !allRoomTypes && (roomTypeIds == null || roomTypeIds.isEmpty());
+        }
+    }
+
+    /**
+     * 解析某个房型范围型权限（比如 VIEW_ROOM_STATUS）的房型范围。
+     *
+     * 规则：
+     * - owner/admin 直接视为 all。
+     * - 若存在 allRoomTypes=true，则 all。
+     * - 否则收集 roomTypeId>0 的集合。
+     * - 兼容旧数据：若匹配记录 roomTypeId=0 且 allRoomTypes=false，视为 all。
+     */
+    public RoomTypeScope resolveRoomTypeScope(Long storeId, Long userId, PermissionModule module, PermissionAction action) {
+        Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
+        if (storeUserOpt.isEmpty()) {
+            return RoomTypeScope.none();
+        }
+
+        StoreUser storeUser = storeUserOpt.get();
+        if ("owner".equals(storeUser.getRole()) || "admin".equals(storeUser.getRole())) {
+            return RoomTypeScope.all();
+        }
+
+        Set<Role> roles = storeUser.getRoles();
+        if (roles == null || roles.isEmpty()) {
+            return RoomTypeScope.none();
+        }
+
+        Set<Long> roomTypeIds = new HashSet<>();
+        for (Role role : roles) {
+            Set<RolePermission> permissions = role.getRolePermissions();
+            if (permissions == null || permissions.isEmpty()) {
+                continue;
+            }
+            for (RolePermission permission : permissions) {
+                if (permission == null) {
+                    continue;
+                }
+                if (permission.getModule() != module || permission.getAction() != action) {
+                    continue;
+                }
+
+                if (Boolean.TRUE.equals(permission.getAllRoomTypes())) {
+                    return RoomTypeScope.all();
+                }
+
+                Long roomTypeId = permission.getRoomTypeId();
+                if (roomTypeId == null || roomTypeId == 0L) {
+                    // 兼容旧数据：存在但未按房型细分
+                    return RoomTypeScope.all();
+                }
+                if (roomTypeId > 0) {
+                    roomTypeIds.add(roomTypeId);
+                }
+            }
+        }
+
+        if (roomTypeIds.isEmpty()) {
+            return RoomTypeScope.none();
+        }
+        return RoomTypeScope.of(roomTypeIds);
+    }
 
     /**
      * 检查用户是否拥有指定权限

@@ -3,8 +3,11 @@ package server.demo.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.*;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.BusinessStatisticsService;
 
 import java.time.LocalDate;
@@ -27,6 +30,7 @@ public class BusinessStatisticsController {
      * @return 营业汇总数据
      */
     @GetMapping("/summary")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
     public ApiResponse<BusinessSummaryDTO> getBusinessSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -52,6 +56,7 @@ public class BusinessStatisticsController {
      * @return 每日入住率数据
      */
     @GetMapping("/daily-occupancy")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
     public ApiResponse<List<DailyOccupancyDTO>> getDailyOccupancy(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -77,6 +82,7 @@ public class BusinessStatisticsController {
      * @return 营业概况详细数据
      */
     @GetMapping("/overview")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
     public ApiResponse<BusinessOverviewDTO> getBusinessOverview(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -102,6 +108,7 @@ public class BusinessStatisticsController {
      * @return 流水汇总数据
      */
     @GetMapping("/revenue-summary")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
     public ApiResponse<RevenueSummaryDTO> getRevenueSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -127,6 +134,7 @@ public class BusinessStatisticsController {
      * @return 渠道汇总数据
      */
     @GetMapping("/channel-summary")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
     public ApiResponse<ChannelSummaryDTO> getChannelSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -154,6 +162,7 @@ public class BusinessStatisticsController {
      * @return 销售汇总数据
      */
     @GetMapping("/sales-summary")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
     public ApiResponse<SalesSummaryDTO> getSalesSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -181,6 +190,7 @@ public class BusinessStatisticsController {
      * @return 经营指标数据
      */
     @GetMapping("/operational-metrics")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
     public ApiResponse<OperationalMetricsDTO> getOperationalMetrics(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {

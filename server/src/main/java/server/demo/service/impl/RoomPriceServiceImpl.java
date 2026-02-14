@@ -22,6 +22,7 @@ import server.demo.repository.RoomTypeRepository;
 import server.demo.service.PriceLabsCalendarSyncDebouncer;
 import server.demo.service.PriceChangeHistoryService;
 import server.demo.service.RoomPriceService;
+import server.demo.util.StoreContextUtils;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -57,9 +58,14 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     @Autowired(required = false)
     private PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
 
+    private Long currentStoreId() {
+        return StoreContextUtils.requireStoreId();
+    }
+
     @Override
     public List<RoomPriceDTO> getRoomPricesByDateRange(LocalDate startDate, LocalDate endDate) {
-        List<RoomPrice> roomPrices = roomPriceRepository.findByDateRangeWithRoomType(startDate, endDate);
+        Long storeId = currentStoreId();
+        List<RoomPrice> roomPrices = roomPriceRepository.findByStoreIdAndPriceDateBetweenWithRoomTypeAndPricePlan(storeId, startDate, endDate);
         return roomPrices.stream()
                 .map(RoomPriceDTO::new)
                 .collect(Collectors.toList());
@@ -67,7 +73,11 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Override
     public List<RoomPriceDTO> getRoomPricesByRoomTypeAndDateRange(Long roomTypeId, LocalDate startDate, LocalDate endDate) {
-        List<RoomPrice> roomPrices = roomPriceRepository.findByRoomTypeIdAndDateRange(roomTypeId, startDate, endDate);
+        Long storeId = currentStoreId();
+        if (roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId).isEmpty()) {
+            return List.of();
+        }
+        List<RoomPrice> roomPrices = roomPriceRepository.findByStoreIdAndRoomTypeIdAndPriceDateBetween(storeId, roomTypeId, startDate, endDate);
         return roomPrices.stream()
                 .map(RoomPriceDTO::new)
                 .collect(Collectors.toList());
@@ -75,7 +85,16 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Override
     public List<RoomPriceDTO> getRoomPricesByRoomTypesAndDateRange(List<Long> roomTypeIds, LocalDate startDate, LocalDate endDate) {
-        List<RoomPrice> roomPrices = roomPriceRepository.findByRoomTypeIdsAndDateRange(roomTypeIds, startDate, endDate);
+        Long storeId = currentStoreId();
+        if (roomTypeIds == null || roomTypeIds.isEmpty()) {
+            return List.of();
+        }
+        List<RoomPrice> roomPrices = roomPriceRepository.findByStoreIdAndRoomTypeIdsAndPriceDateBetweenWithRoomTypeAndPricePlan(
+                storeId,
+                roomTypeIds,
+                startDate,
+                endDate
+        );
         return roomPrices.stream()
                 .map(RoomPriceDTO::new)
                 .collect(Collectors.toList());
@@ -83,13 +102,19 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Override
     public Optional<RoomPriceDTO> getRoomPrice(Long roomTypeId, LocalDate date) {
-        Optional<RoomPrice> roomPrice = roomPriceRepository.findByRoomTypeIdAndPriceDate(roomTypeId, date);
+        Long storeId = currentStoreId();
+        Optional<RoomType> roomTypeOpt = roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId);
+        if (roomTypeOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<RoomPrice> roomPrice = roomPriceRepository.findByRoomTypeAndPriceDate(roomTypeOpt.get(), date);
         return roomPrice.map(RoomPriceDTO::new);
     }
 
     @Override
     public BigDecimal getEffectivePrice(Long roomTypeId, LocalDate date) {
-        Optional<RoomType> roomTypeOpt = roomTypeRepository.findById(roomTypeId);
+        Long storeId = currentStoreId();
+        Optional<RoomType> roomTypeOpt = roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId);
         if (roomTypeOpt.isEmpty()) {
             return BigDecimal.ZERO;
         }
@@ -122,8 +147,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Override
     public List<RoomPriceDTO> updateRoomPrice(UpdateRoomPriceRequest request) {
+        Long storeId = currentStoreId();
         // 验证房型存在
-        Optional<RoomType> roomTypeOpt = roomTypeRepository.findById(request.getRoomTypeId());
+        Optional<RoomType> roomTypeOpt = roomTypeRepository.findByStoreIdAndId(storeId, request.getRoomTypeId());
         if (roomTypeOpt.isEmpty()) {
             throw new IllegalArgumentException("房型不存在: " + request.getRoomTypeId());
         }
@@ -170,7 +196,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Override
     public boolean deleteRoomPrice(Long roomTypeId, LocalDate date) {
-        Optional<RoomType> roomTypeOpt = roomTypeRepository.findById(roomTypeId);
+        Long storeId = currentStoreId();
+        Optional<RoomType> roomTypeOpt = roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId);
         if (roomTypeOpt.isEmpty()) {
             return false;
         }
@@ -185,7 +212,16 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Override
     public int deleteRoomPriceRange(Long roomTypeId, LocalDate startDate, LocalDate endDate) {
-        List<RoomPrice> pricesToDelete = roomPriceRepository.findByRoomTypeIdAndDateRange(roomTypeId, startDate, endDate);
+        Long storeId = currentStoreId();
+        if (roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId).isEmpty()) {
+            return 0;
+        }
+        List<RoomPrice> pricesToDelete = roomPriceRepository.findByStoreIdAndRoomTypeIdAndPriceDateBetween(
+                storeId,
+                roomTypeId,
+                startDate,
+                endDate
+        );
         int count = pricesToDelete.size();
         roomPriceRepository.deleteAll(pricesToDelete);
         return count;
@@ -214,12 +250,22 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         // 验证请求数据
         request.validate();
 
+        Long storeId = currentStoreId();
         List<RoomPriceDTO> updatedPrices = new ArrayList<>();
 
         // 获取所有要更新的房型
-        List<RoomType> roomTypes = roomTypeRepository.findAllById(request.getRoomTypeIds());
+        List<Long> roomTypeIds = request.getRoomTypeIds();
+        if (roomTypeIds == null || roomTypeIds.isEmpty()) {
+            throw new IllegalArgumentException("roomTypeIds 不能为空");
+        }
+        List<RoomType> roomTypes = roomTypeRepository.findAllById(roomTypeIds).stream()
+                .filter(rt -> rt != null && storeId.equals(rt.getStoreId()))
+                .toList();
         if (roomTypes.isEmpty()) {
             throw new IllegalArgumentException("未找到指定的房型");
+        }
+        if (roomTypes.size() != roomTypeIds.stream().filter(id -> id != null).distinct().count()) {
+            throw new IllegalArgumentException("部分房型不存在或无权限");
         }
 
         // 遍历每个房型
@@ -322,22 +368,24 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Override
     public List<RoomPriceManagementDTO> getRoomPriceManagementData(LocalDate startDate, LocalDate endDate, Long roomTypeId) {
+        Long storeId = currentStoreId();
         // 先查询所有房型(或特定房型)
         List<RoomType> roomTypes;
         if (roomTypeId != null) {
-            roomTypes = roomTypeRepository.findById(roomTypeId)
+            roomTypes = roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId)
                     .map(List::of)
                     .orElse(new ArrayList<>());
         } else {
-            roomTypes = roomTypeRepository.findAll();
+            roomTypes = roomTypeRepository.findByStoreIdOrderByName(storeId);
         }
 
         // 查询所有房型价格计划关联
         List<RoomTypePricePlan> roomTypePricePlans;
+        roomTypePricePlans = roomTypePricePlanRepository.findByStoreIdWithRoomTypeAndPricePlan(storeId);
         if (roomTypeId != null) {
-            roomTypePricePlans = roomTypePricePlanRepository.findByRoomTypeId(roomTypeId);
-        } else {
-            roomTypePricePlans = roomTypePricePlanRepository.findAll();
+            roomTypePricePlans = roomTypePricePlans.stream()
+                    .filter(rtp -> rtp != null && rtp.getRoomType() != null && roomTypeId.equals(rtp.getRoomType().getId()))
+                    .toList();
         }
 
         // 调试: 输出查询到的房型和价格计划数量
@@ -348,17 +396,15 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                              ", 计划=" + plan.getPricePlan().getName());
         }
 
-        // 查询日期范围内的所有特定日期价格覆盖记录
-        List<RoomPrice> specificPrices = roomPriceRepository.findByDateRangeWithRoomType(startDate, endDate);
+        // 查询日期范围内的所有特定日期价格覆盖记录（门店级）
+        List<RoomPrice> specificPrices = roomPriceRepository.findByStoreIdAndPriceDateBetweenWithRoomTypeAndPricePlan(
+                storeId,
+                startDate,
+                endDate
+        );
 
-        // 查询日期范围内的所有预订记录，用于计算可用房间数
-        // 使用findByStoreIdAndDateRange一次性查询整个日期范围的预订
-        server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
-        if (storeContext == null || storeContext.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
-        }
-        Long currentStoreId = storeContext.getStoreId();
-        List<Reservation> reservations = reservationRepository.findByStoreIdAndDateRange(currentStoreId, startDate, endDate);
+        // 查询日期范围内的所有预订记录，用于计算可用房间数（门店级）
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndDateRange(storeId, startDate, endDate);
 
         // 临时调试: 输出查询到的预订信息
         System.out.println("===== 房价管理查询预订 =====");
@@ -562,17 +608,21 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Override
     public List<RoomPriceManagementDTO> updatePriceByPlan(UpdatePriceByPlanRequest request, String operator) {
+        Long storeId = currentStoreId();
         // 验证房型和价格计划是否存在
-        RoomType roomType = roomTypeRepository.findById(request.getRoomTypeId())
+        RoomType roomType = roomTypeRepository.findByStoreIdAndId(storeId, request.getRoomTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("房型不存在"));
 
-        PricePlan pricePlan = pricePlanRepository.findById(request.getPricePlanId())
+        PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(storeId, request.getPricePlanId())
                 .orElseThrow(() -> new IllegalArgumentException("价格计划不存在"));
 
         // 查找房型价格计划关联
         RoomTypePricePlan roomTypePricePlan = roomTypePricePlanRepository
                 .findByRoomTypeIdAndPricePlanId(request.getRoomTypeId(), request.getPricePlanId())
                 .orElseThrow(() -> new IllegalArgumentException("房型与价格计划未关联"));
+        if (roomTypePricePlan.getStoreId() == null || !storeId.equals(roomTypePricePlan.getStoreId())) {
+            throw new IllegalArgumentException("房型与价格计划不属于当前门店");
+        }
 
         // 记录旧价格用于历史记录
         BigDecimal firstPreviousValue = null;
@@ -795,6 +845,13 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Override
     public Optional<RoomPriceManagementDTO> getRoomPriceByPlan(Long roomTypeId, Long pricePlanId, LocalDate date) {
+        Long storeId = currentStoreId();
+        if (roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId).isEmpty()) {
+            return Optional.empty();
+        }
+        if (pricePlanRepository.findByStoreIdAndId(storeId, pricePlanId).isEmpty()) {
+            return Optional.empty();
+        }
         Optional<RoomPrice> roomPrice = roomPriceRepository
                 .findByRoomTypeIdAndPricePlanIdAndPriceDate(roomTypeId, pricePlanId, date);
 

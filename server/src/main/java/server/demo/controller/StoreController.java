@@ -6,7 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.dto.*;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.StoreService;
 import server.demo.service.SuPropertyService;
 
@@ -95,6 +98,7 @@ public class StoreController {
      * Update store
      */
     @PutMapping("/{id}")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MODIFY_STORE_SETTINGS)
     public ResponseEntity<ApiResponse<StoreDTO>> updateStore(
             @PathVariable Long id,
             @Valid @RequestBody CreateStoreRequest request,
@@ -114,6 +118,7 @@ public class StoreController {
      * Add member to store (支持权限角色分配)
      */
     @PostMapping("/{id}/members")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<StoreUserDTO>> addStoreMember(
             @PathVariable Long id,
             @Valid @RequestBody AddStoreMemberRequest request,
@@ -134,6 +139,7 @@ public class StoreController {
      * Remove member from store
      */
     @DeleteMapping("/{id}/members/{memberId}")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<Void>> removeStoreMember(
             @PathVariable Long id,
             @PathVariable Long memberId,
@@ -153,6 +159,7 @@ public class StoreController {
      * Get all store members (返回详细信息)
      */
     @GetMapping("/{id}/members")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<List<StoreUserDTO>>> getStoreMembers(@PathVariable Long id) {
         try {
             List<StoreUserDTO> members = storeService.getStoreMembersDTO(id);
@@ -167,6 +174,7 @@ public class StoreController {
      * Get store member detail
      */
     @GetMapping("/{id}/members/{userId}")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<StoreUserDTO>> getStoreMemberDetail(
             @PathVariable Long id,
             @PathVariable Long userId
@@ -184,6 +192,7 @@ public class StoreController {
      * Update store member permission
      */
     @PutMapping("/{id}/members/{userId}")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<StoreUserDTO>> updateStoreMemberPermission(
             @PathVariable Long id,
             @PathVariable Long userId,
@@ -218,6 +227,7 @@ public class StoreController {
      * Update store policy
      */
     @PutMapping("/{id}/policy")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MODIFY_STORE_SETTINGS)
     public ResponseEntity<ApiResponse<StorePolicyDTO>> updateStorePolicy(
             @PathVariable Long id,
             @RequestBody StorePolicyDTO policyDTO,

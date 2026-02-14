@@ -20,6 +20,8 @@ public interface RoomTypeRepository extends JpaRepository<RoomType, Long> {
 
     boolean existsByStoreIdAndCode(Long storeId, String code);
 
+    boolean existsByStoreIdAndName(Long storeId, String name);
+
     Optional<RoomType> findByStoreIdAndId(Long storeId, Long id);
 
     // ===== 兼容旧逻辑的方法，后续将被移除 =====

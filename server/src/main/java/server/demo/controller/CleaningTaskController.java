@@ -9,12 +9,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.CleaningTaskCreateDTO;
 import server.demo.dto.CleaningTaskDTO;
 import server.demo.dto.CleaningTaskGenerateResult;
 import server.demo.dto.CleaningTaskUpdateDTO;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.CleaningTaskAutoService;
 import server.demo.service.CleaningTaskService;
 
@@ -40,6 +43,7 @@ public class CleaningTaskController {
      * 创建保洁任务
      */
     @PostMapping
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> createTask(@Valid @RequestBody CleaningTaskCreateDTO createDTO) {
         try {
             CleaningTaskDTO task = cleaningTaskService.createTask(createDTO);
@@ -53,6 +57,7 @@ public class CleaningTaskController {
      * 批量创建任务
      */
     @PostMapping("/batch")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<List<CleaningTaskDTO>> batchCreateTasks(
             @Valid @RequestBody List<CleaningTaskCreateDTO> createDTOs) {
         try {
@@ -67,6 +72,7 @@ public class CleaningTaskController {
      * 更新任务
      */
     @PutMapping("/{id}")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> updateTask(
             @PathVariable Long id,
             @Valid @RequestBody CleaningTaskUpdateDTO updateDTO) {
@@ -82,6 +88,7 @@ public class CleaningTaskController {
      * 删除任务
      */
     @DeleteMapping("/{id}")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<String> deleteTask(@PathVariable Long id) {
         try {
             cleaningTaskService.deleteTask(id);
@@ -95,6 +102,7 @@ public class CleaningTaskController {
      * 获取任务详情
      */
     @GetMapping("/{id}")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> getTaskById(@PathVariable Long id) {
         try {
             CleaningTaskDTO task = cleaningTaskService.getTaskById(id);
@@ -108,6 +116,7 @@ public class CleaningTaskController {
      * 分页查询任务列表
      */
     @GetMapping
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<Page<CleaningTaskDTO>> getTasks(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -141,6 +150,7 @@ public class CleaningTaskController {
      * 获取日历视图数据
      */
     @GetMapping("/calendar")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<Map<String, Object>> getCalendarView(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -166,6 +176,7 @@ public class CleaningTaskController {
      * 补齐指定日期范围的保洁任务（基于预订入住日期）
      */
     @PostMapping("/generate")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskGenerateResult> generateTasks(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -181,6 +192,7 @@ public class CleaningTaskController {
      * 分配任务
      */
     @PostMapping("/{id}/assign")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> assignTask(
             @PathVariable Long id,
             @RequestParam Long cleanerId) {
@@ -196,6 +208,7 @@ public class CleaningTaskController {
      * 接受任务（保洁员）
      */
     @PostMapping("/{id}/accept")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> acceptTask(@PathVariable Long id) {
         try {
             CleaningTaskDTO task = cleaningTaskService.acceptTask(id);
@@ -209,6 +222,7 @@ public class CleaningTaskController {
      * 拒绝任务（保洁员）
      */
     @PostMapping("/{id}/reject")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> rejectTask(@PathVariable Long id) {
         try {
             CleaningTaskDTO task = cleaningTaskService.rejectTask(id);
@@ -222,6 +236,7 @@ public class CleaningTaskController {
      * 开始任务
      */
     @PostMapping("/{id}/start")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> startTask(@PathVariable Long id) {
         try {
             CleaningTaskDTO task = cleaningTaskService.startTask(id);
@@ -235,6 +250,7 @@ public class CleaningTaskController {
      * 完成任务
      */
     @PostMapping("/{id}/complete")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> completeTask(
             @PathVariable Long id,
             @RequestParam Long approverId) {

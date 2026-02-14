@@ -115,4 +115,17 @@ public interface RoomPriceRepository extends JpaRepository<RoomPrice, Long> {
             @Param("storeId") Long storeId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT rp FROM RoomPrice rp " +
+            "JOIN FETCH rp.roomType " +
+            "LEFT JOIN FETCH rp.pricePlan " +
+            "WHERE rp.storeId = :storeId " +
+            "AND rp.roomType.id IN :roomTypeIds " +
+            "AND rp.priceDate >= :startDate AND rp.priceDate <= :endDate " +
+            "ORDER BY rp.roomType.id, rp.pricePlan.id, rp.priceDate")
+    List<RoomPrice> findByStoreIdAndRoomTypeIdsAndPriceDateBetweenWithRoomTypeAndPricePlan(
+            @Param("storeId") Long storeId,
+            @Param("roomTypeIds") List<Long> roomTypeIds,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

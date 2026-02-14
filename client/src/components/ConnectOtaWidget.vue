@@ -29,7 +29,7 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button type="primary" :loading="syncingRooms" :disabled="loading" @click="handleSyncRooms">
-          一键推送PMS房间号列表
+          一键推送PMS房型列表（认证用）
         </el-button>
         <el-button @click="handleClose">关闭</el-button>
       </div>
@@ -43,9 +43,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading, CircleClose } from '@element-plus/icons-vue'
 import {
   getSuWidgetToken,
-  syncSuAvailability,
   syncSuAri,
-  syncSuRates,
   syncSuRatePlans,
   syncSuRooms,
   type WidgetTokenResponse,
@@ -543,10 +541,10 @@ const handleSyncRooms = async () => {
   try {
     const roomsResp = await syncSuRooms(props.otaId)
     if (!roomsResp.success || !roomsResp.data) {
-      throw new Error(roomsResp.message || '房间号列表同步失败')
+      throw new Error(roomsResp.message || '房型列表同步失败')
     }
     if (!roomsResp.data.roomsSynced) {
-      throw new Error(roomsResp.data.roomsError || '房间号列表同步失败')
+      throw new Error(roomsResp.data.roomsError || '房型列表同步失败')
     }
 
     const ratePlansResp = await syncSuRatePlans(props.otaId)
@@ -567,28 +565,8 @@ const handleSyncRooms = async () => {
     ElMessage.success(
       `基础ARI已推送未来${ariResp.data.days}天（可用性段${ariResp.data.availabilitySegments}，房价段${ariResp.data.rateSegments}）`,
     )
-
-    const ratesResp = await syncSuRates(props.otaId, 365)
-    if (!ratesResp.success || !ratesResp.data) {
-      throw new Error(ratesResp.message || '房价同步失败')
-    }
-    if (!ratesResp.data.rateSynced) {
-      throw new Error(ratesResp.data.error || '房价同步失败')
-    }
     ElMessage.success(
-      `房价已推送未来${ratesResp.data.days}天（成功${ratesResp.data.combinationsPushed}组，缺价跳过${ratesResp.data.combinationsSkippedNoPrice}组）`,
-    )
-
-    const availabilityResp = await syncSuAvailability(props.otaId, 365)
-    if (!availabilityResp.success || !availabilityResp.data) {
-      throw new Error(availabilityResp.message || '可用性同步失败')
-    }
-    if (!availabilityResp.data.availabilitySynced) {
-      throw new Error(availabilityResp.data.availabilityError || '可用性同步失败')
-    }
-
-    ElMessage.success(
-      `已推送${roomsResp.data.roomCount}个房间、${ratePlansResp.data.pricePlanCount}个价格计划，推送未来${ariResp.data.days}天基础ARI，并推送未来${availabilityResp.data.days}天可用性到Su`,
+      `已推送${roomsResp.data.roomCount}个房型、${ratePlansResp.data.pricePlanCount}个价格计划，并预热未来${ariResp.data.days}天基础ARI`,
     )
     await loadWidget()
     emit('synced')

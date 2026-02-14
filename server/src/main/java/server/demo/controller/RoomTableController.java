@@ -3,9 +3,12 @@ package server.demo.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.RoomTableDataDTO;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.RoomTableService;
 
 import java.time.LocalDate;
@@ -25,6 +28,7 @@ public class RoomTableController {
      * @return 房情表数据
      */
     @GetMapping("/statistics")
+    @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.VIEW_ROOM_INFO)
     public ApiResponse<RoomTableDataDTO> getRoomTableStatistics(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         

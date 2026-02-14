@@ -1,12 +1,16 @@
 package server.demo.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.dto.AssignRoomTypePricePlanRequest;
 import server.demo.entity.PricePlan;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
+import server.demo.entity.Store;
 import server.demo.entity.User;
 import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.PricePlanRepository;
@@ -15,15 +19,21 @@ import server.demo.repository.PriceLabsConnectionRepository;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
 import server.demo.util.StoreContextUtils;
+import server.demo.util.SuHotelIdUtil;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @Transactional
 public class PricePlanService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PricePlanService.class);
 
     @Autowired
     private PricePlanRepository pricePlanRepository;
@@ -49,12 +59,95 @@ public class PricePlanService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private SuContentSyncService suContentSyncService;
+
+    @Autowired
+    private SuAriAutoSyncService suAriAutoSyncService;
+
+    @Value("${su.content.autosync.rateplan.enabled:true}")
+    private boolean suRatePlanAutoSyncEnabled;
+
+    @Value("${su.content.autosync.rateplan.strict:true}")
+    private boolean suRatePlanAutoSyncStrict;
+
+    @Value("${su.ari.autosync.days:365}")
+    private int suAriWarmupDays;
+
     private Long currentStoreId() {
         return StoreContextUtils.requireStoreId();
     }
 
     private Long currentUserId() {
         return StoreContextUtils.requireUserId();
+    }
+
+    private String resolveOrInitSuHotelId(Long storeId) {
+        Store store = storeRepository.findById(storeId).orElse(null);
+        if (store == null) {
+            return null;
+        }
+        String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
+        if (hotelId != null) {
+            return hotelId;
+        }
+        String generated = SuHotelIdUtil.buildDefault(storeId);
+        store.setSuHotelId(generated);
+        storeRepository.save(store);
+        return generated;
+    }
+
+    private void syncRatePlanToSuIfEnabled(PricePlan plan) {
+        if (!suRatePlanAutoSyncEnabled) {
+            return;
+        }
+        Long storeId = currentStoreId();
+        String hotelId = resolveOrInitSuHotelId(storeId);
+        if (hotelId == null || hotelId.isBlank()) {
+            String msg = "Su hotelId 未配置，无法同步价格计划到 SU（stores.su_hotel_id）。";
+            if (suRatePlanAutoSyncStrict) {
+                throw new RuntimeException(msg);
+            }
+            logger.warn("[SuRatePlanUpsert] skip: {} storeId={}", msg, storeId);
+            return;
+        }
+
+        try {
+            suContentSyncService.upsertSingleRatePlanStrict(storeId, hotelId, plan);
+        } catch (RuntimeException e) {
+            if (suRatePlanAutoSyncStrict) {
+                throw e;
+            }
+            logger.warn("[SuRatePlanUpsert] best-effort failed. storeId={}, hotelId={}, planId={}, err={}",
+                    storeId,
+                    hotelId,
+                    plan != null ? plan.getId() : null,
+                    e.getMessage());
+        }
+    }
+
+    private void warmupSuAriForMappingIfEnabled(Long storeId, Long roomTypeId, Long pricePlanId, String source) {
+        if (storeId == null || roomTypeId == null || pricePlanId == null) {
+            return;
+        }
+        int days = Math.max(1, suAriWarmupDays);
+        LocalDate start = LocalDate.now();
+        LocalDate end = start.plusDays(days - 1L);
+        suAriAutoSyncService.enqueueForStoreScope(
+                storeId,
+                source != null ? source : "roomtype-rateplan-mapping",
+                start,
+                end,
+                Set.of(roomTypeId),
+                Set.of(pricePlanId),
+                true,
+                true,
+                true,
+                false
+        );
     }
 
     public List<PricePlan> getAllPricePlans() {
@@ -76,7 +169,9 @@ public class PricePlanService {
 
         pricePlan.setStoreId(storeId);
         pricePlan.setUser(user);
-        return pricePlanRepository.save(pricePlan);
+        PricePlan saved = pricePlanRepository.save(pricePlan);
+        syncRatePlanToSuIfEnabled(saved);
+        return saved;
     }
 
     public PricePlan updatePricePlan(Long id, PricePlan pricePlan) {
@@ -102,7 +197,9 @@ public class PricePlanService {
         existingPlan.setCancellationPolicy(pricePlan.getCancellationPolicy());
         existingPlan.setCancellationPolicyEn(pricePlan.getCancellationPolicyEn());
 
-        return pricePlanRepository.save(existingPlan);
+        PricePlan saved = pricePlanRepository.save(existingPlan);
+        syncRatePlanToSuIfEnabled(saved);
+        return saved;
     }
 
     public void deletePricePlan(Long id) {
@@ -188,6 +285,9 @@ public class PricePlanService {
             applyAssignRequest(entity, request);
             savedPlan = roomTypePricePlanRepository.save(entity);
         }
+
+        // 认证严格模式：关联成功后自动预热该房型+该价格计划的未来 N 天 ARI（严格最小范围）。
+        warmupSuAriForMappingIfEnabled(storeId, roomTypeId, pricePlanId, "mapping-assign");
         return savedPlan;
     }
 
@@ -199,7 +299,12 @@ public class PricePlanService {
         }
 
         applyAssignRequest(existing, request);
-        return roomTypePricePlanRepository.save(existing);
+        RoomTypePricePlan saved = roomTypePricePlanRepository.save(existing);
+
+        Long roomTypeId = existing.getRoomType() != null ? existing.getRoomType().getId() : null;
+        Long pricePlanId = existing.getPricePlan() != null ? existing.getPricePlan().getId() : null;
+        warmupSuAriForMappingIfEnabled(existing.getStoreId(), roomTypeId, pricePlanId, "mapping-update");
+        return saved;
     }
 
     public void deleteRoomTypePricePlan(Long id) {

@@ -160,7 +160,7 @@ class SuAriSyncServiceTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> roomsNode1 = (List<Map<String, Object>>) availabilityPayload.get("room");
         assertEquals(1, roomsNode1.size());
-        assertEquals("1-101", roomsNode1.get(0).get("roomid"));
+        assertEquals("1", roomsNode1.get(0).get("roomid"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> dates1 = (List<Map<String, Object>>) roomsNode1.get(0).get("date");
         assertEquals(3, dates1.size());
@@ -199,7 +199,7 @@ class SuAriSyncServiceTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> roomsNode2 = (List<Map<String, Object>>) ratesPayload.get("room");
         assertEquals(1, roomsNode2.size());
-        assertEquals("1-101", roomsNode2.get(0).get("roomid"));
+        assertEquals("1", roomsNode2.get(0).get("roomid"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> dates2 = (List<Map<String, Object>>) roomsNode2.get(0).get("date");
         assertEquals(2, dates2.size(), "100 merged for day0-1, 120 for day2");

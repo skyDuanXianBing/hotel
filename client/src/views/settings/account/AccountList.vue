@@ -1,7 +1,7 @@
 <template>
   <div class="account-list-container">
     <!-- 筛选区域 -->
-    <div class="filter-section">
+    <div class="filter-section" v-show="!isCollapsed">
       <div class="filter-row">
         <div class="filter-item">
           <span class="filter-label">搜索</span>
@@ -42,7 +42,8 @@
     <div class="action-section">
       <div class="action-left">
         <el-button link @click="toggleCollapse">
-          收起 <el-icon><ArrowUp v-if="!isCollapsed" /><ArrowDown v-else /></el-icon>
+          {{ isCollapsed ? '展开' : '收起' }}
+          <el-icon><ArrowUp v-if="!isCollapsed" /><ArrowDown v-else /></el-icon>
         </el-button>
         <el-button @click="handleRoleManagement">角色管理</el-button>
       </div>
@@ -50,8 +51,16 @@
     </div>
 
     <!-- 表格 -->
-    <el-table :data="filteredAccounts" border style="width: 100%" v-loading="loading">
-      <el-table-column type="selection" width="55" />
+    <el-table
+      ref="tableRef"
+      :data="pagedAccounts"
+      border
+      style="width: 100%"
+      v-loading="loading"
+      row-key="id"
+      @selection-change="handleSelectionChange"
+    >
+      <el-table-column type="selection" width="55" :reserve-selection="true" />
       <el-table-column prop="email" label="账号" min-width="200" />
       <el-table-column prop="name" label="员工姓名" min-width="120" />
       <el-table-column prop="role" label="基础角色" min-width="100">
@@ -97,8 +106,8 @@
     <!-- 底部批量操作 -->
     <div class="batch-action-section">
       <div class="batch-action-left">
-        <el-checkbox v-model="selectAll" @change="handleSelectAll">全选</el-checkbox>
-        <span class="selected-text">已选中0个员工</span>
+        <el-checkbox :model-value="isCurrentPageAllSelected" @change="handleSelectAll">全选（当前页）</el-checkbox>
+        <span class="selected-text">已选中{{ selectedAccounts.length }}个员工</span>
         <el-button size="small" @click="handleBatchEnable">启用</el-button>
         <el-button size="small" @click="handleBatchDisable">停用</el-button>
         <el-button size="small" @click="handleBatchChangeRole">调整角色</el-button>
@@ -126,15 +135,22 @@
       />
 
       <div style="margin-bottom: 20px">
-        <div style="color: #606266; margin-bottom: 12px">当前共选中1名员工: 甜甜</div>
-        <div style="color: #909399; font-size: 14px">员工角色</div>
+        <div style="color: #606266; margin-bottom: 12px">
+          当前共选中{{ selectedAccounts.length }}名员工<span v-if="selectedAccounts.length === 1">: {{ selectedAccounts[0]?.name }}</span>
+        </div>
+        <div style="color: #909399; font-size: 14px">权限角色</div>
       </div>
 
       <div style="display: flex; flex-wrap: wrap; gap: 12px">
-        <el-checkbox v-model="selectedRoles.role11">11</el-checkbox>
-        <el-checkbox v-model="selectedRoles.cleaner">清扫</el-checkbox>
-        <el-checkbox v-model="selectedRoles.soPms">SO PMS</el-checkbox>
-        <el-checkbox v-model="selectedRoles.admin">全权限</el-checkbox>
+        <el-checkbox-group v-model="batchSelectedRoleIds">
+          <el-checkbox
+            v-for="role in roleOptions"
+            :key="role.id"
+            :label="role.id"
+          >
+            {{ role.name }}
+          </el-checkbox>
+        </el-checkbox-group>
       </div>
 
       <template #footer>
@@ -481,11 +497,13 @@ const searchKeyword = ref('')
 const selectedRole = ref<number | ''>('')
 const selectedStatus = ref<boolean | ''>('')
 const isCollapsed = ref(false)
-const selectAll = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(25)
 const loading = ref(false)
 const roleOptions = ref<PermissionRoleDTO[]>([])
+const tableRef = ref<any>(null)
+const selectedAccounts = ref<Account[]>([])
+const batchSelectedRoleIds = ref<number[]>([])
 
 // 添加账号相关
 const addDrawerVisible = ref(false)
@@ -494,12 +512,6 @@ const activePermissionTab = ref('business')
 
 // 调整角色相关
 const roleDialogVisible = ref(false)
-const selectedRoles = ref({
-  role11: false,
-  cleaner: false,
-  soPms: false,
-  admin: false,
-})
 
 // 账号表单
 const accountForm = ref<{
@@ -558,10 +570,37 @@ const hasPermission = (module: PermissionModule, action: PermissionAction): bool
 // 账号数据
 const accounts = ref<Account[]>([])
 
-const totalCount = computed(() => accounts.value.length)
-
 const filteredAccounts = computed(() => {
-  return accounts.value
+  const keyword = searchKeyword.value.trim().toLowerCase()
+
+  return accounts.value.filter(account => {
+    const matchesKeyword =
+      keyword.length === 0 ||
+      account.email.toLowerCase().includes(keyword) ||
+      account.name.toLowerCase().includes(keyword)
+
+    const matchesStatus = selectedStatus.value === '' || account.isActive === selectedStatus.value
+
+    const matchesRole =
+      selectedRole.value === '' ||
+      (account.roles || []).some(role => role.id === selectedRole.value)
+
+    return matchesKeyword && matchesStatus && matchesRole
+  })
+})
+
+const totalCount = computed(() => filteredAccounts.value.length)
+
+const pagedAccounts = computed(() => {
+  const startIndex = (currentPage.value - 1) * pageSize.value
+  return filteredAccounts.value.slice(startIndex, startIndex + pageSize.value)
+})
+
+const selectedAccountIdSet = computed(() => new Set(selectedAccounts.value.map(a => a.id)))
+
+const isCurrentPageAllSelected = computed(() => {
+  if (pagedAccounts.value.length === 0) return false
+  return pagedAccounts.value.every(a => selectedAccountIdSet.value.has(a.id))
 })
 
 // 加载账号列表
@@ -588,22 +627,6 @@ const loadAccounts = async () => {
         isActive: member.isActive,
         roles: member.roles || [], // 使用返回的权限角色列表
       }))
-
-      // 应用本地筛选
-      if (searchKeyword.value) {
-        const keyword = searchKeyword.value.toLowerCase()
-        accounts.value = accounts.value.filter(
-          (account) =>
-            (account.email?.toLowerCase().includes(keyword) || false) ||
-            (account.name?.toLowerCase().includes(keyword) || false)
-        )
-      }
-      if (selectedRole.value !== '') {
-        accounts.value = accounts.value.filter((account) => account.role === selectedRole.value)
-      }
-      if (selectedStatus.value !== '') {
-        accounts.value = accounts.value.filter((account) => account.isActive === selectedStatus.value)
-      }
     } else {
       ElMessage.error(response.message || '加载账号列表失败')
     }
@@ -631,6 +654,10 @@ const loadRoles = async () => {
 onMounted(() => {
   loadAccounts()
   loadRoles()
+})
+
+watch([searchKeyword, selectedRole, selectedStatus, pageSize], () => {
+  currentPage.value = 1
 })
 
 const toggleCollapse = () => {
@@ -766,9 +793,8 @@ const handleDelete = async (row: Account) => {
       type: 'warning',
     })
 
-    // 使用storeUserId作为成员ID进行删除
-    const memberId = row.storeUserId || row.id
-    const response = await removeStoreMember(storeStore.currentStore.id, memberId)
+    // 后端接口以 userId 作为成员标识（不是 storeUserId）
+    const response = await removeStoreMember(storeStore.currentStore.id, row.id)
     if (response.success) {
       ElMessage.success('移除成功')
       loadAccounts()
@@ -809,37 +835,233 @@ const handleStatusChange = async (row: Account) => {
 }
 
 const handleSelectAll = (checked: boolean) => {
-  // 实现全选逻辑
+  if (!tableRef.value) return
+
+  pagedAccounts.value.forEach(account => {
+    tableRef.value.toggleRowSelection(account, checked)
+  })
+}
+
+const handleSelectionChange = (selection: Account[]) => {
+  selectedAccounts.value = selection
 }
 
 const handleBatchEnable = () => {
-  ElMessage.info('批量启用')
+  handleBatchUpdateStatus(true)
 }
 
 const handleBatchDisable = () => {
-  ElMessage.info('批量停用')
+  handleBatchUpdateStatus(false)
 }
 
 const handleBatchChangeRole = () => {
   // 打开调整角色对话框
+  if (selectedAccounts.value.length === 0) {
+    ElMessage.warning('请先选择员工')
+    return
+  }
   roleDialogVisible.value = true
 }
 
 const handleConfirmRoleChange = () => {
-  // TODO: 调用API批量更新角色
-  ElMessage.success('角色调整成功')
-  roleDialogVisible.value = false
-  // 重置选择
-  selectedRoles.value = {
-    role11: false,
-    cleaner: false,
-    soPms: false,
-    admin: false,
+  if (selectedAccounts.value.length === 0) {
+    ElMessage.warning('请先选择员工')
+    return
   }
+  if (batchSelectedRoleIds.value.length === 0) {
+    ElMessage.warning('请至少选择一个权限角色')
+    return
+  }
+
+  handleBatchUpdateRoles(batchSelectedRoleIds.value)
 }
 
 const handleBatchDelete = () => {
-  ElMessage.info('批量删除')
+  handleBatchRemoveMembers()
+}
+
+const handleBatchUpdateStatus = async (isActive: boolean) => {
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+  if (selectedAccounts.value.length === 0) {
+    ElMessage.warning('请先选择员工')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要批量${isActive ? '启用' : '停用'}选中的 ${selectedAccounts.value.length} 名员工吗？`,
+      '批量确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+
+    loading.value = true
+    const storeId = storeStore.currentStore.id
+
+    const results = await Promise.allSettled(
+      selectedAccounts.value.map(account =>
+        updateStoreMemberPermission(storeId, account.id, { isActive })
+      )
+    )
+
+    const failed: string[] = []
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        failed.push(selectedAccounts.value[index]?.name || String(selectedAccounts.value[index]?.id))
+        return
+      }
+      if (!result.value.success) {
+        failed.push(selectedAccounts.value[index]?.name || String(selectedAccounts.value[index]?.id))
+      }
+    })
+
+    const successCount = selectedAccounts.value.length - failed.length
+    if (failed.length === 0) {
+      ElMessage.success(`批量${isActive ? '启用' : '停用'}成功，共 ${successCount} 条`)
+    } else {
+      ElMessage.warning(`部分${isActive ? '启用' : '停用'}失败：成功 ${successCount} 条，失败 ${failed.length} 条`)
+      console.warn('批量更新状态失败成员:', failed)
+    }
+
+    await loadAccounts()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('批量更新状态失败:', error)
+      ElMessage.error('批量更新状态失败')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleBatchUpdateRoles = async (roleIds: number[]) => {
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+  if (selectedAccounts.value.length === 0) {
+    ElMessage.warning('请先选择员工')
+    return
+  }
+  if (!roleIds || roleIds.length === 0) {
+    ElMessage.warning('请至少选择一个权限角色')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要为选中的 ${selectedAccounts.value.length} 名员工批量调整权限角色吗？（将覆盖原有权限角色）`,
+      '批量确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+
+    loading.value = true
+    const storeId = storeStore.currentStore.id
+
+    const results = await Promise.allSettled(
+      selectedAccounts.value.map(account =>
+        updateStoreMemberPermission(storeId, account.id, { roleIds })
+      )
+    )
+
+    const failed: string[] = []
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        failed.push(selectedAccounts.value[index]?.name || String(selectedAccounts.value[index]?.id))
+        return
+      }
+      if (!result.value.success) {
+        failed.push(selectedAccounts.value[index]?.name || String(selectedAccounts.value[index]?.id))
+      }
+    })
+
+    const successCount = selectedAccounts.value.length - failed.length
+    if (failed.length === 0) {
+      ElMessage.success(`批量调整角色成功，共 ${successCount} 条`)
+    } else {
+      ElMessage.warning(`部分调整失败：成功 ${successCount} 条，失败 ${failed.length} 条`)
+      console.warn('批量调整角色失败成员:', failed)
+    }
+
+    roleDialogVisible.value = false
+    batchSelectedRoleIds.value = []
+    await loadAccounts()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('批量调整角色失败:', error)
+      ElMessage.error('批量调整角色失败')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleBatchRemoveMembers = async () => {
+  if (!storeStore.currentStore?.id) {
+    ElMessage.warning('请先选择门店')
+    return
+  }
+  if (selectedAccounts.value.length === 0) {
+    ElMessage.warning('请先选择员工')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要将选中的 ${selectedAccounts.value.length} 名员工从门店中移除吗？`,
+      '批量移除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+
+    loading.value = true
+    const storeId = storeStore.currentStore.id
+
+    const results = await Promise.allSettled(
+      selectedAccounts.value.map(account => removeStoreMember(storeId, account.id))
+    )
+
+    const failed: string[] = []
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        failed.push(selectedAccounts.value[index]?.name || String(selectedAccounts.value[index]?.id))
+        return
+      }
+      if (!result.value.success) {
+        failed.push(selectedAccounts.value[index]?.name || String(selectedAccounts.value[index]?.id))
+      }
+    })
+
+    const successCount = selectedAccounts.value.length - failed.length
+    if (failed.length === 0) {
+      ElMessage.success(`批量移除成功，共 ${successCount} 条`)
+    } else {
+      ElMessage.warning(`部分移除失败：成功 ${successCount} 条，失败 ${failed.length} 条`)
+      console.warn('批量移除失败成员:', failed)
+    }
+
+    await loadAccounts()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('批量移除失败:', error)
+      ElMessage.error('批量移除失败')
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleSizeChange = (size: number) => {
