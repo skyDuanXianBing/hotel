@@ -104,9 +104,12 @@ public class OtaIntegrationController {
      * GET /api/v1/ota-integrations/{id}/su-widget-token
      */
     @GetMapping("/{id}/su-widget-token")
-    public ApiResponse<WidgetTokenResponse> getSuWidgetToken(@PathVariable Long id) {
+    public ApiResponse<WidgetTokenResponse> getSuWidgetToken(
+            @PathVariable Long id,
+            @RequestParam(name = "syncContent", defaultValue = "false") boolean syncContent
+    ) {
         try {
-            WidgetTokenResponse response = otaIntegrationService.generateSuWidgetToken(id);
+            WidgetTokenResponse response = otaIntegrationService.generateSuWidgetToken(id, syncContent);
             return ApiResponse.success("获取Widget Token成功", response);
         } catch (RuntimeException e) {
             return ApiResponse.error("获取Widget Token失败：" + e.getMessage());

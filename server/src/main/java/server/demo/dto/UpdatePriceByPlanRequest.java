@@ -23,6 +23,13 @@ public class UpdatePriceByPlanRequest {
 
     private List<Integer> weekdays; // 0=全部, 1=周一, 2=周二, ..., 7=周日
 
+    /**
+     * When true, treat {@link #weekdays} as a filter within [startDate, endDate] and only update matching dates.
+     * When false/null (default), keep legacy behavior: if {@link #price} is provided and {@link #weekdays} is not empty,
+     * update weekly template prices in room_type_price_plans instead of creating per-date overrides.
+     */
+    private Boolean applyWeekdaysInRange;
+
     private BigDecimal price;
 
     private Integer availableRooms;
@@ -89,6 +96,14 @@ public class UpdatePriceByPlanRequest {
 
     public void setWeekdays(List<Integer> weekdays) {
         this.weekdays = weekdays;
+    }
+
+    public Boolean getApplyWeekdaysInRange() {
+        return applyWeekdaysInRange;
+    }
+
+    public void setApplyWeekdaysInRange(Boolean applyWeekdaysInRange) {
+        this.applyWeekdaysInRange = applyWeekdaysInRange;
     }
 
     public BigDecimal getPrice() {

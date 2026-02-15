@@ -217,6 +217,17 @@ public class OtaIntegrationService {
      */
     @Transactional
     public OtaIntegrationController.WidgetTokenResponse generateSuWidgetToken(Long id) {
+        return generateSuWidgetToken(id, false);
+    }
+
+    /**
+     * 生成 Su Widget Token，用于前端加载 Su Channel Mapping Widget。
+     * <p>
+     * 说明：为避免前端加载 Widget 时因“顺带同步房型/价格计划”导致超时，默认不做同步；
+     * 仅当 syncContent=true 时才同步 rooms/plans 到 Su（用于刷新 Widget 下拉选项）。
+     */
+    @Transactional
+    public OtaIntegrationController.WidgetTokenResponse generateSuWidgetToken(Long id, boolean syncContent) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
@@ -241,17 +252,19 @@ public class OtaIntegrationService {
 
         // 2. PMS -> Su 同步房型/价格计划（用于 Su Widget 下拉，避免 No Record Found）
         // 注意：同步失败不应阻断 Widget Token 生成；失败原因可通过手动同步接口排查
-        try {
-            suContentSyncService.syncRoomsForWidget(storeId, hotelId);
-            suContentSyncService.syncRatePlansForWidget(storeId, hotelId);
-        } catch (RuntimeException e) {
-            org.slf4j.LoggerFactory.getLogger(OtaIntegrationService.class)
-                    .warn(
-                            "Su content sync failed before widget token. storeId={}, hotelId={}, err={}",
-                            storeId,
-                            hotelId,
-                            e.getMessage()
-                    );
+        if (syncContent) {
+            try {
+                suContentSyncService.syncRoomsForWidget(storeId, hotelId);
+                suContentSyncService.syncRatePlansForWidget(storeId, hotelId);
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(OtaIntegrationService.class)
+                        .warn(
+                                "Su content sync failed before widget token. storeId={}, hotelId={}, err={}",
+                                storeId,
+                                hotelId,
+                                e.getMessage()
+                        );
+            }
         }
 
         // 3. 使用 Access Token 生成 Widget Token

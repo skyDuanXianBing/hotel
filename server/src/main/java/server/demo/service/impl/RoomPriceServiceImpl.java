@@ -629,9 +629,23 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
         // 判断是更新周价格还是特定日期价格
         boolean isWeekdayUpdate = request.getWeekdays() != null && !request.getWeekdays().isEmpty();
+        boolean applyWeekdaysInRange = Boolean.TRUE.equals(request.getApplyWeekdaysInRange());
+
+        java.util.Set<Integer> weekdayFilter = null;
+        if (applyWeekdaysInRange && isWeekdayUpdate) {
+            List<Integer> weekdays = request.getWeekdays();
+            if (weekdays != null && !weekdays.isEmpty() && !weekdays.contains(0)) {
+                weekdayFilter = new java.util.HashSet<>();
+                for (Integer w : weekdays) {
+                    if (w != null) {
+                        weekdayFilter.add(w);
+                    }
+                }
+            }
+        }
 
         if (request.getPrice() != null) {
-            if (isWeekdayUpdate) {
+            if (isWeekdayUpdate && !applyWeekdaysInRange) {
                 // 场景1: 指定了星期几 - 更新room_type_price_plans表中对应的周价格字段
                 List<Integer> weekdaysToUpdate = request.getWeekdays();
 
@@ -658,6 +672,11 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                 LocalDate currentDate = request.getStartDate();
 
                 while (!currentDate.isAfter(request.getEndDate())) {
+                    if (applyWeekdaysInRange && weekdayFilter != null
+                            && !weekdayFilter.contains(currentDate.getDayOfWeek().getValue())) {
+                        currentDate = currentDate.plusDays(1);
+                        continue;
+                    }
                     Optional<RoomPrice> existingPrice = roomPriceRepository
                             .findByRoomTypeIdAndPricePlanIdAndPriceDate(
                                     request.getRoomTypeId(),
@@ -711,6 +730,11 @@ public class RoomPriceServiceImpl implements RoomPriceService {
             LocalDate currentDate = request.getStartDate();
 
             while (!currentDate.isAfter(request.getEndDate())) {
+                if (applyWeekdaysInRange && weekdayFilter != null
+                        && !weekdayFilter.contains(currentDate.getDayOfWeek().getValue())) {
+                    currentDate = currentDate.plusDays(1);
+                    continue;
+                }
                 Optional<RoomPrice> existingPrice = roomPriceRepository
                         .findByRoomTypeIdAndPricePlanIdAndPriceDate(
                                 request.getRoomTypeId(),

@@ -166,6 +166,7 @@ export interface UpdatePriceByPlanRequest {
   startDate: string
   endDate: string
   weekdays?: number[] // 0=全部, 1=周一, 2=周二, ..., 7=周日
+  applyWeekdaysInRange?: boolean
   price?: number
   availableRooms?: number
   minStay?: number
