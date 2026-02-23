@@ -12,6 +12,7 @@ import server.demo.entity.Cleaner;
 import server.demo.entity.CleanerInvitation;
 import server.demo.repository.CleanerInvitationRepository;
 import server.demo.repository.CleanerRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.service.CleanerInvitationService;
 import server.demo.service.EmailService;
 
@@ -37,8 +38,14 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private StoreRepository storeRepository;
+
     @Value("${app.frontend.url:http://localhost:8091}")
     private String frontendUrl;
+
+    private static final String DEFAULT_STORE_NAME = "门店";
+    private static final String DEFAULT_FRONTEND_URL = "http://localhost:8091";
 
     @Override
     @Transactional
@@ -69,14 +76,15 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
         invitation = invitationRepository.save(invitation);
 
         // 构建邀请链接
-        String invitationUrl = frontendUrl + "/cleaner/register?token=" + token;
+        String invitationUrl = buildInvitationUrl(token);
+        String storeName = resolveStoreName(invitationDTO.getStoreId());
 
         // 发送邀请邮件
         try {
             emailService.sendCleanerInvitation(
                     invitationDTO.getEmail(),
                     invitationDTO.getName(),
-                    "楽途ホテル　池袋", // TODO: 从配置或数据库获取门店名称
+                    storeName,
                     invitationUrl
             );
         } catch (MessagingException e) {
@@ -147,5 +155,31 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
             invitation.setStatus("expired");
             invitationRepository.save(invitation);
         }
+    }
+
+    private String resolveStoreName(Long storeId) {
+        if (storeId == null) {
+            return DEFAULT_STORE_NAME;
+        }
+        return storeRepository.findById(storeId)
+                .map(store -> {
+                    String name = store.getName();
+                    if (name == null || name.isBlank()) {
+                        return DEFAULT_STORE_NAME;
+                    }
+                    return name;
+                })
+                .orElse(DEFAULT_STORE_NAME);
+    }
+
+    private String buildInvitationUrl(String token) {
+        String base = frontendUrl == null ? "" : frontendUrl.trim();
+        if (base.isEmpty()) {
+            base = DEFAULT_FRONTEND_URL;
+        }
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/cleaner/register?token=" + token;
     }
 }
