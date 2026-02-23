@@ -9,6 +9,7 @@ import java.util.List;
 public class PublicRegistrationResponse {
     private Long formId;
     private String orderNumber;
+    private String bookingKey;
     private RegistrationFormStatus status;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
@@ -36,6 +37,14 @@ public class PublicRegistrationResponse {
 
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
+    }
+
+    public String getBookingKey() {
+        return bookingKey;
+    }
+
+    public void setBookingKey(String bookingKey) {
+        this.bookingKey = bookingKey;
     }
 
     public RegistrationFormStatus getStatus() {

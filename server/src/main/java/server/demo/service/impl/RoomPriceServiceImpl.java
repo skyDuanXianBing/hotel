@@ -172,6 +172,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                 // 创建新价格记录
                 roomPrice = new RoomPrice(roomType, currentDate, request.getPrice());
             }
+            applyManualPriceOverride(roomPrice, request.getEndDate());
 
             // 设置假期标记
             if (request.getIsHoliday() != null) {
@@ -299,6 +300,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                             // 创建新价格记录
                             roomPrice = new RoomPrice(roomType, currentDate, priceToApply);
                         }
+                        applyManualPriceOverride(roomPrice, dateRange.getEndDate());
 
                         // 设置备注
                         if (request.getNotes() != null && !request.getNotes().trim().isEmpty()) {
@@ -449,6 +451,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
                     // 没有价格计划时,价格为null或默认价格
                     dto.setPrice(roomType.getDefaultPrice() != null ? roomType.getDefaultPrice() : BigDecimal.ZERO);
+                    dto.setPriceSource(RoomPrice.PRICE_SOURCE_SYSTEM);
+                    dto.setManualOverride(false);
+                    dto.setManualOverrideUntil(null);
 
                     // 判断是否为周末
                     dto.setIsWeekend(currentDate.getDayOfWeek() == DayOfWeek.SATURDAY ||
@@ -508,6 +513,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     dto.setCloseRoom(roomPrice.getCloseRoom());
                     dto.setCta(roomPrice.getCta());
                     dto.setCtd(roomPrice.getCtd());
+                    dto.setPriceSource(roomPrice.getPriceSource());
+                    dto.setManualOverride(roomPrice.getManualOverride());
+                    dto.setManualOverrideUntil(roomPrice.getManualOverrideUntil());
                     dto.setNotes(roomPrice.getNotes());
                 } else {
                     // 使用周价格
@@ -524,6 +532,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     dto.setCloseRoom(null);
                     dto.setCta(null);
                     dto.setCtd(null);
+                    dto.setPriceSource(RoomPrice.PRICE_SOURCE_SYSTEM);
+                    dto.setManualOverride(false);
+                    dto.setManualOverrideUntil(null);
                 }
 
                 dto.setPrice(price);
@@ -698,6 +709,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                         }
                         roomPrice = new RoomPrice(roomType, pricePlan, currentDate, request.getPrice());
                     }
+                    applyManualPriceOverride(roomPrice, request.getEndDate());
 
                     if (request.getAvailableRooms() != null) {
                         roomPrice.setAvailableRooms(request.getAvailableRooms());
@@ -839,6 +851,15 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     /**
      * 根据星期几值更新价格
      */
+    private void applyManualPriceOverride(RoomPrice roomPrice, LocalDate manualOverrideUntil) {
+        if (roomPrice == null) {
+            return;
+        }
+        roomPrice.setPriceSource(RoomPrice.PRICE_SOURCE_MANUAL);
+        roomPrice.setManualOverride(Boolean.TRUE);
+        roomPrice.setManualOverrideUntil(manualOverrideUntil);
+    }
+
     private void updatePriceForWeekday(RoomTypePricePlan plan, Integer weekday, BigDecimal price) {
         switch (weekday) {
             case 1 -> plan.setMondayPrice(price);
@@ -912,6 +933,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         dto.setCloseRoom(roomPrice.getCloseRoom());
         dto.setCta(roomPrice.getCta());
         dto.setCtd(roomPrice.getCtd());
+        dto.setPriceSource(roomPrice.getPriceSource());
+        dto.setManualOverride(roomPrice.getManualOverride());
+        dto.setManualOverrideUntil(roomPrice.getManualOverrideUntil());
         dto.setIsWeekend(roomPrice.getIsWeekend());
         dto.setIsHoliday(roomPrice.getIsHoliday());
         dto.setNotes(roomPrice.getNotes());

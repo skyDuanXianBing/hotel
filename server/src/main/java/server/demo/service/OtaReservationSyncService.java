@@ -61,6 +61,7 @@ public class OtaReservationSyncService {
     private final CleaningTaskAutoService cleaningTaskAutoService;
     private final PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
     private final RegistrationLinkInboxService registrationLinkInboxService;
+    private final SuAriAutoSyncService suAriAutoSyncService;
 
     public OtaReservationSyncService(
             SuApiClient suApiClient,
@@ -75,7 +76,8 @@ public class OtaReservationSyncService {
             AutoMessageTriggerService autoMessageTriggerService,
             CleaningTaskAutoService cleaningTaskAutoService,
             PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer,
-            RegistrationLinkInboxService registrationLinkInboxService
+            RegistrationLinkInboxService registrationLinkInboxService,
+            SuAriAutoSyncService suAriAutoSyncService
     ) {
         this.suApiClient = suApiClient;
         this.storeRepository = storeRepository;
@@ -90,6 +92,7 @@ public class OtaReservationSyncService {
         this.cleaningTaskAutoService = cleaningTaskAutoService;
         this.priceLabsCalendarSyncDebouncer = priceLabsCalendarSyncDebouncer;
         this.registrationLinkInboxService = registrationLinkInboxService;
+        this.suAriAutoSyncService = suAriAutoSyncService;
     }
 
     public List<String> getSupportedChannelCodes() {
@@ -640,17 +643,60 @@ public class OtaReservationSyncService {
 
                     cleaningTaskAutoService.syncTaskForReservation(reservation);
 
+                    List<CalendarSyncRequest> reqs = buildCalendarSyncRequests(
+                            oldRoomTypeId,
+                            oldCheckIn,
+                            oldCheckOut,
+                            newRoomTypeId,
+                            checkIn,
+                            checkOut
+                    );
+
                     if (priceLabsCalendarSyncDebouncer != null) {
-                        List<CalendarSyncRequest> reqs = buildCalendarSyncRequests(
-                                oldRoomTypeId,
-                                oldCheckIn,
-                                oldCheckOut,
-                                newRoomTypeId,
-                                checkIn,
-                                checkOut
-                        );
                         for (CalendarSyncRequest req : reqs) {
                             priceLabsCalendarSyncDebouncer.requestSyncAfterCommit(store.getId(), req.roomTypeId(), req.startDate(), req.endDate());
+                        }
+                    }
+
+                    if (suAriAutoSyncService != null && !reqs.isEmpty()) {
+                        try {
+                            Set<Long> roomTypeIds = new LinkedHashSet<>();
+                            List<SuAriAutoSyncService.DateRange> ranges = new ArrayList<>();
+                            for (CalendarSyncRequest req : reqs) {
+                                if (req == null || req.roomTypeId() == null || req.startDate() == null || req.endDate() == null) {
+                                    continue;
+                                }
+                                roomTypeIds.add(req.roomTypeId());
+                                ranges.add(new SuAriAutoSyncService.DateRange(req.startDate(), req.endDate()));
+                            }
+                            if (!roomTypeIds.isEmpty() && !ranges.isEmpty()) {
+                                suAriAutoSyncService.enqueueForStoreDateRanges(
+                                        store.getId(),
+                                        "su_reservation_webhook",
+                                        ranges,
+                                        roomTypeIds,
+                                        null,
+                                        true,
+                                        false,
+                                        false,
+                                        false
+                                );
+                            }
+                        } catch (Exception ex) {
+                            logger.warn(
+                                    "Enqueue SU ARI availability sync after reservation upsert failed. storeId={}, orderNumber={}, err={}",
+                                    store.getId(),
+                                    orderNumber,
+                                    ex.getMessage(),
+                                    ex
+                            );
+                            reservationLogger.error(
+                                    "[ReservationUpsert] enqueue su ari availability failed. storeId={}, hotelId={}, orderNumber={}, err={}",
+                                    store.getId(),
+                                    suHotelId,
+                                    orderNumber,
+                                    ex.getMessage()
+                            );
                         }
                     }
 

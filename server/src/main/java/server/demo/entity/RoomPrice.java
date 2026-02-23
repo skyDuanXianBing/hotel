@@ -12,6 +12,10 @@ import java.time.LocalDateTime;
 @Table(name = "room_prices",
        uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "room_type_id", "price_plan_id", "price_date"}))
 public class RoomPrice implements StoreScopedEntity {
+    public static final String PRICE_SOURCE_MANUAL = "MANUAL";
+    public static final String PRICE_SOURCE_PRICELABS = "PRICELABS";
+    public static final String PRICE_SOURCE_SYSTEM = "SYSTEM";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -33,6 +37,15 @@ public class RoomPrice implements StoreScopedEntity {
     @DecimalMin(value = "0.0", inclusive = false, message = "浠锋牸蹇呴』澶т簬0")
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
+
+    @Column(name = "price_source", length = 32)
+    private String priceSource = PRICE_SOURCE_SYSTEM;
+
+    @Column(name = "manual_override", nullable = false)
+    private Boolean manualOverride = false;
+
+    @Column(name = "manual_override_until")
+    private LocalDate manualOverrideUntil;
 
     @Column(name = "available_rooms")
     private Integer availableRooms;
@@ -148,6 +161,30 @@ public class RoomPrice implements StoreScopedEntity {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
+    }
+
+    public String getPriceSource() {
+        return priceSource;
+    }
+
+    public void setPriceSource(String priceSource) {
+        this.priceSource = priceSource;
+    }
+
+    public Boolean getManualOverride() {
+        return manualOverride;
+    }
+
+    public void setManualOverride(Boolean manualOverride) {
+        this.manualOverride = manualOverride;
+    }
+
+    public LocalDate getManualOverrideUntil() {
+        return manualOverrideUntil;
+    }
+
+    public void setManualOverrideUntil(LocalDate manualOverrideUntil) {
+        this.manualOverrideUntil = manualOverrideUntil;
     }
 
     public Boolean getIsWeekend() {

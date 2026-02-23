@@ -377,7 +377,21 @@ public class PriceLabsService {
 
                     RoomPrice rp = existingRpOpt
                             .orElse(new RoomPrice(roomType, pricePlan, priceDate, basePrice));
-                    rp.setPrice(basePrice);
+                    boolean skipPriceOverrideByManual = shouldSkipPriceOverrideByManual(rp);
+                    if (skipPriceOverrideByManual) {
+                        logger.info(
+                                "[PriceLabsWebhook] skip price override due to manual override. storeId={}, roomTypeId={}, pricePlanId={}, date={}",
+                                storeId,
+                                roomType.getId(),
+                                pricePlan.getId(),
+                                priceDate
+                        );
+                    } else {
+                        rp.setPrice(basePrice);
+                        rp.setPriceSource(RoomPrice.PRICE_SOURCE_PRICELABS);
+                        rp.setManualOverride(Boolean.FALSE);
+                        rp.setManualOverrideUntil(null);
+                    }
                     Integer minStay = normalizeMinStay(calendarData.getMinStay());
                     if (minStay != null) {
                         rp.setMinStay(minStay);
@@ -390,7 +404,8 @@ public class PriceLabsService {
                     roomPriceRepository.save(rp);
 
                     // 写入改价记录：每个日期一条，仅当价格确实变化时才记录
-                    boolean isPriceChanged = previousPrice == null || previousPrice.compareTo(basePrice) != 0;
+                    BigDecimal effectiveBasePrice = resolveEffectiveBasePrice(rp, basePrice);
+                    boolean isPriceChanged = previousPrice == null || previousPrice.compareTo(effectiveBasePrice) != 0;
                     if (isPriceChanged) {
                         PriceChangeHistory history = new PriceChangeHistory();
                         history.setRoomType(roomType);
@@ -399,7 +414,7 @@ public class PriceLabsService {
                         history.setPriceDateEnd(priceDate);
                         history.setApplyWeekdays("特定日期");
                         history.setChangeType("价格");
-                        history.setChangeValue(basePrice);
+                        history.setChangeValue(effectiveBasePrice);
                         history.setPreviousValue(previousPrice);
                         history.setOperator("系统");
                         history.setStoreId(storeId);
@@ -410,7 +425,7 @@ public class PriceLabsService {
 
                     // 为每个渠道计算并保存价格
                     for (Channel channel : channels) {
-                        BigDecimal channelPrice = channel.calculateChannelPrice(basePrice);
+                        BigDecimal channelPrice = channel.calculateChannelPrice(effectiveBasePrice);
 
                         // 查找或创建渠道价格记录（门店级隔离 + 价格计划隔离）
                         ChannelPrice cp = channelPriceRepository
@@ -423,7 +438,7 @@ public class PriceLabsService {
                         cp.setPricePlan(pricePlan); // 设置价格计划
                         cp.setChannel(channel);
                         cp.setPriceDate(priceDate);
-                        cp.setBasePrice(basePrice);
+                        cp.setBasePrice(effectiveBasePrice);
                         cp.setChannelPrice(channelPrice);
 
                         // 设置最小/最大入住天数
@@ -571,6 +586,24 @@ public class PriceLabsService {
         }
         // 兼容历史数据：enabled/auto_sync_price 可能为 NULL，默认按“启用”处理
         return !Boolean.FALSE.equals(channel.getEnabled()) && !Boolean.FALSE.equals(channel.getAutoSyncPrice());
+    }
+
+    private static boolean shouldSkipPriceOverrideByManual(RoomPrice roomPrice) {
+        if (roomPrice == null || !Boolean.TRUE.equals(roomPrice.getManualOverride())) {
+            return false;
+        }
+        LocalDate until = roomPrice.getManualOverrideUntil();
+        if (until == null) {
+            return true;
+        }
+        return !LocalDate.now().isAfter(until);
+    }
+
+    private static BigDecimal resolveEffectiveBasePrice(RoomPrice roomPrice, BigDecimal incomingBasePrice) {
+        if (shouldSkipPriceOverrideByManual(roomPrice) && roomPrice != null && roomPrice.getPrice() != null) {
+            return roomPrice.getPrice();
+        }
+        return incomingBasePrice;
     }
 
     private static Integer normalizeMinStay(Integer minStay) {

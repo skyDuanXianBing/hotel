@@ -20,7 +20,7 @@
       </div>
       <div v-if="loading" class="sub">{{ t('loading') }}</div>
       <div v-else class="sub">
-        <div>{{ t('bookingNumber') }}: {{ data?.orderNumber }}</div>
+        <div>{{ t('bookingNumber') }}: {{ data?.bookingKey }}</div>
         <div>{{ t('stay') }}: {{ data?.checkInDate }} ~ {{ data?.checkOutDate }}</div>
         <div v-if="data?.lastSavedAt" class="last-saved">{{ t('lastSaved') }}: {{ formatLastSaved(data.lastSavedAt) }}</div>
         <div>{{ t('status') }}: {{ statusLabel(data?.status || '') }}</div>
@@ -350,6 +350,7 @@ type AttachmentDTO = {
 type PublicRegistrationResponse = {
   formId: number
   orderNumber: string
+  bookingKey: string
   status: string
   checkInDate: string
   checkOutDate: string
@@ -1149,6 +1150,15 @@ onMounted(() => {
   margin-left: 4px;
   font-size: 13px;
 }
+
+/* 确保按钮内容在所有屏幕正确显示 */
+:deep(.el-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
 .title {
   font-weight: 700;
   font-size: 16px;
@@ -1403,8 +1413,13 @@ onMounted(() => {
 
 /* Mobile Responsive */
 @media (max-width: 640px) {
-  .lang-btn-text {
-    display: none;
+  .header-top {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-top .el-button {
+    white-space: nowrap;
   }
 
   :deep(.preview-dialog) {

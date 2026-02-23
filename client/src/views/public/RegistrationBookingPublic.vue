@@ -64,7 +64,7 @@
               <div class="room-title-main">
                 {{ room.storeName || 'Store' }} / Room Number: {{ room.roomNumber || '-' }}
               </div>
-              <div class="room-title-sub">Booking Number: {{ room.orderNumber }}</div>
+              <div class="room-title-sub">Booking Number: {{ booking?.bookingKey }}</div>
             </div>
 
             <div class="status-area">
@@ -457,6 +457,15 @@ onMounted(() => {
 
 /* 响应式布局：手机端 */
 @media (max-width: 640px) {
+  .header-top {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header-top .el-button {
+    white-space: nowrap;
+  }
+
   .room-header {
     flex-direction: column;
     gap: 8px;
@@ -598,10 +607,12 @@ onMounted(() => {
   font-size: 13px;
 }
 
-@media (max-width: 640px) {
-  .lang-btn-text {
-    display: none;
-  }
+/* 确保按钮内容在所有屏幕正确显示 */
+:deep(.el-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .form {

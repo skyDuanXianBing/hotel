@@ -337,6 +337,14 @@ public class PublicRegistrationService {
         PublicRegistrationResponse resp = new PublicRegistrationResponse();
         resp.setFormId(form.getId());
         resp.setOrderNumber(reservation.getOrderNumber());
+        
+        // Set bookingKey: use channelOrderNumber if available, otherwise use orderNumber
+        String bookingKey = reservation.getChannelOrderNumber();
+        if (bookingKey == null || bookingKey.isBlank()) {
+            bookingKey = reservation.getOrderNumber();
+        }
+        resp.setBookingKey(bookingKey);
+        
         resp.setStatus(form.getStatus());
         resp.setGuestName(reservation.getGuestName());
         resp.setCheckInDate(reservation.getCheckInDate());
