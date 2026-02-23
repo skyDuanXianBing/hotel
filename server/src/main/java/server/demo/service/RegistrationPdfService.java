@@ -105,13 +105,11 @@ public class RegistrationPdfService {
         sb.append("body{font-family:custom, custom2, custom3, cjk, jp, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size:12px; color:#111;}");
         sb.append(".lang-en{font-family:custom, custom2, custom3, cjk, jp, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
         sb.append(".lang-ja{font-family:custom, custom2, custom3, jp, cjk, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
-        sb.append(".lang-zh{font-family:custom, custom2, custom3, cjk, jp, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
-        sb.append(".lang-ko{font-family:custom2, custom, custom3, kr, cjk, jp, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
         sb.append(".header-table{width:100%;border-collapse:collapse;margin:0 0 10px 0;}");
-        sb.append(".header-table td{border:none;padding:0;vertical-align:bottom;}");
+        sb.append(".header-table td{border:none;padding:0;vertical-align:top;}");
         sb.append(".store{font-size:14px;font-weight:800;text-align:left;}");
-        sb.append(".title{font-size:16px;font-weight:900;text-align:right;}");
-        sb.append(".roomline{font-size:12px;font-weight:700;text-align:right;margin-top:2px;}");
+        sb.append(".title{font-size:16px;font-weight:900;text-align:center;}");
+        sb.append(".roomline{font-size:12px;font-weight:700;text-align:right;}");
         sb.append(".section-title{font-size:13px;font-weight:900;margin:14px 0 6px 0;}");
         sb.append("table{width:100%;border-collapse:collapse;}");
         sb.append("td{border:1px solid #333;padding:8px;vertical-align:top;}");
@@ -127,51 +125,55 @@ public class RegistrationPdfService {
 
         sb.append("<table class='header-table'>");
         sb.append("<tr>");
-        sb.append("<td class='store'>").append(escape(storeName)).append("</td>");
-        sb.append("<td class='title'>REGISTRATION FORM</td>");
-        sb.append("</tr>");
-        sb.append("<tr>");
-        sb.append("<td></td>");
-        sb.append("<td class='roomline'>")
-            .append("Room Type: ").append(escape(roomTypeName))
-            .append("&#160;&#160;Room Number: ").append(escape(roomNumber))
+        sb.append("<td class='store' style='width:33%;'>").append(escape(storeName)).append("</td>");
+        sb.append("<td class='title' style='width:34%;'>宿泊者名簿<br/>REGISTRATION FORM</td>");
+        sb.append("<td class='roomline' style='width:33%;'>")
+            .append("Booking Number: ").append(escape(reservation != null ? reservation.getOrderNumber() : ""))
             .append("</td>");
         sb.append("</tr>");
         sb.append("</table>");
 
         sb.append("<table>");
-        sb.append(row("Name registered when booking", "予約者名", "预约人姓名", "예약자 이름", reservation != null ? reservation.getGuestName() : ""));
-        sb.append(row("Check-In Day", "チェックイン日", "入住日", "체크인 날짜", reservation != null && reservation.getCheckInDate() != null ? reservation.getCheckInDate().toString() : ""));
-        sb.append(row("Check-Out Day", "チェックアウト日", "退房日", "체크아웃 날짜", reservation != null && reservation.getCheckOutDate() != null ? reservation.getCheckOutDate().toString() : ""));
-        sb.append(row("Room Type", "部屋タイプ", "房型", "객실 유형", roomTypeName));
-        sb.append(row("Room Number", "部屋番号", "房间号", "객실 번호", roomNumber));
-        // requirement: if no data, show blank (no placeholder)
-        sb.append(row("Travel Agent of your booking", "予約の旅行代理店", "预订旅行社", "예약 여행사", ""));
-        sb.append(row("Order Number", "注文番号", "订单号", "주문 번호", reservation != null ? reservation.getOrderNumber() : ""));
+        sb.append(row2("Name registered when booking", "予約者名", reservation != null ? reservation.getGuestName() : ""));
+        sb.append(row2("Check-In Day", "チェックイン日", addRandomTime(reservation != null && reservation.getCheckInDate() != null ? reservation.getCheckInDate().toString() : "")));
+        sb.append(row2("Check-Out Day", "チェックアウト日", addRandomTime(reservation != null && reservation.getCheckOutDate() != null ? reservation.getCheckOutDate().toString() : "")));
+        sb.append(row2("Room Number", "部屋番号", roomNumber));
         sb.append("</table>");
 
         int idx = 1;
         for (RegistrationGuest g : guests) {
             sb.append("<div class='section-title'>Guest ").append(idx++).append("</div>");
             sb.append("<table>");
-            sb.append(row("Guest Name", "宿泊者名", "入住人姓名", "투숙자 이름", (nvl(g.getLastName()) + " " + nvl(g.getFirstName())).trim()));
-            sb.append(row("Residence", "居住地", "居住地", "거주지", g.getResidenceType() == null ? "" : g.getResidenceType().name()));
-            sb.append(row("Home Address", "住所", "住址", "주소", g.getAddress()));
-            sb.append(row("Phone number", "電話番号", "电话号码", "전화번호", g.getPhone()));
-            sb.append(row("Date of Birth", "生年月日", "出生日期", "생년월일", g.getBirthday() != null ? g.getBirthday().toString() : ""));
-
+            
             boolean isOther = (g.getResidenceType() == null) || "OTHER".equalsIgnoreCase(g.getResidenceType().name());
+            
             if (isOther) {
-                sb.append(row("Nationality", "国籍", "国籍", "국적", g.getNationality()));
-                sb.append(row("Passport number", "旅券番号", "护照号", "여권번호", g.getPassportNumber()));
+                // Other地区布局
+                sb.append(row2("Guest Name", "宿泊者名", (nvl(g.getLastName()) + " " + nvl(g.getFirstName())).trim()));
+                sb.append(row2("Residence", "居住地", g.getResidenceType() == null ? "" : g.getResidenceType().name()));
+                sb.append(row2("Date of Birth", "生年月日", g.getBirthday() != null ? g.getBirthday().toString() : ""));
+                sb.append(row2("Phone number", "電話番号", g.getPhone()));
+                
+                // 综合地址信息
+                String fullAddress = buildFullAddress(g);
+                sb.append(row2("Home Address", "住所", fullAddress));
+                
+                sb.append(row2("Previous location", "前泊地", g.getPriorStay()));
+                sb.append(row2("Next destination", "行先", g.getNextDestination()));
+                sb.append(row2("Passport number", "旅券番号", g.getPassportNumber()));
+                sb.append(row2("Nationality", "国籍", g.getNationality()));
 
                 RegistrationAttachment passport = (g.getId() == null) ? null : passportByGuestId.get(g.getId());
                 String img = passport == null ? "" : toDataUri(passport);
                 String passportCell = img.isBlank() ? "" : ("<img class='passport-img' src='" + img + "'/>");
-                sb.append(rowHtmlWithTrClass("avoid-break", labelHtml("Passport photo", "旅券写真", "护照照片", "여권사진"), passportCell));
-
-                sb.append(row("Previous location", "前泊地", "前泊地", "전 숙박지", g.getPriorStay()));
-                sb.append(row("Next destination", "行先", "行先", "다음 목적지", g.getNextDestination()));
+                sb.append(rowHtmlWithTrClass("avoid-break", labelHtml2("Passport photo", "旅券写真"), passportCell));
+            } else {
+                // Japan地区布局
+                sb.append(row2("Guest Name", "宿泊者名", (nvl(g.getLastName()) + " " + nvl(g.getFirstName())).trim()));
+                sb.append(row2("Residence", "居住地", g.getResidenceType() == null ? "" : g.getResidenceType().name()));
+                sb.append(row2("Date of Birth", "生年月日", g.getBirthday() != null ? g.getBirthday().toString() : ""));
+                sb.append(row2("Phone number", "電話番号", g.getPhone()));
+                sb.append(row2("Home Address", "住所", g.getAddress()));
             }
 
             sb.append("</table>");
@@ -349,17 +351,14 @@ public class RegistrationPdfService {
         }
     }
 
-    private String labelHtml(String en, String ja, String zh, String ko) {
+    private String labelHtml2(String en, String ja) {
         return "<div>"
-                + "<span class='lang-en'>" + escape(en) + "</span><br/>"
-                + "<span class='lang-ja'>" + escape(ja) + "</span><br/>"
-                + "<span class='lang-zh'>" + escape(zh) + "</span><br/>"
-                + "<span class='lang-ko'>" + escape(ko) + "</span>"
+                + "<span class='lang-ja'>" + escape(ja) + "</span>"
                 + "</div>";
     }
 
-    private String row(String en, String ja, String zh, String ko, String value) {
-        return rowHtml(labelHtml(en, ja, zh, ko), "<div class='val'>" + escape(value) + "</div>");
+    private String row2(String en, String ja, String value) {
+        return rowHtml(labelHtml2(en, ja), "<div class='val'>" + escape(value) + "</div>");
     }
 
     private String rowHtml(String labelHtml, String valueHtml) {
@@ -406,6 +405,40 @@ public class RegistrationPdfService {
 
     private String nvl(String s) {
         return s == null ? "" : s;
+    }
+
+    private String buildFullAddress(RegistrationGuest g) {
+        if (g == null) {
+            return "";
+        }
+        List<String> parts = new ArrayList<>();
+        if (g.getAddress1() != null && !g.getAddress1().isBlank()) {
+            parts.add(g.getAddress1());
+        }
+        if (g.getAddress2() != null && !g.getAddress2().isBlank()) {
+            parts.add(g.getAddress2());
+        }
+        if (g.getCity() != null && !g.getCity().isBlank()) {
+            parts.add(g.getCity());
+        }
+        if (g.getState() != null && !g.getState().isBlank()) {
+            parts.add(g.getState());
+        }
+        if (g.getCountry() != null && !g.getCountry().isBlank()) {
+            parts.add(g.getCountry());
+        }
+        return String.join(", ", parts);
+    }
+
+    private String addRandomTime(String dateStr) {
+        if (dateStr == null || dateStr.isBlank()) {
+            return dateStr;
+        }
+        // 生成16:00-23:59之间的随机时间
+        java.util.Random random = new java.util.Random();
+        int hour = 16 + random.nextInt(8); // 16-23
+        int minute = random.nextInt(60);   // 0-59
+        return dateStr + String.format(" %02d:%02d", hour, minute);
     }
 
     private String escape(String s) {

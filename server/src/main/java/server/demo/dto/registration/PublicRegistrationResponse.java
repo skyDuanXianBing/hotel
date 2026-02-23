@@ -18,6 +18,7 @@ public class PublicRegistrationResponse {
     private Integer maxGuests;
     private Integer guestCount;
     private LocalDateTime lastSavedAt;
+    private String checkInGuideLink;
     private List<PublicRegistrationGuestDTO> guests;
     private List<PublicRegistrationAttachmentDTO> attachments;
 
@@ -107,6 +108,14 @@ public class PublicRegistrationResponse {
 
     public void setLastSavedAt(LocalDateTime lastSavedAt) {
         this.lastSavedAt = lastSavedAt;
+    }
+
+    public String getCheckInGuideLink() {
+        return checkInGuideLink;
+    }
+
+    public void setCheckInGuideLink(String checkInGuideLink) {
+        this.checkInGuideLink = checkInGuideLink;
     }
 
     public List<PublicRegistrationGuestDTO> getGuests() {

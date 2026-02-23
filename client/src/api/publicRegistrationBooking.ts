@@ -10,6 +10,7 @@ export type RegistrationFormStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJEC
 
 export interface PublicRegistrationBookingRoomDTO {
   orderNumber: string
+  storeName: string
   roomTypeName: string
   roomNumber: string
   checkInDate: string

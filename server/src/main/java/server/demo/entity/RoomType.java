@@ -44,6 +44,9 @@ public class RoomType implements StoreScopedEntity {
     @Column(length = 500)
     private String description;
 
+    @Column(name = "check_in_guide_link", length = 500)
+    private String checkInGuideLink;
+
     @Column(name = "default_price", precision = 10, scale = 2)
     private BigDecimal defaultPrice;
 
@@ -180,6 +183,14 @@ public class RoomType implements StoreScopedEntity {
 
     public void setDefaultPrice(BigDecimal defaultPrice) {
         this.defaultPrice = defaultPrice;
+    }
+
+    public String getCheckInGuideLink() {
+        return checkInGuideLink;
+    }
+
+    public void setCheckInGuideLink(String checkInGuideLink) {
+        this.checkInGuideLink = checkInGuideLink;
     }
 
     public BigDecimal getWeekdayPrice() {

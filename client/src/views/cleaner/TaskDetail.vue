@@ -119,11 +119,11 @@ import {
   rejectCleaningTask,
   type CleaningTaskDTO,
 } from '@/api/cleaning'
-import { useUserStore } from '@/stores/user'
+import { readCleanerUser } from '@/utils/cleanerSession'
 
 const route = useRoute()
 const router = useRouter()
-const userStore = useUserStore()
+const cleanerUser = readCleanerUser()
 
 const loading = ref(false)
 const task = ref<CleaningTaskDTO | null>(null)
@@ -216,7 +216,7 @@ const handleReject = async () => {
 const handleComplete = async () => {
   if (!task.value) return
 
-  const userId = userStore.currentUser?.id
+  const userId = cleanerUser?.id
   if (!userId) {
     ElMessage.error('用户信息无效')
     return
@@ -282,6 +282,11 @@ const getTaskTypeText = (taskType: string): string => {
 }
 
 onMounted(() => {
+  if (!cleanerUser) {
+    ElMessage.error('登录状态已失效，请重新登录')
+    router.replace('/cleaner/login')
+    return
+  }
   loadTaskDetail()
 })
 </script>

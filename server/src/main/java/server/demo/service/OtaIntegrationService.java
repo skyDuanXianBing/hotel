@@ -217,7 +217,7 @@ public class OtaIntegrationService {
      */
     @Transactional
     public OtaIntegrationController.WidgetTokenResponse generateSuWidgetToken(Long id) {
-        return generateSuWidgetToken(id, false);
+        return generateSuWidgetToken(id, false, null);
     }
 
     /**
@@ -228,6 +228,18 @@ public class OtaIntegrationService {
      */
     @Transactional
     public OtaIntegrationController.WidgetTokenResponse generateSuWidgetToken(Long id, boolean syncContent) {
+        return generateSuWidgetToken(id, syncContent, null);
+    }
+
+    /**
+     * 生成 Su Widget Token（支持按请求指定 Widget 展示语言）。
+     */
+    @Transactional
+    public OtaIntegrationController.WidgetTokenResponse generateSuWidgetToken(
+            Long id,
+            boolean syncContent,
+            String language
+    ) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         OtaIntegration integration = otaIntegrationRepository.findById(id)
                 .filter(ota -> ota.getStoreId().equals(storeId))
@@ -286,6 +298,7 @@ public class OtaIntegrationService {
 
         // 6. 获取渠道代码
         String channelCode = suApiClient.getEncryptedChannelCode(integration.getCode());
+        String widgetLanguage = resolveWidgetLanguage(language);
 
         // 7. 返回 Widget 配置
         return new OtaIntegrationController.WidgetTokenResponse(
@@ -295,8 +308,19 @@ public class OtaIntegrationService {
                 channelCode,
                 "https://static.otaswitch.com/JS/script.js",
                 "channel-Mapping",
-                "zn"
+                widgetLanguage
         );
+    }
+
+    private static String resolveWidgetLanguage(String language) {
+        if (language == null) {
+            return "zn";
+        }
+        String normalized = language.trim().toLowerCase();
+        if ("en".equals(normalized) || "en-us".equals(normalized) || "en_gb".equals(normalized) || "en-gb".equals(normalized)) {
+            return "en";
+        }
+        return "zn";
     }
 
     /**

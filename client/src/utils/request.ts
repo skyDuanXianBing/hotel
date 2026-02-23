@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
+import { CLEANER_STORE_KEY, CLEANER_TOKEN_KEY, clearCleanerSession } from '@/utils/cleanerSession'
 
 const request: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
@@ -13,13 +14,15 @@ const request: AxiosInstance = axios.create({
 // 请求拦截器：添加token和storeId
 request.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    const isCleanerRoute =
+      typeof window !== 'undefined' && window.location.pathname.startsWith('/cleaner')
+    const token = localStorage.getItem(isCleanerRoute ? CLEANER_TOKEN_KEY : 'token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
 
     // 添加当前门店ID到请求头
-    const currentStore = localStorage.getItem('currentStore')
+    const currentStore = localStorage.getItem(isCleanerRoute ? CLEANER_STORE_KEY : 'currentStore')
     if (currentStore) {
       try {
         const store = JSON.parse(currentStore)
@@ -46,9 +49,16 @@ request.interceptors.response.use(
   (error) => {
     // 处理401未授权错误
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+      const isCleanerRoute =
+        typeof window !== 'undefined' && window.location.pathname.startsWith('/cleaner')
+      if (isCleanerRoute) {
+        clearCleanerSession()
+        window.location.href = '/cleaner/login'
+      } else {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.location.href = '/login'
+      }
       ElMessage.error('登录已过期，请重新登录')
     }
     // 处理403权限不足错误

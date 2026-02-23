@@ -173,6 +173,15 @@
           <span class="unit">间</span>
         </el-form-item>
 
+        <el-form-item label="入住指南链接">
+          <el-input 
+            v-model="formData.checkInGuideLink" 
+            placeholder="请输入入住指南链接（可选）"
+            clearable
+          />
+          <div class="field-hint">审核通过后，此链接将显示给客人</div>
+        </el-form-item>
+
         <el-form-item label="房间号">
           <div class="room-numbers-container">
             <div
@@ -244,6 +253,7 @@ interface RoomTypeData {
   sundayPrice: number
   roomCount: number
   roomNumbers: string[]
+  checkInGuideLink?: string
 }
 
 const loading = ref(false)
@@ -276,6 +286,7 @@ const formData = ref<RoomTypeData>({
   sundayPrice: 25000,
   roomCount: 1,
   roomNumbers: [],
+  checkInGuideLink: ''
 })
 
 // 对话框标题
@@ -292,6 +303,20 @@ const paginatedData = computed(() => {
 const formatPrice = (price: number | undefined): string => {
   if (price === undefined || price === null) return '0'
   return price.toString()
+}
+
+const normalizeCheckInGuideLink = (rawLink?: string): string | undefined => {
+  const trimmed = (rawLink || '').trim()
+  if (!trimmed) {
+    return undefined
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed
+  }
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) {
+    return undefined
+  }
+  return `https://${trimmed}`
 }
 
 // 添加新房间号
@@ -403,6 +428,7 @@ const loadRoomTypes = async () => {
           name: item.name,
           shortName: item.description || item.code,
           maxGuests: item.maxGuests ?? 4,
+          checkInGuideLink: item.checkInGuideLink ?? '',
           defaultPrice: item.defaultPrice ?? 0, // 保存原始defaultPrice
           mondayPrice: item.mondayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
           tuesdayPrice: item.tuesdayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
@@ -467,6 +493,7 @@ const handleAdd = () => {
     sundayPrice: 25000,
     roomCount: 1,
     roomNumbers: [''], // 初始化至少一个空输入框
+    checkInGuideLink: ''
   }
   showDialog.value = true
 }
@@ -479,7 +506,8 @@ const handleEdit = (row: RoomTypeData) => {
   // 深拷贝数据,确保数组也是新的引用
   formData.value = {
     ...row,
-    roomNumbers: row.roomNumbers && row.roomNumbers.length > 0 ? [...row.roomNumbers] : ['']
+    roomNumbers: row.roomNumbers && row.roomNumbers.length > 0 ? [...row.roomNumbers] : [''],
+    checkInGuideLink: row.checkInGuideLink || ''
   }
 
   console.log('📋 formData设置为:', formData.value)
@@ -586,12 +614,19 @@ const handleSave = async () => {
       return
     }
 
+    const normalizedCheckInGuideLink = normalizeCheckInGuideLink(formData.value.checkInGuideLink)
+    if (formData.value.checkInGuideLink?.trim() && !normalizedCheckInGuideLink) {
+      ElMessage.warning('入住指南链接仅支持 http:// 或 https://')
+      return
+    }
+
     const requestData = {
       name: formData.value.name,
       code: formData.value.shortName.substring(0, 3).toUpperCase(),
       description: formData.value.shortName,
       totalRooms: validRoomNumbers.length, // 使用实际房间号数量
       maxGuests: formData.value.maxGuests,
+      checkInGuideLink: normalizedCheckInGuideLink ? normalizedCheckInGuideLink : undefined,
       // 编辑时保持原有defaultPrice,新增时使用周一价格作为默认价格
       defaultPrice: isEdit.value && formData.value.defaultPrice !== undefined
         ? formData.value.defaultPrice
@@ -801,6 +836,13 @@ onMounted(() => {
 .unit {
   margin-left: 8px;
   color: #606266;
+}
+
+.field-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
 }
 
 .room-numbers-container {

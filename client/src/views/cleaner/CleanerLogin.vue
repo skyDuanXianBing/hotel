@@ -81,10 +81,9 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock, Pointer } from '@element-plus/icons-vue'
 import { cleanerLoginByPassword } from '@/api/cleanerAuth'
-import { useUserStore } from '@/stores/user'
+import { saveCleanerSession, type CleanerSessionUser } from '@/utils/cleanerSession'
 
 const router = useRouter()
-const userStore = useUserStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -118,14 +117,13 @@ const handleLogin = async () => {
     }) as any
 
     if (response.success && response.data) {
-      // 保存token到localStorage
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token)
+      // 保存保洁员独立会话，不覆盖PMS会话
+      if (!response.data.token) {
+        ElMessage.error('登录失败,缺少认证信息')
+        return
       }
-
-      // 保存保洁员信息,转换为用户格式
       const cleanerData = response.data.cleaner
-      const userInfo = {
+      const userInfo: CleanerSessionUser = {
         id: cleanerData.id,
         email: cleanerData.email,
         nickname: cleanerData.name,
@@ -135,11 +133,7 @@ const handleLogin = async () => {
         updatedAt: cleanerData.updatedAt,
         isCleaner: true, // 标记为保洁员
       }
-      localStorage.setItem('user', JSON.stringify(userInfo))
-      userStore.setUser(userInfo)
-      if (cleanerData.storeId) {
-        localStorage.setItem('currentStore', JSON.stringify({ id: cleanerData.storeId }))
-      }
+      saveCleanerSession(response.data.token, userInfo, cleanerData.storeId)
 
       ElMessage.success('登录成功')
 

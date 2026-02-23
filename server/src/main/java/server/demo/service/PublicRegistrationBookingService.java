@@ -9,7 +9,9 @@ import server.demo.dto.registration.PublicRegistrationResponse;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
+import server.demo.entity.Store;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.StoreRepository;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -22,15 +24,18 @@ public class PublicRegistrationBookingService {
     private final ReservationRepository reservationRepository;
     private final PublicRegistrationService publicRegistrationService;
     private final RegistrationLinkService registrationLinkService;
+    private final StoreRepository storeRepository;
 
     public PublicRegistrationBookingService(
             ReservationRepository reservationRepository,
             PublicRegistrationService publicRegistrationService,
-            RegistrationLinkService registrationLinkService
+            RegistrationLinkService registrationLinkService,
+            StoreRepository storeRepository
     ) {
         this.reservationRepository = reservationRepository;
         this.publicRegistrationService = publicRegistrationService;
         this.registrationLinkService = registrationLinkService;
+        this.storeRepository = storeRepository;
     }
 
     @Transactional
@@ -63,6 +68,13 @@ public class PublicRegistrationBookingService {
         resp.setCheckInDate(first != null ? first.getCheckInDate() : null);
         resp.setCheckOutDate(first != null ? first.getCheckOutDate() : null);
 
+        // 获取门店名称
+        String storeName = "";
+        Store store = storeRepository.findById(storeId).orElse(null);
+        if (store != null) {
+            storeName = nullToEmpty(store.getName());
+        }
+
         List<PublicRegistrationBookingRoomDTO> rooms = new ArrayList<>();
         for (Reservation r : sorted) {
             if (r == null || r.getOrderNumber() == null) {
@@ -73,6 +85,7 @@ public class PublicRegistrationBookingService {
 
             PublicRegistrationBookingRoomDTO room = new PublicRegistrationBookingRoomDTO();
             room.setOrderNumber(r.getOrderNumber());
+            room.setStoreName(storeName);
             room.setRoomTypeName(resolveRoomTypeName(r));
             room.setRoomNumber(resolveRoomNumber(r));
             room.setCheckInDate(roomForm.getCheckInDate());

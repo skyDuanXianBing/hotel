@@ -28,6 +28,19 @@
 
     <template #footer>
       <div class="dialog-footer">
+        <div class="language-selector">
+          <span class="language-label">语言</span>
+          <el-select
+            v-model="widgetLanguage"
+            size="small"
+            style="width: 120px"
+            :disabled="loading || syncingRooms"
+            @change="handleWidgetLanguageChange"
+          >
+            <el-option label="中文" value="zn" />
+            <el-option label="English" value="en" />
+          </el-select>
+        </div>
         <el-button type="primary" :loading="syncingRooms" :disabled="loading" @click="handleSyncRooms">
           一键推送PMS房型列表（认证用）
         </el-button>
@@ -94,6 +107,15 @@ const loading = ref(false)
 const error = ref('')
 const widgetScriptLoaded = ref(false)
 const syncingRooms = ref(false)
+type WidgetLanguage = 'zn' | 'en'
+const WIDGET_LANGUAGE_STORAGE_KEY = 'su_widget_language'
+
+const readInitialWidgetLanguage = (): WidgetLanguage => {
+  const saved = localStorage.getItem(WIDGET_LANGUAGE_STORAGE_KEY)
+  return saved === 'en' ? 'en' : 'zn'
+}
+
+const widgetLanguage = ref<WidgetLanguage>(readInitialWidgetLanguage())
 
 const REACT_UMD_URL = 'https://unpkg.com/react@18.2.0/umd/react.production.min.js'
 const REACT_DOM_UMD_URL = 'https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js'
@@ -489,7 +511,9 @@ const loadWidget = async () => {
 
   try {
     // 1. 获取Widget Token
-    const response = await getSuWidgetToken(props.otaId)
+    const response = await getSuWidgetToken(props.otaId, {
+      language: widgetLanguage.value,
+    })
     if (!response.success || !response.data) {
       throw new Error(response.message || '获取连接配置失败')
     }
@@ -525,6 +549,13 @@ const loadWidget = async () => {
     ElMessage.error(error.value)
   } finally {
     loading.value = false
+  }
+}
+
+const handleWidgetLanguageChange = async (language: WidgetLanguage) => {
+  localStorage.setItem(WIDGET_LANGUAGE_STORAGE_KEY, language)
+  if (visible.value) {
+    await loadWidget()
   }
 }
 
@@ -633,6 +664,18 @@ onUnmounted(() => {
 
 .dialog-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.language-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.language-label {
+  color: #606266;
+  font-size: 13px;
 }
 </style>

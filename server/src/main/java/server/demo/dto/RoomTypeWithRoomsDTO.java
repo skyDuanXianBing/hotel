@@ -12,6 +12,7 @@ public class RoomTypeWithRoomsDTO {
     private String code;
     private Integer totalRooms;
     private String description;
+    private String checkInGuideLink;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<RoomInfoDTO> rooms;
@@ -37,6 +38,7 @@ public class RoomTypeWithRoomsDTO {
         this.code = roomType.getCode();
         this.totalRooms = roomType.getTotalRooms();
         this.description = roomType.getDescription();
+        this.checkInGuideLink = roomType.getCheckInGuideLink();
         this.createdAt = roomType.getCreatedAt();
         this.updatedAt = roomType.getUpdatedAt();
         this.rooms = rooms;
@@ -91,6 +93,14 @@ public class RoomTypeWithRoomsDTO {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getCheckInGuideLink() {
+        return checkInGuideLink;
+    }
+
+    public void setCheckInGuideLink(String checkInGuideLink) {
+        this.checkInGuideLink = checkInGuideLink;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -4,7 +4,7 @@
     <div class="top-bar">
       <div class="logo">保洁平台</div>
       <div class="user-info">
-        <span class="username">{{ userStore.currentUser?.nickname || userStore.currentUser?.email || '保洁员' }}</span>
+        <span class="username">{{ cleanerUser?.nickname || cleanerUser?.email || '保洁员' }}</span>
         <el-dropdown @command="handleCommand">
           <span class="el-dropdown-link">
             <el-icon><Setting /></el-icon>
@@ -52,23 +52,79 @@
           @click="handleDateClick(day)"
         >
           <div class="day-number">{{ day.day }}</div>
-          <div v-if="day.tasks && day.tasks.length > 0" class="task-indicator">
-            <div
-              v-for="task in day.tasks.slice(0, 3)"
-              :key="task.id"
-              class="task-badge"
-              :class="`status-${task.status}`"
-              @click.stop="handleTaskClick(task)"
-            >
-              {{ task.roomNumber }}
-            </div>
-            <div v-if="day.tasks.length > 3" class="more-tasks">
-              +{{ day.tasks.length - 3 }}
-            </div>
+          <div v-if="hasAnyDot(day)" class="day-dots">
+            <span v-if="hasStatus(day, 'assigned')" class="dot dot-assigned" />
+            <span v-if="hasStatus(day, 'in_progress')" class="dot dot-in-progress" />
+            <span v-if="hasStatus(day, 'pending')" class="dot dot-pending" />
+            <span v-if="hasStatus(day, 'completed')" class="dot dot-completed" />
           </div>
         </div>
       </div>
     </div>
+
+    <!-- 当日任务抽屉 -->
+    <el-drawer
+      v-model="dayDrawerVisible"
+      :title="dayDrawerTitle"
+      direction="btt"
+      size="75%"
+      :with-header="true"
+    >
+      <div class="day-drawer">
+        <el-tabs v-model="activeDayStatus" stretch class="day-tabs">
+          <el-tab-pane name="assigned">
+            <template #label>
+              <span>待接受</span>
+              <span v-if="selectedDayStatusCount.assigned > 0" class="tab-count">
+                {{ selectedDayStatusCount.assigned }}
+              </span>
+            </template>
+          </el-tab-pane>
+          <el-tab-pane name="in_progress">
+            <template #label>
+              <span>待打扫</span>
+              <span v-if="selectedDayStatusCount.in_progress > 0" class="tab-count">
+                {{ selectedDayStatusCount.in_progress }}
+              </span>
+            </template>
+          </el-tab-pane>
+          <el-tab-pane name="pending">
+            <template #label>
+              <span>待分配</span>
+              <span v-if="selectedDayStatusCount.pending > 0" class="tab-count">
+                {{ selectedDayStatusCount.pending }}
+              </span>
+            </template>
+          </el-tab-pane>
+          <el-tab-pane name="completed">
+            <template #label>
+              <span>已完成</span>
+              <span v-if="selectedDayStatusCount.completed > 0" class="tab-count">
+                {{ selectedDayStatusCount.completed }}
+              </span>
+            </template>
+          </el-tab-pane>
+        </el-tabs>
+
+        <div class="day-task-list">
+          <el-empty v-if="filteredSelectedDayTasks.length === 0" description="暂无任务" />
+          <div v-else class="task-items">
+            <div
+              v-for="task in filteredSelectedDayTasks"
+              :key="task.id"
+              class="day-task-item"
+              @click="openTask(task)"
+            >
+              <div class="task-main">
+                <div class="task-room">房间 {{ task.roomNumber || '-' }}</div>
+                <div class="task-meta">{{ getTaskTypeLabel(task.taskType) }}</div>
+              </div>
+              <div class="task-action">查看</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
 
     <!-- 空状态 -->
     <div v-if="!loading && totalTasks === 0" class="empty-state-inline">
@@ -178,10 +234,14 @@ import {
   completeCleaningTask,
   type CleaningTaskDTO,
 } from '@/api/cleaning'
-import { useUserStore } from '@/stores/user'
+import {
+  clearCleanerSession,
+  readCleanerUser,
+  type CleanerSessionUser,
+} from '@/utils/cleanerSession'
 
 const router = useRouter()
-const userStore = useUserStore()
+const cleanerUser = ref<CleanerSessionUser | null>(readCleanerUser())
 
 const loading = ref(false)
 const selectedMonth = ref(new Date())
@@ -192,6 +252,11 @@ const totalTasks = ref(0)
 const taskDetailVisible = ref(false)
 const selectedTask = ref<CleaningTaskDTO | null>(null)
 const actionLoading = ref(false)
+
+type DayStatusKey = 'assigned' | 'in_progress' | 'pending' | 'completed'
+
+const dayDrawerVisible = ref(false)
+const activeDayStatus = ref<DayStatusKey>('assigned')
 
 const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
@@ -210,6 +275,50 @@ const statusCount = reactive<Record<string, number>>({
   in_progress: 0,
   completed: 0,
 })
+
+const dayDrawerTitle = computed(() => {
+  return selectedDate.value ? `${selectedDate.value} 任务` : '任务'
+})
+
+const selectedDayTasks = computed<CleaningTaskDTO[]>(() => {
+  if (!selectedDate.value) return []
+  return calendarDays.value.find((day) => day.date === selectedDate.value)?.tasks || []
+})
+
+const selectedDayStatusCount = computed<Record<DayStatusKey, number>>(() => {
+  const counts: Record<DayStatusKey, number> = {
+    assigned: 0,
+    in_progress: 0,
+    pending: 0,
+    completed: 0,
+  }
+  selectedDayTasks.value.forEach((task) => {
+    const status = task.status as DayStatusKey
+    if (status in counts) {
+      counts[status] += 1
+    }
+  })
+  return counts
+})
+
+const filteredSelectedDayTasks = computed<CleaningTaskDTO[]>(() => {
+  return selectedDayTasks.value.filter((task) => task.status === activeDayStatus.value)
+})
+
+const pickDefaultStatus = (tasks: CleaningTaskDTO[]): DayStatusKey => {
+  const order: DayStatusKey[] = ['assigned', 'in_progress', 'pending', 'completed']
+  const statusSet = new Set(tasks.map((task) => task.status))
+  return order.find((status) => statusSet.has(status)) || 'assigned'
+}
+
+const hasStatus = (day: CalendarDay, status: DayStatusKey): boolean => {
+  return (day.tasks || []).some((task) => task.status === status)
+}
+
+const hasAnyDot = (day: CalendarDay): boolean => {
+  const statuses: DayStatusKey[] = ['assigned', 'in_progress', 'pending', 'completed']
+  return statuses.some((status) => hasStatus(day, status))
+}
 
 // 生成日历数据
 const generateCalendar = (year: number, month: number) => {
@@ -274,7 +383,7 @@ const loadCalendarData = async () => {
 
   try {
     loading.value = true
-    const cleanerId = userStore.currentUser?.id
+    const cleanerId = cleanerUser.value?.id
     const response = await getCalendarViewData({
       startDate,
       endDate,
@@ -317,18 +426,27 @@ const handleMonthChange = () => {
   const year = selectedMonth.value.getFullYear()
   const month = selectedMonth.value.getMonth()
   generateCalendar(year, month)
+  selectedDate.value = ''
+  dayDrawerVisible.value = false
   loadCalendarData()
 }
 
 const handleDateClick = (day: CalendarDay) => {
   if (!day.isCurrentMonth) return
   selectedDate.value = day.date
+  activeDayStatus.value = pickDefaultStatus(day.tasks || [])
+  dayDrawerVisible.value = true
 }
 
 const handleTaskClick = (task: CleaningTaskDTO) => {
   // 显示任务详情弹窗
   selectedTask.value = task
   taskDetailVisible.value = true
+}
+
+const openTask = (task: CleaningTaskDTO) => {
+  dayDrawerVisible.value = false
+  handleTaskClick(task)
 }
 
 // 获取任务类型标签
@@ -434,7 +552,7 @@ const handleComplete = async () => {
 
     actionLoading.value = true
     // 完成任务需要approverId，这里使用当前用户ID
-    const approverId = userStore.currentUser?.id || 0
+    const approverId = cleanerUser.value?.id || 0
     const response = await completeCleaningTask(selectedTask.value.id, approverId)
 
     if (response.success) {
@@ -457,13 +575,18 @@ const handleComplete = async () => {
 
 const handleCommand = (command: string) => {
   if (command === 'logout') {
-    userStore.logout()
+    clearCleanerSession()
     router.push('/cleaner/login')
     ElMessage.success('已退出登录')
   }
 }
 
 onMounted(() => {
+  cleanerUser.value = readCleanerUser()
+  if (!cleanerUser.value) {
+    router.push('/cleaner/login')
+    return
+  }
   const year = selectedMonth.value.getFullYear()
   const month = selectedMonth.value.getMonth()
   generateCalendar(year, month)
@@ -592,6 +715,114 @@ onMounted(() => {
   font-weight: 600;
   color: #303133;
   margin-bottom: 4px;
+}
+
+.day-dots {
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding-bottom: 2px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.dot-assigned {
+  background: #f56c6c;
+}
+
+.dot-in-progress {
+  background: #e6a23c;
+}
+
+.dot-pending {
+  background: #409eff;
+}
+
+.dot-completed {
+  background: #67c23a;
+}
+
+.day-drawer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.day-tabs {
+  margin-bottom: 8px;
+}
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #fff;
+  background: #409eff;
+}
+
+.day-task-list {
+  flex: 1;
+  overflow: auto;
+}
+
+.task-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 8px;
+}
+
+.day-task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid #e4e7ed;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.day-task-item:active {
+  transform: scale(0.99);
+}
+
+.task-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.task-room {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.task-meta {
+  font-size: 12px;
+  color: #909399;
+}
+
+.task-action {
+  font-size: 12px;
+  color: #409eff;
+  flex: 0 0 auto;
+  margin-left: 10px;
 }
 
 .task-indicator {
@@ -760,5 +991,60 @@ onMounted(() => {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid #eee;
+}
+
+@media (max-width: 480px) {
+  .top-bar {
+    padding: 12px 14px;
+  }
+
+  .month-selector {
+    padding: 12px 14px;
+    margin: 10px 12px;
+  }
+
+  .calendar-container {
+    margin: 0 12px 12px;
+    padding: 12px;
+  }
+
+  .weekday-header {
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .weekday-cell {
+    font-size: 12px;
+    padding: 8px 0;
+  }
+
+  .calendar-grid {
+    gap: 4px;
+  }
+
+  .day-cell {
+    padding: 4px;
+    border-radius: 6px;
+  }
+
+  .day-number {
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+
+  .day-dots {
+    gap: 5px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .status-bar {
+    margin: 0 12px 12px;
+    padding: 12px;
+    gap: 8px;
+  }
 }
 </style>

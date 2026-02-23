@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 
 public class PublicRegistrationBookingRoomDTO {
     private String orderNumber;
+    private String storeName;
     private String roomTypeName;
     private String roomNumber;
     private LocalDate checkInDate;
@@ -23,6 +24,14 @@ public class PublicRegistrationBookingRoomDTO {
 
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
+    }
+
+    public String getStoreName() {
+        return storeName;
+    }
+
+    public void setStoreName(String storeName) {
+        this.storeName = storeName;
     }
 
     public String getRoomTypeName() {

@@ -522,21 +522,24 @@ const router = createRouter({
 
 // 路由守卫：检查登录状态
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token')
-  const userStr = localStorage.getItem('user')
+  const isCleanerRoute = to.path.startsWith('/cleaner')
+  const pmsToken = localStorage.getItem('token')
+  const cleanerToken = localStorage.getItem('cleanerToken')
+  const cleanerUserStr = localStorage.getItem('cleanerUser')
   const currentStoreStr = localStorage.getItem('currentStore')
-  let isCleaner = false
   let hasCurrentStore = false
+  let hasCleanerSession = false
 
-  // 尝试从localStorage获取用户信息
-  if (userStr) {
+  if (cleanerToken && cleanerUserStr) {
     try {
-      const user = JSON.parse(userStr)
-      isCleaner = user.isCleaner === true
+      const cleanerUser = JSON.parse(cleanerUserStr)
+      hasCleanerSession = cleanerUser?.isCleaner === true
     } catch {
-      // 解析失败,忽略
+      // 解析失败，忽略
     }
   }
+
+  const activeToken = isCleanerRoute ? cleanerToken : pmsToken
 
   // 检查是否有当前选中的门店
   if (currentStoreStr) {
@@ -548,44 +551,26 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  // 如果路由需要认证但没有token，重定向到对应的登录页
-  if (to.meta.requiresAuth && !token) {
-    // 根据访问的路径决定重定向到哪个登录页
-    if (to.path.startsWith('/cleaner')) {
-      next('/cleaner/login')
-    } else {
-      next('/login')
-    }
+  // 如果路由需要认证但没有对应端的token，重定向到对应登录页
+  if (to.meta.requiresAuth && !activeToken) {
+    next(isCleanerRoute ? '/cleaner/login' : '/login')
     return
   }
 
-  // 如果已登录访问管理员登录/注册页，重定向到管理后台
-  if ((to.path === '/login' || to.path === '/register') && token) {
+  if (isCleanerRoute && to.meta.requiresAuth && !hasCleanerSession) {
+    next('/cleaner/login')
+    return
+  }
+
+  // PMS已登录访问管理员登录/注册页，重定向到管理后台
+  if ((to.path === '/login' || to.path === '/register') && pmsToken) {
     next('/')
     return
   }
 
-  // 如果已登录访问保洁员登录页，重定向到保洁员工作台
-  if (to.path === '/cleaner/login' && token) {
+  // 保洁员已登录访问保洁员登录页，重定向到保洁员工作台
+  if (to.path === '/cleaner/login' && cleanerToken && hasCleanerSession) {
     next('/cleaner/dashboard')
-    return
-  }
-
-  // 保洁员访问控制 - 保洁员只能访问 /cleaner 路径
-  if (token && isCleaner && !to.path.startsWith('/cleaner')) {
-    next('/cleaner/dashboard')
-    return
-  }
-
-  // 管理员访问控制 - 管理员不能访问保洁员路径 (除了登录页和注册页)
-  if (
-    token &&
-    !isCleaner &&
-    to.path.startsWith('/cleaner') &&
-    to.path !== '/cleaner/login' &&
-    to.path !== '/cleaner/register'
-  ) {
-    next('/')
     return
   }
 
@@ -603,7 +588,7 @@ router.beforeEach((to, from, next) => {
     (path) => to.path === path || to.path.startsWith(path)
   )
 
-  if (token && !isCleaner && to.meta.requiresAuth && !isStoreRelatedPath && !hasCurrentStore) {
+  if (pmsToken && !isCleanerRoute && to.meta.requiresAuth && !isStoreRelatedPath && !hasCurrentStore) {
     // 已登录且不是保洁员,访问需要认证的页面,但没有选择门店
     // 重定向到门店选择页面
     next('/store/selection')

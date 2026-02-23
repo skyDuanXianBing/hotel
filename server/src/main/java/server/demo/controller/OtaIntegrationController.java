@@ -106,10 +106,11 @@ public class OtaIntegrationController {
     @GetMapping("/{id}/su-widget-token")
     public ApiResponse<WidgetTokenResponse> getSuWidgetToken(
             @PathVariable Long id,
-            @RequestParam(name = "syncContent", defaultValue = "false") boolean syncContent
+            @RequestParam(name = "syncContent", defaultValue = "false") boolean syncContent,
+            @RequestParam(name = "language", required = false) String language
     ) {
         try {
-            WidgetTokenResponse response = otaIntegrationService.generateSuWidgetToken(id, syncContent);
+            WidgetTokenResponse response = otaIntegrationService.generateSuWidgetToken(id, syncContent, language);
             return ApiResponse.success("获取Widget Token成功", response);
         } catch (RuntimeException e) {
             return ApiResponse.error("获取Widget Token失败：" + e.getMessage());

@@ -87,7 +87,7 @@
               <div class="permission-checkboxes">
                 <el-checkbox v-model="permissions.viewRoomStatus" label="查看房态" :disabled="!isEditing" />
                 <el-checkbox v-model="permissions.editRoomStatus" label="修改房态" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.viewRoomOperationLog" label="查看房态操作日志（暂未接入）" :disabled="true" />
+                <!-- <el-checkbox v-model="permissions.viewRoomOperationLog" label="查看房态操作日志（暂未接入）" :disabled="true" /> -->
                 <el-checkbox v-model="permissions.viewRoomInfo" label="查看房情表" :disabled="!isEditing" />
               </div>
             </div>
@@ -133,7 +133,7 @@
             <div class="permission-section">
               <div class="permission-checkboxes">
                 <el-checkbox v-model="permissions.viewStats" label="查看统计数据" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.exportStats" label="导出报表（暂未接入）" :disabled="true" />
+                <!-- <el-checkbox v-model="permissions.exportStats" label="导出报表（暂未接入）" :disabled="true" /> -->
               </div>
             </div>
           </el-tab-pane>
@@ -143,7 +143,7 @@
               <div class="permission-checkboxes">
                 <el-checkbox v-model="permissions.modifyStoreSettings" label="修改门店设置" :disabled="!isEditing" />
                 <el-checkbox v-model="permissions.manageEmployeeAccounts" label="管理员工账号" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.managePaymentMethods" label="管理支付方式（暂未接入）" :disabled="true" />
+                <!-- <el-checkbox v-model="permissions.managePaymentMethods" label="管理支付方式（暂未接入）" :disabled="true" /> -->
               </div>
             </div>
           </el-tab-pane>

@@ -1,12 +1,29 @@
 <template>
   <div class="page">
     <div class="header">
-      <div class="title">Guest Registration / 宿泊者名簿 / 入住登记 / 투숙자 등록</div>
-      <div v-if="loading" class="sub">Loading...</div>
+      <div class="header-top">
+        <div class="title">{{ t('guestRegistration') }}</div>
+        <el-dropdown @command="changeLanguage" trigger="click">
+          <el-button size="small">
+            <el-icon><Setting /></el-icon>
+            <span class="lang-btn-text">{{ t('changeLanguage') }}</span>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="en" :disabled="selectedLang === 'en'">English</el-dropdown-item>
+              <el-dropdown-item command="ja" :disabled="selectedLang === 'ja'">日本語</el-dropdown-item>
+              <el-dropdown-item command="zh" :disabled="selectedLang === 'zh'">中文</el-dropdown-item>
+              <el-dropdown-item command="ko" :disabled="selectedLang === 'ko'">한국어</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+      <div v-if="loading" class="sub">{{ t('loading') }}</div>
       <div v-else class="sub">
-        <div>Order: {{ data?.orderNumber }}</div>
-        <div>Stay: {{ data?.checkInDate }} ~ {{ data?.checkOutDate }}</div>
-        <div>Status: {{ data?.status }}</div>
+        <div>{{ t('bookingNumber') }}: {{ data?.orderNumber }}</div>
+        <div>{{ t('stay') }}: {{ data?.checkInDate }} ~ {{ data?.checkOutDate }}</div>
+        <div v-if="data?.lastSavedAt" class="last-saved">{{ t('lastSaved') }}: {{ formatLastSaved(data.lastSavedAt) }}</div>
+        <div>{{ t('status') }}: {{ statusLabel(data?.status || '') }}</div>
       </div>
     </div>
 
@@ -22,88 +39,47 @@
     <div v-if="error" class="error">{{ error }}</div>
 
     <div v-if="data" class="content">
-      <!-- Step 0: Reservation -->
-      <div v-show="step === 0" class="card">
-        <div class="card-title">Reservation Information / 予約情報 / 预订信息 / 예약 정보</div>
-        <div class="grid">
-          <div class="kv"><div class="k">Guest</div><div class="v">{{ data.guestName }}</div></div>
-          <div class="kv"><div class="k">Stay</div><div class="v">{{ data.checkInDate }} ~ {{ data.checkOutDate }}</div></div>
-          <div class="kv"><div class="k">Max guests</div><div class="v">{{ data.maxGuests }}</div></div>
-          <div class="kv"><div class="k">Last saved</div><div class="v">{{ data.lastSavedAt || '-' }}</div></div>
-        </div>
-
-        <div class="form">
-          <el-form label-position="top">
-            <el-form-item>
-              <template #label>
-                <div class="mlabel">Number of guests / 宿泊人数 / 入住人数 / 숙박 인원 <span class="req">*</span></div>
-              </template>
-              <el-select v-model="guestCount" style="width: 220px" @change="onGuestCountChange">
-                <el-option v-for="n in guestCountOptions" :key="n" :label="String(n)" :value="n" />
-              </el-select>
-            </el-form-item>
-          </el-form>
-        </div>
-
-        <div class="actions">
-          <el-button type="primary" :disabled="model.guests.length === 0" @click="goNext">Next</el-button>
-        </div>
-      </div>
-
       <!-- Guest steps -->
+
       <div v-show="isGuestStep" class="card">
         <div class="card-title">
-          Guest {{ activeGuestIndex + 1 }} / 宿泊者{{ activeGuestIndex + 1 }} / 入住人{{ activeGuestIndex + 1 }} /
-          투숙자{{ activeGuestIndex + 1 }}
+          {{ t('guest') }} {{ activeGuestIndex + 1 }}
         </div>
 
         <div class="grid small-grid">
-          <div class="kv"><div class="k">Check-in</div><div class="v">{{ data.checkInDate }}</div></div>
-          <div class="kv"><div class="k">Check-out</div><div class="v">{{ data.checkOutDate }}</div></div>
+          <div class="kv"><div class="k">{{ t('checkIn') }}</div><div class="v">{{ data.checkInDate }}</div></div>
+          <div class="kv"><div class="k">{{ t('checkOut') }}</div><div class="v">{{ data.checkOutDate }}</div></div>
         </div>
 
         <el-form label-position="top" class="form">
           <template v-if="activeGuest">
-            <div class="mlabel">Residence / 居住地 / 居住地 / 거주지 <span class="req">*</span></div>
+            <div class="mlabel">{{ t('residence') }} <span class="req">*</span></div>
             <el-radio-group v-model="activeGuest.residenceType" size="small">
-              <el-radio-button label="JAPAN">Japan / 日本</el-radio-button>
-              <el-radio-button label="OTHER">Other than Japan / 海外</el-radio-button>
+              <el-radio-button label="JAPAN">{{ t('japan') }}</el-radio-button>
+              <el-radio-button label="OTHER">{{ t('otherThanJapan') }}</el-radio-button>
             </el-radio-group>
 
             <div class="row">
               <el-form-item>
                 <template #label>
-                  <div class="mlabel">First Name / 名 / 名 / 이름 <span class="req">*</span></div>
+                  <div class="mlabel">{{ t('firstName') }} <span class="req">*</span></div>
                 </template>
-                <el-input v-model="activeGuest.firstName" placeholder="First Name" />
+                <el-input v-model="activeGuest.firstName" :placeholder="t('firstName')" />
               </el-form-item>
               <el-form-item>
                 <template #label>
-                  <div class="mlabel">Last Name / 姓 / 姓 / 성 <span class="req">*</span></div>
+                  <div class="mlabel">{{ t('lastName') }} <span class="req">*</span></div>
                 </template>
-                <el-input v-model="activeGuest.lastName" placeholder="Last Name" />
+                <el-input v-model="activeGuest.lastName" :placeholder="t('lastName')" />
               </el-form-item>
             </div>
 
             <!-- Japan fields -->
             <template v-if="activeGuest.residenceType === 'JAPAN'">
-              <el-form-item>
-                <template #label>
-                  <div class="mlabel">Home Address / 住所 / 住址 / 주소 <span class="req">*</span></div>
-                </template>
-                <el-input v-model="activeGuest.address" type="textarea" :rows="3" placeholder="Address line" />
-              </el-form-item>
-
               <div class="row">
                 <el-form-item>
                   <template #label>
-                    <div class="mlabel">Phone number / 電話番号 / 电话号码 / 전화번호 <span class="req">*</span></div>
-                  </template>
-                  <el-input v-model="activeGuest.phone" placeholder="Phone number" />
-                </el-form-item>
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Date of Birth / 生年月日 / 出生日期 / 생년월일 <span class="req">*</span></div>
+                    <div class="mlabel">{{ t('birthday') }} <span class="req">*</span></div>
                   </template>
                   <el-date-picker
                     v-model="activeGuest.birthday"
@@ -113,158 +89,179 @@
                     style="width: 100%"
                   />
                 </el-form-item>
+                <el-form-item>
+                  <template #label>
+                    <div class="mlabel">{{ t('phone') }} <span class="req">*</span></div>
+                  </template>
+                  <el-input v-model="activeGuest.phone" :placeholder="t('phone')" />
+                </el-form-item>
               </div>
+
+              <el-form-item>
+                <template #label>
+                  <div class="mlabel">{{ t('address') }} <span class="req">*</span></div>
+                </template>
+                <el-input v-model="activeGuest.address" type="textarea" :rows="3" :placeholder="t('address')" />
+              </el-form-item>
             </template>
 
             <!-- Overseas fields -->
             <template v-else>
+              <!-- Birthday + Phone -->
+              <div class="row">
+                <el-form-item>
+                  <template #label>
+                    <div class="mlabel">{{ t('birthday') }} <span class="req">*</span></div>
+                  </template>
+                  <el-date-picker
+                    v-model="activeGuest.birthday"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    placeholder="YYYY-MM-DD"
+                    style="width: 100%"
+                  />
+                </el-form-item>
+                <el-form-item>
+                  <template #label>
+                    <div class="mlabel">{{ t('phone') }} <span class="req">*</span></div>
+                  </template>
+                  <el-input v-model="activeGuest.phone" :placeholder="t('phone')" />
+                </el-form-item>
+              </div>
+
+              <!-- Address1 (full width) -->
+              <el-form-item>
+                <template #label>
+                  <div class="mlabel">{{ t('address1') }} <span class="req">*</span></div>
+                </template>
+                <el-input v-model="activeGuest.address1" :placeholder="t('address1')" />
+              </el-form-item>
+
+              <!-- Address2 (full width) -->
+              <el-form-item>
+                <template #label>
+                  <div class="mlabel">{{ t('address2') }}</div>
+                </template>
+                <el-input v-model="activeGuest.address2" :placeholder="t('address2Optional')" />
+              </el-form-item>
+
+              <!-- City + State -->
+              <div class="row">
+                <el-form-item>
+                  <template #label>
+                    <div class="mlabel">{{ t('city') }} <span class="req">*</span></div>
+                  </template>
+                  <el-input v-model="activeGuest.city" :placeholder="t('city')" />
+                </el-form-item>
+                <el-form-item>
+                  <template #label>
+                    <div class="mlabel">{{ t('state') }}</div>
+                  </template>
+                  <el-input v-model="activeGuest.state" :placeholder="t('stateOptional')" />
+                </el-form-item>
+              </div>
+
+              <!-- Country (full width) -->
+              <el-form-item>
+                <template #label>
+                  <div class="mlabel">{{ t('country') }} <span class="req">*</span></div>
+                </template>
+                <el-input v-model="activeGuest.country" :placeholder="t('country')" />
+              </el-form-item>
+
+              <!-- Previous location (full width) -->
+              <el-form-item>
+                <template #label>
+                  <div class="mlabel">{{ t('priorStay') }}</div>
+                </template>
+                <el-input v-model="activeGuest.priorStay" :placeholder="t('optional')" />
+              </el-form-item>
+
+              <!-- Next destination (full width) -->
+              <el-form-item>
+                <template #label>
+                  <div class="mlabel">{{ t('nextDestination') }}</div>
+                </template>
+                <el-input v-model="activeGuest.nextDestination" :placeholder="t('optional')" />
+              </el-form-item>
+
+              <!-- Passport number (full width) -->
+              <!-- Passport number + Nationality -->
+              <div class="row">
+                <el-form-item>
+                  <template #label>
+                    <div class="mlabel">{{ t('passportNumber') }} <span class="req">*</span></div>
+                  </template>
+                  <el-input v-model="activeGuest.passportNumber" :placeholder="t('passportNumber')" />
+                </el-form-item>
+                <el-form-item>
+                  <template #label>
+                    <div class="mlabel">{{ t('nationality') }} <span class="req">*</span></div>
+                  </template>
+                  <el-input v-model="activeGuest.nationality" :placeholder="t('nationality')" />
+                </el-form-item>
+              </div>
+
+              <!-- Passport photo (full width) -->
               <div class="upload">
-                <div class="mlabel">Passport photo / 旅券写真 / 护照照片 / 여권사진 <span class="req">*</span></div>
+                <div class="mlabel">{{ t('passportPhoto') }} <span class="req">*</span></div>
                 <el-upload
                   :show-file-list="false"
                   :auto-upload="false"
                   accept="image/*"
                   :on-change="onPassportUploadChange.bind(null, activeGuest)"
                 >
-                  <el-button>Choose image</el-button>
+                  <el-button>{{ t('chooseImage') }}</el-button>
                 </el-upload>
                 <div class="upload-hint">
                   <span v-if="activeGuest.passportUploaded" class="ok">
-                    Uploaded{{ activeGuestPassportAttachment?.originalName ? `: ${activeGuestPassportAttachment.originalName}` : '' }}
+                    {{ t('uploaded') }}{{ activeGuestPassportAttachment?.originalName ? `: ${activeGuestPassportAttachment.originalName}` : '' }}
                   </span>
-                  <span v-else class="warn">Not uploaded yet</span>
-                </div>
-
-                <div v-if="activeGuestPassportAttachment" class="passport-preview">
-                  <img
-                    class="passport-thumb"
-                    :src="buildPassportAttachmentUrl(activeGuestPassportAttachment.id, true)"
-                    alt="passport"
-                    @click="openPassportPreview(activeGuestPassportAttachment)"
-                  />
-                  <div class="passport-actions">
-                    <el-button link type="primary" @click="openPassportPreview(activeGuestPassportAttachment)">预览</el-button>
-                    <el-button link @click="downloadPassport(activeGuestPassportAttachment)">下载</el-button>
-                    <span class="passport-tip">重新上传将覆盖原图片</span>
-                  </div>
+                  <span v-else class="warn">{{ t('notUploadedYet') }}</span>
                 </div>
               </div>
 
-              <div class="row">
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Passport number / 旅券番号 / 护照号 / 여권번호 <span class="req">*</span></div>
-                  </template>
-                  <el-input v-model="activeGuest.passportNumber" placeholder="Passport number" />
-                </el-form-item>
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Nationality / 国籍 / 国籍 / 국적 <span class="req">*</span></div>
-                  </template>
-                  <el-input v-model="activeGuest.nationality" placeholder="Nationality" />
-                </el-form-item>
-              </div>
-
-              <div class="row">
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Phone number / 電話番号 / 电话号码 / 전화번호 <span class="req">*</span></div>
-                  </template>
-                  <el-input v-model="activeGuest.phone" placeholder="Phone number" />
-                </el-form-item>
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Date of Birth / 生年月日 / 出生日期 / 생년월일 <span class="req">*</span></div>
-                  </template>
-                  <el-date-picker
-                    v-model="activeGuest.birthday"
-                    type="date"
-                    value-format="YYYY-MM-DD"
-                    placeholder="YYYY-MM-DD"
-                    style="width: 100%"
-                  />
-                </el-form-item>
-              </div>
-
-              <div class="row">
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Address1 / 住所1 / 地址1 / 주소1 <span class="req">*</span></div>
-                  </template>
-                  <el-input v-model="activeGuest.address1" placeholder="Address1" />
-                </el-form-item>
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Address2 / 住所2 / 地址2 / 주소2</div>
-                  </template>
-                  <el-input v-model="activeGuest.address2" placeholder="Address2 (Optional)" />
-                </el-form-item>
-              </div>
-
-              <div class="row">
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">City / 市区町村 / 城市 / 도시 <span class="req">*</span></div>
-                  </template>
-                  <el-input v-model="activeGuest.city" placeholder="City" />
-                </el-form-item>
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">State / 都道府県 / 州 / 주</div>
-                  </template>
-                  <el-input v-model="activeGuest.state" placeholder="State (Optional)" />
-                </el-form-item>
-              </div>
-
-              <div class="row">
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Country / 国 / 国家 / 국가 <span class="req">*</span></div>
-                  </template>
-                  <el-input v-model="activeGuest.country" placeholder="Country" />
-                </el-form-item>
-                <div />
-              </div>
-
-              <div class="row">
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Previous location / 前泊地 / 前泊地 / 전 숙박지</div>
-                  </template>
-                  <el-input v-model="activeGuest.priorStay" placeholder="Optional" />
-                </el-form-item>
-                <el-form-item>
-                  <template #label>
-                    <div class="mlabel">Next destination / 行先 / 行先 / 다음 목적지</div>
-                  </template>
-                  <el-input v-model="activeGuest.nextDestination" placeholder="Optional" />
-                </el-form-item>
+              <!-- Passport Image Preview (full width below) -->
+              <div v-if="activeGuestPassportAttachment" class="passport-preview">
+                <img 
+                  :src="buildPassportAttachmentUrl(activeGuestPassportAttachment.id, true)" 
+                  alt="Passport" 
+                  class="passport-preview-image"
+                />
               </div>
             </template>
           </template>
         </el-form>
 
         <div class="actions">
-          <el-button @click="goPrev">Back</el-button>
-          <el-button :loading="saving" @click="saveDraft">Save</el-button>
-          <el-button type="primary" @click="goNext">Next</el-button>
+          <el-button v-if="canGoBack" @click="goPrev">{{ t('back') }}</el-button>
+          <el-button type="primary" @click="goNext">{{ t('next') }}</el-button>
         </div>
       </div>
 
       <!-- Send -->
       <div v-show="isSendStep" class="card">
-        <div class="card-title">Confirm & Send / 確認 / 确认提交 / 제출</div>
+        <div class="card-title-row">
+          <div class="card-title">{{ t('confirmSend') }}</div>
+          <el-button @click="previewForm">{{ t('preview') }}</el-button>
+        </div>
         <div class="hint">
-          Overseas guests (Residence=Other) must upload passport photo and fill passport number.
+          {{ t('reviewNotice') }}
         </div>
         <div v-if="data?.status === 'SUBMITTED'" class="hint" style="margin-top: 8px; color: #67c23a">
-          已提交，等待审查。
+          {{ t('submittedAwaitingReview') }}
+        </div>
+        <div v-if="data?.status === 'APPROVED'" class="success-notice">
+          <div class="success-title">{{ t('approvedTitle') }}</div>
+          <div v-if="checkInGuideLink" class="checkin-guide">
+            <div class="guide-label">{{ t('checkInGuideLabel') }}</div>
+            <el-button type="primary" link @click="openCheckInGuide">{{ t('checkInGuide') }}</el-button>
+          </div>
         </div>
         <div class="actions">
-          <el-button @click="goPrev">Back</el-button>
-          <el-button :loading="saving" @click="saveDraft">Save</el-button>
-          <el-button type="success" :loading="submitting" :disabled="data?.status === 'SUBMITTED'" @click="submit">
-            Send
+          <el-button v-if="canGoBack" @click="goPrev">{{ t('back') }}</el-button>
+          <el-button type="success" :loading="submitting" :disabled="data?.status === 'SUBMITTED' || data?.status === 'APPROVED'" @click="submit">
+            {{ t('send') }}
           </el-button>
         </div>
       </div>
@@ -276,12 +273,31 @@
       <img v-if="passportPreviewUrl" class="passport-preview-img" :src="passportPreviewUrl" alt="passport" />
     </div>
   </el-dialog>
+
+  <el-dialog v-model="previewDialogVisible" :title="t('preview')" width="90%" class="preview-dialog" append-to-body destroy-on-close>
+    <div class="preview-content">
+      <div v-for="guest in previewData" :key="guest.guestIndex" class="preview-guest">
+        <div class="preview-guest-title">{{ t('guest') }} {{ guest.guestIndex }}</div>
+        <div class="preview-fields">
+          <div v-for="(field, idx) in guest.fields" :key="idx" class="preview-field">
+            <div class="preview-label">{{ field.label }}</div>
+            <div class="preview-value">{{ field.value }}</div>
+          </div>
+        </div>
+        <div v-if="guest.passportUrl" class="preview-passport">
+          <div class="preview-passport-title">{{ t('passportPhoto') }}</div>
+          <img :src="guest.passportUrl" alt="Passport" class="preview-passport-img" />
+        </div>
+      </div>
+    </div>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import type { UploadFile } from 'element-plus'
 import publicRequest from '@/utils/publicRequest'
 
@@ -343,6 +359,7 @@ type PublicRegistrationResponse = {
   maxGuests: number
   guestCount: number
   lastSavedAt?: string
+  checkInGuideLink?: string
   guests: Array<{
     id: number
     sortOrder: number
@@ -367,6 +384,225 @@ type PublicRegistrationResponse = {
 
 const route = useRoute()
 
+// Language support
+// Initialize from localStorage to avoid flicker, will be overridden by query param in onMounted if present
+const selectedLang = ref<string>(localStorage.getItem('registrationLang') || '')
+const checkInGuideLink = ref<string>('')
+
+type LangCode = 'en' | 'ja' | 'zh' | 'ko'
+
+const translations: Record<LangCode, Record<string, string>> = {
+  en: {
+    guestRegistration: 'Guest Registration',
+    loading: 'Loading...',
+    bookingNumber: 'Booking Number',
+    stay: 'Stay',
+    status: 'Status',
+    lastSaved: 'Last saved',
+    guest: 'Guest',
+    checkIn: 'Check-in',
+    checkOut: 'Check-out',
+    residence: 'Residence',
+    japan: 'Japan',
+    otherThanJapan: 'Other than Japan',
+    firstName: 'First Name',
+    lastName: 'Last Name',
+    birthday: 'Date of Birth',
+    phone: 'Phone number',
+    address: 'Home Address',
+    passportNumber: 'Passport number',
+    nationality: 'Nationality',
+    passportPhoto: 'Passport photo',
+    chooseImage: 'Choose image',
+    uploaded: 'Uploaded',
+    notUploadedYet: 'Not uploaded yet',
+    clickToView: 'Click to view full size',
+    address1: 'Address1',
+    address2: 'Address2',
+    address2Optional: 'Address2 (Optional)',
+    city: 'City',
+    state: 'State',
+    stateOptional: 'State (Optional)',
+    country: 'Country',
+    priorStay: 'Previous location',
+    nextDestination: 'Next destination',
+    optional: 'Optional',
+    back: 'Back',
+    next: 'Next',
+    confirmSend: 'Confirm & Send',
+    preview: 'Preview',
+    send: 'Send',
+    reviewNotice: 'After review, we will automatically send you the check-in guide.',
+    submittedAwaitingReview: 'Submitted, awaiting review.',
+    approvedTitle: 'Approved',
+    checkInGuideLabel: 'Here is the check-in guide:',
+    checkInGuide: 'View Check-in Guide',
+    draft: 'Draft',
+    submitted: 'Submitted',
+    approved: 'Approved',
+    rejected: 'Rejected',
+    changeLanguage: 'Language'
+  },
+  ja: {
+    guestRegistration: '宿泊者名簿',
+    loading: '読み込み中...',
+    bookingNumber: '予約番号',
+    stay: '宿泊期間',
+    status: '状態',
+    lastSaved: '最終保存',
+    guest: '宿泊者',
+    checkIn: 'チェックイン',
+    checkOut: 'チェックアウト',
+    residence: '居住地',
+    japan: '日本',
+    otherThanJapan: '海外',
+    firstName: '名',
+    lastName: '姓',
+    birthday: '生年月日',
+    phone: '電話番号',
+    address: '住所',
+    passportNumber: '旅券番号',
+    nationality: '国籍',
+    passportPhoto: '旅券写真',
+    chooseImage: '画像を選択',
+    uploaded: 'アップロード済み',
+    notUploadedYet: '未アップロード',
+    clickToView: 'クリックして拡大表示',
+    address1: '住所1',
+    address2: '住所2',
+    address2Optional: '住所2（任意）',
+    city: '市区町村',
+    state: '都道府県',
+    stateOptional: '都道府県（任意）',
+    country: '国',
+    priorStay: '前泊地',
+    nextDestination: '行先',
+    optional: '任意',
+    back: '戻る',
+    next: '次へ',
+    confirmSend: '確認して送信',
+    preview: 'プレビュー',
+    send: '送信',
+    reviewNotice: '審査後、自動的に入住指南をお送りします。',
+    submittedAwaitingReview: '提出済み、審査をお待ちください。',
+    approvedTitle: '承認済み',
+    checkInGuideLabel: '以下は入住指南です：',
+    checkInGuide: '入住指南を見る',
+    draft: '未提出',
+    submitted: '提出済み',
+    approved: '承認済み',
+    rejected: '要再提出',
+    changeLanguage: '言語'
+  },
+  zh: {
+    guestRegistration: '入住登记',
+    loading: '加载中...',
+    bookingNumber: '预订号',
+    stay: '入住期间',
+    status: '状态',
+    lastSaved: '最后保存',
+    guest: '入住人',
+    checkIn: '入住',
+    checkOut: '退房',
+    residence: '居住地',
+    japan: '日本',
+    otherThanJapan: '海外',
+    firstName: '名',
+    lastName: '姓',
+    birthday: '出生日期',
+    phone: '电话号码',
+    address: '住址',
+    passportNumber: '护照号',
+    nationality: '国籍',
+    passportPhoto: '护照照片',
+    chooseImage: '选择图片',
+    uploaded: '已上传',
+    notUploadedYet: '尚未上传',
+    clickToView: '点击查看大图',
+    address1: '地址1',
+    address2: '地址2',
+    address2Optional: '地址2（可选）',
+    city: '城市',
+    state: '州',
+    stateOptional: '州（可选）',
+    country: '国家',
+    priorStay: '前泊地',
+    nextDestination: '行先',
+    optional: '可选',
+    back: '返回',
+    next: '下一步',
+    confirmSend: '确认并发送',
+    preview: '预览',
+    send: '发送',
+    reviewNotice: '我们审查後会自動給您发入住指南。',
+    submittedAwaitingReview: '已提交，等待审查。',
+    approvedTitle: '已通过审查',
+    checkInGuideLabel: '下面是入住指南：',
+    checkInGuide: '查看入住指南',
+    draft: '未提交',
+    submitted: '已提交',
+    approved: '已通过',
+    rejected: '需重填',
+    changeLanguage: '语言'
+  },
+  ko: {
+    guestRegistration: '투숙자 등록',
+    loading: '로딩 중...',
+    bookingNumber: '예약 번호',
+    stay: '숙박 기간',
+    status: '상태',
+    lastSaved: '최종 저장',
+    guest: '투숙자',
+    checkIn: '체크인',
+    checkOut: '체크아웃',
+    residence: '거주지',
+    japan: '일본',
+    otherThanJapan: '해외',
+    firstName: '이름',
+    lastName: '성',
+    birthday: '생년월일',
+    phone: '전화번호',
+    address: '주소',
+    passportNumber: '여권번호',
+    nationality: '국적',
+    passportPhoto: '여권사진',
+    chooseImage: '이미지 선택',
+    uploaded: '업로드됨',
+    notUploadedYet: '미업로드',
+    clickToView: '클릭하여 크게 보기',
+    address1: '주소1',
+    address2: '주소2',
+    address2Optional: '주소2（선택）',
+    city: '도시',
+    state: '주',
+    stateOptional: '주（선택）',
+    country: '국가',
+    priorStay: '전 숙박지',
+    nextDestination: '다음 목적지',
+    optional: '선택',
+    back: '뒤로',
+    next: '다음',
+    confirmSend: '확인 및 전송',
+    preview: '미리보기',
+    send: '전송',
+    reviewNotice: '검토 후 자동으로 체크인 가이드를 보내드립니다.',
+    submittedAwaitingReview: '제출됨, 검토 대기 중.',
+    approvedTitle: '승인됨',
+    checkInGuideLabel: '아래는 체크인 가이드입니다:',
+    checkInGuide: '체크인 가이드 보기',
+    draft: '미제출',
+    submitted: '제출됨',
+    approved: '승인됨',
+    rejected: '재작성 필요',
+    changeLanguage: '언어'
+  }
+}
+
+const t = (key: string): string => {
+  const lang = selectedLang.value as LangCode
+  return translations[lang]?.[key] || key
+}
+
 const step = ref(0)
 const loading = ref(true)
 const saving = ref(false)
@@ -380,6 +616,13 @@ const guestCount = ref<number>(1)
 const passportPreviewVisible = ref(false)
 const passportPreviewUrl = ref('')
 const passportPreviewTitle = ref('Passport photo')
+
+const previewDialogVisible = ref(false)
+const previewData = ref<Array<{
+  guestIndex: number
+  fields: Array<{ label: string; value: string }>
+  passportUrl?: string
+}>>([])
 
 const stepsActive = computed(() => {
   const status = String(data.value?.status || '')
@@ -405,23 +648,94 @@ const guestCountOptions = computed<number[]>(() => {
 
 const stepItems = computed(() => {
   const guests = model.guests.length
-  const items: Array<{ title: string; description: string }> = [
-    { title: 'Reservation', description: 'Reservation Information / 予約情報 / 预订信息 / 예약 정보' },
-  ]
+  const items: Array<{ title: string; description: string }> = []
   for (let i = 0; i < guests; i++) {
     items.push({
-      title: `Guest${i + 1}`,
-      description: `Guest${i + 1} / 宿泊者${i + 1} / 入住人${i + 1} / 투숙자${i + 1}`,
+      title: `${t('guest')}${i + 1}`,
+      description: `${t('guest')} ${i + 1}`,
     })
   }
-  items.push({ title: 'Send', description: 'Send / 送信 / 发送 / 전송' })
+  items.push({ title: t('send'), description: t('confirmSend') })
   return items
 })
 
-const isGuestStep = computed(() => step.value >= 1 && step.value <= model.guests.length)
-const isSendStep = computed(() => step.value === model.guests.length + 1)
+const isGuestStep = computed(() => step.value >= 1 && step.value && step.value <= model.guests.length)
+const isSendStep = computed(() => step.value === model.guests.length + 1 || step.value > model.guests.length)
 const activeGuestIndex = computed(() => Math.max(0, step.value - 1))
 const activeGuest = computed(() => model.guests[activeGuestIndex.value] || null)
+const canGoBack = computed(() => {
+  return data.value?.status !== 'SUBMITTED' && data.value?.status !== 'APPROVED'
+})
+
+function formatLastSaved(dateStr: string): string {
+  if (!dateStr) return '-'
+  try {
+    const date = new Date(dateStr)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}`
+  } catch {
+    return dateStr
+  }
+}
+
+function statusLabel(status: string): string {
+  const statusKey = status.toLowerCase()
+  return t(statusKey)
+}
+
+function previewForm() {
+  // Prepare structured data for preview
+  previewData.value = model.guests.map((g, idx) => {
+    const fields: Array<{ label: string; value: string }> = []
+    fields.push({ label: t('firstName'), value: g.firstName || '-' })
+    fields.push({ label: t('lastName'), value: g.lastName || '-' })
+    fields.push({ label: t('residence'), value: g.residenceType === 'JAPAN' ? t('japan') : t('otherThanJapan') })
+    fields.push({ label: t('birthday'), value: g.birthday || '-' })
+    fields.push({ label: t('phone'), value: g.phone || '-' })
+    
+    if (g.residenceType === 'JAPAN') {
+      fields.push({ label: t('address'), value: g.address || '-' })
+    } else {
+      fields.push({ label: t('passportNumber'), value: g.passportNumber || '-' })
+      fields.push({ label: t('nationality'), value: g.nationality || '-' })
+      fields.push({ label: t('address1'), value: g.address1 || '-' })
+      fields.push({ label: t('address2'), value: g.address2 || '-' })
+      fields.push({ label: t('city'), value: g.city || '-' })
+      fields.push({ label: t('state'), value: g.state || '-' })
+      fields.push({ label: t('country'), value: g.country || '-' })
+      fields.push({ label: t('priorStay'), value: g.priorStay || '-' })
+      fields.push({ label: t('nextDestination'), value: g.nextDestination || '-' })
+    }
+    
+    const guestItem: any = {
+      guestIndex: idx + 1,
+      fields
+    }
+    
+    // Add passport image URL if uploaded
+    if (g.residenceType !== 'JAPAN' && g.passportUploaded) {
+      const attachment = getPassportAttachment(g.id)
+      if (attachment) {
+        guestItem.passportUrl = buildPassportAttachmentUrl(attachment.id, true)
+      }
+    }
+    
+    return guestItem
+  })
+  
+  previewDialogVisible.value = true
+}
+
+function changeLanguage(lang: string) {
+  selectedLang.value = lang
+  localStorage.setItem('registrationLang', lang)
+}
+
+const isGuestStep_old = computed(() => step.value >= 0 && step.value <= model.guests.length)
 
 function isBlank(v?: string): boolean {
   return !v || String(v).trim().length === 0
@@ -442,29 +756,28 @@ function validateGuest(g: GuestModel): string[] {
   const errs: string[] = []
   const residence = g.residenceType || 'JAPAN'
 
-  if (isBlank(g.firstName)) errs.push('First Name is required / 名は必須です')
-  if (isBlank(g.lastName)) errs.push('Last Name is required / 姓は必須です')
-  if (isBlank(g.phone)) errs.push('Phone number is required / 電話番号は必須です')
-  if (isBlank(g.birthday)) errs.push('Date of Birth is required / 生年月日は必須です')
+  if (isBlank(g.firstName)) errs.push(t('firstName') + ' is required / は必須です')
+  if (isBlank(g.lastName)) errs.push(t('lastName') + ' is required / は必須です')
+  if (isBlank(g.phone)) errs.push(t('phone') + ' is required / は必須です')
+  if (isBlank(g.birthday)) errs.push(t('birthday') + ' is required / は必須です')
 
   if (residence === 'JAPAN') {
-    if (isBlank(g.address)) errs.push('Home Address is required / 住所は必須です')
+    if (isBlank(g.address)) errs.push(t('address') + ' is required / は必須です')
   } else {
-    if (!g.passportUploaded) errs.push('Passport photo is required / パスポート写真のアップロードが必要です')
-    if (isBlank(g.passportNumber)) errs.push('Passport number is required / 旅券番号は必須です')
-    if (isBlank(g.nationality)) errs.push('Nationality is required / 国籍は必須です')
-    if (isBlank(g.address1)) errs.push('Address1 is required / 住所1は必須です')
-    if (isBlank(g.city)) errs.push('City is required / 市区町村は必須です')
-    if (isBlank(g.country)) errs.push('Country is required / 国は必須です')
+    if (!g.passportUploaded) errs.push(t('passportPhoto') + ' is required / は必須です')
+    if (isBlank(g.passportNumber)) errs.push(t('passportNumber') + ' is required / は必須です')
+    if (isBlank(g.nationality)) errs.push(t('nationality') + ' is required / は必須です')
+    if (isBlank(g.address1)) errs.push(t('address1') + ' is required / は必須です')
+    if (isBlank(g.city)) errs.push(t('city') + ' is required / は必須です')
+    if (isBlank(g.country)) errs.push(t('country') + ' is required / は必須です')
   }
 
   return errs
 }
 
 function validateCurrentStep(): string[] {
-  if (step.value === 0) return validateReservationStep()
   if (isGuestStep.value) {
-    if (!activeGuest.value) return ['Guest not found / 宿泊者が見つかりません']
+    if (!activeGuest.value) return [t('guestNotFound') || 'Guest not found']
     return validateGuest(activeGuest.value)
   }
   return []
@@ -516,6 +829,7 @@ function downloadPassport(att: AttachmentDTO) {
 
 function hydrate(resp: PublicRegistrationResponse) {
   data.value = resp
+  checkInGuideLink.value = resp.checkInGuideLink || ''
   const attachments = resp.attachments || []
   model.guests = (resp.guests || []).map((g) => ({
     id: g.id,
@@ -539,6 +853,11 @@ function hydrate(resp: PublicRegistrationResponse) {
     passportUploaded: attachments.some((a) => a.type === 'PASSPORT' && a.guestId === g.id),
   }))
   guestCount.value = resp.guestCount || model.guests.length || 1
+
+  // Set initial step to 1 (first guest) instead of 0
+  if (step.value === 0) {
+    step.value = 1
+  }
 
   if (resp.status === 'SUBMITTED' || resp.status === 'APPROVED') {
     step.value = model.guests.length + 1
@@ -724,6 +1043,22 @@ async function submit() {
   }
 }
 
+function openCheckInGuide() {
+  const rawLink = (checkInGuideLink.value || '').trim()
+  if (!rawLink) {
+    return
+  }
+  let finalLink = rawLink
+  if (!/^https?:\/\//i.test(finalLink)) {
+    if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(finalLink)) {
+      ElMessage.warning('Invalid check-in guide link')
+      return
+    }
+    finalLink = `https://${finalLink}`
+  }
+  window.open(finalLink, '_blank', 'noopener,noreferrer')
+}
+
 async function onGuestCountChange(next: number) {
   const current = model.guests.length || 0
   if (next === current) return
@@ -761,10 +1096,38 @@ function goNext() {
 }
 
 function goPrev() {
-  step.value = Math.max(step.value - 1, 0)
+  step.value = Math.max(step.value - 1, 1)
 }
 
-onMounted(load)
+onMounted(() => {
+  // Get language from query or localStorage
+  const langFromQuery = route.query.lang as string
+  const langFromStorage = localStorage.getItem('registrationLang')
+  
+  if (langFromQuery) {
+    // Query parameter takes priority
+    selectedLang.value = langFromQuery
+    localStorage.setItem('registrationLang', langFromQuery)
+  } else if (langFromStorage) {
+    // Use saved language preference
+    selectedLang.value = langFromStorage
+  } else {
+    // First time visit: auto-detect browser language
+    const browserLang = navigator.language.toLowerCase()
+    if (browserLang.startsWith('ja')) {
+      selectedLang.value = 'ja'
+    } else if (browserLang.startsWith('zh')) {
+      selectedLang.value = 'zh'
+    } else if (browserLang.startsWith('ko')) {
+      selectedLang.value = 'ko'
+    } else {
+      selectedLang.value = 'en'
+    }
+    localStorage.setItem('registrationLang', selectedLang.value)
+  }
+  
+  load()
+})
 </script>
 
 <style scoped>
@@ -775,6 +1138,16 @@ onMounted(load)
 }
 .header {
   margin-bottom: 12px;
+}
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.lang-btn-text {
+  margin-left: 4px;
+  font-size: 13px;
 }
 .title {
   font-weight: 700;
@@ -811,6 +1184,45 @@ onMounted(load)
   font-weight: 700;
   margin-bottom: 10px;
 }
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.success-notice {
+  background: #f0f9ff;
+  border: 1px solid #7dd3fc;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.success-title {
+  font-weight: 700;
+  color: #067647;
+  margin-bottom: 8px;
+}
+.checkin-guide {
+  margin-top: 8px;
+}
+.guide-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+.guide-link:hover {
+  background: #2563eb;
+}
+.last-saved {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -838,13 +1250,8 @@ onMounted(load)
 }
 .row {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
-}
-@media (min-width: 720px) {
-  .row {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 .mlabel {
   font-weight: 600;
@@ -864,8 +1271,16 @@ onMounted(load)
 .passport-preview {
   margin-top: 8px;
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
+}
+.passport-preview-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  border: 2px solid #e5e7eb;
+  object-fit: contain;
 }
 .passport-thumb {
   width: 140px;
@@ -904,5 +1319,129 @@ onMounted(load)
 .hint {
   color: #555;
   font-size: 12px;
+}
+
+/* Preview Dialog Styles */
+:deep(.preview-dialog) {
+  max-width: 800px;
+}
+
+:deep(.preview-dialog .el-dialog__body) {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.preview-guest {
+  background: #f6f7fb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.preview-guest-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #409eff;
+}
+
+.preview-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-field {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.preview-label {
+  font-weight: 600;
+  color: #606266;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.preview-value {
+  color: #303133;
+  flex: 1;
+  word-break: break-word;
+}
+
+.preview-passport {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #dcdfe6;
+}
+
+.preview-passport-title {
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.preview-passport-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  display: block;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .lang-btn-text {
+    display: none;
+  }
+
+  :deep(.preview-dialog) {
+    width: 95% !important;
+  }
+
+  :deep(.preview-dialog .el-dialog__body) {
+    padding: 12px;
+  }
+
+  .preview-guest {
+    padding: 12px;
+  }
+
+  .preview-guest-title {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .preview-field {
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 0;
+  }
+
+  .preview-label {
+    min-width: auto;
+    font-size: 13px;
+  }
+
+  .preview-value {
+    font-size: 14px;
+    padding-left: 0;
+  }
+
+  .preview-passport-img {
+    max-width: 100%;
+  }
 }
 </style>

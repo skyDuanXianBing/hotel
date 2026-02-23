@@ -27,9 +27,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/api/v1/auth/login/password",
                         "/api/v1/auth/login/code",
+                        "/api/v1/auth/cleaner/login/password",
                         "/api/v1/auth/register",
                         "/api/v1/auth/send-code",
                         "/api/v1/auth/reset-password",
+                        "/api/v1/cleaner-invitations/validate/**",
+                        "/api/v1/cleaner-invitations/register",
                         "/api/v1/pricelabs/webhook/**",
                         "/api/v1/su/webhook/**",
                         "/api/v1/health"

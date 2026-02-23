@@ -24,6 +24,7 @@ public class CreateRoomTypeRequest {
     private Integer maxGuests;
 
     private String description;
+    private String checkInGuideLink;
 
     private BigDecimal defaultPrice;
     private BigDecimal weekdayPrice;
@@ -91,6 +92,14 @@ public class CreateRoomTypeRequest {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getCheckInGuideLink() {
+        return checkInGuideLink;
+    }
+
+    public void setCheckInGuideLink(String checkInGuideLink) {
+        this.checkInGuideLink = checkInGuideLink;
     }
 
     public List<String> getRoomNumbers() {

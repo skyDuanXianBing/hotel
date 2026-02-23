@@ -139,8 +139,23 @@ export interface WidgetTokenResponse {
  */
 export const getSuWidgetToken = async (
   id: number,
+  options?: {
+    syncContent?: boolean
+    language?: 'zn' | 'en'
+  },
 ): Promise<ApiResponse<WidgetTokenResponse>> => {
-  return await request.get(`/ota-integrations/${id}/su-widget-token`)
+  const queryParams = new URLSearchParams()
+  if (options?.syncContent !== undefined) {
+    queryParams.append('syncContent', options.syncContent ? 'true' : 'false')
+  }
+  if (options?.language) {
+    queryParams.append('language', options.language)
+  }
+  const query = queryParams.toString()
+  const endpoint = query
+    ? `/ota-integrations/${id}/su-widget-token?${query}`
+    : `/ota-integrations/${id}/su-widget-token`
+  return await request.get(endpoint)
 }
 
 /**

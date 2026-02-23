@@ -346,6 +346,7 @@ public class PublicRegistrationService {
         resp.setMaxGuests(maxGuests);
         resp.setGuestCount(form.getGuestCount());
         resp.setLastSavedAt(form.getLastSavedAt());
+        resp.setCheckInGuideLink(resolveCheckInGuideLink(storeIdFrom(reservation), reservation));
 
         List<RegistrationGuest> guests = registrationGuestRepository.findByFormIdOrderBySortOrderAsc(form.getId());
         List<PublicRegistrationGuestDTO> guestDTOs = new ArrayList<>();
@@ -484,6 +485,48 @@ public class PublicRegistrationService {
             return null;
         }
         return Math.max(1, rt.get().getMaxGuests());
+    }
+
+    private String resolveCheckInGuideLink(Long storeId, Reservation reservation) {
+        if (reservation == null) {
+            return null;
+        }
+
+        Room assignedRoom = reservation.getRoom();
+        if (assignedRoom != null && assignedRoom.getRoomType() != null) {
+            String assignedLink = normalizeCheckInGuideLink(assignedRoom.getRoomType().getCheckInGuideLink());
+            if (assignedLink != null) {
+                return assignedLink;
+            }
+        }
+
+        Long roomTypeId = reservation.getOtaRoomTypeId();
+        if (roomTypeId == null) {
+            SuRoomIdParser.ParsedRoomId parsed = SuRoomIdParser.parse(reservation.getOtaRoomId());
+            roomTypeId = parsed != null ? parsed.roomTypeId() : null;
+        }
+        if (roomTypeId == null) {
+            return null;
+        }
+
+        Optional<RoomType> rt = roomTypeRepository.findById(roomTypeId)
+                .filter(x -> storeId != null && storeId.equals(x.getStoreId()));
+        if (rt.isEmpty()) {
+            return null;
+        }
+        return normalizeCheckInGuideLink(rt.get().getCheckInGuideLink());
+    }
+
+    private Long storeIdFrom(Reservation reservation) {
+        return reservation != null ? reservation.getStoreId() : null;
+    }
+
+    private String normalizeCheckInGuideLink(String link) {
+        if (link == null) {
+            return null;
+        }
+        String trimmed = link.trim();
+        return trimmed.isBlank() ? null : trimmed;
     }
 
     private int sumGuests(Reservation reservation) {
