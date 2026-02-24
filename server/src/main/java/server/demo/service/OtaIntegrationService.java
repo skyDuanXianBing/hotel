@@ -416,8 +416,37 @@ public class OtaIntegrationService {
                 .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
 
         String hotelId = resolveOrInitSuHotelId(storeId, integration);
-        List<Integer> otaCodes = resolveSuOtaCodes(integration);
-        return suAvailabilitySyncService.syncRoomAvailabilityForNextDays(storeId, hotelId, days, otaCodes);
+        int d = days != null ? days : 365;
+        if (d < 1) {
+            d = 1;
+        }
+        if (d > 500) {
+            d = 500;
+        }
+
+        java.time.LocalDate startDate = java.time.LocalDate.now();
+        java.time.LocalDate endDate = startDate.plusDays(d - 1L);
+        SuAriSyncService.SuAriSyncSummary summary = suAriSyncService.syncAriForDateRange(
+                storeId,
+                hotelId,
+                startDate,
+                endDate,
+                null,
+                null,
+                true,
+                false,
+                false,
+                false
+        );
+
+        return new SuAvailabilitySyncService.SuAvailabilitySyncSummary(
+                summary.roomCount(),
+                summary.days(),
+                summary.startDate(),
+                summary.endDate(),
+                summary.availabilityPushed(),
+                summary.error()
+        );
     }
 
     private static List<Integer> resolveSuOtaCodes(OtaIntegration integration) {

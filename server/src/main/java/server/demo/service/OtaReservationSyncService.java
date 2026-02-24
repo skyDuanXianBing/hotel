@@ -495,7 +495,8 @@ public class OtaReservationSyncService {
             }
             int roomStayCount = roomStays.size();
 
-            for (JsonNode roomStay : roomStays) {
+            for (int roomStayIndex = 0; roomStayIndex < roomStays.size(); roomStayIndex++) {
+                JsonNode roomStay = roomStays.get(roomStayIndex);
                 processedRoomStays++;
                 try {
                     LocalDate checkIn = SuReservationParser.extractArrivalDate(reservationNode, roomStay);
@@ -505,7 +506,8 @@ public class OtaReservationSyncService {
                     }
 
                     String roomReservationId = roomStay != null ? SuReservationParser.extractRoomReservationId(roomStay) : null;
-                    String orderNumber = SuReservationParser.buildOrderNumber(store.getId(), reservationId, roomReservationId);
+                    String roomReservationIdentity = resolveRoomReservationIdentity(roomReservationId, roomStayIndex);
+                    String orderNumber = SuReservationParser.buildOrderNumber(store.getId(), reservationId, roomReservationIdentity);
 
                     reservationLogger.info(
                             "[ReservationUpsert] begin. storeId={}, hotelId={}, channel={}, reservationId={}, notifId={}, channelBookingId={}, suStatus={}, orderNumber={}, checkIn={}, checkOut={}, roomReservationId={}",
@@ -519,7 +521,7 @@ public class OtaReservationSyncService {
                             orderNumber,
                             checkIn,
                             checkOut,
-                            roomReservationId
+                            roomReservationIdentity
                     );
 
                     Channel channel = resolveChannel(store.getId(), channelCode)
@@ -563,7 +565,7 @@ public class OtaReservationSyncService {
                     reservation.setSuHotelId(suHotelId);
                     reservation.setSuReservationId(reservationId);
                     reservation.setReservationNotifId(notifId);
-                    reservation.setRoomReservationId(roomReservationId);
+                    reservation.setRoomReservationId(roomReservationIdentity);
                     reservation.setPaymentMethod(SuReservationParser.extractPaymentType(reservationNode));
                     reservation.setCurrencyCode(SuReservationParser.extractCurrencyCode(reservationNode));
                     reservation.setCommission(SuReservationParser.extractCommissionAmount(reservationNode));
@@ -894,6 +896,17 @@ public class OtaReservationSyncService {
             }
         }
         return parts.toString() + (nodes.size() > parts.size() ? ("(+ " + (nodes.size() - parts.size()) + " more)") : "");
+    }
+
+    static String resolveRoomReservationIdentity(String roomReservationId, int roomStayIndex) {
+        if (roomReservationId != null) {
+            String trimmed = roomReservationId.trim();
+            if (!trimmed.isBlank()) {
+                return trimmed;
+            }
+        }
+        int index = Math.max(0, roomStayIndex) + 1;
+        return "IDX" + index;
     }
 
     private static String combineSpecialRequests(String roomSpecialRequest, String customerRemarks) {

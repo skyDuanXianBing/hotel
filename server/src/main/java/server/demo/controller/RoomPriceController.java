@@ -125,21 +125,6 @@ public class RoomPriceController {
             @Valid @RequestBody UpdateRoomPriceRequest request) {
         try {
             List<RoomPriceDTO> updatedPrices = roomPriceService.updateRoomPrice(request);
-            if (suAriAutoSyncService != null) {
-                Long storeId = StoreContextHolder.getContext().getStoreId();
-                suAriAutoSyncService.enqueueForStoreScope(
-                        storeId,
-                        "room_price_update",
-                        request.getStartDate(),
-                        request.getEndDate(),
-                        Set.of(request.getRoomTypeId()),
-                        null,
-                        false,
-                        true,
-                        false,
-                        false
-                );
-            }
             return ResponseEntity.ok(ApiResponse.success("房价更新成功", updatedPrices));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400)
@@ -159,31 +144,6 @@ public class RoomPriceController {
             @Valid @RequestBody List<UpdateRoomPriceRequest> requests) {
         try {
             List<RoomPriceDTO> updatedPrices = roomPriceService.batchUpdateRoomPrices(requests);
-            if (suAriAutoSyncService != null) {
-                Long storeId = StoreContextHolder.getContext().getStoreId();
-                Set<Long> roomTypeIds = new java.util.HashSet<>();
-                List<SuAriAutoSyncService.DateRange> ranges = new java.util.ArrayList<>();
-                for (UpdateRoomPriceRequest r : requests) {
-                    if (r == null || r.getRoomTypeId() == null || r.getStartDate() == null || r.getEndDate() == null) {
-                        continue;
-                    }
-                    roomTypeIds.add(r.getRoomTypeId());
-                    ranges.add(new SuAriAutoSyncService.DateRange(r.getStartDate(), r.getEndDate()));
-                }
-                if (!roomTypeIds.isEmpty() && !ranges.isEmpty()) {
-                    suAriAutoSyncService.enqueueForStoreDateRanges(
-                            storeId,
-                            "room_price_batch_update",
-                            ranges,
-                            roomTypeIds,
-                            null,
-                            false,
-                            true,
-                            false,
-                            false
-                    );
-                }
-            }
             return ResponseEntity.ok(ApiResponse.success("批量房价更新成功", updatedPrices));
         } catch (Exception e) {
             return ResponseEntity.status(500)
@@ -240,70 +200,6 @@ public class RoomPriceController {
             @Valid @RequestBody BulkPriceChangeRequest request) {
         try {
             List<RoomPriceDTO> updatedPrices = roomPriceService.bulkPriceChange(request);
-            if (suAriAutoSyncService != null) {
-                Long storeId = StoreContextHolder.getContext().getStoreId();
-                Set<Long> roomTypeIds = new java.util.HashSet<>();
-                if (request.getRoomTypeIds() != null) {
-                    for (Long id : request.getRoomTypeIds()) {
-                        if (id != null) {
-                            roomTypeIds.add(id);
-                        }
-                    }
-                }
-
-                java.util.Set<Integer> weekdays = request.getWeekdays();
-                boolean allDays = weekdays == null || weekdays.isEmpty();
-                java.util.Set<LocalDate> affectedDates = new java.util.TreeSet<>();
-                if (request.getDateRanges() != null) {
-                    for (BulkPriceChangeRequest.DateRangeDTO dr : request.getDateRanges()) {
-                        if (dr == null || dr.getStartDate() == null || dr.getEndDate() == null) {
-                            continue;
-                        }
-                        LocalDate d = dr.getStartDate();
-                        while (!d.isAfter(dr.getEndDate())) {
-                            int dow = d.getDayOfWeek().getValue(); // 1..7
-                            int weekdayValue = (dow == 7) ? 0 : dow; // 0..6
-                            if (allDays || weekdays.contains(weekdayValue)) {
-                                affectedDates.add(d);
-                            }
-                            d = d.plusDays(1);
-                        }
-                    }
-                }
-
-                List<SuAriAutoSyncService.DateRange> ranges = new java.util.ArrayList<>();
-                LocalDate rangeStart = null;
-                LocalDate prev = null;
-                for (LocalDate d : affectedDates) {
-                    if (rangeStart == null) {
-                        rangeStart = d;
-                        prev = d;
-                    } else if (prev != null && d.equals(prev.plusDays(1))) {
-                        prev = d;
-                    } else {
-                        ranges.add(new SuAriAutoSyncService.DateRange(rangeStart, prev));
-                        rangeStart = d;
-                        prev = d;
-                    }
-                }
-                if (rangeStart != null && prev != null) {
-                    ranges.add(new SuAriAutoSyncService.DateRange(rangeStart, prev));
-                }
-
-                if (!roomTypeIds.isEmpty() && !ranges.isEmpty()) {
-                    suAriAutoSyncService.enqueueForStoreDateRanges(
-                            storeId,
-                            "room_price_bulk_change",
-                            ranges,
-                            roomTypeIds,
-                            null,
-                            false,
-                            true,
-                            false,
-                            false
-                    );
-                }
-            }
             return ResponseEntity.ok(ApiResponse.success(
                 "批量改价成功，共更新 " + updatedPrices.size() + " 条房价记录",
                 updatedPrices

@@ -152,8 +152,8 @@ public class SuAriAutoSyncService {
                 null,
                 null,
                 true,
-                true,
-                true,
+                false,
+                false,
                 false
         );
     }
@@ -175,6 +175,8 @@ public class SuAriAutoSyncService {
         LocalDateTime notBefore = now.plusSeconds(Math.max(0, debounceSeconds));
 
         List<DateRange> newRanges = mergeAndNormalizeRanges(dateRanges);
+        Set<Long> normalizedRoomTypeIds = normalizeIdSet(roomTypeIds);
+        Set<Long> normalizedRatePlanIds = normalizeIdSet(ratePlanIds);
 
         Optional<SuAriSyncEvent> existingOpt = eventRepository.findTopByStoreIdAndHotelIdAndStatusOrderByIdDesc(
                 storeId,
@@ -184,29 +186,37 @@ public class SuAriAutoSyncService {
 
         if (existingOpt.isPresent()) {
             SuAriSyncEvent existing = existingOpt.get();
-            existing.setCoalescedCount((existing.getCoalescedCount() != null ? existing.getCoalescedCount() : 0) + 1);
-            existing.setNotBeforeAt(notBefore);
-            existing.setSource(source);
+            Set<Long> existingRoomTypeIds = parseIdSet(existing.getRoomTypeIds());
+            Set<Long> existingRatePlanIds = parseIdSet(existing.getRatePlanIds());
+            boolean existingPushAvailability = !Boolean.FALSE.equals(existing.getPushAvailability());
+            boolean existingPushRates = !Boolean.FALSE.equals(existing.getPushRates());
+            boolean existingPushRestrictions = !Boolean.FALSE.equals(existing.getPushRestrictions());
+            boolean existingDeriveClosedFromBlockouts = Boolean.TRUE.equals(existing.getDeriveClosedFromBlockouts());
 
-            // merge scope
-            existing.setDateRanges(writeDateRanges(mergeAndNormalizeRanges(mergeRanges(parseDateRanges(existing.getDateRanges()), newRanges))));
-            existing.setRoomTypeIds(writeIdSet(mergeIdSet(parseIdSet(existing.getRoomTypeIds()), roomTypeIds)));
-            existing.setRatePlanIds(writeIdSet(mergeIdSet(parseIdSet(existing.getRatePlanIds()), ratePlanIds)));
-            existing.setPushAvailability(Boolean.TRUE.equals(existing.getPushAvailability()) || pushAvailability);
-            existing.setPushRates(Boolean.TRUE.equals(existing.getPushRates()) || pushRates);
-            existing.setPushRestrictions(Boolean.TRUE.equals(existing.getPushRestrictions()) || pushRestrictions);
-            existing.setDeriveClosedFromBlockouts(Boolean.TRUE.equals(existing.getDeriveClosedFromBlockouts()) || deriveClosedFromBlockouts);
-            existing = eventRepository.saveAndFlush(existing);
-            logger.info(
-                    "[SuAriAutoSync] queued(coalesced). eventId={}, storeId={}, hotelId={}, source={}, coalescedCount={}, notBeforeAt={}",
-                    existing.getId(),
-                    storeId,
-                    hotelId,
-                    source,
-                    existing.getCoalescedCount(),
-                    existing.getNotBeforeAt()
-            );
-            return;
+            boolean sameScope = sameIdScope(existingRoomTypeIds, normalizedRoomTypeIds)
+                    && sameIdScope(existingRatePlanIds, normalizedRatePlanIds)
+                    && existingPushAvailability == pushAvailability
+                    && existingPushRates == pushRates
+                    && existingPushRestrictions == pushRestrictions
+                    && existingDeriveClosedFromBlockouts == deriveClosedFromBlockouts;
+
+            if (sameScope) {
+                existing.setCoalescedCount((existing.getCoalescedCount() != null ? existing.getCoalescedCount() : 0) + 1);
+                existing.setNotBeforeAt(notBefore);
+                existing.setSource(source);
+                existing.setDateRanges(writeDateRanges(mergeAndNormalizeRanges(mergeRanges(parseDateRanges(existing.getDateRanges()), newRanges))));
+                existing = eventRepository.saveAndFlush(existing);
+                logger.info(
+                        "[SuAriAutoSync] queued(coalesced). eventId={}, storeId={}, hotelId={}, source={}, coalescedCount={}, notBeforeAt={}",
+                        existing.getId(),
+                        storeId,
+                        hotelId,
+                        source,
+                        existing.getCoalescedCount(),
+                        existing.getNotBeforeAt()
+                );
+                return;
+            }
         }
 
         SuAriSyncEvent e = new SuAriSyncEvent();
@@ -216,8 +226,8 @@ public class SuAriAutoSyncService {
         e.setSource(source);
         e.setNotBeforeAt(notBefore);
         e.setDateRanges(writeDateRanges(newRanges));
-        e.setRoomTypeIds(writeIdSet(normalizeIdSet(roomTypeIds)));
-        e.setRatePlanIds(writeIdSet(normalizeIdSet(ratePlanIds)));
+        e.setRoomTypeIds(writeIdSet(normalizedRoomTypeIds));
+        e.setRatePlanIds(writeIdSet(normalizedRatePlanIds));
         e.setPushAvailability(pushAvailability);
         e.setPushRates(pushRates);
         e.setPushRestrictions(pushRestrictions);
@@ -489,6 +499,15 @@ public class SuAriAutoSyncService {
             }
         }
         return out.isEmpty() ? null : out;
+    }
+
+    private static boolean sameIdScope(Set<Long> a, Set<Long> b) {
+        Set<Long> left = normalizeIdSet(a);
+        Set<Long> right = normalizeIdSet(b);
+        if (left == null && right == null) {
+            return true;
+        }
+        return Objects.equals(left, right);
     }
 
     private static Set<Long> mergeIdSet(Set<Long> a, Set<Long> b) {
