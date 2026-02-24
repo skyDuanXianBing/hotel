@@ -40,9 +40,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -50,6 +52,11 @@ import java.util.stream.Collectors;
 public class ReservationService {
 
     private static final Logger logger = LoggerFactory.getLogger(ReservationService.class);
+    private static final String SU_ARI_SOURCE_RESERVATION_CREATE = "reservation_create";
+    private static final String SU_ARI_SOURCE_RESERVATION_CHECK_IN = "reservation_check_in";
+    private static final String SU_ARI_SOURCE_RESERVATION_CHECK_OUT = "reservation_check_out";
+    private static final String SU_ARI_SOURCE_RESERVATION_CANCEL = "reservation_cancel";
+    private static final String SU_ARI_SOURCE_RESERVATION_UPDATE = "reservation_update";
 
     @Autowired
     private ReservationRepository reservationRepository;
@@ -77,6 +84,9 @@ public class ReservationService {
 
     @Autowired
     private OperationLogService operationLogService;
+
+    @Autowired(required = false)
+    private SuAriAutoSyncService suAriAutoSyncService;
 
     private Long currentStoreId() {
         return StoreContextUtils.requireStoreId();
@@ -164,6 +174,13 @@ public class ReservationService {
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         scheduleAutoMessageDispatchAfterCommit(storeId);
         schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
+        scheduleSuAvailabilitySyncForReservationAfterCommit(
+                storeId,
+                SU_ARI_SOURCE_RESERVATION_CREATE,
+                savedReservation.getRoom(),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         logCreateReservation(savedReservation);
         return convertToDTO(savedReservation);
     }
@@ -184,6 +201,13 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
+        scheduleSuAvailabilitySyncForReservationAfterCommit(
+                reservation.getStoreId(),
+                SU_ARI_SOURCE_RESERVATION_CHECK_IN,
+                savedReservation.getRoom(),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         operationLogService.logOperation(
                 savedReservation.getId(),
                 OperationType.ORDER,
@@ -211,6 +235,13 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
+        scheduleSuAvailabilitySyncForReservationAfterCommit(
+                reservation.getStoreId(),
+                SU_ARI_SOURCE_RESERVATION_CHECK_OUT,
+                savedReservation.getRoom(),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         operationLogService.logOperation(
                 savedReservation.getId(),
                 OperationType.ORDER,
@@ -238,6 +269,13 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
+        scheduleSuAvailabilitySyncForReservationAfterCommit(
+                reservation.getStoreId(),
+                SU_ARI_SOURCE_RESERVATION_CANCEL,
+                savedReservation.getRoom(),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         operationLogService.logOperation(
                 savedReservation.getId(),
                 OperationType.ORDER,
@@ -292,6 +330,152 @@ public class ReservationService {
                 }
             }
         });
+    }
+
+    private void scheduleSuAvailabilitySyncForReservationAfterCommit(
+            Long storeId,
+            String source,
+            Room room,
+            LocalDate checkInDate,
+            LocalDate checkOutDate
+    ) {
+        Long roomTypeId = resolveRoomTypeId(storeId, room);
+        SuAriAutoSyncService.DateRange range = toInventoryDateRange(checkInDate, checkOutDate);
+        if (range == null) {
+            return;
+        }
+        Set<Long> roomTypeIds = roomTypeId != null ? Set.of(roomTypeId) : null;
+        scheduleSuAvailabilitySyncAfterCommit(
+                storeId,
+                source,
+                List.of(range),
+                roomTypeIds
+        );
+    }
+
+    private void scheduleSuAvailabilitySyncForReservationChangeAfterCommit(
+            Long storeId,
+            String source,
+            Room oldRoom,
+            LocalDate oldCheckInDate,
+            LocalDate oldCheckOutDate,
+            Room newRoom,
+            LocalDate newCheckInDate,
+            LocalDate newCheckOutDate
+    ) {
+        Set<Long> roomTypeIds = new LinkedHashSet<>();
+        List<SuAriAutoSyncService.DateRange> ranges = new ArrayList<>();
+
+        Long oldRoomTypeId = resolveRoomTypeId(storeId, oldRoom);
+        SuAriAutoSyncService.DateRange oldRange = toInventoryDateRange(oldCheckInDate, oldCheckOutDate);
+        if (oldRoomTypeId != null && oldRange != null) {
+            roomTypeIds.add(oldRoomTypeId);
+            ranges.add(oldRange);
+        }
+
+        Long newRoomTypeId = resolveRoomTypeId(storeId, newRoom);
+        SuAriAutoSyncService.DateRange newRange = toInventoryDateRange(newCheckInDate, newCheckOutDate);
+        if (newRoomTypeId != null && newRange != null) {
+            roomTypeIds.add(newRoomTypeId);
+            ranges.add(newRange);
+        }
+
+        if (roomTypeIds.isEmpty()) {
+            if (oldRange != null) {
+                ranges.add(oldRange);
+            }
+            if (newRange != null) {
+                ranges.add(newRange);
+            }
+        }
+
+        if (ranges.isEmpty()) {
+            return;
+        }
+
+        scheduleSuAvailabilitySyncAfterCommit(storeId, source, ranges, roomTypeIds.isEmpty() ? null : roomTypeIds);
+    }
+
+    private void scheduleSuAvailabilitySyncAfterCommit(
+            Long storeId,
+            String source,
+            List<SuAriAutoSyncService.DateRange> ranges,
+            Set<Long> roomTypeIds
+    ) {
+        if (storeId == null || suAriAutoSyncService == null || ranges == null || ranges.isEmpty()) {
+            return;
+        }
+
+        Runnable enqueue = () -> {
+            try {
+                suAriAutoSyncService.enqueueForStoreDateRanges(
+                        storeId,
+                        source,
+                        ranges,
+                        roomTypeIds,
+                        null,
+                        true,
+                        false,
+                        false,
+                        false
+                );
+                logger.info(
+                        "[SuAriAutoSync] queued from reservation. storeId={}, source={}, ranges={}, roomTypeScope={}",
+                        storeId,
+                        source,
+                        ranges.size(),
+                        roomTypeIds == null || roomTypeIds.isEmpty() ? "ALL" : roomTypeIds
+                );
+            } catch (Exception e) {
+                logger.warn(
+                        "[SuAriAutoSync] enqueue availability failed. storeId={}, source={}, roomTypes={}, ranges={}, error={}",
+                        storeId,
+                        source,
+                        roomTypeIds,
+                        ranges,
+                        e.getMessage()
+                );
+            }
+        };
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            enqueue.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                enqueue.run();
+            }
+        });
+    }
+
+    private SuAriAutoSyncService.DateRange toInventoryDateRange(LocalDate checkInDate, LocalDate checkOutDate) {
+        if (checkInDate == null || checkOutDate == null) {
+            return null;
+        }
+        LocalDate endDate = checkOutDate.minusDays(1);
+        if (endDate.isBefore(checkInDate)) {
+            endDate = checkInDate;
+        }
+        return new SuAriAutoSyncService.DateRange(checkInDate, endDate);
+    }
+
+    private Long resolveRoomTypeId(Long storeId, Room room) {
+        if (room == null) {
+            return null;
+        }
+        if (room.getRoomType() != null && room.getRoomType().getId() != null) {
+            return room.getRoomType().getId();
+        }
+        if (storeId == null || room.getId() == null) {
+            return null;
+        }
+        return roomRepository.findByStoreIdAndIdWithRoomType(storeId, room.getId())
+                .map(Room::getRoomType)
+                .map(rt -> rt != null ? rt.getId() : null)
+                .orElse(null);
     }
 
     /**
@@ -445,6 +629,16 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(existingReservation);
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
+        scheduleSuAvailabilitySyncForReservationChangeAfterCommit(
+                storeId,
+                SU_ARI_SOURCE_RESERVATION_UPDATE,
+                oldRoom,
+                oldCheckIn,
+                oldCheckOut,
+                savedReservation.getRoom(),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         logUpdateReservation(savedReservation, oldRoom, room, oldChannel, channel, oldCheckIn, oldCheckOut, oldGuestName, oldGuestPhone, oldTotalAmount);
         return convertToDTO(savedReservation);
     }

@@ -24,6 +24,9 @@ public class RoomPriceManagementDTO {
     private Boolean ctd;
     private Boolean isWeekend;
     private Boolean isHoliday;
+    private String priceSource;
+    private Boolean manualOverride;
+    private LocalDate manualOverrideUntil;
     private String notes;
 
     // Constructors
@@ -156,6 +159,30 @@ public class RoomPriceManagementDTO {
 
     public void setIsHoliday(Boolean isHoliday) {
         this.isHoliday = isHoliday;
+    }
+
+    public String getPriceSource() {
+        return priceSource;
+    }
+
+    public void setPriceSource(String priceSource) {
+        this.priceSource = priceSource;
+    }
+
+    public Boolean getManualOverride() {
+        return manualOverride;
+    }
+
+    public void setManualOverride(Boolean manualOverride) {
+        this.manualOverride = manualOverride;
+    }
+
+    public LocalDate getManualOverrideUntil() {
+        return manualOverrideUntil;
+    }
+
+    public void setManualOverrideUntil(LocalDate manualOverrideUntil) {
+        this.manualOverrideUntil = manualOverrideUntil;
     }
 
     public String getNotes() {

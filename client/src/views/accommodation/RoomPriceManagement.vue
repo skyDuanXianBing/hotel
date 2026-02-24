@@ -370,6 +370,9 @@ interface PriceTableRow {
       price?: number
       rooms?: number
       minStay?: number
+      priceSource?: string
+      manualOverride?: boolean
+      manualOverrideUntil?: string
     }
   }
 }
@@ -387,11 +390,19 @@ const getPriceLabsBasePrice = (row: PriceTableRow, priceDate: string): number | 
 }
 
 const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefined => {
+  const cellData = row.dates[priceDate]
+  const manualOverrideActive = Boolean(cellData?.manualOverride) && (
+    !cellData?.manualOverrideUntil || priceDate <= cellData.manualOverrideUntil
+  )
+  if (manualOverrideActive && cellData?.price !== undefined && cellData?.price !== null) {
+    return cellData.price
+  }
+
   const priceLabsBasePrice = getPriceLabsBasePrice(row, priceDate)
   if (priceLabsBasePrice !== undefined && priceLabsBasePrice !== null) {
     return priceLabsBasePrice
   }
-  return row.dates[priceDate]?.price
+  return cellData?.price
 }
 
 const priceTableData = computed<PriceTableRow[]>(() => {
@@ -459,7 +470,16 @@ const priceTableData = computed<PriceTableRow[]>(() => {
         return
       }
 
-      const dates: { [dateStr: string]: { price: number; rooms: number; minStay: number } } = {}
+      const dates: {
+        [dateStr: string]: {
+          price: number
+          rooms: number
+          minStay: number
+          priceSource?: string
+          manualOverride?: boolean
+          manualOverrideUntil?: string
+        }
+      } = {}
 
       dateColumns.value.forEach(dateCol => {
         const priceRecord = priceData.value.find(
@@ -472,6 +492,9 @@ const priceTableData = computed<PriceTableRow[]>(() => {
           price: priceRecord?.price || 0,
           rooms: priceRecord?.availableRooms ?? 0,
           minStay: priceRecord?.minStay ?? 1,
+          priceSource: priceRecord?.priceSource,
+          manualOverride: priceRecord?.manualOverride,
+          manualOverrideUntil: priceRecord?.manualOverrideUntil,
         }
 
         if (priceRecord) {

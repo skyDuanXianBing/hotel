@@ -154,6 +154,9 @@ export interface RoomPriceManagementDTO {
   closeRoom?: boolean
   cta?: boolean
   ctd?: boolean
+  priceSource?: string
+  manualOverride?: boolean
+  manualOverrideUntil?: string
   isWeekend: boolean
   isHoliday: boolean
   notes?: string

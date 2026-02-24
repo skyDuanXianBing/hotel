@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.entity.Store;
 import server.demo.entity.SuAriSyncEvent;
@@ -59,6 +60,7 @@ public class SuAriAutoSyncService {
         this.objectMapper = objectMapper;
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void enqueueForStore(Long storeId, String source) {
         if (!enabled) {
             return;
@@ -74,6 +76,7 @@ public class SuAriAutoSyncService {
         enqueueForStoreAndHotel(storeId, hotelId, source);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void enqueueForStoreScope(
             Long storeId,
             String source,
@@ -100,6 +103,7 @@ public class SuAriAutoSyncService {
         );
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void enqueueForStoreDateRanges(
             Long storeId,
             String source,
@@ -192,7 +196,16 @@ public class SuAriAutoSyncService {
             existing.setPushRates(Boolean.TRUE.equals(existing.getPushRates()) || pushRates);
             existing.setPushRestrictions(Boolean.TRUE.equals(existing.getPushRestrictions()) || pushRestrictions);
             existing.setDeriveClosedFromBlockouts(Boolean.TRUE.equals(existing.getDeriveClosedFromBlockouts()) || deriveClosedFromBlockouts);
-            eventRepository.save(existing);
+            existing = eventRepository.saveAndFlush(existing);
+            logger.info(
+                    "[SuAriAutoSync] queued(coalesced). eventId={}, storeId={}, hotelId={}, source={}, coalescedCount={}, notBeforeAt={}",
+                    existing.getId(),
+                    storeId,
+                    hotelId,
+                    source,
+                    existing.getCoalescedCount(),
+                    existing.getNotBeforeAt()
+            );
             return;
         }
 
@@ -209,7 +222,15 @@ public class SuAriAutoSyncService {
         e.setPushRates(pushRates);
         e.setPushRestrictions(pushRestrictions);
         e.setDeriveClosedFromBlockouts(deriveClosedFromBlockouts);
-        eventRepository.save(e);
+        e = eventRepository.saveAndFlush(e);
+        logger.info(
+                "[SuAriAutoSync] queued(new). eventId={}, storeId={}, hotelId={}, source={}, notBeforeAt={}",
+                e.getId(),
+                storeId,
+                hotelId,
+                source,
+                e.getNotBeforeAt()
+        );
     }
 
     public int processDueEvents(int limit) {
