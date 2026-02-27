@@ -102,9 +102,9 @@ public class RegistrationPdfService {
         StringBuilder sb = new StringBuilder();
         sb.append("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
         sb.append("<style>");
-        sb.append("body{font-family:custom, custom2, custom3, cjk, jp, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size:12px; color:#111;}");
+        sb.append("body{font-family:jp, cjk, custom, custom2, custom3, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size:12px; color:#111;}");
         sb.append(".lang-en{font-family:custom, custom2, custom3, cjk, jp, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
-        sb.append(".lang-ja{font-family:custom, custom2, custom3, jp, cjk, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
+        sb.append(".lang-ja{font-family:jp, cjk, custom, custom2, custom3, kr, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;}");
         sb.append(".header-table{width:100%;border-collapse:collapse;margin:0 0 10px 0;}");
         sb.append(".header-table td{border:none;padding:0;vertical-align:top;}");
         sb.append(".store{font-size:14px;font-weight:800;text-align:left;}");
@@ -135,8 +135,8 @@ public class RegistrationPdfService {
 
         sb.append("<table>");
         sb.append(row2("Name registered when booking", "予約者名", reservation != null ? reservation.getGuestName() : ""));
-        sb.append(row2("Check-In Day", "チェックイン日", addRandomTime(reservation != null && reservation.getCheckInDate() != null ? reservation.getCheckInDate().toString() : "")));
-        sb.append(row2("Check-Out Day", "チェックアウト日", addRandomTime(reservation != null && reservation.getCheckOutDate() != null ? reservation.getCheckOutDate().toString() : "")));
+        sb.append(row2("Check-In Day", "チェックイン日", addRandomCheckInTime(reservation != null && reservation.getCheckInDate() != null ? reservation.getCheckInDate().toString() : "")));
+        sb.append(row2("Check-Out Day", "チェックアウト日", addRandomCheckOutTime(reservation != null && reservation.getCheckOutDate() != null ? reservation.getCheckOutDate().toString() : "")));
         sb.append(row2("Room Number", "部屋番号", roomNumber));
         sb.append("</table>");
 
@@ -294,37 +294,35 @@ public class RegistrationPdfService {
     private List<FontCandidate> resolveFontCandidates() {
         List<FontCandidate> out = new ArrayList<>();
 
-        int customIndex = 0;
-        for (String raw : splitFontPaths(fontPath)) {
-            try {
-                Path p = Path.of(raw);
-                if (Files.exists(p)) {
-                    customIndex++;
-                    String family = (customIndex == 1) ? "custom" : ("custom" + customIndex);
-                    out.add(new FontCandidate(family, p));
-                } else {
-                    logger.warn("[RegistrationPdf][Font] configured font path not found: {}", raw);
-                }
-            } catch (Exception e) {
-                logger.warn("[RegistrationPdf][Font] invalid font path: {}", raw, e);
-            }
-        }
+        addConfiguredFonts(out, "custom", fontPath);
 
         String os = String.valueOf(System.getProperty("os.name", "")).toLowerCase(Locale.ROOT);
         if (os.contains("windows")) {
+            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\meiryo.ttc"));
+            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\meiryob.ttc"));
+            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\msgothic.ttc"));
+            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\msmincho.ttc"));
+            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\YuGothR.ttc"));
+            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\YuGothM.ttc"));
+            addIfExists(out, "kr", Path.of("C:\\Windows\\Fonts\\malgun.ttf"));
             addIfExists(out, "cjk", Path.of("C:\\Windows\\Fonts\\msyh.ttc"));
             addIfExists(out, "cjk", Path.of("C:\\Windows\\Fonts\\msyh.ttf"));
             addIfExists(out, "cjk", Path.of("C:\\Windows\\Fonts\\simsun.ttc"));
             addIfExists(out, "cjk", Path.of("C:\\Windows\\Fonts\\simhei.ttf"));
-            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\meiryo.ttc"));
-            addIfExists(out, "jp", Path.of("C:\\Windows\\Fonts\\YuGothR.ttc"));
-            addIfExists(out, "kr", Path.of("C:\\Windows\\Fonts\\malgun.ttf"));
         } else {
+            addIfExists(out, "jp", Path.of("/usr/share/fonts/opentype/noto/NotoSansCJKjp-Regular.otf"));
+            addIfExists(out, "jp", Path.of("/usr/share/fonts/truetype/noto/NotoSansCJKjp-Regular.otf"));
             addIfExists(out, "cjk", Path.of("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"));
             addIfExists(out, "cjk", Path.of("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"));
             addIfExists(out, "cjk", Path.of("/usr/share/fonts/opentype/noto/NotoSansCJK.ttc"));
             addIfExists(out, "cjk", Path.of("/usr/share/fonts/truetype/noto/NotoSansCJK.ttc"));
         }
+
+        // Local fallback for development/runtime deployments that mount bundled fonts.
+        addFontsFromDirectory(out, "jp", Path.of("src", "main", "resources", "fonts"));
+        addFontsFromDirectory(out, "jp", Path.of("server", "src", "main", "resources", "fonts"));
+        addFontsFromDirectory(out, "cjk", Path.of("src", "main", "resources", "fonts"));
+        addFontsFromDirectory(out, "cjk", Path.of("server", "src", "main", "resources", "fonts"));
 
         List<FontCandidate> dedup = new ArrayList<>();
         for (FontCandidate c : out) {
@@ -342,12 +340,52 @@ public class RegistrationPdfService {
         return dedup;
     }
 
+    private int addConfiguredFonts(List<FontCandidate> out, String familyPrefix, String rawConfig) {
+        int index = 0;
+        for (String raw : splitFontPaths(rawConfig)) {
+            try {
+                Path p = Path.of(raw);
+                if (Files.exists(p)) {
+                    index++;
+                    String family = (index == 1) ? familyPrefix : (familyPrefix + index);
+                    out.add(new FontCandidate(family, p));
+                } else {
+                    logger.warn("[RegistrationPdf][Font] configured font path not found: {}", raw);
+                }
+            } catch (Exception e) {
+                logger.warn("[RegistrationPdf][Font] invalid font path: {}", raw, e);
+            }
+        }
+        return index;
+    }
+
     private void addIfExists(List<FontCandidate> out, String family, Path p) {
         try {
             if (p != null && Files.exists(p)) {
                 out.add(new FontCandidate(family, p));
             }
         } catch (Exception ignored) {
+        }
+    }
+
+    private void addFontsFromDirectory(List<FontCandidate> out, String family, Path dir) {
+        if (dir == null) {
+            return;
+        }
+        try {
+            if (!Files.isDirectory(dir)) {
+                return;
+            }
+            try (var stream = Files.list(dir)) {
+                stream.filter(Files::isRegularFile)
+                        .filter(p -> {
+                            String name = p.getFileName().toString().toLowerCase(Locale.ROOT);
+                            return name.endsWith(".ttf") || name.endsWith(".ttc") || name.endsWith(".otf");
+                        })
+                        .forEach(p -> addIfExists(out, family, p));
+            }
+        } catch (Exception e) {
+            logger.warn("[RegistrationPdf][Font] failed to scan font directory: {}", dir, e);
         }
     }
 
@@ -430,14 +468,22 @@ public class RegistrationPdfService {
         return String.join(", ", parts);
     }
 
-    private String addRandomTime(String dateStr) {
+    private String addRandomCheckInTime(String dateStr) {
+        return addRandomTimeWithin(dateStr, 16 * 60, 23 * 60 + 59);
+    }
+
+    private String addRandomCheckOutTime(String dateStr) {
+        return addRandomTimeWithin(dateStr, 0, 12 * 60);
+    }
+
+    private String addRandomTimeWithin(String dateStr, int startMinuteOfDay, int endMinuteOfDay) {
         if (dateStr == null || dateStr.isBlank()) {
             return dateStr;
         }
-        // 生成16:00-23:59之间的随机时间
-        java.util.Random random = new java.util.Random();
-        int hour = 16 + random.nextInt(8); // 16-23
-        int minute = random.nextInt(60);   // 0-59
+        int randomMinuteOfDay = java.util.concurrent.ThreadLocalRandom.current()
+                .nextInt(startMinuteOfDay, endMinuteOfDay + 1);
+        int hour = randomMinuteOfDay / 60;
+        int minute = randomMinuteOfDay % 60;
         return dateStr + String.format(" %02d:%02d", hour, minute);
     }
 
