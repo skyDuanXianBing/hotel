@@ -7,6 +7,7 @@ import server.demo.dto.registration.RegistrationLinkInboxItemDTO;
 import server.demo.entity.RegistrationLinkInboxItem;
 import server.demo.repository.RegistrationLinkInboxRepository;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,11 +65,12 @@ public class RegistrationLinkInboxService {
     public List<RegistrationLinkInboxItemDTO> listTop200(Long storeId) {
         List<RegistrationLinkInboxItem> items = inboxRepository.findTop200ByStoreIdOrderByCreatedAtDesc(storeId);
         List<RegistrationLinkInboxItemDTO> dtos = new ArrayList<>();
+        URI baseUri = parseBaseUri(serverBaseUrl);
         for (RegistrationLinkInboxItem it : items) {
             RegistrationLinkInboxItemDTO dto = new RegistrationLinkInboxItemDTO();
             dto.setId(it.getId());
             dto.setBookingKey(it.getBookingKey());
-            dto.setLinkUrl(it.getLinkUrl());
+            dto.setLinkUrl(resolveLinkUrl(baseUri, it.getLinkUrl(), storeId, it.getBookingKey()));
             dto.setGuestName(it.getGuestName());
             dto.setCheckInDate(it.getCheckInDate());
             dto.setCheckOutDate(it.getCheckOutDate());
@@ -78,5 +80,49 @@ public class RegistrationLinkInboxService {
         }
         return dtos;
     }
-}
 
+    private URI parseBaseUri(String base) {
+        if (base == null || base.isBlank()) {
+            return null;
+        }
+        try {
+            String trimmed = base.trim();
+            if (trimmed.endsWith("/")) {
+                trimmed = trimmed.substring(0, trimmed.length() - 1);
+            }
+            URI uri = URI.create(trimmed);
+            if (uri.getScheme() == null || uri.getHost() == null) {
+                return null;
+            }
+            return uri;
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+    private String resolveLinkUrl(URI baseUri, String storedUrl, Long storeId, String bookingKey) {
+        // Prefer preserving existing token/path, but upgrade scheme/host to current server.base-url.
+        if (baseUri != null && storedUrl != null && !storedUrl.isBlank()) {
+            try {
+                URI u = URI.create(storedUrl.trim());
+                if (u.getPath() != null && !u.getPath().isBlank()) {
+                    URI rebuilt = new URI(
+                            baseUri.getScheme(),
+                            baseUri.getUserInfo(),
+                            baseUri.getHost(),
+                            baseUri.getPort(),
+                            u.getPath(),
+                            u.getQuery(),
+                            u.getFragment()
+                    );
+                    return rebuilt.toString();
+                }
+            } catch (Exception ignore) {
+                // Fall through.
+            }
+        }
+
+        // Fallback: regenerate a link (token changes, but remains valid).
+        return registrationLinkService.buildPublicBookingLink(serverBaseUrl, storeId, bookingKey);
+    }
+}
