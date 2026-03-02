@@ -330,6 +330,7 @@
             v-model="connectionForm.roomTypeId"
             placeholder="请选择房型"
             style="width: 100%"
+            @change="handleRoomTypeChange"
           >
             <el-option
               v-for="rt in roomTypes"
@@ -342,11 +343,12 @@
         <el-form-item label="价格计划" required>
           <el-select
             v-model="connectionForm.pricePlanId"
-            placeholder="请选择价格计划"
+            placeholder="请选择已绑定价格计划"
             style="width: 100%"
+            :disabled="!connectionForm.roomTypeId"
           >
             <el-option
-              v-for="pp in pricePlans"
+              v-for="pp in roomTypeBoundPricePlans"
               :key="pp.id"
               :label="pp.name"
               :value="pp.id"
@@ -604,7 +606,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Right } from '@element-plus/icons-vue'
 import * as priceLabsApi from '@/api/pricelabs'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
-import { getAllPricePlans, type PricePlanDTO } from '@/api/pricePlan'
+import {
+  getPricePlansByRoomType,
+  type PricePlanDTO,
+  type RoomTypePricePlanDTO,
+} from '@/api/pricePlan'
 import {
   getAllOtaIntegrations,
   updatePriceAdjustment,
@@ -679,7 +685,7 @@ const pushReservationsResult = ref<PriceLabsPushReservationsResult | null>(null)
 
 // 房型和价格计划选项
 const roomTypes = ref<RoomTypeDTO[]>([])
-const pricePlans = ref<PricePlanDTO[]>([])
+const roomTypeBoundPricePlans = ref<PricePlanDTO[]>([])
 
 // 添加连接对话框
 const showConnectionDialog = ref(false)
@@ -749,7 +755,6 @@ const loadAllData = async () => {
     loadConnections(),
     loadChannelAdjustments(),
     loadRoomTypes(),
-    loadPricePlans(),
   ])
 }
 
@@ -843,24 +848,44 @@ const loadRoomTypes = async () => {
   }
 }
 
-// 加载价格计划列表
-const loadPricePlans = async () => {
+// 加载房型已绑定的价格计划（来源：价格计划页的房型绑定关系）
+const loadBoundPricePlansByRoomType = async (roomTypeId: number) => {
   try {
-    const res = await getAllPricePlans(0) // 门店级，userId 不再使用
-    // getAllPricePlans 返回的是 AxiosResponse，数据在 data 中
-    if (res && res.data) {
-      // 处理 ApiResponse 包装的情况
-      const data = (res.data as { success?: boolean; data?: PricePlanDTO[] })
-      if (data.success !== undefined) {
-        pricePlans.value = data.data || []
-      } else {
-        // 直接返回数组的情况
-        pricePlans.value = res.data as unknown as PricePlanDTO[]
-      }
+    const res = (await getPricePlansByRoomType(roomTypeId)) as unknown as {
+      success?: boolean
+      data?: RoomTypePricePlanDTO[]
     }
+    const mappings = Array.isArray(res?.data) ? res.data : []
+    const uniquePlans = new Map<number, PricePlanDTO>()
+    for (const mapping of mappings) {
+      const plan = mapping.pricePlan
+      if (!plan?.id) {
+        continue
+      }
+      if (uniquePlans.has(plan.id)) {
+        continue
+      }
+      uniquePlans.set(plan.id, {
+        id: plan.id,
+        name: plan.name || `Plan ${plan.id}`,
+        minNights: 1,
+        includeMeal: false,
+      })
+    }
+    roomTypeBoundPricePlans.value = Array.from(uniquePlans.values())
   } catch (error) {
-    console.error('加载价格计划列表失败:', error)
+    roomTypeBoundPricePlans.value = []
+    console.error('加载房型已绑定价格计划失败:', error)
   }
+}
+
+const handleRoomTypeChange = async (roomTypeId: number | null) => {
+  connectionForm.pricePlanId = null
+  roomTypeBoundPricePlans.value = []
+  if (!roomTypeId) {
+    return
+  }
+  await loadBoundPricePlansByRoomType(roomTypeId)
 }
 
 // 保存配置
@@ -918,6 +943,7 @@ const handleToggleIntegration = async (enabled: boolean) => {
 const handleAddConnection = () => {
   connectionForm.roomTypeId = null
   connectionForm.pricePlanId = null
+  roomTypeBoundPricePlans.value = []
   showConnectionDialog.value = true
 }
 
@@ -937,6 +963,11 @@ const handleSaveConnection = async () => {
 
   if (!connectionForm.pricePlanId) {
     ElMessage.warning('请选择价格计划')
+    return
+  }
+  const isBoundPlan = roomTypeBoundPricePlans.value.some((plan) => plan.id === connectionForm.pricePlanId)
+  if (!isBoundPlan) {
+    ElMessage.warning('请选择该房型在“价格计划-应用房型”中已绑定的价格计划')
     return
   }
 

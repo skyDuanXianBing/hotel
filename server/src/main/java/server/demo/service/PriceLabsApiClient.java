@@ -226,6 +226,8 @@ public class PriceLabsApiClient {
         @JsonProperty("rate_plan_id")
         private String ratePlanId;
         private String currency;
+        @JsonProperty("multi_unit")
+        private MultiUnitInfo multiUnit;
         private List<CalendarEntry> calendar;
 
         public String getListingId() { return listingId; }
@@ -234,6 +236,8 @@ public class PriceLabsApiClient {
         public void setRatePlanId(String v) { this.ratePlanId = v; }
         public String getCurrency() { return currency; }
         public void setCurrency(String v) { this.currency = v; }
+        public MultiUnitInfo getMultiUnit() { return multiUnit; }
+        public void setMultiUnit(MultiUnitInfo v) { this.multiUnit = v; }
 
         // PriceLabs /calendar 只接受 data 字段；内部仍沿用 calendar 命名，避免大范围改动业务代码
         @JsonProperty("data")
@@ -247,6 +251,18 @@ public class PriceLabsApiClient {
         public List<CalendarEntry> getCalendar() { return calendar; }
         @JsonIgnore
         public void setCalendar(List<CalendarEntry> v) { this.calendar = v; }
+    }
+
+    public static class MultiUnitInfo {
+        @JsonProperty("total_units")
+        private Integer totalUnits;
+        @JsonProperty("unit_ids")
+        private List<String> unitIds;
+
+        public Integer getTotalUnits() { return totalUnits; }
+        public void setTotalUnits(Integer v) { this.totalUnits = v; }
+        public List<String> getUnitIds() { return unitIds; }
+        public void setUnitIds(List<String> v) { this.unitIds = v; }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

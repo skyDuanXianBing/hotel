@@ -11,6 +11,9 @@ import server.demo.config.PriceLabsConfig;
 import server.demo.constants.PriceLabsSyncDefaults;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.PriceLabsWebhookRequest;
+import server.demo.service.PriceLabsWebhookAsyncProcessor;
+import server.demo.service.PriceLabsWebhookAsyncService;
+import server.demo.service.PriceLabsWebhookTaskTracker;
 import server.demo.service.PriceLabsService;
 import server.demo.service.PriceLabsSyncService;
 import server.demo.util.PriceLabsIdUtil;
@@ -48,6 +51,15 @@ public class PriceLabsWebhookController {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private PriceLabsWebhookAsyncProcessor priceLabsWebhookAsyncProcessor;
+
+    @Autowired
+    private PriceLabsWebhookAsyncService priceLabsWebhookAsyncService;
+
+    @Autowired
+    private PriceLabsWebhookTaskTracker priceLabsWebhookTaskTracker;
 
     /**
      * 接收 PriceLabs 价格更新推送
@@ -157,51 +169,27 @@ public class PriceLabsWebhookController {
                 }
             }
 
-            // 2. 解析请求数据
-            PriceLabsWebhookListingIdsParser.ListingIdsPayload listingPayload =
-                    PriceLabsWebhookListingIdsParser.parse(objectMapper, rawBody);
-            if (!listingPayload.hasPriceData() && !listingPayload.listingIds().isEmpty()) {
-                int syncDays = PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS;
-                priceLabsSyncService.pullPricesForListingIds(listingPayload.listingIds(), syncDays);
-                priceLabsSyncService.syncCalendarForListingIds(listingPayload.listingIds(), syncDays);
-
-                response.put("success", true);
-                response.put("message", "listing_ids 已同步");
-                response.put("listing_count", listingPayload.listingIds().size());
-                if (config.isDebug()) {
-                    response.put("traceId", traceId);
-                }
-                logger.info("[PriceLabsWebhook][{}] /sync listing_ids processed. listingCount={}, costMs={}",
-                        traceId,
-                        listingPayload.listingIds().size(),
-                        System.currentTimeMillis() - startedAt);
-                return ResponseEntity.ok(response);
+            // 快速 ACK：避免同步处理耗时/异常导致 PriceLabs 判定 rejected
+            priceLabsWebhookTaskTracker.markPending(traceId, "sync");
+            try {
+                priceLabsWebhookAsyncProcessor.submit(
+                        "sync-" + traceId,
+                        () -> priceLabsWebhookAsyncService.processSync(traceId, rawBody)
+                );
+            } catch (Exception enqueueEx) {
+                priceLabsWebhookTaskTracker.markFailed(traceId, enqueueEx.getMessage());
+                response.put("success", false);
+                response.put("message", "enqueue failed: " + enqueueEx.getMessage());
+                response.put("traceId", traceId);
+                return ResponseEntity.status(500).body(response);
             }
-
-            PriceLabsWebhookPayloadNormalizer.NormalizedPayload normalized = PriceLabsWebhookPayloadNormalizer
-                    .normalizeSyncPayload(objectMapper, rawBody);
-            PriceLabsWebhookRequest webhookData = normalized.request();
-            if (config.isDebug()) {
-                logger.info("[PriceLabsWebhook][{}] /sync normalized. format={}, type={}, listingCount={}",
-                        traceId,
-                        normalized.format(),
-                        webhookData != null ? webhookData.getType() : null,
-                        webhookData != null && webhookData.getData() != null ? webhookData.getData().size() : 0);
-            }
-
-            // 3. 处理价格更新
-            priceLabsService.handleWebhookPriceUpdate(webhookData);
 
             response.put("success", true);
-            response.put("message", "价格更新已接收");
-            response.put("processed_count", webhookData.getData() != null ? webhookData.getData().size() : 0);
-
-            if (config.isDebug()) {
-                response.put("traceId", traceId);
-            }
-            logger.info("[PriceLabsWebhook][{}] /sync processed ok. processed_count={}, costMs={}",
+            response.put("message", "accepted");
+            response.put("traceId", traceId);
+            response.put("status", "PENDING");
+            logger.info("[PriceLabsWebhook][{}] /sync accepted for async processing. costMs={}",
                     traceId,
-                    webhookData.getData() != null ? webhookData.getData().size() : 0,
                     System.currentTimeMillis() - startedAt);
             return ResponseEntity.ok(response);
 
@@ -213,11 +201,26 @@ public class PriceLabsWebhookController {
                     e);
             response.put("success", false);
             response.put("message", "处理失败: " + e.getMessage());
-            if (config.isDebug()) {
-                response.put("traceId", traceId);
-            }
+            response.put("traceId", traceId);
             return ResponseEntity.status(500).body(response);
         }
+    }
+
+    @GetMapping("/sync/task/{traceId}")
+    public ResponseEntity<Map<String, Object>> getSyncTaskStatus(@PathVariable("traceId") String traceId) {
+        Map<String, Object> response = new HashMap<>();
+        return priceLabsWebhookTaskTracker.get(traceId)
+                .<ResponseEntity<Map<String, Object>>>map(state -> {
+                    response.put("success", true);
+                    response.put("data", state);
+                    return ResponseEntity.ok(response);
+                })
+                .orElseGet(() -> {
+                    response.put("success", false);
+                    response.put("message", "task not found");
+                    response.put("traceId", traceId);
+                    return ResponseEntity.status(404).body(response);
+                });
     }
 
     private static Map<String, String> readHeadersForLog(HttpServletRequest request) {

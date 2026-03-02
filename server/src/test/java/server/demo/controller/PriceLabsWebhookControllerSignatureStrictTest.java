@@ -8,7 +8,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
 import server.demo.config.PriceLabsConfig;
-import server.demo.service.PriceLabsService;
+import server.demo.service.PriceLabsWebhookAsyncProcessor;
+import server.demo.service.PriceLabsWebhookAsyncService;
+import server.demo.service.PriceLabsWebhookTaskTracker;
 import server.demo.service.PriceLabsSyncService;
 
 import javax.crypto.Mac;
@@ -29,6 +31,9 @@ class PriceLabsWebhookControllerSignatureStrictTest {
 
     private PriceLabsWebhookController controller;
     private PriceLabsSyncService priceLabsSyncService;
+    private PriceLabsWebhookAsyncProcessor asyncProcessor;
+    private PriceLabsWebhookAsyncService asyncService;
+    private PriceLabsWebhookTaskTracker taskTracker;
 
     @BeforeEach
     void setUp() {
@@ -36,14 +41,18 @@ class PriceLabsWebhookControllerSignatureStrictTest {
         Mockito.when(config.getIntegrationToken()).thenReturn(TOKEN);
         Mockito.when(config.isDebug()).thenReturn(false);
 
-        PriceLabsService priceLabsService = Mockito.mock(PriceLabsService.class);
         priceLabsSyncService = Mockito.mock(PriceLabsSyncService.class);
+        asyncProcessor = Mockito.mock(PriceLabsWebhookAsyncProcessor.class);
+        asyncService = Mockito.mock(PriceLabsWebhookAsyncService.class);
+        taskTracker = Mockito.mock(PriceLabsWebhookTaskTracker.class);
 
         controller = new PriceLabsWebhookController();
         ReflectionTestUtils.setField(controller, "config", config);
-        ReflectionTestUtils.setField(controller, "priceLabsService", priceLabsService);
         ReflectionTestUtils.setField(controller, "priceLabsSyncService", priceLabsSyncService);
         ReflectionTestUtils.setField(controller, "objectMapper", new ObjectMapper());
+        ReflectionTestUtils.setField(controller, "priceLabsWebhookAsyncProcessor", asyncProcessor);
+        ReflectionTestUtils.setField(controller, "priceLabsWebhookAsyncService", asyncService);
+        ReflectionTestUtils.setField(controller, "priceLabsWebhookTaskTracker", taskTracker);
     }
 
     @Test
@@ -118,6 +127,28 @@ class PriceLabsWebhookControllerSignatureStrictTest {
                 Mockito.any(),
                 Mockito.any()
         );
+    }
+
+    @Test
+    void sync_validSignature_returns200AndEnqueueAsyncJob() {
+        String body = "{\"listing_ids\":[\"store_6_room_type_12\"]}";
+        String signedHeaders = signBase64(TOKEN, "X-SOURCE:X-PL-TIMESTAMP:X-PL-REQUESTID");
+        String signedBody = signBase64(TOKEN, signedHeaders + body);
+
+        ResponseEntity<Map<String, Object>> response = controller.handlePriceSync(
+                null,
+                signedHeaders,
+                signedBody,
+                SOURCE,
+                TIMESTAMP,
+                REQUEST_ID,
+                body,
+                null
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        Mockito.verify(taskTracker).markPending(Mockito.anyString(), Mockito.eq("sync"));
+        Mockito.verify(asyncProcessor).submit(Mockito.startsWith("sync-"), Mockito.any(Runnable.class));
     }
 
     private static String signBase64(String token, String data) {
