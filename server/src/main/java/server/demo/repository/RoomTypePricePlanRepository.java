@@ -28,6 +28,8 @@ public interface RoomTypePricePlanRepository extends JpaRepository<RoomTypePrice
     // 检查房型和价格计划是否已关联
     boolean existsByRoomTypeIdAndPricePlanId(Long roomTypeId, Long pricePlanId);
 
+    boolean existsByStoreIdAndRoomTypeIdAndPricePlanId(Long storeId, Long roomTypeId, Long pricePlanId);
+
     // 删除房型的所有价格计划关联
     void deleteByRoomTypeId(Long roomTypeId);
 

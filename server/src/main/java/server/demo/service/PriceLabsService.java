@@ -73,6 +73,9 @@ public class PriceLabsService {
     private RoomTypePricePlanRepository roomTypePricePlanRepository;
 
     @Autowired
+    private RoomRepository roomRepository;
+
+    @Autowired
     private RoomPriceRepository roomPriceRepository;
 
     @Autowired
@@ -234,15 +237,28 @@ public class PriceLabsService {
         });
 
         // 检查是否已存在
-        if (connectionRepository.findByRoomTypeIdAndPricePlanId(roomTypeId, pricePlanId).isPresent()) {
+        if (connectionRepository.findByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomTypeId, pricePlanId).isPresent()) {
             throw new RuntimeException("该房型与价格计划的连接已存在");
         }
 
-        RoomType roomType = roomTypeRepository.findById(roomTypeId)
+        RoomType roomType = roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId)
                 .orElseThrow(() -> new RuntimeException("房型不存在"));
-        PricePlan pricePlan = pricePlanRepository.findById(pricePlanId)
+        PricePlan pricePlan = pricePlanRepository.findByStoreIdAndId(storeId, pricePlanId)
                 .orElseThrow(() -> new RuntimeException("价格计划不存在"));
 
+        Integer totalRooms = roomType.getTotalRooms();
+        if (totalRooms == null || totalRooms <= 0) {
+            throw new RuntimeException("房型总房量必须大于 0，请先检查房型设置后再创建连接");
+        }
+        int roomCount = roomRepository.findByStoreIdAndRoomTypeId(storeId, roomTypeId).size();
+        if (roomCount > 0 && totalRooms < roomCount) {
+            throw new RuntimeException("房型总房量小于房间列表数量，请先调整房型总房量后再创建连接");
+        }
+        boolean isBoundInPricePlanSettings = roomTypePricePlanRepository
+                .existsByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomTypeId, pricePlanId);
+        if (!isBoundInPricePlanSettings) {
+            throw new RuntimeException("请先在价格计划页面完成房型绑定后再创建连接");
+        }
         PriceLabsConnection connection = new PriceLabsConnection(roomType, pricePlan);
         connection.setStoreId(storeId);
         connection.generatePriceLabsListingId();

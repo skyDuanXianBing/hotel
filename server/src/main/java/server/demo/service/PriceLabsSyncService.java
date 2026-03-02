@@ -12,6 +12,7 @@ import server.demo.entity.PriceLabsConnection;
 import server.demo.entity.PriceLabsIntegration;
 import server.demo.entity.PriceLabsSyncLog;
 import server.demo.entity.PricePlan;
+import server.demo.entity.Room;
 import server.demo.entity.RoomPrice;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
@@ -41,6 +42,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -538,10 +541,20 @@ public class PriceLabsSyncService {
                 logger.warn("No price plans for room type {}", rt.getName());
                 continue;
             }
+            PriceLabsApiClient.MultiUnitInfo multiUnitInfo = buildMultiUnitInfo(storeId, rt);
             for (RoomTypePricePlan p : plans) {
                 PricePlan plan = p.getPricePlan();
                 List<RoomPrice> prices = roomPriceRepo.findByStoreIdAndRoomTypeIdAndPriceDateBetween(storeId, rt.getId(), start, end);
-                PriceLabsApiClient.CalendarData cal = toCalendar(rt, plan, prices, start, end, currency, bookedUnitsByRoomTypeAndDate);
+                PriceLabsApiClient.CalendarData cal = toCalendar(
+                        rt,
+                        plan,
+                        prices,
+                        start,
+                        end,
+                        currency,
+                        bookedUnitsByRoomTypeAndDate,
+                        multiUnitInfo
+                );
                 if (cal.getCalendar() != null && !cal.getCalendar().isEmpty()) all.add(cal);
             }
         }
@@ -644,14 +657,14 @@ public class PriceLabsSyncService {
             throw new RuntimeException("Listing push failed: " + summary);
         }
 
-        PriceLabsApiClient.RatePlanData ratePlanData = buildRatePlanData(roomType, pricePlan);
-        PriceLabsApiClient.PriceLabsResponse ratePlanRes = apiClient.pushRatePlans(List.of(ratePlanData));
+        List<PriceLabsApiClient.RatePlanData> ratePlanPayload = buildRatePlanPayloadForRoomType(roomType, pricePlan);
+        PriceLabsApiClient.PriceLabsResponse ratePlanRes = apiClient.pushRatePlans(ratePlanPayload);
         if (ratePlanRes.getFailure() != null && !ratePlanRes.getFailure().isEmpty()) {
             String summary = summarizeFailures(ratePlanRes.getFailure());
             throw new RuntimeException("Rate plan push failed: " + summary);
         }
 
-        int syncDays = clampSyncDays(days);
+        int syncDays = Math.max(clampSyncDays(days), PriceLabsSyncDefaults.INITIAL_SYNC_DAYS);
         LocalDate start = LocalDate.now();
         LocalDate end = start.plusDays(syncDays - 1L);
 
@@ -726,30 +739,47 @@ public class PriceLabsSyncService {
         return d;
     }
 
-    private PriceLabsApiClient.RatePlanData buildRatePlanData(RoomType rt, PricePlan plan) {
-        PriceLabsApiClient.RatePlanData d = new PriceLabsApiClient.RatePlanData();
-        d.setListingId(PriceLabsIdUtil.formatListingId(rt.getStoreId(), rt.getId()));
-        d.setRatePlanId(PriceLabsIdUtil.formatRatePlanId(plan.getId()));
-        d.setName(plan.getName());
-
-        boolean isDefault = false;
-        List<RoomTypePricePlan> all = rtppRepo.findByRoomTypeId(rt.getId());
-        if (!all.isEmpty()) {
-            RoomTypePricePlan defaultPlan = all.get(0);
-            Long defaultId = defaultPlan.getId();
-            if (defaultId != null) {
-                for (RoomTypePricePlan p : all) {
-                    if (p.getPricePlan() != null && plan.getId().equals(p.getPricePlan().getId())) {
-                        isDefault = defaultId.equals(p.getId());
-                        break;
-                    }
-                }
-            }
+    private List<PriceLabsApiClient.RatePlanData> buildRatePlanPayloadForRoomType(RoomType roomType, PricePlan selectedPlan) {
+        if (roomType == null || roomType.getId() == null) {
+            throw new RuntimeException("roomType is required");
+        }
+        if (selectedPlan == null || selectedPlan.getId() == null) {
+            throw new RuntimeException("selected price plan is required");
         }
 
-        d.setIsDefault(isDefault);
-        d.setOccupancyBased(false);
-        return d;
+        List<RoomTypePricePlan> mappings = rtppRepo.findByRoomTypeId(roomType.getId());
+        if (mappings.isEmpty()) {
+            throw new RuntimeException("No mapped rate plans found for roomTypeId=" + roomType.getId());
+        }
+
+        Map<Long, PriceLabsApiClient.RatePlanData> uniquePayload = new LinkedHashMap<>();
+        for (RoomTypePricePlan mapping : mappings) {
+            if (mapping == null || mapping.getPricePlan() == null || mapping.getPricePlan().getId() == null) {
+                continue;
+            }
+            Long planId = mapping.getPricePlan().getId();
+            if (uniquePayload.containsKey(planId)) {
+                continue;
+            }
+
+            PriceLabsApiClient.RatePlanData data = new PriceLabsApiClient.RatePlanData();
+            data.setListingId(PriceLabsIdUtil.formatListingId(roomType.getStoreId(), roomType.getId()));
+            data.setRatePlanId(PriceLabsIdUtil.formatRatePlanId(planId));
+            data.setName(mapping.getPricePlan().getName());
+            data.setIsDefault(selectedPlan.getId().equals(planId));
+            data.setOccupancyBased(false);
+            uniquePayload.put(planId, data);
+        }
+
+        if (uniquePayload.isEmpty()) {
+            throw new RuntimeException("No valid mapped rate plans found for roomTypeId=" + roomType.getId());
+        }
+        if (!uniquePayload.containsKey(selectedPlan.getId())) {
+            throw new RuntimeException(
+                    "Selected price plan is not mapped to room type: roomTypeId=" + roomType.getId() + ", pricePlanId=" + selectedPlan.getId());
+        }
+
+        return new ArrayList<>(uniquePayload.values());
     }
 
     private PriceLabsApiClient.CalendarData toCalendar(
@@ -759,12 +789,14 @@ public class PriceLabsSyncService {
             LocalDate start,
             LocalDate end,
             String currency,
-            Map<Long, Map<LocalDate, Integer>> bookedUnitsByRoomTypeAndDate
+            Map<Long, Map<LocalDate, Integer>> bookedUnitsByRoomTypeAndDate,
+            PriceLabsApiClient.MultiUnitInfo multiUnitInfo
     ) {
         PriceLabsApiClient.CalendarData d = new PriceLabsApiClient.CalendarData();
         d.setListingId(PriceLabsIdUtil.formatListingId(rt.getStoreId(), rt.getId()));
         d.setRatePlanId(PriceLabsIdUtil.formatRatePlanId(plan.getId()));
         d.setCurrency(currency);
+        d.setMultiUnit(multiUnitInfo);
 
         Map<LocalDate, RoomPrice> map = new HashMap<>();
         for (RoomPrice p : prices) {
@@ -779,7 +811,9 @@ public class PriceLabsSyncService {
             String date = cur.toString();
             e.setDate(date);
             e.setEndDate(date);
-            int totalUnits = rt.getTotalRooms() != null ? rt.getTotalRooms() : 1;
+            int totalUnits = (multiUnitInfo != null && multiUnitInfo.getTotalUnits() != null)
+                    ? multiUnitInfo.getTotalUnits()
+                    : 1;
             int bookedUnits = bookedUnitsByRoomTypeAndDate
                     .getOrDefault(rt.getId(), Map.of())
                     .getOrDefault(cur, 0);
@@ -792,6 +826,16 @@ public class PriceLabsSyncService {
 
             Integer desiredAvailable = rp != null ? rp.getAvailableRooms() : null;
             int maxAvailable = Math.max(totalUnits - bookedUnits, 0);
+            if (desiredAvailable != null && desiredAvailable > totalUnits) {
+                logger.warn(
+                        "[PriceLabsCalendar] available_rooms exceeds total_units, clamped. storeId={}, roomTypeId={}, date={}, availableRooms={}, totalUnits={}",
+                        rt.getStoreId(),
+                        rt.getId(),
+                        date,
+                        desiredAvailable,
+                        totalUnits
+                );
+            }
             int availableUnits = desiredAvailable != null ? Math.max(Math.min(desiredAvailable, maxAvailable), 0) : maxAvailable;
             int blockedUnits = Math.max(totalUnits - bookedUnits - availableUnits, 0);
 
@@ -810,6 +854,53 @@ public class PriceLabsSyncService {
         }
         d.setCalendar(entries);
         return d;
+    }
+
+    private PriceLabsApiClient.MultiUnitInfo buildMultiUnitInfo(Long storeId, RoomType roomType) {
+        int configuredTotalUnits = roomType != null && roomType.getTotalRooms() != null ? roomType.getTotalRooms() : 0;
+        if (configuredTotalUnits <= 0) {
+            throw new RuntimeException("Room total units must be greater than 0 for roomTypeId=" + (roomType != null ? roomType.getId() : null));
+        }
+
+        List<Room> rooms = roomRepo.findByStoreIdAndRoomTypeId(storeId, roomType.getId());
+        LinkedHashSet<String> unitIds = new LinkedHashSet<>();
+        for (Room room : rooms) {
+            if (room == null || room.getRoomNumber() == null) {
+                continue;
+            }
+            String roomNumber = room.getRoomNumber().trim();
+            if (!roomNumber.isEmpty()) {
+                unitIds.add(roomNumber);
+            }
+        }
+
+        int resolvedTotalUnits = configuredTotalUnits;
+        if (unitIds.size() > resolvedTotalUnits) {
+            logger.warn(
+                    "[PriceLabsCalendar] room count exceeds room_type.total_rooms, expand total_units for sync. storeId={}, roomTypeId={}, totalRooms={}, roomCount={}",
+                    storeId,
+                    roomType.getId(),
+                    configuredTotalUnits,
+                    unitIds.size()
+            );
+            resolvedTotalUnits = unitIds.size();
+        }
+
+        if (unitIds.isEmpty()) {
+            for (int i = 1; i <= resolvedTotalUnits; i++) {
+                unitIds.add("unit_" + i);
+            }
+        } else {
+            int suffix = 1;
+            while (unitIds.size() < resolvedTotalUnits) {
+                unitIds.add("virtual_" + suffix++);
+            }
+        }
+
+        PriceLabsApiClient.MultiUnitInfo multiUnitInfo = new PriceLabsApiClient.MultiUnitInfo();
+        multiUnitInfo.setTotalUnits(resolvedTotalUnits);
+        multiUnitInfo.setUnitIds(new ArrayList<>(unitIds));
+        return multiUnitInfo;
     }
 
     private Map<Long, Map<LocalDate, Integer>> buildBookedUnitsByRoomTypeAndDate(Long storeId, LocalDate start, LocalDate end) {
@@ -1010,6 +1101,7 @@ public class PriceLabsSyncService {
 
         Map<Long, Map<LocalDate, Integer>> bookedUnitsByRoomTypeAndDate =
                 buildBookedUnitsByRoomTypeAndDate(storeId, start, end);
+        Map<Long, PriceLabsApiClient.MultiUnitInfo> multiUnitByRoomType = new HashMap<>();
 
         List<PriceLabsApiClient.CalendarData> all = new ArrayList<>();
         for (PriceLabsConnection conn : connections) {
@@ -1020,10 +1112,23 @@ public class PriceLabsSyncService {
 
             RoomType rt = conn.getRoomType();
             PricePlan plan = conn.getPricePlan();
+            PriceLabsApiClient.MultiUnitInfo multiUnitInfo = multiUnitByRoomType.computeIfAbsent(
+                    rt.getId(),
+                    id -> buildMultiUnitInfo(storeId, rt)
+            );
 
             List<RoomPrice> prices = roomPriceRepo.findByStoreIdAndRoomTypeIdAndPriceDateBetween(
                     storeId, rt.getId(), start, end);
-            PriceLabsApiClient.CalendarData cal = toCalendar(rt, plan, prices, start, end, currency, bookedUnitsByRoomTypeAndDate);
+            PriceLabsApiClient.CalendarData cal = toCalendar(
+                    rt,
+                    plan,
+                    prices,
+                    start,
+                    end,
+                    currency,
+                    bookedUnitsByRoomTypeAndDate,
+                    multiUnitInfo
+            );
             if (cal.getCalendar() != null && !cal.getCalendar().isEmpty()) {
                 all.add(cal);
             }

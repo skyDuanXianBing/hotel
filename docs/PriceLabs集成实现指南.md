@@ -172,9 +172,9 @@ PriceLabs 推送的是**基础定价**，需要根据各渠道的价格调整配
 
 | URL 类型 | 用途 | 示例 |
 |----------|------|------|
-| `sync_url` | 接收价格/限制更新 | `https://your-pms.com/api/v1/pricelabs/sync` |
-| `calendar_trigger_url` | 触发日历刷新请求 | `https://your-pms.com/api/v1/pricelabs/calendar-trigger` |
-| `hook_url` | 接收错误通知 | `https://your-pms.com/api/v1/pricelabs/hook` |
+| `sync_url` | 接收价格/限制更新 | `https://your-pms.com/api/v1/pricelabs/webhook/sync` |
+| `calendar_trigger_url` | 触发日历刷新请求 | `https://your-pms.com/api/v1/pricelabs/webhook/calendar-trigger` |
+| `hook_url` | 接收错误通知 | `https://your-pms.com/api/v1/pricelabs/webhook/hook` |
 
 ---
 
@@ -187,9 +187,9 @@ PriceLabs 推送的是**基础定价**，需要根据各渠道的价格调整配
 **请求体**:
 ```json
 {
-  "sync_url": "https://your-pms.com/api/v1/pricelabs/sync",
-  "calendar_trigger_url": "https://your-pms.com/api/v1/pricelabs/calendar-trigger",
-  "hook_url": "https://your-pms.com/api/v1/pricelabs/hook",
+  "sync_url": "https://your-pms.com/api/v1/pricelabs/webhook/sync",
+  "calendar_trigger_url": "https://your-pms.com/api/v1/pricelabs/webhook/calendar-trigger",
+  "hook_url": "https://your-pms.com/api/v1/pricelabs/webhook/hook",
   "regenerate_token": false,
   "delta_push": true
 }
@@ -211,9 +211,9 @@ PriceLabs 推送的是**基础定价**，需要根据各渠道的价格调整配
   "success": true,
   "message": "Integration settings updated successfully",
   "data": {
-    "sync_url": "https://your-pms.com/api/v1/pricelabs/sync",
-    "calendar_trigger_url": "https://your-pms.com/api/v1/pricelabs/calendar-trigger",
-    "hook_url": "https://your-pms.com/api/v1/pricelabs/hook",
+    "sync_url": "https://your-pms.com/api/v1/pricelabs/webhook/sync",
+    "calendar_trigger_url": "https://your-pms.com/api/v1/pricelabs/webhook/calendar-trigger",
+    "hook_url": "https://your-pms.com/api/v1/pricelabs/webhook/hook",
     "new_token": null
   }
 }
@@ -1826,9 +1826,9 @@ curl -X POST "https://api.pricelabs.co/v1/integration/api/integration" \
   -H "X-INTEGRATION-NAME: thehosthub" \
   -H "X-INTEGRATION-TOKEN: z7FgFEQn42hKzDNza76dpY0hQHz6P6mfEM/0xtT78paBIOmvTmYti/2n3l1K7Ac3" \
   -d '{
-    "sync_url": "https://your-pms.com/api/v1/pricelabs/sync",
-    "calendar_trigger_url": "https://your-pms.com/api/v1/pricelabs/calendar-trigger",
-    "hook_url": "https://your-pms.com/api/v1/pricelabs/hook",
+    "sync_url": "https://your-pms.com/api/v1/pricelabs/webhook/sync",
+    "calendar_trigger_url": "https://your-pms.com/api/v1/pricelabs/webhook/calendar-trigger",
+    "hook_url": "https://your-pms.com/api/v1/pricelabs/webhook/hook",
     "regenerate_token": false
   }'
 ```

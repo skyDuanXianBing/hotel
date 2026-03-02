@@ -275,6 +275,26 @@ public class RoomTypeService {
 
         throw new RuntimeException("room type code already exists");
     }
+
+    private static String normalizeRoomTypeCode(String rawCode) {
+        if (rawCode == null || rawCode.trim().isEmpty()) {
+            throw new RuntimeException("room type code is required");
+        }
+        String normalized = rawCode.trim().toUpperCase(Locale.ROOT);
+        final int maxLen = 20;
+        if (normalized.length() > maxLen) {
+            normalized = normalized.substring(0, maxLen);
+        }
+        return normalized;
+    }
+
+    private static String normalizeRoomTypeName(String rawName) {
+        if (rawName == null || rawName.trim().isEmpty()) {
+            throw new RuntimeException("room type name is required");
+        }
+        return rawName.trim();
+    }
+
     public RoomType updateRoomType(Long id, RoomType roomType) {
         Long storeId = currentStoreId();
         RoomType existingRoomType = roomTypeRepository.findById(id)
@@ -284,18 +304,22 @@ public class RoomTypeService {
             throw new RuntimeException("无权限修改此房型");
         }
 
-        if (!existingRoomType.getCode().equals(roomType.getCode()) &&
-            roomTypeRepository.existsByStoreIdAndCode(storeId, roomType.getCode())) {
+        String normalizedExistingCode = normalizeRoomTypeCode(existingRoomType.getCode());
+        String normalizedCode = normalizeRoomTypeCode(roomType.getCode());
+        if (!normalizedExistingCode.equals(normalizedCode)
+                && roomTypeRepository.existsByStoreIdAndCodeAndIdNot(storeId, normalizedCode, id)) {
             throw new RuntimeException("房型代码已存在");
         }
 
-        if (!java.util.Objects.equals(existingRoomType.getName(), roomType.getName())
-                && roomTypeRepository.existsByStoreIdAndName(storeId, roomType.getName())) {
+        String normalizedExistingName = normalizeRoomTypeName(existingRoomType.getName());
+        String normalizedName = normalizeRoomTypeName(roomType.getName());
+        if (!normalizedExistingName.equalsIgnoreCase(normalizedName)
+                && roomTypeRepository.existsByStoreIdAndNameAndIdNot(storeId, normalizedName, id)) {
             throw new RuntimeException("房型更新失败：同一门店下已存在同名房型，请更换名称后重试");
         }
 
-        existingRoomType.setName(roomType.getName());
-        existingRoomType.setCode(roomType.getCode());
+        existingRoomType.setName(normalizedName);
+        existingRoomType.setCode(normalizedCode);
 
         if (suRoomTypeAutoSyncEnabled && suRoomTypeAutoSyncStrict) {
             Integer oldTotal = existingRoomType.getTotalRooms();

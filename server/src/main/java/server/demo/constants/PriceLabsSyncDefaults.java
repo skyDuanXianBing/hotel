@@ -5,6 +5,7 @@ package server.demo.constants;
  */
 public final class PriceLabsSyncDefaults {
     public static final int DEFAULT_SYNC_DAYS = 365;
+    public static final int INITIAL_SYNC_DAYS = 370;
     public static final int MAX_SYNC_DAYS = 540;
 
     /**

@@ -362,7 +362,7 @@ public class SuAriSyncService {
                     LocalDate date = startDate.plusDays(i);
                     Integer override = availableRoomsOverrideByRoomTypeDate.get(rtId + "|" + date);
                     if (override != null) {
-                        counts[i] = override;
+                        counts[i] = Math.min(counts[i], override);
                     }
                 }
             }
