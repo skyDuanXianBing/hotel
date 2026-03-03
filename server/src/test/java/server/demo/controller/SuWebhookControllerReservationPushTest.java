@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -62,8 +61,9 @@ class SuWebhookControllerReservationPushTest {
 
         Mockito.when(idempotencyService.markProcessingAndReturnNew(Mockito.eq("S15KQEKHXP"), Mockito.anyList()))
                 .thenReturn(Set.of("N1"));
-
-        Mockito.when(compensationService.processDueEventsOnce(Mockito.anyInt())).thenReturn(1);
+        
+        Mockito.when(compensationService.processPullNotifIdsNow(Mockito.eq(14L), Mockito.eq("S15KQEKHXP"), Mockito.eq(Set.of("N1"))))
+                .thenReturn(Set.of("N1"));
 
         String body = """
                 {
@@ -81,14 +81,10 @@ class SuWebhookControllerReservationPushTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         Map<String, Object> reservationNotif = (Map<String, Object>) response.getBody().get("reservation_notif");
         assertEquals(List.of("N1"), reservationNotif.get("reservation_notif_id"));
-
-        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
-        Mockito.verify(asyncProcessor).submit(Mockito.anyString(), taskCaptor.capture());
-        taskCaptor.getValue().run();
-
+        
         Mockito.verify(compensationService).recordPullNotifIds(Mockito.eq(14L), Mockito.eq("S15KQEKHXP"), Mockito.eq(Set.of("N1")));
         Mockito.verify(idempotencyService).markDone(Mockito.eq("S15KQEKHXP"), Mockito.eq(Set.of("N1")));
-        Mockito.verify(compensationService).processDueEventsOnce(Mockito.anyInt());
+        Mockito.verify(asyncProcessor, Mockito.never()).submit(Mockito.anyString(), Mockito.any());
     }
 
     @Test
@@ -97,7 +93,8 @@ class SuWebhookControllerReservationPushTest {
         ReflectionTestUtils.setField(store, "id", 6L);
         Mockito.when(storeRepository.findBySuHotelId("S15KQEKHXP")).thenReturn(Optional.of(store));
 
-        Mockito.when(compensationService.processDueEventsOnce(Mockito.anyInt())).thenReturn(1);
+        Mockito.when(compensationService.processPushReservationsNow(Mockito.eq(6L), Mockito.eq("S15KQEKHXP"), Mockito.anyList()))
+                .thenReturn(Set.of("N1"));
 
         String body = """
                 {
@@ -126,12 +123,8 @@ class SuWebhookControllerReservationPushTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         Map<String, Object> reservationNotif = (Map<String, Object>) response.getBody().get("reservation_notif");
         assertEquals(List.of("N1"), reservationNotif.get("reservation_notif_id"));
-
-        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
-        Mockito.verify(asyncProcessor).submit(Mockito.anyString(), taskCaptor.capture());
-        taskCaptor.getValue().run();
         Mockito.verify(compensationService).recordPushReservations(Mockito.eq(6L), Mockito.eq("S15KQEKHXP"), Mockito.anyList());
-        Mockito.verify(compensationService).processDueEventsOnce(Mockito.anyInt());
+        Mockito.verify(asyncProcessor, Mockito.never()).submit(Mockito.anyString(), Mockito.any());
     }
 
     @Test
@@ -140,7 +133,8 @@ class SuWebhookControllerReservationPushTest {
         ReflectionTestUtils.setField(store, "id", 6L);
         Mockito.when(storeRepository.findBySuHotelId("S15KQEKHXP")).thenReturn(Optional.of(store));
 
-        Mockito.when(compensationService.processDueEventsOnce(Mockito.anyInt())).thenReturn(1);
+        Mockito.when(compensationService.processPushReservationsNow(Mockito.eq(6L), Mockito.eq("S15KQEKHXP"), Mockito.anyList()))
+                .thenReturn(Set.of("N1"));
 
         String body = """
                 {
@@ -169,12 +163,8 @@ class SuWebhookControllerReservationPushTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         Map<String, Object> reservationNotif = (Map<String, Object>) response.getBody().get("reservation_notif");
         assertEquals(List.of("N1"), reservationNotif.get("reservation_notif_id"));
-
-        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
-        Mockito.verify(asyncProcessor).submit(Mockito.anyString(), taskCaptor.capture());
-        taskCaptor.getValue().run();
         Mockito.verify(compensationService).recordPushReservations(Mockito.eq(6L), Mockito.eq("S15KQEKHXP"), Mockito.anyList());
-        Mockito.verify(compensationService).processDueEventsOnce(Mockito.anyInt());
+        Mockito.verify(asyncProcessor, Mockito.never()).submit(Mockito.anyString(), Mockito.any());
     }
 }
 

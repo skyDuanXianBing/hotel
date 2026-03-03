@@ -14,10 +14,17 @@ public class ReservationDTO {
     private String roomTypeName;
     private Long channelId;
     private String channelName;
+    private String channelOrderNumber;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private String status; // RESERVED, CHECKED_IN, CHECKED_OUT, CANCELLED
     private String notes;
+    
+    // Su / OTA fields (for 未排房/未映射排查)
+    private String reservationNotifId;
+    private String suReservationId;
+    private String otaRoomId;
+    private Long otaRoomTypeId;
     private java.math.BigDecimal totalAmount;
     private java.math.BigDecimal currentRoomPrice; // 当前房型价格
     private LocalDateTime createdAt;
@@ -99,6 +106,14 @@ public class ReservationDTO {
         this.channelName = channelName;
     }
     
+    public String getChannelOrderNumber() {
+        return channelOrderNumber;
+    }
+    
+    public void setChannelOrderNumber(String channelOrderNumber) {
+        this.channelOrderNumber = channelOrderNumber;
+    }
+    
     public LocalDate getCheckInDate() {
         return checkInDate;
     }
@@ -129,6 +144,38 @@ public class ReservationDTO {
     
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+    
+    public String getReservationNotifId() {
+        return reservationNotifId;
+    }
+    
+    public void setReservationNotifId(String reservationNotifId) {
+        this.reservationNotifId = reservationNotifId;
+    }
+    
+    public String getSuReservationId() {
+        return suReservationId;
+    }
+    
+    public void setSuReservationId(String suReservationId) {
+        this.suReservationId = suReservationId;
+    }
+    
+    public String getOtaRoomId() {
+        return otaRoomId;
+    }
+    
+    public void setOtaRoomId(String otaRoomId) {
+        this.otaRoomId = otaRoomId;
+    }
+    
+    public Long getOtaRoomTypeId() {
+        return otaRoomTypeId;
+    }
+    
+    public void setOtaRoomTypeId(Long otaRoomTypeId) {
+        this.otaRoomTypeId = otaRoomTypeId;
     }
     
     public LocalDateTime getCreatedAt() {

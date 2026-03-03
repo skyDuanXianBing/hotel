@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import jakarta.persistence.criteria.Predicate;
+import server.demo.dto.AssignableRoomDTO;
+import server.demo.dto.AssignableRoomTypeDTO;
+import server.demo.dto.AssignableRoomsResponse;
 import server.demo.dto.CreateReservationRequest;
 import server.demo.dto.OperationLogDetailDTO;
 import server.demo.dto.PagedReservationResponse;
@@ -24,6 +27,7 @@ import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.User;
+import server.demo.enums.RoomStatus;
 import server.demo.enums.OperationType;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.ChannelRepository;
@@ -40,8 +44,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -644,6 +650,164 @@ public class ReservationService {
     }
 
     /**
+     * 获取某订单在其入住-退房日期范围内可分配的房型/房间列表。
+     *
+     * 规则：
+     * 1) 仅返回当前门店的房间
+     * 2) 过滤掉 OUT_OF_ORDER / MAINTENANCE 的房间
+     * 3) 过滤掉在该日期范围内已有有效订单占用的房间（CONFIRMED/CHECKED_IN/REQUESTED）
+     *
+     * @param reservationId 订单ID
+     * @param roomTypeId 可选，指定后返回该房型下可用房间列表；未指定时仅返回可用房型列表
+     */
+    @Transactional(readOnly = true)
+    public AssignableRoomsResponse getAssignableRooms(Long reservationId, Long roomTypeId) {
+        Reservation reservation = loadReservationInStore(reservationId);
+        Long storeId = currentStoreId();
+
+        LocalDate checkIn = reservation.getCheckInDate();
+        LocalDate checkOut = reservation.getCheckOutDate();
+        if (checkIn == null || checkOut == null) {
+            throw new RuntimeException("订单缺少入住/退房日期，无法排房");
+        }
+
+        List<Room> allRooms = roomRepository.findByStoreIdWithRoomType(storeId);
+        List<Room> candidateRooms = allRooms.stream()
+                .filter(r -> r.getStatus() != RoomStatus.OUT_OF_ORDER && r.getStatus() != RoomStatus.MAINTENANCE)
+                .collect(Collectors.toList());
+
+        List<Long> candidateRoomIds = candidateRooms.stream()
+                .map(Room::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        Set<ReservationStatus> occupyStatuses = Set.of(
+                ReservationStatus.CONFIRMED,
+                ReservationStatus.CHECKED_IN,
+                ReservationStatus.REQUESTED
+        );
+
+        Set<Long> conflictRoomIds = candidateRoomIds.isEmpty()
+                ? Set.of()
+                : reservationRepository
+                .findByStoreIdAndRoomIdInAndDateRangeAndStatuses(storeId, candidateRoomIds, checkIn, checkOut, occupyStatuses)
+                .stream()
+                .filter(r -> !Objects.equals(r.getId(), reservationId))
+                .map(r -> r.getRoom() == null ? null : r.getRoom().getId())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        List<Room> availableRooms = candidateRooms.stream()
+                .filter(r -> r.getId() != null && !conflictRoomIds.contains(r.getId()))
+                .collect(Collectors.toList());
+
+        Map<Long, RoomType> roomTypeById = new HashMap<>();
+        Map<Long, Long> availableCountByRoomTypeId = new HashMap<>();
+        for (Room room : availableRooms) {
+            RoomType rt = room.getRoomType();
+            if (rt == null || rt.getId() == null) {
+                continue;
+            }
+            roomTypeById.putIfAbsent(rt.getId(), rt);
+            availableCountByRoomTypeId.put(rt.getId(), availableCountByRoomTypeId.getOrDefault(rt.getId(), 0L) + 1);
+        }
+
+        List<AssignableRoomTypeDTO> roomTypes = availableCountByRoomTypeId.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> {
+                    RoomType rt = roomTypeById.get(e.getKey());
+                    return new AssignableRoomTypeDTO(rt.getId(), rt.getName(), rt.getCode(), e.getValue());
+                })
+                .collect(Collectors.toList());
+
+        List<AssignableRoomDTO> rooms = List.of();
+        if (roomTypeId != null) {
+            rooms = availableRooms.stream()
+                    .filter(r -> r.getRoomType() != null && Objects.equals(r.getRoomType().getId(), roomTypeId))
+                    .sorted((a, b) -> {
+                        String an = a.getRoomNumber() == null ? "" : a.getRoomNumber();
+                        String bn = b.getRoomNumber() == null ? "" : b.getRoomNumber();
+                        return an.compareTo(bn);
+                    })
+                    .map(r -> new AssignableRoomDTO(
+                            r.getId(),
+                            r.getRoomNumber(),
+                            r.getRoomType() == null ? null : r.getRoomType().getId(),
+                            r.getRoomType() == null ? null : r.getRoomType().getName()
+                    ))
+                    .collect(Collectors.toList());
+        }
+
+        return new AssignableRoomsResponse(
+                reservationId,
+                checkIn.toString(),
+                checkOut.toString(),
+                roomTypes,
+                rooms
+        );
+    }
+
+    /**
+     * 为订单分配具体房间（会按订单日期范围校验冲突）。
+     */
+    public ReservationDTO assignRoom(Long reservationId, Long roomId) {
+        Long storeId = currentStoreId();
+
+        Reservation reservation = loadReservationInStore(reservationId);
+        LocalDate checkIn = reservation.getCheckInDate();
+        LocalDate checkOut = reservation.getCheckOutDate();
+        if (checkIn == null || checkOut == null) {
+            throw new RuntimeException("订单缺少入住/退房日期，无法排房");
+        }
+        ReservationStatus reservationStatus = reservation.getStatus();
+        boolean assignableStatus = reservationStatus == ReservationStatus.CONFIRMED
+                || reservationStatus == ReservationStatus.REQUESTED
+                || reservationStatus == ReservationStatus.CHECKED_IN;
+        if (!assignableStatus) {
+            throw new RuntimeException("当前订单状态不支持排房（仅已确认/待确认/已入住可排房）");
+        }
+
+        Room room = roomRepository.findByStoreIdAndIdWithRoomType(storeId, roomId)
+                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+        if (room.getStatus() == RoomStatus.OUT_OF_ORDER || room.getStatus() == RoomStatus.MAINTENANCE) {
+            throw new RuntimeException("该房间当前不可用");
+        }
+
+        List<Reservation> conflicts = reservationRepository.findByStoreIdAndRoomIdAndDateRange(storeId, roomId, checkIn, checkOut)
+                .stream()
+                .filter(r -> !Objects.equals(r.getId(), reservationId))
+                .collect(Collectors.toList());
+        if (!conflicts.isEmpty()) {
+            throw new RuntimeException("该房间在订单日期范围内已被占用，请选择其他房间");
+        }
+
+        Room oldRoom = reservation.getRoom();
+        Channel oldChannel = reservation.getChannel();
+        LocalDate oldCheckIn = reservation.getCheckInDate();
+        LocalDate oldCheckOut = reservation.getCheckOutDate();
+        String oldGuestName = reservation.getGuestName();
+        String oldGuestPhone = reservation.getGuestPhone();
+        BigDecimal oldTotalAmount = reservation.getTotalAmount();
+
+        reservation.setRoom(room);
+        Reservation saved = reservationRepository.save(reservation);
+        cleaningTaskAutoService.syncTaskForReservation(saved);
+        schedulePriceLabsReservationSyncAfterCommit(storeId, saved.getId());
+        scheduleSuAvailabilitySyncForReservationChangeAfterCommit(
+                storeId,
+                SU_ARI_SOURCE_RESERVATION_UPDATE,
+                oldRoom,
+                oldCheckIn,
+                oldCheckOut,
+                saved.getRoom(),
+                saved.getCheckInDate(),
+                saved.getCheckOutDate()
+        );
+        logUpdateReservation(saved, oldRoom, saved.getRoom(), oldChannel, saved.getChannel(), oldCheckIn, oldCheckOut, oldGuestName, oldGuestPhone, oldTotalAmount);
+        return convertToDTO(saved);
+    }
+
+    /**
      * 获取房型的当前价格（基于日期判断平日/周末价格）
      */
     public BigDecimal getCurrentRoomPrice(Long roomTypeId, LocalDate date) {
@@ -749,7 +913,7 @@ public class ReservationService {
                         ));
                         break;
                     case "unassigned":
-                        // 未排房：没有分配具体房间
+                        // 未排房/未映射统一按“未分配具体房间”处理
                         predicates.add(criteriaBuilder.isNull(root.get("room")));
                         break;
                     case "pending":
@@ -790,7 +954,7 @@ public class ReservationService {
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
         long todayNewCount = reservationRepository.countTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
-        long unassignedCount = reservationRepository.countByStoreIdAndRoomIsNull(storeId);
+        long unassignedCount = reservationRepository.countUnassignedOrUnmappedByStoreId(storeId);
         long pendingCount = reservationRepository.countPendingOrdersByStoreId(storeId);
 
         Specification<Reservation> spec = (root, query, criteriaBuilder) ->
@@ -819,7 +983,7 @@ public class ReservationService {
      * 获取未排房预订
      */
     public List<ReservationDTO> getUnassignedReservations() {
-        List<Reservation> reservations = reservationRepository.findByStoreIdAndRoomIsNull(currentStoreId());
+        List<Reservation> reservations = reservationRepository.findUnassignedOrUnmappedByStoreId(currentStoreId());
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -901,10 +1065,16 @@ public class ReservationService {
         
         dto.setChannelId(reservation.getChannel().getId());
         dto.setChannelName(reservation.getChannel().getName());
+        dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
         dto.setCheckInDate(reservation.getCheckInDate());
         dto.setCheckOutDate(reservation.getCheckOutDate());
         dto.setStatus(reservation.getStatus().name());
         dto.setNotes(reservation.getNotes());
+        
+        dto.setReservationNotifId(reservation.getReservationNotifId());
+        dto.setSuReservationId(reservation.getSuReservationId());
+        dto.setOtaRoomId(reservation.getOtaRoomId());
+        dto.setOtaRoomTypeId(reservation.getOtaRoomTypeId());
         
         // 设置原始订单金额
         dto.setTotalAmount(reservation.getTotalAmount());
@@ -935,7 +1105,10 @@ public class ReservationService {
                 reservations = reservationRepository.findTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
                 break;
             case "unassigned":
-                reservations = reservationRepository.findByStoreIdAndRoomIsNull(storeId);
+                reservations = reservationRepository.findUnassignedOrUnmappedByStoreId(storeId);
+                break;
+            case "assigned":
+                reservations = reservationRepository.findAssignedByStoreId(storeId);
                 break;
             case "pending":
                 reservations = reservationRepository.findPendingOrdersByStoreId(storeId);

@@ -51,19 +51,20 @@
           <el-tab-pane name="today-new">
             <template #label>
               <div class="tab-label-with-badge">
-                <span>今日新办</span>
+                <span>今日新单</span>
                 <span v-if="todayNewCount > 0" class="custom-badge">{{ todayNewCount }}</span>
               </div>
             </template>
           </el-tab-pane>
-          <el-tab-pane name="unassigned">
-            <template #label>
-              <div class="tab-label-with-badge">
-                <span>未排房</span>
-                <span v-if="unassignedCount > 0" class="custom-badge">{{ unassignedCount }}</span>
-              </div>
-            </template>
-          </el-tab-pane>
+           <el-tab-pane name="unassigned">
+             <template #label>
+               <div class="tab-label-with-badge">
+                 <span>未排房/未映射</span>
+                 <span v-if="unassignedCount > 0" class="custom-badge">{{ unassignedCount }}</span>
+               </div>
+             </template>
+           </el-tab-pane>
+          <el-tab-pane label="已排房" name="assigned"></el-tab-pane>
           <el-tab-pane name="pending">
             <template #label>
               <div class="tab-label-with-badge">
@@ -184,11 +185,11 @@
             <el-button @click="toggleFilters">
               {{ showAdvancedFilters ? '收起筛选' : '展开筛选' }}
               <el-icon>
-                <component :is="showAdvancedFilters ? 'ArrowUp' : 'ArrowDown'" />
-              </el-icon>
-            </el-button>
-          </div>
+              <component :is="showAdvancedFilters ? ArrowUp : ArrowDown" />
+            </el-icon>
+          </el-button>
         </div>
+      </div>
       </div>
 
       <!-- 订单盒子提示信息 -->
@@ -202,8 +203,8 @@
           <template #default>
             <div class="notice-content">
               <p>1. 只有已预订房间可移入订单盒子</p>
-              <p>2. 订单盒子中的房间不实际排房,不占库存,营业数据不进行统计</p>
-              <p>3. 订单金额不计算移入订单盒子的房间,如果房间被结账/挂账,移入后将被撤销</p>
+              <p>2. 订单盒子中的房间不实际排房，不占库存，营业数据不进行统计</p>
+              <p>3. 订单金额不计算移入订单盒子的房间，如房间已结账或挂账，移入后将被撤销</p>
             </div>
           </template>
         </el-alert>
@@ -218,13 +219,19 @@
           v-loading="loading"
           element-loading-text="加载中..."
         >
-          <el-table-column prop="orderNumber" label="订单号/渠道订单号" width="180">
+          <el-table-column prop="orderNumber" label="订单号/渠道订单号" min-width="280">
             <template #default="scope">
               <div class="order-number">
-                <el-button type="text" class="order-link">{{ scope.row.orderNumber }}</el-button>
-                <div class="channel-order" v-if="scope.row.channelOrderNumber">
-                  {{ scope.row.channelOrderNumber }}
-                </div>
+                <el-button type="text" class="order-link" @click="viewOrder(scope.row)">{{
+                  scope.row.orderNumber
+                }}</el-button>
+                <el-button
+                  type="text"
+                  class="channel-order-link"
+                  @click="viewOrder(scope.row)"
+                >
+                  {{ getDisplayChannelOrderNumber(scope.row) }}
+                </el-button>
               </div>
             </template>
           </el-table-column>
@@ -233,6 +240,14 @@
             <template #default="scope">
               <el-tag size="small" :type="getChannelTagType(scope.row.channelName)">
                 {{ scope.row.channelName }}
+              </el-tag>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="scope">
+              <el-tag size="small" :type="getReservationStatusTagType(scope.row.status)">
+                {{ getReservationStatusText(scope.row.status) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -253,7 +268,38 @@
 
           <el-table-column prop="roomTypeName" label="房型" width="100"></el-table-column>
 
+          <el-table-column v-if="activeOrderTab === 'unassigned'" prop="otaRoomId" label="渠道房型ID" width="160">
+            <template #default="scope">
+              <span>{{ scope.row.otaRoomId || '-' }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'unassigned'" prop="otaRoomTypeId" label="PMS房型ID" width="110">
+            <template #default="scope">
+              <span>{{ scope.row.otaRoomTypeId ?? '-' }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column
+            v-if="activeOrderTab === 'unassigned'"
+            prop="reservationNotifId"
+            label="reservation_notif_id"
+            width="210"
+          >
+            <template #default="scope">
+              <span>{{ scope.row.reservationNotifId || '-' }}</span>
+            </template>
+          </el-table-column>
+
           <el-table-column prop="roomNumber" label="房间" width="80"></el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned'" label="排房状态" width="100">
+            <template #default="scope">
+              <el-tag size="small" :type="getAssignStatusTagType(scope.row)">
+                {{ getAssignStatusText(scope.row) }}
+              </el-tag>
+            </template>
+          </el-table-column>
 
           <el-table-column prop="currentRoomPrice" label="房费" width="100">
             <template #default="scope">
@@ -269,7 +315,7 @@
 
           <el-table-column label="结账状态" width="100">
             <template #default="scope">
-              <el-tag size="small" type="danger"> 未结账 </el-tag>
+              <el-tag size="small" type="danger">未结账</el-tag>
             </template>
           </el-table-column>
 
@@ -281,25 +327,29 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column
+            v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned'"
+            label="操作"
+            width="180"
+            fixed="right"
+          >
             <template #default="scope">
-              <el-button type="text" size="small" @click="viewOrder(scope.row)">查看</el-button>
-              <el-button type="text" size="small" @click="editOrder(scope.row)">编辑</el-button>
-              <el-dropdown @command="(command: string) => handleOrderAction(command, scope.row)">
-                <el-button type="text" size="small">
-                  更多<el-icon><ArrowDown /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item v-if="activeOrderTab === 'order-box'" command="moveOut">
-                      移出订单盒子
-                    </el-dropdown-item>
-                    <el-dropdown-item v-else command="checkIn">办理入住</el-dropdown-item>
-                    <el-dropdown-item command="checkOut">办理退房</el-dropdown-item>
-                    <el-dropdown-item command="cancel">取消订单</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+              <el-button
+                v-if="scope.row.roomId"
+                type="success"
+                link
+                @click="viewOrder(scope.row)"
+              >
+                已排房
+              </el-button>
+              <el-button
+                type="primary"
+                link
+                :disabled="!canAssignRoom(scope.row)"
+                @click="openAssignRoom(scope.row)"
+              >
+                {{ scope.row.roomId ? '编辑排房' : '进行排房' }}
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -307,7 +357,7 @@
         <!-- 分页 -->
         <div class="pagination-wrapper">
           <div class="pagination-info">
-            <span>总计{{ totalOrders }}个订单</span>
+            <span>总计 {{ totalOrders }} 个订单</span>
           </div>
           <el-pagination
             v-model:current-page="currentPage"
@@ -321,61 +371,131 @@
         </div>
       </div>
     </div>
+
+    <ReservationDetailDrawer
+      v-model="showOrderDetailDrawer"
+      :reservation-id="selectedReservationId"
+      :active-order-tab="activeOrderTab"
+      @updated="handleReservationUpdated"
+    />
+
+    <el-dialog
+      v-model="showAssignRoomDialog"
+      title="进行排房"
+      width="860px"
+      destroy-on-close
+      @closed="handleAssignDialogClosed"
+    >
+      <div class="assign-room-panel">
+        <h4 class="panel-title">排房（按订单日期范围过滤可用房间）</h4>
+
+        <div class="assign-row">
+          <div class="assign-label">房型</div>
+          <el-select
+            v-model="assignRoomTypeId"
+            placeholder="请选择房型"
+            filterable
+            :loading="assignableRoomsLoading"
+            style="width: 100%"
+            @change="handleAssignRoomTypeChange"
+          >
+            <el-option
+              v-for="roomType in assignableRoomTypes"
+              :key="roomType.id"
+              :label="`${roomType.name}（可用 ${roomType.availableRooms}）`"
+              :value="roomType.id"
+            />
+          </el-select>
+        </div>
+
+        <div class="assign-row">
+          <div class="assign-label">房间号</div>
+          <el-select
+            v-model="assignRoomId"
+            placeholder="请选择房间"
+            filterable
+            :disabled="!assignRoomTypeId"
+            :loading="assignableRoomsLoading"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="room in assignableRooms"
+              :key="room.id"
+              :label="`${room.roomTypeName}-${room.roomNumber}`"
+              :value="room.id"
+            />
+          </el-select>
+        </div>
+
+        <div class="assign-actions">
+          <el-button :loading="assignableRoomsLoading" @click="refreshAssignableRoomTypes">
+            刷新可用房间
+          </el-button>
+          <el-button
+            type="primary"
+            :disabled="!assignRoomId"
+            :loading="assignRoomSubmitting"
+            @click="submitAssignRoom"
+          >
+            确认排房
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   ArrowLeft,
   ArrowRight,
   Document,
-  Collection,
   Search,
   ArrowDown,
   ArrowUp,
   Menu as MenuIcon,
 } from '@element-plus/icons-vue'
-import { ElMessage, ElLoading } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import {
+  assignReservationRoom,
+  getAssignableRooms,
   getReservationsWithFilters,
   getReservationStatistics,
   getReservationsByType,
-  checkInReservation,
-  checkOutReservation,
-  cancelReservation,
+  type AssignableRoomDTO,
+  type AssignableRoomTypeDTO,
   type ReservationDTO,
-  type PagedReservationResponse,
   type ReservationStatistics,
 } from '@/api/reservation'
+import ReservationDetailDrawer from '@/components/reservation/ReservationDetailDrawer.vue'
 import {
   getOrderBoxList,
-  moveOutOrderBox,
   type OrderBoxItem,
 } from '@/api/orderBox'
 
-const router = useRouter()
 const route = useRoute()
 
-// 侧边栏折叠状态
+// Sidebar collapsed state
 const isCollapsed = ref(false)
 
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value
 }
 
-// 响应式数据
+// Reactive state
 const activeMenu = ref('order-management')
 const activeOrderTab = ref('all')
 
-// 映射首页统计类型到订单页面标签页
+// 映射首页统计类型到订单页标签页
 const mapTypeToTab = (type: string) => {
   const typeMap: Record<string, string> = {
     'today-arrivals': 'today-checkin',
     'today-departures': 'today-checkout',
     'today-new': 'today-new',
     unassigned: 'unassigned',
+    assigned: 'assigned',
     pending: 'pending',
   }
   return typeMap[type] || 'all'
@@ -388,6 +508,7 @@ const mapTabToType = (tab: string) => {
     'today-checkout': 'today-departures',
     'today-new': 'today-new',
     unassigned: 'unassigned',
+    assigned: 'assigned',
     pending: 'pending',
   }
   return tabMap[tab]
@@ -397,7 +518,7 @@ const dateRange = ref<[string, string] | null>(null)
 const showAdvancedFilters = ref(true)
 const loading = ref(false)
 
-// 筛选条件
+// Filters
 const filters = ref({
   channel: '',
   roomType: '',
@@ -424,7 +545,7 @@ const statistics = ref<ReservationStatistics>({
   totalReservations: 0,
 })
 
-// 各类型订单数量计算 - 使用统计数据
+// 各类型订单数量统计（使用统计接口数据）
 const todayCheckinCount = computed(() => {
   return statistics.value.todayCheckinCount
 })
@@ -455,28 +576,27 @@ const loadReservations = async () => {
       loading.value = false
       return
     }
-
-    // 检查当前标签页是否对应特定的统计类型
+    // 检查当前标签页是否对应特定统计类型
     const statisticsType = mapTabToType(activeOrderTab.value)
 
     console.log('loadReservations - 当前标签页:', activeOrderTab.value)
-    console.log('loadReservations - 映射的统计类型:', statisticsType)
+    console.log('loadReservations - 映射统计类型:', statisticsType)
 
     if (statisticsType) {
-      // 使用按类型过滤的API
-      console.log('loadReservations - 使用类型过滤API:', statisticsType)
+      // 使用按类型过滤的 API
+      console.log('loadReservations - 使用类型过滤 API:', statisticsType)
       const response = await getReservationsByType(statisticsType)
-      console.log('loadReservations - API响应:', response)
+      console.log('loadReservations - API 响应:', response)
       if (response.success) {
         orders.value = response.data
         totalOrders.value = response.data.length
-        console.log('loadReservations - 过滤后的订单数量:', response.data.length)
+        console.log('loadReservations - 过滤后订单数量:', response.data.length)
       } else {
         ElMessage.error(response.message)
       }
     } else {
-      // 使用通用的分页API
-      console.log('loadReservations - 使用通用分页API')
+      // 使用通用分页 API
+      console.log('loadReservations - 使用通用分页 API')
       const filterParams = {
         page: currentPage.value - 1, // 后端从0开始计数
         size: pageSize.value,
@@ -538,23 +658,23 @@ const loadOrderBox = async () => {
   }
 }
 
-// 工具函数：判断是否为今日
+// 工具函数：判断是否为今天
 const isToday = (dateStr: string) => {
   const date = new Date(dateStr)
   const today = new Date()
   return date.toDateString() === today.toDateString()
 }
 
-// 因为筛选现在由后端处理，所以直接返回orders
+// 筛选由后端处理，这里直接返回数据
 const filteredOrders = computed(() => {
   if (activeOrderTab.value === 'order-box') {
-    // 订单盒子显示订单盒子中的订单
+    // 订单盒子标签显示订单盒子内的订单
     return orderBoxItems.value.map((item) => item.reservation)
   }
   return orders.value
 })
 
-// 方法
+// 页面交互方法
 const handleMenuSelect = (index: string) => {
   activeMenu.value = index
 }
@@ -562,17 +682,13 @@ const handleMenuSelect = (index: string) => {
 const handleOrderTabChange = (tabName: string) => {
   console.log('切换标签页:', tabName)
   activeOrderTab.value = tabName
-  console.log('设置activeOrderTab为:', activeOrderTab.value)
-  // 重置分页到第一页
+  console.log('设置 activeOrderTab 后:', activeOrderTab.value)
   currentPage.value = 1
-  // 重新加载数据
   loadReservations()
 }
 
 const handleSearch = () => {
-  // 重置分页到第一页
   currentPage.value = 1
-  // 重新加载数据
   loadReservations()
 }
 
@@ -580,24 +696,19 @@ const handleDateChange = (dates: [string, string] | null) => {
   if (dates) {
     dateRange.value = dates
   }
-  // 重置分页到第一页
   currentPage.value = 1
-  // 重新加载数据
   loadReservations()
 }
 
 const handleFilterChange = () => {
-  // 重置分页到第一页
   currentPage.value = 1
-  // 重新加载数据
   loadReservations()
 }
 
 const handleDateRangeChange = (value: [string, string] | null) => {
   // 处理日期范围变化
-  // 重置分页到第一页
+  dateRange.value = value
   currentPage.value = 1
-  // 重新加载数据
   loadReservations()
 }
 
@@ -618,6 +729,57 @@ const getChannelTagType = (channel: string) => {
   }
 }
 
+const getReservationStatusText = (status?: string) => {
+  const normalized = (status || '').toUpperCase()
+  switch (normalized) {
+    case 'CONFIRMED':
+      return '已确认'
+    case 'REQUESTED':
+      return '待确认'
+    case 'CHECKED_IN':
+      return '已入住'
+    case 'CHECKED_OUT':
+      return '已退房'
+    case 'CANCELLED':
+      return '已取消'
+    default:
+      return status || '-'
+  }
+}
+
+const getReservationStatusTagType = (status?: string) => {
+  const normalized = (status || '').toUpperCase()
+  switch (normalized) {
+    case 'CHECKED_IN':
+      return 'success'
+    case 'CANCELLED':
+      return 'danger'
+    case 'REQUESTED':
+      return 'warning'
+    default:
+      return 'info'
+  }
+}
+
+const canAssignRoom = (order: ReservationDTO) => {
+  const normalized = (order.status || '').toUpperCase()
+  return normalized === 'CONFIRMED' || normalized === 'REQUESTED' || normalized === 'CHECKED_IN'
+}
+
+const getAssignStatusText = (order: ReservationDTO) => {
+  if (!order.roomId) {
+    return '未排房'
+  }
+  return canAssignRoom(order) ? '已排房' : '已排房(不占房)'
+}
+
+const getAssignStatusTagType = (order: ReservationDTO) => {
+  if (!order.roomId) {
+    return 'warning'
+  }
+  return canAssignRoom(order) ? 'success' : 'info'
+}
+
 const getPaymentStatusTagType = (status: string) => {
   switch (status) {
     case 'paid':
@@ -636,7 +798,7 @@ const getPaymentStatusText = (status: string) => {
     case 'paid':
       return '已结账'
     case 'unpaid':
-      return '欠款'
+      return '未结账'
     case 'partial':
       return '部分结账'
     default:
@@ -671,7 +833,7 @@ const getCheckinTypeDisplayName = (value: string) => {
 // 分页方法
 const handleSizeChange = (size: number) => {
   pageSize.value = size
-  currentPage.value = 1 // 重置到第一页
+  currentPage.value = 1
   loadReservations()
 }
 
@@ -680,120 +842,127 @@ const handleCurrentChange = (page: number) => {
   loadReservations()
 }
 
+const showOrderDetailDrawer = ref(false)
+const selectedReservationId = ref<number | null>(null)
+
+const showAssignRoomDialog = ref(false)
+const assignTargetReservationId = ref<number | null>(null)
+const assignableRoomsLoading = ref(false)
+const assignRoomSubmitting = ref(false)
+const assignRoomTypeId = ref<number | null>(null)
+const assignRoomId = ref<number | null>(null)
+const assignableRoomTypes = ref<AssignableRoomTypeDTO[]>([])
+const assignableRooms = ref<AssignableRoomDTO[]>([])
+
 // 订单操作方法
 const viewOrder = (order: ReservationDTO) => {
-  ElMessage.info(`查看订单: ${order.orderNumber}`)
+  selectedReservationId.value = order.id
+  showOrderDetailDrawer.value = true
 }
 
-const editOrder = (order: ReservationDTO) => {
-  ElMessage.info(`编辑订单: ${order.orderNumber}`)
+const resetAssignRoomState = () => {
+  assignRoomTypeId.value = null
+  assignRoomId.value = null
+  assignableRoomTypes.value = []
+  assignableRooms.value = []
 }
 
-const checkInOrder = async (order: ReservationDTO) => {
-  const loadingInstance = ElLoading.service({ text: '正在办理入住...' })
+const handleAssignDialogClosed = () => {
+  assignTargetReservationId.value = null
+  resetAssignRoomState()
+}
+
+const refreshAssignableRoomTypes = async () => {
+  const reservationId = assignTargetReservationId.value
+  if (!reservationId) return
+  assignableRoomsLoading.value = true
   try {
-    const response = await checkInReservation(order.id)
-    if (response.success) {
-      ElMessage.success(`办理入住成功: ${order.orderNumber}`)
-      // 重新加载数据
-      await loadReservations()
-      await loadStatistics()
-    } else {
-      ElMessage.error(response.message)
+    const res = await getAssignableRooms(reservationId)
+    if (!res.success) {
+      ElMessage.error(res.message || '加载可用房型失败')
+      return
     }
+    assignableRoomTypes.value = res.data.roomTypes || []
+    assignRoomTypeId.value = null
+    assignRoomId.value = null
+    assignableRooms.value = []
   } catch (error) {
-    console.error('办理入住失败:', error)
-    ElMessage.error('办理入住失败')
+    console.error('加载可用房型失败:', error)
+    ElMessage.error('加载可用房型失败')
   } finally {
-    loadingInstance.close()
+    assignableRoomsLoading.value = false
   }
 }
 
-const checkOutOrder = async (order: ReservationDTO) => {
-  const loadingInstance = ElLoading.service({ text: '正在办理退房...' })
+const handleAssignRoomTypeChange = async (roomTypeId: number) => {
+  const reservationId = assignTargetReservationId.value
+  if (!reservationId) return
+  assignRoomId.value = null
+  assignableRoomsLoading.value = true
   try {
-    const response = await checkOutReservation(order.id)
-    if (response.success) {
-      ElMessage.success(`办理退房成功: ${order.orderNumber}`)
-      // 重新加载数据
-      await loadReservations()
-      await loadStatistics()
-    } else {
-      ElMessage.error(response.message)
+    const res = await getAssignableRooms(reservationId, roomTypeId)
+    if (!res.success) {
+      ElMessage.error(res.message || '加载可用房间失败')
+      return
     }
+    assignableRooms.value = res.data.rooms || []
   } catch (error) {
-    console.error('办理退房失败:', error)
-    ElMessage.error('办理退房失败')
+    console.error('加载可用房间失败:', error)
+    ElMessage.error('加载可用房间失败')
   } finally {
-    loadingInstance.close()
+    assignableRoomsLoading.value = false
   }
 }
 
-const cancelOrder = async (order: ReservationDTO) => {
-  const loadingInstance = ElLoading.service({ text: '正在取消订单...' })
+const submitAssignRoom = async () => {
+  const reservationId = assignTargetReservationId.value
+  const roomId = assignRoomId.value
+  if (!reservationId || !roomId) return
+  assignRoomSubmitting.value = true
   try {
-    const response = await cancelReservation(order.id)
-    if (response.success) {
-      ElMessage.success(`取消订单成功: ${order.orderNumber}`)
-      // 重新加载数据
-      await loadReservations()
-      await loadStatistics()
-    } else {
-      ElMessage.error(response.message)
+    const res = await assignReservationRoom(reservationId, roomId)
+    if (!res.success) {
+      ElMessage.error(res.message || '排房失败')
+      return
     }
+    ElMessage.success('排房成功，房态日历刷新后可查看占房')
+    showAssignRoomDialog.value = false
+    await handleReservationUpdated()
   } catch (error) {
-    console.error('取消订单失败:', error)
-    ElMessage.error('取消订单失败')
+    console.error('排房失败:', error)
+    ElMessage.error('排房失败')
   } finally {
-    loadingInstance.close()
+    assignRoomSubmitting.value = false
   }
 }
 
-// 处理订单操作
-const handleOrderAction = async (command: string, order: ReservationDTO) => {
-  switch (command) {
-    case 'checkIn':
-      await checkInOrder(order)
-      break
-    case 'checkOut':
-      await checkOutOrder(order)
-      break
-    case 'cancel':
-      await cancelOrder(order)
-      break
-    case 'moveOut':
-      await handleMoveOutOrderBox(order)
-      break
-    default:
-      ElMessage.info('功能开发中...')
-  }
-}
-
-// 移出订单盒子
-const handleMoveOutOrderBox = async (order: ReservationDTO) => {
-  // 找到对应的订单盒子项
-  const boxItem = orderBoxItems.value.find((item) => item.reservation.id === order.id)
-  if (!boxItem) {
-    ElMessage.warning('未找到订单盒子记录')
+const openAssignRoom = async (order: ReservationDTO) => {
+  if (!canAssignRoom(order)) {
+    ElMessage.warning('当前订单状态不支持排房（仅已确认/待确认/已入住可排房）')
     return
   }
+  assignTargetReservationId.value = order.id
+  resetAssignRoomState()
+  showAssignRoomDialog.value = true
+  await refreshAssignableRoomTypes()
+}
 
-  const loadingInstance = ElLoading.service({ text: '正在移出订单盒子...' })
-  try {
-    const response = await moveOutOrderBox({ orderBoxItemId: boxItem.id })
-    if (response.success) {
-      ElMessage.success('已移出订单盒子')
-      // 重新加载订单盒子数据
-      await loadOrderBox()
-    } else {
-      ElMessage.error(response.message)
-    }
-  } catch (error) {
-    console.error('移出订单盒子失败:', error)
-    ElMessage.error('移出订单盒子失败')
-  } finally {
-    loadingInstance.close()
+const getDisplayChannelOrderNumber = (order: ReservationDTO) => {
+  const channelOrderNumber = order.channelOrderNumber?.trim()
+  if (channelOrderNumber) {
+    return channelOrderNumber
   }
+
+  const orderNumber = order.orderNumber?.trim() || ''
+  const underscoreIndex = orderNumber.indexOf('_')
+  if (underscoreIndex > 0) {
+    return orderNumber.slice(0, underscoreIndex)
+  }
+  return '-'
+}
+
+const handleReservationUpdated = async () => {
+  await Promise.all([loadReservations(), loadStatistics()])
 }
 
 onMounted(() => {
@@ -806,7 +975,6 @@ onMounted(() => {
     }
   }
 
-  // 初始化加载数据
   loadReservations()
   loadStatistics()
 })
@@ -1008,17 +1176,55 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-items: flex-start;
+  width: 100%;
 }
 
 .order-link {
   color: #1890ff;
   padding: 0;
   font-size: 14px;
+  text-align: left;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.35;
+}
+.order-link :deep(.el-button__text) {
+  white-space: normal;
+  word-break: break-all;
+  text-align: left;
+  display: block;
+  width: 100%;
 }
 
 .channel-order {
   font-size: 12px;
   color: #999;
+}
+
+.channel-order-link {
+  padding: 0;
+  font-size: 12px;
+  color: #999;
+  text-align: left;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.35;
+}
+.channel-order-link :deep(.el-button__text) {
+  white-space: normal;
+  word-break: break-all;
+  text-align: left;
+  display: block;
+  width: 100%;
+}
+
+.order-link,
+.channel-order-link {
+  width: 100%;
+  margin: 0 !important;
+  justify-content: flex-start !important;
+  height: auto;
 }
 
 /* 分页 */
@@ -1034,6 +1240,40 @@ onMounted(() => {
 .pagination-info {
   font-size: 14px;
   color: #666;
+}
+
+.assign-room-panel {
+  padding: 20px;
+  border: 1px solid #dcdfe6;
+  border-radius: 12px;
+  background: #f7f8fa;
+}
+
+.panel-title {
+  margin: 0 0 18px 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.assign-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.assign-label {
+  width: 120px;
+  font-size: 16px;
+  color: #606266;
+}
+
+.assign-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
 }
 
 /* 响应式设计 */

@@ -11,6 +11,7 @@ public class RoomTypeWithRoomsDTO {
     private String name;
     private String code;
     private Integer totalRooms;
+    private Integer maxGuests;
     private String description;
     private String checkInGuideLink;
     private LocalDateTime createdAt;
@@ -37,6 +38,7 @@ public class RoomTypeWithRoomsDTO {
         this.name = roomType.getName();
         this.code = roomType.getCode();
         this.totalRooms = roomType.getTotalRooms();
+        this.maxGuests = roomType.getMaxGuests();
         this.description = roomType.getDescription();
         this.checkInGuideLink = roomType.getCheckInGuideLink();
         this.createdAt = roomType.getCreatedAt();
@@ -85,6 +87,14 @@ public class RoomTypeWithRoomsDTO {
 
     public void setTotalRooms(Integer totalRooms) {
         this.totalRooms = totalRooms;
+    }
+
+    public Integer getMaxGuests() {
+        return maxGuests;
+    }
+
+    public void setMaxGuests(Integer maxGuests) {
+        this.maxGuests = maxGuests;
     }
 
     public String getDescription() {

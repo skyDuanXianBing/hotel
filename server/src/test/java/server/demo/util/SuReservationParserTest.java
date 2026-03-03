@@ -40,6 +40,7 @@ class SuReservationParserTest {
                             "roomreservation_id": "rr_1",
                             "arrival_date": "2025-12-20",
                             "departure_date": "2025-12-22",
+                            "roomstaystatus": "cancelled",
                             "guest_name": "张三",
                             "numberofadults": "2",
                             "numberofchildren": "1",
@@ -68,6 +69,7 @@ class SuReservationParserTest {
 
         JsonNode roomStay = roomStays.get(0);
         assertEquals("rr_1", SuReservationParser.extractRoomReservationId(roomStay));
+        assertEquals("cancelled", SuReservationParser.extractRoomStayStatus(roomStay));
         assertEquals(LocalDate.of(2025, 12, 20), SuReservationParser.extractArrivalDate(reservation, roomStay));
         assertEquals(LocalDate.of(2025, 12, 22), SuReservationParser.extractDepartureDate(reservation, roomStay));
         assertEquals("张三", SuReservationParser.extractGuestName(reservation, roomStay));

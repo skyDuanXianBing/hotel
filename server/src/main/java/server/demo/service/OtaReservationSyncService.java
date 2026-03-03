@@ -124,6 +124,7 @@ public class OtaReservationSyncService {
             int createdCount,
             int updatedCount,
             int failedCount,
+            Set<String> processedNotifIds,
             List<String> errors
     ) {}
 
@@ -133,6 +134,7 @@ public class OtaReservationSyncService {
             int createdCount,
             int updatedCount,
             int failedCount,
+            Set<String> processedNotifIds,
             List<String> errors
     ) {}
 
@@ -203,7 +205,7 @@ public class OtaReservationSyncService {
 
         List<JsonNode> reservationNodes = reservations != null ? reservations : List.of();
         if (reservationNodes.isEmpty()) {
-            return new UpsertOnlyResult(0, 0, 0, 0, 0, List.of());
+            return new UpsertOnlyResult(0, 0, 0, 0, 0, Set.of(), List.of());
         }
 
         UpsertResult result;
@@ -221,7 +223,7 @@ public class OtaReservationSyncService {
             throw e;
         }
         if (result == null) {
-            return new UpsertOnlyResult(0, 0, 0, 0, 0, List.of("upsert tx failed"));
+            return new UpsertOnlyResult(0, 0, 0, 0, 0, Set.of(), List.of("upsert tx failed"));
         }
 
         // Best-effort dispatch auto messages after new/updated reservations.
@@ -240,6 +242,7 @@ public class OtaReservationSyncService {
                 result.createdCount(),
                 result.updatedCount(),
                 result.failedCount(),
+                result.notifIds(),
                 result.errors()
         );
     }
@@ -381,6 +384,7 @@ public class OtaReservationSyncService {
                 upsert.createdCount(),
                 upsert.updatedCount(),
                 upsert.failedCount(),
+                upsert.notifIds(),
                 upsert.errors()
         );
     }
@@ -580,7 +584,8 @@ public class OtaReservationSyncService {
                     String customerRemarks = SuReservationParser.extractCustomerRemarks(reservationNode);
                     reservation.setSpecialRequests(combineSpecialRequests(roomSpecialRequest, customerRemarks));
 
-                    reservation.setStatus(mapReservationStatus(suStatus));
+                    String roomStayStatus = roomStay != null ? SuReservationParser.extractRoomStayStatus(roomStay) : null;
+                    reservation.setStatus(mapReservationStatus(suStatus, roomStayStatus));
                     reservation.setOrderNumber(orderNumber);
 
                     // 记录 Su rooms[].id（我们推送的 roomid={roomTypeId}-{roomNumber}），用于未排房也能按房型统计占用/回传 PriceLabs booked_units
@@ -758,16 +763,17 @@ public class OtaReservationSyncService {
         return global;
     }
 
-    private static ReservationStatus mapReservationStatus(String suStatus) {
-        if (suStatus == null || suStatus.isBlank()) {
+    private static ReservationStatus mapReservationStatus(String suStatus, String roomStayStatus) {
+        String combined = ((suStatus != null ? suStatus : "") + " " + (roomStayStatus != null ? roomStayStatus : "")).trim();
+        if (combined.isBlank()) {
             return ReservationStatus.CONFIRMED;
         }
-        String normalized = suStatus.trim().toLowerCase();
-        if (normalized.contains("request")) {
-            return ReservationStatus.REQUESTED;
-        }
+        String normalized = combined.toLowerCase();
         if (normalized.contains("cancel")) {
             return ReservationStatus.CANCELLED;
+        }
+        if (normalized.contains("request")) {
+            return ReservationStatus.REQUESTED;
         }
         return ReservationStatus.CONFIRMED;
     }

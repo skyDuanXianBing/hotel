@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
+import server.demo.dto.AssignReservationRoomRequest;
+import server.demo.dto.AssignableRoomsResponse;
 import server.demo.dto.CreateReservationRequest;
 import server.demo.dto.PagedReservationResponse;
 import server.demo.dto.ReservationChannelInfoDTO;
@@ -234,6 +236,34 @@ public class ReservationController extends BaseStoreController {
         }
     }
 
+    @GetMapping("/{id}/assignable-rooms")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.VIEW_ORDERS)
+    public ResponseEntity<ApiResponse<AssignableRoomsResponse>> getAssignableRooms(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long roomTypeId
+    ) {
+        try {
+            AssignableRoomsResponse resp = reservationService.getAssignableRooms(id, roomTypeId);
+            return ResponseEntity.ok(ApiResponse.success("获取可排房房型/房间成功", resp));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/assign-room")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.MODIFY_ORDER)
+    public ResponseEntity<ApiResponse<ReservationDTO>> assignRoom(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignReservationRoomRequest request
+    ) {
+        try {
+            ReservationDTO updated = reservationService.assignRoom(id, request.getRoomId());
+            return ResponseEntity.ok(ApiResponse.success("排房成功", updated));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     private String getTypeDisplayName(String type) {
         switch (type) {
             case "today-arrivals":
@@ -243,7 +273,9 @@ public class ReservationController extends BaseStoreController {
             case "today-new":
                 return "今日新办";
             case "unassigned":
-                return "未排房";
+                return "未排房/未映射";
+            case "assigned":
+                return "已排房";
             case "pending":
                 return "待处理";
             default:

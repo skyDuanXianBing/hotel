@@ -53,13 +53,11 @@ const handleSave = () => {
   }
 
   emit('save', basicForm.value)
-  ElMessage.success('保存成功')
 }
 
 // 保存并完善信息
 const handleSaveAndComplete = () => {
   handleSave()
-  ElMessage.success('保存并完善信息成功')
 }
 
 // 取消

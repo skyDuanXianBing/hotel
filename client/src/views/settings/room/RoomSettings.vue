@@ -241,6 +241,7 @@ const router = useRouter()
 interface RoomTypeData {
   id?: number
   name: string
+  code: string
   shortName: string
   maxGuests: number
   defaultPrice?: number
@@ -275,6 +276,7 @@ const roomTypeList = ref<RoomTypeData[]>([])
 // 表单数据
 const formData = ref<RoomTypeData>({
   name: '',
+  code: '',
   shortName: '',
   maxGuests: 4,
   mondayPrice: 25000,
@@ -426,6 +428,7 @@ const loadRoomTypes = async () => {
         const mappedData = {
           id: item.id,
           name: item.name,
+          code: item.code ?? '',
           shortName: item.description || item.code,
           maxGuests: item.maxGuests ?? 4,
           checkInGuideLink: item.checkInGuideLink ?? '',
@@ -481,6 +484,7 @@ const handleAdd = () => {
   isEdit.value = false
   formData.value = {
     name: '',
+    code: '',
     shortName: '',
     maxGuests: 4,
     defaultPrice: 25000,
@@ -569,6 +573,10 @@ const handleSave = async () => {
     ElMessage.warning('请输入简称')
     return
   }
+  if (isEdit.value && !formData.value.code.trim()) {
+    ElMessage.error('房型代码缺失，无法更新。请刷新页面后重试。')
+    return
+  }
 
   // 过滤掉空的房间号
   const validRoomNumbers = formData.value.roomNumbers
@@ -622,7 +630,7 @@ const handleSave = async () => {
 
     const requestData = {
       name: formData.value.name,
-      code: formData.value.shortName.substring(0, 3).toUpperCase(),
+      code: isEdit.value ? formData.value.code : formData.value.shortName.substring(0, 3).toUpperCase(),
       description: formData.value.shortName,
       totalRooms: validRoomNumbers.length, // 使用实际房间号数量
       maxGuests: formData.value.maxGuests,

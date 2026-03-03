@@ -216,20 +216,39 @@ public class SuWebhookController {
         try {
             Long storeId = store.getId();
             Set<String> toProcessCopy = Set.copyOf(toProcess);
-            String jobName = "reservation-notif:" + normalizedHotelId + ":" + toProcessCopy.size();
-
-            // Persist events before ACK, so we can auto-compensate if async processing fails after ACK.
+            // Persist events first for audit/compensation visibility.
             compensationService.recordPullNotifIds(storeId, normalizedHotelId, toProcessCopy);
-            // We rely on DB events for idempotency/retry now; release in-memory idempotency lock immediately.
-            idempotencyService.markDone(normalizedHotelId, toProcessCopy);
 
-            asyncProcessor.submit(jobName, () -> compensationService.processDueEventsOnce(100));
+            // IMPORTANT: do NOT ACK before pull+upsert, otherwise Su may clear the queue and we will miss cancelled/modified reservations.
+            Set<String> processed = compensationService.processPullNotifIdsNow(storeId, normalizedHotelId, toProcessCopy);
 
-            reservationLogger.info("[ReservationWebhook] ack returned (push-mode). remoteIp={}, storeId={}, hotelId={}, notifIds={}",
-                    request != null ? request.getRemoteAddr() : null, storeId, normalizedHotelId, notifIds.size());
+            if (processed != null && !processed.isEmpty()) {
+                idempotencyService.markDone(normalizedHotelId, processed);
+            }
 
-            // PUSH-mode confirmation: echo reservation_notif_id list in response body.
-            return ResponseEntity.ok(webhookAckBody(notifIds));
+            // Release idempotency keys for ids we did NOT successfully upsert, so Su retry can be processed again.
+            Set<String> failedIds = new java.util.HashSet<>(toProcessCopy);
+            if (processed != null) {
+                failedIds.removeAll(processed);
+            }
+            if (!failedIds.isEmpty()) {
+                idempotencyService.clearProcessing(normalizedHotelId, failedIds);
+            }
+
+            if (processed == null || processed.isEmpty()) {
+                reservationLogger.error("[ReservationWebhook] pull+upsert failed (no processed notifId). remoteIp={}, storeId={}, hotelId={}, notifIds={}",
+                        request != null ? request.getRemoteAddr() : null, storeId, normalizedHotelId, notifIds.size());
+                return ResponseEntity.ok(failBody("Pull+upsert failed"));
+            }
+
+            reservationLogger.info("[ReservationWebhook] ack returned (processed-before-ack). remoteIp={}, storeId={}, hotelId={}, ackNotifIds={}, requested={}",
+                    request != null ? request.getRemoteAddr() : null,
+                    storeId,
+                    normalizedHotelId,
+                    processed.size(),
+                    notifIds.size());
+
+            return ResponseEntity.ok(webhookAckBody(processed.stream().toList()));
         } catch (RejectedExecutionException e) {
             idempotencyService.clearProcessing(normalizedHotelId, toProcess);
             reservationLogger.error("[ReservationWebhook] queue rejected. storeId={}, hotelId={}, toProcess={}, err={}",
@@ -273,11 +292,28 @@ public class SuWebhookController {
         try {
             Long storeId = store.getId();
             List<JsonNode> reservationsCopy = List.copyOf(reservations);
-            String jobName = "reservation-push:" + normalizedHotelId + ":" + reservationsCopy.size();
-
-            // Persist events before ACK, so we can auto-compensate if async processing fails after ACK.
+            // Persist events first for audit/compensation visibility.
             compensationService.recordPushReservations(storeId, normalizedHotelId, reservationsCopy);
 
+            // For small payloads, process synchronously so the webhook response itself represents "已入库成功".
+            // (No Su pull involved here; this is local DB upsert only.)
+            if (reservationsCopy.size() <= 20) {
+                Set<String> processed = compensationService.processPushReservationsNow(storeId, normalizedHotelId, reservationsCopy);
+                if (processed == null || processed.isEmpty()) {
+                    reservationLogger.error("[ReservationWebhook] reservation-push upsert failed (no processed notifId). remoteIp={}, storeId={}, hotelId={}, reservations={}",
+                            request != null ? request.getRemoteAddr() : null, storeId, normalizedHotelId, reservationsCopy.size());
+                    return ResponseEntity.ok(failBody("Push upsert failed"));
+                }
+                reservationLogger.info("[ReservationWebhook] reservation-push ack returned (processed-before-ack). remoteIp={}, storeId={}, hotelId={}, ackNotifIds={}, reservations={}",
+                        request != null ? request.getRemoteAddr() : null,
+                        storeId,
+                        normalizedHotelId,
+                        processed.size(),
+                        reservationsCopy.size());
+                return ResponseEntity.ok(webhookAckBody(processed.stream().toList()));
+            }
+
+            String jobName = "reservation-push:" + normalizedHotelId + ":" + reservationsCopy.size();
             asyncProcessor.submit(jobName, () -> compensationService.processDueEventsOnce(100));
 
             reservationLogger.info("[ReservationWebhook] reservation-push ack returned (push-mode). remoteIp={}, storeId={}, hotelId={}, reservations={}",
@@ -340,7 +376,11 @@ public class SuWebhookController {
         try {
             OtaReservationSyncService.PullUpsertResult result =
                     otaReservationSyncService.pullAndUpsertReservationsWithoutAck(storeId, toProcess);
-            boolean ok = result.failedCount() == 0 && (result.errors() == null || result.errors().isEmpty());
+            boolean ok = result != null
+                    && result.failedCount() == 0
+                    && (result.errors() == null || result.errors().isEmpty())
+                    && result.processedNotifIds() != null
+                    && result.processedNotifIds().containsAll(toProcess);
             if (ok) {
                 idempotencyService.markDone(normalizedHotelId, toProcess);
             } else {

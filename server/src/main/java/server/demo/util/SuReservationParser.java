@@ -192,6 +192,12 @@ public final class SuReservationParser {
         return text(roomStay, "roomreservation_id")
                 .orElse(null);
     }
+    
+    public static String extractRoomStayStatus(JsonNode roomStay) {
+        return text(roomStay, "roomstaystatus")
+                .or(() -> text(roomStay, "room_stay_status"))
+                .orElse(null);
+    }
 
     /**
      * rooms[].id：IT Provider 的 room type ID（实际为你方提供给 Su 的房源/房间标识）。

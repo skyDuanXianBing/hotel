@@ -156,12 +156,43 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     long countByStoreIdAndRoomIsNull(Long storeId);
 
+    /**
+     * 未排房/未映射：
+     * - 统一以 room IS NULL 判定（只要已排到具体房间，就不再计入该列表/统计）。
+     * - 未映射场景本质上也会导致无法排房，因此仍会落在 room IS NULL 集合中。
+     */
+    @Query("""
+            SELECT COUNT(r)
+            FROM Reservation r
+            WHERE r.storeId = :storeId
+              AND r.room IS NULL
+            """)
+    long countUnassignedOrUnmappedByStoreId(@Param("storeId") Long storeId);
+
     @Query("SELECT COUNT(r) FROM Reservation r WHERE r.storeId = :storeId AND r.status = 'CONFIRMED' AND r.actualCheckIn IS NULL")
     long countPendingOrdersByStoreId(@Param("storeId") Long storeId);
 
     List<Reservation> findByStoreIdAndCreatedAtBetween(Long storeId, LocalDateTime start, LocalDateTime end);
 
     List<Reservation> findByStoreIdAndRoomIsNull(Long storeId);
+
+    @Query("""
+            SELECT r
+            FROM Reservation r
+            WHERE r.storeId = :storeId
+              AND r.room IS NULL
+            ORDER BY r.createdAt DESC
+            """)
+    List<Reservation> findUnassignedOrUnmappedByStoreId(@Param("storeId") Long storeId);
+
+    @Query("""
+            SELECT r
+            FROM Reservation r
+            WHERE r.storeId = :storeId
+              AND r.room IS NOT NULL
+            ORDER BY r.createdAt DESC
+            """)
+    List<Reservation> findAssignedByStoreId(@Param("storeId") Long storeId);
 
     @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.checkInDate = :date " +
            "AND r.status IN ('CONFIRMED', 'CHECKED_IN') ORDER BY r.createdAt DESC")

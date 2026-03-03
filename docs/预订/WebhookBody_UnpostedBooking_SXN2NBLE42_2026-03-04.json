@@ -1,0 +1,169 @@
+﻿{
+    "reservations":  [
+                         {
+                             "booked_at":  "2026-03-03",
+                             "commissionamount":  "2700.00",
+                             "currencycode":  "JPY",
+                             "paymenttype":  "Hotel Collect",
+                             "hotel_id":  "SXN2NBLE42",
+                             "hotel_name":  "h\u0027h\u0027h",
+                             "paymentdue":  "",
+                             "customer":  {
+                                              "corporate_booking_detail":  {
+                                                                               "booking_source":  "",
+                                                                               "tax_id":  "",
+                                                                               "billing_company":  "",
+                                                                               "billing_address":  "",
+                                                                               "payment_information":  "",
+                                                                               "payment_due_date":  "",
+                                                                               "booker_address":  "",
+                                                                               "booker_taxid":  "",
+                                                                               "booking_type":  ""
+                                                                           },
+                                              "address":  "***** ********",
+                                              "cc_cvc":  "",
+                                              "cc_expiration_date":  "",
+                                              "cc_name":  "",
+                                              "cc_number":  "",
+                                              "cc_type":  "",
+                                              "cc_current_balance":  "",
+                                              "cc_activation_date":  "2026-03-09",
+                                              "vcc_expiration_date":  "2027-03-09",
+                                              "cc_token":  "",
+                                              "cc_token_expiration":  "",
+                                              "cc_unique_code":  "",
+                                              "city":  "Tokyo",
+                                              "state":  "",
+                                              "countrycode":  "JP",
+                                              "email":  "*************************",
+                                              "first_name":  "********",
+                                              "last_name":  "*******",
+                                              "remarks":  "Unposted booking with unknown room and rate.",
+                                              "telephone":  "*************",
+                                              "zip":  "*******",
+                                              "guest_lang":  "",
+                                              "cc_vault_token":  "",
+                                              "cc_tracking_id":  "",
+                                              "tokensource":  "",
+                                              "tokentype":  "",
+                                              "token_id":  "",
+                                              "cc_virtual":  "1"
+                                          },
+                             "rooms":  [
+                                           {
+                                               "arrival_date":  "2026-03-04",
+                                               "departure_date":  "2026-03-05",
+                                               "info":  "Unposted booking with unknown room and rate for certification testing.",
+                                               "facilities":  "",
+                                               "taxes":  [
+
+                                                         ],
+                                               "withheldtaxes":  [
+
+                                                                 ],
+                                               "specialrequest":  "",
+                                               "eta":  "",
+                                               "guest_name":  "******** *******",
+                                               "first_name":  "********",
+                                               "last_name":  "*******",
+                                               "id":  "UNKNOWN_ROOM_88",
+                                               "max_children":  "0",
+                                               "numberofguests":  "2",
+                                               "numberofchildren":  "0",
+                                               "numberofadults":  "2",
+                                               "child_age":  "",
+                                               "roomstaystatus":  "new",
+                                               "roomreservation_id":  "1772516696229",
+                                               "totalbeforetax":  "24300",
+                                               "totaltax":  "2700",
+                                               "totalprice":  "27000",
+                                               "price":  [
+                                                             {
+                                                                 "date":  "2026-03-04",
+                                                                 "rate_id":  "UNKNOWN_RATE_99",
+                                                                 "mealplan_id":  "15",
+                                                                 "mealplan":  "Room only",
+                                                                 "tax":  "2700",
+                                                                 "pricebeforetax":  "24300",
+                                                                 "priceaftertax":  "27000"
+                                                             }
+                                                         ],
+                                               "adults":  [
+
+                                                          ],
+                                               "addons":  [
+
+                                                          ],
+                                               "extracomponents":  [
+
+                                                                   ],
+                                               "bed_type":  "",
+                                               "numberofbeds":  "",
+                                               "channel_room_id":  "UNKNOWN_ROOM_88",
+                                               "smoking_preference":  "",
+                                               "booking_condition":  "Unposted booking",
+                                               "promotion":  "",
+                                               "mealplan":  "",
+                                               "cancellation_penalties":  [
+
+                                                                          ]
+                                           }
+                                       ],
+                             "affiliation":  {
+                                                 "pos":  "Booking.com",
+                                                 "source":  "booking.com",
+                                                 "OTA_Code":  "19",
+                                                 "companyname":  "",
+                                                 "gstno":  "",
+                                                 "companyaddress":  ""
+                                             },
+                             "chain_id":  "",
+                             "external_id":  "",
+                             "otadue":  "",
+                             "cancelreason":  "",
+                             "sellamount":  "27000",
+                             "nettamount":  "27000",
+                             "discount":  "",
+                             "confirmationlink":  "",
+                             "payment_charge":  "",
+                             "booker_genius":  "no",
+                             "smoking_preference":  "",
+                             "promotion":  "",
+                             "channel_booking_id":  "5544332219",
+                             "thread_id":  "",
+                             "guest_id":  "",
+                             "numberofpets":  "",
+                             "numberofinfants":  "",
+                             "listingbaseprice":  "",
+                             "processed_at":  "2026-03-03 05:44:50",
+                             "bookingcharged":  "N",
+                             "amountcharged":  "",
+                             "pgtransactionid":  "",
+                             "su_payments":  {
+                                                 "action":  "",
+                                                 "tokenid":  "",
+                                                 "pgid":  ""
+                                             },
+                             "deposit":  "",
+                             "cvv_available":  "false",
+                             "source":  "Su",
+                             "pg_refid":  "",
+                             "pg_type":  "",
+                             "cancellation_fee":  "",
+                             "vendor_booking_id":  "",
+                             "id":  "5544332219_SXN2NBLE42",
+                             "reservation_notif_id":  "177251666900249942137",
+                             "modified_at":  "2026-03-03",
+                             "status":  "new",
+                             "totalprice":  "27000",
+                             "totaltax":  "2700",
+                             "cancelamount":  "",
+                             "extrafees":  [
+
+                                           ],
+                             "taxes":  [
+
+                                       ]
+                         }
+                     ]
+}

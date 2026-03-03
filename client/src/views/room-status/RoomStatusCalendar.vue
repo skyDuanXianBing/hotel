@@ -1742,7 +1742,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onActivated, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import {
@@ -2017,7 +2017,7 @@ const formatMoney = (amount?: number | null) => {
 
 const channelLogoText = computed(() => {
   const name = channelInfo.value?.channelName || selectedReservation.value?.channelName || ''
-  const normalized = (name || '').replace(/\\.com$/i, '').trim()
+  const normalized = (name || '').replace(/\.com$/i, '').trim()
   if (!normalized) return 'OTA'
   return normalized.length > 10 ? normalized.slice(0, 10) : normalized
 })
@@ -4374,7 +4374,11 @@ watch(
 onMounted(async () => {
   await loadChannels()
   await loadEnabledConsumptionItems()
-  loadCalendarData()
+  await loadCalendarData()
+})
+
+onActivated(async () => {
+  await loadCalendarData()
 })
 </script>
 

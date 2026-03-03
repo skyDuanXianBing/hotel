@@ -20,6 +20,7 @@ interface RoomType {
   code: string
   description: string
   totalRooms: number
+  maxGuests?: number
   createdAt?: string
   updatedAt?: string
   rooms?: RoomInfo[]
@@ -121,6 +122,7 @@ const loadRoomTypes = async () => {
         code: item.code,
         description: item.description,
         totalRooms: item.totalRooms,
+        maxGuests: item.maxGuests,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
         rooms: item.rooms,
@@ -306,13 +308,23 @@ const handleSaveRoomType = (data: any) => {
 // 保存基础信息
 const handleSaveBasicInfo = async (data: any) => {
   try {
+    const currentRoomType =
+      editingBasicInfoRoomType.value ?? roomTypes.value.find((r) => r.id === data.id) ?? null
+    if (!currentRoomType?.code) {
+      ElMessage.error('房型代码缺失，无法保存。请刷新页面后重试。')
+      return
+    }
+    if (currentRoomType.maxGuests == null) {
+      ElMessage.error('最大入住人数缺失，无法保存。请刷新页面后重试。')
+      return
+    }
+
     const roomTypeData = {
       name: data.name,
-      code:
-        roomTypes.value.find((r) => r.id === data.id)?.code ||
-        data.name.substring(0, 3).toUpperCase(),
+      code: currentRoomType.code,
       description: data.shortName,
       totalRooms: data.roomCount,
+      maxGuests: currentRoomType.maxGuests,
       defaultPrice: data.pricingType === 'fixed' ? data.fixedPrice : null,
       weekdayPrice: data.pricingType === 'flexible' ? data.weekdayPrice : null,
       weekendPrice: data.pricingType === 'flexible' ? data.weekendPrice : null,

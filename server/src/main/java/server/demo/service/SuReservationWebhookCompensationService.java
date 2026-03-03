@@ -17,6 +17,7 @@ import server.demo.util.SuReservationParser;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 @Service
@@ -149,6 +150,114 @@ public class SuReservationWebhookCompensationService {
         return processed;
     }
 
+    /**
+     * Webhook notif-only 模式下：为了避免“先 ACK 导致 Su 队列被清空，从而拉不到取消/修改”的问题，
+     * 这里提供同步处理入口：先 pull+upsert 成功后，再由 controller 返回 webhook ACK body。
+     *
+     * @return 本次成功 upsert 的 reservation_notif_id 集合（用于 webhook ACK）。
+     */
+    @Transactional
+    public Set<String> processPullNotifIdsNow(Long storeId, String hotelId, Set<String> notifIds) {
+        if (storeId == null || hotelId == null || hotelId.isBlank() || notifIds == null || notifIds.isEmpty()) {
+            return Set.of();
+        }
+
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String raw : notifIds) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            normalized.add(raw.trim());
+        }
+        if (normalized.isEmpty()) {
+            return Set.of();
+        }
+
+        OtaReservationSyncService.PullUpsertResult result =
+                otaReservationSyncService.pullAndUpsertReservationsWithoutAck(storeId, normalized);
+        Set<String> processed = result != null && result.processedNotifIds() != null ? Set.copyOf(result.processedNotifIds()) : Set.of();
+
+        // Update event status for each notifId so scheduler/UI can see real outcome.
+        for (String notifId : normalized) {
+            try {
+                SuReservationWebhookEvent e = eventRepository.findByHotelIdAndReservationNotifId(hotelId.trim(), notifId)
+                        .orElse(null);
+                if (e == null) {
+                    continue;
+                }
+                if (processed.contains(notifId)) {
+                    e.setStatus(SuWebhookEventStatus.PROCESSED);
+                    e.setLastError(null);
+                    e.setNextRetryAt(null);
+                    eventRepository.save(e);
+                } else {
+                    String msg = (result != null && result.errors() != null && !result.errors().isEmpty())
+                            ? ("pull-upsert did not include notifId=" + notifId + ", errors=" + result.errors())
+                            : ("pull-upsert did not include notifId=" + notifId);
+                    markFailed(e, new RuntimeException(msg));
+                }
+            } catch (Exception ex) {
+                // Best-effort: don't block other ids.
+                reservationLogger.error("[WebhookCompensate] update event status failed. storeId={}, hotelId={}, notifId={}, err={}",
+                        storeId, hotelId, notifId, ex.getMessage(), ex);
+            }
+        }
+
+        return processed;
+    }
+    
+    /**
+     * Webhook reservation-push 模式下的同步处理：直接用 webhook payload upsert（不依赖 pull）。
+     *
+     * @return 本次成功 upsert 的 reservation_notif_id 集合（用于 webhook ACK）。
+     */
+    @Transactional
+    public Set<String> processPushReservationsNow(Long storeId, String hotelId, List<JsonNode> reservations) {
+        if (storeId == null || hotelId == null || hotelId.isBlank() || reservations == null || reservations.isEmpty()) {
+            return Set.of();
+        }
+
+        List<JsonNode> safe = reservations.stream().filter(r -> r != null && !r.isNull()).toList();
+        if (safe.isEmpty()) {
+            return Set.of();
+        }
+
+        OtaReservationSyncService.UpsertOnlyResult result =
+                otaReservationSyncService.upsertReservationsFromWebhook(storeId, safe);
+        Set<String> processed = result != null && result.processedNotifIds() != null ? Set.copyOf(result.processedNotifIds()) : Set.of();
+
+        for (JsonNode reservation : safe) {
+            String notifId = SuReservationParser.extractReservationNotifId(reservation);
+            if (notifId == null || notifId.isBlank()) {
+                continue;
+            }
+            String trimmed = notifId.trim();
+            try {
+                SuReservationWebhookEvent e = eventRepository.findByHotelIdAndReservationNotifId(hotelId.trim(), trimmed)
+                        .orElse(null);
+                if (e == null) {
+                    continue;
+                }
+                if (processed.contains(trimmed)) {
+                    e.setStatus(SuWebhookEventStatus.PROCESSED);
+                    e.setLastError(null);
+                    e.setNextRetryAt(null);
+                    eventRepository.save(e);
+                } else {
+                    String msg = (result != null && result.errors() != null && !result.errors().isEmpty())
+                            ? ("push-upsert did not include notifId=" + trimmed + ", errors=" + result.errors())
+                            : ("push-upsert did not include notifId=" + trimmed);
+                    markFailed(e, new RuntimeException(msg));
+                }
+            } catch (Exception ex) {
+                reservationLogger.error("[WebhookCompensate] update event status failed (push). storeId={}, hotelId={}, notifId={}, err={}",
+                        storeId, hotelId, trimmed, ex.getMessage(), ex);
+            }
+        }
+
+        return processed;
+    }
+
     private boolean processSingleEvent(SuReservationWebhookEvent e) {
         if (e.getStoreId() == null || e.getHotelId() == null || e.getReservationNotifId() == null) {
             throw new IllegalStateException("missing storeId/hotelId/notifId");
@@ -159,9 +268,15 @@ public class SuReservationWebhookCompensationService {
                             e.getStoreId(),
                             Set.of(e.getReservationNotifId())
                     );
-            boolean ok = result.failedCount() == 0;
+            boolean ok = result != null
+                    && result.failedCount() == 0
+                    && result.processedNotifIds() != null
+                    && result.processedNotifIds().contains(e.getReservationNotifId());
             if (!ok) {
-                throw new RuntimeException("pull-upsert failed. failedCount=" + result.failedCount() + ", errors=" + result.errors());
+                throw new RuntimeException("pull-upsert missing notifId. notifId=" + e.getReservationNotifId()
+                        + ", failedCount=" + (result != null ? result.failedCount() : null)
+                        + ", processedNotifIds=" + (result != null ? result.processedNotifIds() : null)
+                        + ", errors=" + (result != null ? result.errors() : null));
             }
             reservationLogger.info("[WebhookCompensate] processed pull notifId. storeId={}, hotelId={}, notifId={}, ok=true",
                     e.getStoreId(), e.getHotelId(), e.getReservationNotifId());
@@ -176,9 +291,15 @@ public class SuReservationWebhookCompensationService {
             JsonNode node = objectMapper.readTree(payload);
             OtaReservationSyncService.UpsertOnlyResult result =
                     otaReservationSyncService.upsertReservationsFromWebhook(e.getStoreId(), List.of(node));
-            boolean ok = result.failedCount() == 0;
+            boolean ok = result != null
+                    && result.failedCount() == 0
+                    && result.processedNotifIds() != null
+                    && result.processedNotifIds().contains(e.getReservationNotifId());
             if (!ok) {
-                throw new RuntimeException("push-upsert failed. failedCount=" + result.failedCount() + ", errors=" + result.errors());
+                throw new RuntimeException("push-upsert missing notifId. notifId=" + e.getReservationNotifId()
+                        + ", failedCount=" + (result != null ? result.failedCount() : null)
+                        + ", processedNotifIds=" + (result != null ? result.processedNotifIds() : null)
+                        + ", errors=" + (result != null ? result.errors() : null));
             }
             reservationLogger.info("[WebhookCompensate] processed push reservation. storeId={}, hotelId={}, notifId={}, ok=true",
                     e.getStoreId(), e.getHotelId(), e.getReservationNotifId());

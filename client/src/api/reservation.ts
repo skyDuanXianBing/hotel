@@ -20,6 +20,7 @@ export interface CreateReservationRequest {
 export interface ReservationDTO {
   id: number
   orderNumber: string
+  channelOrderNumber?: string
   guestName: string
   phone?: string
   roomId?: number
@@ -35,6 +36,10 @@ export interface ReservationDTO {
   currentRoomPrice?: number // 当前房型价格
   createdAt: string
   updatedAt: string
+  reservationNotifId?: string
+  suReservationId?: string
+  otaRoomId?: string
+  otaRoomTypeId?: number
 }
 
 // 分页响应格式
@@ -238,4 +243,46 @@ export const getReservationChannelInfo = async (
   reservationId: number,
 ): Promise<ApiResponse<ReservationChannelInfoDTO>> => {
   return await request.get(`/reservations/${reservationId}/channel-info`)
+}
+
+export interface AssignableRoomTypeDTO {
+  id: number
+  name: string
+  code?: string
+  availableRooms: number
+}
+
+export interface AssignableRoomDTO {
+  id: number
+  roomNumber: string
+  roomTypeId: number
+  roomTypeName: string
+}
+
+export interface AssignableRoomsResponse {
+  reservationId: number
+  checkInDate: string
+  checkOutDate: string
+  roomTypes: AssignableRoomTypeDTO[]
+  rooms: AssignableRoomDTO[]
+}
+
+export const getAssignableRooms = async (
+  reservationId: number,
+  roomTypeId?: number,
+): Promise<ApiResponse<AssignableRoomsResponse>> => {
+  return await request.get(`/reservations/${reservationId}/assignable-rooms`, {
+    params: {
+      roomTypeId,
+    },
+  })
+}
+
+export const assignReservationRoom = async (
+  reservationId: number,
+  roomId: number,
+): Promise<ApiResponse<ReservationDTO>> => {
+  return await request.post(`/reservations/${reservationId}/assign-room`, {
+    roomId,
+  })
 }
