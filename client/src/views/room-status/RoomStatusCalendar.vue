@@ -81,7 +81,6 @@
             </template>
           </el-dropdown>
 
-          <el-button type="primary">房价管理</el-button>
         </div>
       </div>
 
@@ -144,16 +143,19 @@
                 @click="onRoomNumberClick($event, roomData)"
               >
                 <!-- 脏房清理图标 -->
-                <div v-if="getRoomNumberDirtyStatus(roomData.roomId)" class="room-dirty-icon">
+                <div
+                  v-if="!isRoomCollapsed && getRoomNumberDirtyStatus(roomData.roomId)"
+                  class="room-dirty-icon"
+                >
                   <el-icon><Tools /></el-icon>
                 </div>
 
                 <!-- 房间号显示 -->
-                <div
-                  class="room-number"
-                  :class="{ 'with-dirty-icon': getRoomNumberDirtyStatus(roomData.roomId) }"
-                >
-                  {{ roomData.roomNumber }}
+              <div
+                class="room-number"
+                :class="{ 'with-dirty-icon': !isRoomCollapsed && getRoomNumberDirtyStatus(roomData.roomId) }"
+              >
+                  {{ isRoomCollapsed ? '剩余' : roomData.roomNumber }}
                 </div>
               </div>
 
@@ -179,7 +181,7 @@
 
                 <!-- 脏房清理图标 -->
                 <div
-                  v-if="getRoomExtraStatus(roomData.roomId, dailyStatus.date).isDirty"
+                  v-if="getRoomExtraStatus(roomData.roomId, dailyStatus.date).isDirty && !isRoomCollapsed"
                   class="dirty-room-icon"
                 >
                   <el-icon><Tools /></el-icon>
@@ -187,13 +189,13 @@
 
                 <!-- 停用房图标 -->
                 <div
-                  v-if="getRoomExtraStatus(roomData.roomId, dailyStatus.date).isClosed"
+                  v-if="getRoomExtraStatus(roomData.roomId, dailyStatus.date).isClosed && !isRoomCollapsed"
                   class="closed-room-icon"
                 >
                   <el-icon><Remove /></el-icon>
                 </div>
 
-                <div v-if="dailyStatus.reservation" class="reservation-info">
+                <div v-if="dailyStatus.reservation && !isRoomCollapsed" class="reservation-info">
                   <div class="guest-name">{{ dailyStatus.reservation.guestName }}</div>
                   <div
                     class="channel-badge"
@@ -207,7 +209,16 @@
                   </div>
                 </div>
                 <div v-else class="empty-cell">
-                  <!-- 空房状态显示 -->
+                  <template v-if="isRoomCollapsed">
+                    <span
+                      class="collapsed-status-text"
+                      :class="{
+                        full: getCollapsedCellStatus(roomData, dailyStatus).isFull,
+                      }"
+                    >
+                      {{ getCollapsedCellStatus(roomData, dailyStatus).label }}
+                    </span>
+                  </template>
                 </div>
               </div>
             </div>
@@ -337,7 +348,7 @@
           top: hoverCardPosition.y + 'px',
         }"
       >
-        转为脏房
+        {{ dirtyHoverActionText }}
       </div>
 
       <!-- 悬停预订信息卡片 -->
@@ -1519,45 +1530,80 @@
       >
         <div class="batch-dialog-content">
           <div class="selection-area">
-            <div class="room-types-list">
+            <div class="batch-room-tree">
               <div class="selection-header">
                 <el-checkbox
-                  v-model="selectAll"
-                  :indeterminate="isIndeterminate"
-                  @change="handleSelectAllRoomTypes"
+                  v-model="batchSelectAll"
+                  :indeterminate="batchSelectIndeterminate"
                 >
                   全部
                 </el-checkbox>
-                <span class="selection-count"
-                  >{{ selectedRoomTypeCount }}/{{ totalRoomTypeCount }}</span
-                >
-                <el-button type="primary" size="small" @click="confirmBatchSelection">
-                  已选{{ selectedCells.size }}间房
-                </el-button>
+                <span class="selection-count">{{ batchSelectedCount }}/{{ batchTotalCount }}</span>
               </div>
 
-              <div class="room-type-items">
+              <el-input
+                v-model="batchSearchKeyword"
+                placeholder="请输入搜索内容"
+                clearable
+                class="batch-search-input"
+              />
+
+              <div class="batch-tree-list">
                 <div
-                  v-for="roomType in batchRoomTypes"
-                  :key="roomType.name"
-                  class="room-type-item"
-                  @click="toggleRoomTypeSelection(roomType)"
+                  v-for="group in batchDisplayGroups"
+                  :key="group.roomType"
+                  class="batch-type-block"
                 >
-                  <el-icon class="expand-icon"><Right /></el-icon>
-                  <el-checkbox
-                    v-model="roomType.selected"
-                    @change="onRoomTypeSelectionChange"
-                    @click.stop
-                  />
-                  <span class="room-type-name">{{ roomType.name }}</span>
+                  <div class="batch-type-row">
+                    <el-icon class="expand-icon" @click.stop="toggleBatchTypeExpanded(group.roomType)">
+                      <component
+                        :is="isBatchTypeExpanded(group.roomType) ? ArrowDown : ArrowRight"
+                      />
+                    </el-icon>
+                    <el-checkbox
+                      :model-value="isBatchTypeChecked(group.roomType)"
+                      :indeterminate="isBatchTypeIndeterminate(group.roomType)"
+                      @change="(checked: boolean) => handleBatchTypeCheck(group.roomType, checked)"
+                    />
+                    <span class="room-type-name">{{ group.roomType }}</span>
+                  </div>
+
+                  <div v-show="isBatchTypeExpanded(group.roomType)" class="batch-room-list">
+                    <div
+                      v-for="room in group.rooms"
+                      :key="room.roomId"
+                      class="batch-room-item"
+                    >
+                      <el-checkbox
+                        :model-value="isBatchRoomChecked(room.roomId)"
+                        @change="(checked: boolean) => handleBatchRoomCheck(room.roomId, checked)"
+                      />
+                      <span class="batch-room-number">{{ room.roomNumber }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div class="selected-rooms-area">
-              <!-- 这里可以显示已选择的房间详情 -->
-              <div class="empty-selection">
-                <p>请在左侧选择要操作的房型</p>
+              <div class="selection-header">
+                <span class="selected-rooms-title">已选{{ batchSelectedCount }}间房</span>
+              </div>
+
+              <div v-if="batchSelectedRooms.length === 0" class="empty-selection">
+                <p>请在左侧选择要操作的房型和房间</p>
+              </div>
+              <div v-else class="selected-room-list">
+                <div
+                  v-for="room in batchSelectedRooms"
+                  :key="room.roomId"
+                  class="selected-room-item"
+                >
+                  <span>{{ room.roomType }} {{ room.roomNumber }}</span>
+                  <el-button link size="small" @click="removeBatchSelectedRoom(room.roomId)">
+                    <el-icon><Close /></el-icon>
+                  </el-button>
+                </div>
               </div>
             </div>
           </div>
@@ -1644,7 +1690,7 @@
       <!-- 批量关房详细设置弹窗 -->
       <el-dialog
         v-model="showBatchCloseRoomDialog"
-        title="批量关房"
+        :title="batchAction === 'open' ? '批量开房' : '批量关房'"
         width="600px"
         :close-on-click-modal="false"
       >
@@ -1660,16 +1706,19 @@
           <el-form :model="batchCloseForm" label-width="80px">
             <el-form-item label="房间">
               <div class="selected-rooms-display">
-                <el-tag
+                <div
                   v-for="room in batchCloseSelectedRooms"
-                  :key="room"
-                  style="margin-right: 8px; margin-bottom: 4px"
+                  :key="room.roomId"
+                  class="batch-close-room-tag"
                 >
-                  {{ room }}
-                </el-tag>
-                <el-button link size="small" style="margin-left: 8px">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
+                  <span>{{ room.roomNumber }}</span>
+                  <el-button link size="small" @click="removeBatchCloseRoom(room.roomId)">
+                    <el-icon><Close /></el-icon>
+                  </el-button>
+                </div>
+                <span v-if="batchCloseSelectedRooms.length === 0" class="batch-close-empty-tip">
+                  请先在上一步选择房间
+                </span>
               </div>
             </el-form-item>
 
@@ -1696,7 +1745,7 @@
               <div class="date-selector" style="margin-top: 10px">
                 <el-dropdown @command="handleDateSelectorCommand">
                   <el-button link>
-                    适用周几 <el-icon><ArrowDown /></el-icon>
+                    {{ batchDateSelectorText }} <el-icon><ArrowDown /></el-icon>
                   </el-button>
                   <template #dropdown>
                     <el-dropdown-menu>
@@ -2240,6 +2289,7 @@ const showHoverCard = ref(false)
 const showDirtyHover = ref(false)
 const hoverCardPosition = ref({ x: 0, y: 0 })
 const hoverReservation = ref<any>(null)
+const hoverDirtyRoomId = ref<number | null>(null)
 
 // 停用房操作弹窗
 const showClosedRoomActions = ref(false)
@@ -2262,14 +2312,23 @@ const batchAction = ref('')
 const batchMode = ref(false)
 const selectedCells = ref<Set<string>>(new Set()) // 存储选中的单元格key: roomId-date
 
-// 批量选择相关
-const batchRoomTypes = ref([
-  { name: '大床房', selected: false },
-  { name: '标准间', selected: false },
-  { name: '套房', selected: false },
-])
+type BatchActionType = 'dirty' | 'clean' | 'close' | 'open' | ''
+type BatchWeekMode = 'all' | 'weekday' | 'weekend'
 
-const selectAll = ref(false)
+interface BatchRoomItem {
+  roomId: number
+  roomNumber: string
+  roomType: string
+}
+
+interface BatchRoomGroup {
+  roomType: string
+  rooms: BatchRoomItem[]
+}
+
+const batchSearchKeyword = ref('')
+const batchSelectedRoomIds = ref<number[]>([])
+const batchExpandedRoomTypes = ref<string[]>([])
 
 // 房间折叠相关
 const isRoomCollapsed = ref(false)
@@ -2286,13 +2345,13 @@ const closeRoomForm = ref({
 
 // 批量关房详细设置弹窗相关
 const showBatchCloseRoomDialog = ref(false)
-const batchCloseSelectedTypes = ref<string[]>([])
-const batchCloseSelectedRooms = ref<string[]>([]) // 存储具体选中的房间号
+const batchCloseSelectedRoomIds = ref<number[]>([])
 const batchCloseForm = ref({
   type: 'stop', // stop: 停用房, maintenance: 维修房, retain: 保留房
   startDate: '',
   endDate: '',
   remark: '',
+  weekMode: 'all' as BatchWeekMode,
 })
 
 // 房间状态扩展（脏房、停用等）
@@ -2310,17 +2369,115 @@ const roomExtraStatus = ref<
 // 房间号脏房状态（整个房间的脏房状态）
 const roomNumberDirtyStatus = ref<Map<number, boolean>>(new Map())
 
-const isIndeterminate = computed(() => {
-  const selectedCount = batchRoomTypes.value.filter((rt) => rt.selected).length
-  return selectedCount > 0 && selectedCount < batchRoomTypes.value.length
+const batchAllRooms = computed<BatchRoomItem[]>(() => {
+  const roomMap = new Map<number, BatchRoomItem>()
+  filteredRooms.value.forEach((room) => {
+    roomMap.set(room.roomId, {
+      roomId: room.roomId,
+      roomNumber: room.roomNumber,
+      roomType: room.roomType,
+    })
+  })
+  return Array.from(roomMap.values()).sort((a, b) => {
+    if (a.roomType === b.roomType) {
+      return a.roomNumber.localeCompare(b.roomNumber, 'zh-CN')
+    }
+    return a.roomType.localeCompare(b.roomType, 'zh-CN')
+  })
 })
 
-const selectedRoomTypeCount = computed(() => {
-  return batchRoomTypes.value.filter((rt) => rt.selected).length
+const batchRoomsByType = computed(() => {
+  const typeMap = new Map<string, BatchRoomItem[]>()
+  batchAllRooms.value.forEach((room) => {
+    if (!typeMap.has(room.roomType)) {
+      typeMap.set(room.roomType, [])
+    }
+    typeMap.get(room.roomType)?.push(room)
+  })
+  return typeMap
 })
 
-const totalRoomTypeCount = computed(() => {
-  return batchRoomTypes.value.length
+const batchRoomLookup = computed(() => {
+  const roomMap = new Map<number, BatchRoomItem>()
+  calendarData.value.rooms.forEach((room) => {
+    roomMap.set(room.roomId, {
+      roomId: room.roomId,
+      roomNumber: room.roomNumber,
+      roomType: room.roomType,
+    })
+  })
+  return roomMap
+})
+
+const batchSelectedRoomIdSet = computed(() => new Set(batchSelectedRoomIds.value))
+
+const batchRoomGroups = computed<BatchRoomGroup[]>(() => {
+  return Array.from(batchRoomsByType.value.entries()).map(([roomType, rooms]) => ({
+    roomType,
+    rooms,
+  }))
+})
+
+const batchDisplayGroups = computed<BatchRoomGroup[]>(() => {
+  const keyword = batchSearchKeyword.value.trim().toLowerCase()
+  if (!keyword) {
+    return batchRoomGroups.value
+  }
+
+  return batchRoomGroups.value
+    .map((group) => {
+      const roomTypeMatched = group.roomType.toLowerCase().includes(keyword)
+      const rooms = roomTypeMatched
+        ? group.rooms
+        : group.rooms.filter((room) => room.roomNumber.toLowerCase().includes(keyword))
+      if (rooms.length === 0) {
+        return null
+      }
+      return {
+        roomType: group.roomType,
+        rooms,
+      }
+    })
+    .filter((group): group is BatchRoomGroup => !!group)
+})
+
+const batchSelectedRooms = computed(() => {
+  return batchAllRooms.value.filter((room) => batchSelectedRoomIdSet.value.has(room.roomId))
+})
+
+const batchCloseSelectedRooms = computed(() => {
+  return batchCloseSelectedRoomIds.value
+    .map((roomId) => batchRoomLookup.value.get(roomId))
+    .filter((room): room is BatchRoomItem => !!room)
+})
+
+const batchTotalCount = computed(() => batchAllRooms.value.length)
+const batchSelectedCount = computed(() => batchSelectedRoomIds.value.length)
+
+const batchSelectAll = computed({
+  get: () => batchTotalCount.value > 0 && batchSelectedCount.value === batchTotalCount.value,
+  set: (checked: boolean) => {
+    if (checked) {
+      batchSelectedRoomIds.value = batchAllRooms.value.map((room) => room.roomId)
+      return
+    }
+    batchSelectedRoomIds.value = []
+  },
+})
+
+const batchSelectIndeterminate = computed(() => {
+  return batchSelectedCount.value > 0 && batchSelectedCount.value < batchTotalCount.value
+})
+
+const isBatchRoomAction = computed(() => batchAction.value === 'close' || batchAction.value === 'open')
+
+const batchDateSelectorText = computed(() => {
+  const modeTextMap: Record<BatchWeekMode, string> = {
+    all: '全部日期',
+    weekday: '适用工作日',
+    weekend: '适用周末',
+  }
+  return modeTextMap[batchCloseForm.value.weekMode]
 })
 
 // 计算属性
@@ -2743,29 +2900,25 @@ const filteredRooms = computed(() => {
 // 处理批量置脏/净命令
 const handleBatchCleanCommand = (command: string) => {
   batchDialogTitle.value = command === 'dirty' ? '批量置脏' : '批量置净'
-  batchAction.value = command
-  batchMode.value = true // 启动批量模式
-  showBatchDialog.value = true
-  // 重置房型选择
-  batchRoomTypes.value.forEach((type) => {
-    type.selected = false
-  })
-  selectAll.value = false
+  batchAction.value = command as BatchActionType
+  batchMode.value = true
+  batchSearchKeyword.value = ''
+  batchSelectedRoomIds.value = []
+  batchExpandedRoomTypes.value = batchRoomGroups.value.map((group) => group.roomType)
   selectedCells.value.clear()
+  showBatchDialog.value = true
 }
 
 // 处理批量开关房命令
 const handleBatchRoomCommand = (command: string) => {
   batchDialogTitle.value = command === 'open' ? '批量开房' : '批量关房'
-  batchAction.value = command
-  batchMode.value = true // 启动批量模式
-  showBatchDialog.value = true
-  // 重置房型选择
-  batchRoomTypes.value.forEach((type) => {
-    type.selected = false
-  })
-  selectAll.value = false
+  batchAction.value = command as BatchActionType
+  batchMode.value = true
+  batchSearchKeyword.value = ''
+  batchSelectedRoomIds.value = []
+  batchExpandedRoomTypes.value = batchRoomGroups.value.map((group) => group.roomType)
   selectedCells.value.clear()
+  showBatchDialog.value = true
 }
 
 // 检查是否被选中
@@ -2774,99 +2927,117 @@ const isCellSelected = (roomId: number, date: string) => {
   return selectedCells.value.has(cellKey)
 }
 
-// 处理全选房型
-const handleSelectAllRoomTypes = (checked: boolean) => {
-  selectAll.value = checked
-  batchRoomTypes.value.forEach((type) => {
-    type.selected = checked
+const isBatchRoomChecked = (roomId: number) => batchSelectedRoomIdSet.value.has(roomId)
+
+const handleBatchRoomCheck = (roomId: number, checked: boolean) => {
+  const selectedRoomSet = new Set(batchSelectedRoomIds.value)
+  if (checked) {
+    selectedRoomSet.add(roomId)
+  } else {
+    selectedRoomSet.delete(roomId)
+  }
+  batchSelectedRoomIds.value = Array.from(selectedRoomSet)
+}
+
+const isBatchTypeExpanded = (roomType: string) => {
+  if (batchSearchKeyword.value.trim()) {
+    return true
+  }
+  return batchExpandedRoomTypes.value.includes(roomType)
+}
+
+const toggleBatchTypeExpanded = (roomType: string) => {
+  if (batchSearchKeyword.value.trim()) {
+    return
+  }
+  if (batchExpandedRoomTypes.value.includes(roomType)) {
+    batchExpandedRoomTypes.value = batchExpandedRoomTypes.value.filter((type) => type !== roomType)
+    return
+  }
+  batchExpandedRoomTypes.value = [...batchExpandedRoomTypes.value, roomType]
+}
+
+const isBatchTypeChecked = (roomType: string) => {
+  const rooms = batchRoomsByType.value.get(roomType) || []
+  if (rooms.length === 0) {
+    return false
+  }
+  return rooms.every((room) => batchSelectedRoomIdSet.value.has(room.roomId))
+}
+
+const isBatchTypeIndeterminate = (roomType: string) => {
+  const rooms = batchRoomsByType.value.get(roomType) || []
+  if (rooms.length === 0) {
+    return false
+  }
+  const selectedCount = rooms.filter((room) => batchSelectedRoomIdSet.value.has(room.roomId)).length
+  return selectedCount > 0 && selectedCount < rooms.length
+}
+
+const handleBatchTypeCheck = (roomType: string, checked: boolean) => {
+  const rooms = batchRoomsByType.value.get(roomType) || []
+  const selectedRoomSet = new Set(batchSelectedRoomIds.value)
+  rooms.forEach((room) => {
+    if (checked) {
+      selectedRoomSet.add(room.roomId)
+    } else {
+      selectedRoomSet.delete(room.roomId)
+    }
   })
+  batchSelectedRoomIds.value = Array.from(selectedRoomSet)
 }
 
-// 切换房型选择状态
-const toggleRoomTypeSelection = (roomType: any) => {
-  roomType.selected = !roomType.selected
-
-  // 更新全选状态
-  const selectedCount = batchRoomTypes.value.filter((rt) => rt.selected).length
-  selectAll.value = selectedCount === batchRoomTypes.value.length
-}
-
-// 房型选择变化时的处理
-const onRoomTypeSelectionChange = () => {
-  const selectedCount = batchRoomTypes.value.filter((rt) => rt.selected).length
-  selectAll.value = selectedCount === batchRoomTypes.value.length
-}
-
-// 确认批量选择
-const confirmBatchSelection = () => {
-  // 这里可以显示已选择的房间详情
-  console.log('确认批量选择')
+const removeBatchSelectedRoom = (roomId: number) => {
+  batchSelectedRoomIds.value = batchSelectedRoomIds.value.filter((id) => id !== roomId)
 }
 
 // 确认批量操作
 const confirmBatchOperation = () => {
-  const selectedTypes = batchRoomTypes.value
-    .filter((type) => type.selected)
-    .map((type) => type.name)
-
-  console.log(`执行${batchDialogTitle.value}操作`, {
-    action: batchAction.value,
-    roomTypes: selectedTypes,
-    selectedCells: Array.from(selectedCells.value),
-  })
-
-  // 执行批量操作逻辑
-  if (batchAction.value === 'dirty' || batchAction.value === 'clean') {
-    // 批量置脏/净操作
-    executeBatchCleanOperation(selectedTypes)
-  } else if (batchAction.value === 'close' || batchAction.value === 'open') {
-    // 批量开/关房操作，显示详细设置弹窗
-    showBatchRoomDetailDialog(selectedTypes)
-    return // 不关闭当前对话框，等用户完成详细设置
+  if (batchSelectedRoomIds.value.length === 0) {
+    ElMessage.warning('请先选择要操作的房间')
+    return
   }
 
-  // 关闭对话框并清空选择
+  if (batchAction.value === 'dirty' || batchAction.value === 'clean') {
+    executeBatchCleanOperation(batchSelectedRoomIds.value)
+  } else if (isBatchRoomAction.value) {
+    batchCloseSelectedRoomIds.value = [...batchSelectedRoomIds.value]
+    const today = new Date().toISOString().split('T')[0]
+    batchCloseForm.value.type = 'stop'
+    batchCloseForm.value.startDate = today
+    batchCloseForm.value.endDate = today
+    batchCloseForm.value.weekMode = 'all'
+    batchCloseForm.value.remark = ''
+    showBatchDialog.value = false
+    showBatchCloseRoomDialog.value = true
+    return
+  }
+
+  ElMessage.success(`${batchDialogTitle.value}操作已完成`)
   showBatchDialog.value = false
   batchMode.value = false
   selectedCells.value.clear()
-
-  ElMessage.success(`${batchDialogTitle.value}操作已完成`)
+  batchSelectedRoomIds.value = []
+  batchExpandedRoomTypes.value = []
 }
 
 // 执行批量置脏/净操作
-const executeBatchCleanOperation = (selectedTypes: string[]) => {
+const executeBatchCleanOperation = (selectedRoomIds: number[]) => {
   const isDirty = batchAction.value === 'dirty'
-
-  // 只对当前可见（筛选后）的房间进行操作，设置房间号列的脏房状态
-  filteredRooms.value.forEach((room) => {
-    if (selectedTypes.includes(room.roomType)) {
-      // 设置整个房间的脏房状态（房间号列）
-      roomNumberDirtyStatus.value.set(room.roomId, isDirty)
+  const nextStatusMap = new Map(roomNumberDirtyStatus.value)
+  selectedRoomIds.forEach((roomId) => {
+    if (isDirty) {
+      nextStatusMap.set(roomId, true)
+      return
     }
+    nextStatusMap.delete(roomId)
   })
+  roomNumberDirtyStatus.value = nextStatusMap
 }
 
-// 显示批量关房详细设置弹窗
-const showBatchRoomDetailDialog = (selectedTypes: string[]) => {
-  batchCloseSelectedTypes.value = selectedTypes
-
-  // 获取选中房型的所有房间号
-  const selectedRooms: string[] = []
-  calendarData.value.rooms.forEach((room) => {
-    if (selectedTypes.includes(room.roomType)) {
-      selectedRooms.push(room.roomNumber)
-    }
-  })
-  batchCloseSelectedRooms.value = selectedRooms
-
-  // 设置默认日期范围
-  const today = new Date().toISOString().split('T')[0]
-  batchCloseForm.value.startDate = today
-  batchCloseForm.value.endDate = today
-
-  // 关闭批量选择弹窗，显示详细设置弹窗
-  showBatchDialog.value = false
-  showBatchCloseRoomDialog.value = true
+const removeBatchCloseRoom = (roomId: number) => {
+  batchCloseSelectedRoomIds.value = batchCloseSelectedRoomIds.value.filter((id) => id !== roomId)
+  batchSelectedRoomIds.value = [...batchCloseSelectedRoomIds.value]
 }
 
 // 取消批量操作
@@ -2874,6 +3045,9 @@ const cancelBatchOperation = () => {
   showBatchDialog.value = false
   batchMode.value = false
   selectedCells.value.clear()
+  batchSelectedRoomIds.value = []
+  batchExpandedRoomTypes.value = []
+  batchSearchKeyword.value = ''
 }
 
 // 房间折叠功能
@@ -2898,11 +3072,33 @@ const getRoomNumberDirtyStatus = (roomId: number) => {
   return roomNumberDirtyStatus.value.get(roomId) || false
 }
 
+const dirtyHoverActionText = computed(() => {
+  if (hoverDirtyRoomId.value === null) {
+    return '转脏房'
+  }
+  return getRoomNumberDirtyStatus(hoverDirtyRoomId.value) ? '转净房' : '转脏房'
+})
+
+const getCollapsedCellStatus = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
+  const roomStatus = getRoomExtraStatus(roomData.roomId, dailyStatus.date)
+  const isFull =
+    roomStatus.isClosed ||
+    !!dailyStatus.reservation ||
+    dailyStatus.status !== RoomStatus.AVAILABLE
+
+  return {
+    label: isFull ? '满房' : '1',
+    isFull,
+  }
+}
+
 // 房间号悬停处理
 const onRoomNumberHover = (event: MouseEvent, roomData: CalendarRoomData) => {
-  // 只在收起状态下显示脏房提示
-  if (isRoomCollapsed.value) {
-    const rect = (event.target as HTMLElement).getBoundingClientRect()
+  // 只在展开状态下显示脏房提示
+  if (!isRoomCollapsed.value) {
+    hoverDirtyRoomId.value = roomData.roomId
+    const target = (event.currentTarget as HTMLElement) || (event.target as HTMLElement)
+    const rect = target.getBoundingClientRect()
     hoverCardPosition.value = {
       x: rect.right + 10,
       y: rect.top,
@@ -2914,11 +3110,18 @@ const onRoomNumberHover = (event: MouseEvent, roomData: CalendarRoomData) => {
 
 // 房间号点击处理
 const onRoomNumberClick = (event: MouseEvent, roomData: CalendarRoomData) => {
-  // 只在收起状态下处理点击
-  if (isRoomCollapsed.value) {
+  // 只在展开状态下处理点击
+  if (!isRoomCollapsed.value) {
+    hoverDirtyRoomId.value = roomData.roomId
     const currentStatus = getRoomNumberDirtyStatus(roomData.roomId)
-    roomNumberDirtyStatus.value.set(roomData.roomId, !currentStatus)
-    ElMessage.success(currentStatus ? '已清除房间脏房标记' : '已标记房间为脏房')
+    const nextStatusMap = new Map(roomNumberDirtyStatus.value)
+    if (currentStatus) {
+      nextStatusMap.delete(roomData.roomId)
+    } else {
+      nextStatusMap.set(roomData.roomId, true)
+    }
+    roomNumberDirtyStatus.value = nextStatusMap
+    ElMessage.success(currentStatus ? '已置净房' : '已置脏房')
   }
 }
 
@@ -2965,6 +3168,7 @@ const hideHoverCard = () => {
   showHoverCard.value = false
   showDirtyHover.value = false
   hoverReservation.value = null
+  hoverDirtyRoomId.value = null
 }
 
 // 加载预订详情
@@ -4125,13 +4329,80 @@ const confirmCloseRoom = async () => {
 
 // 批量关房相关处理函数
 const handleDateSelectorCommand = (command: string) => {
-  console.log('日期选择器命令:', command)
+  if (command === 'all' || command === 'weekday' || command === 'weekend') {
+    batchCloseForm.value.weekMode = command
+  }
 }
 
 const cancelBatchCloseRoom = () => {
-  // 返回到批量选择弹窗
+  batchSelectedRoomIds.value = [...batchCloseSelectedRoomIds.value]
   showBatchCloseRoomDialog.value = false
   showBatchDialog.value = true
+}
+
+const parseDateOnly = (value: string) => {
+  const [year, month, day] = value.split('-').map((part) => Number(part))
+  return new Date(year, (month || 1) - 1, day || 1)
+}
+
+const formatDateOnly = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const isWeekendDay = (date: Date) => {
+  const day = date.getDay()
+  return day === 0 || day === 6
+}
+
+const matchWeekMode = (date: Date, weekMode: BatchWeekMode) => {
+  if (weekMode === 'all') {
+    return true
+  }
+  if (weekMode === 'weekday') {
+    return !isWeekendDay(date)
+  }
+  return isWeekendDay(date)
+}
+
+const buildBatchDateRanges = (startDate: string, endDate: string, weekMode: BatchWeekMode) => {
+  if (weekMode === 'all') {
+    return [{ startDate, endDate }]
+  }
+
+  const ranges: Array<{ startDate: string; endDate: string }> = []
+  const end = parseDateOnly(endDate)
+  const cursor = parseDateOnly(startDate)
+  let currentRangeStart: Date | null = null
+
+  while (cursor <= end) {
+    const matched = matchWeekMode(cursor, weekMode)
+    if (matched && !currentRangeStart) {
+      currentRangeStart = new Date(cursor)
+    }
+    if (!matched && currentRangeStart) {
+      const previousDate = new Date(cursor)
+      previousDate.setDate(previousDate.getDate() - 1)
+      ranges.push({
+        startDate: formatDateOnly(currentRangeStart),
+        endDate: formatDateOnly(previousDate),
+      })
+      currentRangeStart = null
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  if (currentRangeStart) {
+    const finalDate = new Date(end)
+    ranges.push({
+      startDate: formatDateOnly(currentRangeStart),
+      endDate: formatDateOnly(finalDate),
+    })
+  }
+
+  return ranges
 }
 
 const confirmBatchCloseRoom = async () => {
@@ -4139,54 +4410,74 @@ const confirmBatchCloseRoom = async () => {
     ElMessage.warning('请填写完整信息')
     return
   }
+  if (batchCloseForm.value.startDate > batchCloseForm.value.endDate) {
+    ElMessage.warning('开始日期不能晚于结束日期')
+    return
+  }
+  if (batchCloseSelectedRoomIds.value.length === 0) {
+    ElMessage.warning('请先选择要操作的房间')
+    return
+  }
 
   try {
-    const roomIds = calendarData.value.rooms
-      .filter((r) => batchCloseSelectedTypes.value.includes(r.roomType))
-      .map((r) => r.roomId)
-
-    if (roomIds.length === 0) {
-      ElMessage.warning('未找到可操作的房间')
+    const dateRanges = buildBatchDateRanges(
+      batchCloseForm.value.startDate,
+      batchCloseForm.value.endDate,
+      batchCloseForm.value.weekMode,
+    )
+    if (dateRanges.length === 0) {
+      ElMessage.warning('当前日期范围内没有可应用的日期')
       return
     }
 
+    let totalAffectedDays = 0
+
     if (batchAction.value === 'close') {
-      const resp = await closeRoomBlockouts({
-        roomIds,
-        startDate: batchCloseForm.value.startDate,
-        endDate: batchCloseForm.value.endDate,
-        type: batchCloseForm.value.type as 'stop' | 'maintenance' | 'retain',
-        remark: batchCloseForm.value.remark,
-      })
-      if (!resp.success) {
-        ElMessage.error(resp.message || '批量关房失败')
-        return
+      for (const range of dateRanges) {
+        const resp = await closeRoomBlockouts({
+          roomIds: batchCloseSelectedRoomIds.value,
+          startDate: range.startDate,
+          endDate: range.endDate,
+          type: batchCloseForm.value.type as 'stop' | 'maintenance' | 'retain',
+          remark: batchCloseForm.value.remark,
+        })
+        if (!resp.success) {
+          ElMessage.error(resp.message || '批量关房失败')
+          return
+        }
+        totalAffectedDays += resp.data?.affectedDays ?? 0
       }
-      ElMessage.success(`批量关房已保存（${resp.data?.affectedDays ?? 0} 天）`)
+      ElMessage.success(`批量关房已保存（${totalAffectedDays} 天）`)
     } else {
-      const resp = await openRoomBlockouts({
-        roomIds,
-        startDate: batchCloseForm.value.startDate,
-        endDate: batchCloseForm.value.endDate,
-      })
-      if (!resp.success) {
-        ElMessage.error(resp.message || '批量开房失败')
-        return
+      for (const range of dateRanges) {
+        const resp = await openRoomBlockouts({
+          roomIds: batchCloseSelectedRoomIds.value,
+          startDate: range.startDate,
+          endDate: range.endDate,
+        })
+        if (!resp.success) {
+          ElMessage.error(resp.message || '批量开房失败')
+          return
+        }
+        totalAffectedDays += resp.data?.affectedDays ?? 0
       }
-      ElMessage.success(`批量开房已保存（${resp.data?.affectedDays ?? 0} 天）`)
+      ElMessage.success(`批量开房已保存（${totalAffectedDays} 天）`)
     }
 
     showBatchCloseRoomDialog.value = false
     batchMode.value = false
     selectedCells.value.clear()
-    batchCloseSelectedTypes.value = []
-    batchCloseSelectedRooms.value = []
+    batchSelectedRoomIds.value = []
+    batchExpandedRoomTypes.value = []
+    batchSearchKeyword.value = ''
+    batchCloseSelectedRoomIds.value = []
 
     batchCloseForm.value = {
       type: 'stop',
       startDate: '',
       endDate: '',
       remark: '',
+      weekMode: 'all',
     }
 
     await loadRoomStatusCalendarData()
@@ -4646,6 +4937,24 @@ onActivated(async () => {
 .reservation-info {
   text-align: center;
   width: 100%;
+}
+
+.empty-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 28px;
+}
+
+.collapsed-status-text {
+  font-size: 20px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.collapsed-status-text.full {
+  color: #f5222d;
 }
 
 .guest-name {
@@ -5444,69 +5753,127 @@ onActivated(async () => {
 .selection-area {
   display: flex;
   height: 400px;
+  gap: 16px;
 }
 
-.room-types-list {
-  width: 300px;
-  border-right: 1px solid #e9ecef;
-  padding-right: 15px;
+.batch-room-tree {
+  flex: 1;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 0 12px 12px;
+  overflow: hidden;
 }
 
 .selection-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  min-height: 46px;
   border-bottom: 1px solid #e9ecef;
-  margin-bottom: 15px;
 }
 
 .selection-count {
   color: #666;
-  font-size: 12px;
+  font-size: 13px;
 }
 
-.room-type-items {
+.batch-search-input {
+  margin: 12px 0;
+}
+
+.batch-tree-list {
+  max-height: 320px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  padding-right: 4px;
 }
 
-.room-type-item {
+.batch-type-block {
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.batch-type-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 0;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.room-type-item:hover {
-  background-color: #f5f5f5;
-  border-radius: 4px;
+  gap: 8px;
+  min-height: 32px;
 }
 
 .expand-icon {
-  color: #666;
-  font-size: 12px;
+  color: #606266;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.batch-room-list {
+  margin-left: 22px;
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.batch-room-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-room-number {
+  font-size: 13px;
+  color: #303133;
 }
 
 .room-type-name {
   color: #333;
   font-weight: 500;
+  font-size: 14px;
+  flex: 1;
 }
 
 .selected-rooms-area {
   flex: 1;
-  padding-left: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 0 12px 12px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
 }
 
 .empty-selection {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   color: #999;
+}
+
+.selected-room-list {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  padding-top: 8px;
+}
+
+.selected-room-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f2f3f5;
+  font-size: 13px;
+}
+
+.selected-rooms-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
 }
 
 .batch-dialog-footer {
@@ -5615,6 +5982,23 @@ onActivated(async () => {
 .selected-rooms-display .el-tag {
   margin-right: 8px;
   margin-bottom: 4px;
+}
+
+.batch-close-room-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  margin-right: 8px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  border: 1px solid #dcdfe6;
+}
+
+.batch-close-empty-tip {
+  color: #909399;
+  font-size: 13px;
 }
 
 .date-selector {
