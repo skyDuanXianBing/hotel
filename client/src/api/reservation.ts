@@ -31,6 +31,13 @@ export interface ReservationDTO {
   checkInDate: string
   checkOutDate: string
   status: string
+  adults?: number
+  children?: number
+  paymentMethod?: string
+  commission?: number
+  paidAmount?: number
+  pricePlan?: string
+  createdBy?: string
   notes?: string
   totalAmount?: number
   currentRoomPrice?: number // 当前房型价格

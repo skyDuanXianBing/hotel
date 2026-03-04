@@ -208,20 +208,7 @@ public class OtaReservationSyncService {
             return new UpsertOnlyResult(0, 0, 0, 0, 0, Set.of(), List.of());
         }
 
-        UpsertResult result;
-        try {
-            result = transactionTemplate.execute(status -> upsertReservationsInTx(store, reservationNodes));
-        } catch (UnexpectedRollbackException e) {
-            reservationLogger.error(
-                    "[ReservationWebhook] upsert tx rolled back (rollback-only). storeId={}, hotelId={}, reservations={}, sample={}",
-                    storeId,
-                    resolveHotelId(store),
-                    reservationNodes.size(),
-                    summarizeReservationNodes(reservationNodes, 3),
-                    e
-            );
-            throw e;
-        }
+        UpsertResult result = upsertReservationsWithIsolatedTransactions(store, reservationNodes);
         if (result == null) {
             return new UpsertOnlyResult(0, 0, 0, 0, 0, Set.of(), List.of("upsert tx failed"));
         }
@@ -267,7 +254,7 @@ public class OtaReservationSyncService {
         reservationLogger.info("[ReservationSync] pulled reservations. storeId={}, hotelId={}, count={}",
                 storeId, hotelId, reservations.size());
 
-        UpsertResult upsert = transactionTemplate.execute(status -> upsertReservationsInTx(store, reservations));
+        UpsertResult upsert = upsertReservationsWithIsolatedTransactions(store, reservations);
         if (upsert == null) {
             upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), List.of("事务执行失败：upsert结果为空"));
         }
@@ -358,7 +345,7 @@ public class OtaReservationSyncService {
 
         List<JsonNode> filtered = filterReservationsByNotifIds(reservations, onlyProcessNotifIds);
 
-        UpsertResult upsert = transactionTemplate.execute(status -> upsertReservationsInTx(store, filtered));
+        UpsertResult upsert = upsertReservationsWithIsolatedTransactions(store, filtered);
         if (upsert == null) {
             upsert = new UpsertResult(0, 0, 0, 0, 0, Set.of(), List.of("浜嬪姟鎵ц澶辫触锛歶psert缁撴灉涓虹┖"));
         }
@@ -451,6 +438,124 @@ public class OtaReservationSyncService {
             Set<String> notifIds,
             List<String> errors
     ) {}
+
+    private UpsertResult upsertReservationsWithIsolatedTransactions(Store store, List<JsonNode> reservations) {
+        if (store == null || reservations == null || reservations.isEmpty()) {
+            return new UpsertResult(0, 0, 0, 0, 0, Set.of(), List.of());
+        }
+
+        String suHotelId = resolveHotelId(store);
+        List<String> errors = new ArrayList<>();
+        Set<String> notifIds = new LinkedHashSet<>();
+
+        int processedRoomStays = 0;
+        int skippedUnsupported = 0;
+        int created = 0;
+        int updated = 0;
+        int failed = 0;
+
+        for (JsonNode reservationNode : reservations) {
+            if (reservationNode == null || reservationNode.isNull()) {
+                continue;
+            }
+
+            int roomStayCount = countRoomStays(reservationNode);
+            String reservationId = SuReservationParser.extractReservationId(reservationNode);
+            String notifId = SuReservationParser.extractReservationNotifId(reservationNode);
+            String channelBookingId = SuReservationParser.extractChannelBookingId(reservationNode);
+            String otaCode = SuReservationParser.extractOtaCode(reservationNode);
+            String channelCode = SuReservationParser.mapOtaChannelCode(otaCode);
+
+            try {
+                UpsertResult singleResult = transactionTemplate.execute(
+                        status -> upsertReservationsInTx(store, List.of(reservationNode))
+                );
+                if (singleResult == null) {
+                    processedRoomStays += roomStayCount;
+                    failed += roomStayCount;
+                    String errorMessage = "reservationId=" + Objects.toString(reservationId, "unknown")
+                            + ", channel=" + channelCode
+                            + ", error=isolated upsert tx returned null";
+                    errors.add(errorMessage);
+                    reservationLogger.error(
+                            "[ReservationUpsert] isolated tx returned null. storeId={}, hotelId={}, reservationId={}, notifId={}, channel={}, channelBookingId={}",
+                            store.getId(),
+                            suHotelId,
+                            reservationId,
+                            notifId,
+                            channelCode,
+                            channelBookingId
+                    );
+                    continue;
+                }
+
+                processedRoomStays += singleResult.processedRoomStays();
+                skippedUnsupported += singleResult.skippedUnsupportedOta();
+                created += singleResult.createdCount();
+                updated += singleResult.updatedCount();
+                failed += singleResult.failedCount();
+                notifIds.addAll(singleResult.notifIds());
+                errors.addAll(singleResult.errors());
+            } catch (UnexpectedRollbackException e) {
+                processedRoomStays += roomStayCount;
+                failed += roomStayCount;
+                errors.add(
+                        "reservationId=" + Objects.toString(reservationId, "unknown")
+                                + ", channel=" + channelCode
+                                + ", error=isolated tx rolled back: " + e.getMessage()
+                );
+                reservationLogger.error(
+                        "[ReservationUpsert] isolated tx rolled back. storeId={}, hotelId={}, reservationId={}, notifId={}, channel={}, channelBookingId={}, err={}",
+                        store.getId(),
+                        suHotelId,
+                        reservationId,
+                        notifId,
+                        channelCode,
+                        channelBookingId,
+                        e.getMessage(),
+                        e
+                );
+            } catch (Exception e) {
+                processedRoomStays += roomStayCount;
+                failed += roomStayCount;
+                errors.add(
+                        "reservationId=" + Objects.toString(reservationId, "unknown")
+                                + ", channel=" + channelCode
+                                + ", error=isolated tx exception: " + e.getMessage()
+                );
+                reservationLogger.error(
+                        "[ReservationUpsert] isolated tx exception. storeId={}, hotelId={}, reservationId={}, notifId={}, channel={}, channelBookingId={}, errType={}, err={}",
+                        store.getId(),
+                        suHotelId,
+                        reservationId,
+                        notifId,
+                        channelCode,
+                        channelBookingId,
+                        e.getClass().getSimpleName(),
+                        e.getMessage(),
+                        e
+                );
+            }
+        }
+
+        return new UpsertResult(
+                processedRoomStays,
+                skippedUnsupported,
+                created,
+                updated,
+                failed,
+                notifIds,
+                errors
+        );
+    }
+
+    private static int countRoomStays(JsonNode reservationNode) {
+        if (reservationNode == null || reservationNode.isNull()) {
+            return 0;
+        }
+        List<JsonNode> roomStays = SuReservationParser.extractRoomStays(reservationNode);
+        return roomStays.isEmpty() ? 1 : roomStays.size();
+    }
 
     private UpsertResult upsertReservationsInTx(Store store, List<JsonNode> reservations) {
         List<String> errors = new ArrayList<>();

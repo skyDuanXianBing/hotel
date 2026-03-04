@@ -18,6 +18,13 @@ public class ReservationDTO {
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private String status; // RESERVED, CHECKED_IN, CHECKED_OUT, CANCELLED
+    private Integer adults;
+    private Integer children;
+    private String paymentMethod;
+    private java.math.BigDecimal commission;
+    private java.math.BigDecimal paidAmount;
+    private String pricePlan;
+    private String createdBy;
     private String notes;
     
     // Su / OTA fields (for 未排房/未映射排查)
@@ -136,6 +143,62 @@ public class ReservationDTO {
     
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Integer getAdults() {
+        return adults;
+    }
+
+    public void setAdults(Integer adults) {
+        this.adults = adults;
+    }
+
+    public Integer getChildren() {
+        return children;
+    }
+
+    public void setChildren(Integer children) {
+        this.children = children;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public java.math.BigDecimal getCommission() {
+        return commission;
+    }
+
+    public void setCommission(java.math.BigDecimal commission) {
+        this.commission = commission;
+    }
+
+    public java.math.BigDecimal getPaidAmount() {
+        return paidAmount;
+    }
+
+    public void setPaidAmount(java.math.BigDecimal paidAmount) {
+        this.paidAmount = paidAmount;
+    }
+
+    public String getPricePlan() {
+        return pricePlan;
+    }
+
+    public void setPricePlan(String pricePlan) {
+        this.pricePlan = pricePlan;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
     }
     
     public String getNotes() {

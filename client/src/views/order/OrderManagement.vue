@@ -219,7 +219,12 @@
           v-loading="loading"
           element-loading-text="加载中..."
         >
-          <el-table-column prop="orderNumber" label="订单号/渠道订单号" min-width="280">
+          <el-table-column
+            prop="orderNumber"
+            label="订单号/渠道订单号"
+            min-width="280"
+            fixed="left"
+          >
             <template #default="scope">
               <div class="order-number">
                 <el-button type="text" class="order-link" @click="viewOrder(scope.row)">{{
@@ -236,7 +241,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="channelName" label="渠道" width="100">
+          <el-table-column prop="channelName" label="渠道" width="150">
             <template #default="scope">
               <el-tag size="small" :type="getChannelTagType(scope.row.channelName)">
                 {{ scope.row.channelName }}
@@ -244,7 +249,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="status" label="状态" width="100">
+          <el-table-column v-if="activeOrderTab !== 'all'" prop="status" label="状态" width="100">
             <template #default="scope">
               <el-tag size="small" :type="getReservationStatusTagType(scope.row.status)">
                 {{ getReservationStatusText(scope.row.status) }}
@@ -252,7 +257,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="guestName" label="联系人" width="100"></el-table-column>
+          <el-table-column prop="guestName" label="联系人" width="150"></el-table-column>
 
           <el-table-column prop="phone" label="手机号" width="130">
             <template #default="scope">
@@ -262,11 +267,17 @@
 
           <el-table-column label="入住类型" width="100">
             <template #default="scope">
-              <span>正常入住</span>
+              <span>{{ getCheckinTypeText(scope.row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="roomTypeName" label="房型" width="100"></el-table-column>
+          <el-table-column prop="roomTypeName" label="房型" width="180"></el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" prop="pricePlan" label="价格计划" width="140">
+            <template #default="scope">
+              <span>{{ scope.row.pricePlan || '-' }}</span>
+            </template>
+          </el-table-column>
 
           <el-table-column v-if="activeOrderTab === 'unassigned'" prop="otaRoomId" label="渠道房型ID" width="160">
             <template #default="scope">
@@ -291,7 +302,13 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="roomNumber" label="房间" width="80"></el-table-column>
+          <el-table-column prop="roomNumber" label="房间号" width="100"></el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" label="房间数" width="90">
+            <template #default>
+              <span>1</span>
+            </template>
+          </el-table-column>
 
           <el-table-column v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned'" label="排房状态" width="100">
             <template #default="scope">
@@ -301,25 +318,105 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="currentRoomPrice" label="房费" width="100">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="checkInDate" label="入住时间" width="170">
             <template #default="scope">
-              <span>¥ {{ scope.row.currentRoomPrice || 0 }}</span>
+              <span>{{ formatStayDateTime(scope.row.checkInDate, 'checkIn') }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="totalAmount" label="订单总金额" width="120">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="checkOutDate" label="离店时间" width="170">
             <template #default="scope">
-              <span>¥ {{ scope.row.totalAmount || 0 }}</span>
+              <span>{{ formatStayDateTime(scope.row.checkOutDate, 'checkOut') }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" label="间夜数" width="90">
+            <template #default="scope">
+              <span>{{ getNights(scope.row) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" label="入住人数" width="100">
+            <template #default="scope">
+              <span>{{ getTotalGuests(scope.row) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" label="成人数" width="100">
+            <template #default="scope">
+              <span>{{ scope.row.adults ?? '-' }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" label="儿童数" width="100">
+            <template #default="scope">
+              <span>{{ scope.row.children ?? 0 }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" label="入住状态" width="120">
+            <template #default="scope">
+              <span>{{ getReservationStatusText(scope.row.status) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="currentRoomPrice" label="房费" width="120">
+            <template #default="scope">
+              <span>{{ formatAmount(scope.row.currentRoomPrice) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" prop="totalAmount" label="住宿金额" width="140">
+            <template #default="scope">
+              <span>{{ formatAmount(scope.row.totalAmount) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" prop="totalAmount" label="住宿小计" width="140">
+            <template #default="scope">
+              <span>{{ formatAmount(scope.row.totalAmount) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" prop="commission" label="佣金" width="120">
+            <template #default="scope">
+              <span>{{ formatAmount(scope.row.commission) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" prop="paymentMethod" label="支付方式" width="150">
+            <template #default="scope">
+              <span>{{ scope.row.paymentMethod || '-' }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" label="收银状态" width="120">
+            <template #default="scope">
+              <span>{{ getCashierStatusText(scope.row) }}</span>
             </template>
           </el-table-column>
 
           <el-table-column label="结账状态" width="100">
             <template #default="scope">
-              <el-tag size="small" type="danger">未结账</el-tag>
+              <el-tag size="small" :type="getSettlementTagType(scope.row)">
+                {{ getSettlementStatusText(scope.row) }}
+              </el-tag>
             </template>
           </el-table-column>
 
-          <el-table-column prop="checkInDate" label="入住时间" width="150"></el-table-column>
+          <el-table-column v-if="activeOrderTab !== 'all'" prop="checkInDate" label="入住时间" width="150"></el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" prop="notes" label="备注" width="200">
+            <template #default="scope">
+              <span>{{ scope.row.notes || '-' }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column v-if="activeOrderTab === 'all'" prop="createdBy" label="创建人" width="120">
+            <template #default="scope">
+              <span>{{ scope.row.createdBy || '-' }}</span>
+            </template>
+          </el-table-column>
 
           <el-table-column prop="createdAt" label="创建时间" width="180">
             <template #default="scope">
@@ -780,30 +877,79 @@ const getAssignStatusTagType = (order: ReservationDTO) => {
   return canAssignRoom(order) ? 'success' : 'info'
 }
 
-const getPaymentStatusTagType = (status: string) => {
-  switch (status) {
-    case 'paid':
-      return 'success'
-    case 'unpaid':
-      return 'danger'
-    case 'partial':
-      return 'warning'
-    default:
-      return 'info'
+const formatAmount = (value?: number) => {
+  const numericValue = Number(value ?? 0)
+  if (!Number.isFinite(numericValue)) {
+    return '¥0.00'
   }
+  return `¥${numericValue.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 }
 
-const getPaymentStatusText = (status: string) => {
-  switch (status) {
-    case 'paid':
-      return '已结账'
-    case 'unpaid':
-      return '未结账'
-    case 'partial':
-      return '部分结账'
-    default:
-      return '未知'
+const getCheckinTypeText = (_order: ReservationDTO) => '正常入住'
+
+const getTotalGuests = (order: ReservationDTO) => {
+  const adults = order.adults ?? 0
+  const children = order.children ?? 0
+  const total = adults + children
+  return total > 0 ? total : '-'
+}
+
+const getNights = (order: ReservationDTO) => {
+  if (!order.checkInDate || !order.checkOutDate) {
+    return '-'
   }
+  const checkInDate = new Date(order.checkInDate)
+  const checkOutDate = new Date(order.checkOutDate)
+  const diffMs = checkOutDate.getTime() - checkInDate.getTime()
+  if (!Number.isFinite(diffMs) || diffMs <= 0) {
+    return '-'
+  }
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24))
+}
+
+const formatStayDateTime = (dateStr?: string, type: 'checkIn' | 'checkOut' = 'checkIn') => {
+  if (!dateStr) return '-'
+  const defaultTime = type === 'checkIn' ? '16:00:00' : '10:00:00'
+  const normalizedDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+  return `${normalizedDate} ${defaultTime}`
+}
+
+const getSettlementStatusText = (order: ReservationDTO) => {
+  const paidAmount = Number(order.paidAmount ?? 0)
+  const totalAmount = Number(order.totalAmount ?? 0)
+  if (totalAmount > 0 && paidAmount >= totalAmount) {
+    return '已结账'
+  }
+  if (paidAmount > 0 && paidAmount < totalAmount) {
+    return '部分结账'
+  }
+  return '未结账'
+}
+
+const getSettlementTagType = (order: ReservationDTO) => {
+  const settlementStatus = getSettlementStatusText(order)
+  if (settlementStatus === '已结账') {
+    return 'success'
+  }
+  if (settlementStatus === '部分结账') {
+    return 'warning'
+  }
+  return 'danger'
+}
+
+const getCashierStatusText = (order: ReservationDTO) => {
+  const paidAmount = Number(order.paidAmount ?? 0)
+  const totalAmount = Number(order.totalAmount ?? 0)
+  if (totalAmount > 0 && paidAmount >= totalAmount) {
+    return '账目已平'
+  }
+  if (paidAmount > 0) {
+    return '部分到账'
+  }
+  return '待收款'
 }
 
 const formatDateTime = (dateStr: string) => {

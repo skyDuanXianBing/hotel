@@ -74,6 +74,28 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     List<Reservation> findByStoreIdAndGuestPhone(Long storeId, String guestPhone);
 
+    @Query("""
+            SELECT DISTINCT r
+            FROM Reservation r
+            LEFT JOIN FETCH r.room room
+            LEFT JOIN FETCH room.roomType
+            LEFT JOIN FETCH r.channel
+            WHERE r.storeId = :storeId
+              AND (
+                    LOWER(r.guestName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR r.guestPhone LIKE CONCAT('%', :keyword, '%')
+                    OR LOWER(r.orderNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(r.channelOrderNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(room.roomNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(r.otaRoomNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                  )
+            ORDER BY r.createdAt DESC
+            """)
+    List<Reservation> searchByStoreIdAndKeyword(
+            @Param("storeId") Long storeId,
+            @Param("keyword") String keyword
+    );
+
     List<Reservation> findByStoreIdAndStatus(Long storeId, ReservationStatus status);
 
     List<Reservation> findByStoreIdAndRoomId(Long storeId, Long roomId);

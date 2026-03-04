@@ -523,20 +523,19 @@ public class ReservationService {
     }
 
     /**
-     * 根据客人信息搜索预订
+     * 按门店范围搜索预订（客人、手机号、订单号、渠道订单号、房号）
      */
     public List<ReservationDTO> searchReservationsByGuestInfo(String keyword) {
-        if (keyword == null || keyword.trim().isEmpty()) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (normalizedKeyword.isEmpty()) {
             return List.of();
         }
 
         Long storeId = currentStoreId();
-        List<Reservation> reservations = reservationRepository.findByStoreIdAndGuestNameContainingIgnoreCase(storeId, keyword);
-        if (reservations.isEmpty()) {
-            reservations = reservationRepository.findByStoreIdAndGuestPhone(storeId, keyword);
-        }
+        List<Reservation> reservations = reservationRepository.searchByStoreIdAndKeyword(storeId, normalizedKeyword);
 
         return reservations.stream()
+                .limit(50)
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -1069,6 +1068,23 @@ public class ReservationService {
         dto.setCheckInDate(reservation.getCheckInDate());
         dto.setCheckOutDate(reservation.getCheckOutDate());
         dto.setStatus(reservation.getStatus().name());
+        dto.setAdults(reservation.getAdults());
+        dto.setChildren(reservation.getChildren());
+        dto.setPaymentMethod(reservation.getPaymentMethod());
+        dto.setCommission(reservation.getCommission());
+        dto.setPaidAmount(reservation.getPaidAmount());
+        dto.setPricePlan(reservation.getPricePlan());
+        String createdBy = null;
+        if (reservation.getUser() != null) {
+            if (reservation.getUser().getName() != null && !reservation.getUser().getName().isBlank()) {
+                createdBy = reservation.getUser().getName();
+            } else if (reservation.getUser().getNickname() != null && !reservation.getUser().getNickname().isBlank()) {
+                createdBy = reservation.getUser().getNickname();
+            } else {
+                createdBy = reservation.getUser().getUsername();
+            }
+        }
+        dto.setCreatedBy(createdBy);
         dto.setNotes(reservation.getNotes());
         
         dto.setReservationNotifId(reservation.getReservationNotifId());
