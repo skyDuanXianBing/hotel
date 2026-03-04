@@ -82,7 +82,7 @@
           </el-dropdown>
 
         </div>
-      </div>
+      </div>  
 
       <!-- 主要内容区域 -->
       <div class="calendar-content" v-loading="loading">
@@ -229,6 +229,7 @@
       <!-- 快速操作菜单 -->
       <div
         v-show="showQuickActions"
+        ref="quickActionsPopupRef"
         class="quick-actions-popup"
         :style="{
           left: quickActionPosition.x + 'px',
@@ -1791,7 +1792,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onActivated, computed, watch } from 'vue'
+import { ref, onMounted, onActivated, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import {
@@ -1873,6 +1874,7 @@ const showQuickActions = ref(false)
 const quickActionPosition = ref({ x: 0, y: 0 })
 const quickActionRoom = ref<CalendarRoomData | null>(null)
 const quickActionDate = ref('')
+const quickActionsPopupRef = ref<HTMLElement | null>(null)
 
 // 预订相关侧边栏（支持新建和编辑两种模式）
 const showBookingSidebar = ref(false)
@@ -4121,15 +4123,43 @@ const onCellClick = (
     return
   }
 
-  // 如果是空白格子，显示快速操作菜单
-  const rect = (event.target as HTMLElement).getBoundingClientRect()
-  quickActionPosition.value = {
-    x: rect.left + rect.width / 2,
-    y: rect.top + rect.height,
-  }
+  // 如果是空白格子，显示快速操作菜单（根据视窗自动调整位置）
+  const target = (event.currentTarget as HTMLElement) || (event.target as HTMLElement)
+  const rect = target.getBoundingClientRect()
   quickActionRoom.value = roomData
   quickActionDate.value = dailyStatus.date
   showQuickActions.value = true
+  void nextTick(() => {
+    updateQuickActionPopupPosition(rect)
+  })
+}
+
+const updateQuickActionPopupPosition = (triggerRect: DOMRect) => {
+  const popup = quickActionsPopupRef.value
+  const popupWidth = popup?.offsetWidth || 280
+  const popupHeight = popup?.offsetHeight || 260
+  const viewportPadding = 12
+  const popupGap = 8
+
+  let centerX = triggerRect.left + triggerRect.width / 2
+  const minCenterX = viewportPadding + popupWidth / 2
+  const maxCenterX = window.innerWidth - viewportPadding - popupWidth / 2
+  centerX = Math.min(maxCenterX, Math.max(minCenterX, centerX))
+
+  let topY = triggerRect.bottom + popupGap
+  const maxTopY = window.innerHeight - viewportPadding - popupHeight
+
+  if (topY > maxTopY) {
+    topY = triggerRect.top - popupHeight - popupGap
+  }
+  if (topY < viewportPadding) {
+    topY = viewportPadding
+  }
+
+  quickActionPosition.value = {
+    x: centerX,
+    y: topY,
+  }
 }
 
 // 修改快速操作处理

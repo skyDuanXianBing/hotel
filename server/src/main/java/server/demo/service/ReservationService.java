@@ -523,20 +523,19 @@ public class ReservationService {
     }
 
     /**
-     * 根据客人信息搜索预订
+     * 按门店范围搜索预订（客人、手机号、订单号、渠道订单号、房号）
      */
     public List<ReservationDTO> searchReservationsByGuestInfo(String keyword) {
-        if (keyword == null || keyword.trim().isEmpty()) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (normalizedKeyword.isEmpty()) {
             return List.of();
         }
 
         Long storeId = currentStoreId();
-        List<Reservation> reservations = reservationRepository.findByStoreIdAndGuestNameContainingIgnoreCase(storeId, keyword);
-        if (reservations.isEmpty()) {
-            reservations = reservationRepository.findByStoreIdAndGuestPhone(storeId, keyword);
-        }
+        List<Reservation> reservations = reservationRepository.searchByStoreIdAndKeyword(storeId, normalizedKeyword);
 
         return reservations.stream()
+                .limit(50)
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
