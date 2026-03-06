@@ -7,12 +7,14 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
 import server.demo.entity.Channel;
+import server.demo.entity.PricePlan;
 import server.demo.entity.Reservation;
 import server.demo.entity.Store;
 import server.demo.entity.User;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.ChannelRepository;
+import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageThreadRepository;
@@ -51,6 +53,7 @@ public class OtaReservationSyncService {
     private final SuApiClient suApiClient;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
+    private final PricePlanRepository pricePlanRepository;
     private final ChannelRepository channelRepository;
     private final ReservationRepository reservationRepository;
     private final SuMessageThreadRepository threadRepository;
@@ -67,6 +70,7 @@ public class OtaReservationSyncService {
             SuApiClient suApiClient,
             StoreRepository storeRepository,
             UserRepository userRepository,
+            PricePlanRepository pricePlanRepository,
             ChannelRepository channelRepository,
             ReservationRepository reservationRepository,
             SuMessageThreadRepository threadRepository,
@@ -82,6 +86,7 @@ public class OtaReservationSyncService {
         this.suApiClient = suApiClient;
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
+        this.pricePlanRepository = pricePlanRepository;
         this.channelRepository = channelRepository;
         this.reservationRepository = reservationRepository;
         this.threadRepository = threadRepository;
@@ -571,6 +576,7 @@ public class OtaReservationSyncService {
 
         User user = userRepository.findById(store.getUserId())
                 .orElseThrow(() -> new IllegalStateException("门店关联的用户不存在: " + store.getUserId()));
+        java.util.Map<String, String> pricePlanDisplayCache = new java.util.HashMap<>();
 
         for (JsonNode reservationNode : reservations) {
             if (reservationNode == null || reservationNode.isNull()) {
@@ -669,6 +675,8 @@ public class OtaReservationSyncService {
                     reservation.setChildren(SuReservationParser.extractChildren(reservationNode, roomStay));
                     reservation.setTotalAmount(SuReservationParser.extractTotalAmount(reservationNode, roomStay));
                     reservation.setChannelOrderNumber(channelBookingId);
+                    String ratePlanId = SuReservationParser.extractRatePlanId(reservationNode, roomStay);
+                    reservation.setPricePlan(resolvePricePlanDisplay(store.getId(), ratePlanId, pricePlanDisplayCache));
 
                     // Channel / Su fields (for channel-info UI and audit)
                     reservation.setSuHotelId(suHotelId);
@@ -881,6 +889,33 @@ public class OtaReservationSyncService {
             return ReservationStatus.REQUESTED;
         }
         return ReservationStatus.CONFIRMED;
+    }
+
+    private String resolvePricePlanDisplay(Long storeId, String ratePlanId, java.util.Map<String, String> cache) {
+        if (ratePlanId == null || ratePlanId.isBlank()) {
+            return null;
+        }
+        String normalized = ratePlanId.trim();
+        if (cache != null && cache.containsKey(normalized)) {
+            return cache.get(normalized);
+        }
+
+        String resolved = normalized;
+        try {
+            Long numericId = Long.parseLong(normalized);
+            resolved = pricePlanRepository.findByStoreIdAndId(storeId, numericId)
+                    .map(PricePlan::getName)
+                    .orElse(normalized);
+        } catch (NumberFormatException ignore) {
+            resolved = pricePlanRepository.findByStoreIdAndName(storeId, normalized)
+                    .map(PricePlan::getName)
+                    .orElse(normalized);
+        }
+
+        if (cache != null) {
+            cache.put(normalized, resolved);
+        }
+        return resolved;
     }
 
     private void tryUpsertMessageThreadFromReservation(

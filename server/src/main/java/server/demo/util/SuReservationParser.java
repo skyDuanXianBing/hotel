@@ -290,6 +290,28 @@ public final class SuReservationParser {
         return BigDecimal.ZERO;
     }
 
+    public static String extractRatePlanId(JsonNode reservation, JsonNode roomStay) {
+        String direct = text(roomStay, "rateplanid")
+                .or(() -> text(roomStay, "rate_plan_id"))
+                .or(() -> text(roomStay, "rate_id"))
+                .or(() -> text(roomStay, "rateid"))
+                .orElse(null);
+        if (direct != null && !direct.isBlank()) {
+            return direct.trim();
+        }
+
+        String fromRoomPrice = extractRatePlanIdFromPriceArray(roomStay);
+        if (fromRoomPrice != null && !fromRoomPrice.isBlank()) {
+            return fromRoomPrice.trim();
+        }
+
+        String fromReservationPrice = extractRatePlanIdFromPriceArray(reservation);
+        if (fromReservationPrice != null && !fromReservationPrice.isBlank()) {
+            return fromReservationPrice.trim();
+        }
+        return null;
+    }
+
     public static String buildOrderNumber(Long storeId, String reservationId, String roomReservationId) {
         String sid = storeId != null ? storeId.toString() : "0";
         String rid = reservationId != null ? reservationId : "unknown";
@@ -318,6 +340,31 @@ public final class SuReservationParser {
         }
         s = s.trim();
         return s.isBlank() ? Optional.empty() : Optional.of(s);
+    }
+
+    private static String extractRatePlanIdFromPriceArray(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        JsonNode priceArray = node.get("price");
+        if (priceArray == null || !priceArray.isArray() || priceArray.isEmpty()) {
+            return null;
+        }
+
+        for (JsonNode item : priceArray) {
+            if (item == null || item.isNull() || !item.isObject()) {
+                continue;
+            }
+            String rateId = text(item, "rate_id")
+                    .or(() -> text(item, "rateid"))
+                    .or(() -> text(item, "rateplanid"))
+                    .or(() -> text(item, "rate_plan_id"))
+                    .orElse(null);
+            if (rateId != null && !rateId.isBlank()) {
+                return rateId.trim();
+            }
+        }
+        return null;
     }
 
     private static LocalDate parseDate(String raw) {
