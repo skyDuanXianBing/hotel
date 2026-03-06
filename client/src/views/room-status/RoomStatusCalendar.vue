@@ -401,7 +401,7 @@
 
         <div class="stay-info">
           <el-icon><Calendar /></el-icon>
-          {{ hoverReservation?.checkInDate }}入住 | {{ hoverReservation?.checkOutDate }}离店 | 共1晚
+          {{ hoverReservation?.checkInDate }}入住 | {{ hoverReservation?.checkOutDate }}离店 | 共{{ getReservationStayNightsText(hoverReservation) }}
         </div>
 
         <div class="channel-info">
@@ -796,7 +796,7 @@
                   >
                   <span class="room-dates"
                     >{{ selectedReservation?.checkInDate }} 至
-                    {{ selectedReservation?.checkOutDate }}，1晚</span
+                    {{ selectedReservation?.checkOutDate }}，{{ getReservationStayNightsText(selectedReservation) }}</span
                   >
                   <div class="room-actions">
                     <el-button
@@ -2072,6 +2072,86 @@ const channelLogoText = computed(() => {
   if (!normalized) return 'OTA'
   return normalized.length > 10 ? normalized.slice(0, 10) : normalized
 })
+
+const getReservationDateValue = (
+  reservation: Record<string, any> | null | undefined,
+  key: 'checkIn' | 'checkOut',
+) => {
+  if (!reservation) return ''
+  return reservation[`${key}Date`] || reservation[key] || ''
+}
+
+const getReservationRoomCount = (reservation: Record<string, any> | null | undefined) => {
+  if (!reservation || !calendarData.value?.rooms?.length) return 1
+
+  const explicitRoomCount = Number(reservation.roomCount ?? reservation.reservationCount)
+  if (Number.isFinite(explicitRoomCount) && explicitRoomCount > 0) {
+    return explicitRoomCount
+  }
+
+  const groupOrderNo = reservation.groupOrderNo
+  const orderNumber = reservation.orderNumber
+  const guestName = reservation.guestName
+  const checkIn = getReservationDateValue(reservation, 'checkIn')
+  const checkOut = getReservationDateValue(reservation, 'checkOut')
+  const matchedRoomIds = new Set<number>()
+
+  calendarData.value.rooms.forEach((room) => {
+    const hasMatchedReservation = room.dailyStatus.some((daily) => {
+      const currentReservation = daily.reservation as Record<string, any> | null | undefined
+      if (!currentReservation) return false
+
+      const currentGroupOrderNo = currentReservation.groupOrderNo
+      const currentOrderNumber = currentReservation.orderNumber
+      const currentGuestName = currentReservation.guestName
+      const currentCheckIn = getReservationDateValue(currentReservation, 'checkIn')
+      const currentCheckOut = getReservationDateValue(currentReservation, 'checkOut')
+
+      if (groupOrderNo && currentGroupOrderNo) {
+        return currentGroupOrderNo === groupOrderNo
+      }
+
+      if (orderNumber && currentOrderNumber === orderNumber) {
+        return true
+      }
+
+      return !!guestName && guestName === currentGuestName && checkIn === currentCheckIn && checkOut === currentCheckOut
+    })
+
+    if (hasMatchedReservation) {
+      matchedRoomIds.add(room.roomId)
+    }
+  })
+
+  return matchedRoomIds.size > 0 ? matchedRoomIds.size : 1
+}
+
+const getReservationStayNights = (reservation: Record<string, any> | null | undefined) => {
+  if (!reservation) return 1
+
+  const explicitNights = Number(reservation.nights)
+  if (Number.isFinite(explicitNights) && explicitNights > 0) {
+    return explicitNights
+  }
+
+  const checkIn = getReservationDateValue(reservation, 'checkIn')
+  const checkOut = getReservationDateValue(reservation, 'checkOut')
+  if (!checkIn || !checkOut) return 1
+
+  const start = new Date(checkIn)
+  const end = new Date(checkOut)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 1
+
+  const diff = end.getTime() - start.getTime()
+  const stayNights = Math.round(diff / (1000 * 60 * 60 * 24))
+  const normalizedStayNights = stayNights > 0 ? stayNights : 1
+
+  return normalizedStayNights * getReservationRoomCount(reservation)
+}
+
+const getReservationStayNightsText = (reservation: Record<string, any> | null | undefined) => {
+  return `${getReservationStayNights(reservation)}晚`
+}
 
 const channelNights = computed(() => {
   const nights = channelInfo.value?.nights
