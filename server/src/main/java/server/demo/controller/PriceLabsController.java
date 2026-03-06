@@ -325,7 +325,8 @@ public class PriceLabsController {
             @RequestParam(required = false) Integer days
     ) {
         try {
-            priceLabsSyncService.pullPricesForRoomType(roomTypeId, days);
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            priceLabsSyncService.pullPricesForRoomTypeAsync(storeId, roomTypeId, days);
             return ResponseEntity.ok(ApiResponse.success("房型价格同步已触发", Map.of("message", "已发起拉取")));
         } catch (Exception e) {
             return ResponseEntity.status(500)

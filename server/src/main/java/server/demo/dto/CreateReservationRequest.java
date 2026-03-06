@@ -39,6 +39,8 @@ public class CreateReservationRequest {
     
     private String channelOrderNumber;
 
+    private String groupOrderNo;
+
     private String paymentMethod;
 
     private BigDecimal commission;
@@ -143,6 +145,14 @@ public class CreateReservationRequest {
     
     public void setChannelOrderNumber(String channelOrderNumber) {
         this.channelOrderNumber = channelOrderNumber;
+    }
+
+    public String getGroupOrderNo() {
+        return groupOrderNo;
+    }
+
+    public void setGroupOrderNo(String groupOrderNo) {
+        this.groupOrderNo = groupOrderNo;
     }
 
     public String getPaymentMethod() {

@@ -7,6 +7,7 @@ public class ReservationDTO {
     
     private Long id;
     private String orderNumber;
+    private String groupOrderNo;
     private String guestName;
     private String phone;
     private Long roomId;
@@ -55,6 +56,14 @@ public class ReservationDTO {
     
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
+    }
+
+    public String getGroupOrderNo() {
+        return groupOrderNo;
+    }
+
+    public void setGroupOrderNo(String groupOrderNo) {
+        this.groupOrderNo = groupOrderNo;
     }
     
     public String getGuestName() {

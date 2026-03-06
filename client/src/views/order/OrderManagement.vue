@@ -101,9 +101,12 @@
             <span class="filter-label">渠道</span>
             <el-select v-model="filters.channel" placeholder="全部" @change="handleFilterChange">
               <el-option label="全部" value=""></el-option>
-              <el-option label="直营客" value="direct"></el-option>
-              <el-option label="美团民宿" value="meituan"></el-option>
-              <el-option label="途家" value="tujia"></el-option>
+              <el-option
+                v-for="channel in channelOptions"
+                :key="channel.value"
+                :label="channel.label"
+                :value="channel.value"
+              />
             </el-select>
           </div>
 
@@ -112,8 +115,12 @@
             <span class="filter-label">房型</span>
             <el-select v-model="filters.roomType" placeholder="全部" @change="handleFilterChange">
               <el-option label="全部" value=""></el-option>
-              <el-option label="aa" value="aa"></el-option>
-              <el-option label="大床房" value="big-bed"></el-option>
+              <el-option
+                v-for="roomType in roomTypeOptions"
+                :key="roomType.value"
+                :label="roomType.label"
+                :value="roomType.value"
+              />
             </el-select>
           </div>
 
@@ -169,15 +176,6 @@
               <el-option label="全部" value=""></el-option>
               <el-option label="已结账" value="paid"></el-option>
               <el-option label="未结账" value="unpaid"></el-option>
-            </el-select>
-          </div>
-
-          <div class="filter-group">
-            <span class="filter-label">是否包栋</span>
-            <el-select v-model="filters.isPackage" placeholder="全部" @change="handleFilterChange">
-              <el-option label="全部" value=""></el-option>
-              <el-option label="是" value="yes"></el-option>
-              <el-option label="否" value="no"></el-option>
             </el-select>
           </div>
 
@@ -555,6 +553,7 @@ import {
   Menu as MenuIcon,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { getAllChannels } from '@/api/channel'
 import {
   assignReservationRoom,
   getAssignableRooms,
@@ -566,6 +565,7 @@ import {
   type ReservationDTO,
   type ReservationStatistics,
 } from '@/api/reservation'
+import { getAllRoomTypes } from '@/api/roomType'
 import ReservationDetailDrawer from '@/components/reservation/ReservationDetailDrawer.vue'
 import {
   getOrderBoxList,
@@ -614,6 +614,8 @@ const searchQuery = ref('')
 const dateRange = ref<[string, string] | null>(null)
 const showAdvancedFilters = ref(true)
 const loading = ref(false)
+const channelOptions = ref<Array<{ label: string; value: string }>>([])
+const roomTypeOptions = ref<Array<{ label: string; value: string }>>([])
 
 // Filters
 const filters = ref({
@@ -622,7 +624,6 @@ const filters = ref({
   checkinType: '',
   status: '',
   paymentStatus: '',
-  isPackage: '',
 })
 
 // 分页数据
@@ -703,7 +704,6 @@ const loadReservations = async () => {
         checkinType: filters.value.checkinType || undefined,
         status: filters.value.status || undefined,
         paymentStatus: filters.value.paymentStatus || undefined,
-        isPackage: filters.value.isPackage || undefined,
         startDate: dateRange.value?.[0] || undefined,
         endDate: dateRange.value?.[1] || undefined,
         orderType: activeOrderTab.value !== 'all' ? activeOrderTab.value : undefined,
@@ -752,6 +752,40 @@ const loadOrderBox = async () => {
   } catch (error) {
     console.error('加载订单盒子失败:', error)
     ElMessage.error('加载订单盒子失败')
+  }
+}
+
+const loadFilterOptions = async () => {
+  try {
+    const [channelResponse, roomTypeResponse] = await Promise.all([
+      getAllChannels(),
+      getAllRoomTypes(),
+    ])
+
+    if (channelResponse.success) {
+      channelOptions.value = channelResponse.data
+        .filter((channel) => channel.name && channel.name.trim().length > 0)
+        .map((channel) => ({
+          label: channel.name,
+          value: channel.name,
+        }))
+    } else {
+      ElMessage.warning(channelResponse.message || '加载渠道筛选项失败')
+    }
+
+    if (roomTypeResponse.success) {
+      roomTypeOptions.value = roomTypeResponse.data
+        .filter((roomType) => roomType.name && roomType.name.trim().length > 0)
+        .map((roomType) => ({
+          label: roomType.name,
+          value: roomType.name,
+        }))
+    } else {
+      ElMessage.warning(roomTypeResponse.message || '加载房型筛选项失败')
+    }
+  } catch (error) {
+    console.error('加载筛选项失败:', error)
+    ElMessage.warning('加载筛选项失败')
   }
 }
 
@@ -1121,6 +1155,7 @@ onMounted(() => {
     }
   }
 
+  loadFilterOptions()
   loadReservations()
   loadStatistics()
 })

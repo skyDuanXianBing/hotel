@@ -335,7 +335,7 @@ const handleLogout = async () => {
 
           <div class="contact-item">
             <el-icon class="contact-icon" color="#409eff"><Message /></el-icon>
-            <span class="contact-text">pms.support@smartorder-jp.com</span>
+            <span class="contact-text">pms.support@the-host-jp.com</span>
           </div>
 
           <div class="contact-item">

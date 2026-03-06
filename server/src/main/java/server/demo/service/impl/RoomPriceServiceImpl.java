@@ -832,7 +832,13 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
         // 返回更新后的价格数据
         // PriceLabs：当可售量发生变化（关房/封锁）时，合并并延迟推送一次 /calendar，避免批量操作导致请求风暴。
-        if (priceLabsCalendarSyncDebouncer != null && request.getAvailableRooms() != null) {
+        boolean shouldPushCalendar = request.getAvailableRooms() != null
+                || request.getMinStay() != null
+                || request.getMaxStay() != null
+                || request.getCloseRoom() != null
+                || request.getCta() != null
+                || request.getCtd() != null;
+        if (priceLabsCalendarSyncDebouncer != null && shouldPushCalendar) {
             try {
                 priceLabsCalendarSyncDebouncer.requestSyncAfterCommit(
                         roomType.getStoreId(),

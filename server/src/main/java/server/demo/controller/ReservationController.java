@@ -10,6 +10,8 @@ import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.AssignReservationRoomRequest;
 import server.demo.dto.AssignableRoomsResponse;
+import server.demo.dto.BatchCreateReservationRequest;
+import server.demo.dto.BatchCreateReservationResponse;
 import server.demo.dto.CreateReservationRequest;
 import server.demo.dto.PagedReservationResponse;
 import server.demo.dto.ReservationChannelInfoDTO;
@@ -42,6 +44,19 @@ public class ReservationController extends BaseStoreController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("预订创建失败: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/batch")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.MODIFY_ORDER)
+    public ResponseEntity<ApiResponse<BatchCreateReservationResponse>> createBatchReservation(
+            @Valid @RequestBody BatchCreateReservationRequest request) {
+        try {
+            BatchCreateReservationResponse reservations = reservationService.createBatchReservations(request);
+            return ResponseEntity.ok(ApiResponse.success("批量预订创建成功", reservations));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("批量预订创建失败: " + e.getMessage()));
         }
     }
 

@@ -3,6 +3,10 @@ package server.demo.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import server.demo.dto.DailyRoomStatusDTO;
 import server.demo.dto.OpenRoomBlockoutRequest;
 import server.demo.dto.RoomBlockoutSummaryDTO;
@@ -36,6 +40,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class RoomStatusService {
+    private static final Logger logger = LoggerFactory.getLogger(RoomStatusService.class);
 
     @Autowired
     private RoomRepository roomRepository;
@@ -51,6 +56,12 @@ public class RoomStatusService {
 
     @Autowired(required = false)
     private SuAriAutoSyncService suAriAutoSyncService;
+
+    @Autowired(required = false)
+    private PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
+
+    @Autowired(required = false)
+    private PriceLabsReservationSyncService priceLabsReservationSyncService;
 
     private Long currentStoreId() {
         return StoreContextUtils.requireStoreId();
@@ -254,6 +265,8 @@ public class RoomStatusService {
             d = d.plusDays(1);
         }
         roomBlockoutRepository.saveAll(toSave);
+        requestPriceLabsCalendarSyncForRoomTypes(storeId, rooms, startDate, endDate);
+        schedulePriceLabsReservationsPushAfterCommit(storeId, startDate, endDate);
         if (suAriAutoSyncService != null) {
             Set<Long> roomTypeIds = rooms.stream()
                     .filter(r -> r != null && r.getRoomType() != null && r.getRoomType().getId() != null)
@@ -326,6 +339,10 @@ public class RoomStatusService {
                 startDate,
                 endDate
         );
+        if (deleted > 0) {
+            requestPriceLabsCalendarSyncForRoomTypes(storeId, rooms, startDate, endDate);
+            schedulePriceLabsReservationsPushAfterCommit(storeId, startDate, endDate);
+        }
         if (suAriAutoSyncService != null && deleted > 0) {
             Set<Long> roomTypeIds = rooms.stream()
                     .filter(r -> r != null && r.getRoomType() != null && r.getRoomType().getId() != null)
@@ -492,7 +509,49 @@ public class RoomStatusService {
         return LocalDate.now().equals(date);
     }
 
+    private void requestPriceLabsCalendarSyncForRoomTypes(Long storeId, List<Room> rooms, LocalDate startDate, LocalDate endDate) {
+        if (priceLabsCalendarSyncDebouncer == null || storeId == null || rooms == null || rooms.isEmpty()) {
+            return;
+        }
+        if (startDate == null || endDate == null) {
+            return;
+        }
+
+        Set<Long> roomTypeIds = rooms.stream()
+                .filter(r -> r != null && r.getRoomType() != null && r.getRoomType().getId() != null)
+                .map(r -> r.getRoomType().getId())
+                .collect(Collectors.toSet());
+        for (Long roomTypeId : roomTypeIds) {
+            priceLabsCalendarSyncDebouncer.requestSyncAfterCommit(storeId, roomTypeId, startDate, endDate);
+        }
+    }
+
     private static String blockoutKey(Long roomId, LocalDate date) {
         return roomId + "|" + date;
+    }
+
+    private void schedulePriceLabsReservationsPushAfterCommit(Long storeId, LocalDate startDate, LocalDate endDate) {
+        if (priceLabsReservationSyncService == null || storeId == null || startDate == null || endDate == null) {
+            return;
+        }
+        Runnable task = () -> {
+            try {
+                priceLabsReservationSyncService.pushReservationsForDateRange(storeId, startDate, endDate);
+            } catch (Exception e) {
+                logger.warn("[PriceLabsReservations] push after blockout change failed. storeId={}, range={}~{}, error={}",
+                        storeId, startDate, endDate, e.getMessage());
+            }
+        };
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 }

@@ -82,7 +82,7 @@ public class VirtualMailboxService {
                     .replace("{orderNumber}", reservation.getOrderNumber());
         } else {
             // 默认配置
-            domain = "smartorder.jp";
+            domain = "the-host.jp";
             prefix = "order-" + reservation.getOrderNumber();
         }
 

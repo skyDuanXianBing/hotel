@@ -8,11 +8,13 @@ import org.springframework.transaction.annotation.Transactional;
 import server.demo.entity.PriceLabsConnection;
 import server.demo.entity.PriceLabsIntegration;
 import server.demo.entity.Reservation;
+import server.demo.entity.RoomBlockout;
 import server.demo.entity.Store;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.PriceLabsConnectionRepository;
 import server.demo.repository.PriceLabsIntegrationRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.PriceLabsIdUtil;
 
@@ -36,6 +38,7 @@ public class PriceLabsReservationSyncService {
     @Autowired private PriceLabsConnectionRepository connectionRepo;
     @Autowired private PriceLabsIntegrationRepository integrationRepo;
     @Autowired private ReservationRepository reservationRepo;
+    @Autowired private RoomBlockoutRepository roomBlockoutRepo;
     @Autowired private StoreRepository storeRepo;
 
     public record PushSummary(
@@ -72,9 +75,6 @@ public class PriceLabsReservationSyncService {
         }
 
         List<Reservation> reservations = reservationRepo.findByStoreIdOverlappingDateRangeWithRoomType(storeId, from, to);
-        if (reservations.isEmpty()) {
-            return new PushSummary(0, 0, 0, 0, List.of());
-        }
 
         Map<String, List<PriceLabsApiClient.ReservationData>> byListing = new HashMap<>();
         int reservationCount = 0;
@@ -90,6 +90,24 @@ public class PriceLabsReservationSyncService {
             }
 
             PriceLabsApiClient.ReservationData data = toReservationData(reservation, store, listingId);
+            byListing.computeIfAbsent(listingId, k -> new ArrayList<>()).add(data);
+            reservationCount++;
+        }
+
+        List<RoomBlockout> blockouts = roomBlockoutRepo.findByStoreIdAndBlockDateBetween(storeId, from, to);
+        for (RoomBlockout blockout : blockouts) {
+            if (blockout == null || blockout.getBlockDate() == null || blockout.getRoom() == null || blockout.getRoom().getId() == null || blockout.getRoom().getRoomType() == null) {
+                continue;
+            }
+            Long roomTypeId = blockout.getRoom().getRoomType().getId();
+            if (roomTypeId == null) {
+                continue;
+            }
+            String listingId = listingIdByRoomTypeId.get(roomTypeId);
+            if (listingId == null || listingId.isBlank()) {
+                continue;
+            }
+            PriceLabsApiClient.ReservationData data = toBlockedReservationData(storeId, store, blockout);
             byListing.computeIfAbsent(listingId, k -> new ArrayList<>()).add(data);
             reservationCount++;
         }
@@ -268,7 +286,12 @@ public class PriceLabsReservationSyncService {
             totalDays = (int) ChronoUnit.DAYS.between(checkIn, checkOut);
         }
 
-        BigDecimal totalCost = reservation.getTotalAmount() != null ? reservation.getTotalAmount() : BigDecimal.ZERO;
+        BigDecimal totalCost = nonNegative(reservation.getTotalAmount());
+        BigDecimal totalFees = nonNegative(reservation.getOtherFees());
+        BigDecimal totalTaxes = BigDecimal.ZERO;
+        BigDecimal otaCommission = nonNegative(reservation.getCommission());
+        BigDecimal hostPayout = clampNonNegative(totalCost.subtract(otaCommission));
+        BigDecimal rentalRevenue = clampNonNegative(totalCost.subtract(totalFees).subtract(totalTaxes));
 
         d.setReservationId(reservationId);
         d.setStartDate(checkIn != null ? checkIn.toString() : null);
@@ -276,6 +299,11 @@ public class PriceLabsReservationSyncService {
         d.setBookedTime(bookedTime.toString());
         d.setTotalDays(totalDays);
         d.setTotalCost(totalCost);
+        d.setTotalFees(totalFees);
+        d.setTotalTaxes(totalTaxes);
+        d.setHostPayout(hostPayout);
+        d.setOtaCommission(otaCommission);
+        d.setRentalRevenue(rentalRevenue);
         d.setCurrency(resolveCurrency(store));
         d.setStatus(mapStatus(reservation.getStatus()));
 
@@ -285,6 +313,48 @@ public class PriceLabsReservationSyncService {
         }
 
         return d;
+    }
+
+    private static PriceLabsApiClient.ReservationData toBlockedReservationData(Long storeId, Store store, RoomBlockout blockout) {
+        PriceLabsApiClient.ReservationData d = new PriceLabsApiClient.ReservationData();
+
+        LocalDate blockDate = blockout.getBlockDate();
+        LocalDate endDateExclusive = blockDate != null ? blockDate.plusDays(1) : null;
+        String blockType = blockout.getBlockType() != null ? blockout.getBlockType().name().toLowerCase() : "blocked";
+        Long roomId = blockout.getRoom() != null ? blockout.getRoom().getId() : null;
+        String reservationId = "blk_" + storeId + "_" + roomId + "_" + blockDate + "_" + blockType;
+
+        LocalDate bookedTime = blockout.getCreatedAt() != null ? blockout.getCreatedAt().toLocalDate() : LocalDate.now();
+        BigDecimal zero = BigDecimal.ZERO;
+
+        d.setReservationId(reservationId);
+        d.setStartDate(blockDate != null ? blockDate.toString() : null);
+        d.setEndDate(endDateExclusive != null ? endDateExclusive.toString() : null);
+        d.setBookedTime(bookedTime.toString());
+        d.setTotalDays(1);
+        d.setTotalCost(zero);
+        d.setTotalFees(zero);
+        d.setTotalTaxes(zero);
+        d.setHostPayout(zero);
+        d.setOtaCommission(zero);
+        d.setRentalRevenue(zero);
+        d.setCurrency(resolveCurrency(store));
+        d.setStatus("blocked");
+        return d;
+    }
+
+    private static BigDecimal nonNegative(BigDecimal value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        return clampNonNegative(value);
+    }
+
+    private static BigDecimal clampNonNegative(BigDecimal value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        return value.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : value;
     }
 }
 

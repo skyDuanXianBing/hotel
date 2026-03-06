@@ -72,6 +72,9 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "order_number", length = 50)
     private String orderNumber;
 
+    @Column(name = "group_order_no", length = 50)
+    private String groupOrderNo;
+
     @Column(name = "channel_order_number", length = 100)
     private String channelOrderNumber;
 
@@ -353,6 +356,14 @@ public class Reservation implements StoreScopedEntity {
 
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
+    }
+
+    public String getGroupOrderNo() {
+        return groupOrderNo;
+    }
+
+    public void setGroupOrderNo(String groupOrderNo) {
+        this.groupOrderNo = groupOrderNo;
     }
 
     public String getChannelOrderNumber() {

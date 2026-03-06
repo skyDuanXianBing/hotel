@@ -6,6 +6,7 @@ export interface CreateReservationRequest {
   guestPhone?: string
   guestIdCard?: string
   roomId: number
+  groupOrderNo?: string
   channelId: number
   checkInDate: string
   checkOutDate: string
@@ -20,6 +21,7 @@ export interface CreateReservationRequest {
 export interface ReservationDTO {
   id: number
   orderNumber: string
+  groupOrderNo?: string
   channelOrderNumber?: string
   guestName: string
   phone?: string
@@ -47,6 +49,17 @@ export interface ReservationDTO {
   suReservationId?: string
   otaRoomId?: string
   otaRoomTypeId?: number
+}
+
+export interface BatchCreateReservationRequest {
+  groupOrderNo?: string
+  reservations: CreateReservationRequest[]
+}
+
+export interface BatchCreateReservationResponse {
+  groupOrderNo: string
+  reservationCount: number
+  reservations: ReservationDTO[]
 }
 
 // 分页响应格式
@@ -80,7 +93,6 @@ export interface ReservationFilters {
   checkinType?: string
   status?: string
   paymentStatus?: string
-  isPackage?: string
   startDate?: string
   endDate?: string
   orderType?: string
@@ -98,6 +110,12 @@ export const createReservation = async (
   data: CreateReservationRequest,
 ): Promise<ApiResponse<ReservationDTO>> => {
   return await request.post('/reservations', data)
+}
+
+export const createBatchReservations = async (
+  data: BatchCreateReservationRequest,
+): Promise<ApiResponse<BatchCreateReservationResponse>> => {
+  return await request.post('/reservations/batch', data)
 }
 
 // 办理入住

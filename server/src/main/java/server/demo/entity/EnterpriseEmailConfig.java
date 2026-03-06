@@ -40,7 +40,7 @@ public class EnterpriseEmailConfig implements StoreScopedEntity {
 
     /**
      * 邮箱域名
-     * 例如: "myhotel.smartorder.jp"
+     * 例如: "myhotel.the-host.jp"
      */
     @Column(name = "email_domain", nullable = false, length = 100)
     private String emailDomain;

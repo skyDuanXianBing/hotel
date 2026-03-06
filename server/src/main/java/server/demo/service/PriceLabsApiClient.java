@@ -387,6 +387,21 @@ public class PriceLabsApiClient {
         @JsonProperty("total_cost")
         private BigDecimal totalCost;
 
+        @JsonProperty("total_fees")
+        private BigDecimal totalFees;
+
+        @JsonProperty("total_taxes")
+        private BigDecimal totalTaxes;
+
+        @JsonProperty("host_payout")
+        private BigDecimal hostPayout;
+
+        @JsonProperty("ota_commission")
+        private BigDecimal otaCommission;
+
+        @JsonProperty("rental_revenue")
+        private BigDecimal rentalRevenue;
+
         @JsonProperty("currency")
         private String currency;
 
@@ -407,6 +422,16 @@ public class PriceLabsApiClient {
         public void setTotalDays(Integer v) { this.totalDays = v; }
         public BigDecimal getTotalCost() { return totalCost; }
         public void setTotalCost(BigDecimal v) { this.totalCost = v; }
+        public BigDecimal getTotalFees() { return totalFees; }
+        public void setTotalFees(BigDecimal v) { this.totalFees = v; }
+        public BigDecimal getTotalTaxes() { return totalTaxes; }
+        public void setTotalTaxes(BigDecimal v) { this.totalTaxes = v; }
+        public BigDecimal getHostPayout() { return hostPayout; }
+        public void setHostPayout(BigDecimal v) { this.hostPayout = v; }
+        public BigDecimal getOtaCommission() { return otaCommission; }
+        public void setOtaCommission(BigDecimal v) { this.otaCommission = v; }
+        public BigDecimal getRentalRevenue() { return rentalRevenue; }
+        public void setRentalRevenue(BigDecimal v) { this.rentalRevenue = v; }
         public String getCurrency() { return currency; }
         public void setCurrency(String v) { this.currency = v; }
         public String getStatus() { return status; }

@@ -306,7 +306,7 @@ const basicConfig = ref<BasicConfig>({
   selfCheckin: false,
 })
 
-const selfCheckinUrl = ref('https://selfcheckin.smartorder.ai/')
+const selfCheckinUrl = ref('https://selfcheckin.the-host.ai/')
 
 // 入住登记配置
 const checkinConfig = ref<CheckinConfig>({

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.PriceLabsWebhookRequest;
@@ -13,6 +14,7 @@ import server.demo.entity.PriceLabsIntegration;
 import server.demo.entity.PriceLabsSyncLog;
 import server.demo.entity.PricePlan;
 import server.demo.entity.Room;
+import server.demo.entity.RoomBlockout;
 import server.demo.entity.RoomPrice;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
@@ -25,6 +27,7 @@ import server.demo.repository.PriceLabsIntegrationRepository;
 import server.demo.repository.PriceLabsSyncLogRepository;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
@@ -66,6 +69,7 @@ public class PriceLabsSyncService {
     @Autowired private PriceLabsSyncLogRepository syncLogRepo;
     @Autowired private PriceLabsConnectionRepository connectionRepo;
     @Autowired private ReservationRepository reservationRepository;
+    @Autowired private RoomBlockoutRepository roomBlockoutRepo;
 
     @Transactional
     public void syncAll() {
@@ -337,8 +341,16 @@ public class PriceLabsSyncService {
     @Transactional
     public void pullPricesForRoomType(Long roomTypeId, Integer days) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
+        pullPricesForRoomType(storeId, roomTypeId, days);
+    }
+
+    @Transactional
+    public void pullPricesForRoomType(Long storeId, Long roomTypeId, Integer days) {
         if (roomTypeId == null) {
             throw new IllegalArgumentException("roomTypeId is required");
+        }
+        if (storeId == null) {
+            throw new IllegalArgumentException("storeId is required");
         }
 
         PriceLabsConnection connection = connectionRepo.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, roomTypeId)
@@ -350,6 +362,21 @@ public class PriceLabsSyncService {
         }
 
         pullPricesForListingIds(List.of(listingId), days);
+    }
+
+    @Async
+    public void pullPricesForRoomTypeAsync(Long storeId, Long roomTypeId, Integer days) {
+        try {
+            pullPricesForRoomType(storeId, roomTypeId, days);
+        } catch (Exception ex) {
+            logger.error(
+                    "[PriceLabsPull] async room type pull failed. storeId={}, roomTypeId={}, days={}",
+                    storeId,
+                    roomTypeId,
+                    days,
+                    ex
+            );
+        }
     }
 
     /**
@@ -533,6 +560,7 @@ public class PriceLabsSyncService {
         }
 
         Map<Long, Map<LocalDate, Integer>> bookedUnitsByRoomTypeAndDate = buildBookedUnitsByRoomTypeAndDate(storeId, start, end);
+        Map<Long, Map<LocalDate, Integer>> blockedUnitsByRoomTypeAndDate = buildBlockedUnitsByRoomTypeAndDate(storeId, start, end);
 
         List<PriceLabsApiClient.CalendarData> all = new ArrayList<>();
         for (RoomType rt : rts) {
@@ -553,6 +581,7 @@ public class PriceLabsSyncService {
                         end,
                         currency,
                         bookedUnitsByRoomTypeAndDate,
+                        blockedUnitsByRoomTypeAndDate,
                         multiUnitInfo
                 );
                 if (cal.getCalendar() != null && !cal.getCalendar().isEmpty()) all.add(cal);
@@ -790,6 +819,7 @@ public class PriceLabsSyncService {
             LocalDate end,
             String currency,
             Map<Long, Map<LocalDate, Integer>> bookedUnitsByRoomTypeAndDate,
+            Map<Long, Map<LocalDate, Integer>> blockedUnitsByRoomTypeAndDate,
             PriceLabsApiClient.MultiUnitInfo multiUnitInfo
     ) {
         PriceLabsApiClient.CalendarData d = new PriceLabsApiClient.CalendarData();
@@ -817,6 +847,9 @@ public class PriceLabsSyncService {
             int bookedUnits = bookedUnitsByRoomTypeAndDate
                     .getOrDefault(rt.getId(), Map.of())
                     .getOrDefault(cur, 0);
+            int blockoutUnits = blockedUnitsByRoomTypeAndDate
+                    .getOrDefault(rt.getId(), Map.of())
+                    .getOrDefault(cur, 0);
 
             if (rp != null) {
                 e.setPrice(rp.getPrice());
@@ -825,15 +858,18 @@ public class PriceLabsSyncService {
             }
 
             Integer desiredAvailable = rp != null ? rp.getAvailableRooms() : null;
-            int maxAvailable = Math.max(totalUnits - bookedUnits, 0);
-            if (desiredAvailable != null && desiredAvailable > totalUnits) {
+            int maxAvailable = Math.max(totalUnits - bookedUnits - blockoutUnits, 0);
+            if (desiredAvailable != null && desiredAvailable > maxAvailable) {
                 logger.warn(
-                        "[PriceLabsCalendar] available_rooms exceeds total_units, clamped. storeId={}, roomTypeId={}, date={}, availableRooms={}, totalUnits={}",
+                        "[PriceLabsCalendar] available_rooms exceeds max available after booked/blockout, clamped. storeId={}, roomTypeId={}, date={}, availableRooms={}, maxAvailable={}, totalUnits={}, bookedUnits={}, blockoutUnits={}",
                         rt.getStoreId(),
                         rt.getId(),
                         date,
                         desiredAvailable,
-                        totalUnits
+                        maxAvailable,
+                        totalUnits,
+                        bookedUnits,
+                        blockoutUnits
                 );
             }
             int availableUnits = desiredAvailable != null ? Math.max(Math.min(desiredAvailable, maxAvailable), 0) : maxAvailable;
@@ -845,7 +881,10 @@ public class PriceLabsSyncService {
             e.setBlockedUnits(blockedUnits);
             e.setAvailable(availableUnits > 0);
             PriceLabsApiClient.CalendarSettings settings = new PriceLabsApiClient.CalendarSettings();
-            settings.setMinStay(plan.getMinNights());
+            Integer calendarMinStay = rp != null && rp.getMinStay() != null
+                    ? rp.getMinStay()
+                    : (plan.getMinNights() != null ? plan.getMinNights() : 1);
+            settings.setMinStay(calendarMinStay);
             settings.setCheckIn(true);
             settings.setCheckOut(true);
             e.setSettings(settings);
@@ -947,6 +986,61 @@ public class PriceLabsSyncService {
         }
 
         return booked;
+    }
+
+    private Map<Long, Map<LocalDate, Integer>> buildBlockedUnitsByRoomTypeAndDate(Long storeId, LocalDate start, LocalDate end) {
+        if (storeId == null || start == null || end == null) {
+            return Map.of();
+        }
+
+        List<Room> storeRooms = roomRepo.findByStoreIdWithRoomType(storeId);
+        if (storeRooms == null || storeRooms.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Long> roomTypeByRoomId = new HashMap<>();
+        List<Long> roomIds = new ArrayList<>();
+        for (Room room : storeRooms) {
+            if (room == null || room.getId() == null || room.getRoomType() == null || room.getRoomType().getId() == null) {
+                continue;
+            }
+            roomIds.add(room.getId());
+            roomTypeByRoomId.put(room.getId(), room.getRoomType().getId());
+        }
+        if (roomIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<RoomBlockout> blockouts = roomBlockoutRepo.findByStoreIdAndRoom_IdInAndBlockDateBetween(storeId, roomIds, start, end);
+        if (blockouts == null || blockouts.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Map<LocalDate, Set<Long>>> blockedRoomSets = new HashMap<>();
+        for (RoomBlockout blockout : blockouts) {
+            if (blockout == null || blockout.getRoom() == null || blockout.getRoom().getId() == null || blockout.getBlockDate() == null) {
+                continue;
+            }
+            Long roomId = blockout.getRoom().getId();
+            Long roomTypeId = roomTypeByRoomId.get(roomId);
+            if (roomTypeId == null) {
+                continue;
+            }
+            blockedRoomSets
+                    .computeIfAbsent(roomTypeId, k -> new HashMap<>())
+                    .computeIfAbsent(blockout.getBlockDate(), k -> new LinkedHashSet<>())
+                    .add(roomId);
+        }
+
+        Map<Long, Map<LocalDate, Integer>> blocked = new HashMap<>();
+        for (Map.Entry<Long, Map<LocalDate, Set<Long>>> roomTypeEntry : blockedRoomSets.entrySet()) {
+            Map<LocalDate, Integer> byDate = new HashMap<>();
+            for (Map.Entry<LocalDate, Set<Long>> dateEntry : roomTypeEntry.getValue().entrySet()) {
+                byDate.put(dateEntry.getKey(), dateEntry.getValue().size());
+            }
+            blocked.put(roomTypeEntry.getKey(), byDate);
+        }
+        return blocked;
     }
 
     private int clampSyncDays(Integer days) {
@@ -1101,6 +1195,8 @@ public class PriceLabsSyncService {
 
         Map<Long, Map<LocalDate, Integer>> bookedUnitsByRoomTypeAndDate =
                 buildBookedUnitsByRoomTypeAndDate(storeId, start, end);
+        Map<Long, Map<LocalDate, Integer>> blockedUnitsByRoomTypeAndDate =
+                buildBlockedUnitsByRoomTypeAndDate(storeId, start, end);
         Map<Long, PriceLabsApiClient.MultiUnitInfo> multiUnitByRoomType = new HashMap<>();
 
         List<PriceLabsApiClient.CalendarData> all = new ArrayList<>();
@@ -1127,6 +1223,7 @@ public class PriceLabsSyncService {
                     end,
                     currency,
                     bookedUnitsByRoomTypeAndDate,
+                    blockedUnitsByRoomTypeAndDate,
                     multiUnitInfo
             );
             if (cal.getCalendar() != null && !cal.getCalendar().isEmpty()) {

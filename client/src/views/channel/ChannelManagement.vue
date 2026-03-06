@@ -694,13 +694,13 @@
         <div class="agreement-section">
           <h3 class="agreement-title">Airbnb直连</h3>
           <div class="agreement-content">
-            <p>Airbnb直连服务功能（"直连服务"）是指在酒店商户（"您"）在SmartOrder系统中设置直连服务后，SmartOrder系统和Airbnb系统自动建立直连。一旦您连接到Airbnb并完成授权，您可以在Airbnb平台上创建新的房源，管理价格和可用性，并自动将订单录入SmartOrder系统，从而降低酒店运营成本并提高效率。</p>
+            <p>Airbnb直连服务功能（"直连服务"）是指在酒店商户（"您"）在the-host系统中设置直连服务后，the-host系统和Airbnb系统自动建立直连。一旦您连接到Airbnb并完成授权，您可以在Airbnb平台上创建新的房源，管理价格和可用性，并自动将订单录入the-host系统，从而降低酒店运营成本并提高效率。</p>
 
             <p>在启用Airbnb直连服务之前，请务必仔细阅读并遵守本《用户须知》的条款内容，特别是免责或责任限制、纠纷解决和适用法律条款。如果您对协议有疑问或不同意内容，请立即停止使用服务。当您使用直连服务功能时，即表示您已充分阅读、理解并接受本"用户须知"的全部内容，此协议将在您在线确认后立即生效。协议条款如下：</p>
 
             <h4>1 功能介绍</h4>
-            <p>1.1 在与Airbnb完成直连后，即可通过SmartOrder PMS管理Airbnb的渠道房价、房态，渠道订单将自动落入SmartOrder。</p>
-            <p>1.2 1个SmartOrder网络号可与多个Airbnb账号直连。点击"与Airbnb连接"后，将跳转至Airbnb页面进行授权。为确保授权账号无误，授权之前请确保您在Airbnb是未登录状态，完成授权后才可以关联房型。</p>
+            <p>1.1 在与Airbnb完成直连后，即可通过the-host PMS管理Airbnb的渠道房价、房态，渠道订单将自动落入the-host。</p>
+            <p>1.2 1个the-host网络号可与多个Airbnb账号直连。点击"与Airbnb连接"后，将跳转至Airbnb页面进行授权。为确保授权账号无误，授权之前请确保您在Airbnb是未登录状态，完成授权后才可以关联房型。</p>
             <p>1.3 Airbnb房源类型为集中式公寓、度假民宿、客栈、农家乐、房车的房源可以直接关联整个房型（允许多个库存），其他类型的房源只能关联单个房间（只允许1个库存）。</p>
           </div>
         </div>
@@ -733,7 +733,7 @@
         <div class="agreement-section">
           <h3 class="agreement-title">{{ currentSettingChannel?.name || '' }}直连</h3>
           <div class="agreement-content">
-            <p>{{ currentSettingChannel?.name || '' }}直连服务功能（"直连服务"）是指在适当许可（"您"）在SmartOrder系统中设置直连服务后，SmartOrder系统和{{ currentSettingChannel?.name || '' }}系统自动建立直连，一旦您连接到{{ currentSettingChannel?.name || '' }}并完成联系，您可以在{{ currentSettingChannel?.name || '' }}平台上创建新的房源，管理将格可用性，并自动将订单输入SmartOrder系统，从而降低运营成本并提高运营效率。</p>
+            <p>{{ currentSettingChannel?.name || '' }}直连服务功能（"直连服务"）是指在适当许可（"您"）在the-host系统中设置直连服务后，the-host系统和{{ currentSettingChannel?.name || '' }}系统自动建立直连，一旦您连接到{{ currentSettingChannel?.name || '' }}并完成联系，您可以在{{ currentSettingChannel?.name || '' }}平台上创建新的房源，管理将格可用性，并自动将订单输入the-host系统，从而降低运营成本并提高运营效率。</p>
 
             <p>在启用{{ currentSettingChannel?.name || '' }}直连服务之前，请务必仔细阅读并遵守本《用户须知》的条款内容，特别是免责条款理解纠纷解决和法律适用条款。如果您对协议有疑问或不同意内容，请立即停止使用服务。当您使用{{ currentSettingChannel?.name || '' }}直连时，协议表示在线确认后立即生效，协议以下：</p>
 

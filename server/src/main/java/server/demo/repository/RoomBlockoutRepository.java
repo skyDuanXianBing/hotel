@@ -18,6 +18,12 @@ public interface RoomBlockoutRepository extends JpaRepository<RoomBlockout, Long
             LocalDate endDate
     );
 
+    List<RoomBlockout> findByStoreIdAndBlockDateBetween(
+            Long storeId,
+            LocalDate startDate,
+            LocalDate endDate
+    );
+
     long deleteByStoreIdAndRoom_IdInAndBlockDateBetween(
             Long storeId,
             Collection<Long> roomIds,

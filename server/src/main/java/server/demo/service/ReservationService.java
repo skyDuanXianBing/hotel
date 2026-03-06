@@ -16,6 +16,8 @@ import jakarta.persistence.criteria.Predicate;
 import server.demo.dto.AssignableRoomDTO;
 import server.demo.dto.AssignableRoomTypeDTO;
 import server.demo.dto.AssignableRoomsResponse;
+import server.demo.dto.BatchCreateReservationRequest;
+import server.demo.dto.BatchCreateReservationResponse;
 import server.demo.dto.CreateReservationRequest;
 import server.demo.dto.OperationLogDetailDTO;
 import server.demo.dto.PagedReservationResponse;
@@ -51,6 +53,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -154,6 +157,7 @@ public class ReservationService {
         reservation.setChildren(request.getChildren());
         reservation.setTotalAmount(request.getTotalAmount());
         reservation.setChannelOrderNumber(request.getChannelOrderNumber());
+        reservation.setGroupOrderNo(normalizeGroupOrderNo(request.getGroupOrderNo()));
         reservation.setNotes(request.getNotes());
         reservation.setPaymentMethod(request.getPaymentMethod());
         reservation.setCommission(request.getCommission());
@@ -189,6 +193,31 @@ public class ReservationService {
         );
         logCreateReservation(savedReservation);
         return convertToDTO(savedReservation);
+    }
+
+    /**
+     * 批量创建预订（单次请求创建多条预订，并用 groupOrderNo 关联）。
+     */
+    public BatchCreateReservationResponse createBatchReservations(BatchCreateReservationRequest request) {
+        if (request == null || request.getReservations() == null || request.getReservations().isEmpty()) {
+            throw new RuntimeException("批量预订数据不能为空");
+        }
+
+        String groupOrderNo = normalizeGroupOrderNo(request.getGroupOrderNo());
+        if (groupOrderNo == null) {
+            groupOrderNo = generateGroupOrderNo();
+        }
+
+        List<ReservationDTO> created = new ArrayList<>();
+        for (CreateReservationRequest item : request.getReservations()) {
+            if (item == null) {
+                throw new RuntimeException("批量预订明细不能为空");
+            }
+            item.setGroupOrderNo(groupOrderNo);
+            created.add(createReservation(item));
+        }
+
+        return new BatchCreateReservationResponse(groupOrderNo, created.size(), created);
     }
 
     /**
@@ -1046,6 +1075,7 @@ public class ReservationService {
         ReservationDTO dto = new ReservationDTO();
         dto.setId(reservation.getId());
         dto.setOrderNumber(reservation.getOrderNumber());
+        dto.setGroupOrderNo(reservation.getGroupOrderNo());
         dto.setGuestName(reservation.getGuestName());
         dto.setPhone(reservation.getGuestPhone());
         
@@ -1098,6 +1128,18 @@ public class ReservationService {
         dto.setCreatedAt(reservation.getCreatedAt());
         dto.setUpdatedAt(reservation.getUpdatedAt());
         return dto;
+    }
+
+    private String normalizeGroupOrderNo(String groupOrderNo) {
+        if (groupOrderNo == null) {
+            return null;
+        }
+        String normalized = groupOrderNo.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String generateGroupOrderNo() {
+        return "GRP" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
     }
 
     /**
