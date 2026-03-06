@@ -1930,7 +1930,7 @@ const operationLogSamples = ref<OperationLogSample[]>([
       { label: '渠道订单号', value: '6538219044' },
       { label: '房间', value: '北赤羽304-304' },
       { label: '入住类型', value: '正常入住' },
-      { label: '入离时间', value: '2026-01-31 16:00 至 2026-02-01 10:00，共1晚' },
+      { label: '入离时间', value: '2026-01-31 16:00 至 2026-02-01 10:00' },
       { label: '成人数', value: '2' },
       { label: '房费', value: '¥6,018.46' },
       { label: '订单金额', value: '¥6,018.46' },
@@ -2081,6 +2081,22 @@ const getReservationDateValue = (
   return reservation[`${key}Date`] || reservation[key] || ''
 }
 
+const getReservationDateDiffNights = (reservation: Record<string, any> | null | undefined) => {
+  if (!reservation) return null
+
+  const checkIn = getReservationDateValue(reservation, 'checkIn')
+  const checkOut = getReservationDateValue(reservation, 'checkOut')
+  if (!checkIn || !checkOut) return null
+
+  const start = new Date(checkIn)
+  const end = new Date(checkOut)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
+
+  const diff = end.getTime() - start.getTime()
+  const nights = Math.round(diff / (1000 * 60 * 60 * 24))
+  return nights > 0 ? nights : null
+}
+
 const getReservationRoomCount = (reservation: Record<string, any> | null | undefined) => {
   if (!reservation || !calendarData.value?.rooms?.length) return 1
 
@@ -2130,21 +2146,10 @@ const getReservationStayNights = (reservation: Record<string, any> | null | unde
   if (!reservation) return 1
 
   const explicitNights = Number(reservation.nights)
-  if (Number.isFinite(explicitNights) && explicitNights > 0) {
-    return explicitNights
-  }
-
-  const checkIn = getReservationDateValue(reservation, 'checkIn')
-  const checkOut = getReservationDateValue(reservation, 'checkOut')
-  if (!checkIn || !checkOut) return 1
-
-  const start = new Date(checkIn)
-  const end = new Date(checkOut)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 1
-
-  const diff = end.getTime() - start.getTime()
-  const stayNights = Math.round(diff / (1000 * 60 * 60 * 24))
-  const normalizedStayNights = stayNights > 0 ? stayNights : 1
+  const dateDiffNights = getReservationDateDiffNights(reservation) ?? 0
+  const normalizedExplicitNights =
+    Number.isFinite(explicitNights) && explicitNights > 0 ? explicitNights : 0
+  const normalizedStayNights = Math.max(normalizedExplicitNights, dateDiffNights, 1)
 
   return normalizedStayNights * getReservationRoomCount(reservation)
 }
@@ -2154,20 +2159,17 @@ const getReservationStayNightsText = (reservation: Record<string, any> | null | 
 }
 
 const channelNights = computed(() => {
-  const nights = channelInfo.value?.nights
-  if (typeof nights === 'number' && nights > 0) return nights
+  const explicitNights = Number(channelInfo.value?.nights)
+  const channelDateNights = getReservationDateDiffNights(channelInfo.value)
+  const reservationRoomNights = getReservationStayNights(selectedReservation.value)
+  const candidates = [
+    Number.isFinite(explicitNights) && explicitNights > 0 ? explicitNights : 0,
+    channelDateNights ?? 0,
+    reservationRoomNights,
+  ].filter((value) => value > 0)
 
-  const checkIn = channelInfo.value?.checkInDate || selectedReservation.value?.checkInDate
-  const checkOut = channelInfo.value?.checkOutDate || selectedReservation.value?.checkOutDate
-  if (!checkIn || !checkOut) return null
-
-  const start = new Date(checkIn)
-  const end = new Date(checkOut)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
-
-  const diff = end.getTime() - start.getTime()
-  const nightsByDiff = Math.round(diff / (1000 * 60 * 60 * 24))
-  return nightsByDiff > 0 ? nightsByDiff : null
+  if (candidates.length === 0) return null
+  return Math.max(...candidates)
 })
 
 const channelNightsText = computed(() => {
