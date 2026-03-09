@@ -16,20 +16,26 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SuMessagingServiceTest {
 
     @Test
-    void handleInboundMessage_shouldUpsertThreadAndSaveMessage() throws Exception {
+    void handleInboundMessage_shouldUpsertThreadSaveMessageAndBroadcast() throws Exception {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
-        SuAutoReplyService suAutoReplyService = Mockito.mock(SuAutoReplyService.class);
+        SuMessagingAiSettingService aiSettingService = Mockito.mock(SuMessagingAiSettingService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        SuAiAutoReplyService suAiAutoReplyService = Mockito.mock(SuAiAutoReplyService.class);
         ObjectMapper objectMapper = new ObjectMapper();
 
         SuMessagingService service = new SuMessagingService(
@@ -38,7 +44,9 @@ class SuMessagingServiceTest {
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                suAutoReplyService
+                aiSettingService,
+                realtimeGateway,
+                suAiAutoReplyService
         );
 
         String raw = """
@@ -62,19 +70,18 @@ class SuMessagingServiceTest {
                 """;
         JsonNode root = objectMapper.readTree(raw);
 
+        when(aiSettingService.isAutoReplyEnabled(10L)).thenReturn(false);
         when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M1")).thenReturn(Optional.empty());
         when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 244, "T1")).thenReturn(Optional.empty());
-
         when(threadRepository.save(any())).thenAnswer(inv -> {
-            SuMessageThread t = inv.getArgument(0);
-            t.setId(99L);
-            return t;
+            SuMessageThread thread = inv.getArgument(0);
+            thread.setId(99L);
+            return thread;
         });
-
         when(messageRepository.save(any())).thenAnswer(inv -> {
-            SuMessage m = inv.getArgument(0);
-            m.setId(100L);
-            return m;
+            SuMessage message = inv.getArgument(0);
+            message.setId(100L);
+            return message;
         });
 
         service.handleInboundMessage(10L, "STORE10", root, raw);
@@ -103,15 +110,19 @@ class SuMessagingServiceTest {
         assertEquals("Hello", savedMsg.getContent());
         assertFalse(savedMsg.getIsRead());
         assertNotNull(savedMsg.getThread());
+
+        verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(99L), any());
     }
 
     @Test
-    void sendMessage_shouldCallSuMessagingABAndPersistStaffMessage() throws Exception {
+    void sendMessage_shouldCallSuMessagingABPersistStaffMessageAndBroadcast() throws Exception {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
-        SuAutoReplyService suAutoReplyService = Mockito.mock(SuAutoReplyService.class);
+        SuMessagingAiSettingService aiSettingService = Mockito.mock(SuMessagingAiSettingService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        SuAiAutoReplyService suAiAutoReplyService = Mockito.mock(SuAiAutoReplyService.class);
         ObjectMapper objectMapper = new ObjectMapper();
 
         SuMessagingService service = new SuMessagingService(
@@ -120,7 +131,9 @@ class SuMessagingServiceTest {
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                suAutoReplyService
+                aiSettingService,
+                realtimeGateway,
+                suAiAutoReplyService
         );
 
         SuMessageThread thread = new SuMessageThread();
@@ -139,25 +152,23 @@ class SuMessagingServiceTest {
         JsonNode ok = objectMapper.readTree("{\"Status\":\"Success\"}");
         when(suApiClient.postMessagingAB(anyString(), any())).thenReturn(ok);
         when(suApiClient.isSuSuccess(ok)).thenReturn(true);
-
         when(suAccessTokenService.executeWithTokenRetry(any(), anyString())).thenAnswer(inv -> {
             @SuppressWarnings("unchecked")
             Function<String, Object> fn = (Function<String, Object>) inv.getArgument(0);
             return fn.apply("token");
         });
-
         when(messageRepository.save(any())).thenAnswer(inv -> {
-            SuMessage m = inv.getArgument(0);
-            m.setId(101L);
-            return m;
+            SuMessage message = inv.getArgument(0);
+            message.setId(101L);
+            return message;
         });
         when(threadRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        SuMessagingSendRequest req = new SuMessagingSendRequest();
-        req.setContent("Hi");
-        req.setSenderName("客服A");
+        SuMessagingSendRequest request = new SuMessagingSendRequest();
+        request.setContent("Hi");
+        request.setSenderName("�ͷ�A");
 
-        service.sendMessage(10L, 5L, req);
+        service.sendMessage(10L, 5L, request);
 
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
         verify(suApiClient).postMessagingAB(eq("token"), payloadCaptor.capture());
@@ -175,7 +186,9 @@ class SuMessagingServiceTest {
         verify(messageRepository).save(msgCaptor.capture());
         SuMessage saved = msgCaptor.getValue();
         assertEquals(SuMessagingSenderType.STAFF, saved.getSenderType());
-        assertEquals("客服A", saved.getSenderName());
-        assertTrue(saved.getIsRead());
+        assertEquals("�ͷ�A", saved.getSenderName());
+        assertEquals(Boolean.TRUE, saved.getIsRead());
+
+        verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
     }
 }

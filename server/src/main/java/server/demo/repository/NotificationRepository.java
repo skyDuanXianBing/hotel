@@ -26,6 +26,29 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             Long userId, String notificationType, Pageable pageable);
 
     /**
+     * 分页查询用户指定类型通知（支持已读状态/关键词筛选）
+     */
+    @Query("""
+            SELECT n FROM Notification n
+            WHERE n.userId = :userId
+              AND (:notificationType IS NULL OR n.notificationType = :notificationType)
+              AND (:isRead IS NULL OR n.isRead = :isRead)
+              AND (
+                    :keyword IS NULL
+                    OR LOWER(n.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(n.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                  )
+            ORDER BY n.createdAt DESC
+            """)
+    Page<Notification> searchByUserIdAndTypeAndReadStatusAndKeyword(
+            @Param("userId") Long userId,
+            @Param("notificationType") String notificationType,
+            @Param("isRead") Boolean isRead,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    /**
      * 查询用户未读通知数量
      */
     Long countByUserIdAndIsRead(Long userId, Boolean isRead);

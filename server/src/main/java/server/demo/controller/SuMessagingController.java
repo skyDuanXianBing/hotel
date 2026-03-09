@@ -6,9 +6,11 @@ import org.springframework.web.bind.annotation.*;
 import server.demo.annotation.StoreScoped;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.ApiResponse;
+import server.demo.dto.SuMessagingAiSettingDTO;
 import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.dto.SuMessagingThreadDTO;
+import server.demo.service.SuMessagingAiSettingService;
 import server.demo.service.SuMessagingService;
 
 import java.util.List;
@@ -16,16 +18,21 @@ import java.util.List;
 /**
  * PMS 收件箱（Su Messaging）接口。
  * <p>
- * 说明：仅负责展示/回复；接收 OTA 推送由 SuMessagingWebhookController 处理。
+ * 这里只负责消息展示和人工回复，OTA webhook 入库由 {@link SuMessagingWebhookController} 处理。
  */
 @RestController
 @RequestMapping("/api/v1/su-messaging")
 public class SuMessagingController {
 
     private final SuMessagingService suMessagingService;
+    private final SuMessagingAiSettingService suMessagingAiSettingService;
 
-    public SuMessagingController(SuMessagingService suMessagingService) {
+    public SuMessagingController(
+            SuMessagingService suMessagingService,
+            SuMessagingAiSettingService suMessagingAiSettingService
+    ) {
         this.suMessagingService = suMessagingService;
+        this.suMessagingAiSettingService = suMessagingAiSettingService;
     }
 
     @GetMapping("/threads")
@@ -84,5 +91,28 @@ public class SuMessagingController {
             return ResponseEntity.status(500).body(ApiResponse.error("发送消息失败: " + e.getMessage()));
         }
     }
-}
 
+    @GetMapping("/ai-settings")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<SuMessagingAiSettingDTO>> getAiSettings() {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            return ResponseEntity.ok(ApiResponse.success(suMessagingAiSettingService.getOrCreate(storeId)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("获取 AI 自动回复设置失败: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/ai-settings")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<SuMessagingAiSettingDTO>> updateAiSettings(
+            @RequestBody SuMessagingAiSettingDTO request
+    ) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            return ResponseEntity.ok(ApiResponse.success(suMessagingAiSettingService.update(storeId, request)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("更新 AI 自动回复设置失败: " + e.getMessage()));
+        }
+    }
+}

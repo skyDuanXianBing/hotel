@@ -35,6 +35,8 @@ public interface StoreUserRepository extends JpaRepository<StoreUser, Long> {
      */
     boolean existsByStoreIdAndUserId(Long storeId, Long userId);
 
+    boolean existsByStoreIdAndUserIdAndIsActiveTrue(Long storeId, Long userId);
+
     /**
      * 查询用户所属的所有激活状态的门店关联
      */

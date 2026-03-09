@@ -38,7 +38,9 @@ public class SuMessagingService {
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
     private final ObjectMapper objectMapper;
-    private final SuAutoReplyService suAutoReplyService;
+    private final SuMessagingAiSettingService suMessagingAiSettingService;
+    private final SuMessagingRealtimeGateway suMessagingRealtimeGateway;
+    private final SuAiAutoReplyService suAiAutoReplyService;
 
     public SuMessagingService(
             SuMessageThreadRepository threadRepository,
@@ -46,14 +48,18 @@ public class SuMessagingService {
             SuApiClient suApiClient,
             SuAccessTokenService suAccessTokenService,
             ObjectMapper objectMapper,
-            SuAutoReplyService suAutoReplyService
+            SuMessagingAiSettingService suMessagingAiSettingService,
+            SuMessagingRealtimeGateway suMessagingRealtimeGateway,
+            SuAiAutoReplyService suAiAutoReplyService
     ) {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
         this.objectMapper = objectMapper;
-        this.suAutoReplyService = suAutoReplyService;
+        this.suMessagingAiSettingService = suMessagingAiSettingService;
+        this.suMessagingRealtimeGateway = suMessagingRealtimeGateway;
+        this.suAiAutoReplyService = suAiAutoReplyService;
     }
 
     @Transactional
@@ -130,21 +136,32 @@ public class SuMessagingService {
         msg.setContent(content);
         msg.setSentAt(LocalDateTime.now());
         msg.setIsRead(false);
+        msg.setDeliveryStatus("SENT");
         msg.setRawJson(rawJson);
         messageRepository.save(msg);
 
         Long savedThreadId = thread.getId();
-        if (savedThreadId != null) {
+        Long savedMessageId = msg.getId();
+        if (savedThreadId != null && savedMessageId != null) {
+            SuMessagingMessageDTO savedMessageDto = toMessageDTO(msg);
             if (TransactionSynchronizationManager.isSynchronizationActive()) {
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        suAutoReplyService.tryAutoReply(storeId, savedThreadId);
+                        suMessagingRealtimeGateway.broadcastMessageCreated(storeId, savedThreadId, savedMessageDto);
+                        triggerAutoReplyAfterCommit(storeId, savedThreadId, savedMessageId);
                     }
                 });
             } else {
-                suAutoReplyService.tryAutoReply(storeId, savedThreadId);
+                suMessagingRealtimeGateway.broadcastMessageCreated(storeId, savedThreadId, savedMessageDto);
+                triggerAutoReplyAfterCommit(storeId, savedThreadId, savedMessageId);
             }
+        }
+    }
+
+    private void triggerAutoReplyAfterCommit(Long storeId, Long threadId, Long triggerMessageId) {
+        if (suMessagingAiSettingService.isAutoReplyEnabled(storeId)) {
+            suAiAutoReplyService.tryAutoReply(storeId, threadId, triggerMessageId);
         }
     }
 
@@ -172,7 +189,7 @@ public class SuMessagingService {
     @Transactional
     public List<SuMessagingMessageDTO> getThreadMessages(Long storeId, Long threadId) {
         SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
-                .orElseThrow(() -> new IllegalArgumentException("会话不存在或无权访问"));
+                .orElseThrow(() -> new IllegalArgumentException("Thread not found or no permission"));
 
         List<SuMessagingMessageDTO> dtos = messageRepository.findByThread_IdOrderBySentAtAsc(thread.getId()).stream()
                 .map(SuMessagingService::toMessageDTO)
@@ -185,7 +202,7 @@ public class SuMessagingService {
     @Transactional
     public List<SuMessagingMessageDTO> pollThreadMessages(Long storeId, Long threadId, String since) {
         SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
-                .orElseThrow(() -> new IllegalArgumentException("会话不存在或无权访问"));
+                .orElseThrow(() -> new IllegalArgumentException("Thread not found or no permission"));
 
         LocalDateTime sinceTime = parseSince(since);
         List<SuMessagingMessageDTO> dtos = messageRepository.findByThread_IdAndSentAtAfterOrderBySentAtAsc(thread.getId(), sinceTime).stream()
@@ -201,15 +218,15 @@ public class SuMessagingService {
     @Transactional
     public SuMessagingMessageDTO sendMessage(Long storeId, Long threadId, SuMessagingSendRequest request) {
         SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
-                .orElseThrow(() -> new IllegalArgumentException("会话不存在或无权访问"));
+                .orElseThrow(() -> new IllegalArgumentException("Thread not found or no permission"));
 
         if (Boolean.TRUE.equals(thread.getClosed())) {
-            throw new IllegalStateException("该会话已关闭，无法发送消息");
+            throw new IllegalStateException("Thread is closed, cannot send message");
         }
 
         String message = request.getContent() != null ? request.getContent().trim() : null;
         if (message == null || message.isBlank()) {
-            throw new IllegalArgumentException("消息内容不能为空");
+            throw new IllegalArgumentException("Message content cannot be blank");
         }
 
         Map<String, Object> payload = buildReplyPayload(thread, message);
@@ -221,7 +238,7 @@ public class SuMessagingService {
 
         if (!suApiClient.isSuSuccess(response)) {
             String err = suApiClient.extractSuErrorMessage(response);
-            throw new RuntimeException(err != null ? err : "Su 消息发送失败");
+            throw new RuntimeException(err != null ? err : "Su message send failed");
         }
 
         SuMessage msg = new SuMessage();
@@ -229,10 +246,11 @@ public class SuMessagingService {
         msg.setThread(thread);
         msg.setExternalMessageId(null);
         msg.setSenderType(SuMessagingSenderType.STAFF);
-        msg.setSenderName(request.getSenderName() != null && !request.getSenderName().isBlank() ? request.getSenderName() : "客服");
+        msg.setSenderName(request.getSenderName() != null && !request.getSenderName().isBlank() ? request.getSenderName() : "STAFF");
         msg.setContent(message);
         msg.setSentAt(LocalDateTime.now());
         msg.setIsRead(true);
+        msg.setDeliveryStatus("SENT");
         msg.setRawJson(writeJsonSafely(payload));
         msg = messageRepository.save(msg);
 
@@ -240,21 +258,33 @@ public class SuMessagingService {
         thread.setLastActivity(LocalDateTime.now());
         threadRepository.save(thread);
 
-        return toMessageDTO(msg);
+        SuMessagingMessageDTO dto = toMessageDTO(msg);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    suMessagingRealtimeGateway.broadcastMessageCreated(storeId, threadId, dto);
+                }
+            });
+        } else {
+            suMessagingRealtimeGateway.broadcastMessageCreated(storeId, threadId, dto);
+        }
+
+        return dto;
     }
 
     private Map<String, Object> buildReplyPayload(SuMessageThread thread, String message) {
         String hotelId = thread.getSuHotelId();
         if (hotelId == null || hotelId.isBlank()) {
-            throw new IllegalStateException("缺少 hotelid，无法发送");
+            throw new IllegalStateException("Missing hotelid, cannot send");
         }
         Integer channelId = thread.getChannelId();
         if (channelId == null) {
-            throw new IllegalStateException("缺少 channelId，无法发送");
+            throw new IllegalStateException("Missing channelId, cannot send");
         }
         String listingId = thread.getListingId();
         if (listingId == null || listingId.isBlank()) {
-            throw new IllegalStateException("缺少 listingid（渠道房源ID），无法发送");
+            throw new IllegalStateException("Missing listingid, cannot send");
         }
 
         Map<String, Object> payload = new HashMap<>();
@@ -267,7 +297,7 @@ public class SuMessagingService {
             String threadId = thread.getThreadId();
             String guestId = thread.getGuestId();
             if (threadId == null || threadId.isBlank() || guestId == null || guestId.isBlank()) {
-                throw new IllegalStateException("Airbnb 回复需要 threadid + guestid，但当前会话缺少必要字段");
+                throw new IllegalStateException("Airbnb reply requires threadid + guestid");
             }
             payload.put("threadid", threadId);
             payload.put("guestid", guestId);
@@ -275,11 +305,11 @@ public class SuMessagingService {
         } else if (channelId == CHANNEL_BOOKING) {
             String bookingId = thread.getBookingId();
             if (bookingId == null || bookingId.isBlank()) {
-                throw new IllegalStateException("Booking.com 回复需要 bookingid，但当前会话缺少必要字段");
+                throw new IllegalStateException("Booking.com reply requires bookingid");
             }
             payload.put("bookingid", bookingId);
         } else {
-            throw new IllegalStateException("不支持的渠道: " + channelId);
+            throw new IllegalStateException("Missing channelId, cannot send");
         }
 
         return payload;
@@ -300,6 +330,7 @@ public class SuMessagingService {
         dto.setSenderType(msg.getSenderType());
         dto.setSenderName(msg.getSenderName());
         dto.setContent(msg.getContent());
+        dto.setDeliveryStatus(msg.getDeliveryStatus());
         dto.setTimestamp(msg.getSentAt());
         return dto;
     }
@@ -319,10 +350,9 @@ public class SuMessagingService {
         }
         return null;
     }
-
     private static String resolveChannelName(Integer channelId) {
         if (channelId == null) {
-            return "未知渠道";
+            return "UNKNOWN";
         }
         if (channelId == CHANNEL_AIRBNB) {
             return "Airbnb";
@@ -330,9 +360,8 @@ public class SuMessagingService {
         if (channelId == CHANNEL_BOOKING) {
             return "Booking.com";
         }
-        return "渠道" + channelId;
+        return "CHANNEL_" + channelId;
     }
-
     private static Integer readInt(JsonNode root, String field) {
         String raw = readText(root, field);
         if (raw == null) {
@@ -358,7 +387,7 @@ public class SuMessagingService {
     }
 
     private static String readAirbnbGuestFirstName(JsonNode root) {
-        // user_details.users[0].first_name（仅 Airbnb）
+        // Prefer Airbnb guest name from user_details.users[0].first_name
         JsonNode users = root.at("/user_details/users");
         if (users != null && users.isArray() && !users.isEmpty()) {
             String firstName = readText(users.get(0), "first_name");
@@ -400,7 +429,7 @@ public class SuMessagingService {
         try {
             return LocalDateTime.parse(s);
         } catch (Exception e) {
-            throw new IllegalArgumentException("since 时间格式错误: " + since);
+            throw new IllegalArgumentException("Invalid since format: " + since);
         }
     }
 }

@@ -26,12 +26,17 @@ export interface SuMessagingMessageDTO {
   senderType: SuMessagingSenderType
   senderName?: string
   content: string
+  deliveryStatus?: 'SENDING' | 'SENT' | 'FAILED'
   timestamp: string
 }
 
 export interface SuMessagingSendRequest {
   content: string
   senderName?: string
+}
+
+export interface SuMessagingAiSetting {
+  autoReplyEnabled: boolean
 }
 
 export const getSuThreads = () => {
@@ -64,3 +69,17 @@ export const sendSuThreadMessage = (threadId: number, data: SuMessagingSendReque
   })
 }
 
+export const getSuMessagingAiSetting = () => {
+  return request<SuMessagingAiSetting>({
+    url: '/su-messaging/ai-settings',
+    method: 'get',
+  })
+}
+
+export const updateSuMessagingAiSetting = (data: SuMessagingAiSetting) => {
+  return request<SuMessagingAiSetting>({
+    url: '/su-messaging/ai-settings',
+    method: 'put',
+    data,
+  })
+}

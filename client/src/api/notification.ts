@@ -88,10 +88,19 @@ export const getNotificationMessagesByType = async (
   userId: number,
   type: string,
   page: number = 0,
-  size: number = 25
+  size: number = 25,
+  isRead?: boolean,
+  keyword?: string
 ): Promise<ApiResponse<PageResponse<NotificationMessageDTO>>> => {
+  const params: Record<string, string | number | boolean> = { userId, page, size }
+  if (typeof isRead === 'boolean') {
+    params.isRead = isRead
+  }
+  if (keyword && keyword.trim()) {
+    params.keyword = keyword.trim()
+  }
   return await request.get(`/notifications/type/${type}`, {
-    params: { userId, page, size },
+    params,
   })
 }
 

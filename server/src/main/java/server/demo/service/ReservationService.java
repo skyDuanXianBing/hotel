@@ -94,6 +94,9 @@ public class ReservationService {
     @Autowired
     private OperationLogService operationLogService;
 
+    @Autowired
+    private OrderNotificationDispatchService orderNotificationDispatchService;
+
     @Autowired(required = false)
     private SuAriAutoSyncService suAriAutoSyncService;
 
@@ -192,6 +195,7 @@ public class ReservationService {
                 savedReservation.getCheckOutDate()
         );
         logCreateReservation(savedReservation);
+        orderNotificationDispatchService.notifyOrderCreated(storeId, savedReservation, userId);
         return convertToDTO(savedReservation);
     }
 
@@ -292,6 +296,7 @@ public class ReservationService {
      * 取消预订
      */
     public ReservationDTO cancelReservation(Long reservationId) {
+        Long userId = currentUserId();
         Reservation reservation = loadReservationInStore(reservationId);
 
         if (reservation.getStatus() == ReservationStatus.CHECKED_OUT) {
@@ -322,6 +327,7 @@ public class ReservationService {
                         new OperationLogDetailDTO("状态", savedReservation.getStatus().name())
                 )
         );
+        orderNotificationDispatchService.notifyOrderCancelled(reservation.getStoreId(), savedReservation, userId);
         return convertToDTO(savedReservation);
     }
 
@@ -674,6 +680,7 @@ public class ReservationService {
                 savedReservation.getCheckOutDate()
         );
         logUpdateReservation(savedReservation, oldRoom, room, oldChannel, channel, oldCheckIn, oldCheckOut, oldGuestName, oldGuestPhone, oldTotalAmount);
+        orderNotificationDispatchService.notifyOrderUpdated(storeId, savedReservation, userId);
         return convertToDTO(savedReservation);
     }
 

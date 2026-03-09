@@ -40,10 +40,19 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Page<Notification>>> getNotificationsByType(
             @PathVariable String type,
             @RequestParam Long userId,
+            @RequestParam(required = false) Boolean isRead,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
         try {
-            Page<Notification> notifications = notificationService.getNotificationsByType(userId, type, page, size);
+            Page<Notification> notifications = notificationService.getNotificationsByTypeWithFilters(
+                    userId,
+                    type,
+                    isRead,
+                    keyword,
+                    page,
+                    size
+            );
             return ResponseEntity.ok(ApiResponse.success("获取通知列表成功", notifications));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error("获取通知列表失败: " + e.getMessage()));

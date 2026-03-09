@@ -2,74 +2,80 @@ package server.demo.config;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.dashscope.QwenChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import server.demo.service.impl.MockChatLanguageModel;
 
-/**
- * AI聊天服务配置类
- * 配置聊天模型的接入参数
- * 
- * @author AI Assistant
- */
 @Configuration
 public class AiChatConfig {
 
-    /**
-     * DashScope API密钥，从环境变量读取
-     */
+    @Value("${openai.api-key:#{environment.OPENAI_API_KEY}}")
+    private String openAiApiKey;
+
+    @Value("${openai.base-url:https://api.openai.com/v1}")
+    private String openAiBaseUrl;
+
+    @Value("${openai.model-name:gpt-4o-mini}")
+    private String openAiModelName;
+
+    @Value("${openai.max-tokens:1000}")
+    private Integer openAiMaxTokens;
+
+    @Value("${openai.temperature:0.7}")
+    private Double openAiTemperature;
+
     @Value("${dashscope.api-key:#{environment.DASH_SCOPE_API_KEY}}")
     private String dashScopeApiKey;
 
-    /**
-     * 使用的模型名称，默认为qwen-turbo
-     */
     @Value("${dashscope.model-name:qwen-turbo}")
-    private String modelName;
+    private String dashScopeModelName;
 
-    /**
-     * 最大令牌数
-     */
     @Value("${dashscope.max-tokens:1000}")
-    private Integer maxTokens;
+    private Integer dashScopeMaxTokens;
 
-    /**
-     * 温度参数，控制生成文本的随机性
-     */
     @Value("${dashscope.temperature:0.7}")
-    private Double temperature;
+    private Double dashScopeTemperature;
 
-    /**
-     * 创建聊天模型Bean
-     * 使用真实的千问模型实现
-     * 
-     * @return ChatLanguageModel 聊天语言模型实例
-     */
     @Bean
     public ChatLanguageModel chatLanguageModel() {
-        // 检查API密钥是否配置
-        if (dashScopeApiKey != null && !dashScopeApiKey.trim().isEmpty() && 
-            !dashScopeApiKey.startsWith("#{")) {
+        if (hasText(openAiApiKey)) {
+            return createOpenAiChatModel();
+        }
+
+        if (hasText(dashScopeApiKey)) {
             return createDashScopeChatModel();
         }
-        
-        // 如果没有配置API密钥，使用Mock实现
-        System.out.println("警告：未配置DashScope API密钥，使用Mock实现。请设置DASH_SCOPE_API_KEY环境变量或在application.properties中配置dashscope.api-key");
+
+        System.out.println("警告：未配置 OpenAI 或 DashScope API Key，使用 Mock AI 模型。请设置 OPENAI_API_KEY（推荐）或 DASH_SCOPE_API_KEY。");
         return new MockChatLanguageModel();
     }
 
-    /**
-     * 创建DashScope聊天模型
-     * 
-     * @return ChatLanguageModel 真实的聊天模型
-     */
+    private ChatLanguageModel createOpenAiChatModel() {
+        OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
+                .apiKey(openAiApiKey)
+                .modelName(openAiModelName)
+                .maxTokens(openAiMaxTokens)
+                .temperature(openAiTemperature);
+
+        if (hasText(openAiBaseUrl)) {
+            builder.baseUrl(openAiBaseUrl);
+        }
+
+        return builder.build();
+    }
+
     private ChatLanguageModel createDashScopeChatModel() {
         return QwenChatModel.builder()
                 .apiKey(dashScopeApiKey)
-                .modelName(modelName)
-                .maxTokens(maxTokens)
-                .temperature(temperature.floatValue())
+                .modelName(dashScopeModelName)
+                .maxTokens(dashScopeMaxTokens)
+                .temperature(dashScopeTemperature.floatValue())
                 .build();
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty() && !value.startsWith("#{");
     }
 }

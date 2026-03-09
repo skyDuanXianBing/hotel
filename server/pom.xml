@@ -39,8 +39,13 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
 		
-		<!-- JPA和MySQL依赖 -->
+		<!-- JPA and MySQL dependencies -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -63,7 +68,7 @@
 			<artifactId>spring-boot-starter-aop</artifactId>
 		</dependency>
 
-		<!-- LangChain4j 相关依赖 -->
+		<!-- LangChain4j dependencies -->
 		<dependency>
 			<groupId>dev.langchain4j</groupId>
 			<artifactId>langchain4j</artifactId>
@@ -76,14 +81,20 @@
 			<version>0.34.0</version>
 		</dependency>
 		
-		<!-- DashScope (阿里千问) 集成 -->
+		<!-- DashScope integration -->
 		<dependency>
 			<groupId>dev.langchain4j</groupId>
 			<artifactId>langchain4j-dashscope</artifactId>
 			<version>0.34.0</version>
 		</dependency>
 		
-		<!-- HTTP 客户端 -->
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-open-ai</artifactId>
+			<version>0.34.0</version>
+		</dependency>
+		
+		<!-- HTTP client -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
@@ -95,7 +106,7 @@
 			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
 
-		<!-- Spring Security (包含BCrypt密码加密) -->
+		<!-- Spring Security (includes BCrypt password encryption) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
@@ -126,7 +137,7 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
-		<!-- Jackson Hibernate 模块 - 处理懒加载代理对象序列化 -->
+		<!-- Jackson Hibernate module - handle lazy proxy serialization -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.datatype</groupId>
 			<artifactId>jackson-datatype-hibernate6</artifactId>

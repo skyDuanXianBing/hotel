@@ -55,6 +55,9 @@ public class SuMessage {
     @Column(name = "is_read", nullable = false)
     private Boolean isRead = false;
 
+    @Column(name = "delivery_status", length = 20)
+    private String deliveryStatus;
+
     @Column(name = "raw_json", columnDefinition = "MEDIUMTEXT")
     private String rawJson;
 
@@ -146,6 +149,14 @@ public class SuMessage {
 
     public void setRawJson(String rawJson) {
         this.rawJson = rawJson;
+    }
+
+    public String getDeliveryStatus() {
+        return deliveryStatus;
+    }
+
+    public void setDeliveryStatus(String deliveryStatus) {
+        this.deliveryStatus = deliveryStatus;
     }
 }
 

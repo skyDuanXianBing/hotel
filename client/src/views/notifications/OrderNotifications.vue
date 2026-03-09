@@ -1,109 +1,60 @@
 <template>
   <div class="notifications-page">
-    <div class="page-header">
-      <h2>订单通知</h2>
-    </div>
-
     <div class="notifications-content">
-      <!-- 标签页 -->
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="全部" name="all" />
         <el-tab-pane name="unread">
           <template #label>
             <span class="tab-label">
               未读
-              <el-badge v-if="unreadCount > 0" :value="unreadCount" class="unread-badge" />
+              <el-badge
+                v-if="unreadCount > 0"
+                :value="unreadCount"
+                :max="99"
+                class="unread-badge"
+              />
             </span>
           </template>
         </el-tab-pane>
         <el-tab-pane label="已读" name="read" />
       </el-tabs>
 
-      <!-- 搜索和筛选栏 -->
       <div class="filter-bar">
         <el-input
           v-model="searchQuery"
-          placeholder="搜索消息标题、消息内容"
-          :prefix-icon="Search"
+          placeholder="搜索消息标题"
+          :suffix-icon="Search"
           clearable
           class="search-input"
           @input="handleSearch"
         />
-        <el-select
-          v-model="selectedType"
-          placeholder="消息类型"
-          clearable
-          class="type-select"
-          @change="handleTypeChange"
-        >
-          <el-option label="全部" value="" />
-          <el-option label="订单提醒" value="ORDER" />
-        </el-select>
-        <el-button
-          v-if="unreadCount > 0"
-          type="primary"
-          @click="handleMarkAllAsRead"
-        >
+        <el-button v-if="unreadCount > 0" type="primary" @click="handleMarkAllAsRead">
           一键已读
         </el-button>
       </div>
 
-      <!-- 通知表格 -->
-      <el-table
-        v-loading="loading"
-        :data="notifications"
-        stripe
-        class="notifications-table"
-      >
-        <el-table-column prop="notificationType" label="消息类型" width="120">
+      <el-table v-loading="loading" :data="notifications" class="notifications-table">
+        <el-table-column prop="notificationType" label="消息类型" width="140">
           <template #default="{ row }">
-            <el-tag type="warning" size="small">
-              {{ getNotificationTypeLabel(row.notificationType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="title" label="消息标题" min-width="200">
-          <template #default="{ row }">
-            <div class="title-cell">
+            <div class="type-cell">
               <span v-if="!row.isRead" class="unread-dot"></span>
-              <span :class="{ 'unread-text': !row.isRead }">{{ row.title }}</span>
+              <span>{{ getNotificationTypeLabel(row.notificationType) }}</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="content" label="消息内容" min-width="300">
+        <el-table-column prop="title" label="消息标题" min-width="180" />
+        <el-table-column prop="content" label="消息内容" min-width="480">
           <template #default="{ row }">
             <span class="content-text">{{ row.content }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="时间" width="180">
+        <el-table-column prop="createdAt" label="时间" width="190">
           <template #default="{ row }">
             {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              v-if="!row.isRead"
-              type="primary"
-              link
-              size="small"
-              @click="handleMarkAsRead(row.id)"
-            >
-              标为已读
-            </el-button>
-            <el-button
-              type="danger"
-              link
-              size="small"
-              @click="handleDelete(row.id)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
       </el-table>
 
-      <!-- 分页 -->
       <div class="pagination-container">
         <el-pagination
           v-model:current-page="currentPage"
@@ -127,21 +78,16 @@ import { useUserStore } from '@/stores/user'
 import {
   getNotificationMessagesByType,
   getUnreadNotificationCountByType,
-  markNotificationAsRead,
   markAllNotificationsAsReadByType,
-  deleteNotificationMessage,
   type NotificationMessageDTO,
   type PageResponse,
 } from '@/api/notification'
 
 const userStore = useUserStore()
 
-// 标签页状态
 const activeTab = ref('all')
 const searchQuery = ref('')
-const selectedType = ref('ORDER')
 
-// 表格数据
 const loading = ref(false)
 const notifications = ref<NotificationMessageDTO[]>([])
 const total = ref(0)
@@ -149,19 +95,15 @@ const currentPage = ref(1)
 const pageSize = ref(25)
 const unreadCount = ref(0)
 
-/**
- * 获取通知类型标签文本
- */
+const ORDER_NOTIFICATION_TYPE = 'ORDER'
+
 const getNotificationTypeLabel = (type: string): string => {
-  if (type === 'ORDER') {
+  if (type === ORDER_NOTIFICATION_TYPE) {
     return '订单提醒'
   }
   return type
 }
 
-/**
- * 格式化日期时间
- */
 const formatDateTime = (dateStr: string): string => {
   const date = new Date(dateStr)
   const year = date.getFullYear()
@@ -169,47 +111,38 @@ const formatDateTime = (dateStr: string): string => {
   const day = String(date.getDate()).padStart(2, '0')
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}`
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
-/**
- * 加载通知列表
- */
+const getTabReadFilter = (): boolean | undefined => {
+  if (activeTab.value === 'unread') {
+    return false
+  }
+  if (activeTab.value === 'read') {
+    return true
+  }
+  return undefined
+}
+
 const loadNotifications = async () => {
   if (!userStore.currentUser?.id) return
 
   try {
     loading.value = true
     const userId = userStore.currentUser.id
-
     const response = await getNotificationMessagesByType(
       userId,
-      selectedType.value,
+      ORDER_NOTIFICATION_TYPE,
       currentPage.value - 1,
-      pageSize.value
+      pageSize.value,
+      getTabReadFilter(),
+      searchQuery.value
     )
 
     if (response.success) {
       const pageData = response.data as PageResponse<NotificationMessageDTO>
-
-      // 根据标签页过滤数据
-      let filteredData = pageData.content
-      if (activeTab.value === 'unread') {
-        filteredData = filteredData.filter((n) => !n.isRead)
-      } else if (activeTab.value === 'read') {
-        filteredData = filteredData.filter((n) => n.isRead)
-      }
-
-      // 根据搜索关键词过滤
-      if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase()
-        filteredData = filteredData.filter(
-          (n) =>
-            n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query)
-        )
-      }
-
-      notifications.value = filteredData
+      notifications.value = pageData.content
       total.value = pageData.totalElements
     }
   } catch (error) {
@@ -220,16 +153,13 @@ const loadNotifications = async () => {
   }
 }
 
-/**
- * 加载未读数量
- */
 const loadUnreadCount = async () => {
   if (!userStore.currentUser?.id) return
 
   try {
     const response = await getUnreadNotificationCountByType(
       userStore.currentUser.id,
-      'ORDER'
+      ORDER_NOTIFICATION_TYPE
     )
     if (response.success) {
       unreadCount.value = response.data as number
@@ -239,65 +169,25 @@ const loadUnreadCount = async () => {
   }
 }
 
-/**
- * 标签页切换
- */
 const handleTabChange = () => {
   currentPage.value = 1
   loadNotifications()
 }
 
-/**
- * 搜索
- */
 const handleSearch = () => {
   currentPage.value = 1
   loadNotifications()
 }
 
-/**
- * 类型筛选变化
- */
-const handleTypeChange = () => {
-  currentPage.value = 1
-  loadNotifications()
-}
-
-/**
- * 分页大小变化
- */
 const handlePageSizeChange = () => {
   currentPage.value = 1
   loadNotifications()
 }
 
-/**
- * 页码变化
- */
 const handlePageChange = () => {
   loadNotifications()
 }
 
-/**
- * 标记为已读
- */
-const handleMarkAsRead = async (id: number) => {
-  try {
-    const response = await markNotificationAsRead(id)
-    if (response.success) {
-      ElMessage.success('已标记为已读')
-      await loadNotifications()
-      await loadUnreadCount()
-    }
-  } catch (error) {
-    console.error('标记已读失败:', error)
-    ElMessage.error('标记已读失败')
-  }
-}
-
-/**
- * 一键已读
- */
 const handleMarkAllAsRead = async () => {
   if (!userStore.currentUser?.id) return
 
@@ -310,7 +200,7 @@ const handleMarkAllAsRead = async () => {
 
     const response = await markAllNotificationsAsReadByType(
       userStore.currentUser.id,
-      'ORDER'
+      ORDER_NOTIFICATION_TYPE
     )
 
     if (response.success) {
@@ -326,31 +216,6 @@ const handleMarkAllAsRead = async () => {
   }
 }
 
-/**
- * 删除通知
- */
-const handleDelete = async (id: number) => {
-  try {
-    await ElMessageBox.confirm('确定要删除这条通知吗?', '确认删除', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-
-    const response = await deleteNotificationMessage(id)
-    if (response.success) {
-      ElMessage.success('删除成功')
-      await loadNotifications()
-      await loadUnreadCount()
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('删除失败:', error)
-      ElMessage.error('删除失败')
-    }
-  }
-}
-
 onMounted(() => {
   loadNotifications()
   loadUnreadCount()
@@ -359,24 +224,14 @@ onMounted(() => {
 
 <style scoped>
 .notifications-page {
-  padding: 20px;
-  background: #fff;
   min-height: calc(100vh - 100px);
-}
-
-.page-header {
-  margin-bottom: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #303133;
+  background: #f5f7fa;
+  padding: 20px;
 }
 
 .notifications-content {
   background: #fff;
+  padding: 20px;
 }
 
 .tab-label {
@@ -391,25 +246,22 @@ onMounted(() => {
 
 .filter-bar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 20px;
-  align-items: center;
 }
 
 .search-input {
-  width: 300px;
-}
-
-.type-select {
-  width: 150px;
+  width: 420px;
 }
 
 .notifications-table {
   margin-bottom: 20px;
 }
 
-.title-cell {
-  display: flex;
+.type-cell {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
 }
@@ -422,24 +274,19 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.unread-text {
-  font-weight: 600;
-  color: #303133;
-}
-
 .content-text {
-  color: #606266;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #303133;
 }
 
 .pagination-container {
   display: flex;
   justify-content: flex-end;
-  padding: 20px 0;
+  padding-top: 8px;
+}
+
+:deep(.el-table th.el-table__cell) {
+  background: #f0f2f5;
+  color: #303133;
 }
 
 :deep(.el-tabs__nav-wrap::after) {
@@ -447,19 +294,11 @@ onMounted(() => {
 }
 
 :deep(.el-tabs__header) {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 :deep(.el-tabs__item) {
   font-size: 14px;
   padding: 0 20px;
-}
-
-:deep(.el-tabs__item.is-active) {
-  color: #409eff;
-}
-
-:deep(.el-tabs__active-bar) {
-  background-color: #409eff;
 }
 </style>

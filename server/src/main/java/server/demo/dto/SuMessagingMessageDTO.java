@@ -10,6 +10,7 @@ public class SuMessagingMessageDTO {
     private SuMessagingSenderType senderType;
     private String senderName;
     private String content;
+    private String deliveryStatus;
     private LocalDateTime timestamp;
 
     public Long getId() {
@@ -50,6 +51,14 @@ public class SuMessagingMessageDTO {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getDeliveryStatus() {
+        return deliveryStatus;
+    }
+
+    public void setDeliveryStatus(String deliveryStatus) {
+        this.deliveryStatus = deliveryStatus;
     }
 
     public LocalDateTime getTimestamp() {

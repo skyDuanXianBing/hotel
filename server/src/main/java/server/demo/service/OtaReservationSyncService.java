@@ -65,6 +65,7 @@ public class OtaReservationSyncService {
     private final PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
     private final RegistrationLinkInboxService registrationLinkInboxService;
     private final SuAriAutoSyncService suAriAutoSyncService;
+    private final OrderNotificationDispatchService orderNotificationDispatchService;
 
     public OtaReservationSyncService(
             SuApiClient suApiClient,
@@ -81,7 +82,8 @@ public class OtaReservationSyncService {
             CleaningTaskAutoService cleaningTaskAutoService,
             PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer,
             RegistrationLinkInboxService registrationLinkInboxService,
-            SuAriAutoSyncService suAriAutoSyncService
+            SuAriAutoSyncService suAriAutoSyncService,
+            OrderNotificationDispatchService orderNotificationDispatchService
     ) {
         this.suApiClient = suApiClient;
         this.storeRepository = storeRepository;
@@ -98,6 +100,7 @@ public class OtaReservationSyncService {
         this.priceLabsCalendarSyncDebouncer = priceLabsCalendarSyncDebouncer;
         this.registrationLinkInboxService = registrationLinkInboxService;
         this.suAriAutoSyncService = suAriAutoSyncService;
+        this.orderNotificationDispatchService = orderNotificationDispatchService;
     }
 
     public List<String> getSupportedChannelCodes() {
@@ -649,6 +652,12 @@ public class OtaReservationSyncService {
                     LocalDate oldCheckIn = isNew ? null : reservation.getCheckInDate();
                     LocalDate oldCheckOut = isNew ? null : reservation.getCheckOutDate();
                     Long oldRoomTypeId = isNew ? null : reservation.getOtaRoomTypeId();
+                    String oldGuestName = isNew ? null : reservation.getGuestName();
+                    String oldGuestPhone = isNew ? null : reservation.getGuestPhone();
+                    String oldChannelOrderNumber = isNew ? null : reservation.getChannelOrderNumber();
+                    String oldSpecialRequests = isNew ? null : reservation.getSpecialRequests();
+                    String oldPricePlan = isNew ? null : reservation.getPricePlan();
+                    ReservationStatus oldStatus = isNew ? null : reservation.getStatus();
 
                     reservationLogger.info(
                             "[ReservationUpsert] resolved target. storeId={}, hotelId={}, orderNumber={}, isNew={}, existingDbId={}",
@@ -732,6 +741,40 @@ public class OtaReservationSyncService {
                     }
 
                     reservationRepository.save(reservation);
+
+                    OrderNotificationDispatchService.OrderEventType eventType =
+                            orderNotificationDispatchService.resolveOtaEventType(
+                                    isNew,
+                                    oldGuestName,
+                                    oldGuestPhone,
+                                    oldChannelOrderNumber,
+                                    oldSpecialRequests,
+                                    oldPricePlan,
+                                    oldCheckIn,
+                                    oldCheckOut,
+                                    oldStatus,
+                                    reservation
+                            );
+                    if (eventType != null) {
+                        switch (eventType) {
+                            case CREATED -> orderNotificationDispatchService.notifyOrderCreated(
+                                    store.getId(),
+                                    reservation,
+                                    store.getUserId()
+                            );
+                            case UPDATED -> orderNotificationDispatchService.notifyOrderUpdated(
+                                    store.getId(),
+                                    reservation,
+                                    store.getUserId()
+                            );
+                            case CANCELLED -> orderNotificationDispatchService.notifyOrderCancelled(
+                                    store.getId(),
+                                    reservation,
+                                    store.getUserId()
+                            );
+                        }
+                    }
+
                     reservationLogger.info(
                             "[ReservationUpsert] saved. storeId={}, hotelId={}, orderNumber={}, reservationDbId={}, assignedRoomId={}, otaRoomId={}, otaRoomTypeId={}, otaRoomNumber={}, status={}",
                             store.getId(),

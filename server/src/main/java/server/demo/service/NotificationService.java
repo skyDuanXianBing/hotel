@@ -40,6 +40,28 @@ public class NotificationService {
     }
 
     /**
+     * 分页获取用户指定类型通知（支持已读状态/关键词筛选）
+     */
+    public Page<Notification> getNotificationsByTypeWithFilters(
+            Long userId,
+            String type,
+            Boolean isRead,
+            String keyword,
+            int page,
+            int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        String normalizedKeyword = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+        return notificationRepository.searchByUserIdAndTypeAndReadStatusAndKeyword(
+                userId,
+                type,
+                isRead,
+                normalizedKeyword,
+                pageable
+        );
+    }
+
+    /**
      * 获取未读通知数量
      */
     public Long getUnreadCount(Long userId) {
