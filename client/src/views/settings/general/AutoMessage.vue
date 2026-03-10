@@ -255,6 +255,8 @@ const messageVariables: MessageVariable[] = [
   { label: 'Property phone', code: '{{property_phone}}' },
   { label: 'Property Email', code: '{{property_email}}' },
   { label: 'Confirmation code', code: '{{confirmation_code}}' },
+  { label: 'Registration link', code: '{{registration_link}}' },
+  { label: 'Check-in form link', code: '{{checkin_form_link}}' },
   { label: 'Number of nights', code: '{{number_of_nights}}' },
   { label: 'Check-in code', code: '{{checkin_code}}' },
   { label: 'SmartLock Passcode', code: '{{smartlock_passcode}}' },
