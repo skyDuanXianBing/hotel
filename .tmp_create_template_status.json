@@ -1,0 +1,13 @@
+{
+  "guestName": "Template Status Test",
+  "guestPhone": "13800138000",
+  "roomId": 31,
+  "channelId": 96,
+  "checkInDate": "2026-03-22",
+  "checkOutDate": "2026-03-23",
+  "adults": 1,
+  "children": 0,
+  "totalAmount": 368.00,
+  "channelOrderNumber": "BK_TEMPLATE_STATUS_20260310180905",
+  "notes": "template-delivery-status-test"
+}

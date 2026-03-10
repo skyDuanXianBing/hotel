@@ -1,0 +1,13 @@
+{
+    "guestName":  "自动化测试客人",
+    "guestPhone":  "13800138000",
+    "checkInDate":  "2026-04-24",
+    "totalAmount":  699,
+    "checkOutDate":  "2026-04-25",
+    "children":  0,
+    "channelId":  96,
+    "roomId":  36,
+    "channelOrderNumber":  "BK_HHHHH_RETEST_20260310161922",
+    "adults":  1,
+    "notes":  "store7 hhhhh auto message retest"
+}

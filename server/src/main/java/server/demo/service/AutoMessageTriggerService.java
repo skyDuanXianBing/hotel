@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.Reservation;
 import server.demo.entity.Store;
@@ -55,6 +56,7 @@ public class AutoMessageTriggerService {
      * 为了支持 5/10/15/30 分钟等 sendTiming，按分钟轮询处理。
      */
     @Scheduled(cron = "0 * * * * *")
+    @Transactional
     public void tick() {
         LocalDateTime now = LocalDateTime.now();
         try {
@@ -67,6 +69,7 @@ public class AutoMessageTriggerService {
     /**
      * 手动触发（用于预订创建/入住/退房后，尽快处理 IMMEDIATELY 的消息）。
      */
+    @Transactional
     public void dispatchStoreOnce(Long storeId) {
         if (storeId == null) {
             return;

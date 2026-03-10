@@ -90,19 +90,6 @@
                 'message-received': message.senderType === SuMessagingSenderType.GUEST,
               }"
             >
-              <div class="message-content">
-                <div class="message-text">
-                  {{ message.content }}
-                  <span
-                    v-if="message.senderName && message.senderType === SuMessagingSenderType.STAFF"
-                    class="sender-badge"
-                  >
-                    - {{ message.senderName }}
-                  </span>
-                </div>
-                <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
-              </div>
-
               <span
                 v-if="message.senderType === SuMessagingSenderType.STAFF && message.deliveryStatus === 'SENDING'"
                 class="message-delivery-indicator sending"
@@ -117,6 +104,33 @@
               >
                 <el-icon><WarningFilled /></el-icon>
               </span>
+
+              <div class="message-content">
+                <div class="message-text">
+                  <template
+                    v-for="(segment, index) in splitMessageContent(message.content)"
+                    :key="`${message.id}-${index}`"
+                  >
+                    <a
+                      v-if="segment.type === 'link'"
+                      :href="segment.value"
+                      class="message-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {{ segment.label }}
+                    </a>
+                    <span v-else>{{ segment.value }}</span>
+                  </template>
+                  <span
+                    v-if="message.senderName && message.senderType === SuMessagingSenderType.STAFF"
+                    class="sender-badge"
+                  >
+                    - {{ message.senderName }}
+                  </span>
+                </div>
+                <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
+              </div>
             </div>
           </template>
         </div>
@@ -207,6 +221,12 @@ interface GroupedMessages {
   key: string
   label: string
   items: MessageItem[]
+}
+
+interface MessageSegment {
+  type: 'text' | 'link'
+  value: string
+  label: string
 }
 
 interface ApiResponse<T> {
@@ -319,6 +339,74 @@ const mapRealtimeMessage = (message: RealtimeMessageItem): MessageItem => ({
   senderName: normalizeSenderName(message.senderName),
   deliveryStatus: message.deliveryStatus,
 })
+
+const URL_REGEX = /https?:\/\/[^\s]+/gi
+const MAX_LINK_LABEL_LENGTH = 88
+
+const formatLinkLabel = (url: string) => {
+  if (url.length <= MAX_LINK_LABEL_LENGTH) {
+    return url
+  }
+  return `${url.slice(0, MAX_LINK_LABEL_LENGTH)}...`
+}
+
+const normalizeInlineSpaces = (text: string) => text.replace(/[ \t\u00A0\u3000]{2,}/g, ' ')
+
+const normalizeMessageContent = (content: string) =>
+  content
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[\u00A0\u3000]/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+
+const splitMessageContent = (content: string): MessageSegment[] => {
+  if (!content) {
+    return []
+  }
+
+  const normalized = normalizeMessageContent(content)
+  const segments: MessageSegment[] = []
+  let cursor = 0
+  let match = URL_REGEX.exec(normalized)
+
+  while (match) {
+    const fullUrl = match[0]
+    const start = match.index
+
+    if (start > cursor) {
+      const text = normalized.slice(cursor, start)
+      if (text) {
+        segments.push({
+          type: 'text',
+          value: normalizeInlineSpaces(text),
+          label: normalizeInlineSpaces(text),
+        })
+      }
+    }
+
+    segments.push({
+      type: 'link',
+      value: fullUrl,
+      label: formatLinkLabel(fullUrl),
+    })
+    cursor = start + fullUrl.length
+    match = URL_REGEX.exec(normalized)
+  }
+
+  if (cursor < normalized.length) {
+    const text = normalized.slice(cursor)
+    if (text) {
+      segments.push({
+        type: 'text',
+        value: normalizeInlineSpaces(text),
+        label: normalizeInlineSpaces(text),
+      })
+    }
+  }
+
+  return segments
+}
 
 const getCurrentToken = () => localStorage.getItem('token') || ''
 
@@ -896,13 +984,29 @@ onUnmounted(() => {
   padding: 12px 16px;
   border-radius: 16px;
   line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.message-link {
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.message-sent .message-link {
+  color: #fff;
+}
+
+.message-received .message-link {
+  color: #1677ff;
 }
 
 .sender-badge {
   opacity: 0.8;
   font-style: italic;
+  display: block;
+  margin-top: 6px;
+  text-align: right;
 }
 
 .message-delivery-indicator {

@@ -1,0 +1,12 @@
+{
+    "message":  "您好 {{guest_name}}，请填写入住链接：{{registration_link}}",
+    "roomSelection":  "[]",
+    "resendOnExpire":  true,
+    "action":  "BOOKING_CONFIRM",
+    "sendTiming":  "IMMEDIATELY",
+    "automationRule":  "BOOKING_CONFIRM_IMMEDIATELY",
+    "roomSelectionType":  "ALL_LOCAL",
+    "title":  "RETEST-HHHHH-20260310161922",
+    "channels":  "[96]",
+    "enabled":  true
+}

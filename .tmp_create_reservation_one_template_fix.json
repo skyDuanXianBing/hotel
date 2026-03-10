@@ -1,0 +1,13 @@
+{
+  "guestName": "Template One Fix Test",
+  "guestPhone": "13800000001",
+  "roomId": 36,
+  "channelId": 96,
+  "checkInDate": "2026-03-17",
+  "checkOutDate": "2026-03-18",
+  "adults": 1,
+  "children": 0,
+  "totalAmount": 399.00,
+  "channelOrderNumber": "BK_ONE_TEMPLATE_FIX_20260310164043",
+  "notes": "one-template-auto-test-fix"
+}

@@ -1,0 +1,13 @@
+{
+  "guestName": "WAITING-LISTINGID-SIM",
+  "guestPhone": "13800009999",
+  "roomId": 31,
+  "channelId": 96,
+  "checkInDate": "2026-03-20",
+  "checkOutDate": "2026-03-21",
+  "adults": 1,
+  "children": 0,
+  "totalAmount": 288.00,
+  "channelOrderNumber": "BK_WAITING_LISTINGID_SIM_20260310165246",
+  "notes": "simulate waiting listingid"
+}

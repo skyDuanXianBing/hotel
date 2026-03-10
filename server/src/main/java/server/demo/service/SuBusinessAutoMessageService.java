@@ -1,5 +1,7 @@
 package server.demo.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -7,7 +9,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriUtils;
-import server.demo.dto.SuMessagingSendRequest;
+import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.AutoMessageSendLog;
 import server.demo.entity.Channel;
@@ -15,12 +17,15 @@ import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.Store;
+import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.ReservationStatus;
+import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.AutoMessageSendLogRepository;
 import server.demo.repository.RoomGroupMemberRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
 
@@ -46,15 +51,24 @@ public class SuBusinessAutoMessageService {
     private static final String SENDLOG_ACTION_PREFIX = "AM:";
     private static final int MAX_LOG_MESSAGE_LEN = 800;
     private static final int MAX_LOOKBACK_DAYS = 400;
+    private static final String DEFAULT_TEMPLATE_SENDER_NAME = "Auto Message";
+    private static final String DELIVERY_SENDING = "SENDING";
+    private static final String DELIVERY_SENT = "SENT";
+    private static final String DELIVERY_FAILED = "FAILED";
 
     private final AutoMessageSendLogRepository sendLogRepository;
     private final StoreRepository storeRepository;
     private final RoomTypeRepository roomTypeRepository;
     private final RoomGroupMemberRepository roomGroupMemberRepository;
     private final SuMessageThreadRepository threadRepository;
-    private final SuMessagingService suMessagingService;
+    private final SuMessageRepository messageRepository;
+    private final SuApiClient suApiClient;
+    private final SuAccessTokenService suAccessTokenService;
+    private final SuMessagingRealtimeGateway realtimeGateway;
+    private final ObjectMapper objectMapper;
     private final RegistrationLinkService registrationLinkService;
     private final String serverBaseUrl;
+    private final String templateSenderName;
 
     public SuBusinessAutoMessageService(
             AutoMessageSendLogRepository sendLogRepository,
@@ -62,18 +76,28 @@ public class SuBusinessAutoMessageService {
             RoomTypeRepository roomTypeRepository,
             RoomGroupMemberRepository roomGroupMemberRepository,
             SuMessageThreadRepository threadRepository,
-            SuMessagingService suMessagingService,
+            SuMessageRepository messageRepository,
+            SuApiClient suApiClient,
+            SuAccessTokenService suAccessTokenService,
+            SuMessagingRealtimeGateway realtimeGateway,
+            ObjectMapper objectMapper,
             RegistrationLinkService registrationLinkService,
-            @Value("${server.base-url}") String serverBaseUrl
+            @Value("${server.base-url}") String serverBaseUrl,
+            @Value("${su.messaging.auto-template.sender-name:Auto Message}") String templateSenderName
     ) {
         this.sendLogRepository = sendLogRepository;
         this.storeRepository = storeRepository;
         this.roomTypeRepository = roomTypeRepository;
         this.roomGroupMemberRepository = roomGroupMemberRepository;
         this.threadRepository = threadRepository;
-        this.suMessagingService = suMessagingService;
+        this.messageRepository = messageRepository;
+        this.suApiClient = suApiClient;
+        this.suAccessTokenService = suAccessTokenService;
+        this.realtimeGateway = realtimeGateway;
+        this.objectMapper = objectMapper;
         this.registrationLinkService = registrationLinkService;
         this.serverBaseUrl = serverBaseUrl;
+        this.templateSenderName = templateSenderName;
     }
 
     public record DispatchDecision(boolean okToSend, String reason) {}
@@ -163,28 +187,10 @@ public class SuBusinessAutoMessageService {
         try {
             SuMessageThread thread = resolveThreadForReservation(storeId, reservation, store);
             if (thread == null) {
-                markWaiting(log, "WAITING_THREAD", "未找到会话(thread)，暂不发送；等待 Su messaging webhook 入库后自动重试");
+                markWaiting(log, "WAITING_THREAD", "thread not found; wait for webhook sync");
                 autoMessageLogger.info("[AutoMessage] waiting thread. storeId={}, reservationId={}, autoMessageId={}, channelId={}",
                         storeId, reservation.getId(), template.getId(), reservation.getChannel() != null ? reservation.getChannel().getId() : null);
                 return;
-            }
-
-            if (thread.getListingId() == null || thread.getListingId().isBlank()) {
-                markWaiting(log, "WAITING_LISTINGID", "会话缺少 listingid，暂不发送；等待下一次 webhook 补齐");
-                autoMessageLogger.info("[AutoMessage] waiting listingid. storeId={}, reservationId={}, autoMessageId={}, threadId={}",
-                        storeId, reservation.getId(), template.getId(), thread.getId());
-                return;
-            }
-            
-            if (thread.getChannelId() != null && thread.getChannelId() == SuMessagingService.CHANNEL_AIRBNB) {
-                String threadId = thread.getThreadId();
-                String guestId = thread.getGuestId();
-                if (threadId == null || threadId.isBlank() || guestId == null || guestId.isBlank()) {
-                    markWaiting(log, "WAITING_THREAD_FIELDS", "Airbnb 会话缺少 threadid/guestid，暂不发送；等待下一次 webhook 补齐");
-                    autoMessageLogger.info("[AutoMessage] waiting airbnb thread fields. storeId={}, reservationId={}, autoMessageId={}, threadDbId={} ",
-                            storeId, reservation.getId(), template.getId(), thread.getId());
-                    return;
-                }
             }
 
             String rendered = renderTemplate(store, reservation, template.getMessage());
@@ -192,23 +198,69 @@ public class SuBusinessAutoMessageService {
                 markFailed(log, "template rendered empty");
                 return;
             }
+            String content = rendered.trim();
 
-            SuMessagingSendRequest req = new SuMessagingSendRequest();
-            req.setContent(rendered.trim());
-            req.setSenderName("系统自动消息");
+            if (thread.getListingId() == null || thread.getListingId().isBlank()) {
+                markWaiting(log, "WAITING_LISTINGID", "thread missing listingid");
+                autoMessageLogger.info("[AutoMessage] waiting listingid. storeId={}, reservationId={}, autoMessageId={}, threadId={}",
+                        storeId, reservation.getId(), template.getId(), thread.getId());
+                return;
+            }
 
-            suMessagingService.sendMessage(storeId, thread.getId(), req);
+            if (thread.getChannelId() != null && thread.getChannelId() == SuMessagingService.CHANNEL_AIRBNB) {
+                String threadId = thread.getThreadId();
+                String guestId = thread.getGuestId();
+                if (threadId == null || threadId.isBlank() || guestId == null || guestId.isBlank()) {
+                    markWaiting(log, "WAITING_THREAD_FIELDS", "airbnb thread missing threadid/guestid");
+                    autoMessageLogger.info("[AutoMessage] waiting airbnb thread fields. storeId={}, reservationId={}, autoMessageId={}, threadDbId={} ",
+                            storeId, reservation.getId(), template.getId(), thread.getId());
+                    return;
+                }
+            }
+
+            if (Boolean.TRUE.equals(thread.getClosed())) {
+                markFailed(log, "thread is closed");
+                return;
+            }
+
+            String sender = resolveTemplateSenderName(templateSenderName);
+            SuMessage localMessage = createLocalSendingMessage(storeId, thread, content, sender);
+
+            Map<String, Object> payload = null;
+            String sendError = null;
+            try {
+                String channelMessage = formatMessageForChannel(thread.getChannelId(), content);
+                payload = buildReplyPayload(thread, channelMessage);
+                final Map<String, Object> requestPayload = payload;
+                JsonNode suResponse = suAccessTokenService.executeWithTokenRetry(
+                        token -> suApiClient.postMessagingAB(token, requestPayload),
+                        "messagingAB"
+                );
+                if (!suApiClient.isSuSuccess(suResponse)) {
+                    String err = suApiClient.extractSuErrorMessage(suResponse);
+                    sendError = err != null ? err : "Su message send failed";
+                }
+            } catch (Exception sendEx) {
+                sendError = sendEx.getMessage();
+            }
+
+            if (sendError == null || sendError.isBlank()) {
+                markLocalMessageSent(storeId, thread.getId(), localMessage, payload);
+            } else {
+                markLocalMessageFailed(storeId, thread.getId(), localMessage, sendError, payload);
+                throw new RuntimeException(sendError);
+            }
 
             log.setSuccess(true);
             log.setErrorMessage(null);
             sendLogRepository.save(log);
 
-                autoMessageLogger.info("[AutoMessage] sent ok. storeId={}, reservationId={}, autoMessageId={}, action={}, sendTiming={}",
+            autoMessageLogger.info("[AutoMessage] sent ok. storeId={}, reservationId={}, autoMessageId={}, action={}, sendTiming={}",
                     storeId, reservation.getId(), template.getId(), template.getAction(), template.getSendTiming());
         } catch (Exception e) {
             logger.warn("[AutoMessage] send failed. storeId={}, reservationId={}, autoMessageId={}, err={}",
                     storeId, reservation.getId(), template.getId(), e.getMessage(), e);
-                autoMessageLogger.error("[AutoMessage] send failed. storeId={}, reservationId={}, autoMessageId={}, err={}",
+            autoMessageLogger.error("[AutoMessage] send failed. storeId={}, reservationId={}, autoMessageId={}, err={}",
                     storeId, reservation.getId(), template.getId(), e.getMessage());
             markFailed(log, e.getMessage());
         }
@@ -577,6 +629,150 @@ public class SuBusinessAutoMessageService {
         return out;
     }
 
+    private SuMessage createLocalSendingMessage(Long storeId, SuMessageThread thread, String content, String senderName) {
+        SuMessage message = new SuMessage();
+        message.setStoreId(storeId);
+        message.setThread(thread);
+        message.setSenderType(SuMessagingSenderType.STAFF);
+        message.setSenderName(senderName);
+        message.setContent(content);
+        message.setSentAt(LocalDateTime.now());
+        message.setIsRead(true);
+        message.setDeliveryStatus(DELIVERY_SENDING);
+        message.setRawJson(null);
+        message = messageRepository.saveAndFlush(message);
+
+        thread.setLastMessage(trimToMax(content, 500));
+        thread.setLastActivity(LocalDateTime.now());
+        threadRepository.save(thread);
+
+        realtimeGateway.broadcastMessageCreated(storeId, thread.getId(), toMessageDTO(message));
+        return message;
+    }
+
+    private void markLocalMessageSent(Long storeId, Long threadId, SuMessage message, Map<String, Object> payload) {
+        if (message == null) {
+            return;
+        }
+        message.setDeliveryStatus(DELIVERY_SENT);
+        message.setRawJson(payload != null ? writeJsonSafely(payload) : null);
+        SuMessage saved = messageRepository.save(message);
+        realtimeGateway.broadcastMessageUpdated(storeId, threadId, toMessageDTO(saved));
+    }
+
+    private void markLocalMessageFailed(Long storeId, Long threadId, SuMessage message, String err) {
+        markLocalMessageFailed(storeId, threadId, message, err, null);
+    }
+
+    private void markLocalMessageFailed(Long storeId, Long threadId, SuMessage message, String err, Map<String, Object> payload) {
+        if (message == null) {
+            return;
+        }
+        message.setDeliveryStatus(DELIVERY_FAILED);
+        String details = err == null ? "" : err.trim();
+        if (details.length() > 400) {
+            details = details.substring(0, 400);
+        }
+        message.setRawJson(payload != null ? writeJsonSafely(payload) : details);
+        SuMessage saved = messageRepository.save(message);
+        realtimeGateway.broadcastMessageUpdated(storeId, threadId, toMessageDTO(saved));
+    }
+
+    private static String formatMessageForChannel(Integer channelId, String message) {
+        if (message == null) {
+            return null;
+        }
+        String normalized = message.replace("\r\n", "\n").replace("\r", "\n");
+        if (channelId != null && channelId == SuMessagingService.CHANNEL_BOOKING) {
+            return normalized.replace("\n", "\\\n");
+        }
+        return normalized;
+    }
+
+    private Map<String, Object> buildReplyPayload(SuMessageThread thread, String message) {
+        String hotelId = thread.getSuHotelId();
+        if (hotelId == null || hotelId.isBlank()) {
+            throw new IllegalStateException("Missing hotelid, cannot send");
+        }
+
+        Integer channelId = thread.getChannelId();
+        if (channelId == null) {
+            throw new IllegalStateException("Missing channelId, cannot send");
+        }
+
+        String listingId = thread.getListingId();
+        if (listingId == null || listingId.isBlank()) {
+            throw new IllegalStateException("Missing listingid, cannot send");
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("hotelid", hotelId);
+        payload.put("channelid", String.valueOf(channelId));
+        payload.put("message", message);
+        payload.put("listingid", listingId);
+
+        if (channelId == SuMessagingService.CHANNEL_AIRBNB) {
+            String threadId = thread.getThreadId();
+            String guestId = thread.getGuestId();
+            if (threadId == null || threadId.isBlank() || guestId == null || guestId.isBlank()) {
+                throw new IllegalStateException("Airbnb reply requires threadid + guestid");
+            }
+            payload.put("threadid", threadId);
+            payload.put("guestid", guestId);
+            payload.put("bookingid", thread.getBookingId() != null ? thread.getBookingId() : threadId);
+            return payload;
+        }
+
+        if (channelId == SuMessagingService.CHANNEL_BOOKING) {
+            String bookingId = thread.getBookingId();
+            if (bookingId == null || bookingId.isBlank()) {
+                throw new IllegalStateException("Booking.com reply requires bookingid");
+            }
+            payload.put("bookingid", bookingId);
+            return payload;
+        }
+
+        throw new IllegalStateException("Unsupported channel: " + channelId);
+    }
+
+    private String writeJsonSafely(Object payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static SuMessagingMessageDTO toMessageDTO(SuMessage message) {
+        SuMessagingMessageDTO dto = new SuMessagingMessageDTO();
+        dto.setId(message.getId());
+        dto.setThreadId(message.getThread().getId());
+        dto.setSenderType(message.getSenderType());
+        dto.setSenderName(message.getSenderName());
+        dto.setContent(message.getContent());
+        dto.setDeliveryStatus(message.getDeliveryStatus());
+        dto.setTimestamp(message.getSentAt());
+        return dto;
+    }
+
+    private static String trimToMax(String text, int max) {
+        if (text == null) {
+            return null;
+        }
+        String trimmed = text.trim();
+        if (trimmed.length() <= max) {
+            return trimmed;
+        }
+        return trimmed.substring(0, max);
+    }
+
+    private static String resolveTemplateSenderName(String configuredSenderName) {
+        if (configuredSenderName == null || configuredSenderName.isBlank()) {
+            return DEFAULT_TEMPLATE_SENDER_NAME;
+        }
+        return configuredSenderName.trim();
+    }
+
     private void markWaiting(AutoMessageSendLog log, String code, String msg) {
         log.setSuccess(false);
         log.setErrorMessage(trimErr(code + ": " + msg));
@@ -600,3 +796,4 @@ public class SuBusinessAutoMessageService {
         return t.substring(0, MAX_LOG_MESSAGE_LEN);
     }
 }
+
