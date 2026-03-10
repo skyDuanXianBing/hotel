@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="messages-page">
     <div class="conversations-panel">
       <div class="panel-header">
@@ -28,10 +28,10 @@
               <span class="channel-name">{{
                 conversation.guestName || conversation.listingName || conversation.channelName
               }}</span>
-              <span class="message-time">{{ formatTime(conversation.lastActivity) }}</span>
+              <span class="message-time">{{ formatConversationTime(conversation.lastActivity) }}</span>
             </div>
             <div class="last-message">
-              {{ conversation.channelName }} | 订单号: {{ conversation.bookingId || conversation.threadId || '-' }}
+              {{ conversation.channelName }} | 订单号 {{ conversation.bookingId || conversation.threadId || '-' }}
             </div>
             <div class="conversation-status">
               <el-tag :type="getStatusType(conversation.closed)" size="small">
@@ -61,52 +61,64 @@
               }}</div>
               <div class="channel-status-text">
                 渠道: {{ activeConversation.channelName }} |
-                订单号: {{ activeConversation.bookingId || activeConversation.threadId || '-' }} |
+                订单号 {{ activeConversation.bookingId || activeConversation.threadId || '-' }} |
                 {{ getStatusText(activeConversation.closed) }}
               </div>
             </div>
           </div>
+          <div class="header-actions">
+            <el-button
+              size="small"
+              :loading="isResolvingReservation"
+              :disabled="!activeConversation"
+              @click="openOrderDetail"
+            >
+              订单明细
+            </el-button>
+          </div>
         </div>
 
         <div ref="messagesListRef" class="messages-list">
-          <div
-            v-for="message in messages"
-            :key="message.id"
-            class="message-item"
-            :class="{
-              'message-sent': message.senderType === SuMessagingSenderType.STAFF,
-              'message-received': message.senderType === SuMessagingSenderType.GUEST,
-            }"
-          >
-            <span
-              v-if="message.senderType === SuMessagingSenderType.STAFF && message.deliveryStatus === 'SENDING'"
-              class="message-delivery-indicator sending"
-              aria-label="发送中"
+          <template v-for="group in groupedMessages" :key="group.key">
+            <div class="message-date-divider">{{ group.label }}</div>
+            <div
+              v-for="message in group.items"
+              :key="message.id"
+              class="message-item"
+              :class="{
+                'message-sent': message.senderType === SuMessagingSenderType.STAFF,
+                'message-received': message.senderType === SuMessagingSenderType.GUEST,
+              }"
             >
-              <el-icon class="spin"><Loading /></el-icon>
-            </span>
-            <span
-              v-else-if="message.senderType === SuMessagingSenderType.STAFF && message.deliveryStatus === 'FAILED'"
-              class="message-delivery-indicator failed"
-              title="发送失败"
-            >
-              <el-icon><WarningFilled /></el-icon>
-            </span>
-
-            <div class="message-content">
-              <div class="message-text">
-                {{ message.content }}
-
-                <span
-                  v-if="message.senderName && message.senderType === SuMessagingSenderType.STAFF"
-                  class="sender-badge"
-                >
-                  - {{ message.senderName }}
-                </span>
+              <div class="message-content">
+                <div class="message-text">
+                  {{ message.content }}
+                  <span
+                    v-if="message.senderName && message.senderType === SuMessagingSenderType.STAFF"
+                    class="sender-badge"
+                  >
+                    - {{ message.senderName }}
+                  </span>
+                </div>
+                <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
               </div>
-              <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
+
+              <span
+                v-if="message.senderType === SuMessagingSenderType.STAFF && message.deliveryStatus === 'SENDING'"
+                class="message-delivery-indicator sending"
+                aria-label="发送中"
+              >
+                <el-icon class="spin"><Loading /></el-icon>
+              </span>
+              <span
+                v-else-if="message.senderType === SuMessagingSenderType.STAFF && message.deliveryStatus === 'FAILED'"
+                class="message-delivery-indicator failed"
+                title="发送失败"
+              >
+                <el-icon><WarningFilled /></el-icon>
+              </span>
             </div>
-          </div>
+          </template>
         </div>
 
         <div class="message-input-area">
@@ -144,11 +156,17 @@
         <p>选择一个会话开始聊天</p>
       </div>
     </div>
+
+    <ReservationDetailDrawer
+      v-model="showOrderDetailDrawer"
+      :reservation-id="selectedReservationId"
+      :active-order-tab="'all'"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ChatDotRound, Loading, Refresh, Search, User, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
@@ -162,7 +180,9 @@ import {
   type SuMessagingMessageDTO,
   type SuMessagingThreadDTO,
 } from '@/api/suMessaging'
+import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
 import { createSuMessagingSocket, type SuMessagingRealtimeEvent } from '@/utils/suMessagingSocket'
+import ReservationDetailDrawer from '@/components/reservation/ReservationDetailDrawer.vue'
 
 interface MessageItem {
   id: number
@@ -183,6 +203,18 @@ interface RealtimeMessageItem {
   deliveryStatus?: 'SENDING' | 'SENT' | 'FAILED'
 }
 
+interface GroupedMessages {
+  key: string
+  label: string
+  items: MessageItem[]
+}
+
+interface ApiResponse<T> {
+  success?: boolean
+  message?: string
+  data?: T
+}
+
 const searchQuery = ref('')
 const activeThreadId = ref<number | null>(null)
 const newMessage = ref('')
@@ -192,10 +224,17 @@ const messages = ref<MessageItem[]>([])
 const isSending = ref(false)
 const aiAutoReplyEnabled = ref(true)
 const isAiSettingSaving = ref(false)
+const showOrderDetailDrawer = ref(false)
+const selectedReservationId = ref<number | null>(null)
+const isResolvingReservation = ref(false)
 
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
 let isDestroyed = false
+let localMessageSeed = -1
+const reservationIdCache = new Map<string, number | null>()
+
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 const filteredConversations = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
@@ -220,6 +259,26 @@ const activeConversation = computed(() => {
   return conversations.value.find((conversation) => conversation.id === activeThreadId.value) || null
 })
 
+const groupedMessages = computed<GroupedMessages[]>(() => {
+  const groups = new Map<string, MessageItem[]>()
+
+  for (const message of sortMessagesByTime(messages.value)) {
+    const key = getLocalDateKey(message.timestamp)
+    const existing = groups.get(key)
+    if (existing) {
+      existing.push(message)
+    } else {
+      groups.set(key, [message])
+    }
+  }
+
+  return Array.from(groups.entries()).map(([key, items]) => ({
+    key,
+    label: formatDateDividerLabel(key),
+    items,
+  }))
+})
+
 const getStatusType = (closed: boolean) => (closed ? 'info' : 'success')
 const getStatusText = (closed: boolean) => (closed ? '已关闭' : '活跃')
 
@@ -231,15 +290,15 @@ const normalizeSenderName = (senderName?: string) => {
   if (!trimmed) {
     return trimmed
   }
-  if (trimmed.startsWith('AI') && /[\u00C0-\u00FF]/.test(trimmed)) {
+
+  if (/^AI/i.test(trimmed) && /[\uFFFD\u00C0-\u00FF]/.test(trimmed)) {
     return 'AI助手'
   }
-  if (trimmed.startsWith('AI') && /\uFFFD/.test(trimmed)) {
+
+  if (/^AI/i.test(trimmed) && /[åæ]/i.test(trimmed)) {
     return 'AI助手'
   }
-  if (trimmed.startsWith('AI') && /[?？]{2,}/.test(trimmed)) {
-    return 'AI助手'
-  }
+
   return trimmed
 }
 
@@ -271,12 +330,34 @@ const getCurrentStoreId = () => {
 
   try {
     const store = JSON.parse(raw)
-    return typeof store?.id === 'number' ? store.id : Number(store?.id)
+    const id = typeof store?.id === 'number' ? store.id : Number(store?.id)
+    return Number.isFinite(id) ? id : null
   } catch (error) {
     console.error('解析 currentStore 失败:', error)
     return null
   }
 }
+
+const getLocalDateKey = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const formatDateDividerLabel = (dateKey: string) => {
+  const parsed = new Date(`${dateKey}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) {
+    return dateKey
+  }
+
+  const now = new Date()
+  const yearPrefix = parsed.getFullYear() === now.getFullYear() ? '' : `${parsed.getFullYear()}年`
+  return `${yearPrefix}${parsed.getMonth() + 1}月${parsed.getDate()}日 ${WEEKDAYS[parsed.getDay()]}`
+}
+
+const sortMessagesByTime = (list: MessageItem[]) =>
+  [...list].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 
 const scrollToBottom = async () => {
   await nextTick()
@@ -304,11 +385,13 @@ const ensureActiveConversation = async () => {
 
 const refreshThreads = async () => {
   try {
-    const response = (await getSuThreads()) as any
-    if (response.success && response.data) {
-      conversations.value = response.data
-      await ensureActiveConversation()
+    const response = (await getSuThreads()) as ApiResponse<SuMessagingThreadDTO[]>
+    if (response.success === false) {
+      throw new Error(response.message || '刷新失败')
     }
+
+    conversations.value = response.data || []
+    await ensureActiveConversation()
   } catch (error) {
     console.error('刷新会话列表失败:', error)
     ElMessage.error('刷新失败')
@@ -317,11 +400,14 @@ const refreshThreads = async () => {
 
 const loadThreadMessages = async (threadId: number) => {
   try {
-    const response = (await getSuThreadMessages(threadId)) as any
-    if (response.success && response.data) {
-      messages.value = response.data.map(mapMessage)
-      await scrollToBottom()
+    const response = (await getSuThreadMessages(threadId)) as ApiResponse<SuMessagingMessageDTO[]>
+    if (response.success === false) {
+      throw new Error(response.message || '加载消息失败')
     }
+
+    const incoming = (response.data || []).map(mapMessage)
+    messages.value = sortMessagesByTime(incoming)
+    await scrollToBottom()
   } catch (error) {
     console.error('加载会话消息失败:', error)
     ElMessage.error('加载消息失败')
@@ -336,10 +422,12 @@ const selectConversation = async (threadId: number) => {
 
 const loadAiAutoReplySetting = async () => {
   try {
-    const response = (await getSuMessagingAiSetting()) as any
-    if (response.success && response.data) {
-      aiAutoReplyEnabled.value = Boolean(response.data.autoReplyEnabled)
+    const response = (await getSuMessagingAiSetting()) as ApiResponse<SuMessagingAiSetting>
+    if (response.success === false) {
+      throw new Error(response.message || '获取 AI 自动回复设置失败')
     }
+
+    aiAutoReplyEnabled.value = Boolean(response.data?.autoReplyEnabled)
   } catch (error) {
     console.error('获取 AI 自动回复设置失败:', error)
     ElMessage.error('获取 AI 自动回复设置失败')
@@ -354,13 +442,13 @@ const onAiAutoReplyChange = async (enabled: boolean) => {
     const request: SuMessagingAiSetting = {
       autoReplyEnabled: enabled,
     }
-    const response = (await updateSuMessagingAiSetting(request)) as any
-    if (response.success && response.data) {
-      aiAutoReplyEnabled.value = Boolean(response.data.autoReplyEnabled)
-      ElMessage.success(enabled ? 'AI 自动回复已开启' : 'AI 自动回复已关闭')
-      return
+    const response = (await updateSuMessagingAiSetting(request)) as ApiResponse<SuMessagingAiSetting>
+    if (response.success === false) {
+      throw new Error(response.message || '更新失败')
     }
-    throw new Error(response?.message || '更新失败')
+
+    aiAutoReplyEnabled.value = Boolean(response.data?.autoReplyEnabled)
+    ElMessage.success(enabled ? 'AI 自动回复已开启' : 'AI 自动回复已关闭')
   } catch (error) {
     aiAutoReplyEnabled.value = previousValue
     console.error('更新 AI 自动回复设置失败:', error)
@@ -368,6 +456,25 @@ const onAiAutoReplyChange = async (enabled: boolean) => {
   } finally {
     isAiSettingSaving.value = false
   }
+}
+
+const createOptimisticMessage = (content: string): MessageItem => ({
+  id: localMessageSeed--,
+  senderType: SuMessagingSenderType.STAFF,
+  senderName: '客服',
+  content,
+  timestamp: new Date(),
+  deliveryStatus: 'SENDING',
+})
+
+const replaceMessageById = (id: number, incoming: MessageItem) => {
+  const index = messages.value.findIndex((message) => message.id === id)
+  if (index < 0) {
+    messages.value.push(incoming)
+  } else {
+    messages.value[index] = incoming
+  }
+  messages.value = sortMessagesByTime(messages.value)
 }
 
 const sendMessage = async () => {
@@ -378,28 +485,33 @@ const sendMessage = async () => {
   const content = newMessage.value.trim()
   isSending.value = true
 
+  const optimistic = createOptimisticMessage(content)
+  messages.value.push(optimistic)
+  messages.value = sortMessagesByTime(messages.value)
+  newMessage.value = ''
+  await scrollToBottom()
+
   try {
     const response = (await sendSuThreadMessage(activeThreadId.value, {
       content,
       senderName: '客服',
-    })) as any
+    })) as ApiResponse<SuMessagingMessageDTO>
 
-    if (response.success && response.data) {
-      const newMessageItem = mapMessage(response.data)
-      const index = messages.value.findIndex((message) => message.id === newMessageItem.id)
-      if (index >= 0) {
-        messages.value[index] = { ...messages.value[index], ...newMessageItem }
-      } else {
-        messages.value.push(newMessageItem)
-      }
-      newMessage.value = ''
-      await scrollToBottom()
-      await refreshThreads()
-      return
+    if (response.success === false || !response.data) {
+      throw new Error(response.message || '消息发送失败')
     }
 
-    ElMessage.error('消息发送失败')
+    replaceMessageById(optimistic.id, mapMessage(response.data))
+    await scrollToBottom()
+    await refreshThreads()
   } catch (error) {
+    const index = messages.value.findIndex((message) => message.id === optimistic.id)
+    if (index >= 0) {
+      messages.value[index] = {
+        ...messages.value[index],
+        deliveryStatus: 'FAILED',
+      }
+    }
     console.error('发送消息失败:', error)
     ElMessage.error('消息发送失败')
   } finally {
@@ -411,10 +523,10 @@ const upsertMessage = (incoming: MessageItem) => {
   const index = messages.value.findIndex((item) => item.id === incoming.id)
   if (index >= 0) {
     messages.value[index] = { ...messages.value[index], ...incoming }
-    return false
+  } else {
+    messages.value.push(incoming)
   }
-  messages.value.push(incoming)
-  return true
+  messages.value = sortMessagesByTime(messages.value)
 }
 
 const handleRealtimeEvent = async (event: SuMessagingRealtimeEvent) => {
@@ -428,14 +540,8 @@ const handleRealtimeEvent = async (event: SuMessagingRealtimeEvent) => {
   }
 
   if (threadId === activeThreadId.value) {
-    const appended = upsertMessage(mapRealtimeMessage(message))
-    if (appended) {
-      await scrollToBottom()
-    }
-
-    if (message.senderType === SuMessagingSenderType.GUEST && event.eventType === 'MESSAGE_CREATED') {
-      await loadThreadMessages(threadId)
-    }
+    upsertMessage(mapRealtimeMessage(message))
+    await scrollToBottom()
   }
 
   await refreshThreads()
@@ -493,7 +599,7 @@ const connectRealtimeSocket = () => {
   }
 }
 
-const formatTime = (dateString: string) => {
+const formatConversationTime = (dateString: string) => {
   const date = new Date(dateString)
   const now = new Date()
   const diff = now.getTime() - date.getTime()
@@ -514,10 +620,106 @@ const formatMessageTime = (date: Date) => {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+const toComparableText = (value?: string | null) => (value || '').trim().toLowerCase()
+
+const resolveConversationLookupKey = (conversation: SuMessagingThreadDTO) => {
+  const key = (conversation.bookingId || conversation.threadId || '').trim()
+  return key ? `${conversation.channelId}:${key}` : ''
+}
+
+const findReservationIdForConversation = async (conversation: SuMessagingThreadDTO) => {
+  const lookupKey = resolveConversationLookupKey(conversation)
+  if (!lookupKey) {
+    return null
+  }
+
+  if (reservationIdCache.has(lookupKey)) {
+    return reservationIdCache.get(lookupKey) ?? null
+  }
+
+  const keyword = (conversation.bookingId || conversation.threadId || '').trim()
+  if (!keyword) {
+    reservationIdCache.set(lookupKey, null)
+    return null
+  }
+
+  try {
+    const response = await getReservationsWithFilters({ page: 0, size: 100, searchKeyword: keyword })
+    if (!response.success) {
+      reservationIdCache.set(lookupKey, null)
+      return null
+    }
+
+    const reservations = response.data?.content || []
+    const normalizedKeyword = toComparableText(keyword)
+
+    const exactMatch = reservations.find((item: ReservationDTO) => {
+      return (
+        toComparableText(item.channelOrderNumber) === normalizedKeyword ||
+        toComparableText(item.orderNumber) === normalizedKeyword
+      )
+    })
+
+    const fuzzyMatch = reservations.find((item: ReservationDTO) => {
+      return (
+        toComparableText(item.channelOrderNumber).includes(normalizedKeyword) ||
+        toComparableText(item.orderNumber).includes(normalizedKeyword)
+      )
+    })
+
+    const resolved = exactMatch?.id || fuzzyMatch?.id || null
+    reservationIdCache.set(lookupKey, resolved)
+    return resolved
+  } catch (error) {
+    console.error('匹配订单失败:', error)
+    reservationIdCache.set(lookupKey, null)
+    return null
+  }
+}
+
+const preloadActiveReservationId = async () => {
+  const conversation = activeConversation.value
+  if (!conversation) {
+    selectedReservationId.value = null
+    return
+  }
+
+  isResolvingReservation.value = true
+  try {
+    selectedReservationId.value = await findReservationIdForConversation(conversation)
+  } finally {
+    isResolvingReservation.value = false
+  }
+}
+
+const openOrderDetail = async () => {
+  if (!activeConversation.value) {
+    return
+  }
+
+  if (!selectedReservationId.value) {
+    await preloadActiveReservationId()
+  }
+
+  if (!selectedReservationId.value) {
+    ElMessage.warning('当前会话未匹配到订单，无法打开订单明细')
+    return
+  }
+
+  showOrderDetailDrawer.value = true
+}
+
 const initialize = async () => {
   await Promise.all([refreshThreads(), loadAiAutoReplySetting()])
   connectRealtimeSocket()
 }
+
+watch(
+  () => activeThreadId.value,
+  () => {
+    void preloadActiveReservationId()
+  },
+)
 
 onMounted(() => {
   void initialize()
@@ -648,6 +850,14 @@ onUnmounted(() => {
   padding: 20px 24px;
   background: #fff;
   border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-actions {
+  flex-shrink: 0;
 }
 
 .messages-list {
@@ -656,10 +866,18 @@ onUnmounted(() => {
   padding: 24px;
 }
 
+.message-date-divider {
+  margin: 12px 0 20px;
+  font-size: 12px;
+  color: #909399;
+  text-align: center;
+}
+
 .message-item {
   display: flex;
   align-items: flex-end;
   margin-bottom: 16px;
+  gap: 8px;
 }
 
 .message-sent {
@@ -693,7 +911,6 @@ onUnmounted(() => {
   justify-content: center;
   width: 16px;
   height: 16px;
-  margin-right: 8px;
   margin-bottom: 24px;
   font-size: 16px;
   flex-shrink: 0;

@@ -161,7 +161,7 @@ public class SuBusinessAutoMessageService {
         Store store = storeRepository.findById(storeId).orElse(null);
 
         try {
-            SuMessageThread thread = resolveThreadForReservation(storeId, reservation);
+            SuMessageThread thread = resolveThreadForReservation(storeId, reservation, store);
             if (thread == null) {
                 markWaiting(log, "WAITING_THREAD", "未找到会话(thread)，暂不发送；等待 Su messaging webhook 入库后自动重试");
                 autoMessageLogger.info("[AutoMessage] waiting thread. storeId={}, reservationId={}, autoMessageId={}, channelId={}",
@@ -238,7 +238,7 @@ public class SuBusinessAutoMessageService {
         };
     }
 
-    private SuMessageThread resolveThreadForReservation(Long storeId, Reservation reservation) {
+    private SuMessageThread resolveThreadForReservation(Long storeId, Reservation reservation, Store store) {
         Channel channel = reservation.getChannel();
         if (channel == null) {
             return null;
@@ -257,8 +257,99 @@ public class SuBusinessAutoMessageService {
             return null;
         }
 
-        return threadRepository.findFirstByStoreIdAndChannelIdAndBookingIdOrderByLastActivityDesc(storeId, suChannelId, bookingId.trim())
-                .orElse(null);
+        String normalizedBookingId = bookingId.trim();
+        Optional<SuMessageThread> existing = threadRepository
+                .findFirstByStoreIdAndChannelIdAndBookingIdOrderByLastActivityDesc(storeId, suChannelId, normalizedBookingId);
+        if (existing.isPresent()) {
+            SuMessageThread thread = existing.get();
+            boolean changed = false;
+            String resolvedSuHotelId = resolveSuHotelId(reservation, store);
+            if ((thread.getSuHotelId() == null || thread.getSuHotelId().isBlank())
+                    && resolvedSuHotelId != null && !resolvedSuHotelId.isBlank()) {
+                thread.setSuHotelId(resolvedSuHotelId);
+                changed = true;
+            }
+            if (thread.getBookingId() == null || thread.getBookingId().isBlank()) {
+                thread.setBookingId(normalizedBookingId);
+                changed = true;
+            }
+            if (thread.getThreadKey() == null || thread.getThreadKey().isBlank()) {
+                thread.setThreadKey(normalizedBookingId);
+                changed = true;
+            }
+            String listingId = reservation.getOtaRoomId();
+            if ((thread.getListingId() == null || thread.getListingId().isBlank())
+                    && listingId != null && !listingId.isBlank()) {
+                thread.setListingId(listingId);
+                changed = true;
+            }
+            if ((thread.getGuestName() == null || thread.getGuestName().isBlank())
+                    && reservation.getGuestName() != null && !reservation.getGuestName().isBlank()) {
+                thread.setGuestName(reservation.getGuestName());
+                changed = true;
+            }
+            if (changed) {
+                thread.setLastActivity(LocalDateTime.now());
+                try {
+                    thread = threadRepository.save(thread);
+                } catch (DataIntegrityViolationException ignore) {
+                    // keep best-effort behavior
+                }
+            }
+            return thread;
+        }
+
+        // For Booking channel, create a best-effort thread fallback so event-driven auto messages
+        // can be sent even before inbound messaging webhook creates the thread.
+        if (suChannelId != SuMessagingService.CHANNEL_BOOKING) {
+            return null;
+        }
+
+        String threadKey = normalizedBookingId;
+        String suHotelId = resolveSuHotelId(reservation, store);
+        if (suHotelId == null || suHotelId.isBlank()) {
+            return null;
+        }
+
+        String listingId = reservation.getOtaRoomId();
+        String listingName = reservation.getRoom() != null && reservation.getRoom().getRoomType() != null
+                ? reservation.getRoom().getRoomType().getName()
+                : null;
+
+        try {
+            SuMessageThread thread = threadRepository.findByStoreIdAndChannelIdAndThreadKey(storeId, suChannelId, threadKey)
+                    .orElseGet(SuMessageThread::new);
+            thread.setStoreId(storeId);
+            thread.setSuHotelId(suHotelId);
+            thread.setChannelId(suChannelId);
+            thread.setThreadKey(threadKey);
+            thread.setBookingId(normalizedBookingId);
+            thread.setThreadId(normalizedBookingId);
+            thread.setGuestName(reservation.getGuestName());
+            if (listingName != null && !listingName.isBlank()) {
+                thread.setListingName(listingName);
+            }
+            if (listingId != null && !listingId.isBlank()) {
+                thread.setListingId(listingId);
+            }
+            thread.setLastActivity(LocalDateTime.now());
+            return threadRepository.save(thread);
+        } catch (DataIntegrityViolationException e) {
+            return threadRepository.findByStoreIdAndChannelIdAndThreadKey(storeId, suChannelId, threadKey)
+                    .orElse(null);
+        }
+    }
+
+    private static String resolveSuHotelId(Reservation reservation, Store store) {
+        String reservationSuHotelId = reservation != null ? reservation.getSuHotelId() : null;
+        if (reservationSuHotelId != null && !reservationSuHotelId.isBlank()) {
+            return reservationSuHotelId.trim();
+        }
+        String storeSuHotelId = store != null ? store.getSuHotelId() : null;
+        if (storeSuHotelId != null && !storeSuHotelId.isBlank()) {
+            return storeSuHotelId.trim();
+        }
+        return null;
     }
 
     private static Integer toSuChannelId(String channelCode) {
@@ -369,7 +460,9 @@ public class SuBusinessAutoMessageService {
         vars.put("confirmation_code", reservation != null ? nullToEmpty(reservation.getChannelOrderNumber()) : "");
 
         vars.put("order_number", reservation != null ? nullToEmpty(reservation.getOrderNumber()) : "");
-        vars.put("registration_link", buildRegistrationLink(reservation));
+        String registrationLink = buildRegistrationLink(reservation);
+        vars.put("registration_link", registrationLink);
+        vars.put("checkin_form_link", registrationLink);
 
         vars.put("number_of_nights", resolveNights(reservation));
         vars.put("checkin_code", "");

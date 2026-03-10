@@ -20,13 +20,16 @@ public class ChatServiceImpl implements ChatService {
     private ChatLanguageModel chatLanguageModel;
 
     private static final String SYSTEM_PROMPT = """
-        你是 THE HOST HUB 的酒店智能客服助手。
-        请遵循以下规则：
-        1. 语气专业、礼貌、简洁，优先中文回复。
-        2. 回答聚焦住宿服务、入住安排、设施说明、订单与账单相关问题。
-        3. 无法确认的信息不要编造，明确说明并建议联系人工客服。
-        4. 涉及紧急安全/医疗问题时，优先建议立即联系前台或当地紧急服务。
-        """;
+            You are THE HOST HUB hotel assistant.
+            Follow these rules strictly:
+            1) Reply in the same language as the user's latest message. Do not default to Chinese.
+            2) If the user mixes multiple languages, follow the dominant language of the latest message.
+               If still unclear, follow the language used in the final sentence.
+            3) Keep replies professional, polite, and concise.
+            4) Focus on hotel topics: stay services, check-in/check-out, facilities, booking, billing.
+            5) Do not invent facts. If uncertain, say so and suggest contacting human staff/front desk.
+            6) For emergency/safety/medical topics, advise contacting front desk or local emergency services immediately.
+            """;
 
     @Override
     public ChatMessageResponse processMessage(ChatMessageRequest request) {
@@ -34,7 +37,7 @@ public class ChatServiceImpl implements ChatService {
         String sessionId = request.getSessionId() != null ? request.getSessionId() : generateSessionId();
 
         try {
-            logger.info("处理聊天消息: sessionId={}", sessionId);
+            logger.info("Processing chat message: sessionId={}", sessionId);
 
             String fullPrompt = buildFullPrompt(request.getMessage());
             String aiReply = chatLanguageModel.generate(fullPrompt);
@@ -44,10 +47,11 @@ public class ChatServiceImpl implements ChatService {
             response.setProcessingTime(processingTime);
             return response;
         } catch (Exception e) {
-            logger.error("处理聊天消息失败: sessionId={}, error={}", sessionId, e.getMessage(), e);
+            logger.error("Failed to process chat message: sessionId={}, error={}", sessionId, e.getMessage(), e);
             long processingTime = System.currentTimeMillis() - startTime;
+            String fallbackMessage = buildLocalizedFallbackMessage(request.getMessage());
             ChatMessageResponse errorResponse = ChatMessageResponse.error(
-                    "抱歉，我暂时无法处理该请求，请稍后重试或联系人工客服。",
+                    fallbackMessage,
                     sessionId
             );
             errorResponse.setProcessingTime(processingTime);
@@ -61,8 +65,8 @@ public class ChatServiceImpl implements ChatService {
             sessionId = generateSessionId();
         }
 
-        String welcomeMessage = "您好，欢迎使用 THE HOST HUB 智能客服。" +
-                "您可以咨询入住、设施、账单和订单相关问题，我会尽快为您处理。";
+        String welcomeMessage = "Hello! I am THE HOST HUB assistant. " +
+                "I can help with check-in/check-out, facilities, booking, and billing questions.";
 
         return ChatMessageResponse.success(welcomeMessage, sessionId);
     }
@@ -70,21 +74,62 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public boolean isServiceAvailable() {
         try {
-            String testResponse = chatLanguageModel.generate("你好");
+            String testResponse = chatLanguageModel.generate("ping");
             return testResponse != null && !testResponse.trim().isEmpty();
         } catch (Exception e) {
-            logger.warn("AI 聊天服务不可用: {}", e.getMessage());
+            logger.warn("AI chat service unavailable: {}", e.getMessage());
             return false;
         }
     }
 
     @Override
     public String getServiceInfo() {
-        return "LangChain4j AI聊天服务（默认 OpenAI GPT，兼容 DashScope 回退） - 乐迪酒店智能客服";
+        return "LangChain4j AI chat service (OpenAI primary, DashScope fallback)";
+    }
+
+    private static String buildLocalizedFallbackMessage(String userMessage) {
+        String language = detectLanguageCode(userMessage);
+        return switch (language) {
+            case "zh" -> "抱歉，我暂时无法处理这个请求。请稍后再试，或联系人工客服。";
+            case "ja" -> "申し訳ありません。現在このリクエストを処理できません。しばらくしてから再試行するか、スタッフにお問い合わせください。";
+            case "ko" -> "죄송합니다. 지금은 요청을 처리할 수 없습니다. 잠시 후 다시 시도하시거나 직원에게 문의해 주세요.";
+            case "ar" -> "عذرًا، لا يمكنني معالجة هذا الطلب الآن. يُرجى المحاولة لاحقًا أو التواصل مع موظفي الفندق.";
+            case "ru" -> "Извините, сейчас я не могу обработать этот запрос. Попробуйте позже или свяжитесь с персоналом.";
+            case "th" -> "ขออภัย ขณะนี้ไม่สามารถประมวลผลคำขอนี้ได้ กรุณาลองใหม่ภายหลังหรือติดต่อพนักงาน";
+            default -> "Sorry, I cannot process this request right now. Please try again later or contact staff.";
+        };
+    }
+
+    private static String detectLanguageCode(String text) {
+        if (text == null || text.isBlank()) {
+            return "en";
+        }
+
+        if (text.matches(".*[\\u3040-\\u30FF].*")) {
+            return "ja";
+        }
+        if (text.matches(".*[\\uAC00-\\uD7AF].*")) {
+            return "ko";
+        }
+        if (text.matches(".*[\\u0600-\\u06FF].*")) {
+            return "ar";
+        }
+        if (text.matches(".*[\\u0400-\\u04FF].*")) {
+            return "ru";
+        }
+        if (text.matches(".*[\\u0E00-\\u0E7F].*")) {
+            return "th";
+        }
+        if (text.matches(".*[\\u4E00-\\u9FFF].*")) {
+            return "zh";
+        }
+        return "en";
     }
 
     private String buildFullPrompt(String userMessage) {
-        return SYSTEM_PROMPT + "\n\n用户问题: " + userMessage + "\n\n请基于规则给出回复。";
+        return SYSTEM_PROMPT + "\n\n" +
+                "User message:\n" + userMessage + "\n\n" +
+                "Output constraint: keep the same language and script as the user message unless the user asks for translation.";
     }
 
     private String generateSessionId() {
