@@ -31,9 +31,19 @@ public class SuApiConfig {
     private String clientId;
 
     /**
-     * Client Secret（从 Su Extranet 获取）。
+     * 单密钥模式：若非空则优先使用此密钥。
      */
     private String clientSecret;
+
+    /**
+     * 双密钥模式：沙盒密钥。
+     */
+    private String clientSecretSandbox;
+
+    /**
+     * 双密钥模式：生产密钥。
+     */
+    private String clientSecretProduction;
 
     /**
      * PMS 名称。
@@ -41,19 +51,14 @@ public class SuApiConfig {
     private String pmsName;
 
     public String getBaseUrl() {
-        if (baseUrl != null && !baseUrl.trim().isBlank()) {
+        if (isNotBlank(baseUrl)) {
             return baseUrl.trim();
         }
-        String normalizedEnv = env == null ? SU_ENV_SANDBOX : env.trim().toLowerCase();
-        if (normalizedEnv.isBlank() || SU_ENV_SANDBOX.equals(normalizedEnv)) {
+        String normalizedEnv = resolveEnv();
+        if (SU_ENV_SANDBOX.equals(normalizedEnv)) {
             return SU_SANDBOX_BASE_URL;
         }
-        if (SU_ENV_PRODUCTION.equals(normalizedEnv)) {
-            return SU_PRODUCTION_BASE_URL;
-        }
-        throw new IllegalStateException(
-                "Invalid su.api.env / SU_ENV: " + env + ". Expected: sandbox or production."
-        );
+        return SU_PRODUCTION_BASE_URL;
     }
 
     public void setBaseUrl(String baseUrl) {
@@ -77,11 +82,46 @@ public class SuApiConfig {
     }
 
     public String getClientSecret() {
-        return clientSecret;
+        if (isNotBlank(clientSecret)) {
+            return clientSecret.trim();
+        }
+
+        String normalizedEnv = resolveEnv();
+        if (SU_ENV_SANDBOX.equals(normalizedEnv)) {
+            if (!isNotBlank(clientSecretSandbox)) {
+                throw new IllegalStateException(
+                        "Missing su.api.client-secret-sandbox / SU_CLIENT_SECRET_SANDBOX for sandbox environment."
+                );
+            }
+            return clientSecretSandbox.trim();
+        }
+
+        if (!isNotBlank(clientSecretProduction)) {
+            throw new IllegalStateException(
+                    "Missing su.api.client-secret-production / SU_CLIENT_SECRET_PRODUCTION for production environment."
+            );
+        }
+        return clientSecretProduction.trim();
     }
 
     public void setClientSecret(String clientSecret) {
         this.clientSecret = clientSecret;
+    }
+
+    public String getClientSecretSandbox() {
+        return clientSecretSandbox;
+    }
+
+    public void setClientSecretSandbox(String clientSecretSandbox) {
+        this.clientSecretSandbox = clientSecretSandbox;
+    }
+
+    public String getClientSecretProduction() {
+        return clientSecretProduction;
+    }
+
+    public void setClientSecretProduction(String clientSecretProduction) {
+        this.clientSecretProduction = clientSecretProduction;
     }
 
     public String getPmsName() {
@@ -90,5 +130,22 @@ public class SuApiConfig {
 
     public void setPmsName(String pmsName) {
         this.pmsName = pmsName;
+    }
+
+    private String resolveEnv() {
+        String normalizedEnv = env == null ? SU_ENV_SANDBOX : env.trim().toLowerCase();
+        if (normalizedEnv.isBlank() || SU_ENV_SANDBOX.equals(normalizedEnv)) {
+            return SU_ENV_SANDBOX;
+        }
+        if (SU_ENV_PRODUCTION.equals(normalizedEnv)) {
+            return SU_ENV_PRODUCTION;
+        }
+        throw new IllegalStateException(
+                "Invalid su.api.env / SU_ENV: " + env + ". Expected: sandbox or production."
+        );
+    }
+
+    private boolean isNotBlank(String value) {
+        return value != null && !value.trim().isBlank();
     }
 }

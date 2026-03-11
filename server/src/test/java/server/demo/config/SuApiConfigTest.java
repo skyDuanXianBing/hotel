@@ -48,4 +48,55 @@ class SuApiConfigTest {
 
         assertThrows(IllegalStateException.class, config::getBaseUrl);
     }
+
+    @Test
+    void shouldUseExplicitClientSecretWhenConfigured() {
+        SuApiConfig config = new SuApiConfig();
+        config.setEnv("sandbox");
+        config.setClientSecret("  direct_secret  ");
+        config.setClientSecretSandbox("sandbox_secret");
+        config.setClientSecretProduction("prod_secret");
+
+        assertEquals("direct_secret", config.getClientSecret());
+    }
+
+    @Test
+    void shouldUseSandboxSecretByEnv() {
+        SuApiConfig config = new SuApiConfig();
+        config.setEnv("sandbox");
+        config.setClientSecret("");
+        config.setClientSecretSandbox("sandbox_secret");
+
+        assertEquals("sandbox_secret", config.getClientSecret());
+    }
+
+    @Test
+    void shouldUseProductionSecretByEnv() {
+        SuApiConfig config = new SuApiConfig();
+        config.setEnv("production");
+        config.setClientSecret(" ");
+        config.setClientSecretProduction("prod_secret");
+
+        assertEquals("prod_secret", config.getClientSecret());
+    }
+
+    @Test
+    void shouldThrowWhenSandboxSecretMissing() {
+        SuApiConfig config = new SuApiConfig();
+        config.setEnv("sandbox");
+        config.setClientSecret("");
+        config.setClientSecretSandbox("");
+
+        assertThrows(IllegalStateException.class, config::getClientSecret);
+    }
+
+    @Test
+    void shouldThrowWhenProductionSecretMissing() {
+        SuApiConfig config = new SuApiConfig();
+        config.setEnv("production");
+        config.setClientSecret("");
+        config.setClientSecretProduction(" ");
+
+        assertThrows(IllegalStateException.class, config::getClientSecret);
+    }
 }
