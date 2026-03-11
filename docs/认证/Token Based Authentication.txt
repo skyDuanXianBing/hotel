@@ -1,0 +1,187 @@
+# Token Based Authentication
+
+To meet PCI DSS authentication and access control standards, Su has implemented **Token-Based Authentication** for all API access. This mechanism replaces static credential usage with short-lived access tokens, reducing credential exposure and improving overall security posture.
+
+{% hint style="success" %} <mark style="color:green;">**UPDATE NOTICE**</mark>
+
+We have launched a **new Token-based Authentication mechanism**, which is **active on Production.**
+{% endhint %}
+
+## <mark style="color:yellow;">Generate Access Token</mark>
+
+This endpoint is used to generate an **access token** required for authenticating.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:blue;background-color:green;">**`GET`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FpsybX0n39kUB8Z8WOk4X%2FSandbox%20image.png?alt=media&#x26;token=4ae73d0f-0d1a-4d73-a4e2-673dbc081d6a" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/auth/generate-access-token
+```
+
+{% endcode %}
+
+#### <mark style="color:yellow;">Header</mark>
+
+```xml
+client-id: base64_encode(domain)
+client-secret: (you can generate from extranet) 
+```
+
+<table><thead><tr><th width="185">Header</th><th width="85">Type</th><th width="178.5">Required</th><th>Description</th></tr></thead><tbody><tr><td><code>client-id</code></td><td>string</td><td>Yes</td><td>Base64-encoded domain name</td></tr><tr><td><code>client-secret</code></td><td>string</td><td>Yes</td><td>Client secret key</td></tr></tbody></table>
+
+{% hint style="info" %}
+**Note on Generating Access Token:**
+
+1. The `client-id` remains the same for both Sandbox and Production environments.
+2. The `client-secret` differs between the Sandbox and Production accounts.
+3. Access tokens generated for the Sandbox environment are prefixed with `"sandbox_"`.
+4. Access tokens generated for the Production environment are prefixed with `"live_"`.
+5. Tokens for Sandbox and Production are distinct and cannot be used interchangeably.
+   {% endhint %}
+
+***
+
+### <mark style="color:yellow;">Success Response - For Production</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "Status": "Success",
+    "Data": {
+        "token_type": "Bearer",
+        "token": "live_eyJpdiI6IlI1NGR6dndiRTNpci9lcGRZSm8wMXc9PSIsInZhbHVlIjoidEI1NW1SVVNQclFqa0VLRE43aUVXT21YL24yTzViSHRMTHJTYnQ3S2xhYzJ6TFZlMFI0R21oNHZEcHk4M0JuYytvQ3I3NnowL1FsaTNvNkxmbno0UFRSaTVEcjRmMmNNSysvZ29aNzQvNi82QjV4TVhWRTdsbHRybGtWeEJ5MXZYSkJVbjJIL2xHVkRrOGdKcjZnN1lRPT0iLCJtYWMiOiJjNjE5NjI5NTZjNjAwYmQ0NTM1MjBiMjhkNTcxOWFmNzUzMjQzMDBkMDU1ZTE1OGVmY2YyMmM5NmRiNzFkM2YxIiwidGFnIjoiIn0=",
+        "expire_in": "3600"
+    },
+    "Message": "Access Token generated successfully"
+}
+```
+
+{% endcode %}
+
+### <mark style="color:yellow;">Success Response - For Sandbox</mark>
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2Fefbfo5tjyGbf7TV3sCEw%2Fimage.png?alt=media&#x26;token=d35d5ee4-4e12-4413-b926-2aa54f901499" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```json
+{
+    "Status": "Success",
+    "Data": {
+        "token_type": "Bearer",
+        "token": "sandbox_eyJpdiI6InVTL013bmlpc3VMZVVISmxqNldMMVE9PSIsInZhbHVlIjoiS05nVTVWQ1oxNVVQdk1hWHViZjlUbVRIc0owbjJWdnV1UW1tNlFRN0xjRTlVL0ZRQ093Rjd0SmtZay9kUTJ0dlRlOWl2K2VpZ2Q4MUVuUDhBb3hNQW1XeE81YzA4MXpmZmNDVHk4N0hSV0NCNGRrbXkrLytrS3A1cUtTSHdWWmYyYTY5SXVDNnFoTVdYSVIvalNneTdnPT0iLCJtYWMiOiJhOGUyOWUyNjMwYzE5MjI5MGMwNTI0OTk2Y2Q4ZmQzM2M1NjJmMDAzMjI3NzJjMjYyNmY1ZDQxOTJmNDU2ZWE2IiwidGFnIjoiIn0=",
+        "expire_in": "3600"
+    },
+    "Message": "Access Token generated successfully"
+}
+```
+
+{% endcode %}
+
+***
+
+### <mark style="color:yellow;">Response Body Parameters</mark>
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates `Success` whether the token generation was successful.
+
+***
+
+`Data` <mark style="color:orange;">**object**</mark>
+
+Contains the access token details.
+
+***
+
+`token_type` <mark style="color:orange;">**string**</mark>
+
+Type of token. Always `Bearer`.
+
+***
+
+`token` <mark style="color:orange;">**string**</mark>
+
+The actual access token to be used in the `Authorization` header.
+
+***
+
+`expire_in` <mark style="color:orange;">**string**</mark>
+
+Token expiry duration in seconds.
+
+***
+
+`Message` <mark style="color:orange;">**string**</mark>
+
+Message indicating the result of the token generation request.
+
+***
+
+## <mark style="color:yellow;">Use the Generated Access Token for each API Request</mark>
+
+All API requests must include the **generated access token** in the **Authorization header**.
+
+#### <mark style="color:yellow;">Header</mark>
+
+When making authenticated API calls, generated **Access Token** must be provided using the `Authorization` header in the format below:
+
+```xml
+Authorization: Bearer <access_token>
+```
+
+The `<access_token>` varies depending on whether you're working with the **Production** or **Sandbox** environment.
+
+{% hint style="info" %}
+**Notes:**
+
+1. The `Authorization` header must use the **`Bearer`** prefix (For example, `Bearer <token>`), **not** `Basic`.
+2. **Access tokens are different for each environment** (sandbox and production).
+3. If the token is **invalid or expired**, the API will respond with an **“Authorization Required”** error.
+4. Access Tokens are valid for **60 minutes** and must be regenerated after expiration
+5. A maximum of **30 tokens** can be generated simultaneously within a 60-minute window
+   {% endhint %}
+
+***
+
+#### <mark style="color:yellow;">**1. Production Environment Token**</mark>
+
+```http
+Authorization: Bearer live_<token_string> // required
+```
+
+* Access Tokens prefixed with `live_` are **specific to the production environment**.
+* These tokens are valid only for production API endpoints.
+* Example:
+
+{% code overflow="wrap" %}
+
+```http
+Authorization: Bearer live_eyJpdiI6IlI1NGR6dndiRTNpci9lcGRZSm8wMXc9PSIsInZhbHVlIjoidEI1NW1SVVNQclFqa0VLRE43aUVXT21YL24yTzViSHRMTHJTYnQ3S2xhYzJ6TFZlMFI0R21oNHZEcHk4M0JuYytvQ3I3NnowL1FsaTNvNkxmbno0UFRSaTVEcjRmMmNNSysvZ29aNzQvNi82QjV4TVhWRTdsbHRybGtWeEJ5MXZYSkJVbjJIL2xHVkRrOGdKcjZnN1lRPT0iLCJtYWMiOiJjNjE5NjI5NTZjNjAwYmQ0NTM1MjBiMjhkNTcxOWFmNzUzMjQzMDBkMDU1ZTE1OGVmY2YyMmM5NmRiNzFkM2YxIiwidGFnIjoiIn0=
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">**2. Sandbox Environment Token**</mark>
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FrDgRCtQIi5FGhJaEN8u6%2Fimage.png?alt=media&#x26;token=1bc287d4-ca30-473c-9733-db3e17b53d06" alt="" width="56"><figcaption></figcaption></figure></div>
+
+```http
+Authorization: Bearer sandbox_<token_string>
+```
+
+* Access Tokens prefixed with `sandbox_` are **specific to the sandbox/test environment**.
+* These cannot be used with production endpoints.
+* Example:
+
+  <pre class="language-http" data-overflow="wrap"><code class="lang-http">Authorization: Bearer sandbox_eyJpdiI6InVTL013bmlpc3VMZVVISmxqNldMMVE9PSIsInZhbHVlIjoiS05nVTVWQ1oxNVVQdk1hWHViZjlUbVRIc0owbjJWdnV1UW1tNlFRN0xjRTlVL0ZRQ093Rjd0SmtZay9kUTJ0dlRlOWl2K2VpZ2Q4MUVuUDhBb3hNQW1XeE81YzA4MXpmZmNDVHk4N0hSV0NCNGRrbXkrLytrS3A1cUtTSHdWWmYyYTY5SXVDNnFoTVdYSVIvalNneTdnPT0iLCJtYWMiOiJhOGUyOWUyNjMwYzE5MjI5MGMwNTI0OTk2Y2Q4ZmQzM2M1NjJmMDAzMjI3NzJjMjYyNmY1ZDQxOTJmNDU2ZWE2IiwidGFnIjoiIn0=
+
+  </code></pre>

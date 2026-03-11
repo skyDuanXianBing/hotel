@@ -1,0 +1,86 @@
+# Basic Authentication (Soon to be Deprecated)
+
+All Su API requests need to be authenticated through the authorization header.
+
+{% hint style="danger" %} <mark style="color:red;">**IMPORTANT NOTICE**</mark>
+
+\
+The current authentication method will be **deprecated soon.**
+
+* If you are already using it, please plan your migration.
+* If you are implementing authentication **from scratch**, we strongly recommend adopting the **new Token-based Authentication mechanism**.
+  {% endhint %}
+
+***
+
+## <mark style="color:yellow;">Authorization</mark>  <a href="#authentication-basic" id="authentication-basic"></a>
+
+Authorization involves sending credentials (`username` and `password`) and `app-id`  with every API request. Here's how it works:
+
+1. **Encoding Credentials**
+   * Your username and password are encoded in Base64 format and separated by a colon (`:`).
+   * For example, `username:password` becomes `dXNlcm5hbWU6cGFzc3dvcmQ=` in Base64.
+2. **Adding to Header**
+
+   The encoded credentials are added to the request header after the word "Basic". **Example:** `Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=`
+3. **Usage Example**
+
+   When making an API request to generate API keys, you include the `Authorization` header and your unique app ID provided by Su.
+
+#### **Example header**
+
+```http
+Authorization: Basic ZTZjTk80S1U6VjBEN1NxSGo
+app-id: dWF0c3Uuc3RhYWgubmV0
+```
+
+{% hint style="info" %} <mark style="color:blue;">**Key facts:**</mark>
+
+* Basic authentication is built into the HTTP protocol.
+* The credentials should be encoded in Base64 and placed in the header with the format `Basic <encoded credentials>`.
+* The `app-id` is a unique identifier provided to PMS partners by Su.
+  {% endhint %}
+
+***
+
+## <mark style="color:yellow;">Su Partner Supply API Authentication</mark> <a href="#authentication-supartnersupplyapiauthentication" id="authentication-supartnersupplyapiauthentication"></a>
+
+The Su Partner Supply API authentication process validates the identity of the client attempting to make a connection by using an authentication protocol. The system needs to make sure each end user is properly validated.
+
+Your API keys carry many privileges, so be sure to keep them secure. Do not share your secret API keys in publicly accessible areas such as GitHub, client-side code, and so forth.
+
+All requests to the Su REST API need to be authenticated. The Su API supports the [HTTP basic authentication](https://en.wikipedia.org/wiki/Basic_access_authentication) scheme for the Partner Supply APIs. For each request, you must include an authorization header.
+
+Partners can opt for their own domain for live production. STAAH requires an SSL certificate for the domain that is valid for the next 2 years at least.
+
+```http
+Authorization: Basic {Authorization String}
+```
+
+{% hint style="info" %}
+Replace {Authorization String} with the API key provided by STAAH.
+{% endhint %}
+
+***
+
+## <mark style="color:yellow;">Encoding</mark> <a href="#authentication-encoding" id="authentication-encoding"></a>
+
+Encoding provides a specific mechanism for handling text in various available character encodings. The Partner Supply API uses UTF-8 encoding for the JSON body for all API requests and responses.
+
+***
+
+## <mark style="color:red;">Authentication Failure</mark> <a href="#authentication-authenticationfailure" id="authentication-authenticationfailure"></a>
+
+An **API failure** is any response that does not confirm to the system’s expected behavior when invoked by the client. If a call fails authentication, the API returns HTTP status code 401. See below:
+
+### <mark style="color:red;">**Authentication Failure Error**</mark>
+
+```json
+{
+  "Status": "Fail",
+  "Errors": {
+    "Code": "497",
+    "ShortText": "Authorization Required"
+  }
+}
+```
