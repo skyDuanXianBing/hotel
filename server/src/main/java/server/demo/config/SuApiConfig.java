@@ -4,41 +4,68 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Su Channel Manager API 配置
+ * Su Channel Manager API 配置。
  */
 @Configuration
 @ConfigurationProperties(prefix = "su.api")
 public class SuApiConfig {
 
+    private static final String SU_PRODUCTION_BASE_URL = "https://connect.su-api.com";
+    private static final String SU_SANDBOX_BASE_URL = "https://connect-sandbox.su-api.com";
+    private static final String SU_ENV_PRODUCTION = "production";
+    private static final String SU_ENV_SANDBOX = "sandbox";
+
     /**
-     * Su API基础URL
-     * 沙箱: https://connect-sandbox.su-api.com
-     * 生产: https://connect.su-api.com
+     * Su API 基础 URL。若为空则由 env 自动推导。
      */
     private String baseUrl;
 
     /**
-     * Client ID (Base64编码的域名)
+     * Su 环境：sandbox / production。
+     */
+    private String env;
+
+    /**
+     * Client ID（Base64 编码的域名）。
      */
     private String clientId;
 
     /**
-     * Client Secret (从Su Extranet获取)
+     * Client Secret（从 Su Extranet 获取）。
      */
     private String clientSecret;
 
     /**
-     * PMS名称
+     * PMS 名称。
      */
     private String pmsName;
 
-    // Getters and Setters
     public String getBaseUrl() {
-        return baseUrl;
+        if (baseUrl != null && !baseUrl.trim().isBlank()) {
+            return baseUrl.trim();
+        }
+        String normalizedEnv = env == null ? SU_ENV_SANDBOX : env.trim().toLowerCase();
+        if (normalizedEnv.isBlank() || SU_ENV_SANDBOX.equals(normalizedEnv)) {
+            return SU_SANDBOX_BASE_URL;
+        }
+        if (SU_ENV_PRODUCTION.equals(normalizedEnv)) {
+            return SU_PRODUCTION_BASE_URL;
+        }
+        throw new IllegalStateException(
+                "Invalid su.api.env / SU_ENV: " + env + ". Expected: sandbox or production."
+        );
     }
 
     public void setBaseUrl(String baseUrl) {
         this.baseUrl = baseUrl;
+    }
+
+    public String getEnv() {
+        return env;
+    }
+
+    public void setEnv(String env) {
+        this.env = env;
     }
 
     public String getClientId() {
