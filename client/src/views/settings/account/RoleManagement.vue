@@ -167,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   Search,
   CirclePlus,
@@ -191,6 +191,7 @@ import {
   PermissionAction,
 } from '@/api/role'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
+import { useStoreStore } from '@/stores/store'
 
 interface Role {
   id: number
@@ -232,6 +233,8 @@ const activeTab = ref('accommodation')
 const loading = ref(false)
 const isEditing = ref(false)
 const saving = ref(false)
+const storeStore = useStoreStore()
+const currentStoreId = computed(() => storeStore.currentStore?.id ?? null)
 
 const roles = ref<Role[]>([])
 
@@ -258,6 +261,10 @@ const loadRoles = async () => {
 
 // 加载房型列表
 const loadRoomTypes = async () => {
+  if (!currentStoreId.value) {
+    roomTypes.value = []
+    return
+  }
   try {
     const response = await getAllRoomTypes()
     if (response.success && response.data) {
@@ -277,10 +284,20 @@ const loadRoomTypes = async () => {
 // 初始化
 onMounted(() => {
   loadRoles()
-  loadRoomTypes()
 })
 
 const roomTypes = ref<RoomType[]>([])
+
+watch(currentStoreId, async (storeId) => {
+  if (!storeId) {
+    roomTypes.value = []
+    return
+  }
+  await loadRoomTypes()
+  if (selectedRole.value) {
+    await loadRolePermissions(selectedRole.value.id)
+  }
+}, { immediate: true })
 
 const permissions = ref<Permissions>({
   roomTypeAll: false,
@@ -508,8 +525,11 @@ const handleEditRole = async (role: Role) => {
 
 const handleDeleteRole = async (role: Role) => {
   try {
-    await ElMessageBox.confirm(`确定要删除角色 "${role.name}" 吗?`, '删除确认', {
-      confirmButtonText: '确定',
+    await ElMessageBox.confirm(
+      '删除后，正在使用该角色的员工将同步删除该角色，员工权限将更新。',
+      '确定要删除该角色吗？',
+      {
+      confirmButtonText: '删除',
       cancelButtonText: '取消',
       type: 'warning',
     })

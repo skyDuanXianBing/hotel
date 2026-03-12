@@ -1,0 +1,182 @@
+# Property Deactivation and Activation API
+
+⚠️ This operation affects the live status of the property and its channel connectivity. Use with caution.
+
+This endpoint activates or deactivates a property based on the provided hotel ID, with an option to force deactivation when dependencies exist.
+
+### <mark style="color:yellow;">Endpoint</mark> <a href="#propertylisting-endpoint.3" id="propertylisting-endpoint.3"></a>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/TogglePropertyStatus
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark> <a href="#propertylisting-attributes.3" id="propertylisting-attributes.3"></a>
+
+`hotelid` <mark style="color:orange;">**string (Required)**</mark>
+
+The unique property ID as assigned by the provider upon creation of the property.
+
+{% hint style="info" %}
+Maximum 20 characters allowed.
+{% endhint %}
+
+***
+
+`is_activate` <mark style="color:orange;">**integer (Required)**</mark>
+
+Indicates whether the property should be activated or deactivated.
+
+{% hint style="info" %}
+**Allowed Values:**
+
+* `1` → Activate
+* `0` → Deactivate
+  {% endhint %}
+
+***
+
+`force_deactivation` <mark style="color:orange;">**boolean (Optional)**</mark>
+
+This flag applies only when deactivating a property. It has no effect during property activation.
+
+When set to true, all channel passwords associated with the property will be forcefully deactivated and the property itself will be deactivated.
+
+When omitted or set to false, the deactivation request will fail with an error if any channel password associated with the property is still active.
+
+{% hint style="info" %}
+**Default:** `false`
+
+**Allowed Values:**
+
+* If `true`, the system will deactivate the property regardless of constraints.
+* If `false`, deactivation may fail if blocking conditions exist.
+  {% endhint %}
+
+***
+
+### <mark style="color:yellow;">Sample Request</mark>
+
+```json
+{
+  "hotelid": "KC",
+  "is_active": 0,
+  "force_deactivation": false
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark> <a href="#propertylisting-response.3" id="propertylisting-response.3"></a>
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+    "Status": "Success",
+    "Message": "Property Status Deactivated Successfully"
+}
+```
+
+***
+
+#### <mark style="color:green;">Success Response - Body Elements</mark>&#x20;
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates the result of the API call.&#x20;
+
+{% hint style="info" %}
+Will be `"Success"` for successful operations.
+{% endhint %}
+
+***
+
+`Message` <mark style="color:orange;">**string**</mark>
+
+The message in the response.
+
+{% hint style="info" %}
+**Message:** Property Status Deactivated Successfully
+{% endhint %}
+
+***
+
+#### <mark style="color:red;">Error</mark> <a href="#propertylisting-error.3" id="propertylisting-error.3"></a>
+
+#### <mark style="color:red;">**Sample Error Response**</mark>
+
+{% tabs %}
+{% tab title="Error 1" %}
+
+```json
+{
+    "Errors": {
+        "Code": "400",
+        "ShortText": "hotelid/hotel_id/ClientID: Invalid HotelCode (KC)"
+    },
+    "Status": "Fail"
+}
+```
+
+{% endtab %}
+
+{% tab title="Error 2" %}
+
+```json
+{
+    "Errors": {
+        "Code": "1225",
+        "ShortText": "Property cannot be deactivated as it has active channel mappings"
+    },
+    "Status": "Fail"
+}
+```
+
+{% endtab %}
+{% endtabs %}
+
+***
+
+#### <mark style="color:red;">Error Response Body Elements</mark>
+
+#### <mark style="color:yellow;">Response Body Elements</mark>
+
+`Error` <mark style="color:orange;">**object**</mark>
+
+The error response data, the root element.
+
+***
+
+`Code` <mark style="color:orange;">**string**</mark>
+
+Specific error code that helps identify the type of error.
+
+{% hint style="info" %}
+For example: `"400"` indicates a bad request.
+{% endhint %}
+
+***
+
+`ShortText` <mark style="color:orange;">**string**</mark>
+
+A short description of the error.
+
+***
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates the result of the API call.&#x20;
+
+{% hint style="info" %}
+Will be `"Fail"` for failed operations.
+{% endhint %}

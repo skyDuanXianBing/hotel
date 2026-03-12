@@ -69,6 +69,10 @@ public class RoomTypeController extends BaseStoreController {
             roomType.setFridayPrice(request.getFridayPrice());
             roomType.setSaturdayPrice(request.getSaturdayPrice());
             roomType.setSundayPrice(request.getSundayPrice());
+            roomType.setFacilities(request.getFacilities());
+            roomType.setDesktopPhotoUrls(request.getDesktopPhotoUrls());
+            roomType.setMobilePhotoUrls(request.getMobilePhotoUrls());
+            roomType.setLocalizedContent(request.getLocalizedContent());
 
             RoomType createdRoomType = roomTypeService.createRoomTypeWithRooms(roomType, request.getRoomNumbers());
             return ApiResponse.success("房型创建成功", createdRoomType);
@@ -106,6 +110,10 @@ public class RoomTypeController extends BaseStoreController {
             roomType.setFridayPrice(request.getFridayPrice());
             roomType.setSaturdayPrice(request.getSaturdayPrice());
             roomType.setSundayPrice(request.getSundayPrice());
+            roomType.setFacilities(request.getFacilities());
+            roomType.setDesktopPhotoUrls(request.getDesktopPhotoUrls());
+            roomType.setMobilePhotoUrls(request.getMobilePhotoUrls());
+            roomType.setLocalizedContent(request.getLocalizedContent());
 
             RoomType updatedRoomType = roomTypeService.updateRoomTypeWithRooms(id, roomType, request.getRoomNumbers());
             return ApiResponse.success("房型更新成功", updatedRoomType);
@@ -115,10 +123,12 @@ public class RoomTypeController extends BaseStoreController {
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<String> deleteRoomType(@PathVariable Long id) {
+    public ApiResponse<?> deleteRoomType(@PathVariable Long id) {
         try {
             roomTypeService.deleteRoomType(id);
             return ApiResponse.success("房型删除成功");
+        } catch (server.demo.exception.RoomTypeDeleteBlockedException e) {
+            return ApiResponse.error(e.getMessage(), e.getBlockInfo());
         } catch (DataIntegrityViolationException e) {
             return ApiResponse.error("该房型下的房间还有预订记录，无法删除。请先处理或取消相关订单后再删除。");
         } catch (RuntimeException e) {

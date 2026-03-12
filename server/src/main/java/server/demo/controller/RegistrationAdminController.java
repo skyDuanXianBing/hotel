@@ -25,6 +25,7 @@ import server.demo.service.RegistrationMessageService;
 import server.demo.service.RegistrationPdfService;
 import server.demo.util.StoreContextUtils;
 
+import java.time.LocalDate;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -64,8 +65,13 @@ public class RegistrationAdminController {
     private String serverBaseUrl;
 
     @GetMapping
-    public ApiResponse<List<AdminRegistrationListItemDTO>> list(@RequestParam(name = "status", required = false) RegistrationFormStatus status) {
-        return ApiResponse.success("ok", registrationAdminService.list(status));
+    public ApiResponse<List<AdminRegistrationListItemDTO>> list(
+            @RequestParam(name = "status", required = false) RegistrationFormStatus status,
+            @RequestParam(name = "channelId", required = false) Long channelId,
+            @RequestParam(name = "checkInDate", required = false) LocalDate checkInDate,
+            @RequestParam(name = "checkOutDate", required = false) LocalDate checkOutDate
+    ) {
+        return ApiResponse.success("ok", registrationAdminService.list(status, channelId, checkInDate, checkOutDate));
     }
 
     @GetMapping("/link-inbox")

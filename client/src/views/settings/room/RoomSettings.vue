@@ -230,11 +230,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { InfoFilled, Plus, Delete } from '@element-plus/icons-vue'
-import { getAllRoomTypesWithRooms, createRoomType, updateRoomType, deleteRoomType } from '@/api/roomType'
+import {
+  getAllRoomTypesWithRooms,
+  createRoomType,
+  updateRoomType,
+  deleteRoomType,
+  type RoomTypeDeleteBlockInfo,
+} from '@/api/roomType'
 
 const router = useRouter()
 
@@ -548,6 +554,26 @@ const handleDelete = (row: RoomTypeData) => {
             ElMessage.success('删除成功')
             await loadRoomTypes()
           } else {
+            const blockInfo = response.data as RoomTypeDeleteBlockInfo | null
+            if (blockInfo?.sample?.length) {
+              const header = `阻塞订单数：${blockInfo.totalBlockingReservations}（最多展示 ${blockInfo.sample.length} 条）\n`
+              const body = blockInfo.sample
+                .map((r, idx) => {
+                  const orderNumber = r.orderNumber || '-'
+                  const status = r.status || '-'
+                  const roomNumber = r.roomNumber || '-'
+                  const dateRange = `${r.checkInDate || '-'} ~ ${r.checkOutDate || '-'}`
+                  return `${idx + 1}. 订单号：${orderNumber}  状态：${status}  房间：${roomNumber}  日期：${dateRange}`
+                })
+                .join('\n')
+
+              await ElMessageBox.alert(
+                h('div', { style: 'white-space: pre-wrap; line-height: 1.6;' }, header + body),
+                '无法删除房型',
+                { type: 'warning', confirmButtonText: '知道了' }
+              )
+              return
+            }
             ElMessage.error(response.message || '删除失败')
           }
         }

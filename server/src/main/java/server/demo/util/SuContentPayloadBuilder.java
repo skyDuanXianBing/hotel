@@ -1,5 +1,6 @@
 package server.demo.util;
 
+import server.demo.dto.FacilityDTO;
 import server.demo.entity.PricePlan;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
@@ -52,6 +53,10 @@ public final class SuContentPayloadBuilder {
             guestRoom.put("Occupancy", occupancy);
             guestRoom.put("Room", room);
             guestRoom.put("Description", description);
+            Map<String, Object> facilities = buildFacilitiesNode(roomType != null ? roomType.getFacilities() : null);
+            if (!facilities.isEmpty()) {
+                guestRoom.put("Facilities", facilities);
+            }
 
             Map<String, Object> sellableProduct = new HashMap<>();
             sellableProduct.put("InvStatusType", "Initial");
@@ -92,6 +97,10 @@ public final class SuContentPayloadBuilder {
             guestRoom.put("Occupancy", occupancy);
             guestRoom.put("Room", room);
             guestRoom.put("Description", description);
+            Map<String, Object> facilities = buildFacilitiesNode(roomType.getFacilities());
+            if (!facilities.isEmpty()) {
+                guestRoom.put("Facilities", facilities);
+            }
 
             Map<String, Object> sellableProduct = new HashMap<>();
             sellableProduct.put("InvStatusType", "Initial");
@@ -131,6 +140,10 @@ public final class SuContentPayloadBuilder {
             guestRoom.put("Occupancy", occupancy);
             guestRoom.put("Room", room);
             guestRoom.put("Description", description);
+            Map<String, Object> facilities = buildFacilitiesNode(roomType != null ? roomType.getFacilities() : null);
+            if (!facilities.isEmpty()) {
+                guestRoom.put("Facilities", facilities);
+            }
 
             Map<String, Object> sellableProduct = new HashMap<>();
             sellableProduct.put("InvNotifType", "Overlay");
@@ -171,6 +184,10 @@ public final class SuContentPayloadBuilder {
             guestRoom.put("Occupancy", occupancy);
             guestRoom.put("Room", room);
             guestRoom.put("Description", description);
+            Map<String, Object> facilities = buildFacilitiesNode(roomType.getFacilities());
+            if (!facilities.isEmpty()) {
+                guestRoom.put("Facilities", facilities);
+            }
 
             Map<String, Object> sellableProduct = new HashMap<>();
             sellableProduct.put("InvNotifType", "Overlay");
@@ -182,6 +199,26 @@ public final class SuContentPayloadBuilder {
         }
 
         sellableProducts.put("SellableProduct", sellableProductList);
+
+        Map<String, Object> root = new HashMap<>();
+        root.put("SellableProducts", sellableProducts);
+        return root;
+    }
+
+    /**
+     * 删除单个房型（Room Type）
+     * InvStatusType=Delete + InvNotifType=Overlay + roomid
+     */
+    public static Map<String, Object> buildRoomDeletePayload(String hotelId, String roomId) {
+        Map<String, Object> sellableProducts = new HashMap<>();
+        sellableProducts.put("hotelid", hotelId);
+
+        Map<String, Object> sellableProduct = new HashMap<>();
+        sellableProduct.put("InvNotifType", "Overlay");
+        sellableProduct.put("InvStatusType", "Delete");
+        sellableProduct.put("roomid", roomId);
+
+        sellableProducts.put("SellableProduct", List.of(sellableProduct));
 
         Map<String, Object> root = new HashMap<>();
         root.put("SellableProducts", sellableProducts);
@@ -308,5 +345,24 @@ public final class SuContentPayloadBuilder {
             return "Studio";
         }
         return "Apartment";
+    }
+
+    private static Map<String, Object> buildFacilitiesNode(List<FacilityDTO> facilities) {
+        if (facilities == null || facilities.isEmpty()) {
+            return Map.of();
+        }
+        List<Map<String, Object>> facilityItems = facilities.stream()
+                .filter(item -> item != null && item.getName() != null && !item.getName().isBlank())
+                .map(item -> {
+                    Map<String, Object> facility = new HashMap<>();
+                    facility.put("Group", item.getGroup() != null && !item.getGroup().isBlank() ? item.getGroup().trim() : "Common");
+                    facility.put("name", item.getName().trim());
+                    return facility;
+                })
+                .toList();
+        if (facilityItems.isEmpty()) {
+            return Map.of();
+        }
+        return Map.of("Facility", facilityItems);
     }
 }

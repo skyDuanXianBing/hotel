@@ -1,0 +1,502 @@
+# Room Type
+
+Room type describes the specific rooms in the hotel based on their room names, classifications, occupancy, sizes, and facilities, amenities or view provided to the guests.
+
+For example, you might offer a Deluxe Room with double occupancy with pool view or beach access.
+
+***
+
+## <mark style="color:yellow;">Create or Update Room Type</mark> <a href="#roomtype-createorupdateroomtype" id="roomtype-createorupdateroomtype"></a>
+
+You can create a new Room Type or update an existing Room Type in your property. There are a few steps to perform when you create or update any property.
+
+Process to create your room type:
+
+1. For creating or updating a room type, send request with STAAH Room-Level build data.
+2. If your request is valid, you get a success response that means you have successfully created your room type.&#x20;
+
+***
+
+## <mark style="color:yellow;">Request (RQ) Sent with STAAH Room-Level Build Data</mark> <a href="#roomtype-request-rq-sentwithstaahroom-levelbuilddata" id="roomtype-request-rq-sentwithstaahroom-levelbuilddata"></a>
+
+OTA\_HotelRoom POST method provides an object `SellableProducts` in the request which is sent to the server and the success response creates or modify the Room Type.
+
+### <mark style="color:yellow;">Endpoint</mark> <a href="#roomtype-method" id="roomtype-method"></a>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/OTA_HotelRoom
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:purple;">The SellableProducts object</mark> <a href="#roomtype-thesellableproductsobject" id="roomtype-thesellableproductsobject"></a>
+
+You can create different sellable products under one room id or specific room. In other words, you can sell one room with multiple parameters by creating different room types with different amenities.
+
+This is an object representing your sellable product which is a room type. With this object you can POST this object to create a specific room type with all the desired details.
+
+You can also provide the hotel address, positioning, occupancy, and address. Further, room type is broken down based on the occupancy and the facilities.
+
+#### <mark style="color:yellow;">**Attributes**</mark>
+
+***
+
+`hotelid` / `HotelCode` / `ClientID` <mark style="color:orange;">**string (Required)**</mark>
+
+The existing Property/Client ID.&#x20;
+
+> Required existing id to create or update room types.
+
+***
+
+`SellableProduct` `[InvStatusType]` <mark style="color:orange;">**string (Required)**</mark>
+
+Indicates whether the call is meant to create new room type or update an existing one for property.
+
+> Accepts values: Initial, Modify, Active, Deactivated, and Delete.
+>
+> To create a new `SellableProduct` use Initial.
+>
+> To Modify, Activate / Deactivate room type, see [Modify](#roomtype-updateormodifyroomtype), [Active](#roomtype-activateroomtype), [Deactivate](#roomtype-deactivateroomtype) and [Delete](#roomtype-deleteroomtype).
+
+***
+
+`SellableProduct` `[InvNotifType]` <mark style="color:orange;">**string (Required)**</mark>
+
+Indicates the call is meant to modify room type for property.
+
+> Accepts values: Overlay
+
+***
+
+`Occupancy` `[MaxOccupancy]` <mark style="color:orange;">**integer (Required)**</mark>
+
+Maximum number of guests allowed to stay in a room type.
+
+> Maximum occupancy of 999 guests per room type supported.
+
+***
+
+`Occupancy` `[MaxChildOccupancy]` <mark style="color:orange;">**integer (Required)**</mark>
+
+Maximum number of children allowed to stay in a room type.
+
+> Value must be less than Maximum Occupancy of the room type.
+
+#### <mark style="color:purple;">The Room object</mark> <a href="#roomtype-theroomobject" id="roomtype-theroomobject"></a>
+
+This is an object representing your particular room with all details. You can specify different room rates, occupancy, quantity, and size.
+
+<mark style="color:yellow;">**Attributes**</mark>
+
+***
+
+`Room.[roomid` / `RoomID` / `InvCode`/ `ListingID]` <mark style="color:orange;">**string (Required)**</mark>
+
+The room ID / Listing ID as assigned by the provider.
+
+> roomid, RoomID, ListingID & InvCode defines the same field.&#x20;
+>
+> Accepts alphanumeric values and hyphen ( - ).&#x20;
+>
+> Space and other special characters are not allowed.&#x20;
+>
+> Maximum 20 characters allowed.
+
+***
+
+`Room.RoomRate` <mark style="color:orange;">**double (Required)**</mark>
+
+The default saleable rates of room.
+
+> Rate should be greater than 0.
+
+***
+
+`Room.Quantity` <mark style="color:orange;">**integer (Optional or auto update)**</mark>
+
+Number of rooms available in the property.
+
+> Room type quantity is not a static value. If not passed when creating, default value will be passed as 0 and system automatically compares inventory values received with this value. It will override and replace it with the higher inventory value (if received).
+
+***
+
+`Room.RoomType` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of the room type. See [Room Type Code](https://suissu.gitbook.io/su-api-documentation/codes/room-type-codes)
+
+> Accepts both code and name listed under [RTC](https://suissu.gitbook.io/su-api-documentation/codes/room-type-codes).
+
+***
+
+`Room.SizeMeasurement` <mark style="color:orange;">**double (Optional)**</mark>
+
+Size of guest room in square meters (by default).
+
+> Use SizeMeasurementUnit to indicate square feet unit.
+
+***
+
+`Room.SizeMeasurementUnit` <mark style="color:orange;">**enum (Optional)**</mark>
+
+The measurement unit ("sqm" or "sqft") for the value specified in SizeMeasurement.
+
+> This cannot be defined if the SizeMeasurement attribute is missing.\
+> Default: sqm
+
+***
+
+#### <mark style="color:purple;">The Facilities object</mark> <a href="#roomtype-thefacilitiesobject" id="roomtype-thefacilitiesobject"></a>
+
+This is an object representing your facility with its group and the particular name of the facility.
+
+> Facilities included in the room type can be assigned using this node. Both Group and Facility are free text - can create group and assign facilities on fly. No special characters allowed.
+
+#### <mark style="color:yellow;">**Attributes**</mark>
+
+***
+
+`Facility.Group` <mark style="color:orange;">**string (Optional)**</mark>
+
+Group name of the facility.
+
+***
+
+`Facility.name` <mark style="color:orange;">**string (Optional)**</mark>
+
+Name of the facility under a group, multiple facility name can come under one group.
+
+***
+
+#### <mark style="color:purple;">The Position object</mark> <a href="#roomtype-thepositionobject" id="roomtype-thepositionobject"></a>
+
+This is an object representing Latitude and Longitude.
+
+`Position.Latitude` <mark style="color:orange;">**latitude-value (Optional)**</mark>
+
+Latitude of the property's location.
+
+> A valid Latitude value (-90) to 90.
+
+***
+
+`Position.Longitude` <mark style="color:orange;">**longitude-value (Optional)**</mark>
+
+Longitude of the property's location.
+
+> A valid Longitude value (-180) to 180.
+
+***
+
+#### <mark style="color:purple;">The Address object</mark> <a href="#roomtype-theaddressobject" id="roomtype-theaddressobject"></a>
+
+This is an object representing a structured address of the property. Address object consists of all the address details such as street name, street number, city name, postal or zip code of the city, and country name.
+
+`Address.AddressLine` <mark style="color:orange;">**string (Optional)**</mark>
+
+The full street name and number.
+
+***
+
+`Address.CityName` <mark style="color:orange;">**string (Optional)**</mark>
+
+The name of the city, town, or village.
+
+> Only editable through Extranet.
+
+***
+
+`Address.PostalCode` <mark style="color:orange;">**string (Optional)**</mark>
+
+The postal or zip code.
+
+> Maximum length is 10 characters.
+
+***
+
+`Address.CountryName` <mark style="color:orange;">**string (Optional)**</mark>
+
+The two-letters code for the country.
+
+> Only editable through Extranet listed under [Country Codes](https://suissu.gitbook.io/su-api-documentation/codes/country-codes).
+
+#### <mark style="color:purple;">The Description object</mark> <a href="#roomtype-thedescriptionobject" id="roomtype-thedescriptionobject"></a>
+
+`Description.Text` <mark style="color:orange;">**string (Required)**</mark>
+
+The room type name.
+
+***
+
+`Description.RoomDescription` <mark style="color:orange;">**Free Text (Optional)**</mark>
+
+Description of room type.
+
+> Maximum 2000 characters.&#x20;
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+	"SellableProducts": {
+		"hotelid": "KC",
+		"SellableProduct": [{
+				"InvStatusType": "Initial",
+				"GuestRoom": {
+					"Occupancy": {
+						"MaxOccupancy": "2",
+						"MaxChildOccupancy": "1"
+
+					},
+					"Room": {
+						"roomid": "123444",
+						"RoomRate": "2000",
+						"Quantity": "2",
+						"RoomType": "Apartment",
+						"SizeMeasurement": "16",
+						"SizeMeasurementUnit": "sqm"
+					},
+					"Facilities": {
+						"Facility": [{
+								"Group": "Amenities",
+								"name": "Hairdyer"
+							},
+							{
+								"Group": "Amenities",
+								"name": "Free Wifi"
+							},
+							{
+								"Group": "Amenities",
+								"name": "Iron Facilities"
+							},
+							{
+								"Group": "Kitchen",
+								"name": "Microwave"
+							},
+							{
+								"Group": "Kitchen",
+								"name": "Coffee Maker"
+							}
+						]
+					},
+					"Position": {
+						"Latitude": "49.4092",
+						"Longitude": "1.0900"
+					},
+					"Address": {
+						"AddressLine": "15 Station Street",
+						"CityName": "London",
+						"CountryName": "GB",
+						"PostalCode": "M16JD"
+					},
+					"Description": {
+						"Text": "Deluxe Double Room with Sea View",
+						"RoomDescription": "hello"
+					}
+				}
+			},
+			{
+				"InvStatusType": "Initial",
+				"GuestRoom": {
+					"Occupancy": {
+						"MaxOccupancy": "2",
+						"MaxChildOccupancy": "1"
+					},
+					"Room": {
+						"roomid": "1234441",
+						"RoomRate": "2000",
+						"RoomType": "Double",
+						"SizeMeasurement": "16"
+					},
+					"Description": {
+						"Text": "Deluxe Double Room"
+					}
+				}
+			}
+		]
+	}
+}
+```
+
+{% endcode %}
+
+***
+
+### <mark style="color:yellow;">Response</mark> <a href="#roomtype-returns-success" id="roomtype-returns-success"></a>
+
+If the API call returns the success as the status, this indicates the request was successful. You have created or modified your Room Type successfully.
+
+Upon creating a Room Type / Listing successfully, the status will be as "Incomplete" as there is no inventory available for it. Once inventory have been updated for the room type / listing, the status will be changed to "Active" automatically and it will appear as an option to map in channel mapping page.
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+  "Status": "Success"
+}
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:red;">Error</mark> <a href="#roomtype-returns-error" id="roomtype-returns-error"></a>
+
+As with every standard STAAH response, an "ID" is necessary for any JSON troubleshooting of requests to STAAH.
+
+{% hint style="warning" %}
+you cannot create a room with the same id as a previous room. This will return an error.
+{% endhint %}
+
+#### <mark style="color:red;">**Sample Error Response (906)**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+  "Status": "Fail",
+  "Errors": [
+    {
+      "Code": "906",
+      "ShortText": "Requested room does not qualify. Room with id '123444198' already exists"
+    }
+  ]
+}
+```
+
+{% endcode %}
+
+***
+
+## <mark style="color:yellow;">Update or Modify Room Type</mark> <a href="#roomtype-updateormodifyroomtype" id="roomtype-updateormodifyroomtype"></a>
+
+If you want to update the room type, set the `InvStatusType` attribute to “Modify“ in the header request and call the Update/Modify Room Type API. Updating or modifying a room type involves several key steps and considerations. This procedure is essential for maintaining accurate room inventory, optimizing pricing strategies, and ensuring a positive guest experience.
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+{% code overflow="wrap" %}
+
+```json
+{
+	"SellableProducts": {
+		"hotelid": "KC",
+		"SellableProduct": [{
+			"InvNotifType": "Overlay",
+			"InvStatusType": "Modify",
+			"roomid": "STD",
+			"GuestRoom": {
+				"Room": {
+					"RoomRate": "200",
+					"RoomType": "Double",
+					"SizeMeasurement": "20",
+					"SizeMeasurementUnit": "sqm"
+				},
+				"Facilities": {
+					"Facility": [{
+							"Group": "Amenities",
+							"name": "Jacuzzi Tub"
+						},
+						{
+							"Group": "Amenities",
+							"name": "Radio"
+						},
+						{
+							"Group": "Amenities",
+							"name": "Hairdryer"
+						},
+						{
+							"Group": "Kitchen",
+							"name": "Refrigerator"
+						},
+						{
+							"Group": "Kitchen",
+							"name": "Garden view"
+						}
+					]
+				},
+				"Description": {
+					"RoomDescription": "Each room comes with a flat-screen TV with cable channels.",
+					"Text": "Superior Room with Balcony"
+				}
+			}
+		}]
+	}
+}
+```
+
+{% endcode %}
+
+***
+
+## <mark style="color:yellow;">Deactivate Room Type</mark> <a href="#roomtype-deactivateroomtype" id="roomtype-deactivateroomtype"></a>
+
+If you want to deactivate the room type, set the `InvStatusType` attribute to “Deactivated“ in the header request and call the Update/Modify Room Type API.&#x20;
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+    "SellableProducts": {
+        "hotelid": "KC",
+        "SellableProduct": [{
+            "InvNotifType": "Overlay",
+            "InvStatusType": "Deactivated",
+            "roomid": "STD"
+        }]
+    }
+}
+```
+
+***
+
+## <mark style="color:yellow;">Activate Room Type</mark> <a href="#roomtype-activateroomtype" id="roomtype-activateroomtype"></a>
+
+If you want to activate the room type, set the InvStatusType attribute to “Active“ in the header request and call the Activate Room Type API.
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+    "SellableProducts": {
+        "hotelid": "KC",
+        "SellableProduct": [{
+            "InvNotifType": "Overlay",
+            "InvStatusType": "Active",
+            "roomid": "STD"
+        }]
+    }
+}
+```
+
+***
+
+## <mark style="color:yellow;">Delete Room Type</mark> <a href="#roomtype-deleteroomtype" id="roomtype-deleteroomtype"></a>
+
+If you want to delete the room type, set the InvStatusType attribute to “Delete“ in the header request and call the Update/Modify Room Type API.&#x20;
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+    "SellableProducts": {
+        "hotelid": "KC",
+        "SellableProduct": [{
+            "InvNotifType": "Overlay",
+            "InvStatusType": "Delete",
+            "roomid": "STD"
+        }]
+    }
+}
+```

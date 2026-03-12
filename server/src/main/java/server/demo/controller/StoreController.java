@@ -117,6 +117,29 @@ public class StoreController {
     /**
      * Add member to store (支持权限角色分配)
      */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Object>> deleteStore(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            Long userId = (Long) httpRequest.getAttribute("userId");
+            storeService.deleteStoreWithSuRemoveProperty(id, userId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Delete store success", null));
+        } catch (server.demo.exception.SuPropertyDeleteFailedException e) {
+            String code = e.getErrorCode();
+            String message = e.getMessage() != null ? e.getMessage() : "Delete store failed";
+            return ResponseEntity.ok(new ApiResponse<>(false, message, code != null ? java.util.Map.of("code", code) : null));
+        } catch (RuntimeException e) {
+            String message = e.getMessage() != null ? e.getMessage() : "Delete store failed";
+            HttpStatus status = HttpStatus.BAD_REQUEST;
+            if ("No permission".equals(message) || "Only owner can delete store".equals(message)) {
+                status = HttpStatus.FORBIDDEN;
+            }
+            return ResponseEntity.status(status).body(new ApiResponse<>(false, message, null));
+        }
+    }
+
     @PostMapping("/{id}/members")
     @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
     public ResponseEntity<ApiResponse<StoreUserDTO>> addStoreMember(
@@ -203,6 +226,26 @@ public class StoreController {
             Long operatorUserId = (Long) httpRequest.getAttribute("userId");
             StoreUserDTO member = storeService.updateStoreMemberPermission(id, operatorUserId, userId, request);
             return ResponseEntity.ok(new ApiResponse<>(true, "更新成员权限成功", member));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Transfer store owner
+     */
+    @PostMapping("/{id}/owner/transfer")
+    @RequirePermission(module = PermissionModule.SETTINGS, action = PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS)
+    public ResponseEntity<ApiResponse<Void>> transferStoreOwner(
+            @PathVariable Long id,
+            @Valid @RequestBody TransferStoreOwnerRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            Long operatorUserId = (Long) httpRequest.getAttribute("userId");
+            storeService.transferStoreOwner(id, operatorUserId, request.getTargetUserId());
+            return ResponseEntity.ok(new ApiResponse<>(true, "更换负责人成功", null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, e.getMessage(), null));

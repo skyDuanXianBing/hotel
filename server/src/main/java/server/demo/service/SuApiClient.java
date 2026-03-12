@@ -357,6 +357,48 @@ public class SuApiClient {
     }
 
     /**
+     * Image Create API
+     * Endpoint: POST /SUAPI/jservice/imageCreate
+     */
+    public JsonNode createImages(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/imageCreate";
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "imageCreate");
+    }
+
+    /**
+     * Image Association API
+     * Endpoint: POST /SUAPI/jservice/imageAssociation
+     */
+    public JsonNode associateImages(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/imageAssociation";
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "imageAssociation");
+    }
+
+    /**
+     * Image Retrieve API
+     * Endpoint: POST /SUAPI/jservice/imageRetrieve
+     */
+    public JsonNode retrieveImages(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/imageRetrieve";
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "imageRetrieve");
+    }
+
+    /**
+     * Delete Property API
+     * Endpoint: POST /SUAPI/jservice/RemoveProperty
+     */
+    public JsonNode removeProperty(String accessToken, String hotelId, boolean forceDeletion) {
+        if (hotelId == null || hotelId.isBlank()) {
+            throw new IllegalArgumentException("hotelId is required");
+        }
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/RemoveProperty";
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("hotelid", hotelId.trim());
+        payload.put("force_deletion", forceDeletion);
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "RemoveProperty");
+    }
+
+    /**
      * PMS 费率计划同步（供 Su Widget 映射下拉使用）
      * Endpoint: POST /SUAPI/jservice/OTA_HotelRatePlan
      */
@@ -866,6 +908,43 @@ public class SuApiClient {
         }
 
         return errorsNode.toString();
+    }
+
+    /**
+     * 尝试从 Su 错误响应提取 Errors.Code
+     */
+    public String extractSuErrorCode(JsonNode response) {
+        if (response == null) {
+            return null;
+        }
+        JsonNode errorsNode = response.get("Errors");
+        if (errorsNode == null) {
+            errorsNode = response.get("errors");
+        }
+        if (errorsNode == null) {
+            return null;
+        }
+
+        if (errorsNode.isArray() && errorsNode.size() > 0) {
+            JsonNode first = errorsNode.get(0);
+            JsonNode code = first != null ? first.get("Code") : null;
+            if (code == null && first != null) {
+                code = first.get("code");
+            }
+            String v = code != null ? code.asText("") : "";
+            return v.isBlank() ? null : v;
+        }
+
+        if (errorsNode.isObject()) {
+            JsonNode code = errorsNode.get("Code");
+            if (code == null) {
+                code = errorsNode.get("code");
+            }
+            String v = code != null ? code.asText("") : "";
+            return v.isBlank() ? null : v;
+        }
+
+        return null;
     }
 
     /**

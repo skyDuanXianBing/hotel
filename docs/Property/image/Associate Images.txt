@@ -1,0 +1,142 @@
+# Associate Images
+
+The Image Association API enables users to associate an image already stored in the PMS with a property within the PMS.
+
+## <mark style="color:yellow;">Image Association for Property</mark>
+
+This API is used to associate or connect images with a specific property.&#x20;
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/imageAssociation
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`hotelid` <mark style="color:orange;">**string (Required)**</mark>
+
+Hotel id for which you want to associate an image.
+
+{% hint style="info" %}
+Maximum 20 characters allowed.
+{% endhint %}
+
+***
+
+`imageid` <mark style="color:orange;">**string (Required)**</mark>
+
+Id assigned to a specific image within the PMS.
+
+***
+
+`pmsimageid` <mark style="color:orange;">**string (Required)**</mark>
+
+Id assigned to a specific image within the PMS.
+
+***
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+1. **Request sample for the image associated with imageid for property:**
+
+```json
+{
+    "hotelid":"111",
+    "images": [
+        {
+            "imageid": "100"
+        },
+        {
+            "imageid": "200"
+        },
+        {
+            "imageid": "111"
+        }
+    ]
+}
+
+```
+
+2. **Request sample for the image associate with imageid for room:**
+
+```json
+{
+    "hotelid":"111",
+    "roomid":"RM1"
+    "images": [
+        {
+            "imageid": "300"
+        },
+        {
+            "imageid": "122"
+        },
+        {
+            "imageid": "333"
+        }
+    ]
+}
+```
+
+3. **Request sample for the image associate with pms\_imageid for property:**
+
+```json
+{
+    "hotelid":"111",
+    "images": [
+        {
+            "pms_imageid": "111wing"
+        },
+        {
+            "pms_imageid": "222"
+        },
+        {
+            "pms_imageid": "522"
+        }
+    ]
+}
+```
+
+4. **Request sample for the image associate with pms\_imageid for room:**
+
+```json
+{
+    "hotelid":"111",
+    "roomid":"RM1",
+    "images": [
+        {
+            "pms_imageid": "666"
+        },
+        {
+            "pms_imageid": "968"
+        },
+        {
+            "pms_imageid": "266"
+        }
+    ]
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark>
+
+***
+
+<mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+  "Status": "Success"
+}
+```

@@ -5,6 +5,7 @@ import {
   getStoreById,
   createStore as createStoreApi,
   updateStore as updateStoreApi,
+  deleteStore as deleteStoreApi,
   addStoreMember,
   removeStoreMember,
   getStoreMembers,
@@ -12,6 +13,7 @@ import {
   type StoreRequest,
   type AddStoreMemberRequest,
   type StoreMember,
+  type DeleteStoreErrorData,
 } from '@/api/store'
 
 export const useStoreStore = defineStore('store', () => {
@@ -170,6 +172,34 @@ export const useStoreStore = defineStore('store', () => {
   /**
    * 邀请成员
    */
+  /**
+   * 删除门店（软删）：删除后该门店将从门店列表中消失
+   */
+  const deleteStore = async (storeId: number) => {
+    loading.value = true
+    try {
+      const response = await deleteStoreApi(storeId)
+      if (!response.success) {
+        const err: any = new Error(response.message || '删除门店失败')
+        err.code = (response.data as DeleteStoreErrorData | null)?.code
+        throw err
+      }
+
+      stores.value = stores.value.filter((s) => s.id !== storeId)
+      setStores([...stores.value])
+
+      if (currentStore.value?.id === storeId) {
+        setCurrentStore(null)
+      }
+
+      return response.message
+    } catch (error) {
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
   const inviteMember = async (storeId: number, data: AddStoreMemberRequest) => {
     loading.value = true
     try {
@@ -273,6 +303,7 @@ export const useStoreStore = defineStore('store', () => {
     fetchStoreById,
     createStore,
     updateStore,
+    deleteStore,
     inviteMember,
     removeMember,
     fetchStoreMembers,

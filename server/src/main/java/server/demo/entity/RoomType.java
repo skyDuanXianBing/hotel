@@ -1,22 +1,44 @@
 package server.demo.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Min;
+import server.demo.dto.FacilityDTO;
+import server.demo.dto.LocalizedContentDTO;
 import server.demo.entity.base.StoreScopedEntity;
 import server.demo.entity.listener.StoreScopedEntityListener;
+import server.demo.util.JsonFieldUtils;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Entity
 @EntityListeners(StoreScopedEntityListener.class)
-@Table(name = "room_types",
+@Table(
+        name = "room_types",
         uniqueConstraints = {
-            @UniqueConstraint(name = "uk_room_types_store_code", columnNames = {"store_id", "code"}),
-            @UniqueConstraint(name = "uk_room_types_store_name", columnNames = {"store_id", "name"})
-        })
+                @UniqueConstraint(name = "uk_room_types_store_code", columnNames = {"store_id", "code"}),
+                @UniqueConstraint(name = "uk_room_types_store_name", columnNames = {"store_id", "name"})
+        }
+)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class RoomType implements StoreScopedEntity {
     @Id
@@ -56,7 +78,6 @@ public class RoomType implements StoreScopedEntity {
     @Column(name = "weekend_price", precision = 10, scale = 2)
     private BigDecimal weekendPrice;
 
-    // 每天的价格
     @Column(name = "monday_price", precision = 10, scale = 2)
     private BigDecimal mondayPrice;
 
@@ -91,6 +112,22 @@ public class RoomType implements StoreScopedEntity {
     @Column(name = "store_id", nullable = false)
     private Long storeId;
 
+    @JsonIgnore
+    @Column(name = "desktop_photo_urls_json", columnDefinition = "LONGTEXT")
+    private String desktopPhotoUrlsJson;
+
+    @JsonIgnore
+    @Column(name = "mobile_photo_urls_json", columnDefinition = "LONGTEXT")
+    private String mobilePhotoUrlsJson;
+
+    @JsonIgnore
+    @Column(name = "localized_content_json", columnDefinition = "LONGTEXT")
+    private String localizedContentJson;
+
+    @JsonIgnore
+    @Column(name = "facilities_json", columnDefinition = "LONGTEXT")
+    private String facilitiesJson;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -102,8 +139,8 @@ public class RoomType implements StoreScopedEntity {
         updatedAt = LocalDateTime.now();
     }
 
-    // Constructors
-    public RoomType() {}
+    public RoomType() {
+    }
 
     public RoomType(String name, String code, Integer totalRooms, String description) {
         this.name = name;
@@ -112,7 +149,6 @@ public class RoomType implements StoreScopedEntity {
         this.description = description;
     }
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -161,20 +197,12 @@ public class RoomType implements StoreScopedEntity {
         this.description = description;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public String getCheckInGuideLink() {
+        return checkInGuideLink;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
+    public void setCheckInGuideLink(String checkInGuideLink) {
+        this.checkInGuideLink = checkInGuideLink;
     }
 
     public BigDecimal getDefaultPrice() {
@@ -183,14 +211,6 @@ public class RoomType implements StoreScopedEntity {
 
     public void setDefaultPrice(BigDecimal defaultPrice) {
         this.defaultPrice = defaultPrice;
-    }
-
-    public String getCheckInGuideLink() {
-        return checkInGuideLink;
-    }
-
-    public void setCheckInGuideLink(String checkInGuideLink) {
-        this.checkInGuideLink = checkInGuideLink;
     }
 
     public BigDecimal getWeekdayPrice() {
@@ -265,6 +285,22 @@ public class RoomType implements StoreScopedEntity {
         this.sundayPrice = sundayPrice;
     }
 
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     public User getUser() {
         return user;
     }
@@ -281,5 +317,41 @@ public class RoomType implements StoreScopedEntity {
     @Override
     public void setStoreId(Long storeId) {
         this.storeId = storeId;
+    }
+
+    @Transient
+    public List<String> getDesktopPhotoUrls() {
+        return JsonFieldUtils.readStringList(desktopPhotoUrlsJson);
+    }
+
+    public void setDesktopPhotoUrls(List<String> desktopPhotoUrls) {
+        this.desktopPhotoUrlsJson = JsonFieldUtils.writeStringList(desktopPhotoUrls);
+    }
+
+    @Transient
+    public List<String> getMobilePhotoUrls() {
+        return JsonFieldUtils.readStringList(mobilePhotoUrlsJson);
+    }
+
+    public void setMobilePhotoUrls(List<String> mobilePhotoUrls) {
+        this.mobilePhotoUrlsJson = JsonFieldUtils.writeStringList(mobilePhotoUrls);
+    }
+
+    @Transient
+    public Map<String, LocalizedContentDTO> getLocalizedContent() {
+        return JsonFieldUtils.readLocalizedContentMap(localizedContentJson);
+    }
+
+    public void setLocalizedContent(Map<String, LocalizedContentDTO> localizedContent) {
+        this.localizedContentJson = JsonFieldUtils.writeLocalizedContentMap(localizedContent);
+    }
+
+    @Transient
+    public List<FacilityDTO> getFacilities() {
+        return JsonFieldUtils.readFacilityList(facilitiesJson);
+    }
+
+    public void setFacilities(List<FacilityDTO> facilities) {
+        this.facilitiesJson = JsonFieldUtils.writeFacilityList(facilities);
     }
 }

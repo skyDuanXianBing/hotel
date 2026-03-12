@@ -19,12 +19,16 @@ import server.demo.repository.UserRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.enums.RoomStatus;
 import server.demo.dto.RoomTypeWithRoomsDTO;
+import server.demo.dto.RoomTypeDeleteBlockInfo;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.SuHotelIdUtil;
+import server.demo.exception.RoomTypeDeleteBlockedException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,6 +60,9 @@ public class RoomTypeService {
 
     @Autowired
     private SuAriAutoSyncService suAriAutoSyncService;
+
+    @Autowired
+    private SuImageSyncService suImageSyncService;
 
     @Value("${su.content.autosync.roomtype.enabled:true}")
     private boolean suRoomTypeAutoSyncEnabled;
@@ -123,6 +130,7 @@ public class RoomTypeService {
             }
 
             suContentSyncService.upsertSingleRoomTypeStrict(storeId, hotelId, roomType);
+            suImageSyncService.syncRoomTypeImagesStrict(storeId, roomType);
 
             // 为了让 SU 沙盒 UI（Price & Availability）能立刻看到新 roomid，创建/编辑房型后预热库存（roomstosell）。
             if (suRoomTypeAutoSyncStrict && roomType != null && roomType.getId() != null) {
@@ -343,6 +351,10 @@ public class RoomTypeService {
         existingRoomType.setFridayPrice(roomType.getFridayPrice());
         existingRoomType.setSaturdayPrice(roomType.getSaturdayPrice());
         existingRoomType.setSundayPrice(roomType.getSundayPrice());
+        existingRoomType.setFacilities(roomType.getFacilities());
+        existingRoomType.setDesktopPhotoUrls(roomType.getDesktopPhotoUrls());
+        existingRoomType.setMobilePhotoUrls(roomType.getMobilePhotoUrls());
+        existingRoomType.setLocalizedContent(roomType.getLocalizedContent());
 
         return roomTypeRepository.save(existingRoomType);
     }
@@ -401,6 +413,44 @@ public class RoomTypeService {
 
         List<Room> rooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, id);
 
+        // 先给出阻塞删除的订单清单（避免前端只能看到笼统提示）
+        final int sampleLimit = 10;
+        long blockingTotal = 0;
+        List<RoomTypeDeleteBlockInfo.BlockingReservationSummary> samples = new ArrayList<>();
+        LocalDate todayForScan = LocalDate.now();
+        LocalDate futureDateForScan = todayForScan.plusYears(10);
+        for (Room room : rooms) {
+            List<Reservation> activeReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
+                    currentStoreId(),
+                    room.getId(),
+                    todayForScan,
+                    futureDateForScan
+            );
+            if (!activeReservations.isEmpty()) {
+                blockingTotal += activeReservations.size();
+                if (samples.size() < sampleLimit) {
+                    for (Reservation r : activeReservations) {
+                        if (samples.size() >= sampleLimit) {
+                            break;
+                        }
+                        samples.add(new RoomTypeDeleteBlockInfo.BlockingReservationSummary(
+                                r.getOrderNumber(),
+                                r.getStatus(),
+                                room.getRoomNumber(),
+                                r.getCheckInDate(),
+                                r.getCheckOutDate()
+                        ));
+                    }
+                }
+            }
+        }
+        if (blockingTotal > 0) {
+            throw new RoomTypeDeleteBlockedException(
+                    "该房型下仍存在未完成的预订，请先取消/退房/改期/换房后再删除",
+                    new RoomTypeDeleteBlockInfo(blockingTotal, samples)
+            );
+        }
+
         for (Room room : rooms) {
             java.time.LocalDate today = java.time.LocalDate.now();
             java.time.LocalDate futureDate = today.plusYears(10);
@@ -417,11 +467,43 @@ public class RoomTypeService {
             }
         }
 
+        // 删除前同步删除 Su 房型（按 strict 配置决定是否阻塞本地删除）
+        deleteRoomTypeFromSuIfEnabled(roomType);
+
         priceChangeHistoryRepository.deleteByRoomTypeId(id);
         roomPriceRepository.deleteByRoomTypeId(id);
         roomTypePricePlanRepository.deleteByRoomTypeId(id);
         roomRepository.deleteAll(rooms);
         roomTypeRepository.deleteById(id);
+    }
+
+    private void deleteRoomTypeFromSuIfEnabled(RoomType roomType) {
+        if (!suRoomTypeAutoSyncEnabled) {
+            return;
+        }
+        Long storeId = currentStoreId();
+        String hotelId = resolveOrInitSuHotelId(storeId);
+        if (hotelId == null || hotelId.isBlank()) {
+            String msg = "Su hotelId 未配置，无法删除 Su 房型（stores.su_hotel_id）";
+            if (suRoomTypeAutoSyncStrict) {
+                throw new RuntimeException(msg);
+            }
+            logger.warn("[SuRoomTypeDelete] skip: {} storeId={}", msg, storeId);
+            return;
+        }
+
+        try {
+            suContentSyncService.deleteSingleRoomTypeStrict(storeId, hotelId, String.valueOf(roomType.getId()));
+        } catch (RuntimeException e) {
+            if (suRoomTypeAutoSyncStrict) {
+                throw e;
+            }
+            logger.warn("[SuRoomTypeDelete] best-effort failed. storeId={}, hotelId={}, roomTypeId={}, err={}",
+                    storeId,
+                    hotelId,
+                    roomType != null ? roomType.getId() : null,
+                    e.getMessage());
+        }
     }
 
 }

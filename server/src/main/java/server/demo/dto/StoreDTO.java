@@ -1,9 +1,11 @@
 package server.demo.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 /**
- * 门店DTO
+ * 门店 DTO。
  */
 public class StoreDTO {
     private Long id;
@@ -26,11 +28,14 @@ public class StoreDTO {
     private String whatsapp;
     private String line;
     private String language;
-    private String userRole; // 当前用户在该门店的角色
+    private List<FacilityDTO> facilities;
+    private List<String> desktopPhotoUrls;
+    private List<String> mobilePhotoUrls;
+    private Map<String, LocalizedContentDTO> localizedContent;
+    private String userRole;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -189,6 +194,38 @@ public class StoreDTO {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public List<FacilityDTO> getFacilities() {
+        return facilities;
+    }
+
+    public void setFacilities(List<FacilityDTO> facilities) {
+        this.facilities = facilities;
+    }
+
+    public List<String> getDesktopPhotoUrls() {
+        return desktopPhotoUrls;
+    }
+
+    public void setDesktopPhotoUrls(List<String> desktopPhotoUrls) {
+        this.desktopPhotoUrls = desktopPhotoUrls;
+    }
+
+    public List<String> getMobilePhotoUrls() {
+        return mobilePhotoUrls;
+    }
+
+    public void setMobilePhotoUrls(List<String> mobilePhotoUrls) {
+        this.mobilePhotoUrls = mobilePhotoUrls;
+    }
+
+    public Map<String, LocalizedContentDTO> getLocalizedContent() {
+        return localizedContent;
+    }
+
+    public void setLocalizedContent(Map<String, LocalizedContentDTO> localizedContent) {
+        this.localizedContent = localizedContent;
     }
 
     public String getUserRole() {

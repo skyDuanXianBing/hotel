@@ -1,0 +1,101 @@
+# Delete Property API
+
+⚠️ This operation affects the live status of the property and its channel connectivity. Use with caution.
+
+The Delete Property API is used to delete the existing property.
+
+### <mark style="color:yellow;">Endpoint</mark> <a href="#propertylisting-endpoint.3" id="propertylisting-endpoint.3"></a>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/RemoveProperty
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark> <a href="#propertylisting-attributes.3" id="propertylisting-attributes.3"></a>
+
+`hotelid` <mark style="color:orange;">**string (Required)**</mark>
+
+The unique property ID as assigned by the provider upon creation of the property.
+
+{% hint style="info" %}
+Maximum 20 characters allowed.
+{% endhint %}
+
+***
+
+`force_deletion` <mark style="color:orange;">**boolean (Optional)**</mark>
+
+Forces deletion of the property even if there are active bookings, contracts, or dependencies associated with the hotel.
+
+{% hint style="info" %}
+**Default:** `false`
+
+**Allowed Values:**
+
+* If `true`, the system will delete the property regardless of constraints.
+* If `false`, delete may fail if blocking conditions exist.
+  {% endhint %}
+
+***
+
+### <mark style="color:yellow;">Sample Request</mark>
+
+```json
+{
+    "hotelid": "TRS1",
+    "force_deletion": false    
+}
+```
+
+***
+
+### <mark style="color:yellow;">Response</mark> <a href="#propertylisting-response.3" id="propertylisting-response.3"></a>
+
+Upon success, Property along with its related room types, rate plans, etc. will be deleted and we will not be able to reinstate.
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+    "Status": "Success"
+}
+```
+
+#### <mark style="color:red;">Error</mark> <a href="#propertylisting-error.3" id="propertylisting-error.3"></a>
+
+Failure - 953 error will be received if allocated Hotel id which contains the mapping (Active or Inactive) with any of OTA channel(s).&#x20;
+
+#### <mark style="color:red;">**Sample Error Response (953)**</mark>
+
+```json
+{
+    "Status": "Fail",
+	"Errors": {
+		"Code": "953",
+		"ShortText": "This Property Have Mapping With Channels"
+	}
+}
+```
+
+400 error will be received if allocated with incorrect Hotel/Client id.
+
+<mark style="color:red;">**Sample Error Response (400)**</mark>
+
+```json
+{
+    "Status": "Fail",
+	"Errors": {
+		"Code": "400",
+		"ShortText": "Invalid HotelCode (KC10)"
+	}
+}
+```

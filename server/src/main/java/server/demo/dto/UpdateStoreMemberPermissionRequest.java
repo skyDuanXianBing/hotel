@@ -8,12 +8,12 @@ import java.util.List;
 public class UpdateStoreMemberPermissionRequest {
 
     private String role; // 基础角色: owner, admin, member（可选）
-    private List<Long> roleIds; // 权限角色ID列表
+    private List<Long> roleIds; // 权限角色ID列表（可选）
     private Boolean isActive; // 是否激活（可选）
+    private List<PermissionDTO> extraPermissions; // 成员额外权限（叠加，可选）
 
     public UpdateStoreMemberPermissionRequest() {}
 
-    // Getters and Setters
     public String getRole() {
         return role;
     }
@@ -37,4 +37,13 @@ public class UpdateStoreMemberPermissionRequest {
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
     }
+
+    public List<PermissionDTO> getExtraPermissions() {
+        return extraPermissions;
+    }
+
+    public void setExtraPermissions(List<PermissionDTO> extraPermissions) {
+        this.extraPermissions = extraPermissions;
+    }
 }
+

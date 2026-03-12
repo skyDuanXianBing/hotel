@@ -10,6 +10,7 @@ import server.demo.enums.RegistrationReviewAction;
 import server.demo.repository.*;
 import server.demo.util.StoreContextUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,11 +37,20 @@ public class RegistrationAdminService {
     private ReservationRepository reservationRepository;
 
     @Transactional(readOnly = true)
-    public List<AdminRegistrationListItemDTO> list(RegistrationFormStatus status) {
+    public List<AdminRegistrationListItemDTO> list(
+            RegistrationFormStatus status,
+            Long channelId,
+            LocalDate checkInDate,
+            LocalDate checkOutDate
+    ) {
         Long storeId = StoreContextUtils.requireStoreId();
-        List<RegistrationForm> forms = (status == null)
-                ? registrationFormRepository.findByStoreIdOrderByUpdatedAtDesc(storeId)
-                : registrationFormRepository.findByStoreIdAndStatusOrderByUpdatedAtDesc(storeId, status);
+        List<RegistrationForm> forms = registrationFormRepository.searchForAdminList(
+                storeId,
+                status,
+                channelId,
+                checkInDate,
+                checkOutDate
+        );
 
         List<AdminRegistrationListItemDTO> out = new ArrayList<>();
         for (RegistrationForm form : forms) {
@@ -55,6 +65,8 @@ public class RegistrationAdminService {
                 dto.setGuestName(reservation.getGuestName());
                 dto.setCheckInDate(reservation.getCheckInDate());
                 dto.setCheckOutDate(reservation.getCheckOutDate());
+                dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
+                dto.setChannelName(reservation.getChannel() != null ? reservation.getChannel().getName() : null);
             }
             out.add(dto);
         }

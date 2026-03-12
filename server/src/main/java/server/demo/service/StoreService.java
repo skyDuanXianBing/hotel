@@ -5,6 +5,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.dto.*;
 import server.demo.entity.*;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
+import server.demo.exception.SuPropertyDeleteFailedException;
 import server.demo.repository.*;
 import server.demo.util.SuHotelIdUtil;
 
@@ -31,6 +34,15 @@ public class StoreService {
 
     @Autowired
     private ChannelBootstrapService channelBootstrapService;
+
+    @Autowired
+    private SuPropertyService suPropertyService;
+
+    @Autowired
+    private SuImageSyncService suImageSyncService;
+
+    @Autowired
+    private StoreUserPermissionRepository storeUserPermissionRepository;
 
     public List<StoreDTO> getUserStores(Long userId) {
         List<StoreUser> storeUsers = storeUserRepository.findActiveStoresByUserId(userId);
@@ -59,6 +71,17 @@ public class StoreService {
         if (request.getCurrency() != null) {
             store.setCurrency(request.getCurrency());
         }
+        store.setLogo(request.getLogo());
+        store.setDescription(request.getDescription());
+        store.setEmail(request.getEmail());
+        store.setWechat(request.getWechat());
+        store.setWhatsapp(request.getWhatsapp());
+        store.setLine(request.getLine());
+        store.setLanguage(request.getLanguage());
+        store.setFacilities(request.getFacilities());
+        store.setDesktopPhotoUrls(request.getDesktopPhotoUrls());
+        store.setMobilePhotoUrls(request.getMobilePhotoUrls());
+        store.setLocalizedContent(request.getLocalizedContent());
 
         Store savedStore = storeRepository.save(store);
 
@@ -104,6 +127,17 @@ public class StoreService {
         store.setCity(request.getCity());
         store.setState(request.getState());
         store.setAddress(request.getAddress());
+        store.setLogo(request.getLogo());
+        store.setDescription(request.getDescription());
+        store.setEmail(request.getEmail());
+        store.setWechat(request.getWechat());
+        store.setWhatsapp(request.getWhatsapp());
+        store.setLine(request.getLine());
+        store.setLanguage(request.getLanguage());
+        store.setFacilities(request.getFacilities());
+        store.setDesktopPhotoUrls(request.getDesktopPhotoUrls());
+        store.setMobilePhotoUrls(request.getMobilePhotoUrls());
+        store.setLocalizedContent(request.getLocalizedContent());
         if (request.getCurrency() != null) {
             store.setCurrency(request.getCurrency());
         }
@@ -117,6 +151,44 @@ public class StoreService {
 
         Store updatedStore = storeRepository.save(store);
         return convertToDTO(updatedStore, storeUser.getRole());
+    }
+
+    @Transactional
+    public void softDeleteStore(Long storeId, Long operatorUserId) {
+        StoreUser operator = storeUserRepository.findByStoreIdAndUserId(storeId, operatorUserId)
+                .orElseThrow(() -> new RuntimeException("No permission"));
+
+        if (!"owner".equals(operator.getRole())) {
+            throw new RuntimeException("Only owner can delete store");
+        }
+
+        List<StoreUser> storeUsers = storeUserRepository.findByStoreId(storeId);
+        if (storeUsers == null || storeUsers.isEmpty()) {
+            return;
+        }
+
+        storeUsers.forEach(storeUser -> storeUser.setIsActive(false));
+        storeUserRepository.saveAll(storeUsers);
+    }
+
+    @Transactional
+    public void deleteStoreWithSuRemoveProperty(Long storeId, Long operatorUserId) {
+        StoreUser operator = storeUserRepository.findByStoreIdAndUserId(storeId, operatorUserId)
+                .orElseThrow(() -> new RuntimeException("No permission"));
+
+        if (!"owner".equals(operator.getRole())) {
+            throw new RuntimeException("Only owner can delete store");
+        }
+
+        SuPropertyService.RemoveResult result = suPropertyService.removeStoreProperty(storeId, false);
+        if (result != null && !result.success()) {
+            throw new SuPropertyDeleteFailedException(
+                    result.message() != null ? result.message() : "Delete store failed",
+                    result.errorCode()
+            );
+        }
+
+        softDeleteStore(storeId, operatorUserId);
     }
 
     @Transactional
@@ -141,11 +213,10 @@ public class StoreService {
     }
 
     /**
-     * 添加门店成员（支持权限角色）
+     * 添加门店成员（支持权限角色）。
      */
     @Transactional
     public StoreUserDTO addStoreMember(Long storeId, Long operatorUserId, AddStoreMemberRequest request) {
-        // 验证操作者权限
         StoreUser operator = storeUserRepository.findByStoreIdAndUserId(storeId, operatorUserId)
                 .orElseThrow(() -> new RuntimeException("无权限"));
 
@@ -153,27 +224,22 @@ public class StoreService {
             throw new RuntimeException("只有管理员可以添加成员");
         }
 
-        // 查找被邀请用户
         User invitedUser = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("用户不存在，请先让该用户注册账号"));
 
-        // 检查是否已是成员
         if (storeUserRepository.existsByStoreIdAndUserId(storeId, invitedUser.getId())) {
             throw new RuntimeException("该用户已是门店成员");
         }
 
-        // 创建门店用户关联
         StoreUser storeUser = new StoreUser(operator.getStore(), invitedUser, request.getRole());
         storeUser.setInvitedBy(operatorUserId);
 
-        // 分配权限角色
         if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
             Set<Role> roles = new HashSet<>();
             for (Long roleId : request.getRoleIds()) {
                 Role role = roleRepository.findById(roleId)
                         .orElseThrow(() -> new RuntimeException("角色不存在: " + roleId));
 
-                // 验证角色属于当前门店
                 if (!storeId.equals(role.getStoreId())) {
                     throw new RuntimeException("角色不属于当前门店");
                 }
@@ -184,16 +250,23 @@ public class StoreService {
         }
 
         StoreUser savedStoreUser = storeUserRepository.save(storeUser);
-        return convertToStoreUserDTO(savedStoreUser);
+
+        if (request.getExtraPermissions() != null) {
+            replaceStoreUserExtraPermissions(savedStoreUser, request.getExtraPermissions());
+        }
+
+        return convertToStoreUserDTO(
+                savedStoreUser,
+                loadStoreUserExtraPermissions(savedStoreUser.getId())
+        );
     }
 
     /**
-     * 更新门店成员权限
+     * 更新门店成员权限。
      */
     @Transactional
     public StoreUserDTO updateStoreMemberPermission(Long storeId, Long operatorUserId, Long targetUserId,
                                                      UpdateStoreMemberPermissionRequest request) {
-        // 验证操作者权限
         StoreUser operator = storeUserRepository.findByStoreIdAndUserId(storeId, operatorUserId)
                 .orElseThrow(() -> new RuntimeException("无权限"));
 
@@ -201,28 +274,35 @@ public class StoreService {
             throw new RuntimeException("只有管理员可以修改成员权限");
         }
 
-        // 查找目标成员
         StoreUser target = storeUserRepository.findByStoreIdAndUserId(storeId, targetUserId)
                 .orElseThrow(() -> new RuntimeException("目标用户不是门店成员"));
 
-        // 不能修改owner权限
         if ("owner".equals(target.getRole()) && !"owner".equals(operator.getRole())) {
             throw new RuntimeException("只有所有者可以修改所有者权限");
         }
 
-        // 更新基础角色
+        if (request.getRole() != null && !"owner".equals(target.getRole()) && "owner".equals(request.getRole())) {
+            throw new RuntimeException("Please use transfer owner API");
+        }
+
+        if ("owner".equals(target.getRole()) && request.getRole() != null && !"owner".equals(request.getRole())) {
+            throw new RuntimeException("Please use transfer owner API");
+        }
+
+        if ("owner".equals(target.getRole()) && Boolean.FALSE.equals(request.getIsActive())) {
+            throw new RuntimeException("Store owner must remain active");
+        }
+
         if (request.getRole() != null) {
             target.setRole(request.getRole());
         }
 
-        // 更新权限角色
         if (request.getRoleIds() != null) {
             Set<Role> roles = new HashSet<>();
             for (Long roleId : request.getRoleIds()) {
                 Role role = roleRepository.findById(roleId)
                         .orElseThrow(() -> new RuntimeException("角色不存在: " + roleId));
 
-                // 验证角色属于当前门店
                 if (!storeId.equals(role.getStoreId())) {
                     throw new RuntimeException("角色不属于当前门店");
                 }
@@ -232,22 +312,70 @@ public class StoreService {
             target.setRoles(roles);
         }
 
-        // 更新激活状态
         if (request.getIsActive() != null) {
             target.setIsActive(request.getIsActive());
         }
 
         StoreUser updatedStoreUser = storeUserRepository.save(target);
-        return convertToStoreUserDTO(updatedStoreUser);
+
+        if (request.getExtraPermissions() != null) {
+            replaceStoreUserExtraPermissions(updatedStoreUser, request.getExtraPermissions());
+        }
+
+        return convertToStoreUserDTO(
+                updatedStoreUser,
+                loadStoreUserExtraPermissions(updatedStoreUser.getId())
+        );
     }
 
     /**
-     * 获取门店成员详细信息
+     * Transfer store owner in a single transaction to avoid transient invalid states.
+     */
+    @Transactional
+    public void transferStoreOwner(Long storeId, Long operatorUserId, Long targetUserId) {
+        StoreUser currentOwner = storeUserRepository.findByStoreIdAndUserId(storeId, operatorUserId)
+                .orElseThrow(() -> new RuntimeException("No permission"));
+
+        if (!"owner".equals(currentOwner.getRole())) {
+            throw new RuntimeException("Only owner can transfer store owner");
+        }
+
+        if (Objects.equals(operatorUserId, targetUserId)) {
+            throw new RuntimeException("New owner cannot be current owner");
+        }
+
+        StoreUser target = storeUserRepository.findByStoreIdAndUserId(storeId, targetUserId)
+                .orElseThrow(() -> new RuntimeException("Target user is not a store member"));
+
+        if ("owner".equals(target.getRole())) {
+            throw new RuntimeException("Target user is already owner");
+        }
+
+        currentOwner.setRole("admin");
+        target.setRole("owner");
+        target.setIsActive(true);
+
+        Store store = currentOwner.getStore();
+        if (store == null) {
+            throw new RuntimeException("Store not found");
+        }
+        if (target.getUser() != null) {
+            store.setOwnerEmail(target.getUser().getEmail());
+        }
+
+        storeUserRepository.save(currentOwner);
+        storeUserRepository.save(target);
+        storeRepository.save(store);
+    }
+
+    /**
+     * ??????????
      */
     public StoreUserDTO getStoreMemberDetail(Long storeId, Long userId) {
         StoreUser storeUser = storeUserRepository.findByStoreIdAndUserId(storeId, userId)
                 .orElseThrow(() -> new RuntimeException("成员不存在"));
-        return convertToStoreUserDTO(storeUser);
+        List<StoreUserPermission> extraPermissions = loadStoreUserExtraPermissions(storeUser.getId());
+        return convertToStoreUserDTO(storeUser, extraPermissions);
     }
 
     /**
@@ -255,8 +383,27 @@ public class StoreService {
      */
     public List<StoreUserDTO> getStoreMembersDTO(Long storeId) {
         List<StoreUser> storeUsers = storeUserRepository.findActiveUsersByStoreId(storeId);
+        if (storeUsers == null || storeUsers.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Long> storeUserIds = storeUsers.stream().map(StoreUser::getId).toList();
+        Map<Long, List<StoreUserPermission>> extraPermissionsByStoreUserId = new HashMap<>();
+
+        List<StoreUserPermission> extraPermissions = storeUserPermissionRepository.findByStoreUser_IdIn(storeUserIds);
+        if (extraPermissions != null && !extraPermissions.isEmpty()) {
+            for (StoreUserPermission p : extraPermissions) {
+                if (p == null || p.getStoreUser() == null || p.getStoreUser().getId() == null) {
+                    continue;
+                }
+                extraPermissionsByStoreUserId
+                        .computeIfAbsent(p.getStoreUser().getId(), k -> new ArrayList<>())
+                        .add(p);
+            }
+        }
+
         return storeUsers.stream()
-                .map(this::convertToStoreUserDTO)
+                .map(su -> convertToStoreUserDTO(su, extraPermissionsByStoreUserId.getOrDefault(su.getId(), new ArrayList<>())))
                 .collect(Collectors.toList());
     }
 
@@ -360,10 +507,25 @@ public class StoreService {
         dto.setWhatsapp(store.getWhatsapp());
         dto.setLine(store.getLine());
         dto.setLanguage(store.getLanguage());
+        dto.setFacilities(store.getFacilities());
+        dto.setDesktopPhotoUrls(store.getDesktopPhotoUrls());
+        dto.setMobilePhotoUrls(store.getMobilePhotoUrls());
+        dto.setLocalizedContent(store.getLocalizedContent());
         dto.setUserRole(userRole);
         dto.setCreatedAt(store.getCreatedAt());
         dto.setUpdatedAt(store.getUpdatedAt());
         return dto;
+    }
+
+    private void syncStoreToSu(Store store) {
+        if (store == null || store.getId() == null) {
+            return;
+        }
+        SuPropertyService.UpsertResult propertyResult = suPropertyService.upsertStoreProperty(store.getId());
+        if (!propertyResult.success()) {
+            throw new RuntimeException(propertyResult.message() != null ? propertyResult.message() : "Su 门店同步失败");
+        }
+        suImageSyncService.syncStoreImagesStrict(store.getId());
     }
 
     private StorePolicyDTO convertPolicyToDTO(StorePolicy policy) {
@@ -384,6 +546,10 @@ public class StoreService {
      * 转换StoreUser到DTO
      */
     private StoreUserDTO convertToStoreUserDTO(StoreUser storeUser) {
+        return convertToStoreUserDTO(storeUser, Collections.emptyList());
+    }
+
+    private StoreUserDTO convertToStoreUserDTO(StoreUser storeUser, List<StoreUserPermission> extraPermissions) {
         StoreUserDTO dto = new StoreUserDTO();
         dto.setId(storeUser.getId());
         dto.setRole(storeUser.getRole());
@@ -420,6 +586,94 @@ public class StoreService {
             dto.setRoles(new ArrayList<>());
         }
 
+        dto.setExtraPermissions(convertToPermissionDTOs(extraPermissions));
+
         return dto;
+    }
+
+    private List<StoreUserPermission> loadStoreUserExtraPermissions(Long storeUserId) {
+        if (storeUserId == null) {
+            return Collections.emptyList();
+        }
+        List<StoreUserPermission> permissions = storeUserPermissionRepository.findByStoreUser_Id(storeUserId);
+        return permissions != null ? permissions : Collections.emptyList();
+    }
+
+    private static List<PermissionDTO> convertToPermissionDTOs(List<StoreUserPermission> permissions) {
+        if (permissions == null || permissions.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<PermissionDTO> out = new ArrayList<>();
+        for (StoreUserPermission p : permissions) {
+            if (p == null || p.getModule() == null || p.getAction() == null) {
+                continue;
+            }
+            PermissionDTO dto = new PermissionDTO();
+            dto.setModule(p.getModule());
+            dto.setAction(p.getAction());
+            dto.setRoomTypeId(p.getRoomTypeId());
+            dto.setAllRoomTypes(p.getAllRoomTypes());
+            out.add(dto);
+        }
+        return out;
+    }
+
+    private void replaceStoreUserExtraPermissions(StoreUser storeUser, List<PermissionDTO> extraPermissionDTOs) {
+        if (storeUser == null || storeUser.getId() == null) {
+            return;
+        }
+        storeUserPermissionRepository.deleteByStoreUser_Id(storeUser.getId());
+        if (extraPermissionDTOs == null || extraPermissionDTOs.isEmpty()) {
+            return;
+        }
+
+        List<StoreUserPermission> normalized = normalizeExtraPermissions(storeUser, extraPermissionDTOs);
+        if (normalized.isEmpty()) {
+            return;
+        }
+        storeUserPermissionRepository.saveAll(normalized);
+    }
+
+    private static List<StoreUserPermission> normalizeExtraPermissions(StoreUser storeUser, List<PermissionDTO> extraPermissionDTOs) {
+        LinkedHashMap<String, StoreUserPermission> deduped = new LinkedHashMap<>();
+        boolean roomStatusAll = false;
+
+        for (PermissionDTO dto : extraPermissionDTOs) {
+            if (dto == null || dto.getModule() == null || dto.getAction() == null) {
+                continue;
+            }
+
+            PermissionModule module = dto.getModule();
+            PermissionAction action = dto.getAction();
+            Long roomTypeId = dto.getRoomTypeId();
+            boolean allRoomTypes = Boolean.TRUE.equals(dto.getAllRoomTypes());
+
+            StoreUserPermission p = new StoreUserPermission(storeUser, module, action);
+
+            if (module == PermissionModule.ACCOMMODATION && action == PermissionAction.VIEW_ROOM_STATUS) {
+                if (roomStatusAll) {
+                    continue;
+                }
+                if (allRoomTypes || roomTypeId == null || roomTypeId == 0L) {
+                    roomStatusAll = true;
+                    p.setRoomTypeId(0L);
+                    p.setAllRoomTypes(true);
+                    deduped.entrySet().removeIf(e -> e.getValue().getModule() == module && e.getValue().getAction() == action);
+                    deduped.put(module + "|" + action + "|0", p);
+                    continue;
+                }
+
+                p.setRoomTypeId(roomTypeId);
+                p.setAllRoomTypes(false);
+            } else {
+                p.setRoomTypeId(0L);
+                p.setAllRoomTypes(false);
+            }
+
+            String key = module + "|" + action + "|" + p.getRoomTypeId();
+            deduped.putIfAbsent(key, p);
+        }
+
+        return new ArrayList<>(deduped.values());
     }
 }

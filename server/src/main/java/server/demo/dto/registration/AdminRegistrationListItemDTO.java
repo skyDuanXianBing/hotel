@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
 public class AdminRegistrationListItemDTO {
     private Long formId;
     private String orderNumber;
+    private String channelOrderNumber;
+    private String channelName;
     private String guestName;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
@@ -29,6 +31,22 @@ public class AdminRegistrationListItemDTO {
 
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
+    }
+
+    public String getChannelOrderNumber() {
+        return channelOrderNumber;
+    }
+
+    public void setChannelOrderNumber(String channelOrderNumber) {
+        this.channelOrderNumber = channelOrderNumber;
+    }
+
+    public String getChannelName() {
+        return channelName;
+    }
+
+    public void setChannelName(String channelName) {
+        this.channelName = channelName;
     }
 
     public String getGuestName() {

@@ -11,13 +11,13 @@ public class StoreUserDTO {
     private UserSimpleDTO user;
     private String role; // 基础角色: owner, admin, member
     private List<RoleDTO> roles; // 权限角色列表
+    private List<PermissionDTO> extraPermissions; // 成员额外权限（叠加）
     private Boolean isActive;
     private Long invitedBy;
     private LocalDateTime joinedAt;
 
     public StoreUserDTO() {}
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -48,6 +48,14 @@ public class StoreUserDTO {
 
     public void setRoles(List<RoleDTO> roles) {
         this.roles = roles;
+    }
+
+    public List<PermissionDTO> getExtraPermissions() {
+        return extraPermissions;
+    }
+
+    public void setExtraPermissions(List<PermissionDTO> extraPermissions) {
+        this.extraPermissions = extraPermissions;
     }
 
     public Boolean getIsActive() {
@@ -87,7 +95,6 @@ public class StoreUserDTO {
 
         public UserSimpleDTO() {}
 
-        // Getters and Setters
         public Long getId() {
             return id;
         }
@@ -137,3 +144,4 @@ public class StoreUserDTO {
         }
     }
 }
+

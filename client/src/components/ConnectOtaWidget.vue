@@ -34,14 +34,20 @@
             v-model="widgetLanguage"
             size="small"
             style="width: 120px"
-            :disabled="loading || syncingRooms"
+            :disabled="loading"
             @change="handleWidgetLanguageChange"
           >
             <el-option label="中文" value="zn" />
             <el-option label="English" value="en" />
           </el-select>
         </div>
-        <el-button type="primary" :loading="syncingRooms" :disabled="loading" @click="handleSyncRooms">
+        <el-button
+          v-if="false"
+          type="primary"
+          :loading="syncingRooms"
+          :disabled="loading"
+          @click="handleSyncRooms"
+        >
           一键推送PMS房型列表（认证用）
         </el-button>
         <el-button @click="handleClose">关闭</el-button>
@@ -121,8 +127,29 @@ const REACT_UMD_URL = 'https://unpkg.com/react@18.2.0/umd/react.production.min.j
 const REACT_DOM_UMD_URL = 'https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js'
 
 const SU_CONFIG_PROXY_BASE = `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/su/config`
+const CHANNEL_HOTEL_ACCESS_DENIED_PATTERN =
+  /(HOTEL_ACCESS_DENIED|Request for forbidden hotel id\(s\)|forbidden hotel id\(s\))/i
+const CHANNEL_HOTEL_DENIED_TOAST_COOLDOWN_MS = 3000
 
 let uninstallSuConfigProxy: null | (() => void) = null
+let lastChannelHotelDeniedToastAt = 0
+
+const maybeNotifyChannelHotelIdDenied = (raw: unknown) => {
+  if (typeof raw !== 'string' || !raw) {
+    return
+  }
+  if (!CHANNEL_HOTEL_ACCESS_DENIED_PATTERN.test(raw)) {
+    return
+  }
+  const now = Date.now()
+  if (now - lastChannelHotelDeniedToastAt < CHANNEL_HOTEL_DENIED_TOAST_COOLDOWN_MS) {
+    return
+  }
+  lastChannelHotelDeniedToastAt = now
+  ElMessage.error(
+    '渠道酒店标识无权限或不存在，请使用Booking.com后台的正确Property ID，并确认该账号有该酒店权限。',
+  )
+}
 
 const isLocalhost = (): boolean => {
   const host = window.location.hostname
@@ -319,6 +346,17 @@ const installSuConfigProxy = (): (() => void) => {
   XMLHttpRequest.prototype.send = function (body?: Document | XMLHttpRequestBodyInit | null) {
     const meta = metaByXhr.get(this)
     if (meta?.isSuConfig) {
+      this.addEventListener(
+        'loadend',
+        () => {
+          try {
+            maybeNotifyChannelHotelIdDenied(this.responseText)
+          } catch {
+            // ignore
+          }
+        },
+        { once: true },
+      )
       try {
         this.withCredentials = true
       } catch {
@@ -366,7 +404,14 @@ const installSuConfigProxy = (): (() => void) => {
         headers.set('Authorization', `Bearer ${token}`)
       }
 
-      return originalFetch(proxyUrl, { ...init, headers, credentials: 'include' })
+      const response = await originalFetch(proxyUrl, { ...init, headers, credentials: 'include' })
+      try {
+        const preview = await response.clone().text()
+        maybeNotifyChannelHotelIdDenied(preview)
+      } catch {
+        // ignore
+      }
+      return response
     }
   }
 

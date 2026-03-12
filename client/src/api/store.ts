@@ -1,13 +1,22 @@
 import { request } from '@/utils/request'
+import type { PermissionDTO } from '@/api/role'
 
-// API响应格式
 export interface ApiResponse<T> {
   success: boolean
   message: string
   data: T
 }
 
-// 门店基本信息DTO
+export interface LocalizedContentDTO {
+  name?: string
+  description?: string
+}
+
+export interface FacilityDTO {
+  group?: string
+  name: string
+}
+
 export interface StoreDTO {
   id: number
   name: string
@@ -29,12 +38,15 @@ export interface StoreDTO {
   whatsapp?: string
   line?: string
   language?: string
-  userRole: string // owner, admin, member
+  facilities?: FacilityDTO[]
+  desktopPhotoUrls?: string[]
+  mobilePhotoUrls?: string[]
+  localizedContent?: Record<string, LocalizedContentDTO>
+  userRole: string
   createdAt: string
   updatedAt: string
 }
 
-// 门店政策DTO
 export interface StorePolicyDTO {
   id?: number
   storeId: number
@@ -47,7 +59,6 @@ export interface StorePolicyDTO {
   hotelTerms: string
 }
 
-// 创建/更新门店请求
 export interface StoreRequest {
   name: string
   phone: string
@@ -69,23 +80,30 @@ export interface StoreRequest {
   wechat?: string
   whatsapp?: string
   line?: string
+  facilities?: FacilityDTO[]
+  desktopPhotoUrls?: string[]
+  mobilePhotoUrls?: string[]
+  localizedContent?: Record<string, LocalizedContentDTO>
 }
 
-// 添加成员请求
 export interface AddStoreMemberRequest {
   email: string
   role: 'owner' | 'admin' | 'member'
-  roleIds?: number[] // 权限角色ID列表
+  roleIds?: number[]
+  extraPermissions?: PermissionDTO[]
 }
 
-// 更新成员权限请求
 export interface UpdateStoreMemberPermissionRequest {
   role?: 'owner' | 'admin' | 'member'
   roleIds?: number[]
   isActive?: boolean
+  extraPermissions?: PermissionDTO[]
 }
 
-// 角色信息
+export interface TransferStoreOwnerRequest {
+  targetUserId: number
+}
+
 export interface RoleDTO {
   id: number
   name: string
@@ -93,7 +111,6 @@ export interface RoleDTO {
   isSystem?: boolean
 }
 
-// 用户简化信息
 export interface UserSimpleDTO {
   id: number
   username: string
@@ -103,44 +120,35 @@ export interface UserSimpleDTO {
   isActive: boolean
 }
 
-// 门店成员详细信息（匹配后端StoreUserDTO）
 export interface StoreUserDTO {
   id: number
   user: UserSimpleDTO
-  role: string // 基础角色: owner, admin, member
-  roles: RoleDTO[] // 权限角色列表
+  role: string
+  roles: RoleDTO[]
+  extraPermissions?: PermissionDTO[]
   isActive: boolean
   invitedBy?: number
   joinedAt: string
 }
 
-// 保留旧的接口以兼容现有代码
 export type StoreMember = StoreUserDTO
 
-/**
- * 获取当前用户的所有门店
- */
+export interface DeleteStoreErrorData {
+  code?: string
+}
+
 export const getUserStores = async (): Promise<ApiResponse<StoreDTO[]>> => {
   return await request.get('/stores')
 }
 
-/**
- * 根据ID获取门店详情
- */
 export const getStoreById = async (id: number): Promise<ApiResponse<StoreDTO>> => {
   return await request.get(`/stores/${id}`)
 }
 
-/**
- * 创建门店
- */
 export const createStore = async (data: StoreRequest): Promise<ApiResponse<StoreDTO>> => {
   return await request.post('/stores', data)
 }
 
-/**
- * 更新门店
- */
 export const updateStore = async (
   id: number,
   data: StoreRequest
@@ -148,9 +156,12 @@ export const updateStore = async (
   return await request.put(`/stores/${id}`, data)
 }
 
-/**
- * 添加门店成员（支持权限角色）
- */
+export const deleteStore = async (
+  id: number
+): Promise<ApiResponse<DeleteStoreErrorData | null>> => {
+  return await request.delete(`/stores/${id}`)
+}
+
 export const addStoreMember = async (
   storeId: number,
   data: AddStoreMemberRequest
@@ -158,18 +169,12 @@ export const addStoreMember = async (
   return await request.post(`/stores/${storeId}/members`, data)
 }
 
-/**
- * 获取门店成员列表
- */
 export const getStoreMembers = async (
   storeId: number
 ): Promise<ApiResponse<StoreUserDTO[]>> => {
   return await request.get(`/stores/${storeId}/members`)
 }
 
-/**
- * 获取门店成员详情
- */
 export const getStoreMemberDetail = async (
   storeId: number,
   userId: number
@@ -177,9 +182,6 @@ export const getStoreMemberDetail = async (
   return await request.get(`/stores/${storeId}/members/${userId}`)
 }
 
-/**
- * 更新门店成员权限
- */
 export const updateStoreMemberPermission = async (
   storeId: number,
   userId: number,
@@ -188,9 +190,13 @@ export const updateStoreMemberPermission = async (
   return await request.put(`/stores/${storeId}/members/${userId}`, data)
 }
 
-/**
- * 移除门店成员
- */
+export const transferStoreOwner = async (
+  storeId: number,
+  data: TransferStoreOwnerRequest
+): Promise<ApiResponse<void>> => {
+  return await request.post(`/stores/${storeId}/owner/transfer`, data)
+}
+
 export const removeStoreMember = async (
   storeId: number,
   memberId: number
@@ -198,16 +204,12 @@ export const removeStoreMember = async (
   return await request.delete(`/stores/${storeId}/members/${memberId}`)
 }
 
-/**
- * 获取门店政策
- */
-export const getStorePolicy = async (storeId: number): Promise<ApiResponse<StorePolicyDTO>> => {
+export const getStorePolicy = async (
+  storeId: number
+): Promise<ApiResponse<StorePolicyDTO>> => {
   return await request.get(`/stores/${storeId}/policy`)
 }
 
-/**
- * 更新或创建门店政策
- */
 export const saveStorePolicy = async (
   storeId: number,
   data: Partial<StorePolicyDTO>

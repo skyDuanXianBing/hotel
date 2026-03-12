@@ -215,6 +215,37 @@ public class SuContentSyncService {
         pmsPushLogger.info("[SuRoomTypeUpsert] done. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId);
     }
 
+    /**
+     * PMS -> Su：删除单个房型（Room Type）（OTA_HotelRoom，InvStatusType=Delete）。
+     * <p>
+     * 严格模式：失败直接抛错。
+     */
+    public void deleteSingleRoomTypeStrict(Long storeId, String hotelId, String roomTypeId) {
+        if (roomTypeId == null || roomTypeId.isBlank()) {
+            throw new IllegalArgumentException("roomTypeId is required");
+        }
+
+        logger.info("[SuRoomTypeDelete] start. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId);
+        pmsPushLogger.info("[SuRoomTypeDelete] start. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId);
+
+        Object payload = SuContentPayloadBuilder.buildRoomDeletePayload(hotelId, roomTypeId);
+        JsonNode resp = suAccessTokenService.executeWithTokenRetry(
+                token -> suApiClient.postOtaHotelRoom(token, payload),
+                "OTA_HotelRoom(delete roomType=" + roomTypeId + ")"
+        );
+
+        if (!suApiClient.isSuSuccess(resp)) {
+            String err = suApiClient.extractSuErrorMessage(resp);
+            String msg = err != null ? err : "Su 删除房型失败";
+            logger.warn("[SuRoomTypeDelete] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, msg);
+            pmsPushLogger.warn("[SuRoomTypeDelete] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, msg);
+            throw new RuntimeException(msg);
+        }
+
+        logger.info("[SuRoomTypeDelete] done. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId);
+        pmsPushLogger.info("[SuRoomTypeDelete] done. storeId={}, hotelId={}, roomTypeId={}", storeId, hotelId, roomTypeId);
+    }
+
     private UpsertOutcome upsertSingleRoomType(Long storeId, String hotelId, RoomType roomType) {
         String roomId = String.valueOf(roomType.getId());
 

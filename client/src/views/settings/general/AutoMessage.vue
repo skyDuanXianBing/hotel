@@ -357,6 +357,18 @@ const timeOptions = computed<SendTimingOption[]>(() => {
   return options
 })
 
+const normalizeTimeValue = (value: string) => {
+  if (!value) {
+    return ''
+  }
+  const normalized = value.trim()
+  const match = normalized.match(/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/)
+  if (!match) {
+    return normalized
+  }
+  return `${match[1]}:${match[2]}`
+}
+
 // 监听房间选择类型变化，清空已选房间
 watch(
   () => form.roomSelectionType,
@@ -641,7 +653,7 @@ const fillFormFromDTO = async (id: number) => {
             const parts = dto.sendTiming.split('_')
             if (parts.length === 3) {
               form.day = parts[1]
-              form.time = parts[2]
+              form.time = normalizeTimeValue(parts[2])
             } else {
               form.day = ''
               form.time = ''
@@ -754,7 +766,11 @@ const handleSave = async () => {
       if (!form.day) {
         ElMessage.error('请选择天')
         valid = false
-      } else if (!form.time || !/^[0-2]\\d:[0-5]\\d$/.test(form.time)) {
+      } else {
+        form.time = normalizeTimeValue(form.time)
+      }
+
+      if (!form.time || !/^([01]\d|2[0-3]):[0-5]\d$/.test(form.time)) {
         ElMessage.error('请选择时间（例如 14:00）')
         valid = false
       }

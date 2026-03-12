@@ -15,8 +15,39 @@
         </div>
       </div>
 
+      <div class="filters">
+        <el-select
+          v-model="channelId"
+          filterable
+          clearable
+          placeholder="平台"
+          style="width: 200px"
+        >
+          <el-option v-for="c in channels" :key="c.id" :label="c.name" :value="c.id" />
+        </el-select>
+        <el-date-picker
+          v-model="checkInDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          clearable
+          placeholder="入住日期"
+          style="width: 160px"
+        />
+        <el-date-picker
+          v-model="checkOutDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          clearable
+          placeholder="退房日期"
+          style="width: 160px"
+        />
+        <el-button type="primary" :loading="loading" @click="load">搜索</el-button>
+        <el-button :disabled="loading" @click="resetFilters">重置</el-button>
+      </div>
+
       <el-table :data="rows" border stripe style="width: 100%" @row-click="go">
-        <el-table-column prop="orderNumber" label="订单号" min-width="150" />
+        <el-table-column prop="channelOrderNumber" label="渠道订单号" min-width="160" />
+        <el-table-column prop="channelName" label="渠道" min-width="140" />
         <el-table-column prop="guestName" label="客人" min-width="120" />
         <el-table-column prop="checkInDate" label="入住" min-width="110" />
         <el-table-column prop="checkOutDate" label="退房" min-width="110" />
@@ -55,11 +86,14 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
+import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRegistrationLinkInbox, type RegistrationLinkInboxItemDTO } from '@/api/registrationLinkInbox'
 
 type Row = {
   formId: number
   orderNumber: string
+  channelOrderNumber?: string | null
+  channelName?: string | null
   guestName: string
   checkInDate: string
   checkOutDate: string
@@ -72,15 +106,57 @@ const router = useRouter()
 const rows = ref<Row[]>([])
 const loading = ref(false)
 const status = ref<string | null>(null)
+const channels = ref<ChannelDTO[]>([])
+const channelId = ref<number | null>(null)
+const checkInDate = ref<string | null>(null)
+const checkOutDate = ref<string | null>(null)
 const linkDrawerVisible = ref(false)
 const linkLoading = ref(false)
 const linkRows = ref<RegistrationLinkInboxItemDTO[]>([])
 
+async function loadChannels() {
+  try {
+    const resp = await getAllChannels()
+    channels.value = resp.success ? (resp.data || []) : []
+    if (!resp.success) {
+      ElMessage.error(resp.message || '加载渠道失败')
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || e?.message || '加载渠道失败')
+  }
+}
+
+function resetFilters() {
+  channelId.value = null
+  checkInDate.value = null
+  checkOutDate.value = null
+  load()
+}
+
 async function load() {
   loading.value = true
   try {
-    const resp = await request.get('/registrations', { params: status.value ? { status: status.value } : {} })
-    rows.value = (resp.data || []) as Row[]
+    const params: Record<string, string | number> = {}
+    if (status.value) params.status = status.value
+    if (channelId.value) params.channelId = channelId.value
+    if (checkInDate.value) params.checkInDate = checkInDate.value
+    if (checkOutDate.value) params.checkOutDate = checkOutDate.value
+
+    const resp = (await request.get('/registrations', { params })) as {
+      success: boolean
+      message?: string
+      data?: Row[]
+    }
+    if (resp.success) {
+      rows.value = ((resp.data || []) as Row[]).map((r) => ({
+        ...r,
+        channelOrderNumber: r.channelOrderNumber || '-',
+        channelName: r.channelName || '-',
+      }))
+    } else {
+      rows.value = []
+      ElMessage.error(resp.message || '加载失败')
+    }
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || '加载失败')
   } finally {
@@ -132,7 +208,10 @@ async function copy(text: string) {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadChannels()
+})
 </script>
 
 <style scoped>
@@ -143,6 +222,13 @@ onMounted(load)
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 12px;
+}
+.filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 12px;
 }
 .title {

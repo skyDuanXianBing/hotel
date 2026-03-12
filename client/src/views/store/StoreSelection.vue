@@ -62,8 +62,20 @@
               <el-icon :size="24"><HomeFilled /></el-icon>
             </div>
             <span class="store-name">{{ store.type }}</span>
-            <span v-if="store.userRole === 'owner'" class="store-badge pro">Pro</span>
-            <span v-else class="store-badge ess">Ess</span>
+            <div class="store-actions">
+              <span v-if="store.userRole === 'owner'" class="store-badge pro">Pro</span>
+              <span v-else class="store-badge ess">Ess</span>
+              <el-button
+                v-if="store.userRole === 'owner'"
+                link
+                type="danger"
+                size="small"
+                :loading="deletingStoreId === store.id"
+                @click.stop="handleDeleteStore(store)"
+              >
+                删除
+              </el-button>
+            </div>
           </div>
           <div class="store-body">
             <h3 class="store-title">{{ store.name }}</h3>
@@ -213,7 +225,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   Loading,
   Search,
@@ -234,6 +246,7 @@ const stores = ref<StoreDTO[]>([])
 const searchKeyword = ref('')
 const createDialogVisible = ref(false)
 const submitting = ref(false)
+const deletingStoreId = ref<number | null>(null)
 const formRef = ref<FormInstance>()
 const phonePrefix = ref('+86')
 
@@ -287,6 +300,44 @@ const loadStores = async () => {
     ElMessage.error(error.message || '加载门店列表失败')
   } finally {
     loading.value = false
+  }
+}
+
+/**
+ * 删除门店（仅 owner）
+ */
+const handleDeleteStore = async (store: StoreDTO) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除门店「${store.name}」吗？删除后该门店将从列表中移除。`,
+      '删除门店',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      }
+    )
+  } catch {
+    return
+  }
+
+  deletingStoreId.value = store.id
+  try {
+    await storeStore.deleteStore(store.id)
+    ElMessage.success('门店已删除')
+    await loadStores()
+  } catch (error: any) {
+    if (error?.code === '953') {
+      await ElMessageBox.alert(
+        'Su 返回错误码 953：该 Property 已与渠道映射（Active 或 Inactive）。请先在 Su 侧移除该 Property 的渠道映射后，再重试删除门店。',
+        '无法删除门店',
+        { type: 'warning', confirmButtonText: '知道了' }
+      )
+      return
+    }
+    ElMessage.error(error.message || '删除门店失败')
+  } finally {
+    deletingStoreId.value = null
   }
 }
 
@@ -510,8 +561,14 @@ onMounted(() => {
       color: #666;
     }
 
-    .store-badge {
+    .store-actions {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .store-badge {
       padding: 4px 12px;
       border-radius: 4px;
       font-size: 12px;

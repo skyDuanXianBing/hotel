@@ -1,0 +1,513 @@
+# Property - Create/Update
+
+Property describes a commercial premises such as hotels, motels, lodges, luxury apartments, home stays and other types of buildings where individuals, couples, families and/or groups pay to stay, eat, have fun, relax, and to take advantage of all the offered in-house services available.
+
+***
+
+## <mark style="color:yellow;">Create or Update Property</mark> <a href="#property-createorupdateproperty" id="property-createorupdateproperty"></a>
+
+You can create a new property or update an existing property with this API.
+
+***
+
+### <mark style="color:yellow;">Endpoint</mark> <a href="#property-endpoint" id="property-endpoint"></a>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/OTA_HotelDescriptiveContentNotif
+```
+
+***
+
+#### <mark style="color:purple;">The HotelDescriptiveContent object</mark> <a href="#property-thehoteldescriptivecontentobject" id="property-thehoteldescriptivecontentobject"></a>
+
+The `HotelDescriptiveContent` object defines all the details of a particular hotel such as hotel id, hotel name, time zone, currency, language, contact info, hotel email id, phone number, and position. Partner can provide all these details using the sample request and create or update hotel descriptive content.
+
+#### <mark style="color:yellow;">Attributes</mark> <a href="#property-attributes" id="property-attributes"></a>
+
+The dot notation indicates that the property is one level deep inside a hash. No attributes are guaranteed to be present, and if we cannot find data on a specific network, then we will return a null value for that attribute.
+
+***
+
+`HotelName` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of the property as it should be displayed on the website as a hotel name.
+
+> Accepts alphanumeric values.&#x20;
+>
+> {% hint style="info" %}
+> To ensure OTA compatibility, avoid using special characters outside standard alphanumeric formatting.
+> {% endhint %}
+
+***
+
+`HotelType` <mark style="color:orange;">**string (Optional)**</mark>
+
+Hotels are classified according to the location, target markets, ownership, affiliation, and facility provided. HotelType describes the type of that property.
+
+> Accepts values: \[1, 2 or 3] (Default value=1)
+>
+> &#x20; `1` - Hotel
+>
+> &#x20; `2` - Motel
+>
+> &#x20; `3` - Vacational Rental
+
+***
+
+`TimeZone` <mark style="color:orange;">**string (Optional)**</mark>
+
+If no value passed, system would take the default value of TimeZone depending on the country.
+
+> Accepts the values listed under [Time Zones](https://suissu.gitbook.io/su-api-documentation/codes/time-zones).
+
+***
+
+`Platform` <mark style="color:orange;">**string (Optional)**</mark>
+
+PMS service assigned as Both (SU & STAAH).
+
+> Accepts values: \["SU" or "STAAH"]
+
+***
+
+`hotelid / HotelCode / ClientID` <mark style="color:orange;">**string (Required)**</mark>
+
+The unique property ID as assigned by the provider upon creation of the property.
+
+> Accepts alphanumeric values.&#x20;
+>
+> Space and Special characters are not allowed except Hyphen (" - ").
+>
+> Maximum 20 characters allowed.
+
+***
+
+`ChainID` <mark style="color:orange;">**string (Optional)**</mark>
+
+The Chain ID as assigned by the provider upon creation of the property.
+
+> Accepts alphanumeric values.&#x20;
+>
+> Space and Special characters are not allowed except Hyphen (" - ").&#x20;
+>
+> Maximum 20 characters allowed.
+
+***
+
+`LanguageCode` <mark style="color:orange;">**enum (Required)**</mark>
+
+The language codes which are acceptable for the property.
+
+> Accepts the values listed under [Language Codes](https://suissu.gitbook.io/su-api-documentation/codes/language-codes).&#x20;
+>
+> Default: en
+
+***
+
+`CurrencyCode` <mark style="color:orange;">**string (Required)**</mark>
+
+The currency codes which are acceptable for the property.
+
+> Accepts the values listed under [Currency Codes](https://suissu.gitbook.io/su-api-documentation/codes/currency-codes).
+
+***
+
+`closeoutdays` <mark style="color:orange;">**number (Optional)**</mark>
+
+The closeoutdays as allocated by the provider for the property.
+
+> Accepts the values between 0 to 30 but must be in quotes. Default value is - 1 (no closeouts).
+
+***
+
+`closeouttime` <mark style="color:orange;">**string (Optional)**</mark>
+
+The closeouttime as allocated by the provider for the property.
+
+> Accepts the values between 00:00 to 24:00 (Interval must be 30 min). It is required only if you set closeoutdays value as 0. Default value is - 1 (no closeouts).
+
+***
+
+***
+
+`HotelDescriptiveContentNotifType` <mark style="color:orange;">**enum (Required)**</mark>
+
+Indicates whether the call is meant to create a new property or update an existing one.
+
+> Accepts these values: New and Overlay.&#x20;
+>
+> Default: New
+
+***
+
+`PropertyLicenseNumber` <mark style="color:orange;">**string (Optional)**</mark>
+
+The property license number, as provided by the local authority.
+
+Required for certain property types, in certain regions.&#x20;
+
+{% hint style="info" %}
+Consult your account manager for details.
+{% endhint %}
+
+***
+
+`OfficialCheckinTime` <mark style="color:orange;">**string (Optional)**</mark>
+
+Indicates Check-in Time for the earliest time a guest can check in.
+
+> Format: HH:MM 24-hour check-in can be specified using 00:00
+
+***
+
+`OfficialCheckoutTime` <mark style="color:orange;">**string (Optional)**</mark>
+
+Indicates Check-out Time for the earliest time a guest can check out.
+
+> Format: HH:MM 24-hour check-in can be specified using 00:00
+
+***
+
+#### <mark style="color:purple;">The ContactInfos object</mark> <a href="#property-thecontactinfosobject" id="property-thecontactinfosobject"></a>
+
+The ContactInfos object contains all the information related to the property. This object is the building block of Names, Addresses, Emails, and Phones.&#x20;
+
+If the contact profile type is physical location, then you have to provide the complete address which contains complete physical address of the property (City, [Postal code](https://en.wikipedia.org/wiki/Postal_code), and Country).
+
+#### <mark style="color:yellow;">Attributes</mark> <a href="#property-attributes.1" id="property-attributes.1"></a>
+
+***
+
+`ContactProfileType` <mark style="color:orange;">**enum (Required)**</mark>
+
+Indicates the type of contact.
+
+> Accepts: availability and PhysicalLocation.&#x20;
+>
+> `availability` - Contact for questions about availability.
+>
+> `PhysicalLocation` - Address details for the property's physical location.
+
+***
+
+`Name.GivenName` <mark style="color:orange;">**string (Required)**</mark>
+
+The contact's given (first) name.
+
+***
+
+`Name.Surname` <mark style="color:orange;">**string (Required)**</mark>
+
+The contact's last name or family name.
+
+***
+
+`NotificationEmail` <mark style="color:orange;">**email (Optional)**</mark>
+
+Email address on which reservations will be notified.
+
+> Multiple Notification Email allowed.
+
+***
+
+#### <mark style="color:purple;">**Addresses object**</mark>
+
+Provides information about the addresses associated with hotels or properties.
+
+***
+
+`Address.AddressLine` <mark style="color:orange;">**string (Required)**</mark>
+
+The full street name and number.
+
+***
+
+`Address.CityName` <mark style="color:orange;">**string (Required)**</mark>
+
+The name of the city, town, or village.
+
+> Only editable via Extranet.
+
+***
+
+`Address.CountryName` <mark style="color:orange;">**countrycode (Required)**</mark>
+
+The two-letter code for the country.
+
+> Only editable via Extranet listed under [Country Code](https://suissu.gitbook.io/su-api-documentation/codes/country-codes).
+
+***
+
+`Address.PostalCode` <mark style="color:orange;">**string (Required)**</mark>
+
+The postal or zip code.
+
+***
+
+#### <mark style="color:purple;">**Emails object**</mark>
+
+Provides information about the addresses associated with hotels or properties.
+
+***
+
+`Email` <mark style="color:orange;">**string (Required)**</mark>
+
+Contains a valid email address.
+
+{% hint style="info" %}
+Maximum 5 email address can be added.
+{% endhint %}
+
+***
+
+#### <mark style="color:purple;">**Phones object**</mark>
+
+Refers to the phone number and the phone tech type used.
+
+***
+
+`Phone.PhoneNumber` <mark style="color:orange;">**string (Required)**</mark>
+
+The international phone number that must be dialed to reach the phone.
+
+> Must begin with +, followed by all digits required to dial internationally.&#x20;
+>
+> No whitespace, hyphens, or other characters allowed.&#x20;
+>
+> Not more than 15 numbers.
+
+***
+
+`Phone.PhoneTechType` <mark style="color:orange;">**enum (Required)**</mark>
+
+The type of phone line or device, expressed as a PTT code.
+
+{% hint style="info" %}
+See [PTT codes](https://suissu.gitbook.io/su-api-documentation/codes/phone-technology-type-codes) for accepted values.
+{% endhint %}
+
+***
+
+#### <mark style="color:purple;">The HotelInfo object</mark> <a href="#property-thehotelinfoobject" id="property-thehotelinfoobject"></a>
+
+This object represents your hotel’s physical position. It provides the exact co-ordinates containing the value of [Latitude](https://en.wikipedia.org/wiki/Latitude) and [Longitude](https://en.wikipedia.org/wiki/Longitude).
+
+#### <mark style="color:yellow;">Attributes</mark> <a href="#property-attributes.2" id="property-attributes.2"></a>
+
+***
+
+`Position.Latitude` <mark style="color:orange;">**latitude-value (Required)**</mark>
+
+Latitude of the property's location.
+
+> A valid Latitude value (-90) to 90.
+
+***
+
+`Position.Longitude` <mark style="color:orange;">**longitude-value (Required)**</mark>
+
+Longitude of the property's location.
+
+> A valid Longitude value (-180) to 180.
+
+#### <mark style="color:blue;">Facilities array</mark> <a href="#property-facilitiesarray" id="property-facilitiesarray"></a>
+
+This array represents the facility in your hotel such as free parking, internet connection, cab service, and CCTV camera. It provides the information in combination of the facility and the group name from which the facility belongs to.
+
+#### <mark style="color:yellow;">Attributes</mark> <a href="#property-attributes.3" id="property-attributes.3"></a>
+
+***
+
+`Facility.Group` <mark style="color:orange;">**string (Optional)**</mark>
+
+Group name of the facility.
+
+***
+
+`Facility.name` <mark style="color:orange;">**string (Optional)**</mark>
+
+Name of the facility under a group, multiple facility name can come under one group.
+
+{% hint style="info" %}
+
+* Both "Group" and "name" accepts Free Text - Special characters not allowed
+* If no Group name given, The amenity will be added under the Group "Common" (Auto created / Default)
+* Once added, it cannot be removed individually
+* If needed to be updated / modified, entire mode will have to be passed \<Facilities>.....\</Facilities>
+  {% endhint %}
+
+***
+
+`HotelDescription` <mark style="color:orange;">**Free Text (Optional)**</mark>
+
+Proper description of the property/hotel.
+
+> Maximum 2000 characters. Content beyond this limit is accepted but not rendered.
+
+***
+
+### <mark style="color:yellow;">**Sample Request**</mark>&#x20;
+
+{% code overflow="wrap" fullWidth="false" %}
+
+```json
+{
+  "HotelDescriptiveContents": {
+    "HotelDescriptiveContent": {
+      "HotelName": "Kings Cross",
+      "HotelType": "3",
+      "TimeZone": "Europe/London",
+      "Platform": "SU",
+      "hotelid": "KC",
+      "ChainID": "W1",
+      "LanguageCode": "en",
+      "CurrencyCode": "GBP",
+      "Closeoutdays": "1",
+      "Closeouttime": "00:30",
+      "HotelDescriptiveContentNotifType": "New",
+      "PropertyLicenseNumber": "AB-CD-1234",
+      "OfficialCheckinTime": "12:00",
+      "OfficialCheckoutTime": "11:00",
+      "ContactInfos": {
+        "ContactInfo": [
+          {
+            "ContactProfileType": "PhysicalLocation",
+            "Addresses": {
+              "Address": {
+                "AddressLine": "36 Northwild Street",
+                "CityName": "London",
+                "PostalCode": "M16JD",
+                "CountryName": "GB"
+              }
+            }
+          },
+          {
+            "ContactProfileType": "availability",
+            "Names": {
+              "Name": {
+                "GivenName": "Steve",
+                "Surname": "Martin"
+              }
+            },
+            "Addresses": {
+              "Address": {
+                "AddressLine": "36 Northwild Street",
+                "CityName": "London",
+                "CountryName": "GB",
+                "PostalCode": "M16JD"
+              }
+            },
+            "NotificationEmail": "no-reply[at]youremail.com",
+            "Emails": {
+              "Email": [
+                "admin[at]examplehotel.com",
+                "admin1[at]examplehotel.com",
+                "admin2[at]examplehotel.com"
+              ]
+            },
+            "Phones": {
+              "Phone": [
+                {
+                  "PhoneNumber": "+3362211110",
+                  "PhoneTechType": "1"
+                },
+                {
+                  "PhoneNumber": "+3362211111",
+                  "PhoneTechType": "1"
+                },
+                {
+                  "PhoneNumber": "+3362211112",
+                  "PhoneTechType": "5"
+                },
+                {
+                  "PhoneNumber": "+3362211113",
+                  "PhoneTechType": "5"
+                },
+                {
+                  "PhoneNumber": "+3362211114",
+                  "PhoneTechType": "3"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "HotelInfo": {
+        "Position": {
+          "Latitude": "49.4092",
+          "Longitude": "1.0900"
+        }
+      },
+      "Facilities": {
+        "Facility": [
+          {
+            "Group": "Parking",
+            "name": "Free Parking"
+          },
+          {
+            "Group": "Facilities",
+            "name": "CCTV Camera"
+          },
+          {
+            "Group": "Facilities",
+            "name": "Gym"
+          },
+          {
+            "Group": "Facilities",
+            "name": "Convention Center"
+          },
+          {
+            "Group": "Facilities",
+            "name": "24 hours Frontdesk"
+          }
+        ]
+      },
+      "HotelDescription": "Graceful Apartment in London is nearby airport with Free WiFi and other Amenities."
+    }
+  }
+}
+```
+
+{% endcode %}
+
+***
+
+### <mark style="color:yellow;">Response</mark> <a href="#property-response" id="property-response"></a>
+
+{% hint style="info" %}
+If the API call returns the success as the status, this indicates the request was successful. You have created or modified your property successfully.
+{% endhint %}
+
+#### <mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+  "Status": "Success"
+}
+```
+
+***
+
+<mark style="color:red;">**Sample Error Response**</mark>
+
+{% code fullWidth="false" %}
+
+```json
+{
+  "Errors": [
+    {
+      "Code": "895",
+      "ShortText": "HotelDescriptiveContent: HotelName Property content is required"
+    }
+  ],
+  "Status": "Fail"
+}
+```
+
+{% endcode %}
+
+> This API uses an overlay system. Every time you update an existing property, room type or other objects, the body of your request replaces previous information. **`This means existing information will be deleted if you don’t include in your request.`** To update an object without deleting information, make sure your request contains both the fields you want to update and those you want to keep the same.

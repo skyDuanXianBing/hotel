@@ -6,23 +6,29 @@ import org.springframework.stereotype.Service;
 import server.demo.entity.Role;
 import server.demo.entity.RolePermission;
 import server.demo.entity.StoreUser;
+import server.demo.entity.StoreUserPermission;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
+import server.demo.repository.StoreUserPermissionRepository;
 import server.demo.repository.StoreUserRepository;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * 权限验证服务
+ * 权限校验服务
  */
 @Service
 public class PermissionService {
 
     @Autowired
     private StoreUserRepository storeUserRepository;
+
+    @Autowired
+    private StoreUserPermissionRepository storeUserPermissionRepository;
 
     @Value("${permission.enforcement.enabled:false}")
     private boolean enforcementEnabled;
@@ -65,15 +71,6 @@ public class PermissionService {
         }
     }
 
-    /**
-     * 解析某个房型范围型权限（比如 VIEW_ROOM_STATUS）的房型范围。
-     *
-     * 规则：
-     * - owner/admin 直接视为 all。
-     * - 若存在 allRoomTypes=true，则 all。
-     * - 否则收集 roomTypeId>0 的集合。
-     * - 兼容旧数据：若匹配记录 roomTypeId=0 且 allRoomTypes=false，视为 all。
-     */
     public RoomTypeScope resolveRoomTypeScope(Long storeId, Long userId, PermissionModule module, PermissionAction action) {
         Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
         if (storeUserOpt.isEmpty()) {
@@ -81,11 +78,128 @@ public class PermissionService {
         }
 
         StoreUser storeUser = storeUserOpt.get();
-        if ("owner".equals(storeUser.getRole()) || "admin".equals(storeUser.getRole())) {
+        if (isStoreManager(storeUser)) {
             return RoomTypeScope.all();
         }
 
-        Set<Role> roles = storeUser.getRoles();
+        RoomTypeScope roleScope = resolveRoleRoomTypeScope(storeUser.getRoles(), module, action);
+        RoomTypeScope extraScope = resolveExtraRoomTypeScope(loadExtraPermissions(storeUser.getId()), module, action);
+        return mergeRoomTypeScopes(roleScope, extraScope);
+    }
+
+    public boolean hasPermission(Long storeId, Long userId, PermissionModule module, PermissionAction action) {
+        Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
+        if (storeUserOpt.isEmpty()) {
+            return false;
+        }
+
+        StoreUser storeUser = storeUserOpt.get();
+        if (isStoreManager(storeUser)) {
+            return true;
+        }
+
+        List<StoreUserPermission> extraPermissions = loadExtraPermissions(storeUser.getId());
+        return hasRolePermission(storeUser.getRoles(), module, action)
+                || hasExtraPermission(extraPermissions, module, action);
+    }
+
+    public boolean hasPermission(Long storeId, Long userId, PermissionModule module,
+                                 PermissionAction action, Long roomTypeId) {
+        Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
+        if (storeUserOpt.isEmpty()) {
+            return false;
+        }
+
+        StoreUser storeUser = storeUserOpt.get();
+        if (isStoreManager(storeUser)) {
+            return true;
+        }
+
+        if (roomTypeId == null || action != PermissionAction.VIEW_ROOM_STATUS) {
+            return hasPermission(storeId, userId, module, action);
+        }
+
+        RoomTypeScope scope = resolveRoomTypeScope(storeId, userId, module, action);
+        return scope.isAllRoomTypes() || scope.getRoomTypeIds().contains(roomTypeId);
+    }
+
+    public boolean isStoreAdmin(Long storeId, Long userId) {
+        Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
+
+        if (storeUserOpt.isEmpty()) {
+            return false;
+        }
+
+        StoreUser storeUser = storeUserOpt.get();
+        return "owner".equals(storeUser.getRole()) || "admin".equals(storeUser.getRole());
+    }
+
+    public boolean isStoreOwner(Long storeId, Long userId) {
+        Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
+
+        if (storeUserOpt.isEmpty()) {
+            return false;
+        }
+
+        StoreUser storeUser = storeUserOpt.get();
+        return "owner".equals(storeUser.getRole());
+    }
+
+    private boolean isStoreManager(StoreUser storeUser) {
+        return "owner".equals(storeUser.getRole()) || "admin".equals(storeUser.getRole());
+    }
+
+    private List<StoreUserPermission> loadExtraPermissions(Long storeUserId) {
+        if (storeUserId == null) {
+            return Collections.emptyList();
+        }
+        List<StoreUserPermission> permissions = storeUserPermissionRepository.findByStoreUser_Id(storeUserId);
+        return permissions != null ? permissions : Collections.emptyList();
+    }
+
+    private boolean hasRolePermission(Set<Role> roles, PermissionModule module, PermissionAction action) {
+        if (roles == null || roles.isEmpty()) {
+            return false;
+        }
+
+        for (Role role : roles) {
+            Set<RolePermission> permissions = role.getRolePermissions();
+            if (permissions == null || permissions.isEmpty()) {
+                continue;
+            }
+            for (RolePermission permission : permissions) {
+                if (permission == null) {
+                    continue;
+                }
+                if (permission.getModule() == module && permission.getAction() == action) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasExtraPermission(List<StoreUserPermission> extraPermissions,
+                                       PermissionModule module,
+                                       PermissionAction action) {
+        if (extraPermissions == null || extraPermissions.isEmpty()) {
+            return false;
+        }
+
+        for (StoreUserPermission permission : extraPermissions) {
+            if (permission == null) {
+                continue;
+            }
+            if (permission.getModule() == module && permission.getAction() == action) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private RoomTypeScope resolveRoleRoomTypeScope(Set<Role> roles, PermissionModule module, PermissionAction action) {
         if (roles == null || roles.isEmpty()) {
             return RoomTypeScope.none();
         }
@@ -103,14 +217,12 @@ public class PermissionService {
                 if (permission.getModule() != module || permission.getAction() != action) {
                     continue;
                 }
-
                 if (Boolean.TRUE.equals(permission.getAllRoomTypes())) {
                     return RoomTypeScope.all();
                 }
 
                 Long roomTypeId = permission.getRoomTypeId();
                 if (roomTypeId == null || roomTypeId == 0L) {
-                    // 兼容旧数据：存在但未按房型细分
                     return RoomTypeScope.all();
                 }
                 if (roomTypeId > 0) {
@@ -119,135 +231,53 @@ public class PermissionService {
             }
         }
 
-        if (roomTypeIds.isEmpty()) {
+        return roomTypeIds.isEmpty() ? RoomTypeScope.none() : RoomTypeScope.of(roomTypeIds);
+    }
+
+    private RoomTypeScope resolveExtraRoomTypeScope(List<StoreUserPermission> extraPermissions,
+                                                    PermissionModule module,
+                                                    PermissionAction action) {
+        if (extraPermissions == null || extraPermissions.isEmpty()) {
             return RoomTypeScope.none();
         }
-        return RoomTypeScope.of(roomTypeIds);
-    }
 
-    /**
-     * 检查用户是否拥有指定权限
-     * @param storeId 门店ID
-     * @param userId 用户ID
-     * @param module 权限模块
-     * @param action 权限操作
-     * @return 是否拥有权限
-     */
-    public boolean hasPermission(Long storeId, Long userId, PermissionModule module, PermissionAction action) {
-        Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
+        Set<Long> roomTypeIds = new HashSet<>();
+        for (StoreUserPermission permission : extraPermissions) {
+            if (permission == null) {
+                continue;
+            }
+            if (permission.getModule() != module || permission.getAction() != action) {
+                continue;
+            }
+            if (Boolean.TRUE.equals(permission.getAllRoomTypes())) {
+                return RoomTypeScope.all();
+            }
 
-        if (storeUserOpt.isEmpty()) {
-            return false;
-        }
-
-        StoreUser storeUser = storeUserOpt.get();
-
-        // owner和admin拥有所有权限
-        if ("owner".equals(storeUser.getRole()) || "admin".equals(storeUser.getRole())) {
-            return true;
-        }
-
-        // 检查用户的权限角色
-        Set<Role> roles = storeUser.getRoles();
-        if (roles == null || roles.isEmpty()) {
-            return false;
-        }
-
-        // 遍历用户的所有角色，检查是否有匹配的权限
-        for (Role role : roles) {
-            Set<RolePermission> permissions = role.getRolePermissions();
-            if (permissions != null) {
-                for (RolePermission permission : permissions) {
-                    if (permission.getModule() == module && permission.getAction() == action) {
-                        return true;
-                    }
-                }
+            Long roomTypeId = permission.getRoomTypeId();
+            if (roomTypeId == null || roomTypeId == 0L) {
+                return RoomTypeScope.all();
+            }
+            if (roomTypeId > 0) {
+                roomTypeIds.add(roomTypeId);
             }
         }
 
-        return false;
+        return roomTypeIds.isEmpty() ? RoomTypeScope.none() : RoomTypeScope.of(roomTypeIds);
     }
 
-    /**
-     * 检查用户是否拥有指定权限（包含房型）
-     * @param storeId 门店ID
-     * @param userId 用户ID
-     * @param module 权限模块
-     * @param action 权限操作
-     * @param roomTypeId 房型ID（可选）
-     * @return 是否拥有权限
-     */
-    public boolean hasPermission(Long storeId, Long userId, PermissionModule module,
-                                  PermissionAction action, Long roomTypeId) {
-        Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
-
-        if (storeUserOpt.isEmpty()) {
-            return false;
+    private RoomTypeScope mergeRoomTypeScopes(RoomTypeScope roleScope, RoomTypeScope extraScope) {
+        if (roleScope == null || roleScope.isEmpty()) {
+            return extraScope != null ? extraScope : RoomTypeScope.none();
+        }
+        if (extraScope == null || extraScope.isEmpty()) {
+            return roleScope;
+        }
+        if (roleScope.isAllRoomTypes() || extraScope.isAllRoomTypes()) {
+            return RoomTypeScope.all();
         }
 
-        StoreUser storeUser = storeUserOpt.get();
-
-        // owner和admin拥有所有权限
-        if ("owner".equals(storeUser.getRole()) || "admin".equals(storeUser.getRole())) {
-            return true;
-        }
-
-        // 检查用户的权限角色
-        Set<Role> roles = storeUser.getRoles();
-        if (roles == null || roles.isEmpty()) {
-            return false;
-        }
-
-        // 遍历用户的所有角色，检查是否有匹配的权限
-        for (Role role : roles) {
-            Set<RolePermission> permissions = role.getRolePermissions();
-            if (permissions != null) {
-                for (RolePermission permission : permissions) {
-                    if (permission.getModule() == module && permission.getAction() == action) {
-                        // 检查房型权限
-                        if (permission.getAllRoomTypes()) {
-                            // 拥有所有房型权限
-                            return true;
-                        } else if (roomTypeId != null && roomTypeId.equals(permission.getRoomTypeId())) {
-                            // 拥有指定房型权限
-                            return true;
-                        } else if (roomTypeId == null) {
-                            // 不需要特定房型权限
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * 检查用户是否是门店管理员（owner或admin）
-     */
-    public boolean isStoreAdmin(Long storeId, Long userId) {
-        Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
-
-        if (storeUserOpt.isEmpty()) {
-            return false;
-        }
-
-        StoreUser storeUser = storeUserOpt.get();
-        return "owner".equals(storeUser.getRole()) || "admin".equals(storeUser.getRole());
-    }
-
-    /**
-     * 检查用户是否是门店所有者
-     */
-    public boolean isStoreOwner(Long storeId, Long userId) {
-        Optional<StoreUser> storeUserOpt = storeUserRepository.findByStoreIdAndUserId(storeId, userId);
-
-        if (storeUserOpt.isEmpty()) {
-            return false;
-        }
-
-        StoreUser storeUser = storeUserOpt.get();
-        return "owner".equals(storeUser.getRole());
+        Set<Long> roomTypeIds = new HashSet<>(roleScope.getRoomTypeIds());
+        roomTypeIds.addAll(extraScope.getRoomTypeIds());
+        return roomTypeIds.isEmpty() ? RoomTypeScope.none() : RoomTypeScope.of(roomTypeIds);
     }
 }

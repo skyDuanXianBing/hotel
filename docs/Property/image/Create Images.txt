@@ -1,0 +1,221 @@
+# Create Images
+
+The Create Image API allows users to upload or create images in the PMS.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/imageCreate
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`hotelid` <mark style="color:orange;">**string (Required)**</mark>
+
+Hotel id for which you want to create and image.
+
+{% hint style="info" %}
+Maximum 20 characters allowed.
+{% endhint %}
+
+***
+
+`proppmsid` <mark style="color:orange;">**string (Required)**</mark>
+
+Id assigned to a specific property within the PMS.
+
+***
+
+`images` <mark style="color:orange;">**string (Required)**</mark>
+
+***
+
+`url` <mark style="color:orange;">**string (Required)**</mark>
+
+URL of the image.
+
+***
+
+`name` <mark style="color:orange;">**string (Required)**</mark>
+
+Name of the image.
+
+***
+
+`pms_imageid` <mark style="color:orange;">**string (Optional)**</mark>
+
+Id assigned to a specific image within the PMS.
+
+***
+
+## <mark style="color:yellow;">Image Create with pms\_imageid</mark>
+
+### <mark style="color:yellow;">Sample Request</mark>
+
+```json
+{
+    "hotelid": "P103",
+    "images": [
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/roadblue/xxxx.jpg
+",
+            "name": "road blue", 
+            "pms_imageid": "2222"
+        },
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg
+",
+            "name": "b sky",
+            "pms_imageid": "1111"
+        },
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg
+",
+            "name": "b sky",
+            "pms_imageid": "1111"
+        },
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg
+",
+            "name": "b sky",
+            "pms_imageid": "1111"
+        },
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg
+",
+            "name": "b sky",
+            "pms_imageid": "1111"
+        }
+    ]
+}
+```
+
+### <mark style="color:yellow;">Response</mark>
+
+***
+
+```json
+{
+    "Status": "Success",
+    "Data": [
+        {
+            "pms_imageid": "2222",
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        },
+        {
+            "pms_imageid": "1111",
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        },
+        {
+            "pms_imageid": "1111",
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        },
+        {
+            "pms_imageid": "1111",
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        },
+        {
+            "pms_imageid": "1111",
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        }
+    ]
+}
+```
+
+## <mark style="color:yellow;">Image Create without pms\_imageid</mark>
+
+### <mark style="color:yellow;">Sample Request</mark>
+
+```json
+{
+    "hotelid": "P103",
+    "images": [
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/roadblue/xxxx.jpg
+",
+            "name": "road blue"
+        },
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg
+",
+            "name": "b sky"
+        },
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg
+",
+            "name": "b sky"
+        },
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg
+",
+            "name": "b sky"
+        },
+        {
+            "url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg
+",
+            "name": "b sky"
+        }
+    ]
+}
+
+```
+
+### <mark style="color:yellow;">Response</mark>
+
+```json
+{
+    "Status": "Success",
+    "Data": [
+        {
+            "imageid": 11006,
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        },
+        {
+            "imageid": 11005,
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        },
+        {
+            "imageid": 11005,
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        },
+        {
+            "pms_imageid": "1111",
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        },
+        {
+            "imageid": 11005,
+            "image_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/abc/xxxx.jpg"
+        }
+    ]
+}
+```

@@ -1,0 +1,95 @@
+# Retrieve Images
+
+Retrieve Image API allows users to retrieve or access images stored within the PMS.
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FHpyoT0sTR5VA3RkkSOl8%2FSandbox%20image.png?alt=media&#x26;token=45811e1e-b22d-413a-a355-32135a85258e" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect-sandbox.su-api.com/SUAPI/jservice/imageRetrieve
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`hotelid` <mark style="color:orange;">**string (Required)**</mark>
+
+Hotel id for which you want to retrieve the images.
+
+{% hint style="info" %}
+Maximum 20 characters allowed.
+{% endhint %}
+
+***
+
+### <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+    "hotelid": "P103"
+}
+```
+
+### <mark style="color:yellow;">Response</mark>
+
+***
+
+<mark style="color:green;">**Sample Success Response**</mark>
+
+```json
+{
+    "Status": "Success",
+    "Data": [
+        {
+            "image_name": "tesssst leaf",
+            "source_url": "https://www.xxxxxxx.com/xxxx/tesssstleaf/xxxx.jpg",
+            "su_url": "https://www.xxxxxxx.com/xxxx/tesssstleaf/xxxx.jpg",
+            "imageid": 10977,
+            "pms_imageid": "",
+            "is_associate": false
+        },
+        {
+            "image_name": "blue leaf",
+            "source_url": "https://png.pngtree.com/thumb_back/fh260/background/20230903/pngtree-teal-knit-background-free-download-as-png-jpg-b-w-or-image_13208667.jpg",
+            "su_url": "https://www.xxxxxxx.com/xxxx/blueleaf/xxxx.jpg",
+            "imageid": 10978,
+            "pms_imageid": "",
+            "is_associate": false
+        },
+        {
+            "image_name": "car",
+            "source_url": "https://www.xxxxxxx.com/xxxx/car/xxxx.jpg",
+            "su_url": "https://www.xxxxxxx.com/xxxx/car/xxxx.jpg",
+            "imageid": 10993,
+            "pms_imageid": "",
+            "is_associate": true
+        },
+        {
+            "image_name": "b sky",
+            "source_url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg",
+            "su_url": "https://www.xxxxxxx.com/xxxx/bsky/xxxx.jpg",
+            "imageid": 11005,
+            "pms_imageid": "1111",
+            "is_associate": true
+        },
+        {
+            "image_name": "road blue",
+            "source_url": "https://www.xxxxxxx.com/xxxx/roadblue/xxxx.jpg
+",
+            "su_url": "https://www.xxxxxxx.com/xxxx/roadblue/xxxx.jpg
+",
+            "imageid": 11006,
+            "pms_imageid": "2222",
+            "is_associate": false
+        }
+    ]
+}
+```

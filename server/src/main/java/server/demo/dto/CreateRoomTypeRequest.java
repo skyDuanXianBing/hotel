@@ -1,12 +1,13 @@
 package server.demo.dto;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public class CreateRoomTypeRequest {
     @NotBlank(message = "房型名称不能为空")
@@ -29,8 +30,6 @@ public class CreateRoomTypeRequest {
     private BigDecimal defaultPrice;
     private BigDecimal weekdayPrice;
     private BigDecimal weekendPrice;
-
-    // 周价格字段
     private BigDecimal mondayPrice;
     private BigDecimal tuesdayPrice;
     private BigDecimal wednesdayPrice;
@@ -41,19 +40,11 @@ public class CreateRoomTypeRequest {
 
     @Size(min = 1, message = "至少需要一个房间号")
     private List<String> roomNumbers;
+    private List<FacilityDTO> facilities;
+    private List<String> desktopPhotoUrls;
+    private List<String> mobilePhotoUrls;
+    private Map<String, LocalizedContentDTO> localizedContent;
 
-    // Constructors
-    public CreateRoomTypeRequest() {}
-
-    public CreateRoomTypeRequest(String name, String code, Integer totalRooms, String description, List<String> roomNumbers) {
-        this.name = name;
-        this.code = code;
-        this.totalRooms = totalRooms;
-        this.description = description;
-        this.roomNumbers = roomNumbers;
-    }
-
-    // Getters and Setters
     public String getName() {
         return name;
     }
@@ -100,14 +91,6 @@ public class CreateRoomTypeRequest {
 
     public void setCheckInGuideLink(String checkInGuideLink) {
         this.checkInGuideLink = checkInGuideLink;
-    }
-
-    public List<String> getRoomNumbers() {
-        return roomNumbers;
-    }
-
-    public void setRoomNumbers(List<String> roomNumbers) {
-        this.roomNumbers = roomNumbers;
     }
 
     public BigDecimal getDefaultPrice() {
@@ -188,5 +171,45 @@ public class CreateRoomTypeRequest {
 
     public void setSundayPrice(BigDecimal sundayPrice) {
         this.sundayPrice = sundayPrice;
+    }
+
+    public List<String> getRoomNumbers() {
+        return roomNumbers;
+    }
+
+    public void setRoomNumbers(List<String> roomNumbers) {
+        this.roomNumbers = roomNumbers;
+    }
+
+    public List<FacilityDTO> getFacilities() {
+        return facilities;
+    }
+
+    public void setFacilities(List<FacilityDTO> facilities) {
+        this.facilities = facilities;
+    }
+
+    public List<String> getDesktopPhotoUrls() {
+        return desktopPhotoUrls;
+    }
+
+    public void setDesktopPhotoUrls(List<String> desktopPhotoUrls) {
+        this.desktopPhotoUrls = desktopPhotoUrls;
+    }
+
+    public List<String> getMobilePhotoUrls() {
+        return mobilePhotoUrls;
+    }
+
+    public void setMobilePhotoUrls(List<String> mobilePhotoUrls) {
+        this.mobilePhotoUrls = mobilePhotoUrls;
+    }
+
+    public Map<String, LocalizedContentDTO> getLocalizedContent() {
+        return localizedContent;
+    }
+
+    public void setLocalizedContent(Map<String, LocalizedContentDTO> localizedContent) {
+        this.localizedContent = localizedContent;
     }
 }

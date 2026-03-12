@@ -1,10 +1,25 @@
 package server.demo.entity;
 
-import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import server.demo.dto.FacilityDTO;
+import server.demo.dto.LocalizedContentDTO;
+import server.demo.util.JsonFieldUtils;
+
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 /**
- * 门店实体
+ * 门店实体。
  */
 @Entity
 @Table(name = "stores")
@@ -14,7 +29,7 @@ public class Store {
     private Long id;
 
     @Column(nullable = false)
-    private Long userId; // 关联的用户ID
+    private Long userId;
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -23,13 +38,13 @@ public class Store {
     private String phone;
 
     @Column(length = 50)
-    private String type; // 门店类型:日式旅馆、酒店、民宿
+    private String type;
 
     @Column(length = 50)
     private String timezone;
 
     @Column(length = 100)
-    private String manager; // 负责人
+    private String manager;
 
     @Column(length = 100)
     private String ownerEmail;
@@ -41,29 +56,25 @@ public class Store {
     private String city;
 
     @Column(length = 100)
-    private String state; // 州/省
+    private String state;
 
     @Column(length = 100)
     private String country;
 
     @Column(length = 10)
-    private String currency; // 货币
+    private String currency;
 
-    /**
-     * Su Channel Manager 的 Property ID（Su 文档中的 hotelid / HotelCode）。
-     * 建议仅使用 A-Z/0-9，长度 <= 15；一个门店对应一个 suHotelId（支持多门店分别配置）。
-     */
     @Column(length = 15)
     private String suHotelId;
 
     @Column(length = 255)
-    private String logo; // Logo URL
+    private String logo;
 
     @Column(columnDefinition = "TEXT")
-    private String description; // 门店描述
+    private String description;
 
     @Column(length = 100)
-    private String email; // 联系邮箱
+    private String email;
 
     @Column(length = 100)
     private String wechat;
@@ -75,7 +86,23 @@ public class Store {
     private String line;
 
     @Column(length = 20)
-    private String language; // 语言设置
+    private String language;
+
+    @JsonIgnore
+    @Column(name = "desktop_photo_urls_json", columnDefinition = "LONGTEXT")
+    private String desktopPhotoUrlsJson;
+
+    @JsonIgnore
+    @Column(name = "mobile_photo_urls_json", columnDefinition = "LONGTEXT")
+    private String mobilePhotoUrlsJson;
+
+    @JsonIgnore
+    @Column(name = "localized_content_json", columnDefinition = "LONGTEXT")
+    private String localizedContentJson;
+
+    @JsonIgnore
+    @Column(name = "facilities_json", columnDefinition = "LONGTEXT")
+    private String facilitiesJson;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -93,8 +120,6 @@ public class Store {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-
-    // Getters and Setters
 
     public Long getId() {
         return id;
@@ -262,6 +287,42 @@ public class Store {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    @Transient
+    public List<String> getDesktopPhotoUrls() {
+        return JsonFieldUtils.readStringList(desktopPhotoUrlsJson);
+    }
+
+    public void setDesktopPhotoUrls(List<String> desktopPhotoUrls) {
+        this.desktopPhotoUrlsJson = JsonFieldUtils.writeStringList(desktopPhotoUrls);
+    }
+
+    @Transient
+    public List<String> getMobilePhotoUrls() {
+        return JsonFieldUtils.readStringList(mobilePhotoUrlsJson);
+    }
+
+    public void setMobilePhotoUrls(List<String> mobilePhotoUrls) {
+        this.mobilePhotoUrlsJson = JsonFieldUtils.writeStringList(mobilePhotoUrls);
+    }
+
+    @Transient
+    public Map<String, LocalizedContentDTO> getLocalizedContent() {
+        return JsonFieldUtils.readLocalizedContentMap(localizedContentJson);
+    }
+
+    public void setLocalizedContent(Map<String, LocalizedContentDTO> localizedContent) {
+        this.localizedContentJson = JsonFieldUtils.writeLocalizedContentMap(localizedContent);
+    }
+
+    @Transient
+    public List<FacilityDTO> getFacilities() {
+        return JsonFieldUtils.readFacilityList(facilitiesJson);
+    }
+
+    public void setFacilities(List<FacilityDTO> facilities) {
+        this.facilitiesJson = JsonFieldUtils.writeFacilityList(facilities);
     }
 
     public LocalDateTime getCreatedAt() {

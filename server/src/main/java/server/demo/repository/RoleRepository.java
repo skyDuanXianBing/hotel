@@ -1,6 +1,7 @@
 package server.demo.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -33,4 +34,8 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
     boolean existsByStoreIdAndName(Long storeId, String name);
 
     Optional<Role> findByStoreIdAndName(Long storeId, String name);
+
+    @Modifying
+    @Query(value = "DELETE FROM store_user_roles WHERE role_id = :roleId", nativeQuery = true)
+    void deleteStoreUserRoleLinks(@Param("roleId") Long roleId);
 }

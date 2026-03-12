@@ -2,8 +2,11 @@ package server.demo.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.util.List;
+import java.util.Map;
+
 /**
- * 创建门店请求DTO
+ * 创建/更新门店请求。
  */
 public class CreateStoreRequest {
 
@@ -13,38 +16,34 @@ public class CreateStoreRequest {
     private String phone;
 
     @NotBlank(message = "门店类型不能为空")
-    private String type; // 日式旅馆、酒店、民宿
+    private String type;
 
     private String timezone;
 
     @NotBlank(message = "负责人不能为空")
     private String manager;
 
-    @NotBlank(message = "国家和地址不能为空")
+    @NotBlank(message = "国家不能为空")
     private String country;
 
     private String city;
-
     private String state;
-
     private String address;
-
-    /**
-     * 门店货币（例如：CNY / JPY / USD）
-     */
     private String currency;
-
-    /**
-     * Su Channel Manager 的 hotelid / HotelCode（可选，不填则后端随机生成不重复的编码）
-     */
     private String suHotelId;
-
-    /**
-     * 创建门店后是否同步创建/覆盖 Su 物业（默认 true）
-     */
     private Boolean createSuProperty;
+    private String logo;
+    private String description;
+    private String email;
+    private String wechat;
+    private String whatsapp;
+    private String line;
+    private String language;
+    private List<FacilityDTO> facilities;
+    private List<String> desktopPhotoUrls;
+    private List<String> mobilePhotoUrls;
+    private Map<String, LocalizedContentDTO> localizedContent;
 
-    // Getters and Setters
     public String getName() {
         return name;
     }
@@ -139,5 +138,93 @@ public class CreateStoreRequest {
 
     public void setCreateSuProperty(Boolean createSuProperty) {
         this.createSuProperty = createSuProperty;
+    }
+
+    public String getLogo() {
+        return logo;
+    }
+
+    public void setLogo(String logo) {
+        this.logo = logo;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getWechat() {
+        return wechat;
+    }
+
+    public void setWechat(String wechat) {
+        this.wechat = wechat;
+    }
+
+    public String getWhatsapp() {
+        return whatsapp;
+    }
+
+    public void setWhatsapp(String whatsapp) {
+        this.whatsapp = whatsapp;
+    }
+
+    public String getLine() {
+        return line;
+    }
+
+    public void setLine(String line) {
+        this.line = line;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public List<FacilityDTO> getFacilities() {
+        return facilities;
+    }
+
+    public void setFacilities(List<FacilityDTO> facilities) {
+        this.facilities = facilities;
+    }
+
+    public List<String> getDesktopPhotoUrls() {
+        return desktopPhotoUrls;
+    }
+
+    public void setDesktopPhotoUrls(List<String> desktopPhotoUrls) {
+        this.desktopPhotoUrls = desktopPhotoUrls;
+    }
+
+    public List<String> getMobilePhotoUrls() {
+        return mobilePhotoUrls;
+    }
+
+    public void setMobilePhotoUrls(List<String> mobilePhotoUrls) {
+        this.mobilePhotoUrls = mobilePhotoUrls;
+    }
+
+    public Map<String, LocalizedContentDTO> getLocalizedContent() {
+        return localizedContent;
+    }
+
+    public void setLocalizedContent(Map<String, LocalizedContentDTO> localizedContent) {
+        this.localizedContent = localizedContent;
     }
 }

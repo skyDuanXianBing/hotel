@@ -1,33 +1,34 @@
 <template>
   <div class="store-details-container">
-    <!-- 配置详情页面 -->
     <div class="config-page">
-      <!-- 页面标题 -->
       <div class="page-header">
         <h2 class="page-title">门店详情</h2>
       </div>
 
-      <!-- 标签页 -->
       <el-tabs v-model="activeTab" class="store-tabs">
         <el-tab-pane label="详情" name="details">
           <div class="details-content">
-            <!-- 门店名称和编辑按钮 -->
             <div class="store-header">
-              <h2 class="store-title">{{ storeDetails.name }}</h2>
-              <el-button type="primary" @click="handleEdit">编辑</el-button>
+              <h2 class="store-title">{{ storeDetails.name || '-' }}</h2>
+              <el-button type="primary" :loading="loading" @click="handleEdit">编辑</el-button>
             </div>
 
-            <!-- 主要内容区域 -->
             <div class="main-content">
-              <!-- 左侧图片 -->
               <div class="image-section">
                 <div class="store-image">
-                  <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                  <p class="upload-text">上传图片</p>
+                  <img
+                    v-if="storeDetails.logo"
+                    :src="storeDetails.logo"
+                    alt="门店 Logo"
+                    class="store-logo-image"
+                  />
+                  <template v-else>
+                    <el-icon class="upload-icon"><UploadFilled /></el-icon>
+                    <p class="upload-text">上传图片</p>
+                  </template>
                 </div>
               </div>
 
-              <!-- 右侧信息网格 -->
               <div class="info-section">
                 <div class="info-grid">
                   <div class="info-item">
@@ -37,18 +38,6 @@
                   <div class="info-item">
                     <label class="info-label">邮箱地址</label>
                     <span class="info-value">{{ storeDetails.email || '-' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <label class="info-label">Wechat</label>
-                    <span class="info-value">{{ storeDetails.wechat || '-' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <label class="info-label">WhatsApp</label>
-                    <span class="info-value">{{ storeDetails.whatsapp || '-' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <label class="info-label">LINE</label>
-                    <span class="info-value">{{ storeDetails.line || '-' }}</span>
                   </div>
                   <div class="info-item full-width">
                     <label class="info-label">地址</label>
@@ -74,7 +63,6 @@
               </div>
             </div>
 
-            <!-- 地图区域 -->
             <div class="map-section">
               <div class="map-header">
                 <el-radio-group v-model="mapType" size="small">
@@ -91,92 +79,35 @@
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="政策" name="policy">
-          <div class="policy-content">
-            <!-- 政策标题和编辑按钮 -->
-            <div class="policy-header">
-              <h2 class="policy-title">{{ storeDetails.name }}</h2>
-              <el-button type="primary" @click="handleEditPolicy">编辑</el-button>
-            </div>
-
-            <!-- 主要内容区域 -->
-            <div class="policy-main">
-              <!-- 左侧图片 -->
-              <div class="policy-image-section">
-                <div class="policy-image">
-                  <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                  <p class="upload-text">上传图片</p>
-                </div>
-              </div>
-
-              <!-- 右侧政策信息 -->
-              <div class="policy-info-section">
-                <div class="policy-grid">
-                  <div class="policy-item">
-                    <label class="policy-label">入住时间</label>
-                    <span class="policy-value">{{ policyDetails.checkinTime || '-' }}</span>
-                  </div>
-                  <div class="policy-item">
-                    <label class="policy-label">退房时间</label>
-                    <span class="policy-value">{{ policyDetails.checkoutTime || '-' }}</span>
-                  </div>
-                  <div class="policy-item full-width">
-                    <label class="policy-label">儿童政策</label>
-                    <span class="policy-value">{{ policyDetails.childPolicy || '-' }}</span>
-                  </div>
-                  <div class="policy-item">
-                    <label class="policy-label">吸烟政策</label>
-                    <span class="policy-value">{{ policyDetails.smokingPolicy || '-' }}</span>
-                  </div>
-                  <div class="policy-item">
-                    <label class="policy-label">宠物政策</label>
-                    <span class="policy-value">{{ policyDetails.petPolicy || '-' }}</span>
-                  </div>
-                  <div class="policy-item full-width">
-                    <label class="policy-label">附加规则</label>
-                    <span class="policy-value">{{ policyDetails.additionalRules || '-' }}</span>
-                  </div>
-                  <div class="policy-item full-width">
-                    <label class="policy-label">酒店条款</label>
-                    <span class="policy-value">{{ policyDetails.hotelTerms || '-' }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </el-tab-pane>
-
         <el-tab-pane label="设施" name="facilities">
           <div class="facilities-content">
-            <!-- 设施标题和编辑按钮 -->
             <div class="facilities-header">
-              <h2 class="facilities-title">{{ storeDetails.name }}</h2>
-              <el-button type="primary" @click="handleEditFacilities">编辑</el-button>
+              <h2 class="facilities-title">{{ storeDetails.name || '-' }}</h2>
+              <el-button type="primary" :loading="loading" @click="handleEditFacilities">编辑</el-button>
             </div>
 
-            <!-- 主要内容区域 -->
             <div class="facilities-main">
-              <!-- 左侧图片 -->
               <div class="facilities-image-section">
                 <div class="facilities-image">
-                  <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                  <p class="upload-text">上传图片</p>
+                  <img
+                    v-if="storeDetails.logo"
+                    :src="storeDetails.logo"
+                    alt="门店 Logo"
+                    class="store-logo-image"
+                  />
+                  <template v-else>
+                    <el-icon class="upload-icon"><UploadFilled /></el-icon>
+                    <p class="upload-text">上传图片</p>
+                  </template>
                 </div>
               </div>
 
-              <!-- 右侧设施信息 -->
               <div class="facilities-info-section">
                 <div class="facilities-grid">
-                  <div
-                    v-for="facility in selectedFacilitiesList"
-                    :key="facility"
-                    class="facility-tag"
-                  >
+                  <div v-for="facility in selectedFacilitiesList" :key="facility" class="facility-tag">
                     {{ facility }}
                   </div>
-                  <div v-if="selectedFacilitiesList.length === 0" class="no-facilities">
-                    暂无设施
-                  </div>
+                  <div v-if="selectedFacilitiesList.length === 0" class="no-facilities">暂无设施</div>
                 </div>
               </div>
             </div>
@@ -185,26 +116,18 @@
 
         <el-tab-pane label="照片" name="photos">
           <div class="photos-content">
-            <!-- 照片标题和编辑按钮 -->
             <div class="photos-header">
-              <h2 class="photos-title">{{ storeDetails.name }}</h2>
-              <el-button type="primary" @click="handleEditPhotos">编辑</el-button>
+              <h2 class="photos-title">{{ storeDetails.name || '-' }}</h2>
+              <el-button type="primary" :loading="loading" @click="handleEditPhotos">编辑</el-button>
             </div>
 
-            <!-- 展示在电脑上的照片 -->
             <div class="photo-section">
-              <h3 class="photo-section-title">展示在电脑上的照片</h3>
+              <h3 class="photo-section-title">照片</h3>
               <div class="photos-grid">
-                <div
-                  v-for="(photo, index) in desktopPhotos"
-                  :key="index"
-                  class="photo-item"
-                >
-                  <img :src="photo" alt="电脑照片" class="photo-img" />
+                <div v-for="photo in photos" :key="photo.uid || photo.url" class="photo-item">
+                  <img v-if="photo.url" :src="photo.url" alt="门店照片" class="photo-img" />
                 </div>
-                <div v-if="desktopPhotos.length === 0" class="no-photos">
-                  暂无照片
-                </div>
+                <div v-if="photos.length === 0" class="no-photos">暂无照片</div>
               </div>
             </div>
           </div>
@@ -212,39 +135,34 @@
       </el-tabs>
     </div>
 
-    <!-- 编辑对话框 -->
     <el-dialog
       v-model="editDialogVisible"
       title="编辑"
       width="800px"
       :close-on-click-modal="false"
     >
-      <el-form :model="editForm" :rules="formRules" ref="formRef" label-width="100px">
-        <el-form-item label="翻译">
-          <el-select v-model="editForm.language" style="width: 100%">
-            <el-option label="English" value="English" />
-            <el-option label="中文" value="中文" />
-            <el-option label="日本語" value="日本語" />
-          </el-select>
-          <div class="form-hint" style="margin-top: 8px">
-            您将以"English"保存该内容。如果您将语言设置为"English"，将显示此翻译。默认情况下，空白字段将输出为英语
-          </div>
-        </el-form-item>
-
+      <el-form ref="formRef" :model="editForm" :rules="formRules" label-width="100px">
         <el-form-item label="门店名称" prop="name">
           <div style="width: 100%">
-            <div class="form-hint" style="margin-bottom: 8px">
-              请填写展示给客人的门店名称
-            </div>
+            <div class="form-hint" style="margin-bottom: 8px">请填写展示给客人的门店名称</div>
             <el-input v-model="editForm.name" placeholder="请填写门店名称" />
           </div>
         </el-form-item>
 
         <el-form-item label="酒店Logo">
-          <div class="upload-area-dialog">
-            <el-icon class="upload-icon"><UploadFilled /></el-icon>
-            <p class="upload-text">上传</p>
-          </div>
+          <el-upload
+            :show-file-list="false"
+            :before-upload="beforeImageUpload"
+            :http-request="handleLogoUpload"
+          >
+            <div class="upload-area-dialog">
+              <img v-if="editForm.logo" :src="editForm.logo" alt="logo" class="store-logo-image" />
+              <template v-else>
+                <el-icon class="upload-icon"><UploadFilled /></el-icon>
+                <p class="upload-text">上传</p>
+              </template>
+            </div>
+          </el-upload>
         </el-form-item>
 
         <el-row :gutter="20">
@@ -256,24 +174,6 @@
           <el-col :span="12">
             <el-form-item label="邮箱地址" prop="email">
               <el-input v-model="editForm.email" placeholder="请输入邮箱地址" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="Wechat">
-              <el-input v-model="editForm.wechat" placeholder="请输入微信号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="WhatsApp">
-              <el-input v-model="editForm.whatsapp" placeholder="请输入WhatsApp" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="LINE">
-              <el-input v-model="editForm.line" placeholder="请输入LINE" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -295,11 +195,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="国家和地区" prop="country">
-              <el-select v-model="editForm.country" placeholder="请选择国家" style="width: 100%">
-                <el-option label="China" value="China" />
-                <el-option label="Japan" value="Japan" />
-                <el-option label="Korea" value="Korea" />
-              </el-select>
+              <el-input v-model="editForm.country" placeholder="请输入国家和地区" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -317,85 +213,11 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="handleCancelEdit">取消</el-button>
-          <el-button type="primary" @click="handleSaveEdit">保存</el-button>
+          <el-button type="primary" :loading="loading" @click="handleSaveEdit">保存</el-button>
         </div>
       </template>
     </el-dialog>
 
-    <!-- 政策编辑对话框 -->
-    <el-dialog
-      v-model="editPolicyDialogVisible"
-      title="编辑政策"
-      width="800px"
-      :close-on-click-modal="false"
-    >
-      <el-form :model="editPolicyForm" ref="policyFormRef" label-width="100px">
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="入住时间">
-              <el-input v-model="editPolicyForm.checkinTime" placeholder="例如:14:00 之后" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="退房时间">
-              <el-input v-model="editPolicyForm.checkoutTime" placeholder="例如:12:00 之前" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-form-item label="儿童政策">
-          <el-input v-model="editPolicyForm.childPolicy" placeholder="请输入儿童政策" />
-        </el-form-item>
-
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="吸烟政策">
-              <el-select v-model="editPolicyForm.smokingPolicy" placeholder="请选择吸烟政策" style="width: 100%">
-                <el-option label="禁止吸烟" value="禁止吸烟" />
-                <el-option label="允许吸烟" value="允许吸烟" />
-                <el-option label="部分房间允许" value="部分房间允许" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="宠物政策">
-              <el-select v-model="editPolicyForm.petPolicy" placeholder="请选择宠物政策" style="width: 100%">
-                <el-option label="禁止携带宠物" value="禁止携带宠物" />
-                <el-option label="允许携带宠物" value="允许携带宠物" />
-                <el-option label="需额外收费" value="需额外收费" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-form-item label="附加规则">
-          <el-input
-            v-model="editPolicyForm.additionalRules"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入附加规则"
-          />
-        </el-form-item>
-
-        <el-form-item label="酒店条款">
-          <el-input
-            v-model="editPolicyForm.hotelTerms"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入酒店条款"
-          />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="handleCancelEditPolicy">取消</el-button>
-          <el-button type="primary" @click="handleSaveEditPolicy">保存</el-button>
-        </div>
-      </template>
-    </el-dialog>
-
-    <!-- 设施编辑对话框 -->
     <el-dialog
       v-model="editFacilitiesDialogVisible"
       title="编辑"
@@ -404,23 +226,22 @@
     >
       <div class="facilities-edit-grid">
         <el-checkbox
-          v-for="facility in allFacilities"
-          :key="facility"
+          v-for="facility in STORE_FACILITY_OPTIONS"
+          :key="facility.label"
           v-model="selectedFacilities"
-          :label="facility"
-          :value="facility"
+          :label="facility.label"
+          :value="facility.label"
         />
       </div>
 
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="handleCancelEditFacilities">取消</el-button>
-          <el-button type="primary" @click="handleSaveEditFacilities">保存</el-button>
+          <el-button type="primary" :loading="loading" @click="handleSaveEditFacilities">保存</el-button>
         </div>
       </template>
     </el-dialog>
 
-    <!-- 照片编辑对话框 -->
     <el-dialog
       v-model="editPhotosDialogVisible"
       title="编辑"
@@ -428,47 +249,37 @@
       :close-on-click-modal="false"
     >
       <div class="photos-edit-container">
-        <!-- 上传提示信息 -->
         <div class="upload-tip">
           <h4 class="upload-tip-title">请上传门店照片</h4>
           <p class="upload-tip-text">
-            请注意如果您上传的照片非推荐尺寸，它们将被自动调整，建议遵照推荐尺寸，以免影响美观。为了更好地显示您的照片，建议您分别上传在电脑和手机上的照片
+            保存后将同步当前门店图片到 Su。
           </p>
         </div>
 
-        <!-- 展示在电脑上的照片 -->
         <div class="upload-section">
-          <h4 class="upload-section-title">展示在电脑上的照片 <span class="required">*</span></h4>
+          <h4 class="upload-section-title">照片</h4>
           <div class="upload-info">
             <p>最大数量: 40</p>
-            <p>最大上传大小: 图片5MB, 视频20MB</p>
-            <p>推荐尺寸: 1920px*768px</p>
+            <p>最大上传大小: 图片 5MB</p>
+            <p>推荐尺寸: 1200px 以上</p>
           </div>
-          <div class="upload-area-large">
+          <el-upload
+            v-model:file-list="photos"
+            class="upload-area-large"
+            list-type="picture-card"
+            :before-upload="beforeImageUpload"
+            :http-request="handlePhotoRequest"
+          >
             <el-icon class="upload-icon-large"><UploadFilled /></el-icon>
             <p class="upload-text-large">上传</p>
-          </div>
-        </div>
-
-        <!-- 展示在手机上的照片 -->
-        <div class="upload-section">
-          <h4 class="upload-section-title">展示在手机上的照片 <span class="required">*</span></h4>
-          <div class="upload-info">
-            <p>最大数量: 40</p>
-            <p>最大上传大小: 图片5MB, 视频20MB</p>
-            <p>推荐尺寸: 750px*450px(5:3)</p>
-          </div>
-          <div class="upload-area-large">
-            <el-icon class="upload-icon-large"><UploadFilled /></el-icon>
-            <p class="upload-text-large">上传</p>
-          </div>
+          </el-upload>
         </div>
       </div>
 
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="handleCancelEditPhotos">取消</el-button>
-          <el-button type="primary" @click="handleSaveEditPhotos">保存</el-button>
+          <el-button type="primary" :loading="loading" @click="handleSaveEditPhotos">保存</el-button>
         </div>
       </template>
     </el-dialog>
@@ -476,157 +287,180 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import {
+  ElMessage,
+  type FormInstance,
+  type FormRules,
+  type UploadRawFile,
+  type UploadRequestOptions,
+  type UploadUserFile,
+} from 'element-plus'
 import {
   getStoreById,
   updateStore,
-  getStorePolicy,
-  saveStorePolicy,
+  type FacilityDTO,
+  type StoreRequest,
 } from '@/api/store'
+import { uploadMedia } from '@/api/media'
+import { STORE_FACILITY_OPTIONS } from '@/constants/suFacilities'
 import { useStoreStore } from '@/stores/store'
 
-interface StoreDetails {
+type UploadErrorParam = Parameters<NonNullable<UploadRequestOptions['onError']>>[0]
+
+interface StoreDetailsForm extends StoreRequest {
   language: string
-  name: string
-  description: string
-  logo?: string
-  phone: string
-  email: string
-  wechat: string
-  whatsapp: string
-  line: string
-  address: string
-  city: string
-  state: string
-  country: string
 }
 
-interface PolicyDetails {
-  checkinTime: string
-  checkoutTime: string
-  childPolicy: string
-  smokingPolicy: string
-  petPolicy: string
-  additionalRules: string
-  hotelTerms: string
-}
-
-// 使用 Pinia store 获取当前门店
 const storeStore = useStoreStore()
 const currentStoreId = computed(() => storeStore.currentStore?.id)
 
 const activeTab = ref('details')
 const editDialogVisible = ref(false)
-const editPolicyDialogVisible = ref(false)
 const editFacilitiesDialogVisible = ref(false)
-const formRef = ref<FormInstance>()
-const policyFormRef = ref<FormInstance>()
-const mapType = ref('map')
-
-// 所有可选设施列表
-const allFacilities = ref([
-  'WiFi', '停车场', '电梯', '行李寄存', '健身房', '游泳池', '室外游泳区',
-  '餐厅', '休息室', '机场班车', '酒吧', '前台接待', '会议室', '洗衣服务',
-  '桑拿', '水疗中心', '礼宾服务', '自动取款机', '外币兑换', '提供早餐', '礼品店',
-  '打印机', '客房服务', '加床/婴儿床', '24小时前台', '禁止吸烟', '残疾人通道', '轮椅通道',
-  '司机服务', '私人庭院', '加床/婴儿床', '多语言员工'
-])
-
-// 已选择的设施
-const selectedFacilities = ref<string[]>(['停车场', '休息室'])
-
-// 照片数据
-const desktopPhotos = ref<string[]>([])
-const mobilePhotos = ref<string[]>([])
 const editPhotosDialogVisible = ref(false)
-
+const formRef = ref<FormInstance>()
+const mapType = ref('map')
+const selectedFacilities = ref<string[]>([])
+const photos = ref<UploadUserFile[]>([])
 const loading = ref(false)
 
-const storeDetails = ref<StoreDetails>({
+const createEmptyStore = (): StoreDetailsForm => ({
   language: 'English',
   name: '',
   description: '',
+  logo: '',
   phone: '',
   email: '',
-  wechat: '',
-  whatsapp: '',
-  line: '',
   address: '',
   city: '',
   state: '',
   country: '',
+  type: '',
+  timezone: '',
+  manager: '',
+  currency: '',
+  suHotelId: '',
+  ownerEmail: '',
+  facilities: [],
+  desktopPhotoUrls: [],
+  mobilePhotoUrls: [],
 })
 
-const editForm = reactive<StoreDetails>({
-  language: 'English',
-  name: '',
-  description: '',
-  phone: '',
-  email: '',
-  wechat: '',
-  whatsapp: '',
-  line: '',
-  address: '',
-  city: '',
-  state: '',
-  country: '',
-})
-
-const policyDetails = ref<PolicyDetails>({
-  checkinTime: '',
-  checkoutTime: '',
-  childPolicy: '',
-  smokingPolicy: '',
-  petPolicy: '',
-  additionalRules: '',
-  hotelTerms: '',
-})
-
-const editPolicyForm = reactive<PolicyDetails>({
-  checkinTime: '',
-  checkoutTime: '',
-  childPolicy: '',
-  smokingPolicy: '',
-  petPolicy: '',
-  additionalRules: '',
-  hotelTerms: '',
-})
+const storeDetails = reactive<StoreDetailsForm>(createEmptyStore())
+const editForm = reactive<StoreDetailsForm>(createEmptyStore())
 
 const formRules: FormRules = {
   name: [{ required: true, message: '请输入门店名称', trigger: 'blur' }],
+  country: [{ required: true, message: '请输入国家和地区', trigger: 'blur' }],
 }
 
-// 加载门店详情
+const selectedFacilitiesList = computed(() => selectedFacilities.value)
+
+const buildUploadAjaxError = (error: unknown): UploadErrorParam => {
+  const normalizedError = error instanceof Error ? error : new Error(String(error))
+  return {
+    name: normalizedError.name || 'UploadError',
+    message: normalizedError.message,
+    status: 0,
+    method: 'POST',
+    url: '',
+    stack: normalizedError.stack,
+  } as UploadErrorParam
+}
+
+const toUploadFiles = (urls: string[]): UploadUserFile[] =>
+  urls.map((url, index) => ({
+    name: `image-${index + 1}`,
+    url,
+  }))
+
+const mergePhotoUrls = (desktopUrls: string[] = [], mobileUrls: string[] = []): string[] => [
+  ...new Set([...desktopUrls, ...mobileUrls].filter(Boolean)),
+]
+
+const extractPhotoUrls = (files: UploadUserFile[]): string[] =>
+  files
+    .map((file) => file.url)
+    .filter((url): url is string => Boolean(url))
+
+const buildFacilities = (): FacilityDTO[] =>
+  selectedFacilities.value
+    .map((label) => STORE_FACILITY_OPTIONS.find((item) => item.label === label)?.payload)
+    .filter((facility): facility is FacilityDTO => Boolean(facility))
+
+const applyFacilities = (facilities: FacilityDTO[] = []) => {
+  selectedFacilities.value = STORE_FACILITY_OPTIONS.filter((option) =>
+    facilities.some(
+      (facility) =>
+        facility.name === option.payload.name &&
+        (facility.group || 'Common') === (option.payload.group || 'Common')
+    )
+  ).map((option) => option.label)
+}
+
+const buildStorePayload = (source: StoreDetailsForm): StoreRequest => ({
+  name: source.name,
+  phone: source.phone,
+  type: source.type,
+  timezone: source.timezone,
+  manager: source.manager,
+  country: source.country,
+  city: source.city,
+  state: source.state,
+  address: source.address,
+  currency: source.currency,
+  suHotelId: source.suHotelId,
+  ownerEmail: source.ownerEmail,
+  language: 'English',
+  description: source.description,
+  logo: source.logo,
+  email: source.email,
+  facilities: buildFacilities(),
+  desktopPhotoUrls: extractPhotoUrls(photos.value),
+  mobilePhotoUrls: [],
+})
+
 const loadStoreDetails = async () => {
   if (!currentStoreId.value) {
     ElMessage.warning('请先选择门店')
     return
   }
 
-  const storeId = currentStoreId.value
   try {
     loading.value = true
-    const response = await getStoreById(storeId)
-    if (response.success && response.data) {
-      const data = response.data
-      storeDetails.value = {
-        language: data.language || 'English',
-        name: data.name,
-        description: data.description || '',
-        logo: data.logo,
-        phone: data.phone || '',
-        email: data.email || '',
-        wechat: data.wechat || '',
-        whatsapp: data.whatsapp || '',
-        line: data.line || '',
-        address: data.address || '',
-        city: data.city || '',
-        state: data.state || '',
-        country: data.country || '',
-      }
+    const response = await getStoreById(currentStoreId.value)
+    if (!response.success || !response.data) {
+      ElMessage.error(response.message || '加载门店详情失败')
+      return
     }
+
+    const data = response.data
+    Object.assign(storeDetails, createEmptyStore(), {
+      language: data.language || 'English',
+      name: data.name || '',
+      description: data.description || '',
+      logo: data.logo || '',
+      phone: data.phone || '',
+      email: data.email || '',
+      address: data.address || '',
+      city: data.city || '',
+      state: data.state || '',
+      country: data.country || '',
+      type: data.type || '',
+      timezone: data.timezone || '',
+      manager: data.manager || '',
+      currency: data.currency || '',
+      suHotelId: data.suHotelId || '',
+      ownerEmail: data.ownerEmail || '',
+      facilities: data.facilities || [],
+      desktopPhotoUrls: mergePhotoUrls(data.desktopPhotoUrls || [], data.mobilePhotoUrls || []),
+      mobilePhotoUrls: [],
+    })
+
+    photos.value = toUploadFiles(mergePhotoUrls(data.desktopPhotoUrls || [], data.mobilePhotoUrls || []))
+    applyFacilities(data.facilities || [])
   } catch (error) {
     console.error('加载门店详情失败:', error)
     ElMessage.error('加载门店详情失败')
@@ -635,34 +469,25 @@ const loadStoreDetails = async () => {
   }
 }
 
-// 加载门店政策
-const loadStorePolicy = async () => {
+const saveStore = async (payload: StoreRequest, successMessage: string) => {
   if (!currentStoreId.value) {
-    return
+    ElMessage.warning('请先选择门店')
+    return false
   }
 
-  const storeId = currentStoreId.value
-  try {
-    const response = await getStorePolicy(storeId)
-    if (response.success && response.data) {
-      const data = response.data
-      policyDetails.value = {
-        checkinTime: data.checkinTime || '',
-        checkoutTime: data.checkoutTime || '',
-        childPolicy: data.childPolicy || '',
-        smokingPolicy: data.smokingPolicy || '',
-        petPolicy: data.petPolicy || '',
-        additionalRules: data.additionalRules || '',
-        hotelTerms: data.hotelTerms || '',
-      }
-    }
-  } catch (error) {
-    console.error('加载门店政策失败:', error)
+  const response = await updateStore(currentStoreId.value, payload)
+  if (!response.success) {
+    ElMessage.error(response.message || '保存失败')
+    return false
   }
+
+  ElMessage.success(successMessage)
+  await loadStoreDetails()
+  return true
 }
 
 const handleEdit = () => {
-  Object.assign(editForm, storeDetails.value)
+  Object.assign(editForm, storeDetails)
   editDialogVisible.value = true
 }
 
@@ -671,68 +496,23 @@ const handleCancelEdit = () => {
 }
 
 const handleSaveEdit = async () => {
-  if (!currentStoreId.value) {
-    ElMessage.warning('请先选择门店')
-    return
-  }
-
   try {
     const valid = await formRef.value?.validate()
-    if (valid) {
-      loading.value = true
-      const response = await updateStore(currentStoreId.value, editForm)
-      if (response.success) {
-        ElMessage.success('保存成功')
-        editDialogVisible.value = false
-        await loadStoreDetails()
-      } else {
-        ElMessage.error(response.message || '保存失败')
-      }
+    if (!valid) {
+      return
     }
-  } catch (error) {
-    console.error('保存失败:', error)
-    ElMessage.error('保存失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const handleEditPolicy = () => {
-  Object.assign(editPolicyForm, policyDetails.value)
-  editPolicyDialogVisible.value = true
-}
-
-const handleCancelEditPolicy = () => {
-  editPolicyDialogVisible.value = false
-}
-
-const handleSaveEditPolicy = async () => {
-  if (!currentStoreId.value) {
-    ElMessage.warning('请先选择门店')
-    return
-  }
-
-  try {
     loading.value = true
-    const response = await saveStorePolicy(currentStoreId.value, editPolicyForm)
-    if (response.success) {
-      ElMessage.success('保存成功')
-      editPolicyDialogVisible.value = false
-      await loadStorePolicy()
-    } else {
-      ElMessage.error(response.message || '保存失败')
+    const saved = await saveStore(buildStorePayload(editForm), '保存成功')
+    if (saved) {
+      editDialogVisible.value = false
     }
   } catch (error) {
-    console.error('保存失败:', error)
-    ElMessage.error('保存失败')
+    console.error('保存门店失败:', error)
+    ElMessage.error('保存门店失败')
   } finally {
     loading.value = false
   }
 }
-
-const selectedFacilitiesList = computed(() => {
-  return selectedFacilities.value
-})
 
 const handleEditFacilities = () => {
   editFacilitiesDialogVisible.value = true
@@ -742,9 +522,19 @@ const handleCancelEditFacilities = () => {
   editFacilitiesDialogVisible.value = false
 }
 
-const handleSaveEditFacilities = () => {
-  ElMessage.success('保存成功')
-  editFacilitiesDialogVisible.value = false
+const handleSaveEditFacilities = async () => {
+  try {
+    loading.value = true
+    const saved = await saveStore(buildStorePayload(storeDetails), '设施保存成功')
+    if (saved) {
+      editFacilitiesDialogVisible.value = false
+    }
+  } catch (error) {
+    console.error('保存设施失败:', error)
+    ElMessage.error('保存设施失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleEditPhotos = () => {
@@ -755,14 +545,90 @@ const handleCancelEditPhotos = () => {
   editPhotosDialogVisible.value = false
 }
 
-const handleSaveEditPhotos = () => {
-  ElMessage.success('保存成功')
-  editPhotosDialogVisible.value = false
+const handleSaveEditPhotos = async () => {
+  try {
+    loading.value = true
+    const saved = await saveStore(buildStorePayload(storeDetails), '照片保存成功')
+    if (saved) {
+      editPhotosDialogVisible.value = false
+    }
+  } catch (error) {
+    console.error('保存照片失败:', error)
+    ElMessage.error('保存照片失败')
+  } finally {
+    loading.value = false
+  }
 }
+
+const beforeImageUpload = (file: UploadRawFile) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt5M = file.size / 1024 / 1024 < 5
+
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件')
+    return false
+  }
+
+  if (!isLt5M) {
+    ElMessage.error('图片大小不能超过 5MB')
+    return false
+  }
+
+  return true
+}
+
+const handleLogoUpload = async (options: UploadRequestOptions) => {
+  try {
+    const response = await uploadMedia('store-logo', options.file as File)
+    if (!response.success || !response.data) {
+      throw new Error(response.message || '上传失败')
+    }
+
+    editForm.logo = response.data.url
+    options.onSuccess?.(response)
+    ElMessage.success('Logo 上传成功')
+  } catch (error) {
+    console.error('Logo 上传失败:', error)
+    ElMessage.error('Logo 上传失败')
+    options.onError?.(buildUploadAjaxError(error))
+  }
+}
+
+const handlePhotoUpload = async (options: UploadRequestOptions) => {
+  try {
+    const response = await uploadMedia('store-desktop', options.file as File)
+    if (!response.success || !response.data) {
+      throw new Error(response.message || '上传失败')
+    }
+
+    const matchedFile = photos.value.find((file) => file.uid === options.file.uid)
+
+    if (matchedFile) {
+      matchedFile.name = options.file.name
+      matchedFile.url = response.data.url
+      matchedFile.status = 'success'
+    } else {
+      photos.value.push({
+        uid: options.file.uid,
+        name: options.file.name,
+        url: response.data.url,
+        status: 'success',
+      })
+    }
+
+    options.onSuccess?.(response)
+    ElMessage.success('上传成功')
+  } catch (error) {
+    console.error('上传失败:', error)
+    ElMessage.error('上传失败')
+    options.onError?.(buildUploadAjaxError(error))
+  }
+}
+
+const handlePhotoRequest = (options: UploadRequestOptions) => handlePhotoUpload(options)
 
 onMounted(() => {
   loadStoreDetails()
-  loadStorePolicy()
 })
 </script>
 
@@ -773,7 +639,6 @@ onMounted(() => {
   min-height: calc(100vh - 100px);
 }
 
-/* 配置页面样式 */
 .config-page {
   background: #fff;
   border-radius: 8px;
@@ -801,12 +666,15 @@ onMounted(() => {
   margin-top: 20px;
 }
 
-.details-content {
+.details-content,
+.facilities-content,
+.photos-content {
   padding: 20px 0;
 }
 
-/* 门店名称和编辑按钮 */
-.store-header {
+.store-header,
+.facilities-header,
+.photos-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -815,27 +683,30 @@ onMounted(() => {
   border-bottom: 1px solid #ebeef5;
 }
 
-.store-title {
+.store-title,
+.facilities-title,
+.photos-title {
   font-size: 24px;
   font-weight: 600;
   color: #303133;
   margin: 0;
 }
 
-/* 主要内容区域 */
-.main-content {
+.main-content,
+.facilities-main {
   display: flex;
   gap: 32px;
   margin-bottom: 32px;
 }
 
-/* 左侧图片区域 */
-.image-section {
+.image-section,
+.facilities-image-section {
   flex-shrink: 0;
   width: 200px;
 }
 
-.store-image {
+.store-image,
+.facilities-image {
   width: 200px;
   height: 200px;
   border: 1px dashed #dcdfe6;
@@ -847,11 +718,19 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.3s;
   background: #f5f7fa;
+  overflow: hidden;
 }
 
-.store-image:hover {
+.store-image:hover,
+.facilities-image:hover {
   border-color: #409eff;
   background: #ecf5ff;
+}
+
+.store-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .upload-icon {
@@ -866,8 +745,8 @@ onMounted(() => {
   margin: 0;
 }
 
-/* 右侧信息网格 */
-.info-section {
+.info-section,
+.facilities-info-section {
   flex: 1;
 }
 
@@ -899,94 +778,10 @@ onMounted(() => {
   word-break: break-word;
 }
 
-/* 地图区域 */
 .map-section {
   margin-top: 32px;
   padding-top: 32px;
   border-top: 1px solid #ebeef5;
-}
-
-/* 政策页面样式 */
-.policy-content {
-  padding: 20px 0;
-}
-
-.policy-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.policy-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-
-.policy-main {
-  display: flex;
-  gap: 32px;
-  margin-bottom: 32px;
-}
-
-.policy-image-section {
-  flex-shrink: 0;
-  width: 200px;
-}
-
-.policy-image {
-  width: 200px;
-  height: 200px;
-  border: 1px dashed #dcdfe6;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  background: #f5f7fa;
-}
-
-.policy-image:hover {
-  border-color: #409eff;
-  background: #ecf5ff;
-}
-
-.policy-info-section {
-  flex: 1;
-}
-
-.policy-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px 32px;
-}
-
-.policy-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.policy-item.full-width {
-  grid-column: 1 / -1;
-}
-
-.policy-label {
-  font-size: 12px;
-  color: #909399;
-  font-weight: 500;
-}
-
-.policy-value {
-  font-size: 14px;
-  color: #303133;
-  word-break: break-word;
 }
 
 .map-header {
@@ -1012,103 +807,6 @@ onMounted(() => {
   font-size: 16px;
 }
 
-.upload-area-dialog {
-  width: 120px;
-  height: 120px;
-  border: 1px dashed #dcdfe6;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.upload-area-dialog:hover {
-  border-color: #409eff;
-}
-
-.form-hint {
-  font-size: 12px;
-  color: #909399;
-  line-height: 1.5;
-}
-
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-}
-
-:deep(.el-tabs__nav-wrap::after) {
-  display: none;
-}
-
-:deep(.el-select) {
-  width: 100%;
-}
-
-:deep(.el-textarea__inner) {
-  font-family: inherit;
-}
-
-/* 设施页面样式 */
-.facilities-content {
-  padding: 20px 0;
-}
-
-.facilities-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.facilities-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-
-.facilities-main {
-  display: flex;
-  gap: 32px;
-  margin-bottom: 32px;
-}
-
-.facilities-image-section {
-  flex-shrink: 0;
-  width: 200px;
-}
-
-.facilities-image {
-  width: 200px;
-  height: 200px;
-  border: 1px dashed #dcdfe6;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  background: #f5f7fa;
-}
-
-.facilities-image:hover {
-  border-color: #409eff;
-  background: #ecf5ff;
-}
-
-.facilities-info-section {
-  flex: 1;
-}
-
 .facilities-grid {
   display: flex;
   flex-wrap: wrap;
@@ -1126,43 +824,6 @@ onMounted(() => {
 .no-facilities {
   color: #909399;
   font-size: 14px;
-}
-
-/* 设施编辑对话框 */
-.facilities-edit-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 16px;
-  padding: 20px 0;
-}
-
-.facilities-edit-grid :deep(.el-checkbox) {
-  margin-right: 0;
-}
-
-.facilities-edit-grid :deep(.el-checkbox__label) {
-  font-size: 14px;
-}
-
-/* 照片页面样式 */
-.photos-content {
-  padding: 20px 0;
-}
-
-.photos-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.photos-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
 }
 
 .photo-section {
@@ -1185,7 +846,7 @@ onMounted(() => {
 .photo-item {
   position: relative;
   width: 100%;
-  aspect-ratio: 16/9;
+  aspect-ratio: 16 / 9;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #dcdfe6;
@@ -1205,7 +866,51 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* 照片编辑对话框样式 */
+.upload-area-dialog {
+  width: 120px;
+  height: 120px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  overflow: hidden;
+}
+
+.upload-area-dialog:hover {
+  border-color: #409eff;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.facilities-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  padding: 20px 0;
+}
+
+.facilities-edit-grid :deep(.el-checkbox) {
+  margin-right: 0;
+}
+
+.facilities-edit-grid :deep(.el-checkbox__label) {
+  font-size: 14px;
+}
+
 .photos-edit-container {
   padding: 20px 0;
 }
@@ -1242,10 +947,6 @@ onMounted(() => {
   margin: 0 0 12px 0;
 }
 
-.required {
-  color: #f56c6c;
-}
-
 .upload-info {
   margin-bottom: 16px;
 }
@@ -1257,22 +958,25 @@ onMounted(() => {
 }
 
 .upload-area-large {
+  display: block;
+}
+
+.upload-area-large :deep(.el-upload) {
+  width: 100%;
+}
+
+.upload-area-large :deep(.el-upload--picture-card) {
   width: 200px;
   height: 200px;
   border: 2px dashed #dcdfe6;
   border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s;
   background: #fafafa;
 }
 
-.upload-area-large:hover {
-  border-color: #409eff;
-  background: #ecf5ff;
+.upload-area-large :deep(.el-upload-list--picture-card) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .upload-icon-large {
@@ -1285,5 +989,13 @@ onMounted(() => {
   font-size: 16px;
   color: #606266;
   margin: 0;
+}
+
+:deep(.el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+:deep(.el-textarea__inner) {
+  font-family: inherit;
 }
 </style>

@@ -3,6 +3,7 @@ package server.demo.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.dto.FacilityDTO;
 import server.demo.entity.Store;
 import server.demo.repository.StoreRepository;
 import server.demo.util.SuHotelIdUtil;
@@ -25,6 +26,14 @@ public class SuPropertyService {
             boolean attempted,
             boolean success,
             String hotelId,
+            String message
+    ) {}
+
+    public record RemoveResult(
+            boolean attempted,
+            boolean success,
+            String hotelId,
+            String errorCode,
             String message
     ) {}
 
@@ -84,6 +93,43 @@ public class SuPropertyService {
             return new UpsertResult(true, false, hotelId, err != null ? err : "渠道接口返回失败");
         } catch (Exception e) {
             return new UpsertResult(true, false, hotelId, e.getMessage());
+        }
+    }
+
+    /**
+     * 删除 Su Property（RemoveProperty）。
+     * <p>
+     * 注意：Su 可能因为该 Property 仍有渠道映射而返回 953（This Property Have Mapping With Channels）。
+     */
+    @Transactional
+    public RemoveResult removeStoreProperty(Long storeId, boolean forceDeletion) {
+        if (storeId == null) {
+            throw new IllegalArgumentException("storeId is required");
+        }
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new RuntimeException("Store not found"));
+
+        String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
+        if (hotelId == null || hotelId.isBlank()) {
+            return new RemoveResult(false, false, null, null, "Su hotelId 未配置，无法删除 Su Property");
+        }
+
+        try {
+            JsonNode response = suAccessTokenService.executeWithTokenRetry(
+                    token -> suApiClient.removeProperty(token, hotelId, forceDeletion),
+                    "RemoveProperty"
+            );
+            boolean ok = suApiClient.isSuSuccess(response);
+            if (ok) {
+                return new RemoveResult(true, true, hotelId, null, "Su Property 删除成功");
+            }
+            String err = suApiClient.extractSuErrorMessage(response);
+            String code = suApiClient.extractSuErrorCode(response);
+            String msg = err != null && !err.isBlank() ? err : "Su Property 删除失败";
+            return new RemoveResult(true, false, hotelId, code, msg);
+        } catch (Exception e) {
+            return new RemoveResult(true, false, hotelId, null, e.getMessage());
         }
     }
 
@@ -168,10 +214,36 @@ public class SuPropertyService {
         content.put("HotelDescriptiveContentNotifType", notifType != null && !notifType.isBlank() ? notifType : "New");
         content.put("HotelInfo", hotelInfo);
         content.put("ContactInfos", Map.of("ContactInfo", List.of(physicalLocationContact, availabilityContact)));
+        if (store.getDescription() != null && !store.getDescription().isBlank()) {
+            content.put("HotelDescription", store.getDescription().trim());
+        }
+        Map<String, Object> facilities = buildFacilitiesNode(store.getFacilities());
+        if (!facilities.isEmpty()) {
+            content.put("Facilities", facilities);
+        }
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("HotelDescriptiveContents", Map.of("HotelDescriptiveContent", content));
         return body;
+    }
+
+    private static Map<String, Object> buildFacilitiesNode(List<FacilityDTO> facilities) {
+        if (facilities == null || facilities.isEmpty()) {
+            return Map.of();
+        }
+        List<Map<String, Object>> facilityItems = facilities.stream()
+                .filter(item -> item != null && item.getName() != null && !item.getName().isBlank())
+                .map(item -> {
+                    Map<String, Object> facility = new LinkedHashMap<>();
+                    facility.put("Group", item.getGroup() != null && !item.getGroup().isBlank() ? item.getGroup().trim() : "Common");
+                    facility.put("name", item.getName().trim());
+                    return facility;
+                })
+                .toList();
+        if (facilityItems.isEmpty()) {
+            return Map.of();
+        }
+        return Map.of("Facility", facilityItems);
     }
 
     private static boolean isPropertyAlreadyExists(String err, JsonNode response) {

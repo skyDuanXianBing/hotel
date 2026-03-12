@@ -943,13 +943,16 @@ const loadPricePlans = async () => {
   try {
     loading.value = true
     const response = (await getAllPricePlans(userStore.currentUser.id)) as any
-    const plans = response.data || []
+    if (!response?.success) {
+      throw new Error(response?.message || '加载价格计划失败')
+    }
+    const plans = Array.isArray(response.data) ? response.data : []
 
     // 加载每个价格计划的房型数量
     const plansWithCount = await Promise.all(
       plans.map(async (plan: PricePlanDTO) => {
         const countResponse = (await countRoomTypesByPricePlan(plan.id!)) as any
-        const count = countResponse.data || 0
+        const count = countResponse?.success ? countResponse.data || 0 : 0
         return {
           id: plan.id!,
           name: plan.name,
@@ -1177,23 +1180,29 @@ const handleConfirmEdit = async () => {
       try {
         if (currentEditId.value) {
           // 更新价格计划
-          await updatePricePlan(currentEditId.value, userStore.currentUser!.id, {
+          const resp: any = await updatePricePlan(currentEditId.value, userStore.currentUser!.id, {
             name: editForm.name,
             minNights: editForm.minNights,
             maxNights: editForm.maxNights,
             includeMeal: editForm.includeMeal,
             derivationType: editForm.derivationType,
           })
+          if (!resp?.success) {
+            throw new Error(resp?.message || '价格计划更新失败')
+          }
           ElMessage.success('价格计划更新成功')
         } else {
           // 创建价格计划
-          await createPricePlan(userStore.currentUser!.id, {
+          const resp: any = await createPricePlan(userStore.currentUser!.id, {
             name: editForm.name,
             minNights: editForm.minNights,
             maxNights: editForm.maxNights,
             includeMeal: editForm.includeMeal,
             derivationType: editForm.derivationType,
           })
+          if (!resp?.success) {
+            throw new Error(resp?.message || '价格计划创建失败')
+          }
           ElMessage.success('价格计划创建成功')
         }
 
@@ -1220,7 +1229,7 @@ const handleConfirmDetail = async () => {
   detailFormRef.value?.validate(async (valid) => {
     if (valid) {
       try {
-        await updatePricePlan(currentDetailPlanId.value!, userStore.currentUser!.id, {
+        const resp: any = await updatePricePlan(currentDetailPlanId.value!, userStore.currentUser!.id, {
           name: detailForm.name,
           nameEn: detailForm.nameEn,
           description: detailForm.description,

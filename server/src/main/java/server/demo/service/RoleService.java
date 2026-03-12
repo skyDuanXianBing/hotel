@@ -145,6 +145,8 @@ public class RoleService {
             throw new RuntimeException("系统角色不允许删除");
         }
 
+        roleRepository.deleteStoreUserRoleLinks(id);
+
         // 删除角色的所有权限
         rolePermissionService.deleteRolePermissions(id);
 
