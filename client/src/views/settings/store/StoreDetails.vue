@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="store-details-container">
     <div class="config-page">
       <div class="page-header">
@@ -14,7 +14,7 @@
             </div>
 
             <div class="main-content">
-              <div class="image-section">
+              <div v-if="false" class="image-section">
                 <div class="store-image">
                   <img
                     v-if="storeDetails.logo"
@@ -39,6 +39,10 @@
                     <label class="info-label">邮箱地址</label>
                     <span class="info-value">{{ storeDetails.email || '-' }}</span>
                   </div>
+                  <div class="info-item">
+                    <label class="info-label">房产类型</label>
+                    <span class="info-value">{{ formatPropertyType(storeDetails.type) }}</span>
+                  </div>
                   <div class="info-item full-width">
                     <label class="info-label">地址</label>
                     <span class="info-value">{{ storeDetails.address || '-' }}</span>
@@ -53,7 +57,27 @@
                   </div>
                   <div class="info-item">
                     <label class="info-label">国家和地区</label>
-                    <span class="info-value">{{ storeDetails.country || '-' }}</span>
+                    <span class="info-value">{{ formatCountry(storeDetails.country) }}</span>
+                  </div>
+                  <div class="info-item">
+                    <label class="info-label">语言</label>
+                    <span class="info-value">{{ formatLanguage(storeDetails.language) }}</span>
+                  </div>
+                  <div class="info-item">
+                    <label class="info-label">时区</label>
+                    <span class="info-value">{{ storeDetails.timezone || '-' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <label class="info-label">货币</label>
+                    <span class="info-value">{{ storeDetails.currency || '-' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <label class="info-label">入住时间</label>
+                    <span class="info-value">{{ storeDetails.checkinTime || '-' }}</span>
+                  </div>
+                  <div class="info-item">
+                    <label class="info-label">退房时间</label>
+                    <span class="info-value">{{ storeDetails.checkoutTime || '-' }}</span>
                   </div>
                   <div class="info-item full-width">
                     <label class="info-label">门店描述</label>
@@ -87,7 +111,7 @@
             </div>
 
             <div class="facilities-main">
-              <div class="facilities-image-section">
+              <div v-if="false" class="facilities-image-section">
                 <div class="facilities-image">
                   <img
                     v-if="storeDetails.logo"
@@ -149,11 +173,11 @@
           </div>
         </el-form-item>
 
-        <el-form-item label="酒店Logo">
-          <el-upload
+        <el-form-item label="酒店 Logo">
+          <el-upload v-if="false"
             :show-file-list="false"
             :before-upload="beforeImageUpload"
-            :http-request="handleLogoUpload"
+            :http-request="handlePhotoRequest"
           >
             <div class="upload-area-dialog">
               <img v-if="editForm.logo" :src="editForm.logo" alt="logo" class="store-logo-image" />
@@ -177,6 +201,20 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="房产类型" prop="type">
+              <el-select v-model="editForm.type" placeholder="请选择房产类型" style="width: 100%">
+                <el-option
+                  v-for="option in PROPERTY_TYPE_OPTIONS"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
 
         <el-form-item label="地址" prop="address">
           <el-input v-model="editForm.address" placeholder="请输入详细地址" />
@@ -195,7 +233,78 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="国家和地区" prop="country">
-              <el-input v-model="editForm.country" placeholder="请输入国家和地区" />
+              <el-select v-model="editForm.country" placeholder="请选择国家" style="width: 100%">
+                <el-option
+                  v-for="option in COUNTRY_OPTIONS"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-form-item label="时区" prop="timezone">
+              <el-select v-model="editForm.timezone" placeholder="请选择时区" style="width: 100%">
+                <el-option
+                  v-for="option in TIMEZONE_OPTIONS"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="货币" prop="currency">
+              <el-select v-model="editForm.currency" placeholder="请选择货币" style="width: 100%">
+                <el-option
+                  v-for="option in CURRENCY_OPTIONS"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="语言" prop="language">
+              <el-select v-model="editForm.language" placeholder="请选择语言" style="width: 100%">
+                <el-option
+                  v-for="option in LANGUAGE_OPTIONS"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="入住时间" prop="checkinTime">
+              <el-time-select
+                v-model="editForm.checkinTime"
+                start="00:00"
+                step="00:30"
+                end="23:30"
+                placeholder="请选择入住时间"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="退房时间" prop="checkoutTime">
+              <el-time-select
+                v-model="editForm.checkoutTime"
+                start="00:00"
+                step="00:30"
+                end="23:30"
+                placeholder="请选择退房时间"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -305,12 +414,23 @@ import {
 } from '@/api/store'
 import { uploadMedia } from '@/api/media'
 import { STORE_FACILITY_OPTIONS } from '@/constants/suFacilities'
+import {
+  COUNTRY_OPTIONS,
+  CURRENCY_OPTIONS,
+  LANGUAGE_OPTIONS,
+  PROPERTY_TYPE_OPTIONS,
+  TIMEZONE_OPTIONS,
+  getStoreOptionLabel,
+} from '@/constants/storeOptions'
 import { useStoreStore } from '@/stores/store'
 
 type UploadErrorParam = Parameters<NonNullable<UploadRequestOptions['onError']>>[0]
 
 interface StoreDetailsForm extends StoreRequest {
   language: string
+  phoneTechType: string
+  checkinTime: string
+  checkoutTime: string
 }
 
 const storeStore = useStoreStore()
@@ -327,7 +447,10 @@ const photos = ref<UploadUserFile[]>([])
 const loading = ref(false)
 
 const createEmptyStore = (): StoreDetailsForm => ({
-  language: 'English',
+  language: 'en',
+  phoneTechType: '5',
+  checkinTime: '15:00',
+  checkoutTime: '11:00',
   name: '',
   description: '',
   logo: '',
@@ -337,7 +460,7 @@ const createEmptyStore = (): StoreDetailsForm => ({
   city: '',
   state: '',
   country: '',
-  type: '',
+  type: '1',
   timezone: '',
   manager: '',
   currency: '',
@@ -353,10 +476,20 @@ const editForm = reactive<StoreDetailsForm>(createEmptyStore())
 
 const formRules: FormRules = {
   name: [{ required: true, message: '请输入门店名称', trigger: 'blur' }],
+  phone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
+  address: [{ required: true, message: '请输入详细地址', trigger: 'blur' }],
+  city: [{ required: true, message: '请输入城市', trigger: 'blur' }],
   country: [{ required: true, message: '请输入国家和地区', trigger: 'blur' }],
+  type: [{ required: true, message: '请选择房产类型', trigger: 'change' }],
+  timezone: [{ required: true, message: '请选择时区', trigger: 'change' }],
+  currency: [{ required: true, message: '请选择货币', trigger: 'change' }],
+  language: [{ required: true, message: '请选择语言', trigger: 'change' }],
 }
 
 const selectedFacilitiesList = computed(() => selectedFacilities.value)
+const formatCountry = (value?: string) => getStoreOptionLabel(COUNTRY_OPTIONS, value)
+const formatPropertyType = (value?: string) => getStoreOptionLabel(PROPERTY_TYPE_OPTIONS, value)
+const formatLanguage = (value?: string) => getStoreOptionLabel(LANGUAGE_OPTIONS, value)
 
 const buildUploadAjaxError = (error: unknown): UploadErrorParam => {
   const normalizedError = error instanceof Error ? error : new Error(String(error))
@@ -403,6 +536,7 @@ const applyFacilities = (facilities: FacilityDTO[] = []) => {
 const buildStorePayload = (source: StoreDetailsForm): StoreRequest => ({
   name: source.name,
   phone: source.phone,
+  phoneTechType: '5',
   type: source.type,
   timezone: source.timezone,
   manager: source.manager,
@@ -413,13 +547,15 @@ const buildStorePayload = (source: StoreDetailsForm): StoreRequest => ({
   currency: source.currency,
   suHotelId: source.suHotelId,
   ownerEmail: source.ownerEmail,
-  language: 'English',
+  language: source.language,
   description: source.description,
   logo: source.logo,
   email: source.email,
   facilities: buildFacilities(),
   desktopPhotoUrls: extractPhotoUrls(photos.value),
   mobilePhotoUrls: [],
+  checkinTime: source.checkinTime,
+  checkoutTime: source.checkoutTime,
 })
 
 const loadStoreDetails = async () => {
@@ -438,7 +574,10 @@ const loadStoreDetails = async () => {
 
     const data = response.data
     Object.assign(storeDetails, createEmptyStore(), {
-      language: data.language || 'English',
+      language: data.language || 'en',
+      phoneTechType: data.phoneTechType || '5',
+      checkinTime: data.checkinTime || '15:00',
+      checkoutTime: data.checkoutTime || '11:00',
       name: data.name || '',
       description: data.description || '',
       logo: data.logo || '',
@@ -999,3 +1138,5 @@ onMounted(() => {
   font-family: inherit;
 }
 </style>
+
+

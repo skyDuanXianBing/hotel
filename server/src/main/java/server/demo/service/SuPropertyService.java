@@ -5,20 +5,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.dto.FacilityDTO;
 import server.demo.entity.Store;
+import server.demo.entity.StorePolicy;
 import server.demo.repository.StoreRepository;
+import server.demo.repository.StorePolicyRepository;
 import server.demo.util.SuHotelIdUtil;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Su Property（hotelid/HotelCode）创建/覆盖服务。
- */
 @Service
 public class SuPropertyService {
 
+    private static final String NOTIF_TYPE_NEW = "New";
+    private static final String NOTIF_TYPE_OVERLAY = "Overlay";
+
     private final StoreRepository storeRepository;
+    private final StorePolicyRepository storePolicyRepository;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
 
@@ -37,70 +40,61 @@ public class SuPropertyService {
             String message
     ) {}
 
-    public SuPropertyService(StoreRepository storeRepository, SuApiClient suApiClient, SuAccessTokenService suAccessTokenService) {
+    public static boolean isPropertyAlreadyMissing(RemoveResult result) {
+        if (result == null) {
+            return false;
+        }
+
+        String code = result.errorCode();
+        if (code != null) {
+            String normalizedCode = code.trim().toLowerCase();
+            if (normalizedCode.contains("invalid hotelcode") || normalizedCode.contains("invalid hotel code")) {
+                return true;
+            }
+        }
+
+        String message = result.message();
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+
+        String normalizedMessage = message.trim().toLowerCase();
+        return normalizedMessage.contains("invalid hotelcode")
+                || normalizedMessage.contains("invalid hotel code")
+                || normalizedMessage.contains("hotel not found")
+                || normalizedMessage.contains("property not found")
+                || normalizedMessage.contains("unknown hotelcode");
+    }
+
+    public SuPropertyService(
+            StoreRepository storeRepository,
+            StorePolicyRepository storePolicyRepository,
+            SuApiClient suApiClient,
+            SuAccessTokenService suAccessTokenService
+    ) {
         this.storeRepository = storeRepository;
+        this.storePolicyRepository = storePolicyRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
     }
 
     @Transactional
     public UpsertResult upsertStoreProperty(Long storeId) {
-        if (storeId == null) {
-            throw new IllegalArgumentException("storeId is required");
-        }
-
-        Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("门店不存在"));
-
-        String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
-        if (hotelId == null) {
-            hotelId = generateUniqueRandomSuHotelId();
-            store.setSuHotelId(hotelId);
-            storeRepository.save(store);
-        }
-
-        // 使用缓存的 Su Access Token（自动复用/刷新）
-
-        Map<String, Object> payload = buildPropertyPayload(store, hotelId, "New");
-
-        try {
-            JsonNode response = suAccessTokenService.executeWithTokenRetry(
-                    token -> suApiClient.upsertProperty(token, payload),
-                    "OTA_HotelDescriptiveContentNotif"
-            );
-            boolean ok = suApiClient.isSuSuccess(response);
-            if (ok) {
-                return new UpsertResult(true, true, hotelId, "渠道物业创建成功");
-            }
-            String err = suApiClient.extractSuErrorMessage(response);
-            if (isPropertyAlreadyExists(err, response) || isAccessDenied(err, response)) {
-                return new UpsertResult(true, false, hotelId,
-                        "渠道物业创建失败：该酒店ID可能已被占用或不归属当前账号，请更换后重试。原始错误："
-                                + (err != null ? err : "未知"));
-            }
-            if (false && isPropertyAlreadyExists(err, response)) {
-                Map<String, Object> overlayPayload = buildPropertyPayload(store, hotelId, "Overlay");
-                JsonNode overlayResp = suAccessTokenService.executeWithTokenRetry(
-                        token -> suApiClient.upsertProperty(token, overlayPayload),
-                        "OTA_HotelDescriptiveContentNotif(Overlay)"
-                );
-                if (suApiClient.isSuSuccess(overlayResp)) {
-                    return new UpsertResult(true, true, hotelId, "渠道物业已存在，覆盖更新成功");
-                }
-                String overlayErr = suApiClient.extractSuErrorMessage(overlayResp);
-                return new UpsertResult(true, false, hotelId, overlayErr != null ? overlayErr : "渠道接口返回失败");
-            }
-            return new UpsertResult(true, false, hotelId, err != null ? err : "渠道接口返回失败");
-        } catch (Exception e) {
-            return new UpsertResult(true, false, hotelId, e.getMessage());
-        }
+        return submitStoreProperty(storeId, NOTIF_TYPE_NEW);
     }
 
-    /**
-     * 删除 Su Property（RemoveProperty）。
-     * <p>
-     * 注意：Su 可能因为该 Property 仍有渠道映射而返回 953（This Property Have Mapping With Channels）。
-     */
+    @Transactional
+    public UpsertResult updateStoreProperty(Long storeId) {
+        UpsertResult overlayResult = submitStoreProperty(storeId, NOTIF_TYPE_OVERLAY);
+        if (overlayResult.success()) {
+            return overlayResult;
+        }
+        if (!isPropertyMissingForOverlay(overlayResult.message())) {
+            return overlayResult;
+        }
+        return submitStoreProperty(storeId, NOTIF_TYPE_NEW);
+    }
+
     @Transactional
     public RemoveResult removeStoreProperty(Long storeId, boolean forceDeletion) {
         if (storeId == null) {
@@ -133,7 +127,58 @@ public class SuPropertyService {
         }
     }
 
-    private static Map<String, Object> buildPropertyPayload(Store store, String hotelId, String notifType) {
+    private UpsertResult submitStoreProperty(Long storeId, String notifType) {
+        if (storeId == null) {
+            throw new IllegalArgumentException("storeId is required");
+        }
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new RuntimeException("Store not found"));
+
+        String hotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
+        if (hotelId == null) {
+            hotelId = generateUniqueRandomSuHotelId();
+            store.setSuHotelId(hotelId);
+            storeRepository.save(store);
+        }
+
+        StorePolicy storePolicy = storePolicyRepository.findByStoreId(storeId).orElse(null);
+        Map<String, Object> payload = buildPropertyPayload(store, storePolicy, hotelId, notifType);
+
+        try {
+            JsonNode response = suAccessTokenService.executeWithTokenRetry(
+                    token -> suApiClient.upsertProperty(token, payload),
+                    "OTA_HotelDescriptiveContentNotif(" + notifType + ")"
+            );
+            if (suApiClient.isSuSuccess(response)) {
+                return new UpsertResult(true, true, hotelId, buildSuccessMessage(notifType));
+            }
+
+            String errorMessage = suApiClient.extractSuErrorMessage(response);
+            if (NOTIF_TYPE_NEW.equalsIgnoreCase(notifType) && (isPropertyAlreadyExists(errorMessage, response) || isAccessDenied(errorMessage, response))) {
+                return new UpsertResult(
+                        true,
+                        false,
+                        hotelId,
+                        "渠道物业创建失败：该酒店ID可能已被占用或不归属当前账号，请更换后重试。原始错误："
+                                + (errorMessage != null ? errorMessage : "unknown")
+                );
+            }
+
+            return new UpsertResult(true, false, hotelId, errorMessage != null ? errorMessage : "Su Property 同步失败");
+        } catch (Exception e) {
+            return new UpsertResult(true, false, hotelId, e.getMessage());
+        }
+    }
+
+    private static String buildSuccessMessage(String notifType) {
+        if (NOTIF_TYPE_OVERLAY.equalsIgnoreCase(notifType)) {
+            return "Su property updated successfully";
+        }
+        return "Su property created successfully";
+    }
+
+    private static Map<String, Object> buildPropertyPayload(Store store, StorePolicy storePolicy, String hotelId, String notifType) {
         String currency = store.getCurrency() != null && !store.getCurrency().isBlank()
                 ? store.getCurrency()
                 : "CNY";
@@ -170,7 +215,7 @@ public class SuPropertyService {
         }
         if (phoneNumber != null) {
             phone.put("PhoneNumber", phoneNumber);
-            phone.put("PhoneTechType", "1");
+            phone.put("PhoneTechType", normalizePhoneTechType(store.getPhoneTechType()));
         }
         Map<String, Object> phones = new LinkedHashMap<>();
         if (!phone.isEmpty()) {
@@ -205,13 +250,19 @@ public class SuPropertyService {
 
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("HotelName", store.getName());
-        content.put("HotelType", "3");
+        content.put("HotelType", normalizeHotelType(store.getType()));
         content.put("TimeZone", timezone);
         content.put("Platform", "SU");
         content.put("hotelid", hotelId);
-        content.put("LanguageCode", "en");
+        content.put("LanguageCode", normalizeLanguageCode(store.getLanguage()));
         content.put("CurrencyCode", currency);
-        content.put("HotelDescriptiveContentNotifType", notifType != null && !notifType.isBlank() ? notifType : "New");
+        content.put("HotelDescriptiveContentNotifType", notifType != null && !notifType.isBlank() ? notifType : NOTIF_TYPE_NEW);
+        if (storePolicy != null && storePolicy.getCheckinTime() != null && !storePolicy.getCheckinTime().isBlank()) {
+            content.put("OfficialCheckinTime", storePolicy.getCheckinTime().trim());
+        }
+        if (storePolicy != null && storePolicy.getCheckoutTime() != null && !storePolicy.getCheckoutTime().isBlank()) {
+            content.put("OfficialCheckoutTime", storePolicy.getCheckoutTime().trim());
+        }
         content.put("HotelInfo", hotelInfo);
         content.put("ContactInfos", Map.of("ContactInfo", List.of(physicalLocationContact, availabilityContact)));
         if (store.getDescription() != null && !store.getDescription().isBlank()) {
@@ -247,27 +298,79 @@ public class SuPropertyService {
     }
 
     private static boolean isPropertyAlreadyExists(String err, JsonNode response) {
-        String msg = err;
-        if (msg == null && response != null) {
-            msg = response.toString();
+        String message = err;
+        if (message == null && response != null) {
+            message = response.toString();
         }
-        if (msg == null) {
+        if (message == null) {
             return false;
         }
-        String lower = msg.toLowerCase();
+        String lower = message.toLowerCase();
         return lower.contains("property") && lower.contains("already") && lower.contains("exist");
     }
 
     private static boolean isAccessDenied(String err, JsonNode response) {
-        String msg = err;
-        if (msg == null && response != null) {
-            msg = response.toString();
+        String message = err;
+        if (message == null && response != null) {
+            message = response.toString();
         }
-        if (msg == null) {
+        if (message == null) {
             return false;
         }
-        String lower = msg.toLowerCase();
+        String lower = message.toLowerCase();
         return lower.contains("access denied") || lower.contains("authorization error");
+    }
+
+    private static boolean isPropertyMissingForOverlay(String message) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+        String lower = message.toLowerCase();
+        return lower.contains("invalid hotelcode")
+                || lower.contains("invalid hotel code")
+                || lower.contains("hotel not found")
+                || lower.contains("property not found")
+                || lower.contains("unknown hotelcode")
+                || lower.contains("not found");
+    }
+
+    private static String normalizeHotelType(String value) {
+        if (value == null || value.isBlank()) {
+            return "1";
+        }
+        String normalizedValue = value.trim().toLowerCase();
+        return switch (normalizedValue) {
+            case "1", "hotel" -> "1";
+            case "2", "motel" -> "2";
+            case "3", "vacational rental", "vacation rental", "vacational_rental", "homestay", "apartment", "hostel" -> "3";
+            default -> "1";
+        };
+    }
+
+    private static String normalizeLanguageCode(String value) {
+        if (value == null || value.isBlank()) {
+            return "en";
+        }
+        String normalizedValue = value.trim().toLowerCase();
+        return switch (normalizedValue) {
+            case "en", "english" -> "en";
+            case "zh", "zh-cn", "zh_cn", "chinese", "simplified chinese", "简体中文", "中文" -> "zh";
+            case "ja", "jp", "japanese", "日本語", "日语", "日文" -> "ja";
+            default -> "en";
+        };
+    }
+
+    private static String normalizePhoneTechType(String value) {
+        if (value == null || value.isBlank()) {
+            return "1";
+        }
+        String normalizedValue = value.trim().toLowerCase();
+        return switch (normalizedValue) {
+            case "1", "voice", "landline", "fixed", "phone", "固定电话", "固话" -> "1";
+            case "3", "fax", "传真" -> "3";
+            case "5", "mobile", "cell", "cellphone", "手机" -> "5";
+            default -> "1";
+        };
     }
 
     private String generateUniqueRandomSuHotelId() {

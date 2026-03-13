@@ -84,14 +84,21 @@ public final class SuContentPayloadBuilder {
             room.put("roomid", roomId);
             room.put("RoomRate", formatPositiveRate(roomType.getDefaultPrice()));
             room.put("Quantity", String.valueOf(roomType.getTotalRooms() != null ? roomType.getTotalRooms() : 1));
-            room.put("RoomType", inferSuRoomType(roomType.getName()));
+            room.put("RoomType", resolveSuRoomType(roomType));
+            if (roomType.getSizeMeasurement() != null) {
+                room.put("SizeMeasurement", roomType.getSizeMeasurement().stripTrailingZeros().toPlainString());
+                room.put("SizeMeasurementUnit", resolveSizeMeasurementUnit(roomType.getSizeMeasurementUnit()));
+            }
 
             Map<String, Object> occupancy = new HashMap<>();
             occupancy.put("MaxOccupancy", String.valueOf(resolveMaxOccupancy(roomType)));
-            occupancy.put("MaxChildOccupancy", "0");
+            occupancy.put("MaxChildOccupancy", String.valueOf(resolveMaxChildOccupancy(roomType)));
 
             Map<String, Object> description = new HashMap<>();
             description.put("Text", roomType.getName());
+            if (roomType.getDescription() != null && !roomType.getDescription().isBlank()) {
+                description.put("RoomDescription", roomType.getDescription().trim());
+            }
 
             Map<String, Object> guestRoom = new HashMap<>();
             guestRoom.put("Occupancy", occupancy);
@@ -172,15 +179,22 @@ public final class SuContentPayloadBuilder {
             Map<String, Object> room = new HashMap<>();
             room.put("RoomRate", formatPositiveRate(roomType.getDefaultPrice()));
             room.put("Quantity", String.valueOf(roomType.getTotalRooms() != null ? roomType.getTotalRooms() : 1));
-            room.put("RoomType", inferSuRoomType(roomType.getName()));
+            room.put("RoomType", resolveSuRoomType(roomType));
+            if (roomType.getSizeMeasurement() != null) {
+                room.put("SizeMeasurement", roomType.getSizeMeasurement().stripTrailingZeros().toPlainString());
+                room.put("SizeMeasurementUnit", resolveSizeMeasurementUnit(roomType.getSizeMeasurementUnit()));
+            }
 
             Map<String, Object> description = new HashMap<>();
             description.put("Text", roomType.getName());
+            if (roomType.getDescription() != null && !roomType.getDescription().isBlank()) {
+                description.put("RoomDescription", roomType.getDescription().trim());
+            }
 
             Map<String, Object> guestRoom = new HashMap<>();
             Map<String, Object> occupancy = new HashMap<>();
             occupancy.put("MaxOccupancy", String.valueOf(resolveMaxOccupancy(roomType)));
-            occupancy.put("MaxChildOccupancy", "0");
+            occupancy.put("MaxChildOccupancy", String.valueOf(resolveMaxChildOccupancy(roomType)));
             guestRoom.put("Occupancy", occupancy);
             guestRoom.put("Room", room);
             guestRoom.put("Description", description);
@@ -303,6 +317,14 @@ public final class SuContentPayloadBuilder {
         return Math.min(maxGuests, maxLimit);
     }
 
+    private static int resolveMaxChildOccupancy(RoomType roomType) {
+        Integer maxChildOccupancy = roomType != null ? roomType.getMaxChildOccupancy() : null;
+        if (maxChildOccupancy == null || maxChildOccupancy < 0) {
+            return 0;
+        }
+        return maxChildOccupancy;
+    }
+
     private static String formatPositiveRate(BigDecimal value) {
         if (value == null) {
             return "1";
@@ -345,6 +367,20 @@ public final class SuContentPayloadBuilder {
             return "Studio";
         }
         return "Apartment";
+    }
+
+    private static String resolveSuRoomType(RoomType roomType) {
+        if (roomType != null && roomType.getSuRoomType() != null && !roomType.getSuRoomType().isBlank()) {
+            return roomType.getSuRoomType().trim();
+        }
+        return inferSuRoomType(roomType != null ? roomType.getName() : null);
+    }
+
+    private static String resolveSizeMeasurementUnit(String unit) {
+        if (unit == null || unit.isBlank()) {
+            return "sqm";
+        }
+        return unit.trim().toLowerCase(Locale.ROOT);
     }
 
     private static Map<String, Object> buildFacilitiesNode(List<FacilityDTO> facilities) {

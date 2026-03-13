@@ -11,6 +11,7 @@ public class StoreDTO {
     private Long id;
     private String name;
     private String phone;
+    private String phoneTechType;
     private String type;
     private String timezone;
     private String manager;
@@ -32,6 +33,8 @@ public class StoreDTO {
     private List<String> desktopPhotoUrls;
     private List<String> mobilePhotoUrls;
     private Map<String, LocalizedContentDTO> localizedContent;
+    private String checkinTime;
+    private String checkoutTime;
     private String userRole;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -58,6 +61,14 @@ public class StoreDTO {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getPhoneTechType() {
+        return phoneTechType;
+    }
+
+    public void setPhoneTechType(String phoneTechType) {
+        this.phoneTechType = phoneTechType;
     }
 
     public String getType() {
@@ -226,6 +237,22 @@ public class StoreDTO {
 
     public void setLocalizedContent(Map<String, LocalizedContentDTO> localizedContent) {
         this.localizedContent = localizedContent;
+    }
+
+    public String getCheckinTime() {
+        return checkinTime;
+    }
+
+    public void setCheckinTime(String checkinTime) {
+        this.checkinTime = checkinTime;
+    }
+
+    public String getCheckoutTime() {
+        return checkoutTime;
+    }
+
+    public void setCheckoutTime(String checkoutTime) {
+        this.checkoutTime = checkoutTime;
     }
 
     public String getUserRole() {

@@ -14,6 +14,7 @@ public class CreateStoreRequest {
     private String name;
 
     private String phone;
+    private String phoneTechType;
 
     @NotBlank(message = "门店类型不能为空")
     private String type;
@@ -39,6 +40,8 @@ public class CreateStoreRequest {
     private String whatsapp;
     private String line;
     private String language;
+    private String checkinTime;
+    private String checkoutTime;
     private List<FacilityDTO> facilities;
     private List<String> desktopPhotoUrls;
     private List<String> mobilePhotoUrls;
@@ -58,6 +61,14 @@ public class CreateStoreRequest {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getPhoneTechType() {
+        return phoneTechType;
+    }
+
+    public void setPhoneTechType(String phoneTechType) {
+        this.phoneTechType = phoneTechType;
     }
 
     public String getType() {
@@ -194,6 +205,22 @@ public class CreateStoreRequest {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public String getCheckinTime() {
+        return checkinTime;
+    }
+
+    public void setCheckinTime(String checkinTime) {
+        this.checkinTime = checkinTime;
+    }
+
+    public String getCheckoutTime() {
+        return checkoutTime;
+    }
+
+    public void setCheckoutTime(String checkoutTime) {
+        this.checkoutTime = checkoutTime;
     }
 
     public List<FacilityDTO> getFacilities() {

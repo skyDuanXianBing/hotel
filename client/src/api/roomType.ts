@@ -17,8 +17,12 @@ export interface RoomTypeDTO {
   code: string
   totalRooms: number
   maxGuests?: number
+  maxChildOccupancy?: number
   description?: string
   checkInGuideLink?: string
+  suRoomType?: string
+  sizeMeasurement?: number
+  sizeMeasurementUnit?: string
   defaultPrice?: number
   weekdayPrice?: number
   weekendPrice?: number
@@ -67,7 +71,11 @@ export interface CreateRoomTypeRequest {
   description: string
   totalRooms: number
   maxGuests: number
+  maxChildOccupancy?: number
   checkInGuideLink?: string
+  suRoomType?: string
+  sizeMeasurement?: number
+  sizeMeasurementUnit?: string
   defaultPrice?: number
   weekdayPrice?: number
   weekendPrice?: number

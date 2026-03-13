@@ -1,34 +1,35 @@
 package server.demo.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.dto.RoomTypeDeleteBlockInfo;
+import server.demo.dto.RoomTypeWithRoomsDTO;
+import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
-import server.demo.entity.Reservation;
 import server.demo.entity.Store;
 import server.demo.entity.User;
-import server.demo.repository.RoomRepository;
-import server.demo.repository.RoomTypeRepository;
+import server.demo.enums.RoomStatus;
+import server.demo.exception.RoomTypeDeleteBlockedException;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomRepository;
+import server.demo.repository.RoomTypePricePlanRepository;
+import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
-import server.demo.repository.RoomTypePricePlanRepository;
-import server.demo.enums.RoomStatus;
-import server.demo.dto.RoomTypeWithRoomsDTO;
-import server.demo.dto.RoomTypeDeleteBlockInfo;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.SuHotelIdUtil;
-import server.demo.exception.RoomTypeDeleteBlockedException;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Service
@@ -109,7 +110,7 @@ public class RoomTypeService {
         Long storeId = currentStoreId();
         String hotelId = resolveOrInitSuHotelId(storeId);
         if (hotelId == null || hotelId.isBlank()) {
-            String msg = "Su hotelId 未配置，无法同步房型到 SU（stores.su_hotel_id）。";
+            String msg = "Su hotelId is missing; cannot sync room type to Su (stores.su_hotel_id)";
             if (suRoomTypeAutoSyncStrict) {
                 throw new RuntimeException(msg);
             }
@@ -118,8 +119,6 @@ public class RoomTypeService {
         }
 
         try {
-            // SU Content 的 Quantity 需要按“房型的物理房间数”配置。
-            // 这里以 PMS 内该房型下实际房间记录数为准（只增不减，避免触发 SU 不允许减少数量的问题）。
             if (roomType != null && roomType.getId() != null) {
                 int actualRooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, roomType.getId()).size();
                 int currentTotal = roomType.getTotalRooms() != null ? roomType.getTotalRooms() : 0;
@@ -132,11 +131,10 @@ public class RoomTypeService {
             suContentSyncService.upsertSingleRoomTypeStrict(storeId, hotelId, roomType);
             suImageSyncService.syncRoomTypeImagesStrict(storeId, roomType);
 
-            // 为了让 SU 沙盒 UI（Price & Availability）能立刻看到新 roomid，创建/编辑房型后预热库存（roomstosell）。
             if (suRoomTypeAutoSyncStrict && roomType != null && roomType.getId() != null) {
-                java.time.LocalDate start = java.time.LocalDate.now();
-                int d = Math.max(1, suAriWarmupDays);
-                java.time.LocalDate end = start.plusDays(d - 1L);
+                LocalDate start = LocalDate.now();
+                int days = Math.max(1, suAriWarmupDays);
+                LocalDate end = start.plusDays(days - 1L);
                 suAriAutoSyncService.enqueueForStoreScope(
                         storeId,
                         "room-type-upsert",
@@ -170,14 +168,14 @@ public class RoomTypeService {
         Long storeId = currentStoreId();
         List<RoomType> roomTypes = roomTypeRepository.findByStoreIdOrderByName(storeId);
         return roomTypes.stream()
-            .map(roomType -> {
-                List<Room> rooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, roomType.getId());
-                List<RoomTypeWithRoomsDTO.RoomInfoDTO> roomInfos = rooms.stream()
-                    .map(RoomTypeWithRoomsDTO.RoomInfoDTO::new)
-                    .collect(Collectors.toList());
-                return new RoomTypeWithRoomsDTO(roomType, roomInfos);
-            })
-            .collect(Collectors.toList());
+                .map(roomType -> {
+                    List<Room> rooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, roomType.getId());
+                    List<RoomTypeWithRoomsDTO.RoomInfoDTO> roomInfos = rooms.stream()
+                            .map(RoomTypeWithRoomsDTO.RoomInfoDTO::new)
+                            .collect(Collectors.toList());
+                    return new RoomTypeWithRoomsDTO(roomType, roomInfos);
+                })
+                .collect(Collectors.toList());
     }
 
     public Optional<RoomType> getRoomTypeById(Long id) {
@@ -195,17 +193,18 @@ public class RoomTypeService {
         Long userId = currentUserId();
 
         if (roomTypeRepository.existsByStoreIdAndName(storeId, roomType.getName())) {
-            throw new RuntimeException("房型创建失败：同一门店下已存在同名房型，请更换名称后重试");
+            throw new RuntimeException("Duplicate room type name exists in current store");
         }
 
         String uniqueCode = ensureUniqueRoomTypeCode(storeId, roomType.getCode());
         roomType.setCode(uniqueCode);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         roomType.setStoreId(storeId);
         roomType.setUser(user);
+        applyOptionalRoomTypeFields(roomType, roomType);
         RoomType saved = roomTypeRepository.save(roomType);
         syncRoomTypeToSuIfEnabled(saved);
         return saved;
@@ -216,25 +215,26 @@ public class RoomTypeService {
         Long userId = currentUserId();
 
         if (roomTypeRepository.existsByStoreIdAndName(storeId, roomType.getName())) {
-            throw new RuntimeException("房型创建失败：同一门店下已存在同名房型，请更换名称后重试");
+            throw new RuntimeException("Duplicate room type name exists in current store");
         }
 
         String uniqueCode = ensureUniqueRoomTypeCode(storeId, roomType.getCode());
         roomType.setCode(uniqueCode);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (roomNumbers != null && !roomNumbers.isEmpty()) {
             for (String roomNumber : roomNumbers) {
                 if (roomRepository.existsByStoreIdAndRoomNumber(storeId, roomNumber)) {
-                    throw new RuntimeException("房间号 " + roomNumber + " 已存在");
+                    throw new RuntimeException("Room number " + roomNumber + " already exists");
                 }
             }
         }
 
         roomType.setStoreId(storeId);
         roomType.setUser(user);
+        applyOptionalRoomTypeFields(roomType, roomType);
         RoomType savedRoomType = roomTypeRepository.save(roomType);
 
         if (roomNumbers != null && !roomNumbers.isEmpty()) {
@@ -250,7 +250,6 @@ public class RoomTypeService {
         syncRoomTypeToSuIfEnabled(savedRoomType);
         return savedRoomType;
     }
-
 
     private String ensureUniqueRoomTypeCode(Long storeId, String rawCode) {
         if (storeId == null) {
@@ -303,27 +302,100 @@ public class RoomTypeService {
         return rawName.trim();
     }
 
+    private static String normalizeOptionalSuRoomType(String rawSuRoomType) {
+        if (rawSuRoomType == null) {
+            return null;
+        }
+        String normalized = rawSuRoomType.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private static String normalizeOptionalSizeMeasurementUnit(String rawUnit) {
+        if (rawUnit == null) {
+            return null;
+        }
+        String normalized = rawUnit.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (!"sqm".equals(normalized) && !"sqft".equals(normalized)) {
+            throw new RuntimeException("size measurement unit must be sqm or sqft");
+        }
+        return normalized;
+    }
+
+    private static void validateRoomTypeCapacity(Integer maxGuests, Integer maxChildOccupancy) {
+        if (maxGuests == null || maxGuests < 1) {
+            throw new RuntimeException("max guests must be greater than 0");
+        }
+        if (maxChildOccupancy == null || maxChildOccupancy < 0) {
+            throw new RuntimeException("max child occupancy must be greater than or equal to 0");
+        }
+        if (maxChildOccupancy > maxGuests) {
+            throw new RuntimeException("max child occupancy cannot be greater than max guests");
+        }
+    }
+
+    private static void applyOptionalRoomTypeFields(RoomType target, RoomType source) {
+        target.setDescription(source.getDescription());
+        target.setCheckInGuideLink(source.getCheckInGuideLink());
+        target.setDefaultPrice(source.getDefaultPrice());
+        target.setWeekdayPrice(source.getWeekdayPrice());
+        target.setWeekendPrice(source.getWeekendPrice());
+        target.setMondayPrice(source.getMondayPrice());
+        target.setTuesdayPrice(source.getTuesdayPrice());
+        target.setWednesdayPrice(source.getWednesdayPrice());
+        target.setThursdayPrice(source.getThursdayPrice());
+        target.setFridayPrice(source.getFridayPrice());
+        target.setSaturdayPrice(source.getSaturdayPrice());
+        target.setSundayPrice(source.getSundayPrice());
+
+        target.setMaxChildOccupancy(source.getMaxChildOccupancy() == null ? 0 : source.getMaxChildOccupancy());
+        target.setSuRoomType(normalizeOptionalSuRoomType(source.getSuRoomType()));
+
+        BigDecimal sizeMeasurement = source.getSizeMeasurement();
+        target.setSizeMeasurement(sizeMeasurement);
+        target.setSizeMeasurementUnit(
+                sizeMeasurement == null ? null : normalizeOptionalSizeMeasurementUnit(source.getSizeMeasurementUnit())
+        );
+
+        validateRoomTypeCapacity(target.getMaxGuests(), target.getMaxChildOccupancy());
+
+        if (source.getFacilities() != null) {
+            target.setFacilities(source.getFacilities());
+        }
+        if (source.getDesktopPhotoUrls() != null) {
+            target.setDesktopPhotoUrls(source.getDesktopPhotoUrls());
+        }
+        if (source.getMobilePhotoUrls() != null) {
+            target.setMobilePhotoUrls(source.getMobilePhotoUrls());
+        }
+        if (source.getLocalizedContent() != null) {
+            target.setLocalizedContent(source.getLocalizedContent());
+        }
+    }
+
     public RoomType updateRoomType(Long id, RoomType roomType) {
         Long storeId = currentStoreId();
         RoomType existingRoomType = roomTypeRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("房型不存在"));
+                .orElseThrow(() -> new RuntimeException("Room type not found"));
 
         if (!storeId.equals(existingRoomType.getStoreId())) {
-            throw new RuntimeException("无权限修改此房型");
+            throw new RuntimeException("Permission denied for current store");
         }
 
         String normalizedExistingCode = normalizeRoomTypeCode(existingRoomType.getCode());
         String normalizedCode = normalizeRoomTypeCode(roomType.getCode());
         if (!normalizedExistingCode.equals(normalizedCode)
                 && roomTypeRepository.existsByStoreIdAndCodeAndIdNot(storeId, normalizedCode, id)) {
-            throw new RuntimeException("房型代码已存在");
+            throw new RuntimeException("Room type code already exists");
         }
 
         String normalizedExistingName = normalizeRoomTypeName(existingRoomType.getName());
         String normalizedName = normalizeRoomTypeName(roomType.getName());
         if (!normalizedExistingName.equalsIgnoreCase(normalizedName)
                 && roomTypeRepository.existsByStoreIdAndNameAndIdNot(storeId, normalizedName, id)) {
-            throw new RuntimeException("房型更新失败：同一门店下已存在同名房型，请更换名称后重试");
+            throw new RuntimeException("Duplicate room type name exists in current store");
         }
 
         existingRoomType.setName(normalizedName);
@@ -333,28 +405,18 @@ public class RoomTypeService {
             Integer oldTotal = existingRoomType.getTotalRooms();
             Integer newTotal = roomType.getTotalRooms();
             if (oldTotal != null && newTotal != null && newTotal < oldTotal) {
-                throw new RuntimeException("SU 房型数量（Room Count/Quantity）不允许减少。若需减少请联系 SU Support。当前=" + oldTotal + "，请求=" + newTotal);
+                throw new RuntimeException(
+                        "SU strict mode does not allow reducing total rooms. old="
+                                + oldTotal
+                                + ", new="
+                                + newTotal
+                );
             }
         }
 
         existingRoomType.setTotalRooms(roomType.getTotalRooms());
         existingRoomType.setMaxGuests(roomType.getMaxGuests());
-        existingRoomType.setDescription(roomType.getDescription());
-        existingRoomType.setCheckInGuideLink(roomType.getCheckInGuideLink());
-        existingRoomType.setDefaultPrice(roomType.getDefaultPrice());
-        existingRoomType.setWeekdayPrice(roomType.getWeekdayPrice());
-        existingRoomType.setWeekendPrice(roomType.getWeekendPrice());
-        existingRoomType.setMondayPrice(roomType.getMondayPrice());
-        existingRoomType.setTuesdayPrice(roomType.getTuesdayPrice());
-        existingRoomType.setWednesdayPrice(roomType.getWednesdayPrice());
-        existingRoomType.setThursdayPrice(roomType.getThursdayPrice());
-        existingRoomType.setFridayPrice(roomType.getFridayPrice());
-        existingRoomType.setSaturdayPrice(roomType.getSaturdayPrice());
-        existingRoomType.setSundayPrice(roomType.getSundayPrice());
-        existingRoomType.setFacilities(roomType.getFacilities());
-        existingRoomType.setDesktopPhotoUrls(roomType.getDesktopPhotoUrls());
-        existingRoomType.setMobilePhotoUrls(roomType.getMobilePhotoUrls());
-        existingRoomType.setLocalizedContent(roomType.getLocalizedContent());
+        applyOptionalRoomTypeFields(existingRoomType, roomType);
 
         return roomTypeRepository.save(existingRoomType);
     }
@@ -367,22 +429,22 @@ public class RoomTypeService {
             List<Room> existingRooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, id);
 
             List<String> existingRoomNumbers = existingRooms.stream()
-                .map(Room::getRoomNumber)
-                .collect(Collectors.toList());
+                    .map(Room::getRoomNumber)
+                    .collect(Collectors.toList());
 
             List<Room> roomsToDelete = existingRooms.stream()
-                .filter(room -> !roomNumbers.contains(room.getRoomNumber()))
-                .collect(java.util.stream.Collectors.toList());
+                    .filter(room -> !roomNumbers.contains(room.getRoomNumber()))
+                    .collect(java.util.stream.Collectors.toList());
 
             roomRepository.deleteAll(roomsToDelete);
 
             List<String> roomNumbersToAdd = roomNumbers.stream()
-                .filter(roomNumber -> !existingRoomNumbers.contains(roomNumber))
-                .collect(Collectors.toList());
+                    .filter(roomNumber -> !existingRoomNumbers.contains(roomNumber))
+                    .collect(Collectors.toList());
 
             for (String roomNumber : roomNumbersToAdd) {
                 if (roomRepository.existsByStoreIdAndRoomNumber(storeId, roomNumber)) {
-                    throw new RuntimeException("房间号 " + roomNumber + " 已存在");
+                    throw new RuntimeException("Room number " + roomNumber + " already exists");
                 }
             }
 
@@ -402,18 +464,16 @@ public class RoomTypeService {
 
     public void deleteRoomType(Long id) {
         Long storeId = currentStoreId();
-        Long userId = currentUserId();
 
         RoomType roomType = roomTypeRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("房型不存在"));
+                .orElseThrow(() -> new RuntimeException("Room type not found"));
 
         if (!storeId.equals(roomType.getStoreId())) {
-            throw new RuntimeException("无权限删除此房型");
+            throw new RuntimeException("Permission denied for current store");
         }
 
         List<Room> rooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, id);
 
-        // 先给出阻塞删除的订单清单（避免前端只能看到笼统提示）
         final int sampleLimit = 10;
         long blockingTotal = 0;
         List<RoomTypeDeleteBlockInfo.BlockingReservationSummary> samples = new ArrayList<>();
@@ -429,16 +489,16 @@ public class RoomTypeService {
             if (!activeReservations.isEmpty()) {
                 blockingTotal += activeReservations.size();
                 if (samples.size() < sampleLimit) {
-                    for (Reservation r : activeReservations) {
+                    for (Reservation reservation : activeReservations) {
                         if (samples.size() >= sampleLimit) {
                             break;
                         }
                         samples.add(new RoomTypeDeleteBlockInfo.BlockingReservationSummary(
-                                r.getOrderNumber(),
-                                r.getStatus(),
+                                reservation.getOrderNumber(),
+                                reservation.getStatus(),
                                 room.getRoomNumber(),
-                                r.getCheckInDate(),
-                                r.getCheckOutDate()
+                                reservation.getCheckInDate(),
+                                reservation.getCheckOutDate()
                         ));
                     }
                 }
@@ -446,28 +506,27 @@ public class RoomTypeService {
         }
         if (blockingTotal > 0) {
             throw new RoomTypeDeleteBlockedException(
-                    "该房型下仍存在未完成的预订，请先取消/退房/改期/换房后再删除",
+                    "Room type deletion is blocked by active/future reservations",
                     new RoomTypeDeleteBlockInfo(blockingTotal, samples)
             );
         }
 
         for (Room room : rooms) {
-            java.time.LocalDate today = java.time.LocalDate.now();
-            java.time.LocalDate futureDate = today.plusYears(10);
+            LocalDate today = LocalDate.now();
+            LocalDate futureDate = today.plusYears(10);
 
             List<Reservation> activeReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
-                currentStoreId(),
-                room.getId(),
-                today,
-                futureDate
+                    currentStoreId(),
+                    room.getId(),
+                    today,
+                    futureDate
             );
 
             if (!activeReservations.isEmpty()) {
-                throw new RuntimeException("该房型下的房间还有活跃预订记录，无法删除。请先处理或取消相关订单后再删除。");
+                throw new RuntimeException("Active reservations still exist under this room type; delete is blocked");
             }
         }
 
-        // 删除前同步删除 Su 房型（按 strict 配置决定是否阻塞本地删除）
         deleteRoomTypeFromSuIfEnabled(roomType);
 
         priceChangeHistoryRepository.deleteByRoomTypeId(id);
@@ -484,7 +543,7 @@ public class RoomTypeService {
         Long storeId = currentStoreId();
         String hotelId = resolveOrInitSuHotelId(storeId);
         if (hotelId == null || hotelId.isBlank()) {
-            String msg = "Su hotelId 未配置，无法删除 Su 房型（stores.su_hotel_id）";
+            String msg = "Su hotelId is missing; cannot delete room type in Su (stores.su_hotel_id)";
             if (suRoomTypeAutoSyncStrict) {
                 throw new RuntimeException(msg);
             }
@@ -505,5 +564,4 @@ public class RoomTypeService {
                     e.getMessage());
         }
     }
-
 }

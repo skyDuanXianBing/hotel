@@ -21,6 +21,7 @@ export interface StoreDTO {
   id: number
   name: string
   phone: string
+  phoneTechType?: string
   type: string
   timezone: string
   manager: string
@@ -42,6 +43,8 @@ export interface StoreDTO {
   desktopPhotoUrls?: string[]
   mobilePhotoUrls?: string[]
   localizedContent?: Record<string, LocalizedContentDTO>
+  checkinTime?: string
+  checkoutTime?: string
   userRole: string
   createdAt: string
   updatedAt: string
@@ -62,6 +65,7 @@ export interface StorePolicyDTO {
 export interface StoreRequest {
   name: string
   phone: string
+  phoneTechType?: string
   type?: string
   timezone?: string
   manager?: string
@@ -84,6 +88,8 @@ export interface StoreRequest {
   desktopPhotoUrls?: string[]
   mobilePhotoUrls?: string[]
   localizedContent?: Record<string, LocalizedContentDTO>
+  checkinTime?: string
+  checkoutTime?: string
 }
 
 export interface AddStoreMemberRequest {

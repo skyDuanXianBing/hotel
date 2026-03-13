@@ -58,7 +58,11 @@ public class RoomTypeController extends BaseStoreController {
                     request.getTotalRooms(), request.getDescription());
 
             roomType.setMaxGuests(request.getMaxGuests());
+            roomType.setMaxChildOccupancy(request.getMaxChildOccupancy());
             roomType.setCheckInGuideLink(request.getCheckInGuideLink());
+            roomType.setSuRoomType(request.getSuRoomType());
+            roomType.setSizeMeasurement(request.getSizeMeasurement());
+            roomType.setSizeMeasurementUnit(request.getSizeMeasurementUnit());
             roomType.setDefaultPrice(request.getDefaultPrice());
             roomType.setWeekdayPrice(request.getWeekdayPrice());
             roomType.setWeekendPrice(request.getWeekendPrice());
@@ -98,8 +102,12 @@ public class RoomTypeController extends BaseStoreController {
             roomType.setCode(request.getCode());
             roomType.setTotalRooms(request.getTotalRooms());
             roomType.setMaxGuests(request.getMaxGuests());
+            roomType.setMaxChildOccupancy(request.getMaxChildOccupancy());
             roomType.setDescription(request.getDescription());
             roomType.setCheckInGuideLink(request.getCheckInGuideLink());
+            roomType.setSuRoomType(request.getSuRoomType());
+            roomType.setSizeMeasurement(request.getSizeMeasurement());
+            roomType.setSizeMeasurementUnit(request.getSizeMeasurementUnit());
             roomType.setDefaultPrice(request.getDefaultPrice());
             roomType.setWeekdayPrice(request.getWeekdayPrice());
             roomType.setWeekendPrice(request.getWeekendPrice());

@@ -63,11 +63,23 @@ public class RoomType implements StoreScopedEntity {
     @Column(name = "max_guests", nullable = false)
     private Integer maxGuests = 4;
 
+    @Column(name = "max_child_occupancy", nullable = false)
+    private Integer maxChildOccupancy = 0;
+
     @Column(length = 500)
     private String description;
 
     @Column(name = "check_in_guide_link", length = 500)
     private String checkInGuideLink;
+
+    @Column(name = "su_room_type", length = 100)
+    private String suRoomType;
+
+    @Column(name = "size_measurement", precision = 10, scale = 2)
+    private BigDecimal sizeMeasurement;
+
+    @Column(name = "size_measurement_unit", length = 10)
+    private String sizeMeasurementUnit;
 
     @Column(name = "default_price", precision = 10, scale = 2)
     private BigDecimal defaultPrice;
@@ -189,6 +201,14 @@ public class RoomType implements StoreScopedEntity {
         this.maxGuests = maxGuests;
     }
 
+    public Integer getMaxChildOccupancy() {
+        return maxChildOccupancy;
+    }
+
+    public void setMaxChildOccupancy(Integer maxChildOccupancy) {
+        this.maxChildOccupancy = maxChildOccupancy;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -203,6 +223,30 @@ public class RoomType implements StoreScopedEntity {
 
     public void setCheckInGuideLink(String checkInGuideLink) {
         this.checkInGuideLink = checkInGuideLink;
+    }
+
+    public String getSuRoomType() {
+        return suRoomType;
+    }
+
+    public void setSuRoomType(String suRoomType) {
+        this.suRoomType = suRoomType;
+    }
+
+    public BigDecimal getSizeMeasurement() {
+        return sizeMeasurement;
+    }
+
+    public void setSizeMeasurement(BigDecimal sizeMeasurement) {
+        this.sizeMeasurement = sizeMeasurement;
+    }
+
+    public String getSizeMeasurementUnit() {
+        return sizeMeasurementUnit;
+    }
+
+    public void setSizeMeasurementUnit(String sizeMeasurementUnit) {
+        this.sizeMeasurementUnit = sizeMeasurementUnit;
     }
 
     public BigDecimal getDefaultPrice() {

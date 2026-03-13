@@ -37,6 +37,9 @@ public class Store {
     @Column(length = 20)
     private String phone;
 
+    @Column(length = 10)
+    private String phoneTechType;
+
     @Column(length = 50)
     private String type;
 
@@ -151,6 +154,14 @@ public class Store {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getPhoneTechType() {
+        return phoneTechType;
+    }
+
+    public void setPhoneTechType(String phoneTechType) {
+        this.phoneTechType = phoneTechType;
     }
 
     public String getType() {

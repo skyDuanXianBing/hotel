@@ -7,10 +7,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.MediaUploadResponseDTO;
 import server.demo.service.MediaStorageService;
@@ -28,6 +28,7 @@ public class MediaController {
         this.mediaStorageService = mediaStorageService;
     }
 
+    @StoreScoped
     @PostMapping("/api/v1/media/upload")
     public ApiResponse<MediaUploadResponseDTO> upload(
             @RequestParam("scope") String scope,

@@ -2,8 +2,8 @@
   <div class="room-type-details-container">
     <div class="breadcrumb-section">
       <el-breadcrumb separator=">">
-        <el-breadcrumb-item @click="handleBack" class="breadcrumb-link">房型</el-breadcrumb-item>
-        <el-breadcrumb-item>详情</el-breadcrumb-item>
+        <el-breadcrumb-item @click="handleBack" class="breadcrumb-link">房型设置</el-breadcrumb-item>
+        <el-breadcrumb-item>房型详情</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
@@ -11,13 +11,15 @@
       <el-tabs v-model="activeTab" class="room-tabs">
         <el-tab-pane label="基本信息" name="basic">
           <div class="tab-content">
-            <div class="info-notice">以下名称与描述将作为同步到 Su 的英文内容</div>
+            <div class="info-notice">
+              请使用英文填写“名称/描述”，以便同步到 Su 渠道展示；其余字段用于房型标准化同步。
+            </div>
 
             <el-form :model="formData" label-width="100px" class="detail-form">
               <el-form-item label="英文名称" required>
                 <el-input
                   v-model="formData.name"
-                  placeholder="请输入英文名称"
+                  placeholder="Please input English name"
                   maxlength="100"
                   show-word-limit
                 />
@@ -28,15 +30,67 @@
                   v-model="formData.description"
                   type="textarea"
                   :rows="5"
-                  placeholder="请输入英文描述"
+                  placeholder="Please input English description"
                   maxlength="2000"
                   show-word-limit
                 />
               </el-form-item>
+
+              <el-row :gutter="16">
+                <el-col :span="12">
+                  <el-form-item label="Su 房型类型">
+                    <el-input
+                      v-model="formData.suRoomType"
+                      placeholder="例如 Apartment / Double / Twin"
+                      maxlength="100"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="儿童最大入住">
+                    <el-input-number
+                      v-model="formData.maxChildOccupancy"
+                      :min="0"
+                      :max="formData.maxGuests || 0"
+                      style="width: 100%"
+                    />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-row :gutter="16">
+                <el-col :span="12">
+                  <el-form-item label="房型面积">
+                    <el-input-number
+                      v-model="formData.sizeMeasurement"
+                      :min="0"
+                      :precision="2"
+                      :step="1"
+                      style="width: 100%"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="面积单位">
+                    <el-select
+                      v-model="formData.sizeMeasurementUnit"
+                      placeholder="请选择面积单位"
+                      style="width: 100%"
+                    >
+                      <el-option
+                        v-for="option in ROOM_SIZE_UNIT_OPTIONS"
+                        :key="option.value"
+                        :label="option.label"
+                        :value="option.value"
+                      />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
             </el-form>
 
             <div class="form-actions">
-              <el-button @click="handleBack">取消</el-button>
+              <el-button @click="handleBack">返回</el-button>
               <el-button type="primary" :loading="savingBasic" @click="handleSaveBasic">保存</el-button>
             </div>
           </div>
@@ -62,7 +116,7 @@
             </div>
 
             <div class="form-actions">
-              <el-button @click="handleBack">取消</el-button>
+              <el-button @click="handleBack">返回</el-button>
               <el-button type="primary" :loading="savingFacilities" @click="handleSaveFacilities">
                 保存
               </el-button>
@@ -75,9 +129,9 @@
             <div class="photo-section">
               <h3 class="section-title">照片</h3>
               <div class="photo-info">
-                <p>最大数量: 40</p>
-                <p>最大尺寸: 图片 5MB</p>
-                <p>推荐尺寸: 1200px 以上</p>
+                <p>最多上传 40 张图片。</p>
+                <p>仅支持图片格式，单张大小不超过 5MB。</p>
+                <p>建议图片宽度至少 1200px，以保证渠道展示效果。</p>
               </div>
               <div class="upload-area">
                 <el-upload
@@ -89,13 +143,13 @@
                   :http-request="handlePhotoRequest"
                 >
                   <el-icon class="upload-icon"><Upload /></el-icon>
-                  <div class="upload-text">上传</div>
+                  <div class="upload-text">上传图片</div>
                 </el-upload>
               </div>
             </div>
 
             <div class="form-actions">
-              <el-button @click="handleBack">取消</el-button>
+              <el-button @click="handleBack">返回</el-button>
               <el-button type="primary" :loading="savingPhotos" @click="handleSavePhotos">保存</el-button>
             </div>
           </div>
@@ -125,6 +179,7 @@ import {
   type RoomTypeDTO,
 } from '@/api/roomType'
 import { ROOM_FACILITY_SECTIONS } from '@/constants/suFacilities'
+import { ROOM_SIZE_UNIT_OPTIONS } from '@/constants/roomTypeOptions'
 
 type UploadErrorParam = Parameters<NonNullable<UploadRequestOptions['onError']>>[0]
 
@@ -135,7 +190,11 @@ interface RoomTypeForm {
   code: string
   totalRooms: number
   maxGuests: number
+  maxChildOccupancy: number
   checkInGuideLink: string
+  suRoomType: string
+  sizeMeasurement?: number
+  sizeMeasurementUnit: string
   defaultPrice?: number
   weekdayPrice?: number
   weekendPrice?: number
@@ -182,7 +241,11 @@ const formData = reactive<RoomTypeForm>({
   code: '',
   totalRooms: 1,
   maxGuests: 1,
+  maxChildOccupancy: 0,
   checkInGuideLink: '',
+  suRoomType: '',
+  sizeMeasurement: undefined,
+  sizeMeasurementUnit: 'sqm',
   defaultPrice: undefined,
   weekdayPrice: undefined,
   weekendPrice: undefined,
@@ -258,7 +321,14 @@ const buildPayload = (): CreateRoomTypeRequest => ({
   description: formData.description,
   totalRooms: formData.totalRooms,
   maxGuests: formData.maxGuests,
+  maxChildOccupancy: formData.maxChildOccupancy,
   checkInGuideLink: formData.checkInGuideLink,
+  suRoomType: formData.suRoomType.trim() || undefined,
+  sizeMeasurement: formData.sizeMeasurement,
+  sizeMeasurementUnit:
+    formData.sizeMeasurement !== undefined && formData.sizeMeasurement !== null
+      ? formData.sizeMeasurementUnit
+      : undefined,
   defaultPrice: formData.defaultPrice,
   weekdayPrice: formData.weekdayPrice,
   weekendPrice: formData.weekendPrice,
@@ -284,7 +354,7 @@ const buildPayload = (): CreateRoomTypeRequest => ({
 const loadRoomTypeDetails = async () => {
   const roomTypeId = Number(route.params.id)
   if (!roomTypeId) {
-    ElMessage.error('房型 ID 不存在')
+    ElMessage.error('Room type ID is missing')
     handleBack()
     return
   }
@@ -296,7 +366,7 @@ const loadRoomTypeDetails = async () => {
     ])
 
     if (!detailResponse.success || !detailResponse.data) {
-      ElMessage.error(detailResponse.message || '加载房型详情失败')
+      ElMessage.error(detailResponse.message || 'Failed to load room type details')
       return
     }
 
@@ -309,7 +379,11 @@ const loadRoomTypeDetails = async () => {
     formData.code = data.code || ''
     formData.totalRooms = data.totalRooms || 1
     formData.maxGuests = data.maxGuests || 1
+    formData.maxChildOccupancy = data.maxChildOccupancy || 0
     formData.checkInGuideLink = data.checkInGuideLink || ''
+    formData.suRoomType = data.suRoomType || ''
+    formData.sizeMeasurement = data.sizeMeasurement
+    formData.sizeMeasurementUnit = data.sizeMeasurementUnit || 'sqm'
     formData.defaultPrice = data.defaultPrice
     formData.weekdayPrice = data.weekdayPrice
     formData.weekendPrice = data.weekendPrice
@@ -325,26 +399,24 @@ const loadRoomTypeDetails = async () => {
     applyFacilities(data.facilities || [])
 
     if (roomResponse.success && roomResponse.data) {
-      const matched = roomResponse.data.find(
-        (item: RoomTypeWithRoomsItem) => item.id === roomTypeId
-      )
+      const matched = roomResponse.data.find((item: RoomTypeWithRoomsItem) => item.id === roomTypeId)
       formData.roomNumbers = matched?.rooms?.map((room: { roomNumber: string }) => room.roomNumber) || []
     }
   } catch (error) {
-    console.error('加载房型详情失败:', error)
-    ElMessage.error('加载房型详情失败')
+    console.error('Failed to load room type details:', error)
+    ElMessage.error('Failed to load room type details')
   }
 }
 
 const saveRoomType = async (successMessage: string) => {
   if (!formData.id) {
-    ElMessage.error('房型 ID 不存在')
+    ElMessage.error('Room type ID is missing')
     return false
   }
 
   const response = await updateRoomType(formData.id, buildPayload())
   if (!response.success) {
-    ElMessage.error(response.message || '保存失败')
+    ElMessage.error(response.message || 'Save failed')
     return false
   }
 
@@ -360,10 +432,10 @@ const handleBack = () => {
 const handleSaveBasic = async () => {
   try {
     savingBasic.value = true
-    await saveRoomType('保存成功')
+    await saveRoomType('Saved successfully')
   } catch (error) {
-    console.error('保存房型失败:', error)
-    ElMessage.error('保存房型失败')
+    console.error('Failed to save room type:', error)
+    ElMessage.error('Failed to save room type')
   } finally {
     savingBasic.value = false
   }
@@ -372,10 +444,10 @@ const handleSaveBasic = async () => {
 const handleSaveFacilities = async () => {
   try {
     savingFacilities.value = true
-    await saveRoomType('设施信息保存成功')
+    await saveRoomType('Facilities saved successfully')
   } catch (error) {
-    console.error('保存设施失败:', error)
-    ElMessage.error('保存设施失败')
+    console.error('Failed to save facilities:', error)
+    ElMessage.error('Failed to save facilities')
   } finally {
     savingFacilities.value = false
   }
@@ -384,10 +456,10 @@ const handleSaveFacilities = async () => {
 const handleSavePhotos = async () => {
   try {
     savingPhotos.value = true
-    await saveRoomType('照片保存成功')
+    await saveRoomType('Photos saved successfully')
   } catch (error) {
-    console.error('保存照片失败:', error)
-    ElMessage.error('保存照片失败')
+    console.error('Failed to save photos:', error)
+    ElMessage.error('Failed to save photos')
   } finally {
     savingPhotos.value = false
   }
@@ -398,12 +470,12 @@ const beforeUpload = (file: UploadRawFile) => {
   const isLt5M = file.size / 1024 / 1024 < 5
 
   if (!isImage) {
-    ElMessage.error('只能上传图片文件')
+    ElMessage.error('Only image files are allowed')
     return false
   }
 
   if (!isLt5M) {
-    ElMessage.error('图片大小不能超过 5MB')
+    ElMessage.error('Image size must be <= 5MB')
     return false
   }
 
@@ -414,7 +486,7 @@ const handlePhotoUpload = async (options: UploadRequestOptions) => {
   try {
     const response = await uploadMedia('room-type-desktop', options.file as File)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '上传失败')
+      throw new Error(response.message || 'Upload failed')
     }
 
     const matchedFile = photos.value.find((file) => file.uid === options.file.uid)
@@ -433,10 +505,10 @@ const handlePhotoUpload = async (options: UploadRequestOptions) => {
     }
 
     options.onSuccess?.(response)
-    ElMessage.success('上传成功')
+    ElMessage.success('Upload succeeded')
   } catch (error) {
-    console.error('上传失败:', error)
-    ElMessage.error('上传失败')
+    console.error('Upload failed:', error)
+    ElMessage.error('Upload failed')
     options.onError?.(buildUploadAjaxError(error))
   }
 }

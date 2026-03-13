@@ -1,9 +1,10 @@
 package server.demo.dto;
 
-import server.demo.entity.RoomType;
 import server.demo.entity.Room;
-import java.time.LocalDateTime;
+import server.demo.entity.RoomType;
+
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class RoomTypeWithRoomsDTO {
@@ -12,16 +13,18 @@ public class RoomTypeWithRoomsDTO {
     private String code;
     private Integer totalRooms;
     private Integer maxGuests;
+    private Integer maxChildOccupancy;
     private String description;
     private String checkInGuideLink;
+    private String suRoomType;
+    private BigDecimal sizeMeasurement;
+    private String sizeMeasurementUnit;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<RoomInfoDTO> rooms;
     private BigDecimal defaultPrice;
     private BigDecimal weekdayPrice;
     private BigDecimal weekendPrice;
-
-    // 每天的价格
     private BigDecimal mondayPrice;
     private BigDecimal tuesdayPrice;
     private BigDecimal wednesdayPrice;
@@ -30,7 +33,6 @@ public class RoomTypeWithRoomsDTO {
     private BigDecimal saturdayPrice;
     private BigDecimal sundayPrice;
 
-    // Constructors
     public RoomTypeWithRoomsDTO() {}
 
     public RoomTypeWithRoomsDTO(RoomType roomType, List<RoomInfoDTO> rooms) {
@@ -39,8 +41,12 @@ public class RoomTypeWithRoomsDTO {
         this.code = roomType.getCode();
         this.totalRooms = roomType.getTotalRooms();
         this.maxGuests = roomType.getMaxGuests();
+        this.maxChildOccupancy = roomType.getMaxChildOccupancy();
         this.description = roomType.getDescription();
         this.checkInGuideLink = roomType.getCheckInGuideLink();
+        this.suRoomType = roomType.getSuRoomType();
+        this.sizeMeasurement = roomType.getSizeMeasurement();
+        this.sizeMeasurementUnit = roomType.getSizeMeasurementUnit();
         this.createdAt = roomType.getCreatedAt();
         this.updatedAt = roomType.getUpdatedAt();
         this.rooms = rooms;
@@ -56,7 +62,6 @@ public class RoomTypeWithRoomsDTO {
         this.sundayPrice = roomType.getSundayPrice();
     }
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -97,6 +102,14 @@ public class RoomTypeWithRoomsDTO {
         this.maxGuests = maxGuests;
     }
 
+    public Integer getMaxChildOccupancy() {
+        return maxChildOccupancy;
+    }
+
+    public void setMaxChildOccupancy(Integer maxChildOccupancy) {
+        this.maxChildOccupancy = maxChildOccupancy;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -111,6 +124,30 @@ public class RoomTypeWithRoomsDTO {
 
     public void setCheckInGuideLink(String checkInGuideLink) {
         this.checkInGuideLink = checkInGuideLink;
+    }
+
+    public String getSuRoomType() {
+        return suRoomType;
+    }
+
+    public void setSuRoomType(String suRoomType) {
+        this.suRoomType = suRoomType;
+    }
+
+    public BigDecimal getSizeMeasurement() {
+        return sizeMeasurement;
+    }
+
+    public void setSizeMeasurement(BigDecimal sizeMeasurement) {
+        this.sizeMeasurement = sizeMeasurement;
+    }
+
+    public String getSizeMeasurementUnit() {
+        return sizeMeasurementUnit;
+    }
+
+    public void setSizeMeasurementUnit(String sizeMeasurementUnit) {
+        this.sizeMeasurementUnit = sizeMeasurementUnit;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -217,7 +254,6 @@ public class RoomTypeWithRoomsDTO {
         this.sundayPrice = sundayPrice;
     }
 
-    // 内部类：房间信息DTO
     public static class RoomInfoDTO {
         private Long id;
         private String roomNumber;
@@ -225,7 +261,6 @@ public class RoomTypeWithRoomsDTO {
         private Integer floor;
         private String notes;
 
-        // Constructors
         public RoomInfoDTO() {}
 
         public RoomInfoDTO(Room room) {
@@ -236,7 +271,6 @@ public class RoomTypeWithRoomsDTO {
             this.notes = room.getNotes();
         }
 
-        // Getters and Setters
         public Long getId() {
             return id;
         }

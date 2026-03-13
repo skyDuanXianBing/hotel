@@ -24,8 +24,14 @@ public class CreateRoomTypeRequest {
     @Min(value = 1, message = "最大入住人数必须大于0")
     private Integer maxGuests;
 
+    @Min(value = 0, message = "儿童入住人数不能小于0")
+    private Integer maxChildOccupancy;
+
     private String description;
     private String checkInGuideLink;
+    private String suRoomType;
+    private BigDecimal sizeMeasurement;
+    private String sizeMeasurementUnit;
 
     private BigDecimal defaultPrice;
     private BigDecimal weekdayPrice;
@@ -77,6 +83,14 @@ public class CreateRoomTypeRequest {
         this.maxGuests = maxGuests;
     }
 
+    public Integer getMaxChildOccupancy() {
+        return maxChildOccupancy;
+    }
+
+    public void setMaxChildOccupancy(Integer maxChildOccupancy) {
+        this.maxChildOccupancy = maxChildOccupancy;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -91,6 +105,30 @@ public class CreateRoomTypeRequest {
 
     public void setCheckInGuideLink(String checkInGuideLink) {
         this.checkInGuideLink = checkInGuideLink;
+    }
+
+    public String getSuRoomType() {
+        return suRoomType;
+    }
+
+    public void setSuRoomType(String suRoomType) {
+        this.suRoomType = suRoomType;
+    }
+
+    public BigDecimal getSizeMeasurement() {
+        return sizeMeasurement;
+    }
+
+    public void setSizeMeasurement(BigDecimal sizeMeasurement) {
+        this.sizeMeasurement = sizeMeasurement;
+    }
+
+    public String getSizeMeasurementUnit() {
+        return sizeMeasurementUnit;
+    }
+
+    public void setSizeMeasurementUnit(String sizeMeasurementUnit) {
+        this.sizeMeasurementUnit = sizeMeasurementUnit;
     }
 
     public BigDecimal getDefaultPrice() {

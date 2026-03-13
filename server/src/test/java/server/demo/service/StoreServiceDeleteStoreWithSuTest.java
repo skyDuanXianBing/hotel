@@ -86,5 +86,46 @@ class StoreServiceDeleteStoreWithSuTest {
         assertFalse(saved.get(0).getIsActive());
         assertFalse(saved.get(1).getIsActive());
     }
-}
 
+    @Test
+    void deleteStoreWithSuRemoveProperty_shouldSoftDelete_whenSuReturnsInvalidHotelCode() {
+        StoreUserRepository storeUserRepository = Mockito.mock(StoreUserRepository.class);
+        SuPropertyService suPropertyService = Mockito.mock(SuPropertyService.class);
+
+        StoreService service = new StoreService();
+        ReflectionTestUtils.setField(service, "storeUserRepository", storeUserRepository);
+        ReflectionTestUtils.setField(service, "suPropertyService", suPropertyService);
+
+        StoreUser operator = new StoreUser();
+        operator.setRole("owner");
+        operator.setIsActive(true);
+
+        StoreUser member = new StoreUser();
+        member.setRole("member");
+        member.setIsActive(true);
+
+        when(storeUserRepository.findByStoreIdAndUserId(7L, 1L)).thenReturn(Optional.of(operator));
+        when(suPropertyService.removeStoreProperty(7L, false)).thenReturn(
+                new SuPropertyService.RemoveResult(
+                        true,
+                        false,
+                        "VOJO3JZ1UU",
+                        null,
+                        "hotelid/hotel_id/ClientID: Invalid HotelCode (VOJO3JZ1UU)"
+                )
+        );
+        when(storeUserRepository.findByStoreId(7L)).thenReturn(List.of(operator, member));
+
+        service.deleteStoreWithSuRemoveProperty(7L, 1L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<StoreUser>> captor = (ArgumentCaptor<List<StoreUser>>) (ArgumentCaptor<?>)
+                ArgumentCaptor.forClass(List.class);
+        verify(storeUserRepository).saveAll(captor.capture());
+
+        List<StoreUser> saved = captor.getValue();
+        assertEquals(2, saved.size());
+        assertFalse(saved.get(0).getIsActive());
+        assertFalse(saved.get(1).getIsActive());
+    }
+}

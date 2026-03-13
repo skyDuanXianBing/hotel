@@ -20,14 +20,11 @@ import java.util.UUID;
 public class MediaStorageService {
 
     private final Path uploadDir;
-    private final String serverBaseUrl;
 
     public MediaStorageService(
-            @Value("${media.upload.dir:${user.home}/the-host-hub/uploads/media}") String uploadDir,
-            @Value("${server.base-url:http://localhost:8092}") String serverBaseUrl
+            @Value("${media.upload.dir:${user.home}/the-host-hub/uploads/media}") String uploadDir
     ) {
         this.uploadDir = Paths.get(uploadDir).toAbsolutePath().normalize();
-        this.serverBaseUrl = serverBaseUrl != null ? serverBaseUrl.replaceAll("/+$", "") : "";
     }
 
     public MediaUploadResponseDTO upload(Long storeId, String scope, MultipartFile file) {
@@ -56,7 +53,7 @@ public class MediaStorageService {
             file.transferTo(target.toFile());
 
             MediaUploadResponseDTO response = new MediaUploadResponseDTO();
-            response.setUrl(serverBaseUrl + "/media/" + storeId + "/" + normalizedScope + "/" + filename);
+            response.setUrl("/media/" + storeId + "/" + normalizedScope + "/" + filename);
             response.setOriginalName(originalName);
             response.setContentType(contentType);
             response.setFileSize(file.getSize());

@@ -1,6 +1,5 @@
 <template>
   <div class="store-selection-page">
-    <!-- 顶部导航栏 -->
     <div class="top-nav">
       <div class="logo">
         <el-icon :size="28" color="#1890ff"><HomeFilled /></el-icon>
@@ -25,9 +24,7 @@
       </div>
     </div>
 
-    <!-- 主内容区域 -->
     <div class="main-content">
-      <!-- 搜索和创建按钮 -->
       <div class="toolbar">
         <el-input
           v-model="searchKeyword"
@@ -41,7 +38,6 @@
         </el-button>
       </div>
 
-      <!-- 加载状态 -->
       <div v-if="loading" class="loading-container">
         <el-icon class="is-loading" :size="40">
           <Loading />
@@ -49,7 +45,6 @@
         <p>加载中...</p>
       </div>
 
-      <!-- 门店列表 -->
       <div v-else class="store-grid">
         <div
           v-for="store in filteredStores"
@@ -61,7 +56,7 @@
             <div class="store-icon">
               <el-icon :size="24"><HomeFilled /></el-icon>
             </div>
-            <span class="store-name">{{ store.type }}</span>
+            <span class="store-name">{{ formatPropertyType(store.type) }}</span>
             <div class="store-actions">
               <span v-if="store.userRole === 'owner'" class="store-badge pro">Pro</span>
               <span v-else class="store-badge ess">Ess</span>
@@ -79,13 +74,10 @@
           </div>
           <div class="store-body">
             <h3 class="store-title">{{ store.name }}</h3>
-            <p class="store-validity">
-              有效期至: {{ formatDate(store.updatedAt) }}
-            </p>
+            <p class="store-validity">有效期至: {{ formatDate(store.updatedAt) }}</p>
           </div>
         </div>
 
-        <!-- 空状态 -->
         <div v-if="filteredStores.length === 0 && !loading" class="empty-state">
           <el-empty description="暂无门店数据">
             <el-button type="primary" @click="showCreateDialog">创建新门店</el-button>
@@ -94,7 +86,6 @@
       </div>
     </div>
 
-    <!-- 创建门店对话框 -->
     <el-dialog
       v-model="createDialogVisible"
       title="创建新门店"
@@ -118,38 +109,47 @@
         <el-form-item label="新门店名称" prop="name">
           <el-input
             v-model="form.name"
-            placeholder="新门店名称*"
+            placeholder="请输入门店名称"
             size="large"
             maxlength="50"
           />
         </el-form-item>
 
-        <el-form-item label="门店类型" prop="type">
-          <el-select v-model="form.type" placeholder="酒店" size="large" style="width: 100%">
-            <el-option label="酒店" value="hotel" />
-            <el-option label="民宿" value="homestay" />
-            <el-option label="公寓" value="apartment" />
-            <el-option label="青年旅舍" value="hostel" />
+        <el-form-item label="房产类型" prop="type">
+          <el-select
+            v-model="form.type"
+            placeholder="请选择房产类型"
+            size="large"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="option in PROPERTY_TYPE_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
           </el-select>
         </el-form-item>
 
         <el-form-item label="国家" prop="country">
           <el-select
             v-model="form.country"
-            placeholder="China"
+            placeholder="请选择国家"
             size="large"
             filterable
             style="width: 100%"
           >
-            <el-option label="China" value="China" />
-            <el-option label="Japan" value="Japan" />
-            <el-option label="USA" value="USA" />
-            <el-option label="UK" value="UK" />
+            <el-option
+              v-for="option in COUNTRY_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
           </el-select>
         </el-form-item>
 
         <el-form-item label="城市" prop="city">
-          <el-input v-model="form.city" placeholder="城市*" size="large" />
+          <el-input v-model="form.city" placeholder="请输入城市" size="large" />
         </el-form-item>
 
         <el-form-item label="详细地址" prop="address">
@@ -163,45 +163,101 @@
         </el-form-item>
 
         <el-form-item label="电话号码" prop="phone">
-          <el-input v-model="form.phone" size="large">
+          <el-input v-model="form.phone" placeholder="请输入电话号码" size="large">
             <template #prepend>
               <el-select v-model="phonePrefix" style="width: 100px">
-                <el-option label="+86" value="+86" />
-                <el-option label="+81" value="+81" />
-                <el-option label="+1" value="+1" />
-                <el-option label="+44" value="+44" />
+                <el-option
+                  v-for="option in PHONE_PREFIX_OPTIONS"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
             </template>
           </el-input>
         </el-form-item>
 
         <el-form-item label="联系人姓名" prop="manager">
-          <el-input v-model="form.manager" placeholder="联系人姓名*" size="large" />
+          <el-input v-model="form.manager" placeholder="请输入联系人姓名" size="large" />
         </el-form-item>
 
         <el-form-item label="时区" prop="timezone">
           <el-select
             v-model="form.timezone"
-            placeholder="Asia/Shanghai"
+            placeholder="请选择时区"
             size="large"
             filterable
             style="width: 100%"
           >
-            <el-option label="Asia/Shanghai" value="Asia/Shanghai" />
-            <el-option label="Asia/Tokyo" value="Asia/Tokyo" />
-            <el-option label="America/New_York" value="America/New_York" />
-            <el-option label="Europe/London" value="Europe/London" />
+            <el-option
+              v-for="option in TIMEZONE_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
           </el-select>
         </el-form-item>
 
         <el-form-item label="货币" prop="currency">
-          <el-select v-model="form.currency" placeholder="CNY" size="large" style="width: 100%">
-            <el-option label="CNY - 人民币" value="CNY" />
-            <el-option label="JPY - 日元" value="JPY" />
-            <el-option label="USD - 美元" value="USD" />
-            <el-option label="GBP - 英镑" value="GBP" />
+          <el-select
+            v-model="form.currency"
+            placeholder="请选择货币"
+            size="large"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="option in CURRENCY_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
           </el-select>
         </el-form-item>
+
+        <el-form-item label="语言" prop="language">
+          <el-select
+            v-model="form.language"
+            placeholder="请选择语言"
+            size="large"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="option in LANGUAGE_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="入住时间" prop="checkinTime">
+              <el-time-select
+                v-model="form.checkinTime"
+                start="00:00"
+                step="00:30"
+                end="23:30"
+                placeholder="请选择入住时间"
+                size="large"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="退房时间" prop="checkoutTime">
+              <el-time-select
+                v-model="form.checkoutTime"
+                start="00:00"
+                step="00:30"
+                end="23:30"
+                placeholder="请选择退房时间"
+                size="large"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
         <el-form-item label="渠道直连" prop="createSuProperty">
           <el-checkbox v-model="form.createSuProperty">
@@ -236,6 +292,15 @@ import {
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import type { StoreDTO, StoreRequest } from '@/api/store'
+import {
+  COUNTRY_OPTIONS,
+  CURRENCY_OPTIONS,
+  LANGUAGE_OPTIONS,
+  PHONE_PREFIX_OPTIONS,
+  PROPERTY_TYPE_OPTIONS,
+  TIMEZONE_OPTIONS,
+  getStoreOptionLabel,
+} from '@/constants/storeOptions'
 
 const router = useRouter()
 const storeStore = useStoreStore()
@@ -250,14 +315,13 @@ const deletingStoreId = ref<number | null>(null)
 const formRef = ref<FormInstance>()
 const phonePrefix = ref('+86')
 
-// 用户邮箱
 const userEmail = computed(() => userStore.currentUser?.email || '')
 
-// 表单数据
-const form = ref<StoreRequest>({
+const createDefaultForm = (): StoreRequest => ({
   name: '',
   phone: '',
-  type: 'hotel',
+  phoneTechType: '5',
+  type: '1',
   timezone: 'Asia/Shanghai',
   manager: '',
   country: 'China',
@@ -265,21 +329,29 @@ const form = ref<StoreRequest>({
   state: '',
   address: '',
   currency: 'CNY',
+  language: 'en',
+  checkinTime: '15:00',
+  checkoutTime: '11:00',
   createSuProperty: true,
 })
 
-// 表单验证规则
+const form = ref<StoreRequest>(createDefaultForm())
+
 const rules: FormRules = {
   name: [{ required: true, message: '请输入门店名称', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择门店类型', trigger: 'change' }],
+  type: [{ required: true, message: '请选择房产类型', trigger: 'change' }],
   country: [{ required: true, message: '请选择国家', trigger: 'change' }],
   city: [{ required: true, message: '请输入城市', trigger: 'blur' }],
+  address: [{ required: true, message: '请输入详细地址', trigger: 'blur' }],
   phone: [{ required: true, message: '请输入电话号码', trigger: 'blur' }],
   manager: [{ required: true, message: '请输入联系人姓名', trigger: 'blur' }],
   timezone: [{ required: true, message: '请选择时区', trigger: 'change' }],
+  currency: [{ required: true, message: '请选择货币', trigger: 'change' }],
+  language: [{ required: true, message: '请选择语言', trigger: 'change' }],
+  checkinTime: [{ required: true, message: '请选择入住时间', trigger: 'change' }],
+  checkoutTime: [{ required: true, message: '请选择退房时间', trigger: 'change' }],
 }
 
-// 过滤后的门店列表
 const filteredStores = computed(() => {
   if (!searchKeyword.value) {
     return stores.value
@@ -289,9 +361,10 @@ const filteredStores = computed(() => {
   )
 })
 
-/**
- * 加载门店列表
- */
+const resetCreateForm = () => {
+  form.value = createDefaultForm()
+}
+
 const loadStores = async () => {
   loading.value = true
   try {
@@ -303,13 +376,10 @@ const loadStores = async () => {
   }
 }
 
-/**
- * 删除门店（仅 owner）
- */
 const handleDeleteStore = async (store: StoreDTO) => {
   try {
     await ElMessageBox.confirm(
-      `确定删除门店「${store.name}」吗？删除后该门店将从列表中移除。`,
+      `确定删除门店“${store.name}”吗？删除后该门店将从列表中移除。`,
       '删除门店',
       {
         type: 'warning',
@@ -329,7 +399,7 @@ const handleDeleteStore = async (store: StoreDTO) => {
   } catch (error: any) {
     if (error?.code === '953') {
       await ElMessageBox.alert(
-        'Su 返回错误码 953：该 Property 已与渠道映射（Active 或 Inactive）。请先在 Su 侧移除该 Property 的渠道映射后，再重试删除门店。',
+        'Su 返回错误码 953：该 Property 仍与渠道存在映射，请先在 Su 侧解绑渠道映射后再重试删除门店。',
         '无法删除门店',
         { type: 'warning', confirmButtonText: '知道了' }
       )
@@ -341,79 +411,65 @@ const handleDeleteStore = async (store: StoreDTO) => {
   }
 }
 
-/**
- * 选择门店
- */
 const selectStore = (store: StoreDTO) => {
   storeStore.setCurrentStore(store)
   ElMessage.success(`已切换到门店: ${store.name}`)
   router.push('/')
 }
 
-/**
- * 显示创建门店对话框
- */
 const showCreateDialog = () => {
   createDialogVisible.value = true
-  // 重置表单
-  if (formRef.value) {
-    formRef.value.resetFields()
+  resetCreateForm()
+  formRef.value?.clearValidate()
+}
+
+const handleCreateStore = async () => {
+  if (!formRef.value) {
+    return
+  }
+
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) {
+    return
+  }
+
+  submitting.value = true
+  try {
+    const phoneWithPrefix = `${phonePrefix.value} ${form.value.phone}`
+    const requestData = {
+      ...form.value,
+      phone: phoneWithPrefix,
+      phoneTechType: '5',
+    }
+
+    const result = await storeStore.createStore(requestData)
+    const newStore = result.store
+    const message = result.message || '门店创建成功'
+
+    if (message.includes('失败')) {
+      ElMessage.warning(message)
+    } else {
+      ElMessage.success(message)
+    }
+
+    createDialogVisible.value = false
+    await loadStores()
+    selectStore(newStore)
+  } catch (error: any) {
+    ElMessage.error(error.message || '创建门店失败')
+  } finally {
+    submitting.value = false
   }
 }
 
-/**
- * 创建门店
- */
-const handleCreateStore = async () => {
-  if (!formRef.value) return
+const formatPropertyType = (value?: string) => getStoreOptionLabel(PROPERTY_TYPE_OPTIONS, value)
 
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-
-    submitting.value = true
-    try {
-      // 添加电话区号
-      const phoneWithPrefix = `${phonePrefix.value} ${form.value.phone}`
-      const requestData = {
-        ...form.value,
-        phone: phoneWithPrefix,
-      }
-
-      const result = await storeStore.createStore(requestData)
-      const newStore = result.store
-      const message = result.message || '门店创建成功'
-      if (message.includes('失败')) {
-        ElMessage.warning(message)
-      } else {
-        ElMessage.success(message)
-      }
-      createDialogVisible.value = false
-
-      // 刷新门店列表
-      await loadStores()
-
-      // 自动选择新创建的门店
-      selectStore(newStore)
-    } catch (error: any) {
-      ElMessage.error(error.message || '创建门店失败')
-    } finally {
-      submitting.value = false
-    }
-  })
-}
-
-/**
- * 退出登录
- */
 const handleLogout = async () => {
   await userStore.logout()
   storeStore.clearStoreData()
   router.push('/login')
 }
 
-/**
- * 格式化日期
- */
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '-'
   const date = new Date(dateStr)

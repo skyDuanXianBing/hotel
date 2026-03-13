@@ -3,12 +3,14 @@ package server.demo.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import server.demo.entity.RoomType;
 import server.demo.entity.Store;
 import server.demo.repository.StoreRepository;
 import server.demo.util.SuHotelIdUtil;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -26,15 +28,18 @@ public class SuImageSyncService {
     private final StoreRepository storeRepository;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
+    private final String serverBaseUrl;
 
     public SuImageSyncService(
             StoreRepository storeRepository,
             SuApiClient suApiClient,
-            SuAccessTokenService suAccessTokenService
+            SuAccessTokenService suAccessTokenService,
+            @Value("${server.base-url}") String serverBaseUrl
     ) {
         this.storeRepository = storeRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
+        this.serverBaseUrl = serverBaseUrl;
     }
 
     public void syncStoreImagesStrict(Long storeId) {
@@ -138,7 +143,7 @@ public class SuImageSyncService {
         logger.info("[SuImageSync] success. hotelId={}, roomId={}, {}", hotelId, roomId, logContext);
     }
 
-    private static List<ImageItem> buildStoreImages(Store store) {
+    private List<ImageItem> buildStoreImages(Store store) {
         Set<String> urls = new LinkedHashSet<>();
         if (store.getLogo() != null && !store.getLogo().isBlank()) {
             urls.add(store.getLogo().trim());
@@ -151,7 +156,7 @@ public class SuImageSyncService {
         for (String url : urls) {
             String suffix = index == 1 ? "cover" : "gallery-" + index;
             items.add(new ImageItem(
-                    url,
+                    toSuImageUrl(url),
                     buildName(store.getName(), "store", index),
                     "store-" + store.getId() + "-" + suffix
             ));
@@ -160,7 +165,7 @@ public class SuImageSyncService {
         return items;
     }
 
-    private static List<ImageItem> buildRoomTypeImages(RoomType roomType) {
+    private List<ImageItem> buildRoomTypeImages(RoomType roomType) {
         Set<String> urls = new LinkedHashSet<>();
         urls.addAll(roomType.getDesktopPhotoUrls());
         urls.addAll(roomType.getMobilePhotoUrls());
@@ -169,7 +174,7 @@ public class SuImageSyncService {
         int index = 1;
         for (String url : urls) {
             items.add(new ImageItem(
-                    url,
+                    toSuImageUrl(url),
                     buildName(roomType.getName(), "room-type", index),
                     "room-type-" + roomType.getId() + "-" + index
             ));
@@ -181,6 +186,58 @@ public class SuImageSyncService {
     private static String buildName(String baseName, String fallbackPrefix, int index) {
         String normalized = baseName != null && !baseName.isBlank() ? baseName.trim() : fallbackPrefix;
         return normalized + " " + index;
+    }
+
+    /**
+     * Su 只能抓取公网可访问的完整图片地址。
+     * 本地保存的相对路径会在这里补全成基于 `server.base-url` 的完整地址。
+     */
+    String toSuImageUrl(String rawUrl) {
+        if (rawUrl == null || rawUrl.isBlank()) {
+            throw new RuntimeException("图片地址不能为空");
+        }
+
+        String normalizedUrl = rawUrl.trim();
+        URI resolvedUri;
+        try {
+            if (normalizedUrl.startsWith("http://") || normalizedUrl.startsWith("https://")) {
+                resolvedUri = URI.create(normalizedUrl);
+            } else if (normalizedUrl.startsWith("/")) {
+                if (serverBaseUrl == null || serverBaseUrl.isBlank()) {
+                    throw new RuntimeException("SERVER_BASE_URL 未配置，无法生成图片公网地址");
+                }
+                resolvedUri = URI.create(normalizeBaseUrl(serverBaseUrl)).resolve(normalizedUrl);
+            } else {
+                throw new RuntimeException("图片地址格式不正确: " + normalizedUrl);
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new RuntimeException("图片地址格式不正确: " + normalizedUrl, ex);
+        }
+
+        validateResolvableImageUrl(resolvedUri);
+        return resolvedUri.toString();
+    }
+
+    private static String normalizeBaseUrl(String rawBaseUrl) {
+        String trimmedBaseUrl = rawBaseUrl.trim();
+        return trimmedBaseUrl.endsWith("/") ? trimmedBaseUrl : trimmedBaseUrl + "/";
+    }
+
+    private static void validateResolvableImageUrl(URI uri) {
+        String scheme = uri.getScheme();
+        if (scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
+            throw new RuntimeException("图片地址必须为 http 或 https: " + uri);
+        }
+
+        String host = uri.getHost();
+        if (host == null || host.isBlank()) {
+            throw new RuntimeException("图片地址缺少可访问域名: " + uri);
+        }
+
+        String normalizedHost = host.trim().toLowerCase();
+        if ("localhost".equals(normalizedHost) || "127.0.0.1".equals(normalizedHost) || "::1".equals(normalizedHost)) {
+            throw new RuntimeException("图片地址不能使用本地回环地址，请使用可公网访问的后端域名: " + uri);
+        }
     }
 
     private record ImageItem(String url, String name, String pmsImageId) {

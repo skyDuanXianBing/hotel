@@ -60,6 +60,7 @@ public class StoreService {
         store.setUserId(userId);
         store.setName(request.getName());
         store.setPhone(request.getPhone());
+        store.setPhoneTechType(request.getPhoneTechType());
         store.setType(request.getType());
         store.setTimezone(request.getTimezone());
         store.setManager(request.getManager());
@@ -93,6 +94,7 @@ public class StoreService {
         }
         savedStore.setSuHotelId(suHotelId);
         savedStore = storeRepository.save(savedStore);
+        upsertStorePolicy(savedStore, request);
 
         StoreUser storeUser = new StoreUser(savedStore, user, "owner");
         storeUserRepository.save(storeUser);
@@ -120,6 +122,7 @@ public class StoreService {
         Store store = storeUser.getStore();
         store.setName(request.getName());
         store.setPhone(request.getPhone());
+        store.setPhoneTechType(request.getPhoneTechType());
         store.setType(request.getType());
         store.setTimezone(request.getTimezone());
         store.setManager(request.getManager());
@@ -150,6 +153,8 @@ public class StoreService {
         }
 
         Store updatedStore = storeRepository.save(store);
+        upsertStorePolicy(updatedStore, request);
+        syncStoreToSu(updatedStore);
         return convertToDTO(updatedStore, storeUser.getRole());
     }
 
@@ -181,7 +186,7 @@ public class StoreService {
         }
 
         SuPropertyService.RemoveResult result = suPropertyService.removeStoreProperty(storeId, false);
-        if (result != null && !result.success()) {
+        if (result != null && !result.success() && !SuPropertyService.isPropertyAlreadyMissing(result)) {
             throw new SuPropertyDeleteFailedException(
                     result.message() != null ? result.message() : "Delete store failed",
                     result.errorCode()
@@ -486,10 +491,12 @@ public class StoreService {
     }
 
     private StoreDTO convertToDTO(Store store, String userRole) {
+        Optional<StorePolicy> storePolicy = storePolicyRepository.findByStoreId(store.getId());
         StoreDTO dto = new StoreDTO();
         dto.setId(store.getId());
         dto.setName(store.getName());
         dto.setPhone(store.getPhone());
+        dto.setPhoneTechType(store.getPhoneTechType());
         dto.setType(store.getType());
         dto.setTimezone(store.getTimezone());
         dto.setManager(store.getManager());
@@ -511,17 +518,40 @@ public class StoreService {
         dto.setDesktopPhotoUrls(store.getDesktopPhotoUrls());
         dto.setMobilePhotoUrls(store.getMobilePhotoUrls());
         dto.setLocalizedContent(store.getLocalizedContent());
+        dto.setCheckinTime(storePolicy.map(StorePolicy::getCheckinTime).orElse(null));
+        dto.setCheckoutTime(storePolicy.map(StorePolicy::getCheckoutTime).orElse(null));
         dto.setUserRole(userRole);
         dto.setCreatedAt(store.getCreatedAt());
         dto.setUpdatedAt(store.getUpdatedAt());
         return dto;
     }
 
+    private void upsertStorePolicy(Store store, CreateStoreRequest request) {
+        if (store == null || store.getId() == null || request == null) {
+            return;
+        }
+
+        boolean hasPolicyValue = request.getCheckinTime() != null || request.getCheckoutTime() != null;
+        if (!hasPolicyValue) {
+            return;
+        }
+
+        StorePolicy policy = storePolicyRepository.findByStoreId(store.getId())
+                .orElseGet(() -> {
+                    StorePolicy newPolicy = new StorePolicy();
+                    newPolicy.setStore(store);
+                    return newPolicy;
+                });
+        policy.setCheckinTime(request.getCheckinTime());
+        policy.setCheckoutTime(request.getCheckoutTime());
+        storePolicyRepository.save(policy);
+    }
+
     private void syncStoreToSu(Store store) {
         if (store == null || store.getId() == null) {
             return;
         }
-        SuPropertyService.UpsertResult propertyResult = suPropertyService.upsertStoreProperty(store.getId());
+        SuPropertyService.UpsertResult propertyResult = suPropertyService.updateStoreProperty(store.getId());
         if (!propertyResult.success()) {
             throw new RuntimeException(propertyResult.message() != null ? propertyResult.message() : "Su 门店同步失败");
         }
