@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="room-type-details-container">
     <div class="breadcrumb-section">
       <el-breadcrumb separator=">">
@@ -12,7 +12,7 @@
         <el-tab-pane label="基本信息" name="basic">
           <div class="tab-content">
             <div class="info-notice">
-              请使用英文填写“名称/描述”，以便同步到 Su 渠道展示；其余字段用于房型标准化同步。
+              请使用英文填写名称与描述。
             </div>
 
             <el-form :model="formData" label-width="100px" class="detail-form">
@@ -38,14 +38,34 @@
 
               <el-row :gutter="16">
                 <el-col :span="12">
-                  <el-form-item label="Su 房型类型">
-                    <el-input
+                  <el-form-item label="房间类型">
+                    <el-select
                       v-model="formData.suRoomType"
-                      placeholder="例如 Apartment / Double / Twin"
-                      maxlength="100"
+                      placeholder="Select Type"
+                      style="width: 100%"
+                    >
+                      <el-option
+                        v-for="option in ROOM_TYPE_OPTIONS"
+                        :key="option.value"
+                        :label="option.label"
+                        :value="option.value"
+                      />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="最大入住总人数">
+                    <el-input-number
+                      v-model="formData.maxGuests"
+                      :min="1"
+                      :max="20"
+                      style="width: 100%"
                     />
                   </el-form-item>
                 </el-col>
+              </el-row>
+
+              <el-row :gutter="16">
                 <el-col :span="12">
                   <el-form-item label="儿童最大入住">
                     <el-input-number
@@ -160,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ElMessage,
@@ -179,7 +199,11 @@ import {
   type RoomTypeDTO,
 } from '@/api/roomType'
 import { ROOM_FACILITY_SECTIONS } from '@/constants/suFacilities'
-import { ROOM_SIZE_UNIT_OPTIONS } from '@/constants/roomTypeOptions'
+import {
+  LEGACY_ROOM_TYPE_CODE_MAP,
+  ROOM_SIZE_UNIT_OPTIONS,
+  ROOM_TYPE_OPTIONS,
+} from '@/constants/roomTypeOptions'
 
 type UploadErrorParam = Parameters<NonNullable<UploadRequestOptions['onError']>>[0]
 
@@ -259,6 +283,32 @@ const formData = reactive<RoomTypeForm>({
   roomNumbers: [],
 })
 
+const roomTypeCodeSet = new Set(ROOM_TYPE_OPTIONS.map((option) => option.value))
+
+const normalizeSuRtc = (rawValue?: string | null): string => {
+  const value = rawValue?.trim()
+  if (!value) {
+    return ''
+  }
+  if (roomTypeCodeSet.has(value)) {
+    return value
+  }
+  return LEGACY_ROOM_TYPE_CODE_MAP[value] || ''
+}
+
+watch(
+  () => formData.maxGuests,
+  (value) => {
+    if (!value || value < 1) {
+      formData.maxGuests = 1
+      return
+    }
+    if (formData.maxChildOccupancy > value) {
+      formData.maxChildOccupancy = value
+    }
+  }
+)
+
 const buildUploadAjaxError = (error: unknown): UploadErrorParam => {
   const normalizedError = error instanceof Error ? error : new Error(String(error))
   return {
@@ -323,7 +373,7 @@ const buildPayload = (): CreateRoomTypeRequest => ({
   maxGuests: formData.maxGuests,
   maxChildOccupancy: formData.maxChildOccupancy,
   checkInGuideLink: formData.checkInGuideLink,
-  suRoomType: formData.suRoomType.trim() || undefined,
+  suRoomType: roomTypeCodeSet.has(formData.suRoomType) ? formData.suRoomType : undefined,
   sizeMeasurement: formData.sizeMeasurement,
   sizeMeasurementUnit:
     formData.sizeMeasurement !== undefined && formData.sizeMeasurement !== null
@@ -375,13 +425,13 @@ const loadRoomTypeDetails = async () => {
 
     formData.id = data.id
     formData.name = englishContent?.name || data.name || ''
-    formData.description = englishContent?.description || data.description || ''
+    formData.description = englishContent?.description || ''
     formData.code = data.code || ''
     formData.totalRooms = data.totalRooms || 1
     formData.maxGuests = data.maxGuests || 1
     formData.maxChildOccupancy = data.maxChildOccupancy || 0
     formData.checkInGuideLink = data.checkInGuideLink || ''
-    formData.suRoomType = data.suRoomType || ''
+    formData.suRoomType = normalizeSuRtc(data.suRoomType)
     formData.sizeMeasurement = data.sizeMeasurement
     formData.sizeMeasurementUnit = data.sizeMeasurementUnit || 'sqm'
     formData.defaultPrice = data.defaultPrice
@@ -641,3 +691,4 @@ onMounted(() => {
   margin-right: 0;
 }
 </style>
+

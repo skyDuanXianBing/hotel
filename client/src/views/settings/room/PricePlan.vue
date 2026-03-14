@@ -148,6 +148,7 @@
             :min="1"
             :max="365"
             controls-position="right"
+            class="night-count-input"
             style="width: 100%"
           />
         </el-form-item>
@@ -158,6 +159,7 @@
             :min="1"
             :max="365"
             controls-position="right"
+            class="night-count-input"
             style="width: 100%"
           />
         </el-form-item>
@@ -176,20 +178,11 @@
                 <el-icon><QuestionFilled /></el-icon>
               </el-tooltip>
             </el-radio>
-            <el-radio value="derived">
-              根据某个独立价格计划计算的价格计划
-              <el-tooltip
-                content="每日价格将从所选的价格计划中获取，您可以选择是否保持与所选价格计划相同或以某种方式进行调整，例如按百分比或设定金额增加或减少。"
-                placement="top"
-              >
-                <el-icon><QuestionFilled /></el-icon>
-              </el-tooltip>
-            </el-radio>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="含餐" prop="includeMeal" required>
-          <el-radio-group v-model="editForm.includeMeal">
+        <el-form-item label="含餐" prop="includeMeal" required class="include-meal-item">
+          <el-radio-group v-model="editForm.includeMeal" class="include-meal-group">
             <el-radio :value="true">是</el-radio>
             <el-radio :value="false">否</el-radio>
           </el-radio-group>
@@ -518,6 +511,7 @@
               placeholder="Choose room type"
               class="selection-input"
               @visible-change="handleRoomTypeSelectVisible"
+              @change="handleRoomTypeSelectionChange"
             >
               <template #header>
                 <el-input
@@ -797,7 +791,8 @@ const linkRoomTypesDialogVisible = ref(false)
 const currentPricePlan = ref<PricePlan | null>(null)
 const appliedRoomTypes = ref<RoomType[]>([])
 const selectedPricePlanId = ref<number | null>(null)
-const selectedRoomTypeIds = ref<number[]>([])
+type RoomTypeSelectValue = number | 'all'
+const selectedRoomTypeIds = ref<RoomTypeSelectValue[]>([])
 const roomTypeFilterKeyword = ref('')
 const filteredAvailableRoomTypes = ref<RoomType[]>([])
 
@@ -1091,7 +1086,7 @@ const handleEdit = (row: PricePlan) => {
   editForm.minNights = row.minNights
   editForm.maxNights = row.maxNights
   editForm.includeMeal = row.includeMeal
-  editForm.derivationType = row.derivationType || 'independent'
+  editForm.derivationType = 'independent'
   currentEditId.value = row.id
   editDialogVisible.value = true
 }
@@ -1373,6 +1368,16 @@ const handleRoomTypeSelectVisible = (visible: boolean) => {
   if (!visible) {
     roomTypeFilterKeyword.value = ''
   }
+}
+
+const handleRoomTypeSelectionChange = (values: RoomTypeSelectValue[]) => {
+  const roomTypeIds = filteredAvailableRoomTypes.value.map((roomType) => roomType.id)
+  if (values.includes('all')) {
+    const hasSelectedAll = roomTypeIds.length > 0 && roomTypeIds.every((id) => values.includes(id))
+    selectedRoomTypeIds.value = hasSelectedAll ? [] : roomTypeIds
+    return
+  }
+  selectedRoomTypeIds.value = values.filter((value): value is number => typeof value === 'number')
 }
 
 const handleFilterRoomTypes = () => {
@@ -1847,6 +1852,27 @@ watch(selectedRoomTypeIds, (newIds) => {
 
 :deep(.el-input-number .el-input__prefix) {
   left: 11px;
+}
+
+:deep(.night-count-input .el-input__inner) {
+  text-align: left !important;
+  padding-left: 12px !important;
+}
+
+:deep(.include-meal-item .el-form-item__content) {
+  padding-top: 6px;
+}
+
+:deep(.include-meal-group) {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+:deep(.include-meal-group .el-radio) {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0;
 }
 
 /* 详情对话框样式 */
