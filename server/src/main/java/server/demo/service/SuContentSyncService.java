@@ -236,6 +236,13 @@ public class SuContentSyncService {
 
         if (!suApiClient.isSuSuccess(resp)) {
             String err = suApiClient.extractSuErrorMessage(resp);
+            if (isRoomDoesNotExist(err)) {
+                logger.info("[SuRoomTypeDelete] room type already not exists on Su, treat as success. storeId={}, hotelId={}, roomTypeId={}, err={}",
+                        storeId, hotelId, roomTypeId, err);
+                pmsPushLogger.info("[SuRoomTypeDelete] room type already not exists on Su, treat as success. storeId={}, hotelId={}, roomTypeId={}, err={}",
+                        storeId, hotelId, roomTypeId, err);
+                return;
+            }
             String msg = err != null ? err : "Su 删除房型失败";
             logger.warn("[SuRoomTypeDelete] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, msg);
             pmsPushLogger.warn("[SuRoomTypeDelete] failed. storeId={}, hotelId={}, roomTypeId={}, err={}", storeId, hotelId, roomTypeId, msg);

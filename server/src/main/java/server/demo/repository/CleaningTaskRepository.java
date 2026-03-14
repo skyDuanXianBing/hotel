@@ -11,6 +11,7 @@ import server.demo.entity.CleaningTask;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Collection;
+import java.util.Set;
 
 /**
  * 保洁任务Repository接口
@@ -57,6 +58,11 @@ public interface CleaningTaskRepository extends JpaRepository<CleaningTask, Long
      * 根据房间ID查询任务
      */
     List<CleaningTask> findByRoomId(Long roomId);
+
+    /**
+     * 根据房间ID批量删除任务
+     */
+    void deleteByRoomIdIn(Set<Long> roomIds);
 
     /**
      * 根据保洁员ID查询任务

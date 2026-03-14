@@ -2,6 +2,7 @@ package server.demo.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -154,6 +155,18 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             @Param("statuses") Set<ReservationStatus> statuses
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Reservation r
+            SET r.room = null
+            WHERE r.storeId = :storeId
+              AND r.room.id IN :roomIds
+            """)
+    int clearRoomBindingByStoreIdAndRoomIds(
+            @Param("storeId") Long storeId,
+            @Param("roomIds") List<Long> roomIds
     );
 
     @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.room.id = :roomId AND " +

@@ -13,6 +13,7 @@ import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.Store;
 import server.demo.entity.User;
+import server.demo.enums.ReservationStatus;
 import server.demo.enums.RoomStatus;
 import server.demo.exception.RoomTypeDeleteBlockedException;
 import server.demo.repository.ReservationRepository;
@@ -21,6 +22,9 @@ import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
+import server.demo.repository.ChannelPriceRepository;
+import server.demo.repository.PriceLabsConnectionRepository;
+import server.demo.repository.CleaningTaskRepository;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.SuHotelIdUtil;
 
@@ -30,6 +34,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 @Service
@@ -55,6 +61,15 @@ public class RoomTypeService {
 
     @Autowired
     private StoreRepository storeRepository;
+
+    @Autowired
+    private ChannelPriceRepository channelPriceRepository;
+
+    @Autowired
+    private PriceLabsConnectionRepository priceLabsConnectionRepository;
+
+    @Autowired
+    private CleaningTaskRepository cleaningTaskRepository;
 
     @Autowired
     private SuContentSyncService suContentSyncService;
@@ -473,59 +488,52 @@ public class RoomTypeService {
         }
 
         List<Room> rooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, id);
+        List<Long> roomIds = rooms.stream().map(Room::getId).collect(Collectors.toList());
 
         final int sampleLimit = 10;
-        long blockingTotal = 0;
         List<RoomTypeDeleteBlockInfo.BlockingReservationSummary> samples = new ArrayList<>();
         LocalDate todayForScan = LocalDate.now();
         LocalDate futureDateForScan = todayForScan.plusYears(10);
-        for (Room room : rooms) {
-            List<Reservation> activeReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
-                    currentStoreId(),
-                    room.getId(),
-                    todayForScan,
-                    futureDateForScan
-            );
-            if (!activeReservations.isEmpty()) {
-                blockingTotal += activeReservations.size();
-                if (samples.size() < sampleLimit) {
-                    for (Reservation reservation : activeReservations) {
-                        if (samples.size() >= sampleLimit) {
-                            break;
-                        }
-                        samples.add(new RoomTypeDeleteBlockInfo.BlockingReservationSummary(
-                                reservation.getOrderNumber(),
-                                reservation.getStatus(),
-                                room.getRoomNumber(),
-                                reservation.getCheckInDate(),
-                                reservation.getCheckOutDate()
-                        ));
-                    }
+
+        List<Reservation> blockingReservations = roomIds.isEmpty()
+                ? List.of()
+                : reservationRepository.findByStoreIdAndRoomIdInAndDateRangeAndStatuses(
+                        storeId,
+                        roomIds,
+                        todayForScan,
+                        futureDateForScan,
+                        Set.of(ReservationStatus.REQUESTED, ReservationStatus.CONFIRMED, ReservationStatus.CHECKED_IN)
+                );
+
+        long blockingTotal = blockingReservations.size();
+        if (blockingTotal > 0) {
+            for (Reservation reservation : blockingReservations) {
+                if (samples.size() >= sampleLimit) {
+                    break;
                 }
+                Room reservationRoom = reservation.getRoom();
+                samples.add(new RoomTypeDeleteBlockInfo.BlockingReservationSummary(
+                        reservation.getOrderNumber(),
+                        reservation.getStatus(),
+                        reservationRoom != null ? reservationRoom.getRoomNumber() : null,
+                        reservation.getCheckInDate(),
+                        reservation.getCheckOutDate()
+                ));
             }
         }
         if (blockingTotal > 0) {
             throw new RoomTypeDeleteBlockedException(
-                    "Room type deletion is blocked by active/future reservations",
+                    "该房型仍有未来占用订单，无法删除。请先对相关订单办理退房或取消后重试。",
                     new RoomTypeDeleteBlockInfo(blockingTotal, samples)
             );
         }
 
-        for (Room room : rooms) {
-            LocalDate today = LocalDate.now();
-            LocalDate futureDate = today.plusYears(10);
-
-            List<Reservation> activeReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
-                    currentStoreId(),
-                    room.getId(),
-                    today,
-                    futureDate
-            );
-
-            if (!activeReservations.isEmpty()) {
-                throw new RuntimeException("Active reservations still exist under this room type; delete is blocked");
-            }
+        if (!roomIds.isEmpty()) {
+            reservationRepository.clearRoomBindingByStoreIdAndRoomIds(storeId, roomIds);
+            cleaningTaskRepository.deleteByRoomIdIn(new HashSet<>(roomIds));
         }
+        channelPriceRepository.deleteByStoreIdAndRoomTypeId(storeId, id);
+        priceLabsConnectionRepository.deleteByStoreIdAndRoomTypeId(storeId, id);
 
         deleteRoomTypeFromSuIfEnabled(roomType);
 

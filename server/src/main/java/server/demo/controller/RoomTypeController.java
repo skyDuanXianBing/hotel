@@ -138,7 +138,7 @@ public class RoomTypeController extends BaseStoreController {
         } catch (server.demo.exception.RoomTypeDeleteBlockedException e) {
             return ApiResponse.error(e.getMessage(), e.getBlockInfo());
         } catch (DataIntegrityViolationException e) {
-            return ApiResponse.error("该房型下的房间还有预订记录，无法删除。请先处理或取消相关订单后再删除。");
+            return ApiResponse.error("该房型仍被其他业务数据引用，无法删除。请先解绑关联数据后再重试。");
         } catch (RuntimeException e) {
             return ApiResponse.error(e.getMessage());
         } catch (Exception e) {

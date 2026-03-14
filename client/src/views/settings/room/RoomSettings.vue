@@ -278,6 +278,13 @@ const quickFillPrice = ref<number | null>(null)
 
 // 房型数据列表
 const roomTypeList = ref<RoomTypeData[]>([])
+const reservationStatusTextMap: Record<string, string> = {
+  REQUESTED: '待确认',
+  CONFIRMED: '已确认',
+  CHECKED_IN: '已入住',
+  CHECKED_OUT: '已退房',
+  CANCELLED: '已取消',
+}
 
 // 表单数据
 const formData = ref<RoomTypeData>({
@@ -555,26 +562,34 @@ const handleDelete = (row: RoomTypeData) => {
             await loadRoomTypes()
           } else {
             const blockInfo = response.data as RoomTypeDeleteBlockInfo | null
-            if (blockInfo?.sample?.length) {
-              const header = `阻塞订单数：${blockInfo.totalBlockingReservations}（最多展示 ${blockInfo.sample.length} 条）\n`
-              const body = blockInfo.sample
-                .map((r, idx) => {
-                  const orderNumber = r.orderNumber || '-'
-                  const status = r.status || '-'
-                  const roomNumber = r.roomNumber || '-'
-                  const dateRange = `${r.checkInDate || '-'} ~ ${r.checkOutDate || '-'}`
-                  return `${idx + 1}. 订单号：${orderNumber}  状态：${status}  房间：${roomNumber}  日期：${dateRange}`
-                })
-                .join('\n')
+            if (blockInfo && blockInfo.totalBlockingReservations > 0) {
+              const sampleCount = blockInfo.sample?.length || 0
+              const header = `阻塞订单数：${blockInfo.totalBlockingReservations}（最多展示 ${sampleCount} 条）\n`
+              const body = sampleCount
+                ? blockInfo.sample
+                    .map((r, idx) => {
+                      const orderNumber = r.orderNumber || '-'
+                      const statusCode = r.status || '-'
+                      const statusText = reservationStatusTextMap[statusCode] || statusCode
+                      const roomNumber = r.roomNumber || '-'
+                      const dateRange = `${r.checkInDate || '-'} ~ ${r.checkOutDate || '-'}`
+                      return `${idx + 1}. 订单号：${orderNumber}  状态：${statusText}(${statusCode})  房间：${roomNumber}  日期：${dateRange}`
+                    })
+                    .join('\n')
+                : '当前没有可展示的样例订单，请根据阻塞总数先处理相关订单。'
+              const tip = '\n\n请先对以上订单执行“办理退房”或“取消订单”后，再重试删除房型。'
 
               await ElMessageBox.alert(
-                h('div', { style: 'white-space: pre-wrap; line-height: 1.6;' }, header + body),
+                h('div', { style: 'white-space: pre-wrap; line-height: 1.6;' }, header + body + tip),
                 '无法删除房型',
                 { type: 'warning', confirmButtonText: '知道了' }
               )
               return
             }
-            ElMessage.error(response.message || '删除失败')
+            await ElMessageBox.alert(response.message || '删除失败', '删除失败', {
+              type: 'error',
+              confirmButtonText: '知道了',
+            })
           }
         }
       } catch (error) {

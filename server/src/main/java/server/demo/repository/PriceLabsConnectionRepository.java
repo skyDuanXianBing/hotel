@@ -66,4 +66,9 @@ public interface PriceLabsConnectionRepository extends JpaRepository<PriceLabsCo
      * 删除门店下的所有连接
      */
     void deleteByStoreId(Long storeId);
+
+    /**
+     * 删除门店下指定房型的连接
+     */
+    void deleteByStoreIdAndRoomTypeId(Long storeId, Long roomTypeId);
 }
