@@ -145,14 +145,15 @@
             @keydown.enter.exact.prevent="sendMessage"
           />
           <div class="input-actions">
-            <div class="ai-reply-switch">
-              <span class="ai-reply-label">AI 自动回复</span>
-              <el-switch
-                v-model="aiAutoReplyEnabled"
-                :disabled="activeConversation.closed || isAiSettingSaving"
-                @change="onAiAutoReplyChange"
-              />
-            </div>
+            <el-button
+              type="default"
+              :icon="MagicStick"
+              :disabled="isSending || activeConversation.closed || isAiGeneratingDraft"
+              :loading="isAiGeneratingDraft"
+              @click="openAiReplyAssistant"
+            >
+              AI 回复助手
+            </el-button>
             <el-button
               type="primary"
               @click="sendMessage"
@@ -171,6 +172,85 @@
       </div>
     </div>
 
+    <el-dialog
+      v-model="aiDraftDialogVisible"
+      title="AI 回复草稿"
+      width="760px"
+      :close-on-click-modal="false"
+      class="ai-draft-dialog"
+    >
+      <div class="ai-draft-section">
+        <div class="ai-draft-label">用户问题上下文总结</div>
+        <el-input
+          v-model="aiContextSummary"
+          type="textarea"
+          :rows="4"
+          readonly
+        />
+      </div>
+      <div class="ai-draft-section">
+        <div class="ai-draft-label">初始回复草稿（可直接编辑）</div>
+        <el-input
+          v-model="aiDraftReply"
+          type="textarea"
+          :rows="7"
+          placeholder="AI 生成的草稿会显示在这里"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="aiDraftDialogVisible = false">关闭</el-button>
+        <el-button @click="openAiPolishDialog">继续优化</el-button>
+        <el-button
+          type="primary"
+          :disabled="!aiDraftReply.trim() || isSending"
+          :loading="isSending"
+          @click="sendAiDraftReply"
+        >
+          发送该草稿
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="aiPolishDialogVisible"
+      title="和 GPT 继续优化"
+      width="760px"
+      :close-on-click-modal="false"
+    >
+      <div class="ai-polish-history">
+        <div
+          v-for="(item, index) in aiPolishHistory"
+          :key="`${item.role}-${index}`"
+          :class="['ai-polish-item', item.role]"
+        >
+          <div class="role">{{ item.role === 'user' ? '你' : 'GPT' }}</div>
+          <div class="content">{{ item.content }}</div>
+        </div>
+        <div v-if="!aiPolishHistory.length" class="ai-polish-empty">
+          输入你希望优化的方向，例如：更礼貌、更简短、增加入住步骤说明。
+        </div>
+      </div>
+
+      <el-input
+        v-model="aiPolishInstruction"
+        type="textarea"
+        :rows="4"
+        placeholder="告诉 GPT 你想怎么改这版草稿"
+      />
+
+      <template #footer>
+        <el-button @click="aiPolishDialogVisible = false">完成优化</el-button>
+        <el-button
+          type="primary"
+          :disabled="!aiPolishInstruction.trim() || isAiPolishing"
+          :loading="isAiPolishing"
+          @click="polishAiDraftReply"
+        >
+          生成改进版并回填草稿
+        </el-button>
+      </template>
+    </el-dialog>
+
     <ReservationDetailDrawer
       v-model="showOrderDetailDrawer"
       :reservation-id="selectedReservationId"
@@ -181,19 +261,17 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { ChatDotRound, Loading, Refresh, Search, User, WarningFilled } from '@element-plus/icons-vue'
+import { ChatDotRound, Loading, MagicStick, Refresh, Search, User, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
-  getSuMessagingAiSetting,
   getSuThreadMessages,
   getSuThreads,
   sendSuThreadMessage,
-  updateSuMessagingAiSetting,
   SuMessagingSenderType,
-  type SuMessagingAiSetting,
   type SuMessagingMessageDTO,
   type SuMessagingThreadDTO,
 } from '@/api/suMessaging'
+import { sendChatMessage } from '@/api/chat'
 import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
 import { createSuMessagingSocket, type SuMessagingRealtimeEvent } from '@/utils/suMessagingSocket'
 import ReservationDetailDrawer from '@/components/reservation/ReservationDetailDrawer.vue'
@@ -229,10 +307,25 @@ interface MessageSegment {
   label: string
 }
 
+interface AiPolishItem {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 interface ApiResponse<T> {
   success?: boolean
   message?: string
   data?: T
+}
+
+const sanitizeUserFacingMessage = (rawMessage?: string) => {
+  if (!rawMessage) {
+    return ''
+  }
+  return rawMessage
+    .replace(/\bSU\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 }
 
 const searchQuery = ref('')
@@ -242,8 +335,15 @@ const messagesListRef = ref<HTMLElement | null>(null)
 const conversations = ref<SuMessagingThreadDTO[]>([])
 const messages = ref<MessageItem[]>([])
 const isSending = ref(false)
-const aiAutoReplyEnabled = ref(true)
-const isAiSettingSaving = ref(false)
+const isAiGeneratingDraft = ref(false)
+const isAiPolishing = ref(false)
+const aiDraftDialogVisible = ref(false)
+const aiPolishDialogVisible = ref(false)
+const aiContextSummary = ref('')
+const aiDraftReply = ref('')
+const aiPolishInstruction = ref('')
+const aiPolishHistory = ref<AiPolishItem[]>([])
+const aiAssistantSessionId = ref<string>()
 const showOrderDetailDrawer = ref(false)
 const selectedReservationId = ref<number | null>(null)
 const isResolvingReservation = ref(false)
@@ -475,7 +575,7 @@ const refreshThreads = async () => {
   try {
     const response = (await getSuThreads()) as ApiResponse<SuMessagingThreadDTO[]>
     if (response.success === false) {
-      throw new Error(response.message || '刷新失败')
+      throw new Error(sanitizeUserFacingMessage(response.message) || '刷新失败')
     }
 
     conversations.value = response.data || []
@@ -490,7 +590,7 @@ const loadThreadMessages = async (threadId: number) => {
   try {
     const response = (await getSuThreadMessages(threadId)) as ApiResponse<SuMessagingMessageDTO[]>
     if (response.success === false) {
-      throw new Error(response.message || '加载消息失败')
+      throw new Error(sanitizeUserFacingMessage(response.message) || '加载消息失败')
     }
 
     const incoming = (response.data || []).map(mapMessage)
@@ -508,41 +608,173 @@ const selectConversation = async (threadId: number) => {
   await refreshThreads()
 }
 
-const loadAiAutoReplySetting = async () => {
-  try {
-    const response = (await getSuMessagingAiSetting()) as ApiResponse<SuMessagingAiSetting>
-    if (response.success === false) {
-      throw new Error(response.message || '获取 AI 自动回复设置失败')
-    }
+const buildConversationContextForAi = () => {
+  const conversation = activeConversation.value
+  const conversationHeader = [
+    `渠道：${conversation?.channelName || '-'}`,
+    `订单号：${conversation?.bookingId || conversation?.threadId || '-'}`,
+    `会话状态：${conversation?.closed ? '已关闭' : '活跃'}`,
+  ].join('；')
 
-    aiAutoReplyEnabled.value = Boolean(response.data?.autoReplyEnabled)
-  } catch (error) {
-    console.error('获取 AI 自动回复设置失败:', error)
-    ElMessage.error('获取 AI 自动回复设置失败')
+  const history = sortMessagesByTime(messages.value)
+    .slice(-20)
+    .map((item) => {
+      const role = item.senderType === SuMessagingSenderType.GUEST ? '住客' : '客服'
+      return `[${role}] ${item.content}`
+    })
+    .join('\n')
+
+  return `${conversationHeader}\n\n最近会话：\n${history || '暂无历史消息'}`
+}
+
+const buildFallbackContextSummary = () => {
+  const conversation = activeConversation.value
+  const latestGuestMessage = [...sortMessagesByTime(messages.value)]
+    .reverse()
+    .find((item) => item.senderType === SuMessagingSenderType.GUEST)
+
+  const headline = latestGuestMessage?.content?.slice(0, 80) || '住客咨询了入住相关问题'
+  return `住客来自 ${conversation?.channelName || '未知渠道'}，订单号 ${conversation?.bookingId || conversation?.threadId || '-'}。最新问题：${headline}`
+}
+
+const parseAiDraftResponse = (rawReply: string) => {
+  const extractBlock = (tagName: 'CONTEXT' | 'DRAFT') => {
+    const pattern = new RegExp(`\\[${tagName}\\]([\\s\\S]*?)\\[\\/${tagName}\\]`, 'i')
+    const matched = rawReply.match(pattern)
+    return matched?.[1]?.trim() || ''
+  }
+
+  const contextSummary = extractBlock('CONTEXT')
+  const draftReply = extractBlock('DRAFT')
+  return {
+    contextSummary,
+    draftReply,
   }
 }
 
-const onAiAutoReplyChange = async (enabled: boolean) => {
-  const previousValue = !enabled
-  isAiSettingSaving.value = true
+const openAiReplyAssistant = async () => {
+  if (!activeConversation.value) {
+    ElMessage.warning('请先选择会话')
+    return
+  }
+  if (activeConversation.value.closed) {
+    ElMessage.warning('当前会话已关闭，无法生成回复')
+    return
+  }
+  if (isAiGeneratingDraft.value) {
+    return
+  }
+
+  isAiGeneratingDraft.value = true
+  aiDraftDialogVisible.value = true
+  aiPolishDialogVisible.value = false
+  aiPolishHistory.value = []
+  aiPolishInstruction.value = ''
+  aiContextSummary.value = '正在分析会话上下文...'
+  aiDraftReply.value = '正在生成初始回复草稿...'
 
   try {
-    const request: SuMessagingAiSetting = {
-      autoReplyEnabled: enabled,
-    }
-    const response = (await updateSuMessagingAiSetting(request)) as ApiResponse<SuMessagingAiSetting>
-    if (response.success === false) {
-      throw new Error(response.message || '更新失败')
+    const context = buildConversationContextForAi()
+    const prompt = [
+      '你是酒店客服AI助手，请根据会话内容完成两件事：',
+      '1) 总结住客当前问题上下文；',
+      '2) 给出一版可直接发送给住客的初始回复。',
+      '要求：回复语气专业、简洁、友好；回复语言跟随住客最近一条消息；不编造未确认事实。',
+      '输出格式必须严格如下：',
+      '[CONTEXT]',
+      '...上下文总结...',
+      '[/CONTEXT]',
+      '[DRAFT]',
+      '...初始回复...',
+      '[/DRAFT]',
+      '',
+      '会话上下文：',
+      context,
+    ].join('\n')
+
+    const response = (await sendChatMessage({
+      sessionId: aiAssistantSessionId.value,
+      message: prompt,
+    })) as ApiResponse<{ reply: string; sessionId: string }>
+
+    if (response.success === false || !response.data?.reply) {
+      throw new Error(sanitizeUserFacingMessage(response.message) || '生成失败')
     }
 
-    aiAutoReplyEnabled.value = Boolean(response.data?.autoReplyEnabled)
-    ElMessage.success(enabled ? 'AI 自动回复已开启' : 'AI 自动回复已关闭')
+    aiAssistantSessionId.value = response.data.sessionId || aiAssistantSessionId.value
+    const parsed = parseAiDraftResponse(response.data.reply)
+    aiContextSummary.value = parsed.contextSummary || buildFallbackContextSummary()
+    aiDraftReply.value = parsed.draftReply || response.data.reply.trim()
   } catch (error) {
-    aiAutoReplyEnabled.value = previousValue
-    console.error('更新 AI 自动回复设置失败:', error)
-    ElMessage.error('更新 AI 自动回复设置失败')
+    console.error('生成AI初稿失败:', error)
+    aiContextSummary.value = buildFallbackContextSummary()
+    aiDraftReply.value = ''
+    ElMessage.error('AI初稿生成失败，请重试')
   } finally {
-    isAiSettingSaving.value = false
+    isAiGeneratingDraft.value = false
+  }
+}
+
+const openAiPolishDialog = () => {
+  if (!aiDraftReply.value.trim()) {
+    ElMessage.warning('当前没有可优化的草稿')
+    return
+  }
+  aiPolishDialogVisible.value = true
+}
+
+const polishAiDraftReply = async () => {
+  const instruction = aiPolishInstruction.value.trim()
+  if (!instruction) {
+    return
+  }
+  if (!aiDraftReply.value.trim()) {
+    ElMessage.warning('请先生成初始草稿')
+    return
+  }
+
+  isAiPolishing.value = true
+  aiPolishHistory.value.push({
+    role: 'user',
+    content: instruction,
+  })
+
+  try {
+    const prompt = [
+      '你是酒店客服改写助手，请改进下面这条客服回复草稿。',
+      '请严格返回“可直接发送给住客的完整回复正文”，不要加解释。',
+      '',
+      `会话上下文总结：${aiContextSummary.value}`,
+      '',
+      '当前草稿：',
+      aiDraftReply.value,
+      '',
+      '改写要求：',
+      instruction,
+    ].join('\n')
+
+    const response = (await sendChatMessage({
+      sessionId: aiAssistantSessionId.value,
+      message: prompt,
+    })) as ApiResponse<{ reply: string; sessionId: string }>
+
+    if (response.success === false || !response.data?.reply) {
+      throw new Error(sanitizeUserFacingMessage(response.message) || '改写失败')
+    }
+
+    aiAssistantSessionId.value = response.data.sessionId || aiAssistantSessionId.value
+    const polished = response.data.reply.trim()
+    aiDraftReply.value = polished
+    aiPolishHistory.value.push({
+      role: 'assistant',
+      content: polished,
+    })
+    aiPolishInstruction.value = ''
+  } catch (error) {
+    console.error('优化草稿失败:', error)
+    ElMessage.error('优化草稿失败，请重试')
+  } finally {
+    isAiPolishing.value = false
   }
 }
 
@@ -565,18 +797,16 @@ const replaceMessageById = (id: number, incoming: MessageItem) => {
   messages.value = sortMessagesByTime(messages.value)
 }
 
-const sendMessage = async () => {
-  if (!activeThreadId.value || !newMessage.value.trim() || isSending.value) {
-    return
+const sendMessageContent = async (content: string) => {
+  if (!activeThreadId.value || !content.trim() || isSending.value || activeConversation.value?.closed) {
+    return false
   }
 
-  const content = newMessage.value.trim()
   isSending.value = true
 
   const optimistic = createOptimisticMessage(content)
   messages.value.push(optimistic)
   messages.value = sortMessagesByTime(messages.value)
-  newMessage.value = ''
   await scrollToBottom()
 
   try {
@@ -586,12 +816,13 @@ const sendMessage = async () => {
     })) as ApiResponse<SuMessagingMessageDTO>
 
     if (response.success === false || !response.data) {
-      throw new Error(response.message || '消息发送失败')
+      throw new Error(sanitizeUserFacingMessage(response.message) || '消息发送失败')
     }
 
     replaceMessageById(optimistic.id, mapMessage(response.data))
     await scrollToBottom()
     await refreshThreads()
+    return true
   } catch (error) {
     const index = messages.value.findIndex((message) => message.id === optimistic.id)
     if (index >= 0) {
@@ -600,10 +831,37 @@ const sendMessage = async () => {
         deliveryStatus: 'FAILED',
       }
     }
-    console.error('发送消息失败:', error)
-    ElMessage.error('消息发送失败')
+    const errorMessage =
+      sanitizeUserFacingMessage(error instanceof Error ? error.message : '') || 'message send failed'
+    console.error('发送消息失败:', errorMessage)
+    ElMessage.error(errorMessage)
+    return false
   } finally {
     isSending.value = false
+  }
+}
+
+const sendMessage = async () => {
+  const content = newMessage.value.trim()
+  if (!content) {
+    return
+  }
+  newMessage.value = ''
+  await sendMessageContent(content)
+}
+
+const sendAiDraftReply = async () => {
+  const content = aiDraftReply.value.trim()
+  if (!content) {
+    ElMessage.warning('请先生成或编辑回复草稿')
+    return
+  }
+
+  const sent = await sendMessageContent(content)
+  if (sent) {
+    aiDraftDialogVisible.value = false
+    aiPolishDialogVisible.value = false
+    aiPolishInstruction.value = ''
   }
 }
 
@@ -798,7 +1056,7 @@ const openOrderDetail = async () => {
 }
 
 const initialize = async () => {
-  await Promise.all([refreshThreads(), loadAiAutoReplySetting()])
+  await refreshThreads()
   connectRealtimeSocket()
 }
 
@@ -1068,15 +1326,57 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.ai-reply-switch {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.ai-draft-section {
+  margin-bottom: 16px;
 }
 
-.ai-reply-label {
+.ai-draft-label {
+  margin-bottom: 8px;
   font-size: 13px;
   color: #606266;
+}
+
+.ai-polish-history {
+  margin-bottom: 16px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fafafa;
+  padding: 12px;
+}
+
+.ai-polish-item {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+.ai-polish-item.user {
+  background: #e6f4ff;
+}
+
+.ai-polish-item.assistant {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+}
+
+.ai-polish-item .role {
+  font-size: 12px;
+  font-weight: 600;
+  color: #909399;
+  margin-bottom: 6px;
+}
+
+.ai-polish-item .content {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: #303133;
+}
+
+.ai-polish-empty {
+  font-size: 13px;
+  color: #909399;
 }
 
 .empty-state {

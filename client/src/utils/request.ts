@@ -11,7 +11,17 @@ const request: AxiosInstance = axios.create({
   },
 })
 
-// 请求拦截器：附加 token 和当前门店 ID。
+const sanitizeUserFacingMessage = (rawMessage: string) => {
+  if (!rawMessage) {
+    return rawMessage
+  }
+
+  return rawMessage
+    .replace(/\bSU\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 request.interceptors.request.use(
   (config) => {
     const isCleanerRoute =
@@ -35,16 +45,11 @@ request.interceptors.request.use(
 
     return config
   },
-  (error) => {
-    return Promise.reject(error)
-  },
+  (error) => Promise.reject(error),
 )
 
-// 响应拦截器：统一处理接口错误。
 request.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response.data
-  },
+  (response: AxiosResponse) => response.data,
   (error) => {
     if (error.response?.status === 401) {
       const isCleanerRoute =
@@ -59,10 +64,14 @@ request.interceptors.response.use(
       }
       ElMessage.error('登录已过期，请重新登录')
     } else if (error.response?.status === 403) {
-      const message = error.response?.data?.message || '您没有权限执行此操作'
+      const message = sanitizeUserFacingMessage(
+        error.response?.data?.message || '您没有权限执行此操作',
+      )
       ElMessage.error(message)
     } else {
-      const message = error.response?.data?.message || error.message || '请求失败'
+      const message = sanitizeUserFacingMessage(
+        error.response?.data?.message || error.message || '请求失败',
+      )
       ElMessage.error(message)
     }
     return Promise.reject(error)

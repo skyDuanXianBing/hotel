@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { House, Message, Bell, User, EditPen, Headset, Wallet, Document, Phone, ArrowDown, HomeFilled } from '@element-plus/icons-vue'
 import CustomerService from '@/components/CustomerService.vue'
 import RecordTransaction from '@/components/RecordTransaction.vue'
+import NotificationPopup from '@/components/NotificationPopup.vue'
 import { useUserStore } from '@/stores/user'
 import { useMemoStore } from '@/stores/memo'
 import { useStoreStore } from '@/stores/store'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { StoreDTO } from '@/api/store'
 
 const router = useRouter()
@@ -15,9 +17,11 @@ const route = useRoute()
 const userStore = useUserStore()
 const memoStore = useMemoStore()
 const storeStore = useStoreStore()
+const notificationCenterStore = useNotificationCenterStore()
 
 const showCustomerService = ref(false)
 const stores = ref<StoreDTO[]>([])
+const notificationPopupRef = ref<InstanceType<typeof NotificationPopup> | null>(null)
 
 // 当前选中的门店
 const currentStore = computed(() => storeStore.currentStore)
@@ -60,6 +64,38 @@ onMounted(() => {
     // 加载门店列表
     loadStores()
   }
+})
+
+watch(
+  notificationPopupRef,
+  (popup) => {
+    notificationCenterStore.bindPopupController(
+      popup as unknown as { addNotification: (notification: unknown) => void } | null
+    )
+  },
+  { immediate: true },
+)
+
+watch(
+  [() => userStore.currentUser?.id, () => currentStore.value?.id],
+  ([userId, storeId]) => {
+    if (!userId) {
+      notificationCenterStore.stop()
+      return
+    }
+    void notificationCenterStore.start({
+      userId,
+      storeId: typeof storeId === 'number' ? storeId : undefined,
+      onOrderClick: () => router.push('/notifications/order'),
+      onChatClick: () => router.push('/messages'),
+    })
+  },
+  { immediate: true },
+)
+
+onUnmounted(() => {
+  notificationCenterStore.stop()
+  notificationCenterStore.bindPopupController(null)
 })
 
 const handleMenuClick = (path: string) => {
@@ -348,6 +384,8 @@ const handleLogout = async () => {
         </div>
       </div>
     </el-dialog>
+
+    <NotificationPopup ref="notificationPopupRef" />
   </div>
 </template>
 

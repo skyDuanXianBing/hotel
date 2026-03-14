@@ -23,18 +23,22 @@
           </div>
 
           <div class="notification-body">
-            <div class="notification-channel">
-              <span class="channel-label">渠道:</span>
+            <div v-if="notification.channel" class="notification-channel">
+              <span class="channel-label">来源:</span>
               <span class="channel-value">{{ notification.channel }}</span>
             </div>
             <div class="notification-info">
-              <div class="info-row">
-                <span class="info-label">客人:</span>
+              <div v-if="notification.guestName" class="info-row">
+                <span class="info-label">对象:</span>
                 <span class="info-value">{{ notification.guestName }}</span>
               </div>
-              <div class="info-row">
-                <span class="info-label">订单号:</span>
+              <div v-if="notification.orderNumber" class="info-row">
+                <span class="info-label">编号:</span>
                 <span class="info-value">{{ notification.orderNumber }}</span>
+              </div>
+              <div v-if="notification.content" class="info-row content-row">
+                <span class="info-label">内容:</span>
+                <span class="info-value">{{ notification.content }}</span>
               </div>
             </div>
           </div>
@@ -55,9 +59,10 @@ import { BellFilled, Close } from '@element-plus/icons-vue'
 export interface Notification {
   id: string
   title: string
-  channel: string
-  guestName: string
-  orderNumber: string
+  channel?: string
+  guestName?: string
+  orderNumber?: string
+  content?: string
   time: Date
   type: 'order' | 'message'
   onClick?: () => void
@@ -195,8 +200,13 @@ defineExpose({
 
 .info-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   font-size: 13px;
+}
+
+.content-row .info-value {
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .info-label {

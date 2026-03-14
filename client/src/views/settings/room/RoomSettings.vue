@@ -2,13 +2,8 @@
   <div class="room-settings-container">
     <!-- 顶部信息栏 -->
     <div class="header-info">
-      <div class="system-period">
-        <el-icon><InfoFilled /></el-icon>
-        <span>当前系统周日期: {{ systemPeriod }}</span>
-      </div>
       <div class="header-actions">
         <el-button @click="handleRoomOwnership">房间归属</el-button>
-        <el-button @click="handleImport">导入房型</el-button>
         <el-button type="primary" @click="handleAdd">新增</el-button>
       </div>
     </div>
@@ -233,7 +228,7 @@
 import { ref, computed, watch, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { InfoFilled, Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import {
   getAllRoomTypesWithRooms,
   createRoomType,
@@ -269,9 +264,6 @@ const isEdit = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(25)
 const total = ref(0)
-
-// 系统周期日期
-const systemPeriod = ref('12/12 ( 2025/11/04 ~ 2026/07/18 )')
 
 // 快速填充价格 - 默认为null避免误操作
 const quickFillPrice = ref<number | null>(null)
@@ -485,11 +477,6 @@ const loadRoomTypes = async () => {
 // 房间归属
 const handleRoomOwnership = () => {
   router.push('/settings/room/ownership')
-}
-
-// 导入房型
-const handleImport = () => {
-  ElMessage.info('导入房型功能开发中')
 }
 
 // 新增
@@ -743,19 +730,11 @@ onMounted(() => {
 /* 顶部信息栏 */
 .header-info {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 16px 20px;
   border-bottom: 1px solid #e8e8e8;
   background: #f5f7fa;
-}
-
-.system-period {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #1890ff;
 }
 
 .header-actions {

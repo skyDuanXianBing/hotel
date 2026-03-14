@@ -63,10 +63,11 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { VideoPlay } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import {
   getNotificationSettings,
   updateNotificationSettings,
-  type NotificationSettingDTO,
 } from '@/api/notification'
 
 interface NotificationSettings {
@@ -77,6 +78,8 @@ interface NotificationSettings {
 }
 
 const loading = ref(false)
+const userStore = useUserStore()
+const notificationCenterStore = useNotificationCenterStore()
 const settings = ref<NotificationSettings>({
   orderPopup: true,
   orderSound: true,
@@ -88,11 +91,18 @@ const settings = ref<NotificationSettings>({
 let orderAudio: HTMLAudioElement | null = null
 let chatAudio: HTMLAudioElement | null = null
 
+const getCurrentUserId = () => userStore.currentUser?.id
+
 // 加载通知设置
 const loadSettings = async () => {
+  const userId = getCurrentUserId()
+  if (!userId) {
+    ElMessage.warning('未获取到用户信息，无法加载通知设置')
+    return
+  }
   try {
     loading.value = true
-    const response = await getNotificationSettings(1) // 默认用户ID为1
+    const response = await getNotificationSettings(userId)
     if (response.success && response.data) {
       settings.value = {
         orderPopup: response.data.orderPopup,
@@ -141,16 +151,23 @@ const testChatSound = () => {
 
 // 保存设置
 const handleSave = async () => {
+  const userId = getCurrentUserId()
+  if (!userId) {
+    ElMessage.warning('未获取到用户信息，无法保存通知设置')
+    return
+  }
   try {
     loading.value = true
-    const response = await updateNotificationSettings(1, {
+    const snapshot = {
       orderPopup: settings.value.orderPopup,
       orderSound: settings.value.orderSound,
       chatPopup: settings.value.chatPopup,
       chatSound: settings.value.chatSound,
-    })
+    }
+    const response = await updateNotificationSettings(userId, snapshot)
 
     if (response.success) {
+      notificationCenterStore.applySettingsSnapshot(snapshot)
       ElMessage.success('设置已保存')
     } else {
       ElMessage.error(response.message || '保存设置失败')
@@ -163,8 +180,15 @@ const handleSave = async () => {
   }
 }
 
-onMounted(() => {
-  loadSettings()
+onMounted(async () => {
+  if (!userStore.currentUser?.id) {
+    try {
+      await userStore.fetchCurrentUser()
+    } catch (error) {
+      console.warn('初始化用户信息失败:', error)
+    }
+  }
+  void loadSettings()
 })
 </script>
 
