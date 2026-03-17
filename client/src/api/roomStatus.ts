@@ -17,6 +17,9 @@ export interface ReservationInfoDTO {
   checkIn: string
   checkOut: string
   orderNumber: string
+  groupOrderNo?: string
+  notes?: string
+  specialRequests?: string
 }
 
 export interface CalendarRoomDataDTO {

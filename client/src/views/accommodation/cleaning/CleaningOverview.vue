@@ -30,7 +30,6 @@
       </div>
       <div class="right-section">
         <el-button type="primary" @click="handleGenerateTask">生成任务</el-button>
-        <el-button @click="handleSettings">设置</el-button>
       </div>
     </div>
 

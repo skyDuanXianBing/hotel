@@ -184,8 +184,6 @@ const handleLogout = async () => {
           <template #dropdown>
             <el-dropdown-menu class="store-dropdown-menu">
               <div class="dropdown-header">
-                <el-icon size="20" color="#1890ff"><HomeFilled /></el-icon>
-                <span>PMS</span>
               </div>
               <el-dropdown-item
                 v-for="store in stores"
@@ -202,7 +200,7 @@ const handleLogout = async () => {
               <div class="dropdown-divider"></div>
               <el-dropdown-item divided @click.stop="goToStoreSelection">
                 <div class="create-store-item">
-                  <span>创建门店</span>
+                  <span>门店管理</span>
                   <el-icon><ArrowDown style="transform: rotate(-90deg)" /></el-icon>
                 </div>
               </el-dropdown-item>

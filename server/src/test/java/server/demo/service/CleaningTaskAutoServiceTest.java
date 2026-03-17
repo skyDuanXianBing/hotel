@@ -39,6 +39,7 @@ class CleaningTaskAutoServiceTest {
         reservation.setId(11L);
         reservation.setStatus(ReservationStatus.CONFIRMED);
         reservation.setCheckInDate(LocalDate.of(2025, 2, 1));
+        reservation.setCheckOutDate(LocalDate.of(2025, 2, 2));
 
         Room room = new Room();
         room.setId(101L);
@@ -54,7 +55,7 @@ class CleaningTaskAutoServiceTest {
         verify(cleaningTaskRepository).save(captor.capture());
 
         CleaningTask saved = captor.getValue();
-        assertEquals(LocalDate.of(2025, 2, 1), saved.getTaskDate());
+        assertEquals(LocalDate.of(2025, 2, 2), saved.getTaskDate());
         assertEquals(room, saved.getRoom());
         assertEquals("checkout", saved.getTaskType());
         assertEquals("pending", saved.getStatus());
@@ -75,6 +76,7 @@ class CleaningTaskAutoServiceTest {
         reservation.setId(22L);
         reservation.setStatus(ReservationStatus.CONFIRMED);
         reservation.setCheckInDate(LocalDate.of(2025, 3, 10));
+        reservation.setCheckOutDate(LocalDate.of(2025, 3, 11));
 
         Room room = new Room();
         room.setId(202L);
@@ -99,7 +101,7 @@ class CleaningTaskAutoServiceTest {
         verify(cleaningTaskRepository).save(captor.capture());
 
         CleaningTask saved = captor.getValue();
-        assertEquals(LocalDate.of(2025, 3, 10), saved.getTaskDate());
+        assertEquals(LocalDate.of(2025, 3, 11), saved.getTaskDate());
         assertEquals(room, saved.getRoom());
         assertEquals("checkout", saved.getTaskType());
         assertEquals("pending", saved.getStatus());

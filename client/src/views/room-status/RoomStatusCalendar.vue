@@ -166,10 +166,18 @@
                 class="status-cell"
                 :class="[
                   `status-${dailyStatus.status.toLowerCase()}`,
-                  { 'batch-selected': isCellSelected(roomData.roomId, dailyStatus.date) },
+                  {
+                    'batch-selected': isCellSelected(roomData.roomId, dailyStatus.date),
+                    'has-reservation': !!dailyStatus.reservation && !isRoomCollapsed,
+                    'reservation-start-cell': isReservationStartCell(dailyStatus),
+                    'reservation-middle-cell': isReservationMiddleCell(dailyStatus),
+                    'reservation-end-cell': isReservationEndCell(dailyStatus),
+                  },
                 ]"
+                @mousedown.left.prevent="onCellMouseDown($event, roomData, dailyStatus)"
+                @mouseup.left="onCellMouseUp($event, roomData, dailyStatus)"
                 @click="onCellClick($event, roomData, dailyStatus)"
-                @mouseenter="onCellHover($event, dailyStatus, roomData)"
+                @mouseenter="onCellMouseEnter($event, roomData, dailyStatus)"
               >
                 <!-- 批量选择标识 -->
                 <div
@@ -195,17 +203,27 @@
                   <el-icon><Remove /></el-icon>
                 </div>
 
-                <div v-if="dailyStatus.reservation && !isRoomCollapsed" class="reservation-info">
-                  <div class="guest-name">{{ dailyStatus.reservation.guestName }}</div>
-                  <div
-                    class="channel-badge"
-                    :style="{
-                      backgroundColor:
-                        getChannelByName(dailyStatus.reservation.channel)?.color || '#409EFF',
-                      color: 'white',
-                    }"
-                  >
-                    {{ dailyStatus.reservation.channel }}
+                <div
+                  v-if="hasReservationNotes(dailyStatus)"
+                  class="reservation-note-indicator"
+                  title="该订单有备注"
+                />
+
+                <div v-if="dailyStatus.reservation && !isRoomCollapsed" class="reservation-cell-info">
+                  <div class="reservation-ribbon">
+                    <template v-if="isReservationStartCell(dailyStatus)">
+                      <div class="reservation-guest-name">{{ dailyStatus.reservation.guestName }}</div>
+                      <div
+                        class="reservation-channel-badge"
+                        :style="{
+                          backgroundColor:
+                            getChannelByName(dailyStatus.reservation.channel)?.color || '#409EFF',
+                          color: 'white',
+                        }"
+                      >
+                        {{ dailyStatus.reservation.channel }}
+                      </div>
+                    </template>
                   </div>
                 </div>
                 <div v-else class="empty-cell">
@@ -422,7 +440,7 @@
           <span class="received">已收款: ¥{{ totalPayment.toFixed(2) }}</span>
         </div>
 
-        <div class="notes" v-if="hoverReservation?.notes">备注: {{ hoverReservation.notes }}</div>
+        <div class="notes" v-if="getReservationNotesText(hoverReservation)">备注: {{ getReservationNotesText(hoverReservation) }}</div>
         <div class="notes" v-else>备注: 无</div>
       </div>
 
@@ -566,13 +584,6 @@
                   <el-button link>入住</el-button>
                 </div>
               </div>
-
-              <div class="additional-options">
-                <el-button link class="add-btn">
-                  <el-icon><Plus /></el-icon>
-                  添加房间
-                </el-button>
-              </div>
             </div>
 
             <!-- 消费信息 -->
@@ -672,15 +683,6 @@
               <el-button link class="add-btn" @click="addPaymentItem">
                 <el-icon><Plus /></el-icon>
                 添加收款
-              </el-button>
-            </div>
-
-            <!-- 订单提醒 -->
-            <div class="booking-section">
-              <h3>订单提醒</h3>
-              <el-button link class="add-btn">
-                <el-icon><Plus /></el-icon>
-                添加提醒
               </el-button>
             </div>
 
@@ -919,18 +921,13 @@
                     </el-table-column>
                   </el-table>
                 </el-collapse-item>
-                <el-collapse-item title="订单提醒：0个" name="3">
-                  <div class="add-reminder">
-                    <el-button link icon="Plus">添加提醒</el-button>
-                  </div>
-                </el-collapse-item>
               </el-collapse>
             </div>
 
             <div class="order-info">
               <p><strong>订单号：</strong>{{ selectedReservation?.orderNumber || '无' }}</p>
               <p><strong>客人手机：</strong>{{ selectedReservation?.phone || '无' }}</p>
-              <p><strong>备注：</strong>{{ selectedReservation?.notes || '无' }}</p>
+              <p><strong>备注：</strong>{{ getReservationNotesText(selectedReservation) || '无' }}</p>
               <div class="order-colors">
                 <el-button size="small">订单颜色</el-button>
               </div>
@@ -1412,11 +1409,12 @@
 
               <el-form-item label="支付方式" required>
                 <el-select v-model="paymentForm.paymentMethod" placeholder="请选择" style="width: 100%">
-                  <el-option label="微信" value="微信" />
-                  <el-option label="支付宝" value="支付宝" />
-                  <el-option label="现金" value="现金" />
-                  <el-option label="银行卡" value="银行卡" />
-                  <el-option label="美团酒店代收" value="美团酒店代收" />
+                  <el-option
+                    v-for="option in paymentMethodOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
                 </el-select>
               </el-form-item>
 
@@ -1792,7 +1790,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onActivated, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onActivated, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import {
@@ -1839,6 +1837,7 @@ import { createConsumption, getConsumptionsByReservationId, deleteConsumption, g
 import { createPayment, getPaymentsByReservationId, deletePayment, getTotalPayment, type PaymentDTO } from '@/api/payment'
 import { getOperationLogsByReservationId, type OperationLogDTO } from '@/api/operationLog'
 import { getConsumptionItemsByEnabled, type ConsumptionItemDTO } from '@/api/consumptionItem'
+import { getEnabledPaymentMethods, type PaymentMethodDTO } from '@/api/paymentMethod'
 import {
   getSuWebhookEvents,
   processSuWebhookEvents,
@@ -2079,6 +2078,30 @@ const getReservationDateValue = (
 ) => {
   if (!reservation) return ''
   return reservation[`${key}Date`] || reservation[key] || ''
+}
+
+const getReservationDateOnly = (value: string) => normalizeDateOnly(value)
+
+const getReservationStayEndDate = (reservation: Record<string, any> | null | undefined) => {
+  const checkOutDate = getReservationDateOnly(getReservationDateValue(reservation, 'checkOut'))
+  if (!checkOutDate) return ''
+  return addDays(checkOutDate, -1)
+}
+
+const isReservationStartCell = (dailyStatus: DailyRoomStatus) => {
+  if (!dailyStatus.reservation) return false
+  const checkInDate = getReservationDateOnly(getReservationDateValue(dailyStatus.reservation, 'checkIn'))
+  return !!checkInDate && normalizeDateOnly(dailyStatus.date) === checkInDate
+}
+
+const isReservationEndCell = (dailyStatus: DailyRoomStatus) => {
+  if (!dailyStatus.reservation) return false
+  const stayEndDate = getReservationStayEndDate(dailyStatus.reservation)
+  return !!stayEndDate && normalizeDateOnly(dailyStatus.date) === stayEndDate
+}
+
+const isReservationMiddleCell = (dailyStatus: DailyRoomStatus) => {
+  return !!dailyStatus.reservation && !isReservationStartCell(dailyStatus) && !isReservationEndCell(dailyStatus)
 }
 
 const getReservationDateDiffNights = (reservation: Record<string, any> | null | undefined) => {
@@ -2357,12 +2380,34 @@ const paymentTypeOptions = [
 ]
 
 // 支付方式选项
-const paymentMethodOptions = [
+const FALLBACK_PAYMENT_METHOD_OPTIONS = [
   { label: '微信', value: '微信' },
   { label: '支付宝', value: '支付宝' },
   { label: '现金', value: '现金' },
   { label: '银行卡', value: '银行卡' },
 ]
+const paymentMethodOptions = ref<{ label: string; value: string }[]>([...FALLBACK_PAYMENT_METHOD_OPTIONS])
+
+const getDefaultPaymentMethodValue = () => {
+  return paymentMethodOptions.value[0]?.value || ''
+}
+
+const loadPaymentMethodOptions = async () => {
+  try {
+    const response = await getEnabledPaymentMethods()
+    if (response.success && Array.isArray(response.data) && response.data.length > 0) {
+      paymentMethodOptions.value = response.data.map((item: PaymentMethodDTO) => ({
+        label: item.name,
+        value: item.name,
+      }))
+      return
+    }
+    paymentMethodOptions.value = [...FALLBACK_PAYMENT_METHOD_OPTIONS]
+  } catch (error) {
+    console.error('加载收款方式失败:', error)
+    paymentMethodOptions.value = [...FALLBACK_PAYMENT_METHOD_OPTIONS]
+  }
+}
 
 // 当前选中房间的房型信息
 const currentRoomType = ref<RoomTypeDTO | null>(null)
@@ -2395,6 +2440,14 @@ const batchDialogTitle = ref('')
 const batchAction = ref('')
 const batchMode = ref(false)
 const selectedCells = ref<Set<string>>(new Set()) // 存储选中的单元格key: roomId-date
+const quickActionDateRange = ref<{ startDate: string; endDate: string } | null>(null)
+const isDraggingCellSelection = ref(false)
+const dragSelectionRoomId = ref<number | null>(null)
+const dragSelectionStartDate = ref('')
+const dragSelectionEndDate = ref('')
+const dragSelectionRoom = ref<CalendarRoomData | null>(null)
+const dragSelectionTriggerRect = ref<DOMRect | null>(null)
+const suppressNextCellClick = ref(false)
 
 type BatchActionType = 'dirty' | 'clean' | 'close' | 'open' | ''
 type BatchWeekMode = 'all' | 'weekday' | 'weekend'
@@ -2810,19 +2863,26 @@ const loadRoomStatusCalendarData = async () => {
             closed: daily.closed || false,
             closeType: daily.closeType || '',
             closeRemark: daily.closeRemark || '',
-            reservation: daily.reservation
-              ? {
-                  id: daily.reservation.id,
-                  guestName: daily.reservation.guestName,
-                  channel: daily.reservation.channel,
-                  checkIn: daily.reservation.checkIn,
-                  checkOut: daily.reservation.checkOut,
-                  orderNumber: daily.reservation.orderNumber,
-                  adults: 1,
-                  children: 0,
-                  totalAmount: 0,
-                  status: ReservationStatus.CONFIRMED,
-                }
+                reservation: daily.reservation
+                  ? {
+                      id: daily.reservation.id,
+                      guestName: daily.reservation.guestName,
+                      channel: daily.reservation.channel,
+                      checkIn: daily.reservation.checkIn || (daily.reservation as any).checkInDate,
+                      checkOut: daily.reservation.checkOut || (daily.reservation as any).checkOutDate,
+                      orderNumber: daily.reservation.orderNumber,
+                      groupOrderNo: (daily.reservation as any).groupOrderNo || '',
+                      specialRequests: (daily.reservation as any).specialRequests || '',
+                      notes:
+                        daily.reservation.notes ||
+                        (daily.reservation as any).specialRequests ||
+                        (daily.reservation as any).remark ||
+                        '',
+                      adults: 1,
+                      children: 0,
+                      totalAmount: 0,
+                      status: ReservationStatus.CONFIRMED,
+                    }
               : null,
           })),
         })),
@@ -3009,6 +3069,187 @@ const handleBatchRoomCommand = (command: string) => {
 const isCellSelected = (roomId: number, date: string) => {
   const cellKey = `${roomId}-${date}`
   return selectedCells.value.has(cellKey)
+}
+
+const normalizeDateOnly = (value: string) => (value ? value.split('T')[0] : '')
+
+const getDateRangeOrdered = (startDate: string, endDate: string) => {
+  const start = parseDateOnly(startDate)
+  const end = parseDateOnly(endDate)
+  return start <= end ? { start, end } : { start: end, end: start }
+}
+
+const getDateRangeStrings = (startDate: string, endDate: string) => {
+  const { start, end } = getDateRangeOrdered(startDate, endDate)
+  const result: string[] = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    result.push(formatDateOnly(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return result
+}
+
+const addDays = (date: string, days: number) => {
+  const parsedDate = parseDateOnly(date)
+  parsedDate.setDate(parsedDate.getDate() + days)
+  return formatDateOnly(parsedDate)
+}
+
+const getCellKey = (roomId: number, date: string) => `${roomId}-${date}`
+
+const clearDragSelection = () => {
+  if (batchMode.value) return
+  selectedCells.value.clear()
+  quickActionDateRange.value = null
+  dragSelectionRoomId.value = null
+  dragSelectionStartDate.value = ''
+  dragSelectionEndDate.value = ''
+  dragSelectionRoom.value = null
+  dragSelectionTriggerRect.value = null
+}
+
+const canDragCreateReservation = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
+  if (isRoomCollapsed.value || batchMode.value) return false
+  if (dailyStatus.reservation) return false
+  const roomStatus = getRoomExtraStatus(roomData.roomId, dailyStatus.date)
+  return !roomStatus.isClosed
+}
+
+const updateDragSelectionRange = (
+  roomData: CalendarRoomData,
+  startDate: string,
+  endDate: string,
+) => {
+  const dateStrings = getDateRangeStrings(startDate, endDate)
+  const roomStatusByDate = new Map(roomData.dailyStatus.map((item) => [item.date, item]))
+  const nextSelectedCells = new Set<string>()
+
+  for (const dateString of dateStrings) {
+    const daily = roomStatusByDate.get(dateString)
+    if (!daily || !canDragCreateReservation(roomData, daily)) {
+      break
+    }
+    nextSelectedCells.add(getCellKey(roomData.roomId, dateString))
+  }
+
+  selectedCells.value = nextSelectedCells
+
+  const selectedDates = Array.from(nextSelectedCells)
+    .map((cellKey) => cellKey.split('-').slice(1).join('-'))
+    .sort()
+
+  dragSelectionStartDate.value = selectedDates[0] || ''
+  dragSelectionEndDate.value = selectedDates[selectedDates.length - 1] || ''
+}
+
+const beginDragSelection = (
+  event: MouseEvent,
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  if (!canDragCreateReservation(roomData, dailyStatus)) return
+
+  closeAllPopups()
+  quickActionDateRange.value = null
+  isDraggingCellSelection.value = true
+  dragSelectionRoomId.value = roomData.roomId
+  dragSelectionRoom.value = roomData
+  dragSelectionStartDate.value = dailyStatus.date
+  dragSelectionEndDate.value = dailyStatus.date
+  dragSelectionTriggerRect.value = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  updateDragSelectionRange(roomData, dailyStatus.date, dailyStatus.date)
+}
+
+const updateDragSelection = (
+  event: MouseEvent,
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  if (!isDraggingCellSelection.value) return
+  if (dragSelectionRoomId.value !== roomData.roomId) return
+
+  dragSelectionTriggerRect.value = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  updateDragSelectionRange(roomData, dragSelectionStartDate.value || dailyStatus.date, dailyStatus.date)
+}
+
+const finishDragSelection = () => {
+  if (!isDraggingCellSelection.value) return
+
+  isDraggingCellSelection.value = false
+
+  if (!dragSelectionRoom.value || !dragSelectionStartDate.value || !dragSelectionEndDate.value) {
+    clearDragSelection()
+    return
+  }
+
+  if (selectedCells.value.size === 0) {
+    clearDragSelection()
+    return
+  }
+
+  quickActionRoom.value = dragSelectionRoom.value
+  quickActionDate.value = dragSelectionStartDate.value
+  quickActionDateRange.value = {
+    startDate: dragSelectionStartDate.value,
+    endDate: dragSelectionEndDate.value,
+  }
+  showQuickActions.value = true
+  suppressNextCellClick.value = true
+
+  const triggerRect = dragSelectionTriggerRect.value
+  if (triggerRect) {
+    void nextTick(() => {
+      updateQuickActionPopupPosition(triggerRect)
+    })
+  }
+}
+
+const onCellMouseDown = (
+  event: MouseEvent,
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  beginDragSelection(event, roomData, dailyStatus)
+}
+
+const onCellMouseUp = (
+  event: MouseEvent,
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  if (!isDraggingCellSelection.value) return
+  updateDragSelection(event, roomData, dailyStatus)
+  finishDragSelection()
+}
+
+const onCellMouseEnter = (
+  event: MouseEvent,
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  if (batchMode.value) return
+  if (isDraggingCellSelection.value) {
+    updateDragSelection(event, roomData, dailyStatus)
+    return
+  }
+  onCellHover(event, dailyStatus, roomData)
+}
+
+const handleWindowMouseUp = () => {
+  if (!isDraggingCellSelection.value) return
+  finishDragSelection()
+}
+
+const getReservationNotesText = (reservation: Record<string, any> | null | undefined) => {
+  if (!reservation) return ''
+  const notesValue = reservation.notes ?? reservation.specialRequests ?? reservation.remark ?? ''
+  return typeof notesValue === 'string' ? notesValue.trim() : ''
+}
+
+const hasReservationNotes = (dailyStatus: DailyRoomStatus) => {
+  const reservation = dailyStatus.reservation as Record<string, any> | null | undefined
+  return getReservationNotesText(reservation).length > 0
 }
 
 const isBatchRoomChecked = (roomId: number) => batchSelectedRoomIdSet.value.has(roomId)
@@ -3356,6 +3597,7 @@ const handleClosedRoomAction = (action: string) => {
 
 const hideQuickActions = () => {
   showQuickActions.value = false
+  clearDragSelection()
   // 隐藏快速操作菜单时，不影响悬停卡片的显示
 }
 
@@ -3393,7 +3635,7 @@ const addPaymentItem = () => {
   paymentItems.value.push({
     id: Date.now().toString(),
     type: '收押金',
-    paymentMethod: '微信',
+    paymentMethod: getDefaultPaymentMethodValue(),
     amount: 0,
     date: dateStr,
     remark: '',
@@ -3644,7 +3886,7 @@ const openPaymentSidebar = () => {
   activePaymentTab.value = 'payment'
   paymentForm.value = {
     type: 'payment',
-    paymentMethod: '',
+    paymentMethod: getDefaultPaymentMethodValue(),
     amount: 0,
     date: new Date().toISOString().split('T')[0],
     remark: '',
@@ -4159,6 +4401,11 @@ const onCellClick = (
   roomData: CalendarRoomData,
   dailyStatus: DailyRoomStatus,
 ) => {
+  if (suppressNextCellClick.value) {
+    suppressNextCellClick.value = false
+    return
+  }
+
   // 如果处于批量模式，切换单元格选择状态
   if (batchMode.value) {
     const cellKey = `${roomData.roomId}-${dailyStatus.date}`
@@ -4172,6 +4419,7 @@ const onCellClick = (
 
   // 先关闭所有弹窗，确保同时只有一个弹窗
   closeAllPopups()
+  clearDragSelection()
 
   // 检查是否有停用图标，如果有则优先显示停用房操作弹窗
   const roomStatus = getRoomExtraStatus(roomData.roomId, dailyStatus.date)
@@ -4210,6 +4458,7 @@ const onCellClick = (
   const rect = target.getBoundingClientRect()
   quickActionRoom.value = roomData
   quickActionDate.value = dailyStatus.date
+  quickActionDateRange.value = null
   showQuickActions.value = true
   void nextTick(() => {
     updateQuickActionPopupPosition(rect)
@@ -4254,14 +4503,13 @@ const handleQuickAction = (action: string) => {
     selectedRoom.value = quickActionRoom.value
     selectedDate.value = quickActionDate.value
 
-    // 自动填充房间和日期信息
+    // 自动填充房间和日期信息（支持拖动连续选择）
     if (quickActionRoom.value && quickActionDate.value) {
-      bookingForm.value.checkInDate = quickActionDate.value
-      // 默认离店日期为入住日期的下一天
-      const checkInDate = new Date(quickActionDate.value)
-      checkInDate.setDate(checkInDate.getDate() + 1)
-      bookingForm.value.checkOutDate = checkInDate.toISOString().split('T')[0]
-      
+      const startDate = quickActionDateRange.value?.startDate || quickActionDate.value
+      const endDate = quickActionDateRange.value?.endDate || quickActionDate.value
+      bookingForm.value.checkInDate = startDate
+      bookingForm.value.checkOutDate = addDays(endDate, 1)
+
       // 获取房型价格信息
       if (quickActionRoom.value.roomId) {
         fetchRoomTypePrice(quickActionRoom.value.roomId)
@@ -4274,12 +4522,14 @@ const handleQuickAction = (action: string) => {
     handleDirectCheckIn()
   } else if (action === 'close') {
     // 打开关房弹窗
+    const closeStartDate = quickActionDateRange.value?.startDate || quickActionDate.value
+    const closeEndDate = quickActionDateRange.value?.endDate || quickActionDate.value
     closeRoomData.value = {
       room: quickActionRoom.value,
       date: quickActionDate.value,
     }
-    closeRoomForm.value.startDate = quickActionDate.value
-    closeRoomForm.value.endDate = quickActionDate.value
+    closeRoomForm.value.startDate = closeStartDate
+    closeRoomForm.value.endDate = closeEndDate
     showCloseRoomDialog.value = true
   } else if (action === 'cancel') {
     // 取消操作
@@ -4775,12 +5025,19 @@ watch(
 
 // 生命周期
 onMounted(async () => {
+  window.addEventListener('mouseup', handleWindowMouseUp)
   await loadChannels()
+  await loadPaymentMethodOptions()
   await loadEnabledConsumptionItems()
   await loadCalendarData()
 })
 
+onBeforeUnmount(() => {
+  window.removeEventListener('mouseup', handleWindowMouseUp)
+})
+
 onActivated(async () => {
+  await loadPaymentMethodOptions()
   await loadCalendarData()
 })
 </script>
@@ -5008,7 +5265,7 @@ onActivated(async () => {
   flex-shrink: 0;
   min-height: 80px;
   border-right: 1px solid #e9ecef;
-  padding: 5px;
+  padding: 4px;
   cursor: pointer;
   position: relative;
   display: flex;
@@ -5036,6 +5293,26 @@ onActivated(async () => {
   border: 1px solid #91d5ff;
 }
 
+.status-cell.has-reservation {
+  background: #f7e1cc;
+  border-color: #e6b78b;
+}
+
+.status-cell.reservation-middle-cell,
+.status-cell.reservation-end-cell {
+  border-left-color: transparent;
+}
+
+.status-cell.reservation-start-cell {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.status-cell.reservation-end-cell {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
 .status-maintenance {
   background: #fff1f0;
   border: 1px solid #ffa39e;
@@ -5046,9 +5323,44 @@ onActivated(async () => {
   border: 1px solid #d9d9d9;
 }
 
-.reservation-info {
-  text-align: center;
+.reservation-cell-info {
+  text-align: left;
   width: 100%;
+  height: 100%;
+}
+
+.reservation-ribbon {
+  width: 100%;
+  min-height: 64px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.25);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 8px;
+}
+
+.reservation-note-indicator {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 0;
+  height: 0;
+  border-top: 16px solid #f5222d;
+  border-left: 16px solid transparent;
+  z-index: 12;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.reservation-note-indicator::after {
+  content: '!';
+  position: absolute;
+  top: -14px;
+  left: -6px;
+  color: #fff;
 }
 
 .empty-cell {
@@ -5069,19 +5381,28 @@ onActivated(async () => {
   color: #f5222d;
 }
 
-.guest-name {
+.reservation-guest-name {
   font-weight: bold;
   font-size: 12px;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  color: #6a3b12;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.channel-badge {
+.reservation-channel-badge {
   background: #52c41a;
   color: white;
-  padding: 1px 4px;
+  padding: 2px 6px;
   border-radius: 2px;
   font-size: 10px;
   margin-bottom: 2px;
+  width: fit-content;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .order-number {

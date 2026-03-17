@@ -153,12 +153,17 @@ export interface Reservation {
   channelType?: ChannelType
   checkIn: string
   checkOut: string
+  checkInDate?: string
+  checkOutDate?: string
   orderNumber: string
+  groupOrderNo?: string
   adults: number
   children: number
   totalAmount: number
   status: ReservationStatus
   notes?: string
+  specialRequests?: string
+  remark?: string
 }
 
 // 日常房态接口

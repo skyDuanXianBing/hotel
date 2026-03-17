@@ -280,7 +280,7 @@ public class RoomStatusShareService {
                         
                         String blurredGuestName = blurGuestName(reservationInfo.getGuestName());
                         
-                        DailyRoomStatusDTO.ReservationInfoDTO blurredInfo = 
+                        DailyRoomStatusDTO.ReservationInfoDTO blurredInfo =
                             new DailyRoomStatusDTO.ReservationInfoDTO(
                                 reservationInfo.getId(),
                                 blurredGuestName,
@@ -289,6 +289,9 @@ public class RoomStatusShareService {
                                 reservationInfo.getCheckOut(),
                                 reservationInfo.getOrderNumber()
                             );
+                        blurredInfo.setGroupOrderNo(reservationInfo.getGroupOrderNo());
+                        blurredInfo.setNotes(reservationInfo.getNotes());
+                        blurredInfo.setSpecialRequests(reservationInfo.getSpecialRequests());
                         
                         return new DailyRoomStatusDTO(
                             dailyStatus.getDate(),

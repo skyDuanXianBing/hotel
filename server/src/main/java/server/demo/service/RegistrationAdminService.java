@@ -88,6 +88,7 @@ public class RegistrationAdminService {
         AdminRegistrationDetailDTO dto = new AdminRegistrationDetailDTO();
         dto.setFormId(form.getId());
         dto.setOrderNumber(form.getOrderNumber());
+        dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
         dto.setStatus(form.getStatus());
         dto.setSubmittedAt(form.getSubmittedAt());
         dto.setApprovedAt(form.getApprovedAt());
@@ -97,6 +98,8 @@ public class RegistrationAdminService {
         dto.setGuestName(reservation.getGuestName());
         dto.setCheckInDate(reservation.getCheckInDate());
         dto.setCheckOutDate(reservation.getCheckOutDate());
+        dto.setRoomTypeName(resolveRoomTypeName(reservation));
+        dto.setRoomNumber(resolveRoomNumber(reservation));
         dto.setAdults(reservation.getAdults());
         dto.setChildren(reservation.getChildren());
 
@@ -171,6 +174,24 @@ public class RegistrationAdminService {
         dto.setMessageLogs(msgDTOs);
 
         return dto;
+    }
+
+    private static String resolveRoomTypeName(Reservation reservation) {
+        if (reservation == null || reservation.getRoom() == null || reservation.getRoom().getRoomType() == null) {
+            return "";
+        }
+        String roomTypeName = reservation.getRoom().getRoomType().getName();
+        return roomTypeName == null ? "" : roomTypeName;
+    }
+
+    private static String resolveRoomNumber(Reservation reservation) {
+        if (reservation == null) {
+            return "";
+        }
+        if (reservation.getRoom() != null && reservation.getRoom().getRoomNumber() != null) {
+            return reservation.getRoom().getRoomNumber();
+        }
+        return reservation.getOtaRoomNumber() == null ? "" : reservation.getOtaRoomNumber();
     }
 
     @Transactional

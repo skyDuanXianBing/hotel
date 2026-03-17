@@ -37,7 +37,7 @@ public class CleaningTaskAutoService {
     public CleaningTaskGenerateResult generateTasksForRange(LocalDate startDate, LocalDate endDate) {
         Long storeId = StoreContextUtils.requireStoreId();
         List<Reservation> reservations = reservationRepository
-                .findByStoreIdAndCheckInDateBetweenAndStatusIn(storeId, startDate, endDate, ACTIVE_RESERVATION_STATUSES);
+                .findByStoreIdAndCheckOutDateBetweenAndStatusIn(storeId, startDate, endDate, ACTIVE_RESERVATION_STATUSES);
 
         int processed = 0;
         int created = 0;
@@ -67,7 +67,7 @@ public class CleaningTaskAutoService {
             return deleteTasksByReservationId(reservation.getId());
         }
 
-        LocalDate taskDate = reservation.getCheckInDate();
+        LocalDate taskDate = reservation.getCheckOutDate();
         if (taskDate == null) {
             return SyncAction.SKIPPED;
         }
@@ -112,7 +112,7 @@ public class CleaningTaskAutoService {
 
     private CleaningTask buildReservationTask(Reservation reservation) {
         CleaningTask task = new CleaningTask();
-        task.setTaskDate(reservation.getCheckInDate());
+        task.setTaskDate(reservation.getCheckOutDate());
         task.setRoom(reservation.getRoom());
         task.setTaskType("checkout");
         task.setStatus("pending");

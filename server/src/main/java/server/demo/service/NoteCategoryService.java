@@ -110,6 +110,7 @@ public class NoteCategoryService {
     @Transactional
     public List<NoteCategory> updateCategoriesOrder(List<NoteCategory> categories) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
+        List<NoteCategory> toUpdate = new java.util.ArrayList<>();
 
         // 验证所有分类都属于当前门店
         for (NoteCategory category : categories) {
@@ -121,8 +122,9 @@ public class NoteCategoryService {
             }
 
             existing.setDisplayOrder(category.getDisplayOrder());
+            toUpdate.add(existing);
         }
 
-        return noteCategoryRepository.saveAll(categories);
+        return noteCategoryRepository.saveAll(toUpdate);
     }
 }

@@ -167,4 +167,8 @@ public interface ChannelPriceRepository extends JpaRepository<ChannelPrice, Long
     @Modifying
     @Query("DELETE FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.roomType.id = :roomTypeId")
     int deleteByStoreIdAndRoomTypeId(@Param("storeId") Long storeId, @Param("roomTypeId") Long roomTypeId);
+
+    @Modifying
+    @Query("DELETE FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.channel.id = :channelId")
+    int deleteByStoreIdAndChannelId(@Param("storeId") Long storeId, @Param("channelId") Long channelId);
 }

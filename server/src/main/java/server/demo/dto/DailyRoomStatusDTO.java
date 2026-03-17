@@ -93,6 +93,9 @@ public class DailyRoomStatusDTO {
         private LocalDate checkIn;
         private LocalDate checkOut;
         private String orderNumber;
+        private String groupOrderNo;
+        private String notes;
+        private String specialRequests;
 
         public ReservationInfoDTO() {}
 
@@ -152,6 +155,30 @@ public class DailyRoomStatusDTO {
 
         public void setOrderNumber(String orderNumber) {
             this.orderNumber = orderNumber;
+        }
+
+        public String getGroupOrderNo() {
+            return groupOrderNo;
+        }
+
+        public void setGroupOrderNo(String groupOrderNo) {
+            this.groupOrderNo = groupOrderNo;
+        }
+
+        public String getNotes() {
+            return notes;
+        }
+
+        public void setNotes(String notes) {
+            this.notes = notes;
+        }
+
+        public String getSpecialRequests() {
+            return specialRequests;
+        }
+
+        public void setSpecialRequests(String specialRequests) {
+            this.specialRequests = specialRequests;
         }
     }
 }

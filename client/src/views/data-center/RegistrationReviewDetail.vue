@@ -14,9 +14,11 @@
 
       <div v-else class="card">
         <div class="meta">
-          <div><b>订单号：</b>{{ detail.orderNumber }}</div>
+          <div><b>订单号：</b>{{ detail.channelOrderNumber || detail.orderNumber }}</div>
           <div><b>客人：</b>{{ detail.guestName }}</div>
           <div><b>日期：</b>{{ detail.checkInDate }} ~ {{ detail.checkOutDate }}</div>
+          <div><b>预订房型：</b>{{ detail.roomTypeName || '-' }}</div>
+          <div><b>房间号：</b>{{ detail.roomNumber || '-' }}</div>
           <div><b>状态：</b>{{ detail.status }}</div>
           <div v-if="detail.reviewNote"><b>备注：</b>{{ detail.reviewNote }}</div>
         </div>
@@ -73,7 +75,7 @@
           </el-table>
         </div>
 
-        <div class="section">
+        <div class="section" v-if="false">
           <div class="section-title">发送消息给客人</div>
           <div class="msg-grid">
             <div class="msg-row">
@@ -151,10 +153,13 @@ import axios from 'axios'
 type Detail = {
   formId: number
   orderNumber: string
+  channelOrderNumber?: string
   status: string
   guestName: string
   checkInDate: string
   checkOutDate: string
+  roomTypeName?: string
+  roomNumber?: string
   reviewNote?: string
   guests: any[]
   attachments?: Array<{ id: number; guestId?: number; type: string; originalName?: string }>

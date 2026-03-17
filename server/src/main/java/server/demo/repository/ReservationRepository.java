@@ -115,6 +115,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
                                                                     LocalDate endDate,
                                                                     Set<ReservationStatus> statuses);
 
+    List<Reservation> findByStoreIdAndCheckOutDateBetweenAndStatusIn(Long storeId,
+                                                                      LocalDate startDate,
+                                                                      LocalDate endDate,
+                                                                      Set<ReservationStatus> statuses);
+
     @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.checkOutDate >= :startDate AND r.checkOutDate <= :endDate")
     List<Reservation> findByStoreIdAndCheckOutDateBetween(@Param("storeId") Long storeId,
                                                           @Param("startDate") LocalDate startDate,
@@ -181,6 +186,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     long countTodayArrivalsByStoreId(@Param("storeId") Long storeId, @Param("date") LocalDate date);
 
     long countByStoreIdAndCheckOutDate(Long storeId, LocalDate checkOutDate);
+
+    long countByStoreIdAndChannelId(Long storeId, Long channelId);
 
     @Query("SELECT COUNT(r) FROM Reservation r WHERE r.storeId = :storeId AND " +
            "((r.createdAt >= :startOfDay AND r.createdAt < :endOfDay) OR " +

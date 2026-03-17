@@ -495,7 +495,7 @@ public class RoomStatusService {
         }
         Reservation r = reservation.get();
         String channelName = r.getChannel() != null ? r.getChannel().getName() : "未知渠道";
-        return new DailyRoomStatusDTO.ReservationInfoDTO(
+        DailyRoomStatusDTO.ReservationInfoDTO reservationInfo = new DailyRoomStatusDTO.ReservationInfoDTO(
                 r.getId(),
                 r.getGuestName(),
                 channelName,
@@ -503,6 +503,10 @@ public class RoomStatusService {
                 r.getCheckOutDate(),
                 r.getOrderNumber()
         );
+        reservationInfo.setGroupOrderNo(r.getGroupOrderNo());
+        reservationInfo.setNotes(r.getNotes());
+        reservationInfo.setSpecialRequests(r.getSpecialRequests());
+        return reservationInfo;
     }
 
     private boolean isDateToday(LocalDate date) {

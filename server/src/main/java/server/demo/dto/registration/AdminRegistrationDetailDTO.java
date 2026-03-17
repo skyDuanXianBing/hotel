@@ -9,10 +9,13 @@ import java.util.List;
 public class AdminRegistrationDetailDTO {
     private Long formId;
     private String orderNumber;
+    private String channelOrderNumber;
     private RegistrationFormStatus status;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private String guestName;
+    private String roomTypeName;
+    private String roomNumber;
     private Integer adults;
     private Integer children;
     private LocalDateTime submittedAt;
@@ -39,6 +42,14 @@ public class AdminRegistrationDetailDTO {
 
     public void setOrderNumber(String orderNumber) {
         this.orderNumber = orderNumber;
+    }
+
+    public String getChannelOrderNumber() {
+        return channelOrderNumber;
+    }
+
+    public void setChannelOrderNumber(String channelOrderNumber) {
+        this.channelOrderNumber = channelOrderNumber;
     }
 
     public RegistrationFormStatus getStatus() {
@@ -71,6 +82,22 @@ public class AdminRegistrationDetailDTO {
 
     public void setGuestName(String guestName) {
         this.guestName = guestName;
+    }
+
+    public String getRoomTypeName() {
+        return roomTypeName;
+    }
+
+    public void setRoomTypeName(String roomTypeName) {
+        this.roomTypeName = roomTypeName;
+    }
+
+    public String getRoomNumber() {
+        return roomNumber;
+    }
+
+    public void setRoomNumber(String roomNumber) {
+        this.roomNumber = roomNumber;
     }
 
     public Integer getAdults() {

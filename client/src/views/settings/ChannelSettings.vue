@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import {
@@ -13,6 +13,8 @@ import {
 
 const loading = ref(false)
 const channels = ref<ChannelDTO[]>([])
+const selectedChannelIds = ref<number[]>([])
+const selectAllChannels = ref(false)
 const showChannelDialog = ref(false)
 const channelForm = ref<CreateChannelRequest>({
   name: '',
@@ -24,6 +26,9 @@ const channelForm = ref<CreateChannelRequest>({
 })
 const editingChannelId = ref<number | null>(null)
 const isEditing = ref(false)
+const selectedCount = computed(() => selectedChannelIds.value.length)
+const enabledChannels = computed(() => channels.value.filter((channel) => channel.enabled))
+const disabledChannels = computed(() => channels.value.filter((channel) => !channel.enabled))
 
 // 预定义颜色选项
 const colorOptions = [
@@ -49,138 +54,55 @@ const typeOptions = [
   { label: '企业客户', value: 'CORPORATE' },
 ]
 
-// 获取模拟数据
-const getMockChannels = (): ChannelDTO[] => {
-  return [
-    {
-      id: 1,
-      name: '自来客',
-      code: 'DIRECT',
-      type: 'DIRECT',
-      color: '#409EFF',
-      enabled: true,
-      description: '直接预订客户',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-    {
-      id: 2,
-      name: '携程',
-      code: 'CTRIP',
-      type: 'OTA',
-      color: '#1890FF',
-      enabled: true,
-      description: '携程网',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-    {
-      id: 3,
-      name: '美团',
-      code: 'MEITUAN',
-      type: 'OTA',
-      color: '#FFB800',
-      enabled: true,
-      description: '美团',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-    {
-      id: 4,
-      name: '飞猪',
-      code: 'FLIGGY',
-      type: 'OTA',
-      color: '#FF6A00',
-      enabled: true,
-      description: '飞猪旅行',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-    {
-      id: 5,
-      name: '去哪儿',
-      code: 'QUNAR',
-      type: 'OTA',
-      color: '#00C1DE',
-      enabled: true,
-      description: '去哪儿网',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-    {
-      id: 6,
-      name: 'Booking.com',
-      code: 'BOOKING',
-      type: 'OTA',
-      color: '#003580',
-      enabled: true,
-      description: 'Booking.com',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-    {
-      id: 7,
-      name: 'Expedia',
-      code: 'EXPEDIA',
-      type: 'OTA',
-      color: '#FFE135',
-      enabled: true,
-      description: 'Expedia',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-    {
-      id: 8,
-      name: 'Agoda',
-      code: 'AGODA',
-      type: 'OTA',
-      color: '#D7A441',
-      enabled: true,
-      description: 'Agoda',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-    {
-      id: 9,
-      name: '艺龙',
-      code: 'ELONG',
-      type: 'OTA',
-      color: '#7B68EE',
-      enabled: true,
-      description: '艺龙网',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-    {
-      id: 10,
-      name: '马蜂窝',
-      code: 'MAFENGWO',
-      type: 'OTA',
-      color: '#FFD700',
-      enabled: true,
-      description: '马蜂窝',
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    },
-  ]
-}
-
 // 加载渠道列表
 const loadChannels = async () => {
   try {
     loading.value = true
     const response = (await getAllChannels()) as any
-    if (response.success) {
+    if (response.success && Array.isArray(response.data)) {
       channels.value = response.data
     } else {
-      channels.value = getMockChannels()
+      channels.value = []
+      ElMessage.error(response.message || '加载渠道失败')
     }
   } catch (error) {
     console.error('加载渠道失败:', error)
-    channels.value = getMockChannels()
+    channels.value = []
+    ElMessage.error('加载渠道失败，请检查网络或权限')
   } finally {
+    const currentIds = new Set(channels.value.map((channel) => channel.id))
+    selectedChannelIds.value = selectedChannelIds.value.filter((id) => currentIds.has(id))
+    syncSelectAllState()
     loading.value = false
   }
+}
+
+const syncSelectAllState = () => {
+  const total = channels.value.length
+  if (!total) {
+    selectAllChannels.value = false
+    return
+  }
+  selectAllChannels.value = channels.value.every((channel) => selectedChannelIds.value.includes(channel.id))
+}
+
+const handleToggleSelectAll = (checked: boolean) => {
+  if (checked) {
+    selectedChannelIds.value = channels.value.map((channel) => channel.id)
+    return
+  }
+  selectedChannelIds.value = []
+}
+
+const toggleChannelSelected = (channelId: number, checked: boolean) => {
+  if (checked) {
+    if (!selectedChannelIds.value.includes(channelId)) {
+      selectedChannelIds.value.push(channelId)
+    }
+  } else {
+    selectedChannelIds.value = selectedChannelIds.value.filter((id) => id !== channelId)
+  }
+  syncSelectAllState()
 }
 
 // 打开新增渠道对话框
@@ -248,6 +170,7 @@ const handleDeleteChannel = async (channel: ChannelDTO) => {
     loading.value = true
     const response = (await deleteChannel(channel.id)) as any
     if (response.success) {
+      selectedChannelIds.value = selectedChannelIds.value.filter((id) => id !== channel.id)
       ElMessage.success('删除成功')
       await loadChannels()
     } else {
@@ -257,6 +180,56 @@ const handleDeleteChannel = async (channel: ChannelDTO) => {
     if (error !== 'cancel') {
       console.error('删除渠道失败:', error)
       ElMessage.error('删除失败，请稍后重试')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleBatchDelete = async () => {
+  if (selectedCount.value === 0) {
+    return
+  }
+
+  const selectedChannels = channels.value.filter((channel) => selectedChannelIds.value.includes(channel.id))
+  try {
+    await ElMessageBox.confirm(`确认删除选中的 ${selectedChannels.length} 个渠道吗？`, '批量删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+
+    loading.value = true
+    const deleteResults = await Promise.allSettled(
+      selectedChannels.map(async (channel) => {
+        const response = await deleteChannel(channel.id)
+        if (!response.success) {
+          throw new Error(response.message || `删除渠道“${channel.name}”失败`)
+        }
+        return channel.name
+      })
+    )
+
+    const successCount = deleteResults.filter((item) => item.status === 'fulfilled').length
+    const failedChannels: string[] = []
+    deleteResults.forEach((item, index) => {
+      if (item.status === 'rejected') {
+        failedChannels.push(selectedChannels[index]?.name || '未知渠道')
+      }
+    })
+
+    await loadChannels()
+
+    if (failedChannels.length === 0) {
+      ElMessage.success(`批量删除成功，共删除 ${successCount} 个渠道`)
+      return
+    }
+
+    ElMessage.warning(`批量删除完成：成功 ${successCount} 个，失败 ${failedChannels.length} 个`)
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('批量删除渠道失败:', error)
+      ElMessage.error('批量删除失败，请稍后重试')
     }
   } finally {
     loading.value = false
@@ -290,6 +263,10 @@ onMounted(() => {
         </div>
       </div>
       <div class="header-right">
+        <el-checkbox v-model="selectAllChannels" @change="handleToggleSelectAll">全选</el-checkbox>
+        <el-button type="danger" plain :disabled="selectedCount === 0" @click="handleBatchDelete">
+          删除选中（{{ selectedCount }}）
+        </el-button>
         <el-button type="primary" :icon="Plus" @click="openAddDialog"> 新增渠道 </el-button>
       </div>
     </div>
@@ -301,11 +278,16 @@ onMounted(() => {
 
         <div class="channels-grid">
           <div
-            v-for="channel in channels.filter((c) => c.enabled)"
+            v-for="channel in enabledChannels"
             :key="channel.id"
             class="channel-card"
             :style="{ borderColor: channel.color }"
           >
+            <el-checkbox
+              class="channel-checkbox"
+              :model-value="selectedChannelIds.includes(channel.id)"
+              @change="(checked: boolean) => toggleChannelSelected(channel.id, checked)"
+            />
             <div class="channel-content">
               <div class="channel-color" :style="{ backgroundColor: channel.color }"></div>
               <div class="channel-name">{{ channel.name }}</div>
@@ -326,17 +308,22 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="section" v-if="channels.filter((c) => !c.enabled).length > 0">
+      <div class="section" v-if="disabledChannels.length > 0">
         <h4 class="section-title">停用渠道</h4>
         <p class="section-desc">明亮显示：可用、倾斜：禁用。不影响下单卖房。</p>
 
         <div class="channels-grid">
           <div
-            v-for="channel in channels.filter((c) => !c.enabled)"
+            v-for="channel in disabledChannels"
             :key="channel.id"
             class="channel-card disabled"
             :style="{ borderColor: channel.color }"
           >
+            <el-checkbox
+              class="channel-checkbox"
+              :model-value="selectedChannelIds.includes(channel.id)"
+              @change="(checked: boolean) => toggleChannelSelected(channel.id, checked)"
+            />
             <div class="channel-content">
               <div class="channel-color" :style="{ backgroundColor: channel.color }"></div>
               <div class="channel-name">{{ channel.name }}</div>
@@ -455,6 +442,9 @@ onMounted(() => {
 
 .header-right {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .content-area {
@@ -500,6 +490,13 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
   overflow: hidden;
+}
+
+.channel-checkbox {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
 }
 
 .channel-card:hover {

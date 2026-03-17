@@ -173,7 +173,7 @@ public class CleaningTaskController {
     }
 
     /**
-     * 补齐指定日期范围的保洁任务（基于预订入住日期）
+     * 补齐指定日期范围的保洁任务（基于预订离店日期）
      */
     @PostMapping("/generate")
     @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)

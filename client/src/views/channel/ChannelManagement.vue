@@ -29,7 +29,7 @@
         <div class="header-tabs">
           <el-tabs v-model="activeTab" @tab-click="handleTabClick">
             <el-tab-pane label="OTA渠道" name="ota"></el-tab-pane>
-            <el-tab-pane label="查看介绍" name="intro"></el-tab-pane>
+            <!--<el-tab-pane label="查看介绍" name="intro"></el-tab-pane>-->
           </el-tabs>
         </div>
       </div>

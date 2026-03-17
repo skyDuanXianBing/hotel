@@ -2,21 +2,32 @@ package server.demo.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.ChannelDTO;
 import server.demo.dto.CreateChannelRequest;
 import server.demo.entity.Channel;
 import server.demo.repository.ChannelRepository;
+import server.demo.repository.ChannelPriceRepository;
+import server.demo.repository.ReservationRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class ChannelService {
+    private static final Set<String> PROTECTED_CHANNEL_CODES = Set.of("DIRECT", "AIRBNB", "BOOKING");
 
     @Autowired
     private ChannelRepository channelRepository;
+
+    @Autowired
+    private ChannelPriceRepository channelPriceRepository;
+
+    @Autowired
+    private ReservationRepository reservationRepository;
 
     public List<ChannelDTO> getAllChannels() {
         Long storeId = StoreContextHolder.getContext().getStoreId();
@@ -77,14 +88,25 @@ public class ChannelService {
                 });
     }
 
+    @Transactional
     public boolean deleteChannel(Long id) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         Optional<Channel> channel = channelRepository.findById(id);
-        if (channel.isPresent() && channel.get().getStoreId().equals(storeId)) {
-            channelRepository.deleteById(id);
-            return true;
+        if (channel.isEmpty() || !channel.get().getStoreId().equals(storeId)) {
+            return false;
         }
-        return false;
+        if (PROTECTED_CHANNEL_CODES.contains(channel.get().getCode())) {
+            throw new RuntimeException("默认渠道不可删除");
+        }
+
+        long reservationCount = reservationRepository.countByStoreIdAndChannelId(storeId, id);
+        if (reservationCount > 0) {
+            throw new RuntimeException("该渠道已被订单引用，无法删除。请先停用渠道。");
+        }
+
+        channelPriceRepository.deleteByStoreIdAndChannelId(storeId, id);
+        channelRepository.deleteById(id);
+        return true;
     }
 
     public Optional<ChannelDTO> toggleChannelStatus(Long id, Boolean enabled) {

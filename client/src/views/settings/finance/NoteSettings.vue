@@ -183,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Check, Close, Menu, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import draggable from 'vuedraggable'
@@ -204,47 +204,16 @@ interface NoteItem {
   displayOrder: number
 }
 
-// 所有分类数据
-const allCategories = ref<NoteCategoryDTO[]>([])
-
-// 收入项数据（从所有分类中过滤）
-const incomeItems = computed(() => {
-  return allCategories.value
-    .filter((cat) => cat.type === 'income')
-    .map((cat) => ({
-      id: cat.id,
-      name: cat.name,
-      type: cat.type as 'income' | 'expense',
-      displayOrder: cat.displayOrder,
-    }))
+const mapCategoryToNoteItem = (cat: NoteCategoryDTO): NoteItem => ({
+  id: cat.id,
+  name: cat.name,
+  type: cat.type as 'income' | 'expense',
+  displayOrder: cat.displayOrder,
 })
 
-// 支出项数据（从所有分类中过滤）
-const expenseItems = computed(() => {
-  return allCategories.value
-    .filter((cat) => cat.type === 'expense')
-    .map((cat) => ({
-      id: cat.id,
-      name: cat.name,
-      type: cat.type as 'income' | 'expense',
-      displayOrder: cat.displayOrder,
-    }))
-})
-
-// 用于拖拽的本地数组
-const incomeItemsLocal = computed({
-  get: () => incomeItems.value,
-  set: () => {
-    // 拖拽时不直接修改，在 dragEnd 事件中处理
-  },
-})
-
-const expenseItemsLocal = computed({
-  get: () => expenseItems.value,
-  set: () => {
-    // 拖拽时不直接修改，在 dragEnd 事件中处理
-  },
-})
+// 用于拖拽的本地数组（可变）
+const incomeItemsLocal = ref<NoteItem[]>([])
+const expenseItemsLocal = ref<NoteItem[]>([])
 
 // 控制输入框显示
 const showIncomeInput = ref(false)
@@ -268,7 +237,14 @@ const loadCategories = async () => {
     loading.value = true
     const response = await getAllCategories()
     if (response.success) {
-      allCategories.value = response.data
+      incomeItemsLocal.value = response.data
+        .filter((cat) => cat.type === 'income')
+        .sort((a, b) => a.displayOrder - b.displayOrder)
+        .map(mapCategoryToNoteItem)
+      expenseItemsLocal.value = response.data
+        .filter((cat) => cat.type === 'expense')
+        .sort((a, b) => a.displayOrder - b.displayOrder)
+        .map(mapCategoryToNoteItem)
     } else {
       ElMessage.error(response.message || '加载分类失败')
     }
@@ -302,7 +278,7 @@ const handleSaveNewIncome = async () => {
     const response = await createCategory({
       name: newIncomeName.value,
       type: 'income' as NoteCategoryType,
-      displayOrder: incomeItems.value.length,
+      displayOrder: incomeItemsLocal.value.length,
     })
 
     if (response.success) {
@@ -343,7 +319,7 @@ const handleSaveNewExpense = async () => {
     const response = await createCategory({
       name: newExpenseName.value,
       type: 'expense' as NoteCategoryType,
-      displayOrder: expenseItems.value.length,
+      displayOrder: expenseItemsLocal.value.length,
     })
 
     if (response.success) {
@@ -450,7 +426,7 @@ const handleIncomeDragEnd = async (event: any) => {
 
   try {
     // 获取当前收入项列表
-    const items = incomeItems.value
+    const items = incomeItemsLocal.value
 
     // 更新 displayOrder
     const updatedItems = items.map((item, index) => ({
@@ -484,7 +460,7 @@ const handleExpenseDragEnd = async (event: any) => {
 
   try {
     // 获取当前支出项列表
-    const items = expenseItems.value
+    const items = expenseItemsLocal.value
 
     // 更新 displayOrder
     const updatedItems = items.map((item, index) => ({

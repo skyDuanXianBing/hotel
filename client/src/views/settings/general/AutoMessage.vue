@@ -7,7 +7,11 @@
 
     <el-table :data="messages" border stripe v-loading="loading">
       <el-table-column prop="title" label="标题" min-width="120" />
-      <el-table-column prop="message" label="消息" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="message" label="消息" min-width="200">
+        <template #default="{ row }">
+          <span class="message-cell">{{ row.message }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="automationRule" label="自动化规则" min-width="150" />
       <el-table-column prop="channel" label="渠道" min-width="120" />
       <el-table-column prop="room" label="房间" min-width="120" />
@@ -216,7 +220,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   getAllAutoMessages,
@@ -319,6 +323,8 @@ const form = reactive<AutoMessageForm>({
   enabled: true,
 })
 
+let isPopulatingForm = false
+
 // 检测消息中是否包含密码变量
 const hasPasswordVariable = computed(() => {
   const passwordVars = ['{{smartlock_passcode}}', '{{checkin_code}}']
@@ -373,6 +379,9 @@ const normalizeTimeValue = (value: string) => {
 watch(
   () => form.roomSelectionType,
   () => {
+    if (isPopulatingForm) {
+      return
+    }
     form.selectedRooms = []
   }
 )
@@ -381,11 +390,38 @@ watch(
 watch(
   () => form.action,
   () => {
+    if (isPopulatingForm) {
+      return
+    }
     form.sendTiming = ''
     form.day = ''
     form.time = ''
   }
 )
+
+const parseDayAndTime = (sendTiming: string) => {
+  if (!sendTiming || !sendTiming.startsWith('DAY_')) {
+    return null
+  }
+  const decoded = decodeURIComponent(sendTiming)
+  const exactMatch = decoded.match(/^DAY_(-?\d+)_([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/)
+  if (exactMatch) {
+    return {
+      day: exactMatch[1],
+      time: `${exactMatch[2]}:${exactMatch[3]}`,
+    }
+  }
+
+  const parts = decoded.split('_')
+  if (parts.length >= 3) {
+    const day = parts[1]
+    const time = normalizeTimeValue(parts.slice(2).join('_'))
+    if (/^-?\d+$/.test(day) && /^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+      return { day, time }
+    }
+  }
+  return null
+}
 
 const formRules: FormRules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
@@ -612,6 +648,7 @@ const handleCreate = () => {
 /** 从 DTO 填充表单 */
 const fillFormFromDTO = async (id: number) => {
   try {
+    isPopulatingForm = true
     const response = await getAllAutoMessages()
     if (response.success && response.data) {
       const dto = response.data.find((m) => m.id === id)
@@ -649,15 +686,10 @@ const fillFormFromDTO = async (id: number) => {
         form.action = dto.action || ''
         // 发送时机（入住/离店：拆分 DAY_{day}_{time}）
         if (dto.action === 'CHECK_IN' || dto.action === 'CHECK_OUT') {
-          if (dto.sendTiming && dto.sendTiming.startsWith('DAY_')) {
-            const parts = dto.sendTiming.split('_')
-            if (parts.length === 3) {
-              form.day = parts[1]
-              form.time = normalizeTimeValue(parts[2])
-            } else {
-              form.day = ''
-              form.time = ''
-            }
+          const parsed = parseDayAndTime(dto.sendTiming || '')
+          if (parsed) {
+            form.day = parsed.day
+            form.time = parsed.time
           } else {
             form.day = ''
             form.time = ''
@@ -672,6 +704,9 @@ const fillFormFromDTO = async (id: number) => {
     }
   } catch (error) {
     console.error('获取自动化消息详情失败:', error)
+  } finally {
+    await nextTick()
+    isPopulatingForm = false
   }
 }
 
@@ -869,6 +904,14 @@ onMounted(() => {
   background-color: #f5f7fa;
   color: #606266;
   font-weight: 600;
+}
+
+.message-cell {
+  display: inline-block;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* 插入变量区域样式 */

@@ -860,6 +860,75 @@ const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
 }
 
 // 初始化营业概况柱状图
+const MAX_BUSINESS_BAR_COUNT = 35
+
+const formatBusinessTrendDate = (dateText: string): string => {
+  if (!dateText) return ''
+
+  const dateParts = dateText.split('-')
+  if (dateParts.length === 3) {
+    return `${dateParts[1]}/${dateParts[2]}`
+  }
+
+  const date = new Date(dateText)
+  if (Number.isNaN(date.getTime())) {
+    return dateText
+  }
+
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${month}/${day}`
+}
+
+type BusinessTrendBarItem = {
+  label: string
+  roomFee: number
+  checkoutFee: number
+  roomServiceFee: number
+  deposit: number
+}
+
+const buildBusinessTrendBars = (
+  trend: BusinessOverviewDTO['consumptionTrend'],
+  maxBarCount = MAX_BUSINESS_BAR_COUNT
+): BusinessTrendBarItem[] => {
+  if (!trend.length) return []
+
+  const sortedTrend = [...trend].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  if (sortedTrend.length <= maxBarCount) {
+    return sortedTrend.map((item) => ({
+      label: formatBusinessTrendDate(item.date),
+      roomFee: item.roomFee || 0,
+      checkoutFee: item.checkoutFee || 0,
+      roomServiceFee: item.roomServiceFee || 0,
+      deposit: item.deposit || 0
+    }))
+  }
+
+  const bucketSize = Math.ceil(sortedTrend.length / maxBarCount)
+  const bars: BusinessTrendBarItem[] = []
+
+  for (let index = 0; index < sortedTrend.length; index += bucketSize) {
+    const bucket = sortedTrend.slice(index, index + bucketSize)
+    if (!bucket.length) continue
+
+    const startLabel = formatBusinessTrendDate(bucket[0].date)
+    const endLabel = formatBusinessTrendDate(bucket[bucket.length - 1].date)
+    const label = startLabel === endLabel ? startLabel : `${startLabel}~${endLabel}`
+
+    bars.push({
+      label,
+      roomFee: bucket.reduce((sum, item) => sum + (item.roomFee || 0), 0),
+      checkoutFee: bucket.reduce((sum, item) => sum + (item.checkoutFee || 0), 0),
+      roomServiceFee: bucket.reduce((sum, item) => sum + (item.roomServiceFee || 0), 0),
+      deposit: bucket.reduce((sum, item) => sum + (item.deposit || 0), 0)
+    })
+  }
+
+  return bars
+}
+
 const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
   if (!businessBarChart.value) return
 
@@ -870,12 +939,14 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
 
   businessBar = echarts.init(businessBarChart.value)
 
-  // 使用API数据或默认数据
-  const dates = data ? data.consumptionTrend.map(item => item.date) : []
-  const roomFeeData = data ? data.consumptionTrend.map(item => item.roomFee) : []
-  const checkoutFeeData = data ? data.consumptionTrend.map(item => item.checkoutFee) : []
-  const roomServiceData = data ? data.consumptionTrend.map(item => item.roomServiceFee) : []
-  const depositData = data ? data.consumptionTrend.map(item => item.deposit) : []
+  // 直接展示柱图，当天数过多时按日期区间聚合，避免标签拥挤
+  const barData = buildBusinessTrendBars(data?.consumptionTrend || [])
+  const dates = barData.map(item => item.label)
+  const roomFeeData = barData.map(item => item.roomFee)
+  const checkoutFeeData = barData.map(item => item.checkoutFee)
+  const roomServiceData = barData.map(item => item.roomServiceFee)
+  const depositData = barData.map(item => item.deposit)
+  const labelRotate = dates.length > 20 ? 45 : dates.length > 12 ? 30 : 0
 
   const option = {
     tooltip: {
@@ -884,7 +955,8 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
         type: 'shadow'
       },
       formatter: (params: any) => {
-        let result = params[0].axisValue + '<br/>'
+        if (!params || !params.length) return ''
+        let result = `${params[0].axisValue}<br/>`
         let total = 0
         params.forEach((item: any) => {
           result += `${item.marker}${item.seriesName}: ¥${item.value.toFixed(2)}<br/>`
@@ -910,7 +982,7 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
       data: dates,
       axisLabel: {
         interval: 0,
-        rotate: 30
+        rotate: labelRotate
       }
     },
     yAxis: {
@@ -924,6 +996,7 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
         name: '房费',
         type: 'bar',
         stack: 'total',
+        barMaxWidth: 36,
         data: roomFeeData
       },
       {
