@@ -332,6 +332,17 @@ public class RoomStatusService {
             }
         }
         List<Long> normalizedRoomIds = rooms.stream().map(Room::getId).filter(id -> id != null).toList();
+        Map<Long, Long> roomTypeIdByRoomId = rooms.stream()
+                .filter(r -> r != null && r.getId() != null && r.getRoomType() != null && r.getRoomType().getId() != null)
+                .collect(Collectors.toMap(Room::getId, r -> r.getRoomType().getId(), (a, b) -> a));
+
+        // 删除前先取出将被取消的 blockouts，用于向 PriceLabs 推送 status=canceled（删除后无法再从 DB 反查）。
+        List<RoomBlockout> toCancelBlockouts = roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(
+                storeId,
+                normalizedRoomIds,
+                startDate,
+                endDate
+        );
 
         long deleted = roomBlockoutRepository.deleteByStoreIdAndRoom_IdInAndBlockDateBetween(
                 storeId,
@@ -342,6 +353,7 @@ public class RoomStatusService {
         if (deleted > 0) {
             requestPriceLabsCalendarSyncForRoomTypes(storeId, rooms, startDate, endDate);
             schedulePriceLabsReservationsPushAfterCommit(storeId, startDate, endDate);
+            schedulePriceLabsCancelledBlockoutsPushAfterCommit(storeId, toCancelBlockouts, roomTypeIdByRoomId, LocalDate.now());
         }
         if (suAriAutoSyncService != null && deleted > 0) {
             Set<Long> roomTypeIds = rooms.stream()
@@ -544,6 +556,36 @@ public class RoomStatusService {
             } catch (Exception e) {
                 logger.warn("[PriceLabsReservations] push after blockout change failed. storeId={}, range={}~{}, error={}",
                         storeId, startDate, endDate, e.getMessage());
+            }
+        };
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
+    }
+
+    private void schedulePriceLabsCancelledBlockoutsPushAfterCommit(
+            Long storeId,
+            List<RoomBlockout> canceledBlockouts,
+            Map<Long, Long> roomTypeIdByRoomId,
+            LocalDate cancelDate
+    ) {
+        if (priceLabsReservationSyncService == null || storeId == null || canceledBlockouts == null || canceledBlockouts.isEmpty()) {
+            return;
+        }
+        Runnable task = () -> {
+            try {
+                priceLabsReservationSyncService.pushCancelledBlockouts(storeId, canceledBlockouts, roomTypeIdByRoomId, cancelDate);
+            } catch (Exception e) {
+                logger.warn("[PriceLabsReservations] push cancelled blockouts failed after blockout open. storeId={}, error={}",
+                        storeId, e.getMessage());
             }
         };
 
