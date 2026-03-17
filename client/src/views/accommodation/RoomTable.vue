@@ -171,8 +171,6 @@
           <span class="date-display" v-if="selectedDate">{{ getFormattedDateWithWeekday(selectedDate) }}</span>
         </div>
         <el-button :icon="ArrowRight" circle @click="nextPeriod" />
-        <div class="spacer"></div>
-        <el-button type="primary" @click="exportData">导出明细</el-button>
       </div>
 
       <!-- 远期房情主表格 -->
@@ -512,7 +510,182 @@ const nextPeriod = () => {
 
 // 导出数据
 const exportData = () => {
-  ElMessage.info('导出功能正在开发中...')
+  if (activeTab.value === 'daily') {
+    exportDailyRoomTable()
+    return
+  }
+  exportFutureRoomTable()
+}
+
+const escapeHtml = (value: string | number) => {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+const buildHtmlTable = (
+  title: string,
+  headers: Array<string | number>,
+  rows: Array<Array<string | number>>
+) => {
+  const headerHtml = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')
+  const rowHtml = rows
+    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
+    .join('')
+
+  return `
+    <div class="sheet-section">
+      <h3>${escapeHtml(title)}</h3>
+      <table>
+        <thead><tr>${headerHtml}</tr></thead>
+        <tbody>${rowHtml}</tbody>
+      </table>
+    </div>
+  `
+}
+
+const downloadExcelFile = (fileName: string, sections: string[]) => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; padding: 16px; }
+          h3 { margin: 0 0 10px 0; font-size: 14px; }
+          .sheet-section { margin-bottom: 20px; }
+          table { border-collapse: collapse; width: 100%; margin-bottom: 8px; }
+          th, td { border: 1px solid #dcdfe6; padding: 6px 8px; text-align: center; white-space: nowrap; }
+          th { background: #f5f7fa; font-weight: 600; }
+        </style>
+      </head>
+      <body>
+        ${sections.join('')}
+      </body>
+    </html>
+  `
+
+  const blob = new Blob([`\uFEFF${html}`], {
+    type: 'application/vnd.ms-excel;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+const exportDailyRoomTable = () => {
+  if (!roomTableData.value || tableData.value.length === 0) {
+    ElMessage.warning('暂无可导出的单日房情数据')
+    return
+  }
+
+  const headers = [
+    '房型名称',
+    '总房数',
+    '可售房',
+    '可用房',
+    '在住',
+    '在住（不含预离）',
+    '预离',
+    '预抵',
+    '保留房（关房）',
+    '维修房（关房）',
+    '停用房（关房）',
+    '链接关房（关房）',
+    '净房',
+    '脏房',
+    '预计入住率',
+    '当日取消房',
+  ]
+
+  const rows = tableData.value.map((item: RoomStatistics) => [
+    item.roomTypeName,
+    item.totalRooms,
+    item.availableForSale,
+    item.availableRooms,
+    item.occupiedRooms,
+    item.occupiedWithoutDeparture,
+    item.scheduledDeparture,
+    item.scheduledArrival,
+    item.reservedRooms,
+    item.maintenanceRooms,
+    item.outOfOrderRooms,
+    item.linkedClosedRooms,
+    item.cleanRooms,
+    item.dirtyRooms,
+    `${item.expectedOccupancyRate}%`,
+    item.dailyCancelledRooms,
+  ])
+
+  const section = buildHtmlTable(`单日房情表（${selectedDate.value}）`, headers, rows)
+  downloadExcelFile(`单日房情表_${selectedDate.value}.xls`, [section])
+  ElMessage.success('单日房情表导出成功')
+}
+
+const exportFutureRoomTable = () => {
+  if (!futureRoomTableData.value) {
+    ElMessage.warning('暂无可导出的远期房情数据')
+    return
+  }
+
+  const futureData = futureRoomTableData.value
+  const mainHeaders: Array<string | number> = ['房型', '总房数']
+  futureData.total.dates.forEach((date) => {
+    mainHeaders.push(`${date.date} 可售`, `${date.date} 占用`, `${date.date} 不可售`)
+  })
+
+  const mainRows: Array<Array<string | number>> = futureData.roomTypes.map((roomType) => {
+    const row: Array<string | number> = [roomType.roomTypeName, roomType.totalRooms]
+    roomType.dates.forEach((date) => {
+      row.push(date.available, date.occupied, date.unavailable)
+    })
+    return row
+  })
+
+  const percentageRow: Array<string | number> = ['占总房数比例', '-']
+  futureData.total.dates.forEach((date) => {
+    percentageRow.push(`${date.availableRate}%`, `${date.occupiedRate}%`, `${date.unavailableRate}%`)
+  })
+  mainRows.push(percentageRow)
+
+  const totalRow: Array<string | number> = ['合计', futureData.total.totalRooms]
+  futureData.total.dates.forEach((date) => {
+    totalRow.push(date.available, date.occupied, date.unavailable)
+  })
+  mainRows.push(totalRow)
+
+  const statsHeaders: Array<string | number> = ['指标']
+  futureData.statistics.forEach((stat) => {
+    statsHeaders.push(stat.date)
+  })
+
+  const statsRows: Array<Array<string | number>> = [
+    ['有效客房数', ...futureData.statistics.map((stat) => stat.effectiveRooms)],
+    ['入住率（预期）', ...futureData.statistics.map((stat) => `${stat.expectedOccupancyRate}%`)],
+    ['客房收入（预期）', ...futureData.statistics.map((stat) => stat.expectedRoomRevenue)],
+    ['总房费（预期）', ...futureData.statistics.map((stat) => stat.expectedTotalRoomFee)],
+    ['平均客房收益（预期）', ...futureData.statistics.map((stat) => stat.averageRoomRevenue)],
+  ]
+
+  const mainSection = buildHtmlTable(
+    `远期房情主表（${futureData.startDate} 至 ${futureData.endDate}）`,
+    mainHeaders,
+    mainRows
+  )
+  const statsSection = buildHtmlTable('远期房情统计', statsHeaders, statsRows)
+  downloadExcelFile(`远期房情表_${futureData.startDate}_${futureData.endDate}.xls`, [
+    mainSection,
+    statsSection,
+  ])
+  ElMessage.success('远期房情表导出成功')
 }
 
 // 获取格式化的日期和星期
@@ -717,10 +890,6 @@ onMounted(() => {
 
 .custom-date-picker .future-date-picker :deep(.el-input__inner)::placeholder {
   color: #a8abb2;
-}
-
-.spacer {
-  flex: 1;
 }
 
 .future-table-container {
