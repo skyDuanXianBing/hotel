@@ -9,6 +9,7 @@ import server.demo.enums.ReservationStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(
@@ -168,7 +169,9 @@ public class Reservation implements StoreScopedEntity {
     }
 
     private String generateOrderNumber() {
-        return "RSV" + System.currentTimeMillis();
+        // PriceLabs requires reservation_id unique across all listings in the PMS.
+        // Use a UUID-based order number for globally-unique reservation identifiers.
+        return "RSV" + UUID.randomUUID().toString().replace("-", "");
     }
 
     // Constructors
