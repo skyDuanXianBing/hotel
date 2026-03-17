@@ -60,14 +60,16 @@ class RoomTypeServiceDeleteRoomTypeBlockedTest {
         reservation.setStatus(ReservationStatus.CONFIRMED);
         reservation.setCheckInDate(LocalDate.now().plusDays(1));
         reservation.setCheckOutDate(LocalDate.now().plusDays(2));
+        reservation.setRoom(room);
 
         when(roomTypeRepository.findById(40L)).thenReturn(Optional.of(roomType));
         when(roomRepository.findByStoreIdAndRoomTypeId(7L, 40L)).thenReturn(List.of(room));
-        when(reservationRepository.findByStoreIdAndRoomIdAndDateRange(
+        when(reservationRepository.findByStoreIdAndRoomIdInAndDateRangeAndStatuses(
                 Mockito.eq(7L),
-                Mockito.eq(100L),
+                Mockito.eq(List.of(100L)),
                 Mockito.any(LocalDate.class),
-                Mockito.any(LocalDate.class)
+                Mockito.any(LocalDate.class),
+                Mockito.anySet()
         )).thenReturn(List.of(reservation));
 
         RoomTypeDeleteBlockedException ex = assertThrows(RoomTypeDeleteBlockedException.class, () -> service.deleteRoomType(40L));
@@ -83,4 +85,3 @@ class RoomTypeServiceDeleteRoomTypeBlockedTest {
         verify(roomRepository, never()).deleteAll(Mockito.anyList());
     }
 }
-

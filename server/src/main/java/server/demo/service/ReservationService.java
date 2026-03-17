@@ -88,6 +88,9 @@ public class ReservationService {
     @Autowired
     private PriceLabsReservationSyncService priceLabsReservationSyncService;
 
+    @Autowired(required = false)
+    private PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
+
     @Autowired
     private CleaningTaskAutoService cleaningTaskAutoService;
 
@@ -187,6 +190,12 @@ public class ReservationService {
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         scheduleAutoMessageDispatchAfterCommit(storeId);
         schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
+        schedulePriceLabsCalendarSyncForReservationAfterCommit(
+                storeId,
+                resolveRoomTypeId(savedReservation.getRoom(), savedReservation.getOtaRoomTypeId()),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         scheduleSuAvailabilitySyncForReservationAfterCommit(
                 storeId,
                 SU_ARI_SOURCE_RESERVATION_CREATE,
@@ -240,6 +249,12 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
+        schedulePriceLabsCalendarSyncForReservationAfterCommit(
+                reservation.getStoreId(),
+                resolveRoomTypeId(savedReservation.getRoom(), savedReservation.getOtaRoomTypeId()),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         scheduleSuAvailabilitySyncForReservationAfterCommit(
                 reservation.getStoreId(),
                 SU_ARI_SOURCE_RESERVATION_CHECK_IN,
@@ -274,6 +289,12 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
+        schedulePriceLabsCalendarSyncForReservationAfterCommit(
+                reservation.getStoreId(),
+                resolveRoomTypeId(savedReservation.getRoom(), savedReservation.getOtaRoomTypeId()),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         scheduleSuAvailabilitySyncForReservationAfterCommit(
                 reservation.getStoreId(),
                 SU_ARI_SOURCE_RESERVATION_CHECK_OUT,
@@ -309,6 +330,12 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
+        schedulePriceLabsCalendarSyncForReservationAfterCommit(
+                reservation.getStoreId(),
+                resolveRoomTypeId(savedReservation.getRoom(), savedReservation.getOtaRoomTypeId()),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         scheduleSuAvailabilitySyncForReservationAfterCommit(
                 reservation.getStoreId(),
                 SU_ARI_SOURCE_RESERVATION_CANCEL,
@@ -371,6 +398,49 @@ public class ReservationService {
                 }
             }
         });
+    }
+
+    /**
+     * PriceLabs 要求：预订/预留变化时，除了 /reservations，还需要同步 /calendar 的 booked_units/available_units/blocked_units。
+     * 这里按“住宿晚数（nights only）”触发日历同步：checkIn ~ (checkOut-1)。
+     */
+    private void schedulePriceLabsCalendarSyncForReservationAfterCommit(
+            Long storeId,
+            Long roomTypeId,
+            LocalDate checkInDate,
+            LocalDate checkOutDate
+    ) {
+        if (priceLabsCalendarSyncDebouncer == null || storeId == null || roomTypeId == null) {
+            return;
+        }
+        LocalDate endInclusive = resolveNightEndInclusive(checkInDate, checkOutDate);
+        if (checkInDate == null || endInclusive == null) {
+            return;
+        }
+        priceLabsCalendarSyncDebouncer.requestSyncAfterCommit(storeId, roomTypeId, checkInDate, endInclusive);
+    }
+
+    private static LocalDate resolveNightEndInclusive(LocalDate checkInDate, LocalDate checkOutDate) {
+        if (checkInDate == null || checkOutDate == null) {
+            return null;
+        }
+        if (!checkOutDate.isAfter(checkInDate)) {
+            return null;
+        }
+        return checkOutDate.minusDays(1);
+    }
+
+    private static Long resolveRoomTypeId(Room room, Long fallbackRoomTypeId) {
+        if (room != null) {
+            try {
+                if (room.getRoomType() != null && room.getRoomType().getId() != null) {
+                    return room.getRoomType().getId();
+                }
+            } catch (Exception ignored) {
+                // ignore lazy init issues; fallback below
+            }
+        }
+        return fallbackRoomTypeId;
     }
 
     private void scheduleSuAvailabilitySyncForReservationAfterCommit(
@@ -669,6 +739,19 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(existingReservation);
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);
         schedulePriceLabsReservationSyncAfterCommit(storeId, savedReservation.getId());
+        // dates/room type might change; sync both old and new ranges to keep booked_units consistent
+        schedulePriceLabsCalendarSyncForReservationAfterCommit(
+                storeId,
+                resolveRoomTypeId(oldRoom, existingReservation.getOtaRoomTypeId()),
+                oldCheckIn,
+                oldCheckOut
+        );
+        schedulePriceLabsCalendarSyncForReservationAfterCommit(
+                storeId,
+                resolveRoomTypeId(savedReservation.getRoom(), savedReservation.getOtaRoomTypeId()),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
         scheduleSuAvailabilitySyncForReservationChangeAfterCommit(
                 storeId,
                 SU_ARI_SOURCE_RESERVATION_UPDATE,
@@ -828,6 +911,19 @@ public class ReservationService {
         Reservation saved = reservationRepository.save(reservation);
         cleaningTaskAutoService.syncTaskForReservation(saved);
         schedulePriceLabsReservationSyncAfterCommit(storeId, saved.getId());
+        // assignment can shift occupancy between room types; sync old and new ranges
+        schedulePriceLabsCalendarSyncForReservationAfterCommit(
+                storeId,
+                resolveRoomTypeId(oldRoom, reservation.getOtaRoomTypeId()),
+                oldCheckIn,
+                oldCheckOut
+        );
+        schedulePriceLabsCalendarSyncForReservationAfterCommit(
+                storeId,
+                resolveRoomTypeId(saved.getRoom(), saved.getOtaRoomTypeId()),
+                saved.getCheckInDate(),
+                saved.getCheckOutDate()
+        );
         scheduleSuAvailabilitySyncForReservationChangeAfterCommit(
                 storeId,
                 SU_ARI_SOURCE_RESERVATION_UPDATE,
