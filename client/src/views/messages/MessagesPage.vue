@@ -145,15 +145,25 @@
             @keydown.enter.exact.prevent="sendMessage"
           />
           <div class="input-actions">
-            <el-button
-              type="default"
-              :icon="MagicStick"
-              :disabled="isSending || activeConversation.closed || isAiGeneratingDraft"
-              :loading="isAiGeneratingDraft"
-              @click="openAiReplyAssistant"
-            >
-              AI 回复助手
-            </el-button>
+            <div class="input-actions-left">
+              <el-button
+                type="default"
+                :icon="ChatLineSquare"
+                :disabled="isSending || !activeConversation"
+                @click="openQuickReplyDialog"
+              >
+                快捷回复
+              </el-button>
+              <el-button
+                type="default"
+                :icon="MagicStick"
+                :disabled="isSending || activeConversation.closed || isAiGeneratingDraft"
+                :loading="isAiGeneratingDraft"
+                @click="openAiReplyAssistant"
+              >
+                AI 回复助手
+              </el-button>
+            </div>
             <el-button
               type="primary"
               @click="sendMessage"
@@ -251,6 +261,53 @@
       </template>
     </el-dialog>
 
+    <el-dialog
+      v-model="quickReplyDialogVisible"
+      title="快捷回复"
+      width="820px"
+      :close-on-click-modal="false"
+    >
+      <div class="quick-reply-toolbar">
+        <el-input
+          v-model="quickReplySearchQuery"
+          placeholder="搜索快捷回复标题或内容"
+          clearable
+        />
+        <el-button :loading="quickReplyLoading" @click="loadQuickReplies">刷新</el-button>
+      </div>
+
+      <el-table
+        :data="filteredQuickReplies"
+        style="width: 100%"
+        v-loading="quickReplyLoading"
+        @row-click="handleQuickReplyPick"
+      >
+        <el-table-column prop="title" label="标题" min-width="180" />
+        <el-table-column prop="message" label="内容" min-width="420" show-overflow-tooltip />
+        <el-table-column label="操作" width="120" align="center">
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              :loading="isApplyingQuickReply"
+              :disabled="isApplyingQuickReply"
+              @click.stop="handleQuickReplyPick(row)"
+            >
+              填充
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="!quickReplyLoading && !filteredQuickReplies.length" class="quick-reply-empty">
+        暂无快捷回复（可在“设置-通用设置-快捷回复”中创建）
+      </div>
+
+      <template #footer>
+        <el-button @click="quickReplyDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
     <ReservationDetailDrawer
       v-model="showOrderDetailDrawer"
       :reservation-id="selectedReservationId"
@@ -261,7 +318,16 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { ChatDotRound, Loading, MagicStick, Refresh, Search, User, WarningFilled } from '@element-plus/icons-vue'
+import {
+  ChatDotRound,
+  ChatLineSquare,
+  Loading,
+  MagicStick,
+  Refresh,
+  Search,
+  User,
+  WarningFilled,
+} from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
   getSuThreadMessages,
@@ -272,9 +338,16 @@ import {
   type SuMessagingThreadDTO,
 } from '@/api/suMessaging'
 import { sendChatMessage } from '@/api/chat'
-import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
+import { getReservationById, getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
+import { getAllQuickReplies, type QuickReplyDTO } from '@/api/quickReply'
 import { createSuMessagingSocket, type SuMessagingRealtimeEvent } from '@/utils/suMessagingSocket'
 import ReservationDetailDrawer from '@/components/reservation/ReservationDetailDrawer.vue'
+import {
+  formatMissingQuickReplyKeys,
+  renderQuickReplyTemplate,
+  type QuickReplyTemplateContext,
+} from '@/utils/quickReplyTemplate'
+import { useStoreStore } from '@/stores/store'
 
 interface MessageItem {
   id: number
@@ -348,6 +421,14 @@ const showOrderDetailDrawer = ref(false)
 const selectedReservationId = ref<number | null>(null)
 const isResolvingReservation = ref(false)
 
+const storeStore = useStoreStore()
+
+const quickReplyDialogVisible = ref(false)
+const quickReplyLoading = ref(false)
+const quickReplies = ref<QuickReplyDTO[]>([])
+const quickReplySearchQuery = ref('')
+const isApplyingQuickReply = ref(false)
+
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
 let isDestroyed = false
@@ -369,6 +450,17 @@ const filteredConversations = computed(() => {
       (conversation.bookingId || '').toLowerCase().includes(query) ||
       (conversation.threadId || '').toLowerCase().includes(query)
     )
+  })
+})
+
+const filteredQuickReplies = computed(() => {
+  const query = quickReplySearchQuery.value.trim().toLowerCase()
+  if (!query) {
+    return quickReplies.value
+  }
+
+  return quickReplies.value.filter((item) => {
+    return (item.title || '').toLowerCase().includes(query) || (item.message || '').toLowerCase().includes(query)
   })
 })
 
@@ -1038,6 +1130,107 @@ const preloadActiveReservationId = async () => {
   }
 }
 
+const loadQuickReplies = async () => {
+  try {
+    quickReplyLoading.value = true
+    const response = (await getAllQuickReplies()) as ApiResponse<QuickReplyDTO[]>
+    if (response.success === false) {
+      throw new Error(sanitizeUserFacingMessage(response.message) || '加载快捷回复失败')
+    }
+
+    quickReplies.value = response.data || []
+  } catch (error) {
+    console.error('加载快捷回复失败:', error)
+    ElMessage.error('加载快捷回复失败')
+    quickReplies.value = []
+  } finally {
+    quickReplyLoading.value = false
+  }
+}
+
+const openQuickReplyDialog = async () => {
+  if (!activeConversation.value) {
+    ElMessage.warning('请先选择会话')
+    return
+  }
+
+  quickReplyDialogVisible.value = true
+  quickReplySearchQuery.value = ''
+
+  if (!quickReplies.value.length && !quickReplyLoading.value) {
+    await loadQuickReplies()
+  }
+}
+
+const resolveQuickReplyTemplateContext = async (): Promise<QuickReplyTemplateContext> => {
+  const conversation = activeConversation.value
+  const propertyName = conversation?.listingName || storeStore.currentStore?.name || null
+
+  let reservation: ReservationDTO | null = null
+  if (!selectedReservationId.value && conversation) {
+    await preloadActiveReservationId()
+  }
+
+  if (selectedReservationId.value) {
+    try {
+      const response = await getReservationById(selectedReservationId.value)
+      if (response.success && response.data) {
+        reservation = response.data
+      }
+    } catch (error) {
+      console.error('获取订单详情失败:', error)
+    }
+  }
+
+  return {
+    propertyName,
+    guestName: reservation?.guestName || conversation?.guestName || null,
+    guestPhone: reservation?.phone || null,
+    checkInDate: reservation?.checkInDate || null,
+    checkOutDate: reservation?.checkOutDate || null,
+    roomTypeName: reservation?.roomTypeName || null,
+    ratePlanName: reservation?.pricePlan || null,
+  }
+}
+
+const handleQuickReplyPick = async (quickReply: QuickReplyDTO) => {
+  if (!quickReply?.message) {
+    return
+  }
+  if (!activeConversation.value) {
+    ElMessage.warning('请先选择会话')
+    return
+  }
+
+  if (isApplyingQuickReply.value) {
+    return
+  }
+
+  isApplyingQuickReply.value = true
+  try {
+    const context = await resolveQuickReplyTemplateContext()
+    const { rendered, missingKeys } = renderQuickReplyTemplate(quickReply.message, context)
+
+    const trimmedExisting = newMessage.value.trim()
+    const trimmedIncoming = rendered.trim()
+    newMessage.value = trimmedExisting
+      ? `${trimmedExisting}\n\n${trimmedIncoming}`
+      : trimmedIncoming
+
+    if (missingKeys.length) {
+      ElMessage.warning(
+        `快捷回复已填充，但部分变量无法获取：${formatMissingQuickReplyKeys(missingKeys)}，已保留占位符`,
+      )
+    } else {
+      ElMessage.success('已填充快捷回复')
+    }
+
+    quickReplyDialogVisible.value = false
+  } finally {
+    isApplyingQuickReply.value = false
+  }
+}
+
 const openOrderDetail = async () => {
   if (!activeConversation.value) {
     return
@@ -1324,6 +1517,26 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   margin-top: 12px;
+}
+
+.input-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quick-reply-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.quick-reply-empty {
+  margin-top: 12px;
+  color: #909399;
+  font-size: 13px;
+  text-align: center;
 }
 
 .ai-draft-section {

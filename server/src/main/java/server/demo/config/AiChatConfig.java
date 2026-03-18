@@ -56,8 +56,13 @@ public class AiChatConfig {
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
                 .apiKey(openAiApiKey)
                 .modelName(openAiModelName)
-                .maxTokens(openAiMaxTokens)
                 .temperature(openAiTemperature);
+
+        // GPT-5 系列在 chat/completions 下不支持 legacy 参数 max_tokens。
+        // 这里对 GPT-5 跳过 maxTokens，避免 400 unsupported_parameter。
+        if (supportsLegacyMaxTokens(openAiModelName) && openAiMaxTokens != null) {
+            builder.maxTokens(openAiMaxTokens);
+        }
 
         if (hasText(openAiBaseUrl)) {
             builder.baseUrl(openAiBaseUrl);
@@ -77,5 +82,12 @@ public class AiChatConfig {
 
     private static boolean hasText(String value) {
         return value != null && !value.trim().isEmpty() && !value.startsWith("#{");
+    }
+
+    private static boolean supportsLegacyMaxTokens(String modelName) {
+        if (!hasText(modelName)) {
+            return true;
+        }
+        return !modelName.trim().toLowerCase().startsWith("gpt-5");
     }
 }

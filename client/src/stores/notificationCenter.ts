@@ -126,8 +126,18 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     popupController.value.addNotification(notification)
   }
 
-  const playAudio = async (type: PopupNotificationType) => {
-    const primarySrc = type === 'order' ? '/sounds/order-notification.mp3' : '/sounds/chat-notification.mp3'
+  const resolveAudioSrc = (type: PopupNotificationType, title?: string) => {
+    if (type === 'order') {
+      if (title && title.includes('取消')) {
+        return '/sounds/cancel.mp3'
+      }
+      return '/sounds/order-notification.mp3'
+    }
+    return '/sounds/chat-notification.mp3'
+  }
+
+  const playAudio = async (type: PopupNotificationType, title?: string) => {
+    const primarySrc = resolveAudioSrc(type, title)
     const fallbackSrc = '/sounds/order-notification.mp3'
     const fallbackEnabled = type === 'message'
 
@@ -168,7 +178,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     }
 
     if (settings.value.orderSound) {
-      void playAudio('order')
+      void playAudio('order', notification.title)
     }
   }
 

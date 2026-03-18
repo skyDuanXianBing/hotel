@@ -583,6 +583,35 @@
                   <span class="price" v-else>¥ {{ bookingForm.totalAmount.toFixed(2) || '0.00' }}</span>
                   <el-button link>入住</el-button>
                 </div>
+                <div class="manual-price-row">
+                  <el-switch
+                    v-model="isManualPrice"
+                    active-text="手动改价"
+                    inactive-text="自动计算"
+                  />
+                  <el-select
+                    v-if="pricePlanOptions.length > 0"
+                    v-model="selectedPricePlanId"
+                    placeholder="请选择"
+                    style="width: 180px"
+                  >
+                    <el-option
+                      v-for="plan in pricePlanOptions"
+                      :key="plan.id"
+                      :label="plan.name"
+                      :value="plan.id"
+                    />
+                  </el-select>
+                  <el-input-number
+                    v-model="bookingForm.totalAmount"
+                    :min="0"
+                    :precision="2"
+                    :step="100"
+                    :disabled="!isManualPrice"
+                    controls-position="right"
+                    style="width: 180px"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1832,6 +1861,7 @@ import type { CalendarRoomData, DailyRoomStatus } from '@/types/room'
 import { request } from '@/utils/request'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRoomTypeByRoomId, getRoomCurrentPrice, getEffectiveRoomPrice, type RoomTypeDTO } from '@/api/roomType'
+import { getPricePlansByRoomType, type RoomTypePricePlanDTO } from '@/api/pricePlan'
 import { calculateTotalPriceByDates } from '@/utils/priceHelper'
 import { createConsumption, getConsumptionsByReservationId, deleteConsumption, getTotalConsumption, type ConsumptionDTO } from '@/api/consumption'
 import { createPayment, getPaymentsByReservationId, deletePayment, getTotalPayment, type PaymentDTO } from '@/api/payment'
@@ -2293,6 +2323,7 @@ const bookingForm = ref({
   adults: 1,
   children: 0,
   totalAmount: 0,
+  pricePlan: '',
   notes: '',
   hasSpecialColor: false,
 })
@@ -2412,6 +2443,24 @@ const loadPaymentMethodOptions = async () => {
 // 当前选中房间的房型信息
 const currentRoomType = ref<RoomTypeDTO | null>(null)
 const isLoadingPrice = ref(false)
+const isManualPrice = ref(false)
+const roomTypePricePlanMappings = ref<RoomTypePricePlanDTO[]>([])
+const selectedPricePlanId = ref<number | null>(null)
+
+const pricePlanOptions = computed(() => {
+  const unique = new Map<number, { id: number; name: string }>()
+  roomTypePricePlanMappings.value.forEach((mapping) => {
+    const planId = mapping.pricePlan?.id
+    if (!planId || unique.has(planId)) {
+      return
+    }
+    unique.set(planId, {
+      id: planId,
+      name: mapping.pricePlan?.name || `计划${planId}`,
+    })
+  })
+  return Array.from(unique.values())
+})
 
 // 悬停信息卡片
 const showHoverCard = ref(false)
@@ -3682,6 +3731,7 @@ const submitBooking = async () => {
       adults: bookingForm.value.adults || 1,
       children: bookingForm.value.children || 0,
       totalAmount: parseFloat(String(bookingForm.value.totalAmount || 100.0)),
+      pricePlan: bookingForm.value.pricePlan || undefined,
       channelOrderNumber: bookingForm.value.notes, // 临时将notes作为渠道订单号
       notes: bookingForm.value.notes,
       directCheckIn: bookingMode.value === 'check-in' ? true : false,
@@ -3807,6 +3857,7 @@ const submitBooking = async () => {
 
 // 重置预订表单
 const resetBookingForm = () => {
+  isManualPrice.value = false
   // 重置为新建模式
   bookingMode.value = 'create'
 
@@ -3824,9 +3875,13 @@ const resetBookingForm = () => {
     adults: 1,
     children: 0,
     totalAmount: 0,
+    pricePlan: '',
     notes: '',
     hasSpecialColor: false,
   }
+
+  selectedPricePlanId.value = null
+  roomTypePricePlanMappings.value = []
 
   // 清空收款和消费记录
   paymentItems.value = []
@@ -3835,6 +3890,7 @@ const resetBookingForm = () => {
 
 // 处理修改订单
 const handleModifyOrder = () => {
+  isManualPrice.value = false
   if (!selectedReservation.value) {
     ElMessage.warning('未找到订单信息')
     return
@@ -3857,6 +3913,7 @@ const handleModifyOrder = () => {
     roomNumber: selectedReservation.value.roomNumber || selectedRoom.value?.roomNumber || '',
     roomTypeName: selectedReservation.value.roomTypeName || selectedRoom.value?.roomType || '',
     totalAmount: selectedReservation.value.totalAmount || 100,
+    pricePlan: selectedReservation.value.pricePlan || '',
     adults: (selectedReservation.value as any).adults || 1,
     children: (selectedReservation.value as any).children || 0,
     notes: selectedReservation.value.notes || '',
@@ -3865,6 +3922,9 @@ const handleModifyOrder = () => {
 
   // 显示统一的预订侧边栏（编辑模式）
   showBookingSidebar.value = true
+  if (bookingForm.value.roomId) {
+    fetchRoomTypePrice(bookingForm.value.roomId)
+  }
 }
 
 // 打开添加消费侧边栏
@@ -4328,6 +4388,7 @@ const fetchRoomTypePrice = async (roomId: number) => {
     
     if (response.success) {
       currentRoomType.value = response.data
+      await loadRoomTypePricePlans(response.data.id)
       updateBookingPrice()
     } else {
       console.error('获取房型价格失败:', response.message)
@@ -4341,8 +4402,96 @@ const fetchRoomTypePrice = async (roomId: number) => {
   }
 }
 
+const loadRoomTypePricePlans = async (roomTypeId: number) => {
+  const previousPricePlanName = bookingForm.value.pricePlan
+  roomTypePricePlanMappings.value = []
+  selectedPricePlanId.value = null
+
+  if (!roomTypeId) {
+    bookingForm.value.pricePlan = ''
+    return
+  }
+
+  try {
+    const res = (await getPricePlansByRoomType(roomTypeId)) as unknown as {
+      success?: boolean
+      data?: RoomTypePricePlanDTO[]
+    }
+    const mappings = Array.isArray(res?.data) ? res.data : []
+    roomTypePricePlanMappings.value = mappings
+
+    if (!mappings.length) {
+      bookingForm.value.pricePlan = ''
+      return
+    }
+
+    const matched = mappings.find(
+      (item) => item.pricePlan?.name && item.pricePlan.name === previousPricePlanName
+    )
+    selectedPricePlanId.value = matched?.pricePlan?.id || mappings[0].pricePlan?.id || null
+
+    const selected = pricePlanOptions.value.find((item) => item.id === selectedPricePlanId.value)
+    bookingForm.value.pricePlan = selected?.name || ''
+  } catch (error) {
+    console.error('加载房型价格计划失败:', error)
+    roomTypePricePlanMappings.value = []
+    selectedPricePlanId.value = null
+    bookingForm.value.pricePlan = ''
+  }
+}
+
+const resolvePlanPriceByDate = (mapping: RoomTypePricePlanDTO, date: Date): number => {
+  const dayOfWeek = date.getDay()
+  switch (dayOfWeek) {
+    case 1:
+      return Number(mapping.mondayPrice || 0)
+    case 2:
+      return Number(mapping.tuesdayPrice || 0)
+    case 3:
+      return Number(mapping.wednesdayPrice || 0)
+    case 4:
+      return Number(mapping.thursdayPrice || 0)
+    case 5:
+      return Number(mapping.fridayPrice || 0)
+    case 6:
+      return Number(mapping.saturdayPrice || 0)
+    case 0:
+      return Number(mapping.sundayPrice || 0)
+    default:
+      return 0
+  }
+}
+
+const calculateTotalPriceByPlan = (
+  mapping: RoomTypePricePlanDTO,
+  checkInDate: string,
+  checkOutDate: string
+): number => {
+  const checkIn = new Date(checkInDate)
+  const checkOut = new Date(checkOutDate)
+  let currentDate = new Date(checkIn)
+  let total = 0
+
+  while (currentDate < checkOut) {
+    total += resolvePlanPriceByDate(mapping, currentDate)
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  return total
+}
+
+const normalizeBookingTotalAmount = () => {
+  const amount = Number(bookingForm.value.totalAmount)
+  bookingForm.value.totalAmount = Number.isFinite(amount) && amount >= 0 ? amount : 0
+}
+
 // 更新预订价格
 const updateBookingPrice = async () => {
+  if (isManualPrice.value) {
+    normalizeBookingTotalAmount()
+    return
+  }
+
   if (!currentRoomType.value || !bookingForm.value.checkInDate || !bookingForm.value.checkOutDate) {
     bookingForm.value.totalAmount = 0
     return
@@ -4359,6 +4508,18 @@ const updateBookingPrice = async () => {
 
   try {
     isLoadingPrice.value = true
+
+    const selectedPlanMapping = roomTypePricePlanMappings.value.find(
+      (item) => item.pricePlan?.id === selectedPricePlanId.value
+    )
+    if (selectedPlanMapping) {
+      bookingForm.value.totalAmount = calculateTotalPriceByPlan(
+        selectedPlanMapping,
+        bookingForm.value.checkInDate,
+        bookingForm.value.checkOutDate
+      )
+      return
+    }
 
     // 直接使用基于星期的价格计算方式
     console.log('当前房型价格信息:', {
@@ -5022,6 +5183,37 @@ watch(
     }
   }
 )
+
+// 监听价格计划选择变化，联动价格和提交字段
+watch(selectedPricePlanId, (newPlanId) => {
+  const selected = pricePlanOptions.value.find((item) => item.id === newPlanId)
+  bookingForm.value.pricePlan = selected?.name || ''
+  if (!isManualPrice.value) {
+    updateBookingPrice()
+  }
+})
+
+// 监听手动改价开关，切回自动时按房型/价格计划重算
+watch(isManualPrice, (manual) => {
+  if (manual) {
+    normalizeBookingTotalAmount()
+    return
+  }
+  if (currentRoomType.value) {
+    updateBookingPrice()
+  }
+})
+
+// 侧边栏关闭时清理价格计划状态，避免下次打开带入旧值
+watch(showBookingSidebar, (visible) => {
+  if (visible) {
+    return
+  }
+  isManualPrice.value = false
+  selectedPricePlanId.value = null
+  roomTypePricePlanMappings.value = []
+  bookingForm.value.pricePlan = ''
+})
 
 // 生命周期
 onMounted(async () => {
@@ -5746,6 +5938,14 @@ onActivated(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.manual-price-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
 }
 
 .price {
