@@ -948,7 +948,13 @@ public class PriceLabsSyncService {
         }
 
         LocalDate endExclusive = end.plusDays(1);
-        Set<ReservationStatus> statuses = EnumSet.of(ReservationStatus.CONFIRMED, ReservationStatus.REQUESTED, ReservationStatus.CHECKED_IN);
+        // PriceLabs /calendar.booked_units should represent booked reservations only.
+        // REQUESTED is mapped to "unconfirmed" in /reservations and should not inflate booked_units.
+        Set<ReservationStatus> statuses = EnumSet.of(
+                ReservationStatus.CONFIRMED,
+                ReservationStatus.CHECKED_IN,
+                ReservationStatus.CHECKED_OUT
+        );
 
         List<ReservationRepository.ReservationOccupancyRow> rows = reservationRepository
                 .findOccupancyRowsByStoreIdAndDateRangeAndStatuses(storeId, start, endExclusive, statuses);
