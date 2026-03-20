@@ -33,6 +33,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
@@ -43,6 +44,8 @@ import java.util.stream.Collectors;
 public class RoomTypeService {
 
     private static final Logger logger = LoggerFactory.getLogger(RoomTypeService.class);
+
+    public record RoomInput(String roomNumber, String smartlockPasscode) {}
 
     @Autowired
     private RoomTypeRepository roomTypeRepository;
@@ -226,6 +229,10 @@ public class RoomTypeService {
     }
 
     public RoomType createRoomTypeWithRooms(RoomType roomType, List<String> roomNumbers) {
+        return createRoomTypeWithRoomInputs(roomType, toRoomInputs(roomNumbers));
+    }
+
+    public RoomType createRoomTypeWithRoomInputs(RoomType roomType, List<RoomInput> rooms) {
         Long storeId = currentStoreId();
         Long userId = currentUserId();
 
@@ -239,11 +246,10 @@ public class RoomTypeService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (roomNumbers != null && !roomNumbers.isEmpty()) {
-            for (String roomNumber : roomNumbers) {
-                if (roomRepository.existsByStoreIdAndRoomNumber(storeId, roomNumber)) {
-                    throw new RuntimeException("Room number " + roomNumber + " already exists");
-                }
+        Map<String, String> passcodeByRoomNumber = normalizeRoomInputs(rooms);
+        for (String roomNumber : passcodeByRoomNumber.keySet()) {
+            if (roomRepository.existsByStoreIdAndRoomNumber(storeId, roomNumber)) {
+                throw new RuntimeException("Room number " + roomNumber + " already exists");
             }
         }
 
@@ -252,18 +258,57 @@ public class RoomTypeService {
         applyOptionalRoomTypeFields(roomType, roomType);
         RoomType savedRoomType = roomTypeRepository.save(roomType);
 
-        if (roomNumbers != null && !roomNumbers.isEmpty()) {
-            for (String roomNumber : roomNumbers) {
-                Room room = new Room(roomNumber, savedRoomType, null);
-                room.setStatus(RoomStatus.AVAILABLE);
-                room.setUserId(userId);
-                room.setStoreId(storeId);
-                roomRepository.save(room);
-            }
+        for (Map.Entry<String, String> entry : passcodeByRoomNumber.entrySet()) {
+            Room room = new Room(entry.getKey(), savedRoomType, null);
+            room.setSmartlockPasscode(entry.getValue());
+            room.setStatus(RoomStatus.AVAILABLE);
+            room.setUserId(userId);
+            room.setStoreId(storeId);
+            roomRepository.save(room);
         }
 
         syncRoomTypeToSuIfEnabled(savedRoomType);
         return savedRoomType;
+    }
+
+    private static List<RoomInput> toRoomInputs(List<String> roomNumbers) {
+        if (roomNumbers == null || roomNumbers.isEmpty()) {
+            return List.of();
+        }
+        return roomNumbers.stream()
+                .map(roomNumber -> new RoomInput(roomNumber, null))
+                .toList();
+    }
+
+    private static String normalizeOptionalPasscode(String rawPasscode) {
+        if (rawPasscode == null) {
+            return null;
+        }
+        String trimmed = rawPasscode.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static Map<String, String> normalizeRoomInputs(List<RoomInput> rooms) {
+        Map<String, String> passcodeByRoomNumber = new java.util.LinkedHashMap<>();
+        if (rooms == null) {
+            return passcodeByRoomNumber;
+        }
+
+        for (RoomInput input : rooms) {
+            if (input == null) {
+                continue;
+            }
+            String roomNumber = input.roomNumber() != null ? input.roomNumber().trim() : "";
+            if (roomNumber.isEmpty()) {
+                continue;
+            }
+            if (passcodeByRoomNumber.containsKey(roomNumber)) {
+                throw new RuntimeException("Duplicate room number " + roomNumber);
+            }
+            passcodeByRoomNumber.put(roomNumber, normalizeOptionalPasscode(input.smartlockPasscode()));
+        }
+
+        return passcodeByRoomNumber;
     }
 
     private String ensureUniqueRoomTypeCode(Long storeId, String rawCode) {
@@ -437,10 +482,19 @@ public class RoomTypeService {
     }
 
     public RoomType updateRoomTypeWithRooms(Long id, RoomType roomType, List<String> roomNumbers) {
+        return updateRoomTypeWithRoomsInternal(id, roomType, toRoomInputs(roomNumbers), false);
+    }
+
+    public RoomType updateRoomTypeWithRoomInputs(Long id, RoomType roomType, List<RoomInput> rooms) {
+        return updateRoomTypeWithRoomsInternal(id, roomType, rooms, true);
+    }
+
+    private RoomType updateRoomTypeWithRoomsInternal(Long id, RoomType roomType, List<RoomInput> rooms, boolean applyPasscodes) {
         Long storeId = currentStoreId();
         RoomType savedRoomType = updateRoomType(id, roomType);
 
-        if (roomNumbers != null) {
+        Map<String, String> passcodeByRoomNumber = normalizeRoomInputs(rooms);
+        if (!passcodeByRoomNumber.isEmpty()) {
             List<Room> existingRooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, id);
 
             List<String> existingRoomNumbers = existingRooms.stream()
@@ -448,12 +502,12 @@ public class RoomTypeService {
                     .collect(Collectors.toList());
 
             List<Room> roomsToDelete = existingRooms.stream()
-                    .filter(room -> !roomNumbers.contains(room.getRoomNumber()))
+                    .filter(room -> !passcodeByRoomNumber.containsKey(room.getRoomNumber()))
                     .collect(java.util.stream.Collectors.toList());
 
             roomRepository.deleteAll(roomsToDelete);
 
-            List<String> roomNumbersToAdd = roomNumbers.stream()
+            List<String> roomNumbersToAdd = passcodeByRoomNumber.keySet().stream()
                     .filter(roomNumber -> !existingRoomNumbers.contains(roomNumber))
                     .collect(Collectors.toList());
 
@@ -466,10 +520,32 @@ public class RoomTypeService {
             Long userId = currentUserId();
             for (String roomNumber : roomNumbersToAdd) {
                 Room room = new Room(roomNumber, savedRoomType, null);
+                if (applyPasscodes) {
+                    room.setSmartlockPasscode(passcodeByRoomNumber.get(roomNumber));
+                }
                 room.setStatus(RoomStatus.AVAILABLE);
                 room.setUserId(userId);
                 room.setStoreId(storeId);
                 roomRepository.save(room);
+            }
+
+            if (applyPasscodes) {
+                for (Room existingRoom : existingRooms) {
+                    String roomNumber = existingRoom.getRoomNumber();
+                    if (!passcodeByRoomNumber.containsKey(roomNumber)) {
+                        continue;
+                    }
+                    String desired = passcodeByRoomNumber.get(roomNumber);
+                    String current = existingRoom.getSmartlockPasscode();
+                    if (desired == null && current == null) {
+                        continue;
+                    }
+                    if (desired != null && desired.equals(current)) {
+                        continue;
+                    }
+                    existingRoom.setSmartlockPasscode(desired);
+                    roomRepository.save(existingRoom);
+                }
             }
         }
 

@@ -23,6 +23,7 @@ import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.AutoMessageSendLogRepository;
 import server.demo.repository.RoomGroupMemberRepository;
+import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
@@ -59,6 +60,7 @@ public class SuBusinessAutoMessageService {
     private final AutoMessageSendLogRepository sendLogRepository;
     private final StoreRepository storeRepository;
     private final RoomTypeRepository roomTypeRepository;
+    private final RoomRepository roomRepository;
     private final RoomGroupMemberRepository roomGroupMemberRepository;
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
@@ -74,6 +76,7 @@ public class SuBusinessAutoMessageService {
             AutoMessageSendLogRepository sendLogRepository,
             StoreRepository storeRepository,
             RoomTypeRepository roomTypeRepository,
+            RoomRepository roomRepository,
             RoomGroupMemberRepository roomGroupMemberRepository,
             SuMessageThreadRepository threadRepository,
             SuMessageRepository messageRepository,
@@ -88,6 +91,7 @@ public class SuBusinessAutoMessageService {
         this.sendLogRepository = sendLogRepository;
         this.storeRepository = storeRepository;
         this.roomTypeRepository = roomTypeRepository;
+        this.roomRepository = roomRepository;
         this.roomGroupMemberRepository = roomGroupMemberRepository;
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
@@ -518,10 +522,36 @@ public class SuBusinessAutoMessageService {
 
         vars.put("number_of_nights", resolveNights(reservation));
         vars.put("checkin_code", "");
-        vars.put("smartlock_passcode", "");
+        vars.put("smartlock_passcode", resolveSmartlockPasscode(reservation));
         vars.put("room_number", resolveRoomNumber(reservation));
 
         return vars;
+    }
+
+    private String resolveSmartlockPasscode(Reservation reservation) {
+        if (reservation == null) {
+            return "";
+        }
+
+        Room room = reservation.getRoom();
+        if (room != null) {
+            return nullToEmpty(room.getSmartlockPasscode());
+        }
+
+        Long storeId = reservation.getStoreId();
+        if (storeId == null) {
+            return "";
+        }
+        String roomNumber = reservation.getOtaRoomNumber();
+        if (roomNumber == null || roomNumber.isBlank()) {
+            return "";
+        }
+
+        return roomRepository
+                .findByStoreIdAndRoomNumber(storeId, roomNumber.trim())
+                .map(Room::getSmartlockPasscode)
+                .map(SuBusinessAutoMessageService::nullToEmpty)
+                .orElse("");
     }
 
     private String buildRegistrationLink(Reservation reservation) {

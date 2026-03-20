@@ -46,10 +46,33 @@ public class CreateRoomTypeRequest {
 
     @Size(min = 1, message = "至少需要一个房间号")
     private List<String> roomNumbers;
+    private List<RoomInput> rooms;
     private List<FacilityDTO> facilities;
     private List<String> desktopPhotoUrls;
     private List<String> mobilePhotoUrls;
     private Map<String, LocalizedContentDTO> localizedContent;
+
+    public static class RoomInput {
+        @NotBlank(message = "Room number cannot be blank")
+        private String roomNumber;
+        private String smartlockPasscode;
+
+        public String getRoomNumber() {
+            return roomNumber;
+        }
+
+        public void setRoomNumber(String roomNumber) {
+            this.roomNumber = roomNumber;
+        }
+
+        public String getSmartlockPasscode() {
+            return smartlockPasscode;
+        }
+
+        public void setSmartlockPasscode(String smartlockPasscode) {
+            this.smartlockPasscode = smartlockPasscode;
+        }
+    }
 
     public String getName() {
         return name;
@@ -217,6 +240,14 @@ public class CreateRoomTypeRequest {
 
     public void setRoomNumbers(List<String> roomNumbers) {
         this.roomNumbers = roomNumbers;
+    }
+
+    public List<RoomInput> getRooms() {
+        return rooms;
+    }
+
+    public void setRooms(List<RoomInput> rooms) {
+        this.rooms = rooms;
     }
 
     public List<FacilityDTO> getFacilities() {

@@ -1865,6 +1865,8 @@ import { request } from '@/utils/request'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRoomTypeByRoomId, getRoomCurrentPrice, getEffectiveRoomPrice, type RoomTypeDTO } from '@/api/roomType'
 import { getPricePlansByRoomType, type RoomTypePricePlanDTO } from '@/api/pricePlan'
+import { getSortOrderMap } from '@/api/sortConfig'
+import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO, type RoomGroupMemberDTO } from '@/api/roomGroup'
 import { calculateTotalPriceByDates } from '@/utils/priceHelper'
 import { createConsumption, getConsumptionsByReservationId, deleteConsumption, getTotalConsumption, type ConsumptionDTO } from '@/api/consumption'
 import { createPayment, getPaymentsByReservationId, deletePayment, getTotalPayment, type PaymentDTO } from '@/api/payment'
@@ -2485,6 +2487,12 @@ const filterOptions = ref({
   roomTypes: [] as string[],
   selectedRoomTypes: [] as string[],
 })
+const DEFAULT_SORT_ORDER = 999999
+const roomTypeIdMap = ref<Map<string, number>>(new Map())
+const roomTypeSortOrderMap = ref<Record<number, number>>({})
+const roomSortOrderMap = ref<Record<number, number>>({})
+const roomGroupSortOrderMap = ref<Record<number, number>>({})
+const roomToGroupSortOrderMap = ref<Map<number, number>>(new Map())
 
 // 批量操作相关
 const showBatchDialog = ref(false)
@@ -2560,6 +2568,131 @@ const roomExtraStatus = ref<
 // 房间号脏房状态（整个房间的脏房状态）
 const roomNumberDirtyStatus = ref<Map<number, boolean>>(new Map())
 
+const getRoomTypeSortOrder = (roomTypeName: string) => {
+  const roomTypeId = roomTypeIdMap.value.get(roomTypeName)
+  if (!roomTypeId) {
+    return DEFAULT_SORT_ORDER
+  }
+  return roomTypeSortOrderMap.value[roomTypeId] ?? DEFAULT_SORT_ORDER
+}
+
+const getRoomSortOrder = (roomId: number) => {
+  return roomSortOrderMap.value[roomId] ?? DEFAULT_SORT_ORDER
+}
+
+const getRoomGroupSortOrder = (roomId: number) => {
+  return roomToGroupSortOrderMap.value.get(roomId) ?? DEFAULT_SORT_ORDER
+}
+
+const sortCalendarRooms = (rooms: CalendarRoomData[]) => {
+  return [...rooms].sort((a, b) => {
+    const roomGroupOrderDiff = getRoomGroupSortOrder(a.roomId) - getRoomGroupSortOrder(b.roomId)
+    if (roomGroupOrderDiff !== 0) {
+      return roomGroupOrderDiff
+    }
+
+    const roomTypeOrderDiff = getRoomTypeSortOrder(a.roomType) - getRoomTypeSortOrder(b.roomType)
+    if (roomTypeOrderDiff !== 0) {
+      return roomTypeOrderDiff
+    }
+
+    const roomOrderDiff = getRoomSortOrder(a.roomId) - getRoomSortOrder(b.roomId)
+    if (roomOrderDiff !== 0) {
+      return roomOrderDiff
+    }
+
+    const roomTypeNameDiff = a.roomType.localeCompare(b.roomType, 'zh-CN')
+    if (roomTypeNameDiff !== 0) {
+      return roomTypeNameDiff
+    }
+    return a.roomNumber.localeCompare(b.roomNumber, 'zh-CN')
+  })
+}
+
+const applyCalendarRoomSorting = () => {
+  if (!calendarData.value.rooms || calendarData.value.rooms.length === 0) {
+    return
+  }
+  calendarData.value.rooms = sortCalendarRooms(calendarData.value.rooms)
+}
+
+const loadSortOrderMaps = async () => {
+  if (!userStore.currentUser?.id) {
+    roomTypeSortOrderMap.value = {}
+    roomSortOrderMap.value = {}
+    roomGroupSortOrderMap.value = {}
+    roomToGroupSortOrderMap.value = new Map()
+    return
+  }
+
+  try {
+    const [roomTypeSortResponse, roomSortResponse, roomGroupSortResponse] = await Promise.all([
+      getSortOrderMap(userStore.currentUser.id, 'ROOM_TYPE'),
+      getSortOrderMap(userStore.currentUser.id, 'ROOM'),
+      getSortOrderMap(userStore.currentUser.id, 'GROUP'),
+    ])
+
+    roomTypeSortOrderMap.value =
+      roomTypeSortResponse.success && roomTypeSortResponse.data ? roomTypeSortResponse.data : {}
+    roomSortOrderMap.value = roomSortResponse.success && roomSortResponse.data ? roomSortResponse.data : {}
+    roomGroupSortOrderMap.value =
+      roomGroupSortResponse.success && roomGroupSortResponse.data ? roomGroupSortResponse.data : {}
+
+    const roomToGroupSortOrder = new Map<number, number>()
+    const roomGroupsResponse = await getAllRoomGroups()
+    if (roomGroupsResponse.success && Array.isArray(roomGroupsResponse.data) && roomGroupsResponse.data.length > 0) {
+      const roomGroups = roomGroupsResponse.data.filter(
+        (group: RoomGroupDTO) => typeof group.id === 'number',
+      ) as Array<RoomGroupDTO & { id: number }>
+
+      const groupMemberPairs = await Promise.all(
+        roomGroups.map(async (group) => {
+          try {
+            const membersResponse = await getGroupMembers(group.id)
+            if (!membersResponse.success || !Array.isArray(membersResponse.data)) {
+              return {
+                groupId: group.id,
+                members: [] as RoomGroupMemberDTO[],
+              }
+            }
+            return {
+              groupId: group.id,
+              members: membersResponse.data,
+            }
+          } catch (error) {
+            console.error(`加载分组成员失败, groupId=${group.id}:`, error)
+            return {
+              groupId: group.id,
+              members: [] as RoomGroupMemberDTO[],
+            }
+          }
+        }),
+      )
+
+      groupMemberPairs.forEach(({ groupId, members }) => {
+        const currentGroupSortOrder = roomGroupSortOrderMap.value[groupId] ?? DEFAULT_SORT_ORDER
+        members.forEach((member) => {
+          const roomId = Number(member.roomId)
+          if (!roomId) {
+            return
+          }
+          const previousSortOrder = roomToGroupSortOrder.get(roomId)
+          if (previousSortOrder === undefined || currentGroupSortOrder < previousSortOrder) {
+            roomToGroupSortOrder.set(roomId, currentGroupSortOrder)
+          }
+        })
+      })
+    }
+    roomToGroupSortOrderMap.value = roomToGroupSortOrder
+  } catch (error) {
+    console.error('加载排序配置失败:', error)
+    roomTypeSortOrderMap.value = {}
+    roomSortOrderMap.value = {}
+    roomGroupSortOrderMap.value = {}
+    roomToGroupSortOrderMap.value = new Map()
+  }
+}
+
 const batchAllRooms = computed<BatchRoomItem[]>(() => {
   const roomMap = new Map<number, BatchRoomItem>()
   filteredRooms.value.forEach((room) => {
@@ -2569,12 +2702,7 @@ const batchAllRooms = computed<BatchRoomItem[]>(() => {
       roomType: room.roomType,
     })
   })
-  return Array.from(roomMap.values()).sort((a, b) => {
-    if (a.roomType === b.roomType) {
-      return a.roomNumber.localeCompare(b.roomNumber, 'zh-CN')
-    }
-    return a.roomType.localeCompare(b.roomType, 'zh-CN')
-  })
+  return Array.from(roomMap.values())
 })
 
 const batchRoomsByType = computed(() => {
@@ -2884,11 +3012,15 @@ const isNoShowStatus = (status: string) => {
 }
 
 const loadCalendarData = async () => {
+  await loadSortOrderMaps()
+
   // 加载房型数据
   await loadRoomTypesData()
 
   // 加载真实的房态日历数据
   await loadRoomStatusCalendarData()
+
+  applyCalendarRoomSorting()
 
   // 初始化筛选选项
   initFilterOptions()
@@ -2945,6 +3077,7 @@ const loadRoomStatusCalendarData = async () => {
       // 只有在返回的房间数据不为空时才覆盖
       if (transformedData.rooms && transformedData.rooms.length > 0) {
         calendarData.value = transformedData
+        applyCalendarRoomSorting()
 
         // 同步后端落库的关房信息到 UI overlay（roomExtraStatus）
         transformedData.rooms.forEach((room) => {
@@ -2992,8 +3125,12 @@ const loadRoomTypesData = async () => {
       // 将房型数据转换为房态日历格式
       const roomsData: any[] = []
       let roomIdCounter = 1
+      const nextRoomTypeIdMap = new Map<string, number>()
 
       response.data.forEach((roomType: any) => {
+        if (roomType?.name && roomType?.id) {
+          nextRoomTypeIdMap.set(roomType.name, Number(roomType.id))
+        }
         if (roomType.rooms && roomType.rooms.length > 0) {
           roomType.rooms.forEach((room: any) => {
             // 生成日期状态数据
@@ -3013,7 +3150,7 @@ const loadRoomTypesData = async () => {
             }
 
             roomsData.push({
-              roomId: roomIdCounter++,
+              roomId: room?.id ? Number(room.id) : roomIdCounter++,
               roomNumber: room.roomNumber,
               roomType: roomType.name,
               dailyStatus,
@@ -3021,6 +3158,7 @@ const loadRoomTypesData = async () => {
           })
         }
       })
+      roomTypeIdMap.value = nextRoomTypeIdMap
 
       // 更新房态数据
       calendarData.value = {
@@ -3030,6 +3168,7 @@ const loadRoomTypesData = async () => {
         },
         rooms: roomsData,
       }
+      applyCalendarRoomSorting()
 
       console.log('加载房型数据成功，生成房间数:', roomsData.length)
     } else {
@@ -3048,7 +3187,7 @@ const initFilterOptions = () => {
   // 获取所有房型
   console.log('initFilterOptions - calendarData.value.rooms:', calendarData.value.rooms)
   console.log('initFilterOptions - rooms数量:', calendarData.value.rooms?.length)
-  const roomTypes = [...new Set(calendarData.value.rooms.map((room) => room.roomType))]
+  const roomTypes = [...new Set(sortCalendarRooms(calendarData.value.rooms).map((room) => room.roomType))]
   console.log('initFilterOptions - 提取的房型:', roomTypes)
   filterOptions.value.roomTypes = roomTypes
   filterOptions.value.selectedRoomTypes = [...roomTypes] // 默认全选
@@ -3084,14 +3223,14 @@ const filteredRooms = computed(() => {
 
   if (filterOptions.value.selectedRoomTypes.length === 0) {
     console.log('filteredRooms computed - selectedRoomTypes为空,返回所有房间')
-    return calendarData.value.rooms
+    return sortCalendarRooms(calendarData.value.rooms)
   }
 
   const filtered = calendarData.value.rooms.filter((room) =>
     filterOptions.value.selectedRoomTypes.includes(room.roomType),
   )
   console.log('filteredRooms computed - 筛选后房间数量:', filtered.length)
-  return filtered
+  return sortCalendarRooms(filtered)
 })
 
 // 批量操作相关方法

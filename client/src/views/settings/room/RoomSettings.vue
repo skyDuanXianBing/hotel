@@ -177,24 +177,30 @@
           <div class="field-hint">审核通过后，此链接将显示给客人</div>
         </el-form-item>
 
-        <el-form-item label="房间号">
+        <el-form-item label="房间号 / 房间密码">
           <div class="room-numbers-container">
             <div
-              v-if="formData.roomNumbers.length === 0"
+              v-if="formData.rooms.length === 0"
               class="empty-room-hint"
             >
               房间删除后,将不对关联的订单也将无法操作"撤销退房"和"恢复预订"。
             </div>
             <div class="room-numbers-list">
               <div
-                v-for="(_, index) in formData.roomNumbers"
+                v-for="(_, index) in formData.rooms"
                 :key="index"
                 class="room-number-item"
               >
                 <el-input
-                  v-model="formData.roomNumbers[index]"
+                  v-model="formData.rooms[index].roomNumber"
                   placeholder="请输入房间号"
                   class="room-number-input"
+                />
+                <el-input
+                  v-model="formData.rooms[index].smartlockPasscode"
+                  placeholder="房间密码（可选）"
+                  class="room-passcode-input"
+                  clearable
                 />
                 <el-button
                   type="danger"
@@ -254,7 +260,7 @@ interface RoomTypeData {
   saturdayPrice: number
   sundayPrice: number
   roomCount: number
-  roomNumbers: string[]
+  rooms: Array<{ roomNumber: string; smartlockPasscode: string }>
   checkInGuideLink?: string
 }
 
@@ -292,7 +298,7 @@ const formData = ref<RoomTypeData>({
   saturdayPrice: 28000,
   sundayPrice: 25000,
   roomCount: 1,
-  roomNumbers: [],
+  rooms: [],
   checkInGuideLink: ''
 })
 
@@ -328,13 +334,13 @@ const normalizeCheckInGuideLink = (rawLink?: string): string | undefined => {
 
 // 添加新房间号
 const addNewRoom = () => {
-  formData.value.roomNumbers.push('')
+  formData.value.rooms.push({ roomNumber: '', smartlockPasscode: '' })
 }
 
 // 删除房间号
 const removeRoom = (index: number) => {
-  if (formData.value.roomNumbers.length > 0) {
-    formData.value.roomNumbers.splice(index, 1)
+  if (formData.value.rooms.length > 0) {
+    formData.value.rooms.splice(index, 1)
   }
 }
 
@@ -342,24 +348,24 @@ const removeRoom = (index: number) => {
 watch(
   () => formData.value.roomCount,
   (newCount) => {
-    const currentLength = formData.value.roomNumbers.length
+    const currentLength = formData.value.rooms.length
 
     if (newCount > currentLength) {
       // 增加房间号输入框
       const roomsToAdd = newCount - currentLength
       for (let i = 0; i < roomsToAdd; i++) {
-        formData.value.roomNumbers.push('')
+        formData.value.rooms.push({ roomNumber: '', smartlockPasscode: '' })
       }
     } else if (newCount < currentLength) {
       // 减少房间号输入框
-      formData.value.roomNumbers = formData.value.roomNumbers.slice(0, newCount)
+      formData.value.rooms = formData.value.rooms.slice(0, newCount)
     }
   },
 )
 
 // 监听房间号数组变化,同步更新房间数量
 watch(
-  () => formData.value.roomNumbers.length,
+  () => formData.value.rooms.length,
   (newLength) => {
     formData.value.roomCount = newLength
   },
@@ -413,7 +419,12 @@ const loadRoomTypes = async () => {
       // 将后端数据转换为前端格式
       roomTypeList.value = response.data.map((item: any) => {
         // 从rooms数组中提取房间号
-        const roomNumbers = item.rooms ? item.rooms.map((room: any) => room.roomNumber) : []
+        const rooms = item.rooms
+          ? item.rooms.map((room: any) => ({
+              roomNumber: room.roomNumber ?? '',
+              smartlockPasscode: room.smartlockPasscode ?? '',
+            }))
+          : []
 
         console.log(`📊 房型 ${item.name} 的价格数据:`, {
           原始数据: {
@@ -445,8 +456,8 @@ const loadRoomTypes = async () => {
           fridayPrice: item.fridayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
           saturdayPrice: item.saturdayPrice ?? item.weekendPrice ?? item.defaultPrice ?? 0,
           sundayPrice: item.sundayPrice ?? item.weekendPrice ?? item.defaultPrice ?? 0,
-          roomCount: item.totalRooms || roomNumbers.length,
-          roomNumbers: roomNumbers, // 从rooms数组提取房间号
+          roomCount: item.totalRooms || rooms.length,
+          rooms: rooms,
         }
 
         console.log(`✅ 转换后的价格数据:`, {
@@ -496,7 +507,7 @@ const handleAdd = () => {
     saturdayPrice: 28000,
     sundayPrice: 25000,
     roomCount: 1,
-    roomNumbers: [''], // 初始化至少一个空输入框
+    rooms: [{ roomNumber: '', smartlockPasscode: '' }],
     checkInGuideLink: ''
   }
   showDialog.value = true
@@ -510,7 +521,7 @@ const handleEdit = (row: RoomTypeData) => {
   // 深拷贝数据,确保数组也是新的引用
   formData.value = {
     ...row,
-    roomNumbers: row.roomNumbers && row.roomNumbers.length > 0 ? [...row.roomNumbers] : [''],
+    rooms: row.rooms && row.rooms.length > 0 ? row.rooms.map(r => ({ ...r })) : [{ roomNumber: '', smartlockPasscode: '' }],
     checkInGuideLink: row.checkInGuideLink || ''
   }
 
@@ -524,8 +535,8 @@ const handleViewDetails = (row: RoomTypeData) => {
 }
 
 // 排序
-const handleSort = (row: RoomTypeData) => {
-  ElMessage.info(`排序: ${row.name}`)
+const handleSort = (_row?: RoomTypeData) => {
+  router.push('/settings/room/room-sort')
 }
 
 // 删除
@@ -607,9 +618,14 @@ const handleSave = async () => {
   }
 
   // 过滤掉空的房间号
-  const validRoomNumbers = formData.value.roomNumbers
-    .map(num => (num || '').trim())
-    .filter(num => num.length > 0)
+  const validRooms = formData.value.rooms
+    .map(item => ({
+      roomNumber: (item.roomNumber || '').trim(),
+      smartlockPasscode: (item.smartlockPasscode || '').trim(),
+    }))
+    .filter(item => item.roomNumber.length > 0)
+
+  const validRoomNumbers = validRooms.map(item => item.roomNumber)
 
   if (validRoomNumbers.length === 0) {
     ElMessage.warning('请至少输入一个房间号')
@@ -633,7 +649,7 @@ const handleSave = async () => {
     for (const rt of roomTypeList.value) {
       // 编辑时允许与自己原有房间号重复
       if (isEdit.value && formData.value.id && rt.id === formData.value.id) continue
-      for (const rn of rt.roomNumbers || []) {
+      for (const rn of (rt.rooms || []).map(r => r.roomNumber) || []) {
         const normalized = (rn || '').trim()
         if (normalized) {
           occupiedRoomNumberToRoomType.set(normalized, rt)
@@ -674,7 +690,8 @@ const handleSave = async () => {
       fridayPrice: formData.value.fridayPrice,
       saturdayPrice: formData.value.saturdayPrice,
       sundayPrice: formData.value.sundayPrice,
-      roomNumbers: validRoomNumbers, // 添加房间号列表
+      rooms: validRooms,
+      roomNumbers: validRoomNumbers,
     }
 
     console.log('💾 准备保存的数据:', requestData)
@@ -899,6 +916,11 @@ onMounted(() => {
 }
 
 .room-number-input {
+  flex: 1;
+  max-width: 400px;
+}
+
+.room-passcode-input {
   flex: 1;
   max-width: 400px;
 }
