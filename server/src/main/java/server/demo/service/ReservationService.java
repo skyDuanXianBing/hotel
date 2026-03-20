@@ -287,6 +287,7 @@ public class ReservationService {
         reservation.setActualCheckOut(LocalDateTime.now());
 
         Reservation savedReservation = reservationRepository.save(reservation);
+        cleaningTaskAutoService.ensureCheckoutTaskForReservation(savedReservation);
         scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
         schedulePriceLabsReservationSyncAfterCommit(reservation.getStoreId(), savedReservation.getId());
         schedulePriceLabsCalendarSyncForReservationAfterCommit(

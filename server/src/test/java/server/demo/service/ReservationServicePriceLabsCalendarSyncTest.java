@@ -14,6 +14,7 @@ import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.User;
+import server.demo.enums.ReservationStatus;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
@@ -109,5 +110,41 @@ class ReservationServicePriceLabsCalendarSyncTest {
                 eq(LocalDate.of(2026, 3, 17)),
                 eq(LocalDate.of(2026, 3, 18))
         );
+    }
+
+    @Test
+    void checkOut_shouldEnsureCheckoutCleaningTask() {
+        StoreContextHolder.setContext(new StoreContext(7L, 25L, "ADMIN"));
+
+        RoomType roomType = new RoomType();
+        roomType.setId(45L);
+        roomType.setName("RT");
+
+        Room room = new Room();
+        room.setId(100L);
+        room.setStoreId(25L);
+        room.setRoomNumber("101");
+        room.setRoomType(roomType);
+
+        Reservation reservation = new Reservation();
+        reservation.setId(999L);
+        reservation.setStoreId(25L);
+        reservation.setRoom(room);
+        Channel channel = new Channel();
+        channel.setId(1L);
+        channel.setName("渠道A");
+        reservation.setChannel(channel);
+        reservation.setGuestName("测试客人");
+        reservation.setStatus(ReservationStatus.CHECKED_IN);
+        reservation.setCheckInDate(LocalDate.of(2026, 3, 17));
+        reservation.setCheckOutDate(LocalDate.of(2026, 3, 19));
+
+        when(reservationRepository.findById(999L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(roomTypeRepository.findById(45L)).thenReturn(Optional.of(roomType));
+
+        reservationService.checkOut(999L);
+
+        verify(cleaningTaskAutoService).ensureCheckoutTaskForReservation(any(Reservation.class));
     }
 }

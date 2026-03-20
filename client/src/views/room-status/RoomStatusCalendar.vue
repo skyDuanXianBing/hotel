@@ -168,6 +168,9 @@
                   `status-${dailyStatus.status.toLowerCase()}`,
                   {
                     'batch-selected': isCellSelected(roomData.roomId, dailyStatus.date),
+                    'multi-selection-start-cell': isSelectedStartCell(roomData.roomId, dailyStatus.date),
+                    'multi-selection-middle-cell': isSelectedMiddleCell(roomData.roomId, dailyStatus.date),
+                    'multi-selection-end-cell': isSelectedEndCell(roomData.roomId, dailyStatus.date),
                     'has-reservation': !!dailyStatus.reservation && !isRoomCollapsed,
                     'reservation-start-cell': isReservationStartCell(dailyStatus),
                     'reservation-middle-cell': isReservationMiddleCell(dailyStatus),
@@ -2496,6 +2499,8 @@ const dragSelectionStartDate = ref('')
 const dragSelectionEndDate = ref('')
 const dragSelectionRoom = ref<CalendarRoomData | null>(null)
 const dragSelectionTriggerRect = ref<DOMRect | null>(null)
+const dragSelectionOriginCells = ref<Set<string>>(new Set())
+const dragSelectionMoved = ref(false)
 const suppressNextCellClick = ref(false)
 
 type BatchActionType = 'dirty' | 'clean' | 'close' | 'open' | ''
@@ -3116,8 +3121,7 @@ const handleBatchRoomCommand = (command: string) => {
 
 // 检查是否被选中
 const isCellSelected = (roomId: number, date: string) => {
-  const cellKey = `${roomId}-${date}`
-  return selectedCells.value.has(cellKey)
+  return selectedCells.value.has(getCellKey(roomId, date))
 }
 
 const normalizeDateOnly = (value: string) => (value ? value.split('T')[0] : '')
@@ -3147,6 +3151,57 @@ const addDays = (date: string, days: number) => {
 
 const getCellKey = (roomId: number, date: string) => `${roomId}-${date}`
 
+const parseCellKey = (cellKey: string) => {
+  const [roomIdText, ...dateParts] = cellKey.split('-')
+  return {
+    roomId: Number(roomIdText),
+    date: dateParts.join('-'),
+  }
+}
+
+const getSelectedDatesByRoomId = (roomId: number) => {
+  const selectedDates: string[] = []
+  selectedCells.value.forEach((cellKey) => {
+    const parsed = parseCellKey(cellKey)
+    if (parsed.roomId === roomId && parsed.date) {
+      selectedDates.push(parsed.date)
+    }
+  })
+  return selectedDates.sort()
+}
+
+const isDatesContinuous = (dates: string[]) => {
+  if (dates.length <= 1) return true
+  for (let index = 1; index < dates.length; index += 1) {
+    if (addDays(dates[index - 1], 1) !== dates[index]) {
+      return false
+    }
+  }
+  return true
+}
+
+const isSelectionContinuousForRoom = (roomId: number) => {
+  return isDatesContinuous(getSelectedDatesByRoomId(roomId))
+}
+
+const isSelectedStartCell = (roomId: number, date: string) => {
+  if (!isCellSelected(roomId, date)) return false
+  return !isCellSelected(roomId, addDays(date, -1))
+}
+
+const isSelectedEndCell = (roomId: number, date: string) => {
+  if (!isCellSelected(roomId, date)) return false
+  return !isCellSelected(roomId, addDays(date, 1))
+}
+
+const isSelectedMiddleCell = (roomId: number, date: string) => {
+  return (
+    isCellSelected(roomId, date) &&
+    !isSelectedStartCell(roomId, date) &&
+    !isSelectedEndCell(roomId, date)
+  )
+}
+
 const clearDragSelection = () => {
   if (batchMode.value) return
   selectedCells.value.clear()
@@ -3156,6 +3211,8 @@ const clearDragSelection = () => {
   dragSelectionEndDate.value = ''
   dragSelectionRoom.value = null
   dragSelectionTriggerRect.value = null
+  dragSelectionOriginCells.value = new Set()
+  dragSelectionMoved.value = false
 }
 
 const canDragCreateReservation = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
@@ -3202,6 +3259,8 @@ const beginDragSelection = (
   closeAllPopups()
   quickActionDateRange.value = null
   isDraggingCellSelection.value = true
+  dragSelectionMoved.value = false
+  dragSelectionOriginCells.value = new Set(selectedCells.value)
   dragSelectionRoomId.value = roomData.roomId
   dragSelectionRoom.value = roomData
   dragSelectionStartDate.value = dailyStatus.date
@@ -3218,6 +3277,9 @@ const updateDragSelection = (
   if (!isDraggingCellSelection.value) return
   if (dragSelectionRoomId.value !== roomData.roomId) return
 
+  if (dailyStatus.date !== dragSelectionEndDate.value) {
+    dragSelectionMoved.value = true
+  }
   dragSelectionTriggerRect.value = (event.currentTarget as HTMLElement).getBoundingClientRect()
   updateDragSelectionRange(roomData, dragSelectionStartDate.value || dailyStatus.date, dailyStatus.date)
 }
@@ -3237,12 +3299,53 @@ const finishDragSelection = () => {
     return
   }
 
+  // 单点不拖动：支持逐格追加/取消选择（同一房间）
+  if (!dragSelectionMoved.value) {
+    const roomId = dragSelectionRoomId.value
+    if (roomId === null) {
+      clearDragSelection()
+      return
+    }
+    const clickedDate = dragSelectionStartDate.value
+    const baseSet = new Set(dragSelectionOriginCells.value)
+    const clickedCellKey = getCellKey(roomId, clickedDate)
+
+    if (baseSet.size > 0) {
+      const selectedRoomIds = new Set<number>()
+      baseSet.forEach((cellKey) => {
+        selectedRoomIds.add(parseCellKey(cellKey).roomId)
+      })
+      if (selectedRoomIds.size !== 1 || !selectedRoomIds.has(roomId)) {
+        baseSet.clear()
+      }
+    }
+
+    if (baseSet.has(clickedCellKey)) {
+      baseSet.delete(clickedCellKey)
+    } else {
+      baseSet.add(clickedCellKey)
+    }
+
+    selectedCells.value = baseSet
+    if (selectedCells.value.size === 0) {
+      clearDragSelection()
+      return
+    }
+
+    const selectedDates = getSelectedDatesByRoomId(roomId)
+    dragSelectionStartDate.value = selectedDates[0] || ''
+    dragSelectionEndDate.value = selectedDates[selectedDates.length - 1] || ''
+  }
+
   quickActionRoom.value = dragSelectionRoom.value
   quickActionDate.value = dragSelectionStartDate.value
-  quickActionDateRange.value = {
-    startDate: dragSelectionStartDate.value,
-    endDate: dragSelectionEndDate.value,
-  }
+  quickActionDateRange.value =
+    dragSelectionStartDate.value && dragSelectionEndDate.value
+      ? {
+          startDate: dragSelectionStartDate.value,
+          endDate: dragSelectionEndDate.value,
+        }
+      : null
   showQuickActions.value = true
   suppressNextCellClick.value = true
 
@@ -3252,6 +3355,9 @@ const finishDragSelection = () => {
       updateQuickActionPopupPosition(triggerRect)
     })
   }
+
+  dragSelectionOriginCells.value = new Set()
+  dragSelectionMoved.value = false
 }
 
 const onCellMouseDown = (
@@ -4654,9 +4760,20 @@ const updateQuickActionPopupPosition = (triggerRect: DOMRect) => {
   }
 }
 
+const ensureContinuousQuickActionSelection = () => {
+  if (!quickActionRoom.value) return true
+  if (selectedCells.value.size <= 1) return true
+  if (isSelectionContinuousForRoom(quickActionRoom.value.roomId)) return true
+
+  ElMessage.warning('当前点选包含不连续日期，请补齐中间日期或改用拖动连续选择')
+  return false
+}
+
 // 修改快速操作处理
 const handleQuickAction = (action: string) => {
   if (action === 'book') {
+    if (!ensureContinuousQuickActionSelection()) return
+
     // 设置为创建模式
     bookingMode.value = 'create'
 
@@ -4682,6 +4799,8 @@ const handleQuickAction = (action: string) => {
     // 直接入住操作
     handleDirectCheckIn()
   } else if (action === 'close') {
+    if (!ensureContinuousQuickActionSelection()) return
+
     // 打开关房弹窗
     const closeStartDate = quickActionDateRange.value?.startDate || quickActionDate.value
     const closeEndDate = quickActionDateRange.value?.endDate || quickActionDate.value
@@ -5488,16 +5607,29 @@ onActivated(async () => {
 .status-cell.has-reservation {
   background: #f7e1cc;
   border-color: #e6b78b;
+  padding: 0;
+  overflow: hidden;
 }
 
 .status-cell.reservation-middle-cell,
 .status-cell.reservation-end-cell {
   border-left-color: transparent;
+  border-left-width: 0;
+}
+
+.status-cell.reservation-start-cell,
+.status-cell.reservation-middle-cell {
+  border-right-color: transparent;
+  border-right-width: 0;
 }
 
 .status-cell.reservation-start-cell {
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
+}
+
+.status-cell.reservation-middle-cell {
+  border-radius: 0;
 }
 
 .status-cell.reservation-end-cell {
@@ -5519,17 +5651,30 @@ onActivated(async () => {
   text-align: left;
   width: 100%;
   height: 100%;
+  display: flex;
+  align-items: stretch;
 }
 
 .reservation-ribbon {
   width: 100%;
-  min-height: 64px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.25);
+  min-height: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 6px 8px;
+}
+
+.status-cell.reservation-start-cell .reservation-ribbon {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.status-cell.reservation-end-cell .reservation-ribbon {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
 }
 
 .reservation-note-indicator {
@@ -6358,24 +6503,43 @@ onActivated(async () => {
 }
 
 /* 批量选择效果样式 */
-.batch-selected {
-  border: 2px solid #ff4d4f !important;
-  position: relative;
+.status-cell.batch-selected {
+  background: #b7c8f4 !important;
+  border-color: #8ca8eb !important;
+  z-index: 5;
+}
+
+.status-cell.batch-selected:hover {
+  background: #a9bef3 !important;
+}
+
+.status-cell.multi-selection-middle-cell,
+.status-cell.multi-selection-end-cell {
+  border-left-color: transparent !important;
+}
+
+.status-cell.multi-selection-start-cell {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.status-cell.multi-selection-end-cell {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
 }
 
 .batch-selected-icon {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  background: #ff4d4f;
-  color: white;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  z-index: 8;
+  pointer-events: none;
 }
 
 /* 批量操作弹窗样式 */

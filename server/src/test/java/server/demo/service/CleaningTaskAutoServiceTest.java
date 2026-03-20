@@ -137,6 +137,42 @@ class CleaningTaskAutoServiceTest {
         verify(cleaningTaskRepository).deleteAll(any(List.class));
     }
 
+    @Test
+    void ensureCheckoutTaskForReservation_shouldCreateTaskWhenCheckedOut() {
+        CleaningTaskRepository cleaningTaskRepository = Mockito.mock(CleaningTaskRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+
+        CleaningTaskAutoService service = new CleaningTaskAutoService();
+        inject(service, "cleaningTaskRepository", cleaningTaskRepository);
+        inject(service, "reservationRepository", reservationRepository);
+
+        Reservation reservation = new Reservation();
+        reservation.setId(44L);
+        reservation.setStatus(ReservationStatus.CHECKED_OUT);
+        reservation.setCheckOutDate(LocalDate.of(2025, 4, 9));
+
+        Room room = new Room();
+        room.setId(404L);
+        reservation.setRoom(room);
+
+        when(cleaningTaskRepository.findByReservationId(44L)).thenReturn(Collections.emptyList());
+
+        CleaningTaskAutoService.SyncAction action = service.ensureCheckoutTaskForReservation(reservation);
+
+        assertEquals(CleaningTaskAutoService.SyncAction.CREATED, action);
+
+        ArgumentCaptor<CleaningTask> captor = ArgumentCaptor.forClass(CleaningTask.class);
+        verify(cleaningTaskRepository).save(captor.capture());
+
+        CleaningTask saved = captor.getValue();
+        assertEquals(LocalDate.of(2025, 4, 9), saved.getTaskDate());
+        assertEquals(room, saved.getRoom());
+        assertEquals("checkout", saved.getTaskType());
+        assertEquals("pending", saved.getStatus());
+        assertEquals(44L, saved.getReservationId());
+        assertEquals("reservation", saved.getSource());
+    }
+
     private static void inject(Object target, String fieldName, Object value) {
         try {
             Field f = target.getClass().getDeclaredField(fieldName);
