@@ -3434,7 +3434,9 @@ const finishDragSelection = () => {
   }
 
   if (selectedCells.value.size === 0) {
+    closeAllPopups()
     clearDragSelection()
+    suppressNextCellClick.value = true
     return
   }
 
@@ -3467,7 +3469,9 @@ const finishDragSelection = () => {
 
     selectedCells.value = baseSet
     if (selectedCells.value.size === 0) {
+      closeAllPopups()
       clearDragSelection()
+      suppressNextCellClick.value = true
       return
     }
 
@@ -4820,6 +4824,17 @@ const onCellClick = (
     } else {
       selectedCells.value.add(cellKey)
     }
+    return
+  }
+
+  // 兜底：点击已选中的空白格子时，直接取消该格子选中
+  const clickedCellKey = getCellKey(roomData.roomId, dailyStatus.date)
+  if (selectedCells.value.has(clickedCellKey)) {
+    selectedCells.value.delete(clickedCellKey)
+    if (selectedCells.value.size === 0) {
+      clearDragSelection()
+    }
+    closeAllPopups()
     return
   }
 
