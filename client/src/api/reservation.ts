@@ -13,6 +13,7 @@ export interface CreateReservationRequest {
   adults: number
   children?: number
   totalAmount: number
+  pricePlan?: string
   channelOrderNumber?: string
   notes?: string
   directCheckIn?: boolean // 是否直接入住

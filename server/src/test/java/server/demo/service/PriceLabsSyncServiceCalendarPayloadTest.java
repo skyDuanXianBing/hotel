@@ -9,6 +9,7 @@ import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
 import server.demo.entity.Store;
+import server.demo.enums.ReservationStatus;
 import server.demo.repository.PriceLabsIntegrationRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomPriceRepository;
@@ -24,7 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -112,6 +115,21 @@ class PriceLabsSyncServiceCalendarPayloadTest {
         service.syncListingRatePlanAndCalendar(7L, roomType, selectedPlan, PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS);
 
         verify(apiClient).pushCalendar(any());
+
+        org.mockito.ArgumentCaptor<java.util.Set> statusesCaptor = org.mockito.ArgumentCaptor.forClass(java.util.Set.class);
+        verify(reservationRepository, atLeastOnce()).findOccupancyRowsByStoreIdAndDateRangeAndStatuses(
+                eq(7L),
+                any(),
+                any(),
+                statusesCaptor.capture()
+        );
+        @SuppressWarnings("unchecked")
+        java.util.Set<ReservationStatus> statuses = (java.util.Set<ReservationStatus>) statusesCaptor.getValue();
+        assertTrue(statuses.contains(ReservationStatus.CONFIRMED));
+        assertTrue(statuses.contains(ReservationStatus.CHECKED_IN));
+        assertTrue(statuses.contains(ReservationStatus.CHECKED_OUT));
+        assertTrue(!statuses.contains(ReservationStatus.REQUESTED));
+
         List<PriceLabsApiClient.CalendarData> pushedCalendars = calendarCaptor.getValue();
         assertNotNull(pushedCalendars);
         assertEquals(1, pushedCalendars.size());

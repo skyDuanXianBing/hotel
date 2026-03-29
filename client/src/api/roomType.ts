@@ -87,6 +87,7 @@ export interface CreateRoomTypeRequest {
   saturdayPrice?: number
   sundayPrice?: number
   roomNumbers?: string[]
+  rooms?: Array<{ roomNumber: string; smartlockPasscode?: string }>
   facilities?: FacilityDTO[]
   desktopPhotoUrls?: string[]
   mobilePhotoUrls?: string[]

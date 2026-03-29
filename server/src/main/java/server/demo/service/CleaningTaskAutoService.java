@@ -72,9 +72,27 @@ public class CleaningTaskAutoService {
             return SyncAction.SKIPPED;
         }
 
+        return upsertReservationTask(reservation, taskDate);
+    }
+
+    /**
+     * 退房场景兜底：即使订单状态已变更为 CHECKED_OUT，也确保退房日有任务。
+     */
+    @Transactional
+    public SyncAction ensureCheckoutTaskForReservation(Reservation reservation) {
+        if (reservation == null || reservation.getId() == null) {
+            return SyncAction.SKIPPED;
+        }
+        if (reservation.getRoom() == null || reservation.getCheckOutDate() == null) {
+            return SyncAction.SKIPPED;
+        }
+        return upsertReservationTask(reservation, reservation.getCheckOutDate());
+    }
+
+    private SyncAction upsertReservationTask(Reservation reservation, LocalDate taskDate) {
         List<CleaningTask> tasks = cleaningTaskRepository.findByReservationId(reservation.getId());
         if (tasks.isEmpty()) {
-            CleaningTask task = buildReservationTask(reservation);
+            CleaningTask task = buildReservationTask(reservation, taskDate);
             cleaningTaskRepository.save(task);
             return SyncAction.CREATED;
         }
@@ -110,9 +128,9 @@ public class CleaningTaskAutoService {
         return cleaningTaskRepository.markExpiredTasks(storeId, today, EXPIRE_STATUSES);
     }
 
-    private CleaningTask buildReservationTask(Reservation reservation) {
+    private CleaningTask buildReservationTask(Reservation reservation, LocalDate taskDate) {
         CleaningTask task = new CleaningTask();
-        task.setTaskDate(reservation.getCheckOutDate());
+        task.setTaskDate(taskDate);
         task.setRoom(reservation.getRoom());
         task.setTaskType("checkout");
         task.setStatus("pending");

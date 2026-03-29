@@ -11,6 +11,7 @@ import server.demo.dto.RoomTypeWithRoomsDTO;
 import server.demo.entity.RoomType;
 import server.demo.service.RoomTypeService;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -20,6 +21,37 @@ public class RoomTypeController extends BaseStoreController {
 
     @Autowired
     private RoomTypeService roomTypeService;
+
+    private static List<RoomTypeService.RoomInput> resolveRoomInputs(CreateRoomTypeRequest request) {
+        if (request == null) {
+            return List.of();
+        }
+
+        List<RoomTypeService.RoomInput> resolved = new ArrayList<>();
+        List<CreateRoomTypeRequest.RoomInput> rooms = request.getRooms();
+        if (rooms != null && !rooms.isEmpty()) {
+            for (CreateRoomTypeRequest.RoomInput item : rooms) {
+                if (item == null) {
+                    continue;
+                }
+                resolved.add(new RoomTypeService.RoomInput(item.getRoomNumber(), item.getSmartlockPasscode()));
+            }
+        }
+
+        if (!resolved.isEmpty()) {
+            return resolved;
+        }
+
+        List<String> roomNumbers = request.getRoomNumbers();
+        if (roomNumbers == null || roomNumbers.isEmpty()) {
+            return List.of();
+        }
+
+        for (String roomNumber : roomNumbers) {
+            resolved.add(new RoomTypeService.RoomInput(roomNumber, null));
+        }
+        return resolved;
+    }
 
     @GetMapping
     public ApiResponse<List<RoomType>> getAllRoomTypes() {
@@ -77,7 +109,11 @@ public class RoomTypeController extends BaseStoreController {
             roomType.setMobilePhotoUrls(request.getMobilePhotoUrls());
             roomType.setLocalizedContent(request.getLocalizedContent());
 
-            RoomType createdRoomType = roomTypeService.createRoomTypeWithRooms(roomType, request.getRoomNumbers());
+            List<RoomTypeService.RoomInput> roomInputs = resolveRoomInputs(request);
+            if (roomInputs.isEmpty()) {
+                return ApiResponse.error("At least one room is required");
+            }
+            RoomType createdRoomType = roomTypeService.createRoomTypeWithRoomInputs(roomType, roomInputs);
             return ApiResponse.success("房型创建成功", createdRoomType);
         } catch (Exception e) {
             return ApiResponse.error("房型创建失败: " + e.getMessage());
@@ -122,7 +158,11 @@ public class RoomTypeController extends BaseStoreController {
             roomType.setMobilePhotoUrls(request.getMobilePhotoUrls());
             roomType.setLocalizedContent(request.getLocalizedContent());
 
-            RoomType updatedRoomType = roomTypeService.updateRoomTypeWithRooms(id, roomType, request.getRoomNumbers());
+            List<RoomTypeService.RoomInput> roomInputs = resolveRoomInputs(request);
+            if (roomInputs.isEmpty()) {
+                return ApiResponse.error("At least one room is required");
+            }
+            RoomType updatedRoomType = roomTypeService.updateRoomTypeWithRoomInputs(id, roomType, roomInputs);
             return ApiResponse.success("房型更新成功", updatedRoomType);
         } catch (Exception e) {
             return ApiResponse.error("房型更新失败: " + e.getMessage());

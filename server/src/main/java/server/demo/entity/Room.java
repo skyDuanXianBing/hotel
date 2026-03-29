@@ -47,6 +47,9 @@ public class Room implements StoreScopedEntity {
     @Column(length = 500)
     private String notes;
 
+    @Column(name = "smartlock_passcode", length = 200)
+    private String smartlockPasscode;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -146,6 +149,14 @@ public class Room implements StoreScopedEntity {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getSmartlockPasscode() {
+        return smartlockPasscode;
+    }
+
+    public void setSmartlockPasscode(String smartlockPasscode) {
+        this.smartlockPasscode = smartlockPasscode;
     }
 
     public LocalDateTime getCreatedAt() {
