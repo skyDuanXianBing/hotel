@@ -1,0 +1,653 @@
+<template>
+  <ion-page>
+    <ion-header translucent>
+      <ion-toolbar>
+        <ion-title class="mobile-toolbar-title">首页</ion-title>
+        <ion-buttons slot="end">
+          <ion-button @click="goToStoreSelection">切换门店</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content fullscreen class="mobile-page home-page">
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
+        <ion-refresher-content pulling-text="下拉刷新" refreshing-spinner="crescent" />
+      </ion-refresher>
+
+      <section class="home-hero">
+        <div class="home-hero__row">
+          <div>
+            <h1 class="home-hero__name">{{ storeName }}</h1>
+            <p class="home-hero__hint">{{ businessHint }}</p>
+          </div>
+          <span class="home-hero__date">{{ todayLabel }}</span>
+        </div>
+      </section>
+
+      <div class="mobile-stack">
+        <HomeStatsGrid :items="statCards" :loading="dashboardLoading" @select="handleStatSelect" />
+
+        <HomeOccupancyCard :items="occupancyData" :loading="dashboardLoading" />
+
+        <HomeQuickActions :items="quickActions" @select="handleQuickActionSelect" />
+
+        <HomeHelpCenter :items="helpItems" @select="handleHelpItemSelect" @more="handleOpenHelpCenterMore" />
+
+        <HomeMemoCard
+          v-model="memoValue"
+          :auto-saving="memoStore.autoSaving"
+          :loading="memoStore.loading"
+          :status-text="memoStore.saveStatusText"
+        />
+
+        <section v-if="showLoadNotice" class="home-notice">
+          <p class="home-notice__text">{{ loadNotice }}</p>
+        </section>
+      </div>
+
+      <HomeHelpCenterMoreModal
+        :is-open="helpCenterMoreOpen"
+        :items="helpItems"
+        @dismiss="handleDismissHelpCenterMore"
+        @select="handleHelpItemSelect"
+        @contact="handleOpenSupportModal"
+      />
+
+      <ContactSupportModal :is-open="supportModalOpen" @dismiss="handleDismissSupportModal" />
+    </ion-content>
+  </ion-page>
+</template>
+
+<script setup lang="ts">
+import {
+  IonButton,
+  IonButtons,
+  IonContent,
+  IonHeader,
+  IonPage,
+  IonRefresher,
+  IonRefresherContent,
+  IonTitle,
+  IonToolbar,
+} from '@ionic/vue'
+import {
+  barChartOutline,
+  bedOutline,
+  chatbubblesOutline,
+  documentTextOutline,
+  gitNetworkOutline,
+  notificationsOutline,
+  personCircleOutline,
+  receiptOutline,
+  settingsOutline,
+  walletOutline,
+} from 'ionicons/icons'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { getDailyOccupancy, getHomeStatistics, type DailyOccupancyDTO, type HomeStatisticsDTO } from '@/api/home'
+import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
+import HomeHelpCenter, { type HomeHelpCenterItem } from '@/components/home/HomeHelpCenter.vue'
+import HomeHelpCenterMoreModal from '@/components/home/HomeHelpCenterMoreModal.vue'
+import HomeMemoCard from '@/components/home/HomeMemoCard.vue'
+import HomeOccupancyCard from '@/components/home/HomeOccupancyCard.vue'
+import HomeQuickActions, { type HomeQuickActionItem } from '@/components/home/HomeQuickActions.vue'
+import HomeStatsGrid, { type HomeStatCardItem } from '@/components/home/HomeStatsGrid.vue'
+import { ROUTE_PATHS } from '@/router/guards'
+import { useMemoStore } from '@/stores/memo'
+import { useStoreStore } from '@/stores/store'
+import { showWarningToast } from '@/utils/notify'
+import { isHandledRequestError } from '@/utils/request'
+
+const router = useRouter()
+const storeStore = useStoreStore()
+const memoStore = useMemoStore()
+
+const dashboardLoading = ref(false)
+const occupancyData = ref<DailyOccupancyDTO[]>([])
+const statCards = ref<HomeStatCardItem[]>(buildStatCards())
+const loadNotice = ref('')
+const helpCenterMoreOpen = ref(false)
+const supportModalOpen = ref(false)
+
+interface HomeHelpRouteItem extends HomeHelpCenterItem {
+  path: string
+  query?: Record<string, string>
+}
+
+const helpItems: HomeHelpRouteItem[] = [
+  {
+    key: 'operation-report',
+    title: '营业统报表',
+    description: '如何生成营业统计报表数据？',
+    icon: barChartOutline,
+    tone: 'primary',
+    path: ROUTE_PATHS.statisticsOperationReport,
+  },
+  {
+    key: 'repair-order',
+    title: '订单操作',
+    description: '如何修复在住订单营业？',
+    icon: receiptOutline,
+    tone: 'warning',
+    path: ROUTE_PATHS.orders,
+    query: { type: 'pending' },
+  },
+  {
+    key: 'room-status',
+    title: '房态',
+    description: '如何房间单历房态设置的房型？',
+    icon: bedOutline,
+    tone: 'success',
+    path: ROUTE_PATHS.rooms,
+  },
+  {
+    key: 'order-usage',
+    title: '订单操作',
+    description: '如何使用订单操作的功能？',
+    icon: documentTextOutline,
+    tone: 'secondary',
+    path: ROUTE_PATHS.orders,
+  },
+]
+
+const quickActions: HomeQuickActionItem[] = [
+  {
+    key: 'orders',
+    title: '住宿订单',
+    description: '快速进入订单页，继续处理预抵、预离与待处理订单。',
+    icon: receiptOutline,
+    tone: 'warning',
+  },
+  {
+    key: 'rooms',
+    title: '房态',
+    description: '查看今日可售与房间状态，衔接房态核心操作。',
+    icon: bedOutline,
+    tone: 'primary',
+  },
+  {
+    key: 'channels',
+    title: '渠道',
+    description: '跳到渠道管理，查看连接、映射和后续操作入口。',
+    icon: gitNetworkOutline,
+    tone: 'secondary',
+  },
+  {
+    key: 'messages',
+    title: '消息',
+    description: '查看住客会话、未读消息与待处理聊天。',
+    icon: chatbubblesOutline,
+    tone: 'primary',
+  },
+  {
+    key: 'system-notifications',
+    title: '系统通知',
+    description: '查看系统、保洁与任务相关通知。',
+    icon: notificationsOutline,
+    tone: 'warning',
+  },
+  {
+    key: 'order-notifications',
+    title: '订单通知',
+    description: '集中处理订单类提醒与未读通知。',
+    icon: receiptOutline,
+    tone: 'secondary',
+  },
+  {
+    key: 'wallet',
+    title: '钱包',
+    description: '查看余额、流水、提现记录与认证说明。',
+    icon: walletOutline,
+    tone: 'success',
+  },
+  {
+    key: 'profile',
+    title: '个人中心',
+    description: '更新昵称、头像、性别并修改密码。',
+    icon: personCircleOutline,
+    tone: 'primary',
+  },
+  {
+    key: 'settings',
+    title: '设置',
+    description: '继续进入门店、账号与业务配置的移动端入口。',
+    icon: settingsOutline,
+    tone: 'success',
+  },
+]
+
+const memoValue = computed({
+  get: () => memoStore.memoContent,
+  set: (value: string) => {
+    memoStore.saveMemoDebounced(value)
+  },
+})
+
+const storeName = computed(() => {
+  if (!storeStore.currentStore?.name) {
+    return '未选择门店'
+  }
+
+  return storeStore.currentStore.name
+})
+
+const todayLabel = computed(() => {
+  const today = new Date()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `今日 ${month}-${day}`
+})
+
+const businessHint = computed(() => {
+  const pendingCard = findStatCard('pending')
+  if (pendingCard && pendingCard.value > 0) {
+    return `当前有 ${pendingCard.value} 条待处理订单，建议优先处理异常或未完成事项。`
+  }
+
+  const arrivalCard = findStatCard('arrivals')
+  if (arrivalCard && arrivalCard.value >= 5) {
+    return `今日预抵较多，建议先检查排房与入住准备情况。`
+  }
+
+  const availableCard = findStatCard('available')
+  if (availableCard && availableCard.value <= 3) {
+    return `今日可售房量偏紧，请留意房态与订单节奏。`
+  }
+
+  return '首页已同步今日统计、入住率趋势与备忘录，适合开班后快速查看。'
+})
+
+const showLoadNotice = computed(() => {
+  return Boolean(loadNotice.value)
+})
+
+function buildStatCards(statistics?: HomeStatisticsDTO): HomeStatCardItem[] {
+  return [
+    {
+      key: 'arrivals',
+      title: '今日预抵',
+      value: statistics?.todayArrivals ?? 0,
+      description: '进入订单页查看今日待入住订单。',
+      actionLabel: '查看订单',
+      tone: 'primary',
+    },
+    {
+      key: 'departures',
+      title: '今日预离',
+      value: statistics?.todayDepartures ?? 0,
+      description: '进入订单页查看今日待离店订单。',
+      actionLabel: '查看订单',
+      tone: 'warning',
+    },
+    {
+      key: 'newOrders',
+      title: '今日新办',
+      value: statistics?.todayNewOrders ?? 0,
+      description: '查看今日新增订单与处理进度。',
+      actionLabel: '查看订单',
+      tone: 'secondary',
+    },
+    {
+      key: 'unassigned',
+      title: '未排房',
+      value: statistics?.unassignedOrders ?? 0,
+      description: '查看尚未分配房间的订单。',
+      actionLabel: '查看订单',
+      tone: 'warning',
+    },
+    {
+      key: 'available',
+      title: '今日可售',
+      value: statistics?.availableRooms ?? 0,
+      description: '直接跳到房态页查看今日可售房量。',
+      actionLabel: '查看房态',
+      tone: 'success',
+    },
+    {
+      key: 'pending',
+      title: '待处理',
+      value: statistics?.pendingOrders ?? 0,
+      description: '集中查看仍需跟进的订单事项。',
+      actionLabel: '查看订单',
+      tone: 'primary',
+    },
+  ]
+}
+
+function findStatCard(key: string) {
+  for (const item of statCards.value) {
+    if (item.key === key) {
+      return item
+    }
+  }
+
+  return null
+}
+
+function formatDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function resolveOrderQueryType(statKey: string) {
+  if (statKey === 'arrivals') {
+    return 'today-arrivals'
+  }
+
+  if (statKey === 'departures') {
+    return 'today-departures'
+  }
+
+  if (statKey === 'newOrders') {
+    return 'today-new'
+  }
+
+  if (statKey === 'unassigned') {
+    return 'unassigned'
+  }
+
+  if (statKey === 'pending') {
+    return 'pending'
+  }
+
+  return ''
+}
+
+function resolveWarningMessage(error: unknown, fallbackMessage: string) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return fallbackMessage
+}
+
+async function loadStatistics() {
+  const response = await getHomeStatistics()
+  if (!response.success || !response.data) {
+    throw new Error(response.message || '加载今日统计失败')
+  }
+
+  statCards.value = buildStatCards(response.data)
+}
+
+async function loadOccupancy() {
+  const today = new Date()
+  const startDate = new Date(today)
+  startDate.setDate(today.getDate() - 6)
+
+  const response = await getDailyOccupancy({
+    startDate: formatDate(startDate),
+    endDate: formatDate(today),
+  })
+
+  if (!response.success || !response.data) {
+    throw new Error(response.message || '加载近 7 天入住率失败')
+  }
+
+  const nextItems: DailyOccupancyDTO[] = []
+
+  for (const item of response.data) {
+    nextItems.push({
+      ...item,
+      rate: Number(item.rate),
+    })
+  }
+
+  occupancyData.value = nextItems
+}
+
+async function loadHomeContent(forceMemo = false) {
+  dashboardLoading.value = true
+  loadNotice.value = ''
+
+  const [statisticsResult, occupancyResult, memoResult] = await Promise.allSettled([
+    loadStatistics(),
+    loadOccupancy(),
+    memoStore.loadMemo(forceMemo),
+  ])
+
+  const warnings: string[] = []
+
+  if (statisticsResult.status === 'rejected') {
+    statCards.value = buildStatCards()
+    warnings.push(resolveWarningMessage(statisticsResult.reason, '今日统计同步失败'))
+  }
+
+  if (occupancyResult.status === 'rejected') {
+    occupancyData.value = []
+    warnings.push(resolveWarningMessage(occupancyResult.reason, '近 7 天入住率同步失败'))
+  }
+
+  if (memoResult.status === 'rejected') {
+    warnings.push(resolveWarningMessage(memoResult.reason, '备忘录加载失败'))
+  }
+
+  if (warnings.length > 0) {
+    loadNotice.value = warnings.join('；')
+  }
+
+  dashboardLoading.value = false
+}
+
+async function goToStoreSelection() {
+  await router.push(ROUTE_PATHS.storeSelection)
+}
+
+async function handleStatSelect(item: HomeStatCardItem) {
+  if (item.key === 'available') {
+    await router.push(ROUTE_PATHS.rooms)
+    return
+  }
+
+  const type = resolveOrderQueryType(item.key)
+  if (!type) {
+    await router.push(ROUTE_PATHS.orders)
+    return
+  }
+
+  await router.push({
+    path: ROUTE_PATHS.orders,
+    query: { type },
+  })
+}
+
+async function handleQuickActionSelect(item: HomeQuickActionItem) {
+  if (item.key === 'orders') {
+    await router.push(ROUTE_PATHS.orders)
+    return
+  }
+
+  if (item.key === 'rooms') {
+    await router.push(ROUTE_PATHS.rooms)
+    return
+  }
+
+  if (item.key === 'channels') {
+    await router.push(ROUTE_PATHS.channels)
+    return
+  }
+
+  if (item.key === 'messages') {
+    await router.push(ROUTE_PATHS.messages)
+    return
+  }
+
+  if (item.key === 'system-notifications') {
+    await router.push(ROUTE_PATHS.systemNotifications)
+    return
+  }
+
+  if (item.key === 'order-notifications') {
+    await router.push(ROUTE_PATHS.orderNotifications)
+    return
+  }
+
+  if (item.key === 'wallet') {
+    await router.push(ROUTE_PATHS.wallet)
+    return
+  }
+
+  if (item.key === 'profile') {
+    await router.push(ROUTE_PATHS.profile)
+    return
+  }
+
+  if (item.key === 'settings') {
+    await router.push(ROUTE_PATHS.settings)
+  }
+}
+
+function findHelpRouteItem(key: string) {
+  for (const item of helpItems) {
+    if (item.key === key) {
+      return item
+    }
+  }
+
+  return null
+}
+
+async function handleHelpItemSelect(item: HomeHelpCenterItem) {
+  const matchedItem = findHelpRouteItem(item.key)
+  if (!matchedItem) {
+    return
+  }
+
+  helpCenterMoreOpen.value = false
+
+  if (matchedItem.query) {
+    await router.push({
+      path: matchedItem.path,
+      query: matchedItem.query,
+    })
+    return
+  }
+
+  await router.push(matchedItem.path)
+}
+
+function handleOpenHelpCenterMore() {
+  helpCenterMoreOpen.value = true
+}
+
+function handleDismissHelpCenterMore() {
+  helpCenterMoreOpen.value = false
+}
+
+function handleOpenSupportModal() {
+  helpCenterMoreOpen.value = false
+  supportModalOpen.value = true
+}
+
+function handleDismissSupportModal() {
+  supportModalOpen.value = false
+}
+
+async function handleRefresh(event: CustomEvent) {
+  try {
+    await loadHomeContent(true)
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, '首页刷新失败'))
+    }
+  } finally {
+    event.detail.complete()
+  }
+}
+
+watch(
+  () => storeStore.currentStore?.id,
+  async (nextStoreId, previousStoreId) => {
+    if (!nextStoreId) {
+      return
+    }
+
+    if (previousStoreId === undefined || previousStoreId === nextStoreId) {
+      return
+    }
+
+    try {
+      await loadHomeContent(true)
+    } catch (error) {
+      if (!isHandledRequestError(error)) {
+        showWarningToast(resolveWarningMessage(error, '首页同步失败'))
+      }
+    }
+  },
+)
+
+onMounted(async () => {
+  try {
+    await loadHomeContent(false)
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, '首页加载失败'))
+    }
+  }
+})
+</script>
+
+<style scoped>
+.home-page {
+  display: block;
+}
+
+.home-hero {
+  padding: 20px 18px;
+  border: 1px solid var(--app-border);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.08), transparent 60%),
+    var(--app-surface-strong);
+  box-shadow: var(--app-shadow);
+}
+
+.home-hero__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.home-hero__name {
+  margin: 0;
+  color: var(--app-heading);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.home-hero__hint {
+  margin: 6px 0 0;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.home-hero__date {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--app-primary-soft);
+  color: var(--ion-color-primary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.home-notice {
+  padding: 14px 16px;
+  border: 1px solid rgba(var(--ion-color-warning-rgb), 0.18);
+  border-radius: 14px;
+  background: var(--app-warning-soft);
+}
+
+.home-notice__text {
+  margin: 0;
+  color: var(--ion-color-warning);
+  font-size: 13px;
+  line-height: 1.5;
+}
+</style>

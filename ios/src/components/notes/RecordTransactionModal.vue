@@ -1,0 +1,442 @@
+<template>
+  <ion-modal :is-open="isOpen" @didDismiss="handleDismiss">
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>记一笔</ion-title>
+        <ion-buttons slot="end">
+          <ion-button :disabled="submitting" @click="handleDismiss">关闭</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="mobile-page record-modal-page">
+      <div class="mobile-stack">
+        <section class="mobile-card record-modal-card">
+          <div>
+            <h2 class="mobile-section-title">新增账目</h2>
+          </div>
+
+          <div class="record-modal-type-row">
+            <ion-segment :value="form.type" @ionChange="handleTypeChange">
+              <ion-segment-button value="income">
+                <ion-label>收入</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="expense">
+                <ion-label>支出</ion-label>
+              </ion-segment-button>
+            </ion-segment>
+          </div>
+
+          <label class="record-field">
+            <span>项目</span>
+            <ion-select v-model="form.category" fill="outline" interface="action-sheet" placeholder="请选择项目">
+              <ion-select-option v-for="item in categoryOptions" :key="item.id" :value="item.name">
+                {{ item.name }}
+              </ion-select-option>
+            </ion-select>
+          </label>
+
+          <label class="record-field">
+            <span>收款方式</span>
+            <ion-select
+              v-model="form.paymentMethod"
+              fill="outline"
+              interface="action-sheet"
+              placeholder="请选择收款方式"
+            >
+              <ion-select-option v-for="item in paymentMethodOptions" :key="item.id" :value="item.name">
+                {{ item.name }}
+              </ion-select-option>
+            </ion-select>
+          </label>
+
+          <label class="record-field">
+            <span>金额</span>
+            <ion-input v-model="form.amount" fill="outline" inputmode="decimal" placeholder="请输入金额" />
+          </label>
+
+          <label class="record-field">
+            <span>关联房间（可选）</span>
+            <ion-select
+              v-model="form.roomId"
+              fill="outline"
+              interface="action-sheet"
+              placeholder="不关联房间"
+            >
+              <ion-select-option :value="null">不关联房间</ion-select-option>
+              <ion-select-option v-for="item in roomOptions" :key="item.id" :value="item.id">
+                {{ item.roomNumber }} - {{ item.roomType.name }}
+              </ion-select-option>
+            </ion-select>
+          </label>
+
+          <label class="record-field">
+            <span>时间</span>
+            <input v-model="form.datetime" class="record-field__native-input" type="datetime-local" />
+          </label>
+
+          <label class="record-field">
+            <span>备注</span>
+            <ion-textarea v-model="form.notes" :rows="4" fill="outline" placeholder="请输入备注，可选" />
+          </label>
+
+          <p v-if="loadNotice" class="mobile-note record-modal-card__notice">{{ loadNotice }}</p>
+
+          <div class="record-modal-card__actions">
+            <ion-button fill="outline" :disabled="submitting" @click="handleReset">重置</ion-button>
+            <ion-button :disabled="submitting || dependenciesLoading" @click="handleSubmit">
+              {{ submitButtonText }}
+            </ion-button>
+          </div>
+        </section>
+      </div>
+    </ion-content>
+  </ion-modal>
+</template>
+
+<script setup lang="ts">
+import {
+  IonButton,
+  IonButtons,
+  IonContent,
+  IonHeader,
+  IonInput,
+  IonLabel,
+  IonModal,
+  IonSegment,
+  IonSegmentButton,
+  IonSelect,
+  IonSelectOption,
+  IonTextarea,
+  IonTitle,
+  IonToolbar,
+} from '@ionic/vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { getCategoriesByType } from '@/api/noteCategory'
+import { createNote, type CreateNoteRequest, type NoteType } from '@/api/notes'
+import { getAllPaymentMethods } from '@/api/paymentMethod'
+import { getRooms } from '@/api/rooms'
+import type { PaymentMethodDTO, NoteCategoryDTO, RoomDTO } from '@/types/settings'
+import { isHandledRequestError } from '@/utils/request'
+import { showSuccessToast, showWarningToast } from '@/utils/notify'
+
+interface Props {
+  isOpen: boolean
+}
+
+interface RecordFormState {
+  type: NoteType
+  category: string
+  paymentMethod: string
+  amount: string
+  roomId: number | null
+  datetime: string
+  notes: string
+}
+
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  dismiss: []
+  success: []
+}>()
+
+const dependenciesLoading = ref(false)
+const submitting = ref(false)
+const loadNotice = ref('')
+const roomOptions = ref<RoomDTO[]>([])
+const categoryOptions = ref<NoteCategoryDTO[]>([])
+const paymentMethodOptions = ref<PaymentMethodDTO[]>([])
+
+const form = reactive<RecordFormState>(createDefaultForm())
+
+function createDefaultForm(): RecordFormState {
+  return {
+    type: 'income',
+    category: '',
+    paymentMethod: '',
+    amount: '',
+    roomId: null,
+    datetime: toLocalDatetimeValue(new Date()),
+    notes: '',
+  }
+}
+
+function toLocalDatetimeValue(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+function toServerDatetime(value: string) {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+function resolveWarningMessage(error: unknown, fallbackMessage: string) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return fallbackMessage
+}
+
+async function loadFormOptions() {
+  dependenciesLoading.value = true
+  loadNotice.value = ''
+
+  try {
+    const [categoryResponse, paymentResponse, roomResponse] = await Promise.all([
+      getCategoriesByType(form.type),
+      getAllPaymentMethods(),
+      getRooms(),
+    ])
+
+    if (categoryResponse.success && categoryResponse.data) {
+      categoryOptions.value = categoryResponse.data
+    } else {
+      categoryOptions.value = []
+    }
+
+    if (paymentResponse.success && paymentResponse.data) {
+      const nextMethods: PaymentMethodDTO[] = []
+
+      for (const item of paymentResponse.data) {
+        if (item.enabled) {
+          nextMethods.push(item)
+        }
+      }
+
+      paymentMethodOptions.value = nextMethods
+    } else {
+      paymentMethodOptions.value = []
+    }
+
+    if (roomResponse.success && roomResponse.data) {
+      roomOptions.value = roomResponse.data
+    } else {
+      roomOptions.value = []
+    }
+
+    ensureSelectableCategory()
+  } catch (error) {
+    loadNotice.value = resolveWarningMessage(error, '加载记一笔表单失败')
+    if (!isHandledRequestError(error)) {
+      showWarningToast(loadNotice.value)
+    }
+  } finally {
+    dependenciesLoading.value = false
+  }
+}
+
+function ensureSelectableCategory() {
+  if (!form.category) {
+    return
+  }
+
+  let exists = false
+
+  for (const item of categoryOptions.value) {
+    if (item.name === form.category) {
+      exists = true
+      break
+    }
+  }
+
+  if (!exists) {
+    form.category = ''
+  }
+}
+
+function handleTypeChange(event: CustomEvent) {
+  const nextType = event.detail.value as NoteType
+  if (!nextType) {
+    return
+  }
+
+  form.type = nextType
+  form.category = ''
+  void loadFormOptions()
+}
+
+function validateForm() {
+  if (!form.category) {
+    showWarningToast('请选择项目')
+    return false
+  }
+
+  if (!form.paymentMethod) {
+    showWarningToast('请选择收款方式')
+    return false
+  }
+
+  const amount = Number(form.amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    showWarningToast('请输入有效金额')
+    return false
+  }
+
+  const datetime = toServerDatetime(form.datetime)
+  if (!datetime) {
+    showWarningToast('请选择有效时间')
+    return false
+  }
+
+  return true
+}
+
+function buildSubmitPayload(): CreateNoteRequest {
+  const payload: CreateNoteRequest = {
+    type: form.type,
+    category: form.category,
+    paymentMethod: form.paymentMethod,
+    amount: Number(form.amount),
+    datetime: toServerDatetime(form.datetime),
+    notes: form.notes.trim() || undefined,
+  }
+
+  if (typeof form.roomId === 'number') {
+    payload.roomId = form.roomId
+  }
+
+  return payload
+}
+
+function resetFormState() {
+  const nextForm = createDefaultForm()
+  form.type = nextForm.type
+  form.category = nextForm.category
+  form.paymentMethod = nextForm.paymentMethod
+  form.amount = nextForm.amount
+  form.roomId = nextForm.roomId
+  form.datetime = nextForm.datetime
+  form.notes = nextForm.notes
+}
+
+function handleReset() {
+  resetFormState()
+  void loadFormOptions()
+}
+
+function handleDismiss() {
+  emit('dismiss')
+}
+
+async function handleSubmit() {
+  if (!validateForm()) {
+    return
+  }
+
+  submitting.value = true
+  try {
+    const response = await createNote(buildSubmitPayload())
+    if (!response.success || !response.data) {
+      throw new Error(response.message || '记一笔提交失败')
+    }
+
+    showSuccessToast('记一笔已保存')
+    resetFormState()
+    emit('success')
+    emit('dismiss')
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, '记一笔提交失败'))
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+const submitButtonText = computed(() => {
+  if (submitting.value) {
+    return '提交中...'
+  }
+
+  if (dependenciesLoading.value) {
+    return '加载中...'
+  }
+
+  return '完成'
+})
+
+watch(
+  () => props.isOpen,
+  async (nextOpen) => {
+    if (nextOpen) {
+      await loadFormOptions()
+      return
+    }
+
+    resetFormState()
+    loadNotice.value = ''
+  },
+)
+</script>
+
+<style scoped>
+.record-modal-page {
+  --padding-top: 16px;
+  --padding-bottom: 24px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.record-modal-card {
+  display: grid;
+  gap: 14px;
+}
+
+.record-modal-type-row {
+  display: grid;
+  gap: 8px;
+}
+
+.record-field {
+  display: grid;
+  gap: 8px;
+}
+
+.record-field span {
+  color: var(--app-heading);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.record-field__native-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--app-heading);
+  font: inherit;
+}
+
+.record-modal-card__notice {
+  color: var(--ion-color-warning);
+}
+
+.record-modal-card__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+</style>
