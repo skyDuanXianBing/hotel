@@ -33,6 +33,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/v1/auth/reset-password",
                         "/api/v1/cleaner-invitations/validate/**",
                         "/api/v1/cleaner-invitations/register",
+                        "/api/v1/room-status-share/public/**",
                         "/api/v1/pricelabs/webhook/**",
                         "/api/v1/su/webhook/**",
                         "/api/v1/health"

@@ -21,7 +21,6 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/room-status")
-@CrossOrigin
 @StoreScoped
 public class RoomStatusController extends BaseStoreController {
 

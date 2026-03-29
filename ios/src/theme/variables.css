@@ -1,2 +1,394 @@
-/* For information on how to create your own theme, please refer to:
-http://ionicframework.com/docs/theming/ */
+/* ============================================================
+ * Hotel PMS — Blue Business Theme (Unified)
+ * Single source of truth for all design tokens.
+ * ============================================================ */
+
+:root {
+  --ion-font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  /* ── Primary: Business Blue ── */
+  --ion-color-primary: #2563eb;
+  --ion-color-primary-rgb: 37, 99, 235;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #2157cf;
+  --ion-color-primary-tint: #3b73ed;
+
+  /* ── Secondary: Deep Navy ── */
+  --ion-color-secondary: #1d3557;
+  --ion-color-secondary-rgb: 29, 53, 87;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #192f4d;
+  --ion-color-secondary-tint: #34486a;
+
+  /* ── Success ── */
+  --ion-color-success: #0f8a62;
+  --ion-color-success-rgb: 15, 138, 98;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #0d7956;
+  --ion-color-success-tint: #279670;
+
+  /* ── Warning ── */
+  --ion-color-warning: #c97a10;
+  --ion-color-warning-rgb: 201, 122, 16;
+  --ion-color-warning-contrast: #ffffff;
+  --ion-color-warning-contrast-rgb: 255, 255, 255;
+  --ion-color-warning-shade: #b06b0e;
+  --ion-color-warning-tint: #cf8928;
+
+  /* ── Danger ── */
+  --ion-color-danger: #d14343;
+  --ion-color-danger-rgb: 209, 67, 67;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #b83b3b;
+  --ion-color-danger-tint: #d75656;
+
+  /* ── Page & Surface ── */
+  --ion-background-color: #eff4fb;
+  --ion-background-color-rgb: 239, 244, 251;
+  --ion-text-color: #10233f;
+  --ion-text-color-rgb: 16, 35, 63;
+  --ion-border-color: rgba(16, 35, 63, 0.08);
+
+  --ion-toolbar-background: rgba(250, 252, 255, 0.92);
+  --ion-toolbar-border-color: rgba(16, 35, 63, 0.08);
+  --ion-tab-bar-background: rgba(248, 251, 255, 0.96);
+  --ion-card-background: rgba(255, 255, 255, 0.94);
+  --ion-item-background: rgba(255, 255, 255, 0.92);
+
+  /* ── App-Level Tokens ── */
+  --app-background: linear-gradient(180deg, #f7faff 0%, #eef3fb 48%, #e8eef8 100%);
+  --app-surface: rgba(255, 255, 255, 0.9);
+  --app-surface-strong: rgba(255, 255, 255, 0.98);
+  --app-surface-muted: rgba(240, 246, 255, 0.92);
+  --app-border: rgba(16, 35, 63, 0.08);
+  --app-border-strong: rgba(37, 99, 235, 0.16);
+  --app-muted: #5d6c86;
+  --app-heading: #10233f;
+
+  /* ── Semantic Soft Colors ── */
+  --app-primary-soft: rgba(37, 99, 235, 0.08);
+  --app-primary-soft-strong: rgba(37, 99, 235, 0.14);
+  --app-secondary-soft: rgba(29, 53, 87, 0.08);
+  --app-success-soft: rgba(15, 138, 98, 0.1);
+  --app-warning-soft: rgba(201, 122, 16, 0.1);
+  --app-danger-soft: rgba(209, 67, 67, 0.1);
+
+  /* ── Shadows ── */
+  --app-shadow: 0 14px 32px rgba(16, 35, 63, 0.08);
+  --app-button-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+  --app-floating-shadow: 0 14px 30px rgba(37, 99, 235, 0.22);
+
+  /* ── Safe Areas ── */
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Dark Mode ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ion-background-color: #08111f;
+    --ion-background-color-rgb: 8, 17, 31;
+    --ion-text-color: #eef4ff;
+    --ion-text-color-rgb: 238, 244, 255;
+    --ion-border-color: rgba(255, 255, 255, 0.08);
+    --ion-toolbar-background: rgba(8, 17, 31, 0.92);
+    --ion-tab-bar-background: rgba(9, 20, 36, 0.94);
+    --ion-card-background: rgba(16, 28, 47, 0.94);
+    --ion-item-background: rgba(16, 28, 47, 0.92);
+
+    --app-background: linear-gradient(180deg, #08111f 0%, #0c1627 52%, #11223c 100%);
+    --app-surface: rgba(16, 28, 47, 0.92);
+    --app-surface-strong: rgba(18, 33, 57, 0.97);
+    --app-surface-muted: rgba(20, 37, 63, 0.94);
+    --app-border: rgba(255, 255, 255, 0.08);
+    --app-border-strong: rgba(96, 165, 250, 0.2);
+    --app-muted: #9fb3d9;
+    --app-heading: #f2f6ff;
+    --app-primary-soft: rgba(96, 165, 250, 0.14);
+    --app-primary-soft-strong: rgba(96, 165, 250, 0.2);
+    --app-secondary-soft: rgba(148, 163, 184, 0.12);
+    --app-success-soft: rgba(52, 211, 153, 0.14);
+    --app-warning-soft: rgba(251, 191, 36, 0.14);
+    --app-danger-soft: rgba(248, 113, 113, 0.14);
+    --app-shadow: 0 18px 42px rgba(0, 0, 0, 0.26);
+    --app-button-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+    --app-floating-shadow: 0 18px 38px rgba(0, 0, 0, 0.36);
+  }
+}
+
+/* ============================================================
+ * Global Reset & Base
+ * ============================================================ */
+
+html {
+  height: 100%;
+  font-family: var(--ion-font-family);
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--app-background);
+  color: var(--ion-text-color);
+  font-family: inherit;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#app {
+  height: 100%;
+  background: var(--app-background);
+}
+
+ion-app {
+  height: 100%;
+  min-height: 100%;
+  background: var(--app-background);
+}
+
+ion-router-outlet {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  contain: layout size style;
+}
+
+ion-page {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  contain: layout size style;
+  z-index: 0;
+}
+
+ion-content {
+  --background: transparent;
+  flex: 1;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+/* ============================================================
+ * Ionic Component Overrides — Blue Business
+ * ============================================================ */
+
+ion-header ion-toolbar {
+  --background: transparent;
+  --border-color: transparent;
+  --min-height: 48px;
+  color: var(--app-heading);
+}
+
+ion-header.header-collapse-condense ion-toolbar {
+  --background: transparent;
+}
+
+ion-title {
+  color: var(--app-heading);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+ion-tab-bar {
+  --background: var(--ion-tab-bar-background);
+  --border: 0;
+  min-height: calc(64px + var(--app-safe-bottom));
+  padding-top: 4px;
+  padding-bottom: calc(8px + var(--app-safe-bottom));
+  backdrop-filter: blur(20px);
+  box-shadow: 0 -10px 30px rgba(16, 35, 63, 0.08);
+}
+
+ion-tab-button {
+  --color: #71829e;
+  --color-selected: var(--ion-color-primary);
+  min-height: 54px;
+  border-radius: 18px;
+  font-weight: 600;
+}
+
+ion-button {
+  --border-radius: 16px;
+  min-height: 44px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+ion-button.button-solid {
+  --box-shadow: var(--app-button-shadow);
+}
+
+ion-button.button-outline {
+  --border-width: 1px;
+  --border-color: rgba(var(--ion-color-primary-rgb), 0.22);
+  --color: var(--ion-color-primary);
+}
+
+ion-item {
+  --background: var(--ion-item-background);
+  --border-color: transparent;
+  --highlight-color-focused: rgba(var(--ion-color-primary-rgb), 0.16);
+  --highlight-color-valid: rgba(var(--ion-color-primary-rgb), 0.16);
+  --highlight-color-invalid: rgba(var(--ion-color-danger-rgb), 0.18);
+}
+
+ion-list {
+  background: transparent;
+}
+
+ion-segment {
+  padding: 4px;
+  border: 1px solid var(--app-border);
+  border-radius: 18px;
+  background: var(--app-surface-muted);
+}
+
+ion-segment-button {
+  --border-radius: 14px;
+  --indicator-box-shadow: none;
+  --indicator-color: rgba(var(--ion-color-primary-rgb), 0.12);
+  min-height: 40px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+ion-segment-button::part(indicator-background) {
+  border-radius: 14px;
+}
+
+ion-modal {
+  --border-radius: 28px 28px 0 0;
+  --box-shadow: 0 20px 44px rgba(16, 35, 63, 0.18);
+}
+
+/* ============================================================
+ * Mobile Utility Classes — Blue Business
+ * ============================================================ */
+
+.mobile-page {
+  /* ion-header translucent + fullscreen auto-offsets safe-area;
+     keep a small padding for visual breathing room only */
+  --padding-top: 8px;
+  --padding-bottom: calc(36px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.mobile-page__section,
+.mobile-card,
+.mobile-hero {
+  border: 1px solid var(--app-border);
+  border-radius: 22px;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+}
+
+.mobile-hero {
+  padding: 20px;
+  margin-bottom: 16px;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(148, 163, 184, 0.06)),
+    var(--app-surface-strong);
+}
+
+.mobile-card {
+  padding: 18px;
+}
+
+.mobile-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.mobile-title {
+  margin: 0;
+  color: var(--app-heading);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.mobile-subtitle {
+  margin: 8px 0 0;
+  color: var(--app-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.mobile-section-title {
+  margin: 0 0 10px;
+  color: var(--app-heading);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mobile-inline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.mobile-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.1);
+  background: var(--app-primary-soft);
+  color: var(--ion-color-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mobile-note {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.mobile-list {
+  display: grid;
+  gap: 12px;
+}
+
+.mobile-bullet-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ion-text-color);
+}
+
+.mobile-bullet-list li+li {
+  margin-top: 8px;
+}
+
+.mobile-toolbar-title {
+  padding-top: max(var(--app-safe-top), 0px);
+}
+
+@media (min-width: 768px) {
+  .mobile-page {
+    --padding-start: 20px;
+    --padding-end: 20px;
+  }
+}

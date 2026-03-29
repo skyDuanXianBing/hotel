@@ -12,7 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/consumptions")
-@CrossOrigin
 @StoreScoped
 public class ConsumptionController {
 

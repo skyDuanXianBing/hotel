@@ -13,7 +13,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/rooms")
-@CrossOrigin
 @StoreScoped
 public class RoomController extends BaseStoreController {
 

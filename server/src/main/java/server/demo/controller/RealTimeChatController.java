@@ -24,10 +24,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/realtime-chat")
-@CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"}, 
-            allowedHeaders = "*", 
-            methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS},
-            allowCredentials = "true")
 public class RealTimeChatController {
     
     private static final Logger logger = LoggerFactory.getLogger(RealTimeChatController.class);

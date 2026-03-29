@@ -515,6 +515,7 @@ public class RoomStatusService {
                 r.getCheckOutDate(),
                 r.getOrderNumber()
         );
+        reservationInfo.setTotalAmount(r.getTotalAmount());
         reservationInfo.setGroupOrderNo(r.getGroupOrderNo());
         reservationInfo.setNotes(r.getNotes());
         reservationInfo.setSpecialRequests(r.getSpecialRequests());

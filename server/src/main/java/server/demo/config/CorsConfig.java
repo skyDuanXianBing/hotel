@@ -15,8 +15,11 @@ import java.util.Collections;
 public class CorsConfig implements WebMvcConfigurer {
 
     private static final String[] ALLOWED_ORIGIN_PATTERNS = new String[] {
+            "capacitor://localhost",
             "http://localhost:8091",
             "http://127.0.0.1:8091",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
 
             // 固定公网 IP（历史）
             "http://13.112.235.194:8091",

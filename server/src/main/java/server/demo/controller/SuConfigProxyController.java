@@ -117,17 +117,6 @@ public class SuConfigProxyController {
         return new ResponseEntity<>(upstreamResponse.getBody(), responseHeaders, upstreamResponse.getStatusCode());
     }
 
-    /**
-     * 处理浏览器预检请求（CORS preflight）。
-     */
-    @RequestMapping(
-            value = "/{env}/**",
-            method = {RequestMethod.OPTIONS}
-    )
-    public ResponseEntity<Void> preflight() {
-        return ResponseEntity.ok().build();
-    }
-
     private String resolveUpstreamBase(String env) {
         if (env == null) {
             return null;
