@@ -27,7 +27,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/reservations")
-@CrossOrigin
 @StoreScoped
 public class ReservationController extends BaseStoreController {
 

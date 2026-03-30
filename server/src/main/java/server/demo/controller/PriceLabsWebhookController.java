@@ -35,7 +35,6 @@ import java.util.Set;
  */
 @RestController
 @RequestMapping("/api/v1/pricelabs/webhook")
-@CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"}, allowCredentials = "true")
 public class PriceLabsWebhookController {
 
     private static final Logger logger = LoggerFactory.getLogger(PriceLabsWebhookController.class);

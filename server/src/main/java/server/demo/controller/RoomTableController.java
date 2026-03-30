@@ -15,7 +15,6 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/room-table")
-@CrossOrigin
 @StoreScoped
 public class RoomTableController {
 

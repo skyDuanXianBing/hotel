@@ -26,7 +26,6 @@ import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/room-prices")
-@CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"}, allowCredentials = "true")
 @server.demo.annotation.StoreScoped
 public class RoomPriceController {
 

@@ -12,7 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/operation-logs")
-@CrossOrigin
 @StoreScoped
 public class OperationLogController {
 
@@ -25,4 +24,3 @@ public class OperationLogController {
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 }
-

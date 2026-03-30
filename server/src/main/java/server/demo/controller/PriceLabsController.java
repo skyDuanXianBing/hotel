@@ -27,7 +27,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/pricelabs")
-@CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"}, allowCredentials = "true")
 public class PriceLabsController {
 
     @Autowired

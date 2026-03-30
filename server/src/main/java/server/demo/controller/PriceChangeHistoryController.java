@@ -1,6 +1,5 @@
 package server.demo.controller;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +18,6 @@ import java.time.LocalDate;
  */
 @RestController
 @RequestMapping("/api/v1/price-change-history")
-@CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"}, allowCredentials = "true")
 @server.demo.annotation.StoreScoped
 public class PriceChangeHistoryController {
 

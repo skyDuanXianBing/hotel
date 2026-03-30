@@ -14,7 +14,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/order-box")
-@CrossOrigin
 public class OrderBoxController {
 
     @Autowired

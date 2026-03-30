@@ -16,7 +16,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/room-types")
-@CrossOrigin
 @StoreScoped
 public class RoomTypeController extends BaseStoreController {
 

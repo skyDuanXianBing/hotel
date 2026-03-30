@@ -15,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/payments")
-@CrossOrigin
 @StoreScoped
 public class PaymentController {
 

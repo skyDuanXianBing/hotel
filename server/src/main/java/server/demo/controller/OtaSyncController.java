@@ -12,7 +12,6 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/ota-sync")
-@CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"}, allowCredentials = "true")
 public class OtaSyncController {
 
     private final OtaSyncService otaSyncService;

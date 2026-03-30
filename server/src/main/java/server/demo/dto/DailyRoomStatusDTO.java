@@ -1,6 +1,8 @@
 package server.demo.dto;
 
 import server.demo.enums.RoomStatus;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class DailyRoomStatusDTO {
@@ -93,6 +95,7 @@ public class DailyRoomStatusDTO {
         private LocalDate checkIn;
         private LocalDate checkOut;
         private String orderNumber;
+        private BigDecimal totalAmount;
         private String groupOrderNo;
         private String notes;
         private String specialRequests;
@@ -155,6 +158,14 @@ public class DailyRoomStatusDTO {
 
         public void setOrderNumber(String orderNumber) {
             this.orderNumber = orderNumber;
+        }
+
+        public BigDecimal getTotalAmount() {
+            return totalAmount;
+        }
+
+        public void setTotalAmount(BigDecimal totalAmount) {
+            this.totalAmount = totalAmount;
         }
 
         public String getGroupOrderNo() {

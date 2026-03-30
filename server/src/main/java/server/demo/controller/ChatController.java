@@ -16,26 +16,12 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/chat")
-@CrossOrigin(origins = {"http://localhost:8091", "http://127.0.0.1:8091"},
-        allowedHeaders = "*",
-        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS},
-        allowCredentials = "true")
 public class ChatController {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
 
     @Autowired
     private ChatService chatService;
-
-    @RequestMapping(value = "/message", method = RequestMethod.OPTIONS)
-    public ResponseEntity<Void> handleOptions() {
-        return ResponseEntity.ok()
-                .header("Access-Control-Allow-Origin", "http://localhost:8091")
-                .header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-                .header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-                .header("Access-Control-Max-Age", "3600")
-                .build();
-    }
 
     @PostMapping("/message")
     public ResponseEntity<ApiResponse<ChatMessageResponse>> sendMessage(@Valid @RequestBody ChatMessageRequest request) {
