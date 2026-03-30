@@ -801,23 +801,103 @@ const closePriceEditDialog = () => {
   previousEditFormWeekdays = []
 }
 
+const parseYmdToLocalDate = (ymd: string): Date => {
+  const [year, month, day] = ymd.split('-').map(Number)
+  return new Date(year, (month || 1) - 1, day || 1)
+}
+
+const getWeekdayValue = (ymd: string): number => {
+  const day = parseYmdToLocalDate(ymd).getDay()
+  return day === 0 ? 7 : day
+}
+
+const hasMatchedWeekdayInRange = (startYmd: string, endYmd: string, weekdays: number[]): boolean => {
+  if (!weekdays.length || weekdays.includes(0)) return true
+
+  const weekdaySet = new Set(weekdays)
+  const start = parseYmdToLocalDate(startYmd)
+  const end = parseYmdToLocalDate(endYmd)
+  const cursor = new Date(start)
+
+  while (cursor <= end) {
+    const day = cursor.getDay()
+    const weekdayValue = day === 0 ? 7 : day
+    if (weekdaySet.has(weekdayValue)) return true
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return false
+}
+
 const savePriceEdit = async () => {
   try {
     saving.value = true
     const operator = userStore.currentUser?.nickname || userStore.currentUser?.email || '系统'
 
+    if (!editForm.value.startDate || !editForm.value.endDate) {
+      ElMessage.warning('请选择完整的日期范围')
+      return
+    }
+    if (!editForm.value.roomTypeId || !editForm.value.pricePlanId) {
+      ElMessage.warning('当前房型未绑定价格计划，无法在此处修改')
+      return
+    }
+
+    const normalizedStartDate =
+      editForm.value.startDate <= editForm.value.endDate ? editForm.value.startDate : editForm.value.endDate
+    const normalizedEndDate =
+      editForm.value.startDate <= editForm.value.endDate ? editForm.value.endDate : editForm.value.startDate
+    const normalizedWeekdays = editForm.value.weekdays.length > 0 ? [...editForm.value.weekdays] : undefined
+    const isSingleDayRange = normalizedStartDate === normalizedEndDate
+    const isMultiDayRange = !isSingleDayRange
+    const weekdaysContainAll = Boolean(normalizedWeekdays?.includes(0))
+    const payloadWeekdays = isMultiDayRange && weekdaysContainAll ? undefined : normalizedWeekdays
+    const hasExplicitWeekdaySelection = Boolean(normalizedWeekdays && normalizedWeekdays.length > 0)
+
+    // 兼容两种场景：
+    // 1) 多天范围：按日期范围 + 星期几过滤更新
+    // 2) 单天范围：沿用“按周模板”更新，避免出现勾选星期几但无命中日期
+    const applyWeekdaysInRange = hasExplicitWeekdaySelection ? !isSingleDayRange : true
+
+    if (
+      applyWeekdaysInRange &&
+      normalizedWeekdays &&
+      normalizedWeekdays.length > 0 &&
+      !hasMatchedWeekdayInRange(normalizedStartDate, normalizedEndDate, normalizedWeekdays)
+    ) {
+      ElMessage.warning('所选日期范围内没有匹配的星期几，请调整后再保存')
+      return
+    }
+
+    if (
+      isSingleDayRange &&
+      normalizedWeekdays &&
+      normalizedWeekdays.length > 0 &&
+      !normalizedWeekdays.includes(0)
+    ) {
+      const currentWeekday = getWeekdayValue(normalizedStartDate)
+      if (!normalizedWeekdays.includes(currentWeekday)) {
+        ElMessage.info('当前为单天日期，已按“星期模板”方式更新')
+      }
+    }
+
     // 准备请求数据
     const requestData: any = {
       roomTypeId: editForm.value.roomTypeId,
       pricePlanId: editForm.value.pricePlanId,
-      startDate: editForm.value.startDate,
-      endDate: editForm.value.endDate,
-      weekdays: editForm.value.weekdays.length > 0 ? editForm.value.weekdays : undefined
+      startDate: normalizedStartDate,
+      endDate: normalizedEndDate,
+      weekdays: payloadWeekdays,
+      applyWeekdaysInRange,
     }
 
     // 根据设置类型添加对应的字段
     if (editForm.value.settingType === 'price') {
-      requestData.price = Number(editForm.value.price)
+      const normalizedPrice = Number(editForm.value.price)
+      if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
+        ElMessage.warning('请输入有效的价格')
+        return
+      }
+      requestData.price = normalizedPrice
       requestData.availableRooms = editForm.value.availableRooms ?? undefined
     } else if (editForm.value.settingType === 'minStay') {
       requestData.minStay = Number(editForm.value.minStay)

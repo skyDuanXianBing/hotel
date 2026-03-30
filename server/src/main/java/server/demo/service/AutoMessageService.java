@@ -6,8 +6,14 @@ import org.springframework.transaction.annotation.Transactional;
 import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.entity.AutoMessage;
+import server.demo.entity.AutoMessageSendLog;
+import server.demo.entity.Reservation;
 import server.demo.repository.AutoMessageRepository;
+import server.demo.repository.AutoMessageSendLogRepository;
+import server.demo.repository.ReservationRepository;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,8 +23,21 @@ import java.util.Optional;
 @Service
 public class AutoMessageService {
 
+    private static final String SENDLOG_ACTION_PREFIX = "AM:";
+    private static final String TARGET_TYPE_RESERVATION = "RESERVATION";
+    private static final String WAITING_MANUAL_REPLAY = "WAITING_MANUAL_REPLAY";
+
     @Autowired
     private AutoMessageRepository autoMessageRepository;
+
+    @Autowired
+    private ReservationRepository reservationRepository;
+
+    @Autowired
+    private AutoMessageSendLogRepository autoMessageSendLogRepository;
+
+    @Autowired
+    private SuBusinessAutoMessageService suBusinessAutoMessageService;
 
     /**
      * 获取当前门店ID
@@ -149,5 +168,46 @@ public class AutoMessageService {
 
         message.setEnabled(!message.getEnabled());
         return autoMessageRepository.save(message);
+    }
+
+    @Transactional
+    public void replayAutoMessage(Long reservationId, Long autoMessageId) {
+        if (reservationId == null) {
+            throw new RuntimeException("缺少 reservationId");
+        }
+        if (autoMessageId == null) {
+            throw new RuntimeException("缺少 autoMessageId");
+        }
+
+        Long storeId = getCurrentStoreId();
+        Reservation reservation = reservationRepository.findByStoreIdAndIdWithRoomType(storeId, reservationId)
+                .orElseThrow(() -> new RuntimeException("订单不存在或无权限"));
+        AutoMessage template = autoMessageRepository.findById(autoMessageId)
+                .orElseThrow(() -> new RuntimeException("自动化消息模板不存在"));
+
+        if (!storeId.equals(template.getStoreId())) {
+            throw new RuntimeException("无权限重放该自动化消息模板");
+        }
+
+        AutoMessageSendLog sendLog = autoMessageSendLogRepository
+                .findByStoreIdAndAutoMessageIdAndTargetTypeAndTargetId(storeId, autoMessageId, TARGET_TYPE_RESERVATION, reservationId)
+                .orElseGet(AutoMessageSendLog::new);
+
+        sendLog.setStoreId(storeId);
+        sendLog.setAction(SENDLOG_ACTION_PREFIX + autoMessageId);
+        sendLog.setTargetType(TARGET_TYPE_RESERVATION);
+        sendLog.setTargetId(reservationId);
+        sendLog.setAutoMessageId(autoMessageId);
+        sendLog.setSuccess(false);
+        sendLog.setErrorMessage(WAITING_MANUAL_REPLAY + ": manual replay requested");
+        autoMessageSendLogRepository.save(sendLog);
+
+        suBusinessAutoMessageService.trySendForReservation(
+                storeId,
+                reservation,
+                template,
+                LocalDateTime.now(),
+                Duration.ZERO
+        );
     }
 }

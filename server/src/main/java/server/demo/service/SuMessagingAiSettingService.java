@@ -9,7 +9,7 @@ import server.demo.repository.SuMessagingAiSettingRepository;
 @Service
 public class SuMessagingAiSettingService {
 
-    private static final boolean DEFAULT_AUTO_REPLY_ENABLED = true;
+    private static final boolean DEFAULT_AUTO_REPLY_ENABLED = false;
 
     private final SuMessagingAiSettingRepository repository;
 

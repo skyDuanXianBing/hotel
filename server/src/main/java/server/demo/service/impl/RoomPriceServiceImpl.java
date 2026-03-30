@@ -10,13 +10,17 @@ import server.demo.dto.UpdatePriceByPlanRequest;
 import server.demo.dto.UpdateRoomPriceRequest;
 import server.demo.entity.PricePlan;
 import server.demo.entity.Reservation;
+import server.demo.entity.Room;
+import server.demo.entity.RoomBlockout;
 import server.demo.entity.RoomPrice;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.RoomPriceRepository;
+import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.service.PriceLabsCalendarSyncDebouncer;
@@ -28,7 +32,9 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -54,6 +60,12 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired
+    private RoomRepository roomRepository;
+
+    @Autowired
+    private RoomBlockoutRepository roomBlockoutRepository;
 
     @Autowired(required = false)
     private PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
@@ -407,6 +419,37 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
         // 查询日期范围内的所有预订记录，用于计算可用房间数（门店级）
         List<Reservation> reservations = reservationRepository.findByStoreIdAndDateRange(storeId, startDate, endDate);
+        Set<Long> targetRoomTypeIds = roomTypes.stream()
+                .map(RoomType::getId)
+                .collect(Collectors.toSet());
+        List<Room> roomsInStore = roomRepository.findByStoreIdWithRoomType(storeId).stream()
+                .filter(room -> room != null
+                        && room.getId() != null
+                        && room.getRoomType() != null
+                        && room.getRoomType().getId() != null
+                        && targetRoomTypeIds.contains(room.getRoomType().getId()))
+                .toList();
+        List<Long> targetRoomIds = roomsInStore.stream()
+                .map(Room::getId)
+                .toList();
+        Map<String, Integer> blockedRoomsByTypeDate = new HashMap<>();
+        if (!targetRoomIds.isEmpty()) {
+            List<RoomBlockout> blockouts = roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(
+                    storeId,
+                    targetRoomIds,
+                    startDate,
+                    endDate
+            );
+            for (RoomBlockout blockout : blockouts) {
+                if (blockout == null || blockout.getBlockDate() == null || blockout.getRoom() == null
+                        || blockout.getRoom().getRoomType() == null || blockout.getRoom().getRoomType().getId() == null) {
+                    continue;
+                }
+                Long blockedRoomTypeId = blockout.getRoom().getRoomType().getId();
+                String key = blockedRoomTypeId + "|" + blockout.getBlockDate();
+                blockedRoomsByTypeDate.merge(key, 1, Integer::sum);
+            }
+        }
 
         // 临时调试: 输出查询到的预订信息
         System.out.println("===== 房价管理查询预订 =====");
@@ -446,7 +489,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     dto.setPriceDate(currentDate);
 
                     // 动态计算可用房间数
-                    Integer availableRooms = calculateAvailableRooms(roomType, currentDate, reservations);
+                    Integer availableRooms = calculateAvailableRooms(roomType, currentDate, reservations, blockedRoomsByTypeDate);
                     dto.setAvailableRooms(availableRooms);
 
                     // 没有价格计划时,价格为null或默认价格
@@ -501,7 +544,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                             System.out.println("  使用数据库中的availableRooms: " + availableRooms + " (RoomPrice ID: " + roomPrice.getId() + ")");
                         }
                     } else {
-                        availableRooms = calculateAvailableRooms(plan.getRoomType(), checkDate, reservations);
+                        availableRooms = calculateAvailableRooms(plan.getRoomType(), checkDate, reservations, blockedRoomsByTypeDate);
                         if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
                             System.out.println("  动态计算availableRooms: " + availableRooms);
                         }
@@ -521,7 +564,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     // 使用周价格
                     price = getPriceForDayOfWeek(currentDate.getDayOfWeek(), plan);
                     // 动态计算可用房间数
-                    availableRooms = calculateAvailableRooms(plan.getRoomType(), checkDate, reservations);
+                    availableRooms = calculateAvailableRooms(plan.getRoomType(), checkDate, reservations, blockedRoomsByTypeDate);
                     if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
                         System.out.println("  动态计算availableRooms(无specificPrice): " + availableRooms);
                     }
@@ -566,9 +609,15 @@ public class RoomPriceServiceImpl implements RoomPriceService {
      * @param roomType 房型
      * @param date 日期
      * @param reservations 预订记录列表
+     * @param blockedRoomsByTypeDate 房型在指定日期被关房的数量映射
      * @return 可用房间数 = 总房间数 - 已预订/已入住的房间数
      */
-    private Integer calculateAvailableRooms(RoomType roomType, LocalDate date, List<Reservation> reservations) {
+    private Integer calculateAvailableRooms(
+            RoomType roomType,
+            LocalDate date,
+            List<Reservation> reservations,
+            Map<String, Integer> blockedRoomsByTypeDate
+    ) {
         // 获取房型的总房间数
         Integer totalRooms = roomType.getTotalRooms();
 
@@ -596,8 +645,10 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                 })
                 .count();
 
+        int blockedCount = blockedRoomsByTypeDate.getOrDefault(roomType.getId() + "|" + date, 0);
+
         // 返回可用房间数
-        return totalRooms - (int) occupiedCount;
+        return Math.max(totalRooms - (int) occupiedCount - blockedCount, 0);
     }
 
     /**
@@ -641,6 +692,13 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         // 判断是更新周价格还是特定日期价格
         boolean isWeekdayUpdate = request.getWeekdays() != null && !request.getWeekdays().isEmpty();
         boolean applyWeekdaysInRange = Boolean.TRUE.equals(request.getApplyWeekdaysInRange());
+        boolean isMultiDayRange = request.getStartDate() != null
+                && request.getEndDate() != null
+                && !request.getStartDate().isEqual(request.getEndDate());
+        // 强制约束：跨天范围必须按日期逐天更新，避免误走“按周模板”分支导致界面看起来未生效。
+        if (isMultiDayRange) {
+            applyWeekdaysInRange = true;
+        }
 
         java.util.Set<Integer> weekdayFilter = null;
         if (applyWeekdaysInRange && isWeekdayUpdate) {

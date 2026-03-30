@@ -15,7 +15,7 @@ public class ChatMessageRequest {
      * 用户发送的消息内容
      */
     @NotBlank(message = "消息内容不能为空")
-    @Size(max = 2000, message = "消息内容不能超过2000个字符")
+    @Size(max = 8000, message = "message 超过 8000 字符限制")
     private String message;
 
     /**

@@ -81,6 +81,13 @@
             </template>
           </el-dropdown>
 
+          <el-button
+            :type="showCellDefaultPrice ? 'primary' : 'default'"
+            @click="showCellDefaultPrice = !showCellDefaultPrice"
+          >
+            {{ showCellDefaultPrice ? '隐藏价格' : '显示价格' }}
+          </el-button>
+
         </div>
       </div>  
 
@@ -181,6 +188,7 @@
                 @mouseup.left="onCellMouseUp($event, roomData, dailyStatus)"
                 @click="onCellClick($event, roomData, dailyStatus)"
                 @mouseenter="onCellMouseEnter($event, roomData, dailyStatus)"
+                :title="getCellDefaultPriceTooltip(roomData, dailyStatus)"
               >
                 <!-- 批量选择标识 -->
                 <div
@@ -211,6 +219,13 @@
                   class="reservation-note-indicator"
                   title="该订单有备注"
                 />
+
+                <div
+                  v-if="shouldDisplayCellDefaultPrice(roomData, dailyStatus)"
+                  class="cell-default-price"
+                >
+                  ¥{{ getRoomTypeDefaultPriceValue(roomData.roomType) }}
+                </div>
 
                 <div v-if="dailyStatus.reservation && !isRoomCollapsed" class="reservation-cell-info">
                   <div class="reservation-ribbon">
@@ -376,6 +391,7 @@
       <!-- 悬停预订信息卡片 -->
       <div
         v-show="showHoverCard && hoverReservation"
+        ref="hoverCardRef"
         class="hover-info-card"
         :style="{
           left: hoverCardPosition.x + 'px',
@@ -443,8 +459,13 @@
           <span class="received">已收款: ¥{{ totalPayment.toFixed(2) }}</span>
         </div>
 
-        <div class="notes" v-if="getReservationNotesText(hoverReservation)">备注: {{ getReservationNotesText(hoverReservation) }}</div>
-        <div class="notes" v-else>备注: 无</div>
+        <div class="notes">
+          <div class="notes-label">备注：</div>
+          <div v-if="getReservationNotesText(hoverReservation)" class="notes-content">
+            {{ getReservationNotesText(hoverReservation) }}
+          </div>
+          <div v-else class="notes-content notes-content-empty">无</div>
+        </div>
       </div>
 
       <!-- 筛选侧边栏 -->
@@ -2473,6 +2494,8 @@ const showDirtyHover = ref(false)
 const hoverCardPosition = ref({ x: 0, y: 0 })
 const hoverReservation = ref<any>(null)
 const hoverDirtyRoomId = ref<number | null>(null)
+const hoverCardRef = ref<HTMLElement | null>(null)
+const hoverCardAnchorRect = ref<DOMRect | null>(null)
 
 // 停用房操作弹窗
 const showClosedRoomActions = ref(false)
@@ -2487,6 +2510,8 @@ const filterOptions = ref({
   roomTypes: [] as string[],
   selectedRoomTypes: [] as string[],
 })
+const showCellDefaultPrice = ref(false)
+const roomTypeDefaultPriceMap = ref<Map<string, number>>(new Map())
 const DEFAULT_SORT_ORDER = 999999
 const roomTypeIdMap = ref<Map<string, number>>(new Map())
 const roomTypeSortOrderMap = ref<Record<number, number>>({})
@@ -2582,6 +2607,39 @@ const getRoomSortOrder = (roomId: number) => {
 
 const getRoomGroupSortOrder = (roomId: number) => {
   return roomToGroupSortOrderMap.value.get(roomId) ?? DEFAULT_SORT_ORDER
+}
+
+const getRoomTypeDefaultPriceValue = (roomTypeName: string) => {
+  return roomTypeDefaultPriceMap.value.get(roomTypeName) ?? 0
+}
+
+const shouldDisplayCellDefaultPrice = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
+  if (!showCellDefaultPrice.value || isRoomCollapsed.value) {
+    return false
+  }
+  if (dailyStatus.reservation) {
+    return false
+  }
+  const roomStatus = getRoomExtraStatus(roomData.roomId, dailyStatus.date)
+  if (roomStatus.isClosed) {
+    return false
+  }
+  return getRoomTypeDefaultPriceValue(roomData.roomType) > 0
+}
+
+const getCellDefaultPriceTooltip = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
+  if (dailyStatus.reservation) {
+    return ''
+  }
+  const roomStatus = getRoomExtraStatus(roomData.roomId, dailyStatus.date)
+  if (roomStatus.isClosed) {
+    return ''
+  }
+  const defaultPrice = getRoomTypeDefaultPriceValue(roomData.roomType)
+  if (defaultPrice <= 0) {
+    return ''
+  }
+  return `默认价: ¥${defaultPrice}`
 }
 
 const sortCalendarRooms = (rooms: CalendarRoomData[]) => {
@@ -3126,10 +3184,14 @@ const loadRoomTypesData = async () => {
       const roomsData: any[] = []
       let roomIdCounter = 1
       const nextRoomTypeIdMap = new Map<string, number>()
+      const nextRoomTypeDefaultPriceMap = new Map<string, number>()
 
       response.data.forEach((roomType: any) => {
         if (roomType?.name && roomType?.id) {
           nextRoomTypeIdMap.set(roomType.name, Number(roomType.id))
+        }
+        if (roomType?.name && roomType?.defaultPrice != null && !Number.isNaN(Number(roomType.defaultPrice))) {
+          nextRoomTypeDefaultPriceMap.set(roomType.name, Number(roomType.defaultPrice))
         }
         if (roomType.rooms && roomType.rooms.length > 0) {
           roomType.rooms.forEach((room: any) => {
@@ -3159,6 +3221,7 @@ const loadRoomTypesData = async () => {
         }
       })
       roomTypeIdMap.value = nextRoomTypeIdMap
+      roomTypeDefaultPriceMap.value = nextRoomTypeDefaultPriceMap
 
       // 更新房态数据
       calendarData.value = {
@@ -3715,6 +3778,43 @@ const getCollapsedCellStatus = (roomData: CalendarRoomData, dailyStatus: DailyRo
   }
 }
 
+const getFloatingSafePosition = (rect: DOMRect, panelWidth: number, panelHeight: number) => {
+  const gap = 10
+  const viewportPadding = 8
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+
+  let x = rect.right + gap
+  if (x + panelWidth + viewportPadding > viewportWidth) {
+    x = rect.left - panelWidth - gap
+  }
+
+  let y = rect.top
+  if (y + panelHeight + viewportPadding > viewportHeight) {
+    y = viewportHeight - panelHeight - viewportPadding
+  }
+
+  x = Math.max(viewportPadding, Math.min(x, viewportWidth - panelWidth - viewportPadding))
+  y = Math.max(viewportPadding, Math.min(y, viewportHeight - panelHeight - viewportPadding))
+
+  return { x, y }
+}
+
+const updateDirtyTooltipPosition = (rect: DOMRect) => {
+  hoverCardPosition.value = getFloatingSafePosition(rect, 112, 40)
+}
+
+const updateHoverCardPositionByRect = (rect: DOMRect) => {
+  const panelWidth = hoverCardRef.value?.offsetWidth ?? 340
+  const panelHeight = hoverCardRef.value?.offsetHeight ?? 360
+  hoverCardPosition.value = getFloatingSafePosition(rect, panelWidth, panelHeight)
+}
+
+const adjustHoverCardPosition = () => {
+  if (!hoverCardAnchorRect.value) return
+  updateHoverCardPositionByRect(hoverCardAnchorRect.value)
+}
+
 // 房间号悬停处理
 const onRoomNumberHover = (event: MouseEvent, roomData: CalendarRoomData) => {
   // 只在展开状态下显示脏房提示
@@ -3722,10 +3822,7 @@ const onRoomNumberHover = (event: MouseEvent, roomData: CalendarRoomData) => {
     hoverDirtyRoomId.value = roomData.roomId
     const target = (event.currentTarget as HTMLElement) || (event.target as HTMLElement)
     const rect = target.getBoundingClientRect()
-    hoverCardPosition.value = {
-      x: rect.right + 10,
-      y: rect.top,
-    }
+    updateDirtyTooltipPosition(rect)
     showDirtyHover.value = true
     showHoverCard.value = false
   }
@@ -3762,17 +3859,19 @@ const onCellHover = (
   // 先清除其他可能的悬停状态
   showDirtyHover.value = false
 
-  const rect = (event.target as HTMLElement).getBoundingClientRect()
-  hoverCardPosition.value = {
-    x: rect.right + 10,
-    y: rect.top,
-  }
+  const target = (event.currentTarget as HTMLElement) || (event.target as HTMLElement)
+  const rect = target.getBoundingClientRect()
+  hoverCardAnchorRect.value = rect
+  updateHoverCardPositionByRect(rect)
 
   // 显示预订信息卡片（悬停展示）
   if (dailyStatus.reservation) {
     // 先显示基本信息
     hoverReservation.value = dailyStatus.reservation
     showHoverCard.value = true
+    void nextTick(() => {
+      adjustHoverCardPosition()
+    })
 
     // 异步获取完整的预订详情（如果有ID）
     if (dailyStatus.reservation.id) {
@@ -3792,6 +3891,7 @@ const hideHoverCard = () => {
   showDirtyHover.value = false
   hoverReservation.value = null
   hoverDirtyRoomId.value = null
+  hoverCardAnchorRect.value = null
 }
 
 // 加载预订详情
@@ -3821,6 +3921,9 @@ const loadReservationDetails = async (reservationId: number) => {
       // 同时更新悬停卡片和选中的预订信息
       hoverReservation.value = { ...hoverReservation.value, ...reservationData }
       selectedReservation.value = reservationData
+      void nextTick(() => {
+        adjustHoverCardPosition()
+      })
 
       console.log('预订详情加载成功:', reservationData)
 
@@ -3981,7 +4084,6 @@ const submitBooking = async () => {
       children: bookingForm.value.children || 0,
       totalAmount: parseFloat(String(bookingForm.value.totalAmount || 100.0)),
       pricePlan: bookingForm.value.pricePlan || undefined,
-      channelOrderNumber: bookingForm.value.notes, // 临时将notes作为渠道订单号
       notes: bookingForm.value.notes,
       directCheckIn: bookingMode.value === 'check-in' ? true : false,
     }
@@ -5546,6 +5648,7 @@ onActivated(async () => {
 .toolbar-actions {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
 .calendar-content {
@@ -6103,8 +6206,10 @@ onActivated(async () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 3000;
   padding: 15px;
-  min-width: 280px;
-  max-width: 320px;
+  min-width: 320px;
+  max-width: 360px;
+  max-height: min(78vh, 560px);
+  overflow: hidden;
 }
 
 .card-header {
@@ -6136,6 +6241,8 @@ onActivated(async () => {
   margin: 8px 0;
   color: #666;
   font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .status-info .status-label {
@@ -6156,8 +6263,31 @@ onActivated(async () => {
 
 .notes {
   margin-top: 10px;
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 8px;
+}
+
+.notes-label {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.notes-content {
   color: #666;
   font-size: 14px;
+  line-height: 1.5;
+  max-height: 140px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  padding-right: 2px;
+}
+
+.notes-content-empty {
+  color: #9ca3af;
 }
 
 /* 预订侧边栏样式 */
@@ -6895,6 +7025,13 @@ onActivated(async () => {
   justify-content: center;
   font-size: 14px;
   z-index: 10;
+}
+
+.cell-default-price {
+  font-size: 12px;
+  color: #fa8c16;
+  font-weight: 600;
+  line-height: 1;
 }
 
 /* 关房弹窗样式 */

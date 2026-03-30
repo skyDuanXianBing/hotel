@@ -93,4 +93,38 @@ public class AutoMessageController {
             return ApiResponse.error(e.getMessage());
         }
     }
+
+    @PostMapping("/replay")
+    public ApiResponse<Void> replayAutoMessage(@RequestBody ReplayAutoMessageRequest request) {
+        try {
+            if (request == null) {
+                return ApiResponse.error("请求体不能为空");
+            }
+            autoMessageService.replayAutoMessage(request.getReservationId(), request.getAutoMessageId());
+            return ApiResponse.success("已触发自动消息重放", null);
+        } catch (RuntimeException e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    public static class ReplayAutoMessageRequest {
+        private Long reservationId;
+        private Long autoMessageId;
+
+        public Long getReservationId() {
+            return reservationId;
+        }
+
+        public void setReservationId(Long reservationId) {
+            this.reservationId = reservationId;
+        }
+
+        public Long getAutoMessageId() {
+            return autoMessageId;
+        }
+
+        public void setAutoMessageId(Long autoMessageId) {
+            this.autoMessageId = autoMessageId;
+        }
+    }
 }

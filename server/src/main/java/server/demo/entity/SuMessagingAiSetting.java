@@ -22,7 +22,7 @@ public class SuMessagingAiSetting implements StoreScopedEntity {
     private Long storeId;
 
     @Column(name = "auto_reply_enabled", nullable = false)
-    private Boolean autoReplyEnabled = true;
+    private Boolean autoReplyEnabled = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -35,7 +35,7 @@ public class SuMessagingAiSetting implements StoreScopedEntity {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
         if (autoReplyEnabled == null) {
-            autoReplyEnabled = true;
+            autoReplyEnabled = false;
         }
     }
 

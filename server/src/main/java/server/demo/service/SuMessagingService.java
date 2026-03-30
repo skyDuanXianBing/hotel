@@ -38,9 +38,7 @@ public class SuMessagingService {
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
     private final ObjectMapper objectMapper;
-    private final SuMessagingAiSettingService suMessagingAiSettingService;
     private final SuMessagingRealtimeGateway suMessagingRealtimeGateway;
-    private final SuAiAutoReplyService suAiAutoReplyService;
 
     public SuMessagingService(
             SuMessageThreadRepository threadRepository,
@@ -48,18 +46,14 @@ public class SuMessagingService {
             SuApiClient suApiClient,
             SuAccessTokenService suAccessTokenService,
             ObjectMapper objectMapper,
-            SuMessagingAiSettingService suMessagingAiSettingService,
-            SuMessagingRealtimeGateway suMessagingRealtimeGateway,
-            SuAiAutoReplyService suAiAutoReplyService
+            SuMessagingRealtimeGateway suMessagingRealtimeGateway
     ) {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
         this.objectMapper = objectMapper;
-        this.suMessagingAiSettingService = suMessagingAiSettingService;
         this.suMessagingRealtimeGateway = suMessagingRealtimeGateway;
-        this.suAiAutoReplyService = suAiAutoReplyService;
     }
 
     @Transactional
@@ -160,9 +154,8 @@ public class SuMessagingService {
     }
 
     private void triggerAutoReplyAfterCommit(Long storeId, Long threadId, Long triggerMessageId) {
-        if (suMessagingAiSettingService.isAutoReplyEnabled(storeId)) {
-            suAiAutoReplyService.tryAutoReply(storeId, threadId, triggerMessageId);
-        }
+        logger.info("[SuMessaging] AI auto reply disabled. skip trigger. storeId={}, threadId={}, triggerMessageId={}",
+                storeId, threadId, triggerMessageId);
     }
 
     public List<SuMessagingThreadDTO> listThreads(Long storeId) {
@@ -246,7 +239,8 @@ public class SuMessagingService {
         msg.setThread(thread);
         msg.setExternalMessageId(null);
         msg.setSenderType(SuMessagingSenderType.STAFF);
-        msg.setSenderName(request.getSenderName() != null && !request.getSenderName().isBlank() ? request.getSenderName() : "STAFF");
+        String senderName = request.getSenderName() != null ? request.getSenderName().trim() : null;
+        msg.setSenderName(senderName != null && !senderName.isBlank() ? senderName : null);
         msg.setContent(message);
         msg.setSentAt(LocalDateTime.now());
         msg.setIsRead(true);

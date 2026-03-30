@@ -1,0 +1,79 @@
+# Widget Script
+
+For implementing the module, users have to add a blank div and script to their own system, which is mentioned below:
+
+{% hint style="info" %}
+**NOTE**
+
+We need to whitelist the domain where the widget will be deployed. Please share your domain so we can whitelist it. The widget API will work only after the domain has been whitelisted.
+{% endhint %}
+
+1. **Add the Script:**\
+   Include the following script in your HTML to load the required JavaScript file:
+
+   ```html
+   <script src="https://static.otaswitch.com/JS/script.js"></script>
+   ```
+2. **Create a Container Div:**\
+   Insert a blank div in your HTML and assign it an id of your choice:
+
+   ```html
+   <div id="app"></div>
+   ```
+3. **Invoke the Function:**\
+   Call the function exported from the script, passing in the necessary object. This object is mandatory for loading the module.&#x20;
+
+{% hint style="info" %}
+**NOTE**
+
+The configuration object is required to properly load and initialize the module.
+{% endhint %}
+
+***
+
+### <mark style="color:yellow;">Sample Example</mark>
+
+```javascript
+const tmpScriptObj = {
+    elementId: "app",  
+    type: "channel-Mapping", // Other possible values are "arr", "booking-details", and "mbs"
+    appId: "c3RheWlubi5zdWlzc3UuY29t", 
+    propertyId: "y77kDhCABRZxRXEn-KLQYBdl7SVb_1o0TCIZV9EYDso", 
+    token: "My42LjI0OS4yNDg=_2zCe4UwqClLJ8IPB25fhRXhaiahF2kja",	 
+    channelCode: "", 
+    language: "en", 
+    themeColor: {
+        iconColor: "#1e8ce4"       
+    }  
+}
+```
+
+**See below:**
+
+<table data-header-hidden><thead><tr><th width="108.66668701171875"></th><th></th><th width="167.99993896484375"></th><th></th></tr></thead><tbody><tr><td><strong>Elements</strong></td><td><strong>Description</strong></td><td><strong>Optional/Required</strong></td><td><strong>Notes</strong></td></tr><tr><td><code>elementId</code></td><td>The ID of the HTML <code>&#x3C;div></code> where the module will be mounted.</td><td><strong>Required</strong></td><td>Must match the <code>id</code> of the <code>&#x3C;div></code> added in the HTML. Example: <code>&#x3C;div id="app">&#x3C;/div></code></td></tr><tr><td><code>type</code></td><td>Defines the integration type.</td><td><strong>Required</strong></td><td>Possible values are: <code>arr</code>, <code>booking-details</code>, <code>channel-Mapping</code>, and <code>mbs</code></td></tr><tr><td><code>appId</code></td><td>Base64-encoded PMS (Property Management System) domain value.</td><td><strong>Required</strong></td><td>Obtain your PMS domain and convert it to Base64 before passing.</td></tr><tr><td><code>propertyId</code></td><td>Encrypted Property ID obtained via the API.</td><td><strong>Required</strong></td><td>Fetch this from the <strong>Generate a Token</strong> API before initializing the module.</td></tr><tr><td><code>token</code></td><td>Authentication token obtained via the API.</td><td><strong>Required</strong></td><td>Generate and pass a valid token from the <strong>Generate a Token</strong> API.</td></tr><tr><td><code>channelCode</code></td><td>Specific channel code to filter the results.</td><td><strong>Optional</strong></td><td><p>If left empty, <strong>all channels</strong> will be loaded by default.  </p><p></p><p>Only applicable when type == "<code>channel-Mapping</code>" otherwise it will be ignored.</p></td></tr><tr><td><code>language</code></td><td>Sets the application language.</td><td><strong>Optional</strong></td><td><p>Default is <code>"en"</code> for English. Supported values may vary depending on API configuration. </p><p></p><p>All the languages mentioned in the table: <a data-mention href="#language-supports-in-widget">#language-supports-in-widget</a> are allowed.</p></td></tr><tr><td><code>themeColor</code></td><td>Object to customize the module’s theme colors.</td><td><strong>Optional</strong></td><td>Example: <code>{ iconColor: "#1e8ce4" }</code>. If not provided, default colors will be applied automatically.</td></tr></tbody></table>
+
+4. Use below mention function to load module:
+
+```javascript
+loadScript(tmpScriptObj);
+```
+
+### <mark style="color:yellow;">Language Supports in Widget</mark>
+
+We currently support the following languages. To set a preferred language, please use the corresponding language codes:
+
+Here’s the table you requested:
+
+| SN | Language Code | Language            |
+| -- | ------------- | ------------------- |
+| 1  | ar            | Arabic              |
+| 2  | zn            | Chinese             |
+| 3  | en            | English             |
+| 4  | fr            | French              |
+| 5  | ja            | Japanese            |
+| 6  | ka            | Georgian            |
+| 7  | de            | German              |
+| 8  | it            | Italian             |
+| 9  | pl            | Polish              |
+| 10 | es            | Spanish / Castilian |
+| 11 | uk            | Ukrainian           |

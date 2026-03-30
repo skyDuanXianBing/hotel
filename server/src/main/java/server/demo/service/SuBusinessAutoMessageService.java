@@ -38,6 +38,7 @@ import java.time.temporal.ChronoUnit;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -241,11 +242,20 @@ public class SuBusinessAutoMessageService {
                         "messagingAB"
                 );
                 if (!suApiClient.isSuSuccess(suResponse)) {
-                    String err = suApiClient.extractSuErrorMessage(suResponse);
-                    sendError = err != null ? err : "Su message send failed";
+                    String suErrorMessage = suApiClient.extractSuErrorMessage(suResponse);
+                    String suErrorCode = suApiClient.extractSuErrorCode(suResponse);
+                    sendError = formatSuErrorSummary(
+                            suErrorCode,
+                            suErrorMessage != null ? suErrorMessage : "Su message send failed",
+                            thread
+                    );
                 }
             } catch (Exception sendEx) {
-                sendError = sendEx.getMessage();
+                String raw = sendEx.getMessage();
+                sendError = appendThreadContext(
+                        raw == null || raw.isBlank() ? "SEND_ERR: unknown" : "SEND_ERR: " + raw,
+                        thread
+                );
             }
 
             if (sendError == null || sendError.isBlank()) {
@@ -262,11 +272,17 @@ public class SuBusinessAutoMessageService {
             autoMessageLogger.info("[AutoMessage] sent ok. storeId={}, reservationId={}, autoMessageId={}, action={}, sendTiming={}",
                     storeId, reservation.getId(), template.getId(), template.getAction(), template.getSendTiming());
         } catch (Exception e) {
+            String err = e.getMessage();
+            WaitState waitState = classifyRecoverableError(err);
             logger.warn("[AutoMessage] send failed. storeId={}, reservationId={}, autoMessageId={}, err={}",
-                    storeId, reservation.getId(), template.getId(), e.getMessage(), e);
+                    storeId, reservation.getId(), template.getId(), err, e);
             autoMessageLogger.error("[AutoMessage] send failed. storeId={}, reservationId={}, autoMessageId={}, err={}",
-                    storeId, reservation.getId(), template.getId(), e.getMessage());
-            markFailed(log, e.getMessage());
+                    storeId, reservation.getId(), template.getId(), err);
+            if (waitState != null) {
+                markWaiting(log, waitState.code(), waitState.detail());
+            } else {
+                markFailed(log, err);
+            }
         }
     }
 
@@ -333,7 +349,7 @@ public class SuBusinessAutoMessageService {
                 thread.setThreadKey(normalizedBookingId);
                 changed = true;
             }
-            String listingId = reservation.getOtaRoomId();
+            String listingId = resolveTrustedListingId(reservation.getOtaRoomId());
             if ((thread.getListingId() == null || thread.getListingId().isBlank())
                     && listingId != null && !listingId.isBlank()) {
                 thread.setListingId(listingId);
@@ -367,7 +383,7 @@ public class SuBusinessAutoMessageService {
             return null;
         }
 
-        String listingId = reservation.getOtaRoomId();
+        String listingId = resolveTrustedListingId(reservation.getOtaRoomId());
         String listingName = reservation.getRoom() != null && reservation.getRoom().getRoomType() != null
                 ? reservation.getRoom().getRoomType().getName()
                 : null;
@@ -406,6 +422,25 @@ public class SuBusinessAutoMessageService {
             return storeSuHotelId.trim();
         }
         return null;
+    }
+
+    private static String resolveTrustedListingId(String rawListingId) {
+        if (rawListingId == null) {
+            return null;
+        }
+        String listingId = rawListingId.trim();
+        if (listingId.isBlank()) {
+            return null;
+        }
+        boolean numericOnly = listingId.chars().allMatch(Character::isDigit);
+        int minLength = numericOnly ? 6 : 4;
+        if (listingId.length() < minLength || listingId.length() > 64) {
+            return null;
+        }
+        boolean validChars = listingId.chars().allMatch(ch ->
+                Character.isLetterOrDigit(ch) || ch == '-' || ch == '_'
+        );
+        return validChars ? listingId : null;
     }
 
     private static Integer toSuChannelId(String channelCode) {
@@ -802,6 +837,87 @@ public class SuBusinessAutoMessageService {
         }
         return configuredSenderName.trim();
     }
+
+    private String formatSuErrorSummary(String suErrorCode, String suErrorMessage, SuMessageThread thread) {
+        String normalizedCode = suErrorCode == null || suErrorCode.isBlank() ? "UNKNOWN" : suErrorCode.trim();
+        String normalizedMessage = suErrorMessage == null || suErrorMessage.isBlank() ? "Unknown error" : suErrorMessage.trim();
+        return appendThreadContext("SU_ERR[code=" + normalizedCode + "]: " + normalizedMessage, thread);
+    }
+
+    private String appendThreadContext(String message, SuMessageThread thread) {
+        if (thread == null) {
+            return message;
+        }
+        StringBuilder builder = new StringBuilder(message == null ? "" : message);
+        builder.append(" {channelId=").append(thread.getChannelId() == null ? "-" : thread.getChannelId());
+        builder.append(", threadId=").append(safeThreadField(thread.getThreadId()));
+        builder.append(", bookingId=").append(safeThreadField(thread.getBookingId()));
+        builder.append(", listingId=").append(safeThreadField(thread.getListingId()));
+        builder.append('}');
+        return builder.toString();
+    }
+
+    private static String safeThreadField(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+        return value.trim();
+    }
+
+    private WaitState classifyRecoverableError(String errorMessage) {
+        if (errorMessage == null || errorMessage.isBlank()) {
+            return null;
+        }
+        String normalized = errorMessage.toLowerCase(Locale.ROOT);
+        boolean hasReadinessHint = containsAny(normalized,
+                "missing",
+                "require",
+                "required",
+                "blank",
+                "empty",
+                "not found",
+                "not ready",
+                "cannot send",
+                "invalid"
+        );
+        if (!hasReadinessHint) {
+            return null;
+        }
+        if (containsAny(normalized, "listingid", "listing id", "listing_id")) {
+            return new WaitState("WAITING_LISTINGID", trimErr(errorMessage));
+        }
+        if (containsAny(normalized,
+                "threadid",
+                "thread id",
+                "thread_key",
+                "thread key",
+                "guestid",
+                "guest id",
+                "bookingid",
+                "booking id",
+                "hotelid",
+                "hotel id",
+                "channelid",
+                "channel id"
+        )) {
+            return new WaitState("WAITING_THREAD_FIELDS", trimErr(errorMessage));
+        }
+        return null;
+    }
+
+    private static boolean containsAny(String source, String... keywords) {
+        if (source == null || keywords == null) {
+            return false;
+        }
+        for (String keyword : keywords) {
+            if (keyword != null && !keyword.isBlank() && source.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private record WaitState(String code, String detail) {}
 
     private void markWaiting(AutoMessageSendLog log, String code, String msg) {
         log.setSuccess(false);

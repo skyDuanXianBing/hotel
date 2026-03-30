@@ -1,6 +1,8 @@
 package server.demo.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.HandlerMapping;
+import server.demo.config.SuApiConfig;
 
 import java.util.Enumeration;
 import java.util.List;
@@ -34,15 +37,25 @@ import java.util.Locale;
 @RequestMapping("/api/v1/su/config")
 public class SuConfigProxyController {
 
+    private static final Logger logger = LoggerFactory.getLogger(SuConfigProxyController.class);
     private static final String UPSTREAM_PROD = "https://connect.su-api.com";
     private static final String UPSTREAM_SANDBOX = "https://connect-sandbox.su-api.com";
     private static final String SU_AUTH_HEADER = "X-Su-Authorization";
+    private static final String SU_PROXY_TOKEN_ID_HEADER = "X-Su-Token-Id";
+    private static final String SU_PROXY_APP_ID_HEADER = "X-Su-App-Id";
+    private static final String SU_PROXY_CLIENT_ID_HEADER = "X-Su-Client-Id";
+    private static final String SU_UPSTREAM_TOKEN_ID_HEADER = "token-id";
+    private static final String SU_UPSTREAM_APP_ID_HEADER = "app-id";
+    private static final String SU_UPSTREAM_CLIENT_ID_HEADER = "client-id";
+    private static final String SU_UPSTREAM_CLIENT_SECRET_HEADER = "client-secret";
 
     private final RestTemplate restTemplate;
+    private final SuApiConfig suApiConfig;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    public SuConfigProxyController(RestTemplate restTemplate) {
+    public SuConfigProxyController(RestTemplate restTemplate, SuApiConfig suApiConfig) {
         this.restTemplate = restTemplate;
+        this.suApiConfig = suApiConfig;
     }
 
     @RequestMapping(
@@ -88,6 +101,7 @@ public class SuConfigProxyController {
         }
 
         HttpHeaders outgoingHeaders = buildOutgoingHeaders(request);
+        logProxyRequest(targetUrl, request, outgoingHeaders);
         ResponseEntity<byte[]> upstreamResponse;
         try {
             upstreamResponse = restTemplate.exchange(
@@ -96,7 +110,9 @@ public class SuConfigProxyController {
                     new org.springframework.http.HttpEntity<>(body, outgoingHeaders),
                     byte[].class
             );
+            logProxyResponse(targetUrl, upstreamResponse);
         } catch (Exception ex) {
+            logger.warn("Su Config proxy request failed. targetUrl={}, error={}", targetUrl, safeMessage(ex));
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(("{\"success\":false,\"message\":\"Su Config代理失败：" + safeMessage(ex) + "\",\"data\":null}").getBytes());
@@ -152,7 +168,19 @@ public class SuConfigProxyController {
     private HttpHeaders buildOutgoingHeaders(HttpServletRequest request) {
         HttpHeaders headers = new HttpHeaders();
 
-        String suAuthorization = request.getHeader(SU_AUTH_HEADER);
+        String suAuthorization = normalizeHeaderValue(request.getHeader(SU_AUTH_HEADER));
+        String suTokenId = firstNonBlank(
+                normalizeHeaderValue(request.getHeader(SU_PROXY_TOKEN_ID_HEADER)),
+                normalizeHeaderValue(request.getHeader(SU_UPSTREAM_TOKEN_ID_HEADER))
+        );
+        String suAppId = firstNonBlank(
+                normalizeHeaderValue(request.getHeader(SU_PROXY_APP_ID_HEADER)),
+                normalizeHeaderValue(request.getHeader(SU_UPSTREAM_APP_ID_HEADER))
+        );
+        String suClientId = firstNonBlank(
+                normalizeHeaderValue(request.getHeader(SU_PROXY_CLIENT_ID_HEADER)),
+                normalizeHeaderValue(request.getHeader(SU_UPSTREAM_CLIENT_ID_HEADER))
+        );
 
         Enumeration<String> headerNames = request.getHeaderNames();
         while (headerNames != null && headerNames.hasMoreElements()) {
@@ -167,7 +195,10 @@ public class SuConfigProxyController {
                     || lower.equals("cookie")
                     || lower.equals("authorization") // 本系统JWT，不应转发
                     || lower.equals("x-store-id")
-                    || lower.equals(SU_AUTH_HEADER.toLowerCase(Locale.ROOT))) {
+                    || lower.equals(SU_AUTH_HEADER.toLowerCase(Locale.ROOT))
+                    || lower.equals(SU_PROXY_TOKEN_ID_HEADER.toLowerCase(Locale.ROOT))
+                    || lower.equals(SU_PROXY_APP_ID_HEADER.toLowerCase(Locale.ROOT))
+                    || lower.equals(SU_PROXY_CLIENT_ID_HEADER.toLowerCase(Locale.ROOT))) {
                 continue;
             }
 
@@ -180,12 +211,89 @@ public class SuConfigProxyController {
         if (suAuthorization != null && !suAuthorization.isBlank()) {
             headers.set(HttpHeaders.AUTHORIZATION, suAuthorization.trim());
         }
+        if (suTokenId != null && !suTokenId.isBlank()) {
+            headers.set(SU_UPSTREAM_TOKEN_ID_HEADER, suTokenId);
+        }
+
+        String fallbackClientId = normalizeHeaderValue(suApiConfig.getClientId());
+        if (headers.getFirst(SU_UPSTREAM_CLIENT_ID_HEADER) == null && fallbackClientId != null) {
+            headers.set(SU_UPSTREAM_CLIENT_ID_HEADER, fallbackClientId);
+        }
+        if (suClientId != null && !suClientId.isBlank()) {
+            headers.set(SU_UPSTREAM_CLIENT_ID_HEADER, suClientId);
+        }
+
+        String finalClientId = normalizeHeaderValue(headers.getFirst(SU_UPSTREAM_CLIENT_ID_HEADER));
+        if (headers.getFirst(SU_UPSTREAM_APP_ID_HEADER) == null && finalClientId != null) {
+            headers.set(SU_UPSTREAM_APP_ID_HEADER, finalClientId);
+        }
+        if (suAppId != null && !suAppId.isBlank()) {
+            headers.set(SU_UPSTREAM_APP_ID_HEADER, suAppId);
+        }
+
+        if (headers.getFirst(SU_UPSTREAM_CLIENT_SECRET_HEADER) == null) {
+            try {
+                String fallbackClientSecret = normalizeHeaderValue(suApiConfig.getClientSecret());
+                if (fallbackClientSecret != null) {
+                    headers.set(SU_UPSTREAM_CLIENT_SECRET_HEADER, fallbackClientSecret);
+                }
+            } catch (Exception ex) {
+                logger.warn("Su Config proxy missing client-secret fallback config. error={}", safeMessage(ex));
+            }
+        }
 
         if (headers.getAccept() == null || headers.getAccept().isEmpty()) {
             headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         }
 
         return headers;
+    }
+
+    private void logProxyRequest(String targetUrl, HttpServletRequest request, HttpHeaders outgoingHeaders) {
+        logger.info(
+                "Su Config proxy request. targetUrl={}, inAuth={}, inTokenId={}, outAuth={}, outTokenId={}, outClientId={}, outClientSecret={}, outAppId={}",
+                targetUrl,
+                hasText(request.getHeader(SU_AUTH_HEADER)),
+                hasText(firstNonBlank(
+                        request.getHeader(SU_PROXY_TOKEN_ID_HEADER),
+                        request.getHeader(SU_UPSTREAM_TOKEN_ID_HEADER)
+                )),
+                hasText(outgoingHeaders.getFirst(HttpHeaders.AUTHORIZATION)),
+                hasText(outgoingHeaders.getFirst(SU_UPSTREAM_TOKEN_ID_HEADER)),
+                hasText(outgoingHeaders.getFirst(SU_UPSTREAM_CLIENT_ID_HEADER)),
+                hasText(outgoingHeaders.getFirst(SU_UPSTREAM_CLIENT_SECRET_HEADER)),
+                hasText(outgoingHeaders.getFirst(SU_UPSTREAM_APP_ID_HEADER))
+        );
+    }
+
+    private void logProxyResponse(String targetUrl, ResponseEntity<byte[]> upstreamResponse) {
+        int bodyLength = upstreamResponse.getBody() == null ? 0 : upstreamResponse.getBody().length;
+        logger.info(
+                "Su Config proxy response. targetUrl={}, status={}, bodyBytes={}",
+                targetUrl,
+                upstreamResponse.getStatusCode().value(),
+                bodyLength
+        );
+    }
+
+    private String normalizeHeaderValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String firstNonBlank(String first, String second) {
+        String firstValue = normalizeHeaderValue(first);
+        if (firstValue != null) {
+            return firstValue;
+        }
+        return normalizeHeaderValue(second);
+    }
+
+    private boolean hasText(String value) {
+        return normalizeHeaderValue(value) != null;
     }
 
     private String safeMessage(Exception ex) {

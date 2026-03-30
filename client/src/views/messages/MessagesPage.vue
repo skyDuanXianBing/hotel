@@ -122,12 +122,6 @@
                     </a>
                     <span v-else>{{ segment.value }}</span>
                   </template>
-                  <span
-                    v-if="message.senderName && message.senderType === SuMessagingSenderType.STAFF"
-                    class="sender-badge"
-                  >
-                    - {{ message.senderName }}
-                  </span>
                 </div>
                 <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
               </div>
@@ -195,7 +189,6 @@
           v-model="aiContextSummary"
           type="textarea"
           :rows="4"
-          readonly
         />
       </div>
       <div class="ai-draft-section">
@@ -401,6 +394,39 @@ const sanitizeUserFacingMessage = (rawMessage?: string) => {
     .trim()
 }
 
+const AI_CONTEXT_LIMITS = {
+  maxMessages: 2,
+  maxSingleMessageChars: 1200,
+  maxTotalChars: 7000,
+} as const
+
+const truncateText = (content: string, maxChars: number) => {
+  if (content.length <= maxChars) {
+    return content
+  }
+  return `${content.slice(0, maxChars)}...`
+}
+
+const resolveAiErrorMessage = (error: unknown, fallbackMessage: string) => {
+  if (error && typeof error === 'object') {
+    const responseMessage = sanitizeUserFacingMessage(
+      (error as { response?: { data?: { message?: string } } }).response?.data?.message,
+    )
+    if (responseMessage) {
+      return responseMessage
+    }
+  }
+
+  if (error instanceof Error) {
+    const normalizedMessage = sanitizeUserFacingMessage(error.message)
+    if (normalizedMessage) {
+      return normalizedMessage
+    }
+  }
+
+  return fallbackMessage
+}
+
 const searchQuery = ref('')
 const activeThreadId = ref<number | null>(null)
 const newMessage = ref('')
@@ -533,14 +559,6 @@ const mapRealtimeMessage = (message: RealtimeMessageItem): MessageItem => ({
 })
 
 const URL_REGEX = /https?:\/\/[^\s]+/gi
-const MAX_LINK_LABEL_LENGTH = 88
-
-const formatLinkLabel = (url: string) => {
-  if (url.length <= MAX_LINK_LABEL_LENGTH) {
-    return url
-  }
-  return `${url.slice(0, MAX_LINK_LABEL_LENGTH)}...`
-}
 
 const normalizeInlineSpaces = (text: string) => text.replace(/[ \t\u00A0\u3000]{2,}/g, ' ')
 
@@ -580,7 +598,7 @@ const splitMessageContent = (content: string): MessageSegment[] => {
     segments.push({
       type: 'link',
       value: fullUrl,
-      label: formatLinkLabel(fullUrl),
+      label: fullUrl,
     })
     cursor = start + fullUrl.length
     match = URL_REGEX.exec(normalized)
@@ -708,15 +726,36 @@ const buildConversationContextForAi = () => {
     `会话状态：${conversation?.closed ? '已关闭' : '活跃'}`,
   ].join('；')
 
-  const history = sortMessagesByTime(messages.value)
-    .slice(-20)
+  const historyLines = sortMessagesByTime(messages.value)
+    .slice(-AI_CONTEXT_LIMITS.maxMessages)
     .map((item) => {
       const role = item.senderType === SuMessagingSenderType.GUEST ? '住客' : '客服'
-      return `[${role}] ${item.content}`
+      const content = truncateText(item.content || '', AI_CONTEXT_LIMITS.maxSingleMessageChars)
+      return `[${role}] ${content}`
     })
-    .join('\n')
 
-  return `${conversationHeader}\n\n最近会话：\n${history || '暂无历史消息'}`
+  const contextPrefix = `${conversationHeader}\n\n最近会话：\n`
+  const fallbackHistory = '暂无历史消息'
+  const boundedHistoryLines = [...historyLines]
+
+  const composeContext = () => {
+    const historyText = boundedHistoryLines.join('\n') || fallbackHistory
+    return `${contextPrefix}${historyText}`
+  }
+
+  let context = composeContext()
+  while (context.length > AI_CONTEXT_LIMITS.maxTotalChars && boundedHistoryLines.length > 1) {
+    boundedHistoryLines.shift()
+    context = composeContext()
+  }
+
+  if (context.length > AI_CONTEXT_LIMITS.maxTotalChars) {
+    const availableChars = Math.max(AI_CONTEXT_LIMITS.maxTotalChars - contextPrefix.length, 0)
+    const compressedHistory = boundedHistoryLines.join('\n').slice(0, availableChars)
+    return `${contextPrefix}${compressedHistory || fallbackHistory}`
+  }
+
+  return context
 }
 
 const buildFallbackContextSummary = () => {
@@ -801,7 +840,7 @@ const openAiReplyAssistant = async () => {
     console.error('生成AI初稿失败:', error)
     aiContextSummary.value = buildFallbackContextSummary()
     aiDraftReply.value = ''
-    ElMessage.error('AI初稿生成失败，请重试')
+    ElMessage.error(resolveAiErrorMessage(error, 'AI初稿生成失败'))
   } finally {
     isAiGeneratingDraft.value = false
   }
@@ -864,7 +903,7 @@ const polishAiDraftReply = async () => {
     aiPolishInstruction.value = ''
   } catch (error) {
     console.error('优化草稿失败:', error)
-    ElMessage.error('优化草稿失败，请重试')
+    ElMessage.error(resolveAiErrorMessage(error, '优化草稿失败'))
   } finally {
     isAiPolishing.value = false
   }
@@ -873,7 +912,6 @@ const polishAiDraftReply = async () => {
 const createOptimisticMessage = (content: string): MessageItem => ({
   id: localMessageSeed--,
   senderType: SuMessagingSenderType.STAFF,
-  senderName: '客服',
   content,
   timestamp: new Date(),
   deliveryStatus: 'SENDING',
@@ -904,7 +942,6 @@ const sendMessageContent = async (content: string) => {
   try {
     const response = (await sendSuThreadMessage(activeThreadId.value, {
       content,
-      senderName: '客服',
     })) as ApiResponse<SuMessagingMessageDTO>
 
     if (response.success === false || !response.data) {
@@ -1450,14 +1487,6 @@ onUnmounted(() => {
 
 .message-received .message-link {
   color: #1677ff;
-}
-
-.sender-badge {
-  opacity: 0.8;
-  font-style: italic;
-  display: block;
-  margin-top: 6px;
-  text-align: right;
 }
 
 .message-delivery-indicator {
