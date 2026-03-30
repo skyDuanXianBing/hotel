@@ -209,6 +209,7 @@ import BookingFormModal, {
 } from '@/components/room-status/BookingFormModal.vue'
 import BatchActionModal, {
   type BatchActionMode,
+  type BatchRoomOption,
   type BatchActionSubmitPayload,
 } from '@/components/room-status/BatchActionModal.vue'
 import CloseRoomModal, { type CloseRoomSubmitPayload } from '@/components/room-status/CloseRoomModal.vue'
@@ -363,12 +364,20 @@ const showRoomListLoadingHint = computed(() => {
   return roomStatusStore.loading || roomTypeCatalogLoading.value
 })
 
-const batchRooms = computed(() => {
-  return roomStatusStore.visibleRoomItems.map((item) => ({
-    roomId: item.roomId,
-    roomNumber: item.roomNumber,
-    roomType: item.roomType,
-  }))
+const batchRooms = computed<BatchRoomOption[]>(() => {
+  const rooms: BatchRoomOption[] = []
+
+  for (const group of roomStatusStore.groupedVisibleRooms) {
+    for (const room of group.rooms) {
+      rooms.push({
+        roomId: room.roomId,
+        roomNumber: room.roomNumber,
+        roomType: room.roomType,
+      })
+    }
+  }
+
+  return rooms
 })
 
 const quickActionDescription = computed(() => {
@@ -466,7 +475,7 @@ async function loadRoomTypeCatalogCount() {
 async function refreshPageDataOnEnter() {
   loadNotice.value = ''
   try {
-    await Promise.all([roomStatusStore.refreshAll(), loadRoomTypeCatalogCount()])
+    await Promise.all([roomStatusStore.refreshAll(true), loadRoomTypeCatalogCount()])
   } catch (error) {
     const message = resolveWarningMessage(error, '房态刷新失败')
     loadNotice.value = message

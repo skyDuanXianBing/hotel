@@ -461,19 +461,6 @@ public class RoomTypeService {
         existingRoomType.setName(normalizedName);
         existingRoomType.setCode(normalizedCode);
 
-        if (suRoomTypeAutoSyncEnabled && suRoomTypeAutoSyncStrict) {
-            Integer oldTotal = existingRoomType.getTotalRooms();
-            Integer newTotal = roomType.getTotalRooms();
-            if (oldTotal != null && newTotal != null && newTotal < oldTotal) {
-                throw new RuntimeException(
-                        "SU strict mode does not allow reducing total rooms. old="
-                                + oldTotal
-                                + ", new="
-                                + newTotal
-                );
-            }
-        }
-
         existingRoomType.setTotalRooms(roomType.getTotalRooms());
         existingRoomType.setMaxGuests(roomType.getMaxGuests());
         applyOptionalRoomTypeFields(existingRoomType, roomType);

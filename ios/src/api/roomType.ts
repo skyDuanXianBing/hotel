@@ -51,6 +51,7 @@ export interface RoomTypeDTO {
 export interface RoomTypeRoomDTO {
   id: number
   roomNumber: string
+  smartlockPasscode?: string
   status: string
   floor?: number
   notes?: string
@@ -95,6 +96,7 @@ export interface CreateRoomTypeRequest {
   saturdayPrice?: number
   sundayPrice?: number
   roomNumbers?: string[]
+  rooms?: Array<{ roomNumber: string; smartlockPasscode?: string }>
   facilities?: FacilityDTO[]
   desktopPhotoUrls?: string[]
   mobilePhotoUrls?: string[]
@@ -122,9 +124,19 @@ const normalizeRoomType = (roomType: RoomTypeDTO): RoomTypeDTO => {
 }
 
 const normalizeRoomTypeWithRooms = (roomType: RoomTypeWithRoomsDTO): RoomTypeWithRoomsDTO => {
+  const normalizedRooms: RoomTypeRoomDTO[] = []
+
+  for (const room of roomType.rooms || []) {
+    normalizedRooms.push({
+      ...room,
+      roomNumber: room.roomNumber ?? '',
+      smartlockPasscode: room.smartlockPasscode ?? undefined,
+    })
+  }
+
   return {
     ...normalizeRoomType(roomType),
-    rooms: roomType.rooms || [],
+    rooms: normalizedRooms,
   }
 }
 
