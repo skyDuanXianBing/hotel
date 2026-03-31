@@ -311,6 +311,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   ChatDotRound,
   ChatLineSquare,
@@ -448,6 +449,8 @@ const selectedReservationId = ref<number | null>(null)
 const isResolvingReservation = ref(false)
 
 const storeStore = useStoreStore()
+const route = useRoute()
+const routeTargetHandled = ref(false)
 
 const quickReplyDialogVisible = ref(false)
 const quickReplyLoading = ref(false)
@@ -690,6 +693,7 @@ const refreshThreads = async () => {
 
     conversations.value = response.data || []
     await ensureActiveConversation()
+    await applyRouteConversationTarget()
   } catch (error) {
     console.error('刷新会话列表失败:', error)
     ElMessage.error('刷新失败')
@@ -1097,6 +1101,47 @@ const formatMessageTime = (date: Date) => {
 
 const toComparableText = (value?: string | null) => (value || '').trim().toLowerCase()
 
+const getRouteQueryText = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return (value[0] || '').trim()
+  }
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+  return ''
+}
+
+const routeTarget = computed(() => {
+  const reservationIdText = getRouteQueryText(route.query.reservationId)
+  const reservationIdNumber = Number(reservationIdText)
+  return {
+    reservationId:
+      reservationIdText && Number.isInteger(reservationIdNumber) && reservationIdNumber > 0
+        ? reservationIdNumber
+        : null,
+    orderNumber: getRouteQueryText(route.query.orderNumber),
+    channelOrderNumber: getRouteQueryText(route.query.channelOrderNumber),
+    guestName: getRouteQueryText(route.query.guestName),
+  }
+})
+
+const hasRouteTarget = computed(() => {
+  const target = routeTarget.value
+  return Boolean(
+    target.reservationId || target.orderNumber || target.channelOrderNumber || target.guestName,
+  )
+})
+
+const routeTargetKey = computed(() => {
+  const target = routeTarget.value
+  return [
+    target.reservationId ? String(target.reservationId) : '',
+    target.orderNumber,
+    target.channelOrderNumber,
+    target.guestName,
+  ].join('|')
+})
+
 const resolveConversationLookupKey = (conversation: SuMessagingThreadDTO) => {
   const key = (conversation.bookingId || conversation.threadId || '').trim()
   return key ? `${conversation.channelId}:${key}` : ''
@@ -1150,6 +1195,103 @@ const findReservationIdForConversation = async (conversation: SuMessagingThreadD
     reservationIdCache.set(lookupKey, null)
     return null
   }
+}
+
+const matchesConversationKeyword = (conversation: SuMessagingThreadDTO, keyword: string) => {
+  const normalizedKeyword = toComparableText(keyword)
+  if (!normalizedKeyword) {
+    return false
+  }
+
+  const bookingId = toComparableText(conversation.bookingId)
+  const threadIdText = String(conversation.threadId || '')
+  const threadId = toComparableText(threadIdText)
+  if (
+    bookingId &&
+    (bookingId === normalizedKeyword ||
+      bookingId.includes(normalizedKeyword) ||
+      normalizedKeyword.includes(bookingId))
+  ) {
+    return true
+  }
+
+  if (
+    threadId &&
+    (threadId === normalizedKeyword ||
+      threadId.includes(normalizedKeyword) ||
+      normalizedKeyword.includes(threadId))
+  ) {
+    return true
+  }
+
+  return false
+}
+
+const resolveConversationByRouteTarget = async () => {
+  if (!conversations.value.length) {
+    return null
+  }
+
+  const target = routeTarget.value
+  const bookingCandidates = [target.channelOrderNumber, target.orderNumber]
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  for (const conversation of conversations.value) {
+    for (const candidate of bookingCandidates) {
+      if (matchesConversationKeyword(conversation, candidate)) {
+        return conversation
+      }
+    }
+  }
+
+  const guestNameKeyword = toComparableText(target.guestName)
+  if (guestNameKeyword) {
+    const guestMatch = conversations.value.find((conversation) => {
+      const conversationGuestName = toComparableText(conversation.guestName)
+      return (
+        conversationGuestName === guestNameKeyword ||
+        conversationGuestName.includes(guestNameKeyword)
+      )
+    })
+    if (guestMatch) {
+      return guestMatch
+    }
+  }
+
+  if (target.reservationId) {
+    for (const conversation of conversations.value) {
+      const resolvedReservationId = await findReservationIdForConversation(conversation)
+      if (resolvedReservationId === target.reservationId) {
+        return conversation
+      }
+    }
+  }
+
+  return null
+}
+
+const applyRouteConversationTarget = async () => {
+  if (!hasRouteTarget.value || routeTargetHandled.value || !conversations.value.length) {
+    return
+  }
+
+  const target = routeTarget.value
+  const preferredKeyword = target.channelOrderNumber || target.orderNumber || target.guestName
+  if (preferredKeyword && !searchQuery.value.trim()) {
+    searchQuery.value = preferredKeyword
+  }
+
+  const matchedConversation = await resolveConversationByRouteTarget()
+  if (!matchedConversation) {
+    return
+  }
+
+  if (activeThreadId.value !== matchedConversation.id) {
+    activeThreadId.value = matchedConversation.id
+    await loadThreadMessages(matchedConversation.id)
+  }
+  routeTargetHandled.value = true
 }
 
 const preloadActiveReservationId = async () => {
@@ -1294,6 +1436,14 @@ watch(
   () => activeThreadId.value,
   () => {
     void preloadActiveReservationId()
+  },
+)
+
+watch(
+  () => routeTargetKey.value,
+  () => {
+    routeTargetHandled.value = false
+    void applyRouteConversationTarget()
   },
 )
 

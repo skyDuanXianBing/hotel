@@ -255,7 +255,14 @@
           <div class="success-title">{{ t('approvedTitle') }}</div>
           <div v-if="checkInGuideLink" class="checkin-guide">
             <div class="guide-label">{{ t('checkInGuideLabel') }}</div>
-            <el-button type="primary" link @click="openCheckInGuide">{{ t('checkInGuide') }}</el-button>
+            <el-button
+              type="primary"
+              size="large"
+              class="checkin-guide-btn"
+              @click="openCheckInGuide"
+            >
+              {{ t('checkInGuide') }}
+            </el-button>
           </div>
         </div>
         <div class="actions">
@@ -1214,6 +1221,37 @@ onMounted(() => {
 }
 .checkin-guide {
   margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.guide-label {
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.checkin-guide-btn {
+  width: fit-content;
+  min-height: 46px;
+  padding: 0 26px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(64, 158, 255, 0.25);
+}
+
+.checkin-guide-btn:hover {
+  transform: translateY(-1px);
+}
+
+.checkin-guide-btn:focus-visible {
+  outline: 2px solid rgba(64, 158, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.checkin-guide-btn :deep(.el-button__text) {
+  font-weight: 700;
 }
 .guide-link {
   display: inline-block;

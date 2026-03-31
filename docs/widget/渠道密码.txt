@@ -1,0 +1,312 @@
+# Channel Password Setup
+
+**The Flow of the Channel Password Setup -**
+
+Step 1 - Add Booking.com as a channel for which the Setup is to be done.
+
+Step 2 - Add the valid data/values for multiple fields related to the Channel password setup process.&#x20;
+
+Step 3 - Submit all the data. (If the channel password setup is successfully done, the system will acknowledge with a message - "Success". And in case of failure, system will acknowledge with an error message.)
+
+***
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FpsybX0n39kUB8Z8WOk4X%2FSandbox%20image.png?alt=media&#x26;token=4ae73d0f-0d1a-4d73-a4e2-673dbc081d6a" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect.su-api.com/SUAPI/jservice/OTA_Setup
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`hotelid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Specifies the required node `hotelid` contains the IT provider's hotel id for which the provider wishes to add mapping information.
+
+***
+
+`action` <mark style="color:orange;">**enum (Required)**</mark>
+
+Indicates the call is meant to OTA setup for property.
+
+{% hint style="info" %}
+**Possible values:**
+
+* `"setup"` → Performs both create and update operations. If the channel password does not exist in the system, it will create it; otherwise, it will update the existing one.
+* `"remove"` → Directly performs a straightforward remove operation.
+  {% endhint %}
+
+***
+
+`channelid` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Specifies the Channel Code for OTA in Su. (for example, Booking.com, Expedia, Airbnb).
+
+***
+
+`status` <mark style="color:orange;">**string (Required)**</mark>
+
+Defines the status of the channel connection in the system.
+
+{% hint style="info" %}
+**Possible values:**
+
+* `"Active"` → Channel integration is enabled
+* `"Inactive"` → Channel integration is disabled
+  {% endhint %}
+
+***
+
+`channelhotelid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Specifies the **unique hotel ID** used in the external distribution channel or PMS (Property Management System).
+
+***
+
+`pricingmodel` <mark style="color:orange;">**string (Optional)**</mark>
+
+Defines the **pricing model** used for the hotel.
+
+{% hint style="info" %}
+**Possible values:**
+
+* `"OBP"` → Occupancy based Pricing
+* `"RP"` → Room based Pricing
+  {% endhint %}
+
+***
+
+`currency` <mark style="color:orange;">**string (Required)**</mark>
+
+Specifies the **default currency code** used for pricing.
+
+***
+
+`convertrates` <mark style="color:orange;">**boolean (Optional)**</mark>
+
+Indicates whether the API should automatically **convert prices** into the configured currency.
+
+***
+
+`defaultmultiplier` <mark style="color:orange;">**number (Required)**</mark>
+
+Defines the default multiplier value applied in rateplan mapping.
+
+***
+
+`defaultsurcharge` <mark style="color:orange;">**number (Required)**</mark>
+
+Specifies the default surcharge value applied in rateplan mapping.
+
+***
+
+`override_pms_auth` <mark style="color:orange;">**integer (Optional)**</mark>
+
+When enabled, STAAH credentials will override the PMS credentials used to push updates to OTAs. This parameter is applicable to properties that have enabled STAAH as their channel manager while the PMS maintains its own OTA credentials.
+
+{% hint style="info" %}
+
+**Possible Values:**
+
+* `0` – Do not override PMS authorization
+* `1` – Override PMS authorization using STAAH credentials
+  {% endhint %}
+
+***
+
+`connection_name` <mark style="color:orange;">**string (Optional)**</mark>
+
+Provides a **unique name** for the hotel connection to identify it easily in dashboards and reports.
+
+***
+
+## <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+  "hotelid": "AWSTEST",
+  "action": "setup",
+  "channelid": 19,
+  "status": "Active",
+  "channelhotelid": "test_test",
+  "pricingmodel": "OBP",
+  "currency": "USD",
+  "convertrates": true,
+  "defaultmultiplier": 1,
+  "defaultsurcharge": 0,
+  "override_pms_auth": 0,
+  "connection_name": "test_connection_name"
+}
+```
+
+***
+
+## <mark style="color:yellow;">Response</mark>
+
+{% tabs %}
+{% tab title="200 - Success Response" %}
+
+```json
+{
+  "channelmapping": [
+    {
+      "type": "nonmanagable",
+      "rateplan": "Double Room-RateplanCode",
+      "channelroomname": "Double Room",
+      "channelroomid": "201547892",
+      "channelratename": "Basic rate",
+      "channelrateid": "207799965",
+      "mappingstring": "201547892####207799965"
+    },
+    {
+      "type": " Managable",
+      "rateplan": "Double Room-RateplanCode",
+      "channelroomName": "Double Room",
+      "channelroomid": "201547892",
+      "channelratename": "RateplanCode",
+      "channelrateid": "207799965A",
+      "mappingstring": "201547892####207799965A"
+    },
+    {
+      "type": "nonmanagable",
+      "rateplan": "Double Room-RateplanCode23()",
+      "channelroomname": "Double Room",
+      "channelroomid": "201547892",
+      "channelratename": "RateplanCode23",
+      "channelrateid": "207799974",
+      "mappingstring": "201547892####207799974"
+    },
+    {
+      "type": "Managable",
+      "rateplan": "Double Room-RateplanCode23()",
+      "channelroomname": "Double Room",
+      "channelroomid": "201547892",
+      "channelratename": "RateplanCode23",
+      "chaneelrateid": "207799974A",
+      "mappingstring": "201547892####207799974A"
+    },
+    {
+      "type": "nonmanagable",
+      "rateplan": "Double Room-Non-refundable()",
+      "channelroomname": "Double Room",
+      "channelroomid": "201547892",
+      "channelratename": "Non-refundable",
+      "channelrateid": "212431700",
+      "mappingstring": "201547892####212431700"
+    }
+  ],
+  "Status": "Success"
+}
+```
+
+{% endtab %}
+
+{% tab title="400 - Error Response" %}
+
+```json
+{
+		    "Errors": {
+		        "Code": "400",
+		        "ShortText": "hotelid: Invalid HotelCode (AWSTEST)"
+		    },
+		    "Status": "Failed"
+		}
+```
+
+{% endtab %}
+{% endtabs %}
+
+***
+
+#### <mark style="color:green;">Success Response - 200 Body Elements</mark>&#x20;
+
+`channelmapping` <mark style="color:orange;">**arrray of objects**</mark>
+
+Channel mapping response.
+
+***
+
+`type` <mark style="color:orange;">**string**</mark>
+
+Managable or non-managable.
+
+***
+
+`rateplan` <mark style="color:orange;">**string**</mark>
+
+The rate plan name.
+
+***
+
+`channelroomname` <mark style="color:orange;">**string**</mark>
+
+Indicates channel room name.
+
+***
+
+`channelroomid` <mark style="color:orange;">**string**</mark>
+
+Indicates channel room id.
+
+***
+
+`channelratename` <mark style="color:orange;">**string**</mark>
+
+Indicates channel rate name.
+
+***
+
+`channelrateid` <mark style="color:orange;">**alphanumeric**</mark>
+
+Indicates channel rate id.
+
+***
+
+`mappingstring` <mark style="color:orange;">**string**</mark>
+
+Indicates channel room id and rate id.
+
+***
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates the result of the API call.&#x20;
+
+{% hint style="info" %}
+Will be `"Success"` for successful operations.
+{% endhint %}
+
+***
+
+#### <mark style="color:red;">Errors Response - 400 Body Elements</mark>
+
+`Errors` <mark style="color:orange;">**array**</mark>
+
+Array that contains details about any errors that occurred during the API call. Each object in the `Errors` array contains the following properties:
+
+`Code` <mark style="color:orange;">**string**</mark>
+
+Specific error code that helps identify the type of error.
+
+{% hint style="info" %}
+For example: `"400"` indicates a bad request.
+{% endhint %}
+
+`ShortText` <mark style="color:orange;">**string**</mark>
+
+A short description of the error.
+
+***
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates the result of the API call, which will be always `"Failed"` in case of an error response.

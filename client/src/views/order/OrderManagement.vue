@@ -225,16 +225,18 @@
           >
             <template #default="scope">
               <div class="order-number">
-                <el-button type="text" class="order-link" @click="viewOrder(scope.row)">{{
+                <el-button type="text" class="order-link" title="点击查看订单详情" @click="viewOrder(scope.row)">{{
                   scope.row.orderNumber
                 }}</el-button>
                 <el-button
                   type="text"
                   class="channel-order-link"
+                  title="点击查看订单详情"
                   @click="viewOrder(scope.row)"
                 >
                   {{ getDisplayChannelOrderNumber(scope.row) }}
                 </el-button>
+                <span class="order-detail-tip">点击订单号查看详情</span>
               </div>
             </template>
           </el-table-column>
@@ -1377,6 +1379,10 @@ onMounted(() => {
   display: block;
   width: 100%;
 }
+.order-link:hover :deep(.el-button__text) {
+  color: #409eff;
+  text-decoration: underline;
+}
 
 .channel-order {
   font-size: 12px;
@@ -1399,6 +1405,10 @@ onMounted(() => {
   display: block;
   width: 100%;
 }
+.channel-order-link:hover :deep(.el-button__text) {
+  color: #409eff;
+  text-decoration: underline;
+}
 
 .order-link,
 .channel-order-link {
@@ -1406,6 +1416,12 @@ onMounted(() => {
   margin: 0 !important;
   justify-content: flex-start !important;
   height: auto;
+}
+
+.order-detail-tip {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #8c8c8c;
 }
 
 /* 分页 */

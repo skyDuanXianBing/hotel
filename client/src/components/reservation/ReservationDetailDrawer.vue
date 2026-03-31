@@ -13,7 +13,18 @@
     <div class="booking-detail-content">
       <div v-if="activeDetailTab === 'detail'" class="detail-tab-content">
         <div class="guest-header">
-          <h3>{{ selectedReservation?.guestName || '客户姓名' }}</h3>
+          <div class="guest-main">
+            <h3>{{ selectedReservation?.guestName || '客户姓名' }}</h3>
+            <el-button
+              type="primary"
+              plain
+              size="small"
+              :disabled="!selectedReservation"
+              @click="goToMessages"
+            >
+              去聊天
+            </el-button>
+          </div>
           <div class="status-tags">
             <el-tag :type="getStatusTagType(selectedReservation?.status || 'CONFIRMED')">
               {{ getReservationStatusText(selectedReservation?.status || 'CONFIRMED') }}
@@ -396,6 +407,7 @@
 import { ArrowDown } from '@element-plus/icons-vue'
 import { ElLoading, ElMessage } from 'element-plus'
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { deleteConsumption, getConsumptionsByReservationId, type ConsumptionDTO } from '@/api/consumption'
 import { getOperationLogsByReservationId, type OperationLogDTO } from '@/api/operationLog'
 import { getOrderBoxList, moveOutOrderBox } from '@/api/orderBox'
@@ -429,6 +441,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'updated'): void
 }>()
+const router = useRouter()
 
 const drawerVisible = computed({
   get: () => props.modelValue,
@@ -555,6 +568,39 @@ const formatMoney = (amount?: number | null) => {
   if (amount === null || amount === undefined) return '-'
   const numberValue = Number(amount)
   return Number.isNaN(numberValue) ? '-' : `¥${numberValue.toFixed(2)}`
+}
+
+const goToMessages = async () => {
+  const reservation = selectedReservation.value
+  if (!reservation) {
+    ElMessage.warning('Reservation data is still loading')
+    return
+  }
+
+  const query: Record<string, string> = {}
+  if (reservation.id) {
+    query.reservationId = String(reservation.id)
+  }
+
+  const orderNumber = reservation.orderNumber?.trim()
+  if (orderNumber) {
+    query.orderNumber = orderNumber
+  }
+
+  const channelOrderNumber = reservation.channelOrderNumber?.trim()
+  if (channelOrderNumber) {
+    query.channelOrderNumber = channelOrderNumber
+  }
+
+  const guestName = reservation.guestName?.trim()
+  if (guestName) {
+    query.guestName = guestName
+  }
+
+  await router.push({
+    name: 'Messages',
+    query,
+  })
 }
 
 const loadReservationDetail = async (reservationId: number) => {
@@ -914,6 +960,12 @@ watch(
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.guest-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .guest-header h3 {
