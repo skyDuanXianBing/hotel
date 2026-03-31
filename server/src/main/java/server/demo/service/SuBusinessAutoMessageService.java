@@ -738,11 +738,7 @@ public class SuBusinessAutoMessageService {
         if (message == null) {
             return null;
         }
-        String normalized = message.replace("\r\n", "\n").replace("\r", "\n");
-        if (channelId != null && channelId == SuMessagingService.CHANNEL_BOOKING) {
-            return normalized.replace("\n", "\\\n");
-        }
-        return normalized;
+        return message.replace("\r\n", "\n").replace("\r", "\n");
     }
 
     private Map<String, Object> buildReplyPayload(SuMessageThread thread, String message) {

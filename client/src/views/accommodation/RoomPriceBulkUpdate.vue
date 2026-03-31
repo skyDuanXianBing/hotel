@@ -104,11 +104,15 @@
               <el-radio value="cheaper" label="减" />
               <el-radio value="expensive" label="加" />
             </el-radio-group>
+            <el-radio-group v-model="relativeValueMode" class="relative-type-group">
+              <el-radio value="amount" label="按金额" />
+              <el-radio value="percent" label="按百分比" />
+            </el-radio-group>
           </div>
 
           <div class="batch-input-row">
             <el-input v-model="batchValue" type="number" placeholder="请输入价格" style="width: 260px">
-              <template #append>JPY</template>
+              <template #append>{{ batchValueUnit }}</template>
             </el-input>
             <el-button type="primary" @click="applyBatchValue" style="margin-left: 12px">
               应用到明细
@@ -232,6 +236,7 @@ const settingType = ref<'price' | 'minStay' | 'maxStay'>('price')
 
 const priceMode = ref<'fixed' | 'relative'>('fixed')
 const relativeType = ref<'cheaper' | 'expensive'>('cheaper')
+const relativeValueMode = ref<'amount' | 'percent'>('amount')
 
 const batchValue = ref('')
 
@@ -241,6 +246,24 @@ const rowValueByKey = ref<Record<string, string>>({})
 const valuePlaceholder = computed(() => {
   return settingType.value === 'price' ? '请输入价格' : '请输入天数(1-99)'
 })
+
+const batchValueUnit = computed(() => {
+  if (settingType.value !== 'price') {
+    return 'JPY'
+  }
+  if (priceMode.value === 'relative' && relativeValueMode.value === 'percent') {
+    return '%'
+  }
+  return 'JPY'
+})
+
+const formatPriceNumber = (value: number) => {
+  const rounded = Math.round(value * 100) / 100
+  if (Number.isInteger(rounded)) {
+    return String(rounded)
+  }
+  return rounded.toFixed(2).replace(/\.?0+$/, '')
+}
 
 const handleTabClick = (tab: any) => {
   if (tab.props.name === 'calendar') {
@@ -354,11 +377,9 @@ const applyBatchValue = () => {
       if (!row.value) return
       const current = parseFloat(row.value)
       if (Number.isNaN(current)) return
-      const delta = v
-      row.value =
-        relativeType.value === 'cheaper'
-          ? Math.max(0, current - delta).toString()
-          : (current + delta).toString()
+      const delta = relativeValueMode.value === 'percent' ? current * (v / 100) : v
+      const nextValue = relativeType.value === 'cheaper' ? current - delta : current + delta
+      row.value = formatPriceNumber(Math.max(0, nextValue))
       rowValueByKey.value[row.key] = row.value
     })
 
@@ -706,4 +727,3 @@ onMounted(() => {
   transform: translateY(-8px);
 }
 </style>
-

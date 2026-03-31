@@ -28,7 +28,12 @@
               <span class="channel-name">{{
                 conversation.guestName || conversation.listingName || conversation.channelName
               }}</span>
-              <span class="message-time">{{ formatConversationTime(conversation.lastActivity) }}</span>
+              <div class="conversation-meta">
+                <span class="message-time">{{ formatConversationTime(conversation.lastActivity) }}</span>
+                <span v-if="conversation.unreadCount > 0" class="unread-badge">
+                  {{ formatUnreadCount(conversation.unreadCount) }}
+                </span>
+              </div>
             </div>
             <div class="last-message">
               {{ conversation.channelName }} | 订单号 {{ conversation.bookingId || conversation.threadId || '-' }}
@@ -37,6 +42,9 @@
               <el-tag :type="getStatusType(conversation.closed)" size="small">
                 {{ getStatusText(conversation.closed) }}
               </el-tag>
+              <span class="channel-badge" :class="`channel-${resolveChannelStyle(conversation)}`">
+                {{ resolveChannelLabel(conversation) }}
+              </span>
             </div>
           </div>
         </div>
@@ -522,6 +530,30 @@ const groupedMessages = computed<GroupedMessages[]>(() => {
 
 const getStatusType = (closed: boolean) => (closed ? 'info' : 'success')
 const getStatusText = (closed: boolean) => (closed ? '已关闭' : '活跃')
+
+const formatUnreadCount = (count: number) => (count > 99 ? '99+' : String(count))
+
+const resolveChannelStyle = (conversation: SuMessagingThreadDTO) => {
+  const normalizedName = (conversation.channelName || '').trim().toLowerCase()
+  if (conversation.channelId === 19 || normalizedName.includes('booking')) {
+    return 'booking'
+  }
+  if (conversation.channelId === 244 || normalizedName.includes('airbnb')) {
+    return 'airbnb'
+  }
+  return 'default'
+}
+
+const resolveChannelLabel = (conversation: SuMessagingThreadDTO) => {
+  const style = resolveChannelStyle(conversation)
+  if (style === 'booking') {
+    return 'Booking.com'
+  }
+  if (style === 'airbnb') {
+    return 'Airbnb'
+  }
+  return conversation.channelName || '渠道'
+}
 
 const normalizeSenderName = (senderName?: string) => {
   if (!senderName) {
@@ -1542,6 +1574,13 @@ onUnmounted(() => {
   align-items: center;
 }
 
+.conversation-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .channel-name {
   color: #303133;
   font-weight: 600;
@@ -1557,12 +1596,55 @@ onUnmounted(() => {
 
 .conversation-status {
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.channel-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  font-weight: 600;
+}
+
+.channel-booking {
+  background: #1f4f9d;
+}
+
+.channel-airbnb {
+  background: #ff2b35;
+}
+
+.channel-default {
+  background: #909399;
 }
 
 .message-time {
   font-size: 12px;
   color: #999;
   white-space: nowrap;
+}
+
+.unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #ff2b35;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .messages-panel {

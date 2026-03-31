@@ -236,11 +236,7 @@ public class SuAutoReplyService {
         if (message == null) {
             return null;
         }
-        String normalized = message.replace("\r\n", "\n").replace("\r", "\n");
-        if (suChannelId == SuMessagingService.CHANNEL_BOOKING) {
-            return normalized.replace("\n", "\\\n");
-        }
-        return normalized;
+        return message.replace("\r\n", "\n").replace("\r", "\n");
     }
 
     private static String nullToEmpty(String v) {

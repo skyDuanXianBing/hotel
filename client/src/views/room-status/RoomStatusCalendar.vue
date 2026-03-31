@@ -87,6 +87,22 @@
           >
             {{ showCellDefaultPrice ? '隐藏价格' : '显示价格' }}
           </el-button>
+          <el-select
+            v-if="showCellDefaultPrice"
+            v-model="cellPriceDisplaySource"
+            class="cell-price-source-select"
+            size="small"
+            :loading="loadingCellPricePlanOptions"
+            placeholder="请选择"
+          >
+            <el-option label="默认价格" value="default" />
+            <el-option
+              v-for="plan in calendarCellPricePlanOptions"
+              :key="plan.id"
+              :label="plan.name"
+              :value="`plan:${plan.id}`"
+            />
+          </el-select>
 
         </div>
       </div>  
@@ -224,7 +240,7 @@
                   v-if="shouldDisplayCellDefaultPrice(roomData, dailyStatus)"
                   class="cell-default-price"
                 >
-                  ¥{{ getRoomTypeDefaultPriceValue(roomData.roomType) }}
+                  ¥{{ getCellDisplayPriceText(roomData, dailyStatus) }}
                 </div>
 
                 <div v-if="dailyStatus.reservation && !isRoomCollapsed" class="reservation-cell-info">
@@ -789,7 +805,18 @@
         <div class="booking-detail-content">
           <div v-if="activeDetailTab === 'detail'">
             <div class="guest-header">
-              <h3>{{ selectedReservation?.guestName || '客户姓名' }}</h3>
+              <div class="guest-main">
+                <h3>{{ selectedReservation?.guestName || '客户姓名' }}</h3>
+                <el-button
+                  type="primary"
+                  plain
+                  size="small"
+                  :disabled="!selectedReservation"
+                  @click="goToMessages"
+                >
+                  去聊天
+                </el-button>
+              </div>
               <div class="status-tags">
                 <el-tag :type="getStatusTagType(selectedReservation?.status || 'CONFIRMED')">
                   {{ getReservationStatusText(selectedReservation?.status || 'CONFIRMED') }}
@@ -2511,13 +2538,19 @@ const filterOptions = ref({
   selectedRoomTypes: [] as string[],
 })
 const showCellDefaultPrice = ref(false)
+const cellPriceDisplaySource = ref('default')
 const roomTypeDefaultPriceMap = ref<Map<string, number>>(new Map())
+const calendarRoomTypePricePlanMappings = ref<RoomTypePricePlanDTO[]>([])
+const loadingCellPricePlanOptions = ref(false)
+const loadedCellPricePlanRoomTypeIdsSignature = ref('')
 const DEFAULT_SORT_ORDER = 999999
 const roomTypeIdMap = ref<Map<string, number>>(new Map())
 const roomTypeSortOrderMap = ref<Record<number, number>>({})
 const roomSortOrderMap = ref<Record<number, number>>({})
 const roomGroupSortOrderMap = ref<Record<number, number>>({})
 const roomToGroupSortOrderMap = ref<Map<number, number>>(new Map())
+const CELL_PRICE_VISIBLE_STORAGE_KEY = 'room-status-calendar.show-cell-default-price'
+const CELL_PRICE_SOURCE_STORAGE_KEY = 'room-status-calendar.cell-price-display-source'
 
 // 批量操作相关
 const showBatchDialog = ref(false)
@@ -2613,33 +2646,201 @@ const getRoomTypeDefaultPriceValue = (roomTypeName: string) => {
   return roomTypeDefaultPriceMap.value.get(roomTypeName) ?? 0
 }
 
-const shouldDisplayCellDefaultPrice = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
+const calendarCellPricePlanOptions = computed(() => {
+  const unique = new Map<number, { id: number; name: string }>()
+  calendarRoomTypePricePlanMappings.value.forEach((mapping) => {
+    const planId = Number(mapping.pricePlanId || mapping.pricePlan?.id || 0)
+    if (!planId || unique.has(planId)) {
+      return
+    }
+    unique.set(planId, {
+      id: planId,
+      name: mapping.pricePlan?.name || `计划${planId}`,
+    })
+  })
+  return Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+})
+
+const calendarCellPricePlanMappingMap = computed(() => {
+  const mappingMap = new Map<string, RoomTypePricePlanDTO>()
+  calendarRoomTypePricePlanMappings.value.forEach((mapping) => {
+    const roomTypeId = Number(mapping.roomTypeId || mapping.roomType?.id || 0)
+    const planId = Number(mapping.pricePlanId || mapping.pricePlan?.id || 0)
+    if (!roomTypeId || !planId) {
+      return
+    }
+    const key = `${roomTypeId}-${planId}`
+    if (!mappingMap.has(key)) {
+      mappingMap.set(key, mapping)
+    }
+  })
+  return mappingMap
+})
+
+const getSelectedCellPricePlanId = () => {
+  if (!cellPriceDisplaySource.value.startsWith('plan:')) {
+    return null
+  }
+  const planId = Number(cellPriceDisplaySource.value.slice(5))
+  return Number.isFinite(planId) && planId > 0 ? planId : null
+}
+
+const getCellPriceSourceLabel = () => {
+  if (cellPriceDisplaySource.value === 'default') {
+    return '默认价格'
+  }
+  const selectedPlanId = getSelectedCellPricePlanId()
+  if (!selectedPlanId) {
+    return '价格计划'
+  }
+  const selectedPlan = calendarCellPricePlanOptions.value.find((item) => item.id === selectedPlanId)
+  return selectedPlan?.name || '价格计划'
+}
+
+const getRoomTypeIdsSignature = () => {
+  const roomTypeIds = Array.from(new Set(Array.from(roomTypeIdMap.value.values())))
+    .map((id) => Number(id))
+    .filter((id) => id > 0)
+    .sort((a, b) => a - b)
+  return roomTypeIds.join(',')
+}
+
+const loadCalendarPricePlanOptions = async (force = false) => {
+  const roomTypeIds = Array.from(new Set(Array.from(roomTypeIdMap.value.values())))
+    .map((id) => Number(id))
+    .filter((id) => id > 0)
+
+  if (roomTypeIds.length === 0) {
+    calendarRoomTypePricePlanMappings.value = []
+    loadedCellPricePlanRoomTypeIdsSignature.value = ''
+    return
+  }
+
+  const roomTypeIdsSignature = getRoomTypeIdsSignature()
+  if (!force && loadedCellPricePlanRoomTypeIdsSignature.value === roomTypeIdsSignature) {
+    return
+  }
+
+  loadingCellPricePlanOptions.value = true
+  try {
+    const responses = await Promise.all(
+      roomTypeIds.map(async (roomTypeId) => {
+        try {
+          const response = await getPricePlansByRoomType(roomTypeId)
+          if (!response.success || !Array.isArray(response.data)) {
+            return []
+          }
+          return response.data.map((item) => ({
+            ...item,
+            roomTypeId: Number(item.roomTypeId || item.roomType?.id || roomTypeId),
+          }))
+        } catch (error) {
+          console.error(`加载房型${roomTypeId}价格计划失败:`, error)
+          return []
+        }
+      }),
+    )
+
+    const uniqueMappingMap = new Map<string, RoomTypePricePlanDTO>()
+    responses.flat().forEach((mapping) => {
+      const roomTypeId = Number(mapping.roomTypeId || mapping.roomType?.id || 0)
+      const planId = Number(mapping.pricePlanId || mapping.pricePlan?.id || 0)
+      if (!roomTypeId || !planId) {
+        return
+      }
+      const key = `${roomTypeId}-${planId}`
+      if (!uniqueMappingMap.has(key)) {
+        uniqueMappingMap.set(key, mapping)
+      }
+    })
+
+    calendarRoomTypePricePlanMappings.value = Array.from(uniqueMappingMap.values())
+    loadedCellPricePlanRoomTypeIdsSignature.value = roomTypeIdsSignature
+  } finally {
+    loadingCellPricePlanOptions.value = false
+  }
+}
+
+const getWeekdayFromDateString = (date: string) => {
+  const [year, month, day] = date.split('-').map((item) => Number(item))
+  if (!year || !month || !day) {
+    return null
+  }
+  const parsedDate = new Date(year, month - 1, day)
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate.getDay()
+}
+
+const getPricePlanPriceByDate = (mapping: RoomTypePricePlanDTO, date: string) => {
+  const weekday = getWeekdayFromDateString(date)
+  if (weekday === null) {
+    return null
+  }
+  const priceByWeekday: Array<number | undefined> = [
+    mapping.sundayPrice,
+    mapping.mondayPrice,
+    mapping.tuesdayPrice,
+    mapping.wednesdayPrice,
+    mapping.thursdayPrice,
+    mapping.fridayPrice,
+    mapping.saturdayPrice,
+  ]
+  const price = Number(priceByWeekday[weekday] ?? 0)
+  if (!Number.isFinite(price) || price <= 0) {
+    return null
+  }
+  return price
+}
+
+const getCellDisplayPriceValue = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
   if (!showCellDefaultPrice.value || isRoomCollapsed.value) {
-    return false
+    return null
   }
   if (dailyStatus.reservation) {
-    return false
+    return null
   }
   const roomStatus = getRoomExtraStatus(roomData.roomId, dailyStatus.date)
   if (roomStatus.isClosed) {
-    return false
+    return null
   }
-  return getRoomTypeDefaultPriceValue(roomData.roomType) > 0
+
+  if (cellPriceDisplaySource.value === 'default') {
+    const defaultPrice = getRoomTypeDefaultPriceValue(roomData.roomType)
+    return defaultPrice > 0 ? defaultPrice : null
+  }
+
+  const selectedPlanId = getSelectedCellPricePlanId()
+  if (!selectedPlanId) {
+    return null
+  }
+  const roomTypeId = roomTypeIdMap.value.get(roomData.roomType)
+  if (!roomTypeId) {
+    return null
+  }
+  const selectedMapping = calendarCellPricePlanMappingMap.value.get(`${roomTypeId}-${selectedPlanId}`)
+  if (!selectedMapping) {
+    return null
+  }
+  return getPricePlanPriceByDate(selectedMapping, dailyStatus.date)
+}
+
+const getCellDisplayPriceText = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
+  const priceValue = getCellDisplayPriceValue(roomData, dailyStatus)
+  if (priceValue === null) {
+    return ''
+  }
+  return Number(priceValue).toFixed(2)
+}
+
+const shouldDisplayCellDefaultPrice = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
+  return getCellDisplayPriceValue(roomData, dailyStatus) !== null
 }
 
 const getCellDefaultPriceTooltip = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
-  if (dailyStatus.reservation) {
+  const priceValue = getCellDisplayPriceValue(roomData, dailyStatus)
+  if (priceValue === null) {
     return ''
   }
-  const roomStatus = getRoomExtraStatus(roomData.roomId, dailyStatus.date)
-  if (roomStatus.isClosed) {
-    return ''
-  }
-  const defaultPrice = getRoomTypeDefaultPriceValue(roomData.roomType)
-  if (defaultPrice <= 0) {
-    return ''
-  }
-  return `默认价: ¥${defaultPrice}`
+  return `${getCellPriceSourceLabel()}: ¥${Number(priceValue).toFixed(2)}`
 }
 
 const sortCalendarRooms = (rooms: CalendarRoomData[]) => {
@@ -2935,6 +3136,44 @@ const goToRoomTypeManagement = () => {
   router.push('/settings/room-type')
 }
 
+const goToMessages = async () => {
+  const reservation = selectedReservation.value
+  if (!reservation) {
+    ElMessage.warning('订单数据加载中，请稍后重试')
+    return
+  }
+
+  const query: Record<string, string> = {}
+  if (reservation.id) {
+    query.reservationId = String(reservation.id)
+  }
+
+  const orderNumber = String(reservation.orderNumber || '').trim()
+  if (orderNumber) {
+    query.orderNumber = orderNumber
+  }
+
+  const channelOrderNumber = String(reservation.channelOrderNumber || '').trim()
+  if (channelOrderNumber) {
+    query.channelOrderNumber = channelOrderNumber
+  }
+
+  const guestName = String(reservation.guestName || '').trim()
+  if (guestName) {
+    query.guestName = guestName
+  }
+
+  try {
+    await router.push({
+      name: 'Messages',
+      query,
+    })
+  } catch (error) {
+    console.error('跳转聊天页失败:', error)
+    ElMessage.error('跳转聊天页失败')
+  }
+}
+
 const formatMonthDay = (date: string) => {
   // 如果是今天，显示"今天"
   if (isToday(date)) {
@@ -3119,7 +3358,6 @@ const loadRoomStatusCalendarData = async () => {
                       specialRequests: (daily.reservation as any).specialRequests || '',
                       notes:
                         daily.reservation.notes ||
-                        (daily.reservation as any).specialRequests ||
                         (daily.reservation as any).remark ||
                         '',
                       adults: 1,
@@ -3222,6 +3460,10 @@ const loadRoomTypesData = async () => {
       })
       roomTypeIdMap.value = nextRoomTypeIdMap
       roomTypeDefaultPriceMap.value = nextRoomTypeDefaultPriceMap
+      loadedCellPricePlanRoomTypeIdsSignature.value = ''
+      if (showCellDefaultPrice.value) {
+        void loadCalendarPricePlanOptions(true)
+      }
 
       // 更新房态数据
       calendarData.value = {
@@ -3604,7 +3846,7 @@ const handleWindowMouseUp = () => {
 
 const getReservationNotesText = (reservation: Record<string, any> | null | undefined) => {
   if (!reservation) return ''
-  const notesValue = reservation.notes ?? reservation.specialRequests ?? reservation.remark ?? ''
+  const notesValue = reservation.notes ?? reservation.remark ?? ''
   return typeof notesValue === 'string' ? notesValue.trim() : ''
 }
 
@@ -5539,6 +5781,29 @@ const getChannelByName = (channelName: string): ChannelDTO | null => {
   return channelMap.value.get(channelName) || null
 }
 
+const loadCellPriceDisplayPreferences = () => {
+  try {
+    const savedVisible = localStorage.getItem(CELL_PRICE_VISIBLE_STORAGE_KEY)
+    showCellDefaultPrice.value = savedVisible === 'true'
+
+    const savedSource = localStorage.getItem(CELL_PRICE_SOURCE_STORAGE_KEY)
+    if (savedSource) {
+      cellPriceDisplaySource.value = savedSource
+    }
+  } catch (error) {
+    console.error('读取房态价格展示偏好失败:', error)
+  }
+}
+
+const persistCellPriceDisplayPreferences = () => {
+  try {
+    localStorage.setItem(CELL_PRICE_VISIBLE_STORAGE_KEY, String(showCellDefaultPrice.value))
+    localStorage.setItem(CELL_PRICE_SOURCE_STORAGE_KEY, cellPriceDisplaySource.value)
+  } catch (error) {
+    console.error('保存房态价格展示偏好失败:', error)
+  }
+}
+
 // 监听日期变化，更新价格
 watch(
   () => [bookingForm.value.checkInDate, bookingForm.value.checkOutDate],
@@ -5590,13 +5855,44 @@ watch(showBookingSidebar, (visible) => {
   bookingForm.value.pricePlan = ''
 })
 
+watch(showCellDefaultPrice, (visible) => {
+  persistCellPriceDisplayPreferences()
+  if (!visible) {
+    return
+  }
+  void loadCalendarPricePlanOptions()
+})
+
+watch(cellPriceDisplaySource, (source) => {
+  persistCellPriceDisplayPreferences()
+  if (source === 'default') {
+    return
+  }
+  void loadCalendarPricePlanOptions()
+})
+
+watch(calendarCellPricePlanOptions, (options) => {
+  if (cellPriceDisplaySource.value === 'default') {
+    return
+  }
+  const selectedPlanId = getSelectedCellPricePlanId()
+  const hasSelectedPlan = !!selectedPlanId && options.some((item) => item.id === selectedPlanId)
+  if (!hasSelectedPlan) {
+    cellPriceDisplaySource.value = 'default'
+  }
+})
+
 // 生命周期
 onMounted(async () => {
+  loadCellPriceDisplayPreferences()
   window.addEventListener('mouseup', handleWindowMouseUp)
   await loadChannels()
   await loadPaymentMethodOptions()
   await loadEnabledConsumptionItems()
   await loadCalendarData()
+  if (showCellDefaultPrice.value) {
+    await loadCalendarPricePlanOptions()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -5604,8 +5900,12 @@ onBeforeUnmount(() => {
 })
 
 onActivated(async () => {
+  loadCellPriceDisplayPreferences()
   await loadPaymentMethodOptions()
   await loadCalendarData()
+  if (showCellDefaultPrice.value) {
+    await loadCalendarPricePlanOptions()
+  }
 })
 </script>
 
@@ -5649,6 +5949,10 @@ onActivated(async () => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.cell-price-source-select {
+  width: 180px;
 }
 
 .calendar-content {
@@ -6422,6 +6726,16 @@ onActivated(async () => {
   align-items: center;
   margin-bottom: 20px;
   padding: 20px 20px 0 20px;
+}
+
+.guest-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.guest-main h3 {
+  margin: 0;
 }
 
 /* 取消预约侧边栏样式 */
