@@ -802,7 +802,7 @@ public class OtaReservationSyncService {
 
                     // Ensure SuMessageThread exists so auto-messages (BOOKING_CONFIRM/IMMEDIATELY etc.) can send
                     // without waiting for inbound messaging webhook.
-                    tryUpsertMessageThreadFromReservation(store.getId(), suHotelId, channelCode, reservationNode, reservation);
+                    tryUpsertMessageThreadFromReservation(store.getId(), suHotelId, channelCode, reservationNode, roomStay, reservation);
 
                     cleaningTaskAutoService.syncTaskForReservation(reservation);
 
@@ -966,6 +966,7 @@ public class OtaReservationSyncService {
             String suHotelId,
             String channelCode,
             JsonNode reservationNode,
+            JsonNode roomStay,
             Reservation reservation
     ) {
         if (storeId == null || reservation == null || channelCode == null || channelCode.isBlank()) {
@@ -1001,7 +1002,7 @@ public class OtaReservationSyncService {
             return;
         }
 
-        String listingId = reservation.getOtaRoomId();
+        String listingId = resolveThreadListingIdForReservation(reservationNode, roomStay, reservation.getOtaRoomId());
         LocalDateTime now = LocalDateTime.now();
 
         try {
@@ -1027,6 +1028,9 @@ public class OtaReservationSyncService {
             }
             if (guestId != null && !guestId.isBlank()) {
                 thread.setGuestId(guestId);
+            }
+            if (!SuReservationParser.isValidMessagingListingId(thread.getListingId())) {
+                thread.setListingId(null);
             }
             if (listingId != null && !listingId.isBlank()) {
                 thread.setListingId(listingId);
@@ -1085,6 +1089,18 @@ public class OtaReservationSyncService {
             }
         }
         return parts.toString() + (nodes.size() > parts.size() ? ("(+ " + (nodes.size() - parts.size()) + " more)") : "");
+    }
+
+    static String resolveThreadListingIdForReservation(
+            JsonNode reservationNode,
+            JsonNode roomStay,
+            String fallbackOtaRoomId
+    ) {
+        String fromWebhook = SuReservationParser.extractMessagingListingId(reservationNode, roomStay);
+        if (fromWebhook != null && !fromWebhook.isBlank()) {
+            return fromWebhook;
+        }
+        return SuReservationParser.normalizeMessagingListingId(fallbackOtaRoomId);
     }
 
     static String resolveRoomReservationIdentity(String roomReservationId, int roomStayIndex) {

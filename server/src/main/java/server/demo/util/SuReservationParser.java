@@ -98,6 +98,93 @@ public final class SuReservationParser {
                 .orElse(null);
     }
 
+    /**
+     * Extract messaging listing id from reservation webhook payload.
+     * Priority:
+     * 1) explicit listing fields on current room stay
+     * 2) explicit listing fields on reservation root
+     * 3) booking payload hints (booking_details / booking / property)
+     * 4) explicit listing fields on other room stays
+     */
+    public static String extractMessagingListingId(JsonNode reservation, JsonNode roomStay) {
+        String fromCurrentRoom = firstValidListingId(roomStay,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromCurrentRoom != null) {
+            return fromCurrentRoom;
+        }
+
+        String fromReservation = firstValidListingId(reservation,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromReservation != null) {
+            return fromReservation;
+        }
+
+        JsonNode bookingDetails = reservation != null ? reservation.get("booking_details") : null;
+        String fromBookingDetails = firstValidListingId(bookingDetails,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromBookingDetails != null) {
+            return fromBookingDetails;
+        }
+
+        JsonNode booking = reservation != null ? reservation.get("booking") : null;
+        String fromBooking = firstValidListingId(booking,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromBooking != null) {
+            return fromBooking;
+        }
+
+        JsonNode property = reservation != null ? reservation.get("property") : null;
+        String fromProperty = firstValidListingId(property,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromProperty != null) {
+            return fromProperty;
+        }
+
+        List<JsonNode> roomStays = extractRoomStays(reservation);
+        for (JsonNode stay : roomStays) {
+            String candidate = firstValidListingId(stay,
+                    "listingid", "listing_id", "listingId",
+                    "propertyid", "property_id", "propertyId");
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Validate and normalize listing id for SU messagingAB.
+     * Numeric ids require minimum length 6 to avoid ota_room_id like "50/51/52".
+     */
+    public static String normalizeMessagingListingId(String rawListingId) {
+        if (rawListingId == null) {
+            return null;
+        }
+        String listingId = rawListingId.trim();
+        if (listingId.isBlank()) {
+            return null;
+        }
+        boolean numericOnly = listingId.chars().allMatch(Character::isDigit);
+        int minLength = numericOnly ? 6 : 4;
+        if (listingId.length() < minLength || listingId.length() > 64) {
+            return null;
+        }
+        boolean validChars = listingId.chars().allMatch(ch ->
+                Character.isLetterOrDigit(ch) || ch == '-' || ch == '_'
+        );
+        return validChars ? listingId : null;
+    }
+
+    public static boolean isValidMessagingListingId(String rawListingId) {
+        return normalizeMessagingListingId(rawListingId) != null;
+    }
+
     public static String extractSuStatus(JsonNode reservation) {
         return text(reservation, "status").orElse(null);
     }
@@ -340,6 +427,20 @@ public final class SuReservationParser {
         }
         s = s.trim();
         return s.isBlank() ? Optional.empty() : Optional.of(s);
+    }
+
+    private static String firstValidListingId(JsonNode node, String... fields) {
+        if (node == null || node.isNull() || fields == null) {
+            return null;
+        }
+        for (String field : fields) {
+            String raw = text(node, field).orElse(null);
+            String normalized = normalizeMessagingListingId(raw);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
     }
 
     private static String extractRatePlanIdFromPriceArray(JsonNode node) {

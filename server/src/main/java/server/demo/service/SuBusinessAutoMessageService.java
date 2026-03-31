@@ -29,6 +29,7 @@ import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
+import server.demo.util.SuReservationParser;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -349,9 +350,14 @@ public class SuBusinessAutoMessageService {
                 thread.setThreadKey(normalizedBookingId);
                 changed = true;
             }
+            String normalizedThreadListingId = resolveTrustedListingId(thread.getListingId());
+            if (normalizedThreadListingId == null && thread.getListingId() != null && !thread.getListingId().isBlank()) {
+                thread.setListingId(null);
+                changed = true;
+            }
             String listingId = resolveTrustedListingId(reservation.getOtaRoomId());
-            if ((thread.getListingId() == null || thread.getListingId().isBlank())
-                    && listingId != null && !listingId.isBlank()) {
+            if (listingId != null && !listingId.isBlank()
+                    && !listingId.equals(normalizedThreadListingId)) {
                 thread.setListingId(listingId);
                 changed = true;
             }
@@ -424,23 +430,8 @@ public class SuBusinessAutoMessageService {
         return null;
     }
 
-    private static String resolveTrustedListingId(String rawListingId) {
-        if (rawListingId == null) {
-            return null;
-        }
-        String listingId = rawListingId.trim();
-        if (listingId.isBlank()) {
-            return null;
-        }
-        boolean numericOnly = listingId.chars().allMatch(Character::isDigit);
-        int minLength = numericOnly ? 6 : 4;
-        if (listingId.length() < minLength || listingId.length() > 64) {
-            return null;
-        }
-        boolean validChars = listingId.chars().allMatch(ch ->
-                Character.isLetterOrDigit(ch) || ch == '-' || ch == '_'
-        );
-        return validChars ? listingId : null;
+    static String resolveTrustedListingId(String rawListingId) {
+        return SuReservationParser.normalizeMessagingListingId(rawListingId);
     }
 
     private static Integer toSuChannelId(String channelCode) {
@@ -869,6 +860,14 @@ public class SuBusinessAutoMessageService {
             return null;
         }
         String normalized = errorMessage.toLowerCase(Locale.ROOT);
+        if (containsAny(
+                normalized,
+                "access to this property",
+                "doesn't have access to this property",
+                "does not have access to this property"
+        )) {
+            return new WaitState("WAITING_LISTINGID", trimErr(errorMessage));
+        }
         boolean hasReadinessHint = containsAny(normalized,
                 "missing",
                 "require",
@@ -878,7 +877,8 @@ public class SuBusinessAutoMessageService {
                 "not found",
                 "not ready",
                 "cannot send",
-                "invalid"
+                "invalid",
+                "access"
         );
         if (!hasReadinessHint) {
             return null;

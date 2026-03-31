@@ -129,5 +129,49 @@ class SuReservationParserTest {
         assertEquals("Approximate time of arrival: between 17:00 and 18:00", SuReservationParser.extractCustomerRemarks(reservation));
         assertEquals("No Smoking", SuReservationParser.extractRoomSpecialRequest(roomStay));
     }
+
+    @Test
+    void extractMessagingListingId_prefersExplicitListingFieldOnRoomStay() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "listingid": "52",
+                    "booking_details": { "property_id": "16016360" },
+                    "rooms": [
+                      { "listing_id": "16016361" }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        JsonNode roomStay = SuReservationParser.extractRoomStays(reservation).get(0);
+
+        assertEquals("16016361", SuReservationParser.extractMessagingListingId(reservation, roomStay));
+    }
+
+    @Test
+    void extractMessagingListingId_usesBookingPayloadHintWhenExplicitMissing() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "booking_details": { "property_id": "16016360" },
+                    "rooms": [
+                      { "id": "50" }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        assertEquals("16016360", SuReservationParser.extractMessagingListingId(reservation, null));
+    }
+
+    @Test
+    void normalizeMessagingListingId_rejectsShortNumericRoomId() {
+        assertNull(SuReservationParser.normalizeMessagingListingId("52"));
+        assertNull(SuReservationParser.normalizeMessagingListingId("  51 "));
+        assertEquals("16016360", SuReservationParser.normalizeMessagingListingId("16016360"));
+    }
 }
 
