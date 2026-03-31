@@ -32,6 +32,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -147,6 +148,8 @@ public class OtaReservationSyncService {
     ) {}
 
     record CalendarSyncRequest(Long roomTypeId, LocalDate startDate, LocalDate endDate) {}
+
+    record ThreadListingResolution(String listingId, String source) {}
 
     static List<CalendarSyncRequest> buildCalendarSyncRequests(
             Long oldRoomTypeId,
@@ -1002,8 +1005,26 @@ public class OtaReservationSyncService {
             return;
         }
 
-        String listingId = resolveThreadListingIdForReservation(reservationNode, roomStay, reservation.getOtaRoomId());
+        ThreadListingResolution listingResolution = resolveThreadListingForReservation(
+                channelCode,
+                reservationNode,
+                roomStay,
+                reservation.getOtaRoomId()
+        );
+        String listingId = listingResolution.listingId();
+        String listingSource = listingResolution.source();
         LocalDateTime now = LocalDateTime.now();
+
+        reservationLogger.info(
+                "[ReservationUpsert] thread listing resolved. storeId={}, hotelId={}, reservationId={}, notifId={}, bookingId={}, listingId={}, source={}",
+                storeId,
+                suHotelId,
+                SuReservationParser.extractReservationId(reservationNode),
+                SuReservationParser.extractReservationNotifId(reservationNode),
+                bookingId,
+                listingId,
+                listingSource
+        );
 
         try {
             SuMessageThread thread = threadRepository.findByStoreIdAndChannelIdAndThreadKey(storeId, suChannelId, threadKey)
@@ -1092,15 +1113,38 @@ public class OtaReservationSyncService {
     }
 
     static String resolveThreadListingIdForReservation(
+            String channelCode,
             JsonNode reservationNode,
             JsonNode roomStay,
             String fallbackOtaRoomId
     ) {
-        String fromWebhook = SuReservationParser.extractMessagingListingId(reservationNode, roomStay);
-        if (fromWebhook != null && !fromWebhook.isBlank()) {
-            return fromWebhook;
+        return resolveThreadListingForReservation(channelCode, reservationNode, roomStay, fallbackOtaRoomId).listingId();
+    }
+
+    static ThreadListingResolution resolveThreadListingForReservation(
+            String channelCode,
+            JsonNode reservationNode,
+            JsonNode roomStay,
+            String fallbackOtaRoomId
+    ) {
+        SuReservationParser.MessagingListingResolution webhookResolution =
+                SuReservationParser.extractMessagingListingIdWithSource(reservationNode, roomStay);
+        if (webhookResolution != null
+                && webhookResolution.listingId() != null
+                && !webhookResolution.listingId().isBlank()) {
+            return new ThreadListingResolution(webhookResolution.listingId(), webhookResolution.source());
         }
-        return SuReservationParser.normalizeMessagingListingId(fallbackOtaRoomId);
+
+        String normalizedChannel = channelCode != null ? channelCode.trim().toUpperCase(Locale.ROOT) : null;
+        if ("BOOKING".equals(normalizedChannel) || "BOOKING.COM".equals(normalizedChannel)) {
+            return new ThreadListingResolution(null, "none");
+        }
+
+        String normalizedFallback = SuReservationParser.normalizeMessagingListingId(fallbackOtaRoomId);
+        if (normalizedFallback != null) {
+            return new ThreadListingResolution(normalizedFallback, "fallback_ota_room_id");
+        }
+        return new ThreadListingResolution(null, "none");
     }
 
     static String resolveRoomReservationIdentity(String roomReservationId, int roomStayIndex) {

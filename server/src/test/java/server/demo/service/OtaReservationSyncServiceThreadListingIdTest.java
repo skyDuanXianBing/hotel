@@ -25,6 +25,7 @@ class OtaReservationSyncServiceThreadListingIdTest {
                 """);
 
         String resolved = OtaReservationSyncService.resolveThreadListingIdForReservation(
+                "BOOKING",
                 reservation,
                 roomStay,
                 "52"
@@ -34,7 +35,23 @@ class OtaReservationSyncServiceThreadListingIdTest {
     }
 
     @Test
-    void resolveThreadListingId_usesFallbackOnlyWhenValid() throws Exception {
+    void resolveThreadListingId_bookingDoesNotUseOtaRoomFallback() throws Exception {
+        JsonNode reservation = objectMapper.readTree("""
+                {
+                  "booking_details": {}
+                }
+                """);
+
+        assertNull(
+                OtaReservationSyncService.resolveThreadListingIdForReservation("BOOKING", reservation, null, "16016360")
+        );
+        assertNull(
+                OtaReservationSyncService.resolveThreadListingIdForReservation("BOOKING", reservation, null, "51")
+        );
+    }
+
+    @Test
+    void resolveThreadListingId_nonBookingCanUseValidFallback() throws Exception {
         JsonNode reservation = objectMapper.readTree("""
                 {
                   "booking_details": {}
@@ -43,11 +60,7 @@ class OtaReservationSyncServiceThreadListingIdTest {
 
         assertEquals(
                 "16016360",
-                OtaReservationSyncService.resolveThreadListingIdForReservation(reservation, null, "16016360")
-        );
-        assertNull(
-                OtaReservationSyncService.resolveThreadListingIdForReservation(reservation, null, "51")
+                OtaReservationSyncService.resolveThreadListingIdForReservation("AIRBNB", reservation, null, "16016360")
         );
     }
 }
-

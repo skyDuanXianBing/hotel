@@ -173,5 +173,63 @@ class SuReservationParserTest {
         assertNull(SuReservationParser.normalizeMessagingListingId("  51 "));
         assertEquals("16016360", SuReservationParser.normalizeMessagingListingId("16016360"));
     }
+
+    @Test
+    void extractMessagingListingId_usesRemarksHotelIdWhenStructuredFieldsMissing() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_booking_id": "5842688289",
+                    "customer": {
+                      "remarks": "BOOKING NOTE | url: https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/booking.html?res_id=5842688289&hotel_id=16016360&lang=en |"
+                    },
+                    "rooms": [
+                      { "id": "50" }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        assertEquals("16016360", SuReservationParser.extractMessagingListingId(reservation, null));
+    }
+
+    @Test
+    void extractMessagingListingId_prefersRemarksHotelIdWithMatchingResId() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_booking_id": "5236589933",
+                    "customer": {
+                      "remarks": "url:https://admin.booking.com/x?res_id=111111&hotel_id=99999999 | url:https://admin.booking.com/y?res_id=5236589933&hotel_id=16016360&lang=en |"
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        assertEquals("16016360", SuReservationParser.extractMessagingListingId(reservation, null));
+    }
+
+    @Test
+    void extractMessagingListingIdWithSource_marksRemarksHotelIdSource() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_booking_id": "5236589933",
+                    "customer": {
+                      "remarks_en": "https://admin.booking.com/y?res_id=5236589933&hotel_id=16016360"
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        SuReservationParser.MessagingListingResolution resolved =
+                SuReservationParser.extractMessagingListingIdWithSource(reservation, null);
+        assertNotNull(resolved);
+        assertEquals("16016360", resolved.listingId());
+        assertEquals("remarks_hotel_id", resolved.source());
+    }
 }
 

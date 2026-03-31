@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 将 Su 的 Reservation API 响应解析为 PMS 可用字段（尽量做兼容处理）。
@@ -19,7 +21,12 @@ import java.util.Optional;
  */
 public final class SuReservationParser {
 
+    private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s|]+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern QUERY_PARAM_PATTERN = Pattern.compile("(?:^|[?&])([A-Za-z0-9_]+)=([^&#\\s|]+)");
+
     private SuReservationParser() {}
+
+    public record MessagingListingResolution(String listingId, String source) {}
 
     public static List<JsonNode> extractReservationNodes(JsonNode root) {
         if (root == null || root.isNull()) {
@@ -105,20 +112,26 @@ public final class SuReservationParser {
      * 2) explicit listing fields on reservation root
      * 3) booking payload hints (booking_details / booking / property)
      * 4) explicit listing fields on other room stays
+     * 5) Booking remarks URL query: hotel_id (prefer same res_id as channel_booking_id)
      */
     public static String extractMessagingListingId(JsonNode reservation, JsonNode roomStay) {
+        MessagingListingResolution resolution = extractMessagingListingIdWithSource(reservation, roomStay);
+        return resolution != null ? resolution.listingId() : null;
+    }
+
+    public static MessagingListingResolution extractMessagingListingIdWithSource(JsonNode reservation, JsonNode roomStay) {
         String fromCurrentRoom = firstValidListingId(roomStay,
                 "listingid", "listing_id", "listingId",
                 "propertyid", "property_id", "propertyId");
         if (fromCurrentRoom != null) {
-            return fromCurrentRoom;
+            return new MessagingListingResolution(fromCurrentRoom, "explicit_field");
         }
 
         String fromReservation = firstValidListingId(reservation,
                 "listingid", "listing_id", "listingId",
                 "propertyid", "property_id", "propertyId");
         if (fromReservation != null) {
-            return fromReservation;
+            return new MessagingListingResolution(fromReservation, "explicit_field");
         }
 
         JsonNode bookingDetails = reservation != null ? reservation.get("booking_details") : null;
@@ -126,7 +139,7 @@ public final class SuReservationParser {
                 "listingid", "listing_id", "listingId",
                 "propertyid", "property_id", "propertyId");
         if (fromBookingDetails != null) {
-            return fromBookingDetails;
+            return new MessagingListingResolution(fromBookingDetails, "booking_details");
         }
 
         JsonNode booking = reservation != null ? reservation.get("booking") : null;
@@ -134,7 +147,7 @@ public final class SuReservationParser {
                 "listingid", "listing_id", "listingId",
                 "propertyid", "property_id", "propertyId");
         if (fromBooking != null) {
-            return fromBooking;
+            return new MessagingListingResolution(fromBooking, "booking_details");
         }
 
         JsonNode property = reservation != null ? reservation.get("property") : null;
@@ -142,7 +155,7 @@ public final class SuReservationParser {
                 "listingid", "listing_id", "listingId",
                 "propertyid", "property_id", "propertyId");
         if (fromProperty != null) {
-            return fromProperty;
+            return new MessagingListingResolution(fromProperty, "booking_details");
         }
 
         List<JsonNode> roomStays = extractRoomStays(reservation);
@@ -151,8 +164,13 @@ public final class SuReservationParser {
                     "listingid", "listing_id", "listingId",
                     "propertyid", "property_id", "propertyId");
             if (candidate != null) {
-                return candidate;
+                return new MessagingListingResolution(candidate, "explicit_field");
             }
+        }
+
+        String fromRemarks = extractListingIdFromRemarks(reservation);
+        if (fromRemarks != null) {
+            return new MessagingListingResolution(fromRemarks, "remarks_hotel_id");
         }
 
         return null;
@@ -233,7 +251,9 @@ public final class SuReservationParser {
     public static String extractCustomerRemarks(JsonNode reservation) {
         JsonNode customer = reservation != null ? reservation.get("customer") : null;
         if (customer != null && customer.isObject()) {
-            String remarks = text(customer, "remarks").orElse(null);
+            String remarks = text(customer, "remarks")
+                    .or(() -> text(customer, "remarks_en"))
+                    .orElse(null);
             if (remarks != null && !remarks.isBlank()) {
                 return remarks.trim();
             }
@@ -442,6 +462,97 @@ public final class SuReservationParser {
         }
         return null;
     }
+
+    private static String extractListingIdFromRemarks(JsonNode reservation) {
+        String remarks = extractCustomerRemarks(reservation);
+        if (remarks == null || remarks.isBlank()) {
+            return null;
+        }
+
+        String bookingId = extractChannelBookingId(reservation);
+        List<RemarksListingCandidate> candidates = extractRemarksListingCandidates(remarks);
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        String normalizedBookingId = normalizeParamValue(bookingId);
+        if (normalizedBookingId != null) {
+            for (RemarksListingCandidate candidate : candidates) {
+                String candidateResId = normalizeParamValue(candidate.resId());
+                if (normalizedBookingId.equals(candidateResId)) {
+                    return candidate.listingId();
+                }
+            }
+        }
+        return candidates.get(0).listingId();
+    }
+
+    private static List<RemarksListingCandidate> extractRemarksListingCandidates(String remarks) {
+        List<RemarksListingCandidate> candidates = new ArrayList<>();
+        Matcher matcher = URL_PATTERN.matcher(remarks);
+        while (matcher.find()) {
+            RemarksListingCandidate candidate = extractRemarksCandidateFromText(matcher.group());
+            if (candidate != null) {
+                candidates.add(candidate);
+            }
+        }
+
+        if (!candidates.isEmpty()) {
+            return candidates;
+        }
+
+        RemarksListingCandidate directCandidate = extractRemarksCandidateFromText(remarks);
+        if (directCandidate != null) {
+            candidates.add(directCandidate);
+        }
+        return candidates;
+    }
+
+    private static RemarksListingCandidate extractRemarksCandidateFromText(String text) {
+        String hotelId = extractQueryParam(text, "hotel_id");
+        String normalizedHotelId = normalizeMessagingListingId(hotelId);
+        if (normalizedHotelId == null) {
+            return null;
+        }
+        String resId = normalizeParamValue(extractQueryParam(text, "res_id"));
+        return new RemarksListingCandidate(resId, normalizedHotelId);
+    }
+
+    private static String extractQueryParam(String text, String targetKey) {
+        if (text == null || text.isBlank() || targetKey == null || targetKey.isBlank()) {
+            return null;
+        }
+        Matcher matcher = QUERY_PARAM_PATTERN.matcher(text);
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            if (key == null || !targetKey.equalsIgnoreCase(key)) {
+                continue;
+            }
+            String value = normalizeParamValue(matcher.group(2));
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static String normalizeParamValue(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String value = raw.trim();
+        while (!value.isEmpty()) {
+            char last = value.charAt(value.length() - 1);
+            if (last == '|' || last == ',' || last == ';' || last == ')' || last == '"' || last == '\'') {
+                value = value.substring(0, value.length() - 1).trim();
+                continue;
+            }
+            break;
+        }
+        return value.isBlank() ? null : value;
+    }
+
+    private record RemarksListingCandidate(String resId, String listingId) {}
 
     private static String extractRatePlanIdFromPriceArray(JsonNode node) {
         if (node == null || node.isNull()) {
