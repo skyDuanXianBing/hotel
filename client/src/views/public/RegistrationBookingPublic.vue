@@ -254,6 +254,18 @@ const guestCountOptions = (maxGuests: number) => {
   return Array.from({ length: safeMax }, (_, i) => i + 1)
 }
 
+const buildRoomRegistrationLink = (roomLink: string): string => {
+  const lang = selectedLang.value || 'en'
+  return roomLink + (roomLink.includes('?') ? '&' : '?') + 'lang=' + encodeURIComponent(lang)
+}
+
+const shouldAutoRedirectToRegistrationForm = (
+  resp: PublicRegistrationBookingResponse
+): boolean => {
+  const rooms = resp.rooms || []
+  return rooms.length > 0 && rooms.every((room) => room.status === 'APPROVED')
+}
+
 const formatLastSaved = (dateStr: string): string => {
   if (!dateStr) return '-'
   try {
@@ -303,6 +315,15 @@ const load = async () => {
     }
 
     booking.value = resp.data
+
+    if (shouldAutoRedirectToRegistrationForm(resp.data)) {
+      const firstRoomLink = (resp.data.rooms || []).find((room) => !!room.roomRegistrationLink)
+      if (firstRoomLink?.roomRegistrationLink) {
+        window.location.replace(buildRoomRegistrationLink(firstRoomLink.roomRegistrationLink))
+        return
+      }
+    }
+
     for (const room of resp.data.rooms || []) {
       if (room?.orderNumber) {
         guestCountByOrder[room.orderNumber] = Number(room.guestCount || 1)
@@ -330,7 +351,7 @@ const handleContinue = async (orderNumber: string, roomLink: string) => {
   try {
     await setRoomGuestCountFromBooking(bookingKey.value, orderNumber, token.value, guestCount)
     // Save selected language to pass to form page
-    window.location.assign(roomLink + (roomLink.includes('?') ? '&' : '?') + 'lang=' + selectedLang.value)
+    window.location.assign(buildRoomRegistrationLink(roomLink))
   } catch (e) {
     console.error(e)
     ElMessage.error('保存失败，请重试')
