@@ -399,6 +399,7 @@ public class RoomTypeService {
     private static void applyOptionalRoomTypeFields(RoomType target, RoomType source) {
         target.setDescription(source.getDescription());
         target.setCheckInGuideLink(source.getCheckInGuideLink());
+        target.setRoomTypeAddress(source.getRoomTypeAddress());
         target.setDefaultPrice(source.getDefaultPrice());
         target.setWeekdayPrice(source.getWeekdayPrice());
         target.setWeekendPrice(source.getWeekendPrice());

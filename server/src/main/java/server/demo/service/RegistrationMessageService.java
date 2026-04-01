@@ -191,6 +191,7 @@ public class RegistrationMessageService {
         vars.put("checkout_date", formatDate(reservation != null ? reservation.getCheckOutDate() : null));
 
         vars.put("room_type_name", resolveRoomTypeName(reservation));
+        vars.put("room_type_address", resolveRoomTypeAddress(reservation));
         vars.put("room_number", resolveRoomNumber(reservation));
         vars.put("confirmation_code", reservation != null ? nullToEmpty(reservation.getChannelOrderNumber()) : "");
 
@@ -231,6 +232,18 @@ public class RegistrationMessageService {
         if (room != null && room.getRoomType() != null) {
             RoomType rt = room.getRoomType();
             return nullToEmpty(rt.getName());
+        }
+        return "";
+    }
+
+    private static String resolveRoomTypeAddress(Reservation reservation) {
+        if (reservation == null) {
+            return "";
+        }
+        Room room = reservation.getRoom();
+        if (room != null && room.getRoomType() != null) {
+            RoomType rt = room.getRoomType();
+            return nullToEmpty(rt.getRoomTypeAddress());
         }
         return "";
     }

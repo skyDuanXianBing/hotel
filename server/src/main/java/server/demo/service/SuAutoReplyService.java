@@ -222,6 +222,7 @@ public class SuAutoReplyService {
         vars.put("checkin_date", "");
         vars.put("checkout_date", "");
         vars.put("room_type_name", "");
+        vars.put("room_type_address", "");
         vars.put("rate_plan_name", "");
         vars.put("confirmation_code", nullToEmpty(thread.getBookingId()));
         vars.put("number_of_nights", "");

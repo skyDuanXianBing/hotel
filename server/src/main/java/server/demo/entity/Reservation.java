@@ -37,7 +37,7 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "guest_name", nullable = false, length = 100)
     private String guestName;
 
-    @Column(name = "guest_phone", length = 20)
+    @Column(name = "guest_phone", length = 255)
     private String guestPhone;
 
     @Column(name = "guest_id_card", length = 50)

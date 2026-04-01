@@ -72,6 +72,9 @@ public class RoomType implements StoreScopedEntity {
     @Column(name = "check_in_guide_link", length = 500)
     private String checkInGuideLink;
 
+    @Column(name = "room_type_address", length = 500)
+    private String roomTypeAddress;
+
     @Column(name = "su_room_type", length = 100)
     private String suRoomType;
 
@@ -223,6 +226,14 @@ public class RoomType implements StoreScopedEntity {
 
     public void setCheckInGuideLink(String checkInGuideLink) {
         this.checkInGuideLink = checkInGuideLink;
+    }
+
+    public String getRoomTypeAddress() {
+        return roomTypeAddress;
+    }
+
+    public void setRoomTypeAddress(String roomTypeAddress) {
+        this.roomTypeAddress = roomTypeAddress;
     }
 
     public String getSuRoomType() {

@@ -16,6 +16,7 @@ public class RoomTypeWithRoomsDTO {
     private Integer maxChildOccupancy;
     private String description;
     private String checkInGuideLink;
+    private String roomTypeAddress;
     private String suRoomType;
     private BigDecimal sizeMeasurement;
     private String sizeMeasurementUnit;
@@ -44,6 +45,7 @@ public class RoomTypeWithRoomsDTO {
         this.maxChildOccupancy = roomType.getMaxChildOccupancy();
         this.description = roomType.getDescription();
         this.checkInGuideLink = roomType.getCheckInGuideLink();
+        this.roomTypeAddress = roomType.getRoomTypeAddress();
         this.suRoomType = roomType.getSuRoomType();
         this.sizeMeasurement = roomType.getSizeMeasurement();
         this.sizeMeasurementUnit = roomType.getSizeMeasurementUnit();
@@ -124,6 +126,14 @@ public class RoomTypeWithRoomsDTO {
 
     public void setCheckInGuideLink(String checkInGuideLink) {
         this.checkInGuideLink = checkInGuideLink;
+    }
+
+    public String getRoomTypeAddress() {
+        return roomTypeAddress;
+    }
+
+    public void setRoomTypeAddress(String roomTypeAddress) {
+        this.roomTypeAddress = roomTypeAddress;
     }
 
     public String getSuRoomType() {

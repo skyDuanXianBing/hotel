@@ -538,6 +538,7 @@ public class SuBusinessAutoMessageService {
         vars.put("checkout_date", formatDate(reservation != null ? reservation.getCheckOutDate() : null));
 
         vars.put("room_type_name", resolveRoomTypeName(reservation));
+        vars.put("room_type_address", resolveRoomTypeAddress(reservation));
         vars.put("rate_plan_name", "");
         vars.put("confirmation_code", reservation != null ? nullToEmpty(reservation.getChannelOrderNumber()) : "");
 
@@ -616,6 +617,22 @@ public class SuBusinessAutoMessageService {
         }
         Optional<RoomType> rt = roomTypeRepository.findById(otaRoomTypeId);
         return rt.map(RoomType::getName).orElse("");
+    }
+
+    private String resolveRoomTypeAddress(Reservation reservation) {
+        if (reservation == null) {
+            return "";
+        }
+        Room room = reservation.getRoom();
+        if (room != null && room.getRoomType() != null) {
+            return nullToEmpty(room.getRoomType().getRoomTypeAddress());
+        }
+        Long otaRoomTypeId = reservation.getOtaRoomTypeId();
+        if (otaRoomTypeId == null) {
+            return "";
+        }
+        Optional<RoomType> rt = roomTypeRepository.findById(otaRoomTypeId);
+        return rt.map(RoomType::getRoomTypeAddress).map(SuBusinessAutoMessageService::nullToEmpty).orElse("");
     }
 
     private String resolveRoomNumber(Reservation reservation) {

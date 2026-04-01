@@ -231,5 +231,52 @@ class SuReservationParserTest {
         assertEquals("16016360", resolved.listingId());
         assertEquals("remarks_hotel_id", resolved.source());
     }
+
+    @Test
+    void extractGuestPhone_keepsMultiPhonesWithSeparatorAndDeduplicates() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "customer": {
+                      "telephone": " 17032204754,17032204797，17032204754 ; +8613800138000 "
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+
+        String parsed = SuReservationParser.extractGuestPhone(reservation, null);
+
+        assertEquals("17032204754,17032204797,+8613800138000", parsed);
+    }
+
+    @Test
+    void extractGuestPhone_truncatesToColumnLimit() throws Exception {
+        StringBuilder phones = new StringBuilder();
+        for (int i = 0; i < 60; i++) {
+            if (i > 0) {
+                phones.append(',');
+            }
+            phones.append("1703220").append(String.format("%04d", i));
+        }
+
+        String json = """
+                {
+                  "reservation": {
+                    "customer": {
+                      "telephone": "%s"
+                    }
+                  }
+                }
+                """.formatted(phones);
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        String parsed = SuReservationParser.extractGuestPhone(reservation, null);
+
+        assertNotNull(parsed);
+        assertTrue(parsed.length() <= 255);
+        assertTrue(parsed.startsWith("17032200000"));
+    }
 }
 

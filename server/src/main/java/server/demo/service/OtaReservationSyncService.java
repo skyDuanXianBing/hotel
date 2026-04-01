@@ -45,6 +45,7 @@ public class OtaReservationSyncService {
 
     private static final String OTA_CHANNEL_CODE_AIRBNB = "AIRBNB";
     private static final String OTA_CHANNEL_CODE_BOOKING = "BOOKING";
+    private static final int RESERVATION_GUEST_PHONE_MAX_LENGTH = 255;
 
     private static final List<String> SUPPORTED_CHANNEL_CODES = List.of(
             OTA_CHANNEL_CODE_AIRBNB,
@@ -680,7 +681,7 @@ public class OtaReservationSyncService {
                     }
 
                     reservation.setGuestName(SuReservationParser.extractGuestName(reservationNode, roomStay));
-                    reservation.setGuestPhone(SuReservationParser.extractGuestPhone(reservationNode, roomStay));
+                    reservation.setGuestPhone(limitGuestPhone(SuReservationParser.extractGuestPhone(reservationNode, roomStay)));
                     reservation.setCheckInDate(checkIn);
                     reservation.setCheckOutDate(checkOut);
                     reservation.setAdults(SuReservationParser.extractAdults(reservationNode, roomStay));
@@ -920,6 +921,28 @@ public class OtaReservationSyncService {
         Optional<Channel> global = channelRepository.findByCode(channelCode);
         global.ifPresent(c -> logger.warn("Using global Channel by code (store-scoped record not found). storeId={}, code={}", storeId, channelCode));
         return global;
+    }
+
+    private String limitGuestPhone(String guestPhone) {
+        if (guestPhone == null) {
+            return null;
+        }
+
+        String normalized = guestPhone.trim();
+        if (normalized.isBlank()) {
+            return null;
+        }
+
+        if (normalized.length() <= RESERVATION_GUEST_PHONE_MAX_LENGTH) {
+            return normalized;
+        }
+
+        reservationLogger.warn(
+                "[ReservationUpsert] guest phone exceeded {} chars and was truncated before persistence. rawLength={}",
+                RESERVATION_GUEST_PHONE_MAX_LENGTH,
+                normalized.length()
+        );
+        return normalized.substring(0, RESERVATION_GUEST_PHONE_MAX_LENGTH);
     }
 
     private static ReservationStatus mapReservationStatus(String suStatus, String roomStayStatus) {

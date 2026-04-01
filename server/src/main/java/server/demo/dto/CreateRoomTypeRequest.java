@@ -29,6 +29,7 @@ public class CreateRoomTypeRequest {
 
     private String description;
     private String checkInGuideLink;
+    private String roomTypeAddress;
     private String suRoomType;
     private BigDecimal sizeMeasurement;
     private String sizeMeasurementUnit;
@@ -128,6 +129,14 @@ public class CreateRoomTypeRequest {
 
     public void setCheckInGuideLink(String checkInGuideLink) {
         this.checkInGuideLink = checkInGuideLink;
+    }
+
+    public String getRoomTypeAddress() {
+        return roomTypeAddress;
+    }
+
+    public void setRoomTypeAddress(String roomTypeAddress) {
+        this.roomTypeAddress = roomTypeAddress;
     }
 
     public String getSuRoomType() {

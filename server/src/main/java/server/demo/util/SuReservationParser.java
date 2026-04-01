@@ -1,14 +1,18 @@
 package server.demo.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,8 +25,12 @@ import java.util.regex.Pattern;
  */
 public final class SuReservationParser {
 
+    private static final Logger logger = LoggerFactory.getLogger(SuReservationParser.class);
+    private static final int GUEST_PHONE_MAX_LENGTH = 255;
+
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s|]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern QUERY_PARAM_PATTERN = Pattern.compile("(?:^|[?&])([A-Za-z0-9_]+)=([^&#\\s|]+)");
+    private static final Pattern PHONE_SPLIT_PATTERN = Pattern.compile("[,，;；\\s]+");
 
     private SuReservationParser() {}
 
@@ -618,7 +626,53 @@ public final class SuReservationParser {
     }
 
     private static String trimPhone(String raw) {
-        String cleaned = raw.trim().replaceAll("[^0-9+]", "");
-        return cleaned.isBlank() ? null : cleaned;
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+
+        Set<String> phones = new LinkedHashSet<>();
+        for (String segment : PHONE_SPLIT_PATTERN.split(raw.trim())) {
+            if (segment == null || segment.isBlank()) {
+                continue;
+            }
+            String cleaned = segment.replaceAll("[^0-9+]", "");
+            if (!cleaned.isBlank()) {
+                phones.add(cleaned);
+            }
+        }
+
+        if (phones.isEmpty()) {
+            return null;
+        }
+
+        String joined = String.join(",", phones);
+        if (joined.length() <= GUEST_PHONE_MAX_LENGTH) {
+            return joined;
+        }
+
+        StringBuilder limited = new StringBuilder();
+        int droppedCount = 0;
+        for (String phone : phones) {
+            int additional = limited.isEmpty() ? phone.length() : phone.length() + 1;
+            if (limited.length() + additional > GUEST_PHONE_MAX_LENGTH) {
+                droppedCount++;
+                continue;
+            }
+            if (!limited.isEmpty()) {
+                limited.append(',');
+            }
+            limited.append(phone);
+        }
+
+        String limitedValue = limited.isEmpty() ? joined.substring(0, GUEST_PHONE_MAX_LENGTH) : limited.toString();
+        logger.warn(
+                "Guest phone exceeded {} chars and was truncated. rawLength={}, normalizedLength={}, truncatedLength={}, droppedSegments={}",
+                GUEST_PHONE_MAX_LENGTH,
+                raw.length(),
+                joined.length(),
+                limitedValue.length(),
+                droppedCount
+        );
+        return limitedValue;
     }
 }
