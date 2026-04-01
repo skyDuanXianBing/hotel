@@ -400,6 +400,7 @@ public class RoomTypeService {
         target.setDescription(source.getDescription());
         target.setCheckInGuideLink(source.getCheckInGuideLink());
         target.setRoomTypeAddress(source.getRoomTypeAddress());
+        target.setNearbyStation(source.getNearbyStation());
         target.setDefaultPrice(source.getDefaultPrice());
         target.setWeekdayPrice(source.getWeekdayPrice());
         target.setWeekendPrice(source.getWeekendPrice());

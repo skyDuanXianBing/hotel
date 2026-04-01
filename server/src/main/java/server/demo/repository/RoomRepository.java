@@ -1,5 +1,7 @@
 package server.demo.repository;
 
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -51,6 +53,10 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
     @Query("SELECT r FROM Room r JOIN FETCH r.roomType WHERE r.storeId = :storeId AND r.id = :roomId")
     Optional<Room> findByStoreIdAndIdWithRoomType(@Param("storeId") Long storeId, @Param("roomId") Long roomId);
+
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT r FROM Room r WHERE r.storeId = :storeId AND r.id = :roomId")
+        Optional<Room> findByStoreIdAndIdForUpdate(@Param("storeId") Long storeId, @Param("roomId") Long roomId);
 
     boolean existsByStoreIdAndRoomNumber(Long storeId, String roomNumber);
 

@@ -75,6 +75,9 @@ public class RoomType implements StoreScopedEntity {
     @Column(name = "room_type_address", length = 500)
     private String roomTypeAddress;
 
+    @Column(name = "nearby_station", length = 255)
+    private String nearbyStation;
+
     @Column(name = "su_room_type", length = 100)
     private String suRoomType;
 
@@ -234,6 +237,14 @@ public class RoomType implements StoreScopedEntity {
 
     public void setRoomTypeAddress(String roomTypeAddress) {
         this.roomTypeAddress = roomTypeAddress;
+    }
+
+    public String getNearbyStation() {
+        return nearbyStation;
+    }
+
+    public void setNearbyStation(String nearbyStation) {
+        this.nearbyStation = nearbyStation;
     }
 
     public String getSuRoomType() {

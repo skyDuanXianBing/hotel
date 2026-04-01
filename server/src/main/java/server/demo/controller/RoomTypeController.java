@@ -92,6 +92,7 @@ public class RoomTypeController extends BaseStoreController {
             roomType.setMaxChildOccupancy(request.getMaxChildOccupancy());
             roomType.setCheckInGuideLink(request.getCheckInGuideLink());
             roomType.setRoomTypeAddress(request.getRoomTypeAddress());
+            roomType.setNearbyStation(request.getNearbyStation());
             roomType.setSuRoomType(request.getSuRoomType());
             roomType.setSizeMeasurement(request.getSizeMeasurement());
             roomType.setSizeMeasurementUnit(request.getSizeMeasurementUnit());
@@ -142,6 +143,7 @@ public class RoomTypeController extends BaseStoreController {
             roomType.setDescription(request.getDescription());
             roomType.setCheckInGuideLink(request.getCheckInGuideLink());
             roomType.setRoomTypeAddress(request.getRoomTypeAddress());
+            roomType.setNearbyStation(request.getNearbyStation());
             roomType.setSuRoomType(request.getSuRoomType());
             roomType.setSizeMeasurement(request.getSizeMeasurement());
             roomType.setSizeMeasurementUnit(request.getSizeMeasurementUnit());

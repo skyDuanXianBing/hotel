@@ -261,6 +261,7 @@ const messageVariables: MessageVariable[] = [
   { label: 'Checkout date', code: '{{checkout_date}}' },
   { label: 'Room type name', code: '{{room_type_name}}' },
   { label: 'Room type address', code: '{{room_type_address}}' },
+  { label: 'Nearby station', code: '{{nearby_station}}' },
   { label: 'Rate plan name', code: '{{rate_plan_name}}' },
   { label: 'Property address', code: '{{property_address}}' },
   { label: 'Property city', code: '{{property_city}}' },

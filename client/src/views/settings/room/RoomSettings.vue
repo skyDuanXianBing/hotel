@@ -176,6 +176,14 @@
           />
         </el-form-item>
 
+        <el-form-item label="附近车站">
+          <el-input
+            v-model="formData.nearbyStation"
+            placeholder="请输入附近车站（可选）"
+            clearable
+          />
+        </el-form-item>
+
         <el-form-item label="入住指南链接">
           <el-input 
             v-model="formData.checkInGuideLink" 
@@ -270,6 +278,7 @@ interface RoomTypeData {
   roomCount: number
   rooms: Array<{ roomNumber: string; smartlockPasscode: string }>
   roomTypeAddress?: string
+  nearbyStation?: string
   checkInGuideLink?: string
 }
 
@@ -309,6 +318,7 @@ const formData = ref<RoomTypeData>({
   roomCount: 1,
   rooms: [],
   roomTypeAddress: '',
+  nearbyStation: '',
   checkInGuideLink: ''
 })
 
@@ -458,6 +468,7 @@ const loadRoomTypes = async () => {
           shortName: item.description || item.code,
           maxGuests: item.maxGuests ?? 4,
           roomTypeAddress: item.roomTypeAddress ?? '',
+          nearbyStation: item.nearbyStation ?? '',
           checkInGuideLink: item.checkInGuideLink ?? '',
           defaultPrice: item.defaultPrice ?? 0, // 保存原始defaultPrice
           mondayPrice: item.mondayPrice ?? item.weekdayPrice ?? item.defaultPrice ?? 0,
@@ -520,6 +531,7 @@ const handleAdd = () => {
     roomCount: 1,
     rooms: [{ roomNumber: '', smartlockPasscode: '' }],
     roomTypeAddress: '',
+    nearbyStation: '',
     checkInGuideLink: ''
   }
   showDialog.value = true
@@ -535,6 +547,7 @@ const handleEdit = (row: RoomTypeData) => {
     ...row,
     rooms: row.rooms && row.rooms.length > 0 ? row.rooms.map(r => ({ ...r })) : [{ roomNumber: '', smartlockPasscode: '' }],
     roomTypeAddress: row.roomTypeAddress || '',
+    nearbyStation: row.nearbyStation || '',
     checkInGuideLink: row.checkInGuideLink || ''
   }
 
@@ -692,6 +705,7 @@ const handleSave = async () => {
       totalRooms: validRoomNumbers.length, // 使用实际房间号数量
       maxGuests: formData.value.maxGuests,
       roomTypeAddress: formData.value.roomTypeAddress?.trim() || undefined,
+      nearbyStation: formData.value.nearbyStation?.trim() || undefined,
       checkInGuideLink: normalizedCheckInGuideLink ? normalizedCheckInGuideLink : undefined,
       // 编辑时保持原有defaultPrice,新增时使用周一价格作为默认价格
       defaultPrice: isEdit.value && formData.value.defaultPrice !== undefined

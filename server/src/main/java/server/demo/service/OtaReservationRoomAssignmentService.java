@@ -3,6 +3,7 @@ package server.demo.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.repository.ReservationRepository;
@@ -11,6 +12,7 @@ import server.demo.util.SuRoomIdParser;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Su 预订同步：自动排房（将 reservation 绑定到具体 Room）。
@@ -31,6 +33,7 @@ public class OtaReservationRoomAssignmentService {
         this.reservationRepository = reservationRepository;
     }
 
+    @Transactional
     public void tryAutoAssignRoom(Long storeId, Reservation reservation, String itProviderRoomId, LocalDate checkIn, LocalDate checkOut) {
         if (storeId == null || reservation == null || checkIn == null || checkOut == null) {
             return;
@@ -52,13 +55,22 @@ public class OtaReservationRoomAssignmentService {
 
         // 1) Room-level format: {roomTypeId}-{roomNumber}
         if (parsed.roomNumber() != null && !parsed.roomNumber().isBlank()) {
-            room = roomRepository.findByStoreIdAndRoomNumber(storeId, parsed.roomNumber())
+            Room matchedRoom = roomRepository.findByStoreIdAndRoomNumber(storeId, parsed.roomNumber())
                     .orElse(null);
-            if (room == null) {
+            if (matchedRoom == null) {
                 logger.warn("[OtaReservationRoomAssign] skip auto-assign: room not found. storeId={}, orderNumber={}, roomNumber={}, roomid={}",
                         storeId, reservation.getOrderNumber(), parsed.roomNumber(), parsed.raw());
                 reservationLogger.warn("[ReservationAssign] room not found. storeId={}, orderNumber={}, roomNumber={}, roomid={}",
                         storeId, reservation.getOrderNumber(), parsed.roomNumber(), parsed.raw());
+                return;
+            }
+
+            room = lockRoomForAssignment(storeId, matchedRoom.getId());
+            if (room == null) {
+                logger.warn("[OtaReservationRoomAssign] skip auto-assign: room lock failed. storeId={}, orderNumber={}, roomId={}, roomid={}",
+                        storeId, reservation.getOrderNumber(), matchedRoom.getId(), parsed.raw());
+                reservationLogger.warn("[ReservationAssign] room lock failed. storeId={}, orderNumber={}, roomId={}, roomid={}",
+                        storeId, reservation.getOrderNumber(), matchedRoom.getId(), parsed.raw());
                 return;
             }
 
@@ -86,15 +98,21 @@ public class OtaReservationRoomAssignmentService {
                 if (candidate == null || candidate.getId() == null) {
                     continue;
                 }
-                List<Reservation> conflicts = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
+
+                Room lockedCandidate = lockRoomForAssignment(storeId, candidate.getId());
+                if (lockedCandidate == null) {
+                    continue;
+                }
+
+                List<Reservation> conflicts = findConflictsExcludingCurrent(
                         storeId,
-                        candidate.getId(),
+                        lockedCandidate.getId(),
                         checkIn,
-                        checkOut
+                        checkOut,
+                        reservation
                 );
-                boolean hasConflict = conflicts.stream().anyMatch(r -> reservation.getId() == null || r.getId() == null || !r.getId().equals(reservation.getId()));
-                if (!hasConflict) {
-                    room = candidate;
+                if (conflicts.isEmpty()) {
+                    room = lockedCandidate;
                     break;
                 }
             }
@@ -109,16 +127,15 @@ public class OtaReservationRoomAssignmentService {
         }
 
         // final conflict check (defensive)
-        List<Reservation> conflicts = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
+        List<Reservation> conflicts = findConflictsExcludingCurrent(
                 storeId,
                 room.getId(),
                 checkIn,
-                checkOut
+                checkOut,
+                reservation
         );
-        boolean hasConflict = conflicts.stream().anyMatch(r -> reservation.getId() == null || r.getId() == null || !r.getId().equals(reservation.getId()));
-        if (hasConflict) {
+        if (!conflicts.isEmpty()) {
             String conflictSummary = conflicts.stream()
-                    .filter(r -> reservation.getId() == null || r.getId() == null || !r.getId().equals(reservation.getId()))
                     .limit(5)
                     .map(r -> "{" +
                             "id=" + r.getId() +
@@ -149,6 +166,24 @@ public class OtaReservationRoomAssignmentService {
                 storeId, reservation.getOrderNumber(), room.getId(), room.getRoomNumber(), parsed.raw());
         reservationLogger.info("[ReservationAssign] assigned. storeId={}, orderNumber={}, roomId={}, roomNumber={}, checkIn={}, checkOut={}, roomid={}",
                 storeId, reservation.getOrderNumber(), room.getId(), room.getRoomNumber(), checkIn, checkOut, parsed.raw());
+    }
+
+    private Room lockRoomForAssignment(Long storeId, Long roomId) {
+        return roomRepository.findByStoreIdAndIdForUpdate(storeId, roomId).orElse(null);
+    }
+
+    private List<Reservation> findConflictsExcludingCurrent(
+            Long storeId,
+            Long roomId,
+            LocalDate checkIn,
+            LocalDate checkOut,
+            Reservation reservation
+    ) {
+        Long currentReservationId = reservation.getId();
+        return reservationRepository.findByStoreIdAndRoomIdAndDateRange(storeId, roomId, checkIn, checkOut)
+                .stream()
+                .filter(r -> !Objects.equals(r.getId(), currentReservationId))
+                .toList();
     }
 }
 

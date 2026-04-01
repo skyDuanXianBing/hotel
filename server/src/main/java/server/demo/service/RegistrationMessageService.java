@@ -192,6 +192,7 @@ public class RegistrationMessageService {
 
         vars.put("room_type_name", resolveRoomTypeName(reservation));
         vars.put("room_type_address", resolveRoomTypeAddress(reservation));
+        vars.put("nearby_station", resolveNearbyStation(reservation));
         vars.put("room_number", resolveRoomNumber(reservation));
         vars.put("confirmation_code", reservation != null ? nullToEmpty(reservation.getChannelOrderNumber()) : "");
 
@@ -244,6 +245,18 @@ public class RegistrationMessageService {
         if (room != null && room.getRoomType() != null) {
             RoomType rt = room.getRoomType();
             return nullToEmpty(rt.getRoomTypeAddress());
+        }
+        return "";
+    }
+
+    private static String resolveNearbyStation(Reservation reservation) {
+        if (reservation == null) {
+            return "";
+        }
+        Room room = reservation.getRoom();
+        if (room != null && room.getRoomType() != null) {
+            RoomType rt = room.getRoomType();
+            return nullToEmpty(rt.getNearbyStation());
         }
         return "";
     }

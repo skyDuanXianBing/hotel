@@ -17,6 +17,7 @@ public class RoomTypeWithRoomsDTO {
     private String description;
     private String checkInGuideLink;
     private String roomTypeAddress;
+    private String nearbyStation;
     private String suRoomType;
     private BigDecimal sizeMeasurement;
     private String sizeMeasurementUnit;
@@ -46,6 +47,7 @@ public class RoomTypeWithRoomsDTO {
         this.description = roomType.getDescription();
         this.checkInGuideLink = roomType.getCheckInGuideLink();
         this.roomTypeAddress = roomType.getRoomTypeAddress();
+        this.nearbyStation = roomType.getNearbyStation();
         this.suRoomType = roomType.getSuRoomType();
         this.sizeMeasurement = roomType.getSizeMeasurement();
         this.sizeMeasurementUnit = roomType.getSizeMeasurementUnit();
@@ -134,6 +136,14 @@ public class RoomTypeWithRoomsDTO {
 
     public void setRoomTypeAddress(String roomTypeAddress) {
         this.roomTypeAddress = roomTypeAddress;
+    }
+
+    public String getNearbyStation() {
+        return nearbyStation;
+    }
+
+    public void setNearbyStation(String nearbyStation) {
+        this.nearbyStation = nearbyStation;
     }
 
     public String getSuRoomType() {

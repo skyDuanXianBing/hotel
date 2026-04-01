@@ -30,6 +30,7 @@ import server.demo.util.StoreContextUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -481,9 +482,9 @@ public class RoomStatusService {
     }
 
     private RoomStatus determineRoomStatus(Room room, LocalDate date, Long storeId) {
-        Optional<Reservation> reservation = reservationRepository.findByStoreIdAndRoomIdAndDate(storeId, room.getId(), date);
-        if (reservation.isPresent()) {
-            ReservationStatus reservationStatus = reservation.get().getStatus();
+        Reservation reservation = pickPrimaryReservation(storeId, room.getId(), date);
+        if (reservation != null) {
+            ReservationStatus reservationStatus = reservation.getStatus();
             if (reservationStatus == ReservationStatus.CONFIRMED) {
                 return RoomStatus.RESERVED;
             }
@@ -501,11 +502,11 @@ public class RoomStatusService {
     }
 
     private DailyRoomStatusDTO.ReservationInfoDTO getReservationInfo(Room room, LocalDate date, Long storeId) {
-        Optional<Reservation> reservation = reservationRepository.findByStoreIdAndRoomIdAndDate(storeId, room.getId(), date);
-        if (reservation.isEmpty()) {
+        Reservation reservation = pickPrimaryReservation(storeId, room.getId(), date);
+        if (reservation == null) {
             return null;
         }
-        Reservation r = reservation.get();
+        Reservation r = reservation;
         String channelName = r.getChannel() != null ? r.getChannel().getName() : "未知渠道";
         DailyRoomStatusDTO.ReservationInfoDTO reservationInfo = new DailyRoomStatusDTO.ReservationInfoDTO(
                 r.getId(),
@@ -520,6 +521,45 @@ public class RoomStatusService {
         reservationInfo.setNotes(r.getNotes());
         reservationInfo.setSpecialRequests(r.getSpecialRequests());
         return reservationInfo;
+    }
+
+    private Reservation pickPrimaryReservation(Long storeId, Long roomId, LocalDate date) {
+        List<Reservation> reservations = reservationRepository.findAllByStoreIdAndRoomIdAndDate(storeId, roomId, date);
+        if (reservations.isEmpty()) {
+            return null;
+        }
+        if (reservations.size() > 1) {
+            List<Long> reservationIds = reservations.stream()
+                    .map(Reservation::getId)
+                    .toList();
+            logger.warn("[RoomStatus] overlapping reservations detected. storeId={}, roomId={}, date={}, reservationIds={}",
+                    storeId,
+                    roomId,
+                    date,
+                    reservationIds);
+        }
+
+        return reservations.stream()
+                .sorted(
+                        Comparator.comparingInt((Reservation r) -> reservationStatusPriority(r.getStatus())).reversed()
+                                .thenComparing(Reservation::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                                .thenComparing(Reservation::getId, Comparator.nullsLast(Comparator.naturalOrder()))
+                )
+                .findFirst()
+                .orElse(null);
+    }
+
+    private int reservationStatusPriority(ReservationStatus status) {
+        if (status == ReservationStatus.CHECKED_IN) {
+            return 3;
+        }
+        if (status == ReservationStatus.CONFIRMED) {
+            return 2;
+        }
+        if (status == ReservationStatus.REQUESTED) {
+            return 1;
+        }
+        return 0;
     }
 
     private boolean isDateToday(LocalDate date) {

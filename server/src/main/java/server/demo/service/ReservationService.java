@@ -121,32 +121,19 @@ public class ReservationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
 
-        Room room = roomRepository.findByStoreIdAndId(storeId, request.getRoomId())
-                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+        Room room = loadRoomForAssignmentWithLock(storeId, request.getRoomId());
 
         // 验证渠道是否存在
         Channel channel = channelRepository.findById(request.getChannelId())
                 .orElseThrow(() -> new RuntimeException("渠道不存在"));
 
-        // 检查房间在指定日期是否有冲突(仅检查当前用户的预订)
-        List<Reservation> conflictReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
-                storeId, request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
-
-        System.out.println("===== 预订冲突检查 =====");
-        System.out.println("用户ID: " + userId + ", 房间ID: " + request.getRoomId());
-        System.out.println("入住日期: " + request.getCheckInDate() + ", 退房日期: " + request.getCheckOutDate());
-        System.out.println("查询到的冲突预订数量: " + conflictReservations.size());
-        for (Reservation r : conflictReservations) {
-            System.out.println("  冲突预订: ID=" + r.getId() +
-                             ", 状态=" + r.getStatus() +
-                             ", 入住=" + r.getCheckInDate() +
-                             ", 退房=" + r.getCheckOutDate());
-        }
-        System.out.println("========================\n");
-
-        if (!conflictReservations.isEmpty()) {
-            throw new RuntimeException("房间在指定日期已有预订，请选择其他日期或房间");
-        }
+        assertRoomAvailableForDateRange(
+                storeId,
+                room.getId(),
+                request.getCheckInDate(),
+                request.getCheckOutDate(),
+                null
+        );
 
         // 创建预订
         Reservation reservation = new Reservation();
@@ -686,25 +673,22 @@ public class ReservationService {
         Long userId = currentUserId();
 
         Reservation existingReservation = loadReservationInStore(reservationId);
-        Room room = roomRepository.findByStoreIdAndId(storeId, request.getRoomId())
-                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+        Room room = loadRoomForAssignmentWithLock(storeId, request.getRoomId());
         Channel channel = channelRepository.findById(request.getChannelId())
                 .orElseThrow(() -> new RuntimeException("渠道不存在"));
 
-        if (!existingReservation.getRoom().getId().equals(request.getRoomId()) ||
+        Long currentRoomId = existingReservation.getRoom() != null ? existingReservation.getRoom().getId() : null;
+
+        if (!Objects.equals(currentRoomId, request.getRoomId()) ||
                 !existingReservation.getCheckInDate().equals(request.getCheckInDate()) ||
                 !existingReservation.getCheckOutDate().equals(request.getCheckOutDate())) {
-
-            List<Reservation> conflictReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
-                    storeId, request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
-
-            conflictReservations = conflictReservations.stream()
-                    .filter(r -> !r.getId().equals(reservationId))
-                    .collect(Collectors.toList());
-
-            if (!conflictReservations.isEmpty()) {
-                throw new RuntimeException("房间在指定日期已有预订，请选择其他日期或房间");
-            }
+            assertRoomAvailableForDateRange(
+                    storeId,
+                    room.getId(),
+                    request.getCheckInDate(),
+                    request.getCheckOutDate(),
+                    reservationId
+            );
         }
 
         Room oldRoom = existingReservation.getRoom();
@@ -1144,6 +1128,32 @@ public class ReservationService {
                 return ReservationStatus.CHECKED_OUT;
             default:
                 return null;
+        }
+    }
+
+    private Room loadRoomForAssignmentWithLock(Long storeId, Long roomId) {
+        return roomRepository.findByStoreIdAndIdForUpdate(storeId, roomId)
+                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+    }
+
+    private void assertRoomAvailableForDateRange(
+            Long storeId,
+            Long roomId,
+            LocalDate checkIn,
+            LocalDate checkOut,
+            Long excludeReservationId
+    ) {
+        List<Reservation> conflicts = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
+                storeId,
+                roomId,
+                checkIn,
+                checkOut
+        ).stream()
+                .filter(r -> !Objects.equals(r.getId(), excludeReservationId))
+                .toList();
+
+        if (!conflicts.isEmpty()) {
+            throw new RuntimeException("房间在指定日期已有预订，请选择其他日期或房间");
         }
     }
 

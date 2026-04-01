@@ -181,6 +181,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
                                                         @Param("roomId") Long roomId,
                                                         @Param("date") LocalDate date);
 
+    @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.room.id = :roomId AND " +
+           "r.checkInDate <= :date AND r.checkOutDate > :date " +
+           "AND r.status IN ('CONFIRMED', 'CHECKED_IN', 'REQUESTED')")
+    List<Reservation> findAllByStoreIdAndRoomIdAndDate(@Param("storeId") Long storeId,
+                                                       @Param("roomId") Long roomId,
+                                                       @Param("date") LocalDate date);
+
     @Query("SELECT COUNT(r) FROM Reservation r WHERE r.storeId = :storeId AND r.checkInDate = :date " +
            "AND r.status IN ('CONFIRMED', 'CHECKED_IN')")
     long countTodayArrivalsByStoreId(@Param("storeId") Long storeId, @Param("date") LocalDate date);
