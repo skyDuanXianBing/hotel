@@ -2727,10 +2727,12 @@ const loadCalendarPricePlanOptions = async (force = false) => {
       roomTypeIds.map(async (roomTypeId) => {
         try {
           const response = await getPricePlansByRoomType(roomTypeId)
-          if (!response.success || !Array.isArray(response.data)) {
-            return []
-          }
-          return response.data.map((item) => ({
+          const mappings = Array.isArray(response)
+            ? response
+            : Array.isArray((response as { data?: unknown }).data)
+              ? ((response as { data: RoomTypePricePlanDTO[] }).data ?? [])
+              : []
+          return mappings.map((item) => ({
             ...item,
             roomTypeId: Number(item.roomTypeId || item.roomType?.id || roomTypeId),
           }))
@@ -3074,24 +3076,36 @@ const calendarData = ref<{
   rooms: [],
 })
 
-// 计算两周的日期，今天固定在第3个位置
+const CALENDAR_DAYS_BEFORE_BASE = 2
+const CALENDAR_VISIBLE_MONTHS = 2
+const CALENDAR_NAVIGATION_STEP_DAYS = 30
+
+// 计算两个月的日期，基准日固定在第3个位置
 const dateColumns = computed(() => {
-  const today = new Date(currentBaseDate.value)
+  const baseDate = new Date(currentBaseDate.value)
   const dates = []
-  
-  // 计算起始日期：今天前2天
-  const startDate = new Date(today)
-  startDate.setDate(today.getDate() - 2)
-  
-  // 生成14天的日期
-  for (let i = 0; i < 14; i++) {
+
+  // 计算起始日期：基准日前2天
+  const startDate = new Date(baseDate)
+  startDate.setDate(baseDate.getDate() - CALENDAR_DAYS_BEFORE_BASE)
+
+  // 计算结束日期：从起始日期起连续两个月
+  const endDate = new Date(startDate)
+  endDate.setMonth(endDate.getMonth() + CALENDAR_VISIBLE_MONTHS)
+  endDate.setDate(endDate.getDate() - 1)
+
+  const totalDays = Math.floor(
+    (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+  ) + 1
+
+  for (let i = 0; i < totalDays; i++) {
     const current = new Date(startDate)
     current.setDate(startDate.getDate() + i)
     dates.push({
       date: current.toISOString().split('T')[0],
     })
   }
-  
+
   return dates
 })
 
@@ -3106,26 +3120,26 @@ const dateRange = computed(() => {
 
 const onDateRangeChange = (value: [string, string] | null) => {
   if (value) {
-    // 当用户选择日期范围时，将基准日期设置为选择范围的第一天加2天（使今天在第3个位置）
+    // 当用户选择日期范围时，将基准日期设置为选择范围的第一天加2天
     const startDate = new Date(value[0])
-    startDate.setDate(startDate.getDate() + 2)
+    startDate.setDate(startDate.getDate() + CALENDAR_DAYS_BEFORE_BASE)
     currentBaseDate.value = startDate.toISOString().split('T')[0]
     loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
   }
 }
 
 const previousWeek = () => {
-  // 基准日期向前移动7天
+  // 基准日期向前移动30天
   const baseDate = new Date(currentBaseDate.value)
-  baseDate.setDate(baseDate.getDate() - 7)
+  baseDate.setDate(baseDate.getDate() - CALENDAR_NAVIGATION_STEP_DAYS)
   currentBaseDate.value = baseDate.toISOString().split('T')[0]
   loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
 }
 
 const nextWeek = () => {
-  // 基准日期向后移动7天
+  // 基准日期向后移动30天
   const baseDate = new Date(currentBaseDate.value)
-  baseDate.setDate(baseDate.getDate() + 7)
+  baseDate.setDate(baseDate.getDate() + CALENDAR_NAVIGATION_STEP_DAYS)
   currentBaseDate.value = baseDate.toISOString().split('T')[0]
   loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
 }
@@ -5873,6 +5887,13 @@ watch(cellPriceDisplaySource, (source) => {
 
 watch(calendarCellPricePlanOptions, (options) => {
   if (cellPriceDisplaySource.value === 'default') {
+    return
+  }
+  if (loadingCellPricePlanOptions.value) {
+    return
+  }
+  // 页面切换回来时，价格计划选项可能会短暂为空，避免把用户已选计划误重置为默认
+  if (options.length === 0) {
     return
   }
   const selectedPlanId = getSelectedCellPricePlanId()

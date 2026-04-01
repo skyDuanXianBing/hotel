@@ -57,7 +57,7 @@
       </el-table>
     </div>
 
-    <el-drawer v-model="linkDrawerVisible" title="链接列表" size="560px">
+    <el-drawer v-model="linkDrawerVisible" title="链接列表" size="80%">
       <div class="drawer-actions">
         <el-button :loading="linkLoading" @click="loadLinks">刷新</el-button>
       </div>

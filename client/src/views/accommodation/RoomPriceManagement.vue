@@ -299,6 +299,7 @@ const loading = ref(false)
 const saving = ref(false)
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 const selectedRoomTypeId = ref<number | null>(null)
+const CALENDAR_MONTH_SPAN = 2
 
 const roomTypes = ref<any[]>([])
 const pricePlans = ref<any[]>([])
@@ -332,19 +333,29 @@ const editForm = ref({
   currentCtd: false
 })
 
+const getCalendarEndDate = (startDateYmd: string): Date => {
+  const endDate = new Date(startDateYmd)
+  endDate.setMonth(endDate.getMonth() + CALENDAR_MONTH_SPAN)
+  endDate.setDate(endDate.getDate() - 1)
+  return endDate
+}
+
+const getCalendarEndDateString = (startDateYmd: string): string => {
+  return getCalendarEndDate(startDateYmd).toISOString().split('T')[0]
+}
+
 const dateColumns = computed(() => {
   const columns = []
   const startDate = new Date(selectedDate.value)
+  const endDate = getCalendarEndDate(selectedDate.value)
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
-  for (let i = 0; i < 17; i++) {
-    const currentDate = new Date(startDate)
-    currentDate.setDate(startDate.getDate() + i)
-
+  const currentDate = new Date(startDate)
+  while (currentDate <= endDate) {
     const dateStr = currentDate.toISOString().split('T')[0]
     const month = currentDate.getMonth() + 1
     const day = currentDate.getDate()
     const weekdayIndex = currentDate.getDay()
-    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
     columns.push({
       dateStr,
@@ -352,6 +363,8 @@ const dateColumns = computed(() => {
       weekday: weekdays[weekdayIndex],
       label: `${month}月${day}日 ${weekdays[weekdayIndex]}`
     })
+
+    currentDate.setDate(currentDate.getDate() + 1)
   }
 
   return columns
@@ -659,9 +672,7 @@ const loadPriceData = async () => {
 
     // 计算日期范围
     const startDate = selectedDate.value
-    const endDate = new Date(selectedDate.value)
-    endDate.setDate(endDate.getDate() + 16)
-    const endDateStr = endDate.toISOString().split('T')[0]
+    const endDateStr = getCalendarEndDateString(startDate)
 
     console.log('📅 加载价格数据:', {
       startDate,

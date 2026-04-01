@@ -14,7 +14,7 @@
         type="date"
         placeholder="选择日期"
         format="YYYY/MM/DD"
-        value-format="YYYY/MM/DD"
+        value-format="YYYY-MM-DD"
       />
       <span class="date-separator">至</span>
       <el-date-picker
@@ -22,7 +22,7 @@
         type="date"
         placeholder="选择日期"
         format="YYYY/MM/DD"
-        value-format="YYYY/MM/DD"
+        value-format="YYYY-MM-DD"
       />
     </div>
 
@@ -193,10 +193,12 @@
         <el-table-column prop="roomType" label="房型" min-width="200" align="center" />
         <el-table-column prop="total" label="合计" min-width="150" align="center">
           <template #default="{ row }">
-            <span class="amount-bold">{{ row.total }}</span>
+            <span class="amount-bold">{{ row.total.toFixed(2) }}%</span>
           </template>
         </el-table-column>
-        <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150" align="center" />
+        <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150" align="center">
+          <template #default="{ row }">{{ row.currentDate.toFixed(2) }}%</template>
+        </el-table-column>
       </el-table>
 
       <!-- RevPAR明细表格 -->
@@ -225,7 +227,11 @@ import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import StatisticsLayout from '../statistics/StatisticsLayout.vue'
-import { getOperationalMetrics, type OperationalMetricsDTO } from '@/api/statistics'
+import {
+  getOperationalMetrics,
+  type OperationalMetricsDTO,
+  type OperationalRoomDetailDTO,
+} from '@/api/statistics'
 
 const dateType = ref('today')
 const loading = ref(false)
@@ -242,9 +248,26 @@ const getTodayDate = () => {
 const startDate = ref(getTodayDate())
 const endDate = ref(getTodayDate())
 
+const toNumber = (value: unknown): number => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 // 日期范围标签 - 动态显示选择的日期范围
 const dateRangeLabel = computed(() => {
   return `${startDate.value} 至 ${endDate.value}`
+})
+
+const currentDateLabel = computed(() => {
+  const current = endDate.value || getTodayDate()
+  const [year, month, day] = current.split('-').map(item => Number(item))
+
+  if (!year || !month || !day) {
+    const today = new Date()
+    return `${today.getMonth() + 1}月${today.getDate()}日`
+  }
+
+  return `${month}月${day}日`
 })
 
 // 经营指标数据
@@ -270,16 +293,7 @@ const loadOperationalMetrics = async () => {
 
     if (response.success && response.data) {
       const data = response.data
-
-      // 更新经营指标数据
-      metrics.value = {
-        totalRoomFee: data.totalRoomFee,
-        avgDailyRate: data.averageDailyRate,
-        occupancyRate: data.occupancyRate,
-        revPAR: data.revPAR,
-        totalRoomNights: data.totalSoldRoomNights,
-        avgDailyRoomNights: data.days > 0 ? data.totalSoldRoomNights / data.days : 0
-      }
+      applyOperationalMetricsData(data)
     } else {
       ElMessage.error(response.message || '获取经营指标数据失败')
     }
@@ -288,6 +302,64 @@ const loadOperationalMetrics = async () => {
     ElMessage.error('加载经营指标数据失败')
   } finally {
     loading.value = false
+  }
+}
+
+const mapRoomDetailRows = (details: OperationalRoomDetailDTO[] | undefined) => {
+  const rows = (details || []).map(item => ({
+    roomType: item.roomType || '-',
+    roomNumber: item.roomNumber || '-',
+    total: toNumber(item.total),
+    currentDate: toNumber(item.currentDate),
+  }))
+
+  const roomCountByType = new Map<string, number>()
+  rows.forEach(row => {
+    if (row.roomNumber !== '小计') {
+      roomCountByType.set(row.roomType, (roomCountByType.get(row.roomType) || 0) + 1)
+    }
+  })
+
+  // 单房间房型的小计与明细完全重复，过滤掉该小计行以避免视觉重复。
+  return rows.filter(row => {
+    if (row.roomNumber !== '小计') {
+      return true
+    }
+    return (roomCountByType.get(row.roomType) || 0) > 1
+  })
+}
+
+const applyOperationalMetricsData = (data: OperationalMetricsDTO) => {
+  metrics.value = {
+    totalRoomFee: toNumber(data.totalRoomFee),
+    avgDailyRate: toNumber(data.averageDailyRate),
+    occupancyRate: toNumber(data.occupancyRate),
+    revPAR: toNumber(data.revPAR),
+    totalRoomNights: toNumber(data.totalSoldRoomNights),
+    avgDailyRoomNights:
+      toNumber(data.days) > 0 ? toNumber(data.totalSoldRoomNights) / toNumber(data.days) : 0,
+  }
+
+  const dailyTrends = data.dailyTrends || []
+  dates.value = dailyTrends.map(item => item.date)
+  trendData.value = {
+    'room-fee': dailyTrends.map(item => toNumber(item.totalRoomFee)),
+    'avg-price': dailyTrends.map(item => toNumber(item.averageDailyRate)),
+    'avg-revenue': dailyTrends.map(item => toNumber(item.revPAR)),
+    occupancy: dailyTrends.map(item => toNumber(item.roomNights)),
+  }
+
+  roomFeeData.value = mapRoomDetailRows(data.roomFeeDetails)
+  checkinData.value = mapRoomDetailRows(data.roomNightsDetails)
+  occupancyData.value = (data.occupancyDetails || []).map(item => ({
+    roomType: item.roomType || '-',
+    total: toNumber(item.total),
+    currentDate: toNumber(item.currentDate),
+  }))
+  revparData.value = mapRoomDetailRows(data.revparDetails)
+
+  if (lineChart) {
+    updateLineChart(activeTrendTab.value)
   }
 }
 
@@ -318,14 +390,6 @@ const tableTabs = [
 ]
 const activeTableTab = ref('room-fee')
 
-// 当前日期标签 - 动态获取今天的日期
-const currentDateLabel = (() => {
-  const today = new Date()
-  const month = today.getMonth() + 1
-  const day = today.getDate()
-  return `${month}月${day}日`
-})()
-
 // 房费明细数据
 interface RoomFeeItem {
   roomType: string
@@ -349,8 +413,8 @@ const checkinData = ref<CheckinItem[]>([])
 // 入住率明细数据
 interface OccupancyItem {
   roomType: string
-  total: string
-  currentDate: string
+  total: number
+  currentDate: number
 }
 
 const occupancyData = ref<OccupancyItem[]>([])

@@ -187,6 +187,27 @@ export interface OperationalMetricsDTO {
   totalAvailableRoomNights: number
   totalRooms: number
   days: number
+  dailyTrends?: DailyMetricsDTO[]
+  roomFeeDetails?: OperationalRoomDetailDTO[]
+  roomNightsDetails?: OperationalRoomDetailDTO[]
+  occupancyDetails?: OperationalRoomDetailDTO[]
+  revparDetails?: OperationalRoomDetailDTO[]
+}
+
+export interface DailyMetricsDTO {
+  date: string
+  totalRoomFee: number
+  averageDailyRate: number
+  revPAR: number
+  roomNights: number
+  occupancyRate: number
+}
+
+export interface OperationalRoomDetailDTO {
+  roomType: string
+  roomNumber: string
+  total: number
+  currentDate: number
 }
 
 // ==================== API 调用方法 ====================

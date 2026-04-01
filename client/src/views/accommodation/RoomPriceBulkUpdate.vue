@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="bulk-update-page">
     <div class="page-tabs">
       <el-tabs v-model="activeTab" @tab-click="handleTabClick">
@@ -144,7 +144,28 @@
           <el-table-column prop="pricePlanName" label="价格计划" min-width="180" />
           <el-table-column label="值" min-width="220">
             <template #default="{ row }">
-              <el-input v-model="row.value" type="number" :placeholder="valuePlaceholder">
+              <div v-if="showRelativePreviewColumn" class="value-range-preview">
+                <template v-if="relativePreviewByKey[row.key]">
+                  <div class="range-line">
+                    当前区间：{{
+                      formatRangeText(
+                        relativePreviewByKey[row.key].currentMin,
+                        relativePreviewByKey[row.key].currentMax,
+                      )
+                    }}
+                  </div>
+                  <div class="range-line range-line-result">
+                    计算结果：{{
+                      formatRangeText(
+                        relativePreviewByKey[row.key].adjustedMin,
+                        relativePreviewByKey[row.key].adjustedMax,
+                      )
+                    }}
+                  </div>
+                </template>
+                <span v-else class="range-empty">点击“应用到明细”后显示最小/最大值</span>
+              </div>
+              <el-input v-else v-model="row.value" type="number" :placeholder="valuePlaceholder">
                 <template v-if="settingType === 'price'" #append>JPY</template>
                 <template v-else #append>天</template>
               </el-input>
@@ -175,7 +196,12 @@ import { ElMessage } from 'element-plus'
 import { ArrowDown, Document } from '@element-plus/icons-vue'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { getPricePlansByRoomType, type RoomTypePricePlanDTO } from '@/api/pricePlan'
-import { updatePriceByPlan, type UpdatePriceByPlanRequest } from '@/api/roomPrice'
+import {
+  getRoomPriceManagementData,
+  updatePriceByPlan,
+  type RoomPriceManagementDTO,
+  type UpdatePriceByPlanRequest,
+} from '@/api/roomPrice'
 import { useUserStore } from '@/stores/user'
 
 type TreeNode = {
@@ -199,6 +225,13 @@ type TableRow = {
   roomTypeName: string
   pricePlanName: string
   value: string
+}
+
+type RelativeRangePreview = {
+  currentMin: number
+  currentMax: number
+  adjustedMin: number
+  adjustedMax: number
 }
 
 const router = useRouter()
@@ -242,9 +275,15 @@ const batchValue = ref('')
 
 const tableRows = ref<TableRow[]>([])
 const rowValueByKey = ref<Record<string, string>>({})
+const relativePreviewByKey = ref<Record<string, RelativeRangePreview>>({})
+const relativeDateValuesByKey = ref<Record<string, Record<string, number>>>({})
 
 const valuePlaceholder = computed(() => {
   return settingType.value === 'price' ? '请输入价格' : '请输入天数(1-99)'
+})
+
+const showRelativePreviewColumn = computed(() => {
+  return settingType.value === 'price' && priceMode.value === 'relative'
 })
 
 const batchValueUnit = computed(() => {
@@ -263,6 +302,34 @@ const formatPriceNumber = (value: number) => {
     return String(rounded)
   }
   return rounded.toFixed(2).replace(/\.?0+$/, '')
+}
+
+const formatRangeText = (min: number, max: number) => {
+  const minText = formatPriceNumber(min)
+  const maxText = formatPriceNumber(max)
+  if (minText === maxText) {
+    return `${minText} JPY`
+  }
+  return `${minText} - ${maxText} JPY`
+}
+
+const toWeekdayValue = (dateText: string): number => {
+  const day = new Date(`${dateText}T00:00:00`).getDay()
+  return day === 0 ? 7 : day
+}
+
+const isDateMatchedByWeekday = (dateText: string): boolean => {
+  const days = normalizeWeekdaysPayload()
+  if (!days || days.length === 0 || days.includes(0)) {
+    return true
+  }
+  return days.includes(toWeekdayValue(dateText))
+}
+
+const calculateAdjustedPrice = (current: number, inputValue: number): number => {
+  const delta = relativeValueMode.value === 'percent' ? current * (inputValue / 100) : inputValue
+  const adjusted = relativeType.value === 'cheaper' ? current - delta : current + delta
+  return Math.max(0, Math.round(adjusted * 100) / 100)
 }
 
 const handleTabClick = (tab: any) => {
@@ -287,6 +354,8 @@ watch(filterText, (val) => {
 const rebuildTableRows = (keys: string[]) => {
   const rows: TableRow[] = []
   const keep: Record<string, string> = {}
+  const previewKeep: Record<string, RelativeRangePreview> = {}
+  const dateValuesKeep: Record<string, Record<string, number>> = {}
 
   for (const key of keys) {
     const meta = leafMetaByKey.value[key]
@@ -304,10 +373,19 @@ const rebuildTableRows = (keys: string[]) => {
       pricePlanName: meta.pricePlanName,
       value,
     })
+
+    if (relativePreviewByKey.value[key]) {
+      previewKeep[key] = relativePreviewByKey.value[key]
+    }
+    if (relativeDateValuesByKey.value[key]) {
+      dateValuesKeep[key] = relativeDateValuesByKey.value[key]
+    }
   }
 
   tableRows.value = rows
   rowValueByKey.value = keep
+  relativePreviewByKey.value = previewKeep
+  relativeDateValuesByKey.value = dateValuesKeep
 }
 
 const handleTreeCheck = () => {
@@ -354,7 +432,7 @@ const handleWeekdayChange = (values: number[]) => {
   })
 }
 
-const applyBatchValue = () => {
+const applyBatchValue = async () => {
   if (!batchValue.value) {
     ElMessage.warning('请先输入值')
     return
@@ -367,23 +445,91 @@ const applyBatchValue = () => {
       return
     }
 
-    tableRows.value.forEach((row) => {
-      if (priceMode.value === 'fixed') {
+    if (priceMode.value === 'fixed') {
+      tableRows.value.forEach((row) => {
         row.value = batchValue.value
         rowValueByKey.value[row.key] = row.value
+      })
+      relativePreviewByKey.value = {}
+      relativeDateValuesByKey.value = {}
+      ElMessage.success('已应用到明细')
+      return
+    }
+
+    if (!startDate.value || !endDate.value) {
+      ElMessage.warning('请先选择日期范围')
+      return
+    }
+    if (startDate.value > endDate.value) {
+      ElMessage.warning('开始日期不能晚于结束日期')
+      return
+    }
+
+    try {
+      const resp = (await getRoomPriceManagementData(startDate.value, endDate.value)) as any
+      const managementRows: RoomPriceManagementDTO[] = resp?.data || []
+
+      const previewMap: Record<string, RelativeRangePreview> = {}
+      const dateValuesMap: Record<string, Record<string, number>> = {}
+
+      tableRows.value.forEach((row) => {
+        const matched = managementRows.filter((item) => {
+          return (
+            item.roomTypeId === row.roomTypeId &&
+            item.pricePlanId === row.pricePlanId &&
+            !!item.priceDate &&
+            isDateMatchedByWeekday(item.priceDate)
+          )
+        })
+
+        if (matched.length === 0) {
+          return
+        }
+
+        const currentValues: number[] = []
+        const adjustedValues: number[] = []
+        const valuesByDate: Record<string, number> = {}
+
+        matched.forEach((item) => {
+          const current = Number(item.price)
+          if (Number.isNaN(current)) {
+            return
+          }
+          const adjusted = calculateAdjustedPrice(current, v)
+          currentValues.push(current)
+          adjustedValues.push(adjusted)
+          valuesByDate[item.priceDate] = adjusted
+        })
+
+        if (currentValues.length === 0 || adjustedValues.length === 0) {
+          return
+        }
+
+        previewMap[row.key] = {
+          currentMin: Math.min(...currentValues),
+          currentMax: Math.max(...currentValues),
+          adjustedMin: Math.min(...adjustedValues),
+          adjustedMax: Math.max(...adjustedValues),
+        }
+        dateValuesMap[row.key] = valuesByDate
+
+        row.value = ''
+        rowValueByKey.value[row.key] = ''
+      })
+
+      relativePreviewByKey.value = previewMap
+      relativeDateValuesByKey.value = dateValuesMap
+
+      if (Object.keys(previewMap).length === 0) {
+        ElMessage.warning('当前区间未找到可计算的价格数据')
         return
       }
 
-      if (!row.value) return
-      const current = parseFloat(row.value)
-      if (Number.isNaN(current)) return
-      const delta = relativeValueMode.value === 'percent' ? current * (v / 100) : v
-      const nextValue = relativeType.value === 'cheaper' ? current - delta : current + delta
-      row.value = formatPriceNumber(Math.max(0, nextValue))
-      rowValueByKey.value[row.key] = row.value
-    })
-
-    ElMessage.success('已应用到明细')
+      ElMessage.success('已应用到明细')
+    } catch (error) {
+      console.error('获取当前区间价格失败:', error)
+      ElMessage.error('获取当前区间价格失败')
+    }
     return
   }
 
@@ -408,6 +554,17 @@ const normalizeWeekdaysPayload = () => {
 }
 
 const validateRowValue = (row: TableRow): string | null => {
+  if (showRelativePreviewColumn.value) {
+    if (!relativePreviewByKey.value[row.key]) {
+      return `${row.roomTypeName}/${row.pricePlanName}：请先点击应用到明细`
+    }
+    const dateValues = relativeDateValuesByKey.value[row.key]
+    if (!dateValues || Object.keys(dateValues).length === 0) {
+      return `${row.roomTypeName}/${row.pricePlanName}：未生成可保存的结果`
+    }
+    return null
+  }
+
   if (!row.value) return `${row.roomTypeName}/${row.pricePlanName}：请填写值`
   if (settingType.value === 'price') {
     const v = parseFloat(row.value)
@@ -456,6 +613,35 @@ const handleSave = async () => {
     saving.value = true
 
     for (const row of tableRows.value) {
+      if (showRelativePreviewColumn.value) {
+        const dateValues = relativeDateValuesByKey.value[row.key] || {}
+        const dates = Object.keys(dateValues).sort((a, b) => a.localeCompare(b))
+
+        for (const date of dates) {
+          const req: UpdatePriceByPlanRequest = {
+            roomTypeId: row.roomTypeId,
+            pricePlanId: row.pricePlanId,
+            startDate: date,
+            endDate: date,
+            applyWeekdaysInRange: true,
+            price: dateValues[date],
+          }
+
+          try {
+            const resp = (await updatePriceByPlan(req, operator)) as any
+            if (!resp.success) {
+              errors.push(`${row.roomTypeName}/${row.pricePlanName}(${date}): ${resp.message || '保存失败'}`)
+              break
+            }
+          } catch (e: any) {
+            errors.push(`${row.roomTypeName}/${row.pricePlanName}(${date}): ${e?.message || '保存失败'}`)
+            break
+          }
+        }
+
+        continue
+      }
+
       const req: UpdatePriceByPlanRequest = {
         roomTypeId: row.roomTypeId,
         pricePlanId: row.pricePlanId,
@@ -548,6 +734,13 @@ const loadTreeData = async () => {
 
 onMounted(() => {
   loadTreeData()
+})
+
+watch([settingType, priceMode], ([currentSettingType, currentPriceMode]) => {
+  if (currentSettingType !== 'price' || currentPriceMode !== 'relative') {
+    relativePreviewByKey.value = {}
+    relativeDateValuesByKey.value = {}
+  }
 })
 </script>
 
@@ -681,6 +874,27 @@ onMounted(() => {
 .batch-input-row {
   display: flex;
   align-items: center;
+}
+
+.value-range-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #303133;
+}
+
+.range-line {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.range-line-result {
+  color: #409eff;
+}
+
+.range-empty {
+  color: #909399;
+  font-size: 13px;
 }
 
 .table-section {
