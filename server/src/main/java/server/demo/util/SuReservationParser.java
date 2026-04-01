@@ -116,11 +116,14 @@ public final class SuReservationParser {
     /**
      * Extract messaging listing id from reservation webhook payload.
      * Priority:
-     * 1) explicit listing fields on current room stay
-     * 2) explicit listing fields on reservation root
-     * 3) booking payload hints (booking_details / booking / property)
-     * 4) explicit listing fields on other room stays
-     * 5) Booking remarks URL query: hotel_id (prefer same res_id as channel_booking_id)
+        * 1) channel_room_id on current room stay
+        * 2) channel_room_id on reservation root
+        * 3) channel_room_id on other room stays
+        * 4) explicit listing fields on current room stay
+        * 5) explicit listing fields on reservation root
+        * 6) booking payload hints (booking_details / booking / property)
+        * 7) explicit listing fields on other room stays
+        * 8) Booking remarks URL query: hotel_id (prefer same res_id as channel_booking_id)
      */
     public static String extractMessagingListingId(JsonNode reservation, JsonNode roomStay) {
         MessagingListingResolution resolution = extractMessagingListingIdWithSource(reservation, roomStay);
@@ -128,6 +131,27 @@ public final class SuReservationParser {
     }
 
     public static MessagingListingResolution extractMessagingListingIdWithSource(JsonNode reservation, JsonNode roomStay) {
+        String fromCurrentRoomChannelRoomId = firstValidListingId(roomStay,
+                "channel_room_id", "channelroomid", "channelRoomId");
+        if (fromCurrentRoomChannelRoomId != null) {
+            return new MessagingListingResolution(fromCurrentRoomChannelRoomId, "room_channel_room_id");
+        }
+
+        String fromReservationChannelRoomId = firstValidListingId(reservation,
+                "channel_room_id", "channelroomid", "channelRoomId");
+        if (fromReservationChannelRoomId != null) {
+            return new MessagingListingResolution(fromReservationChannelRoomId, "reservation_channel_room_id");
+        }
+
+        List<JsonNode> roomStays = extractRoomStays(reservation);
+        for (JsonNode stay : roomStays) {
+            String candidate = firstValidListingId(stay,
+                    "channel_room_id", "channelroomid", "channelRoomId");
+            if (candidate != null) {
+                return new MessagingListingResolution(candidate, "room_channel_room_id");
+            }
+        }
+
         String fromCurrentRoom = firstValidListingId(roomStay,
                 "listingid", "listing_id", "listingId",
                 "propertyid", "property_id", "propertyId");
@@ -166,7 +190,6 @@ public final class SuReservationParser {
             return new MessagingListingResolution(fromProperty, "booking_details");
         }
 
-        List<JsonNode> roomStays = extractRoomStays(reservation);
         for (JsonNode stay : roomStays) {
             String candidate = firstValidListingId(stay,
                     "listingid", "listing_id", "listingId",

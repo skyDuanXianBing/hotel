@@ -19,6 +19,7 @@ import server.demo.entity.RoomType;
 import server.demo.entity.Store;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
+import server.demo.entity.SuReservationWebhookEvent;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.AutoMessageSendLogRepository;
@@ -28,6 +29,7 @@ import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
+import server.demo.repository.SuReservationWebhookEventRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
 import server.demo.util.SuReservationParser;
 
@@ -37,8 +39,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -66,6 +70,7 @@ public class SuBusinessAutoMessageService {
     private final RoomGroupMemberRepository roomGroupMemberRepository;
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
+    private final SuReservationWebhookEventRepository webhookEventRepository;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
     private final SuMessagingRealtimeGateway realtimeGateway;
@@ -82,6 +87,7 @@ public class SuBusinessAutoMessageService {
             RoomGroupMemberRepository roomGroupMemberRepository,
             SuMessageThreadRepository threadRepository,
             SuMessageRepository messageRepository,
+            SuReservationWebhookEventRepository webhookEventRepository,
             SuApiClient suApiClient,
             SuAccessTokenService suAccessTokenService,
             SuMessagingRealtimeGateway realtimeGateway,
@@ -97,6 +103,7 @@ public class SuBusinessAutoMessageService {
         this.roomGroupMemberRepository = roomGroupMemberRepository;
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
+        this.webhookEventRepository = webhookEventRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
         this.realtimeGateway = realtimeGateway;
@@ -207,6 +214,13 @@ public class SuBusinessAutoMessageService {
             String content = rendered.trim();
 
             if (thread.getListingId() == null || thread.getListingId().isBlank()) {
+                String recoveredListingId = tryHydrateThreadListingIdFromWebhook(storeId, reservation, store, thread);
+                if (recoveredListingId != null && !recoveredListingId.isBlank()) {
+                    thread.setListingId(recoveredListingId);
+                }
+            }
+
+            if (thread.getListingId() == null || thread.getListingId().isBlank()) {
                 markWaiting(log, "WAITING_LISTINGID", "thread missing listingid");
                 autoMessageLogger.info("[AutoMessage] waiting listingid. storeId={}, reservationId={}, autoMessageId={}, threadId={}",
                         storeId, reservation.getId(), template.getId(), thread.getId());
@@ -285,6 +299,179 @@ public class SuBusinessAutoMessageService {
                 markFailed(log, err);
             }
         }
+    }
+
+    private String tryHydrateThreadListingIdFromWebhook(Long storeId, Reservation reservation, Store store, SuMessageThread thread) {
+        if (storeId == null || reservation == null || thread == null) {
+            return null;
+        }
+
+        String suHotelId = resolveSuHotelId(reservation, store);
+        String reservationNotifId = normalizeIdentifier(reservation.getReservationNotifId());
+
+        if (suHotelId != null && reservationNotifId != null) {
+            Optional<SuReservationWebhookEvent> exactEvent =
+                    webhookEventRepository.findByHotelIdAndReservationNotifId(suHotelId, reservationNotifId);
+            if (exactEvent.isPresent()) {
+                String recovered = resolveListingIdFromWebhookEventPayload(exactEvent.get(), reservation);
+                if (recovered != null) {
+                    return saveRecoveredThreadListingId(storeId, reservation, thread, recovered, "webhook_exact_notif");
+                }
+            }
+        }
+
+        List<SuReservationWebhookEvent> recentEvents = webhookEventRepository.findTop200ByStoreIdOrderByCreatedAtDesc(storeId);
+        for (SuReservationWebhookEvent event : recentEvents) {
+            String recovered = resolveListingIdFromWebhookEventPayload(event, reservation);
+            if (recovered != null) {
+                return saveRecoveredThreadListingId(storeId, reservation, thread, recovered, "webhook_recent_scan");
+            }
+        }
+        return null;
+    }
+
+    private String saveRecoveredThreadListingId(
+            Long storeId,
+            Reservation reservation,
+            SuMessageThread thread,
+            String listingId,
+            String source
+    ) {
+        String normalized = resolveTrustedListingId(listingId);
+        if (normalized == null) {
+            return null;
+        }
+
+        if (normalized.equals(resolveTrustedListingId(thread.getListingId()))) {
+            return normalized;
+        }
+
+        thread.setListingId(normalized);
+        thread.setLastActivity(LocalDateTime.now());
+        try {
+            threadRepository.save(thread);
+            autoMessageLogger.info(
+                    "[AutoMessage] recovered listingid from webhook. storeId={}, reservationId={}, threadId={}, source={}, listingId={}",
+                    storeId,
+                    reservation.getId(),
+                    thread.getId(),
+                    source,
+                    normalized
+            );
+        } catch (DataIntegrityViolationException ex) {
+            logger.warn(
+                    "[AutoMessage] recover listingid save race. storeId={}, reservationId={}, threadId={}, source={}, err={}",
+                    storeId,
+                    reservation.getId(),
+                    thread.getId(),
+                    source,
+                    ex.getMessage()
+            );
+        }
+        return normalized;
+    }
+
+    private String resolveListingIdFromWebhookEventPayload(SuReservationWebhookEvent event, Reservation reservation) {
+        if (event == null || reservation == null) {
+            return null;
+        }
+        String payload = event.getPayloadJson();
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            List<JsonNode> reservations = extractReservationNodesFromEventPayload(root);
+            for (JsonNode reservationNode : reservations) {
+                if (!matchesReservationNode(reservationNode, reservation)) {
+                    continue;
+                }
+
+                SuReservationParser.MessagingListingResolution resolved =
+                        SuReservationParser.extractMessagingListingIdWithSource(reservationNode, null);
+                if (resolved != null) {
+                    String listingId = resolveTrustedListingId(resolved.listingId());
+                    if (listingId != null) {
+                        return listingId;
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            logger.debug(
+                    "[AutoMessage] parse webhook payload for listingid failed. eventId={}, err={}",
+                    event.getId(),
+                    ex.getMessage()
+            );
+        }
+        return null;
+    }
+
+    private static List<JsonNode> extractReservationNodesFromEventPayload(JsonNode root) {
+        if (root == null || root.isNull()) {
+            return List.of();
+        }
+
+        List<JsonNode> reservations = SuReservationParser.extractReservationNodes(root);
+        if (!reservations.isEmpty()) {
+            return reservations;
+        }
+
+        if (root.isArray()) {
+            List<JsonNode> list = new ArrayList<>();
+            for (JsonNode item : root) {
+                if (item == null || item.isNull()) {
+                    continue;
+                }
+                JsonNode reservationNode = item.get("reservation");
+                if (reservationNode != null && reservationNode.isObject()) {
+                    list.add(reservationNode);
+                } else if (item.isObject()) {
+                    list.add(item);
+                }
+            }
+            return list;
+        }
+
+        JsonNode reservationNode = root.get("reservation");
+        if (reservationNode != null && reservationNode.isObject()) {
+            return List.of(reservationNode);
+        }
+        if (root.isObject()) {
+            return List.of(root);
+        }
+        return List.of();
+    }
+
+    private static boolean matchesReservationNode(JsonNode reservationNode, Reservation reservation) {
+        if (reservationNode == null || reservationNode.isNull() || reservation == null) {
+            return false;
+        }
+
+        if (sameIdentifier(SuReservationParser.extractReservationNotifId(reservationNode), reservation.getReservationNotifId())) {
+            return true;
+        }
+        if (sameIdentifier(SuReservationParser.extractReservationId(reservationNode), reservation.getSuReservationId())) {
+            return true;
+        }
+
+        String channelBookingId = SuReservationParser.extractChannelBookingId(reservationNode);
+        return sameIdentifier(channelBookingId, reservation.getChannelOrderNumber())
+                || sameIdentifier(channelBookingId, reservation.getOrderNumber());
+    }
+
+    private static boolean sameIdentifier(String left, String right) {
+        String normalizedLeft = normalizeIdentifier(left);
+        String normalizedRight = normalizeIdentifier(right);
+        return normalizedLeft != null && normalizedLeft.equals(normalizedRight);
+    }
+
+    private static String normalizeIdentifier(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isBlank() ? null : normalized;
     }
 
     public LocalDateTime computeEarliestEventTime(AutoMessage template, LocalDateTime now) {

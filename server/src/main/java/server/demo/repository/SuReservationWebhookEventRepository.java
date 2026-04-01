@@ -31,6 +31,8 @@ public interface SuReservationWebhookEventRepository extends JpaRepository<SuRes
             Pageable pageable
     );
 
+        List<SuReservationWebhookEvent> findTop200ByStoreIdOrderByCreatedAtDesc(Long storeId);
+
     List<SuReservationWebhookEvent> findByStatusOrderByUpdatedAtDesc(SuWebhookEventStatus status, Pageable pageable);
 }
 

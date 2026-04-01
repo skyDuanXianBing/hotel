@@ -34,6 +34,28 @@ class OtaReservationSyncServiceThreadListingIdTest {
         assertEquals("16016361", resolved);
     }
 
+                @Test
+                void resolveThreadListingId_prefersChannelRoomIdForAirbnb() throws Exception {
+                                JsonNode reservation = objectMapper.readTree("""
+                                                                {
+                                                                        "booking_details": { "property_id": "16016360" },
+                                                                        "rooms": [
+                                                                                { "channel_room_id": "1157718387975828174", "listingid": "16016361" }
+                                                                        ]
+                                                                }
+                                                                """);
+                                JsonNode roomStay = reservation.get("rooms").get(0);
+
+                                String resolved = OtaReservationSyncService.resolveThreadListingIdForReservation(
+                                                                "AIRBNB",
+                                                                reservation,
+                                                                roomStay,
+                                                                "53"
+                                );
+
+                                assertEquals("1157718387975828174", resolved);
+                }
+
     @Test
     void resolveThreadListingId_bookingDoesNotUseOtaRoomFallback() throws Exception {
         JsonNode reservation = objectMapper.readTree("""

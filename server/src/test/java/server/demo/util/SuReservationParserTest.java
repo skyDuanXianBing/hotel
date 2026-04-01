@@ -151,6 +151,54 @@ class SuReservationParserTest {
     }
 
     @Test
+    void extractMessagingListingId_prefersRoomChannelRoomId() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_room_id": "1157718387975828173",
+                    "rooms": [
+                      {
+                        "channel_room_id": "1157718387975828174",
+                        "listing_id": "16016361"
+                      }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        JsonNode roomStay = SuReservationParser.extractRoomStays(reservation).get(0);
+
+        SuReservationParser.MessagingListingResolution resolved =
+                SuReservationParser.extractMessagingListingIdWithSource(reservation, roomStay);
+        assertNotNull(resolved);
+        assertEquals("1157718387975828174", resolved.listingId());
+        assertEquals("room_channel_room_id", resolved.source());
+    }
+
+    @Test
+    void extractMessagingListingId_usesReservationChannelRoomIdWhenRoomMissing() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_room_id": "1157718387975828174",
+                    "booking_details": {
+                      "property_id": "16016360"
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+
+        SuReservationParser.MessagingListingResolution resolved =
+                SuReservationParser.extractMessagingListingIdWithSource(reservation, null);
+        assertNotNull(resolved);
+        assertEquals("1157718387975828174", resolved.listingId());
+        assertEquals("reservation_channel_room_id", resolved.source());
+    }
+
+    @Test
     void extractMessagingListingId_usesBookingPayloadHintWhenExplicitMissing() throws Exception {
         String json = """
                 {
