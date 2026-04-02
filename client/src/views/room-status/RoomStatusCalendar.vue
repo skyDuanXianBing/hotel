@@ -7,14 +7,14 @@
         <div class="date-navigation">
           <el-button @click="previousWeek" :icon="ArrowLeft" circle />
           <el-date-picker
-            :model-value="dateRange"
+            v-model="visibleDateRange"
             type="daterange"
             range-separator="至"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
             format="YYYY-MM-DD"
             value-format="YYYY-MM-DD"
-            @change="onDateRangeChange"
+            :clearable="false"
           />
           <el-button @click="nextWeek" :icon="ArrowRight" circle />
         </div>
@@ -3144,13 +3144,10 @@ const dateRange = computed(() => {
 
 // 方法
 
-const onDateRangeChange = (value: [string, string] | null) => {
-  if (value) {
-    visibleDateRange.value = value
-    // 保持基准日期与可视范围联动，便于后续导航逻辑复用
-    currentBaseDate.value = shiftYmdDate(value[0], CALENDAR_DAYS_BEFORE_BASE)
-    loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
-  }
+const reloadCalendarForVisibleRange = async () => {
+  // 先按当前日期范围重建房间日历骨架，再叠加后端房态
+  await loadRoomTypesData()
+  await loadRoomStatusCalendarData()
 }
 
 const previousWeek = () => {
@@ -3158,8 +3155,6 @@ const previousWeek = () => {
     shiftYmdDate(visibleDateRange.value[0], -CALENDAR_NAVIGATION_STEP_DAYS),
     shiftYmdDate(visibleDateRange.value[1], -CALENDAR_NAVIGATION_STEP_DAYS),
   ]
-  currentBaseDate.value = shiftYmdDate(currentBaseDate.value, -CALENDAR_NAVIGATION_STEP_DAYS)
-  loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
 }
 
 const nextWeek = () => {
@@ -3167,8 +3162,6 @@ const nextWeek = () => {
     shiftYmdDate(visibleDateRange.value[0], CALENDAR_NAVIGATION_STEP_DAYS),
     shiftYmdDate(visibleDateRange.value[1], CALENDAR_NAVIGATION_STEP_DAYS),
   ]
-  currentBaseDate.value = shiftYmdDate(currentBaseDate.value, CALENDAR_NAVIGATION_STEP_DAYS)
-  loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
 }
 
 
@@ -5929,6 +5922,23 @@ watch(calendarCellPricePlanOptions, (options) => {
     cellPriceDisplaySource.value = 'default'
   }
 })
+
+watch(
+  visibleDateRange,
+  (newRange, oldRange) => {
+    if (!newRange || newRange.length !== 2) {
+      return
+    }
+
+    if (oldRange && oldRange[0] === newRange[0] && oldRange[1] === newRange[1]) {
+      return
+    }
+
+    // 日期输入和左右切换统一从这里触发，避免 @change 在某些场景不触发
+    currentBaseDate.value = shiftYmdDate(newRange[0], CALENDAR_DAYS_BEFORE_BASE)
+    void reloadCalendarForVisibleRange()
+  },
+)
 
 // 生命周期
 onMounted(async () => {
