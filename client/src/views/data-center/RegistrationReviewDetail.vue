@@ -59,6 +59,15 @@
         <div class="section">
           <div class="section-title">审核操作</div>
           <el-input v-model="note" type="textarea" :rows="3" placeholder="备注（可选）" />
+          <div class="approve-message">
+            <div class="approve-message__label">{{ APPROVE_MESSAGE_LABEL }}</div>
+            <el-input
+              v-model="approveMessage"
+              type="textarea"
+              :rows="4"
+              :placeholder="APPROVE_MESSAGE_PLACEHOLDER"
+            />
+          </div>
           <div class="btns">
             <el-button type="danger" :loading="acting" @click="reject">驳回</el-button>
             <el-button type="success" :loading="acting" @click="approve">通过</el-button>
@@ -177,6 +186,18 @@ type Detail = {
 }
 
 type QuickReplyItem = { id: number; title: string; message: string }
+type RegistrationMessageLogResponse = {
+  success: boolean
+  message?: string
+  data?: {
+    id: number
+    sendStatus?: string
+  }
+}
+
+const APPROVE_MESSAGE_LABEL = '\u901a\u8fc7\u540e\u53d1\u9001\u7ed9\u5ba2\u4eba\u7684\u6d88\u606f'
+const APPROVE_MESSAGE_PLACEHOLDER =
+  '\u53ef\u9009\u3002\u586b\u5199\u540e\u70b9\u51fb\u901a\u8fc7\u4f1a\u81ea\u52a8\u53d1\u9001\u5230\u5ba2\u4eba\u6536\u4ef6\u7bb1\uff1b\u7559\u7a7a\u5219\u4ec5\u5ba1\u6838\u901a\u8fc7\u3002'
 
 const route = useRoute()
 const router = useRouter()
@@ -185,6 +206,7 @@ const detail = ref<Detail | null>(null)
 const loading = ref(false)
 const acting = ref(false)
 const note = ref('')
+const approveMessage = ref('')
 
 const sending = ref(false)
 const sendType = ref<'APPROVED_INFO' | 'REJECT_REQUEST' | 'REMINDER'>('APPROVED_INFO')
@@ -306,12 +328,35 @@ function back() {
 async function approve() {
   if (!detail.value) return
   acting.value = true
+  const messageContent = approveMessage.value.trim()
+  let messageSendError = ''
+  let messageSendStatus = ''
   try {
     await request.post(`/registrations/${detail.value.formId}/approve`, { note: note.value })
-    ElMessage.success('已通过')
+    if (messageContent) {
+      try {
+        const resp = (await request.post(`/registrations/${detail.value.formId}/messages/send`, {
+          type: 'APPROVED_INFO',
+          content: messageContent,
+          senderName: '前台',
+        })) as RegistrationMessageLogResponse
+        messageSendStatus = resp.data?.sendStatus || ''
+        lastSendStatus.value = messageSendStatus
+        approveMessage.value = ''
+      } catch (sendError: any) {
+        messageSendError =
+          sendError?.response?.data?.message || sendError?.message || '发送失败'
+      }
+    }
+    ElMessage.success(messageContent ? '已通过，消息已提交发送' : '已通过')
     await load()
+    if (messageContent && messageSendError) {
+      ElMessage.warning(`审核已通过，但消息发送失败：${messageSendError}`)
+    } else if (messageContent && messageSendStatus && messageSendStatus !== 'SENT') {
+      ElMessage.warning(`已通过，消息发送状态：${messageSendStatus}`)
+    }
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '操作失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || '审核通过失败')
   } finally {
     acting.value = false
   }
@@ -485,6 +530,15 @@ onMounted(loadQuickReplies)
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+.approve-message {
+  margin-top: 12px;
+}
+
+.approve-message__label {
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 600;
 }
 .empty {
   padding: 20px;
