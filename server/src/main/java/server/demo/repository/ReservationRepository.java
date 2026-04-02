@@ -69,6 +69,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     Optional<Reservation> findByStoreIdAndOrderNumber(Long storeId, String orderNumber);
 
+    Optional<Reservation> findByStoreIdAndSuReservationIdAndRoomReservationId(
+           Long storeId,
+           String suReservationId,
+           String roomReservationId
+    );
+
     List<Reservation> findByStoreIdAndChannelOrderNumber(Long storeId, String channelOrderNumber);
 
     List<Reservation> findByStoreIdAndGuestNameContainingIgnoreCase(Long storeId, String guestName);

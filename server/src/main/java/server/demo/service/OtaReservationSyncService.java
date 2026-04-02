@@ -152,6 +152,8 @@ public class OtaReservationSyncService {
 
     record ThreadListingResolution(String listingId, String source) {}
 
+    record ReservationLookupResult(Reservation reservation, String matchStrategy, String resolvedOrderNumber) {}
+
     static List<CalendarSyncRequest> buildCalendarSyncRequests(
             Long oldRoomTypeId,
             LocalDate oldCheckIn,
@@ -629,10 +631,10 @@ public class OtaReservationSyncService {
 
                     String roomReservationId = roomStay != null ? SuReservationParser.extractRoomReservationId(roomStay) : null;
                     String roomReservationIdentity = resolveRoomReservationIdentity(roomReservationId, roomStayIndex);
-                    String orderNumber = SuReservationParser.buildOrderNumber(store.getId(), reservationId, roomReservationIdentity);
+                    String generatedOrderNumber = SuReservationParser.buildOrderNumber(store.getId(), reservationId, roomReservationIdentity);
 
                     reservationLogger.info(
-                            "[ReservationUpsert] begin. storeId={}, hotelId={}, channel={}, reservationId={}, notifId={}, channelBookingId={}, suStatus={}, orderNumber={}, checkIn={}, checkOut={}, roomReservationId={}",
+                            "[ReservationUpsert] begin. storeId={}, hotelId={}, channel={}, reservationId={}, notifId={}, channelBookingId={}, suStatus={}, generatedOrderNumber={}, checkIn={}, checkOut={}, roomReservationId={}",
                             store.getId(),
                             suHotelId,
                             channelCode,
@@ -640,7 +642,7 @@ public class OtaReservationSyncService {
                             notifId,
                             channelBookingId,
                             suStatus,
-                            orderNumber,
+                            generatedOrderNumber,
                             checkIn,
                             checkOut,
                             roomReservationIdentity
@@ -649,10 +651,18 @@ public class OtaReservationSyncService {
                     Channel channel = resolveChannel(store.getId(), channelCode)
                             .orElseThrow(() -> new IllegalStateException("渠道不存在: " + channelCode));
 
-                    Reservation reservation = reservationRepository.findByStoreIdAndOrderNumber(store.getId(), orderNumber)
-                            .orElseGet(Reservation::new);
+                    ReservationLookupResult lookupResult = resolveReservationTargetForUpsert(
+                            store.getId(),
+                            generatedOrderNumber,
+                            reservationId,
+                            roomReservationIdentity,
+                            channelBookingId
+                    );
+
+                    Reservation reservation = lookupResult.reservation();
 
                     boolean isNew = reservation.getId() == null;
+                    String orderNumber = lookupResult.resolvedOrderNumber();
                     LocalDate oldCheckIn = isNew ? null : reservation.getCheckInDate();
                     LocalDate oldCheckOut = isNew ? null : reservation.getCheckOutDate();
                     Long oldRoomTypeId = isNew ? null : reservation.getOtaRoomTypeId();
@@ -664,10 +674,12 @@ public class OtaReservationSyncService {
                     ReservationStatus oldStatus = isNew ? null : reservation.getStatus();
 
                     reservationLogger.info(
-                            "[ReservationUpsert] resolved target. storeId={}, hotelId={}, orderNumber={}, isNew={}, existingDbId={}",
+                            "[ReservationUpsert] resolved target. storeId={}, hotelId={}, generatedOrderNumber={}, finalOrderNumber={}, matchStrategy={}, isNew={}, existingDbId={}",
                             store.getId(),
                             suHotelId,
+                            generatedOrderNumber,
                             orderNumber,
+                            lookupResult.matchStrategy(),
                             isNew,
                             reservation.getId()
                     );
@@ -1195,5 +1207,86 @@ public class OtaReservationSyncService {
             return a;
         }
         return a + "\n" + b;
+    }
+
+    ReservationLookupResult resolveReservationTargetForUpsert(
+            Long storeId,
+            String generatedOrderNumber,
+            String suReservationId,
+            String roomReservationIdentity,
+            String channelOrderNumber
+    ) {
+        String normalizedGeneratedOrderNumber = normalizeLookupKey(generatedOrderNumber);
+        String normalizedSuReservationId = normalizeLookupKey(suReservationId);
+        String normalizedRoomReservationIdentity = normalizeLookupKey(roomReservationIdentity);
+        String normalizedChannelOrderNumber = normalizeLookupKey(channelOrderNumber);
+
+        if (normalizedGeneratedOrderNumber != null) {
+            Optional<Reservation> byOrderNumber = reservationRepository.findByStoreIdAndOrderNumber(
+                    storeId,
+                    normalizedGeneratedOrderNumber
+            );
+            if (byOrderNumber.isPresent()) {
+                Reservation existing = byOrderNumber.get();
+                String resolvedOrderNumber = normalizeLookupKey(existing.getOrderNumber());
+                if (resolvedOrderNumber == null) {
+                    resolvedOrderNumber = normalizedGeneratedOrderNumber;
+                }
+                return new ReservationLookupResult(existing, "ORDER_NUMBER", resolvedOrderNumber);
+            }
+        }
+
+        if (normalizedSuReservationId != null && normalizedRoomReservationIdentity != null) {
+            Optional<Reservation> bySuRoomIdentity = reservationRepository.findByStoreIdAndSuReservationIdAndRoomReservationId(
+                    storeId,
+                    normalizedSuReservationId,
+                    normalizedRoomReservationIdentity
+            );
+            if (bySuRoomIdentity.isPresent()) {
+                Reservation existing = bySuRoomIdentity.get();
+                String resolvedOrderNumber = normalizeLookupKey(existing.getOrderNumber());
+                if (resolvedOrderNumber == null) {
+                    resolvedOrderNumber = normalizedGeneratedOrderNumber;
+                }
+                return new ReservationLookupResult(existing, "SU_ROOM_KEY", resolvedOrderNumber);
+            }
+        }
+
+        if (normalizedChannelOrderNumber != null) {
+            List<Reservation> byChannelOrderNumber = reservationRepository.findByStoreIdAndChannelOrderNumber(
+                    storeId,
+                    normalizedChannelOrderNumber
+            );
+            if (byChannelOrderNumber.size() == 1) {
+                Reservation existing = byChannelOrderNumber.get(0);
+                String resolvedOrderNumber = normalizeLookupKey(existing.getOrderNumber());
+                if (resolvedOrderNumber == null) {
+                    resolvedOrderNumber = normalizedGeneratedOrderNumber;
+                }
+                return new ReservationLookupResult(existing, "CHANNEL_ORDER_UNIQUE", resolvedOrderNumber);
+            }
+
+            if (byChannelOrderNumber.size() > 1) {
+                reservationLogger.warn(
+                        "[ReservationUpsert] multiple records share channelOrderNumber; fallback disabled. storeId={}, channelOrderNumber={}, matchedCount={}, suReservationId={}, roomReservationId={}, generatedOrderNumber={}",
+                        storeId,
+                        normalizedChannelOrderNumber,
+                        byChannelOrderNumber.size(),
+                        normalizedSuReservationId,
+                        normalizedRoomReservationIdentity,
+                        normalizedGeneratedOrderNumber
+                );
+            }
+        }
+
+        return new ReservationLookupResult(new Reservation(), "INSERT_NEW", normalizedGeneratedOrderNumber);
+    }
+
+    private static String normalizeLookupKey(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isBlank() ? null : trimmed;
     }
 }
