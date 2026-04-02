@@ -1943,6 +1943,24 @@ const searchTimeout = ref<number | null>(null)
 // 添加当前基准日期，用于控制日历显示的起始位置
 const currentBaseDate = ref<string>(new Date().toISOString().split('T')[0])
 
+const parseYmdDate = (value: string) => {
+  const [year, month, day] = value.split('-').map((part) => Number(part))
+  return new Date(year, (month || 1) - 1, day || 1)
+}
+
+const formatYmdDate = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const shiftYmdDate = (value: string, days: number) => {
+  const date = parseYmdDate(value)
+  date.setDate(date.getDate() + days)
+  return formatYmdDate(date)
+}
+
 // 渠道数据
 const channels = ref<ChannelDTO[]>([])
 const channelMap = ref<Map<string, ChannelDTO>>(new Map())
@@ -3080,19 +3098,29 @@ const CALENDAR_DAYS_BEFORE_BASE = 2
 const CALENDAR_VISIBLE_MONTHS = 2
 const CALENDAR_NAVIGATION_STEP_DAYS = 30
 
-// 计算两个月的日期，基准日固定在第3个位置
-const dateColumns = computed(() => {
-  const baseDate = new Date(currentBaseDate.value)
-  const dates = []
+const buildVisibleDateRangeFromBase = (baseDateValue: string): [string, string] => {
+  const baseDate = parseYmdDate(baseDateValue)
 
   // 计算起始日期：基准日前2天
   const startDate = new Date(baseDate)
-  startDate.setDate(baseDate.getDate() - CALENDAR_DAYS_BEFORE_BASE)
+  startDate.setDate(startDate.getDate() - CALENDAR_DAYS_BEFORE_BASE)
 
   // 计算结束日期：从起始日期起连续两个月
   const endDate = new Date(startDate)
   endDate.setMonth(endDate.getMonth() + CALENDAR_VISIBLE_MONTHS)
   endDate.setDate(endDate.getDate() - 1)
+
+  return [formatYmdDate(startDate), formatYmdDate(endDate)]
+}
+
+const visibleDateRange = ref<[string, string]>(buildVisibleDateRangeFromBase(currentBaseDate.value))
+
+// 根据当前可视日期范围生成日期列
+const dateColumns = computed(() => {
+  const dates = []
+
+  const startDate = parseYmdDate(visibleDateRange.value[0])
+  const endDate = parseYmdDate(visibleDateRange.value[1])
 
   const totalDays = Math.floor(
     (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
@@ -3102,7 +3130,7 @@ const dateColumns = computed(() => {
     const current = new Date(startDate)
     current.setDate(startDate.getDate() + i)
     dates.push({
-      date: current.toISOString().split('T')[0],
+      date: formatYmdDate(current),
     })
   }
 
@@ -3111,36 +3139,35 @@ const dateColumns = computed(() => {
 
 // 计算当前日期范围（用于API调用）
 const dateRange = computed(() => {
-  const dates = dateColumns.value
-  if (dates.length === 0) return ['', '']
-  return [dates[0].date, dates[dates.length - 1].date] as [string, string]
+  return visibleDateRange.value
 })
 
 // 方法
 
 const onDateRangeChange = (value: [string, string] | null) => {
   if (value) {
-    // 当用户选择日期范围时，将基准日期设置为选择范围的第一天加2天
-    const startDate = new Date(value[0])
-    startDate.setDate(startDate.getDate() + CALENDAR_DAYS_BEFORE_BASE)
-    currentBaseDate.value = startDate.toISOString().split('T')[0]
+    visibleDateRange.value = value
+    // 保持基准日期与可视范围联动，便于后续导航逻辑复用
+    currentBaseDate.value = shiftYmdDate(value[0], CALENDAR_DAYS_BEFORE_BASE)
     loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
   }
 }
 
 const previousWeek = () => {
-  // 基准日期向前移动30天
-  const baseDate = new Date(currentBaseDate.value)
-  baseDate.setDate(baseDate.getDate() - CALENDAR_NAVIGATION_STEP_DAYS)
-  currentBaseDate.value = baseDate.toISOString().split('T')[0]
+  visibleDateRange.value = [
+    shiftYmdDate(visibleDateRange.value[0], -CALENDAR_NAVIGATION_STEP_DAYS),
+    shiftYmdDate(visibleDateRange.value[1], -CALENDAR_NAVIGATION_STEP_DAYS),
+  ]
+  currentBaseDate.value = shiftYmdDate(currentBaseDate.value, -CALENDAR_NAVIGATION_STEP_DAYS)
   loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
 }
 
 const nextWeek = () => {
-  // 基准日期向后移动30天
-  const baseDate = new Date(currentBaseDate.value)
-  baseDate.setDate(baseDate.getDate() + CALENDAR_NAVIGATION_STEP_DAYS)
-  currentBaseDate.value = baseDate.toISOString().split('T')[0]
+  visibleDateRange.value = [
+    shiftYmdDate(visibleDateRange.value[0], CALENDAR_NAVIGATION_STEP_DAYS),
+    shiftYmdDate(visibleDateRange.value[1], CALENDAR_NAVIGATION_STEP_DAYS),
+  ]
+  currentBaseDate.value = shiftYmdDate(currentBaseDate.value, CALENDAR_NAVIGATION_STEP_DAYS)
   loadRoomStatusCalendarData() // 重新加载数据，更新日期范围
 }
 

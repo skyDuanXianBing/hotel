@@ -1151,7 +1151,7 @@ public class OtaReservationSyncService {
             String fallbackOtaRoomId
     ) {
         SuReservationParser.MessagingListingResolution webhookResolution =
-                SuReservationParser.extractMessagingListingIdWithSource(reservationNode, roomStay);
+            SuReservationParser.extractMessagingListingIdWithSource(channelCode, reservationNode, roomStay);
         if (webhookResolution != null
                 && webhookResolution.listingId() != null
                 && !webhookResolution.listingId().isBlank()) {

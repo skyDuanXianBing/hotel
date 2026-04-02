@@ -115,8 +115,22 @@ public class RegistrationMessageService {
             return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered, RegistrationSendStatus.SENT, null);
         } catch (Exception e) {
             String err = e.getMessage() != null ? e.getMessage() : "发送失败";
+            if (isPropertyAccessError(err)) {
+                return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered,
+                        RegistrationSendStatus.WAITING_PROPERTY_ACCESS, err);
+            }
             return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered, RegistrationSendStatus.FAILED, err);
         }
+    }
+
+    private static boolean isPropertyAccessError(String errorMessage) {
+        if (errorMessage == null || errorMessage.isBlank()) {
+            return false;
+        }
+        String normalized = errorMessage.toLowerCase();
+        return normalized.contains("access to this property")
+                || normalized.contains("doesn't have access to this property")
+                || normalized.contains("does not have access to this property");
     }
 
     private RegistrationMessageLogDTO saveLog(

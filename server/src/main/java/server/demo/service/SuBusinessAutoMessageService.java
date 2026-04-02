@@ -62,6 +62,7 @@ public class SuBusinessAutoMessageService {
     private static final String DELIVERY_SENDING = "SENDING";
     private static final String DELIVERY_SENT = "SENT";
     private static final String DELIVERY_FAILED = "FAILED";
+    private static final String WAITING_PROPERTY_ACCESS = "WAITING_PROPERTY_ACCESS";
 
     private final AutoMessageSendLogRepository sendLogRepository;
     private final StoreRepository storeRepository;
@@ -389,7 +390,11 @@ public class SuBusinessAutoMessageService {
                 }
 
                 SuReservationParser.MessagingListingResolution resolved =
-                        SuReservationParser.extractMessagingListingIdWithSource(reservationNode, null);
+                    SuReservationParser.extractMessagingListingIdWithSource(
+                        reservation.getChannel() != null ? reservation.getChannel().getCode() : null,
+                        reservationNode,
+                        null
+                    );
                 if (resolved != null) {
                     String listingId = resolveTrustedListingId(resolved.listingId());
                     if (listingId != null) {
@@ -542,7 +547,7 @@ public class SuBusinessAutoMessageService {
                 thread.setListingId(null);
                 changed = true;
             }
-            String listingId = resolveTrustedListingId(reservation.getOtaRoomId());
+            String listingId = resolveThreadListingIdForReservationRecord(reservation);
             if (listingId != null && !listingId.isBlank()
                     && !listingId.equals(normalizedThreadListingId)) {
                 thread.setListingId(listingId);
@@ -576,7 +581,7 @@ public class SuBusinessAutoMessageService {
             return null;
         }
 
-        String listingId = resolveTrustedListingId(reservation.getOtaRoomId());
+        String listingId = resolveThreadListingIdForReservationRecord(reservation);
         String listingName = reservation.getRoom() != null && reservation.getRoom().getRoomType() != null
                 ? reservation.getRoom().getRoomType().getName()
                 : null;
@@ -619,6 +624,22 @@ public class SuBusinessAutoMessageService {
 
     static String resolveTrustedListingId(String rawListingId) {
         return SuReservationParser.normalizeMessagingListingId(rawListingId);
+    }
+
+    private static String resolveThreadListingIdForReservationRecord(Reservation reservation) {
+        if (reservation == null) {
+            return null;
+        }
+
+        String channelCode = reservation.getChannel() != null ? reservation.getChannel().getCode() : null;
+        if (channelCode != null) {
+            String normalizedChannel = channelCode.trim().toUpperCase(Locale.ROOT);
+            if ("BOOKING".equals(normalizedChannel) || "BOOKING.COM".equals(normalizedChannel)) {
+                // Booking listingid should come from webhook parsing strategy, not ota_room_id fallback.
+                return null;
+            }
+        }
+        return resolveTrustedListingId(reservation.getOtaRoomId());
     }
 
     private static Integer toSuChannelId(String channelCode) {
@@ -1083,7 +1104,7 @@ public class SuBusinessAutoMessageService {
                 "doesn't have access to this property",
                 "does not have access to this property"
         )) {
-            return new WaitState("WAITING_LISTINGID", trimErr(errorMessage));
+            return new WaitState(WAITING_PROPERTY_ACCESS, trimErr(errorMessage));
         }
         boolean hasReadinessHint = containsAny(normalized,
                 "missing",
@@ -1094,8 +1115,7 @@ public class SuBusinessAutoMessageService {
                 "not found",
                 "not ready",
                 "cannot send",
-                "invalid",
-                "access"
+            "invalid"
         );
         if (!hasReadinessHint) {
             return null;
