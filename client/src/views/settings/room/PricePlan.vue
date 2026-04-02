@@ -1314,8 +1314,40 @@ const handleShowAppliedRoomTypes = async (plan: PricePlan) => {
   }
 }
 
+const confirmRemoveRelationOptions = async (roomTypeName: string, planName: string) => {
+  try {
+    await ElMessageBox.confirm(
+      `即将移除房型“${roomTypeName}”与价格计划“${planName}”的关联。\n\n` +
+      '你可以选择：\n' +
+      '1) 解绑并清理按日期覆盖价（价格管理将回退到周价格）\n' +
+      '2) 仅解绑（保留按日期覆盖价）',
+      '移除关联',
+      {
+        confirmButtonText: '解绑并清理覆盖价',
+        cancelButtonText: '仅解绑',
+        distinguishCancelAndClose: true,
+        closeOnClickModal: false,
+        closeOnPressEscape: false,
+        type: 'warning',
+      }
+    )
+    return true
+  } catch (action: any) {
+    if (action === 'cancel') {
+      return false
+    }
+    return null
+  }
+}
+
 const handleRemoveRoomType = async (roomType: RoomType) => {
   if (!userStore.currentUser?.id || !selectedPricePlanId.value) return
+
+  const planName = currentPricePlan.value?.name || '当前价格计划'
+  const clearOverrides = await confirmRemoveRelationOptions(roomType.name, planName)
+  if (clearOverrides === null) {
+    return
+  }
 
   try {
     let relationId = roomType.roomTypePricePlanId
@@ -1335,9 +1367,13 @@ const handleRemoveRoomType = async (roomType: RoomType) => {
       return
     }
 
-    await deleteRoomTypePricePlan(relationId, userStore.currentUser.id)
+    await deleteRoomTypePricePlan(relationId, userStore.currentUser.id, clearOverrides)
     appliedRoomTypes.value = appliedRoomTypes.value.filter(rt => rt.id !== roomType.id)
-    ElMessage.success(`已移除房型：${roomType.name} ${roomType.code}`)
+    ElMessage.success(
+      clearOverrides
+        ? `已移除房型并清理按日期覆盖价：${roomType.name} ${roomType.code}`
+        : `已移除房型（保留按日期覆盖价）：${roomType.name} ${roomType.code}`
+    )
 
     await loadPricePlans()
   } catch (error) {
@@ -1507,9 +1543,18 @@ const handleEditRate = (roomType: RoomType, plan: RoomTypePricePlan) => {
 const handleDeleteRate = async (roomType: RoomType, plan: RoomTypePricePlan) => {
   if (!userStore.currentUser?.id) return
 
+  const clearOverrides = await confirmRemoveRelationOptions(roomType.name, plan.name)
+  if (clearOverrides === null) {
+    return
+  }
+
   try {
-    await deleteRoomTypePricePlan(plan.id, userStore.currentUser!.id)
-    ElMessage.success(`删除 ${roomType.name} 的 ${plan.name} 成功`)
+    await deleteRoomTypePricePlan(plan.id, userStore.currentUser!.id, clearOverrides)
+    ElMessage.success(
+      clearOverrides
+        ? `已删除 ${roomType.name} 的 ${plan.name} 并清理按日期覆盖价`
+        : `已删除 ${roomType.name} 的 ${plan.name}（保留按日期覆盖价）`
+    )
     await loadRoomTypePrices()
   } catch (error) {
     ElMessage.error('删除房价失败')

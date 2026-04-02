@@ -116,10 +116,15 @@ public class PricePlanController extends BaseStoreController {
     }
 
     @DeleteMapping("/room-type-price-plans/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteRoomTypePricePlan(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteRoomTypePricePlan(
+            @PathVariable Long id,
+            @RequestParam(name = "clearOverrides", defaultValue = "false") boolean clearOverrides) {
         try {
-            pricePlanService.deleteRoomTypePricePlan(id);
-            return ResponseEntity.ok(ApiResponse.success("删除房型价格计划关联成功", null));
+            long clearedOverrides = pricePlanService.deleteRoomTypePricePlan(id, clearOverrides);
+            String message = clearOverrides
+                    ? "删除房型价格计划关联成功，已清理 " + clearedOverrides + " 条按日期覆盖价"
+                    : "删除房型价格计划关联成功";
+            return ResponseEntity.ok(ApiResponse.success(message, null));
         } catch (RuntimeException e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }

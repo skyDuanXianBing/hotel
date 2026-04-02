@@ -1,6 +1,7 @@
 package server.demo.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -128,4 +129,13 @@ public interface RoomPriceRepository extends JpaRepository<RoomPrice, Long> {
             @Param("roomTypeIds") List<Long> roomTypeIds,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    @Modifying
+    @Query("DELETE FROM RoomPrice rp WHERE rp.storeId = :storeId " +
+           "AND rp.roomType.id = :roomTypeId " +
+           "AND rp.pricePlan.id = :pricePlanId")
+    long deleteByStoreIdAndRoomTypeIdAndPricePlanId(
+           @Param("storeId") Long storeId,
+           @Param("roomTypeId") Long roomTypeId,
+           @Param("pricePlanId") Long pricePlanId);
 }

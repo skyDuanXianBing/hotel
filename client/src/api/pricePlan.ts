@@ -233,11 +233,11 @@ export const updateRoomTypePricePlan = (
 /**
  * 删除房型价格计划关联
  */
-export const deleteRoomTypePricePlan = (id: number, userId: number) => {
+export const deleteRoomTypePricePlan = (id: number, userId: number, clearOverrides = false) => {
   return request<void>({
     url: `/price-plans/room-type-price-plans/${id}`,
     method: 'DELETE',
-    params: { userId },
+    params: { userId, clearOverrides },
   })
 }
 

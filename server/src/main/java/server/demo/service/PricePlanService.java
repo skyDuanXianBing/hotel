@@ -307,13 +307,29 @@ public class PricePlanService {
         return saved;
     }
 
-    public void deleteRoomTypePricePlan(Long id) {
+    public long deleteRoomTypePricePlan(Long id, boolean clearOverrides) {
+        Long storeId = currentStoreId();
         RoomTypePricePlan roomTypePricePlan = roomTypePricePlanRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("房型价格计划不存在"));
-        if (!currentStoreId().equals(roomTypePricePlan.getStoreId())) {
+        if (!storeId.equals(roomTypePricePlan.getStoreId())) {
             throw new RuntimeException("无权限操作");
         }
+
+        long clearedOverrideCount = 0;
+        if (clearOverrides
+                && roomTypePricePlan.getRoomType() != null
+                && roomTypePricePlan.getPricePlan() != null
+                && roomTypePricePlan.getRoomType().getId() != null
+                && roomTypePricePlan.getPricePlan().getId() != null) {
+            clearedOverrideCount = roomPriceRepository.deleteByStoreIdAndRoomTypeIdAndPricePlanId(
+                    storeId,
+                    roomTypePricePlan.getRoomType().getId(),
+                    roomTypePricePlan.getPricePlan().getId()
+            );
+        }
+
         roomTypePricePlanRepository.delete(roomTypePricePlan);
+        return clearedOverrideCount;
     }
 
     public long countRoomTypesByPricePlan(Long pricePlanId) {
