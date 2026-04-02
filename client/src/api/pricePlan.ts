@@ -106,6 +106,8 @@ export interface AssignRoomTypePricePlanRequest {
   extraAdultRate?: number
   extraChildRate?: number
   priceMode?: string
+  clearFutureOverrides?: boolean
+  clearFromDate?: string
 }
 
 /**

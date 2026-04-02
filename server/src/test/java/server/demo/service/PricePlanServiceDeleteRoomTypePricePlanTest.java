@@ -57,7 +57,7 @@ class PricePlanServiceDeleteRoomTypePricePlanTest {
 
         RoomTypePricePlan relation = buildRelation(99L, 7L, 12L, 30L);
         when(roomTypePricePlanRepository.findById(99L)).thenReturn(Optional.of(relation));
-        when(roomPriceRepository.deleteByStoreIdAndRoomTypeIdAndPricePlanId(7L, 12L, 30L)).thenReturn(6L);
+        when(roomPriceRepository.deleteByStoreIdAndRoomTypeIdAndPricePlanId(7L, 12L, 30L)).thenReturn(6);
 
         PricePlanService service = new PricePlanService();
         ReflectionTestUtils.setField(service, "roomTypePricePlanRepository", roomTypePricePlanRepository);

@@ -380,6 +380,12 @@
             </div>
           </div>
         </div>
+
+        <div class="clear-overrides-section">
+          <el-checkbox v-model="clearFutureOverridesOnSave">
+            保存时清理从今天起的按日期覆盖价（让新周价格立即在房价日历生效）
+          </el-checkbox>
+        </div>
       </div>
 
       <template #footer>
@@ -826,6 +832,7 @@ const priceOption = ref<'unified' | 'multiple'>('unified')
 const includedGuestsCount = ref('2')
 const extraAdultRate = ref(0)
 const extraChildRate = ref(0)
+const clearFutureOverridesOnSave = ref(true)
 
 const includedGuestsOptions = computed(() => {
   const maxGuests = currentEditRate.value?.plan?.maxGuests ?? 4
@@ -1367,17 +1374,30 @@ const handleRemoveRoomType = async (roomType: RoomType) => {
       return
     }
 
-    await deleteRoomTypePricePlan(relationId, userStore.currentUser.id, clearOverrides)
+    const deleteResp: any = await deleteRoomTypePricePlan(
+      relationId,
+      userStore.currentUser.id,
+      clearOverrides
+    )
+    if (!deleteResp?.success) {
+      throw new Error(deleteResp?.message || '删除房型价格计划关联失败')
+    }
+
     appliedRoomTypes.value = appliedRoomTypes.value.filter(rt => rt.id !== roomType.id)
     ElMessage.success(
-      clearOverrides
-        ? `已移除房型并清理按日期覆盖价：${roomType.name} ${roomType.code}`
-        : `已移除房型（保留按日期覆盖价）：${roomType.name} ${roomType.code}`
+      deleteResp?.message ||
+        (clearOverrides
+          ? `已移除房型并清理按日期覆盖价：${roomType.name} ${roomType.code}`
+          : `已移除房型（保留按日期覆盖价）：${roomType.name} ${roomType.code}`)
     )
 
     await loadPricePlans()
+    await loadRoomTypePrices()
+    if (currentPricePlan.value) {
+      await handleShowAppliedRoomTypes(currentPricePlan.value)
+    }
   } catch (error) {
-    ElMessage.error('移除房型失败')
+    ElMessage.error((error as any)?.message || '移除房型失败')
     console.error('移除房型失败:', error)
   }
 }
@@ -1536,6 +1556,7 @@ const handleEditRate = (roomType: RoomType, plan: RoomTypePricePlan) => {
   includedGuestsCount.value = String(plan.includedGuestsValue ?? 2)
   extraAdultRate.value = plan.extraAdultRate ?? 0
   extraChildRate.value = plan.extraChildRate ?? 0
+  clearFutureOverridesOnSave.value = true
 
   editRateDialogVisible.value = true
 }
@@ -1549,15 +1570,24 @@ const handleDeleteRate = async (roomType: RoomType, plan: RoomTypePricePlan) => 
   }
 
   try {
-    await deleteRoomTypePricePlan(plan.id, userStore.currentUser!.id, clearOverrides)
-    ElMessage.success(
+    const deleteResp: any = await deleteRoomTypePricePlan(
+      plan.id,
+      userStore.currentUser!.id,
       clearOverrides
-        ? `已删除 ${roomType.name} 的 ${plan.name} 并清理按日期覆盖价`
-        : `已删除 ${roomType.name} 的 ${plan.name}（保留按日期覆盖价）`
+    )
+    if (!deleteResp?.success) {
+      throw new Error(deleteResp?.message || '删除房型价格计划关联失败')
+    }
+
+    ElMessage.success(
+      deleteResp?.message ||
+        (clearOverrides
+          ? `已删除 ${roomType.name} 的 ${plan.name} 并清理按日期覆盖价`
+          : `已删除 ${roomType.name} 的 ${plan.name}（保留按日期覆盖价）`)
     )
     await loadRoomTypePrices()
   } catch (error) {
-    ElMessage.error('删除房价失败')
+    ElMessage.error((error as any)?.message || '删除房价失败')
     console.error('删除房价失败:', error)
   }
 }
@@ -1584,6 +1614,11 @@ const handleConfirmEditRate = async () => {
       sundayPrice: dailyPrices.sun,
       maxGuests: plan.maxGuests ?? 4,
       priceMode: priceOption.value,
+      clearFutureOverrides: clearFutureOverridesOnSave.value,
+    }
+
+    if (clearFutureOverridesOnSave.value) {
+      updateData.clearFromDate = new Date().toISOString().slice(0, 10)
     }
 
     if (priceOption.value === 'multiple') {
@@ -1599,7 +1634,11 @@ const handleConfirmEditRate = async () => {
 
     await updateRoomTypePricePlan(plan.id, userStore.currentUser!.id, updateData)
 
-    ElMessage.success('房价更新成功')
+    ElMessage.success(
+      clearFutureOverridesOnSave.value
+        ? '房价更新成功，已自动清理未来按日期覆盖价'
+        : '房价更新成功'
+    )
     await loadRoomTypePrices()
     editRateDialogVisible.value = false
     currentEditRate.value = null
@@ -1716,6 +1755,10 @@ watch(selectedRoomTypeIds, (newIds) => {
 
 .extra-rate-input {
   width: 220px;
+}
+
+.clear-overrides-section {
+  margin-top: 16px;
 }
 
 :deep(.el-radio) {

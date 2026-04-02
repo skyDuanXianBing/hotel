@@ -411,11 +411,16 @@ const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefi
     return cellData.price
   }
 
+  // 优先展示系统价格（room_prices/周价格解析结果），避免 PriceLabs 基准价遮挡最新改价结果。
+  if (cellData?.price !== undefined && cellData?.price !== null) {
+    return cellData.price
+  }
+
   const priceLabsBasePrice = getPriceLabsBasePrice(row, priceDate)
   if (priceLabsBasePrice !== undefined && priceLabsBasePrice !== null) {
     return priceLabsBasePrice
   }
-  return cellData?.price
+  return undefined
 }
 
 const priceTableData = computed<PriceTableRow[]>(() => {

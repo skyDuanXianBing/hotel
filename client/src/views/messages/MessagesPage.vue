@@ -473,6 +473,75 @@ let localMessageSeed = -1
 const reservationIdCache = new Map<string, number | null>()
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const TOKYO_TIME_ZONE = 'Asia/Tokyo'
+const TOKYO_OFFSET_SUFFIX = '+09:00'
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
+
+const TOKYO_TIME_FORMATTER = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: TOKYO_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
+
+const parseTokyoDateTime = (rawValue: string | Date) => {
+  if (rawValue instanceof Date) {
+    return rawValue
+  }
+
+  const trimmed = (rawValue || '').trim()
+  if (!trimmed) {
+    return new Date(0)
+  }
+
+  const normalized = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T')
+  const hasTimezone = /([zZ]|[+\-]\d{2}:?\d{2})$/.test(normalized)
+  const withTimezone = hasTimezone ? normalized : `${normalized}${TOKYO_OFFSET_SUFFIX}`
+  const parsed = new Date(withTimezone)
+
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed
+  }
+
+  return new Date(trimmed)
+}
+
+const getFormatterPart = (
+  formatter: Intl.DateTimeFormat,
+  date: Date,
+  partType: 'year' | 'month' | 'day',
+) => {
+  const part = formatter.formatToParts(date).find((item) => item.type === partType)
+  return part?.value || '00'
+}
+
+const TOKYO_DATE_KEY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TOKYO_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+const getTokyoDateKey = (date: Date) => {
+  const year = getFormatterPart(TOKYO_DATE_KEY_FORMATTER, date, 'year')
+  const month = getFormatterPart(TOKYO_DATE_KEY_FORMATTER, date, 'month')
+  const day = getFormatterPart(TOKYO_DATE_KEY_FORMATTER, date, 'day')
+  return `${year}-${month}-${day}`
+}
+
+const parseDateKeyUtc = (dateKey: string) => {
+  const [yearText, monthText, dayText] = dateKey.split('-')
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+  return new Date(Date.UTC(year, month - 1, day))
+}
+
+const getDateDiffByTokyoDay = (target: Date, base: Date) => {
+  const targetDay = parseDateKeyUtc(getTokyoDateKey(target)).getTime()
+  const baseDay = parseDateKeyUtc(getTokyoDateKey(base)).getTime()
+  return Math.floor((baseDay - targetDay) / ONE_DAY_MS)
+}
 
 const filteredConversations = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
@@ -512,7 +581,7 @@ const groupedMessages = computed<GroupedMessages[]>(() => {
   const groups = new Map<string, MessageItem[]>()
 
   for (const message of sortMessagesByTime(messages.value)) {
-    const key = getLocalDateKey(message.timestamp)
+    const key = getTokyoDateKey(message.timestamp)
     const existing = groups.get(key)
     if (existing) {
       existing.push(message)
@@ -579,7 +648,7 @@ const mapMessage = (message: SuMessagingMessageDTO): MessageItem => ({
   id: message.id,
   senderType: message.senderType,
   content: message.content,
-  timestamp: new Date(message.timestamp),
+  timestamp: parseTokyoDateTime(message.timestamp),
   senderName: normalizeSenderName(message.senderName),
   deliveryStatus: message.deliveryStatus,
 })
@@ -588,7 +657,7 @@ const mapRealtimeMessage = (message: RealtimeMessageItem): MessageItem => ({
   id: message.id,
   senderType: message.senderType as SuMessagingSenderType,
   content: message.content,
-  timestamp: new Date(message.timestamp),
+  timestamp: parseTokyoDateTime(message.timestamp),
   senderName: normalizeSenderName(message.senderName),
   deliveryStatus: message.deliveryStatus,
 })
@@ -671,22 +740,19 @@ const getCurrentStoreId = () => {
   }
 }
 
-const getLocalDateKey = (date: Date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 const formatDateDividerLabel = (dateKey: string) => {
-  const parsed = new Date(`${dateKey}T00:00:00`)
+  const parsed = parseDateKeyUtc(dateKey)
   if (Number.isNaN(parsed.getTime())) {
     return dateKey
   }
 
-  const now = new Date()
-  const yearPrefix = parsed.getFullYear() === now.getFullYear() ? '' : `${parsed.getFullYear()}年`
-  return `${yearPrefix}${parsed.getMonth() + 1}月${parsed.getDate()}日 ${WEEKDAYS[parsed.getDay()]}`
+  const [yearText, monthText, dayText] = dateKey.split('-')
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+  const tokyoNowYear = Number(getFormatterPart(TOKYO_DATE_KEY_FORMATTER, new Date(), 'year'))
+  const yearPrefix = year === tokyoNowYear ? '' : `${year}年`
+  return `${yearPrefix}${month}月${day}日 ${WEEKDAYS[parsed.getUTCDay()]}`
 }
 
 const sortMessagesByTime = (list: MessageItem[]) =>
@@ -1111,24 +1177,31 @@ const connectRealtimeSocket = () => {
 }
 
 const formatConversationTime = (dateString: string) => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const oneDay = 24 * 60 * 60 * 1000
-
-  if (diff < oneDay) {
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  const date = parseTokyoDateTime(dateString)
+  if (Number.isNaN(date.getTime())) {
+    return '-'
   }
 
-  if (diff < 2 * oneDay) {
+  const now = new Date()
+  const diffDays = getDateDiffByTokyoDay(date, now)
+
+  if (diffDays === 0) {
+    return TOKYO_TIME_FORMATTER.format(date)
+  }
+
+  if (diffDays === 1) {
     return '昨天'
   }
 
-  return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  const [, month, day] = getTokyoDateKey(date).split('-')
+  return `${month}-${day}`
 }
 
 const formatMessageTime = (date: Date) => {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  if (Number.isNaN(date.getTime())) {
+    return '-'
+  }
+  return TOKYO_TIME_FORMATTER.format(date)
 }
 
 const toComparableText = (value?: string | null) => (value || '').trim().toLowerCase()

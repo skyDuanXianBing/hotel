@@ -134,8 +134,19 @@ public interface RoomPriceRepository extends JpaRepository<RoomPrice, Long> {
     @Query("DELETE FROM RoomPrice rp WHERE rp.storeId = :storeId " +
            "AND rp.roomType.id = :roomTypeId " +
            "AND rp.pricePlan.id = :pricePlanId")
-    long deleteByStoreIdAndRoomTypeIdAndPricePlanId(
+       int deleteByStoreIdAndRoomTypeIdAndPricePlanId(
            @Param("storeId") Long storeId,
            @Param("roomTypeId") Long roomTypeId,
            @Param("pricePlanId") Long pricePlanId);
+
+    @Modifying
+    @Query("DELETE FROM RoomPrice rp WHERE rp.storeId = :storeId " +
+           "AND rp.roomType.id = :roomTypeId " +
+           "AND rp.pricePlan.id = :pricePlanId " +
+           "AND rp.priceDate >= :fromDate")
+       int deleteByStoreIdAndRoomTypeIdAndPricePlanIdAndPriceDateGreaterThanEqual(
+           @Param("storeId") Long storeId,
+           @Param("roomTypeId") Long roomTypeId,
+           @Param("pricePlanId") Long pricePlanId,
+           @Param("fromDate") LocalDate fromDate);
 }
