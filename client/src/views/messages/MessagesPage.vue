@@ -93,13 +93,14 @@
           </div>
         </div>
 
-        <div ref="messagesListRef" class="messages-list">
+        <div ref="messagesListRef" class="messages-list" @scroll="handleMessagesScroll">
           <template v-for="group in groupedMessages" :key="group.key">
             <div class="message-date-divider">{{ group.label }}</div>
             <div
               v-for="message in group.items"
               :key="message.id"
               class="message-item"
+              :data-message-id="message.id"
               :class="{
                 'message-sent': message.senderType === SuMessagingSenderType.STAFF,
                 'message-received': message.senderType === SuMessagingSenderType.GUEST,
@@ -400,6 +401,7 @@ import {
   type QuickReplyTemplateContext,
 } from '@/utils/quickReplyTemplate'
 import { useStoreStore } from '@/stores/store'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { LANGUAGE_OPTIONS } from '@/constants/storeOptions'
 
 interface MessageItem {
@@ -459,6 +461,8 @@ const AI_CONTEXT_LIMITS = {
   maxSingleMessageChars: 1200,
   maxTotalChars: 7000,
 } as const
+const INITIAL_MESSAGE_TRANSLATION_BATCH = 20
+const SCROLL_TRANSLATION_DEBOUNCE_MS = 220
 const TRANSLATION_SETTINGS_STORAGE_KEY = 'messages.translation.settings'
 const TRANSLATION_LANGUAGE_OPTIONS = [
   { value: 'zh-CN', label: '中文(简体)' },
@@ -515,6 +519,7 @@ const selectedReservationId = ref<number | null>(null)
 const isResolvingReservation = ref(false)
 
 const storeStore = useStoreStore()
+const notificationCenterStore = useNotificationCenterStore()
 const route = useRoute()
 const routeTargetHandled = ref(false)
 
@@ -534,6 +539,8 @@ let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
 let isDestroyed = false
 let localMessageSeed = -1
+let chatIncomingAudio: HTMLAudioElement | null = null
+let messageScrollTranslateTimer: number | null = null
 const reservationIdCache = new Map<string, number | null>()
 const translationPendingKeys = new Set<string>()
 
@@ -859,11 +866,84 @@ const ensureMessageTranslation = async (message: MessageItem) => {
   }
 }
 
+const translateMessagesSequentially = async (items: MessageItem[]) => {
+  for (const message of items) {
+    await ensureMessageTranslation(message)
+  }
+}
+
 const translateCurrentConversation = async () => {
   if (!translationEnabled.value) {
     return
   }
-  await Promise.all(messages.value.map((message) => ensureMessageTranslation(message)))
+  const latestMessages = sortMessagesByTime(messages.value).slice(-INITIAL_MESSAGE_TRANSLATION_BATCH)
+  await translateMessagesSequentially(latestMessages)
+}
+
+const getVisibleMessagesInViewport = () => {
+  const container = messagesListRef.value
+  if (!container || messages.value.length === 0) {
+    return [] as MessageItem[]
+  }
+
+  const containerRect = container.getBoundingClientRect()
+  const messageNodes = Array.from(
+    container.querySelectorAll<HTMLElement>('.message-item[data-message-id]'),
+  )
+  const messageById = new Map(messages.value.map((item) => [item.id, item]))
+
+  const visibleItems: MessageItem[] = []
+  const seenIds = new Set<number>()
+
+  for (const node of messageNodes) {
+    const messageId = Number(node.dataset.messageId)
+    if (!Number.isFinite(messageId) || seenIds.has(messageId)) {
+      continue
+    }
+
+    const rect = node.getBoundingClientRect()
+    const isVisible = rect.bottom >= containerRect.top && rect.top <= containerRect.bottom
+    if (!isVisible) {
+      continue
+    }
+
+    const item = messageById.get(messageId)
+    if (!item) {
+      continue
+    }
+    seenIds.add(messageId)
+    visibleItems.push(item)
+  }
+
+  return sortMessagesByTime(visibleItems)
+}
+
+const translateVisibleMessages = async () => {
+  if (!translationEnabled.value) {
+    return
+  }
+  const visibleItems = getVisibleMessagesInViewport()
+  if (!visibleItems.length) {
+    return
+  }
+  await translateMessagesSequentially(visibleItems)
+}
+
+const clearMessageScrollTranslateTimer = () => {
+  if (messageScrollTranslateTimer) {
+    window.clearTimeout(messageScrollTranslateTimer)
+    messageScrollTranslateTimer = null
+  }
+}
+
+const handleMessagesScroll = () => {
+  if (!translationEnabled.value) {
+    return
+  }
+  clearMessageScrollTranslateTimer()
+  messageScrollTranslateTimer = window.setTimeout(() => {
+    void translateVisibleMessages()
+  }, SCROLL_TRANSLATION_DEBOUNCE_MS)
 }
 
 const translateConversationPreviews = async () => {
@@ -882,8 +962,9 @@ const applyTranslationSettings = async () => {
       translatedMessageMap.value = {}
       translatedConversationPreviewMap.value = {}
       translationPendingKeys.clear()
-      await translateConversationPreviews()
       await translateCurrentConversation()
+      await nextTick()
+      await translateVisibleMessages()
     }
     ElMessage.success('翻译设置已更新')
   } catch (error) {
@@ -1135,9 +1216,6 @@ const refreshThreads = async () => {
     }
 
     conversations.value = response.data || []
-    if (translationEnabled.value) {
-      void translateConversationPreviews()
-    }
     await ensureActiveConversation()
     await applyRouteConversationTarget()
   } catch (error) {
@@ -1156,9 +1234,13 @@ const loadThreadMessages = async (threadId: number) => {
     const incoming = (response.data || []).map(mapMessage)
     messages.value = sortMessagesByTime(incoming)
     if (translationEnabled.value) {
-      void translateCurrentConversation()
+      await translateCurrentConversation()
     }
     await scrollToBottom()
+    if (translationEnabled.value) {
+      await nextTick()
+      void translateVisibleMessages()
+    }
   } catch (error) {
     console.error('加载会话消息失败:', error)
     ElMessage.error('加载消息失败')
@@ -1464,6 +1546,23 @@ const handleRealtimeEvent = async (event: SuMessagingRealtimeEvent) => {
   const { threadId, message } = event
   if (!message) {
     return
+  }
+
+  if (
+    event.eventType === 'MESSAGE_CREATED' &&
+    String(message.senderType || '').toUpperCase() === 'GUEST' &&
+    notificationCenterStore.settings.chatSound
+  ) {
+    try {
+      if (!chatIncomingAudio) {
+        chatIncomingAudio = new Audio('/sounds/chat-notification.mp3')
+        chatIncomingAudio.preload = 'auto'
+      }
+      chatIncomingAudio.currentTime = 0
+      await chatIncomingAudio.play()
+    } catch (error) {
+      console.warn('收件箱聊天提示音播放失败:', error)
+    }
   }
 
   if (threadId === activeThreadId.value) {
@@ -1930,6 +2029,7 @@ onMounted(() => {
 onUnmounted(() => {
   isDestroyed = true
   closeRealtimeSocket()
+  clearMessageScrollTranslateTimer()
 })
 </script>
 
