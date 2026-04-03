@@ -72,16 +72,19 @@
       </el-form-item>
 
       <el-form-item label="星期" class="form-item">
-        <el-checkbox-group v-model="selectedWeekdays" class="weekday-group" @change="handleWeekdayChange">
-          <el-checkbox :label="0">全部</el-checkbox>
-          <el-checkbox :label="1">周一</el-checkbox>
-          <el-checkbox :label="2">周二</el-checkbox>
-          <el-checkbox :label="3">周三</el-checkbox>
-          <el-checkbox :label="4">周四</el-checkbox>
-          <el-checkbox :label="5">周五</el-checkbox>
-          <el-checkbox :label="6">周六</el-checkbox>
-          <el-checkbox :label="7">周日</el-checkbox>
-        </el-checkbox-group>
+        <div class="weekday-selector">
+          <el-checkbox-group v-model="selectedWeekdays" class="weekday-group" @change="handleWeekdayChange">
+            <el-checkbox :label="0">全部</el-checkbox>
+            <el-checkbox :label="1">周一</el-checkbox>
+            <el-checkbox :label="2">周二</el-checkbox>
+            <el-checkbox :label="3">周三</el-checkbox>
+            <el-checkbox :label="4">周四</el-checkbox>
+            <el-checkbox :label="5">周五</el-checkbox>
+            <el-checkbox :label="6">周六</el-checkbox>
+            <el-checkbox :label="7">周日</el-checkbox>
+          </el-checkbox-group>
+          <el-button text type="primary" @click="invertWeekdaySelection">反选</el-button>
+        </div>
       </el-form-item>
 
       <el-form-item label="设置项" required class="form-item">
@@ -114,9 +117,7 @@
             <el-input v-model="batchValue" type="number" placeholder="请输入价格" style="width: 260px">
               <template #append>{{ batchValueUnit }}</template>
             </el-input>
-            <el-button type="primary" @click="applyBatchValue" style="margin-left: 12px">
-              应用到明细
-            </el-button>
+            <span class="auto-apply-hint">输入后自动应用到明细</span>
           </div>
         </div>
       </el-form-item>
@@ -126,9 +127,7 @@
           <el-input v-model="batchValue" type="number" placeholder="请输入天数(1-99)" style="width: 260px">
             <template #append>天</template>
           </el-input>
-          <el-button type="primary" @click="applyBatchValue" style="margin-left: 12px">
-            应用到明细
-          </el-button>
+          <span class="auto-apply-hint">输入后自动应用到明细</span>
         </div>
       </el-form-item>
 
@@ -162,13 +161,31 @@
                       )
                     }}
                   </div>
+                  <div
+                    v-for="line in channelRangePreviewByKey[row.key] || []"
+                    :key="`${row.key}-${line}`"
+                    class="range-line channel-range-line"
+                  >
+                    {{ line }}
+                  </div>
                 </template>
-                <span v-else class="range-empty">点击“应用到明细”后显示最小/最大值</span>
+                <span v-else class="range-empty">输入批量值后自动显示最小/最大值</span>
               </div>
-              <el-input v-else v-model="row.value" type="number" :placeholder="valuePlaceholder">
-                <template v-if="settingType === 'price'" #append>JPY</template>
-                <template v-else #append>天</template>
-              </el-input>
+              <template v-else>
+                <el-input v-model="row.value" type="number" :placeholder="valuePlaceholder">
+                  <template v-if="settingType === 'price'" #append>JPY</template>
+                  <template v-else #append>天</template>
+                </el-input>
+                <div v-if="settingType === 'price'" class="value-range-preview channel-preview-fixed">
+                  <div
+                    v-for="line in channelRangePreviewByKey[row.key] || []"
+                    :key="`${row.key}-${line}`"
+                    class="range-line channel-range-line"
+                  >
+                    {{ line }}
+                  </div>
+                </div>
+              </template>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="120" align="center">
@@ -190,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, Document } from '@element-plus/icons-vue'
@@ -202,6 +219,11 @@ import {
   type RoomPriceManagementDTO,
   type UpdatePriceByPlanRequest,
 } from '@/api/roomPrice'
+import {
+  getChannelPriceAdjustments,
+  type ChannelPriceAdjustmentDTO,
+  type PriceAdjustmentType,
+} from '@/api/pricelabs'
 import { useUserStore } from '@/stores/user'
 
 type TreeNode = {
@@ -232,6 +254,12 @@ type RelativeRangePreview = {
   currentMax: number
   adjustedMin: number
   adjustedMax: number
+}
+
+type ChannelAdjustmentPreview = {
+  channelName: string
+  adjustmentType: PriceAdjustmentType
+  adjustmentValue: number
 }
 
 const router = useRouter()
@@ -277,6 +305,11 @@ const tableRows = ref<TableRow[]>([])
 const rowValueByKey = ref<Record<string, string>>({})
 const relativePreviewByKey = ref<Record<string, RelativeRangePreview>>({})
 const relativeDateValuesByKey = ref<Record<string, Record<string, number>>>({})
+const channelAdjustments = ref<ChannelAdjustmentPreview[]>([])
+
+const AUTO_APPLY_DEBOUNCE_MS = 300
+let autoApplyTimer: ReturnType<typeof setTimeout> | null = null
+let relativeApplyRequestSeq = 0
 
 const valuePlaceholder = computed(() => {
   return settingType.value === 'price' ? '请输入价格' : '请输入天数(1-99)'
@@ -313,6 +346,62 @@ const formatRangeText = (min: number, max: number) => {
   return `${minText} - ${maxText} JPY`
 }
 
+const clampPrice = (value: number) => Math.max(0, Math.round(value * 100) / 100)
+
+const applyChannelAdjustment = (price: number, adjustment: ChannelAdjustmentPreview) => {
+  if (adjustment.adjustmentType === 'FIXED') {
+    return clampPrice(price + adjustment.adjustmentValue)
+  }
+  const ratio = 1 + adjustment.adjustmentValue / 100
+  return clampPrice(price * ratio)
+}
+
+const getRowAdjustedRange = (row: TableRow): { min: number; max: number } | null => {
+  if (settingType.value !== 'price') {
+    return null
+  }
+
+  if (showRelativePreviewColumn.value) {
+    const preview = relativePreviewByKey.value[row.key]
+    if (!preview) {
+      return null
+    }
+    return { min: preview.adjustedMin, max: preview.adjustedMax }
+  }
+
+  const value = Number(row.value)
+  if (!Number.isFinite(value) || value <= 0) {
+    return null
+  }
+  const clamped = clampPrice(value)
+  return { min: clamped, max: clamped }
+}
+
+const channelRangePreviewByKey = computed<Record<string, string[]>>(() => {
+  const result: Record<string, string[]> = {}
+  if (settingType.value !== 'price' || channelAdjustments.value.length === 0) {
+    return result
+  }
+
+  tableRows.value.forEach((row) => {
+    const range = getRowAdjustedRange(row)
+    if (!range) {
+      result[row.key] = []
+      return
+    }
+
+    result[row.key] = channelAdjustments.value.map((adjustment) => {
+      const adjustedMin = applyChannelAdjustment(range.min, adjustment)
+      const adjustedMax = applyChannelAdjustment(range.max, adjustment)
+      const min = Math.min(adjustedMin, adjustedMax)
+      const max = Math.max(adjustedMin, adjustedMax)
+      return `${adjustment.channelName}: ${formatRangeText(min, max)}`
+    })
+  })
+
+  return result
+})
+
 const toWeekdayValue = (dateText: string): number => {
   const day = new Date(`${dateText}T00:00:00`).getDay()
   return day === 0 ? 7 : day
@@ -336,6 +425,20 @@ const handleTabClick = (tab: any) => {
   if (tab.props.name === 'calendar') {
     router.push('/accommodation/room-price-management')
   }
+}
+
+const clearAutoApplyTimer = () => {
+  if (autoApplyTimer) {
+    clearTimeout(autoApplyTimer)
+    autoApplyTimer = null
+  }
+}
+
+const scheduleAutoApply = () => {
+  clearAutoApplyTimer()
+  autoApplyTimer = setTimeout(() => {
+    void applyBatchValue({ silent: true })
+  }, AUTO_APPLY_DEBOUNCE_MS)
 }
 
 const toggleTreeDropdown = () => {
@@ -386,6 +489,7 @@ const rebuildTableRows = (keys: string[]) => {
   rowValueByKey.value = keep
   relativePreviewByKey.value = previewKeep
   relativeDateValuesByKey.value = dateValuesKeep
+  scheduleAutoApply()
 }
 
 const handleTreeCheck = () => {
@@ -432,16 +536,31 @@ const handleWeekdayChange = (values: number[]) => {
   })
 }
 
-const applyBatchValue = async () => {
+const invertWeekdaySelection = () => {
+  const explicitSelected = selectedWeekdays.value.filter((value) => value !== 0)
+  const inverted = ALL_WEEKDAYS.filter((value) => !explicitSelected.includes(value))
+  selectedWeekdays.value = inverted.length === ALL_WEEKDAYS.length ? [0, ...ALL_WEEKDAYS] : inverted
+  previousWeekdays = [...selectedWeekdays.value]
+}
+
+const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) => {
   if (!batchValue.value) {
-    ElMessage.warning('请先输入值')
+    relativePreviewByKey.value = {}
+    relativeDateValuesByKey.value = {}
+    if (!silent) {
+      ElMessage.warning('请先输入值')
+    }
     return
   }
 
   if (settingType.value === 'price') {
     const v = parseFloat(batchValue.value)
     if (Number.isNaN(v) || v <= 0) {
-      ElMessage.warning('请输入有效价格')
+      relativePreviewByKey.value = {}
+      relativeDateValuesByKey.value = {}
+      if (!silent) {
+        ElMessage.warning('请输入有效价格')
+      }
       return
     }
 
@@ -452,21 +571,35 @@ const applyBatchValue = async () => {
       })
       relativePreviewByKey.value = {}
       relativeDateValuesByKey.value = {}
-      ElMessage.success('已应用到明细')
+      if (!silent) {
+        ElMessage.success('已应用到明细')
+      }
       return
     }
 
     if (!startDate.value || !endDate.value) {
-      ElMessage.warning('请先选择日期范围')
+      relativePreviewByKey.value = {}
+      relativeDateValuesByKey.value = {}
+      if (!silent) {
+        ElMessage.warning('请先选择日期范围')
+      }
       return
     }
     if (startDate.value > endDate.value) {
-      ElMessage.warning('开始日期不能晚于结束日期')
+      relativePreviewByKey.value = {}
+      relativeDateValuesByKey.value = {}
+      if (!silent) {
+        ElMessage.warning('开始日期不能晚于结束日期')
+      }
       return
     }
 
     try {
+      const currentRequestSeq = ++relativeApplyRequestSeq
       const resp = (await getRoomPriceManagementData(startDate.value, endDate.value)) as any
+      if (currentRequestSeq !== relativeApplyRequestSeq) {
+        return
+      }
       const managementRows: RoomPriceManagementDTO[] = resp?.data || []
 
       const previewMap: Record<string, RelativeRangePreview> = {}
@@ -521,21 +654,29 @@ const applyBatchValue = async () => {
       relativeDateValuesByKey.value = dateValuesMap
 
       if (Object.keys(previewMap).length === 0) {
-        ElMessage.warning('当前区间未找到可计算的价格数据')
+        if (!silent) {
+          ElMessage.warning('当前区间未找到可计算的价格数据')
+        }
         return
       }
 
-      ElMessage.success('已应用到明细')
+      if (!silent) {
+        ElMessage.success('已应用到明细')
+      }
     } catch (error) {
       console.error('获取当前区间价格失败:', error)
-      ElMessage.error('获取当前区间价格失败')
+      if (!silent) {
+        ElMessage.error('获取当前区间价格失败')
+      }
     }
     return
   }
 
   const days = parseInt(batchValue.value, 10)
   if (Number.isNaN(days) || days < 1 || days > 99) {
-    ElMessage.warning('请输入有效天数（1-99）')
+    if (!silent) {
+      ElMessage.warning('请输入有效天数（1-99）')
+    }
     return
   }
 
@@ -543,7 +684,9 @@ const applyBatchValue = async () => {
     row.value = String(days)
     rowValueByKey.value[row.key] = row.value
   })
-  ElMessage.success('已应用到明细')
+  if (!silent) {
+    ElMessage.success('已应用到明细')
+  }
 }
 
 const normalizeWeekdaysPayload = () => {
@@ -556,7 +699,7 @@ const normalizeWeekdaysPayload = () => {
 const validateRowValue = (row: TableRow): string | null => {
   if (showRelativePreviewColumn.value) {
     if (!relativePreviewByKey.value[row.key]) {
-      return `${row.roomTypeName}/${row.pricePlanName}：请先点击应用到明细`
+      return `${row.roomTypeName}/${row.pricePlanName}：请先输入批量值并生成计算结果`
     }
     const dateValues = relativeDateValuesByKey.value[row.key]
     if (!dateValues || Object.keys(dateValues).length === 0) {
@@ -577,6 +720,27 @@ const validateRowValue = (row: TableRow): string | null => {
     return `${row.roomTypeName}/${row.pricePlanName}：天数无效（1-99）`
   }
   return null
+}
+
+const loadChannelAdjustments = async () => {
+  try {
+    const response = await getChannelPriceAdjustments()
+    if (!response.success || !Array.isArray(response.data)) {
+      channelAdjustments.value = []
+      return
+    }
+
+    channelAdjustments.value = response.data
+      .filter((item: ChannelPriceAdjustmentDTO) => item.channelName)
+      .map((item: ChannelPriceAdjustmentDTO) => ({
+        channelName: item.channelName.toLowerCase(),
+        adjustmentType: item.adjustmentType,
+        adjustmentValue: item.adjustmentValue ?? 0,
+      }))
+  } catch (error) {
+    console.error('加载渠道价格比例失败:', error)
+    channelAdjustments.value = []
+  }
 }
 
 const handleCancel = () => {
@@ -676,7 +840,6 @@ const handleSave = async () => {
     }
 
     ElMessage.success('批量更新成功')
-    router.push('/accommodation/room-price-management')
   } finally {
     saving.value = false
   }
@@ -734,6 +897,11 @@ const loadTreeData = async () => {
 
 onMounted(() => {
   loadTreeData()
+  loadChannelAdjustments()
+})
+
+onUnmounted(() => {
+  clearAutoApplyTimer()
 })
 
 watch([settingType, priceMode], ([currentSettingType, currentPriceMode]) => {
@@ -741,7 +909,28 @@ watch([settingType, priceMode], ([currentSettingType, currentPriceMode]) => {
     relativePreviewByKey.value = {}
     relativeDateValuesByKey.value = {}
   }
+  scheduleAutoApply()
 })
+
+watch(batchValue, () => {
+  scheduleAutoApply()
+})
+
+watch([startDate, endDate], () => {
+  scheduleAutoApply()
+})
+
+watch([relativeType, relativeValueMode], () => {
+  scheduleAutoApply()
+})
+
+watch(
+  selectedWeekdays,
+  () => {
+    scheduleAutoApply()
+  },
+  { deep: true },
+)
 </script>
 
 <style scoped>
@@ -855,6 +1044,13 @@ watch([settingType, priceMode], ([currentSettingType, currentPriceMode]) => {
   flex-wrap: wrap;
 }
 
+.weekday-selector {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .value-batch-wrapper {
   display: flex;
   flex-direction: column;
@@ -874,6 +1070,13 @@ watch([settingType, priceMode], ([currentSettingType, currentPriceMode]) => {
 .batch-input-row {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.auto-apply-hint {
+  color: #909399;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .value-range-preview {
@@ -890,6 +1093,14 @@ watch([settingType, priceMode], ([currentSettingType, currentPriceMode]) => {
 
 .range-line-result {
   color: #409eff;
+}
+
+.channel-range-line {
+  color: #606266;
+}
+
+.channel-preview-fixed {
+  margin-top: 8px;
 }
 
 .range-empty {

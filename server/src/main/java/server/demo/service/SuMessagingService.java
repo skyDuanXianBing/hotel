@@ -11,9 +11,11 @@ import org.springframework.stereotype.Service;
 import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.dto.SuMessagingThreadDTO;
+import server.demo.entity.Reservation;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.SuMessagingSenderType;
+import server.demo.repository.ReservationRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 
@@ -35,6 +37,7 @@ public class SuMessagingService {
 
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
+    private final ReservationRepository reservationRepository;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
     private final ObjectMapper objectMapper;
@@ -43,6 +46,7 @@ public class SuMessagingService {
     public SuMessagingService(
             SuMessageThreadRepository threadRepository,
             SuMessageRepository messageRepository,
+            ReservationRepository reservationRepository,
             SuApiClient suApiClient,
             SuAccessTokenService suAccessTokenService,
             ObjectMapper objectMapper,
@@ -50,6 +54,7 @@ public class SuMessagingService {
     ) {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
+        this.reservationRepository = reservationRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
         this.objectMapper = objectMapper;
@@ -161,6 +166,7 @@ public class SuMessagingService {
     public List<SuMessagingThreadDTO> listThreads(Long storeId) {
         return threadRepository.findByStoreIdOrderByLastActivityDesc(storeId).stream()
                 .map(thread -> {
+                    Reservation reservation = resolveReservationForThread(storeId, thread);
                     SuMessagingThreadDTO dto = new SuMessagingThreadDTO();
                     dto.setId(thread.getId());
                     dto.setChannelId(thread.getChannelId());
@@ -170,6 +176,9 @@ public class SuMessagingService {
                     dto.setThreadId(thread.getThreadId());
                     dto.setListingId(thread.getListingId());
                     dto.setListingName(thread.getListingName());
+                    dto.setCheckInDate(reservation != null ? reservation.getCheckInDate() : null);
+                    dto.setCheckOutDate(reservation != null ? reservation.getCheckOutDate() : null);
+                    dto.setRoomTypeName(resolveRoomTypeName(reservation));
                     dto.setLastMessage(thread.getLastMessage());
                     dto.setLastActivity(thread.getLastActivity());
                     dto.setClosed(Boolean.TRUE.equals(thread.getClosed()));
@@ -177,6 +186,60 @@ public class SuMessagingService {
                     return dto;
                 })
                 .toList();
+    }
+
+    private Reservation resolveReservationForThread(Long storeId, SuMessageThread thread) {
+        if (storeId == null || thread == null) {
+            return null;
+        }
+
+        String bookingId = normalizeThreadLookupValue(thread.getBookingId());
+        if (bookingId != null) {
+            List<Reservation> byChannelOrderNumber =
+                    reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(storeId, bookingId);
+            if (!byChannelOrderNumber.isEmpty()) {
+                return byChannelOrderNumber.get(0);
+            }
+
+            List<Reservation> byOrderNumber =
+                    reservationRepository.findByStoreIdAndOrderNumberWithRoomType(storeId, bookingId);
+            if (!byOrderNumber.isEmpty()) {
+                return byOrderNumber.get(0);
+            }
+        }
+
+        String threadId = normalizeThreadLookupValue(thread.getThreadId());
+        if (threadId != null && (bookingId == null || !threadId.equals(bookingId))) {
+            List<Reservation> byChannelOrderNumber =
+                    reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(storeId, threadId);
+            if (!byChannelOrderNumber.isEmpty()) {
+                return byChannelOrderNumber.get(0);
+            }
+
+            List<Reservation> byOrderNumber =
+                    reservationRepository.findByStoreIdAndOrderNumberWithRoomType(storeId, threadId);
+            if (!byOrderNumber.isEmpty()) {
+                return byOrderNumber.get(0);
+            }
+        }
+
+        return null;
+    }
+
+    private static String normalizeThreadLookupValue(String rawValue) {
+        if (rawValue == null) {
+            return null;
+        }
+        String normalized = rawValue.trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private static String resolveRoomTypeName(Reservation reservation) {
+        if (reservation == null || reservation.getRoom() == null || reservation.getRoom().getRoomType() == null) {
+            return null;
+        }
+        String roomTypeName = reservation.getRoom().getRoomType().getName();
+        return roomTypeName == null || roomTypeName.isBlank() ? null : roomTypeName;
     }
 
     @Transactional

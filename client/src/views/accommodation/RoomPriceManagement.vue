@@ -58,6 +58,25 @@
           </el-select>
         </div>
 
+        <div class="room-type-filter">
+          <span class="control-label">分组筛选</span>
+          <el-select
+            v-model="selectedRoomGroupId"
+            placeholder="全部"
+            size="small"
+            clearable
+            class="filter-select"
+          >
+            <el-option label="全部" :value="null" />
+            <el-option
+              v-for="group in roomGroupOptions"
+              :key="group.id"
+              :label="group.name"
+              :value="group.id"
+            />
+          </el-select>
+        </div>
+
         <el-button type="primary" @click="goToBulkUpdate" size="small">
           批量更新
         </el-button>
@@ -168,16 +187,19 @@
           </el-form-item>
 
           <el-form-item label="星期几" required>
-            <el-checkbox-group v-model="editForm.weekdays" class="weekday-group" @change="handleWeekdayChange">
-              <el-checkbox :label="0">全部</el-checkbox>
-              <el-checkbox :label="1">周一</el-checkbox>
-              <el-checkbox :label="2">周二</el-checkbox>
-              <el-checkbox :label="3">周三</el-checkbox>
-              <el-checkbox :label="4">周四</el-checkbox>
-              <el-checkbox :label="5">周五</el-checkbox>
-              <el-checkbox :label="6">周六</el-checkbox>
-              <el-checkbox :label="7">周日</el-checkbox>
-            </el-checkbox-group>
+            <div class="weekday-selector">
+              <el-checkbox-group v-model="editForm.weekdays" class="weekday-group" @change="handleWeekdayChange">
+                <el-checkbox :label="0">全部</el-checkbox>
+                <el-checkbox :label="1">周一</el-checkbox>
+                <el-checkbox :label="2">周二</el-checkbox>
+                <el-checkbox :label="3">周三</el-checkbox>
+                <el-checkbox :label="4">周四</el-checkbox>
+                <el-checkbox :label="5">周五</el-checkbox>
+                <el-checkbox :label="6">周六</el-checkbox>
+                <el-checkbox :label="7">周日</el-checkbox>
+              </el-checkbox-group>
+              <el-button text type="primary" @click="invertEditWeekdays">反选</el-button>
+            </div>
           </el-form-item>
 
           <el-form-item>
@@ -290,6 +312,8 @@ import { getAllRoomTypes } from '@/api/roomType'
 import { getAllPricePlans } from '@/api/pricePlan'
 import { getRoomPriceManagementData, updatePriceByPlan, type RoomPriceManagementDTO } from '@/api/roomPrice'
 import { getChannelPrices, type ChannelPriceDTO } from '@/api/pricelabs'
+import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO, type RoomGroupMemberDTO } from '@/api/roomGroup'
+import { getRooms, type RoomDTO } from '@/api/room'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -299,11 +323,15 @@ const loading = ref(false)
 const saving = ref(false)
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 const selectedRoomTypeId = ref<number | null>(null)
+const selectedRoomGroupId = ref<number | null>(null)
 const CALENDAR_MONTH_SPAN = 2
+type RoomGroupOption = RoomGroupDTO & { id: number }
 
 const roomTypes = ref<any[]>([])
 const pricePlans = ref<any[]>([])
 const priceData = ref<RoomPriceManagementDTO[]>([])
+const roomGroupOptions = ref<RoomGroupOption[]>([])
+const roomGroupRoomTypeIdsMap = ref<Record<number, number[]>>({})
 
 const showPriceEditDialog = ref(false)
 const priceLabsBasePriceMap = ref<Record<string, number>>({})
@@ -423,6 +451,28 @@ const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefi
   return undefined
 }
 
+const selectedGroupRoomTypeIds = computed<number[]>(() => {
+  if (selectedRoomGroupId.value === null) {
+    return []
+  }
+  return roomGroupRoomTypeIdsMap.value[selectedRoomGroupId.value] || []
+})
+
+const getFilteredDisplayRoomTypes = () => {
+  let displayRoomTypes = [...roomTypes.value]
+
+  if (selectedRoomTypeId.value !== null) {
+    displayRoomTypes = displayRoomTypes.filter((roomType) => roomType.id === selectedRoomTypeId.value)
+  }
+
+  if (selectedRoomGroupId.value !== null) {
+    const allowedRoomTypeIds = new Set(selectedGroupRoomTypeIds.value)
+    displayRoomTypes = displayRoomTypes.filter((roomType) => allowedRoomTypeIds.has(roomType.id))
+  }
+
+  return displayRoomTypes
+}
+
 const priceTableData = computed<PriceTableRow[]>(() => {
   const rows: PriceTableRow[] = []
 
@@ -433,11 +483,7 @@ const priceTableData = computed<PriceTableRow[]>(() => {
     日期列数: dateColumns.value.length
   })
 
-  // 筛选要显示的房型
-  let displayRoomTypes = roomTypes.value
-  if (selectedRoomTypeId.value !== null) {
-    displayRoomTypes = roomTypes.value.filter(rt => rt.id === selectedRoomTypeId.value)
-  }
+  const displayRoomTypes = getFilteredDisplayRoomTypes()
 
   // 按房型展示
   displayRoomTypes.forEach(roomType => {
@@ -611,6 +657,69 @@ const loadRoomTypes = async () => {
   } catch (error) {
     console.error('❌ 加载房型列表失败:', error)
     ElMessage.error('加载房型列表失败')
+  }
+}
+
+const loadRoomGroups = async () => {
+  try {
+    const [groupsResponse, roomsResponse] = await Promise.all([getAllRoomGroups(), getRooms()])
+
+    if (!groupsResponse.success || !Array.isArray(groupsResponse.data)) {
+      roomGroupOptions.value = []
+      roomGroupRoomTypeIdsMap.value = {}
+      return
+    }
+
+    roomGroupOptions.value = groupsResponse.data.filter(
+      (group): group is RoomGroupDTO & { id: number } => typeof group.id === 'number',
+    )
+
+    const roomTypeIdByRoomId = new Map<number, number>()
+    if (roomsResponse.success && Array.isArray(roomsResponse.data)) {
+      roomsResponse.data.forEach((room: RoomDTO) => {
+        if (typeof room.id === 'number' && typeof room.roomType?.id === 'number') {
+          roomTypeIdByRoomId.set(room.id, room.roomType.id)
+        }
+      })
+    }
+
+    const nextMap: Record<number, number[]> = {}
+    const memberPairs = await Promise.all(
+      roomGroupOptions.value.map(async (group) => {
+        try {
+          const membersResponse = await getGroupMembers(group.id)
+          return {
+            groupId: group.id,
+            members: membersResponse.success && Array.isArray(membersResponse.data)
+              ? membersResponse.data
+              : [],
+          }
+        } catch (error) {
+          console.error(`加载房间分组成员失败, groupId=${group.id}:`, error)
+          return {
+            groupId: group.id,
+            members: [] as RoomGroupMemberDTO[],
+          }
+        }
+      }),
+    )
+
+    memberPairs.forEach(({ groupId, members }) => {
+      const roomTypeIds = Array.from(
+        new Set(
+          members
+            .map((member) => roomTypeIdByRoomId.get(member.roomId))
+            .filter((roomTypeId): roomTypeId is number => typeof roomTypeId === 'number'),
+        ),
+      )
+      nextMap[groupId] = roomTypeIds
+    })
+
+    roomGroupRoomTypeIdsMap.value = nextMap
+  } catch (error) {
+    console.error('加载房间分组失败:', error)
+    roomGroupOptions.value = []
+    roomGroupRoomTypeIdsMap.value = {}
   }
 }
 
@@ -811,6 +920,13 @@ const handleWeekdayChange = (values: number[]) => {
   }, 0)
 }
 
+const invertEditWeekdays = () => {
+  const explicitSelected = editForm.value.weekdays.filter((value) => value !== 0)
+  const inverted = [1, 2, 3, 4, 5, 6, 7].filter((value) => !explicitSelected.includes(value))
+  editForm.value.weekdays = inverted.length === 7 ? [0, 1, 2, 3, 4, 5, 6, 7] : inverted
+  previousEditFormWeekdays = [...editForm.value.weekdays]
+}
+
 const closePriceEditDialog = () => {
   showPriceEditDialog.value = false
   // 重置上一次的星期几选择值
@@ -976,6 +1092,7 @@ watch(selectedRoomTypeId, () => {
 // 初始化
 onMounted(() => {
   loadRoomTypes()
+  loadRoomGroups()
   loadPricePlans()
   loadPriceData()
 })
@@ -1224,6 +1341,13 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.weekday-selector {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .weekday-group :deep(.el-checkbox) {

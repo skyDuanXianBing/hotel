@@ -1,5 +1,6 @@
 package server.demo.dto;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class SuMessagingThreadDTO {
@@ -12,6 +13,9 @@ public class SuMessagingThreadDTO {
     private String threadId;
     private String listingId;
     private String listingName;
+    private LocalDate checkInDate;
+    private LocalDate checkOutDate;
+    private String roomTypeName;
     private String lastMessage;
     private LocalDateTime lastActivity;
     private long unreadCount;
@@ -87,6 +91,30 @@ public class SuMessagingThreadDTO {
 
     public void setListingName(String listingName) {
         this.listingName = listingName;
+    }
+
+    public LocalDate getCheckInDate() {
+        return checkInDate;
+    }
+
+    public void setCheckInDate(LocalDate checkInDate) {
+        this.checkInDate = checkInDate;
+    }
+
+    public LocalDate getCheckOutDate() {
+        return checkOutDate;
+    }
+
+    public void setCheckOutDate(LocalDate checkOutDate) {
+        this.checkOutDate = checkOutDate;
+    }
+
+    public String getRoomTypeName() {
+        return roomTypeName;
+    }
+
+    public void setRoomTypeName(String roomTypeName) {
+        this.roomTypeName = roomTypeName;
     }
 
     public String getLastMessage() {

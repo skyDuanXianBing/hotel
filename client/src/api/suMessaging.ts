@@ -14,6 +14,9 @@ export interface SuMessagingThreadDTO {
   threadId?: string
   listingId?: string
   listingName?: string
+  checkInDate?: string
+  checkOutDate?: string
+  roomTypeName?: string
   lastMessage?: string
   lastActivity: string
   unreadCount: number

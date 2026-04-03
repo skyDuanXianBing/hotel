@@ -16,6 +16,7 @@
             value-format="YYYY-MM-DD"
             :clearable="false"
           />
+          <el-button @click="goToToday">今日</el-button>
           <el-button @click="nextWeek" :icon="ArrowRight" circle />
         </div>
 
@@ -198,12 +199,15 @@
                     'reservation-start-cell': isReservationStartCell(dailyStatus),
                     'reservation-middle-cell': isReservationMiddleCell(dailyStatus),
                     'reservation-end-cell': isReservationEndCell(dailyStatus),
+                    'room-change-drop-target': isRoomChangeDropTarget(roomData.roomId, dailyStatus.date),
                   },
                 ]"
                 @mousedown.left.prevent="onCellMouseDown($event, roomData, dailyStatus)"
                 @mouseup.left="onCellMouseUp($event, roomData, dailyStatus)"
                 @click="onCellClick($event, roomData, dailyStatus)"
                 @mouseenter="onCellMouseEnter($event, roomData, dailyStatus)"
+                @dragover="onStatusCellDragOver($event, roomData, dailyStatus)"
+                @drop="onStatusCellDrop($event, roomData, dailyStatus)"
                 :title="getCellDefaultPriceTooltip(roomData, dailyStatus)"
               >
                 <!-- 批量选择标识 -->
@@ -244,7 +248,14 @@
                 </div>
 
                 <div v-if="dailyStatus.reservation && !isRoomCollapsed" class="reservation-cell-info">
-                  <div class="reservation-ribbon">
+                  <div
+                    class="reservation-ribbon"
+                    :class="{ 'reservation-draggable': canDragReservationAtCell(dailyStatus) }"
+                    :draggable="canDragReservationAtCell(dailyStatus)"
+                    @mousedown.stop
+                    @dragstart="onReservationDragStart($event, roomData, dailyStatus)"
+                    @dragend="onReservationDragEnd"
+                  >
                     <template v-if="isReservationStartCell(dailyStatus)">
                       <div class="reservation-guest-name">{{ dailyStatus.reservation.guestName }}</div>
                       <div
@@ -518,6 +529,28 @@
               </div>
 
               
+            </div>
+          </div>
+
+          <div class="filter-section" v-if="filterOptions.roomGroups.length > 0">
+            <div class="section-header">
+              <span>分组筛选</span>
+            </div>
+
+            <div class="room-type-list">
+              <div
+                v-for="group in filterOptions.roomGroups"
+                :key="group.id"
+                class="room-type-item"
+              >
+                <el-checkbox
+                  v-model="filterOptions.selectedRoomGroupIds"
+                  :label="group.id"
+                  :value="group.id"
+                >
+                  {{ group.name }}
+                </el-checkbox>
+              </div>
             </div>
           </div>
 
@@ -1865,6 +1898,32 @@
           </div>
         </template>
       </el-dialog>
+
+      <el-dialog
+        v-model="showRoomChangeConfirmDialog"
+        title="确定要换房吗？"
+        width="520px"
+        :close-on-click-modal="false"
+      >
+        <div class="room-change-confirm-content">
+          <p class="room-change-summary" v-if="pendingRoomChange">
+            {{ pendingRoomChange.guestName || '-' }}：
+            {{ pendingRoomChange.sourceRoomNumber || '-' }} -> {{ pendingRoomChange.targetRoomNumber || '-' }}
+            （{{ pendingRoomChange.checkInDate }} 至 {{ pendingRoomChange.checkOutDate }}）
+          </p>
+          <el-checkbox v-model="roomChangeUpdatePrice" class="room-change-price-checkbox">
+            换房同时更新房价
+          </el-checkbox>
+        </div>
+        <template #footer>
+          <div class="dialog-footer">
+            <el-button @click="cancelRoomChangeConfirm">取消</el-button>
+            <el-button type="primary" :loading="roomChangeSubmitting" @click="confirmRoomChange">
+              确定
+            </el-button>
+          </div>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>
@@ -1900,6 +1959,7 @@ import {
   checkOutReservation,
   getReservationById,
   getReservationChannelInfo,
+  assignReservationRoom,
   updateReservation,
   searchReservations,
   type ReservationDTO,
@@ -1913,6 +1973,7 @@ import { request } from '@/utils/request'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRoomTypeByRoomId, getRoomCurrentPrice, getEffectiveRoomPrice, type RoomTypeDTO } from '@/api/roomType'
 import { getPricePlansByRoomType, type RoomTypePricePlanDTO } from '@/api/pricePlan'
+import { getRoomPriceManagementData, type RoomPriceManagementDTO } from '@/api/roomPrice'
 import { getSortOrderMap } from '@/api/sortConfig'
 import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO, type RoomGroupMemberDTO } from '@/api/roomGroup'
 import { calculateTotalPriceByDates } from '@/utils/priceHelper'
@@ -1982,6 +2043,32 @@ const bookingMode = ref<'create' | 'edit' | 'check-in'>('create')
 const showBookingDetailSidebar = ref(false)
 const selectedReservation = ref<any>(null)
 const activeDetailTab = ref('detail')
+
+interface ReservationDragContext {
+  reservationId: number
+  sourceRoomId: number
+  sourceRoomNumber: string
+  guestName: string
+  checkInDate: string
+  checkOutDate: string
+}
+
+interface PendingRoomChange {
+  reservationId: number
+  targetRoomId: number
+  sourceRoomNumber: string
+  targetRoomNumber: string
+  guestName: string
+  checkInDate: string
+  checkOutDate: string
+}
+
+const draggingReservationContext = ref<ReservationDragContext | null>(null)
+const roomChangeDropTargetKey = ref('')
+const showRoomChangeConfirmDialog = ref(false)
+const roomChangeUpdatePrice = ref(false)
+const roomChangeSubmitting = ref(false)
+const pendingRoomChange = ref<PendingRoomChange | null>(null)
 
 const currentOperatorName = computed(() => {
   return userStore.currentUser?.nickname || userStore.currentUser?.email || '系统'
@@ -2554,19 +2641,25 @@ const closedRoomActionData = ref<{ room: CalendarRoomData | null; date: string }
 const filterOptions = ref({
   roomTypes: [] as string[],
   selectedRoomTypes: [] as string[],
+  roomGroups: [] as Array<{ id: number; name: string }>,
+  selectedRoomGroupIds: [] as number[],
 })
 const showCellDefaultPrice = ref(false)
 const cellPriceDisplaySource = ref('default')
 const roomTypeDefaultPriceMap = ref<Map<string, number>>(new Map())
 const calendarRoomTypePricePlanMappings = ref<RoomTypePricePlanDTO[]>([])
 const loadingCellPricePlanOptions = ref(false)
+const loadingCalendarManagementPrices = ref(false)
 const loadedCellPricePlanRoomTypeIdsSignature = ref('')
+const loadedCalendarManagementPriceRangeSignature = ref('')
+const calendarManagementPriceMap = ref<Map<string, number>>(new Map())
 const DEFAULT_SORT_ORDER = 999999
 const roomTypeIdMap = ref<Map<string, number>>(new Map())
 const roomTypeSortOrderMap = ref<Record<number, number>>({})
 const roomSortOrderMap = ref<Record<number, number>>({})
 const roomGroupSortOrderMap = ref<Record<number, number>>({})
 const roomToGroupSortOrderMap = ref<Map<number, number>>(new Map())
+const roomIdToGroupIdsMap = ref<Map<number, number[]>>(new Map())
 const CELL_PRICE_VISIBLE_STORAGE_KEY = 'room-status-calendar.show-cell-default-price'
 const CELL_PRICE_SOURCE_STORAGE_KEY = 'room-status-calendar.cell-price-display-source'
 
@@ -2723,6 +2816,82 @@ const getRoomTypeIdsSignature = () => {
   return roomTypeIds.join(',')
 }
 
+const buildCalendarManagementPriceKey = (roomTypeId: number, pricePlanId: number, date: string) => {
+  return `${roomTypeId}-${pricePlanId}-${date}`
+}
+
+const resetCalendarManagementPriceCache = () => {
+  calendarManagementPriceMap.value = new Map()
+  loadedCalendarManagementPriceRangeSignature.value = ''
+}
+
+const loadCalendarManagementPrices = async (force = false) => {
+  const selectedPlanId = getSelectedCellPricePlanId()
+  if (!showCellDefaultPrice.value || !selectedPlanId) {
+    resetCalendarManagementPriceCache()
+    return
+  }
+
+  const roomTypeIds = Array.from(new Set(Array.from(roomTypeIdMap.value.values())))
+    .map((id) => Number(id))
+    .filter((id) => id > 0)
+  if (roomTypeIds.length === 0) {
+    resetCalendarManagementPriceCache()
+    return
+  }
+
+  const [startDate, endDate] = dateRange.value
+  if (!startDate || !endDate) {
+    resetCalendarManagementPriceCache()
+    return
+  }
+
+  const roomTypeIdsSignature = getRoomTypeIdsSignature()
+  const rangeSignature = `${roomTypeIdsSignature}|${selectedPlanId}|${startDate}|${endDate}`
+  if (!force && loadedCalendarManagementPriceRangeSignature.value === rangeSignature) {
+    return
+  }
+
+  loadingCalendarManagementPrices.value = true
+  try {
+    const response = await getRoomPriceManagementData(startDate, endDate)
+    const managementRows = Array.isArray(response)
+      ? response
+      : Array.isArray((response as { data?: unknown }).data)
+        ? ((response as { data: RoomPriceManagementDTO[] }).data ?? [])
+        : []
+
+    const roomTypeIdSet = new Set(roomTypeIds)
+    const nextPriceMap = new Map<string, number>()
+    managementRows.forEach((item) => {
+      const roomTypeId = Number(item.roomTypeId || 0)
+      const planId = Number(item.pricePlanId || 0)
+      const priceDate = String(item.priceDate || '')
+      const price = Number(item.price || 0)
+
+      if (!roomTypeIdSet.has(roomTypeId) || !planId || !priceDate) {
+        return
+      }
+      if (planId !== selectedPlanId) {
+        return
+      }
+      if (!Number.isFinite(price) || price <= 0) {
+        return
+      }
+
+      nextPriceMap.set(buildCalendarManagementPriceKey(roomTypeId, planId, priceDate), price)
+    })
+
+    calendarManagementPriceMap.value = nextPriceMap
+    loadedCalendarManagementPriceRangeSignature.value = rangeSignature
+  } catch (error) {
+    console.error('加载房价管理价格失败:', error)
+    resetCalendarManagementPriceCache()
+  } finally {
+    loadingCalendarManagementPrices.value = false
+  }
+}
+
 const loadCalendarPricePlanOptions = async (force = false) => {
   const roomTypeIds = Array.from(new Set(Array.from(roomTypeIdMap.value.values())))
     .map((id) => Number(id))
@@ -2731,6 +2900,7 @@ const loadCalendarPricePlanOptions = async (force = false) => {
   if (roomTypeIds.length === 0) {
     calendarRoomTypePricePlanMappings.value = []
     loadedCellPricePlanRoomTypeIdsSignature.value = ''
+    resetCalendarManagementPriceCache()
     return
   }
 
@@ -2781,36 +2951,6 @@ const loadCalendarPricePlanOptions = async (force = false) => {
   }
 }
 
-const getWeekdayFromDateString = (date: string) => {
-  const [year, month, day] = date.split('-').map((item) => Number(item))
-  if (!year || !month || !day) {
-    return null
-  }
-  const parsedDate = new Date(year, month - 1, day)
-  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate.getDay()
-}
-
-const getPricePlanPriceByDate = (mapping: RoomTypePricePlanDTO, date: string) => {
-  const weekday = getWeekdayFromDateString(date)
-  if (weekday === null) {
-    return null
-  }
-  const priceByWeekday: Array<number | undefined> = [
-    mapping.sundayPrice,
-    mapping.mondayPrice,
-    mapping.tuesdayPrice,
-    mapping.wednesdayPrice,
-    mapping.thursdayPrice,
-    mapping.fridayPrice,
-    mapping.saturdayPrice,
-  ]
-  const price = Number(priceByWeekday[weekday] ?? 0)
-  if (!Number.isFinite(price) || price <= 0) {
-    return null
-  }
-  return price
-}
-
 const getCellDisplayPriceValue = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
   if (!showCellDefaultPrice.value || isRoomCollapsed.value) {
     return null
@@ -2840,7 +2980,15 @@ const getCellDisplayPriceValue = (roomData: CalendarRoomData, dailyStatus: Daily
   if (!selectedMapping) {
     return null
   }
-  return getPricePlanPriceByDate(selectedMapping, dailyStatus.date)
+  const managementPrice = calendarManagementPriceMap.value.get(
+    buildCalendarManagementPriceKey(roomTypeId, selectedPlanId, dailyStatus.date),
+  )
+  if (managementPrice == null) {
+    return null
+  }
+  return Number.isFinite(Number(managementPrice)) && Number(managementPrice) > 0
+    ? Number(managementPrice)
+    : null
 }
 
 const getCellDisplayPriceText = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
@@ -2918,11 +3066,16 @@ const loadSortOrderMaps = async () => {
       roomGroupSortResponse.success && roomGroupSortResponse.data ? roomGroupSortResponse.data : {}
 
     const roomToGroupSortOrder = new Map<number, number>()
+    const roomIdToGroupIds = new Map<number, number[]>()
     const roomGroupsResponse = await getAllRoomGroups()
     if (roomGroupsResponse.success && Array.isArray(roomGroupsResponse.data) && roomGroupsResponse.data.length > 0) {
       const roomGroups = roomGroupsResponse.data.filter(
         (group: RoomGroupDTO) => typeof group.id === 'number',
       ) as Array<RoomGroupDTO & { id: number }>
+      filterOptions.value.roomGroups = roomGroups.map((group) => ({
+        id: group.id,
+        name: group.name,
+      }))
 
       const groupMemberPairs = await Promise.all(
         roomGroups.map(async (group) => {
@@ -2955,20 +3108,30 @@ const loadSortOrderMaps = async () => {
           if (!roomId) {
             return
           }
+          const currentGroupIds = roomIdToGroupIds.get(roomId) || []
+          if (!currentGroupIds.includes(groupId)) {
+            currentGroupIds.push(groupId)
+            roomIdToGroupIds.set(roomId, currentGroupIds)
+          }
           const previousSortOrder = roomToGroupSortOrder.get(roomId)
           if (previousSortOrder === undefined || currentGroupSortOrder < previousSortOrder) {
             roomToGroupSortOrder.set(roomId, currentGroupSortOrder)
           }
         })
       })
+    } else {
+      filterOptions.value.roomGroups = []
     }
     roomToGroupSortOrderMap.value = roomToGroupSortOrder
+    roomIdToGroupIdsMap.value = roomIdToGroupIds
   } catch (error) {
     console.error('加载排序配置失败:', error)
     roomTypeSortOrderMap.value = {}
     roomSortOrderMap.value = {}
     roomGroupSortOrderMap.value = {}
     roomToGroupSortOrderMap.value = new Map()
+    roomIdToGroupIdsMap.value = new Map()
+    filterOptions.value.roomGroups = []
   }
 }
 
@@ -3162,6 +3325,15 @@ const nextWeek = () => {
     shiftYmdDate(visibleDateRange.value[0], CALENDAR_NAVIGATION_STEP_DAYS),
     shiftYmdDate(visibleDateRange.value[1], CALENDAR_NAVIGATION_STEP_DAYS),
   ]
+}
+
+const goToToday = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const today = `${year}-${month}-${day}`
+  visibleDateRange.value = buildVisibleDateRangeFromBase(today)
 }
 
 
@@ -3495,8 +3667,12 @@ const loadRoomTypesData = async () => {
       roomTypeIdMap.value = nextRoomTypeIdMap
       roomTypeDefaultPriceMap.value = nextRoomTypeDefaultPriceMap
       loadedCellPricePlanRoomTypeIdsSignature.value = ''
+      resetCalendarManagementPriceCache()
       if (showCellDefaultPrice.value) {
         void loadCalendarPricePlanOptions(true)
+        if (cellPriceDisplaySource.value !== 'default') {
+          void loadCalendarManagementPrices(true)
+        }
       }
 
       // 更新房态数据
@@ -3530,6 +3706,7 @@ const initFilterOptions = () => {
   console.log('initFilterOptions - 提取的房型:', roomTypes)
   filterOptions.value.roomTypes = roomTypes
   filterOptions.value.selectedRoomTypes = [...roomTypes] // 默认全选
+  filterOptions.value.selectedRoomGroupIds = []
   console.log('initFilterOptions - selectedRoomTypes:', filterOptions.value.selectedRoomTypes)
 }
 
@@ -3545,6 +3722,7 @@ const applyFilters = () => {
 
 const resetFilters = () => {
   filterOptions.value.selectedRoomTypes = [...filterOptions.value.roomTypes]
+  filterOptions.value.selectedRoomGroupIds = []
 }
 
 const handleSelectAll = (checked: boolean) => {
@@ -3560,14 +3738,18 @@ const filteredRooms = computed(() => {
   console.log('filteredRooms computed - calendarData.value.rooms数量:', calendarData.value.rooms?.length)
   console.log('filteredRooms computed - selectedRoomTypes:', filterOptions.value.selectedRoomTypes)
 
-  if (filterOptions.value.selectedRoomTypes.length === 0) {
-    console.log('filteredRooms computed - selectedRoomTypes为空,返回所有房间')
-    return sortCalendarRooms(calendarData.value.rooms)
-  }
+  const hasRoomTypeFilter = filterOptions.value.selectedRoomTypes.length > 0
+  const hasRoomGroupFilter = filterOptions.value.selectedRoomGroupIds.length > 0
 
-  const filtered = calendarData.value.rooms.filter((room) =>
-    filterOptions.value.selectedRoomTypes.includes(room.roomType),
-  )
+  const filtered = calendarData.value.rooms.filter((room) => {
+    const matchedRoomType = !hasRoomTypeFilter || filterOptions.value.selectedRoomTypes.includes(room.roomType)
+    const matchedRoomGroup =
+      !hasRoomGroupFilter ||
+      (roomIdToGroupIdsMap.value.get(room.roomId) || []).some((groupId) =>
+        filterOptions.value.selectedRoomGroupIds.includes(groupId),
+      )
+    return matchedRoomType && matchedRoomGroup
+  })
   console.log('filteredRooms computed - 筛选后房间数量:', filtered.length)
   return sortCalendarRooms(filtered)
 })
@@ -3691,6 +3873,261 @@ const clearDragSelection = () => {
   dragSelectionTriggerRect.value = null
   dragSelectionOriginCells.value = new Set()
   dragSelectionMoved.value = false
+}
+
+const clearRoomChangeDragState = () => {
+  draggingReservationContext.value = null
+  roomChangeDropTargetKey.value = ''
+}
+
+const canDragReservationAtCell = (dailyStatus: DailyRoomStatus) => {
+  if (isRoomCollapsed.value || batchMode.value) {
+    return false
+  }
+  if (!dailyStatus.reservation || !isReservationStartCell(dailyStatus)) {
+    return false
+  }
+  const reservation = dailyStatus.reservation as Record<string, any>
+  const reservationId = Number(reservation.id || 0)
+  if (!reservationId) {
+    return false
+  }
+  const status = String(reservation.status || '').toUpperCase()
+  return (
+    status === 'CONFIRMED' ||
+    status === 'REQUESTED' ||
+    status === 'CHECKED_IN' ||
+    status === 'RESERVED' ||
+    status === 'NEW'
+  )
+}
+
+const isDateInReservationStayRange = (targetDate: string, checkInDate: string, checkOutDate: string) => {
+  if (!targetDate || !checkInDate || !checkOutDate) {
+    return false
+  }
+  const target = parseDateOnly(targetDate).getTime()
+  const start = parseDateOnly(checkInDate).getTime()
+  const end = parseDateOnly(checkOutDate).getTime()
+  return target >= start && target < end
+}
+
+const canDropReservationToCell = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
+  const context = draggingReservationContext.value
+  if (!context || isRoomCollapsed.value || batchMode.value) {
+    return false
+  }
+  if (roomData.roomId === context.sourceRoomId) {
+    return false
+  }
+  if (dailyStatus.reservation) {
+    return false
+  }
+  const roomStatus = getRoomExtraStatus(roomData.roomId, dailyStatus.date)
+  if (roomStatus.isClosed) {
+    return false
+  }
+  return isDateInReservationStayRange(
+    normalizeDateOnly(dailyStatus.date),
+    context.checkInDate,
+    context.checkOutDate,
+  )
+}
+
+const isRoomChangeDropTarget = (roomId: number, date: string) => {
+  return roomChangeDropTargetKey.value === getCellKey(roomId, date)
+}
+
+const onReservationDragStart = (
+  event: DragEvent,
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  if (!canDragReservationAtCell(dailyStatus)) {
+    event.preventDefault()
+    return
+  }
+  const reservation = dailyStatus.reservation as Record<string, any>
+  const reservationId = Number(reservation.id || 0)
+  const checkInDate = normalizeDateOnly(getReservationDateValue(reservation, 'checkIn'))
+  const checkOutDate = normalizeDateOnly(getReservationDateValue(reservation, 'checkOut'))
+  if (!reservationId || !checkInDate || !checkOutDate) {
+    event.preventDefault()
+    return
+  }
+
+  draggingReservationContext.value = {
+    reservationId,
+    sourceRoomId: roomData.roomId,
+    sourceRoomNumber: roomData.roomNumber || String(roomData.roomId),
+    guestName: String(reservation.guestName || ''),
+    checkInDate,
+    checkOutDate,
+  }
+  roomChangeDropTargetKey.value = ''
+  suppressNextCellClick.value = true
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(reservationId))
+  }
+}
+
+const onReservationDragEnd = () => {
+  clearRoomChangeDragState()
+}
+
+const onStatusCellDragOver = (
+  event: DragEvent,
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  if (!draggingReservationContext.value) {
+    return
+  }
+  if (!canDropReservationToCell(roomData, dailyStatus)) {
+    roomChangeDropTargetKey.value = ''
+    return
+  }
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+  roomChangeDropTargetKey.value = getCellKey(roomData.roomId, dailyStatus.date)
+}
+
+const onStatusCellDrop = (
+  event: DragEvent,
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  event.preventDefault()
+  suppressNextCellClick.value = true
+  const context = draggingReservationContext.value
+  if (!context) {
+    return
+  }
+
+  if (!canDropReservationToCell(roomData, dailyStatus)) {
+    clearRoomChangeDragState()
+    return
+  }
+
+  pendingRoomChange.value = {
+    reservationId: context.reservationId,
+    targetRoomId: roomData.roomId,
+    sourceRoomNumber: context.sourceRoomNumber,
+    targetRoomNumber: roomData.roomNumber || String(roomData.roomId),
+    guestName: context.guestName,
+    checkInDate: context.checkInDate,
+    checkOutDate: context.checkOutDate,
+  }
+  roomChangeUpdatePrice.value = false
+  showRoomChangeConfirmDialog.value = true
+  clearRoomChangeDragState()
+}
+
+const cancelRoomChangeConfirm = () => {
+  showRoomChangeConfirmDialog.value = false
+  roomChangeUpdatePrice.value = false
+  pendingRoomChange.value = null
+}
+
+const buildReservationUpdateRequest = (
+  reservation: ReservationDTO,
+  roomId: number,
+  totalAmount: number,
+): CreateReservationRequest => {
+  return {
+    guestName: reservation.guestName || '',
+    guestPhone: reservation.phone || '',
+    guestIdCard: (reservation as any).guestIdCard || '',
+    roomId,
+    channelId: Number(reservation.channelId || 0),
+    checkInDate: reservation.checkInDate,
+    checkOutDate: reservation.checkOutDate,
+    adults: Number((reservation as any).adults || 1),
+    children: Number((reservation as any).children || 0),
+    totalAmount,
+    pricePlan: reservation.pricePlan || undefined,
+    notes: reservation.notes || '',
+  }
+}
+
+const updateReservationPriceAfterRoomChange = async (reservationId: number, targetRoomId: number) => {
+  const reservationResp = await getReservationById(reservationId)
+  if (!reservationResp.success || !reservationResp.data) {
+    throw new Error(reservationResp.message || '获取最新订单信息失败')
+  }
+  const latestReservation = reservationResp.data
+  if (!latestReservation.checkInDate || !latestReservation.checkOutDate) {
+    throw new Error('订单缺少入住和退房日期，无法更新房价')
+  }
+
+  const roomTypeResp = await getRoomTypeByRoomId(targetRoomId)
+  if (!roomTypeResp.success || !roomTypeResp.data) {
+    throw new Error(roomTypeResp.message || '获取目标房型失败')
+  }
+
+  const newTotalAmount = calculateTotalPriceByDates(
+    roomTypeResp.data,
+    latestReservation.checkInDate,
+    latestReservation.checkOutDate,
+  )
+
+  const updatePayload = buildReservationUpdateRequest(
+    latestReservation,
+    targetRoomId,
+    Number(newTotalAmount || 0),
+  )
+  const updateResp = await updateReservation(reservationId, updatePayload)
+  if (!updateResp.success) {
+    throw new Error(updateResp.message || '更新房价失败')
+  }
+}
+
+const confirmRoomChange = async () => {
+  const pending = pendingRoomChange.value
+  if (!pending) {
+    return
+  }
+
+  roomChangeSubmitting.value = true
+  try {
+    const assignResp = await assignReservationRoom(pending.reservationId, pending.targetRoomId)
+    if (!assignResp.success) {
+      ElMessage.error(assignResp.message || '换房失败')
+      return
+    }
+
+    let priceUpdated = false
+    if (roomChangeUpdatePrice.value) {
+      try {
+        await updateReservationPriceAfterRoomChange(pending.reservationId, pending.targetRoomId)
+        priceUpdated = true
+      } catch (error: any) {
+        console.error('换房后更新房价失败:', error)
+        ElMessage.warning(error?.message || '换房成功，但房价更新失败')
+      }
+    }
+
+    showRoomChangeConfirmDialog.value = false
+    pendingRoomChange.value = null
+    await loadRoomStatusCalendarData()
+
+    if (roomChangeUpdatePrice.value) {
+      ElMessage.success(priceUpdated ? '换房成功，房价已更新' : '换房成功')
+      return
+    }
+    ElMessage.success('换房成功')
+  } catch (error: any) {
+    console.error('换房失败:', error)
+    ElMessage.error(error?.message || '换房失败，请稍后重试')
+  } finally {
+    roomChangeSubmitting.value = false
+    roomChangeUpdatePrice.value = false
+    clearRoomChangeDragState()
+  }
 }
 
 const canDragCreateReservation = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
@@ -5892,17 +6329,27 @@ watch(showBookingSidebar, (visible) => {
 watch(showCellDefaultPrice, (visible) => {
   persistCellPriceDisplayPreferences()
   if (!visible) {
+    resetCalendarManagementPriceCache()
     return
   }
-  void loadCalendarPricePlanOptions()
+  void (async () => {
+    await loadCalendarPricePlanOptions()
+    if (cellPriceDisplaySource.value !== 'default') {
+      await loadCalendarManagementPrices(true)
+    }
+  })()
 })
 
 watch(cellPriceDisplaySource, (source) => {
   persistCellPriceDisplayPreferences()
   if (source === 'default') {
+    resetCalendarManagementPriceCache()
     return
   }
-  void loadCalendarPricePlanOptions()
+  void (async () => {
+    await loadCalendarPricePlanOptions()
+    await loadCalendarManagementPrices(true)
+  })()
 })
 
 watch(calendarCellPricePlanOptions, (options) => {
@@ -5950,6 +6397,9 @@ onMounted(async () => {
   await loadCalendarData()
   if (showCellDefaultPrice.value) {
     await loadCalendarPricePlanOptions()
+    if (cellPriceDisplaySource.value !== 'default') {
+      await loadCalendarManagementPrices(true)
+    }
   }
 })
 
@@ -5963,6 +6413,9 @@ onActivated(async () => {
   await loadCalendarData()
   if (showCellDefaultPrice.value) {
     await loadCalendarPricePlanOptions()
+    if (cellPriceDisplaySource.value !== 'default') {
+      await loadCalendarManagementPrices(true)
+    }
   }
 })
 </script>
@@ -6208,6 +6661,12 @@ onActivated(async () => {
   background: #f0f0f0;
 }
 
+.status-cell.room-change-drop-target {
+  border-color: #409eff !important;
+  background: #e6f4ff !important;
+  box-shadow: inset 0 0 0 2px #409eff;
+}
+
 .status-available {
   background: #f6ffed;
   border: 1px solid #b7eb8f;
@@ -6284,6 +6743,15 @@ onActivated(async () => {
   flex-direction: column;
   justify-content: center;
   padding: 6px 8px;
+}
+
+.reservation-ribbon.reservation-draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.reservation-ribbon.reservation-draggable:active {
+  cursor: grabbing;
 }
 
 .status-cell.reservation-start-cell .reservation-ribbon {
@@ -7421,6 +7889,23 @@ onActivated(async () => {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.room-change-confirm-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.room-change-summary {
+  margin: 0;
+  color: #303133;
+  line-height: 1.6;
+}
+
+.room-change-price-checkbox {
+  margin-top: 4px;
 }
 
 /* 批量关房详细设置弹窗样式 */

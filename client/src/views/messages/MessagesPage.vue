@@ -3,9 +3,12 @@
     <div class="conversations-panel">
       <div class="panel-header">
         <h2>收件箱</h2>
-        <el-button text size="small" @click="refreshThreads">
-          <el-icon><Refresh /></el-icon>
-        </el-button>
+        <div class="panel-header-actions">
+          <el-button text size="small" @click="translationDialogVisible = true">翻译</el-button>
+          <el-button text size="small" @click="refreshThreads">
+            <el-icon><Refresh /></el-icon>
+          </el-button>
+        </div>
       </div>
 
       <div class="search-bar">
@@ -36,15 +39,16 @@
               </div>
             </div>
             <div class="last-message">
-              {{ conversation.channelName }} | 订单号 {{ conversation.bookingId || conversation.threadId || '-' }}
-            </div>
-            <div class="conversation-status">
-              <el-tag :type="getStatusType(conversation.closed)" size="small">
-                {{ getStatusText(conversation.closed) }}
-              </el-tag>
               <span class="channel-badge" :class="`channel-${resolveChannelStyle(conversation)}`">
                 {{ resolveChannelLabel(conversation) }}
               </span>
+              <span>{{ getConversationPreviewText(conversation) }}</span>
+            </div>
+            <div class="conversation-status">
+              <span class="conversation-stay-info">
+                {{ getConversationStayInfo(conversation) }}
+              </span>
+              <span v-if="conversation.closed" class="conversation-closed-text">已关闭</span>
             </div>
           </div>
         </div>
@@ -68,9 +72,12 @@
                 activeConversation.guestName || activeConversation.listingName || activeConversation.channelName
               }}</div>
               <div class="channel-status-text">
-                渠道: {{ activeConversation.channelName }} |
-                订单号 {{ activeConversation.bookingId || activeConversation.threadId || '-' }} |
-                {{ getStatusText(activeConversation.closed) }}
+                <span class="channel-badge" :class="`channel-${resolveChannelStyle(activeConversation)}`">
+                  {{ resolveChannelLabel(activeConversation) }}
+                </span>
+                <span>订单号 {{ activeConversation.bookingId || activeConversation.threadId || '-' }}</span>
+                <span>{{ getConversationStayInfo(activeConversation) }}</span>
+                <span v-if="activeConversation.closed">已关闭</span>
               </div>
             </div>
           </div>
@@ -131,6 +138,12 @@
                     <span v-else>{{ segment.value }}</span>
                   </template>
                 </div>
+                <div
+                  v-if="shouldShowTranslatedMessage(message)"
+                  class="message-translation"
+                >
+                  {{ getTranslatedMessageText(message) }}
+                </div>
                 <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
               </div>
             </div>
@@ -185,6 +198,43 @@
     </div>
 
     <el-dialog
+      v-model="translationDialogVisible"
+      title="消息翻译"
+      width="680px"
+      :close-on-click-modal="false"
+    >
+      <div class="translation-dialog">
+        <div class="translation-setting-row">
+          <div>
+            <div class="translation-setting-title">翻译消息</div>
+            <div class="translation-setting-desc">为当前收件箱列表和会话消息启用自动翻译</div>
+          </div>
+          <el-switch v-model="translationEnabled" />
+        </div>
+
+        <div class="translation-setting-block">
+          <div class="translation-setting-title">选择默认语言</div>
+          <div class="translation-setting-desc">我们会把消息翻译成你选择的语言</div>
+          <el-select v-model="translationTargetLanguage" style="width: 260px">
+            <el-option
+              v-for="option in TRANSLATION_LANGUAGE_OPTIONS"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="translationDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="isApplyingTranslationSettings" @click="applyTranslationSettings">
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
       v-model="aiDraftDialogVisible"
       title="AI 回复草稿"
       width="760px"
@@ -208,9 +258,49 @@
           placeholder="AI 生成的草稿会显示在这里"
         />
       </div>
+      <div class="ai-draft-section">
+        <div class="ai-draft-label">系统语言版本（当前：{{ currentSystemLanguageLabel }}）</div>
+        <el-input
+          v-model="aiDraftSystemLanguageVersion"
+          type="textarea"
+          :rows="5"
+          readonly
+          placeholder="这里显示系统语言版本，便于你阅读理解"
+        />
+      </div>
+      <div class="ai-draft-section ai-draft-section-divider">
+        <div class="ai-draft-label">继续优化草稿</div>
+        <div class="ai-polish-history">
+          <div
+            v-for="(item, index) in aiPolishHistory"
+            :key="`${item.role}-${index}`"
+            :class="['ai-polish-item', item.role]"
+          >
+            <div class="role">{{ item.role === 'user' ? '你' : 'GPT' }}</div>
+            <div class="content">{{ item.content }}</div>
+          </div>
+          <div v-if="!aiPolishHistory.length" class="ai-polish-empty">
+            输入你希望优化的方向，例如：更礼貌、更简短、增加入住步骤说明。
+          </div>
+        </div>
+        <el-input
+          v-model="aiPolishInstruction"
+          type="textarea"
+          :rows="4"
+          placeholder="告诉 GPT 你想怎么改这版草稿"
+        />
+        <div class="ai-polish-actions">
+          <el-button
+            :disabled="!aiPolishInstruction.trim() || isAiPolishing"
+            :loading="isAiPolishing"
+            @click="polishAiDraftReply"
+          >
+            生成改进版并回填草稿
+          </el-button>
+        </div>
+      </div>
       <template #footer>
         <el-button @click="aiDraftDialogVisible = false">关闭</el-button>
-        <el-button @click="openAiPolishDialog">继续优化</el-button>
         <el-button
           type="primary"
           :disabled="!aiDraftReply.trim() || isSending"
@@ -218,46 +308,6 @@
           @click="sendAiDraftReply"
         >
           发送该草稿
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog
-      v-model="aiPolishDialogVisible"
-      title="和 GPT 继续优化"
-      width="760px"
-      :close-on-click-modal="false"
-    >
-      <div class="ai-polish-history">
-        <div
-          v-for="(item, index) in aiPolishHistory"
-          :key="`${item.role}-${index}`"
-          :class="['ai-polish-item', item.role]"
-        >
-          <div class="role">{{ item.role === 'user' ? '你' : 'GPT' }}</div>
-          <div class="content">{{ item.content }}</div>
-        </div>
-        <div v-if="!aiPolishHistory.length" class="ai-polish-empty">
-          输入你希望优化的方向，例如：更礼貌、更简短、增加入住步骤说明。
-        </div>
-      </div>
-
-      <el-input
-        v-model="aiPolishInstruction"
-        type="textarea"
-        :rows="4"
-        placeholder="告诉 GPT 你想怎么改这版草稿"
-      />
-
-      <template #footer>
-        <el-button @click="aiPolishDialogVisible = false">完成优化</el-button>
-        <el-button
-          type="primary"
-          :disabled="!aiPolishInstruction.trim() || isAiPolishing"
-          :loading="isAiPolishing"
-          @click="polishAiDraftReply"
-        >
-          生成改进版并回填草稿
         </el-button>
       </template>
     </el-dialog>
@@ -350,6 +400,7 @@ import {
   type QuickReplyTemplateContext,
 } from '@/utils/quickReplyTemplate'
 import { useStoreStore } from '@/stores/store'
+import { LANGUAGE_OPTIONS } from '@/constants/storeOptions'
 
 interface MessageItem {
   id: number
@@ -408,6 +459,13 @@ const AI_CONTEXT_LIMITS = {
   maxSingleMessageChars: 1200,
   maxTotalChars: 7000,
 } as const
+const TRANSLATION_SETTINGS_STORAGE_KEY = 'messages.translation.settings'
+const TRANSLATION_LANGUAGE_OPTIONS = [
+  { value: 'zh-CN', label: '中文(简体)' },
+  { value: 'en', label: 'English' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' },
+] as const
 
 const truncateText = (content: string, maxChars: number) => {
   if (content.length <= maxChars) {
@@ -446,9 +504,9 @@ const isSending = ref(false)
 const isAiGeneratingDraft = ref(false)
 const isAiPolishing = ref(false)
 const aiDraftDialogVisible = ref(false)
-const aiPolishDialogVisible = ref(false)
 const aiContextSummary = ref('')
 const aiDraftReply = ref('')
+const aiDraftSystemLanguageVersion = ref('')
 const aiPolishInstruction = ref('')
 const aiPolishHistory = ref<AiPolishItem[]>([])
 const aiAssistantSessionId = ref<string>()
@@ -465,26 +523,108 @@ const quickReplyLoading = ref(false)
 const quickReplies = ref<QuickReplyDTO[]>([])
 const quickReplySearchQuery = ref('')
 const isApplyingQuickReply = ref(false)
+const translationDialogVisible = ref(false)
+const isApplyingTranslationSettings = ref(false)
+const translationEnabled = ref(false)
+const translationTargetLanguage = ref<(typeof TRANSLATION_LANGUAGE_OPTIONS)[number]['value']>('zh-CN')
+const translatedMessageMap = ref<Record<string, string>>({})
+const translatedConversationPreviewMap = ref<Record<string, string>>({})
 
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
 let isDestroyed = false
 let localMessageSeed = -1
 const reservationIdCache = new Map<string, number | null>()
+const translationPendingKeys = new Set<string>()
 
+const DEFAULT_STORE_LANGUAGE = 'zh'
+const DEFAULT_STORE_TIME_ZONE = 'Asia/Shanghai'
+const STORE_LANGUAGE_AI_LABEL_MAP: Record<string, string> = {
+  zh: '中文(简体)',
+  en: 'English',
+  ja: '日本語',
+  ko: '한국어',
+}
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-const TOKYO_TIME_ZONE = 'Asia/Tokyo'
-const TOKYO_OFFSET_SUFFIX = '+09:00'
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
-const TOKYO_TIME_FORMATTER = new Intl.DateTimeFormat('zh-CN', {
-  timeZone: TOKYO_TIME_ZONE,
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
+const currentStoreLanguageCode = computed(() => {
+  const rawCode = (storeStore.currentStore?.language || DEFAULT_STORE_LANGUAGE).trim().toLowerCase()
+  if (rawCode.startsWith('zh')) {
+    return 'zh'
+  }
+  if (rawCode.startsWith('en')) {
+    return 'en'
+  }
+  if (rawCode.startsWith('ja')) {
+    return 'ja'
+  }
+  if (rawCode.startsWith('ko')) {
+    return 'ko'
+  }
+  return DEFAULT_STORE_LANGUAGE
 })
 
-const parseTokyoDateTime = (rawValue: string | Date) => {
+const currentSystemLanguageLabel = computed(() => {
+  const option = LANGUAGE_OPTIONS.find((item) => item.value === currentStoreLanguageCode.value)
+  const raw = option?.label || '简体中文（zh）'
+  return raw.replace(/（.*?）/g, '').trim() || '简体中文'
+})
+
+const currentStoreTimeZone = computed(() => {
+  const timezone = (storeStore.currentStore?.timezone || DEFAULT_STORE_TIME_ZONE).trim()
+  return timezone || DEFAULT_STORE_TIME_ZONE
+})
+
+const resolveSystemLanguageAiLabel = () =>
+  STORE_LANGUAGE_AI_LABEL_MAP[currentStoreLanguageCode.value] || STORE_LANGUAGE_AI_LABEL_MAP.zh
+
+const buildDateTimeFormatter = (
+  locale: string,
+  timeZone: string,
+  options: Omit<Intl.DateTimeFormatOptions, 'timeZone'>,
+) => new Intl.DateTimeFormat(locale, { ...options, timeZone })
+
+const getStoreTimeFormatter = () =>
+  buildDateTimeFormatter('zh-CN', currentStoreTimeZone.value, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+
+const getStoreDateKeyFormatter = () =>
+  buildDateTimeFormatter('en-CA', currentStoreTimeZone.value, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+
+const getTimeZoneOffsetMinutes = (date: Date, timeZone: string) => {
+  const formatter = buildDateTimeFormatter('en-US', timeZone, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+  const parts = formatter.formatToParts(date)
+  const getPart = (partType: 'year' | 'month' | 'day' | 'hour' | 'minute' | 'second') =>
+    Number(parts.find((part) => part.type === partType)?.value || '0')
+
+  const utcTimestamp = Date.UTC(
+    getPart('year'),
+    getPart('month') - 1,
+    getPart('day'),
+    getPart('hour'),
+    getPart('minute'),
+    getPart('second'),
+  )
+  return (utcTimestamp - date.getTime()) / (60 * 1000)
+}
+
+const parseStoreDateTime = (rawValue: string | Date) => {
   if (rawValue instanceof Date) {
     return rawValue
   }
@@ -496,14 +636,36 @@ const parseTokyoDateTime = (rawValue: string | Date) => {
 
   const normalized = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T')
   const hasTimezone = /([zZ]|[+\-]\d{2}:?\d{2})$/.test(normalized)
-  const withTimezone = hasTimezone ? normalized : `${normalized}${TOKYO_OFFSET_SUFFIX}`
-  const parsed = new Date(withTimezone)
-
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed
+  if (hasTimezone) {
+    const parsed = new Date(normalized)
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed
+    }
   }
 
-  return new Date(trimmed)
+  const matched = normalized.match(
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/,
+  )
+  if (matched) {
+    const [, yearText, monthText, dayText, hourText, minuteText, secondText] = matched
+    const utcGuess = Date.UTC(
+      Number(yearText),
+      Number(monthText) - 1,
+      Number(dayText),
+      Number(hourText),
+      Number(minuteText),
+      Number(secondText || '0'),
+    )
+    const offsetMinutes = getTimeZoneOffsetMinutes(new Date(utcGuess), currentStoreTimeZone.value)
+    return new Date(utcGuess - offsetMinutes * 60 * 1000)
+  }
+
+  const fallback = new Date(trimmed)
+  if (!Number.isNaN(fallback.getTime())) {
+    return fallback
+  }
+
+  return new Date(0)
 }
 
 const getFormatterPart = (
@@ -515,17 +677,11 @@ const getFormatterPart = (
   return part?.value || '00'
 }
 
-const TOKYO_DATE_KEY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
-  timeZone: TOKYO_TIME_ZONE,
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-})
-
-const getTokyoDateKey = (date: Date) => {
-  const year = getFormatterPart(TOKYO_DATE_KEY_FORMATTER, date, 'year')
-  const month = getFormatterPart(TOKYO_DATE_KEY_FORMATTER, date, 'month')
-  const day = getFormatterPart(TOKYO_DATE_KEY_FORMATTER, date, 'day')
+const getStoreDateKey = (date: Date) => {
+  const formatter = getStoreDateKeyFormatter()
+  const year = getFormatterPart(formatter, date, 'year')
+  const month = getFormatterPart(formatter, date, 'month')
+  const day = getFormatterPart(formatter, date, 'day')
   return `${year}-${month}-${day}`
 }
 
@@ -537,9 +693,9 @@ const parseDateKeyUtc = (dateKey: string) => {
   return new Date(Date.UTC(year, month - 1, day))
 }
 
-const getDateDiffByTokyoDay = (target: Date, base: Date) => {
-  const targetDay = parseDateKeyUtc(getTokyoDateKey(target)).getTime()
-  const baseDay = parseDateKeyUtc(getTokyoDateKey(base)).getTime()
+const getDateDiffByStoreDay = (target: Date, base: Date) => {
+  const targetDay = parseDateKeyUtc(getStoreDateKey(target)).getTime()
+  const baseDay = parseDateKeyUtc(getStoreDateKey(base)).getTime()
   return Math.floor((baseDay - targetDay) / ONE_DAY_MS)
 }
 
@@ -577,11 +733,172 @@ const activeConversation = computed(() => {
   return conversations.value.find((conversation) => conversation.id === activeThreadId.value) || null
 })
 
+const loadTranslationSettings = () => {
+  const raw = localStorage.getItem(TRANSLATION_SETTINGS_STORAGE_KEY)
+  if (!raw) {
+    return
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      enabled?: boolean
+      targetLanguage?: (typeof TRANSLATION_LANGUAGE_OPTIONS)[number]['value']
+    }
+    translationEnabled.value = Boolean(parsed.enabled)
+    if (
+      parsed.targetLanguage &&
+      TRANSLATION_LANGUAGE_OPTIONS.some((item) => item.value === parsed.targetLanguage)
+    ) {
+      translationTargetLanguage.value = parsed.targetLanguage
+    }
+  } catch (error) {
+    console.error('读取翻译设置失败:', error)
+  }
+}
+
+const persistTranslationSettings = () => {
+  localStorage.setItem(
+    TRANSLATION_SETTINGS_STORAGE_KEY,
+    JSON.stringify({
+      enabled: translationEnabled.value,
+      targetLanguage: translationTargetLanguage.value,
+    }),
+  )
+}
+
+const requestAiTranslationToLanguage = async (sourceText: string, targetLanguageLabel: string) => {
+  const trimmed = sourceText.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  const response = (await sendChatMessage({
+    message: [
+      `请把下面内容翻译成${targetLanguageLabel}。`,
+      '要求：',
+      '1. 只返回翻译后的正文，不要添加解释、标题、引号或前缀。',
+      '2. 保留原始链接、订单号、日期、房号、金额等结构化内容。',
+      '3. 如果原文已经是目标语言，也只返回润色后的同语言正文。',
+      '',
+      trimmed,
+    ].join('\n'),
+  })) as ApiResponse<{ reply: string }>
+
+  if (response.success === false || !response.data?.reply) {
+    throw new Error(sanitizeUserFacingMessage(response.message) || '翻译失败')
+  }
+
+  return normalizeTranslatedText(response.data.reply)
+}
+
+const requestAiTranslation = async (sourceText: string) =>
+  requestAiTranslationToLanguage(sourceText, getTranslationLanguageLabel())
+
+const syncSystemLanguageDraftVersion = async (guestFacingDraft: string) => {
+  const trimmed = guestFacingDraft.trim()
+  if (!trimmed) {
+    aiDraftSystemLanguageVersion.value = ''
+    return
+  }
+
+  try {
+    aiDraftSystemLanguageVersion.value = '正在生成系统语言版本...'
+    const translated = await requestAiTranslationToLanguage(trimmed, resolveSystemLanguageAiLabel())
+    aiDraftSystemLanguageVersion.value = translated || trimmed
+  } catch (error) {
+    console.error('生成系统语言版本失败:', error)
+    aiDraftSystemLanguageVersion.value = trimmed
+  }
+}
+
+const ensureConversationPreviewTranslation = async (conversation: SuMessagingThreadDTO) => {
+  if (!translationEnabled.value || !conversation.lastMessage?.trim()) {
+    return
+  }
+
+  const key = getConversationPreviewKey(conversation)
+  if (translatedConversationPreviewMap.value[key] || translationPendingKeys.has(key)) {
+    return
+  }
+
+  translationPendingKeys.add(key)
+  try {
+    const translated = await requestAiTranslation(conversation.lastMessage)
+    translatedConversationPreviewMap.value = {
+      ...translatedConversationPreviewMap.value,
+      [key]: translated,
+    }
+  } catch (error) {
+    console.error('翻译会话摘要失败:', error)
+  } finally {
+    translationPendingKeys.delete(key)
+  }
+}
+
+const ensureMessageTranslation = async (message: MessageItem) => {
+  if (!translationEnabled.value || !message.content.trim()) {
+    return
+  }
+
+  const key = getMessageTranslationKey(message)
+  if (translatedMessageMap.value[key] || translationPendingKeys.has(key)) {
+    return
+  }
+
+  translationPendingKeys.add(key)
+  try {
+    const translated = await requestAiTranslation(message.content)
+    translatedMessageMap.value = {
+      ...translatedMessageMap.value,
+      [key]: translated,
+    }
+  } catch (error) {
+    console.error('翻译消息失败:', error)
+  } finally {
+    translationPendingKeys.delete(key)
+  }
+}
+
+const translateCurrentConversation = async () => {
+  if (!translationEnabled.value) {
+    return
+  }
+  await Promise.all(messages.value.map((message) => ensureMessageTranslation(message)))
+}
+
+const translateConversationPreviews = async () => {
+  if (!translationEnabled.value) {
+    return
+  }
+  await Promise.all(conversations.value.map((conversation) => ensureConversationPreviewTranslation(conversation)))
+}
+
+const applyTranslationSettings = async () => {
+  isApplyingTranslationSettings.value = true
+  try {
+    persistTranslationSettings()
+    translationDialogVisible.value = false
+    if (translationEnabled.value) {
+      translatedMessageMap.value = {}
+      translatedConversationPreviewMap.value = {}
+      translationPendingKeys.clear()
+      await translateConversationPreviews()
+      await translateCurrentConversation()
+    }
+    ElMessage.success('翻译设置已更新')
+  } catch (error) {
+    console.error('应用翻译设置失败:', error)
+    ElMessage.error(resolveAiErrorMessage(error, '翻译设置保存失败'))
+  } finally {
+    isApplyingTranslationSettings.value = false
+  }
+}
+
 const groupedMessages = computed<GroupedMessages[]>(() => {
   const groups = new Map<string, MessageItem[]>()
 
   for (const message of sortMessagesByTime(messages.value)) {
-    const key = getTokyoDateKey(message.timestamp)
+    const key = getStoreDateKey(message.timestamp)
     const existing = groups.get(key)
     if (existing) {
       existing.push(message)
@@ -596,9 +913,6 @@ const groupedMessages = computed<GroupedMessages[]>(() => {
     items,
   }))
 })
-
-const getStatusType = (closed: boolean) => (closed ? 'info' : 'success')
-const getStatusText = (closed: boolean) => (closed ? '已关闭' : '活跃')
 
 const formatUnreadCount = (count: number) => (count > 99 ? '99+' : String(count))
 
@@ -622,6 +936,37 @@ const resolveChannelLabel = (conversation: SuMessagingThreadDTO) => {
     return 'Airbnb'
   }
   return conversation.channelName || '渠道'
+}
+
+const getConversationPreviewKey = (conversation: SuMessagingThreadDTO) =>
+  `conversation:${conversation.id}:${conversation.lastMessage || ''}`
+
+const getMessageTranslationKey = (message: MessageItem) => `message:${message.id}:${message.content}`
+
+const getTranslationLanguageLabel = () =>
+  TRANSLATION_LANGUAGE_OPTIONS.find((item) => item.value === translationTargetLanguage.value)?.label ||
+  '中文(简体)'
+
+const normalizeTranslatedText = (text: string) =>
+  text
+    .replace(/^译文[:：]\s*/i, '')
+    .replace(/^translation[:：]\s*/i, '')
+    .trim()
+
+const getConversationPreviewText = (conversation: SuMessagingThreadDTO) => {
+  const bookingNo = conversation.bookingId || conversation.threadId || '-'
+  return `订单号 ${bookingNo}`
+}
+
+const getTranslatedMessageText = (message: MessageItem) =>
+  translatedMessageMap.value[getMessageTranslationKey(message)] || ''
+
+const shouldShowTranslatedMessage = (message: MessageItem) => {
+  if (!translationEnabled.value) {
+    return false
+  }
+  const translated = getTranslatedMessageText(message)
+  return Boolean(translated && translated !== message.content.trim())
 }
 
 const normalizeSenderName = (senderName?: string) => {
@@ -648,7 +993,7 @@ const mapMessage = (message: SuMessagingMessageDTO): MessageItem => ({
   id: message.id,
   senderType: message.senderType,
   content: message.content,
-  timestamp: parseTokyoDateTime(message.timestamp),
+  timestamp: parseStoreDateTime(message.timestamp),
   senderName: normalizeSenderName(message.senderName),
   deliveryStatus: message.deliveryStatus,
 })
@@ -657,7 +1002,7 @@ const mapRealtimeMessage = (message: RealtimeMessageItem): MessageItem => ({
   id: message.id,
   senderType: message.senderType as SuMessagingSenderType,
   content: message.content,
-  timestamp: parseTokyoDateTime(message.timestamp),
+  timestamp: parseStoreDateTime(message.timestamp),
   senderName: normalizeSenderName(message.senderName),
   deliveryStatus: message.deliveryStatus,
 })
@@ -750,8 +1095,8 @@ const formatDateDividerLabel = (dateKey: string) => {
   const year = Number(yearText)
   const month = Number(monthText)
   const day = Number(dayText)
-  const tokyoNowYear = Number(getFormatterPart(TOKYO_DATE_KEY_FORMATTER, new Date(), 'year'))
-  const yearPrefix = year === tokyoNowYear ? '' : `${year}年`
+  const storeNowYear = Number(getFormatterPart(getStoreDateKeyFormatter(), new Date(), 'year'))
+  const yearPrefix = year === storeNowYear ? '' : `${year}年`
   return `${yearPrefix}${month}月${day}日 ${WEEKDAYS[parsed.getUTCDay()]}`
 }
 
@@ -790,6 +1135,9 @@ const refreshThreads = async () => {
     }
 
     conversations.value = response.data || []
+    if (translationEnabled.value) {
+      void translateConversationPreviews()
+    }
     await ensureActiveConversation()
     await applyRouteConversationTarget()
   } catch (error) {
@@ -807,6 +1155,9 @@ const loadThreadMessages = async (threadId: number) => {
 
     const incoming = (response.data || []).map(mapMessage)
     messages.value = sortMessagesByTime(incoming)
+    if (translationEnabled.value) {
+      void translateCurrentConversation()
+    }
     await scrollToBottom()
   } catch (error) {
     console.error('加载会话消息失败:', error)
@@ -900,11 +1251,11 @@ const openAiReplyAssistant = async () => {
 
   isAiGeneratingDraft.value = true
   aiDraftDialogVisible.value = true
-  aiPolishDialogVisible.value = false
   aiPolishHistory.value = []
   aiPolishInstruction.value = ''
   aiContextSummary.value = '正在分析会话上下文...'
   aiDraftReply.value = '正在生成初始回复草稿...'
+  aiDraftSystemLanguageVersion.value = '正在生成系统语言版本...'
 
   try {
     const context = buildConversationContextForAi()
@@ -912,7 +1263,7 @@ const openAiReplyAssistant = async () => {
       '你是酒店客服AI助手，请根据会话内容完成两件事：',
       '1) 总结住客当前问题上下文；',
       '2) 给出一版可直接发送给住客的初始回复。',
-      '要求：回复语气专业、简洁、友好；回复语言跟随住客最近一条消息；不编造未确认事实。',
+      '要求：回复语气专业、简洁、友好；回复语言必须与住客最近一条消息保持一致；不编造未确认事实。',
       '输出格式必须严格如下：',
       '[CONTEXT]',
       '...上下文总结...',
@@ -937,23 +1288,18 @@ const openAiReplyAssistant = async () => {
     aiAssistantSessionId.value = response.data.sessionId || aiAssistantSessionId.value
     const parsed = parseAiDraftResponse(response.data.reply)
     aiContextSummary.value = parsed.contextSummary || buildFallbackContextSummary()
-    aiDraftReply.value = parsed.draftReply || response.data.reply.trim()
+    const guestFacingDraft = parsed.draftReply || response.data.reply.trim()
+    aiDraftReply.value = guestFacingDraft
+    await syncSystemLanguageDraftVersion(guestFacingDraft)
   } catch (error) {
     console.error('生成AI初稿失败:', error)
     aiContextSummary.value = buildFallbackContextSummary()
     aiDraftReply.value = ''
+    aiDraftSystemLanguageVersion.value = ''
     ElMessage.error(resolveAiErrorMessage(error, 'AI初稿生成失败'))
   } finally {
     isAiGeneratingDraft.value = false
   }
-}
-
-const openAiPolishDialog = () => {
-  if (!aiDraftReply.value.trim()) {
-    ElMessage.warning('当前没有可优化的草稿')
-    return
-  }
-  aiPolishDialogVisible.value = true
 }
 
 const polishAiDraftReply = async () => {
@@ -976,6 +1322,7 @@ const polishAiDraftReply = async () => {
     const prompt = [
       '你是酒店客服改写助手，请改进下面这条客服回复草稿。',
       '请严格返回“可直接发送给住客的完整回复正文”，不要加解释。',
+      '请保持草稿使用住客语言，不要改成系统语言。',
       '',
       `会话上下文总结：${aiContextSummary.value}`,
       '',
@@ -998,6 +1345,7 @@ const polishAiDraftReply = async () => {
     aiAssistantSessionId.value = response.data.sessionId || aiAssistantSessionId.value
     const polished = response.data.reply.trim()
     aiDraftReply.value = polished
+    await syncSystemLanguageDraftVersion(polished)
     aiPolishHistory.value.push({
       role: 'assistant',
       content: polished,
@@ -1091,7 +1439,6 @@ const sendAiDraftReply = async () => {
   const sent = await sendMessageContent(content)
   if (sent) {
     aiDraftDialogVisible.value = false
-    aiPolishDialogVisible.value = false
     aiPolishInstruction.value = ''
   }
 }
@@ -1104,6 +1451,9 @@ const upsertMessage = (incoming: MessageItem) => {
     messages.value.push(incoming)
   }
   messages.value = sortMessagesByTime(messages.value)
+  if (translationEnabled.value) {
+    void ensureMessageTranslation(incoming)
+  }
 }
 
 const handleRealtimeEvent = async (event: SuMessagingRealtimeEvent) => {
@@ -1177,23 +1527,23 @@ const connectRealtimeSocket = () => {
 }
 
 const formatConversationTime = (dateString: string) => {
-  const date = parseTokyoDateTime(dateString)
+  const date = parseStoreDateTime(dateString)
   if (Number.isNaN(date.getTime())) {
     return '-'
   }
 
   const now = new Date()
-  const diffDays = getDateDiffByTokyoDay(date, now)
+  const diffDays = getDateDiffByStoreDay(date, now)
 
   if (diffDays === 0) {
-    return TOKYO_TIME_FORMATTER.format(date)
+    return getStoreTimeFormatter().format(date)
   }
 
   if (diffDays === 1) {
     return '昨天'
   }
 
-  const [, month, day] = getTokyoDateKey(date).split('-')
+  const [, month, day] = getStoreDateKey(date).split('-')
   return `${month}-${day}`
 }
 
@@ -1201,7 +1551,27 @@ const formatMessageTime = (date: Date) => {
   if (Number.isNaN(date.getTime())) {
     return '-'
   }
-  return TOKYO_TIME_FORMATTER.format(date)
+  return getStoreTimeFormatter().format(date)
+}
+
+const formatStayDate = (dateText?: string) => {
+  if (!dateText) {
+    return '-'
+  }
+  return dateText
+}
+
+const getConversationStayInfo = (conversation: SuMessagingThreadDTO) => {
+  const parts = [
+    `入住 ${formatStayDate(conversation.checkInDate)}`,
+    `离店 ${formatStayDate(conversation.checkOutDate)}`,
+  ]
+
+  if (conversation.roomTypeName) {
+    parts.push(`房型 ${conversation.roomTypeName}`)
+  }
+
+  return parts.join(' · ')
 }
 
 const toComparableText = (value?: string | null) => (value || '').trim().toLowerCase()
@@ -1553,6 +1923,7 @@ watch(
 )
 
 onMounted(() => {
+  loadTranslationSettings()
   void initialize()
 })
 
@@ -1590,6 +1961,12 @@ onUnmounted(() => {
   font-size: 18px;
   font-weight: 600;
   color: #333;
+}
+
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .search-bar {
@@ -1667,11 +2044,27 @@ onUnmounted(() => {
   line-height: 1.5;
 }
 
+.last-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .conversation-status {
   margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.conversation-stay-info,
+.conversation-closed-text {
+  color: #909399;
+  font-size: 12px;
 }
 
 .channel-badge {
@@ -1737,6 +2130,13 @@ onUnmounted(() => {
   gap: 16px;
 }
 
+.channel-status-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .header-actions {
   flex-shrink: 0;
 }
@@ -1779,6 +2179,16 @@ onUnmounted(() => {
   line-height: 1.6;
   white-space: pre-line;
   overflow-wrap: anywhere;
+}
+
+.message-translation {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ebeef5;
+  color: #606266;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
 }
 
 .message-link {
@@ -1877,6 +2287,11 @@ onUnmounted(() => {
   margin-bottom: 16px;
 }
 
+.ai-draft-section-divider {
+  padding-top: 16px;
+  border-top: 1px solid #ebeef5;
+}
+
 .ai-draft-label {
   margin-bottom: 8px;
   font-size: 13px;
@@ -1924,6 +2339,44 @@ onUnmounted(() => {
 .ai-polish-empty {
   font-size: 13px;
   color: #909399;
+}
+
+.ai-polish-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.translation-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.translation-setting-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.translation-setting-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.translation-setting-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.translation-setting-desc {
+  margin-top: 6px;
+  font-size: 14px;
+  color: #909399;
+  line-height: 1.6;
 }
 
 .empty-state {
