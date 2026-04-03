@@ -196,6 +196,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
             @Param("statuses") Set<ReservationStatus> statuses
     );
 
+    @Query("""
+            SELECT r
+            FROM Reservation r
+            LEFT JOIN FETCH r.channel
+            WHERE r.storeId = :storeId
+              AND r.room.id IN :roomIds
+              AND r.checkInDate <= :endDate
+              AND r.checkOutDate > :startDate
+              AND r.status IN :statuses
+            """)
+    List<Reservation> findByStoreIdAndRoomIdInAndDateRangeAndStatusesWithChannel(
+            @Param("storeId") Long storeId,
+            @Param("roomIds") List<Long> roomIds,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("statuses") Set<ReservationStatus> statuses
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE Reservation r

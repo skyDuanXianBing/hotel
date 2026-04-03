@@ -333,7 +333,7 @@ const saving = ref(false)
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 const selectedRoomTypeId = ref<number | null>(null)
 const selectedRoomGroupId = ref<number | null>(null)
-const CALENDAR_MONTH_SPAN = 2
+const CALENDAR_MONTH_SPAN = 1
 type RoomGroupOption = RoomGroupDTO & { id: number }
 
 const roomTypes = ref<any[]>([])

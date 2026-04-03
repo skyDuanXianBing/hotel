@@ -3416,7 +3416,7 @@ const calendarData = ref<{
 })
 
 const CALENDAR_DAYS_BEFORE_BASE = 2
-const CALENDAR_VISIBLE_MONTHS = 2
+const CALENDAR_VISIBLE_MONTHS = 1
 const CALENDAR_NAVIGATION_STEP_DAYS = 30
 
 const buildVisibleDateRangeFromBase = (baseDateValue: string): [string, string] => {

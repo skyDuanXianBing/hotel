@@ -1,5 +1,7 @@
 import { request } from '@/utils/request'
 
+const ROOM_STATUS_CALENDAR_TIMEOUT_MS = 30000
+
 // 房态日历相关数据结构
 export interface DailyRoomStatusDTO {
   date: string
@@ -64,6 +66,7 @@ export const getRoomStatusCalendar = async (
 ): Promise<ApiResponse<RoomStatusCalendarDTO>> => {
   return await request.get('/room-status/calendar', {
     params: { startDate, endDate },
+    timeout: ROOM_STATUS_CALENDAR_TIMEOUT_MS,
   })
 }
 
