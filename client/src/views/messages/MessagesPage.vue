@@ -461,6 +461,8 @@ const AI_CONTEXT_LIMITS = {
   maxSingleMessageChars: 1200,
   maxTotalChars: 7000,
 } as const
+const AI_TRANSLATION_TIMEOUT_MS = 45_000
+const AI_ASSISTANT_TIMEOUT_MS = 60_000
 const INITIAL_MESSAGE_TRANSLATION_BATCH = 20
 const SCROLL_TRANSLATION_DEBOUNCE_MS = 220
 const TRANSLATION_SETTINGS_STORAGE_KEY = 'messages.translation.settings'
@@ -789,6 +791,9 @@ const requestAiTranslationToLanguage = async (sourceText: string, targetLanguage
       '',
       trimmed,
     ].join('\n'),
+  }, {
+    timeoutMs: AI_TRANSLATION_TIMEOUT_MS,
+    suppressErrorToast: true,
   })) as ApiResponse<{ reply: string }>
 
   if (response.success === false || !response.data?.reply) {
@@ -962,9 +967,10 @@ const applyTranslationSettings = async () => {
       translatedMessageMap.value = {}
       translatedConversationPreviewMap.value = {}
       translationPendingKeys.clear()
-      await translateCurrentConversation()
+      void translateCurrentConversation()
       await nextTick()
-      await translateVisibleMessages()
+      void translateVisibleMessages()
+      void translateConversationPreviews()
     }
     ElMessage.success('翻译设置已更新')
   } catch (error) {
@@ -1234,7 +1240,7 @@ const loadThreadMessages = async (threadId: number) => {
     const incoming = (response.data || []).map(mapMessage)
     messages.value = sortMessagesByTime(incoming)
     if (translationEnabled.value) {
-      await translateCurrentConversation()
+      void translateCurrentConversation()
     }
     await scrollToBottom()
     if (translationEnabled.value) {
@@ -1361,6 +1367,9 @@ const openAiReplyAssistant = async () => {
     const response = (await sendChatMessage({
       sessionId: aiAssistantSessionId.value,
       message: prompt,
+    }, {
+      timeoutMs: AI_ASSISTANT_TIMEOUT_MS,
+      suppressErrorToast: true,
     })) as ApiResponse<{ reply: string; sessionId: string }>
 
     if (response.success === false || !response.data?.reply) {
@@ -1418,6 +1427,9 @@ const polishAiDraftReply = async () => {
     const response = (await sendChatMessage({
       sessionId: aiAssistantSessionId.value,
       message: prompt,
+    }, {
+      timeoutMs: AI_ASSISTANT_TIMEOUT_MS,
+      suppressErrorToast: true,
     })) as ApiResponse<{ reply: string; sessionId: string }>
 
     if (response.success === false || !response.data?.reply) {

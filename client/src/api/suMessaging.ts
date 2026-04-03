@@ -1,5 +1,7 @@
 import request from '@/utils/request'
 
+const SU_MESSAGING_TIMEOUT_MS = 30_000
+
 export enum SuMessagingSenderType {
   GUEST = 'GUEST',
   STAFF = 'STAFF',
@@ -46,6 +48,7 @@ export const getSuThreads = () => {
   return request<SuMessagingThreadDTO[]>({
     url: '/su-messaging/threads',
     method: 'get',
+    timeout: SU_MESSAGING_TIMEOUT_MS,
   })
 }
 
@@ -53,6 +56,7 @@ export const getSuThreadMessages = (threadId: number) => {
   return request<SuMessagingMessageDTO[]>({
     url: `/su-messaging/threads/${threadId}/messages`,
     method: 'get',
+    timeout: SU_MESSAGING_TIMEOUT_MS,
   })
 }
 
@@ -61,6 +65,7 @@ export const pollSuThreadMessages = (threadId: number, since: string) => {
     url: `/su-messaging/threads/${threadId}/poll`,
     method: 'get',
     params: { since },
+    timeout: SU_MESSAGING_TIMEOUT_MS,
   })
 }
 
@@ -69,6 +74,7 @@ export const sendSuThreadMessage = (threadId: number, data: SuMessagingSendReque
     url: `/su-messaging/threads/${threadId}/send`,
     method: 'post',
     data,
+    timeout: SU_MESSAGING_TIMEOUT_MS,
   })
 }
 

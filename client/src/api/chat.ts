@@ -6,6 +6,11 @@ export interface ChatMessageRequest {
   userId?: string
 }
 
+export interface ChatMessageRequestOptions {
+  timeoutMs?: number
+  suppressErrorToast?: boolean
+}
+
 export interface ChatMessageResponse {
   reply: string
   timestamp: string
@@ -26,11 +31,14 @@ export interface ApiResponse<T> {
  */
 export const sendChatMessage = (
   data: ChatMessageRequest,
+  options?: ChatMessageRequestOptions,
 ): Promise<ApiResponse<ChatMessageResponse>> => {
   return request({
     url: '/chat/message',
     method: 'POST',
     data,
+    timeout: options?.timeoutMs,
+    suppressErrorToast: options?.suppressErrorToast,
   })
 }
 
