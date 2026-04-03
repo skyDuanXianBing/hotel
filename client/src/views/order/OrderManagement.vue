@@ -310,7 +310,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned'" label="排房状态" width="100">
+          <el-table-column v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned' || activeOrderTab === 'order-box'" label="排房状态" width="100">
             <template #default="scope">
               <el-tag size="small" :type="getAssignStatusTagType(scope.row)">
                 {{ getAssignStatusText(scope.row) }}
@@ -425,7 +425,7 @@
           </el-table-column>
 
           <el-table-column
-            v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned'"
+            v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned' || activeOrderTab === 'order-box'"
             label="操作"
             width="180"
             fixed="right"

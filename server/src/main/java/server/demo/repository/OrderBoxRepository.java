@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface OrderBoxRepository extends JpaRepository<OrderBox, Long> {
 
     @Query("SELECT ob FROM OrderBox ob JOIN FETCH ob.reservation r " +
-           "JOIN FETCH r.room rm JOIN FETCH rm.roomType " +
+           "LEFT JOIN FETCH r.room rm LEFT JOIN FETCH rm.roomType " +
            "JOIN FETCH r.channel ORDER BY ob.movedInAt DESC")
     List<OrderBox> findAllWithDetails();
 

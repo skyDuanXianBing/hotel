@@ -306,6 +306,7 @@ const rowValueByKey = ref<Record<string, string>>({})
 const relativePreviewByKey = ref<Record<string, RelativeRangePreview>>({})
 const relativeDateValuesByKey = ref<Record<string, Record<string, number>>>({})
 const channelAdjustments = ref<ChannelAdjustmentPreview[]>([])
+const PRICE_RATIO_VISIBLE_CHANNEL_CODES = new Set(['AIRBNB', 'BOOKING'])
 
 const AUTO_APPLY_DEBOUNCE_MS = 300
 let autoApplyTimer: ReturnType<typeof setTimeout> | null = null
@@ -731,7 +732,11 @@ const loadChannelAdjustments = async () => {
     }
 
     channelAdjustments.value = response.data
-      .filter((item: ChannelPriceAdjustmentDTO) => item.channelName)
+      .filter(
+        (item: ChannelPriceAdjustmentDTO) =>
+          Boolean(item.channelName && item.channelName.trim()) &&
+          PRICE_RATIO_VISIBLE_CHANNEL_CODES.has(String(item.channelCode || '').toUpperCase()),
+      )
       .map((item: ChannelPriceAdjustmentDTO) => ({
         channelName: item.channelName.toLowerCase(),
         adjustmentType: item.adjustmentType,

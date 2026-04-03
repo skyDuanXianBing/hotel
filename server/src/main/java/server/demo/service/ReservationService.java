@@ -33,6 +33,7 @@ import server.demo.enums.RoomStatus;
 import server.demo.enums.OperationType;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.ChannelRepository;
+import server.demo.repository.OrderBoxRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
@@ -69,6 +70,9 @@ public class ReservationService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired
+    private OrderBoxRepository orderBoxRepository;
 
     @Autowired
     private RoomRepository roomRepository;
@@ -894,6 +898,8 @@ public class ReservationService {
 
         reservation.setRoom(room);
         Reservation saved = reservationRepository.save(reservation);
+        // 手动排房成功后自动移出订单盒子，保持列表状态一致
+        orderBoxRepository.deleteByReservationId(reservationId);
         cleaningTaskAutoService.syncTaskForReservation(saved);
         schedulePriceLabsReservationSyncAfterCommit(storeId, saved.getId());
         // assignment can shift occupancy between room types; sync old and new ranges

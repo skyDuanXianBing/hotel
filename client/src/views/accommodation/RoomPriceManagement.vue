@@ -91,6 +91,7 @@
         class="price-table"
         :header-cell-style="headerCellStyle"
         :cell-style="cellStyle"
+        :cell-class-name="getCellClassName"
         :row-class-name="getRowClassName"
       >
         <el-table-column label="日期" width="180" fixed="left">
@@ -129,12 +130,20 @@
           </template>
 
           <template #default="{ row }">
-            <div v-if="row.isRoomHeader" class="empty-cell">
-              <span class="room-count-value">{{ row.dates[date.dateStr]?.rooms || 0 }}</span>
+            <div
+              v-if="row.isRoomHeader"
+              class="empty-cell"
+            >
+              <span
+                class="room-count-value"
+              >
+                {{ getRoomsCount(row, date.dateStr) }}
+              </span>
             </div>
             <div
               v-else
               class="price-cell clickable"
+              :class="{ 'sold-out-cell': isRoomsSoldOut(row, date.dateStr) }"
               @click="openPriceEditDialog(row, date)"
             >
                 <div class="price-content">
@@ -451,6 +460,15 @@ const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefi
   return undefined
 }
 
+const getRoomsCount = (row: PriceTableRow, priceDate: string): number => {
+  const rooms = Number(row.dates[priceDate]?.rooms ?? 0)
+  return Number.isFinite(rooms) ? rooms : 0
+}
+
+const isRoomsSoldOut = (row: PriceTableRow, priceDate: string): boolean => {
+  return getRoomsCount(row, priceDate) <= 0
+}
+
 const selectedGroupRoomTypeIds = computed<number[]>(() => {
   if (selectedRoomGroupId.value === null) {
     return []
@@ -608,6 +626,31 @@ const cellStyle = {
 
 const getRowClassName = ({ row }: { row: PriceTableRow }): string => {
   return row.isRoomHeader ? 'room-type-header-row' : 'price-plan-row'
+}
+
+const getCellClassName = ({
+  row,
+  columnIndex
+}: {
+  row: PriceTableRow
+  columnIndex: number
+}): string => {
+  if (row.isRoomHeader) {
+    return ''
+  }
+
+  // 第一列是房型/价格计划名称列，从第二列开始是日期列
+  const dateIndex = columnIndex - 1
+  if (dateIndex < 0 || dateIndex >= dateColumns.value.length) {
+    return ''
+  }
+
+  const dateStr = dateColumns.value[dateIndex]?.dateStr
+  if (!dateStr) {
+    return ''
+  }
+
+  return isRoomsSoldOut(row, dateStr) ? 'sold-out-td' : ''
 }
 
 const previousDay = () => {
@@ -1164,6 +1207,10 @@ onMounted(() => {
   width: 100%;
 }
 
+:deep(.price-table .el-table__body td > .cell) {
+  padding: 0 !important;
+}
+
 :deep(.room-type-header-row) {
   background-color: #f5f7fa;
 }
@@ -1261,6 +1308,22 @@ onMounted(() => {
   background-color: #ecf5ff;
 }
 
+:deep(.price-table .el-table__body td.sold-out-td > .cell) {
+  background-color: #fdecec !important;
+}
+
+:deep(.price-table .el-table__body tr.price-plan-row td.sold-out-td:hover > .cell) {
+  background-color: #f9dcdc !important;
+}
+
+.sold-out-cell {
+  background-color: #fdecec;
+}
+
+.price-cell.clickable.sold-out-cell:hover {
+  background-color: #f9dcdc;
+}
+
 .price-content {
   display: flex;
   flex-direction: column;
@@ -1296,9 +1359,14 @@ onMounted(() => {
 }
 
 .room-count-value {
-  color: #f56c6c;
+  color: #303133;
   font-size: 13px;
   font-weight: 600;
+}
+
+.price-cell.sold-out-cell .price-value,
+.price-cell.sold-out-cell .rooms-count {
+  color: #d03050;
 }
 
 .date-range-input {

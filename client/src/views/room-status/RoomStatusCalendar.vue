@@ -347,6 +347,13 @@
             </template>
 
             <div class="secondary-actions">
+              <el-button
+                v-if="canQuickEditPrice()"
+                class="secondary-action-btn"
+                @click="openQuickPriceDialog"
+              >
+                改价
+              </el-button>
               <el-button class="secondary-action-btn" @click="handleQuickAction('close')">
                 关房
               </el-button>
@@ -357,6 +364,36 @@
           </div>
         </div>
       </div>
+
+      <el-dialog
+        v-model="showQuickPriceDialog"
+        title="单日改价"
+        width="420px"
+        :close-on-click-modal="false"
+        @close="closeQuickPriceDialog"
+      >
+        <div class="quick-price-dialog-content">
+          <p>房间：{{ quickPriceDisplayRoomLabel }}</p>
+          <p>日期：{{ quickPriceDisplayDate }}</p>
+          <p>来源：{{ getCellPriceSourceLabel() }}</p>
+          <el-input-number
+            v-model="quickPriceForm.price"
+            :min="0"
+            :precision="2"
+            :step="10"
+            controls-position="right"
+            style="width: 100%"
+          />
+        </div>
+        <template #footer>
+          <div class="dialog-footer">
+            <el-button @click="closeQuickPriceDialog">取消</el-button>
+            <el-button type="primary" :loading="quickPriceSaving" @click="saveQuickActionPrice">
+              保存
+            </el-button>
+          </div>
+        </template>
+      </el-dialog>
 
       <!-- 停用房操作弹窗 -->
       <div
@@ -1041,6 +1078,26 @@
               <p><strong>订单号：</strong>{{ selectedReservation?.orderNumber || '无' }}</p>
               <p><strong>客人手机：</strong>{{ selectedReservation?.phone || '无' }}</p>
               <p><strong>备注：</strong>{{ getReservationNotesText(selectedReservation) || '无' }}</p>
+              <div class="order-notes-editor">
+                <el-input
+                  v-model="detailNotesDraft"
+                  type="textarea"
+                  :rows="3"
+                  maxlength="500"
+                  show-word-limit
+                  placeholder="请输入备注"
+                />
+                <div class="order-notes-actions">
+                  <el-button
+                    type="primary"
+                    size="small"
+                    :loading="savingDetailNotes"
+                    @click="saveDetailReservationNotes"
+                  >
+                    保存备注
+                  </el-button>
+                </div>
+              </div>
               <div class="order-colors">
                 <el-button size="small">订单颜色</el-button>
               </div>
@@ -1973,7 +2030,13 @@ import { request } from '@/utils/request'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRoomTypeByRoomId, getRoomCurrentPrice, getEffectiveRoomPrice, type RoomTypeDTO } from '@/api/roomType'
 import { getPricePlansByRoomType, type RoomTypePricePlanDTO } from '@/api/pricePlan'
-import { getRoomPriceManagementData, type RoomPriceManagementDTO } from '@/api/roomPrice'
+import {
+  getRoomPriceManagementData,
+  updatePriceByPlan,
+  updateRoomPrice,
+  type RoomPriceManagementDTO,
+  type UpdatePriceByPlanRequest,
+} from '@/api/roomPrice'
 import { getSortOrderMap } from '@/api/sortConfig'
 import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO, type RoomGroupMemberDTO } from '@/api/roomGroup'
 import { calculateTotalPriceByDates } from '@/utils/priceHelper'
@@ -2036,12 +2099,19 @@ const quickActionPosition = ref({ x: 0, y: 0 })
 const quickActionRoom = ref<CalendarRoomData | null>(null)
 const quickActionDate = ref('')
 const quickActionsPopupRef = ref<HTMLElement | null>(null)
+const showQuickPriceDialog = ref(false)
+const quickPriceSaving = ref(false)
+const quickPriceForm = ref({
+  price: 0,
+})
 
 // 预订相关侧边栏（支持新建和编辑两种模式）
 const showBookingSidebar = ref(false)
 const bookingMode = ref<'create' | 'edit' | 'check-in'>('create')
 const showBookingDetailSidebar = ref(false)
 const selectedReservation = ref<any>(null)
+const detailNotesDraft = ref('')
+const savingDetailNotes = ref(false)
 const activeDetailTab = ref('detail')
 
 interface ReservationDragContext {
@@ -2650,9 +2720,12 @@ const roomTypeDefaultPriceMap = ref<Map<string, number>>(new Map())
 const calendarRoomTypePricePlanMappings = ref<RoomTypePricePlanDTO[]>([])
 const loadingCellPricePlanOptions = ref(false)
 const loadingCalendarManagementPrices = ref(false)
+const loadingCalendarDefaultManagementPrices = ref(false)
 const loadedCellPricePlanRoomTypeIdsSignature = ref('')
 const loadedCalendarManagementPriceRangeSignature = ref('')
+const loadedCalendarDefaultPriceRangeSignature = ref('')
 const calendarManagementPriceMap = ref<Map<string, number>>(new Map())
+const calendarDefaultManagementPriceMap = ref<Map<string, number>>(new Map())
 const DEFAULT_SORT_ORDER = 999999
 const roomTypeIdMap = ref<Map<string, number>>(new Map())
 const roomTypeSortOrderMap = ref<Record<number, number>>({})
@@ -2820,9 +2893,84 @@ const buildCalendarManagementPriceKey = (roomTypeId: number, pricePlanId: number
   return `${roomTypeId}-${pricePlanId}-${date}`
 }
 
+const buildCalendarDefaultPriceKey = (roomTypeId: number, date: string) => {
+  return `${roomTypeId}-${date}`
+}
+
 const resetCalendarManagementPriceCache = () => {
   calendarManagementPriceMap.value = new Map()
   loadedCalendarManagementPriceRangeSignature.value = ''
+}
+
+const resetCalendarDefaultManagementPriceCache = () => {
+  calendarDefaultManagementPriceMap.value = new Map()
+  loadedCalendarDefaultPriceRangeSignature.value = ''
+}
+
+const loadCalendarDefaultManagementPrices = async (force = false) => {
+  if (!showCellDefaultPrice.value || cellPriceDisplaySource.value !== 'default') {
+    resetCalendarDefaultManagementPriceCache()
+    return
+  }
+
+  const roomTypeIds = Array.from(new Set(Array.from(roomTypeIdMap.value.values())))
+    .map((id) => Number(id))
+    .filter((id) => id > 0)
+  if (roomTypeIds.length === 0) {
+    resetCalendarDefaultManagementPriceCache()
+    return
+  }
+
+  const [startDate, endDate] = dateRange.value
+  if (!startDate || !endDate) {
+    resetCalendarDefaultManagementPriceCache()
+    return
+  }
+
+  const roomTypeIdsSignature = getRoomTypeIdsSignature()
+  const rangeSignature = `${roomTypeIdsSignature}|default|${startDate}|${endDate}`
+  if (!force && loadedCalendarDefaultPriceRangeSignature.value === rangeSignature) {
+    return
+  }
+
+  loadingCalendarDefaultManagementPrices.value = true
+  try {
+    const response = await getRoomPriceManagementData(startDate, endDate)
+    const managementRows = Array.isArray(response)
+      ? response
+      : Array.isArray((response as { data?: unknown }).data)
+        ? ((response as { data: RoomPriceManagementDTO[] }).data ?? [])
+        : []
+
+    const roomTypeIdSet = new Set(roomTypeIds)
+    const nextPriceMap = new Map<string, number>()
+    managementRows.forEach((item) => {
+      const roomTypeId = Number(item.roomTypeId || 0)
+      const planId = Number(item.pricePlanId || 0)
+      const priceDate = String(item.priceDate || '')
+      const price = Number(item.price || 0)
+
+      if (!roomTypeIdSet.has(roomTypeId) || !priceDate) {
+        return
+      }
+      if (planId > 0) {
+        return
+      }
+      if (!Number.isFinite(price) || price <= 0) {
+        return
+      }
+
+      nextPriceMap.set(buildCalendarDefaultPriceKey(roomTypeId, priceDate), price)
+    })
+
+    calendarDefaultManagementPriceMap.value = nextPriceMap
+    loadedCalendarDefaultPriceRangeSignature.value = rangeSignature
+  } catch (error) {
+    console.error('加载房价管理默认价格失败:', error)
+    resetCalendarDefaultManagementPriceCache()
+  } finally {
+    loadingCalendarDefaultManagementPrices.value = false
+  }
 }
 
 const loadCalendarManagementPrices = async (force = false) => {
@@ -2901,6 +3049,7 @@ const loadCalendarPricePlanOptions = async (force = false) => {
     calendarRoomTypePricePlanMappings.value = []
     loadedCellPricePlanRoomTypeIdsSignature.value = ''
     resetCalendarManagementPriceCache()
+    resetCalendarDefaultManagementPriceCache()
     return
   }
 
@@ -2964,6 +3113,15 @@ const getCellDisplayPriceValue = (roomData: CalendarRoomData, dailyStatus: Daily
   }
 
   if (cellPriceDisplaySource.value === 'default') {
+    const roomTypeId = roomTypeIdMap.value.get(roomData.roomType)
+    if (roomTypeId) {
+      const managementPrice = calendarDefaultManagementPriceMap.value.get(
+        buildCalendarDefaultPriceKey(roomTypeId, dailyStatus.date),
+      )
+      if (managementPrice != null && Number.isFinite(Number(managementPrice)) && Number(managementPrice) > 0) {
+        return Number(managementPrice)
+      }
+    }
     const defaultPrice = getRoomTypeDefaultPriceValue(roomData.roomType)
     return defaultPrice > 0 ? defaultPrice : null
   }
@@ -3668,9 +3826,12 @@ const loadRoomTypesData = async () => {
       roomTypeDefaultPriceMap.value = nextRoomTypeDefaultPriceMap
       loadedCellPricePlanRoomTypeIdsSignature.value = ''
       resetCalendarManagementPriceCache()
+      resetCalendarDefaultManagementPriceCache()
       if (showCellDefaultPrice.value) {
         void loadCalendarPricePlanOptions(true)
-        if (cellPriceDisplaySource.value !== 'default') {
+        if (cellPriceDisplaySource.value === 'default') {
+          void loadCalendarDefaultManagementPrices(true)
+        } else {
           void loadCalendarManagementPrices(true)
         }
       }
@@ -4321,6 +4482,85 @@ const getReservationNotesText = (reservation: Record<string, any> | null | undef
   return typeof notesValue === 'string' ? notesValue.trim() : ''
 }
 
+const syncDetailNotesDraft = (reservation: Record<string, any> | null | undefined) => {
+  detailNotesDraft.value = getReservationNotesText(reservation)
+}
+
+const updateCalendarReservationNotes = (reservationId: number, notes: string) => {
+  calendarData.value.rooms.forEach((room) => {
+    room.dailyStatus.forEach((daily) => {
+      if (!daily.reservation) {
+        return
+      }
+      const currentReservationId = Number((daily.reservation as Record<string, any>).id || 0)
+      if (currentReservationId !== reservationId) {
+        return
+      }
+      const reservationRecord = daily.reservation as Record<string, any>
+      reservationRecord.notes = notes
+    })
+  })
+}
+
+const saveDetailReservationNotes = async () => {
+  const reservationId = Number(selectedReservation.value?.id || 0)
+  if (!reservationId) {
+    ElMessage.warning('未找到订单信息')
+    return
+  }
+
+  const nextNotes = detailNotesDraft.value.trim()
+  savingDetailNotes.value = true
+  try {
+    const reservationResp = await getReservationById(reservationId)
+    if (!reservationResp.success || !reservationResp.data) {
+      ElMessage.error(reservationResp.message || '获取订单信息失败')
+      return
+    }
+
+    const latestReservation = reservationResp.data
+    const roomId = Number(
+      latestReservation.roomId || selectedReservation.value?.roomId || selectedRoom.value?.roomId || 0,
+    )
+    if (!roomId) {
+      ElMessage.error('订单缺少房间信息，无法保存备注')
+      return
+    }
+
+    const updatePayload = buildReservationUpdateRequest(
+      latestReservation,
+      roomId,
+      Number(latestReservation.totalAmount || 0),
+    )
+    updatePayload.notes = nextNotes
+    const updateResp = await updateReservation(reservationId, updatePayload)
+    if (!updateResp.success) {
+      ElMessage.error(updateResp.message || '保存备注失败')
+      return
+    }
+
+    selectedReservation.value = {
+      ...selectedReservation.value,
+      notes: nextNotes,
+    }
+    if (hoverReservation.value && Number((hoverReservation.value as Record<string, any>).id || 0) === reservationId) {
+      hoverReservation.value = {
+        ...hoverReservation.value,
+        notes: nextNotes,
+      }
+    }
+    updateCalendarReservationNotes(reservationId, nextNotes)
+    ElMessage.success('备注保存成功')
+
+    await loadRoomStatusCalendarData()
+  } catch (error: any) {
+    console.error('保存订单备注失败:', error)
+    ElMessage.error(error?.message || '保存备注失败，请稍后重试')
+  } finally {
+    savingDetailNotes.value = false
+  }
+}
+
 const hasReservationNotes = (dailyStatus: DailyRoomStatus) => {
   const reservation = dailyStatus.reservation as Record<string, any> | null | undefined
   return getReservationNotesText(reservation).length > 0
@@ -4634,6 +4874,7 @@ const loadReservationDetails = async (reservationId: number) => {
       // 同时更新悬停卡片和选中的预订信息
       hoverReservation.value = { ...hoverReservation.value, ...reservationData }
       selectedReservation.value = reservationData
+      syncDetailNotesDraft(reservationData)
       void nextTick(() => {
         adjustHoverCardPosition()
       })
@@ -5612,6 +5853,127 @@ const updateBookingPrice = async () => {
   }
 }
 
+const getQuickActionDailyStatus = () => {
+  if (!quickActionRoom.value || !quickActionDate.value) {
+    return null
+  }
+  return quickActionRoom.value.dailyStatus.find((item) => item.date === quickActionDate.value) || null
+}
+
+const getQuickActionRoomTypeId = () => {
+  if (!quickActionRoom.value) {
+    return null
+  }
+  const roomTypeId = roomTypeIdMap.value.get(quickActionRoom.value.roomType)
+  return roomTypeId || null
+}
+
+const getQuickActionDisplayPriceValue = () => {
+  const dailyStatus = getQuickActionDailyStatus()
+  if (!quickActionRoom.value || !dailyStatus) {
+    return null
+  }
+  return getCellDisplayPriceValue(quickActionRoom.value, dailyStatus)
+}
+
+const canQuickEditPrice = () => {
+  if (!showCellDefaultPrice.value || !quickActionRoom.value || !quickActionDate.value) {
+    return false
+  }
+  return getQuickActionDisplayPriceValue() !== null
+}
+
+const quickPriceDisplayRoomLabel = computed(() => {
+  if (!quickActionRoom.value) {
+    return '-'
+  }
+  return `${quickActionRoom.value.roomType}-${quickActionRoom.value.roomNumber}`
+})
+
+const quickPriceDisplayDate = computed(() => {
+  return quickActionDate.value || '-'
+})
+
+const closeQuickPriceDialog = () => {
+  showQuickPriceDialog.value = false
+  quickPriceForm.value.price = 0
+}
+
+const openQuickPriceDialog = () => {
+  if (!canQuickEditPrice()) {
+    ElMessage.warning('当前格子不支持改价')
+    return
+  }
+  const currentPrice = Number(getQuickActionDisplayPriceValue() || 0)
+  quickPriceForm.value.price = currentPrice > 0 ? currentPrice : 0
+  showQuickPriceDialog.value = true
+}
+
+const saveQuickActionPrice = async () => {
+  if (!quickActionDate.value || !quickActionRoom.value) {
+    ElMessage.warning('未找到改价目标')
+    return
+  }
+  const roomTypeId = getQuickActionRoomTypeId()
+  if (!roomTypeId) {
+    ElMessage.warning('未找到房型信息')
+    return
+  }
+
+  const nextPrice = Number(quickPriceForm.value.price || 0)
+  if (!Number.isFinite(nextPrice) || nextPrice < 0) {
+    ElMessage.warning('请输入有效价格')
+    return
+  }
+
+  quickPriceSaving.value = true
+  try {
+    if (cellPriceDisplaySource.value === 'default') {
+      const response = await updateRoomPrice({
+        roomTypeId,
+        startDate: quickActionDate.value,
+        endDate: quickActionDate.value,
+        price: Number(nextPrice.toFixed(2)),
+      })
+      if (!response.success) {
+        ElMessage.error(response.message || '改价失败')
+        return
+      }
+      await loadCalendarDefaultManagementPrices(true)
+    } else {
+      const selectedPlanId = getSelectedCellPricePlanId()
+      if (!selectedPlanId) {
+        ElMessage.warning('请先选择价格计划')
+        return
+      }
+      const operator = currentOperatorName.value
+      const requestData: UpdatePriceByPlanRequest = {
+        roomTypeId,
+        pricePlanId: selectedPlanId,
+        startDate: quickActionDate.value,
+        endDate: quickActionDate.value,
+        applyWeekdaysInRange: true,
+        price: Number(nextPrice.toFixed(2)),
+      }
+      const response = await updatePriceByPlan(requestData, operator)
+      if (!response.success) {
+        ElMessage.error(response.message || '改价失败')
+        return
+      }
+      await loadCalendarManagementPrices(true)
+    }
+
+    ElMessage.success('改价成功')
+    closeQuickPriceDialog()
+    hideQuickActions()
+  } catch (error: any) {
+    console.error('日历改单价失败:', error)
+    ElMessage.error(error?.message || '改价失败，请稍后重试')
+  } finally {
+    quickPriceSaving.value = false
+  }
+}
+
 // 关闭所有弹窗
 const closeAllPopups = () => {
   showQuickActions.value = false
@@ -5678,6 +6040,7 @@ const onCellClick = (
   // 如果格子有预订信息，打开预订详情侧边栏
   if (dailyStatus.reservation) {
     selectedReservation.value = dailyStatus.reservation
+    syncDetailNotesDraft(dailyStatus.reservation as Record<string, any>)
     selectedRoom.value = roomData
     selectedDate.value = dailyStatus.date
     showBookingDetailSidebar.value = true
@@ -6139,6 +6502,7 @@ const handleSearchInput = (value: string) => {
 const handleSearchSelect = (reservation: ReservationDTO) => {
   // 选择搜索结果时显示订单详情侧边栏
   selectedReservation.value = reservation
+  syncDetailNotesDraft(reservation as Record<string, any>)
 
   // 需要构建房间数据和日期信息以供侧边栏使用
   selectedRoom.value = {
@@ -6326,15 +6690,27 @@ watch(showBookingSidebar, (visible) => {
   bookingForm.value.pricePlan = ''
 })
 
+watch(showBookingDetailSidebar, (visible) => {
+  if (visible) {
+    syncDetailNotesDraft(selectedReservation.value as Record<string, any> | null | undefined)
+    return
+  }
+  detailNotesDraft.value = ''
+  savingDetailNotes.value = false
+})
+
 watch(showCellDefaultPrice, (visible) => {
   persistCellPriceDisplayPreferences()
   if (!visible) {
     resetCalendarManagementPriceCache()
+    resetCalendarDefaultManagementPriceCache()
     return
   }
   void (async () => {
     await loadCalendarPricePlanOptions()
-    if (cellPriceDisplaySource.value !== 'default') {
+    if (cellPriceDisplaySource.value === 'default') {
+      await loadCalendarDefaultManagementPrices(true)
+    } else {
       await loadCalendarManagementPrices(true)
     }
   })()
@@ -6344,8 +6720,10 @@ watch(cellPriceDisplaySource, (source) => {
   persistCellPriceDisplayPreferences()
   if (source === 'default') {
     resetCalendarManagementPriceCache()
+    void loadCalendarDefaultManagementPrices(true)
     return
   }
+  resetCalendarDefaultManagementPriceCache()
   void (async () => {
     await loadCalendarPricePlanOptions()
     await loadCalendarManagementPrices(true)
@@ -6397,7 +6775,9 @@ onMounted(async () => {
   await loadCalendarData()
   if (showCellDefaultPrice.value) {
     await loadCalendarPricePlanOptions()
-    if (cellPriceDisplaySource.value !== 'default') {
+    if (cellPriceDisplaySource.value === 'default') {
+      await loadCalendarDefaultManagementPrices(true)
+    } else {
       await loadCalendarManagementPrices(true)
     }
   }
@@ -6413,7 +6793,9 @@ onActivated(async () => {
   await loadCalendarData()
   if (showCellDefaultPrice.value) {
     await loadCalendarPricePlanOptions()
-    if (cellPriceDisplaySource.value !== 'default') {
+    if (cellPriceDisplaySource.value === 'default') {
+      await loadCalendarDefaultManagementPrices(true)
+    } else {
       await loadCalendarManagementPrices(true)
     }
   }
@@ -7608,6 +7990,27 @@ onActivated(async () => {
 .order-info p {
   margin: 5px 0;
   color: #666;
+}
+
+.quick-price-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quick-price-dialog-content p {
+  margin: 0;
+  color: #606266;
+}
+
+.order-notes-editor {
+  margin-top: 10px;
+}
+
+.order-notes-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .order-colors {

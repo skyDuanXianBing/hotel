@@ -9,6 +9,7 @@ import server.demo.dto.OrderBoxDTO;
 import server.demo.dto.ReservationDTO;
 import server.demo.entity.OrderBox;
 import server.demo.entity.Reservation;
+import server.demo.entity.Room;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.OrderBoxRepository;
 import server.demo.repository.ReservationRepository;
@@ -60,6 +61,10 @@ public class OrderBoxService {
         }
 
         // 创建订单盒子记录
+        // 移入订单盒子后不再占用实际房间，避免继续出现在房态日历中
+        reservation.setRoom(null);
+        reservationRepository.save(reservation);
+
         OrderBox orderBox = new OrderBox();
         orderBox.setReservation(reservation);
         orderBox.setMovedInAt(LocalDateTime.now());
@@ -145,11 +150,20 @@ public class OrderBoxService {
         reservationDTO.setOrderNumber(reservation.getOrderNumber());
         reservationDTO.setGuestName(reservation.getGuestName());
         reservationDTO.setPhone(reservation.getGuestPhone());
-        reservationDTO.setRoomId(reservation.getRoom().getId());
-        reservationDTO.setRoomNumber(reservation.getRoom().getRoomNumber());
-        reservationDTO.setRoomTypeName(reservation.getRoom().getRoomType().getName());
+        Room room = reservation.getRoom();
+        if (room != null) {
+            reservationDTO.setRoomId(room.getId());
+            reservationDTO.setRoomNumber(room.getRoomNumber());
+            reservationDTO.setRoomTypeName(room.getRoomType() != null ? room.getRoomType().getName() : null);
+        } else {
+            reservationDTO.setRoomId(null);
+            reservationDTO.setRoomNumber(reservation.getOtaRoomNumber());
+            reservationDTO.setRoomTypeName(null);
+        }
         reservationDTO.setChannelId(reservation.getChannel().getId());
         reservationDTO.setChannelName(reservation.getChannel().getName());
+        reservationDTO.setOtaRoomId(reservation.getOtaRoomId());
+        reservationDTO.setOtaRoomTypeId(reservation.getOtaRoomTypeId());
         reservationDTO.setCheckInDate(reservation.getCheckInDate());
         reservationDTO.setCheckOutDate(reservation.getCheckOutDate());
         reservationDTO.setStatus(reservation.getStatus().name());
