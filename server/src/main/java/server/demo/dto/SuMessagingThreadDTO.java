@@ -1,7 +1,7 @@
 package server.demo.dto;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class SuMessagingThreadDTO {
     private Long id;
@@ -17,7 +17,7 @@ public class SuMessagingThreadDTO {
     private LocalDate checkOutDate;
     private String roomTypeName;
     private String lastMessage;
-    private LocalDateTime lastActivity;
+    private OffsetDateTime lastActivity;
     private long unreadCount;
     private boolean closed;
 
@@ -125,11 +125,11 @@ public class SuMessagingThreadDTO {
         this.lastMessage = lastMessage;
     }
 
-    public LocalDateTime getLastActivity() {
+    public OffsetDateTime getLastActivity() {
         return lastActivity;
     }
 
-    public void setLastActivity(LocalDateTime lastActivity) {
+    public void setLastActivity(OffsetDateTime lastActivity) {
         this.lastActivity = lastActivity;
     }
 

@@ -113,12 +113,16 @@
         <div class="calendar-container">
           <!-- 日期表头 -->
           <div class="date-header">
-            <div class="header-cell clickable-header" @click="toggleFilterSidebar">
-              筛选 <el-icon><ArrowDown /></el-icon>
+            <div class="header-cell sticky-left-primary">
+              <div class="header-cell-content clickable-header" @click="toggleFilterSidebar">
+                筛选 <el-icon><ArrowDown /></el-icon>
+              </div>
             </div>
-            <div class="header-cell clickable-header" @click="toggleRoomCollapse">
-              {{ isRoomCollapsed ? '展开' : '收起' }}
-              <el-icon><component :is="isRoomCollapsed ? ArrowDown : ArrowUp" /></el-icon>
+            <div class="header-cell sticky-left-secondary">
+              <div class="header-cell-content clickable-header" @click="toggleRoomCollapse">
+                {{ isRoomCollapsed ? '展开' : '收起' }}
+                <el-icon><component :is="isRoomCollapsed ? ArrowDown : ArrowUp" /></el-icon>
+              </div>
             </div>
             <div
               v-for="date in dateColumns"
@@ -156,16 +160,19 @@
           <div v-else class="rooms-grid">
             <div v-for="roomData in filteredRooms" :key="roomData.roomId" class="room-row">
               <!-- 房间信息列 -->
-              <div class="room-info-cell clickable-cell">
-                <div class="room-type">{{ roomData.roomType }}</div>
+              <div class="room-info-cell sticky-left-primary">
+                <div class="room-cell-content clickable-cell">
+                  <div class="room-type">{{ roomData.roomType }}</div>
+                </div>
               </div>
 
               <!-- 房间号列 -->
               <div
-                class="room-number-cell clickable-cell"
+                class="room-number-cell sticky-left-secondary"
                 @mouseenter="onRoomNumberHover($event, roomData)"
                 @click="onRoomNumberClick($event, roomData)"
               >
+                <div class="room-cell-content clickable-cell">
                 <!-- 脏房清理图标 -->
                 <div
                   v-if="!isRoomCollapsed && getRoomNumberDirtyStatus(roomData.roomId)"
@@ -184,6 +191,7 @@
               </div>
 
               <!-- 日期状态格子 -->
+              </div>
               <div
                 v-for="dailyStatus in roomData.dailyStatus"
                 :key="dailyStatus.date"
@@ -234,7 +242,7 @@
                   <el-icon><Remove /></el-icon>
                 </div>
 
-                <div
+              <div
                   v-if="hasReservationNotes(dailyStatus)"
                   class="reservation-note-indicator"
                   title="该订单有备注"
@@ -367,14 +375,14 @@
 
       <el-dialog
         v-model="showQuickPriceDialog"
-        title="单日改价"
+        :title="quickPriceDialogTitle"
         width="420px"
         :close-on-click-modal="false"
         @close="closeQuickPriceDialog"
       >
         <div class="quick-price-dialog-content">
           <p>房间：{{ quickPriceDisplayRoomLabel }}</p>
-          <p>日期：{{ quickPriceDisplayDate }}</p>
+          <p>{{ quickPriceDisplayDateLabel }}：{{ quickPriceDisplayDate }}</p>
           <p>来源：{{ getCellPriceSourceLabel() }}</p>
           <el-input-number
             v-model="quickPriceForm.price"
@@ -5887,8 +5895,42 @@ const quickPriceDisplayRoomLabel = computed(() => {
   return `${quickActionRoom.value.roomType}-${quickActionRoom.value.roomNumber}`
 })
 
+const getQuickPriceTargetRange = () => {
+  const startDate = quickActionDateRange.value?.startDate || quickActionDate.value
+  const endDate = quickActionDateRange.value?.endDate || quickActionDate.value
+
+  if (!startDate || !endDate) {
+    return null
+  }
+
+  const orderedDates = getDateRangeOrdered(startDate, endDate)
+  return {
+    startDate: formatDateOnly(orderedDates.start),
+    endDate: formatDateOnly(orderedDates.end),
+  }
+}
+
+const isQuickPriceRangeMode = computed(() => {
+  const targetRange = getQuickPriceTargetRange()
+  return !!targetRange && targetRange.startDate !== targetRange.endDate
+})
+
+const quickPriceDialogTitle = computed(() => {
+  return isQuickPriceRangeMode.value ? '区间改价' : '改价'
+})
+
+const quickPriceDisplayDateLabel = computed(() => {
+  return isQuickPriceRangeMode.value ? '日期范围' : '日期'
+})
+
 const quickPriceDisplayDate = computed(() => {
-  return quickActionDate.value || '-'
+  const targetRange = getQuickPriceTargetRange()
+  if (!targetRange) {
+    return '-'
+  }
+  return targetRange.startDate === targetRange.endDate
+    ? targetRange.startDate
+    : `${targetRange.startDate} ~ ${targetRange.endDate}`
 })
 
 const closeQuickPriceDialog = () => {
@@ -5897,6 +5939,9 @@ const closeQuickPriceDialog = () => {
 }
 
 const openQuickPriceDialog = () => {
+  if (!ensureContinuousQuickActionSelection()) {
+    return
+  }
   if (!canQuickEditPrice()) {
     ElMessage.warning('当前格子不支持改价')
     return
@@ -5907,8 +5952,12 @@ const openQuickPriceDialog = () => {
 }
 
 const saveQuickActionPrice = async () => {
-  if (!quickActionDate.value || !quickActionRoom.value) {
+  const targetRange = getQuickPriceTargetRange()
+  if (!targetRange || !quickActionRoom.value) {
     ElMessage.warning('未找到改价目标')
+    return
+  }
+  if (!ensureContinuousQuickActionSelection()) {
     return
   }
   const roomTypeId = getQuickActionRoomTypeId()
@@ -5928,8 +5977,8 @@ const saveQuickActionPrice = async () => {
     if (cellPriceDisplaySource.value === 'default') {
       const response = await updateRoomPrice({
         roomTypeId,
-        startDate: quickActionDate.value,
-        endDate: quickActionDate.value,
+        startDate: targetRange.startDate,
+        endDate: targetRange.endDate,
         price: Number(nextPrice.toFixed(2)),
       })
       if (!response.success) {
@@ -5947,8 +5996,8 @@ const saveQuickActionPrice = async () => {
       const requestData: UpdatePriceByPlanRequest = {
         roomTypeId,
         pricePlanId: selectedPlanId,
-        startDate: quickActionDate.value,
-        endDate: quickActionDate.value,
+        startDate: targetRange.startDate,
+        endDate: targetRange.endDate,
         applyWeekdaysInRange: true,
         price: Number(nextPrice.toFixed(2)),
       }
@@ -6846,14 +6895,23 @@ onActivated(async () => {
 }
 
 .calendar-content {
+  --calendar-primary-column-width: 120px;
+  --calendar-secondary-column-width: 120px;
+  --calendar-date-column-width: 120px;
   background: white;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: auto;
+  max-height: calc(100vh - 220px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  isolation: isolate;
 }
 
 .calendar-container {
-  overflow-x: auto;
+  width: fit-content;
+  min-width: 100%;
+  position: relative;
+  background: #fff;
 }
 
 .date-header {
@@ -6862,19 +6920,70 @@ onActivated(async () => {
   border-bottom: 1px solid #e9ecef;
   width: fit-content;
   min-width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 30;
 }
 
 .header-cell {
-  width: 120px;
-  flex-shrink: 0;
+  width: var(--calendar-primary-column-width);
+  min-width: var(--calendar-primary-column-width);
+  max-width: var(--calendar-primary-column-width);
+  flex: 0 0 var(--calendar-primary-column-width);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #f8f9fa;
+  box-shadow: inset -1px 0 0 #e9ecef;
+}
+
+.header-cell.sticky-left-secondary {
+  width: var(--calendar-secondary-column-width);
+  min-width: var(--calendar-secondary-column-width);
+  max-width: var(--calendar-secondary-column-width);
+  flex-basis: var(--calendar-secondary-column-width);
+}
+
+.sticky-left-primary,
+.sticky-left-secondary {
+  position: sticky;
+  background: #fff;
+  background-clip: padding-box;
+}
+
+.sticky-left-primary {
+  left: 0;
+}
+
+.sticky-left-secondary {
+  left: var(--calendar-primary-column-width);
+}
+
+.date-header .sticky-left-primary,
+.date-header .sticky-left-secondary {
+  z-index: 34;
+  background: #f8f9fa;
+}
+
+.room-row .sticky-left-primary,
+.room-row .sticky-left-secondary {
+  z-index: 14;
+  background: #fff;
+}
+
+.header-cell-content {
+  width: 100%;
+  min-height: 60px;
   padding: 15px 10px;
-  border-right: 1px solid #e9ecef;
   text-align: center;
   font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
+  box-sizing: border-box;
 }
 
 .clickable-header {
@@ -6884,7 +6993,6 @@ onActivated(async () => {
   border: 1px solid #e9ecef;
   border-radius: 4px;
   position: relative;
-  margin: 2px;
   min-height: 60px;
 }
 
@@ -6902,11 +7010,15 @@ onActivated(async () => {
 }
 
 .date-column {
-  width: 120px;
-  flex-shrink: 0;
+  width: var(--calendar-date-column-width);
+  min-width: var(--calendar-date-column-width);
+  max-width: var(--calendar-date-column-width);
+  flex: 0 0 var(--calendar-date-column-width);
   padding: 10px;
   border-right: 1px solid #e9ecef;
   text-align: center;
+  background: inherit;
+  box-sizing: border-box;
 }
 
 .date-column.weekend {
@@ -6970,17 +7082,40 @@ onActivated(async () => {
 .room-row {
   display: flex;
   border-bottom: 1px solid #e9ecef;
+  width: fit-content;
+  min-width: 100%;
 }
 
 .room-info-cell,
 .room-number-cell {
-  width: 120px;
-  flex-shrink: 0;
-  padding: 20px 10px;
-  border-right: 1px solid #e9ecef;
+  width: var(--calendar-primary-column-width);
+  min-width: var(--calendar-primary-column-width);
+  max-width: var(--calendar-primary-column-width);
+  flex: 0 0 var(--calendar-primary-column-width);
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  background: #fff;
+  box-shadow: inset -1px 0 0 #e9ecef;
+}
+
+.room-number-cell {
+  width: var(--calendar-secondary-column-width);
+  min-width: var(--calendar-secondary-column-width);
+  max-width: var(--calendar-secondary-column-width);
+  flex-basis: var(--calendar-secondary-column-width);
+}
+
+.room-cell-content {
+  width: 100%;
+  min-height: 76px;
+  padding: 20px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .clickable-cell {
@@ -6989,9 +7124,10 @@ onActivated(async () => {
   background: white;
   border: 1px solid #e9ecef;
   border-radius: 4px;
-  margin: 2px;
   min-height: 76px;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .clickable-cell:hover {
@@ -7023,8 +7159,10 @@ onActivated(async () => {
 }
 
 .status-cell {
-  width: 120px;
-  flex-shrink: 0;
+  width: var(--calendar-date-column-width);
+  min-width: var(--calendar-date-column-width);
+  max-width: var(--calendar-date-column-width);
+  flex: 0 0 var(--calendar-date-column-width);
   min-height: 80px;
   border-right: 1px solid #e9ecef;
   padding: 4px;
@@ -7034,6 +7172,7 @@ onActivated(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
 }
 
 .status-cell:hover {

@@ -608,31 +608,6 @@ const getStoreDateKeyFormatter = () =>
     day: '2-digit',
   })
 
-const getTimeZoneOffsetMinutes = (date: Date, timeZone: string) => {
-  const formatter = buildDateTimeFormatter('en-US', timeZone, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  })
-  const parts = formatter.formatToParts(date)
-  const getPart = (partType: 'year' | 'month' | 'day' | 'hour' | 'minute' | 'second') =>
-    Number(parts.find((part) => part.type === partType)?.value || '0')
-
-  const utcTimestamp = Date.UTC(
-    getPart('year'),
-    getPart('month') - 1,
-    getPart('day'),
-    getPart('hour'),
-    getPart('minute'),
-    getPart('second'),
-  )
-  return (utcTimestamp - date.getTime()) / (60 * 1000)
-}
-
 const parseStoreDateTime = (rawValue: string | Date) => {
   if (rawValue instanceof Date) {
     return rawValue
@@ -657,7 +632,7 @@ const parseStoreDateTime = (rawValue: string | Date) => {
   )
   if (matched) {
     const [, yearText, monthText, dayText, hourText, minuteText, secondText] = matched
-    const utcGuess = Date.UTC(
+    const utcTimestamp = Date.UTC(
       Number(yearText),
       Number(monthText) - 1,
       Number(dayText),
@@ -665,8 +640,7 @@ const parseStoreDateTime = (rawValue: string | Date) => {
       Number(minuteText),
       Number(secondText || '0'),
     )
-    const offsetMinutes = getTimeZoneOffsetMinutes(new Date(utcGuess), currentStoreTimeZone.value)
-    return new Date(utcGuess - offsetMinutes * 60 * 1000)
+    return new Date(utcTimestamp)
   }
 
   const fallback = new Date(trimmed)

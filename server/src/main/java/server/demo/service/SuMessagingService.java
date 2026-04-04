@@ -22,7 +22,7 @@ import server.demo.repository.SuMessageThreadRepository;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -180,7 +180,7 @@ public class SuMessagingService {
                     dto.setCheckOutDate(reservation != null ? reservation.getCheckOutDate() : null);
                     dto.setRoomTypeName(resolveRoomTypeName(reservation));
                     dto.setLastMessage(thread.getLastMessage());
-                    dto.setLastActivity(thread.getLastActivity());
+                    dto.setLastActivity(toUtcOffset(thread.getLastActivity()));
                     dto.setClosed(Boolean.TRUE.equals(thread.getClosed()));
                     dto.setUnreadCount(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(thread.getId(), SuMessagingSenderType.GUEST));
                     return dto;
@@ -388,8 +388,15 @@ public class SuMessagingService {
         dto.setSenderName(msg.getSenderName());
         dto.setContent(msg.getContent());
         dto.setDeliveryStatus(msg.getDeliveryStatus());
-        dto.setTimestamp(msg.getSentAt());
+        dto.setTimestamp(toUtcOffset(msg.getSentAt()));
         return dto;
+    }
+
+    private static OffsetDateTime toUtcOffset(LocalDateTime localDateTime) {
+        if (localDateTime == null) {
+            return null;
+        }
+        return localDateTime.atOffset(ZoneOffset.UTC);
     }
 
     private static String buildThreadKey(Integer channelId, String threadId, String bookingId) {
@@ -473,13 +480,13 @@ public class SuMessagingService {
         String s = since.trim();
         try {
             OffsetDateTime odt = OffsetDateTime.parse(s);
-            return odt.atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+            return odt.atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
         } catch (Exception ignore) {
             // continue
         }
         try {
             Instant instant = Instant.parse(s);
-            return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+            return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
         } catch (Exception ignore) {
             // continue
         }

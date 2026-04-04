@@ -21,6 +21,8 @@ import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -293,8 +295,15 @@ public class SuAiAutoReplyService {
         dto.setSenderName(message.getSenderName());
         dto.setContent(message.getContent());
         dto.setDeliveryStatus(message.getDeliveryStatus());
-        dto.setTimestamp(message.getSentAt());
+        dto.setTimestamp(toUtcOffset(message.getSentAt()));
         return dto;
+    }
+
+    private static OffsetDateTime toUtcOffset(LocalDateTime localDateTime) {
+        if (localDateTime == null) {
+            return null;
+        }
+        return localDateTime.atOffset(ZoneOffset.UTC);
     }
 
     private static String resolveAiSenderName(String configuredSenderName) {

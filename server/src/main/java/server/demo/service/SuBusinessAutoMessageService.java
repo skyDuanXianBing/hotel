@@ -36,6 +36,8 @@ import server.demo.util.SuReservationParser;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.nio.charset.StandardCharsets;
@@ -1045,8 +1047,15 @@ public class SuBusinessAutoMessageService {
         dto.setSenderName(message.getSenderName());
         dto.setContent(message.getContent());
         dto.setDeliveryStatus(message.getDeliveryStatus());
-        dto.setTimestamp(message.getSentAt());
+        dto.setTimestamp(toUtcOffset(message.getSentAt()));
         return dto;
+    }
+
+    private static OffsetDateTime toUtcOffset(LocalDateTime localDateTime) {
+        if (localDateTime == null) {
+            return null;
+        }
+        return localDateTime.atOffset(ZoneOffset.UTC);
     }
 
     private static String trimToMax(String text, int max) {
@@ -1179,4 +1188,3 @@ public class SuBusinessAutoMessageService {
         return t.substring(0, MAX_LOG_MESSAGE_LEN);
     }
 }
-

@@ -2,7 +2,7 @@ package server.demo.dto;
 
 import server.demo.enums.SuMessagingSenderType;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class SuMessagingMessageDTO {
     private Long id;
@@ -11,7 +11,7 @@ public class SuMessagingMessageDTO {
     private String senderName;
     private String content;
     private String deliveryStatus;
-    private LocalDateTime timestamp;
+    private OffsetDateTime timestamp;
 
     public Long getId() {
         return id;
@@ -61,11 +61,11 @@ public class SuMessagingMessageDTO {
         this.deliveryStatus = deliveryStatus;
     }
 
-    public LocalDateTime getTimestamp() {
+    public OffsetDateTime getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(LocalDateTime timestamp) {
+    public void setTimestamp(OffsetDateTime timestamp) {
         this.timestamp = timestamp;
     }
 }

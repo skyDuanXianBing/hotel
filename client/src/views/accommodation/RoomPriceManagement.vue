@@ -89,6 +89,7 @@
         border
         v-loading="loading"
         class="price-table"
+        :max-height="PRICE_TABLE_MAX_HEIGHT"
         :header-cell-style="headerCellStyle"
         :cell-style="cellStyle"
         :cell-class-name="getCellClassName"
@@ -327,6 +328,7 @@ import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+const PRICE_TABLE_MAX_HEIGHT = 'calc(100vh - 240px)'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -1199,12 +1201,20 @@ onMounted(() => {
 .price-table-container {
   flex: 1;
   padding: 0;
-  overflow: auto;
+  overflow: hidden;
   background: #fff;
 }
 
 .price-table {
   width: 100%;
+}
+
+:deep(.price-table .el-table__header-wrapper) {
+  z-index: 6;
+}
+
+:deep(.price-table .el-table__fixed-header-wrapper) {
+  z-index: 8;
 }
 
 :deep(.price-table .el-table__body td > .cell) {
