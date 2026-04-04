@@ -1098,9 +1098,6 @@
                   </el-button>
                 </div>
               </div>
-              <div class="order-colors">
-                <el-button size="small">订单颜色</el-button>
-              </div>
             </div>
 
             <div class="more-actions">
@@ -8011,10 +8008,6 @@ onActivated(async () => {
   margin-top: 8px;
   display: flex;
   justify-content: flex-end;
-}
-
-.order-colors {
-  margin-top: 10px;
 }
 
 .more-actions {
