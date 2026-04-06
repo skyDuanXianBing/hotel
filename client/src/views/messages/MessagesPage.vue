@@ -755,15 +755,20 @@ const requestAiTranslationToLanguage = async (sourceText: string, targetLanguage
     return ''
   }
 
+  const isolatedTranslationSessionId = `translation_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
   const response = (await sendChatMessage({
+    sessionId: isolatedTranslationSessionId,
     message: [
-      `请把下面内容翻译成${targetLanguageLabel}。`,
+      `请把下面 <<<TEXT>>> 与 <<<END>>> 之间的内容翻译成${targetLanguageLabel}。`,
       '要求：',
-      '1. 只返回翻译后的正文，不要添加解释、标题、引号或前缀。',
-      '2. 保留原始链接、订单号、日期、房号、金额等结构化内容。',
-      '3. 如果原文已经是目标语言，也只返回润色后的同语言正文。',
+      '1. 只能翻译这一次提供的文本，严禁结合历史消息、上下文或自行补全。',
+      '2. 只返回翻译后的正文，不要添加解释、标题、引号或前缀。',
+      '3. 保留原始链接、订单号、日期、房号、金额等结构化内容。',
+      '4. 如果原文已经是目标语言，也只返回润色后的同语言正文。',
       '',
+      '<<<TEXT>>>',
       trimmed,
+      '<<<END>>>',
     ].join('\n'),
   }, {
     timeoutMs: AI_TRANSLATION_TIMEOUT_MS,

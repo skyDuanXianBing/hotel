@@ -25,6 +25,7 @@ import server.demo.repository.UserRepository;
 import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.PriceLabsConnectionRepository;
 import server.demo.repository.CleaningTaskRepository;
+import server.demo.repository.RoomBlockoutRepository;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.SuHotelIdUtil;
 
@@ -73,6 +74,9 @@ public class RoomTypeService {
 
     @Autowired
     private CleaningTaskRepository cleaningTaskRepository;
+
+    @Autowired
+    private RoomBlockoutRepository roomBlockoutRepository;
 
     @Autowired
     private SuContentSyncService suContentSyncService;
@@ -609,6 +613,7 @@ public class RoomTypeService {
         if (!roomIds.isEmpty()) {
             reservationRepository.clearRoomBindingByStoreIdAndRoomIds(storeId, roomIds);
             cleaningTaskRepository.deleteByRoomIdIn(new HashSet<>(roomIds));
+            roomBlockoutRepository.deleteByStoreIdAndRoom_IdIn(storeId, roomIds);
         }
         channelPriceRepository.deleteByStoreIdAndRoomTypeId(storeId, id);
         priceLabsConnectionRepository.deleteByStoreIdAndRoomTypeId(storeId, id);
