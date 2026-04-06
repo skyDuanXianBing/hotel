@@ -42,6 +42,11 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class RoomPriceServiceImpl implements RoomPriceService {
+    private static final Set<ReservationStatus> ROOM_PRICE_OCCUPANCY_STATUSES = Set.of(
+            ReservationStatus.CONFIRMED,
+            ReservationStatus.CHECKED_IN,
+            ReservationStatus.REQUESTED
+    );
 
     @Autowired
     private RoomPriceRepository roomPriceRepository;
@@ -489,7 +494,13 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     dto.setPriceDate(currentDate);
 
                     // 动态计算可用房间数
-                    Integer availableRooms = calculateAvailableRooms(roomType, currentDate, reservations, blockedRoomsByTypeDate);
+                    Integer availableRooms = calculateAvailableRooms(
+                            roomType,
+                            currentDate,
+                            null,
+                            reservations,
+                            blockedRoomsByTypeDate
+                    );
                     dto.setAvailableRooms(availableRooms);
 
                     // 没有价格计划时,价格为null或默认价格
@@ -537,18 +548,13 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     // 使用特定日期的覆盖价格
                     RoomPrice roomPrice = specificPrice.get();
                     price = roomPrice.getPrice();
-                    // 如果有设置availableRooms，使用设置的值；否则动态计算
-                    if (roomPrice.getAvailableRooms() != null) {
-                        availableRooms = roomPrice.getAvailableRooms();
-                        if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
-                            System.out.println("  使用数据库中的availableRooms: " + availableRooms + " (RoomPrice ID: " + roomPrice.getId() + ")");
-                        }
-                    } else {
-                        availableRooms = calculateAvailableRooms(plan.getRoomType(), checkDate, reservations, blockedRoomsByTypeDate);
-                        if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
-                            System.out.println("  动态计算availableRooms: " + availableRooms);
-                        }
-                    }
+                    availableRooms = calculateAvailableRooms(
+                            plan.getRoomType(),
+                            checkDate,
+                            roomPrice.getAvailableRooms(),
+                            reservations,
+                            blockedRoomsByTypeDate
+                    );
 
                     // 设置minStay和maxStay
                     dto.setMinStay(roomPrice.getMinStay());
@@ -564,7 +570,13 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     // 使用周价格
                     price = getPriceForDayOfWeek(currentDate.getDayOfWeek(), plan);
                     // 动态计算可用房间数
-                    availableRooms = calculateAvailableRooms(plan.getRoomType(), checkDate, reservations, blockedRoomsByTypeDate);
+                    availableRooms = calculateAvailableRooms(
+                            plan.getRoomType(),
+                            checkDate,
+                            null,
+                            reservations,
+                            blockedRoomsByTypeDate
+                    );
                     if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
                         System.out.println("  动态计算availableRooms(无specificPrice): " + availableRooms);
                     }
@@ -615,40 +627,36 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     private Integer calculateAvailableRooms(
             RoomType roomType,
             LocalDate date,
+            Integer baseAvailableRoomsOverride,
             List<Reservation> reservations,
             Map<String, Integer> blockedRoomsByTypeDate
     ) {
-        // 获取房型的总房间数
-        Integer totalRooms = roomType.getTotalRooms();
-
-        if (totalRooms == null || totalRooms == 0) {
-            System.out.println("警告: 房型 " + roomType.getName() + " 的总房间数为 " + totalRooms);
+        Integer baseAvailableRooms = resolveBaseAvailableRooms(roomType, baseAvailableRoomsOverride);
+        if (baseAvailableRooms <= 0) {
             return 0;
         }
 
-        // 计算该日期该房型已预订/已入住的房间数
         long occupiedCount = reservations.stream()
                 .filter(r -> {
-                    // 检查预订状态：已确认、已入住状态都算占用
-                    boolean isOccupiedStatus = r.getStatus() == ReservationStatus.CONFIRMED ||
-                                             r.getStatus() == ReservationStatus.CHECKED_IN;
-
-                    // 检查日期是否在预订范围内: checkInDate <= date < checkOutDate
+                    boolean isOccupiedStatus = ROOM_PRICE_OCCUPANCY_STATUSES.contains(r.getStatus());
                     boolean isInDateRange = !date.isBefore(r.getCheckInDate()) && date.isBefore(r.getCheckOutDate());
-
-                    // 检查是否为相同房型
-                    boolean isSameRoomType = r.getRoom() != null &&
-                                           r.getRoom().getRoomType() != null &&
-                                           r.getRoom().getRoomType().getId().equals(roomType.getId());
+                    boolean isSameRoomType = r.getRoom() != null
+                            && r.getRoom().getRoomType() != null
+                            && r.getRoom().getRoomType().getId().equals(roomType.getId());
 
                     return isOccupiedStatus && isInDateRange && isSameRoomType;
                 })
                 .count();
 
         int blockedCount = blockedRoomsByTypeDate.getOrDefault(roomType.getId() + "|" + date, 0);
+        return Math.max(baseAvailableRooms - (int) occupiedCount - blockedCount, 0);
+    }
 
-        // 返回可用房间数
-        return Math.max(totalRooms - (int) occupiedCount - blockedCount, 0);
+    private int resolveBaseAvailableRooms(RoomType roomType, Integer baseAvailableRoomsOverride) {
+        Integer baseAvailableRooms = baseAvailableRoomsOverride != null
+                ? baseAvailableRoomsOverride
+                : roomType.getTotalRooms();
+        return Math.max(baseAvailableRooms != null ? baseAvailableRooms : 0, 0);
     }
 
     /**
@@ -985,11 +993,42 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         dto.setPriceDate(roomPrice.getPriceDate());
         dto.setPrice(roomPrice.getPrice());
 
-        // 如果没有设置availableRooms，则使用房型的总房间数
-        Integer availableRooms = roomPrice.getAvailableRooms();
-        if (availableRooms == null) {
-            availableRooms = roomPrice.getRoomType().getTotalRooms();
+        Long storeId = currentStoreId();
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndRoomTypeIdOverlappingDateRangeWithRoomType(
+                storeId,
+                roomPrice.getRoomType().getId(),
+                roomPrice.getPriceDate(),
+                roomPrice.getPriceDate()
+        );
+        List<Room> rooms = roomRepository.findByStoreIdAndRoomTypeId(storeId, roomPrice.getRoomType().getId());
+        Map<String, Integer> blockedRoomsByTypeDate = new HashMap<>();
+        List<Long> roomIds = rooms.stream()
+                .map(Room::getId)
+                .filter(id -> id != null)
+                .toList();
+        if (!roomIds.isEmpty()) {
+            List<RoomBlockout> blockouts = roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(
+                    storeId,
+                    roomIds,
+                    roomPrice.getPriceDate(),
+                    roomPrice.getPriceDate()
+            );
+            for (RoomBlockout blockout : blockouts) {
+                if (blockout == null || blockout.getRoom() == null || blockout.getRoom().getRoomType() == null
+                        || blockout.getRoom().getRoomType().getId() == null || blockout.getBlockDate() == null) {
+                    continue;
+                }
+                String key = blockout.getRoom().getRoomType().getId() + "|" + blockout.getBlockDate();
+                blockedRoomsByTypeDate.merge(key, 1, Integer::sum);
+            }
         }
+        Integer availableRooms = calculateAvailableRooms(
+                roomPrice.getRoomType(),
+                roomPrice.getPriceDate(),
+                roomPrice.getAvailableRooms(),
+                reservations,
+                blockedRoomsByTypeDate
+        );
         dto.setAvailableRooms(availableRooms);
 
         dto.setMinStay(roomPrice.getMinStay());
