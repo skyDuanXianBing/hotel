@@ -27,6 +27,7 @@ public class ChatMessageRequest {
      * 用户ID（可选），用于个性化回复
      */
     private String userId;
+    private String taskType;
 
     // 构造函数
     public ChatMessageRequest() {}
@@ -62,12 +63,21 @@ public class ChatMessageRequest {
         this.userId = userId;
     }
 
+    public String getTaskType() {
+        return taskType;
+    }
+
+    public void setTaskType(String taskType) {
+        this.taskType = taskType;
+    }
+
     @Override
     public String toString() {
         return "ChatMessageRequest{" +
                 "message='" + message + '\'' +
                 ", sessionId='" + sessionId + '\'' +
                 ", userId='" + userId + '\'' +
+                ", taskType='" + taskType + '\'' +
                 '}';
     }
 }

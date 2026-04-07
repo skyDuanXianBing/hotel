@@ -758,6 +758,7 @@ const requestAiTranslationToLanguage = async (sourceText: string, targetLanguage
   const isolatedTranslationSessionId = `translation_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
   const response = (await sendChatMessage({
     sessionId: isolatedTranslationSessionId,
+    taskType: 'TRANSLATION',
     message: [
       `请把下面 <<<TEXT>>> 与 <<<END>>> 之间的内容翻译成${targetLanguageLabel}。`,
       '要求：',

@@ -30,6 +30,17 @@ public class ChatServiceImpl implements ChatService {
             5) Do not invent facts. If uncertain, say so and suggest contacting human staff/front desk.
             6) For emergency/safety/medical topics, advise contacting front desk or local emergency services immediately.
             """;
+    private static final String TRANSLATION_TASK_TYPE = "TRANSLATION";
+    private static final String TRANSLATION_SYSTEM_PROMPT = """
+            You are a translation engine.
+            Follow these rules strictly:
+            1) Translate only the source text supplied by the user.
+            2) Never answer the user's question.
+            3) Never act like hotel staff or customer support.
+            4) Never add explanations, greetings, markdown, or extra sentences.
+            5) Preserve links, order numbers, dates, times, room numbers, and currency values.
+            6) Return only valid JSON in the form {"translation":"..."}.
+            """;
 
     @Override
     public ChatMessageResponse processMessage(ChatMessageRequest request) {
@@ -39,7 +50,9 @@ public class ChatServiceImpl implements ChatService {
         try {
             logger.info("Processing chat message: sessionId={}", sessionId);
 
-            String fullPrompt = buildFullPrompt(request.getMessage());
+            String fullPrompt = isTranslationTask(request)
+                    ? buildTranslationPrompt(request.getMessage())
+                    : buildFullPrompt(request.getMessage());
             String aiReply = chatLanguageModel.generate(fullPrompt);
 
             long processingTime = System.currentTimeMillis() - startTime;
@@ -130,6 +143,18 @@ public class ChatServiceImpl implements ChatService {
         return SYSTEM_PROMPT + "\n\n" +
                 "User message:\n" + userMessage + "\n\n" +
                 "Output constraint: keep the same language and script as the user message unless the user asks for translation.";
+    }
+
+    private static boolean isTranslationTask(ChatMessageRequest request) {
+        return request != null
+                && request.getTaskType() != null
+                && TRANSLATION_TASK_TYPE.equalsIgnoreCase(request.getTaskType().trim());
+    }
+
+    private String buildTranslationPrompt(String userMessage) {
+        return TRANSLATION_SYSTEM_PROMPT + "\n\n" +
+                "User input:\n" + userMessage + "\n\n" +
+                "Return JSON only.";
     }
 
     private String generateSessionId() {
