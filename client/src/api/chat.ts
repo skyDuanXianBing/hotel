@@ -40,8 +40,8 @@ const extractTranslationPayload = (message: string): TranslationPayload | null =
     return null
   }
 
-  const startIndex = message.indexOf(TRANSLATION_MARKER_START)
-  const endIndex = message.indexOf(TRANSLATION_MARKER_END, startIndex + TRANSLATION_MARKER_START.length)
+  const endIndex = message.lastIndexOf(TRANSLATION_MARKER_END)
+  const startIndex = message.lastIndexOf(TRANSLATION_MARKER_START, endIndex)
   if (startIndex < 0 || endIndex < 0) {
     return null
   }
@@ -49,7 +49,7 @@ const extractTranslationPayload = (message: string): TranslationPayload | null =
   const sourceText = message
     .slice(startIndex + TRANSLATION_MARKER_START.length, endIndex)
     .trim()
-  if (!sourceText) {
+  if (!sourceText || sourceText.length <= 1) {
     return null
   }
 

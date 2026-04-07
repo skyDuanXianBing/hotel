@@ -554,6 +554,12 @@ const STORE_LANGUAGE_AI_LABEL_MAP: Record<string, string> = {
   ja: '日本語',
   ko: '한국어',
 }
+const GUEST_LANGUAGE_AI_LABEL_MAP: Record<string, string> = {
+  zh: 'Simplified Chinese',
+  en: 'English',
+  ja: 'Japanese',
+  ko: 'Korean',
+}
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
@@ -587,6 +593,23 @@ const currentStoreTimeZone = computed(() => {
 
 const resolveSystemLanguageAiLabel = () =>
   STORE_LANGUAGE_AI_LABEL_MAP[currentStoreLanguageCode.value] || STORE_LANGUAGE_AI_LABEL_MAP.zh
+
+const detectTextLanguageCode = (text?: string) => {
+  const normalized = (text || '').trim()
+  if (!normalized) {
+    return 'en'
+  }
+  if (/[\u3040-\u30ff]/.test(normalized)) {
+    return 'ja'
+  }
+  if (/[\uac00-\ud7af]/.test(normalized)) {
+    return 'ko'
+  }
+  if (/[\u4e00-\u9fff]/.test(normalized)) {
+    return 'zh'
+  }
+  return 'en'
+}
 
 const buildDateTimeFormatter = (
   locale: string,
@@ -728,6 +751,7 @@ const loadTranslationSettings = () => {
       targetLanguage?: (typeof TRANSLATION_LANGUAGE_OPTIONS)[number]['value']
     }
     translationEnabled.value = Boolean(parsed.enabled)
+    clearTranslationCaches()
     if (
       parsed.targetLanguage &&
       TRANSLATION_LANGUAGE_OPTIONS.some((item) => item.value === parsed.targetLanguage)
@@ -749,6 +773,17 @@ const persistTranslationSettings = () => {
   )
 }
 
+const clearTranslationCaches = () => {
+  translatedMessageMap.value = {}
+  translatedConversationPreviewMap.value = {}
+  translationPendingKeys.clear()
+}
+
+const clearMessageTranslationCache = () => {
+  translatedMessageMap.value = {}
+  translationPendingKeys.clear()
+}
+
 const requestAiTranslationToLanguage = async (sourceText: string, targetLanguageLabel: string) => {
   const trimmed = sourceText.trim()
   if (!trimmed) {
@@ -760,7 +795,7 @@ const requestAiTranslationToLanguage = async (sourceText: string, targetLanguage
     sessionId: isolatedTranslationSessionId,
     taskType: 'TRANSLATION',
     message: [
-      `请把下面 <<<TEXT>>> 与 <<<END>>> 之间的内容翻译成${targetLanguageLabel}。`,
+      `请把下面提供的正文翻译成${targetLanguageLabel}。`,
       '要求：',
       '1. 只能翻译这一次提供的文本，严禁结合历史消息、上下文或自行补全。',
       '2. 只返回翻译后的正文，不要添加解释、标题、引号或前缀。',
@@ -944,9 +979,7 @@ const applyTranslationSettings = async () => {
     persistTranslationSettings()
     translationDialogVisible.value = false
     if (translationEnabled.value) {
-      translatedMessageMap.value = {}
-      translatedConversationPreviewMap.value = {}
-      translationPendingKeys.clear()
+      clearTranslationCaches()
       void translateCurrentConversation()
       await nextTick()
       void translateVisibleMessages()
@@ -1220,6 +1253,7 @@ const loadThreadMessages = async (threadId: number) => {
     const incoming = (response.data || []).map(mapMessage)
     messages.value = sortMessagesByTime(incoming)
     if (translationEnabled.value) {
+      clearMessageTranslationCache()
       void translateCurrentConversation()
     }
     await scrollToBottom()
@@ -1279,11 +1313,20 @@ const buildConversationContextForAi = () => {
   return context
 }
 
-const buildFallbackContextSummary = () => {
-  const conversation = activeConversation.value
-  const latestGuestMessage = [...sortMessagesByTime(messages.value)]
+const getLatestGuestMessage = () =>
+  [...sortMessagesByTime(messages.value)]
     .reverse()
     .find((item) => item.senderType === SuMessagingSenderType.GUEST)
+
+const resolveLatestGuestLanguageLabel = () => {
+  const latestGuestMessage = getLatestGuestMessage()
+  const languageCode = detectTextLanguageCode(latestGuestMessage?.content)
+  return GUEST_LANGUAGE_AI_LABEL_MAP[languageCode] || GUEST_LANGUAGE_AI_LABEL_MAP.en
+}
+
+const buildFallbackContextSummary = () => {
+  const conversation = activeConversation.value
+  const latestGuestMessage = getLatestGuestMessage()
 
   const headline = latestGuestMessage?.content?.slice(0, 80) || '住客咨询了入住相关问题'
   return `住客来自 ${conversation?.channelName || '未知渠道'}，订单号 ${conversation?.bookingId || conversation?.threadId || '-'}。最新问题：${headline}`
@@ -1327,20 +1370,24 @@ const openAiReplyAssistant = async () => {
 
   try {
     const context = buildConversationContextForAi()
+    const guestLanguageLabel = resolveLatestGuestLanguageLabel()
     const prompt = [
-      '你是酒店客服AI助手，请根据会话内容完成两件事：',
-      '1) 总结住客当前问题上下文；',
-      '2) 给出一版可直接发送给住客的初始回复。',
-      '要求：回复语气专业、简洁、友好；回复语言必须与住客最近一条消息保持一致；不编造未确认事实。',
-      '输出格式必须严格如下：',
+      'You are a hotel guest messaging assistant.',
+      'Please complete two tasks based on the conversation context.',
+      `1) Write [CONTEXT] in ${resolveSystemLanguageAiLabel()} so the staff can understand the situation quickly.`,
+      `2) Write [DRAFT] in ${guestLanguageLabel} so it can be sent directly to the guest.`,
+      'Keep the draft professional, concise, warm, and factual.',
+      'Do not invent any unconfirmed facts.',
+      'The [DRAFT] language must match the latest guest message language exactly.',
+      'Output format must be exactly:',
       '[CONTEXT]',
-      '...上下文总结...',
+      '...staff-readable summary...',
       '[/CONTEXT]',
       '[DRAFT]',
-      '...初始回复...',
+      '...guest-facing reply...',
       '[/DRAFT]',
       '',
-      '会话上下文：',
+      'Conversation context:',
       context,
     ].join('\n')
 
@@ -1390,17 +1437,20 @@ const polishAiDraftReply = async () => {
   })
 
   try {
+    const guestLanguageLabel = resolveLatestGuestLanguageLabel()
     const prompt = [
-      '你是酒店客服改写助手，请改进下面这条客服回复草稿。',
-      '请严格返回“可直接发送给住客的完整回复正文”，不要加解释。',
-      '请保持草稿使用住客语言，不要改成系统语言。',
+      'You are a hotel guest reply editor.',
+      'Improve the following draft reply for the guest.',
+      `Return only the final guest-facing reply in ${guestLanguageLabel}.`,
+      `Do not switch to ${resolveSystemLanguageAiLabel()} unless the guest message is in that language.`,
+      'Do not add explanations.',
       '',
-      `会话上下文总结：${aiContextSummary.value}`,
+      `Staff summary: ${aiContextSummary.value}`,
       '',
-      '当前草稿：',
+      'Current draft:',
       aiDraftReply.value,
       '',
-      '改写要求：',
+      'Revision request:',
       instruction,
     ].join('\n')
 
