@@ -557,6 +557,7 @@ public class RoomTypeService {
                 if (!roomIdsToDelete.isEmpty()) {
                     reservationRepository.clearRoomBindingByStoreIdAndRoomIds(storeId, new ArrayList<>(roomIdsToDelete));
                     cleaningTaskRepository.deleteByRoomIdIn(roomIdsToDelete);
+                    cleaningTaskRepository.flush();
                     roomBlockoutRepository.deleteByStoreIdAndRoom_IdIn(storeId, new ArrayList<>(roomIdsToDelete));
                 }
                 roomRepository.deleteAll(roomsToDelete);
