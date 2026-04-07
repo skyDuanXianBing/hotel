@@ -326,5 +326,43 @@ class SuReservationParserTest {
         assertTrue(parsed.length() <= 255);
         assertTrue(parsed.startsWith("17032200000"));
     }
-}
 
+    @Test
+    void normalizeBookingReservationId_supportsWebhookAndOrderNumberFormats() {
+        assertEquals("5003249282", SuReservationParser.normalizeBookingReservationId("5003249282"));
+        assertEquals("5003249282", SuReservationParser.normalizeBookingReservationId("5003249282_W39FVCQYSN"));
+        assertEquals("5003249282", SuReservationParser.normalizeBookingReservationId("SU26-5003249282_W39FVCQYSN-1774939615039"));
+        assertNull(SuReservationParser.normalizeBookingReservationId("SU26-HMFWJRDAX5_W39FVCQYSN-1775037944902"));
+    }
+
+    @Test
+    void extractBookingReservationId_prefersRemarksResIdWhenChannelMissing() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "id": "5003249282_W39FVCQYSN",
+                    "customer": {
+                      "remarks": "BOOKING NOTE | url: https://admin.booking.com/manage/booking.html?res_id=5842688289&hotel_id=16016360&lang=en |"
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        assertEquals("5842688289", SuReservationParser.extractBookingReservationId(reservation));
+    }
+
+    @Test
+    void extractBookingReservationId_usesOrderNumberFallbackWhenPayloadMissing() throws Exception {
+        JsonNode reservation = objectMapper.readTree("{\"reservation\":{}}")
+                .get("reservation");
+
+        assertEquals(
+                "5003249282",
+                SuReservationParser.extractBookingReservationId(
+                        reservation,
+                        "SU26-5003249282_W39FVCQYSN-1774939615039"
+                )
+        );
+    }
+}

@@ -31,6 +31,10 @@ public final class SuReservationParser {
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s|]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern QUERY_PARAM_PATTERN = Pattern.compile("(?:^|[?&])([A-Za-z0-9_]+)=([^&#\\s|]+)");
     private static final Pattern PHONE_SPLIT_PATTERN = Pattern.compile("[,，;；\\s]+");
+    private static final Pattern NUMERIC_BOOKING_ID_PATTERN = Pattern.compile("^\\d{6,20}$");
+    private static final Pattern BOOKING_ID_WITH_SUFFIX_PATTERN = Pattern.compile("^(\\d{6,20})_[A-Za-z0-9_-]+$");
+    private static final Pattern BOOKING_ID_FROM_ORDER_NUMBER_PATTERN =
+            Pattern.compile("^SU\\d+-(\\d{6,20})(?:[_-].*)?$", Pattern.CASE_INSENSITIVE);
 
     private SuReservationParser() {}
 
@@ -89,6 +93,66 @@ public final class SuReservationParser {
                 .or(() -> text(reservation, "channel_bookingid"))
                 .or(() -> text(reservation, "channel_booking_id".toUpperCase(Locale.ROOT)))
                 .orElse(null);
+    }
+
+    /**
+     * Normalize Booking.com reservation id.
+     * Accepted shapes:
+     * - 5003249282
+     * - 5003249282_W39FVCQYSN
+     * - SU26-5003249282_W39FVCQYSN-1774939615039
+     */
+    public static String normalizeBookingReservationId(String rawBookingId) {
+        String normalized = normalizeParamValue(rawBookingId);
+        if (normalized == null) {
+            return null;
+        }
+        if (NUMERIC_BOOKING_ID_PATTERN.matcher(normalized).matches()) {
+            return normalized;
+        }
+        Matcher fromReservationId = BOOKING_ID_WITH_SUFFIX_PATTERN.matcher(normalized);
+        if (fromReservationId.matches()) {
+            return fromReservationId.group(1);
+        }
+        Matcher fromOrderNumber = BOOKING_ID_FROM_ORDER_NUMBER_PATTERN.matcher(normalized);
+        if (fromOrderNumber.matches()) {
+            return fromOrderNumber.group(1);
+        }
+        return null;
+    }
+
+    /**
+     * Extract normalized Booking.com reservation id from webhook payload.
+     * Priority:
+     * 1) channel_booking_id
+     * 2) customer.remarks / customer.remarks_en URL param res_id
+     * 3) reservation.id (prefix before "_")
+     */
+    public static String extractBookingReservationId(JsonNode reservation) {
+        String fromChannelBookingId = normalizeBookingReservationId(extractChannelBookingId(reservation));
+        if (fromChannelBookingId != null) {
+            return fromChannelBookingId;
+        }
+        String fromRemarks = extractBookingReservationIdFromRemarks(extractCustomerRemarks(reservation));
+        if (fromRemarks != null) {
+            return fromRemarks;
+        }
+        return normalizeBookingReservationId(extractReservationId(reservation));
+    }
+
+    /**
+     * Extract normalized Booking.com reservation id with optional order number fallback.
+     */
+    public static String extractBookingReservationId(JsonNode reservation, String fallbackOrderNumber) {
+        String fromReservation = extractBookingReservationId(reservation);
+        if (fromReservation != null) {
+            return fromReservation;
+        }
+        return extractBookingReservationIdFromOrderNumber(fallbackOrderNumber);
+    }
+
+    public static String extractBookingReservationIdFromOrderNumber(String orderNumber) {
+        return normalizeBookingReservationId(orderNumber);
     }
 
     /**
@@ -550,7 +614,7 @@ public final class SuReservationParser {
             return null;
         }
 
-        String bookingId = extractChannelBookingId(reservation);
+        String bookingId = extractBookingReservationId(reservation);
         List<RemarksListingCandidate> candidates = extractRemarksListingCandidates(remarks);
         if (candidates.isEmpty()) {
             return null;
@@ -615,6 +679,20 @@ public final class SuReservationParser {
             }
         }
         return null;
+    }
+
+    private static String extractBookingReservationIdFromRemarks(String remarks) {
+        if (remarks == null || remarks.isBlank()) {
+            return null;
+        }
+        Matcher matcher = URL_PATTERN.matcher(remarks);
+        while (matcher.find()) {
+            String resId = normalizeBookingReservationId(extractQueryParam(matcher.group(), "res_id"));
+            if (resId != null) {
+                return resId;
+            }
+        }
+        return normalizeBookingReservationId(extractQueryParam(remarks, "res_id"));
     }
 
     private static String normalizeParamValue(String raw) {

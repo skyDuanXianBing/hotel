@@ -96,6 +96,35 @@ class OtaReservationSyncServiceUpsertLookupTest {
         assertEquals("SU26-NEW", result.resolvedOrderNumber());
     }
 
+
+    @Test
+    void mergeChannelOrderNumber_keepsExistingWhenIncomingBlank() {
+        assertEquals(
+                "5003249282",
+                OtaReservationSyncService.mergeChannelOrderNumber("5003249282", "   ")
+        );
+    }
+
+    @Test
+    void mergeChannelOrderNumber_prefersIncomingWhenProvided() {
+        assertEquals(
+                "5842688289",
+                OtaReservationSyncService.mergeChannelOrderNumber("5003249282", "5842688289")
+        );
+    }
+
+    @Test
+    void resolveCanonicalChannelBookingId_normalizesBookingFormattedOrderNumber() {
+        assertEquals(
+                "5003249282",
+                OtaReservationSyncService.resolveCanonicalChannelBookingId(
+                        "BOOKING",
+                        null,
+                        "SU26-5003249282_W39FVCQYSN-1774939615039",
+                        null
+                )
+        );
+    }
     private static OtaReservationSyncService createService(ReservationRepository reservationRepository) {
         PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
         return new OtaReservationSyncService(

@@ -462,9 +462,12 @@ public class SuBusinessAutoMessageService {
             return true;
         }
 
-        String channelBookingId = SuReservationParser.extractChannelBookingId(reservationNode);
-        return sameIdentifier(channelBookingId, reservation.getChannelOrderNumber())
-                || sameIdentifier(channelBookingId, reservation.getOrderNumber());
+        String channelBookingId = SuReservationParser.extractBookingReservationId(reservationNode);
+        if (sameIdentifier(channelBookingId, reservation.getChannelOrderNumber())) {
+            return true;
+        }
+        String reservationBookingId = resolveReservationBookingId(reservation);
+        return sameIdentifier(channelBookingId, reservationBookingId);
     }
 
     private static boolean sameIdentifier(String left, String right) {
@@ -479,6 +482,39 @@ public class SuBusinessAutoMessageService {
         }
         String normalized = value.trim();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private static String resolveReservationBookingId(Reservation reservation) {
+        if (reservation == null) {
+            return null;
+        }
+        String fromChannelOrder = SuReservationParser.normalizeBookingReservationId(reservation.getChannelOrderNumber());
+        if (fromChannelOrder != null) {
+            return fromChannelOrder;
+        }
+        return SuReservationParser.extractBookingReservationIdFromOrderNumber(reservation.getOrderNumber());
+    }
+
+    static String resolveThreadBookingIdForAutoMessage(Reservation reservation, Integer suChannelId) {
+        if (reservation == null) {
+            return null;
+        }
+        if (suChannelId != null && suChannelId == SuMessagingService.CHANNEL_BOOKING) {
+            return resolveReservationBookingId(reservation);
+        }
+        String bookingId = normalizeIdentifier(reservation.getChannelOrderNumber());
+        if (bookingId != null) {
+            return bookingId;
+        }
+        return normalizeIdentifier(reservation.getOrderNumber());
+    }
+
+    static boolean canCreateBookingFallbackThread(Reservation reservation) {
+        if (reservation == null) {
+            return false;
+        }
+        return normalizeIdentifier(reservation.getSuReservationId()) != null
+                || normalizeIdentifier(reservation.getReservationNotifId()) != null;
     }
 
     public LocalDateTime computeEarliestEventTime(AutoMessage template, LocalDateTime now) {
@@ -516,10 +552,7 @@ public class SuBusinessAutoMessageService {
             return null;
         }
 
-        String bookingId = reservation.getChannelOrderNumber();
-        if (bookingId == null || bookingId.isBlank()) {
-            bookingId = reservation.getOrderNumber();
-        }
+        String bookingId = resolveThreadBookingIdForAutoMessage(reservation, suChannelId);
         if (bookingId == null || bookingId.isBlank()) {
             return null;
         }
@@ -574,6 +607,9 @@ public class SuBusinessAutoMessageService {
         // For Booking channel, create a best-effort thread fallback so event-driven auto messages
         // can be sent even before inbound messaging webhook creates the thread.
         if (suChannelId != SuMessagingService.CHANNEL_BOOKING) {
+            return null;
+        }
+        if (!canCreateBookingFallbackThread(reservation)) {
             return null;
         }
 
@@ -1103,6 +1139,14 @@ public class SuBusinessAutoMessageService {
     }
 
     private WaitState classifyRecoverableError(String errorMessage) {
+        String code = classifyRecoverableWaitCode(errorMessage);
+        if (code == null) {
+            return null;
+        }
+        return new WaitState(code, trimErr(errorMessage));
+    }
+
+    static String classifyRecoverableWaitCode(String errorMessage) {
         if (errorMessage == null || errorMessage.isBlank()) {
             return null;
         }
@@ -1113,8 +1157,9 @@ public class SuBusinessAutoMessageService {
                 "doesn't have access to this property",
                 "does not have access to this property"
         )) {
-            return new WaitState(WAITING_PROPERTY_ACCESS, trimErr(errorMessage));
+            return WAITING_PROPERTY_ACCESS;
         }
+
         boolean hasReadinessHint = containsAny(normalized,
                 "missing",
                 "require",
@@ -1124,14 +1169,19 @@ public class SuBusinessAutoMessageService {
                 "not found",
                 "not ready",
                 "cannot send",
-            "invalid"
+                "invalid"
         );
         if (!hasReadinessHint) {
             return null;
         }
-        if (containsAny(normalized, "listingid", "listing id", "listing_id")) {
-            return new WaitState("WAITING_LISTINGID", trimErr(errorMessage));
+
+        if (containsAny(normalized,
+                "invalid reservationid",
+                "invalid reservation id"
+        )) {
+            return "WAITING_THREAD_FIELDS";
         }
+
         if (containsAny(normalized,
                 "threadid",
                 "thread id",
@@ -1141,12 +1191,18 @@ public class SuBusinessAutoMessageService {
                 "guest id",
                 "bookingid",
                 "booking id",
+                "reservationid",
+                "reservation id",
                 "hotelid",
                 "hotel id",
                 "channelid",
                 "channel id"
         )) {
-            return new WaitState("WAITING_THREAD_FIELDS", trimErr(errorMessage));
+            return "WAITING_THREAD_FIELDS";
+        }
+
+        if (containsAny(normalized, "listingid", "listing id", "listing_id")) {
+            return "WAITING_LISTINGID";
         }
         return null;
     }
