@@ -32,12 +32,12 @@ import server.demo.repository.SuMessageThreadRepository;
 import server.demo.repository.SuReservationWebhookEventRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
 import server.demo.util.SuReservationParser;
+import server.demo.util.UtcTimeUtil;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.nio.charset.StandardCharsets;
@@ -350,7 +350,7 @@ public class SuBusinessAutoMessageService {
         }
 
         thread.setListingId(normalized);
-        thread.setLastActivity(LocalDateTime.now());
+        thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
         try {
             threadRepository.save(thread);
             autoMessageLogger.info(
@@ -594,7 +594,7 @@ public class SuBusinessAutoMessageService {
                 changed = true;
             }
             if (changed) {
-                thread.setLastActivity(LocalDateTime.now());
+                thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
                 try {
                     thread = threadRepository.save(thread);
                 } catch (DataIntegrityViolationException ignore) {
@@ -640,7 +640,7 @@ public class SuBusinessAutoMessageService {
             if (listingId != null && !listingId.isBlank()) {
                 thread.setListingId(listingId);
             }
-            thread.setLastActivity(LocalDateTime.now());
+            thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
             return threadRepository.save(thread);
         } catch (DataIntegrityViolationException e) {
             return threadRepository.findByStoreIdAndChannelIdAndThreadKey(storeId, suChannelId, threadKey)
@@ -972,14 +972,14 @@ public class SuBusinessAutoMessageService {
         message.setSenderType(SuMessagingSenderType.STAFF);
         message.setSenderName(senderName);
         message.setContent(content);
-        message.setSentAt(LocalDateTime.now());
+        message.setSentAt(UtcTimeUtil.nowLocalDateTime());
         message.setIsRead(true);
         message.setDeliveryStatus(DELIVERY_SENDING);
         message.setRawJson(null);
         message = messageRepository.saveAndFlush(message);
 
         thread.setLastMessage(trimToMax(content, 500));
-        thread.setLastActivity(LocalDateTime.now());
+        thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
         threadRepository.save(thread);
 
         realtimeGateway.broadcastMessageCreated(storeId, thread.getId(), toMessageDTO(message));
@@ -1091,7 +1091,7 @@ public class SuBusinessAutoMessageService {
         if (localDateTime == null) {
             return null;
         }
-        return localDateTime.atOffset(ZoneOffset.UTC);
+        return UtcTimeUtil.toUtcOffset(localDateTime);
     }
 
     private static String trimToMax(String text, int max) {

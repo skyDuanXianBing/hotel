@@ -22,6 +22,7 @@ import server.demo.repository.UserRepository;
 import server.demo.util.SuHotelIdUtil;
 import server.demo.util.SuReservationParser;
 import server.demo.util.SuRoomIdParser;
+import server.demo.util.UtcTimeUtil;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.UnexpectedRollbackException;
@@ -1057,7 +1058,7 @@ public class OtaReservationSyncService {
         );
         String listingId = listingResolution.listingId();
         String listingSource = listingResolution.source();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTimeUtil.nowLocalDateTime();
 
         reservationLogger.info(
                 "[ReservationUpsert] thread listing resolved. storeId={}, hotelId={}, reservationId={}, notifId={}, bookingId={}, listingId={}, source={}",

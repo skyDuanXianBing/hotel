@@ -18,6 +18,7 @@ import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
+import server.demo.util.UtcTimeUtil;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -122,7 +123,7 @@ public class SuMessagingService {
             thread.setGuestName(readAirbnbGuestFirstName(root));
         }
         thread.setLastMessage(trimToMax(content, 500));
-        thread.setLastActivity(LocalDateTime.now());
+        thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
 
         thread = threadRepository.save(thread);
 
@@ -133,7 +134,7 @@ public class SuMessagingService {
         msg.setSenderType(SuMessagingSenderType.GUEST);
         msg.setSenderName(thread.getGuestName());
         msg.setContent(content);
-        msg.setSentAt(LocalDateTime.now());
+        msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
         msg.setIsRead(false);
         msg.setDeliveryStatus("SENT");
         msg.setRawJson(rawJson);
@@ -305,14 +306,14 @@ public class SuMessagingService {
         String senderName = request.getSenderName() != null ? request.getSenderName().trim() : null;
         msg.setSenderName(senderName != null && !senderName.isBlank() ? senderName : null);
         msg.setContent(message);
-        msg.setSentAt(LocalDateTime.now());
+        msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
         msg.setIsRead(true);
         msg.setDeliveryStatus("SENT");
         msg.setRawJson(writeJsonSafely(payload));
         msg = messageRepository.save(msg);
 
         thread.setLastMessage(trimToMax(message, 500));
-        thread.setLastActivity(LocalDateTime.now());
+        thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
         threadRepository.save(thread);
 
         SuMessagingMessageDTO dto = toMessageDTO(msg);
@@ -396,7 +397,7 @@ public class SuMessagingService {
         if (localDateTime == null) {
             return null;
         }
-        return localDateTime.atOffset(ZoneOffset.UTC);
+        return UtcTimeUtil.toUtcOffset(localDateTime);
     }
 
     private static String buildThreadKey(Integer channelId, String threadId, String bookingId) {

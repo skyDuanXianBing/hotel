@@ -19,10 +19,10 @@ import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.AutoMessageSendLogRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
+import server.demo.util.UtcTimeUtil;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -149,14 +149,14 @@ public class SuAiAutoReplyService {
             aiMessage.setSenderType(SuMessagingSenderType.STAFF);
             aiMessage.setSenderName(resolvedSenderName);
             aiMessage.setContent(aiReplyContent);
-            aiMessage.setSentAt(LocalDateTime.now());
+            aiMessage.setSentAt(UtcTimeUtil.nowLocalDateTime());
             aiMessage.setIsRead(true);
             aiMessage.setDeliveryStatus(DELIVERY_SENDING);
             aiMessage.setRawJson(null);
             aiMessage = messageRepository.saveAndFlush(aiMessage);
 
             thread.setLastMessage(aiReplyContent);
-            thread.setLastActivity(LocalDateTime.now());
+            thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
             threadRepository.save(thread);
 
             realtimeGateway.broadcastMessageCreated(storeId, threadId, toMessageDTO(aiMessage));
@@ -303,7 +303,7 @@ public class SuAiAutoReplyService {
         if (localDateTime == null) {
             return null;
         }
-        return localDateTime.atOffset(ZoneOffset.UTC);
+        return UtcTimeUtil.toUtcOffset(localDateTime);
     }
 
     private static String resolveAiSenderName(String configuredSenderName) {

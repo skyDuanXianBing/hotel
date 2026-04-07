@@ -22,6 +22,7 @@ import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
+import server.demo.util.UtcTimeUtil;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -149,13 +150,13 @@ public class SuAutoReplyService {
             msg.setSenderType(SuMessagingSenderType.STAFF);
             msg.setSenderName("系统自动回复");
             msg.setContent(rendered.trim());
-            msg.setSentAt(LocalDateTime.now());
+            msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
             msg.setIsRead(true);
             msg.setRawJson(writeJsonSafely(payload));
             messageRepository.save(msg);
 
             thread.setLastMessage(rendered.trim());
-            thread.setLastActivity(LocalDateTime.now());
+            thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
             threadRepository.save(thread);
 
             log.setSuccess(true);

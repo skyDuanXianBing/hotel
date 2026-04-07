@@ -1,6 +1,7 @@
 package server.demo.entity;
 
 import jakarta.persistence.*;
+import server.demo.util.UtcTimeUtil;
 
 import java.time.LocalDateTime;
 
@@ -76,7 +77,7 @@ public class SuMessageThread {
     private String lastMessage;
 
     @Column(name = "last_activity", nullable = false)
-    private LocalDateTime lastActivity = LocalDateTime.now();
+    private LocalDateTime lastActivity = UtcTimeUtil.nowLocalDateTime();
 
     @Column(name = "closed", nullable = false)
     private Boolean closed = false;
@@ -89,10 +90,10 @@ public class SuMessageThread {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        createdAt = UtcTimeUtil.nowLocalDateTime();
+        updatedAt = UtcTimeUtil.nowLocalDateTime();
         if (lastActivity == null) {
-            lastActivity = LocalDateTime.now();
+            lastActivity = UtcTimeUtil.nowLocalDateTime();
         }
         if (closed == null) {
             closed = false;
@@ -101,7 +102,7 @@ public class SuMessageThread {
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = UtcTimeUtil.nowLocalDateTime();
     }
 
     public Long getId() {
