@@ -18,6 +18,7 @@ import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
+import server.demo.util.SuReservationParser;
 import server.demo.util.UtcTimeUtil;
 
 import java.time.Instant;
@@ -83,7 +84,8 @@ public class SuMessagingService {
         }
 
         String threadId = readText(root, "threadid");
-        String bookingId = readText(root, "bookingid");
+        String rawBookingId = readText(root, "bookingid");
+        String bookingId = normalizeInboundBookingId(channelId, rawBookingId, threadId);
         String guestId = readText(root, "guestid");
         String listingId = readText(root, "listingid");
         String bookingFlag = readText(root, "bookingflag");
@@ -415,6 +417,18 @@ public class SuMessagingService {
         }
         return null;
     }
+
+    static String normalizeInboundBookingId(Integer channelId, String bookingId, String threadId) {
+        if (channelId == null || channelId != CHANNEL_BOOKING) {
+            return bookingId != null && !bookingId.isBlank() ? bookingId.trim() : null;
+        }
+        String normalizedBookingId = SuReservationParser.normalizeBookingReservationId(bookingId);
+        if (normalizedBookingId != null) {
+            return normalizedBookingId;
+        }
+        return SuReservationParser.normalizeBookingReservationId(threadId);
+    }
+
     private static String resolveChannelName(Integer channelId) {
         if (channelId == null) {
             return "UNKNOWN";

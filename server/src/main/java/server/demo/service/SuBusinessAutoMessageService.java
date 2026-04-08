@@ -26,6 +26,7 @@ import server.demo.repository.AutoMessageSendLogRepository;
 import server.demo.repository.RoomGroupMemberRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.repository.ReservationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
@@ -68,6 +69,7 @@ public class SuBusinessAutoMessageService {
 
     private final AutoMessageSendLogRepository sendLogRepository;
     private final StoreRepository storeRepository;
+    private final ReservationRepository reservationRepository;
     private final RoomTypeRepository roomTypeRepository;
     private final RoomRepository roomRepository;
     private final RoomGroupMemberRepository roomGroupMemberRepository;
@@ -85,6 +87,7 @@ public class SuBusinessAutoMessageService {
     public SuBusinessAutoMessageService(
             AutoMessageSendLogRepository sendLogRepository,
             StoreRepository storeRepository,
+            ReservationRepository reservationRepository,
             RoomTypeRepository roomTypeRepository,
             RoomRepository roomRepository,
             RoomGroupMemberRepository roomGroupMemberRepository,
@@ -101,6 +104,7 @@ public class SuBusinessAutoMessageService {
     ) {
         this.sendLogRepository = sendLogRepository;
         this.storeRepository = storeRepository;
+        this.reservationRepository = reservationRepository;
         this.roomTypeRepository = roomTypeRepository;
         this.roomRepository = roomRepository;
         this.roomGroupMemberRepository = roomGroupMemberRepository;
@@ -246,9 +250,25 @@ public class SuBusinessAutoMessageService {
                 return;
             }
 
-            String sender = resolveTemplateSenderName(templateSenderName);
-            SuMessage localMessage = createLocalSendingMessage(storeId, thread, content, sender);
+            if (thread.getChannelId() != null && thread.getChannelId() == SuMessagingService.CHANNEL_BOOKING) {
+                String recoveredBookingId = tryHydrateThreadBookingIdFromWebhook(storeId, reservation, store, thread);
+                if (recoveredBookingId != null && !recoveredBookingId.isBlank()) {
+                    reservation.setChannelOrderNumber(recoveredBookingId);
+                }
+            }
 
+            thread = ensureThreadBookingIdentity(thread, reservation);
+            if (thread.getChannelId() != null && thread.getChannelId() == SuMessagingService.CHANNEL_BOOKING) {
+                String bookingId = resolveBookingReplyBookingId(thread);
+                if (bookingId == null || bookingId.isBlank()) {
+                    markWaiting(log, "WAITING_THREAD_FIELDS", "booking thread missing bookingid");
+                    autoMessageLogger.info("[AutoMessage] waiting bookingid. storeId={}, reservationId={}, autoMessageId={}, threadDbId={}",
+                            storeId, reservation.getId(), template.getId(), thread.getId());
+                    return;
+                }
+            }
+
+            String sender = resolveTemplateSenderName(templateSenderName);
             Map<String, Object> payload = null;
             String sendError = null;
             try {
@@ -277,8 +297,14 @@ public class SuBusinessAutoMessageService {
             }
 
             if (sendError == null || sendError.isBlank()) {
+                SuMessage localMessage = createLocalSendingMessage(storeId, thread, content, sender);
                 markLocalMessageSent(storeId, thread.getId(), localMessage, payload);
             } else {
+                WaitState sendWaitState = classifyRecoverableError(sendError);
+                if (sendWaitState != null) {
+                    throw new RuntimeException(sendError);
+                }
+                SuMessage localMessage = createLocalSendingMessage(storeId, thread, content, sender);
                 markLocalMessageFailed(storeId, thread.getId(), localMessage, sendError, payload);
                 throw new RuntimeException(sendError);
             }
@@ -333,6 +359,23 @@ public class SuBusinessAutoMessageService {
         return null;
     }
 
+    private String tryHydrateThreadBookingIdFromWebhook(Long storeId, Reservation reservation, Store store, SuMessageThread thread) {
+        if (storeId == null || reservation == null || thread == null) {
+            return null;
+        }
+
+        String existingBookingId = resolveBookingReplyBookingId(thread);
+        if (existingBookingId != null && !existingBookingId.isBlank()) {
+            return existingBookingId;
+        }
+
+        String recovered = resolveBookingIdFromWebhook(storeId, reservation, store);
+        if (recovered == null || recovered.isBlank()) {
+            return null;
+        }
+        return saveRecoveredThreadBookingIdentity(storeId, reservation, thread, recovered, "webhook_bookingid");
+    }
+
     private String saveRecoveredThreadListingId(
             Long storeId,
             Reservation reservation,
@@ -374,6 +417,94 @@ public class SuBusinessAutoMessageService {
         return normalized;
     }
 
+    private String saveRecoveredThreadBookingIdentity(
+            Long storeId,
+            Reservation reservation,
+            SuMessageThread thread,
+            String bookingId,
+            String source
+    ) {
+        String normalized = SuReservationParser.normalizeBookingReservationId(bookingId);
+        if (normalized == null) {
+            return null;
+        }
+
+        boolean reservationChanged = !normalized.equals(SuReservationParser.normalizeBookingReservationId(reservation.getChannelOrderNumber()));
+        if (reservationChanged) {
+            reservation.setChannelOrderNumber(normalized);
+            try {
+                reservationRepository.save(reservation);
+            } catch (Exception ex) {
+                logger.warn(
+                        "[AutoMessage] recover bookingid save reservation failed. storeId={}, reservationId={}, source={}, err={}",
+                        storeId,
+                        reservation.getId(),
+                        source,
+                        ex.getMessage()
+                );
+            }
+        }
+
+        String currentBookingId = SuReservationParser.normalizeBookingReservationId(thread.getBookingId());
+        String currentThreadKey = SuReservationParser.normalizeBookingReservationId(thread.getThreadKey());
+        if (normalized.equals(currentBookingId) && normalized.equals(currentThreadKey)) {
+            return normalized;
+        }
+
+        thread.setBookingId(normalized);
+        thread.setThreadKey(normalized);
+        thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
+        try {
+            threadRepository.save(thread);
+            autoMessageLogger.info(
+                    "[AutoMessage] recovered bookingid from webhook. storeId={}, reservationId={}, threadId={}, source={}, bookingId={}",
+                    storeId,
+                    reservation.getId(),
+                    thread.getId(),
+                    source,
+                    normalized
+            );
+        } catch (DataIntegrityViolationException ex) {
+            logger.warn(
+                    "[AutoMessage] recover bookingid save race. storeId={}, reservationId={}, threadId={}, source={}, err={}",
+                    storeId,
+                    reservation.getId(),
+                    thread.getId(),
+                    source,
+                    ex.getMessage()
+            );
+        }
+        return normalized;
+    }
+
+    private String resolveBookingIdFromWebhook(Long storeId, Reservation reservation, Store store) {
+        if (storeId == null || reservation == null) {
+            return null;
+        }
+
+        String suHotelId = resolveSuHotelId(reservation, store);
+        String reservationNotifId = normalizeIdentifier(reservation.getReservationNotifId());
+        if (suHotelId != null && reservationNotifId != null) {
+            Optional<SuReservationWebhookEvent> exactEvent =
+                    webhookEventRepository.findByHotelIdAndReservationNotifId(suHotelId, reservationNotifId);
+            if (exactEvent.isPresent()) {
+                String recovered = resolveBookingIdFromWebhookEventPayload(exactEvent.get(), reservation);
+                if (recovered != null) {
+                    return recovered;
+                }
+            }
+        }
+
+        List<SuReservationWebhookEvent> recentEvents = webhookEventRepository.findTop200ByStoreIdOrderByCreatedAtDesc(storeId);
+        for (SuReservationWebhookEvent event : recentEvents) {
+            String recovered = resolveBookingIdFromWebhookEventPayload(event, reservation);
+            if (recovered != null) {
+                return recovered;
+            }
+        }
+        return null;
+    }
+
     private String resolveListingIdFromWebhookEventPayload(SuReservationWebhookEvent event, Reservation reservation) {
         if (event == null || reservation == null) {
             return null;
@@ -407,6 +538,41 @@ public class SuBusinessAutoMessageService {
         } catch (Exception ex) {
             logger.debug(
                     "[AutoMessage] parse webhook payload for listingid failed. eventId={}, err={}",
+                    event.getId(),
+                    ex.getMessage()
+            );
+        }
+        return null;
+    }
+
+    private String resolveBookingIdFromWebhookEventPayload(SuReservationWebhookEvent event, Reservation reservation) {
+        if (event == null || reservation == null) {
+            return null;
+        }
+        String payload = event.getPayloadJson();
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            List<JsonNode> reservations = extractReservationNodesFromEventPayload(root);
+            for (JsonNode reservationNode : reservations) {
+                if (!matchesReservationNode(reservationNode, reservation)) {
+                    continue;
+                }
+
+                String recovered = SuReservationParser.extractBookingReservationId(
+                        reservationNode,
+                        reservation.getOrderNumber()
+                );
+                if (recovered != null && !recovered.isBlank()) {
+                    return recovered;
+                }
+            }
+        } catch (Exception ex) {
+            logger.debug(
+                    "[AutoMessage] parse webhook payload for bookingid failed. eventId={}, err={}",
                     event.getId(),
                     ex.getMessage()
             );
@@ -507,6 +673,97 @@ public class SuBusinessAutoMessageService {
             return bookingId;
         }
         return normalizeIdentifier(reservation.getOrderNumber());
+    }
+
+    private SuMessageThread ensureThreadBookingIdentity(SuMessageThread thread, Reservation reservation) {
+        if (thread == null || thread.getChannelId() == null
+                || thread.getChannelId() != SuMessagingService.CHANNEL_BOOKING) {
+            return thread;
+        }
+
+        String normalizedBookingId = resolveThreadBookingIdForAutoMessage(reservation, thread.getChannelId());
+        if (normalizedBookingId == null || normalizedBookingId.isBlank()) {
+            normalizedBookingId = resolveBookingReplyBookingId(thread);
+        }
+        if (normalizedBookingId == null || normalizedBookingId.isBlank()) {
+            return thread;
+        }
+
+        Optional<SuMessageThread> canonicalExisting = threadRepository
+                .findFirstByStoreIdAndChannelIdAndBookingIdOrderByLastActivityDesc(
+                        thread.getStoreId(),
+                        thread.getChannelId(),
+                        normalizedBookingId
+                );
+        if (canonicalExisting.isPresent() && !canonicalExisting.get().getId().equals(thread.getId())) {
+            return mergeCanonicalBookingThread(canonicalExisting.get(), thread, normalizedBookingId);
+        }
+
+        boolean changed = false;
+        String currentBookingId = SuReservationParser.normalizeBookingReservationId(thread.getBookingId());
+        if (!normalizedBookingId.equals(currentBookingId)) {
+            thread.setBookingId(normalizedBookingId);
+            changed = true;
+        }
+        String currentThreadKey = SuReservationParser.normalizeBookingReservationId(thread.getThreadKey());
+        if (!normalizedBookingId.equals(currentThreadKey)) {
+            thread.setThreadKey(normalizedBookingId);
+            changed = true;
+        }
+        if (!changed) {
+            return thread;
+        }
+
+        try {
+            return threadRepository.save(thread);
+        } catch (DataIntegrityViolationException e) {
+            return threadRepository.findByStoreIdAndChannelIdAndThreadKey(
+                    thread.getStoreId(),
+                    thread.getChannelId(),
+                    normalizedBookingId
+            ).orElse(thread);
+        }
+    }
+
+    private SuMessageThread mergeCanonicalBookingThread(
+            SuMessageThread canonical,
+            SuMessageThread duplicate,
+            String normalizedBookingId
+    ) {
+        boolean changed = false;
+        if (canonical.getSuHotelId() == null || canonical.getSuHotelId().isBlank()) {
+            canonical.setSuHotelId(duplicate.getSuHotelId());
+            changed = true;
+        }
+        if (canonical.getGuestName() == null || canonical.getGuestName().isBlank()) {
+            canonical.setGuestName(duplicate.getGuestName());
+            changed = true;
+        }
+        if (canonical.getListingId() == null || canonical.getListingId().isBlank()) {
+            canonical.setListingId(duplicate.getListingId());
+            changed = true;
+        }
+        if (canonical.getListingName() == null || canonical.getListingName().isBlank()) {
+            canonical.setListingName(duplicate.getListingName());
+            changed = true;
+        }
+        if (!normalizedBookingId.equals(SuReservationParser.normalizeBookingReservationId(canonical.getBookingId()))) {
+            canonical.setBookingId(normalizedBookingId);
+            changed = true;
+        }
+        if (!normalizedBookingId.equals(SuReservationParser.normalizeBookingReservationId(canonical.getThreadKey()))) {
+            canonical.setThreadKey(normalizedBookingId);
+            changed = true;
+        }
+        if (changed) {
+            canonical.setLastActivity(UtcTimeUtil.nowLocalDateTime());
+            try {
+                canonical = threadRepository.save(canonical);
+            } catch (DataIntegrityViolationException ignore) {
+                // keep best-effort behavior and continue with canonical thread
+            }
+        }
+        return canonical;
     }
 
     static boolean canCreateBookingFallbackThread(Reservation reservation) {
@@ -1056,7 +1313,7 @@ public class SuBusinessAutoMessageService {
         }
 
         if (channelId == SuMessagingService.CHANNEL_BOOKING) {
-            String bookingId = thread.getBookingId();
+            String bookingId = resolveBookingReplyBookingId(thread);
             if (bookingId == null || bookingId.isBlank()) {
                 throw new IllegalStateException("Booking.com reply requires bookingid");
             }
@@ -1065,6 +1322,21 @@ public class SuBusinessAutoMessageService {
         }
 
         throw new IllegalStateException("Unsupported channel: " + channelId);
+    }
+
+    private static String resolveBookingReplyBookingId(SuMessageThread thread) {
+        if (thread == null) {
+            return null;
+        }
+        String fromBookingId = SuReservationParser.normalizeBookingReservationId(thread.getBookingId());
+        if (fromBookingId != null) {
+            return fromBookingId;
+        }
+        String fromThreadKey = SuReservationParser.normalizeBookingReservationId(thread.getThreadKey());
+        if (fromThreadKey != null) {
+            return fromThreadKey;
+        }
+        return SuReservationParser.normalizeBookingReservationId(thread.getThreadId());
     }
 
     private String writeJsonSafely(Object payload) {
@@ -1177,7 +1449,9 @@ public class SuBusinessAutoMessageService {
 
         if (containsAny(normalized,
                 "invalid reservationid",
-                "invalid reservation id"
+                "invalid reservation id",
+                "invalid bookingid",
+                "invalid booking id"
         )) {
             return "WAITING_THREAD_FIELDS";
         }

@@ -703,8 +703,10 @@ public class OtaReservationSyncService {
                     reservation.setChildren(SuReservationParser.extractChildren(reservationNode, roomStay));
                     reservation.setTotalAmount(SuReservationParser.extractTotalAmount(reservationNode, roomStay));
                     String mergedChannelOrderNumber = mergeChannelOrderNumber(
+                            channelCode,
                             reservation.getChannelOrderNumber(),
                             channelBookingId,
+                            orderNumber,
                             store.getId(),
                             reservationId,
                             notifId
@@ -1336,7 +1338,27 @@ public class OtaReservationSyncService {
         return normalizeLookupKey(reservation.getOrderNumber());
     }
 
-    static String mergeChannelOrderNumber(String existingValue, String incomingValue) {
+    static String mergeChannelOrderNumber(
+            String channelCode,
+            String existingValue,
+            String incomingValue,
+            String fallbackOrderNumber
+    ) {
+        String normalizedChannel = channelCode != null ? channelCode.trim().toUpperCase(Locale.ROOT) : null;
+        if (OTA_CHANNEL_CODE_BOOKING.equals(normalizedChannel) || "BOOKING.COM".equals(normalizedChannel)) {
+            String normalizedIncoming = SuReservationParser.normalizeBookingReservationId(incomingValue);
+            if (normalizedIncoming != null) {
+                return normalizedIncoming;
+            }
+
+            String normalizedExisting = SuReservationParser.normalizeBookingReservationId(existingValue);
+            if (normalizedExisting != null) {
+                return normalizedExisting;
+            }
+
+            return SuReservationParser.extractBookingReservationIdFromOrderNumber(fallbackOrderNumber);
+        }
+
         String normalizedExisting = normalizeLookupKey(existingValue);
         String normalizedIncoming = normalizeLookupKey(incomingValue);
         if (normalizedIncoming != null) {
@@ -1346,14 +1368,16 @@ public class OtaReservationSyncService {
     }
 
     private String mergeChannelOrderNumber(
+            String channelCode,
             String existingValue,
             String incomingValue,
+            String fallbackOrderNumber,
             Long storeId,
             String reservationId,
             String notifId
     ) {
-        String normalizedExisting = normalizeLookupKey(existingValue);
-        String normalizedIncoming = normalizeLookupKey(incomingValue);
+        String normalizedExisting = mergeChannelOrderNumber(channelCode, existingValue, null, fallbackOrderNumber);
+        String normalizedIncoming = mergeChannelOrderNumber(channelCode, null, incomingValue, fallbackOrderNumber);
         if (normalizedExisting != null
                 && normalizedIncoming != null
                 && !normalizedExisting.equals(normalizedIncoming)) {
@@ -1366,7 +1390,7 @@ public class OtaReservationSyncService {
                     normalizedIncoming
             );
         }
-        return mergeChannelOrderNumber(normalizedExisting, normalizedIncoming);
+        return mergeChannelOrderNumber(channelCode, normalizedExisting, normalizedIncoming, fallbackOrderNumber);
     }
     private static String normalizeLookupKey(String value) {
         if (value == null) {
