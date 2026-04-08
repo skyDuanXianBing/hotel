@@ -101,7 +101,7 @@ class OtaReservationSyncServiceUpsertLookupTest {
     void mergeChannelOrderNumber_keepsExistingWhenIncomingBlank() {
         assertEquals(
                 "5003249282",
-                OtaReservationSyncService.mergeChannelOrderNumber("5003249282", "   ")
+                OtaReservationSyncService.mergeChannelOrderNumber("BOOKING", "5003249282", "   ", null)
         );
     }
 
@@ -109,7 +109,7 @@ class OtaReservationSyncServiceUpsertLookupTest {
     void mergeChannelOrderNumber_prefersIncomingWhenProvided() {
         assertEquals(
                 "5842688289",
-                OtaReservationSyncService.mergeChannelOrderNumber("5003249282", "5842688289")
+                OtaReservationSyncService.mergeChannelOrderNumber("BOOKING", "5003249282", "5842688289", null)
         );
     }
 

@@ -114,6 +114,55 @@ const linkDrawerVisible = ref(false)
 const linkLoading = ref(false)
 const linkRows = ref<RegistrationLinkInboxItemDTO[]>([])
 
+function toDayNumber(dateValue?: string | null) {
+  if (!dateValue) {
+    return null
+  }
+
+  const match = dateValue.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day] = match
+  return Math.floor(Date.UTC(Number(year), Number(month) - 1, Number(day)) / 86400000)
+}
+
+function getTodayDayNumber() {
+  const now = new Date()
+  return Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000)
+}
+
+function compareRowsByCheckInPriority(left: Row, right: Row) {
+  const today = getTodayDayNumber()
+  const leftCheckIn = toDayNumber(left.checkInDate)
+  const rightCheckIn = toDayNumber(right.checkInDate)
+
+  const getPriority = (dayNumber: number | null) => {
+    if (dayNumber == null) {
+      return { bucket: 2, distance: Number.MAX_SAFE_INTEGER }
+    }
+    if (dayNumber >= today) {
+      return { bucket: 0, distance: dayNumber - today }
+    }
+    return { bucket: 1, distance: today - dayNumber }
+  }
+
+  const leftPriority = getPriority(leftCheckIn)
+  const rightPriority = getPriority(rightCheckIn)
+
+  if (leftPriority.bucket !== rightPriority.bucket) {
+    return leftPriority.bucket - rightPriority.bucket
+  }
+  if (leftPriority.distance !== rightPriority.distance) {
+    return leftPriority.distance - rightPriority.distance
+  }
+
+  const leftUpdatedAt = left.updatedAt || left.submittedAt || ''
+  const rightUpdatedAt = right.updatedAt || right.submittedAt || ''
+  return rightUpdatedAt.localeCompare(leftUpdatedAt)
+}
+
 async function loadChannels() {
   try {
     const resp = await getAllChannels()
@@ -148,11 +197,13 @@ async function load() {
       data?: Row[]
     }
     if (resp.success) {
-      rows.value = ((resp.data || []) as Row[]).map((r) => ({
-        ...r,
-        channelOrderNumber: r.channelOrderNumber || '-',
-        channelName: r.channelName || '-',
-      }))
+      rows.value = ((resp.data || []) as Row[])
+        .map((r) => ({
+          ...r,
+          channelOrderNumber: r.channelOrderNumber || '-',
+          channelName: r.channelName || '-',
+        }))
+        .sort(compareRowsByCheckInPriority)
     } else {
       rows.value = []
       ElMessage.error(resp.message || '加载失败')
