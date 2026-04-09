@@ -11,9 +11,10 @@ import server.demo.entity.Reservation;
 import server.demo.repository.AutoMessageRepository;
 import server.demo.repository.AutoMessageSendLogRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.util.StoreTimeZoneUtil;
 
+import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,6 +39,9 @@ public class AutoMessageService {
 
     @Autowired
     private SuBusinessAutoMessageService suBusinessAutoMessageService;
+
+    @Autowired
+    private Clock clock;
 
     /**
      * 获取当前门店ID
@@ -206,7 +210,7 @@ public class AutoMessageService {
                 storeId,
                 reservation,
                 template,
-                LocalDateTime.now(),
+                StoreTimeZoneUtil.nowUtc(clock),
                 Duration.ZERO
         );
     }

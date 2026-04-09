@@ -13,11 +13,15 @@ import server.demo.repository.AutoMessageRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.AutoMessageTimingUtil;
+import server.demo.util.StoreTimeZoneUtil;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -39,17 +43,20 @@ public class AutoMessageTriggerService {
     private final AutoMessageRepository autoMessageRepository;
     private final ReservationRepository reservationRepository;
     private final SuBusinessAutoMessageService businessAutoMessageService;
+    private final Clock clock;
 
     public AutoMessageTriggerService(
             StoreRepository storeRepository,
             AutoMessageRepository autoMessageRepository,
             ReservationRepository reservationRepository,
-            SuBusinessAutoMessageService businessAutoMessageService
+            SuBusinessAutoMessageService businessAutoMessageService,
+            Clock clock
     ) {
         this.storeRepository = storeRepository;
         this.autoMessageRepository = autoMessageRepository;
         this.reservationRepository = reservationRepository;
         this.businessAutoMessageService = businessAutoMessageService;
+        this.clock = clock;
     }
 
     /**
@@ -58,7 +65,7 @@ public class AutoMessageTriggerService {
     @Scheduled(cron = "0 * * * * *")
     @Transactional
     public void tick() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = clock.instant();
         try {
             dispatchAllStores(now);
         } catch (Exception e) {
@@ -75,21 +82,25 @@ public class AutoMessageTriggerService {
             return;
         }
         try {
-            dispatchStore(storeId, LocalDateTime.now());
+            Store store = storeRepository.findById(storeId).orElse(null);
+            if (store == null) {
+                return;
+            }
+            dispatchStore(store, clock.instant());
         } catch (Exception e) {
             logger.warn("[AutoMessage] dispatchStoreOnce failed. storeId={}, err={}", storeId, e.getMessage(), e);
             autoMessageLogger.error("[AutoMessage] dispatchStoreOnce failed. storeId={}, err={}", storeId, e.getMessage());
         }
     }
 
-    private void dispatchAllStores(LocalDateTime now) {
+    private void dispatchAllStores(Instant now) {
         List<Store> stores = storeRepository.findAll();
         for (Store store : stores) {
             if (store == null || store.getId() == null) {
                 continue;
             }
             try {
-                dispatchStore(store.getId(), now);
+                dispatchStore(store, now);
             } catch (Exception e) {
                 logger.warn("[AutoMessage] dispatch store failed. storeId={}, err={}", store.getId(), e.getMessage(), e);
                 autoMessageLogger.error("[AutoMessage] dispatch store failed. storeId={}, err={}", store.getId(), e.getMessage());
@@ -97,7 +108,11 @@ public class AutoMessageTriggerService {
         }
     }
 
-    private void dispatchStore(Long storeId, LocalDateTime now) {
+    private void dispatchStore(Store store, Instant nowInstant) {
+        Long storeId = store.getId();
+        ZoneId storeZoneId = StoreTimeZoneUtil.resolveZoneId(store);
+        LocalDateTime nowUtc = StoreTimeZoneUtil.nowUtc(clock);
+        LocalDateTime nowStore = StoreTimeZoneUtil.toStoreLocalDateTime(nowInstant, storeZoneId);
         List<AutoMessage> templates = autoMessageRepository.findByStoreIdAndEnabledTrue(storeId);
         if (templates.isEmpty()) {
             return;
@@ -121,7 +136,7 @@ public class AutoMessageTriggerService {
 
             // DAY_{offset}_{HH:mm}锛?CHECK_IN/CHECK_OUT 鎸夐璁㈡棩鏈熻Е鍙?
             if (AutoMessageTimingUtil.isDayTimeTiming(sendTiming)) {
-                int matched = dispatchDayTimeTemplate(storeId, template, action, sendTiming, now);
+                int matched = dispatchDayTimeTemplate(storeId, template, action, sendTiming, nowUtc, nowStore, storeZoneId);
                 if (matched > 0) {
                     totalTemplates++;
                     totalCandidates += matched;
@@ -138,8 +153,8 @@ public class AutoMessageTriggerService {
                 continue;
             }
 
-            LocalDateTime earliest = businessAutoMessageService.computeEarliestEventTime(template, now);
-            LocalDateTime latest = now.minus(delay);
+            LocalDateTime earliest = businessAutoMessageService.computeEarliestEventTime(template, nowUtc);
+            LocalDateTime latest = nowUtc.minus(delay);
             if (latest.isBefore(earliest)) {
                 continue;
             }
@@ -159,7 +174,7 @@ public class AutoMessageTriggerService {
                 if (!shouldConsiderForAction(reservation, action)) {
                     continue;
                 }
-                businessAutoMessageService.trySendForReservation(storeId, reservation, template, now, delay);
+                businessAutoMessageService.trySendForReservation(storeId, reservation, template, nowUtc, delay);
             }
         }
 
@@ -168,8 +183,16 @@ public class AutoMessageTriggerService {
         }
     }
 
-    private int dispatchDayTimeTemplate(Long storeId, AutoMessage template, String action, String sendTiming, LocalDateTime now) {
-        if (storeId == null || template == null || action == null || sendTiming == null || now == null) {
+    private int dispatchDayTimeTemplate(
+            Long storeId,
+            AutoMessage template,
+            String action,
+            String sendTiming,
+            LocalDateTime nowUtc,
+            LocalDateTime nowStore,
+            ZoneId storeZoneId
+    ) {
+        if (storeId == null || template == null || action == null || sendTiming == null || nowUtc == null || nowStore == null || storeZoneId == null) {
             return 0;
         }
 
@@ -192,12 +215,13 @@ public class AutoMessageTriggerService {
         int dayOffset = dayTime.dayOffset();
         LocalTime time = dayTime.time();
 
-        LocalDateTime earliest = businessAutoMessageService.computeEarliestEventTime(template, now);
+        LocalDateTime earliestUtc = businessAutoMessageService.computeEarliestEventTime(template, nowUtc);
+        LocalDateTime earliestStore = StoreTimeZoneUtil.toStoreLocalDateTime(earliestUtc, storeZoneId);
 
         // targetTime = baseDate(+dayOffset)@time锛屾棤娉曠洿鎺ョ敤 DB between 鎺掑嚭 targetTime锛
         // 鍏堟寜 baseDate 鍋氬ぇ鑼冨洿鏌ヨ锛岀劧鍚庡唴瀛樹簩娆℃护娉?
-        LocalDate baseStartDate = earliest.toLocalDate().minusDays(dayOffset).minusDays(1);
-        LocalDate baseEndDate = now.toLocalDate().minusDays(dayOffset).plusDays(1);
+        LocalDate baseStartDate = earliestStore.toLocalDate().minusDays(dayOffset).minusDays(1);
+        LocalDate baseEndDate = nowStore.toLocalDate().minusDays(dayOffset).plusDays(1);
 
         List<Reservation> candidates = switch (normalizedAction) {
             case "CHECK_IN" -> reservationRepository.findByStoreIdAndCheckInDateBetween(storeId, baseStartDate, baseEndDate);
@@ -222,13 +246,13 @@ public class AutoMessageTriggerService {
                 continue;
             }
 
-            LocalDateTime targetTime = baseDate.plusDays(dayOffset).atTime(time);
-            if (targetTime.isBefore(earliest) || targetTime.isAfter(now)) {
+            LocalDateTime targetTimeUtc = StoreTimeZoneUtil.toUtcLocalDateTime(baseDate.plusDays(dayOffset), time, storeZoneId);
+            if (targetTimeUtc == null || targetTimeUtc.isBefore(earliestUtc) || targetTimeUtc.isAfter(nowUtc)) {
                 continue;
             }
 
             matched++;
-            businessAutoMessageService.trySendForReservation(storeId, reservation, template, now, Duration.ZERO);
+            businessAutoMessageService.trySendForReservation(storeId, reservation, template, nowUtc, Duration.ZERO);
         }
 
         return matched;
