@@ -1,6 +1,7 @@
 package server.demo.entity;
 
 import jakarta.persistence.*;
+import server.demo.constants.PriceLabsDistributionMode;
 import server.demo.entity.base.StoreScopedEntity;
 import server.demo.entity.listener.StoreScopedEntityListener;
 
@@ -55,6 +56,15 @@ public class PriceLabsIntegration implements StoreScopedEntity {
      */
     @Column(name = "hook_url", length = 500)
     private String hookUrl;
+
+    /**
+     * PriceLabs 价格分发模式
+     * AVAILABILITY_ONLY: 仅走 SU availability，不走 invratecontrol
+     * INVRATECONTROL_ONLY: 仅走 OTA invratecontrol
+     * BOTH: 同时走 availability 和 invratecontrol
+     */
+    @Column(name = "distribution_mode", length = 32)
+    private String distributionMode = PriceLabsDistributionMode.AVAILABILITY_ONLY;
 
     /**
      * 最后一次房源同步时间
@@ -155,6 +165,14 @@ public class PriceLabsIntegration implements StoreScopedEntity {
 
     public void setHookUrl(String hookUrl) {
         this.hookUrl = hookUrl;
+    }
+
+    public String getDistributionMode() {
+        return distributionMode;
+    }
+
+    public void setDistributionMode(String distributionMode) {
+        this.distributionMode = distributionMode;
     }
 
     public LocalDateTime getLastListingSyncAt() {

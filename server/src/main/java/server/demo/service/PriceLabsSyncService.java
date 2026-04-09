@@ -48,6 +48,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -724,7 +725,7 @@ public class PriceLabsSyncService {
         if (countryAlpha3 == null) {
             throw new RuntimeException("请先补全门店地址信息：国家必须为 ISO 三字码（例如 CHN），当前值=" + s.getCountry());
         }
-        double[] coords = getCityCoordinates(city);
+        double[] coords = getCityCoordinates(city, s.getState(), s.getAddress(), countryAlpha3, s.getTimezone());
         PriceLabsApiClient.Location location = new PriceLabsApiClient.Location();
         location.setCity(city);
         location.setCountry(countryAlpha3);
@@ -737,23 +738,118 @@ public class PriceLabsSyncService {
         return d;
     }
 
-    private double[] getCityCoordinates(String city) {
-        if (city == null) return new double[]{39.9042, 116.4074};
+    private double[] getCityCoordinates(String city, String state, String address, String countryAlpha3, String timezone) {
+        String normalizedCity = normalizeLocationText(city);
+        String normalizedState = normalizeLocationText(state);
+        String normalizedAddress = normalizeLocationText(address);
+        String locationText = (normalizedCity + " " + normalizedState + " " + normalizedAddress).trim();
 
-        String cityLower = city.toLowerCase();
-        if (cityLower.contains("佛山") || cityLower.contains("foshan")) return new double[]{23.0220, 113.1216};
-        if (cityLower.contains("广州") || cityLower.contains("guangzhou")) return new double[]{23.1291, 113.2644};
-        if (cityLower.contains("深圳") || cityLower.contains("shenzhen")) return new double[]{22.5431, 114.0579};
-        if (cityLower.contains("上海") || cityLower.contains("shanghai")) return new double[]{31.2304, 121.4737};
-        if (cityLower.contains("北京") || cityLower.contains("beijing")) return new double[]{39.9042, 116.4074};
-        if (cityLower.contains("杭州") || cityLower.contains("hangzhou")) return new double[]{30.2741, 120.1551};
-        if (cityLower.contains("成都") || cityLower.contains("chengdu")) return new double[]{30.5728, 104.0668};
-        if (cityLower.contains("重庆") || cityLower.contains("chongqing")) return new double[]{29.5630, 106.5516};
-        if (cityLower.contains("西安") || cityLower.contains("xian")) return new double[]{34.3416, 108.9398};
-        if (cityLower.contains("武汉") || cityLower.contains("wuhan")) return new double[]{30.5928, 114.3055};
-        if (cityLower.contains("广东")) return new double[]{23.1291, 113.2644};
+        // Tokyo 区级识别：优先按地址中的区信息命中，保证 Toshima/Kita 等区定位准确。
+        if (isTokyoContext(normalizedCity, locationText, countryAlpha3, timezone)) {
+            if (containsAny(locationText, "kita city", "kita-ku", "kita ku", "kita", "北区")) {
+                return new double[]{35.7528, 139.7335};
+            }
+            if (containsAny(locationText, "toshima city", "toshima-ku", "toshima ku", "toshima", "丰岛区", "池袋")) {
+                return new double[]{35.7261, 139.7167};
+            }
+            return new double[]{35.6762, 139.6503};
+        }
 
-        return new double[]{39.9042, 116.4074};
+        // Asia/Shanghai
+        if (containsAny(locationText, "佛山", "foshan")) return new double[]{23.0220, 113.1216};
+        if (containsAny(locationText, "广州", "guangzhou")) return new double[]{23.1291, 113.2644};
+        if (containsAny(locationText, "深圳", "shenzhen")) return new double[]{22.5431, 114.0579};
+        if (containsAny(locationText, "上海", "shanghai")) return new double[]{31.2304, 121.4737};
+        if (containsAny(locationText, "北京", "beijing")) return new double[]{39.9042, 116.4074};
+        if (containsAny(locationText, "杭州", "hangzhou")) return new double[]{30.2741, 120.1551};
+        if (containsAny(locationText, "成都", "chengdu")) return new double[]{30.5728, 104.0668};
+        if (containsAny(locationText, "重庆", "chongqing")) return new double[]{29.5630, 106.5516};
+        if (containsAny(locationText, "西安", "xian")) return new double[]{34.3416, 108.9398};
+        if (containsAny(locationText, "武汉", "wuhan")) return new double[]{30.5928, 114.3055};
+
+        // Asia/Tokyo
+        if (containsAny(locationText, "osaka", "大阪")) return new double[]{34.6937, 135.5023};
+        if (containsAny(locationText, "kyoto", "京都")) return new double[]{35.0116, 135.7681};
+        if (containsAny(locationText, "yokohama", "横滨")) return new double[]{35.4437, 139.6380};
+        if (containsAny(locationText, "sapporo", "札幌")) return new double[]{43.0618, 141.3545};
+        if (containsAny(locationText, "fukuoka", "福冈")) return new double[]{33.5904, 130.4017};
+        if (containsAny(locationText, "nagoya", "名古屋")) return new double[]{35.1815, 136.9066};
+
+        // Asia/Seoul
+        if (containsAny(locationText, "seoul", "首尔")) return new double[]{37.5665, 126.9780};
+        if (containsAny(locationText, "busan", "釜山")) return new double[]{35.1796, 129.0756};
+        if (containsAny(locationText, "incheon", "仁川")) return new double[]{37.4563, 126.7052};
+
+        // Europe/London
+        if (containsAny(locationText, "london", "伦敦")) return new double[]{51.5074, -0.1278};
+        if (containsAny(locationText, "manchester", "曼彻斯特")) return new double[]{53.4808, -2.2426};
+        if (containsAny(locationText, "birmingham", "伯明翰")) return new double[]{52.4862, -1.8904};
+
+        // America/New_York
+        if (containsAny(locationText, "new york", "nyc", "纽约")) return new double[]{40.7128, -74.0060};
+        if (containsAny(locationText, "boston", "波士顿")) return new double[]{42.3601, -71.0589};
+        if (containsAny(locationText, "miami", "迈阿密")) return new double[]{25.7617, -80.1918};
+        if (containsAny(locationText, "toronto", "多伦多")) return new double[]{43.6532, -79.3832};
+
+        double[] timezoneFallback = getCoordinatesByTimezone(timezone);
+        if (timezoneFallback != null) {
+            return timezoneFallback;
+        }
+
+        throw new RuntimeException("无法根据门店地址解析经纬度，请补充可识别的 city/state/address。"
+                + " city=" + city
+                + ", state=" + state
+                + ", address=" + address
+                + ", country=" + countryAlpha3
+                + ", timezone=" + timezone);
+    }
+
+    private boolean isTokyoContext(String normalizedCity, String locationText, String countryAlpha3, String timezone) {
+        if (containsAny(normalizedCity, "tokyo", "东京") || containsAny(locationText, "tokyo", "东京")) {
+            return true;
+        }
+        return "JPN".equalsIgnoreCase(countryAlpha3)
+                && timezone != null
+                && timezone.toLowerCase(Locale.ROOT).contains("asia/tokyo");
+    }
+
+    private double[] getCoordinatesByTimezone(String timezone) {
+        if (timezone == null || timezone.isBlank()) {
+            return null;
+        }
+        String timezoneLower = timezone.toLowerCase(Locale.ROOT);
+        if (timezoneLower.contains("asia/tokyo")) return new double[]{35.6762, 139.6503};
+        if (timezoneLower.contains("asia/shanghai")) return new double[]{31.2304, 121.4737};
+        if (timezoneLower.contains("asia/seoul")) return new double[]{37.5665, 126.9780};
+        if (timezoneLower.contains("europe/london")) return new double[]{51.5074, -0.1278};
+        if (timezoneLower.contains("america/new_york")) return new double[]{40.7128, -74.0060};
+        return null;
+    }
+
+    private String normalizeLocationText(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.toLowerCase(Locale.ROOT)
+                .replace('，', ',')
+                .replace('　', ' ')
+                .replace('-', ' ')
+                .replace('_', ' ')
+                .replace(',', ' ')
+                .replace("  ", " ")
+                .trim();
+    }
+
+    private boolean containsAny(String text, String... keywords) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        for (String keyword : keywords) {
+            if (keyword != null && !keyword.isBlank() && text.contains(keyword.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private PriceLabsApiClient.RatePlanData toRatePlan(RoomType rt, RoomTypePricePlan p) {

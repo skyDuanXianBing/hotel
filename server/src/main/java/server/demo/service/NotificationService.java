@@ -1,24 +1,39 @@
 package server.demo.service;
 
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import server.demo.entity.Notification;
 import server.demo.repository.NotificationRepository;
+import server.demo.util.StoreTimeZoneUtil;
+
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Service
 public class NotificationService {
 
-    @Autowired
-    private NotificationRepository notificationRepository;
+    private final NotificationRepository notificationRepository;
+    private final Clock clock;
+
+    public NotificationService(NotificationRepository notificationRepository, Clock clock) {
+        this.notificationRepository = notificationRepository;
+        this.clock = clock;
+    }
+
+    private LocalDateTime nowUtc() {
+        return StoreTimeZoneUtil.nowUtc(clock);
+    }
 
     /**
      * 创建通知
      */
     public Notification createNotification(Notification notification) {
+        if (notification.getCreatedAt() == null) {
+            notification.setCreatedAt(nowUtc());
+        }
         return notificationRepository.save(notification);
     }
 
@@ -82,6 +97,7 @@ public class NotificationService {
     public Notification markAsRead(Long notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("通知不存在"));
+        notification.setReadAt(nowUtc());
         notification.setIsRead(true);
         return notificationRepository.save(notification);
     }
@@ -91,7 +107,7 @@ public class NotificationService {
      */
     @Transactional
     public int markAllAsRead(Long userId) {
-        return notificationRepository.markAllAsRead(userId);
+        return notificationRepository.markAllAsRead(userId, nowUtc());
     }
 
     /**
@@ -99,7 +115,7 @@ public class NotificationService {
      */
     @Transactional
     public int markAllAsReadByType(Long userId, String type) {
-        return notificationRepository.markAllAsReadByType(userId, type);
+        return notificationRepository.markAllAsReadByType(userId, type, nowUtc());
     }
 
     /**
@@ -115,6 +131,6 @@ public class NotificationService {
      */
     @Transactional
     public int deleteOldReadNotifications(Long userId, int days) {
-        return notificationRepository.deleteOldReadNotifications(userId, days);
+        return notificationRepository.deleteOldReadNotifications(userId, nowUtc().minusDays(days));
     }
 }

@@ -8,6 +8,7 @@ import server.demo.dto.RoomPriceDTO;
 import server.demo.dto.RoomPriceManagementDTO;
 import server.demo.dto.UpdatePriceByPlanRequest;
 import server.demo.dto.UpdateRoomPriceRequest;
+import server.demo.entity.ChannelPrice;
 import server.demo.entity.PricePlan;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
@@ -18,6 +19,7 @@ import server.demo.entity.RoomTypePricePlan;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
@@ -31,6 +33,7 @@ import server.demo.util.StoreContextUtils;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -65,6 +68,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired
+    private ChannelPriceRepository channelPriceRepository;
 
     @Autowired
     private RoomRepository roomRepository;
@@ -421,6 +427,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                 startDate,
                 endDate
         );
+        List<ChannelPrice> priceLabsChannelPrices = channelPriceRepository.findByStoreIdAndDateRange(storeId, startDate, endDate);
+        Map<String, ChannelPrice> priceLabsPriceMap = buildPriceLabsPriceMap(priceLabsChannelPrices);
 
         // 查询日期范围内的所有预订记录，用于计算可用房间数（门店级）
         List<Reservation> reservations = reservationRepository.findByStoreIdAndDateRange(storeId, startDate, endDate);
@@ -540,6 +548,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                                 && sp.getPricePlan().getId().equals(plan.getPricePlan().getId())
                                 && sp.getPriceDate().equals(checkDate))
                         .findFirst();
+                ChannelPrice priceLabsPrice = priceLabsPriceMap.get(
+                    buildPriceLabsKey(plan.getRoomType().getId(), plan.getPricePlan().getId(), checkDate)
+                );
 
                 BigDecimal price;
                 Integer availableRooms;
@@ -566,6 +577,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     dto.setManualOverride(roomPrice.getManualOverride());
                     dto.setManualOverrideUntil(roomPrice.getManualOverrideUntil());
                     dto.setNotes(roomPrice.getNotes());
+                    applyPriceLabsMetadata(dto, priceLabsPrice);
                 } else {
                     // 使用周价格
                     price = getPriceForDayOfWeek(currentDate.getDayOfWeek(), plan);
@@ -590,6 +602,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     dto.setPriceSource(RoomPrice.PRICE_SOURCE_SYSTEM);
                     dto.setManualOverride(false);
                     dto.setManualOverrideUntil(null);
+                    applyPriceLabsMetadata(dto, priceLabsPrice);
                 }
 
                 dto.setPrice(price);
@@ -1043,7 +1056,78 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         dto.setIsHoliday(roomPrice.getIsHoliday());
         dto.setNotes(roomPrice.getNotes());
 
+        if (roomPrice.getPricePlan() != null && roomPrice.getPricePlan().getId() != null) {
+            List<ChannelPrice> priceLabsCandidates = channelPriceRepository
+                    .findPriceLabsCandidatesByStoreAndRoomTypeAndPricePlanAndDate(
+                            storeId,
+                            roomPrice.getRoomType().getId(),
+                            roomPrice.getPricePlan().getId(),
+                            roomPrice.getPriceDate()
+                    );
+            if (!priceLabsCandidates.isEmpty()) {
+                applyPriceLabsMetadata(dto, priceLabsCandidates.get(0));
+            }
+        }
+
         return dto;
+    }
+
+    private Map<String, ChannelPrice> buildPriceLabsPriceMap(List<ChannelPrice> channelPrices) {
+        Map<String, ChannelPrice> result = new HashMap<>();
+        if (channelPrices == null || channelPrices.isEmpty()) {
+            return result;
+        }
+
+        for (ChannelPrice cp : channelPrices) {
+            if (cp == null
+                    || cp.getRoomType() == null
+                    || cp.getRoomType().getId() == null
+                    || cp.getPricePlan() == null
+                    || cp.getPricePlan().getId() == null
+                    || cp.getPriceDate() == null) {
+                continue;
+            }
+            if (cp.getBasePrice() == null && cp.getPriceLabsUpdatedAt() == null) {
+                continue;
+            }
+
+            String key = buildPriceLabsKey(cp.getRoomType().getId(), cp.getPricePlan().getId(), cp.getPriceDate());
+            ChannelPrice existing = result.get(key);
+            if (existing == null || isLater(cp.getPriceLabsUpdatedAt(), existing.getPriceLabsUpdatedAt())) {
+                result.put(key, cp);
+            }
+        }
+
+        return result;
+    }
+
+    private static boolean isLater(LocalDateTime left, LocalDateTime right) {
+        if (left == null) {
+            return false;
+        }
+        if (right == null) {
+            return true;
+        }
+        return left.isAfter(right);
+    }
+
+    private static String buildPriceLabsKey(Long roomTypeId, Long pricePlanId, LocalDate date) {
+        return roomTypeId + "_" + pricePlanId + "_" + date;
+    }
+
+    private void applyPriceLabsMetadata(RoomPriceManagementDTO dto, ChannelPrice priceLabsPrice) {
+        if (dto == null || priceLabsPrice == null) {
+            return;
+        }
+
+        dto.setPriceLabsBasePrice(priceLabsPrice.getBasePrice());
+        dto.setPriceLabsUpdatedAt(priceLabsPrice.getPriceLabsUpdatedAt());
+
+        if (!Boolean.TRUE.equals(dto.getManualOverride())
+                && priceLabsPrice.getBasePrice() != null
+                && (dto.getPriceSource() == null || RoomPrice.PRICE_SOURCE_SYSTEM.equals(dto.getPriceSource()))) {
+            dto.setPriceSource(RoomPrice.PRICE_SOURCE_PRICELABS);
+        }
     }
 
     /**

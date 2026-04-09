@@ -87,22 +87,35 @@ public interface ChannelPriceRepository extends JpaRepository<ChannelPrice, Long
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    @Query("SELECT cp FROM ChannelPrice cp WHERE cp.storeId = :storeId " +
+           "AND cp.roomType.id = :roomTypeId AND cp.pricePlan.id = :pricePlanId AND cp.priceDate = :priceDate " +
+           "AND cp.priceLabsUpdatedAt IS NOT NULL ORDER BY cp.updatedAt DESC")
+    List<ChannelPrice> findPriceLabsCandidatesByStoreAndRoomTypeAndPricePlanAndDate(
+            @Param("storeId") Long storeId,
+            @Param("roomTypeId") Long roomTypeId,
+            @Param("pricePlanId") Long pricePlanId,
+            @Param("priceDate") LocalDate priceDate);
+
     /**
      * 查找未同步到OTA的价格
      */
-    List<ChannelPrice> findByStoreIdAndIsSyncedToOtaFalse(Long storeId);
+    @Query("SELECT cp FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.isSyncedToOta = false " +
+            "AND (cp.otaSyncState IS NULL OR cp.otaSyncState <> 'NOT_REQUIRED') ORDER BY cp.priceDate")
+    List<ChannelPrice> findByStoreIdAndIsSyncedToOtaFalse(@Param("storeId") Long storeId);
 
     /**
      * 查找特定渠道未同步的价格（门店级隔离）
      */
     @Query("SELECT cp FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.channel.id = :channelId " +
-           "AND cp.isSyncedToOta = false ORDER BY cp.priceDate")
+            "AND cp.isSyncedToOta = false AND (cp.otaSyncState IS NULL OR cp.otaSyncState <> 'NOT_REQUIRED') " +
+            "ORDER BY cp.priceDate")
     List<ChannelPrice> findByStoreIdAndChannelIdAndIsSyncedToOtaFalse(
             @Param("storeId") Long storeId,
             @Param("channelId") Long channelId);
 
     @Query("SELECT cp FROM ChannelPrice cp WHERE cp.storeId = :storeId AND cp.channel.id = :channelId " +
-           "AND cp.isSyncedToOta = false AND cp.priceDate BETWEEN :startDate AND :endDate " +
+            "AND cp.isSyncedToOta = false AND (cp.otaSyncState IS NULL OR cp.otaSyncState <> 'NOT_REQUIRED') " +
+            "AND cp.priceDate BETWEEN :startDate AND :endDate " +
            "ORDER BY cp.roomType.id, cp.pricePlan.id, cp.priceDate")
     List<ChannelPrice> findUnsyncedByStoreIdAndChannelIdAndDateRange(
             @Param("storeId") Long storeId,
@@ -111,6 +124,7 @@ public interface ChannelPriceRepository extends JpaRepository<ChannelPrice, Long
             @Param("endDate") LocalDate endDate);
 
     @Query("SELECT DISTINCT cp.storeId FROM ChannelPrice cp WHERE cp.isSyncedToOta = false " +
+            "AND (cp.otaSyncState IS NULL OR cp.otaSyncState <> 'NOT_REQUIRED') " +
            "AND cp.priceDate BETWEEN :startDate AND :endDate AND cp.channel.code IN :channelCodes")
     List<Long> findDistinctStoreIdsWithUnsyncedPricesInRange(
             @Param("startDate") LocalDate startDate,
@@ -128,9 +142,13 @@ public interface ChannelPriceRepository extends JpaRepository<ChannelPrice, Long
      * 批量更新OTA同步状态
      */
     @Modifying
-    @Query("UPDATE ChannelPrice cp SET cp.isSyncedToOta = true, cp.otaSyncAt = CURRENT_TIMESTAMP " +
+    @Query("UPDATE ChannelPrice cp SET cp.isSyncedToOta = true, cp.otaSyncState = 'SUCCESS', cp.otaSyncAt = CURRENT_TIMESTAMP " +
            "WHERE cp.id IN :ids")
     int markAsSyncedToOta(@Param("ids") List<Long> ids);
+
+    @Modifying
+    @Query("UPDATE ChannelPrice cp SET cp.isSyncedToOta = false, cp.otaSyncState = 'FAILED' WHERE cp.id IN :ids")
+    int markAsFailedToOta(@Param("ids") List<Long> ids);
 
     /**
      * 删除门店下指定日期之前的价格记录

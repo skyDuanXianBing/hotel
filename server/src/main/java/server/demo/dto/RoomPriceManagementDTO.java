@@ -2,6 +2,7 @@ package server.demo.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * 房价管理DTO
@@ -25,6 +26,8 @@ public class RoomPriceManagementDTO {
     private Boolean isWeekend;
     private Boolean isHoliday;
     private String priceSource;
+    private BigDecimal priceLabsBasePrice;
+    private LocalDateTime priceLabsUpdatedAt;
     private Boolean manualOverride;
     private LocalDate manualOverrideUntil;
     private String notes;
@@ -167,6 +170,22 @@ public class RoomPriceManagementDTO {
 
     public void setPriceSource(String priceSource) {
         this.priceSource = priceSource;
+    }
+
+    public BigDecimal getPriceLabsBasePrice() {
+        return priceLabsBasePrice;
+    }
+
+    public void setPriceLabsBasePrice(BigDecimal priceLabsBasePrice) {
+        this.priceLabsBasePrice = priceLabsBasePrice;
+    }
+
+    public LocalDateTime getPriceLabsUpdatedAt() {
+        return priceLabsUpdatedAt;
+    }
+
+    public void setPriceLabsUpdatedAt(LocalDateTime priceLabsUpdatedAt) {
+        this.priceLabsUpdatedAt = priceLabsUpdatedAt;
     }
 
     public Boolean getManualOverride() {

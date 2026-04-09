@@ -151,6 +151,14 @@
                   <div class="price-value">
                   {{ formatPrice(getDisplayPrice(row, date.dateStr)) }}
                   </div>
+                  <div class="price-source-line">
+                    <span class="price-source-tag" :class="getPriceSourceClass(row, date.dateStr)">
+                      {{ getPriceSourceLabel(row, date.dateStr) }}
+                    </span>
+                    <span v-if="getPriceLabsUpdatedTime(row, date.dateStr)" class="pricelabs-time">
+                      {{ getPriceLabsUpdatedTime(row, date.dateStr) }}
+                    </span>
+                  </div>
                   <div class="rooms-count">
                     <el-icon><Moon /></el-icon>
                     {{ row.dates[date.dateStr]?.minStay ?? 1 }}
@@ -321,7 +329,6 @@ import { ElMessage } from 'element-plus'
 import { getAllRoomTypes } from '@/api/roomType'
 import { getAllPricePlans } from '@/api/pricePlan'
 import { getRoomPriceManagementData, updatePriceByPlan, type RoomPriceManagementDTO } from '@/api/roomPrice'
-import { getChannelPrices, type ChannelPriceDTO } from '@/api/pricelabs'
 import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO, type RoomGroupMemberDTO } from '@/api/roomGroup'
 import { getRooms, type RoomDTO } from '@/api/room'
 import { useUserStore } from '@/stores/user'
@@ -345,7 +352,6 @@ const roomGroupOptions = ref<RoomGroupOption[]>([])
 const roomGroupRoomTypeIdsMap = ref<Record<number, number[]>>({})
 
 const showPriceEditDialog = ref(false)
-const priceLabsBasePriceMap = ref<Record<string, number>>({})
 
 // 保存上一次的星期几选择值
 let previousEditFormWeekdays: number[] = []
@@ -423,22 +429,12 @@ interface PriceTableRow {
       rooms?: number
       minStay?: number
       priceSource?: string
+      priceLabsBasePrice?: number
+      priceLabsUpdatedAt?: string
       manualOverride?: boolean
       manualOverrideUntil?: string
     }
   }
-}
-
-const buildPriceLabsKey = (roomTypeId: number, pricePlanId: number, priceDate: string): string => {
-  return `${roomTypeId}_${pricePlanId}_${priceDate}`
-}
-
-const getPriceLabsBasePrice = (row: PriceTableRow, priceDate: string): number | undefined => {
-  if (row.isRoomHeader) return undefined
-  if (!row.pricePlanId) return undefined
-
-  const key = buildPriceLabsKey(row.roomTypeId, row.pricePlanId, priceDate)
-  return priceLabsBasePriceMap.value[key]
 }
 
 const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefined => {
@@ -450,16 +446,58 @@ const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefi
     return cellData.price
   }
 
-  // 优先展示系统价格（room_prices/周价格解析结果），避免 PriceLabs 基准价遮挡最新改价结果。
+  if (cellData?.priceLabsBasePrice !== undefined && cellData?.priceLabsBasePrice !== null) {
+    return cellData.priceLabsBasePrice
+  }
+
   if (cellData?.price !== undefined && cellData?.price !== null) {
     return cellData.price
   }
-
-  const priceLabsBasePrice = getPriceLabsBasePrice(row, priceDate)
-  if (priceLabsBasePrice !== undefined && priceLabsBasePrice !== null) {
-    return priceLabsBasePrice
-  }
   return undefined
+}
+
+const getEffectivePriceSource = (row: PriceTableRow, priceDate: string): 'MANUAL' | 'PRICELABS' | 'SYSTEM' => {
+  const cellData = row.dates[priceDate]
+  const manualOverrideActive = Boolean(cellData?.manualOverride) && (
+    !cellData?.manualOverrideUntil || priceDate <= cellData.manualOverrideUntil
+  )
+  if (manualOverrideActive) {
+    return 'MANUAL'
+  }
+  if (cellData?.priceLabsBasePrice !== undefined && cellData?.priceLabsBasePrice !== null) {
+    return 'PRICELABS'
+  }
+  if (cellData?.priceSource === 'PRICELABS') {
+    return 'PRICELABS'
+  }
+  return 'SYSTEM'
+}
+
+const getPriceSourceLabel = (row: PriceTableRow, priceDate: string): string => {
+  const source = getEffectivePriceSource(row, priceDate)
+  if (source === 'MANUAL') return 'MANUAL'
+  if (source === 'PRICELABS') return 'PL'
+  return 'SYSTEM'
+}
+
+const getPriceSourceClass = (row: PriceTableRow, priceDate: string): string => {
+  const source = getEffectivePriceSource(row, priceDate)
+  if (source === 'MANUAL') return 'source-manual'
+  if (source === 'PRICELABS') return 'source-pricelabs'
+  return 'source-system'
+}
+
+const getPriceLabsUpdatedTime = (row: PriceTableRow, priceDate: string): string => {
+  const value = row.dates[priceDate]?.priceLabsUpdatedAt
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 const getRoomsCount = (row: PriceTableRow, priceDate: string): number => {
@@ -560,6 +598,8 @@ const priceTableData = computed<PriceTableRow[]>(() => {
           rooms: number
           minStay: number
           priceSource?: string
+          priceLabsBasePrice?: number
+          priceLabsUpdatedAt?: string
           manualOverride?: boolean
           manualOverrideUntil?: string
         }
@@ -577,6 +617,8 @@ const priceTableData = computed<PriceTableRow[]>(() => {
           rooms: priceRecord?.availableRooms ?? 0,
           minStay: priceRecord?.minStay ?? 1,
           priceSource: priceRecord?.priceSource,
+          priceLabsBasePrice: priceRecord?.priceLabsBasePrice,
+          priceLabsUpdatedAt: priceRecord?.priceLabsUpdatedAt,
           manualOverride: priceRecord?.manualOverride,
           manualOverrideUntil: priceRecord?.manualOverrideUntil,
         }
@@ -793,38 +835,6 @@ const loadPricePlans = async () => {
   }
 }
 
-// 加载价格数据
-const loadPriceLabsBasePrices = async (
-  startDate: string,
-  endDate: string,
-  roomTypeId?: number,
-) => {
-  try {
-    const response = await getChannelPrices({
-      roomTypeId,
-      startDate,
-      endDate,
-    })
-
-    if (!response.success || !response.data) {
-      priceLabsBasePriceMap.value = {}
-      return
-    }
-
-    const nextMap: Record<string, number> = {}
-    for (const item of response.data as ChannelPriceDTO[]) {
-      const key = buildPriceLabsKey(item.roomTypeId, item.pricePlanId, item.priceDate)
-      if (nextMap[key] === undefined && item.basePrice !== undefined && item.basePrice !== null) {
-        nextMap[key] = item.basePrice
-      }
-    }
-    priceLabsBasePriceMap.value = nextMap
-  } catch (error) {
-    console.error('加载 PriceLabs 回传价格失败:', error)
-    priceLabsBasePriceMap.value = {}
-  }
-}
-
 const loadPriceData = async () => {
   try {
     loading.value = true
@@ -844,8 +854,6 @@ const loadPriceData = async () => {
       endDateStr,
       selectedRoomTypeId.value || undefined
     )
-
-    await loadPriceLabsBasePrices(startDate, endDateStr, selectedRoomTypeId.value || undefined)
 
     console.log('📦 API响应:', response)
 
@@ -1345,6 +1353,46 @@ onMounted(() => {
   font-weight: 600;
   color: #303133;
   font-size: 13px;
+}
+
+.price-source-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.price-source-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.source-pricelabs {
+  background: #e8f4ff;
+  color: #0969da;
+}
+
+.source-manual {
+  background: #fff3e0;
+  color: #b35a00;
+}
+
+.source-system {
+  background: #f2f3f5;
+  color: #606266;
+}
+
+.pricelabs-time {
+  font-size: 10px;
+  color: #909399;
+  line-height: 1.2;
 }
 
 .rooms-count {

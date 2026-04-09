@@ -7,6 +7,11 @@ import { request } from '@/utils/request'
  */
 export type PriceAdjustmentType = 'COMMISSION' | 'FIXED' | 'PERCENTAGE'
 
+export type PriceLabsDistributionMode =
+  | 'AVAILABILITY_ONLY'
+  | 'INVRATECONTROL_ONLY'
+  | 'BOTH'
+
 /**
  * 同步类型枚举
  */
@@ -76,6 +81,7 @@ export interface PriceLabsIntegrationDTO {
   syncUrl?: string
   calendarTriggerUrl?: string
   hookUrl?: string
+  distributionMode?: PriceLabsDistributionMode
   lastListingSyncAt?: string
   lastPriceSyncAt?: string
   lastReservationSyncAt?: string
@@ -124,6 +130,7 @@ export interface ChannelPriceDTO {
   minStay?: number
   maxStay?: number
   isSyncedToOta: boolean
+  otaSyncState?: 'NOT_REQUIRED' | 'PENDING' | 'SUCCESS' | 'FAILED'
   otaSyncAt?: string
   priceLabsUpdatedAt?: string
   createdAt: string
