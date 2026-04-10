@@ -38,6 +38,7 @@ import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.UserRepository;
+import server.demo.util.ReservationSettlementRules;
 import server.demo.util.StoreContextUtils;
 
 import java.math.BigDecimal;
@@ -347,6 +348,16 @@ public class ReservationService {
                 )
         );
         orderNotificationDispatchService.notifyOrderCancelled(reservation.getStoreId(), savedReservation, userId);
+        return convertToDTO(savedReservation);
+    }
+
+    /**
+     * 更新结账状态（手动结账/取消手动结账）。
+     */
+    public ReservationDTO updateSettlementStatus(Long reservationId, boolean settled) {
+        Reservation reservation = loadReservationInStore(reservationId);
+        reservation.setSettled(settled);
+        Reservation savedReservation = reservationRepository.save(reservation);
         return convertToDTO(savedReservation);
     }
 
@@ -1011,6 +1022,35 @@ public class ReservationService {
                     predicates.add(criteriaBuilder.equal(root.get("status"), reservationStatus));
                 }
             }
+
+            // 结账状态过滤
+            if (paymentStatus != null && !paymentStatus.trim().isEmpty()) {
+                Predicate manuallySettledPredicate = criteriaBuilder.isTrue(root.get("settled"));
+                Predicate suReservationPredicate = criteriaBuilder.and(
+                        criteriaBuilder.isNotNull(root.get("suReservationId")),
+                        criteriaBuilder.notEqual(root.get("suReservationId"), "")
+                );
+                Predicate checkedInOrOutPredicate = root.get("status").in(
+                        ReservationStatus.CHECKED_IN,
+                        ReservationStatus.CHECKED_OUT
+                );
+                Predicate fullyPaidPredicate = criteriaBuilder.and(
+                        criteriaBuilder.greaterThan(root.get("totalAmount"), BigDecimal.ZERO),
+                        criteriaBuilder.greaterThanOrEqualTo(root.get("paidAmount"), root.get("totalAmount"))
+                );
+                Predicate paidPredicate = criteriaBuilder.or(
+                        manuallySettledPredicate,
+                        suReservationPredicate,
+                        checkedInOrOutPredicate,
+                        fullyPaidPredicate
+                );
+
+                if ("paid".equalsIgnoreCase(paymentStatus)) {
+                    predicates.add(paidPredicate);
+                } else if ("unpaid".equalsIgnoreCase(paymentStatus)) {
+                    predicates.add(criteriaBuilder.not(paidPredicate));
+                }
+            }
             
             // 日期范围过滤
             if (startDate != null && endDate != null) {
@@ -1222,7 +1262,21 @@ public class ReservationService {
         dto.setChildren(reservation.getChildren());
         dto.setPaymentMethod(reservation.getPaymentMethod());
         dto.setCommission(reservation.getCommission());
-        dto.setPaidAmount(reservation.getPaidAmount());
+        boolean settled = ReservationSettlementRules.isSettled(
+                reservation.getSettled(),
+                reservation.getSuReservationId(),
+                reservation.getStatus(),
+                reservation.getPaidAmount(),
+                reservation.getTotalAmount()
+        );
+        dto.setSettled(settled);
+        dto.setPaidAmount(ReservationSettlementRules.resolveDisplayPaidAmount(
+                reservation.getSettled(),
+                reservation.getSuReservationId(),
+                reservation.getStatus(),
+                reservation.getPaidAmount(),
+                reservation.getTotalAmount()
+        ));
         dto.setPricePlan(reservation.getPricePlan());
         String createdBy = null;
         if (reservation.getUser() != null) {

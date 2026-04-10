@@ -720,12 +720,13 @@ public class PriceLabsSyncService {
         d.setStatus("available");
 
         String city = s.getCity();
+        String addressForCoordinates = firstNonBlank(rt.getRoomTypeAddress(), s.getAddress());
 
         String countryAlpha3 = PriceLabsCountryUtil.normalizeToAlpha3(s.getCountry());
         if (countryAlpha3 == null) {
             throw new RuntimeException("请先补全门店地址信息：国家必须为 ISO 三字码（例如 CHN），当前值=" + s.getCountry());
         }
-        double[] coords = getCityCoordinates(city, s.getState(), s.getAddress(), countryAlpha3, s.getTimezone());
+        double[] coords = getCityCoordinates(city, s.getState(), addressForCoordinates, countryAlpha3, s.getTimezone());
         PriceLabsApiClient.Location location = new PriceLabsApiClient.Location();
         location.setCity(city);
         location.setCountry(countryAlpha3);
@@ -838,6 +839,13 @@ public class PriceLabsSyncService {
                 .replace(',', ' ')
                 .replace("  ", " ")
                 .trim();
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) {
+            return primary;
+        }
+        return fallback;
     }
 
     private boolean containsAny(String text, String... keywords) {

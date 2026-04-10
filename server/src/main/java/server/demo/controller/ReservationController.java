@@ -17,6 +17,7 @@ import server.demo.dto.PagedReservationResponse;
 import server.demo.dto.ReservationChannelInfoDTO;
 import server.demo.dto.ReservationDTO;
 import server.demo.dto.ReservationStatistics;
+import server.demo.dto.UpdateReservationSettlementStatusRequest;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
 import server.demo.service.ReservationService;
@@ -92,6 +93,20 @@ public class ReservationController extends BaseStoreController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("预订取消失败: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/settlement-status")
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.MODIFY_ORDER)
+    public ResponseEntity<ApiResponse<ReservationDTO>> updateSettlementStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateReservationSettlementStatusRequest request
+    ) {
+        try {
+            ReservationDTO reservation = reservationService.updateSettlementStatus(id, Boolean.TRUE.equals(request.getSettled()));
+            return ResponseEntity.ok(ApiResponse.success("更新结账状态成功", reservation));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("更新结账状态失败: " + e.getMessage()));
         }
     }
 

@@ -70,6 +70,9 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "paid_amount", precision = 10, scale = 2)
     private BigDecimal paidAmount = BigDecimal.ZERO;
 
+    @Column(name = "settled", nullable = false)
+    private Boolean settled = Boolean.FALSE;
+
     @Column(name = "order_number", length = 50)
     private String orderNumber;
 
@@ -351,6 +354,14 @@ public class Reservation implements StoreScopedEntity {
 
     public void setPaidAmount(BigDecimal paidAmount) {
         this.paidAmount = paidAmount;
+    }
+
+    public Boolean getSettled() {
+        return settled;
+    }
+
+    public void setSettled(Boolean settled) {
+        this.settled = settled;
     }
 
     public String getOrderNumber() {

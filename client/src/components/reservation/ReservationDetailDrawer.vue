@@ -53,7 +53,7 @@
             </div>
             <div class="amount-item">
               <span>已付金额</span>
-              <span class="amount">¥{{ totalPayment.toFixed(2) }}</span>
+              <span class="amount">¥{{ displayPaidAmount.toFixed(2) }}</span>
             </div>
             <div class="amount-item">
               <span>还需付款</span>
@@ -473,9 +473,30 @@ const filteredOperationLogs = computed(() => {
   return operationLogs.value.filter((log) => log.type === logFilterType.value)
 })
 
+const isReservationSettled = computed(() => {
+  const reservation = selectedReservation.value
+  if (!reservation) return false
+  const status = (reservation.status || '').toUpperCase()
+  const totalAmount = Number(reservation.totalAmount || 0)
+  const paidAmount = Number(reservation.paidAmount || 0)
+  const hasSuSource = Boolean(reservation.suReservationId?.trim())
+  const checkedInOrOut = status === 'CHECKED_IN' || status === 'CHECKED_OUT'
+  const amountSettled = totalAmount > 0 && paidAmount >= totalAmount
+  return Boolean(reservation.settled) || hasSuSource || checkedInOrOut || amountSettled
+})
+
+const displayPaidAmount = computed(() => {
+  const reservationTotal = Number(selectedReservation.value?.totalAmount || 0)
+  const paymentTotal = Number(totalPayment.value || 0)
+  if (isReservationSettled.value && reservationTotal > paymentTotal) {
+    return reservationTotal
+  }
+  return paymentTotal
+})
+
 const remainingPayment = computed(() => {
   const total = Number(selectedReservation.value?.totalAmount || 0)
-  return total - Number(totalPayment.value || 0) - Number(totalConsumption.value || 0)
+  return total - Number(displayPaidAmount.value || 0) - Number(totalConsumption.value || 0)
 })
 
 const shouldShowAssignRoom = computed(() => {

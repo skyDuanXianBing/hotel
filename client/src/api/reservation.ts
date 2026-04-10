@@ -39,6 +39,7 @@ export interface ReservationDTO {
   paymentMethod?: string
   commission?: number
   paidAmount?: number
+  settled?: boolean
   pricePlan?: string
   createdBy?: string
   notes?: string
@@ -104,6 +105,10 @@ export interface ApiResponse<T> {
   success: boolean
   message: string
   data: T
+}
+
+export interface UpdateReservationSettlementStatusRequest {
+  settled: boolean
 }
 
 // 创建预订
@@ -311,4 +316,11 @@ export const assignReservationRoom = async (
   return await request.post(`/reservations/${reservationId}/assign-room`, {
     roomId,
   })
+}
+
+export const updateReservationSettlementStatus = async (
+  reservationId: number,
+  data: UpdateReservationSettlementStatusRequest,
+): Promise<ApiResponse<ReservationDTO>> => {
+  return await request.post(`/reservations/${reservationId}/settlement-status`, data)
 }
