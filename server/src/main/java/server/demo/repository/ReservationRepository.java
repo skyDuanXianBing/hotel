@@ -69,6 +69,40 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     Optional<Reservation> findByStoreIdAndOrderNumber(Long storeId, String orderNumber);
 
+    @Query("""
+            SELECT r
+            FROM Reservation r
+            LEFT JOIN FETCH r.room room
+            LEFT JOIN FETCH room.roomType
+            WHERE r.storeId = :storeId
+              AND r.orderNumber = :orderNumber
+            ORDER BY r.createdAt DESC
+            """)
+    List<Reservation> findByStoreIdAndOrderNumberWithRoomType(
+            @Param("storeId") Long storeId,
+            @Param("orderNumber") String orderNumber
+    );
+
+    @Query("""
+            SELECT r
+            FROM Reservation r
+            LEFT JOIN FETCH r.room room
+            LEFT JOIN FETCH room.roomType
+            WHERE r.storeId = :storeId
+              AND r.channelOrderNumber = :channelOrderNumber
+            ORDER BY r.createdAt DESC
+            """)
+    List<Reservation> findByStoreIdAndChannelOrderNumberWithRoomType(
+            @Param("storeId") Long storeId,
+            @Param("channelOrderNumber") String channelOrderNumber
+    );
+
+    Optional<Reservation> findByStoreIdAndSuReservationIdAndRoomReservationId(
+           Long storeId,
+           String suReservationId,
+           String roomReservationId
+    );
+
     List<Reservation> findByStoreIdAndChannelOrderNumber(Long storeId, String channelOrderNumber);
 
     List<Reservation> findByStoreIdAndGuestNameContainingIgnoreCase(Long storeId, String guestName);
@@ -162,6 +196,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
             @Param("statuses") Set<ReservationStatus> statuses
     );
 
+    @Query("""
+            SELECT r
+            FROM Reservation r
+            LEFT JOIN FETCH r.channel
+            WHERE r.storeId = :storeId
+              AND r.room.id IN :roomIds
+              AND r.checkInDate <= :endDate
+              AND r.checkOutDate > :startDate
+              AND r.status IN :statuses
+            """)
+    List<Reservation> findByStoreIdAndRoomIdInAndDateRangeAndStatusesWithChannel(
+            @Param("storeId") Long storeId,
+            @Param("roomIds") List<Long> roomIds,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("statuses") Set<ReservationStatus> statuses
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE Reservation r
@@ -180,6 +232,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     Optional<Reservation> findByStoreIdAndRoomIdAndDate(@Param("storeId") Long storeId,
                                                         @Param("roomId") Long roomId,
                                                         @Param("date") LocalDate date);
+
+    @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.room.id = :roomId AND " +
+           "r.checkInDate <= :date AND r.checkOutDate > :date " +
+           "AND r.status IN ('CONFIRMED', 'CHECKED_IN', 'REQUESTED')")
+    List<Reservation> findAllByStoreIdAndRoomIdAndDate(@Param("storeId") Long storeId,
+                                                       @Param("roomId") Long roomId,
+                                                       @Param("date") LocalDate date);
 
     @Query("SELECT COUNT(r) FROM Reservation r WHERE r.storeId = :storeId AND r.checkInDate = :date " +
            "AND r.status IN ('CONFIRMED', 'CHECKED_IN')")

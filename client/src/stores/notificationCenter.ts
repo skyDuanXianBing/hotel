@@ -5,6 +5,7 @@ import {
   getNotificationSettings,
   type NotificationMessageDTO,
 } from '@/api/notification'
+import { parseUtcDateTime } from '@/utils/storeDateTime'
 import { createSuMessagingSocket, type SuMessagingRealtimeEvent } from '@/utils/suMessagingSocket'
 
 type PopupNotificationType = 'order' | 'message'
@@ -78,11 +79,7 @@ const tryParseStoreIdFromStorage = () => {
 const getCurrentToken = () => localStorage.getItem('token') || ''
 
 const toDate = (value?: string) => {
-  if (!value) {
-    return new Date()
-  }
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed
+  return parseUtcDateTime(value)
 }
 
 const normalizeMessageText = (value?: string, maxLength = 120) => {

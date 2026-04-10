@@ -22,6 +22,7 @@ import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
+import server.demo.util.UtcTimeUtil;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -149,13 +150,13 @@ public class SuAutoReplyService {
             msg.setSenderType(SuMessagingSenderType.STAFF);
             msg.setSenderName("系统自动回复");
             msg.setContent(rendered.trim());
-            msg.setSentAt(LocalDateTime.now());
+            msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
             msg.setIsRead(true);
             msg.setRawJson(writeJsonSafely(payload));
             messageRepository.save(msg);
 
             thread.setLastMessage(rendered.trim());
-            thread.setLastActivity(LocalDateTime.now());
+            thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
             threadRepository.save(thread);
 
             log.setSuccess(true);
@@ -222,6 +223,8 @@ public class SuAutoReplyService {
         vars.put("checkin_date", "");
         vars.put("checkout_date", "");
         vars.put("room_type_name", "");
+        vars.put("room_type_address", "");
+        vars.put("nearby_station", "");
         vars.put("rate_plan_name", "");
         vars.put("confirmation_code", nullToEmpty(thread.getBookingId()));
         vars.put("number_of_nights", "");
@@ -236,11 +239,7 @@ public class SuAutoReplyService {
         if (message == null) {
             return null;
         }
-        String normalized = message.replace("\r\n", "\n").replace("\r", "\n");
-        if (suChannelId == SuMessagingService.CHANNEL_BOOKING) {
-            return normalized.replace("\n", "\\\n");
-        }
-        return normalized;
+        return message.replace("\r\n", "\n").replace("\r", "\n");
     }
 
     private static String nullToEmpty(String v) {

@@ -298,22 +298,75 @@ public class PricePlanService {
             throw new RuntimeException("无权限操作");
         }
 
+        boolean weeklyPriceChanged = hasWeeklyPriceChanged(existing, request);
+        Long storeId = existing.getStoreId();
+        Long roomTypeId = existing.getRoomType() != null ? existing.getRoomType().getId() : null;
+        Long pricePlanId = existing.getPricePlan() != null ? existing.getPricePlan().getId() : null;
+
         applyAssignRequest(existing, request);
         RoomTypePricePlan saved = roomTypePricePlanRepository.save(existing);
 
-        Long roomTypeId = existing.getRoomType() != null ? existing.getRoomType().getId() : null;
-        Long pricePlanId = existing.getPricePlan() != null ? existing.getPricePlan().getId() : null;
+        Boolean clearFutureOverrides = request.getClearFutureOverrides();
+        boolean shouldClearFutureOverrides = clearFutureOverrides != null
+            ? clearFutureOverrides
+            : weeklyPriceChanged;
+        if (shouldClearFutureOverrides && storeId != null && roomTypeId != null && pricePlanId != null) {
+            LocalDate fromDate = request.getClearFromDate() != null ? request.getClearFromDate() : LocalDate.now();
+            roomPriceRepository.deleteByStoreIdAndRoomTypeIdAndPricePlanIdAndPriceDateGreaterThanEqual(
+                    storeId,
+                    roomTypeId,
+                    pricePlanId,
+                    fromDate
+            );
+        }
+
         warmupSuAriForMappingIfEnabled(existing.getStoreId(), roomTypeId, pricePlanId, "mapping-update");
         return saved;
     }
 
-    public void deleteRoomTypePricePlan(Long id) {
+    private boolean hasWeeklyPriceChanged(RoomTypePricePlan existing, AssignRoomTypePricePlanRequest request) {
+        return hasPriceFieldChanged(existing.getMondayPrice(), request.getMondayPrice())
+                || hasPriceFieldChanged(existing.getTuesdayPrice(), request.getTuesdayPrice())
+                || hasPriceFieldChanged(existing.getWednesdayPrice(), request.getWednesdayPrice())
+                || hasPriceFieldChanged(existing.getThursdayPrice(), request.getThursdayPrice())
+                || hasPriceFieldChanged(existing.getFridayPrice(), request.getFridayPrice())
+                || hasPriceFieldChanged(existing.getSaturdayPrice(), request.getSaturdayPrice())
+                || hasPriceFieldChanged(existing.getSundayPrice(), request.getSundayPrice());
+    }
+
+    private boolean hasPriceFieldChanged(java.math.BigDecimal oldValue, java.math.BigDecimal newValue) {
+        if (newValue == null) {
+            return false;
+        }
+        if (oldValue == null) {
+            return true;
+        }
+        return oldValue.compareTo(newValue) != 0;
+    }
+
+    public long deleteRoomTypePricePlan(Long id, boolean clearOverrides) {
+        Long storeId = currentStoreId();
         RoomTypePricePlan roomTypePricePlan = roomTypePricePlanRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("房型价格计划不存在"));
-        if (!currentStoreId().equals(roomTypePricePlan.getStoreId())) {
+        if (!storeId.equals(roomTypePricePlan.getStoreId())) {
             throw new RuntimeException("无权限操作");
         }
+
+        long clearedOverrideCount = 0;
+        if (clearOverrides
+                && roomTypePricePlan.getRoomType() != null
+                && roomTypePricePlan.getPricePlan() != null
+                && roomTypePricePlan.getRoomType().getId() != null
+                && roomTypePricePlan.getPricePlan().getId() != null) {
+            clearedOverrideCount = roomPriceRepository.deleteByStoreIdAndRoomTypeIdAndPricePlanId(
+                    storeId,
+                    roomTypePricePlan.getRoomType().getId(),
+                    roomTypePricePlan.getPricePlan().getId()
+            );
+        }
+
         roomTypePricePlanRepository.delete(roomTypePricePlan);
+        return clearedOverrideCount;
     }
 
     public long countRoomTypesByPricePlan(Long pricePlanId) {

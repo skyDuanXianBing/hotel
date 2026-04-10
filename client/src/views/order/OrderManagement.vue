@@ -225,16 +225,18 @@
           >
             <template #default="scope">
               <div class="order-number">
-                <el-button type="text" class="order-link" @click="viewOrder(scope.row)">{{
+                <el-button type="text" class="order-link" title="点击查看订单详情" @click="viewOrder(scope.row)">{{
                   scope.row.orderNumber
                 }}</el-button>
                 <el-button
                   type="text"
                   class="channel-order-link"
+                  title="点击查看订单详情"
                   @click="viewOrder(scope.row)"
                 >
                   {{ getDisplayChannelOrderNumber(scope.row) }}
                 </el-button>
+                <span class="order-detail-tip">点击订单号查看详情</span>
               </div>
             </template>
           </el-table-column>
@@ -308,7 +310,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned'" label="排房状态" width="100">
+          <el-table-column v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned' || activeOrderTab === 'order-box'" label="排房状态" width="100">
             <template #default="scope">
               <el-tag size="small" :type="getAssignStatusTagType(scope.row)">
                 {{ getAssignStatusText(scope.row) }}
@@ -390,14 +392,25 @@
 
           <el-table-column v-if="activeOrderTab === 'all'" label="收银状态" width="120">
             <template #default="scope">
-              <span>{{ getCashierStatusText(scope.row) }}</span>
+              <span>{{ getCashierStatusTextV2(scope.row) }}</span>
             </template>
           </el-table-column>
 
           <el-table-column label="结账状态" width="100">
             <template #default="scope">
-              <el-tag size="small" :type="getSettlementTagType(scope.row)">
-                {{ getSettlementStatusText(scope.row) }}
+              <el-select
+                v-if="activeOrderTab === 'pending'"
+                :model-value="getSettlementSelectValue(scope.row)"
+                size="small"
+                style="width: 96px"
+                :disabled="settlementUpdatingOrderId === scope.row.id"
+                @change="handleSettlementStatusChange(scope.row, $event)"
+              >
+                <el-option label="已结账" value="paid" />
+                <el-option label="未结账" value="unpaid" />
+              </el-select>
+              <el-tag v-else size="small" :type="getSettlementTagTypeV2(scope.row)">
+                {{ getSettlementStatusTextV2(scope.row) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -423,7 +436,7 @@
           </el-table-column>
 
           <el-table-column
-            v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned'"
+            v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned' || activeOrderTab === 'order-box'"
             label="操作"
             width="180"
             fixed="right"
@@ -560,6 +573,7 @@ import {
   getReservationsWithFilters,
   getReservationStatistics,
   getReservationsByType,
+  updateReservationSettlementStatus,
   type AssignableRoomDTO,
   type AssignableRoomTypeDTO,
   type ReservationDTO,
@@ -986,6 +1000,47 @@ const getCashierStatusText = (order: ReservationDTO) => {
   return '待收款'
 }
 
+const isOrderSettled = (order: ReservationDTO) => {
+  const totalAmount = Number(order.totalAmount ?? 0)
+  const paidAmount = Number(order.paidAmount ?? 0)
+  const status = (order.status || '').toUpperCase()
+  const hasSuSource = Boolean(order.suReservationId?.trim())
+  const checkedInOrOut = status === 'CHECKED_IN' || status === 'CHECKED_OUT'
+  const amountSettled = totalAmount > 0 && paidAmount >= totalAmount
+  return Boolean(order.settled) || hasSuSource || checkedInOrOut || amountSettled
+}
+
+const getSettlementStatusTextV2 = (order: ReservationDTO) => {
+  if (isOrderSettled(order)) {
+    return '已结账'
+  }
+  const paidAmount = Number(order.paidAmount ?? 0)
+  return paidAmount > 0 ? '部分结账' : '未结账'
+}
+
+const getSettlementTagTypeV2 = (order: ReservationDTO) => {
+  const settlementStatus = getSettlementStatusTextV2(order)
+  if (settlementStatus === '已结账') {
+    return 'success'
+  }
+  if (settlementStatus === '部分结账') {
+    return 'warning'
+  }
+  return 'danger'
+}
+
+const getCashierStatusTextV2 = (order: ReservationDTO) => {
+  if (isOrderSettled(order)) {
+    return '账目已平'
+  }
+  const paidAmount = Number(order.paidAmount ?? 0)
+  return paidAmount > 0 ? '部分到账' : '待收款'
+}
+
+const getSettlementSelectValue = (order: ReservationDTO) => {
+  return isOrderSettled(order) ? 'paid' : 'unpaid'
+}
+
 const formatDateTime = (dateStr: string) => {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
@@ -1033,8 +1088,33 @@ const assignRoomTypeId = ref<number | null>(null)
 const assignRoomId = ref<number | null>(null)
 const assignableRoomTypes = ref<AssignableRoomTypeDTO[]>([])
 const assignableRooms = ref<AssignableRoomDTO[]>([])
+const settlementUpdatingOrderId = ref<number | null>(null)
 
 // 订单操作方法
+const handleSettlementStatusChange = async (order: ReservationDTO, value: string) => {
+  if (!order?.id) return
+  settlementUpdatingOrderId.value = order.id
+  try {
+    const response = await updateReservationSettlementStatus(order.id, {
+      settled: value === 'paid',
+    })
+    if (!response.success) {
+      ElMessage.error(response.message || '更新结账状态失败')
+      return
+    }
+    Object.assign(order, response.data)
+    ElMessage.success(value === 'paid' ? '已更新为已结账' : '已更新为未结账')
+    if (filters.value.paymentStatus) {
+      await loadReservations()
+    }
+  } catch (error) {
+    console.error('更新结账状态失败:', error)
+    ElMessage.error('更新结账状态失败')
+  } finally {
+    settlementUpdatingOrderId.value = null
+  }
+}
+
 const viewOrder = (order: ReservationDTO) => {
   selectedReservationId.value = order.id
   showOrderDetailDrawer.value = true
@@ -1377,6 +1457,10 @@ onMounted(() => {
   display: block;
   width: 100%;
 }
+.order-link:hover :deep(.el-button__text) {
+  color: #409eff;
+  text-decoration: underline;
+}
 
 .channel-order {
   font-size: 12px;
@@ -1399,6 +1483,10 @@ onMounted(() => {
   display: block;
   width: 100%;
 }
+.channel-order-link:hover :deep(.el-button__text) {
+  color: #409eff;
+  text-decoration: underline;
+}
 
 .order-link,
 .channel-order-link {
@@ -1406,6 +1494,12 @@ onMounted(() => {
   margin: 0 !important;
   justify-content: flex-start !important;
   height: auto;
+}
+
+.order-detail-tip {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #8c8c8c;
 }
 
 /* 分页 */

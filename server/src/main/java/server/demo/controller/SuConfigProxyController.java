@@ -1,6 +1,8 @@
 package server.demo.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -14,35 +16,52 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.HandlerMapping;
+import server.demo.config.SuApiConfig;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
+import java.util.zip.GZIPInputStream;
 
 /**
- * Su Widget 前端脚本会在浏览器内直接请求 Su 的 Config 服务（connect(-sandbox).su-api.com/Config/...），
- * 但 Su 侧并不会给第三方域名返回 CORS 响应头，导致浏览器拦截并出现白屏。
+ * Su Widget scripts call Su Config endpoints directly in browser runtime
+ * (connect(-sandbox).su-api.com/Config/...). Su does not always return CORS
+ * headers for third-party origins, which can cause browser blocking and blank UI.
  *
- * 本控制器提供一个受控的反向代理：前端把这些请求改打到本后端，由本后端转发到 Su Config。
+ * This controller provides a controlled reverse proxy: frontend routes these
+ * requests to backend, and backend forwards them to Su Config.
  *
- * 安全注意：
- * - 仅允许代理到 Su 的固定域名（生产/沙盒）且仅允许 /Config/jservice/** 路径；
- * - 不会将本系统的 Authorization（JWT）转发给 Su；
- * - 若 Su 需要 Authorization，则前端需通过 X-Su-Authorization 传入（由前端重写拦截完成）。
+ * Security notes:
+ * - only fixed Su hosts are allowed (prod/sandbox), and only /Config/jservice/** paths.
+ * - local Authorization (JWT) is never forwarded to Su.
+ * - if Su Authorization is needed, frontend passes it via X-Su-Authorization.
  */
 @RestController
 @RequestMapping("/api/v1/su/config")
 public class SuConfigProxyController {
 
+    private static final Logger logger = LoggerFactory.getLogger(SuConfigProxyController.class);
     private static final String UPSTREAM_PROD = "https://connect.su-api.com";
     private static final String UPSTREAM_SANDBOX = "https://connect-sandbox.su-api.com";
     private static final String SU_AUTH_HEADER = "X-Su-Authorization";
+    private static final String SU_PROXY_TOKEN_ID_HEADER = "X-Su-Token-Id";
+    private static final String SU_PROXY_APP_ID_HEADER = "X-Su-App-Id";
+    private static final String SU_PROXY_CLIENT_ID_HEADER = "X-Su-Client-Id";
+    private static final String SU_UPSTREAM_TOKEN_ID_HEADER = "token-id";
+    private static final String SU_UPSTREAM_APP_ID_HEADER = "app-id";
+    private static final String SU_UPSTREAM_CLIENT_ID_HEADER = "client-id";
+    private static final String SU_UPSTREAM_CLIENT_SECRET_HEADER = "client-secret";
 
     private final RestTemplate restTemplate;
+    private final SuApiConfig suApiConfig;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    public SuConfigProxyController(RestTemplate restTemplate) {
+    public SuConfigProxyController(RestTemplate restTemplate, SuApiConfig suApiConfig) {
         this.restTemplate = restTemplate;
+        this.suApiConfig = suApiConfig;
     }
 
     @RequestMapping(
@@ -58,21 +77,21 @@ public class SuConfigProxyController {
         if (upstreamBase == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(("{\"success\":false,\"message\":\"不支持的Su环境：" + env + "\",\"data\":null}").getBytes());
+                    .body(("{\"success\":false,\"message\":\"Unsupported Su env: " + env + "\",\"data\":null}").getBytes());
         }
 
         String remainingPath = extractRemainingPath(request);
         if (remainingPath == null || remainingPath.isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body("{\"success\":false,\"message\":\"缺少代理路径\",\"data\":null}".getBytes());
+                    .body("{\"success\":false,\"message\":\"Missing proxy path\",\"data\":null}".getBytes());
         }
 
-        // 仅允许代理 /Config/jservice/**，避免成为通用代理
+        // Only allow /Config/jservice/** to avoid becoming a generic open proxy.
         if (!remainingPath.startsWith("jservice/") && !remainingPath.equals("jservice")) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body("{\"success\":false,\"message\":\"仅允许代理 /Config/jservice/**\",\"data\":null}".getBytes());
+                    .body("{\"success\":false,\"message\":\"Only /Config/jservice/** is allowed\",\"data\":null}".getBytes());
         }
 
         String query = request.getQueryString();
@@ -84,10 +103,11 @@ public class SuConfigProxyController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body("{\"success\":false,\"message\":\"不支持的HTTP方法\",\"data\":null}".getBytes());
+                    .body("{\"success\":false,\"message\":\"Unsupported HTTP method\",\"data\":null}".getBytes());
         }
 
         HttpHeaders outgoingHeaders = buildOutgoingHeaders(request);
+        logProxyRequest(targetUrl, request, outgoingHeaders);
         ResponseEntity<byte[]> upstreamResponse;
         try {
             upstreamResponse = restTemplate.exchange(
@@ -96,25 +116,70 @@ public class SuConfigProxyController {
                     new org.springframework.http.HttpEntity<>(body, outgoingHeaders),
                     byte[].class
             );
+            logProxyResponse(targetUrl, upstreamResponse);
         } catch (Exception ex) {
+            logger.warn("Su Config proxy request failed. targetUrl={}, error={}", targetUrl, safeMessage(ex));
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(("{\"success\":false,\"message\":\"Su Config代理失败：" + safeMessage(ex) + "\",\"data\":null}").getBytes());
+                    .body(("{\"success\":false,\"message\":\"Su Config proxy failed: " + safeMessage(ex) + "\",\"data\":null}").getBytes());
+        }
+
+        byte[] responseBody = upstreamResponse.getBody();
+        boolean decodedGzipBody = false;
+        if (isGzipBody(responseBody)) {
+            byte[] decompressed = tryDecompressGzip(responseBody);
+            if (decompressed != null) {
+                responseBody = decompressed;
+                decodedGzipBody = true;
+            }
         }
 
         HttpHeaders responseHeaders = new HttpHeaders();
-        MediaType contentType = upstreamResponse.getHeaders().getContentType();
-        if (contentType != null) {
-            responseHeaders.setContentType(contentType);
-        } else {
+        copyResponseHeaderIfPresent(upstreamResponse.getHeaders(), responseHeaders, HttpHeaders.CONTENT_TYPE);
+        if (!decodedGzipBody) {
+            copyResponseHeaderIfPresent(upstreamResponse.getHeaders(), responseHeaders, HttpHeaders.CONTENT_ENCODING);
+        }
+        copyResponseHeaderIfPresent(upstreamResponse.getHeaders(), responseHeaders, HttpHeaders.CACHE_CONTROL);
+        copyResponseHeaderIfPresent(upstreamResponse.getHeaders(), responseHeaders, HttpHeaders.VARY);
+        copyResponseHeaderIfPresent(upstreamResponse.getHeaders(), responseHeaders, HttpHeaders.ETAG);
+        copyResponseHeaderIfPresent(upstreamResponse.getHeaders(), responseHeaders, HttpHeaders.LAST_MODIFIED);
+        copyResponseHeaderIfPresent(upstreamResponse.getHeaders(), responseHeaders, HttpHeaders.EXPIRES);
+        copyResponseHeaderIfPresent(upstreamResponse.getHeaders(), responseHeaders, HttpHeaders.PRAGMA);
+
+        if (responseHeaders.getContentType() == null) {
             responseHeaders.setContentType(MediaType.APPLICATION_JSON);
         }
-        List<String> cacheControl = upstreamResponse.getHeaders().get(HttpHeaders.CACHE_CONTROL);
-        if (cacheControl != null) {
-            responseHeaders.put(HttpHeaders.CACHE_CONTROL, cacheControl);
-        }
 
-        return new ResponseEntity<>(upstreamResponse.getBody(), responseHeaders, upstreamResponse.getStatusCode());
+        return new ResponseEntity<>(responseBody, responseHeaders, upstreamResponse.getStatusCode());
+    }
+
+    private void copyResponseHeaderIfPresent(HttpHeaders source, HttpHeaders target, String headerName) {
+        List<String> values = source.get(headerName);
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+        target.put(headerName, values);
+    }
+
+    private boolean isGzipBody(byte[] body) {
+        return body != null
+                && body.length >= 2
+                && body[0] == (byte) 0x1f
+                && body[1] == (byte) 0x8b;
+    }
+
+    private byte[] tryDecompressGzip(byte[] compressedBody) {
+        try (
+                ByteArrayInputStream input = new ByteArrayInputStream(compressedBody);
+                GZIPInputStream gzipInputStream = new GZIPInputStream(input);
+                ByteArrayOutputStream output = new ByteArrayOutputStream()
+        ) {
+            gzipInputStream.transferTo(output);
+            return output.toByteArray();
+        } catch (IOException ex) {
+            logger.warn("Failed to decompress gzip response body from Su Config. error={}", safeMessage(ex));
+            return null;
+        }
     }
 
     private String resolveUpstreamBase(String env) {
@@ -141,7 +206,19 @@ public class SuConfigProxyController {
     private HttpHeaders buildOutgoingHeaders(HttpServletRequest request) {
         HttpHeaders headers = new HttpHeaders();
 
-        String suAuthorization = request.getHeader(SU_AUTH_HEADER);
+        String suAuthorization = normalizeHeaderValue(request.getHeader(SU_AUTH_HEADER));
+        String suTokenId = firstNonBlank(
+                normalizeHeaderValue(request.getHeader(SU_PROXY_TOKEN_ID_HEADER)),
+                normalizeHeaderValue(request.getHeader(SU_UPSTREAM_TOKEN_ID_HEADER))
+        );
+        String suAppId = firstNonBlank(
+                normalizeHeaderValue(request.getHeader(SU_PROXY_APP_ID_HEADER)),
+                normalizeHeaderValue(request.getHeader(SU_UPSTREAM_APP_ID_HEADER))
+        );
+        String suClientId = firstNonBlank(
+                normalizeHeaderValue(request.getHeader(SU_PROXY_CLIENT_ID_HEADER)),
+                normalizeHeaderValue(request.getHeader(SU_UPSTREAM_CLIENT_ID_HEADER))
+        );
 
         Enumeration<String> headerNames = request.getHeaderNames();
         while (headerNames != null && headerNames.hasMoreElements()) {
@@ -153,10 +230,14 @@ public class SuConfigProxyController {
             if (lower.equals("host")
                     || lower.equals("content-length")
                     || lower.equals("connection")
+                    || lower.equals("accept-encoding")
                     || lower.equals("cookie")
-                    || lower.equals("authorization") // 本系统JWT，不应转发
+                    || lower.equals("authorization") // Local JWT should not be forwarded upstream.
                     || lower.equals("x-store-id")
-                    || lower.equals(SU_AUTH_HEADER.toLowerCase(Locale.ROOT))) {
+                    || lower.equals(SU_AUTH_HEADER.toLowerCase(Locale.ROOT))
+                    || lower.equals(SU_PROXY_TOKEN_ID_HEADER.toLowerCase(Locale.ROOT))
+                    || lower.equals(SU_PROXY_APP_ID_HEADER.toLowerCase(Locale.ROOT))
+                    || lower.equals(SU_PROXY_CLIENT_ID_HEADER.toLowerCase(Locale.ROOT))) {
                 continue;
             }
 
@@ -169,6 +250,36 @@ public class SuConfigProxyController {
         if (suAuthorization != null && !suAuthorization.isBlank()) {
             headers.set(HttpHeaders.AUTHORIZATION, suAuthorization.trim());
         }
+        if (suTokenId != null && !suTokenId.isBlank()) {
+            headers.set(SU_UPSTREAM_TOKEN_ID_HEADER, suTokenId);
+        }
+
+        String fallbackClientId = normalizeHeaderValue(suApiConfig.getClientId());
+        if (headers.getFirst(SU_UPSTREAM_CLIENT_ID_HEADER) == null && fallbackClientId != null) {
+            headers.set(SU_UPSTREAM_CLIENT_ID_HEADER, fallbackClientId);
+        }
+        if (suClientId != null && !suClientId.isBlank()) {
+            headers.set(SU_UPSTREAM_CLIENT_ID_HEADER, suClientId);
+        }
+
+        String finalClientId = normalizeHeaderValue(headers.getFirst(SU_UPSTREAM_CLIENT_ID_HEADER));
+        if (headers.getFirst(SU_UPSTREAM_APP_ID_HEADER) == null && finalClientId != null) {
+            headers.set(SU_UPSTREAM_APP_ID_HEADER, finalClientId);
+        }
+        if (suAppId != null && !suAppId.isBlank()) {
+            headers.set(SU_UPSTREAM_APP_ID_HEADER, suAppId);
+        }
+
+        if (headers.getFirst(SU_UPSTREAM_CLIENT_SECRET_HEADER) == null) {
+            try {
+                String fallbackClientSecret = normalizeHeaderValue(suApiConfig.getClientSecret());
+                if (fallbackClientSecret != null) {
+                    headers.set(SU_UPSTREAM_CLIENT_SECRET_HEADER, fallbackClientSecret);
+                }
+            } catch (Exception ex) {
+                logger.warn("Su Config proxy missing client-secret fallback config. error={}", safeMessage(ex));
+            }
+        }
 
         if (headers.getAccept() == null || headers.getAccept().isEmpty()) {
             headers.setAccept(List.of(MediaType.APPLICATION_JSON));
@@ -177,10 +288,57 @@ public class SuConfigProxyController {
         return headers;
     }
 
+    private void logProxyRequest(String targetUrl, HttpServletRequest request, HttpHeaders outgoingHeaders) {
+        logger.info(
+                "Su Config proxy request. targetUrl={}, inAuth={}, inTokenId={}, outAuth={}, outTokenId={}, outClientId={}, outClientSecret={}, outAppId={}",
+                targetUrl,
+                hasText(request.getHeader(SU_AUTH_HEADER)),
+                hasText(firstNonBlank(
+                        request.getHeader(SU_PROXY_TOKEN_ID_HEADER),
+                        request.getHeader(SU_UPSTREAM_TOKEN_ID_HEADER)
+                )),
+                hasText(outgoingHeaders.getFirst(HttpHeaders.AUTHORIZATION)),
+                hasText(outgoingHeaders.getFirst(SU_UPSTREAM_TOKEN_ID_HEADER)),
+                hasText(outgoingHeaders.getFirst(SU_UPSTREAM_CLIENT_ID_HEADER)),
+                hasText(outgoingHeaders.getFirst(SU_UPSTREAM_CLIENT_SECRET_HEADER)),
+                hasText(outgoingHeaders.getFirst(SU_UPSTREAM_APP_ID_HEADER))
+        );
+    }
+
+    private void logProxyResponse(String targetUrl, ResponseEntity<byte[]> upstreamResponse) {
+        int bodyLength = upstreamResponse.getBody() == null ? 0 : upstreamResponse.getBody().length;
+        logger.info(
+                "Su Config proxy response. targetUrl={}, status={}, bodyBytes={}",
+                targetUrl,
+                upstreamResponse.getStatusCode().value(),
+                bodyLength
+        );
+    }
+
+    private String normalizeHeaderValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String firstNonBlank(String first, String second) {
+        String firstValue = normalizeHeaderValue(first);
+        if (firstValue != null) {
+            return firstValue;
+        }
+        return normalizeHeaderValue(second);
+    }
+
+    private boolean hasText(String value) {
+        return normalizeHeaderValue(value) != null;
+    }
+
     private String safeMessage(Exception ex) {
         String msg = ex.getMessage();
         if (msg == null) {
-            return "未知错误";
+            return "Unknown error";
         }
         msg = msg.replace("\"", "'");
         if (msg.length() > 500) {

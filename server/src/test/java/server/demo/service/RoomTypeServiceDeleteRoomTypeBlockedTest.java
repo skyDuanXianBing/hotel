@@ -12,11 +12,19 @@ import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.enums.ReservationStatus;
 import server.demo.exception.RoomTypeDeleteBlockedException;
+import server.demo.repository.ChannelPriceRepository;
+import server.demo.repository.CleaningTaskRepository;
+import server.demo.repository.PriceLabsConnectionRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomBlockoutRepository;
+import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
+import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.repository.PriceChangeHistoryRepository;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -83,5 +91,65 @@ class RoomTypeServiceDeleteRoomTypeBlockedTest {
 
         // should not proceed to delete
         verify(roomRepository, never()).deleteAll(Mockito.anyList());
+    }
+
+    @Test
+    void deleteRoomType_shouldDeleteRoomBlockoutsBeforeDeletingRooms() {
+        StoreContextHolder.setContext(new StoreContext(1L, 7L, "OWNER"));
+
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        CleaningTaskRepository cleaningTaskRepository = Mockito.mock(CleaningTaskRepository.class);
+        RoomBlockoutRepository roomBlockoutRepository = Mockito.mock(RoomBlockoutRepository.class);
+        ChannelPriceRepository channelPriceRepository = Mockito.mock(ChannelPriceRepository.class);
+        PriceLabsConnectionRepository priceLabsConnectionRepository = Mockito.mock(PriceLabsConnectionRepository.class);
+        RoomTypePricePlanRepository roomTypePricePlanRepository = Mockito.mock(RoomTypePricePlanRepository.class);
+        RoomPriceRepository roomPriceRepository = Mockito.mock(RoomPriceRepository.class);
+        PriceChangeHistoryRepository priceChangeHistoryRepository = Mockito.mock(PriceChangeHistoryRepository.class);
+
+        RoomTypeService service = new RoomTypeService();
+        ReflectionTestUtils.setField(service, "roomTypeRepository", roomTypeRepository);
+        ReflectionTestUtils.setField(service, "roomRepository", roomRepository);
+        ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "cleaningTaskRepository", cleaningTaskRepository);
+        ReflectionTestUtils.setField(service, "roomBlockoutRepository", roomBlockoutRepository);
+        ReflectionTestUtils.setField(service, "channelPriceRepository", channelPriceRepository);
+        ReflectionTestUtils.setField(service, "priceLabsConnectionRepository", priceLabsConnectionRepository);
+        ReflectionTestUtils.setField(service, "roomTypePricePlanRepository", roomTypePricePlanRepository);
+        ReflectionTestUtils.setField(service, "roomPriceRepository", roomPriceRepository);
+        ReflectionTestUtils.setField(service, "priceChangeHistoryRepository", priceChangeHistoryRepository);
+        ReflectionTestUtils.setField(service, "suRoomTypeAutoSyncEnabled", false);
+
+        RoomType roomType = new RoomType();
+        roomType.setId(40L);
+        roomType.setStoreId(7L);
+
+        Room room = new Room();
+        room.setId(100L);
+        room.setRoomNumber("101");
+
+        when(roomTypeRepository.findById(40L)).thenReturn(Optional.of(roomType));
+        when(roomRepository.findByStoreIdAndRoomTypeId(7L, 40L)).thenReturn(List.of(room));
+        when(reservationRepository.findByStoreIdAndRoomIdInAndDateRangeAndStatuses(
+                Mockito.eq(7L),
+                Mockito.eq(List.of(100L)),
+                Mockito.any(LocalDate.class),
+                Mockito.any(LocalDate.class),
+                Mockito.anySet()
+        )).thenReturn(List.of());
+
+        service.deleteRoomType(40L);
+
+        verify(reservationRepository).clearRoomBindingByStoreIdAndRoomIds(7L, List.of(100L));
+        verify(cleaningTaskRepository).deleteByRoomIdIn(new HashSet<>(List.of(100L)));
+        verify(roomBlockoutRepository).deleteByStoreIdAndRoom_IdIn(7L, List.of(100L));
+        verify(channelPriceRepository).deleteByStoreIdAndRoomTypeId(7L, 40L);
+        verify(priceLabsConnectionRepository).deleteByStoreIdAndRoomTypeId(7L, 40L);
+        verify(priceChangeHistoryRepository).deleteByRoomTypeId(40L);
+        verify(roomPriceRepository).deleteByRoomTypeId(40L);
+        verify(roomTypePricePlanRepository).deleteByRoomTypeId(40L);
+        verify(roomRepository).deleteAll(List.of(room));
+        verify(roomTypeRepository).deleteById(40L);
     }
 }

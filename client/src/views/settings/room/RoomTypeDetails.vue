@@ -215,6 +215,8 @@ interface RoomTypeForm {
   totalRooms: number
   maxGuests: number
   maxChildOccupancy: number
+  roomTypeAddress: string
+  nearbyStation: string
   checkInGuideLink: string
   suRoomType: string
   sizeMeasurement?: number
@@ -266,6 +268,8 @@ const formData = reactive<RoomTypeForm>({
   totalRooms: 1,
   maxGuests: 1,
   maxChildOccupancy: 0,
+  roomTypeAddress: '',
+  nearbyStation: '',
   checkInGuideLink: '',
   suRoomType: '',
   sizeMeasurement: undefined,
@@ -372,6 +376,8 @@ const buildPayload = (): CreateRoomTypeRequest => ({
   totalRooms: formData.totalRooms,
   maxGuests: formData.maxGuests,
   maxChildOccupancy: formData.maxChildOccupancy,
+  roomTypeAddress: formData.roomTypeAddress,
+  nearbyStation: formData.nearbyStation,
   checkInGuideLink: formData.checkInGuideLink,
   suRoomType: roomTypeCodeSet.has(formData.suRoomType) ? formData.suRoomType : undefined,
   sizeMeasurement: formData.sizeMeasurement,
@@ -430,6 +436,8 @@ const loadRoomTypeDetails = async () => {
     formData.totalRooms = data.totalRooms || 1
     formData.maxGuests = data.maxGuests || 1
     formData.maxChildOccupancy = data.maxChildOccupancy || 0
+    formData.roomTypeAddress = data.roomTypeAddress || ''
+    formData.nearbyStation = data.nearbyStation || ''
     formData.checkInGuideLink = data.checkInGuideLink || ''
     formData.suRoomType = normalizeSuRtc(data.suRoomType)
     formData.sizeMeasurement = data.sizeMeasurement

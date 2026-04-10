@@ -24,6 +24,7 @@ public class ChannelPriceDTO {
     private Integer minStay;
     private Integer maxStay;
     private Boolean isSyncedToOta;
+    private String otaSyncState;
     private LocalDateTime otaSyncAt;
     private LocalDateTime priceLabsUpdatedAt;
     private LocalDateTime createdAt;
@@ -151,6 +152,14 @@ public class ChannelPriceDTO {
 
     public void setIsSyncedToOta(Boolean isSyncedToOta) {
         this.isSyncedToOta = isSyncedToOta;
+    }
+
+    public String getOtaSyncState() {
+        return otaSyncState;
+    }
+
+    public void setOtaSyncState(String otaSyncState) {
+        this.otaSyncState = otaSyncState;
     }
 
     public LocalDateTime getOtaSyncAt() {

@@ -25,6 +25,7 @@ import server.demo.repository.UserRepository;
 import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.PriceLabsConnectionRepository;
 import server.demo.repository.CleaningTaskRepository;
+import server.demo.repository.RoomBlockoutRepository;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.SuHotelIdUtil;
 
@@ -73,6 +74,9 @@ public class RoomTypeService {
 
     @Autowired
     private CleaningTaskRepository cleaningTaskRepository;
+
+    @Autowired
+    private RoomBlockoutRepository roomBlockoutRepository;
 
     @Autowired
     private SuContentSyncService suContentSyncService;
@@ -399,6 +403,8 @@ public class RoomTypeService {
     private static void applyOptionalRoomTypeFields(RoomType target, RoomType source) {
         target.setDescription(source.getDescription());
         target.setCheckInGuideLink(source.getCheckInGuideLink());
+        target.setRoomTypeAddress(source.getRoomTypeAddress());
+        target.setNearbyStation(source.getNearbyStation());
         target.setDefaultPrice(source.getDefaultPrice());
         target.setWeekdayPrice(source.getWeekdayPrice());
         target.setWeekendPrice(source.getWeekendPrice());
@@ -492,11 +498,25 @@ public class RoomTypeService {
                     .filter(room -> !passcodeByRoomNumber.containsKey(room.getRoomNumber()))
                     .collect(java.util.stream.Collectors.toList());
 
-            roomRepository.deleteAll(roomsToDelete);
-
             List<String> roomNumbersToAdd = passcodeByRoomNumber.keySet().stream()
                     .filter(roomNumber -> !existingRoomNumbers.contains(roomNumber))
                     .collect(Collectors.toList());
+
+            // Prefer in-place rename to keep room_id stable and avoid breaking FK references.
+            int renameCount = Math.min(roomsToDelete.size(), roomNumbersToAdd.size());
+            for (int i = 0; i < renameCount; i++) {
+                Room roomToRename = roomsToDelete.get(i);
+                String newRoomNumber = roomNumbersToAdd.get(i);
+                roomToRename.setRoomNumber(newRoomNumber);
+                if (applyPasscodes) {
+                    roomToRename.setSmartlockPasscode(passcodeByRoomNumber.get(newRoomNumber));
+                }
+                roomRepository.save(roomToRename);
+            }
+            if (renameCount > 0) {
+                roomsToDelete = new ArrayList<>(roomsToDelete.subList(renameCount, roomsToDelete.size()));
+                roomNumbersToAdd = new ArrayList<>(roomNumbersToAdd.subList(renameCount, roomNumbersToAdd.size()));
+            }
 
             for (String roomNumber : roomNumbersToAdd) {
                 if (roomRepository.existsByStoreIdAndRoomNumber(storeId, roomNumber)) {
@@ -514,6 +534,20 @@ public class RoomTypeService {
                 room.setUserId(userId);
                 room.setStoreId(storeId);
                 roomRepository.save(room);
+            }
+
+            if (!roomsToDelete.isEmpty()) {
+                Set<Long> roomIdsToDelete = roomsToDelete.stream()
+                        .map(Room::getId)
+                        .filter(java.util.Objects::nonNull)
+                        .collect(Collectors.toSet());
+                if (!roomIdsToDelete.isEmpty()) {
+                    reservationRepository.clearRoomBindingByStoreIdAndRoomIds(storeId, new ArrayList<>(roomIdsToDelete));
+                    cleaningTaskRepository.deleteByRoomIdIn(roomIdsToDelete);
+                    cleaningTaskRepository.flush();
+                    roomBlockoutRepository.deleteByStoreIdAndRoom_IdIn(storeId, new ArrayList<>(roomIdsToDelete));
+                }
+                roomRepository.deleteAll(roomsToDelete);
             }
 
             if (applyPasscodes) {
@@ -594,6 +628,7 @@ public class RoomTypeService {
         if (!roomIds.isEmpty()) {
             reservationRepository.clearRoomBindingByStoreIdAndRoomIds(storeId, roomIds);
             cleaningTaskRepository.deleteByRoomIdIn(new HashSet<>(roomIds));
+            roomBlockoutRepository.deleteByStoreIdAndRoom_IdIn(storeId, roomIds);
         }
         channelPriceRepository.deleteByStoreIdAndRoomTypeId(storeId, id);
         priceLabsConnectionRepository.deleteByStoreIdAndRoomTypeId(storeId, id);

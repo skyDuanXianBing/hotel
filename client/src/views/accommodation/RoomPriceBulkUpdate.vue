@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="bulk-update-page">
     <div class="page-tabs">
       <el-tabs v-model="activeTab" @tab-click="handleTabClick">
@@ -72,16 +72,19 @@
       </el-form-item>
 
       <el-form-item label="星期" class="form-item">
-        <el-checkbox-group v-model="selectedWeekdays" class="weekday-group" @change="handleWeekdayChange">
-          <el-checkbox :label="0">全部</el-checkbox>
-          <el-checkbox :label="1">周一</el-checkbox>
-          <el-checkbox :label="2">周二</el-checkbox>
-          <el-checkbox :label="3">周三</el-checkbox>
-          <el-checkbox :label="4">周四</el-checkbox>
-          <el-checkbox :label="5">周五</el-checkbox>
-          <el-checkbox :label="6">周六</el-checkbox>
-          <el-checkbox :label="7">周日</el-checkbox>
-        </el-checkbox-group>
+        <div class="weekday-selector">
+          <el-checkbox-group v-model="selectedWeekdays" class="weekday-group" @change="handleWeekdayChange">
+            <el-checkbox :label="0">全部</el-checkbox>
+            <el-checkbox :label="1">周一</el-checkbox>
+            <el-checkbox :label="2">周二</el-checkbox>
+            <el-checkbox :label="3">周三</el-checkbox>
+            <el-checkbox :label="4">周四</el-checkbox>
+            <el-checkbox :label="5">周五</el-checkbox>
+            <el-checkbox :label="6">周六</el-checkbox>
+            <el-checkbox :label="7">周日</el-checkbox>
+          </el-checkbox-group>
+          <el-button text type="primary" @click="invertWeekdaySelection">反选</el-button>
+        </div>
       </el-form-item>
 
       <el-form-item label="设置项" required class="form-item">
@@ -104,15 +107,17 @@
               <el-radio value="cheaper" label="减" />
               <el-radio value="expensive" label="加" />
             </el-radio-group>
+            <el-radio-group v-model="relativeValueMode" class="relative-type-group">
+              <el-radio value="amount" label="按金额" />
+              <el-radio value="percent" label="按百分比" />
+            </el-radio-group>
           </div>
 
           <div class="batch-input-row">
             <el-input v-model="batchValue" type="number" placeholder="请输入价格" style="width: 260px">
-              <template #append>JPY</template>
+              <template #append>{{ batchValueUnit }}</template>
             </el-input>
-            <el-button type="primary" @click="applyBatchValue" style="margin-left: 12px">
-              应用到明细
-            </el-button>
+            <span class="auto-apply-hint">输入后自动应用到明细</span>
           </div>
         </div>
       </el-form-item>
@@ -122,9 +127,7 @@
           <el-input v-model="batchValue" type="number" placeholder="请输入天数(1-99)" style="width: 260px">
             <template #append>天</template>
           </el-input>
-          <el-button type="primary" @click="applyBatchValue" style="margin-left: 12px">
-            应用到明细
-          </el-button>
+          <span class="auto-apply-hint">输入后自动应用到明细</span>
         </div>
       </el-form-item>
 
@@ -140,10 +143,49 @@
           <el-table-column prop="pricePlanName" label="价格计划" min-width="180" />
           <el-table-column label="值" min-width="220">
             <template #default="{ row }">
-              <el-input v-model="row.value" type="number" :placeholder="valuePlaceholder">
-                <template v-if="settingType === 'price'" #append>JPY</template>
-                <template v-else #append>天</template>
-              </el-input>
+              <div v-if="showRelativePreviewColumn" class="value-range-preview">
+                <template v-if="relativePreviewByKey[row.key]">
+                  <div class="range-line">
+                    当前区间：{{
+                      formatRangeText(
+                        relativePreviewByKey[row.key].currentMin,
+                        relativePreviewByKey[row.key].currentMax,
+                      )
+                    }}
+                  </div>
+                  <div class="range-line range-line-result">
+                    计算结果：{{
+                      formatRangeText(
+                        relativePreviewByKey[row.key].adjustedMin,
+                        relativePreviewByKey[row.key].adjustedMax,
+                      )
+                    }}
+                  </div>
+                  <div
+                    v-for="line in channelRangePreviewByKey[row.key] || []"
+                    :key="`${row.key}-${line}`"
+                    class="range-line channel-range-line"
+                  >
+                    {{ line }}
+                  </div>
+                </template>
+                <span v-else class="range-empty">输入批量值后自动显示最小/最大值</span>
+              </div>
+              <template v-else>
+                <el-input v-model="row.value" type="number" :placeholder="valuePlaceholder">
+                  <template v-if="settingType === 'price'" #append>JPY</template>
+                  <template v-else #append>天</template>
+                </el-input>
+                <div v-if="settingType === 'price'" class="value-range-preview channel-preview-fixed">
+                  <div
+                    v-for="line in channelRangePreviewByKey[row.key] || []"
+                    :key="`${row.key}-${line}`"
+                    class="range-line channel-range-line"
+                  >
+                    {{ line }}
+                  </div>
+                </div>
+              </template>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="120" align="center">
@@ -165,13 +207,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, Document } from '@element-plus/icons-vue'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { getPricePlansByRoomType, type RoomTypePricePlanDTO } from '@/api/pricePlan'
-import { updatePriceByPlan, type UpdatePriceByPlanRequest } from '@/api/roomPrice'
+import {
+  getRoomPriceManagementData,
+  updatePriceByPlan,
+  type RoomPriceManagementDTO,
+  type UpdatePriceByPlanRequest,
+} from '@/api/roomPrice'
+import {
+  getChannelPriceAdjustments,
+  type ChannelPriceAdjustmentDTO,
+  type PriceAdjustmentType,
+} from '@/api/pricelabs'
 import { useUserStore } from '@/stores/user'
 
 type TreeNode = {
@@ -195,6 +247,19 @@ type TableRow = {
   roomTypeName: string
   pricePlanName: string
   value: string
+}
+
+type RelativeRangePreview = {
+  currentMin: number
+  currentMax: number
+  adjustedMin: number
+  adjustedMax: number
+}
+
+type ChannelAdjustmentPreview = {
+  channelName: string
+  adjustmentType: PriceAdjustmentType
+  adjustmentValue: number
 }
 
 const router = useRouter()
@@ -232,20 +297,149 @@ const settingType = ref<'price' | 'minStay' | 'maxStay'>('price')
 
 const priceMode = ref<'fixed' | 'relative'>('fixed')
 const relativeType = ref<'cheaper' | 'expensive'>('cheaper')
+const relativeValueMode = ref<'amount' | 'percent'>('amount')
 
 const batchValue = ref('')
 
 const tableRows = ref<TableRow[]>([])
 const rowValueByKey = ref<Record<string, string>>({})
+const relativePreviewByKey = ref<Record<string, RelativeRangePreview>>({})
+const relativeDateValuesByKey = ref<Record<string, Record<string, number>>>({})
+const channelAdjustments = ref<ChannelAdjustmentPreview[]>([])
+const PRICE_RATIO_VISIBLE_CHANNEL_CODES = new Set(['AIRBNB', 'BOOKING'])
+
+const AUTO_APPLY_DEBOUNCE_MS = 300
+let autoApplyTimer: ReturnType<typeof setTimeout> | null = null
+let relativeApplyRequestSeq = 0
 
 const valuePlaceholder = computed(() => {
   return settingType.value === 'price' ? '请输入价格' : '请输入天数(1-99)'
 })
 
+const showRelativePreviewColumn = computed(() => {
+  return settingType.value === 'price' && priceMode.value === 'relative'
+})
+
+const batchValueUnit = computed(() => {
+  if (settingType.value !== 'price') {
+    return 'JPY'
+  }
+  if (priceMode.value === 'relative' && relativeValueMode.value === 'percent') {
+    return '%'
+  }
+  return 'JPY'
+})
+
+const formatPriceNumber = (value: number) => {
+  const rounded = Math.round(value * 100) / 100
+  if (Number.isInteger(rounded)) {
+    return String(rounded)
+  }
+  return rounded.toFixed(2).replace(/\.?0+$/, '')
+}
+
+const formatRangeText = (min: number, max: number) => {
+  const minText = formatPriceNumber(min)
+  const maxText = formatPriceNumber(max)
+  if (minText === maxText) {
+    return `${minText} JPY`
+  }
+  return `${minText} - ${maxText} JPY`
+}
+
+const clampPrice = (value: number) => Math.max(0, Math.round(value * 100) / 100)
+
+const applyChannelAdjustment = (price: number, adjustment: ChannelAdjustmentPreview) => {
+  if (adjustment.adjustmentType === 'FIXED') {
+    return clampPrice(price + adjustment.adjustmentValue)
+  }
+  const ratio = 1 + adjustment.adjustmentValue / 100
+  return clampPrice(price * ratio)
+}
+
+const getRowAdjustedRange = (row: TableRow): { min: number; max: number } | null => {
+  if (settingType.value !== 'price') {
+    return null
+  }
+
+  if (showRelativePreviewColumn.value) {
+    const preview = relativePreviewByKey.value[row.key]
+    if (!preview) {
+      return null
+    }
+    return { min: preview.adjustedMin, max: preview.adjustedMax }
+  }
+
+  const value = Number(row.value)
+  if (!Number.isFinite(value) || value <= 0) {
+    return null
+  }
+  const clamped = clampPrice(value)
+  return { min: clamped, max: clamped }
+}
+
+const channelRangePreviewByKey = computed<Record<string, string[]>>(() => {
+  const result: Record<string, string[]> = {}
+  if (settingType.value !== 'price' || channelAdjustments.value.length === 0) {
+    return result
+  }
+
+  tableRows.value.forEach((row) => {
+    const range = getRowAdjustedRange(row)
+    if (!range) {
+      result[row.key] = []
+      return
+    }
+
+    result[row.key] = channelAdjustments.value.map((adjustment) => {
+      const adjustedMin = applyChannelAdjustment(range.min, adjustment)
+      const adjustedMax = applyChannelAdjustment(range.max, adjustment)
+      const min = Math.min(adjustedMin, adjustedMax)
+      const max = Math.max(adjustedMin, adjustedMax)
+      return `${adjustment.channelName}: ${formatRangeText(min, max)}`
+    })
+  })
+
+  return result
+})
+
+const toWeekdayValue = (dateText: string): number => {
+  const day = new Date(`${dateText}T00:00:00`).getDay()
+  return day === 0 ? 7 : day
+}
+
+const isDateMatchedByWeekday = (dateText: string): boolean => {
+  const days = normalizeWeekdaysPayload()
+  if (!days || days.length === 0 || days.includes(0)) {
+    return true
+  }
+  return days.includes(toWeekdayValue(dateText))
+}
+
+const calculateAdjustedPrice = (current: number, inputValue: number): number => {
+  const delta = relativeValueMode.value === 'percent' ? current * (inputValue / 100) : inputValue
+  const adjusted = relativeType.value === 'cheaper' ? current - delta : current + delta
+  return Math.max(0, Math.round(adjusted * 100) / 100)
+}
+
 const handleTabClick = (tab: any) => {
   if (tab.props.name === 'calendar') {
     router.push('/accommodation/room-price-management')
   }
+}
+
+const clearAutoApplyTimer = () => {
+  if (autoApplyTimer) {
+    clearTimeout(autoApplyTimer)
+    autoApplyTimer = null
+  }
+}
+
+const scheduleAutoApply = () => {
+  clearAutoApplyTimer()
+  autoApplyTimer = setTimeout(() => {
+    void applyBatchValue({ silent: true })
+  }, AUTO_APPLY_DEBOUNCE_MS)
 }
 
 const toggleTreeDropdown = () => {
@@ -264,6 +458,8 @@ watch(filterText, (val) => {
 const rebuildTableRows = (keys: string[]) => {
   const rows: TableRow[] = []
   const keep: Record<string, string> = {}
+  const previewKeep: Record<string, RelativeRangePreview> = {}
+  const dateValuesKeep: Record<string, Record<string, number>> = {}
 
   for (const key of keys) {
     const meta = leafMetaByKey.value[key]
@@ -281,10 +477,20 @@ const rebuildTableRows = (keys: string[]) => {
       pricePlanName: meta.pricePlanName,
       value,
     })
+
+    if (relativePreviewByKey.value[key]) {
+      previewKeep[key] = relativePreviewByKey.value[key]
+    }
+    if (relativeDateValuesByKey.value[key]) {
+      dateValuesKeep[key] = relativeDateValuesByKey.value[key]
+    }
   }
 
   tableRows.value = rows
   rowValueByKey.value = keep
+  relativePreviewByKey.value = previewKeep
+  relativeDateValuesByKey.value = dateValuesKeep
+  scheduleAutoApply()
 }
 
 const handleTreeCheck = () => {
@@ -331,44 +537,147 @@ const handleWeekdayChange = (values: number[]) => {
   })
 }
 
-const applyBatchValue = () => {
+const invertWeekdaySelection = () => {
+  const explicitSelected = selectedWeekdays.value.filter((value) => value !== 0)
+  const inverted = ALL_WEEKDAYS.filter((value) => !explicitSelected.includes(value))
+  selectedWeekdays.value = inverted.length === ALL_WEEKDAYS.length ? [0, ...ALL_WEEKDAYS] : inverted
+  previousWeekdays = [...selectedWeekdays.value]
+}
+
+const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) => {
   if (!batchValue.value) {
-    ElMessage.warning('请先输入值')
+    relativePreviewByKey.value = {}
+    relativeDateValuesByKey.value = {}
+    if (!silent) {
+      ElMessage.warning('请先输入值')
+    }
     return
   }
 
   if (settingType.value === 'price') {
     const v = parseFloat(batchValue.value)
     if (Number.isNaN(v) || v <= 0) {
-      ElMessage.warning('请输入有效价格')
+      relativePreviewByKey.value = {}
+      relativeDateValuesByKey.value = {}
+      if (!silent) {
+        ElMessage.warning('请输入有效价格')
+      }
       return
     }
 
-    tableRows.value.forEach((row) => {
-      if (priceMode.value === 'fixed') {
+    if (priceMode.value === 'fixed') {
+      tableRows.value.forEach((row) => {
         row.value = batchValue.value
         rowValueByKey.value[row.key] = row.value
+      })
+      relativePreviewByKey.value = {}
+      relativeDateValuesByKey.value = {}
+      if (!silent) {
+        ElMessage.success('已应用到明细')
+      }
+      return
+    }
+
+    if (!startDate.value || !endDate.value) {
+      relativePreviewByKey.value = {}
+      relativeDateValuesByKey.value = {}
+      if (!silent) {
+        ElMessage.warning('请先选择日期范围')
+      }
+      return
+    }
+    if (startDate.value > endDate.value) {
+      relativePreviewByKey.value = {}
+      relativeDateValuesByKey.value = {}
+      if (!silent) {
+        ElMessage.warning('开始日期不能晚于结束日期')
+      }
+      return
+    }
+
+    try {
+      const currentRequestSeq = ++relativeApplyRequestSeq
+      const resp = (await getRoomPriceManagementData(startDate.value, endDate.value)) as any
+      if (currentRequestSeq !== relativeApplyRequestSeq) {
+        return
+      }
+      const managementRows: RoomPriceManagementDTO[] = resp?.data || []
+
+      const previewMap: Record<string, RelativeRangePreview> = {}
+      const dateValuesMap: Record<string, Record<string, number>> = {}
+
+      tableRows.value.forEach((row) => {
+        const matched = managementRows.filter((item) => {
+          return (
+            item.roomTypeId === row.roomTypeId &&
+            item.pricePlanId === row.pricePlanId &&
+            !!item.priceDate &&
+            isDateMatchedByWeekday(item.priceDate)
+          )
+        })
+
+        if (matched.length === 0) {
+          return
+        }
+
+        const currentValues: number[] = []
+        const adjustedValues: number[] = []
+        const valuesByDate: Record<string, number> = {}
+
+        matched.forEach((item) => {
+          const current = Number(item.price)
+          if (Number.isNaN(current)) {
+            return
+          }
+          const adjusted = calculateAdjustedPrice(current, v)
+          currentValues.push(current)
+          adjustedValues.push(adjusted)
+          valuesByDate[item.priceDate] = adjusted
+        })
+
+        if (currentValues.length === 0 || adjustedValues.length === 0) {
+          return
+        }
+
+        previewMap[row.key] = {
+          currentMin: Math.min(...currentValues),
+          currentMax: Math.max(...currentValues),
+          adjustedMin: Math.min(...adjustedValues),
+          adjustedMax: Math.max(...adjustedValues),
+        }
+        dateValuesMap[row.key] = valuesByDate
+
+        row.value = ''
+        rowValueByKey.value[row.key] = ''
+      })
+
+      relativePreviewByKey.value = previewMap
+      relativeDateValuesByKey.value = dateValuesMap
+
+      if (Object.keys(previewMap).length === 0) {
+        if (!silent) {
+          ElMessage.warning('当前区间未找到可计算的价格数据')
+        }
         return
       }
 
-      if (!row.value) return
-      const current = parseFloat(row.value)
-      if (Number.isNaN(current)) return
-      const delta = v
-      row.value =
-        relativeType.value === 'cheaper'
-          ? Math.max(0, current - delta).toString()
-          : (current + delta).toString()
-      rowValueByKey.value[row.key] = row.value
-    })
-
-    ElMessage.success('已应用到明细')
+      if (!silent) {
+        ElMessage.success('已应用到明细')
+      }
+    } catch (error) {
+      console.error('获取当前区间价格失败:', error)
+      if (!silent) {
+        ElMessage.error('获取当前区间价格失败')
+      }
+    }
     return
   }
 
   const days = parseInt(batchValue.value, 10)
   if (Number.isNaN(days) || days < 1 || days > 99) {
-    ElMessage.warning('请输入有效天数（1-99）')
+    if (!silent) {
+      ElMessage.warning('请输入有效天数（1-99）')
+    }
     return
   }
 
@@ -376,7 +685,9 @@ const applyBatchValue = () => {
     row.value = String(days)
     rowValueByKey.value[row.key] = row.value
   })
-  ElMessage.success('已应用到明细')
+  if (!silent) {
+    ElMessage.success('已应用到明细')
+  }
 }
 
 const normalizeWeekdaysPayload = () => {
@@ -387,6 +698,17 @@ const normalizeWeekdaysPayload = () => {
 }
 
 const validateRowValue = (row: TableRow): string | null => {
+  if (showRelativePreviewColumn.value) {
+    if (!relativePreviewByKey.value[row.key]) {
+      return `${row.roomTypeName}/${row.pricePlanName}：请先输入批量值并生成计算结果`
+    }
+    const dateValues = relativeDateValuesByKey.value[row.key]
+    if (!dateValues || Object.keys(dateValues).length === 0) {
+      return `${row.roomTypeName}/${row.pricePlanName}：未生成可保存的结果`
+    }
+    return null
+  }
+
   if (!row.value) return `${row.roomTypeName}/${row.pricePlanName}：请填写值`
   if (settingType.value === 'price') {
     const v = parseFloat(row.value)
@@ -399,6 +721,31 @@ const validateRowValue = (row: TableRow): string | null => {
     return `${row.roomTypeName}/${row.pricePlanName}：天数无效（1-99）`
   }
   return null
+}
+
+const loadChannelAdjustments = async () => {
+  try {
+    const response = await getChannelPriceAdjustments()
+    if (!response.success || !Array.isArray(response.data)) {
+      channelAdjustments.value = []
+      return
+    }
+
+    channelAdjustments.value = response.data
+      .filter(
+        (item: ChannelPriceAdjustmentDTO) =>
+          Boolean(item.channelName && item.channelName.trim()) &&
+          PRICE_RATIO_VISIBLE_CHANNEL_CODES.has(String(item.channelCode || '').toUpperCase()),
+      )
+      .map((item: ChannelPriceAdjustmentDTO) => ({
+        channelName: item.channelName.toLowerCase(),
+        adjustmentType: item.adjustmentType,
+        adjustmentValue: item.adjustmentValue ?? 0,
+      }))
+  } catch (error) {
+    console.error('加载渠道价格比例失败:', error)
+    channelAdjustments.value = []
+  }
 }
 
 const handleCancel = () => {
@@ -435,6 +782,35 @@ const handleSave = async () => {
     saving.value = true
 
     for (const row of tableRows.value) {
+      if (showRelativePreviewColumn.value) {
+        const dateValues = relativeDateValuesByKey.value[row.key] || {}
+        const dates = Object.keys(dateValues).sort((a, b) => a.localeCompare(b))
+
+        for (const date of dates) {
+          const req: UpdatePriceByPlanRequest = {
+            roomTypeId: row.roomTypeId,
+            pricePlanId: row.pricePlanId,
+            startDate: date,
+            endDate: date,
+            applyWeekdaysInRange: true,
+            price: dateValues[date],
+          }
+
+          try {
+            const resp = (await updatePriceByPlan(req, operator)) as any
+            if (!resp.success) {
+              errors.push(`${row.roomTypeName}/${row.pricePlanName}(${date}): ${resp.message || '保存失败'}`)
+              break
+            }
+          } catch (e: any) {
+            errors.push(`${row.roomTypeName}/${row.pricePlanName}(${date}): ${e?.message || '保存失败'}`)
+            break
+          }
+        }
+
+        continue
+      }
+
       const req: UpdatePriceByPlanRequest = {
         roomTypeId: row.roomTypeId,
         pricePlanId: row.pricePlanId,
@@ -469,7 +845,6 @@ const handleSave = async () => {
     }
 
     ElMessage.success('批量更新成功')
-    router.push('/accommodation/room-price-management')
   } finally {
     saving.value = false
   }
@@ -527,7 +902,40 @@ const loadTreeData = async () => {
 
 onMounted(() => {
   loadTreeData()
+  loadChannelAdjustments()
 })
+
+onUnmounted(() => {
+  clearAutoApplyTimer()
+})
+
+watch([settingType, priceMode], ([currentSettingType, currentPriceMode]) => {
+  if (currentSettingType !== 'price' || currentPriceMode !== 'relative') {
+    relativePreviewByKey.value = {}
+    relativeDateValuesByKey.value = {}
+  }
+  scheduleAutoApply()
+})
+
+watch(batchValue, () => {
+  scheduleAutoApply()
+})
+
+watch([startDate, endDate], () => {
+  scheduleAutoApply()
+})
+
+watch([relativeType, relativeValueMode], () => {
+  scheduleAutoApply()
+})
+
+watch(
+  selectedWeekdays,
+  () => {
+    scheduleAutoApply()
+  },
+  { deep: true },
+)
 </script>
 
 <style scoped>
@@ -641,6 +1049,13 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.weekday-selector {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .value-batch-wrapper {
   display: flex;
   flex-direction: column;
@@ -660,6 +1075,42 @@ onMounted(() => {
 .batch-input-row {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.auto-apply-hint {
+  color: #909399;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.value-range-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #303133;
+}
+
+.range-line {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.range-line-result {
+  color: #409eff;
+}
+
+.channel-range-line {
+  color: #606266;
+}
+
+.channel-preview-fixed {
+  margin-top: 8px;
+}
+
+.range-empty {
+  color: #909399;
+  font-size: 13px;
 }
 
 .table-section {
@@ -706,4 +1157,3 @@ onMounted(() => {
   transform: translateY(-8px);
 }
 </style>
-

@@ -19,8 +19,10 @@ import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.AutoMessageSendLogRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
+import server.demo.util.UtcTimeUtil;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -147,14 +149,14 @@ public class SuAiAutoReplyService {
             aiMessage.setSenderType(SuMessagingSenderType.STAFF);
             aiMessage.setSenderName(resolvedSenderName);
             aiMessage.setContent(aiReplyContent);
-            aiMessage.setSentAt(LocalDateTime.now());
+            aiMessage.setSentAt(UtcTimeUtil.nowLocalDateTime());
             aiMessage.setIsRead(true);
             aiMessage.setDeliveryStatus(DELIVERY_SENDING);
             aiMessage.setRawJson(null);
             aiMessage = messageRepository.saveAndFlush(aiMessage);
 
             thread.setLastMessage(aiReplyContent);
-            thread.setLastActivity(LocalDateTime.now());
+            thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
             threadRepository.save(thread);
 
             realtimeGateway.broadcastMessageCreated(storeId, threadId, toMessageDTO(aiMessage));
@@ -215,11 +217,7 @@ public class SuAiAutoReplyService {
         if (message == null) {
             return null;
         }
-        String normalized = message.replace("\r\n", "\n").replace("\r", "\n");
-        if (channelId != null && channelId == SuMessagingService.CHANNEL_BOOKING) {
-            return normalized.replace("\n", "\\\n");
-        }
-        return normalized;
+        return message.replace("\r\n", "\n").replace("\r", "\n");
     }
 
     private Map<String, Object> buildReplyPayload(SuMessageThread thread, String message) {
@@ -297,8 +295,15 @@ public class SuAiAutoReplyService {
         dto.setSenderName(message.getSenderName());
         dto.setContent(message.getContent());
         dto.setDeliveryStatus(message.getDeliveryStatus());
-        dto.setTimestamp(message.getSentAt());
+        dto.setTimestamp(toUtcOffset(message.getSentAt()));
         return dto;
+    }
+
+    private static OffsetDateTime toUtcOffset(LocalDateTime localDateTime) {
+        if (localDateTime == null) {
+            return null;
+        }
+        return UtcTimeUtil.toUtcOffset(localDateTime);
     }
 
     private static String resolveAiSenderName(String configuredSenderName) {

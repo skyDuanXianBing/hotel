@@ -8,6 +8,7 @@ import server.demo.entity.Store;
 import server.demo.entity.StorePolicy;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.StorePolicyRepository;
+import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuHotelIdUtil;
 
 import java.util.LinkedHashMap;
@@ -182,9 +183,7 @@ public class SuPropertyService {
         String currency = store.getCurrency() != null && !store.getCurrency().isBlank()
                 ? store.getCurrency()
                 : "CNY";
-        String timezone = store.getTimezone() != null && !store.getTimezone().isBlank()
-                ? store.getTimezone()
-                : "Asia/Shanghai";
+        String timezone = StoreTimeZoneUtil.resolveZoneId(store).getId();
 
         String email = store.getEmail() != null && !store.getEmail().isBlank()
                 ? store.getEmail()

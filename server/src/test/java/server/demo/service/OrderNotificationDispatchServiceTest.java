@@ -1,9 +1,9 @@
 package server.demo.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import server.demo.entity.Channel;
@@ -15,7 +15,11 @@ import server.demo.enums.ReservationStatus;
 import server.demo.repository.NotificationRepository;
 import server.demo.repository.StoreUserRepository;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,8 +38,13 @@ class OrderNotificationDispatchServiceTest {
     @Mock
     private StoreUserRepository storeUserRepository;
 
-    @InjectMocks
     private OrderNotificationDispatchService dispatchService;
+
+    @BeforeEach
+    void setUp() {
+        Clock clock = Clock.fixed(Instant.parse("2026-04-08T05:00:00Z"), ZoneOffset.UTC);
+        dispatchService = new OrderNotificationDispatchService(notificationRepository, storeUserRepository, clock);
+    }
 
     @Test
     void notifyOrderCreated_shouldDispatchToAllActiveStoreMembers() {
@@ -56,6 +65,7 @@ class OrderNotificationDispatchServiceTest {
         assertEquals(Set.of(101L, 102L), userIds);
         assertEquals("订单创建", saved.get(0).getTitle());
         assertEquals("ORDER", saved.get(0).getNotificationType());
+        assertEquals(LocalDateTime.of(2026, 4, 8, 5, 0), saved.get(0).getCreatedAt());
     }
 
     @Test

@@ -155,6 +155,8 @@ export interface RoomPriceManagementDTO {
   cta?: boolean
   ctd?: boolean
   priceSource?: string
+  priceLabsBasePrice?: number
+  priceLabsUpdatedAt?: string
   manualOverride?: boolean
   manualOverrideUntil?: string
   isWeekend: boolean

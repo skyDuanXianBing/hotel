@@ -12,7 +12,14 @@
           <span class="message-cell">{{ row.message }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="automationRule" label="自动化规则" min-width="150" />
+      <el-table-column label="自动化规则" min-width="220">
+        <template #default="{ row }">
+          <div class="automation-rule-cell">
+            <div class="automation-rule-action">操作：{{ row.automationRuleAction }}</div>
+            <div class="automation-rule-timing">何时发送：{{ row.automationRuleTiming }}</div>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="channel" label="渠道" min-width="120" />
       <el-table-column prop="room" label="房间" min-width="120" />
       <el-table-column label="允许" width="80" align="center">
@@ -253,6 +260,8 @@ const messageVariables: MessageVariable[] = [
   { label: 'Check-in date', code: '{{checkin_date}}' },
   { label: 'Checkout date', code: '{{checkout_date}}' },
   { label: 'Room type name', code: '{{room_type_name}}' },
+  { label: 'Room type address', code: '{{room_type_address}}' },
+  { label: 'Nearby station', code: '{{nearby_station}}' },
   { label: 'Rate plan name', code: '{{rate_plan_name}}' },
   { label: 'Property address', code: '{{property_address}}' },
   { label: 'Property city', code: '{{property_city}}' },
@@ -290,6 +299,8 @@ interface AutoMessageListItem {
   title: string
   message: string
   automationRule: string
+  automationRuleAction: string
+  automationRuleTiming: string
   channel: string
   room: string
   enabled: boolean
@@ -523,6 +534,39 @@ const actionLabelMap: Record<string, string> = {
   CHECK_OUT: '离店',
 }
 
+const bookingTimingLabelMap: Record<string, string> = {
+  IMMEDIATELY: '立即发送',
+  '5_MIN': '5分钟后',
+  '10_MIN': '10分钟后',
+  '15_MIN': '15分钟后',
+  '30_MIN': '30分钟后',
+  '1_HOUR': '1小时后',
+  '2_HOUR': '2小时后',
+  '4_HOUR': '4小时后',
+  '8_HOUR': '8小时后',
+  '16_HOUR': '16小时后',
+  '24_HOUR': '24小时后',
+}
+
+const formatSendTimingLabel = (action: AutoMessageAction | '', sendTiming: string | undefined) => {
+  if (!sendTiming) {
+    return '-'
+  }
+
+  if (action === 'CHECK_IN' || action === 'CHECK_OUT') {
+    const parsed = parseDayAndTime(sendTiming)
+    if (!parsed) {
+      return sendTiming
+    }
+    const day = Number(parsed.day)
+    const dayText = day < 0 ? `${Math.abs(day)}天前` : day === 0 ? '当天' : `${day}天后`
+    const anchor = action === 'CHECK_IN' ? '入住' : '离店'
+    return `${anchor}${dayText} ${parsed.time}`
+  }
+
+  return bookingTimingLabelMap[sendTiming] || sendTiming
+}
+
 /** 将 DTO 转换为列表显示项 */
 const convertToListItem = (dto: AutoMessageDTO): AutoMessageListItem => {
   // 解析渠道
@@ -588,11 +632,16 @@ const convertToListItem = (dto: AutoMessageDTO): AutoMessageListItem => {
     }
   }
 
+  const actionText = dto.action ? actionLabelMap[dto.action] || dto.automationRule : dto.automationRule || '-'
+  const sendTimingText = formatSendTimingLabel(dto.action || '', dto.sendTiming)
+
   return {
     id: dto.id,
     title: dto.title,
     message: dto.message,
-    automationRule: dto.action ? actionLabelMap[dto.action] || dto.automationRule : dto.automationRule,
+    automationRule: actionText,
+    automationRuleAction: actionText,
+    automationRuleTiming: sendTimingText,
     channel: channelDisplay,
     room: roomDisplay,
     enabled: dto.enabled,
@@ -912,6 +961,23 @@ onMounted(() => {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.automation-rule-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.4;
+}
+
+.automation-rule-action {
+  color: #303133;
+  font-weight: 500;
+}
+
+.automation-rule-timing {
+  color: #606266;
+  font-size: 12px;
 }
 
 /* 插入变量区域样式 */

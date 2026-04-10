@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import server.demo.entity.Notification;
 
-import java.util.List;
+import java.time.LocalDateTime;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
@@ -62,20 +62,24 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * 标记所有通知为已读
      */
     @Modifying
-    @Query("UPDATE Notification n SET n.isRead = true, n.readAt = CURRENT_TIMESTAMP WHERE n.userId = :userId AND n.isRead = false")
-    int markAllAsRead(@Param("userId") Long userId);
+        @Query("UPDATE Notification n SET n.isRead = true, n.readAt = :readAt WHERE n.userId = :userId AND n.isRead = false")
+        int markAllAsRead(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
 
     /**
      * 标记指定类型的通知为已读
      */
     @Modifying
-    @Query("UPDATE Notification n SET n.isRead = true, n.readAt = CURRENT_TIMESTAMP WHERE n.userId = :userId AND n.notificationType = :type AND n.isRead = false")
-    int markAllAsReadByType(@Param("userId") Long userId, @Param("type") String type);
+    @Query("UPDATE Notification n SET n.isRead = true, n.readAt = :readAt WHERE n.userId = :userId AND n.notificationType = :type AND n.isRead = false")
+    int markAllAsReadByType(
+            @Param("userId") Long userId,
+            @Param("type") String type,
+            @Param("readAt") LocalDateTime readAt
+    );
 
     /**
      * 删除指定天数之前的已读通知
      */
     @Modifying
-    @Query("DELETE FROM Notification n WHERE n.userId = :userId AND n.isRead = true AND n.readAt < CURRENT_TIMESTAMP - :days DAY")
-    int deleteOldReadNotifications(@Param("userId") Long userId, @Param("days") int days);
+        @Query("DELETE FROM Notification n WHERE n.userId = :userId AND n.isRead = true AND n.readAt < :threshold")
+        int deleteOldReadNotifications(@Param("userId") Long userId, @Param("threshold") LocalDateTime threshold);
 }

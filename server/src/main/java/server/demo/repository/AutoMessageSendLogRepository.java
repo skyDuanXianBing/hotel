@@ -9,5 +9,12 @@ public interface AutoMessageSendLogRepository extends JpaRepository<AutoMessageS
     boolean existsByStoreIdAndActionAndTargetTypeAndTargetId(Long storeId, String action, String targetType, Long targetId);
 
     Optional<AutoMessageSendLog> findByStoreIdAndActionAndTargetTypeAndTargetId(Long storeId, String action, String targetType, Long targetId);
+
+    Optional<AutoMessageSendLog> findByStoreIdAndAutoMessageIdAndTargetTypeAndTargetId(
+            Long storeId,
+            Long autoMessageId,
+            String targetType,
+            Long targetId
+    );
 }
 

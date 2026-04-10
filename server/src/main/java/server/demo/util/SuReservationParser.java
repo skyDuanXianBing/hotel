@@ -1,14 +1,20 @@
 package server.demo.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 将 Su 的 Reservation API 响应解析为 PMS 可用字段（尽量做兼容处理）。
@@ -19,7 +25,20 @@ import java.util.Optional;
  */
 public final class SuReservationParser {
 
+    private static final Logger logger = LoggerFactory.getLogger(SuReservationParser.class);
+    private static final int GUEST_PHONE_MAX_LENGTH = 255;
+
+    private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s|]+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern QUERY_PARAM_PATTERN = Pattern.compile("(?:^|[?&])([A-Za-z0-9_]+)=([^&#\\s|]+)");
+    private static final Pattern PHONE_SPLIT_PATTERN = Pattern.compile("[,，;；\\s]+");
+    private static final Pattern NUMERIC_BOOKING_ID_PATTERN = Pattern.compile("^\\d{6,20}$");
+    private static final Pattern BOOKING_ID_WITH_SUFFIX_PATTERN = Pattern.compile("^(\\d{6,20})_[A-Za-z0-9_-]+$");
+    private static final Pattern BOOKING_ID_FROM_ORDER_NUMBER_PATTERN =
+            Pattern.compile("^SU\\d+-(\\d{6,20})(?:[_-].*)?$", Pattern.CASE_INSENSITIVE);
+
     private SuReservationParser() {}
+
+    public record MessagingListingResolution(String listingId, String source) {}
 
     public static List<JsonNode> extractReservationNodes(JsonNode root) {
         if (root == null || root.isNull()) {
@@ -77,6 +96,66 @@ public final class SuReservationParser {
     }
 
     /**
+     * Normalize Booking.com reservation id.
+     * Accepted shapes:
+     * - 5003249282
+     * - 5003249282_W39FVCQYSN
+     * - SU26-5003249282_W39FVCQYSN-1774939615039
+     */
+    public static String normalizeBookingReservationId(String rawBookingId) {
+        String normalized = normalizeParamValue(rawBookingId);
+        if (normalized == null) {
+            return null;
+        }
+        if (NUMERIC_BOOKING_ID_PATTERN.matcher(normalized).matches()) {
+            return normalized;
+        }
+        Matcher fromReservationId = BOOKING_ID_WITH_SUFFIX_PATTERN.matcher(normalized);
+        if (fromReservationId.matches()) {
+            return fromReservationId.group(1);
+        }
+        Matcher fromOrderNumber = BOOKING_ID_FROM_ORDER_NUMBER_PATTERN.matcher(normalized);
+        if (fromOrderNumber.matches()) {
+            return fromOrderNumber.group(1);
+        }
+        return null;
+    }
+
+    /**
+     * Extract normalized Booking.com reservation id from webhook payload.
+     * Priority:
+     * 1) channel_booking_id
+     * 2) customer.remarks / customer.remarks_en URL param res_id
+     * 3) reservation.id (prefix before "_")
+     */
+    public static String extractBookingReservationId(JsonNode reservation) {
+        String fromChannelBookingId = normalizeBookingReservationId(extractChannelBookingId(reservation));
+        if (fromChannelBookingId != null) {
+            return fromChannelBookingId;
+        }
+        String fromRemarks = extractBookingReservationIdFromRemarks(extractCustomerRemarks(reservation));
+        if (fromRemarks != null) {
+            return fromRemarks;
+        }
+        return normalizeBookingReservationId(extractReservationId(reservation));
+    }
+
+    /**
+     * Extract normalized Booking.com reservation id with optional order number fallback.
+     */
+    public static String extractBookingReservationId(JsonNode reservation, String fallbackOrderNumber) {
+        String fromReservation = extractBookingReservationId(reservation);
+        if (fromReservation != null) {
+            return fromReservation;
+        }
+        return extractBookingReservationIdFromOrderNumber(fallbackOrderNumber);
+    }
+
+    public static String extractBookingReservationIdFromOrderNumber(String orderNumber) {
+        return normalizeBookingReservationId(orderNumber);
+    }
+
+    /**
      * 用于消息系统的 thread id（常见于 Airbnb）。
      * 兼容字段：thread_id / threadid / thread_id(大写)。
      */
@@ -96,6 +175,177 @@ public final class SuReservationParser {
                 .or(() -> text(reservation, "guestid"))
                 .or(() -> text(reservation, "guest_id".toUpperCase(Locale.ROOT)))
                 .orElse(null);
+    }
+
+    /**
+     * Extract messaging listing id from reservation webhook payload.
+     */
+    public static String extractMessagingListingId(JsonNode reservation, JsonNode roomStay) {
+        return extractMessagingListingId(null, reservation, roomStay);
+    }
+
+    /**
+     * Extract messaging listing id from reservation webhook payload with channel-aware strategy.
+     * Booking prefers remarks hotel_id, while Airbnb/others keep channel_room_id priority.
+     */
+    public static String extractMessagingListingId(String channelCode, JsonNode reservation, JsonNode roomStay) {
+        MessagingListingResolution resolution = extractMessagingListingIdWithSource(channelCode, reservation, roomStay);
+        return resolution != null ? resolution.listingId() : null;
+    }
+
+    public static MessagingListingResolution extractMessagingListingIdWithSource(JsonNode reservation, JsonNode roomStay) {
+        return extractMessagingListingIdWithSource(null, reservation, roomStay);
+    }
+
+    public static MessagingListingResolution extractMessagingListingIdWithSource(
+            String channelCode,
+            JsonNode reservation,
+            JsonNode roomStay
+    ) {
+        if (isBookingChannelCode(channelCode)) {
+            // Booking business rule: listingid should follow remarks hotel_id when available.
+            MessagingListingResolution fromRemarks = extractRemarksListingResolution(reservation);
+            if (fromRemarks != null) {
+                return fromRemarks;
+            }
+
+            MessagingListingResolution fromExplicit = extractExplicitListingResolution(reservation, roomStay);
+            if (fromExplicit != null) {
+                return fromExplicit;
+            }
+
+            return extractChannelRoomListingResolution(reservation, roomStay);
+        }
+
+        MessagingListingResolution fromChannelRoom = extractChannelRoomListingResolution(reservation, roomStay);
+        if (fromChannelRoom != null) {
+            return fromChannelRoom;
+        }
+
+        MessagingListingResolution fromExplicit = extractExplicitListingResolution(reservation, roomStay);
+        if (fromExplicit != null) {
+            return fromExplicit;
+        }
+
+        return extractRemarksListingResolution(reservation);
+    }
+
+    private static MessagingListingResolution extractChannelRoomListingResolution(JsonNode reservation, JsonNode roomStay) {
+        String fromCurrentRoomChannelRoomId = firstValidListingId(roomStay,
+                "channel_room_id", "channelroomid", "channelRoomId");
+        if (fromCurrentRoomChannelRoomId != null) {
+            return new MessagingListingResolution(fromCurrentRoomChannelRoomId, "room_channel_room_id");
+        }
+
+        String fromReservationChannelRoomId = firstValidListingId(reservation,
+                "channel_room_id", "channelroomid", "channelRoomId");
+        if (fromReservationChannelRoomId != null) {
+            return new MessagingListingResolution(fromReservationChannelRoomId, "reservation_channel_room_id");
+        }
+
+        List<JsonNode> roomStays = extractRoomStays(reservation);
+        for (JsonNode stay : roomStays) {
+            String candidate = firstValidListingId(stay,
+                    "channel_room_id", "channelroomid", "channelRoomId");
+            if (candidate != null) {
+                return new MessagingListingResolution(candidate, "room_channel_room_id");
+            }
+        }
+        return null;
+    }
+
+    private static MessagingListingResolution extractExplicitListingResolution(JsonNode reservation, JsonNode roomStay) {
+        String fromCurrentRoom = firstValidListingId(roomStay,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromCurrentRoom != null) {
+            return new MessagingListingResolution(fromCurrentRoom, "explicit_field");
+        }
+
+        String fromReservation = firstValidListingId(reservation,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromReservation != null) {
+            return new MessagingListingResolution(fromReservation, "explicit_field");
+        }
+
+        JsonNode bookingDetails = reservation != null ? reservation.get("booking_details") : null;
+        String fromBookingDetails = firstValidListingId(bookingDetails,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromBookingDetails != null) {
+            return new MessagingListingResolution(fromBookingDetails, "booking_details");
+        }
+
+        JsonNode booking = reservation != null ? reservation.get("booking") : null;
+        String fromBooking = firstValidListingId(booking,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromBooking != null) {
+            return new MessagingListingResolution(fromBooking, "booking_details");
+        }
+
+        JsonNode property = reservation != null ? reservation.get("property") : null;
+        String fromProperty = firstValidListingId(property,
+                "listingid", "listing_id", "listingId",
+                "propertyid", "property_id", "propertyId");
+        if (fromProperty != null) {
+            return new MessagingListingResolution(fromProperty, "booking_details");
+        }
+
+        List<JsonNode> roomStays = extractRoomStays(reservation);
+        for (JsonNode stay : roomStays) {
+            String candidate = firstValidListingId(stay,
+                    "listingid", "listing_id", "listingId",
+                    "propertyid", "property_id", "propertyId");
+            if (candidate != null) {
+                return new MessagingListingResolution(candidate, "explicit_field");
+            }
+        }
+        return null;
+    }
+
+    private static MessagingListingResolution extractRemarksListingResolution(JsonNode reservation) {
+        String fromRemarks = extractListingIdFromRemarks(reservation);
+        if (fromRemarks == null) {
+            return null;
+        }
+        return new MessagingListingResolution(fromRemarks, "remarks_hotel_id");
+    }
+
+    private static boolean isBookingChannelCode(String channelCode) {
+        if (channelCode == null || channelCode.isBlank()) {
+            return false;
+        }
+        String normalized = channelCode.trim().toUpperCase(Locale.ROOT);
+        return "BOOKING".equals(normalized) || "BOOKING.COM".equals(normalized);
+    }
+
+    /**
+     * Validate and normalize listing id for SU messagingAB.
+     * Numeric ids require minimum length 6 to avoid ota_room_id like "50/51/52".
+     */
+    public static String normalizeMessagingListingId(String rawListingId) {
+        if (rawListingId == null) {
+            return null;
+        }
+        String listingId = rawListingId.trim();
+        if (listingId.isBlank()) {
+            return null;
+        }
+        boolean numericOnly = listingId.chars().allMatch(Character::isDigit);
+        int minLength = numericOnly ? 6 : 4;
+        if (listingId.length() < minLength || listingId.length() > 64) {
+            return null;
+        }
+        boolean validChars = listingId.chars().allMatch(ch ->
+                Character.isLetterOrDigit(ch) || ch == '-' || ch == '_'
+        );
+        return validChars ? listingId : null;
+    }
+
+    public static boolean isValidMessagingListingId(String rawListingId) {
+        return normalizeMessagingListingId(rawListingId) != null;
     }
 
     public static String extractSuStatus(JsonNode reservation) {
@@ -146,7 +396,9 @@ public final class SuReservationParser {
     public static String extractCustomerRemarks(JsonNode reservation) {
         JsonNode customer = reservation != null ? reservation.get("customer") : null;
         if (customer != null && customer.isObject()) {
-            String remarks = text(customer, "remarks").orElse(null);
+            String remarks = text(customer, "remarks")
+                    .or(() -> text(customer, "remarks_en"))
+                    .orElse(null);
             if (remarks != null && !remarks.isBlank()) {
                 return remarks.trim();
             }
@@ -342,6 +594,125 @@ public final class SuReservationParser {
         return s.isBlank() ? Optional.empty() : Optional.of(s);
     }
 
+    private static String firstValidListingId(JsonNode node, String... fields) {
+        if (node == null || node.isNull() || fields == null) {
+            return null;
+        }
+        for (String field : fields) {
+            String raw = text(node, field).orElse(null);
+            String normalized = normalizeMessagingListingId(raw);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
+    }
+
+    private static String extractListingIdFromRemarks(JsonNode reservation) {
+        String remarks = extractCustomerRemarks(reservation);
+        if (remarks == null || remarks.isBlank()) {
+            return null;
+        }
+
+        String bookingId = extractBookingReservationId(reservation);
+        List<RemarksListingCandidate> candidates = extractRemarksListingCandidates(remarks);
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        String normalizedBookingId = normalizeParamValue(bookingId);
+        if (normalizedBookingId != null) {
+            for (RemarksListingCandidate candidate : candidates) {
+                String candidateResId = normalizeParamValue(candidate.resId());
+                if (normalizedBookingId.equals(candidateResId)) {
+                    return candidate.listingId();
+                }
+            }
+        }
+        return candidates.get(0).listingId();
+    }
+
+    private static List<RemarksListingCandidate> extractRemarksListingCandidates(String remarks) {
+        List<RemarksListingCandidate> candidates = new ArrayList<>();
+        Matcher matcher = URL_PATTERN.matcher(remarks);
+        while (matcher.find()) {
+            RemarksListingCandidate candidate = extractRemarksCandidateFromText(matcher.group());
+            if (candidate != null) {
+                candidates.add(candidate);
+            }
+        }
+
+        if (!candidates.isEmpty()) {
+            return candidates;
+        }
+
+        RemarksListingCandidate directCandidate = extractRemarksCandidateFromText(remarks);
+        if (directCandidate != null) {
+            candidates.add(directCandidate);
+        }
+        return candidates;
+    }
+
+    private static RemarksListingCandidate extractRemarksCandidateFromText(String text) {
+        String hotelId = extractQueryParam(text, "hotel_id");
+        String normalizedHotelId = normalizeMessagingListingId(hotelId);
+        if (normalizedHotelId == null) {
+            return null;
+        }
+        String resId = normalizeParamValue(extractQueryParam(text, "res_id"));
+        return new RemarksListingCandidate(resId, normalizedHotelId);
+    }
+
+    private static String extractQueryParam(String text, String targetKey) {
+        if (text == null || text.isBlank() || targetKey == null || targetKey.isBlank()) {
+            return null;
+        }
+        Matcher matcher = QUERY_PARAM_PATTERN.matcher(text);
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            if (key == null || !targetKey.equalsIgnoreCase(key)) {
+                continue;
+            }
+            String value = normalizeParamValue(matcher.group(2));
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static String extractBookingReservationIdFromRemarks(String remarks) {
+        if (remarks == null || remarks.isBlank()) {
+            return null;
+        }
+        Matcher matcher = URL_PATTERN.matcher(remarks);
+        while (matcher.find()) {
+            String resId = normalizeBookingReservationId(extractQueryParam(matcher.group(), "res_id"));
+            if (resId != null) {
+                return resId;
+            }
+        }
+        return normalizeBookingReservationId(extractQueryParam(remarks, "res_id"));
+    }
+
+    private static String normalizeParamValue(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String value = raw.trim();
+        while (!value.isEmpty()) {
+            char last = value.charAt(value.length() - 1);
+            if (last == '|' || last == ',' || last == ';' || last == ')' || last == '"' || last == '\'') {
+                value = value.substring(0, value.length() - 1).trim();
+                continue;
+            }
+            break;
+        }
+        return value.isBlank() ? null : value;
+    }
+
+    private record RemarksListingCandidate(String resId, String listingId) {}
+
     private static String extractRatePlanIdFromPriceArray(JsonNode node) {
         if (node == null || node.isNull()) {
             return null;
@@ -406,7 +777,53 @@ public final class SuReservationParser {
     }
 
     private static String trimPhone(String raw) {
-        String cleaned = raw.trim().replaceAll("[^0-9+]", "");
-        return cleaned.isBlank() ? null : cleaned;
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+
+        Set<String> phones = new LinkedHashSet<>();
+        for (String segment : PHONE_SPLIT_PATTERN.split(raw.trim())) {
+            if (segment == null || segment.isBlank()) {
+                continue;
+            }
+            String cleaned = segment.replaceAll("[^0-9+]", "");
+            if (!cleaned.isBlank()) {
+                phones.add(cleaned);
+            }
+        }
+
+        if (phones.isEmpty()) {
+            return null;
+        }
+
+        String joined = String.join(",", phones);
+        if (joined.length() <= GUEST_PHONE_MAX_LENGTH) {
+            return joined;
+        }
+
+        StringBuilder limited = new StringBuilder();
+        int droppedCount = 0;
+        for (String phone : phones) {
+            int additional = limited.isEmpty() ? phone.length() : phone.length() + 1;
+            if (limited.length() + additional > GUEST_PHONE_MAX_LENGTH) {
+                droppedCount++;
+                continue;
+            }
+            if (!limited.isEmpty()) {
+                limited.append(',');
+            }
+            limited.append(phone);
+        }
+
+        String limitedValue = limited.isEmpty() ? joined.substring(0, GUEST_PHONE_MAX_LENGTH) : limited.toString();
+        logger.warn(
+                "Guest phone exceeded {} chars and was truncated. rawLength={}, normalizedLength={}, truncatedLength={}, droppedSegments={}",
+                GUEST_PHONE_MAX_LENGTH,
+                raw.length(),
+                joined.length(),
+                limitedValue.length(),
+                droppedCount
+        );
+        return limitedValue;
     }
 }

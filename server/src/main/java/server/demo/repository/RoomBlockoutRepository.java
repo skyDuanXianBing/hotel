@@ -30,4 +30,9 @@ public interface RoomBlockoutRepository extends JpaRepository<RoomBlockout, Long
             LocalDate startDate,
             LocalDate endDate
     );
+
+    long deleteByStoreIdAndRoom_IdIn(
+            Long storeId,
+            Collection<Long> roomIds
+    );
 }

@@ -870,44 +870,36 @@ public class SuApiClient {
         if (response == null) {
             return null;
         }
-        JsonNode messageNode = response.get("message");
-        if (messageNode == null) {
-            messageNode = response.get("Message");
+        String topMessage = firstNonBlankText(response, "message", "Message");
+        if (topMessage != null) {
+            return topMessage;
         }
-        if (messageNode != null && !messageNode.asText("").isBlank()) {
-            return messageNode.asText("");
+
+        JsonNode responseNode = response.get("response");
+        if (responseNode == null) {
+            responseNode = response.get("Response");
+        }
+        String responseMessage = extractMessageFromErrorNode(responseNode);
+        if (responseMessage != null) {
+            return responseMessage;
         }
 
         JsonNode errorsNode = response.get("Errors");
         if (errorsNode == null) {
             errorsNode = response.get("errors");
         }
-        if (errorsNode == null) {
-            return null;
+        String errorsMessage = extractMessageFromErrorNode(errorsNode);
+        if (errorsMessage != null) {
+            return errorsMessage;
         }
 
-        if (errorsNode.isArray() && errorsNode.size() > 0) {
-            JsonNode first = errorsNode.get(0);
-            JsonNode shortText = first != null ? first.get("ShortText") : null;
-            if (shortText == null && first != null) {
-                shortText = first.get("shortText");
-            }
-            if (shortText != null && !shortText.asText("").isBlank()) {
-                return shortText.asText("");
-            }
+        if (errorsNode != null && !errorsNode.isNull()) {
+            return errorsNode.toString();
         }
-
-        if (errorsNode.isObject()) {
-            JsonNode shortText = errorsNode.get("ShortText");
-            if (shortText == null) {
-                shortText = errorsNode.get("shortText");
-            }
-            if (shortText != null && !shortText.asText("").isBlank()) {
-                return shortText.asText("");
-            }
+        if (responseNode != null && !responseNode.isNull()) {
+            return responseNode.toString();
         }
-
-        return errorsNode.toString();
+        return null;
     }
 
     /**
@@ -917,34 +909,113 @@ public class SuApiClient {
         if (response == null) {
             return null;
         }
+        JsonNode responseNode = response.get("response");
+        if (responseNode == null) {
+            responseNode = response.get("Response");
+        }
+        String codeFromResponse = extractCodeFromErrorNode(responseNode);
+        if (codeFromResponse != null) {
+            return codeFromResponse;
+        }
+
         JsonNode errorsNode = response.get("Errors");
         if (errorsNode == null) {
             errorsNode = response.get("errors");
         }
-        if (errorsNode == null) {
+        return extractCodeFromErrorNode(errorsNode);
+    }
+
+    private String firstNonBlankText(JsonNode node, String... fields) {
+        if (node == null || node.isNull() || fields == null) {
+            return null;
+        }
+        for (String field : fields) {
+            if (field == null || field.isBlank()) {
+                continue;
+            }
+            JsonNode valueNode = node.get(field);
+            if (valueNode == null || valueNode.isNull()) {
+                continue;
+            }
+            String value = valueNode.asText("");
+            if (!value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String extractMessageFromErrorNode(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isTextual()) {
+            String text = node.asText("");
+            return text.isBlank() ? null : text;
+        }
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                String message = extractMessageFromErrorNode(item);
+                if (message != null) {
+                    return message;
+                }
+            }
+            return null;
+        }
+        if (!node.isObject()) {
             return null;
         }
 
-        if (errorsNode.isArray() && errorsNode.size() > 0) {
-            JsonNode first = errorsNode.get(0);
-            JsonNode code = first != null ? first.get("Code") : null;
-            if (code == null && first != null) {
-                code = first.get("code");
-            }
-            String v = code != null ? code.asText("") : "";
-            return v.isBlank() ? null : v;
+        String direct = firstNonBlankText(
+                node,
+                "message", "Message",
+                "error", "Error",
+                "detail", "Detail",
+                "shortText", "ShortText"
+        );
+        if (direct != null) {
+            return direct;
         }
 
-        if (errorsNode.isObject()) {
-            JsonNode code = errorsNode.get("Code");
-            if (code == null) {
-                code = errorsNode.get("code");
-            }
-            String v = code != null ? code.asText("") : "";
-            return v.isBlank() ? null : v;
+        JsonNode nestedResponse = node.get("response");
+        if (nestedResponse == null) {
+            nestedResponse = node.get("Response");
+        }
+        String nested = extractMessageFromErrorNode(nestedResponse);
+        if (nested != null) {
+            return nested;
         }
 
         return null;
+    }
+
+    private String extractCodeFromErrorNode(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                String code = extractCodeFromErrorNode(item);
+                if (code != null) {
+                    return code;
+                }
+            }
+            return null;
+        }
+        if (!node.isObject()) {
+            return null;
+        }
+
+        String direct = firstNonBlankText(node, "code", "Code", "error_code", "errorCode");
+        if (direct != null) {
+            return direct;
+        }
+
+        JsonNode nestedResponse = node.get("response");
+        if (nestedResponse == null) {
+            nestedResponse = node.get("Response");
+        }
+        return extractCodeFromErrorNode(nestedResponse);
     }
 
     /**

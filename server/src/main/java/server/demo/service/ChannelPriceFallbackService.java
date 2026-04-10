@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.constants.ChannelPriceOtaSyncState;
 import server.demo.entity.Channel;
 import server.demo.entity.ChannelPrice;
 import server.demo.entity.PricePlan;
@@ -240,6 +241,7 @@ public class ChannelPriceFallbackService {
 
                     if (changed) {
                         cp.setIsSyncedToOta(false);
+                        cp.setOtaSyncState(ChannelPriceOtaSyncState.PENDING);
                     }
 
                     if (isNew) {

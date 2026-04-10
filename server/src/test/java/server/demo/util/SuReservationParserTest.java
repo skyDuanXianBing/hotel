@@ -129,5 +129,240 @@ class SuReservationParserTest {
         assertEquals("Approximate time of arrival: between 17:00 and 18:00", SuReservationParser.extractCustomerRemarks(reservation));
         assertEquals("No Smoking", SuReservationParser.extractRoomSpecialRequest(roomStay));
     }
-}
 
+    @Test
+    void extractMessagingListingId_prefersExplicitListingFieldOnRoomStay() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "listingid": "52",
+                    "booking_details": { "property_id": "16016360" },
+                    "rooms": [
+                      { "listing_id": "16016361" }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        JsonNode roomStay = SuReservationParser.extractRoomStays(reservation).get(0);
+
+        assertEquals("16016361", SuReservationParser.extractMessagingListingId(reservation, roomStay));
+    }
+
+    @Test
+    void extractMessagingListingId_prefersRoomChannelRoomId() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_room_id": "1157718387975828173",
+                    "rooms": [
+                      {
+                        "channel_room_id": "1157718387975828174",
+                        "listing_id": "16016361"
+                      }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        JsonNode roomStay = SuReservationParser.extractRoomStays(reservation).get(0);
+
+        SuReservationParser.MessagingListingResolution resolved =
+                SuReservationParser.extractMessagingListingIdWithSource(reservation, roomStay);
+        assertNotNull(resolved);
+        assertEquals("1157718387975828174", resolved.listingId());
+        assertEquals("room_channel_room_id", resolved.source());
+    }
+
+    @Test
+    void extractMessagingListingId_usesReservationChannelRoomIdWhenRoomMissing() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_room_id": "1157718387975828174",
+                    "booking_details": {
+                      "property_id": "16016360"
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+
+        SuReservationParser.MessagingListingResolution resolved =
+                SuReservationParser.extractMessagingListingIdWithSource(reservation, null);
+        assertNotNull(resolved);
+        assertEquals("1157718387975828174", resolved.listingId());
+        assertEquals("reservation_channel_room_id", resolved.source());
+    }
+
+    @Test
+    void extractMessagingListingId_usesBookingPayloadHintWhenExplicitMissing() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "booking_details": { "property_id": "16016360" },
+                    "rooms": [
+                      { "id": "50" }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        assertEquals("16016360", SuReservationParser.extractMessagingListingId(reservation, null));
+    }
+
+    @Test
+    void normalizeMessagingListingId_rejectsShortNumericRoomId() {
+        assertNull(SuReservationParser.normalizeMessagingListingId("52"));
+        assertNull(SuReservationParser.normalizeMessagingListingId("  51 "));
+        assertEquals("16016360", SuReservationParser.normalizeMessagingListingId("16016360"));
+    }
+
+    @Test
+    void extractMessagingListingId_usesRemarksHotelIdWhenStructuredFieldsMissing() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_booking_id": "5842688289",
+                    "customer": {
+                      "remarks": "BOOKING NOTE | url: https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/booking.html?res_id=5842688289&hotel_id=16016360&lang=en |"
+                    },
+                    "rooms": [
+                      { "id": "50" }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        assertEquals("16016360", SuReservationParser.extractMessagingListingId(reservation, null));
+    }
+
+    @Test
+    void extractMessagingListingId_prefersRemarksHotelIdWithMatchingResId() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_booking_id": "5236589933",
+                    "customer": {
+                      "remarks": "url:https://admin.booking.com/x?res_id=111111&hotel_id=99999999 | url:https://admin.booking.com/y?res_id=5236589933&hotel_id=16016360&lang=en |"
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        assertEquals("16016360", SuReservationParser.extractMessagingListingId(reservation, null));
+    }
+
+    @Test
+    void extractMessagingListingIdWithSource_marksRemarksHotelIdSource() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "channel_booking_id": "5236589933",
+                    "customer": {
+                      "remarks_en": "https://admin.booking.com/y?res_id=5236589933&hotel_id=16016360"
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        SuReservationParser.MessagingListingResolution resolved =
+                SuReservationParser.extractMessagingListingIdWithSource(reservation, null);
+        assertNotNull(resolved);
+        assertEquals("16016360", resolved.listingId());
+        assertEquals("remarks_hotel_id", resolved.source());
+    }
+
+    @Test
+    void extractGuestPhone_keepsMultiPhonesWithSeparatorAndDeduplicates() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "customer": {
+                      "telephone": " 17032204754,17032204797，17032204754 ; +8613800138000 "
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+
+        String parsed = SuReservationParser.extractGuestPhone(reservation, null);
+
+        assertEquals("17032204754,17032204797,+8613800138000", parsed);
+    }
+
+    @Test
+    void extractGuestPhone_truncatesToColumnLimit() throws Exception {
+        StringBuilder phones = new StringBuilder();
+        for (int i = 0; i < 60; i++) {
+            if (i > 0) {
+                phones.append(',');
+            }
+            phones.append("1703220").append(String.format("%04d", i));
+        }
+
+        String json = """
+                {
+                  "reservation": {
+                    "customer": {
+                      "telephone": "%s"
+                    }
+                  }
+                }
+                """.formatted(phones);
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        String parsed = SuReservationParser.extractGuestPhone(reservation, null);
+
+        assertNotNull(parsed);
+        assertTrue(parsed.length() <= 255);
+        assertTrue(parsed.startsWith("17032200000"));
+    }
+
+    @Test
+    void normalizeBookingReservationId_supportsWebhookAndOrderNumberFormats() {
+        assertEquals("5003249282", SuReservationParser.normalizeBookingReservationId("5003249282"));
+        assertEquals("5003249282", SuReservationParser.normalizeBookingReservationId("5003249282_W39FVCQYSN"));
+        assertEquals("5003249282", SuReservationParser.normalizeBookingReservationId("SU26-5003249282_W39FVCQYSN-1774939615039"));
+        assertNull(SuReservationParser.normalizeBookingReservationId("SU26-HMFWJRDAX5_W39FVCQYSN-1775037944902"));
+    }
+
+    @Test
+    void extractBookingReservationId_prefersRemarksResIdWhenChannelMissing() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "id": "5003249282_W39FVCQYSN",
+                    "customer": {
+                      "remarks": "BOOKING NOTE | url: https://admin.booking.com/manage/booking.html?res_id=5842688289&hotel_id=16016360&lang=en |"
+                    }
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        assertEquals("5842688289", SuReservationParser.extractBookingReservationId(reservation));
+    }
+
+    @Test
+    void extractBookingReservationId_usesOrderNumberFallbackWhenPayloadMissing() throws Exception {
+        JsonNode reservation = objectMapper.readTree("{\"reservation\":{}}")
+                .get("reservation");
+
+        assertEquals(
+                "5003249282",
+                SuReservationParser.extractBookingReservationId(
+                        reservation,
+                        "SU26-5003249282_W39FVCQYSN-1774939615039"
+                )
+        );
+    }
+}

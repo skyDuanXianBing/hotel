@@ -140,6 +140,10 @@ public class OtaSyncService {
             if (!isSuccess) {
                 logger.warn("Su invratecontrol returned non-success status. storeId={}, channelCode={}, body={}",
                         storeId, channelCode, response);
+                List<Long> failedIds = prices.stream().map(ChannelPrice::getId).filter(Objects::nonNull).toList();
+                if (!failedIds.isEmpty()) {
+                    channelPriceRepository.markAsFailedToOta(failedIds);
+                }
                 pushed.put(channelCode, prices.size());
                 marked.put(channelCode, 0);
                 continue;

@@ -24,6 +24,7 @@ public class ReservationDTO {
     private String paymentMethod;
     private java.math.BigDecimal commission;
     private java.math.BigDecimal paidAmount;
+    private Boolean settled;
     private String pricePlan;
     private String createdBy;
     private String notes;
@@ -192,6 +193,14 @@ public class ReservationDTO {
 
     public void setPaidAmount(java.math.BigDecimal paidAmount) {
         this.paidAmount = paidAmount;
+    }
+
+    public Boolean getSettled() {
+        return settled;
+    }
+
+    public void setSettled(Boolean settled) {
+        this.settled = settled;
     }
 
     public String getPricePlan() {

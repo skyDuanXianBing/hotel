@@ -1,6 +1,7 @@
 package server.demo.entity;
 
 import jakarta.persistence.*;
+import server.demo.constants.ChannelPriceOtaSyncState;
 import server.demo.entity.base.StoreScopedEntity;
 import server.demo.entity.listener.StoreScopedEntityListener;
 
@@ -90,6 +91,13 @@ public class ChannelPrice implements StoreScopedEntity {
      */
     @Column(name = "is_synced_to_ota")
     private Boolean isSyncedToOta = false;
+
+    /**
+     * OTA 同步状态语义字段。
+     * NOT_REQUIRED/PENDING/SUCCESS/FAILED
+     */
+    @Column(name = "ota_sync_state", length = 32)
+    private String otaSyncState = ChannelPriceOtaSyncState.PENDING;
 
     /**
      * OTA 同步时间
@@ -222,6 +230,14 @@ public class ChannelPrice implements StoreScopedEntity {
 
     public void setIsSyncedToOta(Boolean isSyncedToOta) {
         this.isSyncedToOta = isSyncedToOta;
+    }
+
+    public String getOtaSyncState() {
+        return otaSyncState;
+    }
+
+    public void setOtaSyncState(String otaSyncState) {
+        this.otaSyncState = otaSyncState;
     }
 
     public LocalDateTime getOtaSyncAt() {

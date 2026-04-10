@@ -2,6 +2,12 @@ import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
 import { CLEANER_STORE_KEY, CLEANER_TOKEN_KEY, clearCleanerSession } from '@/utils/cleanerSession'
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    suppressErrorToast?: boolean
+  }
+}
+
 const request: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 10000,
@@ -20,6 +26,13 @@ const sanitizeUserFacingMessage = (rawMessage: string) => {
     .replace(/\bSU\b/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
+}
+
+const shouldSuppressErrorToast = (error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+  return Boolean((error as { config?: { suppressErrorToast?: boolean } }).config?.suppressErrorToast)
 }
 
 request.interceptors.request.use(
@@ -51,6 +64,8 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response: AxiosResponse) => response.data,
   (error) => {
+    const suppressErrorToast = shouldSuppressErrorToast(error)
+
     if (error.response?.status === 401) {
       const isCleanerRoute =
         typeof window !== 'undefined' && window.location.pathname.startsWith('/cleaner')
@@ -67,12 +82,16 @@ request.interceptors.response.use(
       const message = sanitizeUserFacingMessage(
         error.response?.data?.message || '您没有权限执行此操作',
       )
-      ElMessage.error(message)
+      if (!suppressErrorToast) {
+        ElMessage.error(message)
+      }
     } else {
       const message = sanitizeUserFacingMessage(
         error.response?.data?.message || error.message || '请求失败',
       )
-      ElMessage.error(message)
+      if (!suppressErrorToast) {
+        ElMessage.error(message)
+      }
     }
     return Promise.reject(error)
   },

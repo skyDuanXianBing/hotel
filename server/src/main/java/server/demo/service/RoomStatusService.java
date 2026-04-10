@@ -30,6 +30,7 @@ import server.demo.util.StoreContextUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,15 @@ import java.util.stream.Collectors;
 @Transactional
 public class RoomStatusService {
     private static final Logger logger = LoggerFactory.getLogger(RoomStatusService.class);
+    private static final Set<ReservationStatus> ROOM_STATUS_OCCUPANCY_STATUSES = Set.of(
+            ReservationStatus.CONFIRMED,
+            ReservationStatus.CHECKED_IN,
+            ReservationStatus.REQUESTED
+    );
+    private static final Comparator<Reservation> PRIMARY_RESERVATION_COMPARATOR =
+            Comparator.comparingInt((Reservation r) -> reservationStatusPriority(r.getStatus())).reversed()
+                    .thenComparing(Reservation::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(Reservation::getId, Comparator.nullsLast(Comparator.naturalOrder()));
 
     @Autowired
     private RoomRepository roomRepository;
@@ -110,6 +120,12 @@ public class RoomStatusService {
                 .map(Room::getId)
                 .filter(id -> id != null)
                 .toList();
+        Map<String, Reservation> primaryReservationByKey = buildPrimaryReservationLookup(
+                storeId,
+                roomIds,
+                startDate,
+                endDate
+        );
 
         Map<String, RoomBlockout> blockoutByKey = new HashMap<>();
         if (!roomIds.isEmpty() && startDate != null && endDate != null && !endDate.isBefore(startDate)) {
@@ -134,8 +150,8 @@ public class RoomStatusService {
             List<DailyRoomStatusDTO> dailyStatusList = new ArrayList<>();
             LocalDate currentDate = startDate;
             while (!currentDate.isAfter(endDate)) {
-                RoomStatus status = determineRoomStatus(room, currentDate, storeId);
-                DailyRoomStatusDTO.ReservationInfoDTO reservationInfo = getReservationInfo(room, currentDate, storeId);
+                RoomStatus status = determineRoomStatus(room, currentDate, primaryReservationByKey);
+                DailyRoomStatusDTO.ReservationInfoDTO reservationInfo = getReservationInfo(room, currentDate, primaryReservationByKey);
 
                 RoomBlockout blockout = room != null && room.getId() != null
                         ? blockoutByKey.get(blockoutKey(room.getId(), currentDate))
@@ -480,10 +496,65 @@ public class RoomStatusService {
         );
     }
 
-    private RoomStatus determineRoomStatus(Room room, LocalDate date, Long storeId) {
-        Optional<Reservation> reservation = reservationRepository.findByStoreIdAndRoomIdAndDate(storeId, room.getId(), date);
-        if (reservation.isPresent()) {
-            ReservationStatus reservationStatus = reservation.get().getStatus();
+    private Map<String, Reservation> buildPrimaryReservationLookup(
+            Long storeId,
+            List<Long> roomIds,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        Map<String, Reservation> primaryReservationByKey = new HashMap<>();
+        if (storeId == null || roomIds == null || roomIds.isEmpty() || startDate == null || endDate == null || endDate.isBefore(startDate)) {
+            return primaryReservationByKey;
+        }
+
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndRoomIdInAndDateRangeAndStatusesWithChannel(
+                storeId,
+                roomIds,
+                startDate,
+                endDate,
+                ROOM_STATUS_OCCUPANCY_STATUSES
+        );
+
+        for (Reservation reservation : reservations) {
+            if (reservation == null || reservation.getRoom() == null || reservation.getRoom().getId() == null) {
+                continue;
+            }
+            Long roomId = reservation.getRoom().getId();
+            LocalDate overlapStart = reservation.getCheckInDate() != null && reservation.getCheckInDate().isAfter(startDate)
+                    ? reservation.getCheckInDate()
+                    : startDate;
+            LocalDate stayEndExclusive = reservation.getCheckOutDate();
+            if (stayEndExclusive == null) {
+                continue;
+            }
+            LocalDate overlapEnd = stayEndExclusive.minusDays(1);
+            if (overlapEnd.isAfter(endDate)) {
+                overlapEnd = endDate;
+            }
+            if (overlapEnd.isBefore(overlapStart)) {
+                continue;
+            }
+
+            LocalDate d = overlapStart;
+            while (!d.isAfter(overlapEnd)) {
+                String key = blockoutKey(roomId, d);
+                Reservation existing = primaryReservationByKey.get(key);
+                if (existing == null || PRIMARY_RESERVATION_COMPARATOR.compare(reservation, existing) < 0) {
+                    primaryReservationByKey.put(key, reservation);
+                }
+                d = d.plusDays(1);
+            }
+        }
+
+        return primaryReservationByKey;
+    }
+
+    private RoomStatus determineRoomStatus(Room room, LocalDate date, Map<String, Reservation> primaryReservationByKey) {
+        Reservation reservation = room != null && room.getId() != null
+                ? primaryReservationByKey.get(blockoutKey(room.getId(), date))
+                : null;
+        if (reservation != null) {
+            ReservationStatus reservationStatus = reservation.getStatus();
             if (reservationStatus == ReservationStatus.CONFIRMED) {
                 return RoomStatus.RESERVED;
             }
@@ -500,12 +571,18 @@ public class RoomStatusService {
         return RoomStatus.AVAILABLE;
     }
 
-    private DailyRoomStatusDTO.ReservationInfoDTO getReservationInfo(Room room, LocalDate date, Long storeId) {
-        Optional<Reservation> reservation = reservationRepository.findByStoreIdAndRoomIdAndDate(storeId, room.getId(), date);
-        if (reservation.isEmpty()) {
+    private DailyRoomStatusDTO.ReservationInfoDTO getReservationInfo(
+            Room room,
+            LocalDate date,
+            Map<String, Reservation> primaryReservationByKey
+    ) {
+        Reservation reservation = room != null && room.getId() != null
+                ? primaryReservationByKey.get(blockoutKey(room.getId(), date))
+                : null;
+        if (reservation == null) {
             return null;
         }
-        Reservation r = reservation.get();
+        Reservation r = reservation;
         String channelName = r.getChannel() != null ? r.getChannel().getName() : "未知渠道";
         DailyRoomStatusDTO.ReservationInfoDTO reservationInfo = new DailyRoomStatusDTO.ReservationInfoDTO(
                 r.getId(),
@@ -520,6 +597,19 @@ public class RoomStatusService {
         reservationInfo.setNotes(r.getNotes());
         reservationInfo.setSpecialRequests(r.getSpecialRequests());
         return reservationInfo;
+    }
+
+    private static int reservationStatusPriority(ReservationStatus status) {
+        if (status == ReservationStatus.CHECKED_IN) {
+            return 3;
+        }
+        if (status == ReservationStatus.CONFIRMED) {
+            return 2;
+        }
+        if (status == ReservationStatus.REQUESTED) {
+            return 1;
+        }
+        return 0;
     }
 
     private boolean isDateToday(LocalDate date) {

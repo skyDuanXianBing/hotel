@@ -130,9 +130,34 @@ const SU_CONFIG_PROXY_BASE = `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/
 const CHANNEL_HOTEL_ACCESS_DENIED_PATTERN =
   /(HOTEL_ACCESS_DENIED|Request for forbidden hotel id\(s\)|forbidden hotel id\(s\))/i
 const CHANNEL_HOTEL_DENIED_TOAST_COOLDOWN_MS = 3000
+const SU_HEADER_AUTHORIZATION = 'authorization'
+const SU_HEADER_TOKEN_ID = 'token-id'
+const SU_HEADER_APP_ID = 'app-id'
+const SU_HEADER_CLIENT_ID = 'client-id'
+const SU_PROXY_HEADER_AUTHORIZATION = 'X-Su-Authorization'
+const SU_PROXY_HEADER_TOKEN_ID = 'X-Su-Token-Id'
+const SU_PROXY_HEADER_APP_ID = 'X-Su-App-Id'
+const SU_PROXY_HEADER_CLIENT_ID = 'X-Su-Client-Id'
 
 let uninstallSuConfigProxy: null | (() => void) = null
 let lastChannelHotelDeniedToastAt = 0
+let suConfigProxyContext: {
+  tokenId: string
+  appId: string
+  clientId: string
+} | null = null
+
+const setSuConfigProxyContext = (widgetConfig: WidgetTokenResponse) => {
+  suConfigProxyContext = {
+    tokenId: widgetConfig.tokenId?.trim() || '',
+    appId: widgetConfig.appId?.trim() || '',
+    clientId: widgetConfig.appId?.trim() || '',
+  }
+}
+
+const clearSuConfigProxyContext = () => {
+  suConfigProxyContext = null
+}
 
 const maybeNotifyChannelHotelIdDenied = (raw: unknown) => {
   if (typeof raw !== 'string' || !raw) {
@@ -313,6 +338,9 @@ const installSuConfigProxy = (): (() => void) => {
   type XhrMeta = {
     isSuConfig: boolean
     suAuth?: string
+    hasTokenIdHeader?: boolean
+    hasAppIdHeader?: boolean
+    hasClientIdHeader?: boolean
   }
   const metaByXhr = new WeakMap<XMLHttpRequest, XhrMeta>()
 
@@ -334,11 +362,24 @@ const installSuConfigProxy = (): (() => void) => {
 
   XMLHttpRequest.prototype.setRequestHeader = function (name: string, value: string) {
     const meta = metaByXhr.get(this)
-    if (meta?.isSuConfig && typeof name === 'string' && name.toLowerCase() === 'authorization') {
-      // 避免与本系统 JWT 冲突：先把 Su 的 Authorization 暂存，后续通过 X-Su-Authorization 传给后端
-      meta.suAuth = value
-      metaByXhr.set(this, meta)
-      return
+    if (meta?.isSuConfig && typeof name === 'string') {
+      const loweredName = name.toLowerCase()
+      if (loweredName === SU_HEADER_AUTHORIZATION) {
+        // 避免与本系统 JWT 冲突：先把 Su 的 Authorization 暂存，后续通过 X-Su-Authorization 传给后端
+        meta.suAuth = value
+        metaByXhr.set(this, meta)
+        return
+      }
+      if (loweredName === SU_HEADER_TOKEN_ID) {
+        meta.hasTokenIdHeader = true
+        metaByXhr.set(this, meta)
+      } else if (loweredName === SU_HEADER_APP_ID) {
+        meta.hasAppIdHeader = true
+        metaByXhr.set(this, meta)
+      } else if (loweredName === SU_HEADER_CLIENT_ID) {
+        meta.hasClientIdHeader = true
+        metaByXhr.set(this, meta)
+      }
     }
     return originalSetRequestHeader.call(this, name, value)
   }
@@ -365,7 +406,28 @@ const installSuConfigProxy = (): (() => void) => {
 
       if (meta.suAuth) {
         try {
-          originalSetRequestHeader.call(this, 'X-Su-Authorization', meta.suAuth)
+          originalSetRequestHeader.call(this, SU_PROXY_HEADER_AUTHORIZATION, meta.suAuth)
+        } catch {
+          // ignore
+        }
+      }
+      if (!meta.hasTokenIdHeader && suConfigProxyContext?.tokenId) {
+        try {
+          originalSetRequestHeader.call(this, SU_PROXY_HEADER_TOKEN_ID, suConfigProxyContext.tokenId)
+        } catch {
+          // ignore
+        }
+      }
+      if (!meta.hasAppIdHeader && suConfigProxyContext?.appId) {
+        try {
+          originalSetRequestHeader.call(this, SU_PROXY_HEADER_APP_ID, suConfigProxyContext.appId)
+        } catch {
+          // ignore
+        }
+      }
+      if (!meta.hasClientIdHeader && suConfigProxyContext?.clientId) {
+        try {
+          originalSetRequestHeader.call(this, SU_PROXY_HEADER_CLIENT_ID, suConfigProxyContext.clientId)
         } catch {
           // ignore
         }
@@ -392,19 +454,30 @@ const installSuConfigProxy = (): (() => void) => {
         return originalFetch(input as any, init)
       }
 
+      const upstreamRequest = new Request(input as RequestInfo, init)
+      const proxiedRequest = new Request(proxyUrl, upstreamRequest)
       const token = localStorage.getItem('token')
-      const headers = new Headers(init?.headers || {})
+      const headers = new Headers(proxiedRequest.headers)
 
-      const suAuth = headers.get('authorization')
+      const suAuth = headers.get(SU_HEADER_AUTHORIZATION)
       if (suAuth) {
-        headers.delete('authorization')
-        headers.set('X-Su-Authorization', suAuth)
+        headers.delete(SU_HEADER_AUTHORIZATION)
+        headers.set(SU_PROXY_HEADER_AUTHORIZATION, suAuth)
+      }
+      if (!headers.has(SU_HEADER_TOKEN_ID) && suConfigProxyContext?.tokenId) {
+        headers.set(SU_PROXY_HEADER_TOKEN_ID, suConfigProxyContext.tokenId)
+      }
+      if (!headers.has(SU_HEADER_APP_ID) && suConfigProxyContext?.appId) {
+        headers.set(SU_PROXY_HEADER_APP_ID, suConfigProxyContext.appId)
+      }
+      if (!headers.has(SU_HEADER_CLIENT_ID) && suConfigProxyContext?.clientId) {
+        headers.set(SU_PROXY_HEADER_CLIENT_ID, suConfigProxyContext.clientId)
       }
       if (token) {
         headers.set('Authorization', `Bearer ${token}`)
       }
 
-      const response = await originalFetch(proxyUrl, { ...init, headers, credentials: 'include' })
+      const response = await originalFetch(proxiedRequest, { headers, credentials: 'include' })
       try {
         const preview = await response.clone().text()
         maybeNotifyChannelHotelIdDenied(preview)
@@ -553,6 +626,7 @@ const loadWidget = async () => {
   loading.value = true
   error.value = ''
   clearWidgetContainer()
+  clearSuConfigProxyContext()
 
   try {
     // 1. 获取Widget Token
@@ -562,6 +636,7 @@ const loadWidget = async () => {
     if (!response.success || !response.data) {
       throw new Error(response.message || '获取连接配置失败')
     }
+    setSuConfigProxyContext(response.data)
 
     // 本地开发环境：允许请求后端拿到 token（便于验证后端是否已联通 Su），但不强制加载 Widget
     if (isLocalhost() && import.meta.env.VITE_ALLOW_SU_WIDGET_LOCAL !== 'true') {
@@ -666,6 +741,7 @@ const handleClose = () => {
   visible.value = false
   // 清理Widget容器
   clearWidgetContainer()
+  clearSuConfigProxyContext()
   uninstallSuConfigProxy?.()
   uninstallSuConfigProxy = null
 }

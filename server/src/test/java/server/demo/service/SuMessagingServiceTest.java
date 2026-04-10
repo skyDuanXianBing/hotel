@@ -9,6 +9,7 @@ import server.demo.dto.SuMessagingSendRequest;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.SuMessagingSenderType;
+import server.demo.repository.ReservationRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 
@@ -31,22 +32,20 @@ class SuMessagingServiceTest {
     void handleInboundMessage_shouldUpsertThreadSaveMessageAndBroadcast() throws Exception {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
-        SuMessagingAiSettingService aiSettingService = Mockito.mock(SuMessagingAiSettingService.class);
         SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
-        SuAiAutoReplyService suAiAutoReplyService = Mockito.mock(SuAiAutoReplyService.class);
         ObjectMapper objectMapper = new ObjectMapper();
 
         SuMessagingService service = new SuMessagingService(
                 threadRepository,
                 messageRepository,
+                reservationRepository,
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                aiSettingService,
-                realtimeGateway,
-                suAiAutoReplyService
+                realtimeGateway
         );
 
         String raw = """
@@ -70,7 +69,6 @@ class SuMessagingServiceTest {
                 """;
         JsonNode root = objectMapper.readTree(raw);
 
-        when(aiSettingService.isAutoReplyEnabled(10L)).thenReturn(false);
         when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M1")).thenReturn(Optional.empty());
         when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 244, "T1")).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(inv -> {
@@ -115,25 +113,79 @@ class SuMessagingServiceTest {
     }
 
     @Test
-    void sendMessage_shouldCallSuMessagingABPersistStaffMessageAndBroadcast() throws Exception {
+    void handleInboundMessage_shouldNormalizeBookingThreadIdentity() throws Exception {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
-        SuMessagingAiSettingService aiSettingService = Mockito.mock(SuMessagingAiSettingService.class);
         SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
-        SuAiAutoReplyService suAiAutoReplyService = Mockito.mock(SuAiAutoReplyService.class);
         ObjectMapper objectMapper = new ObjectMapper();
 
         SuMessagingService service = new SuMessagingService(
                 threadRepository,
                 messageRepository,
+                reservationRepository,
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                aiSettingService,
-                realtimeGateway,
-                suAiAutoReplyService
+                realtimeGateway
+        );
+
+        String raw = """
+                {
+                  "message": "Hello",
+                  "bookingid": "SU26-6022279490_W39FVCQYSN-1775048446300",
+                  "threadid": "SU26-6022279490_W39FVCQYSN-1775048446300",
+                  "listingid": "14844797",
+                  "messageid": "M2",
+                  "channel_id": "19",
+                  "hotelid": "STORE10"
+                }
+                """;
+        JsonNode root = objectMapper.readTree(raw);
+
+        when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M2")).thenReturn(Optional.empty());
+        when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 19, "6022279490")).thenReturn(Optional.empty());
+        when(threadRepository.save(any())).thenAnswer(inv -> {
+            SuMessageThread thread = inv.getArgument(0);
+            thread.setId(199L);
+            return thread;
+        });
+        when(messageRepository.save(any())).thenAnswer(inv -> {
+            SuMessage message = inv.getArgument(0);
+            message.setId(200L);
+            return message;
+        });
+
+        service.handleInboundMessage(10L, "STORE10", root, raw);
+
+        ArgumentCaptor<SuMessageThread> threadCaptor = ArgumentCaptor.forClass(SuMessageThread.class);
+        verify(threadRepository).save(threadCaptor.capture());
+        SuMessageThread savedThread = threadCaptor.getValue();
+        assertEquals("6022279490", savedThread.getThreadKey());
+        assertEquals("6022279490", savedThread.getBookingId());
+        assertEquals("SU26-6022279490_W39FVCQYSN-1775048446300", savedThread.getThreadId());
+    }
+
+    @Test
+    void sendMessage_shouldCallSuMessagingABPersistStaffMessageAndBroadcast() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        SuMessagingService service = new SuMessagingService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                suApiClient,
+                suAccessTokenService,
+                objectMapper,
+                realtimeGateway
         );
 
         SuMessageThread thread = new SuMessageThread();

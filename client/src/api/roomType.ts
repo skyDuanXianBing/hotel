@@ -19,6 +19,8 @@ export interface RoomTypeDTO {
   maxGuests?: number
   maxChildOccupancy?: number
   description?: string
+  roomTypeAddress?: string
+  nearbyStation?: string
   checkInGuideLink?: string
   suRoomType?: string
   sizeMeasurement?: number
@@ -72,6 +74,8 @@ export interface CreateRoomTypeRequest {
   totalRooms: number
   maxGuests: number
   maxChildOccupancy?: number
+  roomTypeAddress?: string
+  nearbyStation?: string
   checkInGuideLink?: string
   suRoomType?: string
   sizeMeasurement?: number

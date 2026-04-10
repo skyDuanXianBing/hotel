@@ -22,6 +22,7 @@ import server.demo.repository.UserRepository;
 import server.demo.util.SuHotelIdUtil;
 import server.demo.util.SuReservationParser;
 import server.demo.util.SuRoomIdParser;
+import server.demo.util.UtcTimeUtil;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.UnexpectedRollbackException;
@@ -32,6 +33,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -44,6 +46,7 @@ public class OtaReservationSyncService {
 
     private static final String OTA_CHANNEL_CODE_AIRBNB = "AIRBNB";
     private static final String OTA_CHANNEL_CODE_BOOKING = "BOOKING";
+    private static final int RESERVATION_GUEST_PHONE_MAX_LENGTH = 255;
 
     private static final List<String> SUPPORTED_CHANNEL_CODES = List.of(
             OTA_CHANNEL_CODE_AIRBNB,
@@ -147,6 +150,10 @@ public class OtaReservationSyncService {
     ) {}
 
     record CalendarSyncRequest(Long roomTypeId, LocalDate startDate, LocalDate endDate) {}
+
+    record ThreadListingResolution(String listingId, String source) {}
+
+    record ReservationLookupResult(Reservation reservation, String matchStrategy, String resolvedOrderNumber) {}
 
     static List<CalendarSyncRequest> buildCalendarSyncRequests(
             Long oldRoomTypeId,
@@ -470,9 +477,10 @@ public class OtaReservationSyncService {
             int roomStayCount = countRoomStays(reservationNode);
             String reservationId = SuReservationParser.extractReservationId(reservationNode);
             String notifId = SuReservationParser.extractReservationNotifId(reservationNode);
-            String channelBookingId = SuReservationParser.extractChannelBookingId(reservationNode);
+            String rawChannelBookingId = SuReservationParser.extractChannelBookingId(reservationNode);
             String otaCode = SuReservationParser.extractOtaCode(reservationNode);
             String channelCode = SuReservationParser.mapOtaChannelCode(otaCode);
+            String channelBookingId = resolveCanonicalChannelBookingId(channelCode, reservationNode, rawChannelBookingId, null);
 
             try {
                 UpsertResult singleResult = transactionTemplate.execute(
@@ -589,9 +597,10 @@ public class OtaReservationSyncService {
             String notifId = SuReservationParser.extractReservationNotifId(reservationNode);
             String reservationId = SuReservationParser.extractReservationId(reservationNode);
             String suStatus = SuReservationParser.extractSuStatus(reservationNode);
-            String channelBookingId = SuReservationParser.extractChannelBookingId(reservationNode);
+            String rawChannelBookingId = SuReservationParser.extractChannelBookingId(reservationNode);
             String otaCode = SuReservationParser.extractOtaCode(reservationNode);
             String channelCode = SuReservationParser.mapOtaChannelCode(otaCode);
+            String channelBookingId = resolveCanonicalChannelBookingId(channelCode, reservationNode, rawChannelBookingId, null);
 
             if (channelCode == null) {
                 skippedUnsupported++;
@@ -625,10 +634,10 @@ public class OtaReservationSyncService {
 
                     String roomReservationId = roomStay != null ? SuReservationParser.extractRoomReservationId(roomStay) : null;
                     String roomReservationIdentity = resolveRoomReservationIdentity(roomReservationId, roomStayIndex);
-                    String orderNumber = SuReservationParser.buildOrderNumber(store.getId(), reservationId, roomReservationIdentity);
+                    String generatedOrderNumber = SuReservationParser.buildOrderNumber(store.getId(), reservationId, roomReservationIdentity);
 
                     reservationLogger.info(
-                            "[ReservationUpsert] begin. storeId={}, hotelId={}, channel={}, reservationId={}, notifId={}, channelBookingId={}, suStatus={}, orderNumber={}, checkIn={}, checkOut={}, roomReservationId={}",
+                            "[ReservationUpsert] begin. storeId={}, hotelId={}, channel={}, reservationId={}, notifId={}, channelBookingId={}, suStatus={}, generatedOrderNumber={}, checkIn={}, checkOut={}, roomReservationId={}",
                             store.getId(),
                             suHotelId,
                             channelCode,
@@ -636,7 +645,7 @@ public class OtaReservationSyncService {
                             notifId,
                             channelBookingId,
                             suStatus,
-                            orderNumber,
+                            generatedOrderNumber,
                             checkIn,
                             checkOut,
                             roomReservationIdentity
@@ -645,10 +654,18 @@ public class OtaReservationSyncService {
                     Channel channel = resolveChannel(store.getId(), channelCode)
                             .orElseThrow(() -> new IllegalStateException("渠道不存在: " + channelCode));
 
-                    Reservation reservation = reservationRepository.findByStoreIdAndOrderNumber(store.getId(), orderNumber)
-                            .orElseGet(Reservation::new);
+                    ReservationLookupResult lookupResult = resolveReservationTargetForUpsert(
+                            store.getId(),
+                            generatedOrderNumber,
+                            reservationId,
+                            roomReservationIdentity,
+                            channelBookingId
+                    );
+
+                    Reservation reservation = lookupResult.reservation();
 
                     boolean isNew = reservation.getId() == null;
+                    String orderNumber = lookupResult.resolvedOrderNumber();
                     LocalDate oldCheckIn = isNew ? null : reservation.getCheckInDate();
                     LocalDate oldCheckOut = isNew ? null : reservation.getCheckOutDate();
                     Long oldRoomTypeId = isNew ? null : reservation.getOtaRoomTypeId();
@@ -660,10 +677,12 @@ public class OtaReservationSyncService {
                     ReservationStatus oldStatus = isNew ? null : reservation.getStatus();
 
                     reservationLogger.info(
-                            "[ReservationUpsert] resolved target. storeId={}, hotelId={}, orderNumber={}, isNew={}, existingDbId={}",
+                            "[ReservationUpsert] resolved target. storeId={}, hotelId={}, generatedOrderNumber={}, finalOrderNumber={}, matchStrategy={}, isNew={}, existingDbId={}",
                             store.getId(),
                             suHotelId,
+                            generatedOrderNumber,
                             orderNumber,
+                            lookupResult.matchStrategy(),
                             isNew,
                             reservation.getId()
                     );
@@ -677,13 +696,22 @@ public class OtaReservationSyncService {
                     }
 
                     reservation.setGuestName(SuReservationParser.extractGuestName(reservationNode, roomStay));
-                    reservation.setGuestPhone(SuReservationParser.extractGuestPhone(reservationNode, roomStay));
+                    reservation.setGuestPhone(limitGuestPhone(SuReservationParser.extractGuestPhone(reservationNode, roomStay)));
                     reservation.setCheckInDate(checkIn);
                     reservation.setCheckOutDate(checkOut);
                     reservation.setAdults(SuReservationParser.extractAdults(reservationNode, roomStay));
                     reservation.setChildren(SuReservationParser.extractChildren(reservationNode, roomStay));
                     reservation.setTotalAmount(SuReservationParser.extractTotalAmount(reservationNode, roomStay));
-                    reservation.setChannelOrderNumber(channelBookingId);
+                    String mergedChannelOrderNumber = mergeChannelOrderNumber(
+                            channelCode,
+                            reservation.getChannelOrderNumber(),
+                            channelBookingId,
+                            orderNumber,
+                            store.getId(),
+                            reservationId,
+                            notifId
+                    );
+                    reservation.setChannelOrderNumber(mergedChannelOrderNumber);
                     String ratePlanId = SuReservationParser.extractRatePlanId(reservationNode, roomStay);
                     reservation.setPricePlan(resolvePricePlanDisplay(store.getId(), ratePlanId, pricePlanDisplayCache));
 
@@ -789,7 +817,10 @@ public class OtaReservationSyncService {
                     );
 
                     if (isNew) {
-                        String bookingKey = (channelBookingId != null && !channelBookingId.isBlank()) ? channelBookingId : orderNumber;
+                        String bookingKey = normalizeLookupKey(reservation.getChannelOrderNumber());
+                        if (bookingKey == null) {
+                            bookingKey = orderNumber;
+                        }
                         registrationLinkInboxService.recordIfAbsent(
                                 store.getId(),
                                 bookingKey,
@@ -802,7 +833,7 @@ public class OtaReservationSyncService {
 
                     // Ensure SuMessageThread exists so auto-messages (BOOKING_CONFIRM/IMMEDIATELY etc.) can send
                     // without waiting for inbound messaging webhook.
-                    tryUpsertMessageThreadFromReservation(store.getId(), suHotelId, channelCode, reservationNode, reservation);
+                    tryUpsertMessageThreadFromReservation(store.getId(), suHotelId, channelCode, reservationNode, roomStay, reservation);
 
                     cleaningTaskAutoService.syncTaskForReservation(reservation);
 
@@ -919,6 +950,28 @@ public class OtaReservationSyncService {
         return global;
     }
 
+    private String limitGuestPhone(String guestPhone) {
+        if (guestPhone == null) {
+            return null;
+        }
+
+        String normalized = guestPhone.trim();
+        if (normalized.isBlank()) {
+            return null;
+        }
+
+        if (normalized.length() <= RESERVATION_GUEST_PHONE_MAX_LENGTH) {
+            return normalized;
+        }
+
+        reservationLogger.warn(
+                "[ReservationUpsert] guest phone exceeded {} chars and was truncated before persistence. rawLength={}",
+                RESERVATION_GUEST_PHONE_MAX_LENGTH,
+                normalized.length()
+        );
+        return normalized.substring(0, RESERVATION_GUEST_PHONE_MAX_LENGTH);
+    }
+
     private static ReservationStatus mapReservationStatus(String suStatus, String roomStayStatus) {
         String combined = ((suStatus != null ? suStatus : "") + " " + (roomStayStatus != null ? roomStayStatus : "")).trim();
         if (combined.isBlank()) {
@@ -966,6 +1019,7 @@ public class OtaReservationSyncService {
             String suHotelId,
             String channelCode,
             JsonNode reservationNode,
+            JsonNode roomStay,
             Reservation reservation
     ) {
         if (storeId == null || reservation == null || channelCode == null || channelCode.isBlank()) {
@@ -977,10 +1031,7 @@ public class OtaReservationSyncService {
             return;
         }
 
-        String bookingId = reservation.getChannelOrderNumber();
-        if (bookingId == null || bookingId.isBlank()) {
-            bookingId = reservation.getOrderNumber();
-        }
+        String bookingId = resolveThreadBookingId(channelCode, reservation, reservationNode);
         if (bookingId == null || bookingId.isBlank()) {
             return;
         }
@@ -1001,8 +1052,26 @@ public class OtaReservationSyncService {
             return;
         }
 
-        String listingId = reservation.getOtaRoomId();
-        LocalDateTime now = LocalDateTime.now();
+        ThreadListingResolution listingResolution = resolveThreadListingForReservation(
+                channelCode,
+                reservationNode,
+                roomStay,
+                reservation.getOtaRoomId()
+        );
+        String listingId = listingResolution.listingId();
+        String listingSource = listingResolution.source();
+        LocalDateTime now = UtcTimeUtil.nowLocalDateTime();
+
+        reservationLogger.info(
+                "[ReservationUpsert] thread listing resolved. storeId={}, hotelId={}, reservationId={}, notifId={}, bookingId={}, listingId={}, source={}",
+                storeId,
+                suHotelId,
+                SuReservationParser.extractReservationId(reservationNode),
+                SuReservationParser.extractReservationNotifId(reservationNode),
+                bookingId,
+                listingId,
+                listingSource
+        );
 
         try {
             SuMessageThread thread = threadRepository.findByStoreIdAndChannelIdAndThreadKey(storeId, suChannelId, threadKey)
@@ -1027,6 +1096,9 @@ public class OtaReservationSyncService {
             }
             if (guestId != null && !guestId.isBlank()) {
                 thread.setGuestId(guestId);
+            }
+            if (!SuReservationParser.isValidMessagingListingId(thread.getListingId())) {
+                thread.setListingId(null);
             }
             if (listingId != null && !listingId.isBlank()) {
                 thread.setListingId(listingId);
@@ -1087,6 +1159,41 @@ public class OtaReservationSyncService {
         return parts.toString() + (nodes.size() > parts.size() ? ("(+ " + (nodes.size() - parts.size()) + " more)") : "");
     }
 
+    static String resolveThreadListingIdForReservation(
+            String channelCode,
+            JsonNode reservationNode,
+            JsonNode roomStay,
+            String fallbackOtaRoomId
+    ) {
+        return resolveThreadListingForReservation(channelCode, reservationNode, roomStay, fallbackOtaRoomId).listingId();
+    }
+
+    static ThreadListingResolution resolveThreadListingForReservation(
+            String channelCode,
+            JsonNode reservationNode,
+            JsonNode roomStay,
+            String fallbackOtaRoomId
+    ) {
+        SuReservationParser.MessagingListingResolution webhookResolution =
+            SuReservationParser.extractMessagingListingIdWithSource(channelCode, reservationNode, roomStay);
+        if (webhookResolution != null
+                && webhookResolution.listingId() != null
+                && !webhookResolution.listingId().isBlank()) {
+            return new ThreadListingResolution(webhookResolution.listingId(), webhookResolution.source());
+        }
+
+        String normalizedChannel = channelCode != null ? channelCode.trim().toUpperCase(Locale.ROOT) : null;
+        if ("BOOKING".equals(normalizedChannel) || "BOOKING.COM".equals(normalizedChannel)) {
+            return new ThreadListingResolution(null, "none");
+        }
+
+        String normalizedFallback = SuReservationParser.normalizeMessagingListingId(fallbackOtaRoomId);
+        if (normalizedFallback != null) {
+            return new ThreadListingResolution(normalizedFallback, "fallback_ota_room_id");
+        }
+        return new ThreadListingResolution(null, "none");
+    }
+
     static String resolveRoomReservationIdentity(String roomReservationId, int roomStayIndex) {
         if (roomReservationId != null) {
             String trimmed = roomReservationId.trim();
@@ -1112,5 +1219,184 @@ public class OtaReservationSyncService {
             return a;
         }
         return a + "\n" + b;
+    }
+
+    ReservationLookupResult resolveReservationTargetForUpsert(
+            Long storeId,
+            String generatedOrderNumber,
+            String suReservationId,
+            String roomReservationIdentity,
+            String channelOrderNumber
+    ) {
+        String normalizedGeneratedOrderNumber = normalizeLookupKey(generatedOrderNumber);
+        String normalizedSuReservationId = normalizeLookupKey(suReservationId);
+        String normalizedRoomReservationIdentity = normalizeLookupKey(roomReservationIdentity);
+        String normalizedChannelOrderNumber = normalizeLookupKey(channelOrderNumber);
+
+        if (normalizedGeneratedOrderNumber != null) {
+            Optional<Reservation> byOrderNumber = reservationRepository.findByStoreIdAndOrderNumber(
+                    storeId,
+                    normalizedGeneratedOrderNumber
+            );
+            if (byOrderNumber.isPresent()) {
+                Reservation existing = byOrderNumber.get();
+                String resolvedOrderNumber = normalizeLookupKey(existing.getOrderNumber());
+                if (resolvedOrderNumber == null) {
+                    resolvedOrderNumber = normalizedGeneratedOrderNumber;
+                }
+                return new ReservationLookupResult(existing, "ORDER_NUMBER", resolvedOrderNumber);
+            }
+        }
+
+        if (normalizedSuReservationId != null && normalizedRoomReservationIdentity != null) {
+            Optional<Reservation> bySuRoomIdentity = reservationRepository.findByStoreIdAndSuReservationIdAndRoomReservationId(
+                    storeId,
+                    normalizedSuReservationId,
+                    normalizedRoomReservationIdentity
+            );
+            if (bySuRoomIdentity.isPresent()) {
+                Reservation existing = bySuRoomIdentity.get();
+                String resolvedOrderNumber = normalizeLookupKey(existing.getOrderNumber());
+                if (resolvedOrderNumber == null) {
+                    resolvedOrderNumber = normalizedGeneratedOrderNumber;
+                }
+                return new ReservationLookupResult(existing, "SU_ROOM_KEY", resolvedOrderNumber);
+            }
+        }
+
+        if (normalizedChannelOrderNumber != null) {
+            List<Reservation> byChannelOrderNumber = reservationRepository.findByStoreIdAndChannelOrderNumber(
+                    storeId,
+                    normalizedChannelOrderNumber
+            );
+            if (byChannelOrderNumber.size() == 1) {
+                Reservation existing = byChannelOrderNumber.get(0);
+                String resolvedOrderNumber = normalizeLookupKey(existing.getOrderNumber());
+                if (resolvedOrderNumber == null) {
+                    resolvedOrderNumber = normalizedGeneratedOrderNumber;
+                }
+                return new ReservationLookupResult(existing, "CHANNEL_ORDER_UNIQUE", resolvedOrderNumber);
+            }
+
+            if (byChannelOrderNumber.size() > 1) {
+                reservationLogger.warn(
+                        "[ReservationUpsert] multiple records share channelOrderNumber; fallback disabled. storeId={}, channelOrderNumber={}, matchedCount={}, suReservationId={}, roomReservationId={}, generatedOrderNumber={}",
+                        storeId,
+                        normalizedChannelOrderNumber,
+                        byChannelOrderNumber.size(),
+                        normalizedSuReservationId,
+                        normalizedRoomReservationIdentity,
+                        normalizedGeneratedOrderNumber
+                );
+            }
+        }
+
+        return new ReservationLookupResult(new Reservation(), "INSERT_NEW", normalizedGeneratedOrderNumber);
+    }
+
+    static String resolveCanonicalChannelBookingId(
+            String channelCode,
+            JsonNode reservationNode,
+            String rawChannelBookingId,
+            String fallbackOrderNumber
+    ) {
+        if (channelCode == null || channelCode.isBlank()) {
+            return normalizeLookupKey(rawChannelBookingId);
+        }
+        String normalizedChannel = channelCode.trim().toUpperCase(Locale.ROOT);
+        if (OTA_CHANNEL_CODE_BOOKING.equals(normalizedChannel) || "BOOKING.COM".equals(normalizedChannel)) {
+            String fromReservation = SuReservationParser.extractBookingReservationId(reservationNode, fallbackOrderNumber);
+            if (fromReservation != null) {
+                return fromReservation;
+            }
+            return SuReservationParser.normalizeBookingReservationId(rawChannelBookingId);
+        }
+        return normalizeLookupKey(rawChannelBookingId);
+    }
+
+    static String resolveThreadBookingId(String channelCode, Reservation reservation, JsonNode reservationNode) {
+        if (reservation == null) {
+            return null;
+        }
+        String normalizedChannel = channelCode != null ? channelCode.trim().toUpperCase(Locale.ROOT) : null;
+        if (OTA_CHANNEL_CODE_BOOKING.equals(normalizedChannel) || "BOOKING.COM".equals(normalizedChannel)) {
+            String fromReservation = SuReservationParser.normalizeBookingReservationId(reservation.getChannelOrderNumber());
+            if (fromReservation != null) {
+                return fromReservation;
+            }
+            String fromWebhook = SuReservationParser.extractBookingReservationId(reservationNode, reservation.getOrderNumber());
+            if (fromWebhook != null) {
+                return fromWebhook;
+            }
+            return SuReservationParser.extractBookingReservationIdFromOrderNumber(reservation.getOrderNumber());
+        }
+
+        String bookingId = normalizeLookupKey(reservation.getChannelOrderNumber());
+        if (bookingId != null) {
+            return bookingId;
+        }
+        return normalizeLookupKey(reservation.getOrderNumber());
+    }
+
+    static String mergeChannelOrderNumber(
+            String channelCode,
+            String existingValue,
+            String incomingValue,
+            String fallbackOrderNumber
+    ) {
+        String normalizedChannel = channelCode != null ? channelCode.trim().toUpperCase(Locale.ROOT) : null;
+        if (OTA_CHANNEL_CODE_BOOKING.equals(normalizedChannel) || "BOOKING.COM".equals(normalizedChannel)) {
+            String normalizedIncoming = SuReservationParser.normalizeBookingReservationId(incomingValue);
+            if (normalizedIncoming != null) {
+                return normalizedIncoming;
+            }
+
+            String normalizedExisting = SuReservationParser.normalizeBookingReservationId(existingValue);
+            if (normalizedExisting != null) {
+                return normalizedExisting;
+            }
+
+            return SuReservationParser.extractBookingReservationIdFromOrderNumber(fallbackOrderNumber);
+        }
+
+        String normalizedExisting = normalizeLookupKey(existingValue);
+        String normalizedIncoming = normalizeLookupKey(incomingValue);
+        if (normalizedIncoming != null) {
+            return normalizedIncoming;
+        }
+        return normalizedExisting;
+    }
+
+    private String mergeChannelOrderNumber(
+            String channelCode,
+            String existingValue,
+            String incomingValue,
+            String fallbackOrderNumber,
+            Long storeId,
+            String reservationId,
+            String notifId
+    ) {
+        String normalizedExisting = mergeChannelOrderNumber(channelCode, existingValue, null, fallbackOrderNumber);
+        String normalizedIncoming = mergeChannelOrderNumber(channelCode, null, incomingValue, fallbackOrderNumber);
+        if (normalizedExisting != null
+                && normalizedIncoming != null
+                && !normalizedExisting.equals(normalizedIncoming)) {
+            reservationLogger.warn(
+                    "[ReservationUpsert] channel booking id changed. storeId={}, reservationId={}, notifId={}, old={}, incoming={}",
+                    storeId,
+                    reservationId,
+                    notifId,
+                    normalizedExisting,
+                    normalizedIncoming
+            );
+        }
+        return mergeChannelOrderNumber(channelCode, normalizedExisting, normalizedIncoming, fallbackOrderNumber);
+    }
+    private static String normalizeLookupKey(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isBlank() ? null : trimmed;
     }
 }

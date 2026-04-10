@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public class AssignRoomTypePricePlanRequest {
     private BigDecimal mondayPrice;
@@ -22,6 +23,8 @@ public class AssignRoomTypePricePlanRequest {
     private BigDecimal extraAdultRate;
     private BigDecimal extraChildRate;
     private String priceMode;
+    private Boolean clearFutureOverrides;
+    private LocalDate clearFromDate;
 
     // Constructors
     public AssignRoomTypePricePlanRequest() {}
@@ -121,5 +124,21 @@ public class AssignRoomTypePricePlanRequest {
 
     public void setPriceMode(String priceMode) {
         this.priceMode = priceMode;
+    }
+
+    public Boolean getClearFutureOverrides() {
+        return clearFutureOverrides;
+    }
+
+    public void setClearFutureOverrides(Boolean clearFutureOverrides) {
+        this.clearFutureOverrides = clearFutureOverrides;
+    }
+
+    public LocalDate getClearFromDate() {
+        return clearFromDate;
+    }
+
+    public void setClearFromDate(LocalDate clearFromDate) {
+        this.clearFromDate = clearFromDate;
     }
 }

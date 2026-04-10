@@ -55,6 +55,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { BellFilled, Close } from '@element-plus/icons-vue'
+import { formatStoreTime, resolveStoreTimeZoneFromStorage } from '@/utils/storeDateTime'
 
 export interface Notification {
   id: string
@@ -98,9 +99,7 @@ const handleNotificationClick = (notification: Notification) => {
 
 // 格式化时间
 const formatTime = (time: Date) => {
-  const hours = time.getHours().toString().padStart(2, '0')
-  const minutes = time.getMinutes().toString().padStart(2, '0')
-  return `${hours}:${minutes}`
+  return formatStoreTime(time, resolveStoreTimeZoneFromStorage())
 }
 
 // 暴露方法供外部调用

@@ -1,0 +1,364 @@
+# Rate Plan Mapping API
+
+***
+
+### <mark style="color:yellow;">Endpoint</mark>
+
+<mark style="color:green;background-color:green;">**`POST`**</mark>&#x20;
+
+<div align="left"><figure><img src="https://958347541-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FM9bn2UcBkeqtqixkl5eF%2Fuploads%2FpsybX0n39kUB8Z8WOk4X%2FSandbox%20image.png?alt=media&#x26;token=4ae73d0f-0d1a-4d73-a4e2-673dbc081d6a" alt="" width="56"><figcaption></figcaption></figure></div>
+
+{% code overflow="wrap" %}
+
+```url
+https://connect.su-api.com/SUAPI/jservice/OTA_RatePlanMap
+```
+
+{% endcode %}
+
+***
+
+#### <mark style="color:yellow;">Attributes</mark>
+
+`hotelid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Specifies the required node `hotelid` contains the IT provider's hotel id for which the provider wishes to add mapping information.
+
+{% hint style="info" %}
+`hotelid` is applicable for all the channels listed [here](https://suissu.gitbook.io/su-api-documentation/su-channel-manager/channel-mapping-api-1/get-api-channel/channel-list-1/channel-list).
+{% endhint %}
+
+***
+
+`action` <mark style="color:orange;">**enum (Required)**</mark>
+
+Indicates the call is meant to Room-Rate Plan mapping for property.
+
+{% hint style="info" %}
+`action` is applicable for all the channels listed [here](https://suissu.gitbook.io/su-api-documentation/su-channel-manager/channel-mapping-api-1/get-api-channel/channel-list-1/channel-list).
+{% endhint %}
+
+{% hint style="info" %}
+**Possible values:**
+
+* `"setup"` → Performs both create and update operations. If the Room-Rate Plan mapping does not exist in the system, it will create it; otherwise, it will update the existing one.
+* `"remove"` → Directly performs a straightforward remove operation.
+  {% endhint %}
+
+***
+
+`channelid` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Specifies the Channel Code for OTA in Su. For example, Air Asia (328), AltoVita, Rezlive (274).
+
+{% hint style="info" %}
+`channelid` is applicable for all the channels listed [here](https://suissu.gitbook.io/su-api-documentation/su-channel-manager/channel-mapping-api-1/get-api-channel/channel-list-1/channel-list).
+{% endhint %}
+
+***
+
+`status` <mark style="color:orange;">**string (Optional)**</mark>
+
+Defines the status of the Room-Rate Plan mapping in the system.
+
+{% hint style="info" %}
+`status` is applicable for all the channels listed [here](https://suissu.gitbook.io/su-api-documentation/su-channel-manager/channel-mapping-api-1/get-api-channel/channel-list-1/channel-list).
+{% endhint %}
+
+{% hint style="info" %}
+**Possible values:**
+
+* `"Active"` → Room-Rate Plan mapping is activated
+* `"Inactive"` → Room-Rate Plan mapping is deactivated
+  {% endhint %}
+
+***
+
+`roomid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Property's Room / Listing ID.
+
+{% hint style="info" %}
+`roomid` is applicable for all the channels listed [here](https://suissu.gitbook.io/su-api-documentation/su-channel-manager/channel-mapping-api-1/get-api-channel/channel-list-1/channel-list).
+{% endhint %}
+
+***
+
+`rateid` <mark style="color:orange;">**alphanumeric (Required)**</mark>
+
+Property's rate ID.
+
+{% hint style="info" %}
+`rateid` is applicable for all the channels listed [here](https://suissu.gitbook.io/su-api-documentation/su-channel-manager/channel-mapping-api-1/get-api-channel/channel-list-1/channel-list).
+{% endhint %}
+
+***
+
+`pricing` <mark style="color:orange;">**array of objects
+&#x20;(Required)**</mark>
+\\
+
+\
+Number of guests, multiplier and surcharge. PMS must pass object of number of guests according to the pricing model OTA supports.&#x20;
+
+{% hint style="info" %}
+`pricing` is applicable for all the channels listed [here](https://suissu.gitbook.io/su-api-documentation/su-channel-manager/channel-mapping-api-1/get-api-channel/channel-list-1/channel-list).
+{% endhint %}
+
+***
+
+`applicablenoofguest` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Number of guests for this room/rate combination applies.
+
+***
+
+`multiplier` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Multiplier to adjust Rates by a percentage. For example, 0.90 to apply a 10% decrease, or 1.10 to apply a 10% increase.
+
+***
+
+`surcharge` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Additional Charges (fixed value) to be added (if any).
+
+***
+
+`defaultminimumnight` <mark style="color:orange;">**numeric (Required)**</mark>
+
+Specifies the default minimum number of nights required for the mapped rate plan.
+
+{% hint style="info" %}
+`defaultminimumnight` is applicable for all the channels listed [here](https://suissu.gitbook.io/su-api-documentation/su-channel-manager/channel-mapping-api-1/get-api-channel/channel-list-1/channel-list).
+{% endhint %}
+
+***
+
+`extrarates`
+&#x20;<mark style="color:orange;">**object (Required)**</mark>
+\\
+
+\
+Rates for Extra Adult and Child Rates.
+
+{% hint style="info" %}
+`extrarates` is applicable for the channels: AirAsia (328), Gotifi (357), halalbooking (305), happyeasygo (284), HobseOLD (297), HyperguestOLD (291), hyperguest (425), irctc (282), plusgrade (367), saffronstays (270), ShijiOLD (269), Simplotel (281), Tripfactory (296), Tripjack (292), Villafinder (336)
+{% endhint %}
+
+***
+
+`type`
+&#x20;<mark style="color:orange;">**enum (Required)**</mark>
+
+Three types of Extra Rates.
+
+{% hint style="info" %}
+**Possible values:**
+
+* `eac` - Extra adult and child
+* `eb` - Extra bed
+* `none` - Not set
+  {% endhint %}
+
+***
+
+`defaultadultrate`
+&#x20;<mark style="color:orange;">**numeric (Required)**</mark>
+
+Default Extra Adult Rate (applicable only for the channels that supports).
+
+***
+
+`defaultchildrate`
+&#x20;<mark style="color:orange;">**numeric (Required)**</mark>
+
+Default Extra Child Rate (applicable only for the channels that supports).
+
+***
+
+`advance_purchase_days` <mark style="color:orange;">**numeric (Optional)**</mark>
+
+Specifies the minimum number of days in advance a booking must be made.\
+For example, a value of `2` means the booking must be created at least **2 days before** the check-in date.
+
+***
+
+`fixedminstay` <mark style="color:orange;">**object (Optional)**</mark>
+\\
+
+\
+Fixed amount for minimum stay.
+
+{% hint style="info" %}
+`fixedminstay` is applicable for all the channels listed [here](https://suissu.gitbook.io/su-api-documentation/su-channel-manager/channel-mapping-api-1/get-api-channel/channel-list-1/channel-list), except - Hobse OLD (297)
+{% endhint %}
+
+***
+
+`fixed`
+&#x20;<mark style="color:orange;">**boolean (Required)**</mark>
+
+If it supports fixed minimum stay or not.
+
+***
+
+`minstay` <mark style="color:orange;">**numeric (Optional)**</mark>
+\\
+
+\
+Number of days (Value for fixed number of days).
+
+{% hint style="info" %}
+If `fixed` is set to `true`, the `minstay` value must be provided in the request to specify the fixed minimum number of days.
+{% endhint %}
+
+***
+
+## <mark style="color:yellow;">**Sample Request**</mark>
+
+```json
+{
+    "hotelid": "TestProp1",
+    "action": "setup",
+    "channelid": 249,
+    "status": "Active",
+    "roomid": "201",
+    "rateid": "BAR1",
+    "pricing": [
+        {
+            "applicablenoofguest": 1,
+            "multiplier": 1.1,
+            "surcharge": 10
+        },
+        {
+            "applicablenoofguest": 2,
+            "multiplier": 1.1,
+            "surcharge": 20
+        }
+    ],
+    "defaultminimumnight": 2,
+    "extrarates": {
+        "type": "eac",
+        "defaultadultrate": 150,
+        "defaultchildrate": 110
+    },
+    "advance_purchase_days": 2,
+    "fixedminstay": {
+        "fixed": true,
+        "minstay": 4
+    }
+}
+```
+
+***
+
+## <mark style="color:yellow;">Response</mark>
+
+{% tabs %}
+{% tab title="Success Response" %}
+
+```json
+{
+    "Status": "Success",
+    "Data": {
+        "roomid": "201",
+        "roomname": "Deluxe",
+        "rateplanid": "BAR1",
+        "ratename": "Room Only",
+        "channelroomid": "1884",
+        "channelrateid": "7803901"
+    }
+}
+```
+
+{% endtab %}
+
+{% tab title="996 - Error Response" %}
+
+```json
+{
+    "Errors": {
+        "Code": "996",
+        "ShortText": "Rateplan is not exists or is inactive"
+    },
+    "Status": "Failed"
+}
+```
+
+{% endtab %}
+{% endtabs %}
+
+***
+
+#### <mark style="color:green;">Success Response - Body Elements</mark>&#x20;
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates the result of the API call.&#x20;
+
+{% hint style="info" %}
+Will be `"Success"` for successful operations.
+{% endhint %}
+
+***
+
+`roomid` <mark style="color:orange;">**string**</mark>
+
+Property's Room / Listing ID.
+
+***
+
+`roomname` <mark style="color:orange;">**string**</mark>
+
+Property's Room Type Name.
+
+***
+
+`rateplanid` <mark style="color:orange;">**string**</mark>
+
+Property's Rate ID.
+
+***
+
+`ratename` <mark style="color:orange;">**string**</mark>
+
+Property's Rate Plan Name.
+
+***
+
+`channelroomid` <mark style="color:orange;">**string**</mark>
+
+Represents the Room Type ID generated by the system, to be shared with the channel to map/link on their side.
+
+***
+
+`channelrateid` <mark style="color:orange;">**string**</mark>
+
+Represents the Rate Plan ID generated by the system, to be shared with the channel to map/link on their side.
+
+***
+
+#### <mark style="color:red;">Errors Response - Body Elements</mark>
+
+`Status` <mark style="color:orange;">**string**</mark>
+
+Indicates the result of the API call, which will be always `"Failed"` in case of an error response.
+
+***
+
+`Errors` <mark style="color:orange;">**array**</mark>
+
+Array that contains details about any errors that occurred during the API call. Each object in the `Errors` array contains the following properties:
+
+`Code` <mark style="color:orange;">**string**</mark>
+
+Specific error code that helps identify the type of error.
+
+{% hint style="info" %}
+For example: `"996"` indicates a bad request.
+{% endhint %}
+
+`ShortText` <mark style="color:orange;">**string**</mark>
+
+A short description of the error.

@@ -11,16 +11,20 @@ import org.springframework.stereotype.Service;
 import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.dto.SuMessagingThreadDTO;
+import server.demo.entity.Reservation;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.SuMessagingSenderType;
+import server.demo.repository.ReservationRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
+import server.demo.util.SuReservationParser;
+import server.demo.util.UtcTimeUtil;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,31 +39,28 @@ public class SuMessagingService {
 
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
+    private final ReservationRepository reservationRepository;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
     private final ObjectMapper objectMapper;
-    private final SuMessagingAiSettingService suMessagingAiSettingService;
     private final SuMessagingRealtimeGateway suMessagingRealtimeGateway;
-    private final SuAiAutoReplyService suAiAutoReplyService;
 
     public SuMessagingService(
             SuMessageThreadRepository threadRepository,
             SuMessageRepository messageRepository,
+            ReservationRepository reservationRepository,
             SuApiClient suApiClient,
             SuAccessTokenService suAccessTokenService,
             ObjectMapper objectMapper,
-            SuMessagingAiSettingService suMessagingAiSettingService,
-            SuMessagingRealtimeGateway suMessagingRealtimeGateway,
-            SuAiAutoReplyService suAiAutoReplyService
+            SuMessagingRealtimeGateway suMessagingRealtimeGateway
     ) {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
+        this.reservationRepository = reservationRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
         this.objectMapper = objectMapper;
-        this.suMessagingAiSettingService = suMessagingAiSettingService;
         this.suMessagingRealtimeGateway = suMessagingRealtimeGateway;
-        this.suAiAutoReplyService = suAiAutoReplyService;
     }
 
     @Transactional
@@ -83,7 +84,8 @@ public class SuMessagingService {
         }
 
         String threadId = readText(root, "threadid");
-        String bookingId = readText(root, "bookingid");
+        String rawBookingId = readText(root, "bookingid");
+        String bookingId = normalizeInboundBookingId(channelId, rawBookingId, threadId);
         String guestId = readText(root, "guestid");
         String listingId = readText(root, "listingid");
         String bookingFlag = readText(root, "bookingflag");
@@ -123,7 +125,7 @@ public class SuMessagingService {
             thread.setGuestName(readAirbnbGuestFirstName(root));
         }
         thread.setLastMessage(trimToMax(content, 500));
-        thread.setLastActivity(LocalDateTime.now());
+        thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
 
         thread = threadRepository.save(thread);
 
@@ -134,7 +136,7 @@ public class SuMessagingService {
         msg.setSenderType(SuMessagingSenderType.GUEST);
         msg.setSenderName(thread.getGuestName());
         msg.setContent(content);
-        msg.setSentAt(LocalDateTime.now());
+        msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
         msg.setIsRead(false);
         msg.setDeliveryStatus("SENT");
         msg.setRawJson(rawJson);
@@ -160,14 +162,14 @@ public class SuMessagingService {
     }
 
     private void triggerAutoReplyAfterCommit(Long storeId, Long threadId, Long triggerMessageId) {
-        if (suMessagingAiSettingService.isAutoReplyEnabled(storeId)) {
-            suAiAutoReplyService.tryAutoReply(storeId, threadId, triggerMessageId);
-        }
+        logger.info("[SuMessaging] AI auto reply disabled. skip trigger. storeId={}, threadId={}, triggerMessageId={}",
+                storeId, threadId, triggerMessageId);
     }
 
     public List<SuMessagingThreadDTO> listThreads(Long storeId) {
         return threadRepository.findByStoreIdOrderByLastActivityDesc(storeId).stream()
                 .map(thread -> {
+                    Reservation reservation = resolveReservationForThread(storeId, thread);
                     SuMessagingThreadDTO dto = new SuMessagingThreadDTO();
                     dto.setId(thread.getId());
                     dto.setChannelId(thread.getChannelId());
@@ -177,13 +179,70 @@ public class SuMessagingService {
                     dto.setThreadId(thread.getThreadId());
                     dto.setListingId(thread.getListingId());
                     dto.setListingName(thread.getListingName());
+                    dto.setCheckInDate(reservation != null ? reservation.getCheckInDate() : null);
+                    dto.setCheckOutDate(reservation != null ? reservation.getCheckOutDate() : null);
+                    dto.setRoomTypeName(resolveRoomTypeName(reservation));
                     dto.setLastMessage(thread.getLastMessage());
-                    dto.setLastActivity(thread.getLastActivity());
+                    dto.setLastActivity(toUtcOffset(thread.getLastActivity()));
                     dto.setClosed(Boolean.TRUE.equals(thread.getClosed()));
                     dto.setUnreadCount(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(thread.getId(), SuMessagingSenderType.GUEST));
                     return dto;
                 })
                 .toList();
+    }
+
+    private Reservation resolveReservationForThread(Long storeId, SuMessageThread thread) {
+        if (storeId == null || thread == null) {
+            return null;
+        }
+
+        String bookingId = normalizeThreadLookupValue(thread.getBookingId());
+        if (bookingId != null) {
+            List<Reservation> byChannelOrderNumber =
+                    reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(storeId, bookingId);
+            if (!byChannelOrderNumber.isEmpty()) {
+                return byChannelOrderNumber.get(0);
+            }
+
+            List<Reservation> byOrderNumber =
+                    reservationRepository.findByStoreIdAndOrderNumberWithRoomType(storeId, bookingId);
+            if (!byOrderNumber.isEmpty()) {
+                return byOrderNumber.get(0);
+            }
+        }
+
+        String threadId = normalizeThreadLookupValue(thread.getThreadId());
+        if (threadId != null && (bookingId == null || !threadId.equals(bookingId))) {
+            List<Reservation> byChannelOrderNumber =
+                    reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(storeId, threadId);
+            if (!byChannelOrderNumber.isEmpty()) {
+                return byChannelOrderNumber.get(0);
+            }
+
+            List<Reservation> byOrderNumber =
+                    reservationRepository.findByStoreIdAndOrderNumberWithRoomType(storeId, threadId);
+            if (!byOrderNumber.isEmpty()) {
+                return byOrderNumber.get(0);
+            }
+        }
+
+        return null;
+    }
+
+    private static String normalizeThreadLookupValue(String rawValue) {
+        if (rawValue == null) {
+            return null;
+        }
+        String normalized = rawValue.trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private static String resolveRoomTypeName(Reservation reservation) {
+        if (reservation == null || reservation.getRoom() == null || reservation.getRoom().getRoomType() == null) {
+            return null;
+        }
+        String roomTypeName = reservation.getRoom().getRoomType().getName();
+        return roomTypeName == null || roomTypeName.isBlank() ? null : roomTypeName;
     }
 
     @Transactional
@@ -246,16 +305,17 @@ public class SuMessagingService {
         msg.setThread(thread);
         msg.setExternalMessageId(null);
         msg.setSenderType(SuMessagingSenderType.STAFF);
-        msg.setSenderName(request.getSenderName() != null && !request.getSenderName().isBlank() ? request.getSenderName() : "STAFF");
+        String senderName = request.getSenderName() != null ? request.getSenderName().trim() : null;
+        msg.setSenderName(senderName != null && !senderName.isBlank() ? senderName : null);
         msg.setContent(message);
-        msg.setSentAt(LocalDateTime.now());
+        msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
         msg.setIsRead(true);
         msg.setDeliveryStatus("SENT");
         msg.setRawJson(writeJsonSafely(payload));
         msg = messageRepository.save(msg);
 
         thread.setLastMessage(trimToMax(message, 500));
-        thread.setLastActivity(LocalDateTime.now());
+        thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
         threadRepository.save(thread);
 
         SuMessagingMessageDTO dto = toMessageDTO(msg);
@@ -331,8 +391,15 @@ public class SuMessagingService {
         dto.setSenderName(msg.getSenderName());
         dto.setContent(msg.getContent());
         dto.setDeliveryStatus(msg.getDeliveryStatus());
-        dto.setTimestamp(msg.getSentAt());
+        dto.setTimestamp(toUtcOffset(msg.getSentAt()));
         return dto;
+    }
+
+    private static OffsetDateTime toUtcOffset(LocalDateTime localDateTime) {
+        if (localDateTime == null) {
+            return null;
+        }
+        return UtcTimeUtil.toUtcOffset(localDateTime);
     }
 
     private static String buildThreadKey(Integer channelId, String threadId, String bookingId) {
@@ -350,6 +417,18 @@ public class SuMessagingService {
         }
         return null;
     }
+
+    static String normalizeInboundBookingId(Integer channelId, String bookingId, String threadId) {
+        if (channelId == null || channelId != CHANNEL_BOOKING) {
+            return bookingId != null && !bookingId.isBlank() ? bookingId.trim() : null;
+        }
+        String normalizedBookingId = SuReservationParser.normalizeBookingReservationId(bookingId);
+        if (normalizedBookingId != null) {
+            return normalizedBookingId;
+        }
+        return SuReservationParser.normalizeBookingReservationId(threadId);
+    }
+
     private static String resolveChannelName(Integer channelId) {
         if (channelId == null) {
             return "UNKNOWN";
@@ -416,13 +495,13 @@ public class SuMessagingService {
         String s = since.trim();
         try {
             OffsetDateTime odt = OffsetDateTime.parse(s);
-            return odt.atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+            return odt.atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
         } catch (Exception ignore) {
             // continue
         }
         try {
             Instant instant = Instant.parse(s);
-            return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+            return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
         } catch (Exception ignore) {
             // continue
         }

@@ -33,10 +33,12 @@ import server.demo.enums.RoomStatus;
 import server.demo.enums.OperationType;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.ChannelRepository;
+import server.demo.repository.OrderBoxRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.UserRepository;
+import server.demo.util.ReservationSettlementRules;
 import server.demo.util.StoreContextUtils;
 
 import java.math.BigDecimal;
@@ -69,6 +71,9 @@ public class ReservationService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired
+    private OrderBoxRepository orderBoxRepository;
 
     @Autowired
     private RoomRepository roomRepository;
@@ -121,32 +126,19 @@ public class ReservationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
 
-        Room room = roomRepository.findByStoreIdAndId(storeId, request.getRoomId())
-                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+        Room room = loadRoomForAssignmentWithLock(storeId, request.getRoomId());
 
         // 验证渠道是否存在
         Channel channel = channelRepository.findById(request.getChannelId())
                 .orElseThrow(() -> new RuntimeException("渠道不存在"));
 
-        // 检查房间在指定日期是否有冲突(仅检查当前用户的预订)
-        List<Reservation> conflictReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
-                storeId, request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
-
-        System.out.println("===== 预订冲突检查 =====");
-        System.out.println("用户ID: " + userId + ", 房间ID: " + request.getRoomId());
-        System.out.println("入住日期: " + request.getCheckInDate() + ", 退房日期: " + request.getCheckOutDate());
-        System.out.println("查询到的冲突预订数量: " + conflictReservations.size());
-        for (Reservation r : conflictReservations) {
-            System.out.println("  冲突预订: ID=" + r.getId() +
-                             ", 状态=" + r.getStatus() +
-                             ", 入住=" + r.getCheckInDate() +
-                             ", 退房=" + r.getCheckOutDate());
-        }
-        System.out.println("========================\n");
-
-        if (!conflictReservations.isEmpty()) {
-            throw new RuntimeException("房间在指定日期已有预订，请选择其他日期或房间");
-        }
+        assertRoomAvailableForDateRange(
+                storeId,
+                room.getId(),
+                request.getCheckInDate(),
+                request.getCheckOutDate(),
+                null
+        );
 
         // 创建预订
         Reservation reservation = new Reservation();
@@ -356,6 +348,16 @@ public class ReservationService {
                 )
         );
         orderNotificationDispatchService.notifyOrderCancelled(reservation.getStoreId(), savedReservation, userId);
+        return convertToDTO(savedReservation);
+    }
+
+    /**
+     * 更新结账状态（手动结账/取消手动结账）。
+     */
+    public ReservationDTO updateSettlementStatus(Long reservationId, boolean settled) {
+        Reservation reservation = loadReservationInStore(reservationId);
+        reservation.setSettled(settled);
+        Reservation savedReservation = reservationRepository.save(reservation);
         return convertToDTO(savedReservation);
     }
 
@@ -686,25 +688,22 @@ public class ReservationService {
         Long userId = currentUserId();
 
         Reservation existingReservation = loadReservationInStore(reservationId);
-        Room room = roomRepository.findByStoreIdAndId(storeId, request.getRoomId())
-                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+        Room room = loadRoomForAssignmentWithLock(storeId, request.getRoomId());
         Channel channel = channelRepository.findById(request.getChannelId())
                 .orElseThrow(() -> new RuntimeException("渠道不存在"));
 
-        if (!existingReservation.getRoom().getId().equals(request.getRoomId()) ||
+        Long currentRoomId = existingReservation.getRoom() != null ? existingReservation.getRoom().getId() : null;
+
+        if (!Objects.equals(currentRoomId, request.getRoomId()) ||
                 !existingReservation.getCheckInDate().equals(request.getCheckInDate()) ||
                 !existingReservation.getCheckOutDate().equals(request.getCheckOutDate())) {
-
-            List<Reservation> conflictReservations = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
-                    storeId, request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
-
-            conflictReservations = conflictReservations.stream()
-                    .filter(r -> !r.getId().equals(reservationId))
-                    .collect(Collectors.toList());
-
-            if (!conflictReservations.isEmpty()) {
-                throw new RuntimeException("房间在指定日期已有预订，请选择其他日期或房间");
-            }
+            assertRoomAvailableForDateRange(
+                    storeId,
+                    room.getId(),
+                    request.getCheckInDate(),
+                    request.getCheckOutDate(),
+                    reservationId
+            );
         }
 
         Room oldRoom = existingReservation.getRoom();
@@ -910,6 +909,8 @@ public class ReservationService {
 
         reservation.setRoom(room);
         Reservation saved = reservationRepository.save(reservation);
+        // 手动排房成功后自动移出订单盒子，保持列表状态一致
+        orderBoxRepository.deleteByReservationId(reservationId);
         cleaningTaskAutoService.syncTaskForReservation(saved);
         schedulePriceLabsReservationSyncAfterCommit(storeId, saved.getId());
         // assignment can shift occupancy between room types; sync old and new ranges
@@ -1019,6 +1020,35 @@ public class ReservationService {
                 ReservationStatus reservationStatus = getReservationStatusFromValue(status);
                 if (reservationStatus != null) {
                     predicates.add(criteriaBuilder.equal(root.get("status"), reservationStatus));
+                }
+            }
+
+            // 结账状态过滤
+            if (paymentStatus != null && !paymentStatus.trim().isEmpty()) {
+                Predicate manuallySettledPredicate = criteriaBuilder.isTrue(root.get("settled"));
+                Predicate suReservationPredicate = criteriaBuilder.and(
+                        criteriaBuilder.isNotNull(root.get("suReservationId")),
+                        criteriaBuilder.notEqual(root.get("suReservationId"), "")
+                );
+                Predicate checkedInOrOutPredicate = root.get("status").in(
+                        ReservationStatus.CHECKED_IN,
+                        ReservationStatus.CHECKED_OUT
+                );
+                Predicate fullyPaidPredicate = criteriaBuilder.and(
+                        criteriaBuilder.greaterThan(root.get("totalAmount"), BigDecimal.ZERO),
+                        criteriaBuilder.greaterThanOrEqualTo(root.get("paidAmount"), root.get("totalAmount"))
+                );
+                Predicate paidPredicate = criteriaBuilder.or(
+                        manuallySettledPredicate,
+                        suReservationPredicate,
+                        checkedInOrOutPredicate,
+                        fullyPaidPredicate
+                );
+
+                if ("paid".equalsIgnoreCase(paymentStatus)) {
+                    predicates.add(paidPredicate);
+                } else if ("unpaid".equalsIgnoreCase(paymentStatus)) {
+                    predicates.add(criteriaBuilder.not(paidPredicate));
                 }
             }
             
@@ -1147,6 +1177,32 @@ public class ReservationService {
         }
     }
 
+    private Room loadRoomForAssignmentWithLock(Long storeId, Long roomId) {
+        return roomRepository.findByStoreIdAndIdForUpdate(storeId, roomId)
+                .orElseThrow(() -> new RuntimeException("房间不存在或无权限"));
+    }
+
+    private void assertRoomAvailableForDateRange(
+            Long storeId,
+            Long roomId,
+            LocalDate checkIn,
+            LocalDate checkOut,
+            Long excludeReservationId
+    ) {
+        List<Reservation> conflicts = reservationRepository.findByStoreIdAndRoomIdAndDateRange(
+                storeId,
+                roomId,
+                checkIn,
+                checkOut
+        ).stream()
+                .filter(r -> !Objects.equals(r.getId(), excludeReservationId))
+                .toList();
+
+        if (!conflicts.isEmpty()) {
+            throw new RuntimeException("房间在指定日期已有预订，请选择其他日期或房间");
+        }
+    }
+
     private Reservation loadReservationInStore(Long reservationId) {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new RuntimeException("预订不存在"));
@@ -1206,7 +1262,21 @@ public class ReservationService {
         dto.setChildren(reservation.getChildren());
         dto.setPaymentMethod(reservation.getPaymentMethod());
         dto.setCommission(reservation.getCommission());
-        dto.setPaidAmount(reservation.getPaidAmount());
+        boolean settled = ReservationSettlementRules.isSettled(
+                reservation.getSettled(),
+                reservation.getSuReservationId(),
+                reservation.getStatus(),
+                reservation.getPaidAmount(),
+                reservation.getTotalAmount()
+        );
+        dto.setSettled(settled);
+        dto.setPaidAmount(ReservationSettlementRules.resolveDisplayPaidAmount(
+                reservation.getSettled(),
+                reservation.getSuReservationId(),
+                reservation.getStatus(),
+                reservation.getPaidAmount(),
+                reservation.getTotalAmount()
+        ));
         dto.setPricePlan(reservation.getPricePlan());
         String createdBy = null;
         if (reservation.getUser() != null) {

@@ -14,6 +14,7 @@ public class PriceLabsIntegrationDTO {
     private String syncUrl;
     private String calendarTriggerUrl;
     private String hookUrl;
+    private String distributionMode;
     private LocalDateTime lastListingSyncAt;
     private LocalDateTime lastPriceSyncAt;
     private LocalDateTime lastReservationSyncAt;
@@ -83,6 +84,14 @@ public class PriceLabsIntegrationDTO {
 
     public void setHookUrl(String hookUrl) {
         this.hookUrl = hookUrl;
+    }
+
+    public String getDistributionMode() {
+        return distributionMode;
+    }
+
+    public void setDistributionMode(String distributionMode) {
+        this.distributionMode = distributionMode;
     }
 
     public LocalDateTime getLastListingSyncAt() {

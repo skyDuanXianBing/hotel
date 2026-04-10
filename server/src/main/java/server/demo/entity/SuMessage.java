@@ -2,6 +2,7 @@ package server.demo.entity;
 
 import jakarta.persistence.*;
 import server.demo.enums.SuMessagingSenderType;
+import server.demo.util.UtcTimeUtil;
 
 import java.time.LocalDateTime;
 
@@ -64,7 +65,7 @@ public class SuMessage {
     @PrePersist
     protected void onCreate() {
         if (sentAt == null) {
-            sentAt = LocalDateTime.now();
+            sentAt = UtcTimeUtil.nowLocalDateTime();
         }
         if (isRead == null) {
             isRead = false;

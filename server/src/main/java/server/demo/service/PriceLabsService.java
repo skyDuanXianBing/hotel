@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import server.demo.constants.ChannelPriceOtaSyncState;
+import server.demo.constants.PriceLabsDistributionMode;
 import server.demo.constants.PriceLabsSyncDefaults;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.*;
@@ -122,6 +124,7 @@ public class PriceLabsService {
         integration.setSyncUrl(dto.getSyncUrl());
         integration.setCalendarTriggerUrl(dto.getCalendarTriggerUrl());
         integration.setHookUrl(dto.getHookUrl());
+        integration.setDistributionMode(normalizeDistributionMode(dto.getDistributionMode()));
 
         PriceLabsIntegration saved = integrationRepository.save(integration);
         return convertToIntegrationDTO(saved);
@@ -147,6 +150,7 @@ public class PriceLabsService {
                 integration.setSyncUrl(priceLabsConfig.getSyncUrl());
                 integration.setCalendarTriggerUrl(priceLabsConfig.getCalendarTriggerUrl());
                 integration.setHookUrl(priceLabsConfig.getHookUrl());
+                integration.setDistributionMode(normalizeDistributionMode(integration.getDistributionMode()));
                 integration.setIsEnabled(true);
 
                 // 记录同步日志
@@ -359,9 +363,9 @@ public class PriceLabsService {
             if (storeId != null) {
                 affectedStoreIds.add(storeId);
             }
+            String distributionMode = resolveDistributionMode(storeId);
             RoomType roomType = connection.getRoomType();
             Set<LocalDate> affectedDates = new TreeSet<>();
-            boolean hasRestrictionUpdate = false;
             PricePlan pricePlan = connection.getPricePlan(); // 获取价格计划
 
             // 仅同步到 SU 直连的 OTA 渠道（Airbnb/Booking）
@@ -393,35 +397,23 @@ public class PriceLabsService {
 
                     RoomPrice rp = existingRpOpt
                             .orElse(new RoomPrice(roomType, pricePlan, priceDate, basePrice));
-                    boolean skipPriceOverrideByManual = shouldSkipPriceOverrideByManual(rp);
-                    if (skipPriceOverrideByManual) {
-                        logger.info(
-                                "[PriceLabsWebhook] skip price override due to manual override. storeId={}, roomTypeId={}, pricePlanId={}, date={}",
-                                storeId,
-                                roomType.getId(),
-                                pricePlan.getId(),
-                                priceDate
-                        );
-                    } else {
-                        rp.setPrice(basePrice);
-                        rp.setPriceSource(RoomPrice.PRICE_SOURCE_PRICELABS);
-                        rp.setManualOverride(Boolean.FALSE);
-                        rp.setManualOverrideUntil(null);
-                    }
+                    rp.setPrice(basePrice);
+                    rp.setPriceSource(RoomPrice.PRICE_SOURCE_PRICELABS);
+                    // 业务规则：PriceLabs 回推视为高优先级手动改价，覆盖本地手工改价。
+                    rp.setManualOverride(Boolean.TRUE);
+                    rp.setManualOverrideUntil(null);
                     Integer minStay = normalizeMinStay(calendarData.getMinStay());
                     if (minStay != null) {
                         rp.setMinStay(minStay);
-                        hasRestrictionUpdate = true;
                     }
                     if (calendarData.getMaxStay() != null) {
                         rp.setMaxStay(calendarData.getMaxStay());
-                        hasRestrictionUpdate = true;
                     }
                     roomPriceRepository.save(rp);
 
                     // 写入改价记录：每个日期一条，仅当价格确实变化时才记录
-                    BigDecimal effectiveBasePrice = resolveEffectiveBasePrice(rp, basePrice);
-                    boolean isPriceChanged = previousPrice == null || previousPrice.compareTo(effectiveBasePrice) != 0;
+                    BigDecimal effectiveBasePrice = basePrice;
+                    boolean isPriceChanged = previousPrice == null || previousPrice.compareTo(basePrice) != 0;
                     if (isPriceChanged) {
                         PriceChangeHistory history = new PriceChangeHistory();
                         history.setRoomType(roomType);
@@ -466,8 +458,15 @@ public class PriceLabsService {
                             cp.setMaxStay(calendarData.getMaxStay());
                         }
 
-                        cp.setPriceLabsUpdatedAt(LocalDateTime.now());
-                        cp.setIsSyncedToOta(false); // 标记需要同步到 OTA
+                        LocalDateTime syncedAt = LocalDateTime.now();
+                        cp.setPriceLabsUpdatedAt(syncedAt);
+                        cp.setIsSyncedToOta(false);
+                        cp.setOtaSyncAt(null);
+                        if (isAvailabilityOnly(distributionMode)) {
+                            cp.setOtaSyncState(ChannelPriceOtaSyncState.NOT_REQUIRED);
+                        } else {
+                            cp.setOtaSyncState(ChannelPriceOtaSyncState.PENDING);
+                        }
 
                         channelPriceRepository.save(cp);
                         totalAffectedCount++;
@@ -475,7 +474,7 @@ public class PriceLabsService {
                 }
             }
 
-            if (suAriAutoSyncService != null && storeId != null && !affectedDates.isEmpty()) {
+            if (suAriAutoSyncService != null && storeId != null && !affectedDates.isEmpty() && shouldPushAvailability(distributionMode)) {
                 List<SuAriAutoSyncService.DateRange> ranges = new ArrayList<>();
                 LocalDate rangeStart = null;
                 LocalDate prev = null;
@@ -501,9 +500,9 @@ public class PriceLabsService {
                         ranges,
                         Set.of(roomType.getId()),
                         Set.of(pricePlan.getId()),
-                        false,
                         true,
-                        hasRestrictionUpdate,
+                        false,
+                        false,
                         false
                 );
             }
@@ -602,24 +601,6 @@ public class PriceLabsService {
         }
         // 兼容历史数据：enabled/auto_sync_price 可能为 NULL，默认按“启用”处理
         return !Boolean.FALSE.equals(channel.getEnabled()) && !Boolean.FALSE.equals(channel.getAutoSyncPrice());
-    }
-
-    private static boolean shouldSkipPriceOverrideByManual(RoomPrice roomPrice) {
-        if (roomPrice == null || !Boolean.TRUE.equals(roomPrice.getManualOverride())) {
-            return false;
-        }
-        LocalDate until = roomPrice.getManualOverrideUntil();
-        if (until == null) {
-            return true;
-        }
-        return !LocalDate.now().isAfter(until);
-    }
-
-    private static BigDecimal resolveEffectiveBasePrice(RoomPrice roomPrice, BigDecimal incomingBasePrice) {
-        if (shouldSkipPriceOverrideByManual(roomPrice) && roomPrice != null && roomPrice.getPrice() != null) {
-            return roomPrice.getPrice();
-        }
-        return incomingBasePrice;
     }
 
     private static Integer normalizeMinStay(Integer minStay) {
@@ -730,6 +711,7 @@ public class PriceLabsService {
                 BigDecimal newChannelPrice = channel.calculateChannelPrice(cp.getBasePrice());
                 cp.setChannelPrice(newChannelPrice);
                 cp.setIsSyncedToOta(false); // 标记需要重新同步
+                cp.setOtaSyncState(ChannelPriceOtaSyncState.PENDING);
                 channelPriceRepository.save(cp);
                 count++;
             }
@@ -878,6 +860,7 @@ public class PriceLabsService {
         dto.setSyncUrl(entity.getSyncUrl());
         dto.setCalendarTriggerUrl(entity.getCalendarTriggerUrl());
         dto.setHookUrl(entity.getHookUrl());
+        dto.setDistributionMode(normalizeDistributionMode(entity.getDistributionMode()));
         dto.setLastListingSyncAt(entity.getLastListingSyncAt());
         dto.setLastPriceSyncAt(entity.getLastPriceSyncAt());
         dto.setLastReservationSyncAt(entity.getLastReservationSyncAt());
@@ -896,6 +879,7 @@ public class PriceLabsService {
         PriceLabsIntegrationDTO dto = new PriceLabsIntegrationDTO();
         dto.setStoreId(storeId);
         dto.setIsEnabled(false);
+        dto.setDistributionMode(PriceLabsDistributionMode.AVAILABILITY_ONLY);
         dto.setConnectedRoomTypeCount(0L);
         dto.setTotalSyncCount(0L);
         dto.setSuccessSyncCount(0L);
@@ -937,6 +921,7 @@ public class PriceLabsService {
         dto.setMinStay(entity.getMinStay());
         dto.setMaxStay(entity.getMaxStay());
         dto.setIsSyncedToOta(entity.getIsSyncedToOta());
+        dto.setOtaSyncState(entity.getOtaSyncState());
         dto.setOtaSyncAt(entity.getOtaSyncAt());
         dto.setPriceLabsUpdatedAt(entity.getPriceLabsUpdatedAt());
         dto.setCreatedAt(entity.getCreatedAt());
@@ -999,5 +984,38 @@ public class PriceLabsService {
         dto.setExampleChannelPrice(channel.calculateChannelPrice(exampleBase));
 
         return dto;
+    }
+
+    private String resolveDistributionMode(Long storeId) {
+        if (storeId == null) {
+            return PriceLabsDistributionMode.AVAILABILITY_ONLY;
+        }
+        return integrationRepository.findByStoreId(storeId)
+                .map(PriceLabsIntegration::getDistributionMode)
+                .map(PriceLabsService::normalizeDistributionMode)
+                .orElse(PriceLabsDistributionMode.AVAILABILITY_ONLY);
+    }
+
+    private static String normalizeDistributionMode(String mode) {
+        if (mode == null || mode.isBlank()) {
+            return PriceLabsDistributionMode.AVAILABILITY_ONLY;
+        }
+        String normalized = mode.trim().toUpperCase();
+        if (PriceLabsDistributionMode.INVRATECONTROL_ONLY.equals(normalized)
+                || PriceLabsDistributionMode.BOTH.equals(normalized)
+                || PriceLabsDistributionMode.AVAILABILITY_ONLY.equals(normalized)) {
+            return normalized;
+        }
+        return PriceLabsDistributionMode.AVAILABILITY_ONLY;
+    }
+
+    private static boolean isAvailabilityOnly(String mode) {
+        return PriceLabsDistributionMode.AVAILABILITY_ONLY.equals(normalizeDistributionMode(mode));
+    }
+
+    private static boolean shouldPushAvailability(String mode) {
+        String normalized = normalizeDistributionMode(mode);
+        return PriceLabsDistributionMode.AVAILABILITY_ONLY.equals(normalized)
+                || PriceLabsDistributionMode.BOTH.equals(normalized);
     }
 }

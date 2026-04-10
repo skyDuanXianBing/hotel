@@ -380,6 +380,12 @@
             </div>
           </div>
         </div>
+
+        <div class="clear-overrides-section">
+          <el-checkbox v-model="clearFutureOverridesOnSave">
+            保存时清理从今天起的按日期覆盖价（让新周价格立即在房价日历生效）
+          </el-checkbox>
+        </div>
       </div>
 
       <template #footer>
@@ -826,6 +832,7 @@ const priceOption = ref<'unified' | 'multiple'>('unified')
 const includedGuestsCount = ref('2')
 const extraAdultRate = ref(0)
 const extraChildRate = ref(0)
+const clearFutureOverridesOnSave = ref(true)
 
 const includedGuestsOptions = computed(() => {
   const maxGuests = currentEditRate.value?.plan?.maxGuests ?? 4
@@ -1314,8 +1321,40 @@ const handleShowAppliedRoomTypes = async (plan: PricePlan) => {
   }
 }
 
+const confirmRemoveRelationOptions = async (roomTypeName: string, planName: string) => {
+  try {
+    await ElMessageBox.confirm(
+      `即将移除房型“${roomTypeName}”与价格计划“${planName}”的关联。\n\n` +
+      '你可以选择：\n' +
+      '1) 解绑并清理按日期覆盖价（价格管理将回退到周价格）\n' +
+      '2) 仅解绑（保留按日期覆盖价）',
+      '移除关联',
+      {
+        confirmButtonText: '解绑并清理覆盖价',
+        cancelButtonText: '仅解绑',
+        distinguishCancelAndClose: true,
+        closeOnClickModal: false,
+        closeOnPressEscape: false,
+        type: 'warning',
+      }
+    )
+    return true
+  } catch (action: any) {
+    if (action === 'cancel') {
+      return false
+    }
+    return null
+  }
+}
+
 const handleRemoveRoomType = async (roomType: RoomType) => {
   if (!userStore.currentUser?.id || !selectedPricePlanId.value) return
+
+  const planName = currentPricePlan.value?.name || '当前价格计划'
+  const clearOverrides = await confirmRemoveRelationOptions(roomType.name, planName)
+  if (clearOverrides === null) {
+    return
+  }
 
   try {
     let relationId = roomType.roomTypePricePlanId
@@ -1335,13 +1374,30 @@ const handleRemoveRoomType = async (roomType: RoomType) => {
       return
     }
 
-    await deleteRoomTypePricePlan(relationId, userStore.currentUser.id)
+    const deleteResp: any = await deleteRoomTypePricePlan(
+      relationId,
+      userStore.currentUser.id,
+      clearOverrides
+    )
+    if (!deleteResp?.success) {
+      throw new Error(deleteResp?.message || '删除房型价格计划关联失败')
+    }
+
     appliedRoomTypes.value = appliedRoomTypes.value.filter(rt => rt.id !== roomType.id)
-    ElMessage.success(`已移除房型：${roomType.name} ${roomType.code}`)
+    ElMessage.success(
+      deleteResp?.message ||
+        (clearOverrides
+          ? `已移除房型并清理按日期覆盖价：${roomType.name} ${roomType.code}`
+          : `已移除房型（保留按日期覆盖价）：${roomType.name} ${roomType.code}`)
+    )
 
     await loadPricePlans()
+    await loadRoomTypePrices()
+    if (currentPricePlan.value) {
+      await handleShowAppliedRoomTypes(currentPricePlan.value)
+    }
   } catch (error) {
-    ElMessage.error('移除房型失败')
+    ElMessage.error((error as any)?.message || '移除房型失败')
     console.error('移除房型失败:', error)
   }
 }
@@ -1500,6 +1556,7 @@ const handleEditRate = (roomType: RoomType, plan: RoomTypePricePlan) => {
   includedGuestsCount.value = String(plan.includedGuestsValue ?? 2)
   extraAdultRate.value = plan.extraAdultRate ?? 0
   extraChildRate.value = plan.extraChildRate ?? 0
+  clearFutureOverridesOnSave.value = true
 
   editRateDialogVisible.value = true
 }
@@ -1507,12 +1564,30 @@ const handleEditRate = (roomType: RoomType, plan: RoomTypePricePlan) => {
 const handleDeleteRate = async (roomType: RoomType, plan: RoomTypePricePlan) => {
   if (!userStore.currentUser?.id) return
 
+  const clearOverrides = await confirmRemoveRelationOptions(roomType.name, plan.name)
+  if (clearOverrides === null) {
+    return
+  }
+
   try {
-    await deleteRoomTypePricePlan(plan.id, userStore.currentUser!.id)
-    ElMessage.success(`删除 ${roomType.name} 的 ${plan.name} 成功`)
+    const deleteResp: any = await deleteRoomTypePricePlan(
+      plan.id,
+      userStore.currentUser!.id,
+      clearOverrides
+    )
+    if (!deleteResp?.success) {
+      throw new Error(deleteResp?.message || '删除房型价格计划关联失败')
+    }
+
+    ElMessage.success(
+      deleteResp?.message ||
+        (clearOverrides
+          ? `已删除 ${roomType.name} 的 ${plan.name} 并清理按日期覆盖价`
+          : `已删除 ${roomType.name} 的 ${plan.name}（保留按日期覆盖价）`)
+    )
     await loadRoomTypePrices()
   } catch (error) {
-    ElMessage.error('删除房价失败')
+    ElMessage.error((error as any)?.message || '删除房价失败')
     console.error('删除房价失败:', error)
   }
 }
@@ -1539,6 +1614,11 @@ const handleConfirmEditRate = async () => {
       sundayPrice: dailyPrices.sun,
       maxGuests: plan.maxGuests ?? 4,
       priceMode: priceOption.value,
+      clearFutureOverrides: clearFutureOverridesOnSave.value,
+    }
+
+    if (clearFutureOverridesOnSave.value) {
+      updateData.clearFromDate = new Date().toISOString().slice(0, 10)
     }
 
     if (priceOption.value === 'multiple') {
@@ -1554,7 +1634,11 @@ const handleConfirmEditRate = async () => {
 
     await updateRoomTypePricePlan(plan.id, userStore.currentUser!.id, updateData)
 
-    ElMessage.success('房价更新成功')
+    ElMessage.success(
+      clearFutureOverridesOnSave.value
+        ? '房价更新成功，已自动清理未来按日期覆盖价'
+        : '房价更新成功'
+    )
     await loadRoomTypePrices()
     editRateDialogVisible.value = false
     currentEditRate.value = null
@@ -1671,6 +1755,10 @@ watch(selectedRoomTypeIds, (newIds) => {
 
 .extra-rate-input {
   width: 220px;
+}
+
+.clear-overrides-section {
+  margin-top: 16px;
 }
 
 :deep(.el-radio) {

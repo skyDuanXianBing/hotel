@@ -9,8 +9,11 @@ import server.demo.entity.StoreUser;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.NotificationRepository;
 import server.demo.repository.StoreUserRepository;
+import server.demo.util.StoreTimeZoneUtil;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -25,13 +28,16 @@ public class OrderNotificationDispatchService {
 
     private final NotificationRepository notificationRepository;
     private final StoreUserRepository storeUserRepository;
+    private final Clock clock;
 
     public OrderNotificationDispatchService(
             NotificationRepository notificationRepository,
-            StoreUserRepository storeUserRepository
+            StoreUserRepository storeUserRepository,
+            Clock clock
     ) {
         this.notificationRepository = notificationRepository;
         this.storeUserRepository = storeUserRepository;
+        this.clock = clock;
     }
 
     public void notifyOrderCreated(Long storeId, Reservation reservation, Long fallbackUserId) {
@@ -58,10 +64,12 @@ public class OrderNotificationDispatchService {
 
         String title = eventType.title;
         String content = buildContent(eventType, reservation);
+        LocalDateTime nowUtc = StoreTimeZoneUtil.nowUtc(clock);
         List<Notification> notifications = new ArrayList<>(receiverIds.size());
         for (Long userId : receiverIds) {
             Notification notification = new Notification(userId, ORDER_NOTIFICATION_TYPE, title, content);
             notification.setRelatedId(reservation.getId());
+            notification.setCreatedAt(nowUtc);
             notifications.add(notification);
         }
 

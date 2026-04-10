@@ -115,8 +115,22 @@ public class RegistrationMessageService {
             return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered, RegistrationSendStatus.SENT, null);
         } catch (Exception e) {
             String err = e.getMessage() != null ? e.getMessage() : "发送失败";
+            if (isPropertyAccessError(err)) {
+                return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered,
+                        RegistrationSendStatus.WAITING_PROPERTY_ACCESS, err);
+            }
             return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered, RegistrationSendStatus.FAILED, err);
         }
+    }
+
+    private static boolean isPropertyAccessError(String errorMessage) {
+        if (errorMessage == null || errorMessage.isBlank()) {
+            return false;
+        }
+        String normalized = errorMessage.toLowerCase();
+        return normalized.contains("access to this property")
+                || normalized.contains("doesn't have access to this property")
+                || normalized.contains("does not have access to this property");
     }
 
     private RegistrationMessageLogDTO saveLog(
@@ -191,6 +205,8 @@ public class RegistrationMessageService {
         vars.put("checkout_date", formatDate(reservation != null ? reservation.getCheckOutDate() : null));
 
         vars.put("room_type_name", resolveRoomTypeName(reservation));
+        vars.put("room_type_address", resolveRoomTypeAddress(reservation));
+        vars.put("nearby_station", resolveNearbyStation(reservation));
         vars.put("room_number", resolveRoomNumber(reservation));
         vars.put("confirmation_code", reservation != null ? nullToEmpty(reservation.getChannelOrderNumber()) : "");
 
@@ -231,6 +247,30 @@ public class RegistrationMessageService {
         if (room != null && room.getRoomType() != null) {
             RoomType rt = room.getRoomType();
             return nullToEmpty(rt.getName());
+        }
+        return "";
+    }
+
+    private static String resolveRoomTypeAddress(Reservation reservation) {
+        if (reservation == null) {
+            return "";
+        }
+        Room room = reservation.getRoom();
+        if (room != null && room.getRoomType() != null) {
+            RoomType rt = room.getRoomType();
+            return nullToEmpty(rt.getRoomTypeAddress());
+        }
+        return "";
+    }
+
+    private static String resolveNearbyStation(Reservation reservation) {
+        if (reservation == null) {
+            return "";
+        }
+        Room room = reservation.getRoom();
+        if (room != null && room.getRoomType() != null) {
+            RoomType rt = room.getRoomType();
+            return nullToEmpty(rt.getNearbyStation());
         }
         return "";
     }

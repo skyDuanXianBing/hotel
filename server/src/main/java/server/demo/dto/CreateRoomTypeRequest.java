@@ -29,6 +29,8 @@ public class CreateRoomTypeRequest {
 
     private String description;
     private String checkInGuideLink;
+    private String roomTypeAddress;
+    private String nearbyStation;
     private String suRoomType;
     private BigDecimal sizeMeasurement;
     private String sizeMeasurementUnit;
@@ -128,6 +130,22 @@ public class CreateRoomTypeRequest {
 
     public void setCheckInGuideLink(String checkInGuideLink) {
         this.checkInGuideLink = checkInGuideLink;
+    }
+
+    public String getRoomTypeAddress() {
+        return roomTypeAddress;
+    }
+
+    public void setRoomTypeAddress(String roomTypeAddress) {
+        this.roomTypeAddress = roomTypeAddress;
+    }
+
+    public String getNearbyStation() {
+        return nearbyStation;
+    }
+
+    public void setNearbyStation(String nearbyStation) {
+        this.nearbyStation = nearbyStation;
     }
 
     public String getSuRoomType() {
