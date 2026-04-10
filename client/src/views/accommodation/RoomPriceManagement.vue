@@ -439,15 +439,16 @@ interface PriceTableRow {
 
 const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefined => {
   const cellData = row.dates[priceDate]
+
+  if (cellData?.priceLabsBasePrice !== undefined && cellData?.priceLabsBasePrice !== null) {
+    return cellData.priceLabsBasePrice
+  }
+
   const manualOverrideActive = Boolean(cellData?.manualOverride) && (
     !cellData?.manualOverrideUntil || priceDate <= cellData.manualOverrideUntil
   )
   if (manualOverrideActive && cellData?.price !== undefined && cellData?.price !== null) {
     return cellData.price
-  }
-
-  if (cellData?.priceLabsBasePrice !== undefined && cellData?.priceLabsBasePrice !== null) {
-    return cellData.priceLabsBasePrice
   }
 
   if (cellData?.price !== undefined && cellData?.price !== null) {
@@ -458,17 +459,19 @@ const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefi
 
 const getEffectivePriceSource = (row: PriceTableRow, priceDate: string): 'MANUAL' | 'PRICELABS' | 'SYSTEM' => {
   const cellData = row.dates[priceDate]
-  const manualOverrideActive = Boolean(cellData?.manualOverride) && (
-    !cellData?.manualOverrideUntil || priceDate <= cellData.manualOverrideUntil
-  )
-  if (manualOverrideActive) {
-    return 'MANUAL'
-  }
+
   if (cellData?.priceLabsBasePrice !== undefined && cellData?.priceLabsBasePrice !== null) {
     return 'PRICELABS'
   }
   if (cellData?.priceSource === 'PRICELABS') {
     return 'PRICELABS'
+  }
+
+  const manualOverrideActive = Boolean(cellData?.manualOverride) && (
+    !cellData?.manualOverrideUntil || priceDate <= cellData.manualOverrideUntil
+  )
+  if (manualOverrideActive) {
+    return 'MANUAL'
   }
   return 'SYSTEM'
 }

@@ -1123,9 +1123,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         dto.setPriceLabsBasePrice(priceLabsPrice.getBasePrice());
         dto.setPriceLabsUpdatedAt(priceLabsPrice.getPriceLabsUpdatedAt());
 
-        if (!Boolean.TRUE.equals(dto.getManualOverride())
-                && priceLabsPrice.getBasePrice() != null
-                && (dto.getPriceSource() == null || RoomPrice.PRICE_SOURCE_SYSTEM.equals(dto.getPriceSource()))) {
+        if (priceLabsPrice.getBasePrice() != null || priceLabsPrice.getPriceLabsUpdatedAt() != null) {
             dto.setPriceSource(RoomPrice.PRICE_SOURCE_PRICELABS);
         }
     }

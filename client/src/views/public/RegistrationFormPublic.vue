@@ -264,6 +264,9 @@
               {{ t('checkInGuide') }}
             </el-button>
           </div>
+          <div v-else class="guide-missing">
+            {{ t('checkInGuideMissing') }}
+          </div>
         </div>
         <div class="actions">
           <el-button v-if="canGoBack" @click="goPrev">{{ t('back') }}</el-button>
@@ -440,11 +443,12 @@ const translations: Record<LangCode, Record<string, string>> = {
     confirmSend: 'Confirm & Send',
     preview: 'Preview',
     send: 'Send',
-    reviewNotice: 'After review, we will automatically send you the check-in guide.',
+    reviewNotice: 'After review, we will automatically provide the check-in guide.',
     submittedAwaitingReview: 'Submitted, awaiting review.',
     approvedTitle: 'Approved',
-    checkInGuideLabel: 'Here is the check-in guide:',
-    checkInGuide: 'View Check-in Guide',
+    checkInGuideLabel: 'Your check-in guide:',
+    checkInGuide: 'Check-in Guide',
+    checkInGuideMissing: 'The check-in guide is not configured yet. Please contact the hotel.',
     draft: 'Draft',
     submitted: 'Submitted',
     approved: 'Approved',
@@ -491,11 +495,12 @@ const translations: Record<LangCode, Record<string, string>> = {
     confirmSend: '確認して送信',
     preview: 'プレビュー',
     send: '送信',
-    reviewNotice: '審査後、自動的に入住指南をお送りします。',
+    reviewNotice: '審査後、自動的にチェックインガイドをご案内します。',
     submittedAwaitingReview: '提出済み、審査をお待ちください。',
     approvedTitle: '承認済み',
-    checkInGuideLabel: '以下は入住指南です：',
-    checkInGuide: '入住指南を見る',
+    checkInGuideLabel: '以下はチェックインガイドです：',
+    checkInGuide: 'チェックインガイド',
+    checkInGuideMissing: 'チェックインガイドはまだ設定されていません。ホテルへお問い合わせください。',
     draft: '未提出',
     submitted: '提出済み',
     approved: '承認済み',
@@ -542,11 +547,12 @@ const translations: Record<LangCode, Record<string, string>> = {
     confirmSend: '确认并发送',
     preview: '预览',
     send: '发送',
-    reviewNotice: '我们审查後会自動給您发入住指南。',
+    reviewNotice: '审核通过后，我们会自动提供入住指南。',
     submittedAwaitingReview: '已提交，等待审查。',
     approvedTitle: '已通过审查',
-    checkInGuideLabel: '下面是入住指南：',
-    checkInGuide: '查看入住指南',
+    checkInGuideLabel: '您的入住指南：',
+    checkInGuide: '入住指南',
+    checkInGuideMissing: '入住指南暂未配置，请联系酒店。',
     draft: '未提交',
     submitted: '已提交',
     approved: '已通过',
@@ -593,11 +599,12 @@ const translations: Record<LangCode, Record<string, string>> = {
     confirmSend: '확인 및 전송',
     preview: '미리보기',
     send: '전송',
-    reviewNotice: '검토 후 자동으로 체크인 가이드를 보내드립니다.',
+    reviewNotice: '검토 후 자동으로 체크인 가이드를 안내해 드립니다.',
     submittedAwaitingReview: '제출됨, 검토 대기 중.',
     approvedTitle: '승인됨',
-    checkInGuideLabel: '아래는 체크인 가이드입니다:',
-    checkInGuide: '체크인 가이드 보기',
+    checkInGuideLabel: '체크인 가이드:',
+    checkInGuide: '체크인 가이드',
+    checkInGuideMissing: '체크인 가이드가 아직 설정되지 않았습니다. 호텔로 문의해 주세요.',
     draft: '미제출',
     submitted: '제출됨',
     approved: '승인됨',
