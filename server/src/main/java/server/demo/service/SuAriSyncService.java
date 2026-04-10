@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
@@ -235,6 +236,44 @@ public class SuAriSyncService {
                 .filter(r -> r != null && r.getRoom() != null && r.getRoom().getId() != null)
                 .collect(Collectors.groupingBy(r -> r.getRoom().getId()));
 
+        List<ReservationRepository.ReservationOccupancyRow> occupancyRows = reservationRepository
+                .findOccupancyRowsByStoreIdAndDateRangeAndStatuses(
+                        storeId,
+                        startDate,
+                        effectiveEndDate.plusDays(1L),
+                        BLOCKING_RESERVATION_STATUSES
+                );
+
+        Map<Long, int[]> bookedByRoomTypeId = new HashMap<>();
+        Map<Long, int[]> unassignedBookedByRoomTypeId = new HashMap<>();
+        for (ReservationRepository.ReservationOccupancyRow row : occupancyRows) {
+            if (row == null || row.getCheckInDate() == null || row.getCheckOutDate() == null) {
+                continue;
+            }
+            Long assignedRoomTypeId = row.getAssignedRoomTypeId();
+            Long otaRoomTypeId = row.getOtaRoomTypeId();
+            Long effectiveRoomTypeId = assignedRoomTypeId != null ? assignedRoomTypeId : otaRoomTypeId;
+            if (effectiveRoomTypeId == null || !roomTypeById.containsKey(effectiveRoomTypeId)) {
+                continue;
+            }
+            addBookedUnitsByDay(
+                    bookedByRoomTypeId.computeIfAbsent(effectiveRoomTypeId, ignored -> new int[effectiveDays]),
+                    row.getCheckInDate(),
+                    row.getCheckOutDate(),
+                    startDate,
+                    effectiveEndDate
+            );
+            if (assignedRoomTypeId == null && otaRoomTypeId != null) {
+                addBookedUnitsByDay(
+                        unassignedBookedByRoomTypeId.computeIfAbsent(otaRoomTypeId, ignored -> new int[effectiveDays]),
+                        row.getCheckInDate(),
+                        row.getCheckOutDate(),
+                        startDate,
+                        effectiveEndDate
+                );
+            }
+        }
+
         Map<Long, List<RoomBlockout>> blockoutsByRoomId = new HashMap<>();
         if (!roomIds.isEmpty()) {
             List<RoomBlockout> blockouts = roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(
@@ -258,13 +297,11 @@ public class SuAriSyncService {
             }
             totalRoomsByRoomTypeId.merge(rtId, 1, Integer::sum);
 
-            if (pushRestrictions && deriveClosedFromBlockouts) {
-                boolean[] blocked = buildBlockedOutCalendar(blockoutsByRoomId.get(room.getId()), startDate, effectiveDays);
-                int[] counts = blockedByRoomTypeId.computeIfAbsent(rtId, ignored -> new int[effectiveDays]);
-                for (int i = 0; i < effectiveDays; i++) {
-                    if (blocked[i]) {
-                        counts[i]++;
-                    }
+            boolean[] blocked = buildBlockedOutCalendar(blockoutsByRoomId.get(room.getId()), startDate, effectiveDays);
+            int[] counts = blockedByRoomTypeId.computeIfAbsent(rtId, ignored -> new int[effectiveDays]);
+            for (int i = 0; i < effectiveDays; i++) {
+                if (blocked[i]) {
+                    counts[i]++;
                 }
             }
         }
@@ -365,6 +402,36 @@ public class SuAriSyncService {
                         counts[i] = Math.min(counts[i], override);
                     }
                 }
+            }
+
+            for (Map.Entry<Long, int[]> entry : sellableByRoomTypeId.entrySet()) {
+                Long rtId = entry.getKey();
+                int[] counts = entry.getValue();
+                int[] unassignedBooked = unassignedBookedByRoomTypeId.get(rtId);
+                if (unassignedBooked == null) {
+                    continue;
+                }
+                for (int i = 0; i < effectiveDays; i++) {
+                    counts[i] = Math.max(0, counts[i] - unassignedBooked[i]);
+                }
+            }
+
+            for (Map.Entry<Long, int[]> entry : sellableByRoomTypeId.entrySet()) {
+                Long rtId = entry.getKey();
+                int[] sellable = entry.getValue();
+                int totalRooms = totalRoomsByRoomTypeId.getOrDefault(rtId, 0);
+                logger.info(
+                        "[SuAriSync][AvailabilityCalc] storeId={}, hotelId={}, roomTypeId={}, totalRooms={}, days={}, sellableByDay={}, bookedByDay={}, unassignedBookedByDay={}, blockoutByDay={}",
+                        storeId,
+                        hotelId,
+                        rtId,
+                        totalRooms,
+                        effectiveDays,
+                        formatDailyIntSeries(startDate, sellable, 62),
+                        formatDailyIntSeries(startDate, bookedByRoomTypeId.get(rtId), 62),
+                        formatDailyIntSeries(startDate, unassignedBookedByRoomTypeId.get(rtId), 62),
+                        formatDailyIntSeries(startDate, blockedByRoomTypeId.get(rtId), 62)
+                );
             }
         }
 
@@ -522,11 +589,12 @@ public class SuAriSyncService {
                     payload.put("room", availabilityRoomNodes);
 
                     logger.info(
-                            "[SuAriSync] posting availability(roomstosell). storeId={}, hotelId={}, roomTypes={}, segments={}",
+                            "[SuAriSync] posting availability(roomstosell). storeId={}, hotelId={}, roomTypes={}, segments={}, payloadSummary={}",
                             storeId,
                             hotelId,
                             availabilityRoomNodes.size(),
-                            availabilitySegments
+                            availabilitySegments,
+                            summarizeRoomPayload(availabilityRoomNodes, 8)
                     );
                     JsonNode resp = suAccessTokenService.executeWithTokenRetry(
                             token -> suApiClient.postAvailability(token, payload),
@@ -997,6 +1065,70 @@ public class SuAriSyncService {
             return GUESTS;
         }
         return Math.min(30, guests);
+    }
+
+    private static void addBookedUnitsByDay(
+            int[] target,
+            LocalDate checkInDate,
+            LocalDate checkOutDate,
+            LocalDate startDate,
+            LocalDate endDateInclusive
+    ) {
+        if (target == null || checkInDate == null || checkOutDate == null || startDate == null || endDateInclusive == null) {
+            return;
+        }
+        LocalDate from = checkInDate.isAfter(startDate) ? checkInDate : startDate;
+        LocalDate to = checkOutDate.minusDays(1L);
+        if (to.isAfter(endDateInclusive)) {
+            to = endDateInclusive;
+        }
+        if (to.isBefore(from)) {
+            return;
+        }
+        int fromOffset = (int) ChronoUnit.DAYS.between(startDate, from);
+        int toOffset = (int) ChronoUnit.DAYS.between(startDate, to);
+        for (int i = fromOffset; i <= toOffset && i < target.length; i++) {
+            if (i >= 0) {
+                target[i]++;
+            }
+        }
+    }
+
+    private static String formatDailyIntSeries(LocalDate startDate, int[] values, int maxDays) {
+        if (startDate == null || values == null || values.length == 0) {
+            return "[]";
+        }
+        int safeMax = Math.max(1, maxDays);
+        int renderDays = Math.min(values.length, safeMax);
+        StringJoiner joiner = new StringJoiner(", ", "[", values.length > renderDays ? ", ...]" : "]");
+        for (int i = 0; i < renderDays; i++) {
+            LocalDate date = startDate.plusDays(i);
+            joiner.add(date + "=" + values[i]);
+        }
+        return joiner.toString();
+    }
+
+    private static String summarizeRoomPayload(List<Map<String, Object>> roomNodes, int maxRooms) {
+        if (roomNodes == null || roomNodes.isEmpty()) {
+            return "[]";
+        }
+        int safeMax = Math.max(1, maxRooms);
+        int renderRooms = Math.min(roomNodes.size(), safeMax);
+        StringJoiner joiner = new StringJoiner(", ", "[", roomNodes.size() > renderRooms ? ", ...]" : "]");
+        for (int i = 0; i < renderRooms; i++) {
+            Map<String, Object> roomNode = roomNodes.get(i);
+            if (roomNode == null) {
+                continue;
+            }
+            Object roomId = roomNode.get("roomid");
+            Object dateObj = roomNode.get("date");
+            int segmentCount = 0;
+            if (dateObj instanceof List<?> dateList) {
+                segmentCount = dateList.size();
+            }
+            joiner.add("roomType=" + roomId + "#segments=" + segmentCount);
+        }
+        return joiner.toString();
     }
 
     private static String roomPlanKey(Long roomTypeId, Long planId) {

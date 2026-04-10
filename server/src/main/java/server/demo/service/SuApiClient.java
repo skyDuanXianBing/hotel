@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 
 /**
  * Su Channel Manager API 客户端
@@ -90,6 +91,42 @@ public class SuApiClient {
                 + ", app-id=" + hasAppId
                 + ", Content-Type=" + contentType
                 + "}";
+    }
+
+    private String abbreviate(String value, int maxLength) {
+        if (value == null) {
+            return "null";
+        }
+        int safeMaxLength = Math.max(1, maxLength);
+        if (value.length() <= safeMaxLength) {
+            return value;
+        }
+        return value.substring(0, safeMaxLength) + "...";
+    }
+
+    private String summarizePayload(Object payload) {
+        if (!(payload instanceof Map<?, ?> payloadMap)) {
+            return payload == null ? "null" : payload.getClass().getSimpleName();
+        }
+        Object hotelId = payloadMap.get("hotelid");
+        Object roomObj = payloadMap.get("room");
+        if (roomObj instanceof List<?> rooms) {
+            StringJoiner joiner = new StringJoiner(", ", "[", rooms.size() > 5 ? ", ...]" : "]");
+            int limit = Math.min(5, rooms.size());
+            for (int i = 0; i < limit; i++) {
+                Object roomNodeObj = rooms.get(i);
+                if (!(roomNodeObj instanceof Map<?, ?> roomMap)) {
+                    joiner.add("unknown");
+                    continue;
+                }
+                Object roomId = roomMap.get("roomid");
+                Object dateObj = roomMap.get("date");
+                int segmentCount = dateObj instanceof List<?> dateList ? dateList.size() : 0;
+                joiner.add("roomType=" + roomId + "#segments=" + segmentCount);
+            }
+            return "{hotelid=" + hotelId + ", roomCount=" + rooms.size() + ", roomPreview=" + joiner + "}";
+        }
+        return "{hotelid=" + hotelId + ", keys=" + payloadMap.keySet() + "}";
     }
 
     /**
@@ -431,17 +468,24 @@ public class SuApiClient {
         }
         HttpHeaders headers = buildSuAuthHeaders(accessToken, false, true);
         HttpEntity<Object> request = new HttpEntity<>(payload, headers);
+        String payloadSummary = summarizePayload(payload);
 
         try {
-            logger.info("Posting Su {} request", actionName);
+            logger.info("Posting Su {} request. url={}, payloadSummary={}", actionName, url, payloadSummary);
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
             String body = response.getBody();
             if (body == null || body.isBlank()) {
                 throw new RuntimeException("Su " + actionName + " returned empty response body");
             }
+            logger.info(
+                    "Su {} response received. status={}, bodyPreview={}",
+                    actionName,
+                    response.getStatusCode(),
+                    abbreviate(body, 300)
+            );
             return objectMapper.readTree(body);
         } catch (HttpClientErrorException.Unauthorized e) {
-            logger.warn("Su {} unauthorized (401). Retrying with app-id header.", actionName);
+            logger.warn("Su {} unauthorized (401). Retrying with app-id header. payloadSummary={}", actionName, payloadSummary);
             HttpHeaders retryHeaders = buildSuAuthHeaders(accessToken, true, true);
             HttpEntity<Object> retryRequest = new HttpEntity<>(payload, retryHeaders);
             try {
@@ -450,10 +494,16 @@ public class SuApiClient {
                 if (body == null || body.isBlank()) {
                     throw new RuntimeException("Su " + actionName + " returned empty response body (after retry)");
                 }
+                logger.info(
+                        "Su {} response received(after retry). status={}, bodyPreview={}",
+                        actionName,
+                        response.getStatusCode(),
+                        abbreviate(body, 300)
+                );
                 return objectMapper.readTree(body);
             } catch (HttpClientErrorException retryErr) {
                 String body = retryErr.getResponseBodyAsString();
-                logger.error("Su {} retry returned client error. status={}, body={}", actionName, retryErr.getStatusCode(), body);
+                logger.error("Su {} retry returned client error. status={}, payloadSummary={}, body={}", actionName, retryErr.getStatusCode(), payloadSummary, body);
                 if (retryErr instanceof HttpClientErrorException.Unauthorized) {
                     throw new SuApiUnauthorizedException(actionName, "Su " + actionName + " unauthorized (401) after retry", retryErr);
                 }
@@ -466,12 +516,12 @@ public class SuApiClient {
                 }
                 throw new RuntimeException("Su " + actionName + " returned error after retry: " + retryErr.getStatusCode(), retryErr);
             } catch (Exception retryErr) {
-                logger.error("Error calling Su {} (after retry)", actionName, retryErr);
+                logger.error("Error calling Su {} (after retry). payloadSummary={}", actionName, payloadSummary, retryErr);
                 throw new RuntimeException("Error calling Su " + actionName + " after retry: " + retryErr.getMessage(), retryErr);
             }
         } catch (HttpClientErrorException e) {
             String body = e.getResponseBodyAsString();
-            logger.error("Su {} returned client error. status={}, body={}", actionName, e.getStatusCode(), body);
+            logger.error("Su {} returned client error. status={}, payloadSummary={}, body={}", actionName, e.getStatusCode(), payloadSummary, body);
             if (e instanceof HttpClientErrorException.Unauthorized) {
                 throw new SuApiUnauthorizedException(actionName, "Su " + actionName + " unauthorized (401)", e);
             }
@@ -484,7 +534,7 @@ public class SuApiClient {
             }
             throw new RuntimeException("Su " + actionName + " returned error: " + e.getStatusCode(), e);
         } catch (Exception e) {
-            logger.error("Error calling Su {}", actionName, e);
+            logger.error("Error calling Su {}. payloadSummary={}", actionName, payloadSummary, e);
             throw new RuntimeException("Error calling Su " + actionName + ": " + e.getMessage(), e);
         }
     }

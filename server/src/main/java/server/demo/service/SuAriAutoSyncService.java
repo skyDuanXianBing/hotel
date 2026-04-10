@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.TreeSet;
 
 @Service
@@ -171,10 +172,34 @@ public class SuAriAutoSyncService {
             boolean pushRestrictions,
             boolean deriveClosedFromBlockouts
     ) {
+        LocalDate today = LocalDate.now();
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime notBefore = now.plusSeconds(Math.max(0, debounceSeconds));
 
-        List<DateRange> newRanges = mergeAndNormalizeRanges(dateRanges);
+        List<DateRange> requestedRanges = mergeAndNormalizeRanges(dateRanges);
+        List<DateRange> newRanges = trimPastRanges(requestedRanges, today);
+        if (newRanges.isEmpty()) {
+            logger.info(
+                    "[SuAriAutoSync][RangeTrim] skip enqueue(all past). storeId={}, hotelId={}, source={}, today={}, requestedRanges={}",
+                    storeId,
+                    hotelId,
+                    source,
+                    today,
+                    formatRangesForLog(requestedRanges)
+            );
+            return;
+        }
+        if (!requestedRanges.equals(newRanges)) {
+            logger.info(
+                    "[SuAriAutoSync][RangeTrim] enqueue trimmed past dates. storeId={}, hotelId={}, source={}, today={}, requestedRanges={}, effectiveRanges={}",
+                    storeId,
+                    hotelId,
+                    source,
+                    today,
+                    formatRangesForLog(requestedRanges),
+                    formatRangesForLog(newRanges)
+            );
+        }
         Set<Long> normalizedRoomTypeIds = normalizeIdSet(roomTypeIds);
         Set<Long> normalizedRatePlanIds = normalizeIdSet(ratePlanIds);
 
@@ -201,19 +226,45 @@ public class SuAriAutoSyncService {
                     && existingDeriveClosedFromBlockouts == deriveClosedFromBlockouts;
 
             if (sameScope) {
+                List<DateRange> existingRanges = parseDateRanges(existing.getDateRanges());
+                List<DateRange> mergedRanges = mergeAndNormalizeRanges(mergeRanges(existingRanges, newRanges));
+                List<DateRange> effectiveMergedRanges = trimPastRanges(mergedRanges, today);
+                if (effectiveMergedRanges.isEmpty()) {
+                    existing.setStatus(SuAriSyncEventStatus.SUCCEEDED);
+                    existing.setDateRanges(writeDateRanges(List.of()));
+                    existing.setLastError(null);
+                    existing.setNextRetryAt(null);
+                    existing.setNotBeforeAt(null);
+                    existing.setLastSuccessAt(now);
+                    existing = eventRepository.saveAndFlush(existing);
+                    logger.info(
+                            "[SuAriAutoSync][RangeTrim] coalesced event skipped(all past). eventId={}, storeId={}, hotelId={}, source={}, today={}, existingRanges={}, incomingRanges={}",
+                            existing.getId(),
+                            storeId,
+                            hotelId,
+                            source,
+                            today,
+                            formatRangesForLog(existingRanges),
+                            formatRangesForLog(newRanges)
+                    );
+                    return;
+                }
                 existing.setCoalescedCount((existing.getCoalescedCount() != null ? existing.getCoalescedCount() : 0) + 1);
                 existing.setNotBeforeAt(notBefore);
                 existing.setSource(source);
-                existing.setDateRanges(writeDateRanges(mergeAndNormalizeRanges(mergeRanges(parseDateRanges(existing.getDateRanges()), newRanges))));
+                existing.setDateRanges(writeDateRanges(effectiveMergedRanges));
                 existing = eventRepository.saveAndFlush(existing);
                 logger.info(
-                        "[SuAriAutoSync] queued(coalesced). eventId={}, storeId={}, hotelId={}, source={}, coalescedCount={}, notBeforeAt={}",
+                        "[SuAriAutoSync] queued(coalesced). eventId={}, storeId={}, hotelId={}, source={}, coalescedCount={}, notBeforeAt={}, roomTypeScope={}, ratePlanScope={}, ranges={}",
                         existing.getId(),
                         storeId,
                         hotelId,
                         source,
                         existing.getCoalescedCount(),
-                        existing.getNotBeforeAt()
+                        existing.getNotBeforeAt(),
+                        normalizedRoomTypeIds == null ? "ALL" : normalizedRoomTypeIds,
+                        normalizedRatePlanIds == null ? "ALL" : normalizedRatePlanIds,
+                        formatRangesForLog(effectiveMergedRanges)
                 );
                 return;
             }
@@ -234,12 +285,19 @@ public class SuAriAutoSyncService {
         e.setDeriveClosedFromBlockouts(deriveClosedFromBlockouts);
         e = eventRepository.saveAndFlush(e);
         logger.info(
-                "[SuAriAutoSync] queued(new). eventId={}, storeId={}, hotelId={}, source={}, notBeforeAt={}",
+                "[SuAriAutoSync] queued(new). eventId={}, storeId={}, hotelId={}, source={}, notBeforeAt={}, roomTypeScope={}, ratePlanScope={}, ranges={}, pushAvailability={}, pushRates={}, pushRestrictions={}, deriveClosedFromBlockouts={}",
                 e.getId(),
                 storeId,
                 hotelId,
                 source,
-                e.getNotBeforeAt()
+                e.getNotBeforeAt(),
+                normalizedRoomTypeIds == null ? "ALL" : normalizedRoomTypeIds,
+                normalizedRatePlanIds == null ? "ALL" : normalizedRatePlanIds,
+                formatRangesForLog(newRanges),
+                pushAvailability,
+                pushRates,
+                pushRestrictions,
+                deriveClosedFromBlockouts
         );
     }
 
@@ -268,11 +326,36 @@ public class SuAriAutoSyncService {
             }
 
             try {
-                List<DateRange> ranges = parseDateRanges(claimed.getDateRanges());
+                List<DateRange> parsedRanges = parseDateRanges(claimed.getDateRanges());
+                List<DateRange> ranges = parsedRanges;
                 if (ranges.isEmpty()) {
                     LocalDate startDate = LocalDate.now();
                     LocalDate endDate = startDate.plusDays(Math.max(1, days) - 1L);
                     ranges = List.of(new DateRange(startDate, endDate));
+                }
+                List<DateRange> effectiveRanges = trimPastRanges(mergeAndNormalizeRanges(ranges), LocalDate.now());
+                if (effectiveRanges.isEmpty()) {
+                    logger.info(
+                            "[SuAriAutoSync][RangeTrim] skip processing(all past). eventId={}, storeId={}, hotelId={}, source={}, parsedRanges={}, rawDateRanges={}",
+                            claimed.getId(),
+                            claimed.getStoreId(),
+                            claimed.getHotelId(),
+                            claimed.getSource(),
+                            formatRangesForLog(parsedRanges),
+                            claimed.getDateRanges()
+                    );
+                    markSucceeded(claimed.getId());
+                    processed++;
+                    continue;
+                }
+                if (!mergeAndNormalizeRanges(ranges).equals(effectiveRanges)) {
+                    logger.info(
+                            "[SuAriAutoSync][RangeTrim] processing trimmed past dates. eventId={}, source={}, parsedRanges={}, effectiveRanges={}",
+                            claimed.getId(),
+                            claimed.getSource(),
+                            formatRangesForLog(ranges),
+                            formatRangesForLog(effectiveRanges)
+                    );
                 }
 
                 Set<Long> roomTypeIds = parseIdSet(claimed.getRoomTypeIds());
@@ -283,10 +366,25 @@ public class SuAriAutoSyncService {
                 boolean pushRestrictions = !Boolean.FALSE.equals(claimed.getPushRestrictions());
                 boolean deriveClosedFromBlockouts = Boolean.TRUE.equals(claimed.getDeriveClosedFromBlockouts());
 
+                logger.info(
+                        "[SuAriAutoSync] processing event. eventId={}, storeId={}, hotelId={}, source={}, roomTypeScope={}, ratePlanScope={}, ranges={}, pushAvailability={}, pushRates={}, pushRestrictions={}, deriveClosedFromBlockouts={}",
+                        claimed.getId(),
+                        claimed.getStoreId(),
+                        claimed.getHotelId(),
+                        claimed.getSource(),
+                        roomTypeIds == null || roomTypeIds.isEmpty() ? "ALL" : roomTypeIds,
+                        ratePlanIds == null || ratePlanIds.isEmpty() ? "ALL" : ratePlanIds,
+                        formatRangesForLog(effectiveRanges),
+                        pushAvailability,
+                        pushRates,
+                        pushRestrictions,
+                        deriveClosedFromBlockouts
+                );
+
                 boolean availabilityOk = true;
                 boolean ratesOk = true;
                 String error = null;
-                for (DateRange r : mergeAndNormalizeRanges(ranges)) {
+                for (DateRange r : effectiveRanges) {
                     SuAriSyncService.SuAriSyncSummary summary = suAriSyncService.syncAriForDateRange(
                             claimed.getStoreId(),
                             claimed.getHotelId(),
@@ -309,6 +407,15 @@ public class SuAriAutoSyncService {
                     if ((summary == null || !summary.availabilityPushed() || !summary.ratesPushed()) && summary != null && summary.error() != null) {
                         error = error != null ? error + "; " + summary.error() : summary.error();
                     }
+                    logger.info(
+                            "[SuAriAutoSync] event range processed. eventId={}, range={}~{}, availabilityOk={}, ratesOk={}, summaryError={}",
+                            claimed.getId(),
+                            r.from(),
+                            r.to(),
+                            summary != null && summary.availabilityPushed(),
+                            summary != null && summary.ratesPushed(),
+                            summary != null ? summary.error() : "summary=null"
+                    );
                 }
 
                 boolean ok = (!pushAvailability || availabilityOk) && (!(pushRates || pushRestrictions) || ratesOk);
@@ -568,6 +675,39 @@ public class SuAriAutoSyncService {
         }
         merged.add(cur);
         return merged;
+    }
+
+    private static List<DateRange> trimPastRanges(List<DateRange> ranges, LocalDate today) {
+        if (ranges == null || ranges.isEmpty()) {
+            return List.of();
+        }
+        LocalDate effectiveToday = today != null ? today : LocalDate.now();
+        List<DateRange> out = new ArrayList<>();
+        for (DateRange r : ranges) {
+            if (!isValidRange(r)) {
+                continue;
+            }
+            if (r.to().isBefore(effectiveToday)) {
+                continue;
+            }
+            LocalDate from = r.from().isBefore(effectiveToday) ? effectiveToday : r.from();
+            out.add(new DateRange(from, r.to()));
+        }
+        return mergeAndNormalizeRanges(out);
+    }
+
+    private static String formatRangesForLog(List<DateRange> ranges) {
+        if (ranges == null || ranges.isEmpty()) {
+            return "[]";
+        }
+        StringJoiner joiner = new StringJoiner(", ", "[", "]");
+        for (DateRange r : ranges) {
+            if (r == null) {
+                continue;
+            }
+            joiner.add(r.from() + "~" + r.to());
+        }
+        return joiner.toString();
     }
 
     private static final class DateRangeJson {

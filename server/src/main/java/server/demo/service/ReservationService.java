@@ -55,6 +55,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -459,6 +460,14 @@ public class ReservationService {
             return;
         }
         Set<Long> roomTypeIds = roomTypeId != null ? Set.of(roomTypeId) : null;
+        logger.info(
+                "[SuAriTrace][Reservation] prepare enqueue. storeId={}, source={}, roomId={}, roomTypeId={}, range={}",
+                storeId,
+                source,
+                room != null ? room.getId() : null,
+                roomTypeId,
+                range.from() + "~" + range.to()
+        );
         scheduleSuAvailabilitySyncAfterCommit(
                 storeId,
                 source,
@@ -507,6 +516,15 @@ public class ReservationService {
             return;
         }
 
+        logger.info(
+                "[SuAriTrace][Reservation] prepare enqueue(change). storeId={}, source={}, oldRoomId={}, newRoomId={}, roomTypeScope={}, ranges={}",
+                storeId,
+                source,
+                oldRoom != null ? oldRoom.getId() : null,
+                newRoom != null ? newRoom.getId() : null,
+                roomTypeIds.isEmpty() ? "ALL" : roomTypeIds,
+                formatSuAriRanges(ranges)
+        );
         scheduleSuAvailabilitySyncAfterCommit(storeId, source, ranges, roomTypeIds.isEmpty() ? null : roomTypeIds);
     }
 
@@ -534,10 +552,11 @@ public class ReservationService {
                         false
                 );
                 logger.info(
-                        "[SuAriAutoSync] queued from reservation. storeId={}, source={}, ranges={}, roomTypeScope={}",
+                        "[SuAriAutoSync] queued from reservation. storeId={}, source={}, rangesCount={}, ranges={}, roomTypeScope={}",
                         storeId,
                         source,
                         ranges.size(),
+                        formatSuAriRanges(ranges),
                         roomTypeIds == null || roomTypeIds.isEmpty() ? "ALL" : roomTypeIds
                 );
             } catch (Exception e) {
@@ -563,6 +582,20 @@ public class ReservationService {
                 enqueue.run();
             }
         });
+    }
+
+    private String formatSuAriRanges(List<SuAriAutoSyncService.DateRange> ranges) {
+        if (ranges == null || ranges.isEmpty()) {
+            return "[]";
+        }
+        StringJoiner joiner = new StringJoiner(", ", "[", "]");
+        for (SuAriAutoSyncService.DateRange range : ranges) {
+            if (range == null || range.from() == null || range.to() == null) {
+                continue;
+            }
+            joiner.add(range.from() + "~" + range.to());
+        }
+        return joiner.toString();
     }
 
     private SuAriAutoSyncService.DateRange toInventoryDateRange(LocalDate checkInDate, LocalDate checkOutDate) {

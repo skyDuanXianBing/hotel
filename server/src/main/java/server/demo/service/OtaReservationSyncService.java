@@ -37,6 +37,8 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
+import java.util.UUID;
 
 @Service
 public class OtaReservationSyncService {
@@ -853,6 +855,7 @@ public class OtaReservationSyncService {
                     }
 
                     if (suAriAutoSyncService != null && !reqs.isEmpty()) {
+                        String ariTraceId = buildSuAriTraceId(notifId, orderNumber, reservation != null ? reservation.getId() : null);
                         try {
                             Set<Long> roomTypeIds = new LinkedHashSet<>();
                             List<SuAriAutoSyncService.DateRange> ranges = new ArrayList<>();
@@ -864,6 +867,17 @@ public class OtaReservationSyncService {
                                 ranges.add(new SuAriAutoSyncService.DateRange(req.startDate(), req.endDate()));
                             }
                             if (!roomTypeIds.isEmpty() && !ranges.isEmpty()) {
+                                reservationLogger.info(
+                                        "[ReservationUpsert][SuAriTrace] enqueue requested. traceId={}, storeId={}, hotelId={}, reservationId={}, notifId={}, orderNumber={}, roomTypeScope={}, ranges={}",
+                                        ariTraceId,
+                                        store.getId(),
+                                        suHotelId,
+                                        reservation != null ? reservation.getId() : null,
+                                        notifId,
+                                        orderNumber,
+                                        roomTypeIds,
+                                        formatDateRanges(ranges)
+                                );
                                 suAriAutoSyncService.enqueueForStoreDateRanges(
                                         store.getId(),
                                         "su_reservation_webhook",
@@ -875,19 +889,32 @@ public class OtaReservationSyncService {
                                         false,
                                         false
                                 );
+                                reservationLogger.info(
+                                        "[ReservationUpsert][SuAriTrace] enqueue submitted. traceId={}, storeId={}, hotelId={}, reservationId={}, notifId={}, orderNumber={}",
+                                        ariTraceId,
+                                        store.getId(),
+                                        suHotelId,
+                                        reservation != null ? reservation.getId() : null,
+                                        notifId,
+                                        orderNumber
+                                );
                             }
                         } catch (Exception ex) {
                             logger.warn(
-                                    "Enqueue SU ARI availability sync after reservation upsert failed. storeId={}, orderNumber={}, err={}",
+                                    "Enqueue SU ARI availability sync after reservation upsert failed. traceId={}, storeId={}, orderNumber={}, err={}",
+                                    ariTraceId,
                                     store.getId(),
                                     orderNumber,
                                     ex.getMessage(),
                                     ex
                             );
                             reservationLogger.error(
-                                    "[ReservationUpsert] enqueue su ari availability failed. storeId={}, hotelId={}, orderNumber={}, err={}",
+                                    "[ReservationUpsert][SuAriTrace] enqueue failed. traceId={}, storeId={}, hotelId={}, reservationId={}, notifId={}, orderNumber={}, err={}",
+                                    ariTraceId,
                                     store.getId(),
                                     suHotelId,
+                                    reservation != null ? reservation.getId() : null,
+                                    notifId,
                                     orderNumber,
                                     ex.getMessage()
                             );
@@ -1392,6 +1419,29 @@ public class OtaReservationSyncService {
         }
         return mergeChannelOrderNumber(channelCode, normalizedExisting, normalizedIncoming, fallbackOrderNumber);
     }
+
+    private static String buildSuAriTraceId(String notifId, String orderNumber, Long reservationId) {
+        String notifPart = normalizeLookupKey(notifId);
+        String orderPart = normalizeLookupKey(orderNumber);
+        String rid = reservationId != null ? String.valueOf(reservationId) : "na";
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        return "ari-" + (notifPart != null ? notifPart : (orderPart != null ? orderPart : "na")) + "-" + rid + "-" + suffix;
+    }
+
+    private static String formatDateRanges(List<SuAriAutoSyncService.DateRange> ranges) {
+        if (ranges == null || ranges.isEmpty()) {
+            return "[]";
+        }
+        StringJoiner joiner = new StringJoiner(", ", "[", "]");
+        for (SuAriAutoSyncService.DateRange range : ranges) {
+            if (range == null || range.from() == null || range.to() == null) {
+                continue;
+            }
+            joiner.add(range.from() + "~" + range.to());
+        }
+        return joiner.toString();
+    }
+
     private static String normalizeLookupKey(String value) {
         if (value == null) {
             return null;
