@@ -151,14 +151,6 @@
                   <div class="price-value">
                   {{ formatPrice(getDisplayPrice(row, date.dateStr)) }}
                   </div>
-                  <div class="price-source-line">
-                    <span class="price-source-tag" :class="getPriceSourceClass(row, date.dateStr)">
-                      {{ getPriceSourceLabel(row, date.dateStr) }}
-                    </span>
-                    <span v-if="getPriceLabsUpdatedTime(row, date.dateStr)" class="pricelabs-time">
-                      {{ getPriceLabsUpdatedTime(row, date.dateStr) }}
-                    </span>
-                  </div>
                   <div class="rooms-count">
                     <el-icon><Moon /></el-icon>
                     {{ row.dates[date.dateStr]?.minStay ?? 1 }}
@@ -439,68 +431,10 @@ interface PriceTableRow {
 
 const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefined => {
   const cellData = row.dates[priceDate]
-
-  if (cellData?.priceLabsBasePrice !== undefined && cellData?.priceLabsBasePrice !== null) {
-    return cellData.priceLabsBasePrice
-  }
-
-  const manualOverrideActive = Boolean(cellData?.manualOverride) && (
-    !cellData?.manualOverrideUntil || priceDate <= cellData.manualOverrideUntil
-  )
-  if (manualOverrideActive && cellData?.price !== undefined && cellData?.price !== null) {
-    return cellData.price
-  }
-
   if (cellData?.price !== undefined && cellData?.price !== null) {
     return cellData.price
   }
   return undefined
-}
-
-const getEffectivePriceSource = (row: PriceTableRow, priceDate: string): 'MANUAL' | 'PRICELABS' | 'SYSTEM' => {
-  const cellData = row.dates[priceDate]
-
-  if (cellData?.priceLabsBasePrice !== undefined && cellData?.priceLabsBasePrice !== null) {
-    return 'PRICELABS'
-  }
-  if (cellData?.priceSource === 'PRICELABS') {
-    return 'PRICELABS'
-  }
-
-  const manualOverrideActive = Boolean(cellData?.manualOverride) && (
-    !cellData?.manualOverrideUntil || priceDate <= cellData.manualOverrideUntil
-  )
-  if (manualOverrideActive) {
-    return 'MANUAL'
-  }
-  return 'SYSTEM'
-}
-
-const getPriceSourceLabel = (row: PriceTableRow, priceDate: string): string => {
-  const source = getEffectivePriceSource(row, priceDate)
-  if (source === 'MANUAL') return 'MANUAL'
-  if (source === 'PRICELABS') return 'PL'
-  return 'SYSTEM'
-}
-
-const getPriceSourceClass = (row: PriceTableRow, priceDate: string): string => {
-  const source = getEffectivePriceSource(row, priceDate)
-  if (source === 'MANUAL') return 'source-manual'
-  if (source === 'PRICELABS') return 'source-pricelabs'
-  return 'source-system'
-}
-
-const getPriceLabsUpdatedTime = (row: PriceTableRow, priceDate: string): string => {
-  const value = row.dates[priceDate]?.priceLabsUpdatedAt
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 const getRoomsCount = (row: PriceTableRow, priceDate: string): number => {
@@ -1356,46 +1290,6 @@ onMounted(() => {
   font-weight: 600;
   color: #303133;
   font-size: 13px;
-}
-
-.price-source-line {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.price-source-tag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 46px;
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.source-pricelabs {
-  background: #e8f4ff;
-  color: #0969da;
-}
-
-.source-manual {
-  background: #fff3e0;
-  color: #b35a00;
-}
-
-.source-system {
-  background: #f2f3f5;
-  color: #606266;
-}
-
-.pricelabs-time {
-  font-size: 10px;
-  color: #909399;
-  line-height: 1.2;
 }
 
 .rooms-count {
