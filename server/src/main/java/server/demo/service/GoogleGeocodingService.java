@@ -77,7 +77,7 @@ public class GoogleGeocodingService {
             uriBuilder.queryParam("components", "country:" + countryAlpha2.toLowerCase(Locale.ROOT));
         }
 
-        URI uri = uriBuilder.build(true).toUri();
+        URI uri = uriBuilder.build().encode().toUri();
 
         try {
             ResponseEntity<GoogleGeocodeResponse> resp = priceLabsRestTemplate.getForEntity(uri, GoogleGeocodeResponse.class);
