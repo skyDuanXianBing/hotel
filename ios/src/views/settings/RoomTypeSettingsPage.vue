@@ -305,40 +305,59 @@
             <div class="settings-form-section">
               <div class="settings-room-numbers__header">
                 <div>
-                  <h2 class="mobile-section-title">房间号维护</h2>
-                  <p class="mobile-note">房间号支持在当前房型内统一维护，方便随时整理。</p>
+                  <h2 class="mobile-section-title">房间维护</h2>
+                  <p class="mobile-note">支持维护房间号与房间密码，房间密码选填，便于移动端逐项编辑。</p>
                 </div>
-                <ion-button size="small" fill="outline" :disabled="submitting" @click="handleAddRoomNumber">
-                  新增房间号
+                <ion-button size="small" fill="outline" :disabled="submitting" @click="handleAddRoom">
+                  新增房间
                 </ion-button>
               </div>
 
               <div class="settings-room-numbers__list">
                 <div
-                  v-for="(roomNumber, index) in roomTypeForm.roomNumbers"
+                  v-for="(room, index) in roomTypeForm.rooms"
                   :key="index"
-                  class="settings-room-number-row"
+                  class="settings-room-entry"
                 >
-                  <ion-input
-                    v-model="roomTypeForm.roomNumbers[index]"
-                    :disabled="submitting"
-                    fill="outline"
-                    placeholder="请输入房间号"
-                  />
-                  <ion-button
-                    size="small"
-                    color="danger"
-                    fill="clear"
-                    :disabled="submitting"
-                    @click="handleRemoveRoomNumber(index)"
-                  >
-                    删除
-                  </ion-button>
+                  <div class="settings-room-entry__header">
+                    <strong>房间 {{ index + 1 }}</strong>
+                    <ion-button
+                      size="small"
+                      color="danger"
+                      fill="clear"
+                      :disabled="submitting"
+                      @click="handleRemoveRoom(index)"
+                    >
+                      删除
+                    </ion-button>
+                  </div>
+
+                  <div class="settings-room-entry__fields">
+                    <label class="settings-form-field">
+                      <span>房间号</span>
+                      <ion-input
+                        v-model="roomTypeForm.rooms[index].roomNumber"
+                        :disabled="submitting"
+                        fill="outline"
+                        placeholder="请输入房间号"
+                      />
+                    </label>
+
+                    <label class="settings-form-field">
+                      <span>房间密码（可选）</span>
+                      <ion-input
+                        v-model="roomTypeForm.rooms[index].smartlockPasscode"
+                        :disabled="submitting"
+                        fill="outline"
+                        placeholder="请输入房间密码"
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
 
               <p class="mobile-note settings-room-numbers__hint">
-                至少保留一个房间号；保存前会检查空值、同表单重复以及与其他房型的冲突。
+                至少保留一个房间；保存前会检查房间号空值、同表单重复以及与其他房型的冲突。
               </p>
             </div>
 
@@ -403,6 +422,7 @@ import {
   buildLocalizedContent,
   buildRoomTypeCode,
   buildRoomTypePriceSummary,
+  extractRoomEntries,
   extractRoomNumbers,
   formatFacilitiesText,
   formatUrlTextList,
@@ -456,7 +476,12 @@ interface RoomTypeFormState {
   facilitiesText: string
   desktopPhotoUrlsText: string
   mobilePhotoUrlsText: string
-  roomNumbers: string[]
+  rooms: RoomFormItem[]
+}
+
+interface RoomFormItem {
+  roomNumber: string
+  smartlockPasscode: string
 }
 
 const router = useRouter()
@@ -500,14 +525,24 @@ function createEmptyRoomTypeForm(): RoomTypeFormState {
     facilitiesText: '',
     desktopPhotoUrlsText: '',
     mobilePhotoUrlsText: '',
-    roomNumbers: [''],
+    rooms: [createEmptyRoomFormItem()],
+  }
+}
+
+function createEmptyRoomFormItem(): RoomFormItem {
+  return {
+    roomNumber: '',
+    smartlockPasscode: '',
   }
 }
 
 function cloneRoomTypeForm(form: RoomTypeFormState): RoomTypeFormState {
   return {
     ...form,
-    roomNumbers: [...form.roomNumbers],
+    rooms: form.rooms.map((room) => ({
+      roomNumber: room.roomNumber,
+      smartlockPasscode: room.smartlockPasscode,
+    })),
   }
 }
 
@@ -539,7 +574,11 @@ function formatSizeText(roomType: RoomTypeWithRoomsDTO) {
 }
 
 function createFormFromRoomType(roomType: RoomTypeWithRoomsDTO): RoomTypeFormState {
-  const roomNumbers = extractRoomNumbers(roomType)
+  const roomEntries = extractRoomEntries(roomType)
+  const rooms = roomEntries.map((room) => ({
+    roomNumber: room.roomNumber,
+    smartlockPasscode: room.smartlockPasscode || '',
+  }))
 
   return {
     name: roomType.name,
@@ -562,7 +601,7 @@ function createFormFromRoomType(roomType: RoomTypeWithRoomsDTO): RoomTypeFormSta
     facilitiesText: formatFacilitiesText(roomType.facilities),
     desktopPhotoUrlsText: formatUrlTextList(roomType.desktopPhotoUrls),
     mobilePhotoUrlsText: formatUrlTextList(roomType.mobilePhotoUrls),
-    roomNumbers: roomNumbers.length > 0 ? roomNumbers : [''],
+    rooms: rooms.length > 0 ? rooms : [createEmptyRoomFormItem()],
   }
 }
 
@@ -763,17 +802,17 @@ function handleCloseEditor() {
   resetEditorState()
 }
 
-function handleAddRoomNumber() {
-  roomTypeForm.value.roomNumbers.push('')
+function handleAddRoom() {
+  roomTypeForm.value.rooms.push(createEmptyRoomFormItem())
 }
 
-function handleRemoveRoomNumber(index: number) {
-  if (roomTypeForm.value.roomNumbers.length <= 1) {
-    roomTypeForm.value.roomNumbers[0] = ''
+function handleRemoveRoom(index: number) {
+  if (roomTypeForm.value.rooms.length <= 1) {
+    roomTypeForm.value.rooms[0] = createEmptyRoomFormItem()
     return
   }
 
-  roomTypeForm.value.roomNumbers.splice(index, 1)
+  roomTypeForm.value.rooms.splice(index, 1)
 }
 
 function handleApplyDefaultPrice() {
@@ -827,18 +866,18 @@ function parseOptionalNonNegativeNumber(rawValue: string, fieldLabel: string) {
   return Number(value.toFixed(2))
 }
 
-function buildValidatedRoomNumbers() {
-  if (roomTypeForm.value.roomNumbers.length === 0) {
-    showWarningToast('请至少输入一个房间号')
+function buildValidatedRooms() {
+  if (roomTypeForm.value.rooms.length === 0) {
+    showWarningToast('请至少输入一个房间')
     return null
   }
 
-  const roomNumbers: string[] = []
+  const rooms: Array<{ roomNumber: string; smartlockPasscode?: string }> = []
   const normalizedRoomNumbers = new Set<string>()
 
-  for (let index = 0; index < roomTypeForm.value.roomNumbers.length; index += 1) {
-    const roomNumber = roomTypeForm.value.roomNumbers[index]
-    const trimmedRoomNumber = roomNumber.trim()
+  for (let index = 0; index < roomTypeForm.value.rooms.length; index += 1) {
+    const room = roomTypeForm.value.rooms[index]
+    const trimmedRoomNumber = room.roomNumber.trim()
     if (!trimmedRoomNumber) {
       showWarningToast(`第 ${index + 1} 个房间号不能为空`)
       return null
@@ -851,7 +890,11 @@ function buildValidatedRoomNumbers() {
     }
 
     normalizedRoomNumbers.add(normalizedRoomNumber)
-    roomNumbers.push(trimmedRoomNumber)
+    const trimmedSmartlockPasscode = room.smartlockPasscode.trim()
+    rooms.push({
+      roomNumber: trimmedRoomNumber,
+      smartlockPasscode: trimmedSmartlockPasscode || undefined,
+    })
   }
 
   const occupiedRoomMap = new Map<string, RoomTypeView>()
@@ -865,7 +908,8 @@ function buildValidatedRoomNumbers() {
     }
   }
 
-  for (const roomNumber of roomNumbers) {
+  for (const room of rooms) {
+    const roomNumber = room.roomNumber
     const conflictRoomType = occupiedRoomMap.get(roomNumber.toUpperCase())
     if (conflictRoomType) {
       showWarningToast(
@@ -875,7 +919,7 @@ function buildValidatedRoomNumbers() {
     }
   }
 
-  return roomNumbers
+  return rooms
 }
 
 function validateNameConflict(name: string) {
@@ -990,10 +1034,12 @@ function buildValidatedPayload() {
     return null
   }
 
-  const roomNumbers = buildValidatedRoomNumbers()
-  if (!roomNumbers) {
+  const rooms = buildValidatedRooms()
+  if (!rooms) {
     return null
   }
+
+  const roomNumbers = rooms.map((room) => room.roomNumber)
 
   const code = buildRoomTypeCode(shortName, editingRoomType.value?.code)
   if (!code) {
@@ -1008,7 +1054,7 @@ function buildValidatedPayload() {
     name,
     code,
     description: shortName,
-    totalRooms: roomNumbers.length,
+    totalRooms: rooms.length,
     maxGuests,
     maxChildOccupancy,
     checkInGuideLink: normalizedGuideLink || undefined,
@@ -1023,6 +1069,7 @@ function buildValidatedPayload() {
     fridayPrice,
     saturdayPrice,
     sundayPrice,
+    rooms,
     roomNumbers,
     facilities: parseFacilitiesText(roomTypeForm.value.facilitiesText),
     desktopPhotoUrls: desktopPhotoResult.urls,
@@ -1226,11 +1273,18 @@ onIonViewWillEnter(async () => {
 }
 
 .settings-editor-card {
-  gap: 20px;
+  gap: 0;
 }
 
 .settings-form-section {
   gap: 14px;
+}
+
+.settings-form-section + .settings-form-section,
+.settings-form-section + .settings-form-actions {
+  border-top: 1px solid var(--app-border);
+  margin-top: 12px;
+  padding-top: 16px;
 }
 
 .settings-form-grid {
@@ -1270,11 +1324,30 @@ onIonViewWillEnter(async () => {
   gap: 10px;
 }
 
-.settings-room-number-row {
+.settings-room-entry {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.settings-room-entry__header {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-room-entry__header strong {
+  color: var(--app-heading);
+  font-size: 14px;
+}
+
+.settings-room-entry__fields {
+  display: grid;
+  gap: 12px;
 }
 
 .settings-room-numbers__hint {
@@ -1291,6 +1364,13 @@ onIonViewWillEnter(async () => {
 @media (max-width: 680px) {
   .settings-price-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-section-heading,
+  .settings-room-numbers__header,
+  .settings-room-entry__header {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

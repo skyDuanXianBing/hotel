@@ -9,6 +9,8 @@ import {
   type DailyRoomStatusDTO,
   type RoomStatusStatisticsDTO,
 } from '@/api/roomStatus'
+import { getAllRoomGroups, getGroupMembers } from '@/api/roomGroup'
+import { getAllRoomTypesWithRooms } from '@/api/roomType'
 import {
   getAllChannels,
   getReservationById,
@@ -16,6 +18,9 @@ import {
   type ChannelDTO,
   type ReservationDTO,
 } from '@/api/reservation'
+import { getSortOrderMap } from '@/api/sortConfig'
+import { useUserStore } from '@/stores/user'
+import type { RoomGroupDTO, RoomGroupMemberDTO } from '@/types/settings'
 import { showSuccessToast } from '@/utils/notify'
 
 export type BatchWeekMode = 'all' | 'weekday' | 'weekend'
@@ -82,6 +87,7 @@ export type RoomStatusBusinessState =
   | 'unknown'
 
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
+const DEFAULT_SORT_ORDER = Number.MAX_SAFE_INTEGER
 
 export const formatDateKey = (date: Date) => {
   const year = date.getFullYear()
@@ -310,6 +316,7 @@ function buildWeekModeRanges(startDate: string, endDate: string, weekMode: Batch
 }
 
 export const useRoomStatusStore = defineStore('roomStatus', () => {
+  const userStore = useUserStore()
   const today = formatDateKey(new Date())
   const selectedDate = ref(today)
   const windowStartDate = ref(addDays(today, -1))
@@ -326,6 +333,11 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   const reservationAmountCache = ref<Record<number, number>>({})
   const reservationAmountPending = new Map<number, Promise<void>>()
   const reservationAmountUnavailable = new Set<number>()
+  const roomTypeSortOrderMap = ref<Record<string, number>>({})
+  const roomSortOrderMap = ref<Record<number, number>>({})
+  const roomToGroupSortOrderMap = ref<Map<number, number>>(new Map())
+  const sortContextUserId = ref(0)
+  const sortContextLoaded = ref(false)
 
   const visibleDates = computed<RoomStatusDateItem[]>(() => {
     const items: RoomStatusDateItem[] = []
@@ -362,9 +374,49 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     }
   })
 
+  const getRoomGroupSortOrder = (roomId: number) => {
+    return roomToGroupSortOrderMap.value.get(roomId) ?? DEFAULT_SORT_ORDER
+  }
+
+  const getRoomTypeSortOrder = (roomType: string) => {
+    return roomTypeSortOrderMap.value[roomType] ?? DEFAULT_SORT_ORDER
+  }
+
+  const getRoomSortOrder = (roomId: number) => {
+    return roomSortOrderMap.value[roomId] ?? DEFAULT_SORT_ORDER
+  }
+
+  const compareCalendarRooms = (left: CalendarRoomDataDTO, right: CalendarRoomDataDTO) => {
+    const groupOrderDiff = getRoomGroupSortOrder(left.roomId) - getRoomGroupSortOrder(right.roomId)
+    if (groupOrderDiff !== 0) {
+      return groupOrderDiff
+    }
+
+    const roomTypeOrderDiff = getRoomTypeSortOrder(left.roomType) - getRoomTypeSortOrder(right.roomType)
+    if (roomTypeOrderDiff !== 0) {
+      return roomTypeOrderDiff
+    }
+
+    const roomOrderDiff = getRoomSortOrder(left.roomId) - getRoomSortOrder(right.roomId)
+    if (roomOrderDiff !== 0) {
+      return roomOrderDiff
+    }
+
+    const roomTypeNameDiff = left.roomType.localeCompare(right.roomType, 'zh-CN')
+    if (roomTypeNameDiff !== 0) {
+      return roomTypeNameDiff
+    }
+
+    return left.roomNumber.localeCompare(right.roomNumber, 'zh-CN')
+  }
+
+  const sortedCalendarRooms = computed(() => {
+    return [...calendarRooms.value].sort(compareCalendarRooms)
+  })
+
   const roomTypes = computed(() => {
     const uniqueRoomTypes = new Set<string>()
-    for (const room of calendarRooms.value) {
+    for (const room of sortedCalendarRooms.value) {
       uniqueRoomTypes.add(room.roomType)
     }
     return Array.from(uniqueRoomTypes)
@@ -374,10 +426,10 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const filteredRooms = computed(() => {
     if (roomTypeSet.value.size === 0) {
-      return calendarRooms.value
+      return sortedCalendarRooms.value
     }
 
-    return calendarRooms.value.filter((room) => roomTypeSet.value.has(room.roomType))
+    return sortedCalendarRooms.value.filter((room) => roomTypeSet.value.has(room.roomType))
   })
 
   const visibleRoomItems = computed<RoomStatusRoomItem[]>(() => {
@@ -424,12 +476,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       })
     }
 
-    return items.sort((left, right) => {
-      if (left.roomType === right.roomType) {
-        return left.roomNumber.localeCompare(right.roomNumber, 'zh-CN')
-      }
-      return left.roomType.localeCompare(right.roomType, 'zh-CN')
-    })
+    return items
   })
 
   const groupedVisibleRooms = computed(() => {
@@ -624,6 +671,134 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     await Promise.all(reservationIds.map((reservationId) => hydrateReservationAmount(reservationId)))
   }
 
+  function resetSortContext() {
+    roomTypeSortOrderMap.value = {}
+    roomSortOrderMap.value = {}
+    roomToGroupSortOrderMap.value = new Map()
+  }
+
+  async function loadSortContext(force = false) {
+    const userId = userStore.currentUser?.id
+
+    if (!userId) {
+      sortContextUserId.value = 0
+      sortContextLoaded.value = true
+      resetSortContext()
+      return
+    }
+
+    if (!force && sortContextLoaded.value && sortContextUserId.value === userId) {
+      return
+    }
+
+    try {
+      const [roomTypeSortResult, roomSortResult, roomGroupSortResult, roomTypesResult, roomGroupsResult] =
+        await Promise.allSettled([
+          getSortOrderMap(userId, 'ROOM_TYPE'),
+          getSortOrderMap(userId, 'ROOM'),
+          getSortOrderMap(userId, 'GROUP'),
+          getAllRoomTypesWithRooms(),
+          getAllRoomGroups(),
+        ])
+
+      if (roomTypeSortResult.status === 'rejected') {
+        console.error('加载房型排序配置失败', roomTypeSortResult.reason)
+      }
+      if (roomSortResult.status === 'rejected') {
+        console.error('加载房间排序配置失败', roomSortResult.reason)
+      }
+      if (roomGroupSortResult.status === 'rejected') {
+        console.error('加载分组排序配置失败', roomGroupSortResult.reason)
+      }
+      if (roomTypesResult.status === 'rejected') {
+        console.error('加载房型列表失败', roomTypesResult.reason)
+      }
+      if (roomGroupsResult.status === 'rejected') {
+        console.error('加载房间分组失败', roomGroupsResult.reason)
+      }
+
+      roomSortOrderMap.value =
+        roomSortResult.status === 'fulfilled' && roomSortResult.value.success && roomSortResult.value.data
+          ? roomSortResult.value.data
+          : {}
+
+      const nextRoomTypeSortOrderMap: Record<string, number> = {}
+      const rawRoomTypeSortOrderMap =
+        roomTypeSortResult.status === 'fulfilled' &&
+        roomTypeSortResult.value.success &&
+        roomTypeSortResult.value.data
+          ? roomTypeSortResult.value.data
+          : {}
+
+      if (
+        roomTypesResult.status === 'fulfilled' &&
+        roomTypesResult.value.success &&
+        Array.isArray(roomTypesResult.value.data)
+      ) {
+        for (const roomType of roomTypesResult.value.data) {
+          nextRoomTypeSortOrderMap[roomType.name] =
+            rawRoomTypeSortOrderMap[roomType.id] ?? DEFAULT_SORT_ORDER
+        }
+      }
+
+      roomTypeSortOrderMap.value = nextRoomTypeSortOrderMap
+
+      const roomGroupSortOrderMap =
+        roomGroupSortResult.status === 'fulfilled' &&
+        roomGroupSortResult.value.success &&
+        roomGroupSortResult.value.data
+          ? roomGroupSortResult.value.data
+          : {}
+      const nextRoomToGroupSortOrderMap = new Map<number, number>()
+
+      if (
+        roomGroupsResult.status === 'fulfilled' &&
+        roomGroupsResult.value.success &&
+        Array.isArray(roomGroupsResult.value.data)
+      ) {
+        const roomGroups = roomGroupsResult.value.data.filter(
+          (group: RoomGroupDTO) => typeof group.id === 'number',
+        ) as Array<RoomGroupDTO & { id: number }>
+
+        const memberResponses = await Promise.all(
+          roomGroups.map(async (group) => {
+            try {
+              const response = await getGroupMembers(group.id)
+              if (!response.success || !Array.isArray(response.data)) {
+                return [] as RoomGroupMemberDTO[]
+              }
+              return response.data
+            } catch (error) {
+              console.error(`加载房间分组成员失败，groupId=${group.id}`, error)
+              return [] as RoomGroupMemberDTO[]
+            }
+          }),
+        )
+
+        for (let index = 0; index < roomGroups.length; index += 1) {
+          const group = roomGroups[index]
+          const members = memberResponses[index]
+          const groupSortOrder = roomGroupSortOrderMap[group.id] ?? DEFAULT_SORT_ORDER
+
+          for (const member of members) {
+            const previousSortOrder = nextRoomToGroupSortOrderMap.get(member.roomId)
+            if (previousSortOrder === undefined || groupSortOrder < previousSortOrder) {
+              nextRoomToGroupSortOrderMap.set(member.roomId, groupSortOrder)
+            }
+          }
+        }
+      }
+
+      roomToGroupSortOrderMap.value = nextRoomToGroupSortOrderMap
+    } catch (error) {
+      console.error('加载房态排序上下文失败', error)
+      resetSortContext()
+    } finally {
+      sortContextUserId.value = userId
+      sortContextLoaded.value = true
+    }
+  }
+
   async function loadCalendar() {
     const response = await getRoomStatusCalendar(visibleRange.value.startDate, visibleRange.value.endDate)
     if (!response.success || !response.data) {
@@ -658,6 +833,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   async function initialize(force = false) {
     if (!force && calendarRooms.value.length > 0 && channels.value.length > 0) {
+      await loadSortContext(false)
       await loadStatistics()
       await hydrateMissingReservationAmounts()
       return
@@ -665,19 +841,22 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
     loading.value = true
     try {
-      await Promise.all([loadCalendar(), loadStatistics(), loadChannels(force)])
+      await Promise.all([loadCalendar(), loadStatistics(), loadChannels(force), loadSortContext(force)])
       await hydrateMissingReservationAmounts()
     } finally {
       loading.value = false
     }
   }
 
-  async function refreshAll() {
+  async function refreshAll(reloadSortContext = false) {
     loading.value = true
     try {
       const loadTasks = [loadCalendar(), loadStatistics()]
       if (channels.value.length === 0) {
         loadTasks.push(loadChannels())
+      }
+      if (reloadSortContext) {
+        loadTasks.push(loadSortContext(true))
       }
 
       await Promise.all(loadTasks)

@@ -31,13 +31,30 @@ export const ROOM_TYPE_DAILY_PRICE_FIELDS = [
 
 type DailyPriceKey = (typeof ROOM_TYPE_DAILY_PRICE_FIELDS)[number]['key']
 
+export function extractRoomEntries(roomType: Pick<RoomTypeWithRoomsDTO, 'rooms'>) {
+  const rooms: Array<{ roomNumber: string; smartlockPasscode?: string }> = []
+
+  for (const room of roomType.rooms || []) {
+    const roomNumber = room.roomNumber?.trim() || ''
+    if (!roomNumber) {
+      continue
+    }
+
+    const smartlockPasscode = room.smartlockPasscode?.trim()
+    rooms.push({
+      roomNumber,
+      smartlockPasscode: smartlockPasscode || undefined,
+    })
+  }
+
+  return rooms
+}
+
 export function extractRoomNumbers(roomType: Pick<RoomTypeWithRoomsDTO, 'rooms'>) {
   const roomNumbers: string[] = []
 
-  for (const room of roomType.rooms || []) {
-    if (room.roomNumber) {
-      roomNumbers.push(room.roomNumber)
-    }
+  for (const room of extractRoomEntries(roomType)) {
+    roomNumbers.push(room.roomNumber)
   }
 
   return roomNumbers
@@ -284,6 +301,8 @@ export function buildLocalizedContent(
 }
 
 export function buildExistingRoomTypePayload(roomType: RoomTypeWithRoomsDTO): CreateRoomTypeRequest {
+  const rooms = extractRoomEntries(roomType)
+
   return {
     name: roomType.name,
     code: roomType.code,
@@ -305,7 +324,8 @@ export function buildExistingRoomTypePayload(roomType: RoomTypeWithRoomsDTO): Cr
     fridayPrice: roomType.fridayPrice,
     saturdayPrice: roomType.saturdayPrice,
     sundayPrice: roomType.sundayPrice,
-    roomNumbers: extractRoomNumbers(roomType),
+    roomNumbers: rooms.map((room) => room.roomNumber),
+    rooms,
     facilities: roomType.facilities,
     desktopPhotoUrls: roomType.desktopPhotoUrls,
     mobilePhotoUrls: roomType.mobilePhotoUrls,
