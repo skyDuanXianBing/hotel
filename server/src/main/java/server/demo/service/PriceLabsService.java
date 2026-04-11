@@ -265,13 +265,15 @@ public class PriceLabsService {
         }
         PriceLabsConnection connection = new PriceLabsConnection(roomType, pricePlan);
         connection.setStoreId(storeId);
-        connection.generatePriceLabsListingId();
+        String listingId = PriceLabsIdUtil.formatListingIdWithTimestamp(storeId, roomTypeId);
+        connection.setPriceLabsListingId(listingId);
 
         PriceLabsConnection saved = connectionRepository.save(connection);
         priceLabsSyncService.syncListingRatePlanAndCalendar(
                 storeId,
                 roomType,
                 pricePlan,
+            saved.getPriceLabsListingId(),
                 PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS
         );
         return convertToConnectionDTO(saved);
@@ -398,7 +400,7 @@ public class PriceLabsService {
                     RoomPrice rp = existingRpOpt
                             .orElse(new RoomPrice(roomType, pricePlan, priceDate, basePrice));
                     rp.setPrice(basePrice);
-                    rp.setPriceSource(RoomPrice.PRICE_SOURCE_PRICELABS);
+                        rp.setPriceSource(RoomPrice.PRICE_SOURCE_MANUAL);
                     // 业务规则：PriceLabs 回推视为高优先级手动改价，覆盖本地手工改价。
                     rp.setManualOverride(Boolean.TRUE);
                     rp.setManualOverrideUntil(null);

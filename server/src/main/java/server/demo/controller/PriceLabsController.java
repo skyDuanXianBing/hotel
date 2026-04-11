@@ -325,6 +325,8 @@ public class PriceLabsController {
     ) {
         try {
             Long storeId = StoreContextHolder.getContext().getStoreId();
+            // 同一 listing_id 下执行 listing/rate_plan/calendar 全量重推，修复 PriceLabs 侧定价不可见问题。
+            priceLabsSyncService.syncListingRatePlanAndCalendarForRoomType(storeId, roomTypeId, days);
             priceLabsSyncService.pullPricesForRoomTypeAsync(storeId, roomTypeId, days);
             return ResponseEntity.ok(ApiResponse.success("房型价格同步已触发", Map.of("message", "已发起拉取")));
         } catch (Exception e) {

@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -577,6 +578,7 @@ public class PriceLabsSyncService {
                 PriceLabsApiClient.CalendarData cal = toCalendar(
                         rt,
                         plan,
+                    PriceLabsIdUtil.formatListingId(rt.getStoreId(), rt.getId()),
                         prices,
                         start,
                         end,
@@ -643,12 +645,136 @@ public class PriceLabsSyncService {
         logger.info("Room type {} sync complete", rt.getName());
     }
 
+    @Async
+    public void syncListingForRoomTypeAsync(Long storeId, Long roomTypeId) {
+        try {
+            syncListingForRoomType(storeId, roomTypeId);
+        } catch (Exception ex) {
+            logger.warn("[PriceLabsListing] async room type listing sync failed. storeId={}, roomTypeId={}, err={}",
+                    storeId,
+                    roomTypeId,
+                    ex.getMessage());
+        }
+    }
+
+    @Async
+    public void syncListingsUsingStoreAddressAsync(Long storeId) {
+        try {
+            syncListingsUsingStoreAddress(storeId);
+        } catch (Exception ex) {
+            logger.warn("[PriceLabsListing] async fallback listing sync failed. storeId={}, err={}",
+                    storeId,
+                    ex.getMessage());
+        }
+    }
+
+    @Transactional
+    public void syncListingForRoomType(Long storeId, Long roomTypeId) {
+        if (storeId == null || roomTypeId == null) {
+            return;
+        }
+
+        PriceLabsIntegration integration = integrationRepo.findByStoreId(storeId).orElse(null);
+        if (integration == null || !Boolean.TRUE.equals(integration.getIsEnabled())) {
+            return;
+        }
+
+        String userToken = integration.getPriceLabsEmail();
+        if (userToken == null || userToken.trim().isEmpty()) {
+            return;
+        }
+
+        Store store = storeRepo.findById(storeId).orElse(null);
+        if (store == null) {
+            return;
+        }
+
+        RoomType roomType = roomTypeRepo.findById(roomTypeId)
+                .filter(rt -> storeId.equals(rt.getStoreId()))
+                .orElse(null);
+        if (roomType == null) {
+            return;
+        }
+
+        validateStoreForPriceLabs(store);
+        String listingId = resolveListingIdForRoomType(storeId, roomType.getId());
+        PriceLabsApiClient.PriceLabsResponse listingRes = apiClient.pushListings(List.of(toListing(roomType, store, userToken, listingId)));
+        if (listingRes.getFailure() != null && !listingRes.getFailure().isEmpty()) {
+            throw new RuntimeException("房源推送失败：" + summarizeFailures(listingRes.getFailure()));
+        }
+    }
+
+    @Transactional
+    public void syncListingRatePlanAndCalendarForRoomType(Long storeId, Long roomTypeId, Integer days) {
+        if (storeId == null || roomTypeId == null) {
+            throw new IllegalArgumentException("storeId and roomTypeId are required");
+        }
+
+        PriceLabsConnection connection = connectionRepo.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, roomTypeId)
+                .orElseThrow(() -> new RuntimeException("No enabled PriceLabs connection found"));
+
+        RoomType roomType = connection.getRoomType();
+        PricePlan pricePlan = connection.getPricePlan();
+        if (roomType == null || roomType.getId() == null) {
+            throw new RuntimeException("Invalid connection: room type missing");
+        }
+        if (pricePlan == null || pricePlan.getId() == null) {
+            throw new RuntimeException("Invalid connection: price plan missing");
+        }
+
+        String listingId = normalizeListingId(connection, storeId);
+        syncListingRatePlanAndCalendar(storeId, roomType, pricePlan, listingId, days);
+    }
+
+    @Transactional
+    public void syncListingsUsingStoreAddress(Long storeId) {
+        if (storeId == null) {
+            return;
+        }
+
+        PriceLabsIntegration integration = integrationRepo.findByStoreId(storeId).orElse(null);
+        if (integration == null || !Boolean.TRUE.equals(integration.getIsEnabled())) {
+            return;
+        }
+
+        String userToken = integration.getPriceLabsEmail();
+        if (userToken == null || userToken.trim().isEmpty()) {
+            return;
+        }
+
+        Store store = storeRepo.findById(storeId).orElse(null);
+        if (store == null) {
+            return;
+        }
+
+        validateStoreForPriceLabs(store);
+
+        List<RoomType> fallbackRoomTypes = roomTypeRepo.findByStoreId(storeId).stream()
+                .filter(rt -> rt.getRoomTypeAddress() == null || rt.getRoomTypeAddress().isBlank())
+                .collect(Collectors.toList());
+
+        if (fallbackRoomTypes.isEmpty()) {
+            return;
+        }
+
+        List<PriceLabsApiClient.ListingData> listings = new ArrayList<>();
+        for (RoomType roomType : fallbackRoomTypes) {
+            String listingId = resolveListingIdForRoomType(storeId, roomType.getId());
+            listings.add(toListing(roomType, store, userToken, listingId));
+        }
+
+        PriceLabsApiClient.PriceLabsResponse listingRes = apiClient.pushListings(listings);
+        if (listingRes.getFailure() != null && !listingRes.getFailure().isEmpty()) {
+            throw new RuntimeException("房源推送失败：" + summarizeFailures(listingRes.getFailure()));
+        }
+    }
+
     /**
      * Push listing + selected rate plan + calendar for a single room type.
      * Failure will throw and should rollback the caller transaction.
      */
     @Transactional
-    public void syncListingRatePlanAndCalendar(Long storeId, RoomType roomType, PricePlan pricePlan, Integer days) {
+    public void syncListingRatePlanAndCalendar(Long storeId, RoomType roomType, PricePlan pricePlan, String listingId, Integer days) {
         if (storeId == null) {
             throw new IllegalArgumentException("storeId is required");
         }
@@ -680,14 +806,18 @@ public class PriceLabsSyncService {
             throw new RuntimeException("PriceLabs email (user_token) not configured for store: " + storeId);
         }
 
-        PriceLabsApiClient.ListingData listing = toListing(roomType, store, userToken);
+        String resolvedListingId = (listingId != null && !listingId.isBlank())
+            ? listingId
+            : PriceLabsIdUtil.formatListingId(storeId, roomType.getId());
+
+        PriceLabsApiClient.ListingData listing = toListing(roomType, store, userToken, resolvedListingId);
         PriceLabsApiClient.PriceLabsResponse listingRes = apiClient.pushListings(List.of(listing));
         if (listingRes.getFailure() != null && !listingRes.getFailure().isEmpty()) {
             String summary = summarizeFailures(listingRes.getFailure());
             throw new RuntimeException("Listing push failed: " + summary);
         }
 
-        List<PriceLabsApiClient.RatePlanData> ratePlanPayload = buildRatePlanPayloadForRoomType(roomType, pricePlan);
+        List<PriceLabsApiClient.RatePlanData> ratePlanPayload = buildRatePlanPayloadForRoomType(roomType, pricePlan, resolvedListingId);
         PriceLabsApiClient.PriceLabsResponse ratePlanRes = apiClient.pushRatePlans(ratePlanPayload);
         if (ratePlanRes.getFailure() != null && !ratePlanRes.getFailure().isEmpty()) {
             String summary = summarizeFailures(ratePlanRes.getFailure());
@@ -701,6 +831,7 @@ public class PriceLabsSyncService {
         PriceLabsConnection temp = new PriceLabsConnection(roomType, pricePlan);
         temp.setStoreId(storeId);
         temp.setIsEnabled(true);
+        temp.setPriceLabsListingId(resolvedListingId);
         syncCalendarForConnections(storeId, List.of(temp), start, end);
 
         LocalDateTime now = LocalDateTime.now();
@@ -710,8 +841,12 @@ public class PriceLabsSyncService {
     }
 
     private PriceLabsApiClient.ListingData toListing(RoomType rt, Store s, String userToken) {
+        return toListing(rt, s, userToken, PriceLabsIdUtil.formatListingId(s.getId(), rt.getId()));
+    }
+
+    private PriceLabsApiClient.ListingData toListing(RoomType rt, Store s, String userToken, String listingId) {
         PriceLabsApiClient.ListingData d = new PriceLabsApiClient.ListingData();
-        d.setListingId(PriceLabsIdUtil.formatListingId(s.getId(), rt.getId()));
+        d.setListingId(listingId);
         d.setUserToken(userToken);
         if (rt.getName() == null || rt.getName().trim().isEmpty()) {
             throw new RuntimeException("房型名称不能为空（room_type_id=" + rt.getId() + "）");
@@ -861,9 +996,13 @@ public class PriceLabsSyncService {
     }
 
     private PriceLabsApiClient.RatePlanData toRatePlan(RoomType rt, RoomTypePricePlan p) {
+        return toRatePlan(rt, p, PriceLabsIdUtil.formatListingId(rt.getStoreId(), rt.getId()));
+    }
+
+    private PriceLabsApiClient.RatePlanData toRatePlan(RoomType rt, RoomTypePricePlan p, String listingId) {
         PricePlan plan = p.getPricePlan();
         PriceLabsApiClient.RatePlanData d = new PriceLabsApiClient.RatePlanData();
-        d.setListingId(PriceLabsIdUtil.formatListingId(rt.getStoreId(), rt.getId()));
+        d.setListingId(listingId);
         d.setRatePlanId(PriceLabsIdUtil.formatRatePlanId(plan.getId()));
         d.setName(plan.getName());
         List<RoomTypePricePlan> all = rtppRepo.findByRoomTypeId(rt.getId());
@@ -872,7 +1011,11 @@ public class PriceLabsSyncService {
         return d;
     }
 
-    private List<PriceLabsApiClient.RatePlanData> buildRatePlanPayloadForRoomType(RoomType roomType, PricePlan selectedPlan) {
+    private List<PriceLabsApiClient.RatePlanData> buildRatePlanPayloadForRoomType(
+            RoomType roomType,
+            PricePlan selectedPlan,
+            String listingId
+    ) {
         if (roomType == null || roomType.getId() == null) {
             throw new RuntimeException("roomType is required");
         }
@@ -896,7 +1039,7 @@ public class PriceLabsSyncService {
             }
 
             PriceLabsApiClient.RatePlanData data = new PriceLabsApiClient.RatePlanData();
-            data.setListingId(PriceLabsIdUtil.formatListingId(roomType.getStoreId(), roomType.getId()));
+            data.setListingId(listingId);
             data.setRatePlanId(PriceLabsIdUtil.formatRatePlanId(planId));
             data.setName(mapping.getPricePlan().getName());
             data.setIsDefault(selectedPlan.getId().equals(planId));
@@ -918,6 +1061,7 @@ public class PriceLabsSyncService {
     private PriceLabsApiClient.CalendarData toCalendar(
             RoomType rt,
             PricePlan plan,
+            String listingId,
             List<RoomPrice> prices,
             LocalDate start,
             LocalDate end,
@@ -927,7 +1071,7 @@ public class PriceLabsSyncService {
             PriceLabsApiClient.MultiUnitInfo multiUnitInfo
     ) {
         PriceLabsApiClient.CalendarData d = new PriceLabsApiClient.CalendarData();
-        d.setListingId(PriceLabsIdUtil.formatListingId(rt.getStoreId(), rt.getId()));
+        d.setListingId(listingId);
         d.setRatePlanId(PriceLabsIdUtil.formatRatePlanId(plan.getId()));
         d.setCurrency(currency);
         d.setMultiUnit(multiUnitInfo);
@@ -1322,12 +1466,14 @@ public class PriceLabsSyncService {
                     rt.getId(),
                     id -> buildMultiUnitInfo(storeId, rt)
             );
+                String listingId = normalizeListingId(conn, storeId);
 
             List<RoomPrice> prices = roomPriceRepo.findByStoreIdAndRoomTypeIdAndPriceDateBetween(
                     storeId, rt.getId(), start, end);
             PriceLabsApiClient.CalendarData cal = toCalendar(
                     rt,
                     plan,
+                    listingId,
                     prices,
                     start,
                     end,
@@ -1475,11 +1621,41 @@ public class PriceLabsSyncService {
         }
     }
 
+    private String resolveListingIdForRoomType(Long storeId, Long roomTypeId) {
+        if (storeId == null || roomTypeId == null) {
+            throw new IllegalArgumentException("storeId and roomTypeId are required");
+        }
+
+        Optional<PriceLabsConnection> enabledConn = connectionRepo.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, roomTypeId);
+        if (enabledConn.isPresent()) {
+            String listingId = enabledConn.get().getPriceLabsListingId();
+            if (listingId != null && !listingId.isBlank()) {
+                return listingId.trim();
+            }
+        }
+
+        for (PriceLabsConnection conn : connectionRepo.findByRoomTypeId(roomTypeId)) {
+            if (!storeId.equals(conn.getStoreId())) {
+                continue;
+            }
+            String listingId = conn.getPriceLabsListingId();
+            if (listingId != null && !listingId.isBlank()) {
+                return listingId.trim();
+            }
+        }
+
+        return PriceLabsIdUtil.formatListingId(storeId, roomTypeId);
+    }
+
     private void migrateConnectionListingIds(Long storeId) {
         connectionRepo.findByStoreId(storeId).forEach(conn -> {
             if (conn.getRoomType() == null) return;
             String expected = PriceLabsIdUtil.formatListingId(storeId, conn.getRoomType().getId());
-            if (!expected.equals(conn.getPriceLabsListingId())) {
+            String existing = conn.getPriceLabsListingId();
+            boolean keepExisting = existing != null
+                    && (expected.equals(existing)
+                    || existing.startsWith(expected + "_ts_"));
+            if (!keepExisting) {
                 conn.setPriceLabsListingId(expected);
                 connectionRepo.save(conn);
             }

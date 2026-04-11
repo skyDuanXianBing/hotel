@@ -44,6 +44,9 @@ public class StoreService {
     @Autowired
     private StoreUserPermissionRepository storeUserPermissionRepository;
 
+    @Autowired
+    private PriceLabsSyncService priceLabsSyncService;
+
     public List<StoreDTO> getUserStores(Long userId) {
         List<StoreUser> storeUsers = storeUserRepository.findActiveStoresByUserId(userId);
         return storeUsers.stream()
@@ -120,6 +123,9 @@ public class StoreService {
         }
 
         Store store = storeUser.getStore();
+
+        boolean fallbackAddressChanged = hasStoreFallbackAddressChanged(store, request);
+
         store.setName(request.getName());
         store.setPhone(request.getPhone());
         store.setPhoneTechType(request.getPhoneTechType());
@@ -153,9 +159,28 @@ public class StoreService {
         }
 
         Store updatedStore = storeRepository.save(store);
+        if (fallbackAddressChanged) {
+            priceLabsSyncService.syncListingsUsingStoreAddressAsync(updatedStore.getId());
+        }
         upsertStorePolicy(updatedStore, request);
         syncStoreToSu(updatedStore);
         return convertToDTO(updatedStore, storeUser.getRole());
+    }
+
+    private boolean hasStoreFallbackAddressChanged(Store store, CreateStoreRequest request) {
+        return !Objects.equals(normalizeOptionalText(store.getAddress()), normalizeOptionalText(request.getAddress()))
+                || !Objects.equals(normalizeOptionalText(store.getCity()), normalizeOptionalText(request.getCity()))
+                || !Objects.equals(normalizeOptionalText(store.getState()), normalizeOptionalText(request.getState()))
+                || !Objects.equals(normalizeOptionalText(store.getCountry()), normalizeOptionalText(request.getCountry()))
+                || !Objects.equals(normalizeOptionalText(store.getTimezone()), normalizeOptionalText(request.getTimezone()));
+    }
+
+    private static String normalizeOptionalText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     @Transactional

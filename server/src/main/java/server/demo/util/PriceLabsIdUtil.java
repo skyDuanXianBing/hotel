@@ -5,7 +5,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class PriceLabsIdUtil {
-    private static final Pattern LISTING_ID_PATTERN = Pattern.compile("^store_(\\d+)_room_type_(\\d+)$");
+    private static final Pattern LISTING_ID_PATTERN = Pattern.compile("^store_(\\d+)_room_type_(\\d+)(?:_ts_(\\d+))?$");
     private static final Pattern LEGACY_LISTING_ID_PATTERN = Pattern.compile("^rt_(\\d+)$");
     private static final Pattern LEGACY_LISTING_ID_PATTERN_2 = Pattern.compile("^store_(\\d+)_rt_(\\d+)(?:_plan_(\\d+))?$");
 
@@ -16,6 +16,10 @@ public final class PriceLabsIdUtil {
 
     public static String formatListingId(long storeId, long roomTypeId) {
         return "store_" + storeId + "_room_type_" + roomTypeId;
+    }
+
+    public static String formatListingIdWithTimestamp(long storeId, long roomTypeId) {
+        return formatListingId(storeId, roomTypeId) + "_ts_" + System.currentTimeMillis();
     }
 
     public static String formatRatePlanId(long pricePlanId) {

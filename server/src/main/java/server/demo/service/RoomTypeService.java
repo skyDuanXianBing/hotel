@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
@@ -86,6 +87,9 @@ public class RoomTypeService {
 
     @Autowired
     private SuImageSyncService suImageSyncService;
+
+    @Autowired
+    private PriceLabsSyncService priceLabsSyncService;
 
     @Value("${su.content.autosync.roomtype.enabled:true}")
     private boolean suRoomTypeAutoSyncEnabled;
@@ -464,6 +468,11 @@ public class RoomTypeService {
             throw new RuntimeException("Duplicate room type name exists in current store");
         }
 
+        boolean roomTypeAddressChanged = !Objects.equals(
+            normalizeOptionalText(existingRoomType.getRoomTypeAddress()),
+            normalizeOptionalText(roomType.getRoomTypeAddress())
+        );
+
         existingRoomType.setName(normalizedName);
         existingRoomType.setCode(normalizedCode);
 
@@ -471,7 +480,20 @@ public class RoomTypeService {
         existingRoomType.setMaxGuests(roomType.getMaxGuests());
         applyOptionalRoomTypeFields(existingRoomType, roomType);
 
-        return roomTypeRepository.save(existingRoomType);
+        RoomType savedRoomType = roomTypeRepository.save(existingRoomType);
+        if (roomTypeAddressChanged) {
+            priceLabsSyncService.syncListingForRoomTypeAsync(storeId, savedRoomType.getId());
+        }
+
+        return savedRoomType;
+    }
+
+    private static String normalizeOptionalText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     public RoomType updateRoomTypeWithRooms(Long id, RoomType roomType, List<String> roomNumbers) {
