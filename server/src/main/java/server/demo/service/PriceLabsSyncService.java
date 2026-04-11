@@ -856,13 +856,18 @@ public class PriceLabsSyncService {
         d.setStatus("available");
 
         String city = s.getCity();
-        String addressForCoordinates = firstNonBlank(rt.getRoomTypeAddress(), s.getAddress());
+        String roomTypeAddress = rt.getRoomTypeAddress();
+        boolean hasRoomTypeAddress = roomTypeAddress != null && !roomTypeAddress.isBlank();
+        String addressForCoordinates = firstNonBlank(roomTypeAddress, s.getAddress());
 
         String countryAlpha3 = PriceLabsCountryUtil.normalizeToAlpha3(s.getCountry());
         if (countryAlpha3 == null) {
             throw new RuntimeException("请先补全门店地址信息：国家必须为 ISO 三字码（例如 CHN），当前值=" + s.getCountry());
         }
-        double[] coords = getCityCoordinates(city, s.getState(), addressForCoordinates, countryAlpha3, s.getTimezone());
+        String geocodeCity = hasRoomTypeAddress ? null : city;
+        String geocodeState = hasRoomTypeAddress ? null : s.getState();
+        String geocodeCountryAlpha3 = hasRoomTypeAddress ? null : countryAlpha3;
+        double[] coords = getCityCoordinates(geocodeCity, geocodeState, addressForCoordinates, geocodeCountryAlpha3, s.getTimezone());
         PriceLabsApiClient.Location location = new PriceLabsApiClient.Location();
         location.setCity(city);
         location.setCountry(countryAlpha3);
