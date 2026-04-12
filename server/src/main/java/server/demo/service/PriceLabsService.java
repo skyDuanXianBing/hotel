@@ -464,10 +464,10 @@ public class PriceLabsService {
                         cp.setPriceLabsUpdatedAt(syncedAt);
                         cp.setIsSyncedToOta(false);
                         cp.setOtaSyncAt(null);
-                        if (isAvailabilityOnly(distributionMode)) {
-                            cp.setOtaSyncState(ChannelPriceOtaSyncState.NOT_REQUIRED);
-                        } else {
+                        if (shouldPushAvailability(distributionMode) || shouldPushRates(distributionMode)) {
                             cp.setOtaSyncState(ChannelPriceOtaSyncState.PENDING);
+                        } else {
+                            cp.setOtaSyncState(ChannelPriceOtaSyncState.NOT_REQUIRED);
                         }
 
                         channelPriceRepository.save(cp);
@@ -476,7 +476,14 @@ public class PriceLabsService {
                 }
             }
 
-            if (suAriAutoSyncService != null && storeId != null && !affectedDates.isEmpty() && shouldPushAvailability(distributionMode)) {
+                boolean pushAvailability = shouldPushAvailability(distributionMode);
+                boolean pushRates = shouldPushRates(distributionMode);
+                boolean pushRestrictions = false;
+
+                if (suAriAutoSyncService != null
+                    && storeId != null
+                    && !affectedDates.isEmpty()
+                    && (pushAvailability || pushRates || pushRestrictions)) {
                 List<SuAriAutoSyncService.DateRange> ranges = new ArrayList<>();
                 LocalDate rangeStart = null;
                 LocalDate prev = null;
@@ -502,9 +509,9 @@ public class PriceLabsService {
                         ranges,
                         Set.of(roomType.getId()),
                         Set.of(pricePlan.getId()),
-                        true,
-                        false,
-                        false,
+                    pushAvailability,
+                    pushRates,
+                    pushRestrictions,
                         false
                 );
             }
@@ -1011,13 +1018,17 @@ public class PriceLabsService {
         return PriceLabsDistributionMode.AVAILABILITY_ONLY;
     }
 
-    private static boolean isAvailabilityOnly(String mode) {
-        return PriceLabsDistributionMode.AVAILABILITY_ONLY.equals(normalizeDistributionMode(mode));
-    }
-
     private static boolean shouldPushAvailability(String mode) {
         String normalized = normalizeDistributionMode(mode);
         return PriceLabsDistributionMode.AVAILABILITY_ONLY.equals(normalized)
+                || PriceLabsDistributionMode.BOTH.equals(normalized);
+    }
+
+    // AVAILABILITY_ONLY 表示走 availability 接口模式，允许同时携带 roomstosell + rates。
+    private static boolean shouldPushRates(String mode) {
+        String normalized = normalizeDistributionMode(mode);
+        return PriceLabsDistributionMode.INVRATECONTROL_ONLY.equals(normalized)
+                || PriceLabsDistributionMode.AVAILABILITY_ONLY.equals(normalized)
                 || PriceLabsDistributionMode.BOTH.equals(normalized);
     }
 }
