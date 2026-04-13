@@ -656,12 +656,21 @@ public class OtaReservationSyncService {
                     Channel channel = resolveChannel(store.getId(), channelCode)
                             .orElseThrow(() -> new IllegalStateException("渠道不存在: " + channelCode));
 
+                    String externalBookingKey = resolveExternalBookingKey(
+                            channelCode,
+                            channelBookingId,
+                            reservationId,
+                            generatedOrderNumber
+                    );
+
                     ReservationLookupResult lookupResult = resolveReservationTargetForUpsert(
                             store.getId(),
+                            channel.getId(),
                             generatedOrderNumber,
                             reservationId,
                             roomReservationIdentity,
-                            channelBookingId
+                            channelBookingId,
+                            externalBookingKey
                     );
 
                     Reservation reservation = lookupResult.reservation();
@@ -714,6 +723,14 @@ public class OtaReservationSyncService {
                             notifId
                     );
                     reservation.setChannelOrderNumber(mergedChannelOrderNumber);
+                    String mergedExternalBookingKey = mergeExternalBookingKey(
+                            reservation.getExternalBookingKey(),
+                            externalBookingKey,
+                            store.getId(),
+                            reservationId,
+                            notifId
+                    );
+                    reservation.setExternalBookingKey(mergedExternalBookingKey);
                     String ratePlanId = SuReservationParser.extractRatePlanId(reservationNode, roomStay);
                     reservation.setPricePlan(resolvePricePlanDisplay(store.getId(), ratePlanId, pricePlanDisplayCache));
 
@@ -1250,15 +1267,18 @@ public class OtaReservationSyncService {
 
     ReservationLookupResult resolveReservationTargetForUpsert(
             Long storeId,
+            Long channelId,
             String generatedOrderNumber,
             String suReservationId,
             String roomReservationIdentity,
-            String channelOrderNumber
+            String channelOrderNumber,
+            String externalBookingKey
     ) {
         String normalizedGeneratedOrderNumber = normalizeLookupKey(generatedOrderNumber);
         String normalizedSuReservationId = normalizeLookupKey(suReservationId);
         String normalizedRoomReservationIdentity = normalizeLookupKey(roomReservationIdentity);
         String normalizedChannelOrderNumber = normalizeLookupKey(channelOrderNumber);
+        String normalizedExternalBookingKey = normalizeLookupKey(externalBookingKey);
 
         if (normalizedGeneratedOrderNumber != null) {
             Optional<Reservation> byOrderNumber = reservationRepository.findByStoreIdAndOrderNumber(
@@ -1288,6 +1308,35 @@ public class OtaReservationSyncService {
                     resolvedOrderNumber = normalizedGeneratedOrderNumber;
                 }
                 return new ReservationLookupResult(existing, "SU_ROOM_KEY", resolvedOrderNumber);
+            }
+        }
+
+        if (channelId != null && normalizedExternalBookingKey != null) {
+            List<Reservation> byExternalBookingKey = reservationRepository.findByStoreIdAndChannelIdAndExternalBookingKey(
+                    storeId,
+                    channelId,
+                    normalizedExternalBookingKey
+            );
+            if (byExternalBookingKey.size() == 1) {
+                Reservation existing = byExternalBookingKey.get(0);
+                String resolvedOrderNumber = normalizeLookupKey(existing.getOrderNumber());
+                if (resolvedOrderNumber == null) {
+                    resolvedOrderNumber = normalizedGeneratedOrderNumber;
+                }
+                return new ReservationLookupResult(existing, "EXTERNAL_BOOKING_KEY_UNIQUE", resolvedOrderNumber);
+            }
+
+            if (byExternalBookingKey.size() > 1) {
+                reservationLogger.warn(
+                        "[ReservationUpsert] multiple records share externalBookingKey; fallback disabled. storeId={}, channelId={}, externalBookingKey={}, matchedCount={}, suReservationId={}, roomReservationId={}, generatedOrderNumber={}",
+                        storeId,
+                        channelId,
+                        normalizedExternalBookingKey,
+                        byExternalBookingKey.size(),
+                        normalizedSuReservationId,
+                        normalizedRoomReservationIdentity,
+                        normalizedGeneratedOrderNumber
+                );
             }
         }
 
@@ -1365,6 +1414,40 @@ public class OtaReservationSyncService {
         return normalizeLookupKey(reservation.getOrderNumber());
     }
 
+    static String resolveExternalBookingKey(
+            String channelCode,
+            String channelOrderNumber,
+            String suReservationId,
+            String fallbackOrderNumber
+    ) {
+        String normalizedChannel = channelCode != null ? channelCode.trim().toUpperCase(Locale.ROOT) : null;
+        if (OTA_CHANNEL_CODE_BOOKING.equals(normalizedChannel) || "BOOKING.COM".equals(normalizedChannel)) {
+            String fromChannelOrderNumber = SuReservationParser.normalizeBookingReservationId(channelOrderNumber);
+            if (fromChannelOrderNumber != null) {
+                return fromChannelOrderNumber;
+            }
+
+            String fromSuReservationId = SuReservationParser.normalizeBookingReservationId(suReservationId);
+            if (fromSuReservationId != null) {
+                return fromSuReservationId;
+            }
+
+            return SuReservationParser.extractBookingReservationIdFromOrderNumber(fallbackOrderNumber);
+        }
+
+        String normalizedChannelOrderNumber = normalizeLookupKey(channelOrderNumber);
+        if (normalizedChannelOrderNumber != null) {
+            return normalizedChannelOrderNumber;
+        }
+
+        String fromSuReservationPrefix = extractExternalKeyFromSuReservationId(suReservationId);
+        if (fromSuReservationPrefix != null) {
+            return fromSuReservationPrefix;
+        }
+
+        return normalizeLookupKey(suReservationId);
+    }
+
     static String mergeChannelOrderNumber(
             String channelCode,
             String existingValue,
@@ -1418,6 +1501,44 @@ public class OtaReservationSyncService {
             );
         }
         return mergeChannelOrderNumber(channelCode, normalizedExisting, normalizedIncoming, fallbackOrderNumber);
+    }
+
+    private static String extractExternalKeyFromSuReservationId(String suReservationId) {
+        String normalized = normalizeLookupKey(suReservationId);
+        if (normalized == null) {
+            return null;
+        }
+
+        int separatorIndex = normalized.indexOf('_');
+        if (separatorIndex > 0) {
+            return normalized.substring(0, separatorIndex);
+        }
+
+        return null;
+    }
+
+    private String mergeExternalBookingKey(
+            String existingValue,
+            String incomingValue,
+            Long storeId,
+            String reservationId,
+            String notifId
+    ) {
+        String normalizedExisting = normalizeLookupKey(existingValue);
+        String normalizedIncoming = normalizeLookupKey(incomingValue);
+        if (normalizedExisting != null
+                && normalizedIncoming != null
+                && !normalizedExisting.equals(normalizedIncoming)) {
+            reservationLogger.warn(
+                    "[ReservationUpsert] external booking key changed. storeId={}, reservationId={}, notifId={}, old={}, incoming={}",
+                    storeId,
+                    reservationId,
+                    notifId,
+                    normalizedExisting,
+                    normalizedIncoming
+            );
+        }
+        return normalizedIncoming != null ? normalizedIncoming : normalizedExisting;
     }
 
     private static String buildSuAriTraceId(String notifId, String orderNumber, Long reservationId) {

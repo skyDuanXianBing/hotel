@@ -29,14 +29,18 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 .thenReturn(Optional.empty());
         when(repository.findByStoreIdAndSuReservationIdAndRoomReservationId(7L, "6588792273_W39FVCQYSN", "1775048736013"))
                 .thenReturn(Optional.empty());
+        when(repository.findByStoreIdAndChannelIdAndExternalBookingKey(7L, 19L, "6588792273"))
+                .thenReturn(List.of());
         when(repository.findByStoreIdAndChannelOrderNumber(7L, "6588792273"))
                 .thenReturn(List.of(existing));
 
         OtaReservationSyncService.ReservationLookupResult result = service.resolveReservationTargetForUpsert(
                 7L,
+                19L,
                 "SU26-6588792273_W39FVCQYSN-NEW",
                 "6588792273_W39FVCQYSN",
                 "1775048736013",
+                "6588792273",
                 "6588792273"
         );
 
@@ -60,15 +64,18 @@ class OtaReservationSyncServiceUpsertLookupTest {
 
         OtaReservationSyncService.ReservationLookupResult result = service.resolveReservationTargetForUpsert(
                 8L,
+                19L,
                 "SU26-NEW",
                 "R-100",
                 "ROOM-2",
+                "BOOKING-200",
                 "BOOKING-200"
         );
 
         assertSame(existing, result.reservation());
         assertEquals("SU_ROOM_KEY", result.matchStrategy());
         assertEquals("SU26-EXISTING", result.resolvedOrderNumber());
+        verify(repository, never()).findByStoreIdAndChannelIdAndExternalBookingKey(8L, 19L, "BOOKING-200");
         verify(repository, never()).findByStoreIdAndChannelOrderNumber(8L, "BOOKING-200");
     }
 
@@ -81,14 +88,18 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 .thenReturn(Optional.empty());
         when(repository.findByStoreIdAndSuReservationIdAndRoomReservationId(9L, "R-200", "ROOM-3"))
                 .thenReturn(Optional.empty());
+        when(repository.findByStoreIdAndChannelIdAndExternalBookingKey(9L, 19L, "BOOKING-300"))
+                .thenReturn(List.of());
         when(repository.findByStoreIdAndChannelOrderNumber(9L, "BOOKING-300"))
                 .thenReturn(List.of(new Reservation(), new Reservation()));
 
         OtaReservationSyncService.ReservationLookupResult result = service.resolveReservationTargetForUpsert(
                 9L,
+                19L,
                 "SU26-NEW",
                 "R-200",
                 "ROOM-3",
+                "BOOKING-300",
                 "BOOKING-300"
         );
 
@@ -125,6 +136,33 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 )
         );
     }
+
+    @Test
+    void resolveExternalBookingKey_shouldUseSuReservationPrefixForAirbnbWhenChannelBookingMissing() {
+        assertEquals(
+                "HMKMSRREFW",
+                OtaReservationSyncService.resolveExternalBookingKey(
+                        "AIRBNB",
+                        null,
+                        "HMKMSRREFW_W39FVCQYSN",
+                        "SU26-HMKMSRREFW_W39FVCQYSN-1776072590757"
+                )
+        );
+    }
+
+    @Test
+    void resolveExternalBookingKey_shouldUseBookingIdFromOrderNumberFallback() {
+        assertEquals(
+                "5526740549",
+                OtaReservationSyncService.resolveExternalBookingKey(
+                        "BOOKING",
+                        null,
+                        null,
+                        "SU26-5526740549_W39FVCQYSN-1775048516093"
+                )
+        );
+    }
+
     private static OtaReservationSyncService createService(ReservationRepository reservationRepository) {
         PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
         return new OtaReservationSyncService(

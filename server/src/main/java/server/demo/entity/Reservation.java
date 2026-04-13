@@ -82,6 +82,9 @@ public class Reservation implements StoreScopedEntity {
     @Column(name = "channel_order_number", length = 100)
     private String channelOrderNumber;
 
+    @Column(name = "external_booking_key", length = 120)
+    private String externalBookingKey;
+
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;
 
@@ -386,6 +389,14 @@ public class Reservation implements StoreScopedEntity {
 
     public void setChannelOrderNumber(String channelOrderNumber) {
         this.channelOrderNumber = channelOrderNumber;
+    }
+
+    public String getExternalBookingKey() {
+        return externalBookingKey;
+    }
+
+    public void setExternalBookingKey(String externalBookingKey) {
+        this.externalBookingKey = externalBookingKey;
     }
 
     public String getPaymentMethod() {

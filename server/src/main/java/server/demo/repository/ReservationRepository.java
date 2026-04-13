@@ -97,6 +97,28 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
             @Param("channelOrderNumber") String channelOrderNumber
     );
 
+    @Query("""
+           SELECT r
+           FROM Reservation r
+           LEFT JOIN FETCH r.room room
+           LEFT JOIN FETCH room.roomType
+           WHERE r.storeId = :storeId
+             AND r.channel.id = :channelId
+             AND r.externalBookingKey = :externalBookingKey
+           ORDER BY r.createdAt DESC
+           """)
+    List<Reservation> findByStoreIdAndChannelIdAndExternalBookingKeyWithRoomType(
+           @Param("storeId") Long storeId,
+           @Param("channelId") Long channelId,
+           @Param("externalBookingKey") String externalBookingKey
+    );
+
+    List<Reservation> findByStoreIdAndChannelIdAndExternalBookingKey(
+           Long storeId,
+           Long channelId,
+           String externalBookingKey
+    );
+
     Optional<Reservation> findByStoreIdAndSuReservationIdAndRoomReservationId(
            Long storeId,
            String suReservationId,

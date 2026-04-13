@@ -62,7 +62,7 @@
           <div class="room-header">
             <div class="room-title">
               <div class="room-title-main">
-                {{ room.storeName || 'Store' }} / Room Number: {{ room.roomNumber || '-' }}
+                {{ room.roomTypeName || 'Room Type' }} / Room Number: {{ room.roomNumber || '-' }}
               </div>
               <div class="room-title-sub">Booking Number: {{ booking?.bookingKey }}</div>
             </div>
@@ -658,4 +658,3 @@ onMounted(() => {
   border: 1px solid #fde2e2;
 }
 </style>
-

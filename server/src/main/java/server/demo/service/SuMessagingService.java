@@ -196,7 +196,16 @@ public class SuMessagingService {
             return null;
         }
 
+        Long channelId = thread.getChannelId() != null ? Long.valueOf(thread.getChannelId()) : null;
         String bookingId = normalizeThreadLookupValue(thread.getBookingId());
+        if (channelId != null && bookingId != null) {
+            List<Reservation> byExternalBookingKey = reservationRepository
+                    .findByStoreIdAndChannelIdAndExternalBookingKeyWithRoomType(storeId, channelId, bookingId);
+            if (!byExternalBookingKey.isEmpty()) {
+                return byExternalBookingKey.get(0);
+            }
+        }
+
         if (bookingId != null) {
             List<Reservation> byChannelOrderNumber =
                     reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(storeId, bookingId);
@@ -213,6 +222,14 @@ public class SuMessagingService {
 
         String threadId = normalizeThreadLookupValue(thread.getThreadId());
         if (threadId != null && (bookingId == null || !threadId.equals(bookingId))) {
+            if (channelId != null) {
+                List<Reservation> byExternalBookingKey = reservationRepository
+                        .findByStoreIdAndChannelIdAndExternalBookingKeyWithRoomType(storeId, channelId, threadId);
+                if (!byExternalBookingKey.isEmpty()) {
+                    return byExternalBookingKey.get(0);
+                }
+            }
+
             List<Reservation> byChannelOrderNumber =
                     reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(storeId, threadId);
             if (!byChannelOrderNumber.isEmpty()) {

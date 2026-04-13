@@ -6,6 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import server.demo.dto.SuMessagingSendRequest;
+import server.demo.dto.SuMessagingThreadDTO;
+import server.demo.entity.Reservation;
+import server.demo.entity.Room;
+import server.demo.entity.RoomType;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.SuMessagingSenderType;
@@ -13,6 +17,9 @@ import server.demo.repository.ReservationRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -23,10 +30,64 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SuMessagingServiceTest {
+
+    @Test
+    void listThreads_shouldResolveReservationByExternalBookingKeyFirst() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        SuMessagingService service = new SuMessagingService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                suApiClient,
+                suAccessTokenService,
+                objectMapper,
+                realtimeGateway
+        );
+
+        SuMessageThread thread = new SuMessageThread();
+        thread.setId(1L);
+        thread.setStoreId(10L);
+        thread.setChannelId(244);
+        thread.setBookingId("HMKMSRREFW");
+        thread.setThreadId("2500524048");
+        thread.setLastActivity(LocalDateTime.now());
+
+        Reservation reservation = new Reservation();
+        reservation.setCheckInDate(LocalDate.of(2026, 4, 18));
+        reservation.setCheckOutDate(LocalDate.of(2026, 4, 22));
+        RoomType roomType = new RoomType();
+        roomType.setName("高级双床房");
+        Room room = new Room();
+        room.setRoomType(roomType);
+        reservation.setRoom(room);
+
+        when(threadRepository.findByStoreIdOrderByLastActivityDesc(10L)).thenReturn(List.of(thread));
+        when(reservationRepository.findByStoreIdAndChannelIdAndExternalBookingKeyWithRoomType(10L, 244L, "HMKMSRREFW"))
+                .thenReturn(List.of(reservation));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(1L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+
+        List<SuMessagingThreadDTO> result = service.listThreads(10L);
+
+        assertEquals(1, result.size());
+        assertEquals(LocalDate.of(2026, 4, 18), result.get(0).getCheckInDate());
+        assertEquals(LocalDate.of(2026, 4, 22), result.get(0).getCheckOutDate());
+        assertEquals("高级双床房", result.get(0).getRoomTypeName());
+        verify(reservationRepository, never()).findByStoreIdAndChannelOrderNumberWithRoomType(10L, "HMKMSRREFW");
+        verify(reservationRepository, never()).findByStoreIdAndOrderNumberWithRoomType(10L, "HMKMSRREFW");
+    }
 
     @Test
     void handleInboundMessage_shouldUpsertThreadSaveMessageAndBroadcast() throws Exception {
