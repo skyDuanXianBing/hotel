@@ -44,10 +44,15 @@ public class PublicRegistrationBookingService {
             throw new RuntimeException("bookingKey 不能为空");
         }
 
-        List<Reservation> reservations = reservationRepository.findByStoreIdAndChannelOrderNumber(storeId, bookingKey.trim());
+        String normalizedBookingKey = bookingKey.trim();
+
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndChannelOrderNumber(storeId, normalizedBookingKey);
+        if (reservations == null || reservations.isEmpty()) {
+            reservations = reservationRepository.findByStoreIdAndExternalBookingKey(storeId, normalizedBookingKey);
+        }
         if (reservations == null || reservations.isEmpty()) {
             // fallback: single-room bookingKey might be orderNumber (local booking)
-            Reservation single = reservationRepository.findByStoreIdAndOrderNumber(storeId, bookingKey.trim()).orElse(null);
+            Reservation single = reservationRepository.findByStoreIdAndOrderNumber(storeId, normalizedBookingKey).orElse(null);
             reservations = single == null ? List.of() : List.of(single);
         }
 
@@ -61,7 +66,7 @@ public class PublicRegistrationBookingService {
                 .thenComparing(Reservation::getId, Comparator.nullsLast(Comparator.naturalOrder())));
 
         PublicRegistrationBookingResponse resp = new PublicRegistrationBookingResponse();
-        resp.setBookingKey(bookingKey.trim());
+        resp.setBookingKey(normalizedBookingKey);
 
         Reservation first = sorted.get(0);
         resp.setGuestName(first != null ? nullToEmpty(first.getGuestName()) : "");
@@ -114,18 +119,13 @@ public class PublicRegistrationBookingService {
         }
 
         String key = bookingKey.trim();
-        String channelBookingId = reservation.getChannelOrderNumber();
-        if (channelBookingId != null && !channelBookingId.isBlank()) {
-            if (!channelBookingId.trim().equals(key)) {
-                throw new RuntimeException("订单不属于该预订");
-            }
+        if (matchesBookingKey(reservation.getChannelOrderNumber(), key)
+                || matchesBookingKey(reservation.getExternalBookingKey(), key)
+                || matchesBookingKey(reservation.getOrderNumber(), key)) {
             return;
         }
 
-        // local booking fallback: bookingKey = orderNumber
-        if (!orderNumber.trim().equals(key)) {
-            throw new RuntimeException("订单不属于该预订");
-        }
+        throw new RuntimeException("订单不属于该预订");
     }
 
     private String buildRoomRegistrationLink(Long storeId, String orderNumber) {
@@ -159,5 +159,12 @@ public class PublicRegistrationBookingService {
 
     private static String nullToEmpty(String s) {
         return s == null ? "" : s;
+    }
+
+    private static boolean matchesBookingKey(String candidate, String bookingKey) {
+        if (candidate == null || candidate.isBlank() || bookingKey == null || bookingKey.isBlank()) {
+            return false;
+        }
+        return candidate.trim().equalsIgnoreCase(bookingKey.trim());
     }
 }

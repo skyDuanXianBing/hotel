@@ -338,8 +338,11 @@ public class PublicRegistrationService {
         resp.setFormId(form.getId());
         resp.setOrderNumber(reservation.getOrderNumber());
         
-        // Set bookingKey: use channelOrderNumber if available, otherwise use orderNumber
+        // Set bookingKey: channelOrderNumber > externalBookingKey > orderNumber
         String bookingKey = reservation.getChannelOrderNumber();
+        if (bookingKey == null || bookingKey.isBlank()) {
+            bookingKey = reservation.getExternalBookingKey();
+        }
         if (bookingKey == null || bookingKey.isBlank()) {
             bookingKey = reservation.getOrderNumber();
         }

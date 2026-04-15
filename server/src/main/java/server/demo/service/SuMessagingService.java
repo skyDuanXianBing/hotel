@@ -25,9 +25,12 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class SuMessagingService {
@@ -196,54 +199,54 @@ public class SuMessagingService {
             return null;
         }
 
-        Long channelId = thread.getChannelId() != null ? Long.valueOf(thread.getChannelId()) : null;
-        String bookingId = normalizeThreadLookupValue(thread.getBookingId());
-        if (channelId != null && bookingId != null) {
-            List<Reservation> byExternalBookingKey = reservationRepository
-                    .findByStoreIdAndChannelIdAndExternalBookingKeyWithRoomType(storeId, channelId, bookingId);
-            if (!byExternalBookingKey.isEmpty()) {
-                return byExternalBookingKey.get(0);
-            }
-        }
-
-        if (bookingId != null) {
-            List<Reservation> byChannelOrderNumber =
-                    reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(storeId, bookingId);
-            if (!byChannelOrderNumber.isEmpty()) {
-                return byChannelOrderNumber.get(0);
-            }
-
-            List<Reservation> byOrderNumber =
-                    reservationRepository.findByStoreIdAndOrderNumberWithRoomType(storeId, bookingId);
-            if (!byOrderNumber.isEmpty()) {
-                return byOrderNumber.get(0);
-            }
-        }
-
-        String threadId = normalizeThreadLookupValue(thread.getThreadId());
-        if (threadId != null && (bookingId == null || !threadId.equals(bookingId))) {
-            if (channelId != null) {
-                List<Reservation> byExternalBookingKey = reservationRepository
-                        .findByStoreIdAndChannelIdAndExternalBookingKeyWithRoomType(storeId, channelId, threadId);
-                if (!byExternalBookingKey.isEmpty()) {
-                    return byExternalBookingKey.get(0);
-                }
-            }
-
-            List<Reservation> byChannelOrderNumber =
-                    reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(storeId, threadId);
-            if (!byChannelOrderNumber.isEmpty()) {
-                return byChannelOrderNumber.get(0);
-            }
-
-            List<Reservation> byOrderNumber =
-                    reservationRepository.findByStoreIdAndOrderNumberWithRoomType(storeId, threadId);
-            if (!byOrderNumber.isEmpty()) {
-                return byOrderNumber.get(0);
+        List<String> lookupCandidates = buildThreadLookupCandidates(thread);
+        for (String lookupKey : lookupCandidates) {
+            Reservation matched = findReservationByLookupKey(storeId, lookupKey);
+            if (matched != null) {
+                return matched;
             }
         }
 
         return null;
+    }
+
+    private Reservation findReservationByLookupKey(Long storeId, String lookupKey) {
+        List<Reservation> byExternalBookingKey =
+                reservationRepository.findByStoreIdAndExternalBookingKeyWithRoomType(storeId, lookupKey);
+        if (!byExternalBookingKey.isEmpty()) {
+            return byExternalBookingKey.get(0);
+        }
+
+        List<Reservation> byChannelOrderNumber =
+                reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(storeId, lookupKey);
+        if (!byChannelOrderNumber.isEmpty()) {
+            return byChannelOrderNumber.get(0);
+        }
+
+        List<Reservation> byOrderNumber =
+                reservationRepository.findByStoreIdAndOrderNumberWithRoomType(storeId, lookupKey);
+        if (!byOrderNumber.isEmpty()) {
+            return byOrderNumber.get(0);
+        }
+
+        return null;
+    }
+
+    private static List<String> buildThreadLookupCandidates(SuMessageThread thread) {
+        Set<String> candidates = new LinkedHashSet<>();
+        addLookupCandidate(candidates, normalizeThreadLookupValue(thread.getBookingId()));
+        addLookupCandidate(candidates, normalizeThreadLookupValue(thread.getThreadKey()));
+        addLookupCandidate(candidates, normalizeThreadLookupValue(thread.getThreadId()));
+        addLookupCandidate(candidates, extractBookingKeyFromOrderLikeValue(thread.getBookingId()));
+        addLookupCandidate(candidates, extractBookingKeyFromOrderLikeValue(thread.getThreadKey()));
+        addLookupCandidate(candidates, extractBookingKeyFromOrderLikeValue(thread.getThreadId()));
+        return new ArrayList<>(candidates);
+    }
+
+    private static void addLookupCandidate(Set<String> candidates, String value) {
+        if (value != null) {
+            candidates.add(value);
+        }
     }
 
     private static String normalizeThreadLookupValue(String rawValue) {
@@ -252,6 +255,42 @@ public class SuMessagingService {
         }
         String normalized = rawValue.trim();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private static String extractBookingKeyFromOrderLikeValue(String rawValue) {
+        String normalized = normalizeThreadLookupValue(rawValue);
+        if (normalized == null) {
+            return null;
+        }
+
+        if (normalized.regionMatches(true, 0, "SU", 0, 2)) {
+            int dashIndex = normalized.indexOf('-');
+            if (dashIndex >= 0 && dashIndex + 1 < normalized.length()) {
+                String suffix = normalized.substring(dashIndex + 1);
+                int end = suffix.length();
+                int suffixUnderscore = suffix.indexOf('_');
+                if (suffixUnderscore >= 0) {
+                    end = Math.min(end, suffixUnderscore);
+                }
+                int suffixDash = suffix.indexOf('-');
+                if (suffixDash >= 0) {
+                    end = Math.min(end, suffixDash);
+                }
+
+                String extracted = suffix.substring(0, end).trim();
+                if (!extracted.isBlank()) {
+                    return extracted;
+                }
+            }
+        }
+
+        int underscoreIndex = normalized.indexOf('_');
+        if (underscoreIndex > 0) {
+            String prefix = normalized.substring(0, underscoreIndex).trim();
+            return prefix.isBlank() ? null : prefix;
+        }
+
+        return null;
     }
 
     private static String resolveRoomTypeName(Reservation reservation) {

@@ -1488,6 +1488,12 @@ public class OtaReservationSyncService {
     ) {
         String normalizedExisting = mergeChannelOrderNumber(channelCode, existingValue, null, fallbackOrderNumber);
         String normalizedIncoming = mergeChannelOrderNumber(channelCode, null, incomingValue, fallbackOrderNumber);
+        String normalizedRawIncoming = normalizeLookupKey(incomingValue);
+
+        if (normalizedRawIncoming == null && normalizedExisting != null) {
+            return normalizedExisting;
+        }
+
         if (normalizedExisting != null
                 && normalizedIncoming != null
                 && !normalizedExisting.equals(normalizedIncoming)) {

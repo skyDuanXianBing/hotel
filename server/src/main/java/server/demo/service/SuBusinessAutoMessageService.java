@@ -1044,7 +1044,7 @@ public class SuBusinessAutoMessageService {
         vars.put("room_type_address", resolveRoomTypeAddress(reservation));
         vars.put("nearby_station", resolveNearbyStation(reservation));
         vars.put("rate_plan_name", "");
-        vars.put("confirmation_code", reservation != null ? nullToEmpty(reservation.getChannelOrderNumber()) : "");
+        vars.put("confirmation_code", reservation != null ? nullToEmpty(resolveRegistrationBookingKey(reservation)) : "");
 
         vars.put("order_number", reservation != null ? nullToEmpty(reservation.getOrderNumber()) : "");
         String registrationLink = buildRegistrationLink(reservation);
@@ -1090,10 +1090,7 @@ public class SuBusinessAutoMessageService {
             return "";
         }
 
-        String bookingKey = reservation.getChannelOrderNumber();
-        if (bookingKey == null || bookingKey.isBlank()) {
-            bookingKey = reservation.getOrderNumber();
-        }
+        String bookingKey = resolveRegistrationBookingKey(reservation);
         if (bookingKey == null || bookingKey.isBlank()) {
             return "";
         }
@@ -1105,6 +1102,65 @@ public class SuBusinessAutoMessageService {
         }
         String encodedKey = UriUtils.encodePathSegment(bookingKey, StandardCharsets.UTF_8);
         return base + "/rb/" + encodedKey + "?t=" + token;
+    }
+
+    private String resolveRegistrationBookingKey(Reservation reservation) {
+        if (reservation == null) {
+            return null;
+        }
+
+        String channelOrderNumber = normalizeIdentifier(reservation.getChannelOrderNumber());
+        if (channelOrderNumber != null) {
+            return channelOrderNumber;
+        }
+
+        String externalBookingKey = normalizeIdentifier(reservation.getExternalBookingKey());
+        if (externalBookingKey != null) {
+            return externalBookingKey;
+        }
+
+        String extractedFromOrder = extractBookingKeyFromOrderLikeValue(reservation.getOrderNumber());
+        if (extractedFromOrder != null) {
+            return extractedFromOrder;
+        }
+
+        return normalizeIdentifier(reservation.getOrderNumber());
+    }
+
+    private static String extractBookingKeyFromOrderLikeValue(String rawValue) {
+        String normalized = normalizeIdentifier(rawValue);
+        if (normalized == null) {
+            return null;
+        }
+
+        if (normalized.regionMatches(true, 0, "SU", 0, 2)) {
+            int dashIndex = normalized.indexOf('-');
+            if (dashIndex >= 0 && dashIndex + 1 < normalized.length()) {
+                String suffix = normalized.substring(dashIndex + 1);
+                int end = suffix.length();
+                int suffixUnderscore = suffix.indexOf('_');
+                if (suffixUnderscore >= 0) {
+                    end = Math.min(end, suffixUnderscore);
+                }
+                int suffixDash = suffix.indexOf('-');
+                if (suffixDash >= 0) {
+                    end = Math.min(end, suffixDash);
+                }
+
+                String extracted = suffix.substring(0, end).trim();
+                if (!extracted.isBlank()) {
+                    return extracted;
+                }
+            }
+        }
+
+        int underscoreIndex = normalized.indexOf('_');
+        if (underscoreIndex > 0) {
+            String prefix = normalized.substring(0, underscoreIndex).trim();
+            return prefix.isBlank() ? null : prefix;
+        }
+
+        return null;
     }
 
     private String resolveRoomTypeName(Reservation reservation) {
