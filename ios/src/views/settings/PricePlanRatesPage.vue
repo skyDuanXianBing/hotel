@@ -147,6 +147,14 @@
                 <span>额外儿童加价</span>
                 <ion-input v-model="relationForm.extraChildRate" fill="outline" inputmode="decimal" placeholder="0" />
               </label>
+
+              <div v-if="editingRelationId" class="settings-price-plan-rates-page__toggle-card">
+                <div>
+                  <strong>保存时清理未来覆盖价</strong>
+                  <p>开启后将从今天起清理按日期覆盖价，让新的周价格立即回到房价管理页生效。</p>
+                </div>
+                <ion-checkbox :checked="clearFutureOverridesOnSave" @ionChange="handleClearFutureOverridesChange" />
+              </div>
             </div>
 
             <div class="settings-form-actions">
@@ -168,6 +176,7 @@ import {
   IonBackButton,
   IonButton,
   IonButtons,
+  IonCheckbox,
   IonContent,
   IonHeader,
   IonInput,
@@ -196,6 +205,7 @@ import {
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useUserStore } from '@/stores/user'
+import { getTodayDate } from '@/utils/accommodation'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
@@ -246,6 +256,7 @@ const plan = ref<PricePlanDTO | null>(null)
 const relations = ref<RoomTypePricePlanDTO[]>([])
 const allRoomTypes = ref<RoomTypeDTO[]>([])
 const relationForm = ref<RelationFormState>(createEmptyRelationForm())
+const clearFutureOverridesOnSave = ref(true)
 
 const pricePlanId = computed(() => {
   return Number(route.params.pricePlanId || 0)
@@ -323,14 +334,18 @@ function formatPrice(value?: number) {
 async function confirmDelete(roomTypeName: string) {
   const alert = await alertController.create({
     header: '删除房型价格',
-    message: `确认删除 ${roomTypeName} 的价格关联吗？`,
+    message: `请选择删除 ${roomTypeName} 价格关联的处理方式。`,
     buttons: [
       {
         text: '取消',
         role: 'cancel',
       },
       {
-        text: '确认删除',
+        text: '仅解绑',
+        role: 'unbind',
+      },
+      {
+        text: '解绑并清理覆盖价',
         role: 'destructive',
       },
     ],
@@ -338,7 +353,13 @@ async function confirmDelete(roomTypeName: string) {
 
   await alert.present()
   const result = await alert.onDidDismiss()
-  return result.role === 'destructive'
+  if (result.role === 'destructive') {
+    return true
+  }
+  if (result.role === 'unbind') {
+    return false
+  }
+  return null
 }
 
 async function loadPageData() {
@@ -393,6 +414,7 @@ async function handleInvalidPricePlan(message?: string) {
 function handleCreateRelation() {
   editingRelationId.value = null
   relationForm.value = createEmptyRelationForm()
+  clearFutureOverridesOnSave.value = true
   editorOpen.value = true
 }
 
@@ -413,6 +435,7 @@ function handleEditRelation(relation: RoomTypePricePlanDTO) {
     extraAdultRate: String(relation.extraAdultRate ?? 0),
     extraChildRate: String(relation.extraChildRate ?? 0),
   }
+  clearFutureOverridesOnSave.value = true
   editorOpen.value = true
 }
 
@@ -420,6 +443,11 @@ function handleDismissEditor() {
   editorOpen.value = false
   editingRelationId.value = null
   relationForm.value = createEmptyRelationForm()
+  clearFutureOverridesOnSave.value = true
+}
+
+function handleClearFutureOverridesChange(event: CustomEvent) {
+  clearFutureOverridesOnSave.value = Boolean(event.detail.checked)
 }
 
 async function handleSaveRelation() {
@@ -455,6 +483,8 @@ async function handleSaveRelation() {
       extraAdultRate: parseOptionalNumber(relationForm.value.extraAdultRate),
       extraChildRate: parseOptionalNumber(relationForm.value.extraChildRate),
       priceMode: relationForm.value.priceMode,
+      clearFutureOverrides: editingRelationId.value ? clearFutureOverridesOnSave.value : undefined,
+      clearFromDate: editingRelationId.value && clearFutureOverridesOnSave.value ? getTodayDate() : undefined,
     }
 
     if (editingRelationId.value) {
@@ -462,7 +492,11 @@ async function handleSaveRelation() {
       if (!response.success) {
         throw new Error(response.message || '更新房型价格失败')
       }
-      showSuccessToast('房型价格已更新')
+      if (clearFutureOverridesOnSave.value) {
+        showSuccessToast('房型价格已更新，已清理未来按日期覆盖价')
+      } else {
+        showSuccessToast('房型价格已更新，保留未来按日期覆盖价')
+      }
     } else {
       const response = await assignPricePlanToRoomType(
         relationForm.value.roomTypeId,
@@ -494,17 +528,23 @@ async function handleDeleteRelation(relation: RoomTypePricePlanDTO) {
     return
   }
 
-  const confirmed = await confirmDelete(relation.roomType?.name || '该房型')
-  if (!confirmed) {
+  const clearOverrides = await confirmDelete(relation.roomType?.name || '该房型')
+  if (clearOverrides === null) {
     return
   }
 
   try {
-    const response = await deleteRoomTypePricePlan(relationId, userId)
+    const response = await deleteRoomTypePricePlan(relationId, userId, clearOverrides)
     if (!response.success) {
       throw new Error(response.message || '删除房型价格失败')
     }
-    showSuccessToast('房型价格已删除')
+    if (response.message) {
+      showSuccessToast(response.message)
+    } else if (clearOverrides) {
+      showSuccessToast('房型价格已删除，已清理按日期覆盖价')
+    } else {
+      showSuccessToast('房型价格已解绑，保留按日期覆盖价')
+    }
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
@@ -645,5 +685,26 @@ onIonViewWillEnter(async () => {
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 18px;
+}
+
+.settings-price-plan-rates-page__toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--app-primary-soft);
+}
+
+.settings-price-plan-rates-page__toggle-card strong,
+.settings-price-plan-rates-page__toggle-card p {
+  margin: 0;
+}
+
+.settings-price-plan-rates-page__toggle-card p {
+  margin-top: 6px;
+  color: var(--app-muted);
+  font-size: 12px;
 }
 </style>

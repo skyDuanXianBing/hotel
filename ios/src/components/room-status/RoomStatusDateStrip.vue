@@ -3,14 +3,14 @@
     <div class="mobile-inline-row date-strip-header">
       <div>
         <h2 class="mobile-section-title">日期浏览</h2>
-        <p class="mobile-note">保留跨日期浏览能力，主页默认展示 5 天窗口。</p>
+        <p class="mobile-note">保留 5 天时间线，切换窗口后自动同步房态、摘要与房型汇总。</p>
       </div>
       <ion-button fill="clear" size="small" @click="$emit('today')">今天</ion-button>
     </div>
 
     <div class="date-strip-actions">
-      <ion-button fill="outline" size="small" @click="$emit('previous')">前一天</ion-button>
-      <ion-button fill="outline" size="small" @click="$emit('next')">后一天</ion-button>
+      <ion-button fill="outline" size="small" @click="$emit('previous')">前 {{ days.length }} 天</ion-button>
+      <ion-button fill="outline" size="small" @click="$emit('next')">后 {{ days.length }} 天</ion-button>
     </div>
 
     <div class="date-strip-grid">

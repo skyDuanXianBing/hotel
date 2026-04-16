@@ -1,6 +1,8 @@
 import request from '@/utils/request'
 import type { ApiResponse } from '@/types/api'
 
+const ROOM_STATUS_CALENDAR_TIMEOUT_MS = 30000
+
 export interface ReservationInfoDTO {
   id: number
   guestName: string
@@ -71,6 +73,7 @@ export interface OpenRoomBlockoutRequest {
 export const getRoomStatusCalendar = async (startDate: string, endDate: string) => {
   return request.get<ApiResponse<RoomStatusCalendarDTO>>('/room-status/calendar', {
     params: { startDate, endDate },
+    timeoutMs: ROOM_STATUS_CALENDAR_TIMEOUT_MS,
   })
 }
 

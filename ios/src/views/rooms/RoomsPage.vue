@@ -19,7 +19,7 @@
         </p>
         <div class="mobile-chip-row">
           <span class="mobile-chip">{{ selectedDateText }}</span>
-          <span class="mobile-chip">5 天窗口</span>
+          <span class="mobile-chip">{{ roomStatusStore.visibleDates.length }} 天窗口</span>
           <span class="mobile-chip">住宿工具 5 项</span>
         </div>
       </section>
@@ -180,6 +180,7 @@
 
 <script setup lang="ts">
 import {
+  alertController,
   IonActionSheet,
   IonButton,
   IonContent,
@@ -218,6 +219,7 @@ import RoomStatusDateStrip from '@/components/room-status/RoomStatusDateStrip.vu
 import RoomStatusRoomCard from '@/components/room-status/RoomStatusRoomCard.vue'
 import RoomStatusSummaryCards from '@/components/room-status/RoomStatusSummaryCards.vue'
 import RoomTypeSummaryList from '@/components/room-status/RoomTypeSummaryList.vue'
+import { checkCanMoveToOrderBox, moveToOrderBox } from '@/api/orderBox'
 import { getAllRoomTypesWithRooms } from '@/api/roomType'
 import { createReservation, type CreateReservationRequest } from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
@@ -417,6 +419,12 @@ const quickActionButtons = computed(() => {
       text: '查看订单',
       handler: handleOpenQuickReservation,
     })
+    if (selectedRoom.value.focusedBusinessState === 'reserved') {
+      buttons.push({
+        text: '移入订单盒子',
+        handler: handleMoveSelectedReservationToOrderBox,
+      })
+    }
   }
 
   buttons.push({
@@ -440,6 +448,30 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
     return error.message
   }
   return fallbackMessage
+}
+
+async function confirmAction(header: string, message: string, confirmText: string, destructive = false) {
+  const alert = await alertController.create({
+    header,
+    message,
+    buttons: [
+      {
+        text: '取消',
+        role: 'cancel',
+      },
+      {
+        text: confirmText,
+        role: destructive ? 'destructive' : 'confirm',
+      },
+    ],
+  })
+
+  await alert.present()
+  const result = await alert.onDidDismiss()
+  if (destructive) {
+    return result.role === 'destructive'
+  }
+  return result.role === 'confirm'
 }
 
 async function loadPage(force = false) {
@@ -505,7 +537,8 @@ async function handleSelectDate(date: string) {
 
 async function handlePreviousWindow() {
   try {
-    await roomStatusStore.shiftWindow(-1)
+    const shiftDays = Math.max(roomStatusStore.visibleDates.length, 1)
+    await roomStatusStore.shiftWindow(-shiftDays)
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '切换日期失败'))
@@ -515,7 +548,8 @@ async function handlePreviousWindow() {
 
 async function handleNextWindow() {
   try {
-    await roomStatusStore.shiftWindow(1)
+    const shiftDays = Math.max(roomStatusStore.visibleDates.length, 1)
+    await roomStatusStore.shiftWindow(shiftDays)
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '切换日期失败'))
@@ -601,6 +635,47 @@ function handleOpenQuickReservation() {
     return
   }
   openReservationDetail(selectedRoom.value.reservation.id)
+}
+
+async function handleMoveSelectedReservationToOrderBox() {
+  if (!selectedRoom.value?.reservation) {
+    return
+  }
+
+  const reservationId = selectedRoom.value.reservation.id
+
+  try {
+    const checkResponse = await checkCanMoveToOrderBox(reservationId)
+    if (!checkResponse.success || !checkResponse.data) {
+      throw new Error(checkResponse.message || '校验订单盒子资格失败')
+    }
+
+    if (!checkResponse.data.canMove) {
+      showWarningToast(checkResponse.data.reason || '只有已预订的房间可以移入订单盒子')
+      return
+    }
+
+    const confirmed = await confirmAction(
+      '移入订单盒子',
+      '移入后订单不会实际排房、不占库存，且移出后不会自动恢复原房间。确认继续吗？',
+      '确认移入',
+    )
+    if (!confirmed) {
+      return
+    }
+
+    const response = await moveToOrderBox({ reservationId })
+    if (!response.success) {
+      throw new Error(response.message || '移入订单盒子失败')
+    }
+
+    showSuccessToast('已移入订单盒子')
+    await roomStatusStore.refreshAll()
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, '移入订单盒子失败'))
+    }
+  }
 }
 
 function handleCloseBookingModal() {

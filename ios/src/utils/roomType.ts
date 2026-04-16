@@ -310,6 +310,8 @@ export function buildExistingRoomTypePayload(roomType: RoomTypeWithRoomsDTO): Cr
     totalRooms: roomType.totalRooms,
     maxGuests: roomType.maxGuests || 1,
     maxChildOccupancy: roomType.maxChildOccupancy,
+    roomTypeAddress: roomType.roomTypeAddress,
+    nearbyStation: roomType.nearbyStation,
     checkInGuideLink: roomType.checkInGuideLink,
     suRoomType: roomType.suRoomType,
     sizeMeasurement: roomType.sizeMeasurement,
@@ -353,4 +355,22 @@ export function mergeRoomTypePhotoUrls(roomType: Pick<RoomTypeDTO, 'desktopPhoto
   }
 
   return Array.from(photoUrlSet)
+}
+
+export function buildRoomTypeLocationSummary(
+  roomType: Pick<RoomTypeDTO, 'roomTypeAddress' | 'nearbyStation'>,
+) {
+  const labels: string[] = []
+
+  const roomTypeAddress = roomType.roomTypeAddress?.trim()
+  if (roomTypeAddress) {
+    labels.push(`地址 ${roomTypeAddress}`)
+  }
+
+  const nearbyStation = roomType.nearbyStation?.trim()
+  if (nearbyStation) {
+    labels.push(`附近车站 ${nearbyStation}`)
+  }
+
+  return labels.join(' · ')
 }

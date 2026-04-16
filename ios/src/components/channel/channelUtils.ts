@@ -327,12 +327,12 @@ export function formatDateTime(value?: string) {
 export function formatAdjustmentSummary(item: ChannelPriceAdjustmentDTO) {
   const adjustmentValue = normalizeNumber(item.adjustmentValue)
   if (adjustmentValue === 0) {
-    return '等同于基准价'
+    return '等同于基本价格'
   }
 
-  const direction = adjustmentValue > 0 ? '更贵' : '更便宜'
-  const unit = item.adjustmentType === 'FIXED' ? '元' : '%'
-  return `比基准价${direction} ${Math.abs(adjustmentValue)}${unit}`
+  const direction = adjustmentValue > 0 ? '贵' : '便宜'
+  const unit = item.adjustmentType === 'FIXED' ? '¥' : '%'
+  return `${Math.abs(adjustmentValue)} ${unit} 比基准价${direction}`
 }
 
 function resolveOtaPriceAdjustmentType(ota: Pick<OtaIntegrationDTO, 'priceAdjustmentType'>) {

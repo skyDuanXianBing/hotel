@@ -42,6 +42,9 @@ export interface RoomTimelineItem {
   isSelected: boolean
   isToday: boolean
   isClosed: boolean
+  isDirty: boolean
+  closeType: string
+  closeRemark: string
 }
 
 export interface RoomStatusRoomItem {
@@ -81,13 +84,23 @@ export type RoomStatusBusinessState =
   | 'available'
   | 'occupied'
   | 'reserved'
+  | 'retain'
   | 'maintenance'
   | 'out_of_order'
   | 'closed'
+  | 'dirty'
   | 'unknown'
 
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 const DEFAULT_SORT_ORDER = Number.MAX_SAFE_INTEGER
+const DATE_WINDOW_SIZE = 5
+const SELECTED_DATE_OFFSET = 1
+const NATURAL_COMPARE_OPTIONS: Intl.CollatorOptions = {
+  numeric: true,
+  sensitivity: 'base',
+}
+
+const getTodayDateKey = () => formatDateKey(new Date())
 
 export const formatDateKey = (date: Date) => {
   const year = date.getFullYear()
@@ -132,6 +145,12 @@ export const getRoomBusinessState = (
   }
 
   if (dailyStatus.closed) {
+    if (dailyStatus.closeType === 'maintenance') {
+      return 'maintenance'
+    }
+    if (dailyStatus.closeType === 'retain') {
+      return 'retain'
+    }
     return 'closed'
   }
 
@@ -149,6 +168,9 @@ export const getRoomBusinessState = (
   if (normalizedStatus === 'MAINTENANCE') {
     return 'maintenance'
   }
+  if (normalizedStatus === 'DIRTY') {
+    return 'dirty'
+  }
   if (normalizedStatus === 'OUT_OF_ORDER') {
     return 'out_of_order'
   }
@@ -163,13 +185,13 @@ export const getRoomBusinessState = (
 export const getRoomStatusText = (dailyStatus?: DailyRoomStatusDTO | null) => {
   const businessState = getRoomBusinessState(dailyStatus)
 
+  if (businessState === 'maintenance') {
+    return '维修房'
+  }
+  if (businessState === 'retain') {
+    return '保留房'
+  }
   if (businessState === 'closed' && dailyStatus) {
-    if (dailyStatus.closeType === 'maintenance') {
-      return '维修房'
-    }
-    if (dailyStatus.closeType === 'retain') {
-      return '保留房'
-    }
     return '停用房'
   }
 
@@ -182,11 +204,11 @@ export const getRoomStatusText = (dailyStatus?: DailyRoomStatusDTO | null) => {
   if (businessState === 'reserved') {
     return '已预订'
   }
-  if (businessState === 'maintenance') {
-    return '维修'
-  }
   if (businessState === 'out_of_order') {
     return '停用'
+  }
+  if (businessState === 'dirty') {
+    return '脏房'
   }
 
   if (!dailyStatus) {
@@ -317,9 +339,9 @@ function buildWeekModeRanges(startDate: string, endDate: string, weekMode: Batch
 
 export const useRoomStatusStore = defineStore('roomStatus', () => {
   const userStore = useUserStore()
-  const today = formatDateKey(new Date())
+  const today = getTodayDateKey()
   const selectedDate = ref(today)
-  const windowStartDate = ref(addDays(today, -1))
+  const windowStartDate = ref(addDays(today, -SELECTED_DATE_OFFSET))
   const calendarRooms = ref<CalendarRoomDataDTO[]>([])
   const statistics = ref<RoomStatusStatisticsDTO | null>(null)
   const channels = ref<ChannelDTO[]>([])
@@ -341,15 +363,16 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const visibleDates = computed<RoomStatusDateItem[]>(() => {
     const items: RoomStatusDateItem[] = []
+    const currentToday = getTodayDateKey()
 
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < DATE_WINDOW_SIZE; index += 1) {
       const currentDate = addDays(windowStartDate.value, index)
       const dateObject = new Date(currentDate)
       let availableRooms = 0
 
       for (const room of calendarRooms.value) {
         const dailyStatus = room.dailyStatus.find((item) => item.date === currentDate)
-        if (dailyStatus && !dailyStatus.closed && !dailyStatus.reservation && dailyStatus.status === 'AVAILABLE') {
+        if (getRoomBusinessState(dailyStatus) === 'available') {
           availableRooms += 1
         }
       }
@@ -359,7 +382,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         label: `${String(dateObject.getMonth() + 1).padStart(2, '0')}-${String(dateObject.getDate()).padStart(2, '0')}`,
         weekday: WEEKDAY_LABELS[dateObject.getDay()],
         availableRooms,
-        isToday: currentDate === today,
+        isToday: currentDate === currentToday,
         isSelected: currentDate === selectedDate.value,
       })
     }
@@ -402,12 +425,16 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       return roomOrderDiff
     }
 
-    const roomTypeNameDiff = left.roomType.localeCompare(right.roomType, 'zh-CN')
+    const roomTypeNameDiff = left.roomType.localeCompare(
+      right.roomType,
+      'zh-CN',
+      NATURAL_COMPARE_OPTIONS,
+    )
     if (roomTypeNameDiff !== 0) {
       return roomTypeNameDiff
     }
 
-    return left.roomNumber.localeCompare(right.roomNumber, 'zh-CN')
+    return left.roomNumber.localeCompare(right.roomNumber, 'zh-CN', NATURAL_COMPARE_OPTIONS)
   }
 
   const sortedCalendarRooms = computed(() => {
@@ -442,6 +469,9 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       }
 
       const timeline: RoomTimelineItem[] = []
+      const roomIsDirty = dirtyRoomIds.value.includes(room.roomId)
+      const currentToday = getTodayDateKey()
+
       for (const dateItem of visibleDates.value) {
         const dailyStatus = room.dailyStatus.find((item) => item.date === dateItem.date)
         if (!dailyStatus) {
@@ -454,8 +484,11 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
           businessState: getRoomBusinessState(dailyStatus),
           statusText: getRoomStatusText(dailyStatus),
           isSelected: dateItem.date === selectedDate.value,
-          isToday: dateItem.date === today,
+          isToday: dateItem.date === currentToday,
           isClosed: Boolean(dailyStatus.closed),
+          isDirty: roomIsDirty,
+          closeType: dailyStatus.closeType || '',
+          closeRemark: dailyStatus.closeRemark || '',
         })
       }
 
@@ -470,7 +503,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         focusedClosed: Boolean(focusedStatus.closed),
         closeType: focusedStatus.closeType || '',
         closeRemark: focusedStatus.closeRemark || '',
-        isDirty: dirtyRoomIds.value.includes(room.roomId),
+        isDirty: roomIsDirty,
         reservation: buildReservationModel(focusedStatus, reservationAmountCache.value),
         timeline,
       })
@@ -510,16 +543,23 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
           continue
         }
 
+        const businessState = getRoomBusinessState(dailyStatus)
+
         if (dirtyRoomIds.value.includes(room.roomId)) {
           dirtyRooms += 1
         }
 
-        if (dailyStatus.closed) {
+        if (
+          businessState === 'closed' ||
+          businessState === 'maintenance' ||
+          businessState === 'retain' ||
+          businessState === 'out_of_order'
+        ) {
           closedRooms += 1
           continue
         }
 
-        if (dailyStatus.reservation || dailyStatus.status !== 'AVAILABLE') {
+        if (businessState === 'occupied' || businessState === 'reserved') {
           occupiedRooms += 1
           continue
         }
@@ -872,7 +912,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       return
     }
 
-    windowStartDate.value = addDays(date, -1)
+    windowStartDate.value = addDays(date, -SELECTED_DATE_OFFSET)
   }
 
   async function setSelectedDate(date: string) {
@@ -894,8 +934,9 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   }
 
   async function goToday() {
-    selectedDate.value = today
-    windowStartDate.value = addDays(today, -1)
+    const currentToday = getTodayDateKey()
+    selectedDate.value = currentToday
+    windowStartDate.value = addDays(currentToday, -SELECTED_DATE_OFFSET)
     await refreshAll()
   }
 
@@ -1040,6 +1081,9 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     }
 
     const timeline: RoomTimelineItem[] = []
+    const roomIsDirty = dirtyRoomIds.value.includes(room.roomId)
+    const currentToday = getTodayDateKey()
+
     for (const dateItem of visibleDates.value) {
       const dailyStatus = room.dailyStatus.find((item) => item.date === dateItem.date)
       if (!dailyStatus) {
@@ -1051,8 +1095,11 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         businessState: getRoomBusinessState(dailyStatus),
         statusText: getRoomStatusText(dailyStatus),
         isSelected: dateItem.date === focusedDate,
-        isToday: dateItem.date === today,
+        isToday: dateItem.date === currentToday,
         isClosed: Boolean(dailyStatus.closed),
+        isDirty: roomIsDirty,
+        closeType: dailyStatus.closeType || '',
+        closeRemark: dailyStatus.closeRemark || '',
       })
     }
 
@@ -1067,7 +1114,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       focusedClosed: Boolean(focusedStatus.closed),
       closeType: focusedStatus.closeType || '',
       closeRemark: focusedStatus.closeRemark || '',
-      isDirty: dirtyRoomIds.value.includes(room.roomId),
+      isDirty: roomIsDirty,
       reservation: buildReservationModel(focusedStatus, reservationAmountCache.value),
       timeline,
     } satisfies RoomStatusRoomItem

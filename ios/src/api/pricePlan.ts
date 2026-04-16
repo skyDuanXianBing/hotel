@@ -92,6 +92,8 @@ export interface AssignRoomTypePricePlanRequest {
   extraAdultRate?: number
   extraChildRate?: number
   priceMode?: string
+  clearFutureOverrides?: boolean
+  clearFromDate?: string
 }
 
 export const getAllPricePlans = (userId: number) => {
@@ -186,11 +188,11 @@ export const updateRoomTypePricePlan = (
   })
 }
 
-export const deleteRoomTypePricePlan = (relationId: number, userId: number) => {
+export const deleteRoomTypePricePlan = (relationId: number, userId: number, clearOverrides = false) => {
   return request<ApiResponse<void>>({
     url: `/price-plans/room-type-price-plans/${relationId}`,
     method: 'DELETE',
-    params: { userId },
+    params: { userId, clearOverrides },
   })
 }
 

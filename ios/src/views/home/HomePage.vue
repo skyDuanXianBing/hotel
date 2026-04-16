@@ -69,6 +69,7 @@ import {
   IonRefresherContent,
   IonTitle,
   IonToolbar,
+  onIonViewWillEnter,
 } from '@ionic/vue'
 import {
   barChartOutline,
@@ -82,7 +83,7 @@ import {
   settingsOutline,
   walletOutline,
 } from 'ionicons/icons'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getDailyOccupancy, getHomeStatistics, type DailyOccupancyDTO, type HomeStatisticsDTO } from '@/api/home'
 import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
@@ -578,9 +579,9 @@ watch(
   },
 )
 
-onMounted(async () => {
+onIonViewWillEnter(async () => {
   try {
-    await loadHomeContent(false)
+    await loadHomeContent(true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '首页加载失败'))

@@ -12,5 +12,6 @@ export interface RequestConfig {
   params?: Record<string, string | number | boolean | null | undefined>
   data?: unknown
   headers?: Record<string, string>
+  timeoutMs?: number
   suppressErrorStatuses?: number[]
 }

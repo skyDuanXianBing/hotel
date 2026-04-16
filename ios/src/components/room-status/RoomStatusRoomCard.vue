@@ -11,7 +11,13 @@
     <div class="room-card__chips">
       <ion-chip :color="focusedStatusColor">{{ room.focusedStatusText }}</ion-chip>
       <ion-chip v-if="room.isDirty" color="warning">脏房</ion-chip>
-      <ion-chip v-if="room.focusedClosed && room.closeType">{{ closeTypeText }}</ion-chip>
+      <ion-chip v-if="room.focusedClosed && room.closeType" :color="closeTypeColor">{{ closeTypeText }}</ion-chip>
+    </div>
+
+    <div v-if="room.focusedClosed" class="room-card__closed-info">
+      <strong>关房类型：{{ closeTypeText }}</strong>
+      <p v-if="room.closeRemark">备注：{{ room.closeRemark }}</p>
+      <p v-else>当前日期已关房，开房后可恢复可售。</p>
     </div>
 
     <ReservationSummaryCard
@@ -23,7 +29,7 @@
     />
     <div v-else class="room-card__empty">
       <strong>{{ room.focusedDate }}</strong>
-      <p>当前房间暂无订单，可直接发起预订、直接入住或关房。</p>
+      <p>{{ emptyStateText }}</p>
     </div>
 
     <div class="room-card__timeline">
@@ -34,15 +40,19 @@
         :class="{
           'timeline-pill--selected': item.isSelected,
           'timeline-pill--closed': item.businessState === 'closed',
+          'timeline-pill--maintenance': item.businessState === 'maintenance',
+          'timeline-pill--retain': item.businessState === 'retain',
           'timeline-pill--occupied': item.businessState === 'occupied',
           'timeline-pill--reserved': item.businessState === 'reserved',
           'timeline-pill--available': item.businessState === 'available',
+          'timeline-pill--dirty': item.isDirty,
         }"
         type="button"
         @click.stop="$emit('select-date', item.date)"
       >
         <span>{{ item.label }}</span>
         <strong>{{ item.statusText }}</strong>
+        <span v-if="item.isDirty" class="timeline-pill__flag">脏房</span>
       </button>
     </div>
   </article>
@@ -67,17 +77,33 @@ defineEmits<{
 
 const closeTypeText = computed(() => {
   if (props.room.closeType === 'maintenance') {
-    return '维修'
+    return '维修房'
   }
   if (props.room.closeType === 'retain') {
-    return '保留'
+    return '保留房'
   }
-  return '停用'
+  return '停用房'
+})
+
+const closeTypeColor = computed(() => {
+  if (props.room.closeType === 'maintenance') {
+    return 'warning'
+  }
+  if (props.room.closeType === 'retain') {
+    return 'tertiary'
+  }
+  return 'danger'
 })
 
 const focusedStatusColor = computed(() => {
   if (props.room.focusedBusinessState === 'closed') {
     return 'danger'
+  }
+  if (props.room.focusedBusinessState === 'maintenance') {
+    return 'warning'
+  }
+  if (props.room.focusedBusinessState === 'retain') {
+    return 'tertiary'
   }
   if (props.room.focusedBusinessState === 'occupied') {
     return 'success'
@@ -85,7 +111,18 @@ const focusedStatusColor = computed(() => {
   if (props.room.focusedBusinessState === 'reserved') {
     return 'warning'
   }
+  if (props.room.isDirty) {
+    return 'warning'
+  }
   return 'medium'
+})
+
+const emptyStateText = computed(() => {
+  if (props.room.focusedClosed) {
+    return '当前日期已关房，可执行开房或查看关房备注。'
+  }
+
+  return '当前房间暂无订单，可直接发起预订、直接入住或关房。'
 })
 </script>
 
@@ -132,6 +169,26 @@ const focusedStatusColor = computed(() => {
   background: var(--app-primary-soft);
 }
 
+.room-card__closed-info {
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(220, 38, 38, 0.12);
+  background: rgba(220, 38, 38, 0.06);
+  display: grid;
+  gap: 6px;
+}
+
+.room-card__closed-info strong,
+.room-card__closed-info p {
+  margin: 0;
+}
+
+.room-card__closed-info p {
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .room-card__timeline {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -166,6 +223,12 @@ const focusedStatusColor = computed(() => {
   white-space: nowrap;
 }
 
+.timeline-pill__flag {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--ion-color-warning-shade);
+}
+
 .timeline-pill--selected {
   border-color: var(--app-border-strong);
   background: var(--app-primary-soft-strong);
@@ -173,6 +236,14 @@ const focusedStatusColor = computed(() => {
 
 .timeline-pill--closed {
   background: rgba(220, 38, 38, 0.08);
+}
+
+.timeline-pill--maintenance {
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.timeline-pill--retain {
+  background: rgba(168, 85, 247, 0.12);
 }
 
 .timeline-pill--occupied {
@@ -185,5 +256,9 @@ const focusedStatusColor = computed(() => {
 
 .timeline-pill--available {
   background: rgba(59, 130, 246, 0.08);
+}
+
+.timeline-pill--dirty {
+  border-style: dashed;
 }
 </style>
