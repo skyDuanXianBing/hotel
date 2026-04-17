@@ -512,6 +512,18 @@ const router = createRouter({
       meta: { title: '忘记密码' },
     },
     {
+      path: '/legal/terms',
+      name: 'TermsOfService',
+      component: () => import('@/views/legal/TermsOfService.vue'),
+      meta: { title: '用户服务协议' },
+    },
+    {
+      path: '/legal/privacy',
+      name: 'PrivacyPolicy',
+      component: () => import('@/views/legal/PrivacyPolicy.vue'),
+      meta: { title: '隐私政策' },
+    },
+    {
       path: '/share/:token',
       name: 'RoomStatusShareView',
       component: () => import('@/views/share/RoomStatusShareView.vue'),

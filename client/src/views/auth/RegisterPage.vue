@@ -3,8 +3,8 @@
     <!-- 左侧蓝色背景区域 -->
     <div class="left-section">
       <div class="left-content">
-        <h1 class="main-title">智能订单管理</h1>
-        <h1 class="sub-title">提升业务效率</h1>
+        <h1 class="main-title">房东智控中心</h1>
+        <h1 class="sub-title">THE HOST HUB</h1>
 
         <p class="description">
           Trusted by over 100,000 properties worldwide.<br />
@@ -48,7 +48,7 @@
       <div class="form-container">
         <!-- 标题 -->
         <h2 class="form-title">立即注册</h2>
-        <p class="form-subtitle">创建账户，并开始使用Smart Order系统</p>
+        <p class="form-subtitle">创建账户，并开始使用房东智控中心（THE HOST HUB）</p>
 
         <!-- 注册表单 -->
         <el-form
@@ -123,9 +123,17 @@
           <div class="agreement-row">
             <el-checkbox v-model="registerForm.agreeToTerms">
               我已阅读并同意
-              <el-link type="primary" :underline="false">《用户服务协议》</el-link>
+              <el-link
+                type="primary"
+                :underline="false"
+                @click.stop.prevent="goToTermsOfService"
+              >
+                《用户服务协议》
+              </el-link>
               、
-              <el-link type="primary" :underline="false">《隐私政策》</el-link>
+              <el-link type="primary" :underline="false" @click.stop.prevent="goToPrivacyPolicy">
+                《隐私政策》
+              </el-link>
               和
               <el-link type="primary" :underline="false">《会员服务条款》</el-link>
             </el-checkbox>
@@ -277,6 +285,16 @@ const handleRegister = async () => {
 // 跳转到登录页面
 const goToLogin = () => {
   router.push('/login')
+}
+
+// 跳转到用户服务协议
+const goToTermsOfService = () => {
+  router.push('/legal/terms')
+}
+
+// 跳转到隐私政策
+const goToPrivacyPolicy = () => {
+  router.push('/legal/privacy')
 }
 </script>
 

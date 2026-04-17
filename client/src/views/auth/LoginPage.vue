@@ -3,8 +3,8 @@
     <!-- 左侧蓝色背景区域 -->
     <div class="left-section">
       <div class="left-content">
-        <h1 class="main-title">智能订单管理</h1>
-        <h1 class="sub-title">提升业务效率</h1>
+        <h1 class="main-title">房东智控中心</h1>
+        <h1 class="sub-title">THE HOST HUB</h1>
 
         <p class="description">
           Trusted by over 100,000 properties worldwide.<br />
@@ -145,9 +145,17 @@
           <div class="agreement-row">
             <el-checkbox v-model="loginForm.agreeToTerms">
               我已阅读并同意
-              <el-link type="primary" :underline="false">《用户服务协议》</el-link>
+              <el-link
+                type="primary"
+                :underline="false"
+                @click.stop.prevent="goToTermsOfService"
+              >
+                《用户服务协议》
+              </el-link>
               和
-              <el-link type="primary" :underline="false">《隐私政策》</el-link>
+              <el-link type="primary" :underline="false" @click.stop.prevent="goToPrivacyPolicy">
+                《隐私政策》
+              </el-link>
             </el-checkbox>
           </div>
 
@@ -333,6 +341,16 @@ const goToForgotPassword = () => {
 // 跳转到注册页面
 const goToRegister = () => {
   router.push('/register')
+}
+
+// 跳转到用户服务协议
+const goToTermsOfService = () => {
+  router.push('/legal/terms')
+}
+
+// 跳转到隐私政策
+const goToPrivacyPolicy = () => {
+  router.push('/legal/privacy')
 }
 </script>
 
