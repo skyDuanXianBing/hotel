@@ -3,8 +3,8 @@
     <!-- 左侧蓝色背景区域 -->
     <div class="left-section">
       <div class="left-content">
-        <h1 class="main-title">智能订单管理</h1>
-        <h1 class="sub-title">提升业务效率</h1>
+        <h1 class="main-title">房东智控中心</h1>
+        <h1 class="sub-title">THE HOST HUB</h1>
 
         <p class="description">
           Trusted by over 100,000 properties worldwide.<br />

@@ -222,7 +222,7 @@
           <div class="channel-desc">
             <h3 class="channel-title-highlight">{{ currentSettingChannel?.name || '' }}渠道设置</h3>
             <p>
-              渠道连接是管理渠道房量、房价等信息的关键，一旦连接并匹配成功，Smart Order就能够获取渠道订单信息并允许在PMS中控制房量。如需详细的操作说明，请见帮助中心。
+              渠道连接是管理渠道房量、房价等信息的关键，一旦连接并匹配成功，房东智控中心（THE HOST HUB）就能够获取渠道订单信息并允许在PMS中控制房量。如需详细的操作说明，请见帮助中心。
             </p>
           </div>
           <div class="channel-actions">
