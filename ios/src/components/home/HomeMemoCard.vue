@@ -14,13 +14,12 @@
 
     <template v-else>
       <ion-textarea
-        :value="modelValue"
+        v-model="textareaValue"
         auto-grow
         class="memo-textarea"
         fill="outline"
         placeholder="记录今日重点事项或待办…"
         :rows="4"
-        @ionInput="handleInput"
       />
     </template>
   </section>
@@ -28,6 +27,7 @@
 
 <script setup lang="ts">
 import { IonSkeletonText, IonTextarea } from '@ionic/vue'
+import { computed } from 'vue'
 
 interface Props {
   modelValue: string
@@ -36,16 +36,18 @@ interface Props {
   statusText: string
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const handleInput = (event: CustomEvent) => {
-  const nextValue = String(event.detail.value ?? '')
-  emit('update:modelValue', nextValue)
-}
+const textareaValue = computed({
+  get: () => props.modelValue,
+  set: (value: string | null | undefined) => {
+    emit('update:modelValue', String(value ?? ''))
+  },
+})
 </script>
 
 <style scoped>

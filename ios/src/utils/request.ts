@@ -11,9 +11,9 @@ import {
   getStoredCurrentStoreId,
   getStoredToken,
 } from '@/utils/storage'
+import { API_BASE_URL } from '@/constants/api'
 import { showErrorToast, sanitizeUserFacingMessage } from '@/utils/notify'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 const REQUEST_TIMEOUT = 10000
 const REQUEST_ERROR_HANDLED_KEY = 'toastHandled'
 const REQUEST_ERROR_STATUS_KEY = 'status'
@@ -187,27 +187,28 @@ export const getRequestErrorStatus = (error: unknown) => {
 
 const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | 'blob'): Promise<T> => {
   const controller = new AbortController()
+  const timeoutMs = config.timeoutMs ?? REQUEST_TIMEOUT
   const timeoutId = window.setTimeout(() => {
     controller.abort()
-  }, REQUEST_TIMEOUT)
+  }, timeoutMs)
 
-    try {
-      const response = await fetch(buildRequestUrl(config.url, config.params), {
-        method: config.method ?? 'GET',
-        headers: createHeaders(config),
-        body: buildBody(config.data),
-        signal: controller.signal,
-      })
+  try {
+    const response = await fetch(buildRequestUrl(config.url, config.params), {
+      method: config.method ?? 'GET',
+      headers: createHeaders(config),
+      body: buildBody(config.data),
+      signal: controller.signal,
+    })
 
-      let payload: ApiResponse<unknown> | Record<string, unknown> | null = null
+    let payload: ApiResponse<unknown> | Record<string, unknown> | null = null
 
-      if (!response.ok || responseType === 'json') {
-        payload = await readResponseData(response.clone())
-      }
+    if (!response.ok || responseType === 'json') {
+      payload = await readResponseData(response.clone())
+    }
 
-      if (!response.ok) {
-        const message = resolveErrorMessage(payload, response.statusText || '请求失败')
-        const shouldSuppressErrorToast = config.suppressErrorStatuses?.includes(response.status) === true
+    if (!response.ok) {
+      const message = resolveErrorMessage(payload, response.statusText || '请求失败')
+      const shouldSuppressErrorToast = config.suppressErrorStatuses?.includes(response.status) === true
 
       if (response.status === 401) {
         await handleUnauthorized()
@@ -219,17 +220,17 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
         }
       }
 
-        throw buildHandledError(message || '请求失败', response.status)
-      }
+      throw buildHandledError(message || '请求失败', response.status)
+    }
 
-      if (responseType === 'blob') {
-        return (await response.blob()) as T
-      }
+    if (responseType === 'blob') {
+      return (await response.blob()) as T
+    }
 
-      return payload as T
-    } catch (error) {
-      if (isHandledRequestError(error)) {
-        throw error
+    return payload as T
+  } catch (error) {
+    if (isHandledRequestError(error)) {
+      throw error
     }
 
     if (error instanceof DOMException && error.name === 'AbortError') {

@@ -1,15 +1,10 @@
 import type { RequestConfig, ApiResponse } from '@/types/api'
+import { PUBLIC_API_BASE_URL } from '@/constants/api'
 import { sanitizeUserFacingMessage, showErrorToast } from '@/utils/notify'
 
-const PUBLIC_API_BASE_URL = resolvePublicBaseUrl()
 const REQUEST_TIMEOUT = 10000
 const REQUEST_ERROR_HANDLED_KEY = 'toastHandled'
 const REQUEST_ERROR_STATUS_KEY = 'status'
-
-function resolvePublicBaseUrl() {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1'
-  return baseUrl.replace(/\/api\/v1\/?$/, '/api')
-}
 
 const trimLeadingSlash = (value: string) => value.replace(/^\/+/, '')
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')

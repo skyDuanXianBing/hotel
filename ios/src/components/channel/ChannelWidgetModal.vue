@@ -58,6 +58,7 @@ import {
 } from '@ionic/vue'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { getSuWidgetToken, type WidgetTokenResponse } from '@/api/otaIntegration'
+import { SU_CONFIG_PROXY_BASE } from '@/constants/api'
 import { showWarningToast } from '@/utils/notify'
 
 interface SuOtaSwitchConfig {
@@ -88,7 +89,6 @@ type WidgetLanguage = 'zn' | 'en'
 const REACT_UMD_URL = 'https://unpkg.com/react@18.2.0/umd/react.production.min.js'
 const REACT_DOM_UMD_URL = 'https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js'
 const WIDGET_LANGUAGE_STORAGE_KEY = 'ios_su_widget_language'
-const SU_CONFIG_PROXY_BASE = `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/su/config`
 
 const props = defineProps<{
   isOpen: boolean

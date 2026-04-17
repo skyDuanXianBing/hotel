@@ -721,6 +721,7 @@ async function handleMoveToOrderBox() {
 
     showSuccessToast('已移入订单盒子')
     await loadDetail()
+    await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '移入订单盒子失败'))
@@ -750,6 +751,7 @@ async function handleMoveOutOrderBox() {
 
     showSuccessToast('已移出订单盒子')
     await loadDetail()
+    await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '移出订单盒子失败'))

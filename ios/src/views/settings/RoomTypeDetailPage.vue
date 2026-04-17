@@ -56,6 +56,14 @@
               <span>儿童最大入住</span>
               <strong>{{ roomType.maxChildOccupancy ?? 0 }} 人</strong>
             </div>
+            <div class="detail-info-item detail-info-item--full">
+              <span>房型地址</span>
+              <strong>{{ roomType.roomTypeAddress || '未设置' }}</strong>
+            </div>
+            <div class="detail-info-item detail-info-item--full">
+              <span>附近车站</span>
+              <strong>{{ roomType.nearbyStation || '未设置' }}</strong>
+            </div>
             <div class="detail-info-item">
               <span>面积</span>
               <strong>{{ sizeText }}</strong>

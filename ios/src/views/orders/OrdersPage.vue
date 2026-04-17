@@ -215,6 +215,7 @@ import {
 } from '@/api/reservation'
 import { getAllRoomTypes } from '@/api/roomType'
 import { ROUTE_PATHS } from '@/router/guards'
+import { useRoomStatusStore } from '@/stores/roomStatus'
 import { useStoreStore } from '@/stores/store'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
@@ -233,6 +234,7 @@ const EMPTY_STATISTICS: ReservationStatistics = {
 
 const route = useRoute()
 const router = useRouter()
+const roomStatusStore = useRoomStatusStore()
 const storeStore = useStoreStore()
 
 const primaryTabs = ORDER_PRIMARY_TABS
@@ -666,7 +668,11 @@ async function confirmAction(header: string, message: string, confirmText: strin
 }
 
 async function refreshAfterMutation() {
-  const results = await Promise.allSettled([loadStatistics(), loadOrders(true)])
+  const results = await Promise.allSettled([
+    loadStatistics(),
+    loadOrders(true),
+    roomStatusStore.refreshAll(),
+  ])
   for (const result of results) {
     if (result.status === 'rejected') {
       throw result.reason
@@ -746,7 +752,7 @@ async function handleMoveOutOrderBox(orderBoxItem: OrderBoxItem) {
       throw new Error(response.message || '移出订单盒子失败')
     }
     showSuccessToast('已移出订单盒子')
-    await loadOrders(true)
+    await refreshAfterMutation()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '移出订单盒子失败'))

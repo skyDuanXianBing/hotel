@@ -6,7 +6,7 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page channels-page">
+    <ion-content class="mobile-page channels-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content pulling-text="下拉刷新渠道状态" refreshing-spinner="crescent" />
       </ion-refresher>
@@ -24,12 +24,12 @@
 
       <div class="mobile-stack">
         <section class="mobile-card">
-          <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
-            <ion-segment-button value="overview">
-              <ion-label>渠道总览</ion-label>
+          <ion-segment class="channels-page__segment" :value="activeSegment" @ionChange="handleSegmentChange">
+            <ion-segment-button value="overview" @click="handleSegmentButtonClick('overview')">
+              <span class="channels-page__segment-text">渠道总览</span>
             </ion-segment-button>
-            <ion-segment-button value="pricing">
-              <ion-label>价格比例</ion-label>
+            <ion-segment-button value="pricing" @click="handleSegmentButtonClick('pricing')">
+              <span class="channels-page__segment-text">价格比例</span>
             </ion-segment-button>
           </ion-segment>
           <p v-if="loadNotice" class="mobile-note channels-page__notice">{{ loadNotice }}</p>
@@ -115,7 +115,6 @@ import {
   IonContent,
   IonHeader,
   IonItem,
-  IonLabel,
   IonList,
   IonPage,
   IonRefresher,
@@ -290,6 +289,10 @@ function handleSegmentChange(event: CustomEvent) {
   activeSegment.value = nextSegment || 'overview'
 }
 
+function handleSegmentButtonClick(segment: ChannelSegment) {
+  activeSegment.value = segment
+}
+
 async function openChannelDetail(otaId: number) {
   await router.push({
     name: 'ChannelDetail',
@@ -372,6 +375,25 @@ onIonViewWillEnter(async () => {
 .channels-page__notice {
   margin-top: 12px;
   color: var(--ion-color-warning);
+}
+
+.channels-page__segment {
+  margin-top: 4px;
+  scroll-margin-top: calc(72px + var(--app-safe-top));
+}
+
+.channels-page__segment :deep(ion-segment-button) {
+  position: relative;
+}
+
+.channels-page__segment-text {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 28px;
 }
 
 .channels-page__card-list,

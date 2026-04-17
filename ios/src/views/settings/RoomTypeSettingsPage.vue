@@ -61,6 +61,10 @@
                 {{ roomType.roomDescription }}
               </p>
 
+              <p v-if="roomType.locationSummary" class="mobile-note settings-room-type-card__location">
+                {{ roomType.locationSummary }}
+              </p>
+
               <p class="mobile-note settings-room-type-card__rooms">
                 房间号：{{ roomType.roomNumbers.length > 0 ? roomType.roomNumbers.join('、') : '未维护房间号' }}
               </p>
@@ -153,6 +157,27 @@
                     fill="outline"
                     inputmode="numeric"
                     placeholder="可选，默认 0"
+                  />
+                </label>
+
+                <label class="settings-form-field settings-form-field--full">
+                  <span>房型地址</span>
+                  <ion-textarea
+                    v-model="roomTypeForm.roomTypeAddress"
+                    :disabled="submitting"
+                    :rows="3"
+                    fill="outline"
+                    placeholder="请输入房型地址，可选；修改后服务端可能触发 listing 同步"
+                  />
+                </label>
+
+                <label class="settings-form-field settings-form-field--full">
+                  <span>附近车站</span>
+                  <ion-input
+                    v-model="roomTypeForm.nearbyStation"
+                    :disabled="submitting"
+                    fill="outline"
+                    placeholder="请输入附近车站，可选"
                   />
                 </label>
 
@@ -359,6 +384,9 @@
               <p class="mobile-note settings-room-numbers__hint">
                 至少保留一个房间；保存前会检查房间号空值、同表单重复以及与其他房型的冲突。
               </p>
+              <p class="mobile-note settings-room-numbers__hint">
+                房间仍按当前房型整包维护；服务端会优先原位改名房间号，并在删除时清理关联绑定、保洁任务与 blockout。
+              </p>
             </div>
 
             <div class="settings-form-actions">
@@ -419,6 +447,7 @@ import { useRoomStatusStore } from '@/stores/roomStatus'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import {
   buildExistingRoomTypePayload,
+  buildRoomTypeLocationSummary,
   buildLocalizedContent,
   buildRoomTypeCode,
   buildRoomTypePriceSummary,
@@ -443,6 +472,7 @@ interface RoomTypeView {
   name: string
   shortName: string
   roomDescription: string
+  locationSummary: string
   maxGuests: number
   maxChildOccupancy: number
   roomCount: number
@@ -461,6 +491,8 @@ interface RoomTypeFormState {
   roomDescription: string
   maxGuests: string
   maxChildOccupancy: string
+  roomTypeAddress: string
+  nearbyStation: string
   checkInGuideLink: string
   suRoomType: string
   sizeMeasurement: string
@@ -510,6 +542,8 @@ function createEmptyRoomTypeForm(): RoomTypeFormState {
     roomDescription: '',
     maxGuests: '2',
     maxChildOccupancy: '0',
+    roomTypeAddress: '',
+    nearbyStation: '',
     checkInGuideLink: '',
     suRoomType: '',
     sizeMeasurement: '',
@@ -586,6 +620,8 @@ function createFormFromRoomType(roomType: RoomTypeWithRoomsDTO): RoomTypeFormSta
     roomDescription: resolveRoomTypeLongDescription(roomType),
     maxGuests: formatNumberText(roomType.maxGuests || 1),
     maxChildOccupancy: formatNumberText(roomType.maxChildOccupancy ?? 0),
+    roomTypeAddress: roomType.roomTypeAddress || '',
+    nearbyStation: roomType.nearbyStation || '',
     checkInGuideLink: roomType.checkInGuideLink || '',
     suRoomType: roomType.suRoomType || '',
     sizeMeasurement: formatNumberText(roomType.sizeMeasurement),
@@ -613,6 +649,7 @@ function buildRoomTypeView(roomType: RoomTypeWithRoomsDTO): RoomTypeView {
     name: roomType.name,
     shortName: resolveRoomTypeShortName(roomType),
     roomDescription: resolveRoomTypeLongDescription(roomType),
+    locationSummary: buildRoomTypeLocationSummary(roomType),
     maxGuests: roomType.maxGuests || 1,
     maxChildOccupancy: roomType.maxChildOccupancy ?? 0,
     roomCount: roomType.totalRooms || roomNumbers.length,
@@ -937,6 +974,15 @@ function validateNameConflict(name: string) {
   return true
 }
 
+function normalizeOptionalText(rawValue: string) {
+  const trimmedValue = rawValue.trim()
+  if (!trimmedValue) {
+    return undefined
+  }
+
+  return trimmedValue
+}
+
 function buildValidatedPayload() {
   const name = roomTypeForm.value.name.trim()
   if (!name) {
@@ -1057,6 +1103,8 @@ function buildValidatedPayload() {
     totalRooms: rooms.length,
     maxGuests,
     maxChildOccupancy,
+    roomTypeAddress: normalizeOptionalText(roomTypeForm.value.roomTypeAddress),
+    nearbyStation: normalizeOptionalText(roomTypeForm.value.nearbyStation),
     checkInGuideLink: normalizedGuideLink || undefined,
     suRoomType: roomTypeForm.value.suRoomType.trim() || undefined,
     sizeMeasurement,
@@ -1197,6 +1245,7 @@ onIonViewWillEnter(async () => {
 .settings-room-type-card__header p,
 .settings-room-type-card__rooms,
 .settings-room-type-card__description,
+.settings-room-type-card__location,
 .settings-room-type-card__hint {
   margin: 0;
 }
@@ -1230,6 +1279,7 @@ onIonViewWillEnter(async () => {
 }
 
 .settings-room-type-card__description,
+.settings-room-type-card__location,
 .settings-room-type-card__rooms,
 .settings-room-type-card__supporting,
 .settings-room-type-card__hint,
@@ -1238,6 +1288,7 @@ onIonViewWillEnter(async () => {
 }
 
 .settings-room-type-card__description,
+.settings-room-type-card__location,
 .settings-room-type-card__hint {
   line-height: 1.6;
 }
