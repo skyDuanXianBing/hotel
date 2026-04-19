@@ -77,6 +77,26 @@ const getFormatterPart = (
   return formatter.formatToParts(date).find((part) => part.type === partType)?.value || '00'
 }
 
+export const formatStoreDate = (rawValue: string | Date, storeTimeZone: string): string => {
+  const date = parseUtcDateTime(rawValue)
+  const formatter = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: resolveStoreTimeZone(storeTimeZone),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+
+  const year = getFormatterPart(formatter, date, 'year')
+  const month = getFormatterPart(formatter, date, 'month')
+  const day = getFormatterPart(formatter, date, 'day')
+  return `${year}-${month}-${day}`
+}
+
+export const getStoreTodayYmd = (storeTimeZone?: string): string => {
+  const timeZone = storeTimeZone ? resolveStoreTimeZone(storeTimeZone) : resolveStoreTimeZoneFromStorage()
+  return formatStoreDate(new Date(), timeZone)
+}
+
 export const formatStoreDateTime = (
   rawValue: string | Date,
   storeTimeZone: string,

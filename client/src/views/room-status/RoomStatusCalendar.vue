@@ -2045,6 +2045,7 @@ import {
 import { getSortOrderMap } from '@/api/sortConfig'
 import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO, type RoomGroupMemberDTO } from '@/api/roomGroup'
 import { calculateTotalPriceByDates } from '@/utils/priceHelper'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 import { createConsumption, getConsumptionsByReservationId, deleteConsumption, getTotalConsumption, type ConsumptionDTO } from '@/api/consumption'
 import { createPayment, getPaymentsByReservationId, deletePayment, getTotalPayment, type PaymentDTO } from '@/api/payment'
 import { getOperationLogsByReservationId, type OperationLogDTO } from '@/api/operationLog'
@@ -2070,7 +2071,7 @@ const searchTimeout = ref<number | null>(null)
 // const dateRange = ref<[string, string]>(['2025-09-21', '2025-10-04'])
 
 // 添加当前基准日期，用于控制日历显示的起始位置
-const currentBaseDate = ref<string>(new Date().toISOString().split('T')[0])
+const currentBaseDate = ref<string>(getStoreTodayYmd())
 
 const parseYmdDate = (value: string) => {
   const [year, month, day] = value.split('-').map((part) => Number(part))
@@ -3491,11 +3492,7 @@ const nextWeek = () => {
 }
 
 const goToToday = () => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const today = `${year}-${month}-${day}`
+  const today = getStoreTodayYmd()
   visibleDateRange.value = buildVisibleDateRangeFromBase(today)
 }
 
@@ -3582,18 +3579,18 @@ const isWeekend = (date: string) => {
 }
 
 const isToday = (date: string) => {
-  return date === new Date().toISOString().split('T')[0]
+  return date === getStoreTodayYmd()
 }
 
 // 判断日期是否在今天之前
 const isBeforeToday = (date: string) => {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getStoreTodayYmd()
   return date < today
 }
 
 // 判断日期是否在今天之后
 const isAfterToday = (date: string) => {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getStoreTodayYmd()
   return date > today
 }
 
@@ -3804,12 +3801,12 @@ const loadRoomTypesData = async () => {
           roomType.rooms.forEach((room: any) => {
             // 生成日期状态数据
             const dailyStatus = []
-            const startDate = new Date(dateRange.value[0])
-            const endDate = new Date(dateRange.value[1])
+            const startDate = parseYmdDate(dateRange.value[0])
+            const endDate = parseYmdDate(dateRange.value[1])
             const current = new Date(startDate)
 
             while (current <= endDate) {
-              const dateStr = current.toISOString().split('T')[0]
+              const dateStr = formatYmdDate(current)
               dailyStatus.push({
                 date: dateStr,
                 status: RoomStatus.AVAILABLE,
@@ -4646,7 +4643,7 @@ const confirmBatchOperation = () => {
     executeBatchCleanOperation(batchSelectedRoomIds.value)
   } else if (isBatchRoomAction.value) {
     batchCloseSelectedRoomIds.value = [...batchSelectedRoomIds.value]
-    const today = new Date().toISOString().split('T')[0]
+    const today = getStoreTodayYmd()
     batchCloseForm.value.type = 'stop'
     batchCloseForm.value.startDate = today
     batchCloseForm.value.endDate = today
@@ -4963,11 +4960,7 @@ const hideQuickActions = () => {
 
 // 添加消费项目
 const addConsumptionItem = () => {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  const dateStr = `${year}-${month}-${day}`
+  const dateStr = getStoreTodayYmd()
 
   consumptionItems.value.push({
     id: Date.now().toString(),
@@ -4986,11 +4979,7 @@ const removeConsumptionItem = (id: string) => {
 
 // 添加收款记录
 const addPaymentItem = () => {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  const dateStr = `${year}-${month}-${day}`
+  const dateStr = getStoreTodayYmd()
 
   paymentItems.value.push({
     id: Date.now().toString(),
@@ -5244,7 +5233,7 @@ const openAddConsumptionSidebar = () => {
     item: '',
     quantity: 1,
     amount: 0,
-    date: new Date().toISOString().split('T')[0],
+    date: getStoreTodayYmd(),
     remark: '',
   }
   showAddConsumptionSidebar.value = true
@@ -5258,7 +5247,7 @@ const openPaymentSidebar = () => {
     type: 'payment',
     paymentMethod: getDefaultPaymentMethodValue(),
     amount: 0,
-    date: new Date().toISOString().split('T')[0],
+    date: getStoreTodayYmd(),
     remark: '',
   }
   showPaymentSidebar.value = true
@@ -6214,9 +6203,9 @@ const handleDirectCheckIn = () => {
   // 自动填充房间和日期信息
   bookingForm.value.checkInDate = quickActionDate.value
   // 默认离店日期为入住日期的下一天
-  const checkInDate = new Date(quickActionDate.value)
+  const checkInDate = parseYmdDate(quickActionDate.value)
   checkInDate.setDate(checkInDate.getDate() + 1)
-  bookingForm.value.checkOutDate = checkInDate.toISOString().split('T')[0]
+  bookingForm.value.checkOutDate = formatYmdDate(checkInDate)
 
   // 获取房型价格信息
   if (quickActionRoom.value.roomId) {
