@@ -45,6 +45,8 @@ export interface RoomTimelineItem {
   isDirty: boolean
   closeType: string
   closeRemark: string
+  reservation: ReservationDTO | null
+  price?: number
 }
 
 export interface RoomStatusRoomItem {
@@ -347,6 +349,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   const channels = ref<ChannelDTO[]>([])
   const selectedRoomTypes = ref<string[]>([])
   const searchResults = ref<ReservationDTO[]>([])
+  const hasSearchCompleted = ref(false)
   const dirtyRoomIds = ref<number[]>([])
   const loading = ref(false)
   const summaryLoading = ref(false)
@@ -355,6 +358,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   const reservationAmountCache = ref<Record<number, number>>({})
   const reservationAmountPending = new Map<number, Promise<void>>()
   const reservationAmountUnavailable = new Set<number>()
+  let latestSearchRequestId = 0
+  let hasInitializedRoomTypeSelection = false
   const roomTypeSortOrderMap = ref<Record<string, number>>({})
   const roomSortOrderMap = ref<Record<number, number>>({})
   const roomToGroupSortOrderMap = ref<Map<number, number>>(new Map())
@@ -489,6 +494,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
           isDirty: roomIsDirty,
           closeType: dailyStatus.closeType || '',
           closeRemark: dailyStatus.closeRemark || '',
+          reservation: buildReservationModel(dailyStatus, reservationAmountCache.value),
         })
       }
 
@@ -613,21 +619,33 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   function syncRoomTypeSelection() {
     if (roomTypes.value.length === 0) {
       selectedRoomTypes.value = []
-      return
-    }
-
-    if (selectedRoomTypes.value.length === 0) {
-      selectedRoomTypes.value = [...roomTypes.value]
+      hasInitializedRoomTypeSelection = false
       return
     }
 
     const nextSelectedRoomTypes = selectedRoomTypes.value.filter((item) => roomTypes.value.includes(item))
-    if (nextSelectedRoomTypes.length === 0) {
+
+    if (!hasInitializedRoomTypeSelection) {
+      hasInitializedRoomTypeSelection = true
+
+      if (nextSelectedRoomTypes.length > 0) {
+        selectedRoomTypes.value = nextSelectedRoomTypes
+        return
+      }
+
       selectedRoomTypes.value = [...roomTypes.value]
       return
     }
 
     selectedRoomTypes.value = nextSelectedRoomTypes
+  }
+
+  function setSelectedRoomTypes(nextRoomTypes: string[]) {
+    const validRoomTypes = Array.from(
+      new Set(nextRoomTypes.filter((item) => roomTypes.value.includes(item))),
+    )
+    selectedRoomTypes.value = validRoomTypes
+    hasInitializedRoomTypeSelection = true
   }
 
   function setCachedReservationAmount(reservationId: number, totalAmount: number) {
@@ -943,41 +961,59 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
   function toggleRoomType(roomType: string) {
     if (selectedRoomTypes.value.includes(roomType)) {
       selectedRoomTypes.value = selectedRoomTypes.value.filter((item) => item !== roomType)
-      if (selectedRoomTypes.value.length === 0) {
-        selectedRoomTypes.value = [...roomTypes.value]
-      }
+      hasInitializedRoomTypeSelection = true
       return
     }
 
     selectedRoomTypes.value = [...selectedRoomTypes.value, roomType]
+    hasInitializedRoomTypeSelection = true
   }
 
   function resetRoomTypeFilter() {
     selectedRoomTypes.value = [...roomTypes.value]
+    hasInitializedRoomTypeSelection = true
   }
 
   async function runSearch(keyword: string) {
-    if (!keyword || keyword.trim().length < 2) {
-      searchResults.value = []
+    const normalizedKeyword = keyword.trim()
+
+    if (!normalizedKeyword || normalizedKeyword.length < 2) {
+      clearSearchResults()
       return
     }
 
+    latestSearchRequestId += 1
+    const requestId = latestSearchRequestId
     searching.value = true
+    hasSearchCompleted.value = false
+    searchResults.value = []
+
     try {
-      const response = await searchReservations(keyword.trim())
+      const response = await searchReservations(normalizedKeyword)
+      if (requestId !== latestSearchRequestId) {
+        return
+      }
+
       if (!response.success || !response.data) {
         searchResults.value = []
+        hasSearchCompleted.value = true
         throw new Error(response.message || '订单搜索失败')
       }
 
       searchResults.value = response.data
+      hasSearchCompleted.value = true
     } finally {
-      searching.value = false
+      if (requestId === latestSearchRequestId) {
+        searching.value = false
+      }
     }
   }
 
   function clearSearchResults() {
+    latestSearchRequestId += 1
     searchResults.value = []
+    hasSearchCompleted.value = false
+    searching.value = false
   }
 
   function setDirtyState(roomIds: number[], dirty: boolean) {
@@ -1100,6 +1136,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
         isDirty: roomIsDirty,
         closeType: dailyStatus.closeType || '',
         closeRemark: dailyStatus.closeRemark || '',
+        reservation: buildReservationModel(dailyStatus, reservationAmountCache.value),
       })
     }
 
@@ -1128,6 +1165,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     channels,
     selectedRoomTypes,
     searchResults,
+    hasSearchCompleted,
     loading,
     summaryLoading,
     searching,
@@ -1145,6 +1183,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
     goToday,
     toggleRoomType,
     resetRoomTypeFilter,
+    setSelectedRoomTypes,
     runSearch,
     clearSearchResults,
     toggleDirty,

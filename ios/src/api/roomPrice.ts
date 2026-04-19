@@ -43,6 +43,19 @@ export interface UpdatePriceByPlanRequest {
   notes?: string
 }
 
+export interface BulkPriceChangeRequest {
+  roomTypeIds: number[]
+  dateRanges: Array<{
+    startDate: string
+    endDate: string
+  }>
+  weekdays?: number[]
+  weekendDifferentiation: boolean
+  weekdayPrice: number
+  weekendPrice?: number
+  notes?: string
+}
+
 export interface PriceChangeHistoryDTO {
   id: number
   roomTypeName: string
@@ -97,6 +110,10 @@ export const updatePriceByPlan = (data: UpdatePriceByPlanRequest, operator: stri
   return request.post<ApiResponse<RoomPriceManagementDTO[]>>('/room-prices/update-by-plan', data, {
     params: { operator },
   })
+}
+
+export const bulkPriceChange = (data: BulkPriceChangeRequest) => {
+  return request.post<ApiResponse<RoomPriceManagementDTO[]>>('/room-prices/bulk-change', data)
 }
 
 export const getPriceChangeHistory = (params: PriceChangeHistoryQueryParams) => {

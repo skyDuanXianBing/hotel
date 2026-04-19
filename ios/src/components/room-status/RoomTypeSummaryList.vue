@@ -3,7 +3,7 @@
     <div class="mobile-inline-row room-type-summary__header">
       <div>
         <h2 class="mobile-section-title">房型视角</h2>
-        <p class="mobile-note">用房型聚合卡替代桌面收起视图。</p>
+        <p class="mobile-note">勾选需要保留的房型，点击确定后再应用到房态列表。</p>
       </div>
       <ion-button fill="clear" size="small" @click="$emit('reset')">重置筛选</ion-button>
     </div>
@@ -13,12 +13,24 @@
         v-for="item in items"
         :key="item.roomType"
         class="room-type-summary__item"
-        :class="{ 'room-type-summary__item--selected': item.selected }"
+        :class="{ 'room-type-summary__item--selected': selectedRoomTypeSet.has(item.roomType) }"
         type="button"
+        :aria-pressed="selectedRoomTypeSet.has(item.roomType)"
         @click="$emit('toggle', item.roomType)"
       >
         <div class="room-type-summary__title-row">
-          <strong>{{ item.roomType }}</strong>
+          <div class="room-type-summary__title-main">
+            <span
+              class="room-type-summary__checkbox"
+              :class="{
+                'room-type-summary__checkbox--selected': selectedRoomTypeSet.has(item.roomType),
+              }"
+              aria-hidden="true"
+            >
+              {{ selectedRoomTypeSet.has(item.roomType) ? '✓' : '' }}
+            </span>
+            <strong>{{ item.roomType }}</strong>
+          </div>
           <span>{{ item.totalRooms }} 间</span>
         </div>
         <div class="room-type-summary__metrics">
@@ -34,16 +46,20 @@
 
 <script setup lang="ts">
 import { IonButton } from '@ionic/vue'
+import { computed } from 'vue'
 import type { RoomTypeSummaryItem } from '@/stores/roomStatus'
 
-defineProps<{
+const props = defineProps<{
   items: RoomTypeSummaryItem[]
+  selectedRoomTypes: string[]
 }>()
 
 defineEmits<{
   toggle: [roomType: string]
   reset: []
 }>()
+
+const selectedRoomTypeSet = computed(() => new Set(props.selectedRoomTypes))
 </script>
 
 <style scoped>
@@ -65,6 +81,33 @@ defineEmits<{
 .room-type-summary__item--selected {
   border-color: var(--app-border-strong);
   background: var(--app-primary-soft-strong);
+}
+
+.room-type-summary__title-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.room-type-summary__checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border-strong);
+  background: rgba(255, 255, 255, 0.96);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.room-type-summary__checkbox--selected {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: #ffffff;
 }
 
 .room-type-summary__title-row,

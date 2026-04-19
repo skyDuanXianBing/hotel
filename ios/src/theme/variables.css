@@ -89,7 +89,7 @@
 
 /* ── Dark Mode ── */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
     --ion-background-color: #08111f;
     --ion-background-color-rgb: 8, 17, 31;
     --ion-text-color: #eef4ff;
@@ -118,6 +118,36 @@
     --app-button-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
     --app-floating-shadow: 0 18px 38px rgba(0, 0, 0, 0.36);
   }
+}
+
+:root[data-theme='dark'] {
+  --ion-background-color: #08111f;
+  --ion-background-color-rgb: 8, 17, 31;
+  --ion-text-color: #eef4ff;
+  --ion-text-color-rgb: 238, 244, 255;
+  --ion-border-color: rgba(255, 255, 255, 0.08);
+  --ion-toolbar-background: rgba(8, 17, 31, 0.92);
+  --ion-tab-bar-background: rgba(9, 20, 36, 0.94);
+  --ion-card-background: rgba(16, 28, 47, 0.94);
+  --ion-item-background: rgba(16, 28, 47, 0.92);
+
+  --app-background: linear-gradient(180deg, #08111f 0%, #0c1627 52%, #11223c 100%);
+  --app-surface: rgba(16, 28, 47, 0.92);
+  --app-surface-strong: rgba(18, 33, 57, 0.97);
+  --app-surface-muted: rgba(20, 37, 63, 0.94);
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-border-strong: rgba(96, 165, 250, 0.2);
+  --app-muted: #9fb3d9;
+  --app-heading: #f2f6ff;
+  --app-primary-soft: rgba(96, 165, 250, 0.14);
+  --app-primary-soft-strong: rgba(96, 165, 250, 0.2);
+  --app-secondary-soft: rgba(148, 163, 184, 0.12);
+  --app-success-soft: rgba(52, 211, 153, 0.14);
+  --app-warning-soft: rgba(251, 191, 36, 0.14);
+  --app-danger-soft: rgba(248, 113, 113, 0.14);
+  --app-shadow: 0 18px 42px rgba(0, 0, 0, 0.26);
+  --app-button-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+  --app-floating-shadow: 0 18px 38px rgba(0, 0, 0, 0.36);
 }
 
 /* ============================================================

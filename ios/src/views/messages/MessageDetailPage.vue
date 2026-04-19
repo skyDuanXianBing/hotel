@@ -215,6 +215,7 @@ import {
   IonTitle,
   IonToolbar,
   onIonViewWillEnter,
+  onIonViewWillLeave,
 } from '@ionic/vue'
 import { computed, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -257,6 +258,10 @@ const aiPolishHistory = ref<AiPolishHistoryItem[]>([])
 let pollTimer = 0
 
 const threadId = computed(() => Number(route.params.threadId || 0))
+
+function hasValidThreadId(value: number) {
+  return Number.isInteger(value) && value > 0
+}
 
 const activeThread = computed(() => {
   for (const item of threads.value) {
@@ -435,18 +440,25 @@ function stopPolling() {
 function startPolling() {
   stopPolling()
 
-  if (!threadId.value) {
+  const currentThreadId = threadId.value
+  if (!hasValidThreadId(currentThreadId)) {
     return
   }
 
   pollTimer = window.setInterval(async () => {
+    const activeThreadId = threadId.value
+    if (!hasValidThreadId(activeThreadId) || activeThreadId !== currentThreadId) {
+      stopPolling()
+      return
+    }
+
     const latestTimestamp = getLatestTimestamp()
     if (!latestTimestamp) {
       return
     }
 
     try {
-      const response = await pollThreadMessages(threadId.value, latestTimestamp)
+      const response = await pollThreadMessages(activeThreadId, latestTimestamp)
       if (!response.success || !response.data || response.data.length === 0) {
         return
       }
@@ -468,14 +480,18 @@ function startPolling() {
 
       messages.value = sortMessages(existing)
       await loadThreads()
+      if (!activeThread.value) {
+        stopPolling()
+      }
     } catch {
-      // polling failure should not interrupt current conversation usage
+      stopPolling()
     }
   }, MESSAGE_POLL_INTERVAL)
 }
 
 async function loadPage() {
-  if (!threadId.value) {
+  if (!hasValidThreadId(threadId.value)) {
+    stopPolling()
     loadNotice.value = '缺少会话编号'
     return
   }
@@ -701,6 +717,10 @@ async function handleRefresh(event: CustomEvent) {
 
 onIonViewWillEnter(async () => {
   await loadPage()
+})
+
+onIonViewWillLeave(() => {
+  stopPolling()
 })
 
 onUnmounted(() => {
