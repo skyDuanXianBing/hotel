@@ -9,40 +9,42 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page home-page">
+    <ion-content fullscreen class="mobile-page mobile-page--dashboard home-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content pulling-text="下拉刷新" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section class="home-hero">
-        <div class="home-hero__row">
-          <div>
-            <h1 class="home-hero__name">{{ storeName }}</h1>
-            <p class="home-hero__hint">{{ businessHint }}</p>
+      <div class="home-shell">
+        <section class="home-hero home-surface home-surface--hero">
+          <div class="home-hero__row">
+            <div class="home-hero__content">
+              <h1 class="home-hero__name">{{ storeName }}</h1>
+              <p class="home-hero__hint">{{ businessHint }}</p>
+            </div>
+            <span class="home-hero__date">{{ todayLabel }}</span>
           </div>
-          <span class="home-hero__date">{{ todayLabel }}</span>
-        </div>
-      </section>
 
-      <div class="mobile-stack">
-        <HomeStatsGrid :items="statCards" :loading="dashboardLoading" @select="handleStatSelect" />
-
-        <HomeOccupancyCard :items="occupancyData" :loading="dashboardLoading" />
-
-        <HomeQuickActions :items="quickActions" @select="handleQuickActionSelect" />
-
-        <HomeHelpCenter :items="helpItems" @select="handleHelpItemSelect" @more="handleOpenHelpCenterMore" />
-
-        <HomeMemoCard
-          v-model="memoValue"
-          :auto-saving="memoStore.autoSaving"
-          :loading="memoStore.loading"
-          :status-text="memoStore.saveStatusText"
-        />
-
-        <section v-if="showLoadNotice" class="home-notice">
-          <p class="home-notice__text">{{ loadNotice }}</p>
+          <p v-if="showLoadNotice" class="home-hero__notice">{{ loadNotice }}</p>
         </section>
+
+        <div class="mobile-stack home-stack">
+          <HomeStatsGrid :items="statCards" :loading="dashboardLoading" @select="handleStatSelect" />
+
+          <HomeQuickActions :items="quickActions" @select="handleQuickActionSelect" />
+
+          <HomeOccupancyCard :items="occupancyData" :loading="dashboardLoading" />
+
+          <div class="home-section home-section--lists">
+            <HomeHelpCenter :items="helpItems" @select="handleHelpItemSelect" @more="handleOpenHelpCenterMore" />
+
+            <HomeMemoCard
+              v-model="memoValue"
+              :auto-saving="memoStore.autoSaving"
+              :loading="memoStore.loading"
+              :status-text="memoStore.saveStatusText"
+            />
+          </div>
+        </div>
       </div>
 
       <HomeHelpCenterMoreModal
@@ -104,6 +106,7 @@ const storeStore = useStoreStore()
 const memoStore = useMemoStore()
 
 const dashboardLoading = ref(false)
+const hasLoadedHomeContent = ref(false)
 const occupancyData = ref<DailyOccupancyDTO[]>([])
 const statCards = ref<HomeStatCardItem[]>(buildStatCards())
 const loadNotice = ref('')
@@ -172,6 +175,13 @@ const quickActions: HomeQuickActionItem[] = [
     description: '跳到渠道管理，查看连接、映射和后续操作入口。',
     icon: gitNetworkOutline,
     tone: 'secondary',
+  },
+  {
+    key: 'statistics',
+    title: '统计',
+    description: '进入统计工作台，查看经营概况、报表和数据中心。',
+    icon: barChartOutline,
+    tone: 'primary',
   },
   {
     key: 'messages',
@@ -399,8 +409,11 @@ async function loadOccupancy() {
   occupancyData.value = nextItems
 }
 
-async function loadHomeContent(forceMemo = false) {
-  dashboardLoading.value = true
+async function loadHomeContent(forceMemo = false, showLoading = true) {
+  if (showLoading) {
+    dashboardLoading.value = true
+  }
+
   loadNotice.value = ''
 
   const [statisticsResult, occupancyResult, memoResult] = await Promise.allSettled([
@@ -429,7 +442,13 @@ async function loadHomeContent(forceMemo = false) {
     loadNotice.value = warnings.join('；')
   }
 
-  dashboardLoading.value = false
+  if (showLoading) {
+    dashboardLoading.value = false
+  }
+
+  if (!hasLoadedHomeContent.value) {
+    hasLoadedHomeContent.value = true
+  }
 }
 
 async function goToStoreSelection() {
@@ -467,6 +486,11 @@ async function handleQuickActionSelect(item: HomeQuickActionItem) {
 
   if (item.key === 'channels') {
     await router.push(ROUTE_PATHS.channels)
+    return
+  }
+
+  if (item.key === 'statistics') {
+    await router.push(ROUTE_PATHS.statistics)
     return
   }
 
@@ -548,7 +572,7 @@ function handleDismissSupportModal() {
 
 async function handleRefresh(event: CustomEvent) {
   try {
-    await loadHomeContent(true)
+    await loadHomeContent(true, true)
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '首页刷新失败'))
@@ -570,7 +594,7 @@ watch(
     }
 
     try {
-      await loadHomeContent(true)
+      await loadHomeContent(true, !hasLoadedHomeContent.value)
     } catch (error) {
       if (!isHandledRequestError(error)) {
         showWarningToast(resolveWarningMessage(error, '首页同步失败'))
@@ -581,7 +605,7 @@ watch(
 
 onIonViewWillEnter(async () => {
   try {
-    await loadHomeContent(true)
+    await loadHomeContent(true, !hasLoadedHomeContent.value)
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '首页加载失败'))
@@ -593,62 +617,171 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .home-page {
   display: block;
+  --background: var(--ios-pms-bg-page);
+}
+
+ion-header {
+  backdrop-filter: blur(14px);
+}
+
+ion-header::after {
+  display: none;
+}
+
+ion-toolbar {
+  --padding-start: 10px;
+  --padding-end: 10px;
+}
+
+.mobile-toolbar-title {
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-xl-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  letter-spacing: -0.04em;
+}
+
+ion-button::part(native) {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(116, 163, 251, 0.08);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ios-pms-primary-strong);
+  box-shadow: 0 8px 18px rgba(94, 122, 177, 0.08);
+  font-size: var(--ios-pms-font-body-md-size);
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: -0.01em;
+}
+
+.home-shell {
+  position: relative;
+  --home-section-gap: 8px;
+  padding:
+    calc(var(--ion-safe-area-top, 0px) + 6px)
+    0
+    calc(var(--ion-safe-area-bottom, 0px) + 24px);
+}
+
+.home-stack,
+.home-surface {
+  position: relative;
+  z-index: 1;
+}
+
+.home-stack {
+  margin-top: var(--home-section-gap);
+  gap: var(--home-section-gap);
+}
+
+.home-surface {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--ios-pms-border-soft);
+  border-radius: var(--ios-pms-radius-card-sm);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--ios-pms-shadow-card);
+}
+
+.home-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.home-surface--hero::after {
+  display: none;
 }
 
 .home-hero {
-  padding: 20px 18px;
-  border: 1px solid var(--app-border);
-  border-radius: 20px;
-  background:
-    linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.08), transparent 60%),
-    var(--app-surface-strong);
-  box-shadow: var(--app-shadow);
+  padding: 12px 14px 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 255, 0.94));
 }
 
 .home-hero__row {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+}
+
+.home-hero__content {
+  flex: 1;
+  min-width: 0;
 }
 
 .home-hero__name {
   margin: 0;
-  color: var(--app-heading);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-lg-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.1;
+  letter-spacing: -0.05em;
 }
 
 .home-hero__hint {
-  margin: 6px 0 0;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.5;
+  max-width: none;
+  margin: 5px 0 0;
+  color: var(--ios-pms-text-muted);
+  font-size: var(--ios-pms-font-body-sm-size);
+  font-weight: 500;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .home-hero__date {
+  position: relative;
+  z-index: 1;
   flex-shrink: 0;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 12px;
-  font-weight: 600;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ios-pms-text-soft);
+  box-shadow: none;
+  font-size: var(--ios-pms-font-date-size);
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: 0.08em;
   white-space: nowrap;
 }
 
-.home-notice {
-  padding: 14px 16px;
-  border: 1px solid rgba(var(--ion-color-warning-rgb), 0.18);
-  border-radius: 14px;
-  background: var(--app-warning-soft);
+.home-hero__notice {
+  position: relative;
+  z-index: 1;
+  margin: 6px 0 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #9a772d;
+  font-size: var(--ios-pms-font-date-size);
+  font-weight: 600;
+  line-height: 1.25;
 }
 
-.home-notice__text {
-  margin: 0;
-  color: var(--ion-color-warning);
-  font-size: 13px;
-  line-height: 1.5;
+.home-section {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 374px) {
+  .home-shell {
+    --home-section-gap: 8px;
+  }
+
+  .home-hero {
+    padding: 11px 12px 9px;
+  }
+
+  .home-hero__name {
+    font-size: 19px;
+  }
 }
 </style>

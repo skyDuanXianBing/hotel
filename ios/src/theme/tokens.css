@@ -1,0 +1,125 @@
+:root {
+  --ion-font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  --ion-color-primary: #3474f6;
+  --ion-color-primary-rgb: 52, 116, 246;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #2e66d8;
+  --ion-color-primary-tint: #4a82f7;
+
+  --ion-color-secondary: #7c8cff;
+  --ion-color-secondary-rgb: 124, 140, 255;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #6d7be0;
+  --ion-color-secondary-tint: #8997ff;
+
+  --ion-color-success: #17a673;
+  --ion-color-success-rgb: 23, 166, 115;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #149265;
+  --ion-color-success-tint: #2eaf81;
+
+  --ion-color-warning: #e38b18;
+  --ion-color-warning-rgb: 227, 139, 24;
+  --ion-color-warning-contrast: #ffffff;
+  --ion-color-warning-contrast-rgb: 255, 255, 255;
+  --ion-color-warning-shade: #c87a15;
+  --ion-color-warning-tint: #e7962f;
+
+  --ion-color-danger: #d95c5c;
+  --ion-color-danger-rgb: 217, 92, 92;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #bf5151;
+  --ion-color-danger-tint: #dd6d6d;
+
+  --ios-pms-bg-page:
+    radial-gradient(circle at top right, rgba(111, 156, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, #f2f6ff 0%, #f7faff 48%, #fdfdff 100%);
+  --ios-pms-bg-page-plain: #f7faff;
+  --ios-pms-surface: rgba(255, 255, 255, 0.96);
+  --ios-pms-surface-strong: rgba(255, 255, 255, 0.98);
+  --ios-pms-surface-muted: rgba(246, 249, 255, 0.94);
+
+  --ios-pms-text-primary: #16233b;
+  --ios-pms-text-secondary: #1e2b46;
+  --ios-pms-text-muted: #73829d;
+  --ios-pms-text-soft: #8a98b0;
+  --ios-pms-text-disabled: #a3b0c7;
+
+  --ios-pms-border-soft: rgba(97, 124, 177, 0.08);
+  --ios-pms-border-faint: rgba(116, 138, 185, 0.07);
+  --ios-pms-divider: rgba(116, 138, 185, 0.08);
+
+  --ios-pms-primary: #3474f6;
+  --ios-pms-primary-strong: #3f7cff;
+  --ios-pms-primary-soft: rgba(115, 164, 255, 0.06);
+  --ios-pms-primary-soft-active: rgba(79, 123, 217, 0.04);
+
+  --ios-pms-font-title-xl-size: 21px;
+  --ios-pms-font-title-lg-size: 20px;
+  --ios-pms-font-title-md-size: 17px;
+  --ios-pms-font-title-sm-size: 14px;
+  --ios-pms-font-body-md-size: 12px;
+  --ios-pms-font-body-sm-size: 11px;
+  --ios-pms-font-note-size: 10px;
+  --ios-pms-font-date-size: 9px;
+  --ios-pms-font-metric-lg-size: 24px;
+  --ios-pms-font-metric-md-size: 17px;
+  --ios-pms-font-metric-sm-size: 14px;
+
+  --ios-pms-weight-medium: 600;
+  --ios-pms-weight-bold: 700;
+  --ios-pms-weight-heavy: 800;
+
+  --ios-pms-space-1: 4px;
+  --ios-pms-space-2: 8px;
+  --ios-pms-space-3: 12px;
+  --ios-pms-space-4: 14px;
+  --ios-pms-space-5: 18px;
+  --ios-pms-space-6: 24px;
+
+  --ios-pms-radius-input: 14px;
+  --ios-pms-radius-icon: 12px;
+  --ios-pms-radius-card-sm: 18px;
+  --ios-pms-radius-card: 22px;
+  --ios-pms-radius-pill: 999px;
+
+  --ios-pms-shadow-card: 0 9px 22px rgba(77, 98, 145, 0.05);
+  --ios-pms-shadow-card-strong: 0 10px 24px rgba(77, 98, 145, 0.06);
+  --ios-pms-shadow-tabbar: 0 -14px 28px rgba(121, 145, 188, 0.08);
+
+  --app-background: var(--ios-pms-bg-page);
+  --app-surface: var(--ios-pms-surface);
+  --app-surface-strong: var(--ios-pms-surface-strong);
+  --app-surface-muted: var(--ios-pms-surface-muted);
+  --app-border: var(--ios-pms-border-soft);
+  --app-border-strong: rgba(52, 116, 246, 0.16);
+  --app-muted: var(--ios-pms-text-muted);
+  --app-heading: var(--ios-pms-text-primary);
+  --app-primary-soft: rgba(52, 116, 246, 0.08);
+  --app-primary-soft-strong: rgba(52, 116, 246, 0.14);
+  --app-secondary-soft: rgba(124, 140, 255, 0.12);
+  --app-success-soft: rgba(23, 166, 115, 0.12);
+  --app-warning-soft: rgba(227, 139, 24, 0.12);
+  --app-danger-soft: rgba(217, 92, 92, 0.12);
+  --app-shadow: var(--ios-pms-shadow-card);
+  --app-button-shadow: 0 10px 22px rgba(52, 116, 246, 0.16);
+  --app-floating-shadow: 0 14px 30px rgba(52, 116, 246, 0.2);
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --ion-background-color: #f7faff;
+  --ion-background-color-rgb: 247, 250, 255;
+  --ion-text-color: var(--ios-pms-text-primary);
+  --ion-text-color-rgb: 22, 35, 59;
+  --ion-border-color: var(--ios-pms-border-soft);
+  --ion-toolbar-background: rgba(255, 255, 255, 0.72);
+  --ion-toolbar-border-color: transparent;
+  --ion-tab-bar-background: rgba(255, 255, 255, 0.88);
+  --ion-card-background: var(--ios-pms-surface);
+  --ion-item-background: transparent;
+}

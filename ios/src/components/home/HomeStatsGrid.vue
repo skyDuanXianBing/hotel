@@ -22,12 +22,13 @@
           :class="`stats-card--${item.tone}`"
           @click="handleSelect(item)"
         >
-          <span class="stats-card__title">{{ item.title }}</span>
+          <div class="stats-card__head">
+            <span class="stats-card__title">{{ item.title }}</span>
+          </div>
+
           <div class="stats-card__value-row">
             <strong class="stats-card__value">{{ item.value }}</strong>
-            <span class="stats-card__unit">间/单</span>
           </div>
-          <span class="stats-card__action">{{ item.actionLabel }} ›</span>
         </button>
       </template>
     </div>
@@ -51,7 +52,7 @@ interface Props {
   loading: boolean
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 const emit = defineEmits<{
   select: [item: HomeStatCardItem]
@@ -64,136 +65,196 @@ const handleSelect = (item: HomeStatCardItem) => {
 
 <style scoped>
 .stats-section {
-  padding: 18px;
-  border: 1px solid var(--app-border);
-  border-radius: 20px;
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
+  padding: 11px 14px 9px;
+  border: 1px solid var(--ios-pms-border-soft);
+  border-radius: var(--ios-pms-radius-card-sm);
+  background: var(--ios-pms-surface);
+  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .stats-section__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 7px;
 }
 
 .stats-section__title {
   margin: 0;
-  color: var(--app-heading);
-  font-size: 16px;
-  font-weight: 700;
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  letter-spacing: -0.03em;
 }
 
 .stats-section__tag {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 11px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  min-height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ios-pms-text-soft);
+  box-shadow: none;
+  font-size: var(--ios-pms-font-date-size);
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: 0.05em;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  row-gap: 12px;
+  column-gap: 0;
+  padding: 6px 2px 2px;
 }
 
 .stats-card,
 .stats-skeleton {
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
+  border: none;
+  border-radius: 0;
 }
 
 .stats-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   width: 100%;
-  padding: 14px 12px;
+  min-height: 64px;
+  padding: 6px 4px;
   appearance: none;
-  background: var(--app-surface-strong);
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
   font: inherit;
-  text-align: left;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  text-align: center;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
 }
 
 .stats-card:active {
-  transform: scale(0.97);
+  background: rgba(79, 123, 217, 0.04);
+}
+
+.stats-card:focus-visible {
+  outline: none;
+  background: rgba(79, 123, 217, 0.04);
 }
 
 .stats-card--primary {
-  border-color: rgba(var(--ion-color-primary-rgb), 0.12);
-  background: linear-gradient(160deg, var(--app-primary-soft), var(--app-surface-strong));
+  --stats-accent: #4e82ff;
 }
 
 .stats-card--warning {
-  border-color: rgba(var(--ion-color-warning-rgb), 0.12);
-  background: linear-gradient(160deg, var(--app-warning-soft), var(--app-surface-strong));
+  --stats-accent: #efb44f;
 }
 
 .stats-card--success {
-  border-color: rgba(var(--ion-color-success-rgb), 0.12);
-  background: linear-gradient(160deg, var(--app-success-soft), var(--app-surface-strong));
+  --stats-accent: #56c4a0;
 }
 
 .stats-card--secondary {
-  border-color: rgba(var(--ion-color-secondary-rgb), 0.08);
-  background: linear-gradient(160deg, var(--app-secondary-soft), var(--app-surface-strong));
+  --stats-accent: #9099b3;
+}
+
+.stats-card__head {
+  display: block;
+  order: 2;
 }
 
 .stats-card__title {
   display: block;
-  color: var(--app-muted);
-  font-size: 12px;
+  color: var(--ios-pms-text-muted);
+  font-size: var(--ios-pms-font-body-sm-size);
   font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.stats-card__swatch {
+  display: none;
 }
 
 .stats-card__value-row {
   display: flex;
   align-items: baseline;
-  gap: 3px;
-  margin-top: 8px;
+  justify-content: center;
+  gap: 0;
+  margin-top: 0;
+  margin-bottom: 6px;
 }
 
 .stats-card__value {
-  color: var(--app-heading);
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-metric-lg-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  letter-spacing: -0.05em;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .stats-card__unit {
-  color: var(--app-muted);
-  font-size: 11px;
+  display: none;
+}
+
+.stats-card__footer {
+  display: none;
 }
 
 .stats-card__action {
-  display: block;
-  margin-top: 8px;
-  color: var(--ion-color-primary);
-  font-size: 11px;
-  font-weight: 600;
+  display: none;
+}
+
+.stats-card__arrow {
+  display: none;
 }
 
 .stats-skeleton {
-  padding: 14px 12px;
-  background: var(--app-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  padding: 6px 4px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .stats-skeleton__label {
-  width: 56%;
-  height: 12px;
+  order: 2;
+  width: 52%;
+  height: 10px;
 }
 
 .stats-skeleton__value {
-  width: 48%;
-  height: 26px;
-  margin-top: 8px;
+  width: 40%;
+  height: 22px;
+  margin-top: 0;
+  margin-bottom: 8px;
 }
 
 @media (max-width: 374px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .stats-section {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .stats-card,
+  .stats-skeleton {
+    min-height: 58px;
+  }
+
+  .stats-card__value {
+    font-size: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-card {
+    transition: none;
   }
 }
 </style>
