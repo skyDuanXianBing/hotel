@@ -482,7 +482,7 @@ public class RoomStatusService {
         LocalDateTime endOfDay = targetDate.plusDays(1).atStartOfDay();
         long todayNewOrders = reservationRepository.countTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
         long availableRooms = roomRepository.countAvailableRoomsForDateByStore(storeId, targetDate);
-        long unassignedOrders = reservationRepository.countUnassignedOrUnmappedByStoreId(storeId);
+        long unassignedOrders = reservationRepository.countUnassignedOrUnmappedByStoreId(storeId, targetDate);
         long pendingOrders = reservationRepository.countPendingOrdersByStoreId(storeId);
 
         return new RoomStatusStatisticsDTO(

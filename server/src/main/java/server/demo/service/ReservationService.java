@@ -45,6 +45,7 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -69,6 +70,7 @@ public class ReservationService {
     private static final String SU_ARI_SOURCE_RESERVATION_CHECK_OUT = "reservation_check_out";
     private static final String SU_ARI_SOURCE_RESERVATION_CANCEL = "reservation_cancel";
     private static final String SU_ARI_SOURCE_RESERVATION_UPDATE = "reservation_update";
+    private static final LocalTime UNASSIGNED_CHECK_OUT_CUTOFF_TIME = LocalTime.of(10, 0);
 
     @Autowired
     private ReservationRepository reservationRepository;
@@ -1008,6 +1010,7 @@ public class ReservationService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Long storeId = currentStoreId();
+        LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate();
 
         Specification<Reservation> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -1110,9 +1113,17 @@ public class ReservationService {
                     case "unassigned":
                         // 未排房/未映射统一按“未分配具体房间”处理
                         predicates.add(criteriaBuilder.isNull(root.get("room")));
+                        predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("checkOutDate"), unassignedMinCheckOutDate));
+                        break;
+                    case "assigned":
+                        predicates.add(criteriaBuilder.isNotNull(root.get("room")));
                         break;
                     case "pending":
                         predicates.add(criteriaBuilder.equal(root.get("status"), ReservationStatus.CONFIRMED));
+                        predicates.add(criteriaBuilder.isNull(root.get("actualCheckIn")));
+                        break;
+                    case "deleted-rooms":
+                        predicates.add(criteriaBuilder.isNull(root.get("room")));
                         break;
                 }
             }
@@ -1144,12 +1155,13 @@ public class ReservationService {
     public ReservationStatistics getReservationStatistics() {
         Long storeId = currentStoreId();
         LocalDate today = LocalDate.now();
+        LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate();
         long todayCheckinCount = reservationRepository.countTodayArrivalsByStoreId(storeId, today);
         long todayCheckoutCount = reservationRepository.countByStoreIdAndCheckOutDate(storeId, today);
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
         long todayNewCount = reservationRepository.countTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
-        long unassignedCount = reservationRepository.countUnassignedOrUnmappedByStoreId(storeId);
+        long unassignedCount = reservationRepository.countUnassignedOrUnmappedByStoreId(storeId, unassignedMinCheckOutDate);
         long pendingCount = reservationRepository.countPendingOrdersByStoreId(storeId);
 
         Specification<Reservation> spec = (root, query, criteriaBuilder) ->
@@ -1178,11 +1190,21 @@ public class ReservationService {
      * 获取未排房预订
      */
     public List<ReservationDTO> getUnassignedReservations() {
-        List<Reservation> reservations = reservationRepository.findUnassignedOrUnmappedByStoreId(currentStoreId());
+        LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate();
+        List<Reservation> reservations = reservationRepository.findUnassignedOrUnmappedByStoreId(
+            currentStoreId(),
+            unassignedMinCheckOutDate
+        );
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
+
+        private LocalDate resolveUnassignedMinCheckOutDate() {
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
+        return now.isBefore(UNASSIGNED_CHECK_OUT_CUTOFF_TIME) ? today : today.plusDays(1);
+        }
 
     /**
      * 获取待处理预订
@@ -1370,7 +1392,7 @@ public class ReservationService {
                 reservations = reservationRepository.findTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
                 break;
             case "unassigned":
-                reservations = reservationRepository.findUnassignedOrUnmappedByStoreId(storeId);
+                reservations = reservationRepository.findUnassignedOrUnmappedByStoreId(storeId, resolveUnassignedMinCheckOutDate());
                 break;
             case "assigned":
                 reservations = reservationRepository.findAssignedByStoreId(storeId);

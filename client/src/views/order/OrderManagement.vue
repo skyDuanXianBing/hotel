@@ -572,7 +572,6 @@ import {
   getAssignableRooms,
   getReservationsWithFilters,
   getReservationStatistics,
-  getReservationsByType,
   updateReservationSettlementStatus,
   type AssignableRoomDTO,
   type AssignableRoomTypeDTO,
@@ -612,18 +611,6 @@ const mapTypeToTab = (type: string) => {
   return typeMap[type] || 'all'
 }
 
-// 映射订单页面标签页到统计类型
-const mapTabToType = (tab: string) => {
-  const tabMap: Record<string, string> = {
-    'today-checkin': 'today-arrivals',
-    'today-checkout': 'today-departures',
-    'today-new': 'today-new',
-    unassigned: 'unassigned',
-    assigned: 'assigned',
-    pending: 'pending',
-  }
-  return tabMap[tab]
-}
 const searchQuery = ref('')
 const dateRange = ref<[string, string] | null>(null)
 const showAdvancedFilters = ref(true)
@@ -688,48 +675,26 @@ const loadReservations = async () => {
       loading.value = false
       return
     }
-    // 检查当前标签页是否对应特定统计类型
-    const statisticsType = mapTabToType(activeOrderTab.value)
+    const filterParams = {
+      page: currentPage.value - 1, // 后端从0开始计数
+      size: pageSize.value,
+      searchKeyword: searchQuery.value || undefined,
+      channel: filters.value.channel || undefined,
+      roomType: filters.value.roomType || undefined,
+      checkinType: filters.value.checkinType || undefined,
+      status: filters.value.status || undefined,
+      paymentStatus: filters.value.paymentStatus || undefined,
+      startDate: dateRange.value?.[0] || undefined,
+      endDate: dateRange.value?.[1] || undefined,
+      orderType: activeOrderTab.value !== 'all' ? activeOrderTab.value : undefined,
+    }
 
-    console.log('loadReservations - 当前标签页:', activeOrderTab.value)
-    console.log('loadReservations - 映射统计类型:', statisticsType)
-
-    if (statisticsType) {
-      // 使用按类型过滤的 API
-      console.log('loadReservations - 使用类型过滤 API:', statisticsType)
-      const response = await getReservationsByType(statisticsType)
-      console.log('loadReservations - API 响应:', response)
-      if (response.success) {
-        orders.value = response.data
-        totalOrders.value = response.data.length
-        console.log('loadReservations - 过滤后订单数量:', response.data.length)
-      } else {
-        ElMessage.error(response.message)
-      }
+    const response = await getReservationsWithFilters(filterParams)
+    if (response.success) {
+      orders.value = response.data.content
+      totalOrders.value = response.data.totalElements
     } else {
-      // 使用通用分页 API
-      console.log('loadReservations - 使用通用分页 API')
-      const filterParams = {
-        page: currentPage.value - 1, // 后端从0开始计数
-        size: pageSize.value,
-        searchKeyword: searchQuery.value || undefined,
-        channel: filters.value.channel || undefined,
-        roomType: filters.value.roomType || undefined,
-        checkinType: filters.value.checkinType || undefined,
-        status: filters.value.status || undefined,
-        paymentStatus: filters.value.paymentStatus || undefined,
-        startDate: dateRange.value?.[0] || undefined,
-        endDate: dateRange.value?.[1] || undefined,
-        orderType: activeOrderTab.value !== 'all' ? activeOrderTab.value : undefined,
-      }
-
-      const response = await getReservationsWithFilters(filterParams)
-      if (response.success) {
-        orders.value = response.data.content
-        totalOrders.value = response.data.totalElements
-      } else {
-        ElMessage.error(response.message)
-      }
+      ElMessage.error(response.message)
     }
   } catch (error) {
     console.error('加载订单数据失败:', error)

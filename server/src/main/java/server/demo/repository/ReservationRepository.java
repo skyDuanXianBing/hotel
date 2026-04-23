@@ -305,8 +305,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
             FROM Reservation r
             WHERE r.storeId = :storeId
               AND r.room IS NULL
+             AND r.checkOutDate >= :minCheckOutDate
             """)
-    long countUnassignedOrUnmappedByStoreId(@Param("storeId") Long storeId);
+    long countUnassignedOrUnmappedByStoreId(
+           @Param("storeId") Long storeId,
+           @Param("minCheckOutDate") LocalDate minCheckOutDate
+    );
 
     @Query("SELECT COUNT(r) FROM Reservation r WHERE r.storeId = :storeId AND r.status = 'CONFIRMED' AND r.actualCheckIn IS NULL")
     long countPendingOrdersByStoreId(@Param("storeId") Long storeId);
@@ -320,9 +324,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
             FROM Reservation r
             WHERE r.storeId = :storeId
               AND r.room IS NULL
+             AND r.checkOutDate >= :minCheckOutDate
             ORDER BY r.createdAt DESC
             """)
-    List<Reservation> findUnassignedOrUnmappedByStoreId(@Param("storeId") Long storeId);
+    List<Reservation> findUnassignedOrUnmappedByStoreId(
+           @Param("storeId") Long storeId,
+           @Param("minCheckOutDate") LocalDate minCheckOutDate
+    );
 
     @Query("""
             SELECT r
