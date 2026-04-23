@@ -1,0 +1,21 @@
+[Unit]
+Description=Hotel Server (Spring Boot)
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/hotel/server
+EnvironmentFile=/home/ec2-user/hotel/server/.env
+Environment=SPRING_PROFILES_ACTIVE=prod
+Environment=LOG_PATH=/home/ec2-user/hotel/server/logs
+ExecStart=/usr/bin/java -jar /home/ec2-user/hotel/server/target/demo-0.0.1-SNAPSHOT.jar
+Restart=always
+RestartSec=5
+
+# Keep stdout/stderr in journald instead of redirecting to backend.out
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

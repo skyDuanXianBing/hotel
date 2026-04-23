@@ -49,6 +49,8 @@ build/
 # === Vue.js / Node.js ===
 # Logs
 logs
+!server/scripts/logs/
+!server/scripts/logs/*.sh
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

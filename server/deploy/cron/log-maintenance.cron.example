@@ -1,0 +1,5 @@
+# Archive rotated logs to S3 every 15 minutes
+*/15 * * * * cd /home/ec2-user/hotel/server && /bin/bash ./scripts/logs/archive_logs_to_oss.sh >> /home/ec2-user/hotel/server/logs/log-archive-cron.log 2>&1
+
+# Cleanup local logs daily at 03:20
+20 3 * * * cd /home/ec2-user/hotel/server && /bin/bash ./scripts/logs/cleanup_local_logs.sh >> /home/ec2-user/hotel/server/logs/log-cleanup-cron.log 2>&1
