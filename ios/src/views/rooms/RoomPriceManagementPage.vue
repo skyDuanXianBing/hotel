@@ -20,10 +20,10 @@
       <section class="mobile-hero room-price-page__hero">
         <p class="mobile-note room-price-page__eyebrow">住宿运营</p>
         <h1 class="mobile-title">房价管理</h1>
-        <p class="mobile-subtitle">设置页继续负责价格计划主数据，这里聚焦日期价格、入住限制与运营态控制。</p>
+        <p class="mobile-subtitle">移动端提供长周期运营矩阵、批量更新、导出与单元格编辑，补齐房价管理核心闭环。</p>
         <div class="mobile-chip-row">
           <span class="mobile-chip">起始日 {{ formatDate(selectedDate) }}</span>
-          <span class="mobile-chip">连续 7 天</span>
+          <span class="mobile-chip">连续 {{ windowDays }} 天</span>
         </div>
       </section>
 
@@ -35,6 +35,19 @@
             <ion-button fill="outline" size="small" @click="handleGoToday">今天</ion-button>
             <ion-button fill="outline" size="small" @click="handleShiftDate(1)">后一天</ion-button>
             <ion-button fill="outline" size="small" @click="handleShiftDate(7)">下周</ion-button>
+          </div>
+
+          <div class="room-price-page__toolbar-row room-price-page__toolbar-row--compact">
+            <button
+              v-for="preset in windowDayPresets"
+              :key="preset"
+              class="room-price-page__preset-chip"
+              :class="{ 'is-active': windowDays === preset }"
+              type="button"
+              @click="handleChangeWindowDays(preset)"
+            >
+              {{ preset }} 天
+            </button>
           </div>
 
           <div class="room-price-page__filter-grid">
@@ -64,14 +77,19 @@
             </label>
           </div>
 
+          <div class="room-price-page__toolbar-row room-price-page__toolbar-row--actions">
+            <ion-button fill="outline" @click="handleExportCurrentView">导出 CSV</ion-button>
+            <ion-button @click="handleOpenBulkUpdate">批量更新</ion-button>
+          </div>
+
           <p v-if="errorMessage" class="mobile-note room-price-page__error">{{ errorMessage }}</p>
         </section>
 
         <section class="mobile-card">
           <div class="mobile-inline-row room-price-page__section-header">
             <div>
-              <h2 class="mobile-section-title">房型价格卡</h2>
-              <p class="mobile-note">按房型聚合价格计划，点击任意日期卡即可打开编辑面板。</p>
+              <h2 class="mobile-section-title">运营矩阵</h2>
+              <p class="mobile-note">横向查看 {{ windowDays }} 天价格，点击任意单元格可进入区间编辑。</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
@@ -82,65 +100,61 @@
             <span class="mobile-chip">售罄/关房 {{ summaryMetrics.unavailableCellCount }} 天</span>
           </div>
 
-          <div v-if="groupedRecords.length > 0" class="mobile-list room-price-page__group-list">
-            <article v-for="roomGroup in groupedRecords" :key="roomGroup.roomTypeId" class="room-price-page__group-card">
-              <div class="room-price-page__group-header">
-                <div>
-                  <strong>{{ roomGroup.roomTypeName }}</strong>
-                  <p>{{ roomGroup.roomTypeCode || '未设置编码' }} · 价格计划 {{ roomGroup.plans.length }} 个</p>
+          <div v-if="matrixRows.length > 0" class="room-price-page__matrix-shell">
+            <div class="room-price-page__matrix-scroll">
+              <div class="room-price-page__matrix-row room-price-page__matrix-row--header" :style="matrixGridStyle">
+                <div class="room-price-page__matrix-leading room-price-page__matrix-leading--header">
+                  <strong>房型 / 价格计划</strong>
+                  <span>点击单元格编辑</span>
+                </div>
+                <div
+                  v-for="day in dateWindow"
+                  :key="`matrix-header-${day.date}`"
+                  class="room-price-page__matrix-header-cell"
+                  :class="{ 'is-today': day.isToday, 'is-weekend': day.isWeekend }"
+                >
+                  <strong>{{ day.shortLabel }}</strong>
+                  <span>{{ day.weekday }}</span>
                 </div>
               </div>
 
-              <div class="mobile-list room-price-page__plan-list">
-                <article v-for="plan in roomGroup.plans" :key="plan.key" class="room-price-page__plan-card">
-                  <div class="room-price-page__plan-header">
-                    <div>
-                      <strong>{{ plan.pricePlanName }}</strong>
-                      <p>已按所选日期窗口生成移动端 7 日价格卡。</p>
-                    </div>
-                  </div>
+              <div
+                v-for="row in matrixRows"
+                :key="row.key"
+                class="room-price-page__matrix-row"
+                :style="matrixGridStyle"
+              >
+                <div class="room-price-page__matrix-leading room-price-page__matrix-leading--body">
+                  <strong>{{ row.roomTypeName }}</strong>
+                  <span>{{ row.pricePlanName }}</span>
+                  <small>{{ row.roomTypeCode || '未设置编码' }}</small>
+                </div>
 
-                  <div class="room-price-page__date-strip">
-                    <button
-                      v-for="cell in plan.cells"
-                      :key="`${plan.key}-${cell.date}`"
-                      class="room-price-page__date-card"
-                      :class="getDateCardClass(cell.record)"
-                      type="button"
-                      @click="handleOpenEditor(roomGroup, plan, cell)"
-                    >
-                      <strong>{{ cell.shortLabel }}</strong>
-                      <span>{{ cell.weekday }}</span>
-                      <b>{{ getDisplayPriceText(cell.record) }}</b>
-                      <small>{{ getAvailabilityText(cell.record) }}</small>
-                      <small>{{ getStayRestrictionText(cell.record) }}</small>
-                      <div v-if="getStatusTags(cell.record).length > 0" class="room-price-page__tag-row">
-                        <span v-for="tag in getStatusTags(cell.record)" :key="`${cell.date}-${tag}`">{{ tag }}</span>
-                      </div>
-                      <small>{{ getPriceSourceText(cell.record) }}</small>
-                      <small v-if="cell.record?.manualOverrideUntil">覆盖至 {{ formatDate(cell.record.manualOverrideUntil) }}</small>
-                      <small v-if="cell.record?.priceLabsBasePrice !== undefined && cell.record?.priceLabsBasePrice !== null">
-                        PriceLabs 基价 {{ formatCurrency(cell.record.priceLabsBasePrice) }}
-                      </small>
-                      <small v-if="cell.record?.priceLabsUpdatedAt">
-                        PriceLabs {{ formatDateTime(cell.record.priceLabsUpdatedAt) }}
-                      </small>
-                    </button>
-                  </div>
-                </article>
+                <button
+                  v-for="cell in row.cells"
+                  :key="`${row.key}-${cell.date}`"
+                  class="room-price-page__matrix-cell"
+                  :class="getMatrixCellClass(cell.record)"
+                  type="button"
+                  @click="handleOpenEditor(row, cell)"
+                >
+                  <strong>{{ getDisplayPriceText(cell.record) }}</strong>
+                  <span>{{ getAvailabilityCompactText(cell.record) }}</span>
+                  <small>{{ getMatrixStatusText(cell.record) }}</small>
+                </button>
               </div>
-            </article>
+            </div>
           </div>
 
           <p v-else-if="!loading" class="mobile-note">当前日期范围暂无可展示的运营房价数据。</p>
         </section>
 
         <section class="mobile-card">
-          <h2 class="mobile-section-title">首版说明</h2>
+          <h2 class="mobile-section-title">移动端操作提示</h2>
           <ul class="mobile-bullet-list">
-            <li>移动端先聚焦单元格改价闭环，不搬运桌面 17 列密集矩阵。</li>
-            <li>批量更新与导出能力暂不首发，后续可在当前结构上继续扩展。</li>
-            <li>价格计划本体与房型周价维护仍保留在设置页。</li>
+            <li>支持 7 / 14 / 30 天矩阵浏览，长周期通过横向滚动查看。</li>
+            <li>支持批量更新多个房型、多个日期段与星期模板。</li>
+            <li>支持导出当前筛选窗口的 CSV 明细，便于移动端快速下发。</li>
           </ul>
         </section>
       </div>
@@ -276,6 +290,139 @@
           </section>
         </ion-content>
       </ion-modal>
+
+      <ion-modal :is-open="bulkUpdateOpen" @didDismiss="handleCloseBulkUpdate">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>批量更新</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="handleCloseBulkUpdate">关闭</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+
+        <ion-content class="mobile-page room-price-page__modal-page">
+          <section class="mobile-card room-price-page__editor-card">
+            <div class="mobile-chip-row">
+              <span class="mobile-chip">房型 {{ bulkForm.roomTypeIds.length }} 个</span>
+              <span class="mobile-chip">日期段 {{ bulkForm.dateRanges.length }} 个</span>
+              <span class="mobile-chip">星期 {{ bulkSelectedWeekdayCountLabel }}</span>
+            </div>
+
+            <div class="room-price-page__bulk-section">
+              <div class="room-price-page__bulk-section-header">
+                <strong>1. 选择房型</strong>
+                <div class="room-price-page__weekday-actions">
+                  <ion-button fill="clear" size="small" @click="handleSelectAllBulkRoomTypes">全选</ion-button>
+                  <ion-button fill="clear" size="small" @click="handleClearBulkRoomTypes">清空</ion-button>
+                </div>
+              </div>
+
+              <div class="room-price-page__selection-grid">
+                <button
+                  v-for="roomType in bulkSelectableRoomTypes"
+                  :key="`bulk-room-type-${roomType.id}`"
+                  class="room-price-page__selection-chip"
+                  :class="{ 'is-active': bulkForm.roomTypeIds.includes(roomType.id) }"
+                  type="button"
+                  @click="handleToggleBulkRoomType(roomType.id)"
+                >
+                  {{ roomType.name }}
+                </button>
+              </div>
+            </div>
+
+            <div class="room-price-page__bulk-section">
+              <div class="room-price-page__bulk-section-header">
+                <strong>2. 选择日期段</strong>
+                <ion-button fill="clear" size="small" @click="handleAddBulkDateRange">添加日期段</ion-button>
+              </div>
+
+              <div class="room-price-page__bulk-range-list">
+                <div
+                  v-for="(range, index) in bulkForm.dateRanges"
+                  :key="`bulk-range-${index}`"
+                  class="room-price-page__bulk-range-item"
+                >
+                  <label class="room-price-page__field">
+                    <span>开始日期</span>
+                    <input v-model="range.startDate" type="date" />
+                  </label>
+                  <label class="room-price-page__field">
+                    <span>结束日期</span>
+                    <input v-model="range.endDate" type="date" />
+                  </label>
+                  <ion-button
+                    v-if="bulkForm.dateRanges.length > 1"
+                    fill="clear"
+                    color="danger"
+                    @click="handleRemoveBulkDateRange(index)"
+                  >
+                    删除
+                  </ion-button>
+                </div>
+              </div>
+            </div>
+
+            <div class="room-price-page__bulk-section">
+              <div class="room-price-page__bulk-section-header">
+                <strong>3. 适用星期</strong>
+                <div class="room-price-page__weekday-actions">
+                  <ion-button fill="clear" size="small" @click="handleSelectAllBulkWeekdays">全选</ion-button>
+                  <ion-button fill="clear" size="small" @click="handleClearBulkWeekdays">清空</ion-button>
+                </div>
+              </div>
+
+              <div class="room-price-page__weekday-grid">
+                <button
+                  v-for="item in bulkWeekdayOptions"
+                  :key="`bulk-weekday-${item.value}`"
+                  class="room-price-page__weekday-button"
+                  :class="{ 'is-active': bulkForm.weekdays.includes(item.value) }"
+                  type="button"
+                  @click="handleToggleBulkWeekday(item.value)"
+                >
+                  {{ item.label }}
+                </button>
+              </div>
+            </div>
+
+            <div class="room-price-page__bulk-section">
+              <div class="room-price-page__toggle-row">
+                <div>
+                  <strong>区分平日 / 周末</strong>
+                  <p>开启后可分别设置平日价与周末价。</p>
+                </div>
+                <ion-toggle v-model="bulkForm.weekendDifferentiation" />
+              </div>
+
+              <div class="room-price-page__filter-grid">
+                <label class="room-price-page__field">
+                  <span>平日价</span>
+                  <input v-model="bulkForm.weekdayPrice" inputmode="decimal" placeholder="请输入平日价" type="number" />
+                </label>
+
+                <label v-if="bulkForm.weekendDifferentiation" class="room-price-page__field">
+                  <span>周末价</span>
+                  <input v-model="bulkForm.weekendPrice" inputmode="decimal" placeholder="请输入周末价" type="number" />
+                </label>
+
+                <label class="room-price-page__field room-price-page__field--full">
+                  <span>备注</span>
+                  <textarea v-model="bulkForm.notes" rows="3" placeholder="可选，写入本次批量更新备注"></textarea>
+                </label>
+              </div>
+            </div>
+
+            <div class="room-price-page__editor-actions">
+              <ion-button fill="outline" @click="handleCloseBulkUpdate">取消</ion-button>
+              <ion-button :disabled="bulkSubmitting" @click="handleSubmitBulkUpdate">
+                {{ bulkSubmitting ? '提交中...' : '应用批量更新' }}
+              </ion-button>
+            </div>
+          </section>
+        </ion-content>
+      </ion-modal>
     </ion-content>
   </ion-page>
 </template>
@@ -300,8 +447,10 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { onIonViewWillEnter } from '@ionic/vue'
 import {
+  bulkPriceChange,
   getRoomPriceManagementData,
   updatePriceByPlan,
+  type BulkPriceChangeRequest,
   type RoomPriceManagementDTO,
   type UpdatePriceByPlanRequest,
 } from '@/api/roomPrice'
@@ -345,6 +494,16 @@ interface RoomPriceGroupView {
   plans: PricePlanView[]
 }
 
+interface MatrixRowView {
+  key: string
+  roomTypeId: number
+  roomTypeName: string
+  roomTypeCode: string
+  pricePlanId: number
+  pricePlanName: string
+  cells: PriceCellView[]
+}
+
 interface RoomGroupOption extends RoomGroupDTO {
   id: number
 }
@@ -372,15 +531,34 @@ interface EditorState {
   ctd: boolean
 }
 
-const DATE_WINDOW_DAYS = 7
+interface BulkDateRangeItem {
+  startDate: string
+  endDate: string
+}
+
+interface BulkFormState {
+  roomTypeIds: number[]
+  dateRanges: BulkDateRangeItem[]
+  weekdays: number[]
+  weekendDifferentiation: boolean
+  weekdayPrice: string
+  weekendPrice: string
+  notes: string
+}
+
+const DEFAULT_WINDOW_DAYS = 30
+const WINDOW_DAY_PRESETS = [7, 14, 30]
 const FULL_WEEKDAY_VALUES = [1, 2, 3, 4, 5, 6, 7]
 const ALL_WEEKDAY_VALUES = [0, ...FULL_WEEKDAY_VALUES]
+const BULK_WEEKDAY_VALUES = [1, 2, 3, 4, 5, 6, 0]
 const MAX_STAY_LIMIT = 99
+const MAX_BULK_DATE_RANGES = 10
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const selectedDate = ref(getTodayDate())
+const windowDays = ref(DEFAULT_WINDOW_DAYS)
 const selectedRoomTypeId = ref<number | null>(null)
 const selectedRoomGroupId = ref<number | null>(null)
 const roomTypes = ref<RoomTypeDTO[]>([])
@@ -390,6 +568,8 @@ const records = ref<RoomPriceManagementDTO[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const editorOpen = ref(false)
+const bulkUpdateOpen = ref(false)
+const bulkSubmitting = ref(false)
 const errorMessage = ref('')
 const editorRecord = ref<RoomPriceManagementDTO | null>(null)
 let hasLoadedReferenceData = false
@@ -403,6 +583,16 @@ const weekdayOptions = [
   { label: '周五', value: 5 },
   { label: '周六', value: 6 },
   { label: '周日', value: 7 },
+]
+
+const bulkWeekdayOptions = [
+  { label: '周一', value: 1 },
+  { label: '周二', value: 2 },
+  { label: '周三', value: 3 },
+  { label: '周四', value: 4 },
+  { label: '周五', value: 5 },
+  { label: '周六', value: 6 },
+  { label: '周日', value: 0 },
 ]
 
 const editorForm = ref<EditorState>({
@@ -422,9 +612,28 @@ const editorForm = ref<EditorState>({
   ctd: false,
 })
 
-const dateWindow = computed(() => {
-  return buildDateWindow(selectedDate.value, DATE_WINDOW_DAYS)
+const createDefaultBulkForm = (): BulkFormState => ({
+  roomTypeIds: [],
+  dateRanges: [
+    {
+      startDate: selectedDate.value,
+      endDate: selectedDate.value,
+    },
+  ],
+  weekdays: [...BULK_WEEKDAY_VALUES],
+  weekendDifferentiation: false,
+  weekdayPrice: '',
+  weekendPrice: '',
+  notes: '',
 })
+
+const bulkForm = ref<BulkFormState>(createDefaultBulkForm())
+
+const dateWindow = computed(() => {
+  return buildDateWindow(selectedDate.value, windowDays.value)
+})
+
+const windowDayPresets = WINDOW_DAY_PRESETS
 
 const roomTypeSelectValue = computed(() => {
   if (!selectedRoomTypeId.value) {
@@ -440,6 +649,12 @@ const roomGroupSelectValue = computed(() => {
   return String(selectedRoomGroupId.value)
 })
 
+const matrixGridStyle = computed(() => {
+  return {
+    gridTemplateColumns: `168px repeat(${dateWindow.value.length}, minmax(88px, 1fr))`,
+  }
+})
+
 const filteredRecords = computed(() => {
   if (!selectedRoomGroupId.value) {
     return records.value
@@ -452,6 +667,17 @@ const filteredRecords = computed(() => {
 
   const allowedRoomTypeIds = new Set(roomTypeIds)
   return records.value.filter((record) => allowedRoomTypeIds.has(record.roomTypeId))
+})
+
+const filteredRecordMap = computed(() => {
+  const map = new Map<string, RoomPriceManagementDTO>()
+
+  for (const record of filteredRecords.value) {
+    const recordPricePlanId = record.pricePlanId ?? 0
+    map.set(`${record.roomTypeId}-${recordPricePlanId}-${record.priceDate}`, record)
+  }
+
+  return map
 })
 
 const groupedRecords = computed<RoomPriceGroupView[]>(() => {
@@ -496,10 +722,9 @@ const groupedRecords = computed<RoomPriceGroupView[]>(() => {
     for (const plan of group.plans) {
       const cells: PriceCellView[] = []
       for (const day of dateWindow.value) {
-        const matchedRecord = filteredRecords.value.find((item) => {
-          const itemPricePlanId = item.pricePlanId ?? 0
-          return item.roomTypeId === group.roomTypeId && itemPricePlanId === plan.pricePlanId && item.priceDate === day.date
-        })
+        const matchedRecord = filteredRecordMap.value.get(
+          `${group.roomTypeId}-${plan.pricePlanId}-${day.date}`,
+        )
 
         cells.push({
           date: day.date,
@@ -514,6 +739,55 @@ const groupedRecords = computed<RoomPriceGroupView[]>(() => {
 
   groups.sort((left, right) => left.roomTypeName.localeCompare(right.roomTypeName, 'zh-CN'))
   return groups
+})
+
+const matrixRows = computed<MatrixRowView[]>(() => {
+  const rows: MatrixRowView[] = []
+
+  for (const group of groupedRecords.value) {
+    for (const plan of group.plans) {
+      rows.push({
+        key: plan.key,
+        roomTypeId: group.roomTypeId,
+        roomTypeName: group.roomTypeName,
+        roomTypeCode: group.roomTypeCode,
+        pricePlanId: plan.pricePlanId,
+        pricePlanName: plan.pricePlanName,
+        cells: plan.cells,
+      })
+    }
+  }
+
+  return rows
+})
+
+const bulkSelectableRoomTypes = computed(() => {
+  const groupRoomTypeIds = selectedRoomGroupId.value
+    ? roomGroupRoomTypeIdsMap.value[selectedRoomGroupId.value] || []
+    : []
+  const allowedByGroup = selectedRoomGroupId.value ? new Set(groupRoomTypeIds) : null
+
+  return roomTypes.value
+    .filter((roomType) => {
+      if (selectedRoomTypeId.value && roomType.id !== selectedRoomTypeId.value) {
+        return false
+      }
+
+      if (allowedByGroup && !allowedByGroup.has(roomType.id)) {
+        return false
+      }
+
+      return true
+    })
+    .sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
+})
+
+const bulkSelectedWeekdayCountLabel = computed(() => {
+  if (bulkForm.value.weekdays.length === BULK_WEEKDAY_VALUES.length) {
+    return '全部'
+  }
+
+  return `${bulkForm.value.weekdays.length} 天`
 })
 
 const summaryMetrics = computed<SummaryMetrics>(() => {
@@ -637,6 +911,25 @@ function getAvailabilityText(record: RoomPriceManagementDTO | null) {
   return '房量待确认'
 }
 
+function getAvailabilityCompactText(record: RoomPriceManagementDTO | null) {
+  if (!record) {
+    return '未配'
+  }
+
+  if (record.closeRoom) {
+    return '关房'
+  }
+
+  if (typeof record.availableRooms === 'number') {
+    if (record.availableRooms <= 0) {
+      return '售罄'
+    }
+    return `余${record.availableRooms}`
+  }
+
+  return '待定'
+}
+
 function getStayRestrictionText(record: RoomPriceManagementDTO | null) {
   if (!record) {
     return '暂无入住限制'
@@ -704,12 +997,108 @@ function getStatusTags(record: RoomPriceManagementDTO | null) {
   return tags
 }
 
+function getMatrixStatusText(record: RoomPriceManagementDTO | null) {
+  if (!record) {
+    return '未配置'
+  }
+
+  const tags = getStatusTags(record).filter((tag) => tag !== '手动覆盖' && tag !== 'PriceLabs')
+  if (tags.length > 0) {
+    return tags.slice(0, 2).join(' · ')
+  }
+
+  if (record.manualOverride) {
+    return '手动覆盖'
+  }
+
+  return record.minStay && record.minStay > 1 ? `最少 ${record.minStay} 晚` : '可编辑'
+}
+
 function getDateCardClass(record: RoomPriceManagementDTO | null) {
   return {
     'is-unavailable': isUnavailableRecord(record),
     'is-closed': Boolean(record?.closeRoom),
     'is-manual': Boolean(record?.manualOverride),
   }
+}
+
+function getMatrixCellClass(record: RoomPriceManagementDTO | null) {
+  return {
+    'is-unavailable': isUnavailableRecord(record),
+    'is-closed': Boolean(record?.closeRoom),
+    'is-manual': Boolean(record?.manualOverride),
+    'is-empty': !record,
+  }
+}
+
+function escapeCsvValue(value: string | number | boolean | null | undefined) {
+  const text = value === null || value === undefined ? '' : String(value)
+  const escapedText = text.replace(/"/g, '""')
+  return `"${escapedText}"`
+}
+
+function downloadCsvFile(filename: string, content: string) {
+  const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+function handleExportCurrentView() {
+  if (matrixRows.value.length === 0) {
+    showWarningToast('当前没有可导出的房价数据')
+    return
+  }
+
+  const header = [
+    '房型',
+    '房型编码',
+    '价格计划',
+    '日期',
+    '价格',
+    '可售房量',
+    '最小入住',
+    '最大入住',
+    '关房',
+    'CTA',
+    'CTD',
+    '价格来源',
+    '备注',
+  ]
+
+  const rows: string[] = [header.map((item) => escapeCsvValue(item)).join(',')]
+
+  for (const row of matrixRows.value) {
+    for (const cell of row.cells) {
+      rows.push(
+        [
+          row.roomTypeName,
+          row.roomTypeCode || '',
+          row.pricePlanName,
+          cell.date,
+          cell.record?.price ?? '',
+          cell.record?.availableRooms ?? '',
+          cell.record?.minStay ?? '',
+          cell.record?.maxStay ?? '',
+          cell.record?.closeRoom ? '是' : '否',
+          cell.record?.cta ? '是' : '否',
+          cell.record?.ctd ? '是' : '否',
+          cell.record?.priceSource || '',
+          cell.record?.notes || '',
+        ]
+          .map((item) => escapeCsvValue(item))
+          .join(','),
+      )
+    }
+  }
+
+  downloadCsvFile(`room-price-${selectedDate.value}-${windowDays.value}d.csv`, rows.join('\n'))
+  showSuccessToast('房价 CSV 已导出')
 }
 
 async function loadReferenceData() {
@@ -782,7 +1171,7 @@ async function loadReferenceData() {
 }
 
 async function loadPriceData() {
-  const endDate = shiftDate(selectedDate.value, DATE_WINDOW_DAYS - 1)
+  const endDate = shiftDate(selectedDate.value, windowDays.value - 1)
   const response = await getRoomPriceManagementData(
     selectedDate.value,
     endDate,
@@ -870,13 +1259,13 @@ function handleInvertWeekdays() {
   editorForm.value.weekdays = buildWeekdaySelection(invertedValues)
 }
 
-function handleOpenEditor(roomGroup: RoomPriceGroupView, plan: PricePlanView, cell: PriceCellView) {
+function handleOpenEditor(row: MatrixRowView, cell: PriceCellView) {
   editorRecord.value = cell.record
   editorForm.value = {
-    roomTypeId: roomGroup.roomTypeId,
-    pricePlanId: plan.pricePlanId,
-    roomTypeName: roomGroup.roomTypeName,
-    pricePlanName: plan.pricePlanName,
+    roomTypeId: row.roomTypeId,
+    pricePlanId: row.pricePlanId,
+    roomTypeName: row.roomTypeName,
+    pricePlanName: row.pricePlanName,
     startDate: cell.date,
     endDate: cell.date,
     weekdays: [],
@@ -894,6 +1283,153 @@ function handleOpenEditor(roomGroup: RoomPriceGroupView, plan: PricePlanView, ce
 function handleCloseEditor() {
   editorOpen.value = false
   resetEditor()
+}
+
+function createBulkDateRange(startDate = selectedDate.value, endDate = selectedDate.value): BulkDateRangeItem {
+  return {
+    startDate,
+    endDate,
+  }
+}
+
+function syncBulkFormWithCurrentView() {
+  const nextRoomTypeIds = bulkSelectableRoomTypes.value.map((roomType) => roomType.id)
+  bulkForm.value = {
+    ...createDefaultBulkForm(),
+    roomTypeIds: nextRoomTypeIds,
+    dateRanges: [createBulkDateRange(selectedDate.value, selectedDate.value)],
+  }
+}
+
+function handleOpenBulkUpdate() {
+  if (bulkSelectableRoomTypes.value.length === 0) {
+    showWarningToast('当前筛选条件下没有可批量更新的房型')
+    return
+  }
+
+  syncBulkFormWithCurrentView()
+  bulkUpdateOpen.value = true
+}
+
+function handleCloseBulkUpdate() {
+  bulkUpdateOpen.value = false
+  bulkForm.value = createDefaultBulkForm()
+}
+
+function handleSelectAllBulkRoomTypes() {
+  bulkForm.value.roomTypeIds = bulkSelectableRoomTypes.value.map((roomType) => roomType.id)
+}
+
+function handleClearBulkRoomTypes() {
+  bulkForm.value.roomTypeIds = []
+}
+
+function handleToggleBulkRoomType(roomTypeId: number) {
+  if (bulkForm.value.roomTypeIds.includes(roomTypeId)) {
+    bulkForm.value.roomTypeIds = bulkForm.value.roomTypeIds.filter((item) => item !== roomTypeId)
+    return
+  }
+
+  bulkForm.value.roomTypeIds = [...bulkForm.value.roomTypeIds, roomTypeId]
+}
+
+function handleAddBulkDateRange() {
+  if (bulkForm.value.dateRanges.length >= MAX_BULK_DATE_RANGES) {
+    showWarningToast(`最多只能添加 ${MAX_BULK_DATE_RANGES} 个日期段`)
+    return
+  }
+
+  bulkForm.value.dateRanges = [...bulkForm.value.dateRanges, createBulkDateRange()]
+}
+
+function handleRemoveBulkDateRange(index: number) {
+  bulkForm.value.dateRanges = bulkForm.value.dateRanges.filter((_, currentIndex) => currentIndex !== index)
+}
+
+function handleSelectAllBulkWeekdays() {
+  bulkForm.value.weekdays = [...BULK_WEEKDAY_VALUES]
+}
+
+function handleClearBulkWeekdays() {
+  bulkForm.value.weekdays = []
+}
+
+function handleToggleBulkWeekday(weekday: number) {
+  if (bulkForm.value.weekdays.includes(weekday)) {
+    bulkForm.value.weekdays = bulkForm.value.weekdays.filter((item) => item !== weekday)
+    return
+  }
+
+  bulkForm.value.weekdays = [...bulkForm.value.weekdays, weekday].sort((left, right) => {
+    return BULK_WEEKDAY_VALUES.indexOf(left) - BULK_WEEKDAY_VALUES.indexOf(right)
+  })
+}
+
+async function handleSubmitBulkUpdate() {
+  if (bulkForm.value.roomTypeIds.length === 0) {
+    showWarningToast('请至少选择一个房型')
+    return
+  }
+
+  const normalizedDateRanges = bulkForm.value.dateRanges
+    .filter((range) => range.startDate && range.endDate)
+    .map((range) => normalizeDateRange(range.startDate, range.endDate))
+
+  if (normalizedDateRanges.length === 0) {
+    showWarningToast('请至少填写一个完整日期段')
+    return
+  }
+
+  if (bulkForm.value.weekdays.length === 0) {
+    showWarningToast('请至少选择一个星期')
+    return
+  }
+
+  const weekdayPrice = Number(bulkForm.value.weekdayPrice)
+  if (!Number.isFinite(weekdayPrice) || weekdayPrice < 0) {
+    showWarningToast('请输入有效的平日价')
+    return
+  }
+
+  let weekendPrice: number | undefined
+  if (bulkForm.value.weekendDifferentiation) {
+    weekendPrice = Number(bulkForm.value.weekendPrice)
+    if (!Number.isFinite(weekendPrice) || weekendPrice < 0) {
+      showWarningToast('请输入有效的周末价')
+      return
+    }
+  }
+
+  const requestData: BulkPriceChangeRequest = {
+    roomTypeIds: [...bulkForm.value.roomTypeIds],
+    dateRanges: normalizedDateRanges,
+    weekdays:
+      bulkForm.value.weekdays.length === BULK_WEEKDAY_VALUES.length
+        ? undefined
+        : [...bulkForm.value.weekdays],
+    weekendDifferentiation: bulkForm.value.weekendDifferentiation,
+    weekdayPrice,
+    weekendPrice,
+    notes: bulkForm.value.notes.trim() || undefined,
+  }
+
+  bulkSubmitting.value = true
+  try {
+    const response = await bulkPriceChange(requestData)
+    if (!response.success) {
+      throw new Error(response.message || '批量更新失败')
+    }
+
+    showSuccessToast(response.message || '批量房价已更新')
+    bulkUpdateOpen.value = false
+    await loadPageData()
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, '批量更新失败'))
+    }
+  } finally {
+    bulkSubmitting.value = false
+  }
 }
 
 function hasMatchedWeekdayInRange(startDate: string, endDate: string, weekdays: number[]) {
@@ -1055,6 +1591,15 @@ async function handleShiftDate(offsetDays: number) {
   await loadPageData()
 }
 
+async function handleChangeWindowDays(days: number) {
+  if (windowDays.value === days) {
+    return
+  }
+
+  windowDays.value = days
+  await loadPageData()
+}
+
 async function handleGoToday() {
   selectedDate.value = getTodayDate()
   await loadPageData()
@@ -1139,6 +1684,28 @@ onIonViewWillEnter(async () => {
   flex-wrap: wrap;
 }
 
+.room-price-page__toolbar-row--compact,
+.room-price-page__toolbar-row--actions {
+  align-items: center;
+}
+
+.room-price-page__preset-chip {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--app-muted);
+  font: inherit;
+}
+
+.room-price-page__preset-chip.is-active {
+  border-color: var(--ion-color-primary);
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--ion-color-primary);
+  font-weight: 700;
+}
+
 .room-price-page__filter-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1162,7 +1729,8 @@ onIonViewWillEnter(async () => {
 }
 
 .room-price-page__field input,
-.room-price-page__field select {
+.room-price-page__field select,
+.room-price-page__field textarea {
   box-sizing: border-box;
   width: 100%;
   min-height: 44px;
@@ -1175,6 +1743,12 @@ onIonViewWillEnter(async () => {
   text-align: center;
 }
 
+.room-price-page__field textarea {
+  min-height: 96px;
+  resize: vertical;
+  text-align: left;
+}
+
 .room-price-page__error {
   color: var(--ion-color-danger);
 }
@@ -1185,6 +1759,120 @@ onIonViewWillEnter(async () => {
 
 .room-price-page__summary-row {
   margin-top: 12px;
+}
+
+.room-price-page__matrix-shell {
+  margin-top: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.room-price-page__matrix-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.room-price-page__matrix-row {
+  display: grid;
+  min-width: max-content;
+}
+
+.room-price-page__matrix-row--header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.room-price-page__matrix-leading,
+.room-price-page__matrix-header-cell,
+.room-price-page__matrix-cell {
+  min-height: 88px;
+  padding: 10px;
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.room-price-page__matrix-leading {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  background: rgba(248, 250, 252, 0.98);
+}
+
+.room-price-page__matrix-leading--header {
+  z-index: 5;
+}
+
+.room-price-page__matrix-leading strong,
+.room-price-page__matrix-header-cell strong,
+.room-price-page__matrix-cell strong {
+  color: var(--app-heading);
+  font-size: 13px;
+}
+
+.room-price-page__matrix-leading span,
+.room-price-page__matrix-leading small,
+.room-price-page__matrix-header-cell span,
+.room-price-page__matrix-cell span,
+.room-price-page__matrix-cell small {
+  color: var(--app-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.room-price-page__matrix-header-cell {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  background: rgba(248, 250, 252, 0.98);
+}
+
+.room-price-page__matrix-header-cell.is-today {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.room-price-page__matrix-header-cell.is-weekend {
+  color: var(--ion-color-primary);
+}
+
+.room-price-page__matrix-cell {
+  appearance: none;
+  border-top: none;
+  border-left: none;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  text-align: left;
+}
+
+.room-price-page__matrix-cell.is-empty {
+  background: rgba(248, 250, 252, 0.74);
+}
+
+.room-price-page__matrix-cell.is-unavailable {
+  background: rgba(244, 63, 94, 0.08);
+}
+
+.room-price-page__matrix-cell.is-closed {
+  box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.18);
+}
+
+.room-price-page__matrix-cell.is-manual {
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+}
+
+.room-price-page__matrix-cell strong {
+  color: var(--ion-color-primary);
+  font-size: 14px;
 }
 
 .room-price-page__group-list {
@@ -1299,6 +1987,54 @@ onIonViewWillEnter(async () => {
   font-size: 12px;
 }
 
+.room-price-page__bulk-section {
+  display: grid;
+  gap: 12px;
+}
+
+.room-price-page__bulk-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.room-price-page__selection-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.room-price-page__selection-chip {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--app-muted);
+  font: inherit;
+}
+
+.room-price-page__selection-chip.is-active {
+  border-color: var(--ion-color-primary);
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--ion-color-primary);
+  font-weight: 700;
+}
+
+.room-price-page__bulk-range-list {
+  display: grid;
+  gap: 12px;
+}
+
+.room-price-page__bulk-range-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
 .room-price-page__weekday-section {
   display: grid;
   gap: 10px;
@@ -1378,6 +2114,13 @@ onIonViewWillEnter(async () => {
 @media (max-width: 520px) {
   .room-price-page__filter-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .room-price-page__matrix-leading,
+  .room-price-page__matrix-header-cell,
+  .room-price-page__matrix-cell {
+    min-height: 84px;
+    padding: 8px;
   }
 }
 </style>

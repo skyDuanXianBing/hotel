@@ -41,6 +41,31 @@
         </section>
 
         <section class="settings-group">
+          <h2 class="settings-group__title">显示与主题</h2>
+          <div class="settings-theme-panel">
+            <div class="settings-theme-panel__header">
+              <div>
+                <strong>主题模式</strong>
+                <p>可选择跟随系统，或固定浅色 / 深色显示。</p>
+              </div>
+              <span class="settings-entry__badge">{{ themePreferenceLabel }}</span>
+            </div>
+
+            <ion-segment :value="themePreference" @ionChange="handleThemePreferenceChange">
+              <ion-segment-button value="system">
+                <ion-label>跟随系统</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="light">
+                <ion-label>浅色</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="dark">
+                <ion-label>深色</ion-label>
+              </ion-segment-button>
+            </ion-segment>
+          </div>
+        </section>
+
+        <section class="settings-group">
           <h2 class="settings-group__title">账号操作</h2>
           <div class="settings-group__list">
             <button type="button" class="settings-entry" @click="handleOpenProfile">
@@ -96,7 +121,17 @@
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonHeader, IonIcon, IonPage, IonTitle, IonToolbar } from '@ionic/vue'
+import {
+  IonContent,
+  IonHeader,
+  IonIcon,
+  IonLabel,
+  IonPage,
+  IonSegment,
+  IonSegmentButton,
+  IonTitle,
+  IonToolbar,
+} from '@ionic/vue'
 import {
   bedOutline,
   buildOutline,
@@ -120,12 +155,19 @@ import {
   swapHorizontalOutline,
   walletOutline,
 } from 'ionicons/icons'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import { useVisibleToolsStore } from '@/stores/visibleTools'
+import { showSuccessToast } from '@/utils/notify'
+import {
+  applyThemePreference,
+  getStoredThemePreference,
+  setStoredThemePreference,
+  type ThemePreference,
+} from '@/utils/theme'
 
 interface SettingsEntry {
   key: string
@@ -147,6 +189,7 @@ const router = useRouter()
 const storeStore = useStoreStore()
 const userStore = useUserStore()
 const visibleToolsStore = useVisibleToolsStore()
+const themePreference = ref<ThemePreference>(getStoredThemePreference())
 
 const currentUserLabel = computed(() => {
   if (!userStore.currentUser) {
@@ -176,6 +219,18 @@ const storeRoleLabel = computed(() => {
     return '成员'
   }
   return '待确认'
+})
+
+const themePreferenceLabel = computed(() => {
+  if (themePreference.value === 'light') {
+    return '浅色'
+  }
+
+  if (themePreference.value === 'dark') {
+    return '深色'
+  }
+
+  return '跟随系统'
 })
 
 const entryGroups = computed<SettingsGroup[]>(() => {
@@ -388,6 +443,18 @@ function handleOpenRecordTool() {
 function handleOpenContactTool() {
   visibleToolsStore.openContact()
 }
+
+function handleThemePreferenceChange(event: CustomEvent<{ value?: string | number }>) {
+  const nextValue = event.detail.value
+  if (nextValue !== 'system' && nextValue !== 'light' && nextValue !== 'dark') {
+    return
+  }
+
+  themePreference.value = nextValue
+  setStoredThemePreference(nextValue)
+  applyThemePreference(nextValue)
+  showSuccessToast('主题模式已更新')
+}
 </script>
 
 <style scoped>
@@ -453,6 +520,31 @@ function handleOpenContactTool() {
 .settings-group__list {
   display: grid;
   gap: 2px;
+}
+
+.settings-theme-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-theme-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-theme-panel__header strong {
+  display: block;
+  color: var(--app-heading);
+  font-size: 14px;
+}
+
+.settings-theme-panel__header p {
+  margin: 4px 0 0;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .settings-entry {

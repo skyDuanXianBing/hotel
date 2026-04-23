@@ -6,140 +6,181 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page rooms-page">
+    <ion-content fullscreen class="rooms-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content pulling-text="下拉刷新房态" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section class="mobile-hero rooms-hero">
-        <p class="mobile-note rooms-hero__eyebrow">房态核心迁移</p>
-        <h1 class="mobile-title">{{ storeName }}</h1>
-        <p class="mobile-subtitle">
-          日期窗口、房型聚合、房间卡片与住宿运营工具已统一收敛到移动端工作台。
-        </p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">{{ selectedDateText }}</span>
-          <span class="mobile-chip">{{ roomStatusStore.visibleDates.length }} 天窗口</span>
-          <span class="mobile-chip">住宿工具 5 项</span>
-        </div>
-      </section>
-
-      <div class="mobile-stack">
-        <section class="mobile-card rooms-tools-card">
-          <div>
-            <h2 class="mobile-section-title">住宿工具</h2>
-            <p class="mobile-note">房情表、房价管理、改价记录与保洁任务已补齐到 rooms 工作台。</p>
-          </div>
-
-          <div class="rooms-tools-card__list">
-            <article v-for="entry in toolEntries" :key="entry.key" class="rooms-tool-entry">
-              <div class="rooms-tool-entry__icon">
-                <ion-icon :icon="entry.icon" />
-              </div>
-
-              <div class="rooms-tool-entry__body">
-                <div class="rooms-tool-entry__header">
-                  <strong>{{ entry.title }}</strong>
-                  <span class="rooms-tool-entry__badge">{{ entry.badge }}</span>
-                </div>
-                <p>{{ entry.description }}</p>
-              </div>
-
-              <ion-button fill="clear" @click="handleOpenToolEntry(entry.path)">进入</ion-button>
-            </article>
-          </div>
-        </section>
-
-        <section class="mobile-card rooms-toolbar-card">
+      <div class="rooms-toolbar-shell">
+        <div class="rooms-toolbar">
           <ion-searchbar
             v-model="searchKeyword"
             :debounce="0"
-            placeholder="房号 / 手机 / 订单号 / 客户"
+            class="rooms-toolbar__search"
+            placeholder="房号、手机号、订单号、渠道订单号、房间号、客户"
           />
 
-          <div class="rooms-toolbar-actions">
-            <ion-button fill="outline" size="small" @click="openBatchModal('dirty')">批量置脏</ion-button>
-            <ion-button fill="outline" size="small" @click="openBatchModal('clean')">批量置净</ion-button>
-            <ion-button fill="outline" size="small" @click="openBatchModal('open')">批量开房</ion-button>
-            <ion-button fill="outline" size="small" @click="openBatchModal('close')">批量关房</ion-button>
-          </div>
+          <button
+            class="rooms-toolbar__icon"
+            type="button"
+            aria-label="刷新房态"
+            :disabled="roomStatusStore.loading || roomTypeCatalogLoading"
+            @click="handleManualRefresh"
+          >
+            <ion-icon :icon="refreshOutline" />
+          </button>
 
-          <p v-if="loadNotice" class="mobile-note rooms-toolbar-card__notice">{{ loadNotice }}</p>
-        </section>
+        <button
+          class="rooms-toolbar__icon"
+          type="button"
+          aria-label="房型筛选"
+          @click="handleOpenFilterModal"
+        >
+          <ion-icon :icon="funnelOutline" />
+        </button>
 
-        <RoomStatusDateStrip
-          :days="roomStatusStore.visibleDates"
-          @next="handleNextWindow"
-          @previous="handlePreviousWindow"
-          @select="handleSelectDate"
-          @today="handleGoToday"
-        />
+          <button
+            class="rooms-toolbar__icon"
+            type="button"
+            aria-label="住宿工具与批量操作"
+            @click="presentToolsMenu"
+          >
+            <ion-icon :icon="menuOutline" />
+          </button>
+        </div>
 
-        <RoomStatusSummaryCards :items="roomStatusStore.summaryCards" :loading="roomStatusStore.summaryLoading" />
-
-        <RoomTypeSummaryList
-          :items="roomStatusStore.roomTypeSummaries"
-          @reset="handleResetRoomTypeFilter"
-          @toggle="handleToggleRoomType"
-        />
-
-        <section v-if="showSearchResults" class="mobile-card">
-          <div class="mobile-inline-row">
-            <div>
-              <h2 class="mobile-section-title">搜索结果</h2>
-              <p class="mobile-note">输入 2 个以上字符后展示匹配订单，可直达详情。</p>
-            </div>
+        <section v-if="showSearchOverlay" class="rooms-search-popover" aria-live="polite">
+          <div class="rooms-search-popover__header">
+            <strong>{{ searchOverlayTitle }}</strong>
             <ion-spinner v-if="roomStatusStore.searching" name="crescent" />
           </div>
 
-          <div v-if="roomStatusStore.searchResults.length > 0" class="mobile-list">
+          <div
+            v-if="roomStatusStore.searchResults.length > 0"
+            class="rooms-search-popover__list"
+          >
             <ReservationSummaryCard
               v-for="item in roomStatusStore.searchResults"
               :key="item.id"
               :reservation="item"
-              @select="openReservationDetail(item.id)"
+              @select="handleSelectSearchReservation(item.id)"
             />
           </div>
-          <p v-else class="mobile-note">未找到匹配订单。</p>
-        </section>
 
-        <section class="mobile-card">
-          <div class="mobile-inline-row">
-            <div>
-              <h2 class="mobile-section-title">房间列表</h2>
-              <p class="mobile-note">点击房间进入详情，点击订单摘要直达订单页。</p>
-            </div>
-            <ion-spinner v-if="roomStatusStore.loading" name="crescent" />
-          </div>
-
-          <div v-if="roomStatusStore.groupedVisibleRooms.length > 0" class="mobile-list room-groups">
-            <section v-for="group in roomStatusStore.groupedVisibleRooms" :key="group.roomType" class="room-group">
-              <div class="room-group__header">
-                <strong>{{ group.roomType }}</strong>
-                <span>{{ group.rooms.length }} 间</span>
-              </div>
-              <div class="mobile-list">
-                <RoomStatusRoomCard
-                  v-for="room in group.rooms"
-                  :key="room.roomId"
-                  :room="room"
-                  @quick-action="openQuickAction"
-                  @select-date="handleSelectDate"
-                  @select-reservation="openReservationDetail"
-                  @select-room="openRoomDetail"
-                />
-              </div>
-            </section>
-          </div>
-          <p v-else-if="showRoomListLoadingHint" class="mobile-note rooms-loading-hint">正在同步最新房态...</p>
-          <div v-else class="rooms-empty-state">
-            <h3 class="rooms-empty-state__title">{{ emptyStateTitle }}</h3>
-            <p class="mobile-note rooms-empty-state__text">{{ emptyStateDescription }}</p>
-            <ion-button size="small" @click="handleOpenRoomTypeSettings">{{ emptyStateActionText }}</ion-button>
-          </div>
+          <p v-else class="rooms-search-popover__hint">
+            {{ searchOverlayHint }}
+          </p>
         </section>
       </div>
+
+      <p v-if="loadNotice" class="rooms-notice">{{ loadNotice }}</p>
+
+      <RoomStatusCalendarGrid
+        v-if="roomStatusStore.groupedVisibleRooms.length > 0"
+        :days="roomStatusStore.visibleDates"
+        :groups="roomStatusStore.groupedVisibleRooms"
+        :loading="roomStatusStore.loading"
+        @select-date="handleSelectDate"
+        @select-reservation="openReservationDetail"
+        @open-room-actions="handleOpenGridAction"
+        @go-today="handleGoToday"
+      />
+
+      <section v-else class="rooms-empty">
+        <h3 class="rooms-empty__title">{{ emptyStateTitle }}</h3>
+        <p class="rooms-empty__text">{{ emptyStateDescription }}</p>
+        <ion-button size="small" @click="handleOpenRoomTypeSettings">{{ emptyStateActionText }}</ion-button>
+      </section>
+
+      <button
+        v-if="showTodayPill"
+        slot="fixed"
+        class="rooms-today-pill"
+        type="button"
+        @click="handleGoToday"
+      >
+        <ion-icon :icon="locateOutline" />
+        <span>回到今日</span>
+      </button>
+
+      <ion-fab slot="fixed" vertical="bottom" horizontal="end" class="rooms-fab">
+        <ion-fab-button @click="handleFabClick">
+          <ion-icon :icon="addOutline" />
+        </ion-fab-button>
+      </ion-fab>
     </ion-content>
+
+    <ion-modal
+      :is-open="showFilterModal"
+      :initial-breakpoint="0.92"
+      :breakpoints="[0, 0.92]"
+      @didDismiss="handleFilterModalDismiss"
+    >
+      <ion-header translucent>
+        <ion-toolbar>
+          <ion-title>房态概览与筛选</ion-title>
+          <ion-button slot="end" fill="clear" @click="handleCloseFilterModal">关闭</ion-button>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="mobile-page rooms-filter-page">
+        <div class="mobile-stack">
+          <RoomStatusSummaryCards
+            :items="roomStatusStore.summaryCards"
+            :loading="roomStatusStore.summaryLoading"
+          />
+
+          <RoomTypeSummaryList
+            :items="roomStatusStore.roomTypeSummaries"
+            :selected-room-types="draftSelectedRoomTypes"
+            @reset="handleResetDraftRoomTypeFilter"
+            @toggle="handleToggleDraftRoomType"
+          />
+
+          <div class="rooms-filter-actions">
+            <ion-button fill="outline" @click="handleResetDraftRoomTypeFilter">重置</ion-button>
+            <ion-button @click="handleApplyDraftRoomTypeFilter">确定</ion-button>
+          </div>
+        </div>
+      </ion-content>
+    </ion-modal>
+
+    <ion-modal
+      :is-open="showRoomPickerModal"
+      :initial-breakpoint="0.9"
+      :breakpoints="[0, 0.9]"
+      @didDismiss="showRoomPickerModal = false"
+    >
+      <ion-header translucent>
+        <ion-toolbar>
+          <ion-title>选择房间新建订单</ion-title>
+          <ion-button slot="end" fill="clear" @click="showRoomPickerModal = false">关闭</ion-button>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="mobile-page">
+        <ion-list v-if="roomStatusStore.groupedVisibleRooms.length > 0">
+          <template v-for="group in roomStatusStore.groupedVisibleRooms" :key="group.roomType">
+            <ion-item-divider sticky>
+              <ion-label>{{ group.roomType }}</ion-label>
+            </ion-item-divider>
+            <ion-item
+              v-for="room in group.rooms"
+              :key="room.roomId"
+              button
+              :detail="false"
+              @click="handleRoomPicked(room.roomId, room.focusedDate)"
+            >
+              <ion-label>
+                <h3>{{ room.roomNumber }}</h3>
+                <p>{{ room.focusedStatusText }}</p>
+              </ion-label>
+            </ion-item>
+          </template>
+        </ion-list>
+        <p v-else class="rooms-empty__text">暂无可选房间。</p>
+      </ion-content>
+    </ion-modal>
 
     <ion-action-sheet
       :is-open="showQuickActionSheet"
@@ -180,12 +221,20 @@
 
 <script setup lang="ts">
 import {
+  actionSheetController,
   alertController,
   IonActionSheet,
   IonButton,
   IonContent,
+  IonFab,
+  IonFabButton,
   IonHeader,
   IonIcon,
+  IonItem,
+  IonItemDivider,
+  IonLabel,
+  IonList,
+  IonModal,
   IonPage,
   IonRefresher,
   IonRefresherContent,
@@ -196,9 +245,16 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue'
 import {
+  addOutline,
+  chevronBackOutline,
+  chevronForwardOutline,
+  funnelOutline,
   gridOutline,
   listOutline,
+  locateOutline,
+  menuOutline,
   pricetagOutline,
+  refreshOutline,
   sparklesOutline,
   timeOutline,
 } from 'ionicons/icons'
@@ -210,13 +266,12 @@ import BookingFormModal, {
 } from '@/components/room-status/BookingFormModal.vue'
 import BatchActionModal, {
   type BatchActionMode,
-  type BatchRoomOption,
   type BatchActionSubmitPayload,
+  type BatchRoomOption,
 } from '@/components/room-status/BatchActionModal.vue'
+import RoomStatusCalendarGrid from '@/components/room-status/RoomStatusCalendarGrid.vue'
 import CloseRoomModal, { type CloseRoomSubmitPayload } from '@/components/room-status/CloseRoomModal.vue'
 import ReservationSummaryCard from '@/components/room-status/ReservationSummaryCard.vue'
-import RoomStatusDateStrip from '@/components/room-status/RoomStatusDateStrip.vue'
-import RoomStatusRoomCard from '@/components/room-status/RoomStatusRoomCard.vue'
 import RoomStatusSummaryCards from '@/components/room-status/RoomStatusSummaryCards.vue'
 import RoomTypeSummaryList from '@/components/room-status/RoomTypeSummaryList.vue'
 import { checkCanMoveToOrderBox, moveToOrderBox } from '@/api/orderBox'
@@ -244,6 +299,7 @@ const roomStatusStore = useRoomStatusStore()
 const searchKeyword = ref('')
 const showQuickActionSheet = ref(false)
 const selectedRoomId = ref(0)
+const selectedBusinessDate = ref('')
 const showBookingModal = ref(false)
 const showCloseRoomModal = ref(false)
 const bookingMode = ref<BookingModalMode>('create')
@@ -253,10 +309,11 @@ const showBatchModal = ref(false)
 const batchMode = ref<BatchActionMode>('dirty')
 const roomTypeCatalogCount = ref(0)
 const roomTypeCatalogLoading = ref(true)
+const showFilterModal = ref(false)
+const draftSelectedRoomTypes = ref<string[]>([])
+const showRoomPickerModal = ref(false)
 let hasCompletedInitialLoad = false
 let searchTimer = 0
-
-const storeName = computed(() => storeStore.currentStore?.name || '未选择门店')
 
 const toolEntries = computed<RoomsToolEntry[]>(() => {
   return [
@@ -307,12 +364,54 @@ const selectedRoom = computed(() => {
   if (!selectedRoomId.value) {
     return null
   }
-  return roomStatusStore.getRoomListItemById(selectedRoomId.value)
+
+  return roomStatusStore.getRoomListItemById(
+    selectedRoomId.value,
+    selectedBusinessDate.value || undefined,
+  )
 })
 
-const selectedDateText = computed(() => `当前业务日 ${roomStatusStore.selectedDate}`)
+const todayDateKey = computed(() => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+})
 
-const showSearchResults = computed(() => searchKeyword.value.trim().length >= 2)
+const showTodayPill = computed(() => {
+  return roomStatusStore.selectedDate !== todayDateKey.value
+})
+
+const hasSearchKeyword = computed(() => searchKeyword.value.trim().length >= 2)
+
+const showSearchOverlay = computed(() => {
+  return hasSearchKeyword.value && (roomStatusStore.searching || roomStatusStore.hasSearchCompleted)
+})
+
+const searchOverlayTitle = computed(() => {
+  if (roomStatusStore.searching) {
+    return '正在查找订单'
+  }
+
+  if (roomStatusStore.searchResults.length > 0) {
+    return `找到 ${roomStatusStore.searchResults.length} 条匹配订单`
+  }
+
+  return '未找到匹配结果'
+})
+
+const searchOverlayHint = computed(() => {
+  if (roomStatusStore.searching) {
+    return '正在查找匹配订单…'
+  }
+
+  if (roomStatusStore.searchResults.length > 0) {
+    return '点选下方订单可直接进入详情。'
+  }
+
+  return '可尝试房号、手机号、订单号、渠道订单号或客户名。'
+})
 
 const emptyStateMode = computed(() => {
   if (roomTypeCatalogCount.value <= 0) {
@@ -358,14 +457,6 @@ const emptyStateActionText = computed(() => {
   return '添加房型'
 })
 
-const showRoomListLoadingHint = computed(() => {
-  if (roomStatusStore.groupedVisibleRooms.length > 0) {
-    return false
-  }
-
-  return roomStatusStore.loading || roomTypeCatalogLoading.value
-})
-
 const batchRooms = computed<BatchRoomOption[]>(() => {
   const rooms: BatchRoomOption[] = []
 
@@ -386,6 +477,7 @@ const quickActionDescription = computed(() => {
   if (!selectedRoom.value) {
     return ''
   }
+
   return `${selectedRoom.value.roomType} · ${selectedRoom.value.roomNumber} · ${selectedRoom.value.focusedDate}`
 })
 
@@ -419,6 +511,7 @@ const quickActionButtons = computed(() => {
       text: '查看订单',
       handler: handleOpenQuickReservation,
     })
+
     if (selectedRoom.value.focusedBusinessState === 'reserved') {
       buttons.push({
         text: '移入订单盒子',
@@ -447,6 +540,7 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   if (error instanceof Error && error.message) {
     return error.message
   }
+
   return fallbackMessage
 }
 
@@ -468,19 +562,23 @@ async function confirmAction(header: string, message: string, confirmText: strin
 
   await alert.present()
   const result = await alert.onDidDismiss()
+
   if (destructive) {
     return result.role === 'destructive'
   }
+
   return result.role === 'confirm'
 }
 
 async function loadPage(force = false) {
   loadNotice.value = ''
+
   try {
     await roomStatusStore.initialize(force)
   } catch (error) {
     const message = resolveWarningMessage(error, '房态加载失败')
     loadNotice.value = message
+
     if (!isHandledRequestError(error)) {
       showWarningToast(message)
     }
@@ -489,6 +587,7 @@ async function loadPage(force = false) {
 
 async function loadRoomTypeCatalogCount() {
   roomTypeCatalogLoading.value = true
+
   try {
     const response = await getAllRoomTypesWithRooms()
     if (!response.success || !response.data) {
@@ -506,11 +605,13 @@ async function loadRoomTypeCatalogCount() {
 
 async function refreshPageDataOnEnter() {
   loadNotice.value = ''
+
   try {
     await Promise.all([roomStatusStore.refreshAll(true), loadRoomTypeCatalogCount()])
   } catch (error) {
     const message = resolveWarningMessage(error, '房态刷新失败')
     loadNotice.value = message
+
     if (!isHandledRequestError(error)) {
       showWarningToast(message)
     }
@@ -521,8 +622,12 @@ async function handleRefresh(event: CustomEvent) {
   try {
     await refreshPageDataOnEnter()
   } finally {
-    event.detail.complete()
+    ;(event.detail as { complete: () => void }).complete()
   }
+}
+
+async function handleManualRefresh() {
+  await refreshPageDataOnEnter()
 }
 
 async function handleSelectDate(date: string) {
@@ -567,21 +672,134 @@ async function handleGoToday() {
   }
 }
 
-function handleToggleRoomType(roomType: string) {
-  roomStatusStore.toggleRoomType(roomType)
+function syncDraftRoomTypeFilter() {
+  draftSelectedRoomTypes.value = [...roomStatusStore.selectedRoomTypes]
 }
 
-function handleResetRoomTypeFilter() {
-  roomStatusStore.resetRoomTypeFilter()
+function handleOpenFilterModal() {
+  syncDraftRoomTypeFilter()
+  showFilterModal.value = true
 }
 
-function openQuickAction(roomId: number) {
+function handleCloseFilterModal() {
+  showFilterModal.value = false
+}
+
+function handleFilterModalDismiss() {
+  syncDraftRoomTypeFilter()
+  showFilterModal.value = false
+}
+
+function handleToggleDraftRoomType(roomType: string) {
+  if (draftSelectedRoomTypes.value.includes(roomType)) {
+    draftSelectedRoomTypes.value = draftSelectedRoomTypes.value.filter((item) => item !== roomType)
+    return
+  }
+
+  draftSelectedRoomTypes.value = [...draftSelectedRoomTypes.value, roomType]
+}
+
+function handleResetDraftRoomTypeFilter() {
+  draftSelectedRoomTypes.value = [...roomStatusStore.roomTypes]
+}
+
+function handleApplyDraftRoomTypeFilter() {
+  roomStatusStore.setSelectedRoomTypes(draftSelectedRoomTypes.value)
+  showFilterModal.value = false
+}
+
+function openQuickAction(roomId: number, businessDate?: string) {
   selectedRoomId.value = roomId
+  selectedBusinessDate.value = businessDate || roomStatusStore.selectedDate
   showQuickActionSheet.value = true
+}
+
+function handleOpenGridAction(payload: { roomId: number; date: string }) {
+  openQuickAction(payload.roomId, payload.date)
 }
 
 function handleQuickActionDismiss() {
   showQuickActionSheet.value = false
+  selectedRoomId.value = 0
+  selectedBusinessDate.value = ''
+}
+
+function handleFabClick() {
+  if (roomStatusStore.groupedVisibleRooms.length === 0) {
+    showWarningToast('当前没有可选房间，请先配置房型与房间')
+    return
+  }
+  showRoomPickerModal.value = true
+}
+
+function handleRoomPicked(roomId: number, businessDate: string) {
+  selectedRoomId.value = roomId
+  selectedBusinessDate.value = businessDate || roomStatusStore.selectedDate
+  showRoomPickerModal.value = false
+  bookingMode.value = 'create'
+  showBookingModal.value = true
+}
+
+async function presentToolsMenu() {
+  const buttons = [
+    {
+      text: '前 5 天',
+      icon: chevronBackOutline,
+      handler: () => {
+        void handlePreviousWindow()
+      },
+    },
+    {
+      text: '后 5 天',
+      icon: chevronForwardOutline,
+      handler: () => {
+        void handleNextWindow()
+      },
+    },
+    ...toolEntries.value.map((entry) => ({
+      text: `${entry.title} · ${entry.badge}`,
+      icon: entry.icon,
+      handler: () => {
+        void handleOpenToolEntry(entry.path)
+      },
+    })),
+    {
+      text: '批量置脏',
+      handler: () => {
+        openBatchModal('dirty')
+      },
+    },
+    {
+      text: '批量置净',
+      handler: () => {
+        openBatchModal('clean')
+      },
+    },
+    {
+      text: '批量开房',
+      handler: () => {
+        openBatchModal('open')
+      },
+    },
+    {
+      text: '批量关房',
+      handler: () => {
+        openBatchModal('close')
+      },
+    },
+    {
+      text: '取消',
+      role: 'cancel',
+    },
+  ]
+
+  const actionSheet = await actionSheetController.create({
+    header: '住宿工具',
+    subHeader: '房态工具与批量动作都集中在这里',
+    buttons,
+  })
+
+  await actionSheet.present()
 }
 
 function handleOpenCreateBooking() {
@@ -620,6 +838,7 @@ function handleToggleDirty() {
   if (!selectedRoom.value) {
     return
   }
+
   roomStatusStore.toggleDirty(selectedRoom.value.roomId)
 }
 
@@ -627,13 +846,15 @@ function handleOpenQuickRoomDetail() {
   if (!selectedRoom.value) {
     return
   }
-  openRoomDetail(selectedRoom.value.roomId)
+
+  openRoomDetail(selectedRoom.value.roomId, selectedRoom.value.focusedDate)
 }
 
 function handleOpenQuickReservation() {
   if (!selectedRoom.value?.reservation) {
     return
   }
+
   openReservationDetail(selectedRoom.value.reservation.id)
 }
 
@@ -691,6 +912,7 @@ async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
     showWarningToast('未选择房间')
     return
   }
+
   if (!payload.guestName || !payload.channelId || !payload.checkInDate || !payload.checkOutDate) {
     showWarningToast('请填写完整订单信息')
     return
@@ -797,11 +1019,11 @@ async function handleBatchSubmit(payload: BatchActionSubmitPayload) {
   }
 }
 
-async function openRoomDetail(roomId: number) {
+async function openRoomDetail(roomId: number, businessDate?: string) {
   await router.push({
     name: 'RoomStatusDetail',
     params: { roomId },
-    query: { date: roomStatusStore.selectedDate },
+    query: { date: businessDate || roomStatusStore.selectedDate },
   })
 }
 
@@ -812,13 +1034,19 @@ async function openReservationDetail(reservationId: number) {
   })
 }
 
+async function handleSelectSearchReservation(reservationId: number) {
+  searchKeyword.value = ''
+  roomStatusStore.clearSearchResults()
+  await openReservationDetail(reservationId)
+}
+
 async function handleOpenToolEntry(path: string) {
   await router.push(path)
 }
 
 async function handleOpenRoomTypeSettings() {
   if (emptyStateMode.value === 'filtered-empty') {
-    handleResetRoomTypeFilter()
+    roomStatusStore.resetRoomTypeFilter()
     return
   }
 
@@ -853,6 +1081,7 @@ watch(
     if (!nextStoreId || nextStoreId === previousStoreId) {
       return
     }
+
     await loadPage(true)
   },
 )
@@ -876,130 +1105,210 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .rooms-page {
-  display: block;
+  --background: var(--app-surface-muted, #f5f7fb);
 }
 
-.rooms-hero {
-  margin-top: 4px;
-}
-
-.rooms-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-}
-
-.rooms-toolbar-card {
-  display: grid;
-  gap: 10px;
-}
-
-.rooms-tools-card {
-  display: grid;
-  gap: 14px;
-}
-
-.rooms-tools-card__list {
-  display: grid;
-  gap: 12px;
-}
-
-.rooms-tool-entry {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+.rooms-toolbar {
+  display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 20px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
+  gap: 4px;
+  padding: 6px 10px 8px;
+  background: var(--app-surface, #ffffff);
+  border-bottom: 1px solid var(--app-border, rgba(15, 23, 42, 0.06));
 }
 
-.rooms-tool-entry__icon {
+.rooms-toolbar-shell {
+  position: relative;
+  background: var(--app-surface, #ffffff);
+  z-index: 12;
+}
+
+.rooms-toolbar__search {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  --background: rgba(238, 242, 249, 0.9);
+  --border-radius: 14px;
+  --box-shadow: none;
+  --min-height: 38px;
+}
+
+.rooms-toolbar__search::part(icon) {
+  font-size: 16px;
+}
+
+.rooms-toolbar__icon {
+  appearance: none;
+  border: none;
+  background: transparent;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  background: var(--app-primary-soft-strong);
-  color: var(--ion-color-primary);
-  font-size: 20px;
+  color: var(--app-heading, #10233f);
+  flex-shrink: 0;
 }
 
-.rooms-tool-entry__header {
+.rooms-toolbar__icon:active {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.rooms-toolbar__icon[disabled] {
+  opacity: 0.5;
+}
+
+.rooms-toolbar__icon ion-icon {
+  font-size: 22px;
+}
+
+.rooms-notice {
+  margin: 0;
+  padding: 8px 16px;
+  background: rgba(252, 211, 77, 0.14);
+  color: var(--ion-color-warning-shade, #92400e);
+  font-size: 13px;
+}
+
+.rooms-search-popover {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 10px;
+  right: 10px;
+  z-index: 18;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--app-border, rgba(15, 23, 42, 0.08));
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.rooms-search-popover__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  color: var(--app-heading, #10233f);
+  font-size: 14px;
 }
 
-.rooms-tool-entry__header strong,
-.rooms-tool-entry__body p {
+.rooms-search-popover__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(42vh, 360px);
+  overflow-y: auto;
+}
+
+.rooms-search-popover__hint {
   margin: 0;
-}
-
-.rooms-tool-entry__body p {
-  margin-top: 6px;
-  color: var(--app-muted);
+  color: var(--app-muted, #64748b);
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
-.rooms-tool-entry__badge {
-  padding: 4px 8px;
+.rooms-search-popover__list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rooms-search-popover__list::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 11px;
-  font-weight: 600;
+  background: rgba(100, 116, 139, 0.28);
 }
 
-.rooms-toolbar-actions {
+.rooms-search-popover__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rooms-search-popover :deep(.reservation-card) {
+  padding: 12px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.rooms-search-popover :deep(.reservation-card__header strong) {
+  font-size: 14px;
+}
+
+.rooms-search-popover :deep(.reservation-card__header p),
+.rooms-search-popover :deep(.reservation-card__body) {
+  font-size: 12px;
+}
+
+.rooms-search-popover :deep(.reservation-card:active) {
+  background: rgba(239, 244, 255, 0.98);
+}
+
+.rooms-filter-actions {
+  position: sticky;
+  bottom: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.rooms-toolbar-card__notice {
-  color: var(--ion-color-warning);
-}
-
-.room-groups {
-  gap: 16px;
-}
-
-.room-group {
-  display: grid;
-  gap: 10px;
-}
-
-.room-group__header {
-  display: flex;
-  justify-content: space-between;
   gap: 12px;
-  color: var(--app-muted);
+  padding: 4px 0 calc(env(safe-area-inset-bottom, 0px) + 4px);
+  background: linear-gradient(180deg, rgba(245, 247, 251, 0) 0%, rgba(245, 247, 251, 0.92) 24%, rgba(245, 247, 251, 1) 100%);
+}
+
+.rooms-filter-actions ion-button {
+  margin: 0;
+}
+
+.rooms-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 40px 24px;
+  align-items: flex-start;
+}
+
+.rooms-empty__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--app-heading, #10233f);
+}
+
+.rooms-empty__text {
+  margin: 0;
+  color: var(--app-muted, #64748b);
   font-size: 13px;
 }
 
-.rooms-empty-state {
-  display: grid;
-  gap: 12px;
-  justify-items: flex-start;
-  padding-top: 16px;
+.rooms-today-pill {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  appearance: none;
+  border: none;
+  background: var(--app-surface-strong, #ffffff);
+  color: var(--app-heading, #10233f);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.rooms-loading-hint {
-  margin: 0;
-  padding-top: 16px;
-}
-
-.rooms-empty-state__title {
-  margin: 0;
-  color: var(--app-heading);
+.rooms-today-pill ion-icon {
   font-size: 16px;
-  font-weight: 700;
+  color: var(--ion-color-primary);
 }
 
-.rooms-empty-state__text {
-  margin: 0;
+.rooms-fab {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.rooms-filter-page {
+  --padding-top: 16px;
 }
 </style>

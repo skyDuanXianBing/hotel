@@ -27,6 +27,7 @@ export const pollThreadMessages = (threadId: number, since: string) => {
     url: `/su-messaging/threads/${threadId}/poll`,
     method: 'GET',
     params: { since },
+    suppressErrorStatuses: [400, 403, 404],
   })
 }
 

@@ -90,7 +90,7 @@ const handleRecordSuccess = () => {
 <style scoped>
 .quick-tools-root {
   position: fixed;
-  right: 18px;
+  left: 18px;
   bottom: calc(env(safe-area-inset-bottom) + 82px);
   z-index: 1200;
 }
