@@ -142,6 +142,16 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'home/customize',
+        name: 'HomeCustomize',
+        component: () => import('@/views/home/HomeShortcutManagePage.vue'),
+        meta: {
+          title: '管理',
+          requiresAuth: true,
+          requiresStore: true,
+        },
+      },
+      {
         path: 'rooms',
         name: 'Rooms',
         component: () => import('@/views/rooms/RoomsPage.vue'),

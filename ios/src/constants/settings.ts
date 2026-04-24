@@ -34,18 +34,12 @@ export const CHANNEL_TYPE_OPTIONS = [
 ] as const
 
 export const CHANNEL_COLOR_OPTIONS = [
-  '#0f766e',
-  '#2563eb',
-  '#9333ea',
-  '#f59e0b',
-  '#ef4444',
-  '#14b8a6',
-] as const
-
-export const PAYMENT_PLATFORM_STATUS_ITEMS = [
-  '移动端已补齐入口与状态说明，后续接入以服务端平台配置为准。',
-  '当前不在 iOS 端直接发起第三方 OAuth 连接。',
-  '需要诊断或签约时，建议在桌面端完成。',
+  { label: '松石绿', value: '#0f766e' },
+  { label: '海岸蓝', value: '#2563eb' },
+  { label: '晚霞紫', value: '#9333ea' },
+  { label: '琥珀橙', value: '#f59e0b' },
+  { label: '珊瑚红', value: '#ef4444' },
+  { label: '湖水青', value: '#14b8a6' },
 ] as const
 
 export const PRICING_TOOL_STATUS_ITEMS = [

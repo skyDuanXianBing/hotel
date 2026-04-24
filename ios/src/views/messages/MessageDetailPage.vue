@@ -1,105 +1,98 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="message-detail-header">
         <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.messages" />
+          <ion-back-button class="message-detail-header__back" :default-href="ROUTE_PATHS.messages" />
         </ion-buttons>
-        <ion-title>{{ pageTitle }}</ion-title>
+        <ion-title class="message-detail-header__title">
+          <span>{{ pageTitle }}</span>
+          <small v-if="headerCaption">{{ headerCaption }}</small>
+        </ion-title>
+        <ion-buttons slot="end">
+          <ion-button
+            v-if="reservationMatched"
+            class="message-detail-header__action"
+            fill="clear"
+            @click="handleOpenReservation"
+          >
+            订单
+          </ion-button>
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content fullscreen class="mobile-page message-detail-page">
+    <ion-content ref="contentRef" fullscreen class="mobile-page message-detail-page">
       <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
         <ion-refresher-content pulling-text="下拉刷新会话" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section v-if="activeThread" class="mobile-hero message-detail-hero">
-        <p class="mobile-note message-detail-hero__eyebrow">消息详情</p>
-        <h1 class="mobile-title">{{ threadTitle }}</h1>
-        <p class="mobile-subtitle">
-          {{ activeThread.channelName }} · 订单 {{ activeThread.bookingId || activeThread.threadId || '-' }}
-        </p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">{{ activeThread.closed ? '已关闭' : '活跃中' }}</span>
-          <span class="mobile-chip">消息 {{ messages.length }}</span>
-          <span class="mobile-chip" v-if="reservationMatched">已关联订单</span>
-        </div>
+      <div v-if="loadNotice || loading" class="message-detail-page__status">
+        <ion-spinner v-if="loading" name="crescent" />
+        <span>{{ loadNotice || '同步中...' }}</span>
+      </div>
+
+      <section v-if="messages.length > 0" class="message-thread-stream">
+        <article
+          v-for="message in messages"
+          :key="message.id"
+          class="message-row"
+          :class="message.senderType === MessageSenderType.STAFF ? 'is-staff' : 'is-guest'"
+        >
+          <div class="message-row__avatar" aria-hidden="true">
+            {{ resolveMessageAvatarLabel(message) }}
+          </div>
+          <div class="message-row__body">
+            <div class="message-bubble">
+              <p class="message-bubble__text">{{ message.content }}</p>
+            </div>
+            <div class="message-row__meta">
+              <span>{{ formatDateTime(message.timestamp) }}</span>
+              <span v-if="message.deliveryStatus === 'FAILED'" class="message-row__failed">发送失败</span>
+            </div>
+          </div>
+        </article>
       </section>
 
-      <div class="mobile-stack">
-        <section class="mobile-card message-detail-toolbar-card">
-          <div class="message-detail-toolbar-card__actions">
-            <ion-button fill="outline" size="small" @click="loadPage">刷新会话</ion-button>
-            <ion-button fill="outline" size="small" :disabled="!reservationMatched" @click="handleOpenReservation">
-              查看订单
-            </ion-button>
-            <ion-button fill="outline" size="small" :disabled="!activeThread || activeThread.closed" @click="handleOpenAiDraft">
-              AI 回复助手
-            </ion-button>
-          </div>
-          <p v-if="loadNotice" class="mobile-note message-detail-toolbar-card__notice">{{ loadNotice }}</p>
-        </section>
+      <section v-else-if="!loading" class="message-detail-empty-state">
+        <h3>暂无消息</h3>
+        <p class="mobile-note">该会话还没有聊天记录，可以先发送一条消息。</p>
+      </section>
 
-        <section class="mobile-card">
-          <div class="mobile-inline-row">
-            <div>
-              <h2 class="mobile-section-title">聊天记录</h2>
-              <p class="mobile-note">下拉刷新或等待轮询同步最新消息。</p>
-            </div>
-            <ion-spinner v-if="loading" name="crescent" />
-          </div>
-
-          <div v-if="messages.length > 0" class="mobile-list message-detail-list">
-            <article
-              v-for="message in messages"
-              :key="message.id"
-              class="message-bubble"
-              :class="message.senderType === MessageSenderType.STAFF ? 'is-staff' : 'is-guest'"
-            >
-              <div class="message-bubble__meta">
-                <strong>{{ resolveSenderLabel(message) }}</strong>
-                <span class="mobile-note">{{ formatDateTime(message.timestamp) }}</span>
-              </div>
-              <p>{{ message.content }}</p>
-              <span v-if="message.deliveryStatus === 'FAILED'" class="message-bubble__failed">发送失败</span>
-            </article>
-          </div>
-
-          <div v-else-if="!loading" class="message-detail-empty-state">
-            <h3>暂无消息</h3>
-            <p class="mobile-note">该会话还没有聊天记录，可以先发送一条消息。</p>
-          </div>
-        </section>
-
-        <section class="mobile-card message-editor-card">
-          <h2 class="mobile-section-title">发送消息</h2>
-          <label class="message-editor-card__field">
-            <span>消息内容</span>
+      <div slot="fixed" class="message-composer">
+        <p v-if="activeThread?.closed" class="message-composer__closed-tip">当前会话已关闭，不能继续发送消息。</p>
+        <div class="message-composer__bar">
+          <ion-button
+            class="message-composer__ai"
+            fill="solid"
+            :disabled="!activeThread || activeThread.closed"
+            @click="handleOpenAiDraft"
+          >
+            AI
+          </ion-button>
+          <div class="message-composer__input">
             <ion-textarea
               v-model="composerValue"
-              :rows="4"
-              fill="outline"
+              auto-grow
+              :rows="1"
+              class="message-composer__textarea"
               placeholder="输入给住客的消息"
               :disabled="sending || !activeThread || activeThread.closed"
             />
-          </label>
-
-          <div class="message-editor-card__actions">
-            <ion-button fill="outline" :disabled="sending || !composerValue.trim()" @click="handleClearComposer">
-              清空
-            </ion-button>
-            <ion-button :disabled="sending || !composerValue.trim() || !activeThread || activeThread.closed" @click="handleSendMessage">
-              {{ sending ? '发送中...' : '发送消息' }}
-            </ion-button>
           </div>
-          <p v-if="activeThread?.closed" class="mobile-note message-editor-card__notice">当前会话已关闭，不能继续发送消息。</p>
-        </section>
+          <ion-button
+            class="message-composer__send"
+            :disabled="sending || !composerValue.trim() || !activeThread || activeThread.closed"
+            @click="handleSendMessage"
+          >
+            {{ sending ? '发送中' : '发送' }}
+          </ion-button>
+        </div>
       </div>
 
-      <ion-modal :is-open="aiDraftOpen" @didDismiss="handleDismissAiDraft">
-        <ion-header>
-          <ion-toolbar>
+      <ion-modal class="message-ai-modal" :is-open="aiDraftOpen" @didDismiss="handleDismissAiDraft">
+        <ion-header translucent class="message-ai-modal__header">
+          <ion-toolbar class="message-ai-modal__toolbar">
             <ion-title>AI 回复草稿</ion-title>
             <ion-buttons slot="end">
               <ion-button @click="handleDismissAiDraft">关闭</ion-button>
@@ -107,39 +100,50 @@
           </ion-toolbar>
         </ion-header>
 
-        <ion-content class="mobile-page message-draft-modal-page">
-          <section class="mobile-card message-draft-card">
-            <label class="message-editor-card__field">
+        <ion-content class="mobile-page message-draft-modal-page message-ai-modal__page">
+          <section class="mobile-card message-draft-card message-ai-sheet">
+            <label class="message-editor-card__field message-ai-field">
               <span>上下文摘要</span>
-              <ion-textarea :value="aiContextSummary" :rows="4" fill="outline" readonly />
+              <ion-textarea class="message-ai-textarea message-ai-textarea--readonly" :value="aiContextSummary" :rows="4" fill="outline" readonly />
             </label>
 
-            <label class="message-editor-card__field">
+            <label class="message-editor-card__field message-ai-field">
               <span>补充要求</span>
               <ion-textarea
                 v-model="aiInstruction"
                 :rows="3"
+                class="message-ai-textarea"
                 fill="outline"
                 placeholder="例如：更礼貌、加入入住步骤、简短一些"
               />
             </label>
 
-            <label class="message-editor-card__field">
+            <label class="message-editor-card__field message-ai-field">
               <span>回复草稿</span>
               <ion-textarea v-model="aiDraft" :rows="8" fill="outline" placeholder="AI 草稿会显示在这里" />
             </label>
 
             <div class="message-editor-card__actions">
-              <ion-button fill="outline" :disabled="draftLoading" @click="handleGenerateAiDraft">
+              <ion-button class="message-ai-button message-ai-button--secondary" fill="outline" :disabled="draftLoading" @click="handleGenerateAiDraft">
                 {{ draftLoading ? '生成中...' : '重新生成' }}
               </ion-button>
-              <ion-button fill="outline" :disabled="draftLoading || !aiDraft.trim()" @click="handleOpenAiPolish">
+              <ion-button
+                class="message-ai-button message-ai-button--secondary"
+                fill="outline"
+                :disabled="draftLoading || !aiDraft.trim()"
+                @click="handleOpenAiPolish"
+              >
                 继续优化
               </ion-button>
-              <ion-button fill="outline" :disabled="draftLoading || !aiDraft.trim()" @click="handleUseAiDraft">
+              <ion-button
+                class="message-ai-button message-ai-button--secondary"
+                fill="outline"
+                :disabled="draftLoading || !aiDraft.trim()"
+                @click="handleUseAiDraft"
+              >
                 回填输入框
               </ion-button>
-              <ion-button :disabled="draftLoading || !aiDraft.trim()" @click="handleSendAiDraft">
+              <ion-button class="message-ai-button message-ai-button--primary" :disabled="draftLoading || !aiDraft.trim()" @click="handleSendAiDraft">
                 发送草稿
               </ion-button>
             </div>
@@ -147,9 +151,9 @@
         </ion-content>
       </ion-modal>
 
-      <ion-modal :is-open="aiPolishOpen" @didDismiss="handleDismissAiPolish">
-        <ion-header>
-          <ion-toolbar>
+      <ion-modal class="message-ai-modal" :is-open="aiPolishOpen" @didDismiss="handleDismissAiPolish">
+        <ion-header translucent class="message-ai-modal__header">
+          <ion-toolbar class="message-ai-modal__toolbar">
             <ion-title>继续优化 AI 草稿</ion-title>
             <ion-buttons slot="end">
               <ion-button @click="handleDismissAiPolish">完成</ion-button>
@@ -157,9 +161,9 @@
           </ion-toolbar>
         </ion-header>
 
-        <ion-content class="mobile-page message-draft-modal-page">
-          <section class="mobile-card message-draft-card">
-            <div>
+        <ion-content class="mobile-page message-draft-modal-page message-ai-modal__page">
+          <section class="mobile-card message-draft-card message-ai-sheet">
+            <div class="message-ai-sheet__intro">
               <h2 class="mobile-section-title">优化历史</h2>
               <p class="mobile-note">保留本轮优化指令与 AI 返回结果，方便继续微调。</p>
             </div>
@@ -176,11 +180,12 @@
             </div>
             <p v-else class="mobile-note">输入你希望优化的方向，例如更礼貌、更简短或增加入住步骤说明。</p>
 
-            <label class="message-editor-card__field">
+            <label class="message-editor-card__field message-ai-field">
               <span>优化要求</span>
               <ion-textarea
                 v-model="aiPolishInstruction"
                 :rows="4"
+                class="message-ai-textarea"
                 fill="outline"
                 placeholder="告诉 AI 你希望怎样改写当前草稿"
               />
@@ -217,9 +222,16 @@ import {
   onIonViewWillEnter,
   onIonViewWillLeave,
 } from '@ionic/vue'
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getThreadMessages, getMessageThreads, pollThreadMessages, sendAiChatMessage, sendThreadMessage } from '@/api/message'
+import {
+  getThreadMessages,
+  getMessageThreads,
+  MESSAGE_API_MOCK_ENABLED,
+  pollThreadMessages,
+  sendAiChatMessage,
+  sendThreadMessage,
+} from '@/api/message'
 import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
 import type { MessageDTO, MessageThreadDTO } from '@/types/message'
@@ -232,6 +244,10 @@ const MESSAGE_POLL_INTERVAL = 8000
 interface AiPolishHistoryItem {
   role: 'user' | 'assistant'
   content: string
+}
+
+interface IonContentScrollTarget {
+  scrollToBottom(duration?: number): Promise<void>
 }
 
 const route = useRoute()
@@ -254,6 +270,7 @@ const aiPolishOpen = ref(false)
 const aiPolishLoading = ref(false)
 const aiPolishInstruction = ref('')
 const aiPolishHistory = ref<AiPolishHistoryItem[]>([])
+const contentRef = ref<unknown>(null)
 
 let pollTimer = 0
 
@@ -299,6 +316,26 @@ const threadTitle = computed(() => {
 
 const reservationMatched = computed(() => reservationId.value !== null)
 
+const headerCaption = computed(() => {
+  if (!activeThread.value) {
+    return ''
+  }
+
+  const parts: string[] = []
+
+  if (activeThread.value.channelName) {
+    parts.push(activeThread.value.channelName)
+  }
+
+  parts.push(activeThread.value.closed ? '已关闭' : '会话进行中')
+
+  if (reservationMatched.value) {
+    parts.push('已关联订单')
+  }
+
+  return parts.join(' · ')
+})
+
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   if (error instanceof Error && error.message) {
     return error.message
@@ -315,12 +352,67 @@ function sortMessages(list: MessageDTO[]) {
   return nextItems
 }
 
+function isIonContentScrollTarget(value: unknown): value is IonContentScrollTarget {
+  return Boolean(value) && typeof (value as IonContentScrollTarget).scrollToBottom === 'function'
+}
+
+function resolveContentScrollTarget() {
+  const contentValue = contentRef.value as { $el?: unknown } | null
+
+  if (isIonContentScrollTarget(contentValue)) {
+    return contentValue
+  }
+
+  if (contentValue && isIonContentScrollTarget(contentValue.$el)) {
+    return contentValue.$el
+  }
+
+  return null
+}
+
+async function scrollToConversationBottom(duration = 0) {
+  await nextTick()
+
+  const scrollTarget = resolveContentScrollTarget()
+  if (!scrollTarget) {
+    return
+  }
+
+  try {
+    await scrollTarget.scrollToBottom(duration)
+  } catch {
+    // Ignore scroll failures caused by page transition timing.
+  }
+}
+
 function resolveSenderLabel(message: MessageDTO) {
   if (message.senderType === MessageSenderType.STAFF) {
     return message.senderName || '酒店客服'
   }
 
   return message.senderName || '住客'
+}
+
+function resolveAvatarCharacter(source: string, fallbackValue: string) {
+  const normalized = source.trim()
+  if (!normalized) {
+    return fallbackValue
+  }
+
+  const firstCharacter = normalized.slice(0, 1)
+  if (/[a-z]/i.test(firstCharacter)) {
+    return firstCharacter.toUpperCase()
+  }
+
+  return firstCharacter
+}
+
+function resolveMessageAvatarLabel(message: MessageDTO) {
+  if (message.senderType === MessageSenderType.STAFF) {
+    return resolveAvatarCharacter(message.senderName || '店', '店')
+  }
+
+  return resolveAvatarCharacter(resolveSenderLabel(message), '客')
 }
 
 function formatDateTime(value: string) {
@@ -392,6 +484,10 @@ async function loadMessages() {
 
 async function resolveReservationId() {
   reservationId.value = null
+  if (MESSAGE_API_MOCK_ENABLED) {
+    return
+  }
+
   if (!activeThread.value) {
     return
   }
@@ -480,6 +576,7 @@ function startPolling() {
 
       messages.value = sortMessages(existing)
       await loadThreads()
+      await scrollToConversationBottom(180)
       if (!activeThread.value) {
         stopPolling()
       }
@@ -504,6 +601,7 @@ async function loadPage() {
     await loadMessages()
     await resolveReservationId()
     startPolling()
+    await scrollToConversationBottom()
   } catch (error) {
     loadNotice.value = resolveWarningMessage(error, '会话加载失败')
     if (!isHandledRequestError(error)) {
@@ -533,6 +631,7 @@ async function handleSendMessage() {
     composerValue.value = ''
     messages.value = sortMessages([...messages.value, response.data])
     await loadThreads()
+    await scrollToConversationBottom(180)
     showSuccessToast('消息已发送')
   } catch (error) {
     if (!isHandledRequestError(error)) {
@@ -541,10 +640,6 @@ async function handleSendMessage() {
   } finally {
     sending.value = false
   }
-}
-
-function handleClearComposer() {
-  composerValue.value = ''
 }
 
 async function handleOpenReservation() {
@@ -731,94 +826,349 @@ onUnmounted(() => {
 <style scoped>
 .message-detail-page {
   display: block;
+  --padding-top: 8px;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-bottom: calc(118px + var(--app-safe-bottom));
+  --background: linear-gradient(180deg, #f7f8fa 0%, #f1f3f6 100%);
 }
 
-.message-detail-hero {
-  margin-top: 4px;
+ion-header {
+  backdrop-filter: blur(16px);
 }
 
-.message-detail-hero__eyebrow {
-  color: var(--ion-color-primary);
+ion-header::after {
+  display: none;
+}
+
+.message-detail-header {
+  --background: rgba(248, 249, 251, 0.92);
+  --border-width: 0;
+  --padding-start: 6px;
+  --padding-end: 6px;
+}
+
+.message-detail-header__back {
+  --color: #1b2330;
+}
+
+.message-detail-header__title {
+  color: #1b2330;
+  text-align: center;
+}
+
+.message-detail-header__title span,
+.message-detail-header__title small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-detail-header__title span {
+  font-size: 17px;
   font-weight: 700;
+  letter-spacing: -0.03em;
 }
 
-.message-detail-toolbar-card {
-  display: grid;
-  gap: 10px;
+.message-detail-header__title small {
+  margin-top: 2px;
+  color: #98a1af;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
-.message-detail-toolbar-card__actions,
-.message-editor-card__actions {
+.message-detail-header__action {
+  --color: #536074;
+  --padding-start: 8px;
+  --padding-end: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.message-detail-page__status {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 16px 10px;
+  color: #8d97a8;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.message-detail-page__status ion-spinner {
+  width: 14px;
+  height: 14px;
+  color: #8d97a8;
+}
+
+.message-thread-stream {
+  display: grid;
+  gap: 14px;
+  padding: 4px 12px 28px;
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-end;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
-.message-detail-toolbar-card__notice,
-.message-editor-card__notice {
-  color: var(--ion-color-warning);
+.message-row.is-staff {
+  flex-direction: row-reverse;
 }
 
-.message-detail-list {
-  margin-top: 16px;
+.message-row__avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+}
+
+.message-row.is-guest .message-row__avatar {
+  background: linear-gradient(180deg, #84e1d0 0%, #3bc1a8 100%);
+}
+
+.message-row.is-staff .message-row__avatar {
+  background: linear-gradient(180deg, #b4d786 0%, #8acb51 100%);
+  color: #17301a;
+}
+
+.message-row__body {
+  display: grid;
+  gap: 6px;
+  max-width: min(78%, 420px);
+}
+
+.message-row.is-staff .message-row__body {
+  justify-items: end;
 }
 
 .message-bubble {
-  padding: 14px;
-  border-radius: 20px;
-  border: 1px solid var(--app-border);
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #1b2330;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
-.message-bubble.is-guest {
-  background: rgba(255, 255, 255, 0.88);
+.message-row.is-guest .message-bubble {
+  border-bottom-left-radius: 6px;
 }
 
-.message-bubble.is-staff {
-  background: var(--app-primary-soft-strong);
+.message-row.is-staff .message-bubble {
+  background: linear-gradient(180deg, #d7f3bb 0%, #c8ec9c 100%);
+  border-bottom-right-radius: 6px;
+  box-shadow: 0 12px 24px rgba(110, 169, 75, 0.2);
 }
 
-.message-bubble__meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.message-bubble__meta strong,
-.message-bubble__meta span,
-.message-bubble p,
-.message-bubble__failed {
+.message-bubble__text {
   margin: 0;
-}
-
-.message-bubble p {
-  margin-top: 10px;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.56;
+  font-size: 15px;
 }
 
-.message-bubble__failed {
-  display: inline-block;
-  margin-top: 8px;
-  color: var(--ion-color-danger);
-  font-size: 12px;
+.message-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+  color: #9ba4b3;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.message-row__failed {
+  color: #d45d52;
   font-weight: 600;
 }
 
 .message-detail-empty-state {
   display: grid;
-  gap: 10px;
-  justify-items: flex-start;
-  padding-top: 18px;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px 24px 0;
+  text-align: center;
+  color: #7f8898;
 }
 
-.message-detail-empty-state h3,
+.message-detail-empty-state h3 {
+  margin: 0;
+  color: #243042;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
 .message-detail-empty-state p {
+  margin: 0;
+  max-width: 240px;
+  line-height: 1.6;
+}
+
+.message-composer {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 12px calc(12px + var(--app-safe-bottom));
+  background: linear-gradient(180deg, rgba(241, 243, 246, 0) 0%, rgba(241, 243, 246, 0.94) 28%, #f1f3f6 100%);
+}
+
+.message-composer__closed-tip {
+  margin: 0 6px 8px;
+  color: #d9962e;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.message-composer__bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 8px;
+  border: 1px solid rgba(218, 223, 232, 0.9);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.message-composer__ai,
+.message-composer__send {
+  margin: 0;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.message-composer__ai {
+  --color: #2f6bff;
+  --background: #eef3ff;
+  --border-radius: 18px;
+  min-width: 48px;
+}
+
+.message-composer__input {
+  min-width: 0;
+  padding: 0 2px;
+  border-radius: 20px;
+  background: #f5f7fa;
+}
+
+.message-composer__textarea {
+  margin: 0;
+  --background: transparent;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 10px;
+  --padding-bottom: 10px;
+  --color: #182231;
+  --placeholder-color: #a0a8b6;
+}
+
+.message-composer__textarea :deep(.native-textarea) {
+  max-height: 116px;
+}
+
+.message-composer__send {
+  --background: #95ec69;
+  --color: #16311a;
+  --border-radius: 18px;
+  min-width: 64px;
+}
+
+.message-composer__send[disabled] {
+  opacity: 0.52;
+}
+
+ion-modal.message-ai-modal {
+  --border-radius: 30px 30px 0 0;
+  --backdrop-opacity: 0.24;
+  --box-shadow: 0 -28px 56px rgba(15, 23, 42, 0.2);
+}
+
+.message-ai-modal__header {
+  backdrop-filter: blur(16px);
+}
+
+.message-ai-modal__toolbar {
+  --background: rgba(248, 249, 251, 0.94);
+  --border-width: 0;
+  --padding-start: 10px;
+  --padding-end: 10px;
+}
+
+.message-ai-modal__toolbar ion-title {
+  padding: 4px 0 2px;
+  color: #1b2330;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.message-ai-modal__toolbar ion-button {
+  --color: #536074;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.message-draft-modal-page,
+.message-ai-modal__page {
+  --background: linear-gradient(180deg, #f7f8fa 0%, #f1f3f6 100%);
+  --padding-top: 18px;
+  --padding-bottom: calc(28px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.message-draft-card,
+.message-ai-sheet {
+  display: grid;
+  gap: 16px;
+}
+
+.message-ai-sheet {
+  padding: 18px;
+  border: 1px solid rgba(218, 223, 232, 0.92);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(22px);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.1);
+}
+
+.message-ai-sheet__intro {
+  display: grid;
+  gap: 6px;
+  padding: 2px 2px 4px;
+}
+
+.message-ai-sheet__intro h2,
+.message-ai-sheet__intro p {
   margin: 0;
 }
 
-.message-editor-card {
+.message-ai-sheet__intro p {
+  color: #8b95a5;
+  line-height: 1.55;
+}
+
+.message-editor-card__actions {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .message-editor-card__field {
@@ -826,41 +1176,107 @@ onUnmounted(() => {
   gap: 8px;
 }
 
+.message-ai-field {
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border: 1px solid rgba(224, 229, 237, 0.96);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(249, 250, 252, 0.98), rgba(242, 245, 248, 0.92));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
 .message-editor-card__field span {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
+  color: #556173;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
-.message-draft-modal-page {
-  --padding-top: 16px;
-  --padding-bottom: 24px;
-  --padding-start: 16px;
-  --padding-end: 16px;
+.message-ai-field :deep(.textarea-wrapper) {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(219, 224, 232, 0.96);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-.message-draft-card {
-  display: grid;
-  gap: 14px;
+.message-ai-textarea {
+  margin: 0;
+  --background: transparent;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 10px;
+  --padding-bottom: 10px;
+  --color: #1b2330;
+  --placeholder-color: #a0a8b6;
+}
+
+.message-ai-textarea :deep(.native-textarea) {
+  min-height: 70px;
+  line-height: 1.6;
+}
+
+.message-ai-textarea--readonly {
+  --color: #667488;
+}
+
+.message-ai-textarea--draft :deep(.native-textarea) {
+  min-height: 172px;
+  font-size: 15px;
+}
+
+.message-ai-sheet .message-ai-field:nth-of-type(3) :deep(.native-textarea) {
+  min-height: 172px;
+  font-size: 15px;
+}
+
+.message-editor-card__actions ion-button,
+.message-ai-button {
+  margin: 0;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.message-ai-button--secondary,
+.message-editor-card__actions ion-button:not([class*='message-ai-button']):first-child {
+  --color: #536074;
+  --border-color: rgba(191, 201, 216, 0.96);
+  --background: rgba(255, 255, 255, 0.8);
+  --border-radius: 18px;
+}
+
+.message-ai-button--primary,
+.message-editor-card__actions ion-button:not([class*='message-ai-button']):last-child {
+  --background: linear-gradient(180deg, #c9ee9e 0%, #a8df68 100%);
+  --color: #17301a;
+  --border-radius: 18px;
+  box-shadow: 0 14px 28px rgba(151, 211, 95, 0.24);
+}
+
+.message-editor-card__actions ion-button[disabled] {
+  opacity: 0.56;
 }
 
 .ai-polish-history-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .ai-polish-history-item {
-  padding: 12px;
-  border-radius: 16px;
-  border: 1px solid var(--app-border);
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: none;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
 }
 
 .ai-polish-history-item.is-user {
-  background: rgba(37, 99, 235, 0.08);
+  margin-left: 28px;
+  background: linear-gradient(180deg, #eef4ff 0%, #e2ebff 100%);
 }
 
 .ai-polish-history-item.is-assistant {
-  background: var(--app-surface);
+  margin-right: 28px;
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .ai-polish-history-item strong,
@@ -868,9 +1284,23 @@ onUnmounted(() => {
   margin: 0;
 }
 
+.ai-polish-history-item strong {
+  color: #7b8798;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 .ai-polish-history-item p {
   margin-top: 8px;
+  color: #1d2735;
   white-space: pre-wrap;
   line-height: 1.6;
+}
+
+@media (max-width: 420px) {
+  .message-editor-card__actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

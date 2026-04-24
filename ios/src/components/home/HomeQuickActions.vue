@@ -21,14 +21,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue'
-
-export interface HomeQuickActionItem {
-  key: string
-  title: string
-  description: string
-  icon: string
-  tone: 'primary' | 'warning' | 'secondary' | 'success'
-}
+import type { HomeQuickActionItem } from '@/constants/homeQuickActions'
 
 interface Props {
   items: HomeQuickActionItem[]

@@ -20,7 +20,6 @@
       <section class="mobile-hero settings-price-plan-rates-hero">
         <p class="mobile-note settings-price-plan-rates-hero__eyebrow">价格计划房型价格</p>
         <h1 class="mobile-title">{{ planTitle }}</h1>
-        <p class="mobile-subtitle">支持房型关联、周内价格、最大入住人数与额外加价编辑，并兜底无效计划跳转。</p>
         <div class="mobile-chip-row">
           <span class="mobile-chip">关联房型 {{ relations.length }}</span>
           <span class="mobile-chip">{{ includeMealLabel }}</span>
@@ -32,38 +31,28 @@
           <div class="mobile-inline-row settings-price-plan-rates-page__section-header">
             <div>
               <h2 class="mobile-section-title">已关联房型</h2>
-              <p class="mobile-note">每条记录都可直接编辑七天价格与入住人数。</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
 
-          <div v-if="relations.length > 0" class="mobile-list settings-price-plan-rates-list">
-            <article v-for="relation in relations" :key="relation.id" class="settings-price-plan-rate-card">
-              <div class="settings-price-plan-rate-card__header">
-                <div>
+          <div v-if="relations.length > 0" class="mobile-list settings-minimal-list settings-price-plan-rates-list">
+            <article v-for="relation in relations" :key="relation.id" class="settings-minimal-card settings-price-plan-rate-card">
+              <div class="settings-minimal-card__header">
+                <div class="settings-minimal-card__title-group">
                   <strong>{{ relation.roomType?.name || '未命名房型' }}</strong>
-                  <p>
+                  <p class="settings-minimal-card__summary">
                     最大入住 {{ relation.maxGuests }} 人 · 包含 {{ relation.includedGuests ?? '-' }} 人
                   </p>
                 </div>
-                <span class="settings-price-plan-rate-card__badge">{{ relation.priceMode || 'unified' }}</span>
+                <span class="settings-minimal-card__badge">{{ formatPriceModeLabel(relation.priceMode) }}</span>
               </div>
 
-              <div class="settings-price-grid">
-                <span>一 {{ formatPrice(relation.mondayPrice) }}</span>
-                <span>二 {{ formatPrice(relation.tuesdayPrice) }}</span>
-                <span>三 {{ formatPrice(relation.wednesdayPrice) }}</span>
-                <span>四 {{ formatPrice(relation.thursdayPrice) }}</span>
-                <span>五 {{ formatPrice(relation.fridayPrice) }}</span>
-                <span>六 {{ formatPrice(relation.saturdayPrice) }}</span>
-                <span>日 {{ formatPrice(relation.sundayPrice) }}</span>
+              <div class="settings-minimal-card__meta">
+                <span class="settings-minimal-card__meta-pill">{{ buildWeeklyPricePreview(relation) }}</span>
+                <span class="settings-minimal-card__meta-pill">{{ buildExtraGuestPreview(relation) }}</span>
               </div>
 
-              <p class="mobile-note">
-                额外成人 {{ formatPrice(relation.extraAdultRate) }} / 儿童 {{ formatPrice(relation.extraChildRate) }}
-              </p>
-
-              <div class="settings-price-plan-rate-card__actions">
+              <div class="settings-minimal-card__actions">
                 <ion-button size="small" fill="outline" @click="handleEditRelation(relation)">编辑</ion-button>
                 <ion-button size="small" color="danger" fill="clear" @click="handleDeleteRelation(relation)">
                   删除
@@ -79,13 +68,6 @@
           </div>
         </section>
 
-        <section class="mobile-card">
-          <h2 class="mobile-section-title">首版说明</h2>
-          <ul class="mobile-bullet-list">
-            <li>已覆盖价格计划与房型关联、周内价格编辑与删除。</li>
-            <li>批量关联、复杂筛选与更大范围批量改价暂未迁移。</li>
-          </ul>
-        </section>
       </div>
 
       <ion-modal :is-open="editorOpen" @didDismiss="handleDismissEditor">
@@ -151,7 +133,6 @@
               <div v-if="editingRelationId" class="settings-price-plan-rates-page__toggle-card">
                 <div>
                   <strong>保存时清理未来覆盖价</strong>
-                  <p>开启后将从今天起清理按日期覆盖价，让新的周价格立即回到房价管理页生效。</p>
                 </div>
                 <ion-checkbox :checked="clearFutureOverridesOnSave" @ionChange="handleClearFutureOverridesChange" />
               </div>
@@ -329,6 +310,37 @@ function formatPrice(value?: number) {
     return '¥0'
   }
   return `¥${Number(value).toFixed(0)}`
+}
+
+function formatPriceModeLabel(value?: string) {
+  return value === 'multiple' ? '多价' : '统一价'
+}
+
+function buildWeeklyPricePreview(relation: RoomTypePricePlanDTO) {
+  const prices = [
+    relation.mondayPrice,
+    relation.tuesdayPrice,
+    relation.wednesdayPrice,
+    relation.thursdayPrice,
+    relation.fridayPrice,
+    relation.saturdayPrice,
+    relation.sundayPrice,
+  ].filter((value): value is number => value !== undefined && value !== null)
+
+  if (prices.length === 0) {
+    return '周价 ¥0'
+  }
+
+  const minPrice = Math.min(...prices)
+  const maxPrice = Math.max(...prices)
+  if (minPrice === maxPrice) {
+    return `周价 ${formatPrice(minPrice)}`
+  }
+  return `周价 ${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`
+}
+
+function buildExtraGuestPreview(relation: RoomTypePricePlanDTO) {
+  return `加人 成人 ${formatPrice(relation.extraAdultRate)} / 儿童 ${formatPrice(relation.extraChildRate)}`
 }
 
 async function confirmDelete(roomTypeName: string) {
@@ -579,60 +591,6 @@ onIonViewWillEnter(async () => {
 
 .settings-price-plan-rates-page__section-header {
   align-items: flex-start;
-}
-
-.settings-price-plan-rates-list {
-  margin-top: 16px;
-}
-
-.settings-price-plan-rate-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.settings-price-plan-rate-card__header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.settings-price-plan-rate-card__header strong,
-.settings-price-plan-rate-card__header p {
-  margin: 0;
-}
-
-.settings-price-plan-rate-card__header p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-}
-
-.settings-price-plan-rate-card__badge {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.settings-price-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-  color: var(--app-muted);
-  font-size: 12px;
-}
-
-.settings-price-plan-rate-card__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 14px;
 }
 
 .settings-price-plan-rates-page__empty-state {

@@ -422,7 +422,7 @@ onBeforeUnmount(() => {
 
 .forgot-password-heading {
   padding-top: 18px;
-  margin-bottom: 28px;
+  margin-bottom: calc(var(--ios-pms-space-5) + var(--ios-pms-space-5));
 }
 
 .forgot-password-title {

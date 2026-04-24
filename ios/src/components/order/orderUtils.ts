@@ -13,8 +13,8 @@ export type OrderTabValue =
   | 'deleted-rooms'
 
 export interface OrderFilterForm {
-  channel: string
-  roomType: string
+  channel: string[]
+  roomType: string[]
   checkinType: string
   status: string
   paymentStatus: string
@@ -52,8 +52,8 @@ export const ORDER_SECONDARY_TABS: Array<{ label: string; value: OrderTabValue }
 
 export function createDefaultOrderFilters(): OrderFilterForm {
   return {
-    channel: '',
-    roomType: '',
+    channel: [],
+    roomType: [],
     checkinType: '',
     status: '',
     paymentStatus: '',
@@ -385,6 +385,16 @@ function matchesPaymentFilter(reservation: ReservationDTO, paymentStatus: string
   return true
 }
 
+function matchesMultiValueFilter(selectedValues: string[], value?: string) {
+  if (selectedValues.length === 0) {
+    return true
+  }
+  if (!value) {
+    return false
+  }
+  return selectedValues.includes(value)
+}
+
 function matchesDateRange(reservation: ReservationDTO, startDate: string, endDate: string) {
   const createdDate = formatDateLabel(reservation.createdAt)
   if (!createdDate || createdDate === '-') {
@@ -418,10 +428,10 @@ export function matchesReservationSearch(
     }
   }
 
-  if (filters.channel && reservation.channelName !== filters.channel) {
+  if (!matchesMultiValueFilter(filters.channel, reservation.channelName)) {
     return false
   }
-  if (filters.roomType && reservation.roomTypeName !== filters.roomType) {
+  if (!matchesMultiValueFilter(filters.roomType, reservation.roomTypeName)) {
     return false
   }
   if (filters.checkinType && !matchesCheckinTypeFilter(reservation, filters.checkinType)) {

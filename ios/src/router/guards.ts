@@ -17,6 +17,7 @@ export const ROUTE_PATHS = {
   storeSelection: '/store/selection',
   tabsRoot: '/tabs',
   home: '/tabs/home',
+  homeCustomize: '/tabs/home/customize',
   rooms: '/tabs/rooms',
   roomsRoomTable: '/tabs/rooms/room-table',
   roomsPricing: '/tabs/rooms/pricing',

@@ -1,8 +1,49 @@
 <template>
   <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">房态</ion-title>
+    <ion-header translucent class="rooms-header">
+      <ion-toolbar class="rooms-header__toolbar">
+        <div class="rooms-header__bar">
+          <h1 class="rooms-header__title">房态</h1>
+
+          <div class="rooms-header__actions">
+            <button
+              class="rooms-header__icon"
+              type="button"
+              aria-label="搜索订单"
+              @click="handleToggleSearchPanel"
+            >
+              <ion-icon :icon="searchOutline" />
+            </button>
+
+            <button
+              class="rooms-header__icon"
+              type="button"
+              aria-label="刷新房态"
+              :disabled="roomStatusStore.loading || roomTypeCatalogLoading"
+              @click="handleManualRefresh"
+            >
+              <ion-icon :icon="refreshOutline" />
+            </button>
+
+            <button
+              class="rooms-header__icon"
+              type="button"
+              aria-label="房型筛选"
+              @click="handleOpenFilterModal"
+            >
+              <ion-icon :icon="funnelOutline" />
+            </button>
+
+            <button
+              class="rooms-header__icon"
+              type="button"
+              aria-label="住宿工具与批量操作"
+              @click="presentToolsMenu"
+            >
+              <ion-icon :icon="menuOutline" />
+            </button>
+          </div>
+        </div>
       </ion-toolbar>
     </ion-header>
 
@@ -11,85 +52,66 @@
         <ion-refresher-content pulling-text="下拉刷新房态" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <div class="rooms-toolbar-shell">
-        <div class="rooms-toolbar">
-          <ion-searchbar
-            v-model="searchKeyword"
-            :debounce="0"
-            class="rooms-toolbar__search"
-            placeholder="房号、手机号、订单号、渠道订单号、房间号、客户"
-          />
+      <section v-if="showSearchPanel" class="rooms-search-panel">
+        <div class="rooms-search-panel__bar">
+          <div class="rooms-search-panel__field">
+            <ion-searchbar
+              v-model="searchKeyword"
+              :debounce="0"
+              class="rooms-searchbar"
+              placeholder="房号/订单号/客户"
+            />
 
-          <button
-            class="rooms-toolbar__icon"
-            type="button"
-            aria-label="刷新房态"
-            :disabled="roomStatusStore.loading || roomTypeCatalogLoading"
-            @click="handleManualRefresh"
-          >
-            <ion-icon :icon="refreshOutline" />
-          </button>
+            <section v-if="showSearchOverlay" class="rooms-search-popover" aria-live="polite">
+              <div class="rooms-search-popover__header">
+                <strong>{{ searchOverlayTitle }}</strong>
+                <ion-spinner v-if="roomStatusStore.searching" name="crescent" />
+              </div>
 
-        <button
-          class="rooms-toolbar__icon"
-          type="button"
-          aria-label="房型筛选"
-          @click="handleOpenFilterModal"
-        >
-          <ion-icon :icon="funnelOutline" />
-        </button>
+              <div
+                v-if="roomStatusStore.searchResults.length > 0"
+                class="rooms-search-popover__list"
+              >
+                <ReservationSummaryCard
+                  v-for="item in roomStatusStore.searchResults"
+                  :key="item.id"
+                  :reservation="item"
+                  @select="handleSelectSearchReservation(item.id)"
+                />
+              </div>
 
-          <button
-            class="rooms-toolbar__icon"
-            type="button"
-            aria-label="住宿工具与批量操作"
-            @click="presentToolsMenu"
-          >
-            <ion-icon :icon="menuOutline" />
+              <p v-else class="rooms-search-popover__hint">
+                {{ searchOverlayHint }}
+              </p>
+            </section>
+          </div>
+
+          <button type="button" class="rooms-search-panel__cancel" @click="handleHideSearchPanel">
+            取消
           </button>
         </div>
-
-        <section v-if="showSearchOverlay" class="rooms-search-popover" aria-live="polite">
-          <div class="rooms-search-popover__header">
-            <strong>{{ searchOverlayTitle }}</strong>
-            <ion-spinner v-if="roomStatusStore.searching" name="crescent" />
-          </div>
-
-          <div
-            v-if="roomStatusStore.searchResults.length > 0"
-            class="rooms-search-popover__list"
-          >
-            <ReservationSummaryCard
-              v-for="item in roomStatusStore.searchResults"
-              :key="item.id"
-              :reservation="item"
-              @select="handleSelectSearchReservation(item.id)"
-            />
-          </div>
-
-          <p v-else class="rooms-search-popover__hint">
-            {{ searchOverlayHint }}
-          </p>
-        </section>
-      </div>
+      </section>
 
       <p v-if="loadNotice" class="rooms-notice">{{ loadNotice }}</p>
 
-      <RoomStatusCalendarGrid
-        v-if="roomStatusStore.groupedVisibleRooms.length > 0"
-        :days="roomStatusStore.visibleDates"
-        :groups="roomStatusStore.groupedVisibleRooms"
-        :loading="roomStatusStore.loading"
-        @select-date="handleSelectDate"
-        @select-reservation="openReservationDetail"
-        @open-room-actions="handleOpenGridAction"
-        @go-today="handleGoToday"
-      />
+      <section class="rooms-board">
+        <RoomStatusCalendarGrid
+          v-if="roomStatusStore.groupedVisibleRooms.length > 0"
+          :days="roomStatusStore.visibleDates"
+          :groups="roomStatusStore.groupedVisibleRooms"
+          :loading="roomStatusStore.loading"
+          :viewport-days="ROOM_STATUS_VIEWPORT_DAYS"
+          @select-date="handleSelectDate"
+          @select-reservation="openReservationDetail"
+          @open-room-actions="handleOpenGridAction"
+          @go-today="handleGoToday"
+        />
 
-      <section v-else class="rooms-empty">
-        <h3 class="rooms-empty__title">{{ emptyStateTitle }}</h3>
-        <p class="rooms-empty__text">{{ emptyStateDescription }}</p>
-        <ion-button size="small" @click="handleOpenRoomTypeSettings">{{ emptyStateActionText }}</ion-button>
+        <section v-else class="rooms-empty">
+          <h3 class="rooms-empty__title">{{ emptyStateTitle }}</h3>
+          <p class="rooms-empty__text">{{ emptyStateDescription }}</p>
+          <ion-button size="small" @click="handleOpenRoomTypeSettings">{{ emptyStateActionText }}</ion-button>
+        </section>
       </section>
 
       <button
@@ -111,20 +133,21 @@
     </ion-content>
 
     <ion-modal
+      class="rooms-filter-modal"
       :is-open="showFilterModal"
-      :initial-breakpoint="0.92"
-      :breakpoints="[0, 0.92]"
+      :initial-breakpoint="0.96"
+      :breakpoints="[0, 0.96]"
       @didDismiss="handleFilterModalDismiss"
     >
-      <ion-header translucent>
-        <ion-toolbar>
+      <ion-header translucent class="rooms-sheet-header">
+        <ion-toolbar class="rooms-sheet-toolbar">
           <ion-title>房态概览与筛选</ion-title>
           <ion-button slot="end" fill="clear" @click="handleCloseFilterModal">关闭</ion-button>
         </ion-toolbar>
       </ion-header>
 
       <ion-content class="mobile-page rooms-filter-page">
-        <div class="mobile-stack">
+        <div class="mobile-stack rooms-filter-stack">
           <RoomStatusSummaryCards
             :items="roomStatusStore.summaryCards"
             :loading="roomStatusStore.summaryLoading"
@@ -146,39 +169,63 @@
     </ion-modal>
 
     <ion-modal
+      class="rooms-picker-modal"
       :is-open="showRoomPickerModal"
-      :initial-breakpoint="0.9"
-      :breakpoints="[0, 0.9]"
+      :initial-breakpoint="0.985"
+      :breakpoints="[0, 0.985]"
       @didDismiss="showRoomPickerModal = false"
     >
-      <ion-header translucent>
-        <ion-toolbar>
+      <ion-header translucent class="rooms-sheet-header rooms-picker-header">
+        <ion-toolbar class="rooms-sheet-toolbar">
           <ion-title>选择房间新建订单</ion-title>
           <ion-button slot="end" fill="clear" @click="showRoomPickerModal = false">关闭</ion-button>
         </ion-toolbar>
       </ion-header>
 
-      <ion-content class="mobile-page">
-        <ion-list v-if="roomStatusStore.groupedVisibleRooms.length > 0">
-          <template v-for="group in roomStatusStore.groupedVisibleRooms" :key="group.roomType">
-            <ion-item-divider sticky>
-              <ion-label>{{ group.roomType }}</ion-label>
-            </ion-item-divider>
-            <ion-item
-              v-for="room in group.rooms"
-              :key="room.roomId"
-              button
-              :detail="false"
-              @click="handleRoomPicked(room.roomId, room.focusedDate)"
-            >
-              <ion-label>
-                <h3>{{ room.roomNumber }}</h3>
-                <p>{{ room.focusedStatusText }}</p>
-              </ion-label>
-            </ion-item>
-          </template>
-        </ion-list>
-        <p v-else class="rooms-empty__text">暂无可选房间。</p>
+      <ion-content class="mobile-page rooms-picker-page">
+        <section v-if="roomStatusStore.groupedVisibleRooms.length > 0" class="rooms-picker">
+          <header class="rooms-picker__summary" aria-label="当前可选房间摘要">
+            <span class="rooms-picker__summary-pill rooms-picker__summary-pill--accent">
+              {{ pickerDateLabel }}
+            </span>
+            <span class="rooms-picker__summary-pill">{{ pickerRoomCount }} 间可选</span>
+          </header>
+
+          <section
+            v-for="group in roomStatusStore.groupedVisibleRooms"
+            :key="group.roomType"
+            class="rooms-picker__group"
+          >
+            <div class="rooms-picker__group-header">
+              <strong>{{ group.roomType }}</strong>
+              <span>{{ group.rooms.length }} 间</span>
+            </div>
+
+            <div class="rooms-picker__group-grid">
+              <button
+                v-for="room in group.rooms"
+                :key="room.roomId"
+                type="button"
+                class="rooms-picker__room"
+                :class="`is-${room.focusedBusinessState}`"
+                @click="handleRoomPicked(room.roomId, room.focusedDate)"
+              >
+                <div class="rooms-picker__room-top">
+                  <strong class="rooms-picker__room-number">{{ room.roomNumber }}</strong>
+                  <span class="rooms-picker__room-arrow">新建</span>
+                </div>
+
+                <div class="rooms-picker__room-bottom">
+                  <span class="rooms-picker__room-state">{{ room.focusedStatusText }}</span>
+                </div>
+              </button>
+            </div>
+          </section>
+        </section>
+        <section v-else class="rooms-picker__empty">
+          <h3>暂无可选房间</h3>
+          <p>请调整日期或筛选条件后重试。</p>
+        </section>
       </ion-content>
     </ion-modal>
 
@@ -230,10 +277,6 @@ import {
   IonFabButton,
   IonHeader,
   IonIcon,
-  IonItem,
-  IonItemDivider,
-  IonLabel,
-  IonList,
   IonModal,
   IonPage,
   IonRefresher,
@@ -255,6 +298,7 @@ import {
   menuOutline,
   pricetagOutline,
   refreshOutline,
+  searchOutline,
   sparklesOutline,
   timeOutline,
 } from 'ionicons/icons'
@@ -278,7 +322,7 @@ import { checkCanMoveToOrderBox, moveToOrderBox } from '@/api/orderBox'
 import { getAllRoomTypesWithRooms } from '@/api/roomType'
 import { createReservation, type CreateReservationRequest } from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
-import { useRoomStatusStore } from '@/stores/roomStatus'
+import { ROOM_STATUS_VIEWPORT_DAYS, useRoomStatusStore } from '@/stores/roomStatus'
 import { useStoreStore } from '@/stores/store'
 import { isHandledRequestError } from '@/utils/request'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -297,6 +341,7 @@ const storeStore = useStoreStore()
 const roomStatusStore = useRoomStatusStore()
 
 const searchKeyword = ref('')
+const showSearchPanel = ref(false)
 const showQuickActionSheet = ref(false)
 const selectedRoomId = ref(0)
 const selectedBusinessDate = ref('')
@@ -386,7 +431,11 @@ const showTodayPill = computed(() => {
 const hasSearchKeyword = computed(() => searchKeyword.value.trim().length >= 2)
 
 const showSearchOverlay = computed(() => {
-  return hasSearchKeyword.value && (roomStatusStore.searching || roomStatusStore.hasSearchCompleted)
+  return (
+    showSearchPanel.value &&
+    hasSearchKeyword.value &&
+    (roomStatusStore.searching || roomStatusStore.hasSearchCompleted)
+  )
 })
 
 const searchOverlayTitle = computed(() => {
@@ -472,6 +521,29 @@ const batchRooms = computed<BatchRoomOption[]>(() => {
 
   return rooms
 })
+
+const pickerRoomCount = computed(() => {
+  return roomStatusStore.groupedVisibleRooms.reduce((total, group) => total + group.rooms.length, 0)
+})
+
+const PICKER_WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+function formatPickerDateLabel(value: string) {
+  if (!value) {
+    return ''
+  }
+
+  const [year, month, day] = value.split('-').map((item) => Number(item))
+  if (!year || !month || !day) {
+    return value
+  }
+
+  const currentDate = new Date(year, month - 1, day)
+  const weekday = PICKER_WEEKDAY_LABELS[currentDate.getDay()] || ''
+  return `${month}月${day}日 ${weekday}`
+}
+
+const pickerDateLabel = computed(() => formatPickerDateLabel(roomStatusStore.selectedDate))
 
 const quickActionDescription = computed(() => {
   if (!selectedRoom.value) {
@@ -630,6 +702,21 @@ async function handleManualRefresh() {
   await refreshPageDataOnEnter()
 }
 
+function handleHideSearchPanel() {
+  showSearchPanel.value = false
+  searchKeyword.value = ''
+  roomStatusStore.clearSearchResults()
+}
+
+function handleToggleSearchPanel() {
+  if (!showSearchPanel.value) {
+    showSearchPanel.value = true
+    return
+  }
+
+  handleHideSearchPanel()
+}
+
 async function handleSelectDate(date: string) {
   try {
     await roomStatusStore.setSelectedDate(date)
@@ -642,7 +729,7 @@ async function handleSelectDate(date: string) {
 
 async function handlePreviousWindow() {
   try {
-    const shiftDays = Math.max(roomStatusStore.visibleDates.length, 1)
+    const shiftDays = Math.max(ROOM_STATUS_VIEWPORT_DAYS, 1)
     await roomStatusStore.shiftWindow(-shiftDays)
   } catch (error) {
     if (!isHandledRequestError(error)) {
@@ -653,7 +740,7 @@ async function handlePreviousWindow() {
 
 async function handleNextWindow() {
   try {
-    const shiftDays = Math.max(roomStatusStore.visibleDates.length, 1)
+    const shiftDays = Math.max(ROOM_STATUS_VIEWPORT_DAYS, 1)
     await roomStatusStore.shiftWindow(shiftDays)
   } catch (error) {
     if (!isHandledRequestError(error)) {
@@ -1036,6 +1123,7 @@ async function openReservationDetail(reservationId: number) {
 
 async function handleSelectSearchReservation(reservationId: number) {
   searchKeyword.value = ''
+  showSearchPanel.value = false
   roomStatusStore.clearSearchResults()
   await openReservationDetail(reservationId)
 }
@@ -1105,67 +1193,144 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .rooms-page {
-  --background: var(--app-surface-muted, #f5f7fb);
+  --background:
+    radial-gradient(circle at top right, rgba(71, 122, 255, 0.12), transparent 26%),
+    linear-gradient(180deg, #f8fbff 0%, #f4f8ff 18%, #f6f9ff 100%);
 }
 
-.rooms-toolbar {
+.rooms-header {
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.rooms-header__toolbar {
+  --background: rgba(255, 255, 255, 0.82);
+  --border-width: 0;
+  --min-height: 78px;
+  padding-top: max(var(--app-safe-top), 0px);
+}
+
+.rooms-header__bar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 10px 8px;
-  background: var(--app-surface, #ffffff);
-  border-bottom: 1px solid var(--app-border, rgba(15, 23, 42, 0.06));
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px 12px;
 }
 
-.rooms-toolbar-shell {
-  position: relative;
-  background: var(--app-surface, #ffffff);
-  z-index: 12;
-}
-
-.rooms-toolbar__search {
-  flex: 1;
-  min-width: 0;
+.rooms-header__title {
   padding: 0;
-  --background: rgba(238, 242, 249, 0.9);
-  --border-radius: 14px;
-  --box-shadow: none;
-  --min-height: 38px;
+  margin: 0;
+  color: #121826;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  text-align: left;
+  line-height: 1;
 }
 
-.rooms-toolbar__search::part(icon) {
-  font-size: 16px;
-}
-
-.rooms-toolbar__icon {
-  appearance: none;
-  border: none;
-  background: transparent;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+.rooms-header__actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--app-heading, #10233f);
+  gap: 6px;
   flex-shrink: 0;
 }
 
-.rooms-toolbar__icon:active {
-  background: rgba(15, 23, 42, 0.06);
+.rooms-header__icon {
+  appearance: none;
+  border: 1px solid rgba(112, 138, 187, 0.12);
+  background: rgba(255, 255, 255, 0.86);
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a2437;
+  box-shadow: 0 8px 18px rgba(101, 128, 182, 0.08);
 }
 
-.rooms-toolbar__icon[disabled] {
+.rooms-header__icon:active {
+  transform: translateY(1px);
+  background: rgba(243, 247, 255, 0.96);
+}
+
+.rooms-header__icon[disabled] {
   opacity: 0.5;
+  box-shadow: none;
 }
 
-.rooms-toolbar__icon ion-icon {
-  font-size: 22px;
+.rooms-header__icon ion-icon {
+  font-size: 17px;
+}
+
+.rooms-search-panel {
+  padding: 0 14px 10px;
+}
+
+.rooms-search-panel__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rooms-search-panel__field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.rooms-searchbar {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  --background: transparent;
+  --border-radius: 0;
+  --box-shadow: none;
+  --color: #10131a;
+  --icon-color: #c7ccd8;
+  --placeholder-color: #c7ccd8;
+  --placeholder-opacity: 1;
+  --clear-button-color: #8a90a0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --cancel-button-color: #8c909b;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rooms-searchbar :deep(.searchbar-input-container) {
+  border: 1px solid #eceff5;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.rooms-search-panel__cancel {
+  border: 0;
+  background: transparent;
+  color: #8c909b;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.rooms-board {
+  margin: 0;
+  border-top: 1px solid rgba(119, 145, 193, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .rooms-notice {
   margin: 0;
-  padding: 8px 16px;
+  padding: 10px 16px 12px;
   background: rgba(252, 211, 77, 0.14);
   color: var(--ion-color-warning-shade, #92400e);
   font-size: 13px;
@@ -1173,19 +1338,19 @@ onIonViewWillEnter(async () => {
 
 .rooms-search-popover {
   position: absolute;
-  top: calc(100% - 2px);
-  left: 10px;
-  right: 10px;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
   z-index: 18;
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--app-border, rgba(15, 23, 42, 0.08));
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(112, 138, 187, 0.12);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 36px rgba(45, 66, 105, 0.14);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
 }
 
 .rooms-search-popover__header {
@@ -1250,19 +1415,23 @@ onIonViewWillEnter(async () => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  padding: 4px 0 calc(env(safe-area-inset-bottom, 0px) + 4px);
-  background: linear-gradient(180deg, rgba(245, 247, 251, 0) 0%, rgba(245, 247, 251, 0.92) 24%, rgba(245, 247, 251, 1) 100%);
+  padding: 14px 0 calc(env(safe-area-inset-bottom, 0px) + 14px);
+  background:
+    linear-gradient(180deg, rgba(245, 247, 251, 0) 0%, rgba(245, 247, 251, 0.92) 24%, rgba(245, 247, 251, 1) 100%);
 }
 
 .rooms-filter-actions ion-button {
   margin: 0;
+  min-height: 48px;
+  --border-radius: 16px;
+  font-weight: 700;
 }
 
 .rooms-empty {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 40px 24px;
+  padding: 40px 24px 52px;
   align-items: flex-start;
 }
 
@@ -1281,22 +1450,24 @@ onIonViewWillEnter(async () => {
 
 .rooms-today-pill {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
   appearance: none;
-  border: none;
-  background: var(--app-surface-strong, #ffffff);
+  border: 1px solid rgba(77, 121, 219, 0.14);
+  background: rgba(255, 255, 255, 0.92);
   color: var(--app-heading, #10233f);
   font-size: 13px;
-  font-weight: 600;
-  padding: 8px 18px;
+  font-weight: 700;
+  padding: 10px 18px;
   border-radius: 999px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 14px 28px rgba(48, 77, 133, 0.14);
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .rooms-today-pill ion-icon {
@@ -1305,10 +1476,270 @@ onIonViewWillEnter(async () => {
 }
 
 .rooms-fab {
-  margin-bottom: env(safe-area-inset-bottom, 0px);
+  margin-right: 8px;
+  margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px);
+}
+
+.rooms-fab :deep(ion-fab-button) {
+  --background: linear-gradient(180deg, #4a85ff 0%, #2f6df2 100%);
+  --box-shadow: 0 20px 40px rgba(52, 116, 246, 0.34);
+}
+
+.rooms-filter-modal,
+.rooms-picker-modal {
+  --border-radius: 30px 30px 0 0;
+  --box-shadow: 0 -24px 64px rgba(26, 36, 55, 0.18);
+}
+
+.rooms-filter-modal {
+  --height: min(820px, 96vh);
+}
+
+.rooms-picker-modal {
+  --height: min(860px, 99.4vh);
+}
+
+.rooms-sheet-header {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.rooms-sheet-toolbar {
+  --background: rgba(255, 255, 255, 0.9);
+  --border-width: 0;
+  --min-height: 60px;
+  padding: 0 6px;
+}
+
+.rooms-sheet-toolbar ion-title {
+  color: #14213d;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.rooms-sheet-toolbar ion-button {
+  --color: #6d7d96;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .rooms-filter-page {
-  --padding-top: 16px;
+  --padding-top: 14px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+}
+
+.rooms-filter-stack {
+  min-height: 100%;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+}
+
+.rooms-picker-page {
+  --background:
+    linear-gradient(180deg, rgba(248, 251, 255, 0.96) 0%, rgba(244, 248, 255, 0.98) 100%);
+  --padding-top: 8px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 48px);
+}
+
+.rooms-picker-page::part(scroll) {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 52px);
+}
+
+.rooms-picker {
+  display: grid;
+  gap: 10px;
+  min-height: 100%;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+}
+
+.rooms-picker__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 2px 2px;
+}
+
+.rooms-picker__summary-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 0 10px;
+  border: 1px solid rgba(124, 144, 184, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #6b7890;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.rooms-picker__summary-pill--accent {
+  border-color: rgba(61, 120, 243, 0.14);
+  background: rgba(47, 109, 242, 0.08);
+  color: #2d65d2;
+}
+
+.rooms-picker__group {
+  display: grid;
+  gap: 7px;
+}
+
+.rooms-picker__group + .rooms-picker__group {
+  padding-top: 4px;
+  border-top: 1px solid rgba(124, 144, 184, 0.12);
+}
+
+.rooms-picker__group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px;
+}
+
+.rooms-picker__group-header strong {
+  color: #16233c;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.rooms-picker__group-header span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 144, 184, 0.14);
+  background: rgba(255, 255, 255, 0.66);
+  color: #70819d;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.rooms-picker__group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 7px;
+}
+
+.rooms-picker__room {
+  appearance: none;
+  min-height: 72px;
+  padding: 10px 11px;
+  border: 1px solid rgba(118, 139, 181, 0.14);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 255, 0.9));
+  box-shadow: 0 10px 18px rgba(83, 107, 152, 0.05);
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  color: #15233e;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.rooms-picker__room:active {
+  transform: translateY(1px);
+  border-color: rgba(63, 124, 255, 0.2);
+  box-shadow: 0 8px 16px rgba(83, 107, 152, 0.08);
+}
+
+.rooms-picker__room-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rooms-picker__room-number {
+  color: #15233e;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.rooms-picker__room-arrow {
+  color: #96a3ba;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rooms-picker__room-bottom {
+  display: flex;
+  align-items: center;
+}
+
+.rooms-picker__room-state {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: rgba(241, 245, 252, 0.92);
+  color: #60728e;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.rooms-picker__room.is-available .rooms-picker__room-state {
+  border-color: rgba(47, 109, 242, 0.14);
+  background: rgba(47, 109, 242, 0.08);
+  color: #2f6df2;
+}
+
+.rooms-picker__room.is-occupied .rooms-picker__room-state,
+.rooms-picker__room.is-reserved .rooms-picker__room-state {
+  border-color: rgba(245, 158, 11, 0.16);
+  background: rgba(245, 158, 11, 0.08);
+  color: #b86b00;
+}
+
+.rooms-picker__room.is-dirty .rooms-picker__room-state,
+.rooms-picker__room.is-closed .rooms-picker__room-state,
+.rooms-picker__room.is-out_of_order .rooms-picker__room-state,
+.rooms-picker__room.is-maintenance .rooms-picker__room-state,
+.rooms-picker__room.is-retain .rooms-picker__room-state {
+  border-color: rgba(225, 29, 72, 0.14);
+  background: rgba(225, 29, 72, 0.07);
+  color: #c2415a;
+}
+
+.rooms-picker__empty {
+  display: grid;
+  gap: 8px;
+  padding: 52px 8px 24px;
+  text-align: center;
+}
+
+.rooms-picker__empty h3 {
+  margin: 0;
+  color: #14213d;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.rooms-picker__empty p {
+  margin: 0;
+  color: #6d7d96;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 374px) {
+  .rooms-picker__group-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

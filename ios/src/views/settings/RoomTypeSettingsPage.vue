@@ -20,7 +20,6 @@
       <section class="mobile-hero settings-room-types-hero">
         <p class="mobile-note settings-room-types-hero__eyebrow">价格与商品</p>
         <h1 class="mobile-title">房型管理</h1>
-        <p class="mobile-subtitle">可统一维护房型价格、入住指南、描述、设施、图片与房间号。</p>
         <div class="mobile-chip-row">
           <span class="mobile-chip">房型 {{ roomTypes.length }}</span>
           <span class="mobile-chip">房间 {{ totalRooms }}</span>
@@ -33,7 +32,6 @@
           <div class="mobile-inline-row settings-room-types-page__section-header">
             <div>
               <h2 class="mobile-section-title">房型列表</h2>
-                <p class="mobile-note">列表展示房型摘要，进入详情可查看完整信息，并继续维护房间号。</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
@@ -41,9 +39,9 @@
           <div v-if="roomTypes.length > 0" class="mobile-list settings-room-types-list">
             <article v-for="roomType in roomTypes" :key="roomType.id" class="settings-room-type-card">
               <div class="settings-room-type-card__header">
-                <div>
+                <div class="settings-room-type-card__title-group">
                   <strong>{{ roomType.name }}</strong>
-                  <p>
+                  <p class="settings-room-type-card__summary">
                     简称 {{ roomType.shortName }} · 最多 {{ roomType.maxGuests }} 人
                     <span v-if="roomType.maxChildOccupancy > 0"> · 儿童 {{ roomType.maxChildOccupancy }} 人</span>
                   </p>
@@ -52,38 +50,39 @@
               </div>
 
               <div class="settings-room-type-card__meta">
-                <span>{{ getBasePriceText(roomType.source) }}</span>
-                <span>代码 {{ roomType.source.code }}</span>
-                <span v-if="roomType.sizeText">{{ roomType.sizeText }}</span>
+                <span class="settings-room-type-card__meta-pill">{{ getBasePriceText(roomType.source) }}</span>
+                <span v-if="roomType.sizeText" class="settings-room-type-card__meta-pill">
+                  {{ roomType.sizeText }}
+                </span>
+                <span v-else-if="roomType.source.code" class="settings-room-type-card__meta-pill">
+                  代码 {{ roomType.source.code }}
+                </span>
               </div>
-
-              <p v-if="roomType.roomDescription" class="mobile-note settings-room-type-card__description">
-                {{ roomType.roomDescription }}
-              </p>
-
-              <p v-if="roomType.locationSummary" class="mobile-note settings-room-type-card__location">
-                {{ roomType.locationSummary }}
-              </p>
-
-              <p class="mobile-note settings-room-type-card__rooms">
-                房间号：{{ roomType.roomNumbers.length > 0 ? roomType.roomNumbers.join('、') : '未维护房间号' }}
-              </p>
-
-              <div class="settings-room-type-card__supporting">
-                <span>{{ roomType.priceSummary }}</span>
-                <span>设施 {{ roomType.facilityCount }} 项</span>
-                <span>图片 {{ roomType.photoCount }} 张</span>
-                <span v-if="roomType.hasGuideLink">含入住指南</span>
-              </div>
-
-              <p class="mobile-note settings-room-type-card__hint">
-                房间号可直接在当前房型内维护，便于统一整理。
-              </p>
 
               <div class="settings-room-type-card__actions">
-                <ion-button size="small" fill="outline" @click="handleOpenDetails(roomType)">详情</ion-button>
-                <ion-button size="small" fill="outline" @click="handleEditRoomType(roomType)">编辑</ion-button>
-                <ion-button size="small" color="danger" fill="clear" @click="handleDeleteRoomType(roomType)">
+                <ion-button
+                  size="small"
+                  fill="solid"
+                  class="settings-room-type-card__action settings-room-type-card__action--primary"
+                  @click="handleOpenDetails(roomType)"
+                >
+                  详情
+                </ion-button>
+                <ion-button
+                  size="small"
+                  fill="outline"
+                  class="settings-room-type-card__action"
+                  @click="handleEditRoomType(roomType)"
+                >
+                  编辑
+                </ion-button>
+                <ion-button
+                  size="small"
+                  color="danger"
+                  fill="clear"
+                  class="settings-room-type-card__action settings-room-type-card__action--danger"
+                  @click="handleDeleteRoomType(roomType)"
+                >
                   删除
                 </ion-button>
               </div>
@@ -92,7 +91,7 @@
 
           <div v-else-if="!loading" class="settings-room-types-page__empty-state">
             <p class="mobile-note settings-room-types-page__empty-text">
-              当前还没有房型。先新增一个房型并录入至少一个房间号，房态页才能开始展示房间。
+              当前暂无房型。
             </p>
             <ion-button @click="handleCreateRoomType">添加房型</ion-button>
           </div>
@@ -114,7 +113,6 @@
             <div class="settings-form-section">
               <div>
                 <h2 class="mobile-section-title">基本信息</h2>
-                  <p class="mobile-note">简称用于列表展示，详细介绍会展示在房型详情中。</p>
               </div>
 
               <div class="settings-form-grid">
@@ -156,7 +154,7 @@
                     :disabled="submitting"
                     fill="outline"
                     inputmode="numeric"
-                    placeholder="可选，默认 0"
+                    placeholder="选填"
                   />
                 </label>
 
@@ -167,7 +165,7 @@
                     :disabled="submitting"
                     :rows="3"
                     fill="outline"
-                    placeholder="请输入房型地址，可选；修改后服务端可能触发 listing 同步"
+                    placeholder="请输入房型地址"
                   />
                 </label>
 
@@ -177,7 +175,7 @@
                     v-model="roomTypeForm.nearbyStation"
                     :disabled="submitting"
                     fill="outline"
-                    placeholder="请输入附近车站，可选"
+                    placeholder="请输入附近车站"
                   />
                 </label>
 
@@ -187,7 +185,7 @@
                     v-model="roomTypeForm.checkInGuideLink"
                     :disabled="submitting"
                     fill="outline"
-                    placeholder="支持 http:// 或 https://，未填协议会自动补 https://"
+                    placeholder="请输入入住指南链接"
                   />
                 </label>
 
@@ -198,7 +196,7 @@
                     :disabled="submitting"
                     :rows="4"
                     fill="outline"
-                    placeholder="用于详情页展示房型卖点、入住说明或空间介绍"
+                    placeholder="请输入房型描述"
                   />
                 </label>
 
@@ -208,7 +206,7 @@
                     v-model="roomTypeForm.suRoomType"
                     :disabled="submitting"
                     fill="outline"
-                    placeholder="可选，例如 DOUBLE / TWIN"
+                    placeholder="例如 DOUBLE / TWIN"
                   />
                 </label>
 
@@ -219,7 +217,7 @@
                     :disabled="submitting"
                     fill="outline"
                     inputmode="decimal"
-                    placeholder="可选，填写非负数字"
+                    placeholder="请输入面积"
                   />
                 </label>
 
@@ -249,7 +247,6 @@
               <div class="settings-section-heading">
                 <div>
                   <h2 class="mobile-section-title">价格信息</h2>
-                  <p class="mobile-note">默认价用于摘要展示，周价格用于更细粒度维护；价格均不能为负数。</p>
                 </div>
                 <ion-button size="small" fill="outline" :disabled="submitting" @click="handleApplyDefaultPrice">
                   默认价填充全周
@@ -264,7 +261,7 @@
                     :disabled="submitting"
                     fill="outline"
                     inputmode="decimal"
-                    placeholder="未填写时，保存时将优先回落到周一价格"
+                    placeholder="请输入默认价格"
                   />
                 </label>
 
@@ -279,7 +276,7 @@
                     :disabled="submitting"
                     fill="outline"
                     inputmode="decimal"
-                    placeholder="可留空"
+                    placeholder="请输入价格"
                   />
                 </label>
               </div>
@@ -288,7 +285,6 @@
             <div class="settings-form-section">
               <div>
                 <h2 class="mobile-section-title">设施与图片</h2>
-                <p class="mobile-note">设施支持逐行或逗号分隔；图片链接只接受 http/https。</p>
               </div>
 
               <div class="settings-form-grid">
@@ -310,7 +306,7 @@
                     :disabled="submitting"
                     :rows="4"
                     fill="outline"
-                    placeholder="每行一个链接，也支持逗号分隔"
+                    placeholder="每行一个链接"
                   />
                 </label>
 
@@ -321,7 +317,7 @@
                     :disabled="submitting"
                     :rows="4"
                     fill="outline"
-                    placeholder="每行一个链接，也支持逗号分隔"
+                    placeholder="每行一个链接"
                   />
                 </label>
               </div>
@@ -331,7 +327,6 @@
               <div class="settings-room-numbers__header">
                 <div>
                   <h2 class="mobile-section-title">房间维护</h2>
-                  <p class="mobile-note">支持维护房间号与房间密码，房间密码选填，便于移动端逐项编辑。</p>
                 </div>
                 <ion-button size="small" fill="outline" :disabled="submitting" @click="handleAddRoom">
                   新增房间
@@ -381,12 +376,6 @@
                 </div>
               </div>
 
-              <p class="mobile-note settings-room-numbers__hint">
-                至少保留一个房间；保存前会检查房间号空值、同表单重复以及与其他房型的冲突。
-              </p>
-              <p class="mobile-note settings-room-numbers__hint">
-                房间仍按当前房型整包维护；服务端会优先原位改名房间号，并在删除时清理关联绑定、保洁任务与 blockout。
-              </p>
             </div>
 
             <div class="settings-form-actions">
@@ -1219,84 +1208,152 @@ onIonViewWillEnter(async () => {
   font-weight: 700;
 }
 
+.settings-room-types-page > .mobile-stack {
+  margin-top: var(--ios-pms-space-4);
+}
+
 .settings-room-types-page__section-header {
   align-items: flex-start;
 }
 
 .settings-room-types-list {
   margin-top: 16px;
+  gap: 12px;
 }
 
 .settings-room-type-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(116, 138, 185, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(247, 250, 255, 0.94));
+  box-shadow:
+    0 14px 28px rgba(90, 111, 153, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.settings-room-type-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 72px;
+  background: linear-gradient(135deg, rgba(63, 124, 255, 0.08), rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
 
 .settings-room-type-card__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.settings-room-type-card__title-group {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
 }
 
 .settings-room-type-card__header strong,
-.settings-room-type-card__header p,
-.settings-room-type-card__rooms,
-.settings-room-type-card__description,
-.settings-room-type-card__location,
-.settings-room-type-card__hint {
+.settings-room-type-card__summary {
   margin: 0;
 }
 
-.settings-room-type-card__header p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
+.settings-room-type-card__header strong {
+  color: var(--ios-pms-text-primary);
+  font-size: 18px;
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.settings-room-type-card__summary {
+  color: var(--ios-pms-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .settings-room-type-card__badge {
-  padding: 4px 10px;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
   border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.settings-room-type-card__meta,
-.settings-room-type-card__supporting {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  color: var(--app-muted);
-  font-size: 12px;
+  border: 1px solid rgba(116, 163, 251, 0.12);
+  background: rgba(115, 164, 255, 0.09);
+  color: var(--ios-pms-primary-strong);
+  font-size: 11px;
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: 0.01em;
 }
 
 .settings-room-type-card__meta {
-  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  position: relative;
+  z-index: 1;
 }
 
-.settings-room-type-card__description,
-.settings-room-type-card__location,
-.settings-room-type-card__rooms,
-.settings-room-type-card__supporting,
-.settings-room-type-card__hint,
-.settings-room-type-card__actions {
-  margin-top: 12px;
-}
-
-.settings-room-type-card__description,
-.settings-room-type-card__location,
-.settings-room-type-card__hint {
-  line-height: 1.6;
+.settings-room-type-card__meta-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(116, 138, 185, 0.1);
+  background: rgba(243, 247, 255, 0.92);
+  color: var(--ios-pms-text-secondary);
+  font-size: 11px;
+  font-weight: var(--ios-pms-weight-medium);
+  line-height: 1;
 }
 
 .settings-room-type-card__actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(116, 138, 185, 0.08);
+  position: relative;
+  z-index: 1;
+}
+
+.settings-room-type-card__action {
+  margin: 0;
+  min-height: 34px;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --border-radius: 999px;
+  --box-shadow: none;
+  font-size: 12px;
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: 0.01em;
+}
+
+.settings-room-type-card__action--primary {
+  --background: rgba(52, 116, 246, 0.1);
+  --background-hover: rgba(52, 116, 246, 0.14);
+  --background-activated: rgba(52, 116, 246, 0.16);
+  --color: var(--ios-pms-primary-strong);
+}
+
+.settings-room-type-card__action[fill='outline'] {
+  --background: rgba(255, 255, 255, 0.82);
+  --color: var(--ios-pms-text-secondary);
+  --border-color: rgba(116, 138, 185, 0.14);
+}
+
+.settings-room-type-card__action--danger {
+  --color: #de5c5c;
 }
 
 .settings-room-types-page__empty-state {

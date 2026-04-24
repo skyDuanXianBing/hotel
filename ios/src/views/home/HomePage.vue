@@ -76,14 +76,8 @@ import {
 import {
   barChartOutline,
   bedOutline,
-  chatbubblesOutline,
   documentTextOutline,
-  gitNetworkOutline,
-  notificationsOutline,
-  personCircleOutline,
   receiptOutline,
-  settingsOutline,
-  walletOutline,
 } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -93,15 +87,23 @@ import HomeHelpCenter, { type HomeHelpCenterItem } from '@/components/home/HomeH
 import HomeHelpCenterMoreModal from '@/components/home/HomeHelpCenterMoreModal.vue'
 import HomeMemoCard from '@/components/home/HomeMemoCard.vue'
 import HomeOccupancyCard from '@/components/home/HomeOccupancyCard.vue'
-import HomeQuickActions, { type HomeQuickActionItem } from '@/components/home/HomeQuickActions.vue'
+import HomeQuickActions from '@/components/home/HomeQuickActions.vue'
 import HomeStatsGrid, { type HomeStatCardItem } from '@/components/home/HomeStatsGrid.vue'
+import {
+  buildHomeQuickActionItems,
+  findHomeQuickActionDefinition,
+  HOME_QUICK_ACTION_CUSTOMIZE_ITEM,
+  type HomeQuickActionItem,
+} from '@/constants/homeQuickActions'
 import { ROUTE_PATHS } from '@/router/guards'
+import { useHomeShortcutsStore } from '@/stores/homeShortcuts'
 import { useMemoStore } from '@/stores/memo'
 import { useStoreStore } from '@/stores/store'
 import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
 const router = useRouter()
+const homeShortcutsStore = useHomeShortcutsStore()
 const storeStore = useStoreStore()
 const memoStore = useMemoStore()
 
@@ -154,7 +156,8 @@ const helpItems: HomeHelpRouteItem[] = [
   },
 ]
 
-const quickActions: HomeQuickActionItem[] = [
+/*
+const legacyQuickActions: HomeQuickActionItem[] = [
   {
     key: 'orders',
     title: '住宿订单',
@@ -226,6 +229,11 @@ const quickActions: HomeQuickActionItem[] = [
     tone: 'success',
   },
 ]
+*/
+
+const quickActions = computed<HomeQuickActionItem[]>(() => {
+  return [...buildHomeQuickActionItems(homeShortcutsStore.visibleKeys), HOME_QUICK_ACTION_CUSTOMIZE_ITEM]
+})
 
 const memoValue = computed({
   get: () => memoStore.memoContent,
@@ -474,54 +482,25 @@ async function handleStatSelect(item: HomeStatCardItem) {
 }
 
 async function handleQuickActionSelect(item: HomeQuickActionItem) {
-  if (item.key === 'orders') {
-    await router.push(ROUTE_PATHS.orders)
+  if (item.key === HOME_QUICK_ACTION_CUSTOMIZE_ITEM.key) {
+    await router.push(ROUTE_PATHS.homeCustomize)
     return
   }
 
-  if (item.key === 'rooms') {
-    await router.push(ROUTE_PATHS.rooms)
+  const matchedAction = findHomeQuickActionDefinition(item.key)
+  if (!matchedAction) {
     return
   }
 
-  if (item.key === 'channels') {
-    await router.push(ROUTE_PATHS.channels)
+  if (matchedAction.query) {
+    await router.push({
+      path: matchedAction.path,
+      query: matchedAction.query,
+    })
     return
   }
 
-  if (item.key === 'statistics') {
-    await router.push(ROUTE_PATHS.statistics)
-    return
-  }
-
-  if (item.key === 'messages') {
-    await router.push(ROUTE_PATHS.messages)
-    return
-  }
-
-  if (item.key === 'system-notifications') {
-    await router.push(ROUTE_PATHS.systemNotifications)
-    return
-  }
-
-  if (item.key === 'order-notifications') {
-    await router.push(ROUTE_PATHS.orderNotifications)
-    return
-  }
-
-  if (item.key === 'wallet') {
-    await router.push(ROUTE_PATHS.wallet)
-    return
-  }
-
-  if (item.key === 'profile') {
-    await router.push(ROUTE_PATHS.profile)
-    return
-  }
-
-  if (item.key === 'settings') {
-    await router.push(ROUTE_PATHS.settings)
-  }
+  await router.push(matchedAction.path)
 }
 
 function findHelpRouteItem(key: string) {

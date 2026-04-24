@@ -1,125 +1,91 @@
 <template>
-  <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.settings" />
-        </ion-buttons>
-        <ion-title>收款方式</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="handleCreateMethod">新增</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content fullscreen class="mobile-page settings-page-block">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新收款方式" refreshing-spinner="crescent" />
-      </ion-refresher>
-
-      <section class="mobile-hero settings-page-block__hero">
-        <p class="mobile-note settings-page-block__eyebrow">财务设置</p>
-        <h1 class="mobile-title">收款方式</h1>
-        <p class="mobile-subtitle">支持新增、编辑、启停与显示顺序调整。</p>
-      </section>
-
-      <div class="mobile-stack">
-        <section class="mobile-card">
-          <div class="mobile-inline-row settings-page-block__section-header">
-            <div>
-              <h2 class="mobile-section-title">方式列表</h2>
-              <p class="mobile-note">上移 / 下移后点击保存顺序即可生效。</p>
-            </div>
-            <ion-spinner v-if="loading" name="crescent" />
+  <SettingsCrudPage
+    :back-href="ROUTE_PATHS.settings"
+    title="收款方式"
+    hero-eyebrow="财务设置"
+    hero-title="收款方式"
+    toolbar-action-label="新增"
+    :show-refresher="true"
+    refresher-pulling-text="下拉刷新收款方式"
+    section-title="方式列表"
+    :loading="loading"
+    :modal-open="editorOpen"
+    :modal-title="editingMethodId ? '编辑收款方式' : '新增收款方式'"
+    @toolbar-action="handleCreateMethod"
+    @refresh="handleRefresh"
+    @dismiss-editor="handleDismissEditor"
+  >
+    <div v-if="methods.length > 0" class="mobile-list settings-minimal-list">
+      <article v-for="(method, index) in methods" :key="method.id" class="settings-minimal-card">
+        <div class="settings-minimal-card__header">
+          <div class="settings-minimal-card__title-group">
+            <strong>{{ method.name }}</strong>
+            <p class="settings-minimal-card__summary">
+              顺序 {{ method.displayOrder }} · {{ method.enabled ? '已启用' : '已停用' }}
+            </p>
           </div>
+          <span
+            class="settings-minimal-card__badge"
+            :class="method.enabled ? 'settings-minimal-card__badge--success' : 'settings-minimal-card__badge--warning'"
+          >
+            {{ method.enabled ? '启用中' : '已停用' }}
+          </span>
+        </div>
 
-          <div v-if="methods.length > 0" class="mobile-list settings-card-list">
-            <article v-for="(method, index) in methods" :key="method.id" class="settings-card-item">
-              <div>
-                <strong>{{ method.name }}</strong>
-                <p>顺序 {{ method.displayOrder }} · {{ method.enabled ? '已启用' : '已停用' }}</p>
-              </div>
+        <div class="settings-minimal-card__actions settings-minimal-card__actions--dense">
+          <ion-button size="small" fill="outline" @click="handleEditMethod(method)">编辑</ion-button>
+          <ion-button size="small" fill="outline" @click="handleToggleMethod(method)">
+            {{ method.enabled ? '停用' : '启用' }}
+          </ion-button>
+          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">上移</ion-button>
+          <ion-button size="small" fill="outline" :disabled="index === methods.length - 1" @click="handleMove(index, 1)">下移</ion-button>
+          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteMethod(method)">删除</ion-button>
+        </div>
+      </article>
+    </div>
 
-              <div class="settings-card-item__actions">
-                <ion-button size="small" fill="outline" @click="handleEditMethod(method)">编辑</ion-button>
-                <ion-button size="small" fill="outline" @click="handleToggleMethod(method)">
-                  {{ method.enabled ? '停用' : '启用' }}
-                </ion-button>
-                <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">上移</ion-button>
-                <ion-button size="small" fill="outline" :disabled="index === methods.length - 1" @click="handleMove(index, 1)">下移</ion-button>
-                <ion-button size="small" color="danger" fill="clear" @click="handleDeleteMethod(method)">删除</ion-button>
-              </div>
-            </article>
-          </div>
+    <p v-else-if="!loading" class="mobile-note">当前暂无收款方式。</p>
 
-          <p v-else-if="!loading" class="mobile-note">当前暂无收款方式。</p>
-
-          <div class="settings-form-actions settings-form-actions--section">
-            <ion-button fill="outline" :disabled="loading || savingOrder" @click="loadPageData">重置</ion-button>
-            <ion-button :disabled="loading || savingOrder || methods.length === 0" @click="handleSaveOrder">
-              {{ savingOrder ? '保存中...' : '保存顺序' }}
-            </ion-button>
-          </div>
-        </section>
+    <template #sectionFooter>
+      <div class="settings-form-actions settings-form-actions--section">
+        <ion-button fill="outline" :disabled="loading || savingOrder" @click="loadPageData">重置</ion-button>
+        <ion-button :disabled="loading || savingOrder || methods.length === 0" @click="handleSaveOrder">
+          {{ savingOrder ? '保存中...' : '保存顺序' }}
+        </ion-button>
       </div>
+    </template>
 
-      <ion-modal :is-open="editorOpen" @didDismiss="handleDismissEditor">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingMethodId ? '编辑收款方式' : '新增收款方式' }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissEditor">关闭</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
+    <template #modalContent>
+      <div class="settings-form-grid">
+        <label class="settings-form-field">
+          <span>名称</span>
+          <ion-input v-model="methodForm.name" fill="outline" placeholder="请输入收款方式名称" />
+        </label>
 
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <div class="settings-form-grid">
-              <label class="settings-form-field">
-                <span>名称</span>
-                <ion-input v-model="methodForm.name" fill="outline" placeholder="请输入收款方式名称" />
-              </label>
+        <div class="settings-toggle-field">
+          <div>
+            <strong>启用状态</strong>
+          </div>
+          <ion-toggle v-model="methodForm.enabled" />
+        </div>
+      </div>
+    </template>
 
-              <div class="settings-toggle-field">
-                <div>
-                  <strong>启用状态</strong>
-                  <p>停用后不会出现在可选收款方式中。</p>
-                </div>
-                <ion-toggle v-model="methodForm.enabled" />
-              </div>
-            </div>
-
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveMethod">
-                {{ submitting ? '提交中...' : '保存方式' }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
-    </ion-content>
-  </ion-page>
+    <template #modalActions>
+      <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+      <ion-button :disabled="submitting" @click="handleSaveMethod">
+        {{ submitting ? '提交中...' : '保存方式' }}
+      </ion-button>
+    </template>
+  </SettingsCrudPage>
 </template>
 
 <script setup lang="ts">
 import {
   alertController,
-  IonBackButton,
   IonButton,
-  IonButtons,
-  IonContent,
-  IonHeader,
   IonInput,
-  IonModal,
-  IonPage,
-  IonRefresher,
-  IonRefresherContent,
-  IonSpinner,
-  IonTitle,
   IonToggle,
-  IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { ref } from 'vue'
@@ -131,6 +97,7 @@ import {
   updatePaymentMethodEnabled,
   updatePaymentMethodsOrder,
 } from '@/api/paymentMethod'
+import SettingsCrudPage from '@/components/settings/families/SettingsCrudPage.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import type { PaymentMethodDTO } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -324,107 +291,3 @@ onIonViewWillEnter(async () => {
   await loadPageData()
 })
 </script>
-
-<style scoped>
-.settings-page-block {
-  display: block;
-}
-
-.settings-page-block__hero {
-  margin-top: 4px;
-}
-
-.settings-page-block__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-}
-
-.settings-page-block__section-header {
-  align-items: flex-start;
-}
-
-.settings-card-list {
-  margin-top: 16px;
-}
-
-.settings-card-item {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.settings-card-item strong,
-.settings-card-item p {
-  margin: 0;
-}
-
-.settings-card-item p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-}
-
-.settings-card-item__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.settings-modal-page {
-  --padding-top: 16px;
-  --padding-bottom: 24px;
-  --padding-start: 16px;
-  --padding-end: 16px;
-}
-
-.settings-form-grid {
-  display: grid;
-  gap: 14px;
-}
-
-.settings-form-field {
-  display: grid;
-  gap: 8px;
-}
-
-.settings-form-field span {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.settings-toggle-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: var(--app-primary-soft);
-}
-
-.settings-toggle-field strong,
-.settings-toggle-field p {
-  margin: 0;
-}
-
-.settings-toggle-field p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 12px;
-}
-
-.settings-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 18px;
-}
-
-.settings-form-actions--section {
-  margin-top: 18px;
-}
-</style>

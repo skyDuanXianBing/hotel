@@ -60,15 +60,6 @@
               </div>
               <ion-icon :icon="chevronForwardOutline" class="settings-entry__arrow" />
             </button>
-            <button type="button" class="settings-entry" @click="handleOpenPassword">
-              <div class="settings-entry__icon settings-entry__icon--secondary">
-                <ion-icon :icon="lockClosedOutline" />
-              </div>
-              <div class="settings-entry__body">
-                <strong>修改密码</strong>
-              </div>
-              <ion-icon :icon="chevronForwardOutline" class="settings-entry__arrow" />
-            </button>
             <button type="button" class="settings-entry settings-entry--danger" @click="handleLogout">
               <div class="settings-entry__icon settings-entry__icon--danger">
                 <ion-icon :icon="logOutOutline" />
@@ -99,6 +90,16 @@
         </section>
       </div>
     </ion-content>
+
+    <MemoSheetModal :is-open="visibleToolsStore.memoOpen" @dismiss="visibleToolsStore.closeMemo" />
+
+    <RecordTransactionModal
+      :is-open="visibleToolsStore.recordOpen"
+      @dismiss="visibleToolsStore.closeRecord"
+      @success="handleRecordSuccess"
+    />
+
+    <ContactSupportModal :is-open="visibleToolsStore.contactOpen" @dismiss="visibleToolsStore.closeContact" />
   </ion-page>
 </template>
 
@@ -122,7 +123,6 @@ import {
   createOutline,
   documentTextOutline,
   headsetOutline,
-  lockClosedOutline,
   logOutOutline,
   notificationsOutline,
   peopleOutline,
@@ -135,11 +135,15 @@ import {
   walletOutline,
 } from 'ionicons/icons'
 import { computed } from 'vue'
+import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
+import MemoSheetModal from '@/components/global/MemoSheetModal.vue'
+import RecordTransactionModal from '@/components/notes/RecordTransactionModal.vue'
 import { useRouter } from 'vue-router'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import { useVisibleToolsStore } from '@/stores/visibleTools'
+import { showSuccessToast } from '@/utils/notify'
 
 interface SettingsEntry {
   key: string
@@ -210,7 +214,7 @@ const entryGroups = computed<SettingsGroup[]>(() => {
         {
           key: 'store-details',
           title: '门店详情',
-          description: '设施、照片、入住退房时间',
+          description: '设施、时区、币种',
           path: ROUTE_PATHS.settingsStoreDetails,
           icon: buildOutline,
         },
@@ -387,10 +391,6 @@ async function handleOpenProfile() {
   await router.push(ROUTE_PATHS.profile)
 }
 
-async function handleOpenPassword() {
-  await router.push(ROUTE_PATHS.profile)
-}
-
 function handleOpenMemoTool() {
   visibleToolsStore.openMemo()
 }
@@ -401,6 +401,10 @@ function handleOpenRecordTool() {
 
 function handleOpenContactTool() {
   visibleToolsStore.openContact()
+}
+
+function handleRecordSuccess() {
+  showSuccessToast('已完成记一笔录入')
 }
 
 </script>

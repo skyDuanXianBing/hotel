@@ -1,17 +1,23 @@
 <template>
   <section class="room-calendar" :class="{ 'is-loading': loading }">
-    <div class="room-calendar__scroll">
+    <div ref="scrollContainer" class="room-calendar__scroll">
       <div class="room-calendar__inner" :style="{ minWidth: `${totalMinWidth}px` }">
         <div class="room-calendar__row room-calendar__row--header" :style="gridStyle">
           <button
             class="room-calendar__corner"
-            :class="{ 'is-pulsing': !todayInWindow }"
             type="button"
-            aria-label="回到今日"
-            @click="$emit('go-today')"
+            aria-label="选择日期"
+            @click="openDatePicker"
           >
-            <ion-icon :icon="calendarClearOutline" class="room-calendar__corner-icon" />
-            <strong>{{ todayLabel }}</strong>
+            <input
+              ref="datePickerInput"
+              class="room-calendar__date-input"
+              :value="selectedDateValue"
+              type="date"
+              @change="handleDateInputChange"
+            />
+            <strong class="room-calendar__corner-date">{{ selectedDateLabel }}</strong>
+            <ion-icon :icon="caretDownOutline" class="room-calendar__corner-caret" />
           </button>
 
           <button
@@ -26,14 +32,27 @@
             type="button"
             @click="$emit('select-date', day.date)"
           >
-            <span class="room-calendar__day-weekday">周{{ day.weekday }}</span>
-            <strong class="room-calendar__day-label">{{ day.label }}</strong>
+            <span class="room-calendar__day-number">{{ getDayDateLabel(day) }}</span>
+            <strong class="room-calendar__day-weekday">周{{ day.weekday }}</strong>
+            <span class="room-calendar__day-capacity">余 {{ day.availableRooms }}</span>
           </button>
         </div>
 
         <template v-for="group in groups" :key="group.roomType">
-          <div class="room-calendar__group-label">
-            <span class="room-calendar__group-label-text">| {{ group.roomType }}</span>
+          <div class="room-calendar__row room-calendar__row--group" :style="gridStyle">
+            <div class="room-calendar__group-label">
+              <span class="room-calendar__group-mark" aria-hidden="true"></span>
+              <span class="room-calendar__group-label-text">{{ group.roomType }}</span>
+            </div>
+
+            <div
+              v-for="day in days"
+              :key="`${group.roomType}-${day.date}`"
+              class="room-calendar__group-cell"
+              :class="{ 'is-selected': day.isSelected, 'is-today': day.isToday }"
+            >
+              余 {{ getGroupAvailableCount(group, day.date) }}
+            </div>
           </div>
 
           <div
@@ -75,19 +94,24 @@
                 v-if="cell.kind === 'reservation'"
                 class="room-calendar__reservation"
                 :class="{
+                  'is-selected-span': cell.containsSelected,
+                  'is-today-span': cell.containsToday,
                   'is-truncated-start': cell.truncatedStart,
                   'is-truncated-end': cell.truncatedEnd,
                 }"
-                :data-channel="resolveChannelAccent(cell.reservation.channelName)"
+                :data-tone="resolveReservationTone(cell.reservation)"
                 :style="{ gridColumn: `span ${cell.span}` }"
                 type="button"
                 @click="$emit('select-reservation', cell.reservation.id)"
               >
+                <span class="room-calendar__reservation-topline">
+                  {{ cell.reservation.channelName || '自来客' }}
+                </span>
                 <strong class="room-calendar__reservation-guest">
                   {{ cell.reservation.guestName || '未命名客人' }}
                 </strong>
                 <span class="room-calendar__reservation-channel">
-                  {{ cell.reservation.channelName || '自来客' }}
+                  {{ cell.item.statusText }}
                 </span>
               </button>
 
@@ -112,8 +136,8 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue'
-import { calendarClearOutline, notificationsOutline } from 'ionicons/icons'
-import { computed } from 'vue'
+import { caretDownOutline, notificationsOutline } from 'ionicons/icons'
+import { computed, nextTick, ref, watch } from 'vue'
 import type {
   RoomStatusDateItem,
   RoomStatusRoomItem,
@@ -139,25 +163,36 @@ type RowCell =
       span: number
       item: RoomTimelineItem
       reservation: ReservationDTO
+      containsSelected: boolean
+      containsToday: boolean
       truncatedStart: boolean
       truncatedEnd: boolean
     }
 
-const ROOM_COLUMN_WIDTH = 72
-const DAY_MIN_WIDTH = 108
+const ROOM_COLUMN_WIDTH = 86
+const DAY_MIN_WIDTH = 58
 
-const props = defineProps<{
-  days: RoomStatusDateItem[]
-  groups: RoomStatusRoomGroup[]
-  loading: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    days: RoomStatusDateItem[]
+    groups: RoomStatusRoomGroup[]
+    loading: boolean
+    viewportDays?: number
+  }>(),
+  {
+    viewportDays: 5,
+  },
+)
 
-defineEmits<{
+const emit = defineEmits<{
   'select-date': [date: string]
   'select-reservation': [reservationId: number]
   'open-room-actions': [payload: { roomId: number; date: string }]
   'go-today': []
 }>()
+
+const datePickerInput = ref<HTMLInputElement | null>(null)
+const scrollContainer = ref<HTMLDivElement | null>(null)
 
 const gridStyle = computed(() => ({
   gridTemplateColumns: `${ROOM_COLUMN_WIDTH}px repeat(${props.days.length}, minmax(${DAY_MIN_WIDTH}px, 1fr))`,
@@ -173,14 +208,73 @@ const todayDate = computed(() => {
   return `${year}-${month}-${day}`
 })
 
-const todayLabel = computed(() => {
-  const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${month}月${day}日`
+const selectedDay = computed(() => props.days.find((item) => item.isSelected) || props.days[0] || null)
+
+const selectedDateValue = computed(() => selectedDay.value?.date || todayDate.value)
+
+const selectedDateLabel = computed(() => {
+  if (!selectedDay.value) {
+    return todayDate.value.slice(5)
+  }
+
+  return selectedDay.value.label
 })
 
-const todayInWindow = computed(() => props.days.some((item) => item.date === todayDate.value))
+function alignSelectedDateIntoView() {
+  const container = scrollContainer.value
+  if (!container) {
+    return
+  }
+
+  const selectedIndex = props.days.findIndex((item) => item.isSelected)
+  if (selectedIndex < 0) {
+    container.scrollLeft = 0
+    return
+  }
+
+  const maxStartIndex = Math.max(props.days.length - props.viewportDays, 0)
+  const preferredStartIndex = Math.min(Math.max(selectedIndex - 1, 0), maxStartIndex)
+  const targetLeft = preferredStartIndex * DAY_MIN_WIDTH
+
+  container.scrollTo({
+    left: targetLeft,
+    behavior: 'auto',
+  })
+}
+
+watch(
+  selectedDateValue,
+  async () => {
+    await nextTick()
+    alignSelectedDateIntoView()
+  },
+  { immediate: true },
+)
+
+function openDatePicker() {
+  const input = datePickerInput.value
+  if (!input) {
+    return
+  }
+
+  const pickerInput = input as HTMLInputElement & { showPicker?: () => void }
+
+  if (typeof pickerInput.showPicker === 'function') {
+    pickerInput.showPicker()
+    return
+  }
+
+  input.click()
+}
+
+function handleDateInputChange(event: Event) {
+  const target = event.target as HTMLInputElement | null
+  if (!target?.value) {
+    return
+  }
+
+  emit('select-date', target.value)
+}
 
 function buildRowCells(timeline: RoomTimelineItem[]): RowCell[] {
   const cells: RowCell[] = []
@@ -208,6 +302,7 @@ function buildRowCells(timeline: RoomTimelineItem[]): RowCell[] {
       const truncatedEnd = Boolean(
         reservation.checkOutDate && lastItem.date < shiftDate(reservation.checkOutDate, -1),
       )
+      const segment = timeline.slice(index, index + span)
 
       cells.push({
         kind: 'reservation',
@@ -215,6 +310,8 @@ function buildRowCells(timeline: RoomTimelineItem[]): RowCell[] {
         span,
         item: current,
         reservation,
+        containsSelected: segment.some((item) => item.isSelected),
+        containsToday: segment.some((item) => item.isToday),
         truncatedStart,
         truncatedEnd,
       })
@@ -245,25 +342,56 @@ function shiftDate(date: string, amount: number) {
   return `${year}-${month}-${day}`
 }
 
-function resolveChannelAccent(channelName?: string) {
-  if (!channelName) {
-    return 'default'
+function getDayDateLabel(day: RoomStatusDateItem) {
+  const [, date] = day.label.split('-')
+  if (!date) {
+    return day.label
   }
 
+  return String(Number(date))
+}
+
+function getGroupAvailableCount(group: RoomStatusRoomGroup, date: string) {
+  let count = 0
+
+  for (const room of group.rooms) {
+    const timelineItem = room.timeline.find((item) => item.date === date)
+    if (timelineItem?.businessState === 'available') {
+      count += 1
+    }
+  }
+
+  return count
+}
+
+function resolveReservationTone(reservation: ReservationDTO) {
+  const channelName = reservation.channelName || ''
   const normalized = channelName.toLowerCase()
+
   if (normalized.includes('airbnb')) {
-    return 'airbnb'
+    return 'coral'
   }
   if (normalized.includes('booking')) {
-    return 'booking'
+    return 'indigo'
   }
   if (normalized.includes('agoda')) {
-    return 'agoda'
+    return 'violet'
   }
-  if (normalized.includes('trip')) {
-    return 'trip'
+  if (normalized.includes('trip') || channelName.includes('携程')) {
+    return 'azure'
   }
-  return 'default'
+  if (channelName.includes('美团')) {
+    return 'mint'
+  }
+  if (channelName.includes('抖音')) {
+    return 'slate'
+  }
+  if (channelName.includes('小猪')) {
+    return 'rose'
+  }
+
+  const fallbackTones = ['sand', 'mint', 'rose', 'azure', 'slate']
+  return fallbackTones[reservation.id % fallbackTones.length]
 }
 
 function getEmptyCellClass(item: RoomTimelineItem) {
@@ -328,6 +456,7 @@ function getRoomCellClass(room: RoomStatusRoomItem) {
     'is-focused-closed': room.focusedClosed,
     'is-focused-maintenance': room.focusedClosed && room.closeType === 'maintenance',
     'is-focused-retain': room.focusedClosed && room.closeType === 'retain',
+    'is-dirty': room.isDirty,
   }
 }
 
@@ -349,11 +478,11 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 <style scoped>
 .room-calendar {
   position: relative;
-  background: var(--app-surface, #ffffff);
+  background: rgba(255, 255, 255, 0.76);
 }
 
 .room-calendar.is-loading {
-  opacity: 0.92;
+  opacity: 0.94;
 }
 
 .room-calendar__scroll {
@@ -361,6 +490,11 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   overflow-y: visible;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.room-calendar__scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .room-calendar__inner {
@@ -371,155 +505,245 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 .room-calendar__row {
   display: grid;
   align-items: stretch;
-  border-bottom: 1px solid var(--app-border, rgba(15, 23, 42, 0.08));
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom: 1px solid rgba(112, 138, 187, 0.08);
 }
 
 .room-calendar__row--header {
   position: sticky;
   top: 0;
-  z-index: 6;
-  background: var(--app-surface, #ffffff);
-  border-bottom: 1px solid var(--app-border, rgba(15, 23, 42, 0.1));
+  z-index: 8;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.94));
+  border-bottom: 1px solid rgba(112, 138, 187, 0.1);
+  box-shadow: 0 8px 18px rgba(88, 110, 151, 0.04);
+}
+
+.room-calendar__row--group {
+  min-height: 32px;
+  background: rgba(244, 247, 253, 0.9);
 }
 
 .room-calendar__corner {
   position: sticky;
   left: 0;
-  z-index: 7;
-  background: var(--app-surface, #ffffff);
+  z-index: 10;
   border: none;
-  border-right: 1px solid var(--app-border, rgba(15, 23, 42, 0.08));
-  padding: 8px 6px;
-  display: flex;
-  flex-direction: column;
+  border-right: 1px solid rgba(112, 138, 187, 0.1);
+  min-height: 78px;
+  padding: 10px 10px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  color: var(--ion-color-primary);
-  min-height: 58px;
+  gap: 4px;
+  background:
+    linear-gradient(180deg, rgba(252, 254, 255, 0.98), rgba(244, 248, 255, 0.96));
+  box-shadow: 10px 0 16px -18px rgba(79, 104, 155, 0.24);
 }
 
-.room-calendar__corner.is-pulsing::before {
-  content: '';
+.room-calendar__date-input {
   position: absolute;
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 18px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--ion-color-primary);
+  inset: auto;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.room-calendar__corner-icon {
+.room-calendar__corner-date {
+  color: #15233e;
   font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
-.room-calendar__corner strong {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--app-heading, #1e293b);
-  letter-spacing: -0.2px;
+.room-calendar__corner-caret {
+  font-size: 11px;
+  color: #7b8aa4;
 }
 
 .room-calendar__day {
   appearance: none;
   border: none;
-  border-right: 1px solid var(--app-border, rgba(15, 23, 42, 0.06));
+  border-right: 1px solid rgba(112, 138, 187, 0.08);
   background: transparent;
   color: var(--app-muted, #64748b);
-  padding: 10px 4px;
-  display: flex;
-  flex-direction: column;
+  padding: 8px 4px 7px;
+  display: grid;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-height: 58px;
+  justify-items: center;
+  gap: 4px;
+  min-height: 78px;
+}
+
+.room-calendar__day-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(240, 244, 255, 0.78);
+  color: #1c2640;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
 }
 
 .room-calendar__day-weekday {
-  font-size: 12px;
-  color: var(--app-muted, #64748b);
-  line-height: 1.1;
-}
-
-.room-calendar__day-label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--app-heading, #1e293b);
-  line-height: 1.1;
+  color: #22304b;
+  line-height: 1;
 }
 
-.room-calendar__day.is-weekend .room-calendar__day-label,
-.room-calendar__day.is-weekend .room-calendar__day-weekday {
+.room-calendar__day-capacity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(240, 244, 255, 0.88);
+  color: #5f7193;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.room-calendar__day.is-weekend .room-calendar__day-weekday,
+.room-calendar__day.is-weekend .room-calendar__day-capacity {
   color: #ef4444;
 }
 
-.room-calendar__day.is-today .room-calendar__day-label,
-.room-calendar__day.is-today .room-calendar__day-weekday {
+.room-calendar__day.is-weekend .room-calendar__day-number {
+  color: #e64848;
+}
+
+.room-calendar__day.is-today .room-calendar__day-number {
+  box-shadow:
+    0 0 0 6px rgba(63, 124, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.room-calendar__day.is-today .room-calendar__day-weekday,
+.room-calendar__day.is-today .room-calendar__day-capacity {
   color: var(--ion-color-primary);
 }
 
 .room-calendar__day.is-selected {
-  background: rgba(59, 130, 246, 0.08);
+  background: rgba(74, 133, 255, 0.07);
+}
+
+.room-calendar__day.is-selected .room-calendar__day-number {
+  background: linear-gradient(180deg, #4b86ff 0%, #2f6df2 100%);
+  color: #ffffff;
+  box-shadow: 0 8px 14px rgba(52, 116, 246, 0.2);
+}
+
+.room-calendar__day.is-selected .room-calendar__day-weekday {
+  color: #2f6df2;
+}
+
+.room-calendar__day.is-selected .room-calendar__day-capacity {
+  background: rgba(74, 133, 255, 0.12);
+  color: #2f6df2;
 }
 
 .room-calendar__group-label {
+  position: sticky;
+  left: 0;
+  z-index: 6;
   display: flex;
   align-items: center;
-  padding: 10px 0 6px;
-  min-height: 28px;
+  gap: 6px;
+  padding: 0 10px;
+  border-right: 1px solid rgba(112, 138, 187, 0.08);
+  background: rgba(244, 247, 253, 0.96);
+  box-shadow: 10px 0 16px -18px rgba(79, 104, 155, 0.2);
+}
+
+.room-calendar__group-mark {
+  width: 3px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #4d86ff 0%, #2f6df2 100%);
 }
 
 .room-calendar__group-label-text {
-  position: sticky;
-  left: 12px;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #3958a8;
+}
+
+.room-calendar__group-cell {
+  display: grid;
+  place-items: center;
+  min-height: 32px;
+  border-right: 1px solid rgba(112, 138, 187, 0.08);
+  color: #73829a;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--ion-color-primary);
-  letter-spacing: 0.2px;
+}
+
+.room-calendar__group-cell.is-selected {
+  background: rgba(74, 133, 255, 0.08);
+  color: #2f6df2;
+}
+
+.room-calendar__group-cell.is-today {
+  box-shadow: inset 0 2px 0 rgba(76, 132, 255, 0.3);
 }
 
 .room-calendar__room-cell {
   position: sticky;
   left: 0;
-  z-index: 3;
-  background: #f5f5f5;
+  z-index: 4;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 251, 255, 0.96));
   border: none;
-  border-right: 1px solid var(--app-border, rgba(15, 23, 42, 0.08));
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 72px;
+  border-right: 1px solid rgba(112, 138, 187, 0.1);
+  padding: 8px 8px 8px 10px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 3px;
+  min-height: 62px;
   color: var(--app-heading, #1e293b);
+  box-shadow: 10px 0 14px -18px rgba(74, 99, 149, 0.24);
 }
 
 .room-calendar__room-cell.is-focused-closed {
-  background: #f8fafc;
+  background: rgba(246, 248, 252, 0.98);
 }
 
 .room-calendar__room-cell.is-focused-maintenance {
-  background: rgba(245, 158, 11, 0.12);
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .room-calendar__room-cell.is-focused-retain {
-  background: rgba(139, 92, 246, 0.12);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.room-calendar__room-cell.is-dirty {
+  box-shadow:
+    inset 0 0 0 1px rgba(245, 158, 11, 0.12),
+    10px 0 14px -18px rgba(74, 99, 149, 0.24);
 }
 
 .room-calendar__room-number {
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0;
+  word-break: break-word;
 }
 
 .room-calendar__room-flags {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
 }
 
@@ -527,12 +751,12 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 18px;
-  padding: 0 6px;
+  min-height: 15px;
+  padding: 0 5px;
   border-radius: 999px;
   background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
-  font-size: 10px;
+  color: #d53535;
+  font-size: 9px;
   font-weight: 700;
   line-height: 1;
 }
@@ -548,19 +772,19 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__room-flag {
-  font-size: 14px;
-  color: var(--app-muted, #94a3b8);
+  font-size: 11px;
+  color: #f59e0b;
 }
 
 .room-calendar__cell,
 .room-calendar__reservation {
   appearance: none;
   border: none;
-  border-right: 1px solid var(--app-border, rgba(15, 23, 42, 0.06));
+  border-right: 1px solid rgba(112, 138, 187, 0.08);
   background: #ffffff;
   color: var(--app-heading, #1e293b);
-  min-height: 72px;
-  padding: 6px 8px;
+  min-height: 62px;
+  padding: 6px;
   display: flex;
   align-items: center;
   text-align: left;
@@ -568,32 +792,46 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 
 .room-calendar__cell {
   justify-content: center;
-  color: var(--app-muted, #94a3b8);
-  font-size: 13px;
-  font-weight: 500;
+  color: #9aa5b9;
+  font-size: 12px;
+  font-weight: 600;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(251, 253, 255, 0.94));
 }
 
 .room-calendar__cell.is-today {
-  box-shadow: inset 0 2px 0 var(--ion-color-primary);
+  box-shadow: inset 0 2px 0 rgba(76, 132, 255, 0.32);
 }
 
 .room-calendar__cell.is-selected {
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(74, 133, 255, 0.08);
+  box-shadow: inset 0 2px 0 #3f7cff;
 }
 
 .room-calendar__cell.is-closed {
-  background: #f1f5f9;
-  color: #94a3b8;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(242, 245, 250, 0.96),
+      rgba(242, 245, 250, 0.96) 12px,
+      rgba(250, 252, 255, 0.96) 12px,
+      rgba(250, 252, 255, 0.96) 24px
+    );
+  color: #8b97ab;
 }
 
 .room-calendar__cell.is-dirty {
   background: repeating-linear-gradient(
     135deg,
-    #ffffff,
-    #ffffff 6px,
-    #fef3c7 6px,
-    #fef3c7 12px
+    rgba(255, 255, 255, 0.98),
+    rgba(255, 255, 255, 0.98) 8px,
+    rgba(255, 246, 214, 0.96) 8px,
+    rgba(255, 246, 214, 0.96) 16px
   );
+}
+
+.room-calendar__cell-content {
+  line-height: 1;
 }
 
 .room-calendar__reservation {
@@ -602,11 +840,13 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   align-items: flex-start;
   justify-content: center;
   gap: 2px;
-  padding: 6px 10px 6px 14px;
-  background: #ffe8d4;
-  color: #1e293b;
+  margin: 4px 4px 4px 3px;
+  padding: 8px 10px 8px 12px;
+  background: var(--reservation-bg, #ead9c6);
+  color: var(--reservation-text, #ffffff);
   overflow: hidden;
-  border-radius: 0;
+  border-radius: 12px;
+  box-shadow: 0 10px 18px rgba(66, 85, 123, 0.14);
 }
 
 .room-calendar__reservation::before {
@@ -616,46 +856,105 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   top: 0;
   bottom: 0;
   width: 4px;
-  background: var(--ion-color-primary);
+  background: var(--reservation-accent, rgba(255, 255, 255, 0.8));
 }
 
-.room-calendar__reservation[data-channel='airbnb']::before {
-  background: #ff5a5f;
+.room-calendar__reservation::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 46%);
+  pointer-events: none;
 }
 
-.room-calendar__reservation[data-channel='booking']::before {
-  background: #003580;
+.room-calendar__reservation[data-tone='sand'] {
+  --reservation-bg: linear-gradient(135deg, #dfc59b 0%, #d9ba89 100%);
+  --reservation-accent: #c2904d;
 }
 
-.room-calendar__reservation[data-channel='agoda']::before {
-  background: #d4001a;
+.room-calendar__reservation[data-tone='mint'] {
+  --reservation-bg: linear-gradient(135deg, #78d9d4 0%, #57cbc8 100%);
+  --reservation-accent: #42a8a5;
 }
 
-.room-calendar__reservation[data-channel='trip']::before {
-  background: #2681ff;
+.room-calendar__reservation[data-tone='rose'] {
+  --reservation-bg: linear-gradient(135deg, #f4a4b7 0%, #ef92aa 100%);
+  --reservation-accent: #d66b86;
+}
+
+.room-calendar__reservation[data-tone='azure'] {
+  --reservation-bg: linear-gradient(135deg, #9fd7eb 0%, #82c5df 100%);
+  --reservation-accent: #4f9ec0;
+}
+
+.room-calendar__reservation[data-tone='indigo'] {
+  --reservation-bg: linear-gradient(135deg, #82a2e8 0%, #6f92df 100%);
+  --reservation-accent: #5073c8;
+}
+
+.room-calendar__reservation[data-tone='coral'] {
+  --reservation-bg: linear-gradient(135deg, #f3b2a3 0%, #ee9a86 100%);
+  --reservation-accent: #df7b62;
+}
+
+.room-calendar__reservation[data-tone='violet'] {
+  --reservation-bg: linear-gradient(135deg, #b29cf0 0%, #9a84e7 100%);
+  --reservation-accent: #7764c6;
+}
+
+.room-calendar__reservation[data-tone='slate'] {
+  --reservation-bg: linear-gradient(135deg, #737a86 0%, #5e646f 100%);
+  --reservation-accent: #3f4652;
 }
 
 .room-calendar__reservation.is-truncated-start::before {
-  left: -4px;
+  left: -6px;
 }
 
 .room-calendar__reservation.is-truncated-end {
-  background: linear-gradient(to right, #ffe8d4 90%, rgba(255, 232, 212, 0.4));
+  mask-image: linear-gradient(to right, #000 0%, #000 88%, rgba(0, 0, 0, 0.35) 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 88%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+.room-calendar__reservation.is-selected-span {
+  box-shadow:
+    0 10px 18px rgba(66, 85, 123, 0.14),
+    0 0 0 1px rgba(255, 255, 255, 0.48),
+    0 0 0 3px rgba(63, 124, 255, 0.16);
+}
+
+.room-calendar__reservation.is-today-span {
+  outline: 1px solid rgba(255, 255, 255, 0.34);
+}
+
+.room-calendar__reservation-topline {
+  position: relative;
+  z-index: 1;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  opacity: 0.88;
 }
 
 .room-calendar__reservation-guest {
-  font-size: 13px;
-  font-weight: 600;
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+  font-weight: 700;
   line-height: 1.25;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .room-calendar__reservation-channel {
-  font-size: 11px;
-  color: #64748b;
+  position: relative;
+  z-index: 1;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.84);
   line-height: 1.25;
   max-width: 100%;
   overflow: hidden;
