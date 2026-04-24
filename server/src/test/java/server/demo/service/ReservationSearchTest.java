@@ -101,16 +101,4 @@ class ReservationSearchTest {
         assertEquals("CH-001", result.get(0).getChannelOrderNumber());
         verify(reservationRepository).searchByStoreIdAndKeyword(7L, "RSV-001");
     }
-
-    @Test
-    void parseFilterValues_shouldReturnEmptyWhenRawValueBlank() {
-        assertTrue(ReservationService.parseFilterValues("   ").isEmpty());
-    }
-
-    @Test
-    void parseFilterValues_shouldSplitTrimAndDeduplicateCommaSeparatedValues() {
-        List<String> values = ReservationService.parseFilterValues(" direct , meituan,direct ,, tujia ");
-
-        assertEquals(List.of("direct", "meituan", "tujia"), values);
-    }
 }

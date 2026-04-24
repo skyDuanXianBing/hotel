@@ -1008,8 +1008,6 @@ public class ReservationService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Long storeId = currentStoreId();
-        List<String> channelNames = resolveChannelFilterValues(channel);
-        List<String> roomTypeNames = parseFilterValues(roomType);
 
         Specification<Reservation> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -1037,13 +1035,17 @@ public class ReservationService {
             }
             
             // 渠道过滤
-            if (!channelNames.isEmpty()) {
-                predicates.add(root.get("channel").get("name").in(channelNames));
+            if (channel != null && !channel.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.equal(
+                    root.get("channel").get("name"), getChannelDisplayName(channel)
+                ));
             }
             
             // 房型过滤
-            if (!roomTypeNames.isEmpty()) {
-                predicates.add(root.get("room").get("roomType").get("name").in(roomTypeNames));
+            if (roomType != null && !roomType.trim().isEmpty()) {
+                predicates.add(criteriaBuilder.equal(
+                    root.get("room").get("roomType").get("name"), roomType
+                ));
             }
             
             // 状态过滤
@@ -1246,29 +1248,7 @@ public class ReservationService {
     /**
      * 获取渠道显示名称
      */
-    static List<String> parseFilterValues(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return List.of();
-        }
-
-        LinkedHashSet<String> normalizedValues = new LinkedHashSet<>();
-        for (String item : rawValue.split(",")) {
-            String trimmed = item.trim();
-            if (!trimmed.isEmpty()) {
-                normalizedValues.add(trimmed);
-            }
-        }
-
-        return List.copyOf(normalizedValues);
-    }
-
-    private static List<String> resolveChannelFilterValues(String rawValue) {
-        return parseFilterValues(rawValue).stream()
-                .map(ReservationService::getChannelDisplayName)
-                .collect(Collectors.toList());
-    }
-
-    private static String getChannelDisplayName(String value) {
+    private String getChannelDisplayName(String value) {
         switch (value) {
             case "direct":
                 return "直营客";
