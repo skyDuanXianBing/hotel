@@ -8,7 +8,6 @@
         <ion-title>门店成员</ion-title>
         <ion-buttons slot="end">
           <ion-button @click="handleCreateMember">添加</ion-button>
-          <ion-button fill="outline" @click="handleOpenTransferOwner">转移负责人</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -21,11 +20,25 @@
       <section class="mobile-hero settings-members-hero">
         <p class="mobile-note settings-members-hero__eyebrow">账号与角色</p>
         <h1 class="mobile-title">{{ storeTitle }}</h1>
-        <p class="mobile-subtitle">支持成员角色分配、额外权限追加、负责人转移与角色权限矩阵维护。</p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">成员 {{ members.length }}</span>
-          <span class="mobile-chip">角色 {{ roles.length }}</span>
-          <span class="mobile-chip">{{ activeSegmentLabel }}</span>
+        <div class="settings-page-hero__summary">
+          <div class="settings-page-hero__meta">
+            <div class="settings-page-hero__meta-item">
+              <span class="settings-page-hero__meta-label">当前视图</span>
+              <strong>{{ activeSegmentLabel }}</strong>
+            </div>
+            <div class="settings-page-hero__meta-item">
+              <span class="settings-page-hero__meta-label">成员数</span>
+              <strong>{{ members.length }} 人</strong>
+            </div>
+            <div class="settings-page-hero__meta-item">
+              <span class="settings-page-hero__meta-label">启用成员</span>
+              <strong>{{ activeMembersCount }} 人</strong>
+            </div>
+            <div class="settings-page-hero__meta-item">
+              <span class="settings-page-hero__meta-label">角色数</span>
+              <strong>{{ roles.length }} 个</strong>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -43,9 +56,8 @@
 
         <section v-if="activeSegment === 'members'" class="mobile-card">
           <div class="mobile-inline-row settings-members-page__section-header">
-            <div>
+            <div class="settings-members-page__section-heading">
               <h2 class="mobile-section-title">门店成员</h2>
-              <p class="mobile-note">可统一处理角色分配、成员额外权限、启停与负责人转移。</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
@@ -69,21 +81,51 @@
                 <span>加入时间：{{ formatDate(member.joinedAt) }}</span>
               </div>
 
-              <p class="mobile-note">
+              <p class="mobile-note settings-member-card__roles-note">
                 {{ resolveAssignedRoles(member) }}
               </p>
 
               <div class="settings-member-card__actions">
-                <ion-button v-if="member.role === 'owner'" size="small" fill="outline" @click="handleOpenTransferOwner">
-                  更换负责人
+                <ion-button
+                  class="settings-member-card__action settings-member-card__action--primary"
+                  size="small"
+                  fill="solid"
+                  @click="handleEditMember(member)"
+                >
+                  设置权限
                 </ion-button>
-                <ion-button size="small" fill="outline" @click="handleEditMember(member)">设置权限</ion-button>
-                <ion-button size="small" fill="outline" @click="handleToggleMember(member)">
-                  {{ member.isActive ? '停用' : '启用' }}
-                </ion-button>
-                <ion-button size="small" color="danger" fill="clear" @click="handleRemoveMember(member)">
-                  移除
-                </ion-button>
+
+                <div class="settings-member-card__secondary-actions">
+                  <ion-button
+                    size="small"
+                    fill="solid"
+                    class="settings-member-card__action settings-member-card__action--secondary"
+                    @click="handleToggleMember(member)"
+                  >
+                    {{ member.isActive ? '停用' : '启用' }}
+                  </ion-button>
+                  <ion-button
+                    v-if="member.role === 'owner'"
+                    size="small"
+                    fill="solid"
+                    class="settings-member-card__action settings-member-card__action--secondary"
+                    @click="handleOpenTransferOwner"
+                  >
+                    更换负责人
+                  </ion-button>
+                </div>
+
+                <div class="settings-member-card__danger-zone">
+                  <ion-button
+                    size="small"
+                    color="danger"
+                    fill="clear"
+                    class="settings-member-card__action settings-member-card__action--danger"
+                    @click="handleRemoveMember(member)"
+                  >
+                    移除成员
+                  </ion-button>
+                </div>
               </div>
             </article>
           </div>
@@ -93,11 +135,10 @@
 
         <section v-else class="mobile-card">
           <div class="mobile-inline-row settings-members-page__section-header">
-            <div>
+            <div class="settings-members-page__section-heading">
               <h2 class="mobile-section-title">角色管理</h2>
-              <p class="mobile-note">支持角色基础信息与完整权限矩阵管理，成员额外权限请在成员页设置。</p>
             </div>
-            <ion-button size="small" @click="handleCreateRole">新增角色</ion-button>
+            <ion-button size="small" class="settings-role-create-button" @click="handleCreateRole">新增角色</ion-button>
           </div>
 
           <div v-if="roles.length > 0" class="mobile-list settings-roles-list">
@@ -127,14 +168,6 @@
           </div>
 
           <p v-else-if="!loading" class="mobile-note settings-members-page__empty-state">当前暂无角色数据。</p>
-        </section>
-
-        <section class="mobile-card">
-          <h2 class="mobile-section-title">首版说明</h2>
-          <ul class="mobile-bullet-list">
-            <li>已覆盖成员列表、添加成员、角色分配、成员额外权限追加、启停与负责人转移。</li>
-            <li>角色默认权限请在角色管理中维护，成员页仅做额外权限追加，与 Web 口径一致。</li>
-          </ul>
         </section>
       </div>
 
@@ -191,8 +224,7 @@
 
             <div v-else class="settings-form-grid settings-form-grid--with-segment">
               <div class="settings-member-permissions-note">
-                <strong>额外权限追加</strong>
-                <p>成员页只追加额外权限，不会取消角色默认权限；如需调整角色默认权限，请前往角色管理。</p>
+                <strong>权限状态</strong>
                 <p>{{ permissionSummary }}</p>
               </div>
 
@@ -221,7 +253,7 @@
                   <div v-if="showMemberRoomTypeScopeEditor(tab.name, section)" class="settings-member-room-scope">
                     <div class="settings-member-room-scope__header">
                       <strong>房型范围</strong>
-                      <p>“查看房态”支持按房型追加范围，角色已自带的房型权限会直接锁定。</p>
+                      <p>可单独设置“查看房态”的房型范围。</p>
                     </div>
 
                     <label class="settings-member-room-scope__all">
@@ -447,6 +479,10 @@ const rolePermissionRequestToken = ref(0)
 
 const storeTitle = computed(() => {
   return storeStore.currentStore?.name || '当前门店'
+})
+
+const activeMembersCount = computed(() => {
+  return members.value.filter((member) => member.isActive).length
 })
 
 const activeSegmentLabel = computed(() => {
@@ -1366,6 +1402,7 @@ onIonViewWillEnter(async () => {
 
 .settings-members-hero {
   margin-top: 4px;
+  margin-bottom: 12px;
 }
 
 .settings-members-hero__eyebrow {
@@ -1373,8 +1410,37 @@ onIonViewWillEnter(async () => {
   font-weight: 700;
 }
 
+.settings-members-hero .mobile-title {
+  max-width: 12ch;
+  line-height: 1.08;
+}
+
 .settings-members-page__section-header {
-  align-items: flex-start;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-members-page__section-heading {
+  min-width: 0;
+}
+
+.settings-members-page__section-heading .mobile-section-title {
+  margin: 0;
+}
+
+.settings-role-create-button {
+  margin: 0;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --border-radius: 12px;
+  --background: rgba(47, 107, 255, 0.1);
+  --background-hover: rgba(47, 107, 255, 0.14);
+  --color: #2452c8;
+  --box-shadow: none;
 }
 
 .settings-members-list,
@@ -1384,10 +1450,11 @@ onIonViewWillEnter(async () => {
 
 .settings-member-card,
 .settings-role-card {
-  padding: 14px;
-  border-radius: 18px;
+  padding: 18px;
+  border-radius: 22px;
   border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 255, 0.92));
+  box-shadow: 0 18px 32px rgba(15, 23, 42, 0.05);
 }
 
 .settings-member-card__header {
@@ -1432,12 +1499,11 @@ onIonViewWillEnter(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
-  margin-top: 10px;
+  margin-top: 12px;
   color: var(--app-muted);
   font-size: 12px;
 }
 
-.settings-member-card__actions,
 .settings-role-card__actions {
   display: flex;
   gap: 8px;
@@ -1445,7 +1511,66 @@ onIonViewWillEnter(async () => {
 }
 
 .settings-member-card__actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.settings-member-card__roles-note {
   margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.035);
+  color: var(--app-muted);
+}
+
+.settings-member-card__action {
+  margin: 0;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  --border-radius: 14px;
+  --box-shadow: none;
+}
+
+.settings-member-card__action--primary {
+  width: 100%;
+  --background: linear-gradient(135deg, #2f6bff, #4f8cff);
+  --background-hover: linear-gradient(135deg, #2b62eb, #467fe8);
+  --color: #fff;
+}
+
+.settings-member-card__secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settings-member-card__secondary-actions .settings-member-card__action {
+  flex: 1 1 132px;
+  --background: rgba(47, 107, 255, 0.08);
+  --background-hover: rgba(47, 107, 255, 0.12);
+  --color: #2452c8;
+}
+
+.settings-member-card__danger-zone {
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+  border-top: 1px solid rgba(239, 68, 68, 0.08);
+}
+
+.settings-member-card__action--danger {
+  width: auto;
+  min-height: 28px;
+  font-size: 13px;
+  font-weight: 600;
+  --color: #dc2626;
+  --padding-start: 0;
+  --padding-end: 0;
 }
 
 .settings-role-card__footer {

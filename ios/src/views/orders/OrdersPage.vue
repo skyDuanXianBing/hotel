@@ -1,10 +1,12 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">订单</ion-title>
+      <ion-toolbar class="orders-header__toolbar">
+        <ion-title class="orders-header__title">订单</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="isFilterModalOpen = true">筛选</ion-button>
+          <ion-button class="orders-header__icon-btn" fill="clear" @click="handleToggleSearch">
+            <ion-icon :icon="searchOutline" />
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -14,79 +16,119 @@
         <ion-refresher-content pulling-text="下拉刷新订单" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section class="orders-hero">
-        <div class="orders-hero__row">
-          <h1 class="orders-hero__title">订单管理</h1>
-          <span class="orders-hero__badge">{{ totalElements }} 单</span>
-        </div>
-        <div v-if="filterCount > 0 || committedKeyword" class="orders-hero__filters">
-          <span v-if="filterCount > 0" class="orders-hero__filter-tag">筛选 {{ filterCount }} 项</span>
-          <span v-if="committedKeyword" class="orders-hero__filter-tag">{{ committedKeyword }}</span>
-        </div>
-      </section>
+      <div class="orders-page__shell">
+        <section v-if="isSearchVisible" class="orders-search-panel">
+          <div class="orders-search-panel__bar">
+            <ion-searchbar
+              v-model="searchKeyword"
+              :debounce="0"
+              class="orders-searchbar"
+              placeholder="单号/房间/房客姓名/备注"
+            />
+            <button type="button" class="orders-search-panel__cancel" @click="handleHideSearch">取消</button>
+          </div>
+        </section>
 
-      <div class="mobile-stack">
-        <OrderSummaryCards
-          :items="summaryCards"
-          :active-key="activeTab"
-          :loading="summaryLoading"
-          @select="handleSelectTab"
-        />
-
-        <section class="orders-toolbar">
-          <ion-searchbar
-            v-model="searchKeyword"
-            :debounce="0"
-            class="orders-searchbar"
-            placeholder="搜索订单号/房号/姓名/手机号"
-          />
-
-          <ion-segment :value="activeTab" @ionChange="handlePrimaryTabChange">
-            <ion-segment-button v-for="item in primaryTabs" :key="item.value" :value="item.value">
-              <ion-label>{{ item.label }}</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-
-          <div v-if="secondaryTabs.length > 0" class="orders-secondary-tabs">
+        <section class="orders-tabs-strip">
+          <div class="orders-tabs-strip__scroll">
             <button
-              v-for="item in secondaryTabs"
+              v-for="item in displayTabs"
               :key="item.value"
               type="button"
-              class="orders-tab-pill"
+              class="orders-tabs-strip__item"
               :class="{ 'is-active': item.value === activeTab }"
               @click="handleSelectTab(item.value)"
             >
               {{ item.label }}
             </button>
           </div>
-
-          <div class="orders-actions">
-            <ion-button fill="outline" size="small" @click="isFilterModalOpen = true">
-              筛选{{ filterCount > 0 ? `(${filterCount})` : '' }}
-            </ion-button>
-            <ion-button fill="outline" size="small" @click="handleResetSearchAndFilters">清空</ion-button>
-          </div>
-
-          <p v-if="loadNotice" class="orders-notice-text">{{ loadNotice }}</p>
         </section>
 
-        <div v-if="activeTab === 'order-box'" class="orders-tip">
-          订单盒子以 reservation 为数据源，可从详情执行移入/移出。
-        </div>
-
-        <div v-if="activeTab === 'unassigned'" class="orders-tip">
-          包含未排房订单与渠道映射异常订单。
-        </div>
-
-        <div v-if="activeTab === 'deleted-rooms'" class="orders-tip orders-tip--warning">
-          关联房型或房间已删除，请核对后重新排房。
-        </div>
+        <section class="orders-filter-row">
+          <div class="orders-filter-row__scroll">
+            <button
+              type="button"
+              class="orders-filter-chip"
+              :class="{ 'is-active': Boolean(filters.startDate || filters.endDate) }"
+              @click="openFilterPanel('date')"
+            >
+              {{ dateFilterLabel }}
+            </button>
+            <button
+              type="button"
+              class="orders-filter-chip"
+              :class="{ 'is-active': filters.roomType.length > 0 }"
+              @click="openFilterPanel('roomType')"
+            >
+              {{ roomTypeFilterLabel }}
+            </button>
+            <button
+              type="button"
+              class="orders-filter-chip"
+              :class="{ 'is-active': filters.channel.length > 0 }"
+              @click="openFilterPanel('channel')"
+            >
+              {{ channelFilterLabel }}
+            </button>
+            <button
+              type="button"
+              class="orders-filter-chip"
+              :class="{ 'is-active': Boolean(filters.status) }"
+              @click="openFilterPanel('status')"
+            >
+              {{ statusFilterLabel }}
+            </button>
+            <button
+              type="button"
+              class="orders-filter-chip"
+              :class="{ 'is-active': Boolean(filters.paymentStatus) }"
+              @click="openFilterPanel('paymentStatus')"
+            >
+              {{ paymentFilterLabel }}
+            </button>
+            <button
+              type="button"
+              class="orders-filter-chip"
+              :class="{ 'is-active': Boolean(filters.checkinType) }"
+              @click="openFilterPanel('checkinType')"
+            >
+              {{ checkinTypeFilterLabel }}
+            </button>
+            <button
+              v-if="filterCount > 0 || committedKeyword"
+              type="button"
+              class="orders-filter-chip orders-filter-chip--ghost"
+              @click="handleResetSearchAndFilters"
+            >
+              清空
+            </button>
+          </div>
+        </section>
 
         <section class="orders-list-section">
           <div class="orders-list-header">
-            <h2 class="orders-list-header__title">订单列表</h2>
-            <ion-spinner v-if="loading" name="crescent" class="orders-list-header__spinner" />
+            <div class="orders-list-header__heading">
+              <p class="orders-list-header__summary">{{ activeTabLabel }} · {{ totalElements }} 条结果</p>
+              <div v-if="filterCount > 0 || committedKeyword" class="orders-list-header__tags">
+                <span v-if="filterCount > 0" class="orders-list-header__tag">已筛选 {{ filterCount }} 项</span>
+                <span v-if="committedKeyword" class="orders-list-header__tag">{{ committedKeyword }}</span>
+              </div>
+            </div>
+            <div class="orders-list-header__status" :class="{ 'is-loading': loading }" aria-hidden="true">
+              <ion-spinner name="crescent" class="orders-list-header__spinner" />
+            </div>
           </div>
+
+          <p v-if="loadNotice" class="orders-notice-text">{{ loadNotice }}</p>
+          <p v-else-if="activeTab === 'order-box'" class="orders-notice-text">
+            订单盒子以 reservation 为数据源，可从详情执行移入/移出。
+          </p>
+          <p v-else-if="activeTab === 'unassigned'" class="orders-notice-text">
+            包含未排房订单与渠道映射异常订单。
+          </p>
+          <p v-else-if="activeTab === 'deleted-rooms'" class="orders-notice-text orders-notice-text--warning">
+            关联房型或房间已删除，请核对后重新排房。
+          </p>
 
           <div v-if="orderCards.length > 0" class="orders-list">
             <OrderListCard
@@ -95,18 +137,28 @@
               :reservation="item.reservation"
               :active-tab="activeTab"
               :order-box-item="item.orderBoxItem"
-              :show-assign-action="activeTab !== 'order-box' && canAssignRoom(item.reservation)"
               @open-detail="openReservationDetail(item.reservation.id)"
               @assign-room="openAssignRoom(item.reservation)"
               @open-actions="presentReservationActions(item.reservation, item.orderBoxItem)"
             />
           </div>
 
-          <p v-else-if="!loading" class="orders-empty">当前条件下暂无订单</p>
+          <div v-else-if="!loading" class="orders-empty-state">
+            <div class="orders-empty-state__illustration" aria-hidden="true">
+              <span class="orders-empty-state__box"></span>
+            </div>
+            <p class="orders-empty">暂无数据</p>
+          </div>
         </section>
 
-        <section v-if="usePagedEndpoint && hasMore" class="mobile-card orders-load-more-card">
-          <ion-button expand="block" fill="outline" :disabled="loadingMore" @click="handleLoadMoreButton">
+        <section v-if="usePagedEndpoint && hasMore" class="orders-load-more-card">
+          <ion-button
+            expand="block"
+            fill="clear"
+            class="orders-load-more-card__button"
+            :disabled="loadingMore"
+            @click="handleLoadMoreButton"
+          >
             {{ loadingMore ? '加载中...' : '加载更多订单' }}
           </ion-button>
         </section>
@@ -123,6 +175,7 @@
       :channels="channelOptions"
       :room-types="roomTypeOptions"
       :initial-filters="filters"
+      :initial-panel="activeFilterPanel"
       @dismiss="isFilterModalOpen = false"
       @apply="handleApplyFilters"
       @reset="handleResetFilters"
@@ -154,33 +207,30 @@ import {
   IonButtons,
   IonContent,
   IonHeader,
+  IonIcon,
   IonInfiniteScroll,
   IonInfiniteScrollContent,
-  IonLabel,
   IonPage,
   IonRefresher,
   IonRefresherContent,
   IonSearchbar,
-  IonSegment,
-  IonSegmentButton,
   IonSpinner,
   IonTitle,
   IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
+import { searchOutline } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AssignRoomModal from '@/components/order/AssignRoomModal.vue'
 import OrderFilterModal from '@/components/order/OrderFilterModal.vue'
 import OrderListCard from '@/components/order/OrderListCard.vue'
-import OrderSummaryCards from '@/components/order/OrderSummaryCards.vue'
 import {
   canAssignRoom,
   canCancelOrder,
   canCheckInOrder,
   canCheckOutOrder,
   createDefaultOrderFilters,
-  buildOrderSummaryCards,
   getOrderTabLabel,
   mapHomeTypeToOrderTab,
   mapOrderTabToApiType,
@@ -237,8 +287,7 @@ const router = useRouter()
 const roomStatusStore = useRoomStatusStore()
 const storeStore = useStoreStore()
 
-const primaryTabs = ORDER_PRIMARY_TABS
-const secondaryTabs = ORDER_SECONDARY_TABS
+type FilterPanelKey = 'date' | 'roomType' | 'channel' | 'status' | 'paymentStatus' | 'checkinType'
 
 const activeTab = ref<OrderTabValue>('all')
 const searchKeyword = ref('')
@@ -258,7 +307,9 @@ const page = ref(0)
 const totalPages = ref(1)
 const totalElements = ref(0)
 const isFilterModalOpen = ref(false)
+const isSearchVisible = ref(false)
 const isAssignModalOpen = ref(false)
+const activeFilterPanel = ref<FilterPanelKey>('date')
 const selectedReservation = ref<ReservationDTO | null>(null)
 const assignableRoomTypes = ref<AssignableRoomTypeDTO[]>([])
 const assignableRooms = ref<AssignableRoomDTO[]>([])
@@ -269,7 +320,6 @@ const assignSubmitting = ref(false)
 
 let searchTimer = 0
 
-const storeName = computed(() => storeStore.currentStore?.name || '未选择门店')
 const VALID_ORDER_TABS: OrderTabValue[] = [
   'all',
   'today-checkin',
@@ -284,10 +334,10 @@ const VALID_ORDER_TABS: OrderTabValue[] = [
 
 const filterCount = computed(() => {
   let count = 0
-  if (filters.value.channel) {
+  if (filters.value.channel.length > 0) {
     count += 1
   }
-  if (filters.value.roomType) {
+  if (filters.value.roomType.length > 0) {
     count += 1
   }
   if (filters.value.checkinType) {
@@ -335,7 +385,80 @@ const activeTabLabel = computed(() => {
   return getOrderTabLabel(activeTab.value)
 })
 
-const summaryCards = computed(() => buildOrderSummaryCards(statistics.value))
+const displayTabs = computed(() => [...ORDER_PRIMARY_TABS, ...ORDER_SECONDARY_TABS])
+
+const dateFilterLabel = computed(() => {
+  if (filters.value.startDate && filters.value.endDate) {
+    return `${filters.value.startDate.slice(5)} ~ ${filters.value.endDate.slice(5)}`
+  }
+  if (filters.value.startDate) {
+    return filters.value.startDate.slice(5)
+  }
+  if (filters.value.endDate) {
+    return filters.value.endDate.slice(5)
+  }
+  return '时间'
+})
+
+const roomTypeFilterLabel = computed(() => {
+  if (filters.value.roomType.length === 0) {
+    return '房间'
+  }
+  const firstMatched = roomTypeOptions.value.find((item) => item.value === filters.value.roomType[0])
+  const matched = firstMatched
+  const firstLabel = firstMatched?.label || filters.value.roomType[0] || '房间'
+  if (filters.value.roomType.length === 1) {
+    return firstLabel
+  }
+  return `${firstLabel} +${filters.value.roomType.length - 1}`
+  return matched?.label || '房间'
+})
+
+const channelFilterLabel = computed(() => {
+  if (filters.value.channel.length === 0) {
+    return '渠道'
+  }
+  const matched = channelOptions.value.find((item) => item.value === filters.value.channel[0])
+  const firstLabel = matched?.label || filters.value.channel[0] || '渠道'
+  if (filters.value.channel.length === 1) {
+    return firstLabel
+  }
+  return `${firstLabel} +${filters.value.channel.length - 1}`
+  return matched?.label || '渠道'
+})
+
+const statusFilterLabel = computed(() => {
+  if (!filters.value.status) {
+    return '入住状态'
+  }
+  if (filters.value.status === 'checked-in') {
+    return '已入住'
+  }
+  if (filters.value.status === 'not-checked-in') {
+    return '未入住'
+  }
+  return '已退房'
+})
+
+const paymentFilterLabel = computed(() => {
+  if (!filters.value.paymentStatus) {
+    return '房费'
+  }
+  return filters.value.paymentStatus === 'paid' ? '已结清' : '未结清'
+})
+
+const checkinTypeFilterLabel = computed(() => {
+  if (!filters.value.checkinType) {
+    return '入住类型'
+  }
+  if (filters.value.checkinType === 'early') {
+    return '提前入住'
+  }
+  if (filters.value.checkinType === 'late') {
+    return '延迟入住'
+  }
+  return '正常入住'
+})
 
 const orderCards = computed(() => {
   if (activeTab.value === 'order-box') {
@@ -378,6 +501,36 @@ function normalizeOrderTab(value: unknown): OrderTabValue | null {
   return null
 }
 
+function normalizeMultiSelectSnapshotValue(value: unknown) {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed ? [trimmed] : []
+  }
+
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const normalizedValues = new Set<string>()
+  for (const item of value) {
+    if (typeof item !== 'string') {
+      continue
+    }
+    const trimmed = item.trim()
+    if (trimmed) {
+      normalizedValues.add(trimmed)
+    }
+  }
+  return [...normalizedValues]
+}
+
+function serializeMultiSelectFilterValue(values: string[]) {
+  if (values.length === 0) {
+    return undefined
+  }
+  return values.join(',')
+}
+
 function parseFiltersSnapshot(snapshot: string) {
   const defaultFilters = createDefaultOrderFilters()
   if (!snapshot) {
@@ -385,10 +538,10 @@ function parseFiltersSnapshot(snapshot: string) {
   }
 
   try {
-    const parsed = JSON.parse(snapshot) as Partial<OrderFilterForm>
+    const parsed = JSON.parse(snapshot) as Record<string, unknown>
     return {
-      channel: typeof parsed.channel === 'string' ? parsed.channel : '',
-      roomType: typeof parsed.roomType === 'string' ? parsed.roomType : '',
+      channel: normalizeMultiSelectSnapshotValue(parsed.channel),
+      roomType: normalizeMultiSelectSnapshotValue(parsed.roomType),
       checkinType: typeof parsed.checkinType === 'string' ? parsed.checkinType : '',
       status: typeof parsed.status === 'string' ? parsed.status : '',
       paymentStatus: typeof parsed.paymentStatus === 'string' ? parsed.paymentStatus : '',
@@ -402,8 +555,8 @@ function parseFiltersSnapshot(snapshot: string) {
 
 function serializeFiltersSnapshot(currentFilters: OrderFilterForm) {
   if (
-    !currentFilters.channel &&
-    !currentFilters.roomType &&
+    currentFilters.channel.length === 0 &&
+    currentFilters.roomType.length === 0 &&
     !currentFilters.checkinType &&
     !currentFilters.status &&
     !currentFilters.paymentStatus &&
@@ -534,8 +687,8 @@ function buildPagedFilters(nextPage: number) {
     page: nextPage,
     size: PAGE_SIZE,
     searchKeyword: committedKeyword.value.trim() || undefined,
-    channel: filters.value.channel || undefined,
-    roomType: filters.value.roomType || undefined,
+    channel: serializeMultiSelectFilterValue(filters.value.channel),
+    roomType: serializeMultiSelectFilterValue(filters.value.roomType),
     checkinType: filters.value.checkinType || undefined,
     status: filters.value.status || undefined,
     paymentStatus: filters.value.paymentStatus || undefined,
@@ -1117,18 +1270,29 @@ async function handleSelectTab(tab: OrderTabValue) {
   }
 }
 
-async function handlePrimaryTabChange(event: CustomEvent) {
-  const nextTab = event.detail.value as OrderTabValue
-  if (!nextTab) {
-    return
+function handleToggleSearch() {
+  isSearchVisible.value = !isSearchVisible.value
+  if (!isSearchVisible.value && !committedKeyword.value) {
+    searchKeyword.value = ''
   }
-  await handleSelectTab(nextTab)
+}
+
+function handleHideSearch() {
+  isSearchVisible.value = false
+  if (!committedKeyword.value) {
+    searchKeyword.value = ''
+  }
+}
+
+function openFilterPanel(panel: FilterPanelKey) {
+  activeFilterPanel.value = panel
+  isFilterModalOpen.value = true
 }
 
 async function handleApplyFilters(nextFilters: OrderFilterForm) {
   filters.value = {
-    channel: nextFilters.channel,
-    roomType: nextFilters.roomType,
+    channel: [...nextFilters.channel],
+    roomType: [...nextFilters.roomType],
     checkinType: nextFilters.checkinType,
     status: nextFilters.status,
     paymentStatus: nextFilters.paymentStatus,
@@ -1250,145 +1414,258 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .orders-page {
   display: block;
+  --background: #ffffff;
 }
 
-.orders-hero {
-  padding: 18px;
-  border: 1px solid var(--app-border);
-  border-radius: 20px;
-  background:
-    linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.08), transparent 60%),
-    var(--app-surface-strong);
-  box-shadow: var(--app-shadow);
+.orders-page :deep(ion-header) {
+  backdrop-filter: blur(14px);
 }
 
-.orders-hero__row {
+.orders-page :deep(ion-header::after) {
+  display: none;
+}
+
+.orders-header__toolbar {
+  --background: rgba(255, 255, 255, 0.94);
+  --border-width: 0;
+  --padding-start: 10px;
+  --padding-end: 10px;
+}
+
+.orders-header__title {
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-xl-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  letter-spacing: -0.04em;
+}
+
+.orders-header__icon-btn {
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --color: #141821;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  font-size: 25px;
+}
+
+.orders-page__shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+  padding: 10px 0 32px;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfcfe 100%);
+}
+
+.orders-search-panel {
+  padding: 0 14px;
+}
+
+  .orders-search-panel__bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-}
-
-.orders-hero__title {
-  margin: 0;
-  color: var(--app-heading);
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.orders-hero__badge {
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.orders-hero__filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.orders-hero__filter-tag {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--app-primary-soft-strong);
-  color: var(--ion-color-primary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.orders-toolbar {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--app-border);
-  border-radius: 20px;
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
 }
 
 .orders-searchbar {
-  --border-radius: 14px;
-  --background: var(--app-surface-muted);
-}
-
-.orders-secondary-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.orders-tab-pill {
-  padding: 10px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-strong);
-  color: var(--app-muted);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.orders-tab-pill.is-active {
-  border-color: var(--ion-color-primary);
-  background: var(--app-primary-soft-strong);
-  color: var(--ion-color-primary);
-}
-
-.orders-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.orders-notice-text {
+  flex: 1;
   margin: 0;
-  color: var(--ion-color-warning);
-  font-size: 12px;
+  padding: 0;
+  --background: transparent;
+  --border-radius: 0;
+  --box-shadow: none;
+  --color: #10131a;
+  --icon-color: #c7ccd8;
+  --placeholder-color: #c7ccd8;
+  --placeholder-opacity: 1;
+  --clear-button-color: #8a90a0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --cancel-button-color: #8c909b;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.orders-tip {
-  padding: 12px 16px;
-  border-radius: 14px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 13px;
-  line-height: 1.5;
+.orders-searchbar :deep(.searchbar-input-container) {
+  border: 1px solid #eceff5;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: none;
+  overflow: hidden;
 }
 
-.orders-tip--warning {
-  background: var(--app-warning-soft);
-  color: var(--ion-color-warning);
+.orders-search-panel__cancel {
+  border: 0;
+  background: transparent;
+  color: #8c909b;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.orders-tabs-strip,
+.orders-filter-row {
+  position: relative;
+  --orders-strip-edge: 14px;
+  --orders-strip-fade-width: 14px;
+}
+
+.orders-tabs-strip::after,
+.orders-filter-row::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--orders-strip-fade-width);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff 78%);
+  pointer-events: none;
+}
+
+.orders-tabs-strip__scroll,
+.orders-filter-row__scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-left: var(--orders-strip-edge);
+  padding-right: calc(var(--orders-strip-edge) + var(--orders-strip-fade-width));
+  scroll-padding-left: var(--orders-strip-edge);
+  scroll-padding-right: calc(var(--orders-strip-edge) + var(--orders-strip-fade-width));
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.orders-tabs-strip__scroll::-webkit-scrollbar,
+.orders-filter-row__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.orders-tabs-strip__item {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 0 2px 14px;
+  border: 0;
+  background: transparent;
+  color: #8f94a2;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.orders-tabs-strip__item.is-active {
+  color: #4a98ff;
+}
+
+.orders-tabs-strip__item.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: #4a98ff;
+}
+
+.orders-filter-chip {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #e9ebf1;
+  border-radius: 13px;
+  background: #ffffff;
+  color: #5a6170;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+  white-space: nowrap;
+}
+
+.orders-filter-chip.is-active {
+  border-color: #56d0b0;
+  box-shadow: inset 0 0 0 1px rgba(86, 208, 176, 0.2);
+  color: #3bb596;
+}
+
+.orders-filter-chip--ghost {
+  border-color: #dce5ff;
+  color: #4a98ff;
 }
 
 .orders-list-section {
-  padding: 16px;
-  padding-bottom: 80px;
-  border: 1px solid var(--app-border);
-  border-radius: 20px;
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
+  flex: 1;
+  padding: 2px 14px 40px;
 }
 
 .orders-list-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 10px;
+  padding: 0 2px 14px;
 }
 
-.orders-list-header__title {
+.orders-list-header__heading {
+  min-width: 0;
+}
+
+.orders-list-header__summary {
   margin: 0;
-  color: var(--app-heading);
-  font-size: 16px;
-  font-weight: 700;
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  font-weight: var(--ios-pms-weight-medium);
+  letter-spacing: -0.01em;
+  line-height: 1.45;
+}
+
+.orders-list-header__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.orders-list-header__tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.08);
+  border-radius: 999px;
+  background: var(--ios-pms-primary-soft);
+  color: var(--ios-pms-primary-strong);
+  font-size: 11px;
+  font-weight: var(--ios-pms-weight-bold);
 }
 
 .orders-list-header__spinner {
-  color: var(--ion-color-primary);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #4a98ff;
+  opacity: 0;
+}
+
+.orders-list-header__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  min-height: 20px;
+  flex-shrink: 0;
+}
+
+.orders-list-header__status.is-loading .orders-list-header__spinner {
+  opacity: 1;
 }
 
 .orders-list {
@@ -1396,15 +1673,98 @@ onIonViewWillEnter(async () => {
   gap: 10px;
 }
 
+.orders-notice-text {
+  margin: 0;
+  padding: 0 2px 14px;
+  color: var(--ios-pms-text-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.orders-notice-text--warning {
+  color: #d99a3e;
+}
+
+.orders-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 58vh;
+  padding: 28px 0 0;
+}
+
+.orders-empty-state__illustration {
+  position: relative;
+  width: 132px;
+  height: 116px;
+  margin-bottom: 18px;
+}
+
+.orders-empty-state__illustration::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 10px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(17, 24, 39, 0.05);
+  filter: blur(1px);
+}
+
+.orders-empty-state__box {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #eef1f6;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 252, 0.72));
+}
+
+.orders-empty-state__box::before,
+.orders-empty-state__box::after {
+  content: '';
+  position: absolute;
+  top: -28px;
+  width: 54px;
+  height: 44px;
+  border: 2px solid #eef1f6;
+  background: #ffffff;
+}
+
+.orders-empty-state__box::before {
+  left: 14px;
+  border-right: 0;
+  transform: skewX(-38deg);
+  border-top-left-radius: 12px;
+}
+
+.orders-empty-state__box::after {
+  right: 14px;
+  border-left: 0;
+  transform: skewX(38deg);
+  border-top-right-radius: 12px;
+}
+
 .orders-empty {
   margin: 0;
-  padding: 24px 0;
-  color: var(--app-muted);
-  font-size: 13px;
+  color: #1b1e26;
+  font-size: 17px;
+  font-weight: 500;
   text-align: center;
 }
 
 .orders-load-more-card {
-  padding-top: 12px;
+  padding: 0 14px 12px;
+}
+
+.orders-load-more-card__button {
+  --border-radius: 18px;
+  --background: #f6f8fc;
+  --color: #4a98ff;
+  min-height: 46px;
+  border-radius: 18px;
+  border: 1px solid #edf1f7;
+  font-weight: 500;
 }
 </style>

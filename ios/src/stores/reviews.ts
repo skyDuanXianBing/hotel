@@ -16,6 +16,7 @@ export const useReviewStore = defineStore('reviews', () => {
   const channelLoadError = ref('')
   const linkLoadError = ref('')
   const hasLoaded = ref(false)
+  const hasLoadedChannels = ref(false)
 
   const pendingCount = computed(() => {
     return records.value.filter((item) => item.status === 'pending').length
@@ -60,10 +61,12 @@ export const useReviewStore = defineStore('reviews', () => {
       }
 
       channels.value = response.data || []
+      hasLoadedChannels.value = true
       return true
     } catch (error) {
       channels.value = []
       channelLoadError.value = showUnhandledRequestWarning(error, '加载渠道失败')
+      hasLoadedChannels.value = true
       return false
     } finally {
       isChannelLoading.value = false
@@ -97,6 +100,7 @@ export const useReviewStore = defineStore('reviews', () => {
     channelLoadError,
     linkLoadError,
     hasLoaded,
+    hasLoadedChannels,
     totalCount,
     pendingCount,
     approvedCount,

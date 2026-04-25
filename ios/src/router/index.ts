@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from '@ionic/vue-router'
+﻿import { createRouter, createWebHistory } from '@ionic/vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { registerRouterGuards, resolveDefaultAuthenticatedPath, ROUTE_PATHS } from '@/router/guards'
 import '@/router/types'
@@ -13,7 +13,16 @@ const routes: RouteRecordRaw[] = [
     name: 'Login',
     component: () => import('@/views/auth/LoginPage.vue'),
     meta: {
-      title: '登录',
+      title: '鐧诲綍',
+      publicOnly: true,
+    },
+  },
+  {
+    path: ROUTE_PATHS.loginCodeVerify,
+    name: 'LoginCodeVerify',
+    component: () => import('@/views/auth/LoginCodeVerifyPage.vue'),
+    meta: {
+      title: '邮箱验证码登录',
       publicOnly: true,
     },
   },
@@ -22,7 +31,7 @@ const routes: RouteRecordRaw[] = [
     name: 'Register',
     component: () => import('@/views/auth/RegisterPage.vue'),
     meta: {
-      title: '注册',
+      title: '娉ㄥ唽',
       publicOnly: true,
     },
   },
@@ -31,7 +40,7 @@ const routes: RouteRecordRaw[] = [
     name: 'ForgotPassword',
     component: () => import('@/views/auth/ForgotPasswordPage.vue'),
     meta: {
-      title: '忘记密码',
+      title: '蹇樿瀵嗙爜',
       publicOnly: true,
     },
   },
@@ -41,7 +50,7 @@ const routes: RouteRecordRaw[] = [
     name: 'PublicRegistrationBooking',
     component: () => import('@/views/public/RegistrationBookingPublicPage.vue'),
     meta: {
-      title: '公开登记入口',
+      title: '鍏紑鐧昏鍏ュ彛',
       publicAccess: true,
     },
   },
@@ -51,7 +60,7 @@ const routes: RouteRecordRaw[] = [
     name: 'PublicRegistrationForm',
     component: () => import('@/views/public/RegistrationFormPublicPage.vue'),
     meta: {
-      title: '公开入住登记',
+      title: '鍏紑鍏ヤ綇鐧昏',
       publicAccess: true,
     },
   },
@@ -61,7 +70,7 @@ const routes: RouteRecordRaw[] = [
     name: 'PublicRoomStatusShare',
     component: () => import('@/views/share/RoomStatusSharePublicPage.vue'),
     meta: {
-      title: '房态分享',
+      title: 'Room Status Share',
       publicAccess: true,
     },
   },
@@ -70,7 +79,7 @@ const routes: RouteRecordRaw[] = [
     name: 'CleanerRegister',
     component: () => import('@/views/cleaner/CleanerRegisterPage.vue'),
     meta: {
-      title: '保洁员注册',
+      title: 'Cleaner Register',
       cleanerPublicOnly: true,
     },
   },
@@ -79,7 +88,7 @@ const routes: RouteRecordRaw[] = [
     name: 'CleanerLogin',
     component: () => import('@/views/cleaner/CleanerLoginPage.vue'),
     meta: {
-      title: '保洁员登录',
+      title: 'Cleaner Login',
       cleanerPublicOnly: true,
     },
   },
@@ -88,7 +97,7 @@ const routes: RouteRecordRaw[] = [
     name: 'CleanerDashboard',
     component: () => import('@/views/cleaner/CleanerDashboardPage.vue'),
     meta: {
-      title: '保洁员工作台',
+      title: '淇濇磥鍛樺伐浣滃彴',
       requiresCleanerAuth: true,
       requiresCleanerStore: true,
     },
@@ -98,7 +107,7 @@ const routes: RouteRecordRaw[] = [
     name: 'CleanerTaskDetail',
     component: () => import('@/views/cleaner/CleanerTaskDetailPage.vue'),
     meta: {
-      title: '任务详情',
+      title: '浠诲姟璇︽儏',
       requiresCleanerAuth: true,
       requiresCleanerStore: true,
     },
@@ -108,7 +117,7 @@ const routes: RouteRecordRaw[] = [
     name: 'StoreSelection',
     component: () => import('@/views/store/StoreSelectionPage.vue'),
     meta: {
-      title: '选择门店',
+      title: '閫夋嫨闂ㄥ簵',
       requiresAuth: true,
     },
   },
@@ -126,10 +135,20 @@ const routes: RouteRecordRaw[] = [
         name: 'Home',
         component: () => import('@/views/home/HomePage.vue'),
         meta: {
-          title: '首页',
+          title: '棣栭〉',
           requiresAuth: true,
           requiresStore: true,
           tab: 'home',
+        },
+      },
+      {
+        path: 'home/customize',
+        name: 'HomeCustomize',
+        component: () => import('@/views/home/HomeShortcutManagePage.vue'),
+        meta: {
+          title: '管理',
+          requiresAuth: true,
+          requiresStore: true,
         },
       },
       {
@@ -137,7 +156,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Rooms',
         component: () => import('@/views/rooms/RoomsPage.vue'),
         meta: {
-          title: '房态',
+          title: 'Rooms',
           requiresAuth: true,
           requiresStore: true,
           tab: 'rooms',
@@ -148,7 +167,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RoomsRoomTable',
         component: () => import('@/views/rooms/RoomTablePage.vue'),
         meta: {
-          title: '房情表',
+          title: 'Room Table',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -158,7 +177,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RoomsPricing',
         component: () => import('@/views/rooms/RoomPriceManagementPage.vue'),
         meta: {
-          title: '房价管理',
+          title: '鎴夸环绠＄悊',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -168,7 +187,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RoomsPricingHistory',
         component: () => import('@/views/rooms/PriceChangeHistoryPage.vue'),
         meta: {
-          title: '改价记录',
+          title: '鏀逛环璁板綍',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -178,7 +197,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RoomsCleaningOverview',
         component: () => import('@/views/rooms/cleaning/CleaningOverviewPage.vue'),
         meta: {
-          title: '保洁概览',
+          title: '淇濇磥姒傝',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -188,7 +207,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RoomsCleaningTasks',
         component: () => import('@/views/rooms/cleaning/CleaningTaskListPage.vue'),
         meta: {
-          title: '保洁任务列表',
+          title: '淇濇磥浠诲姟鍒楄〃',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -198,7 +217,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RoomStatusDetail',
         component: () => import('@/views/room-status/RoomStatusDetailPage.vue'),
         meta: {
-          title: '房间详情',
+          title: '鎴块棿璇︽儏',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -208,7 +227,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RoomReservationDetail',
         component: () => import('@/views/room-status/ReservationDetailPage.vue'),
         meta: {
-          title: '订单详情',
+          title: '璁㈠崟璇︽儏',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -218,7 +237,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Orders',
         component: () => import('@/views/orders/OrdersPage.vue'),
         meta: {
-          title: '订单',
+          title: '璁㈠崟',
           requiresAuth: true,
           requiresStore: true,
           tab: 'orders',
@@ -229,7 +248,7 @@ const routes: RouteRecordRaw[] = [
         name: 'OrderReservationDetail',
         component: () => import('@/views/room-status/ReservationDetailPage.vue'),
         meta: {
-          title: '订单详情',
+          title: '璁㈠崟璇︽儏',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -239,7 +258,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Channels',
         component: () => import('@/views/channels/ChannelsPage.vue'),
         meta: {
-          title: '渠道',
+          title: '娓犻亾',
           requiresAuth: true,
           requiresStore: true,
           tab: 'channels',
@@ -250,7 +269,7 @@ const routes: RouteRecordRaw[] = [
         name: 'ChannelDetail',
         component: () => import('@/views/channel/ChannelDetailPage.vue'),
         meta: {
-          title: '渠道详情',
+          title: '娓犻亾璇︽儏',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -260,7 +279,7 @@ const routes: RouteRecordRaw[] = [
         name: 'ChannelMapping',
         component: () => import('@/views/channel/ChannelMappingPage.vue'),
         meta: {
-          title: '渠道映射',
+          title: '娓犻亾鏄犲皠',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -270,7 +289,7 @@ const routes: RouteRecordRaw[] = [
         name: 'ChannelSync',
         component: () => import('@/views/channel/ChannelSyncPage.vue'),
         meta: {
-          title: '渠道同步',
+          title: '娓犻亾鍚屾',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -280,7 +299,7 @@ const routes: RouteRecordRaw[] = [
         name: 'ChannelInventory',
         component: () => import('@/views/channel/ChannelInventoryPage.vue'),
         meta: {
-          title: '房量设置',
+          title: '鎴块噺璁剧疆',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -294,7 +313,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsOverview',
         component: () => import('@/views/statistics/DataCenterPage.vue'),
         meta: {
-          title: '数据中心',
+          title: '鏁版嵁涓績',
           requiresAuth: true,
           requiresStore: true,
           tab: 'statistics',
@@ -305,7 +324,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsAccommodation',
         component: () => import('@/views/statistics/DataCenterPage.vue'),
         meta: {
-          title: '住宿',
+          title: '浣忓',
           requiresAuth: true,
           requiresStore: true,
           tab: 'statistics',
@@ -316,7 +335,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsNotes',
         component: () => import('@/views/statistics/DataCenterPage.vue'),
         meta: {
-          title: '记一笔',
+          title: 'Data Center',
           requiresAuth: true,
           requiresStore: true,
           tab: 'statistics',
@@ -327,7 +346,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsBusinessSummary',
         component: () => import('@/views/statistics/BusinessSummaryPage.vue'),
         meta: {
-          title: '营业汇总',
+          title: 'Business Summary',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -337,7 +356,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsChannelSummary',
         component: () => import('@/views/statistics/ChannelSummaryPage.vue'),
         meta: {
-          title: '渠道汇总',
+          title: 'Channel Summary',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -347,7 +366,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsNotesSummary',
         component: () => import('@/views/statistics/NotesSummaryPage.vue'),
         meta: {
-          title: '记一笔汇总',
+          title: 'Notes Summary',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -357,7 +376,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsRevenueSummary',
         component: () => import('@/views/statistics/RevenueSummaryPage.vue'),
         meta: {
-          title: '流水汇总',
+          title: 'Revenue Summary',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -367,7 +386,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsOperationReport',
         component: () => import('@/views/statistics/OperationReportPage.vue'),
         meta: {
-          title: '经营报表',
+          title: '缁忚惀鎶ヨ〃',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -377,7 +396,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsAccommodationReport',
         component: () => import('@/views/statistics/AccommodationReportPage.vue'),
         meta: {
-          title: '住宿报表',
+          title: '浣忓鎶ヨ〃',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -387,7 +406,7 @@ const routes: RouteRecordRaw[] = [
         name: 'StatisticsFinanceReport',
         component: () => import('@/views/statistics/FinanceReportPage.vue'),
         meta: {
-          title: '财务报表',
+          title: '璐㈠姟鎶ヨ〃',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -397,7 +416,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RegistrationReviews',
         component: () => import('@/views/reviews/RegistrationReviewListPage.vue'),
         meta: {
-          title: '审查',
+          title: '瀹℃煡',
           requiresAuth: true,
           requiresStore: true,
           tab: 'reviews',
@@ -408,7 +427,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RegistrationReviewLinks',
         component: () => import('@/views/reviews/RegistrationReviewLinksPage.vue'),
         meta: {
-          title: '链接列表',
+          title: '閾炬帴鍒楄〃',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -418,7 +437,7 @@ const routes: RouteRecordRaw[] = [
         name: 'RegistrationReviewDetail',
         component: () => import('@/views/reviews/RegistrationReviewDetailPage.vue'),
         meta: {
-          title: '审查详情',
+          title: '瀹℃煡璇︽儏',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -428,7 +447,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Messages',
         component: () => import('@/views/messages/MessagesPage.vue'),
         meta: {
-          title: '消息',
+          title: '娑堟伅',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -438,7 +457,7 @@ const routes: RouteRecordRaw[] = [
         name: 'MessageDetail',
         component: () => import('@/views/messages/MessageDetailPage.vue'),
         meta: {
-          title: '消息详情',
+          title: '娑堟伅璇︽儏',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -448,7 +467,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SystemNotifications',
         component: () => import('@/views/notifications/SystemNotificationsPage.vue'),
         meta: {
-          title: '系统通知',
+          title: '绯荤粺閫氱煡',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -458,7 +477,7 @@ const routes: RouteRecordRaw[] = [
         name: 'OrderNotifications',
         component: () => import('@/views/notifications/OrderNotificationsPage.vue'),
         meta: {
-          title: '订单通知',
+          title: '璁㈠崟閫氱煡',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -468,7 +487,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Wallet',
         component: () => import('@/views/wallet/WalletPage.vue'),
         meta: {
-          title: '钱包',
+          title: '閽卞寘',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -478,7 +497,7 @@ const routes: RouteRecordRaw[] = [
         name: 'ProfileCenter',
         component: () => import('@/views/profile/ProfileCenterPage.vue'),
         meta: {
-          title: '个人中心',
+          title: '涓汉涓績',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -488,7 +507,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Settings',
         component: () => import('@/views/settings/SettingsPage.vue'),
         meta: {
-          title: '设置',
+          title: '璁剧疆',
           requiresAuth: true,
           requiresStore: true,
           tab: 'settings',
@@ -499,7 +518,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsStoreProfile',
         component: () => import('@/views/settings/StoreProfilePage.vue'),
         meta: {
-          title: '门店资料',
+          title: '闂ㄥ簵璧勬枡',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -509,7 +528,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsStoreDetails',
         component: () => import('@/views/settings/StoreDetailsPage.vue'),
         meta: {
-          title: '门店详情',
+          title: '闂ㄥ簵璇︽儏',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -519,7 +538,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsStoreMembers',
         component: () => import('@/views/settings/StoreMembersPage.vue'),
         meta: {
-          title: '门店成员',
+          title: '闂ㄥ簵鎴愬憳',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -529,7 +548,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsRolePermissions',
         component: () => import('@/views/settings/RolePermissionsPage.vue'),
         meta: {
-          title: '角色权限',
+          title: '瑙掕壊鏉冮檺',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -539,7 +558,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsRoomTypes',
         component: () => import('@/views/settings/RoomTypeSettingsPage.vue'),
         meta: {
-          title: '房型设置',
+          title: '鎴垮瀷璁剧疆',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -549,7 +568,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsRoomTypeDetail',
         component: () => import('@/views/settings/RoomTypeDetailPage.vue'),
         meta: {
-          title: '房型详情',
+          title: '鎴垮瀷璇︽儏',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -559,7 +578,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsRoomGroups',
         component: () => import('@/views/settings/RoomGroupsPage.vue'),
         meta: {
-          title: '房间分组',
+          title: '鎴块棿鍒嗙粍',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -569,7 +588,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsRoomSort',
         component: () => import('@/views/settings/RoomSortPage.vue'),
         meta: {
-          title: '排序设置',
+          title: '鎺掑簭璁剧疆',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -579,7 +598,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsPricePlans',
         component: () => import('@/views/settings/PricePlansPage.vue'),
         meta: {
-          title: '价格计划',
+          title: '浠锋牸璁″垝',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -589,7 +608,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsPricePlanRates',
         component: () => import('@/views/settings/PricePlanRatesPage.vue'),
         meta: {
-          title: '房型价格',
+          title: '鎴垮瀷浠锋牸',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -599,7 +618,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsPaymentMethods',
         component: () => import('@/views/settings/PaymentMethodsPage.vue'),
         meta: {
-          title: '收款方式',
+          title: '鏀舵鏂瑰紡',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -609,7 +628,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsNoteSettings',
         component: () => import('@/views/settings/NoteSettingsPage.vue'),
         meta: {
-          title: '记一笔设置',
+          title: 'Note Settings',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -619,7 +638,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsConsumptionItems',
         component: () => import('@/views/settings/ConsumptionItemsPage.vue'),
         meta: {
-          title: '消费项',
+          title: 'Consumption Items',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -629,7 +648,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsNotification',
         component: () => import('@/views/settings/NotificationSettingsPage.vue'),
         meta: {
-          title: '通知设置',
+          title: '閫氱煡璁剧疆',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -639,7 +658,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsChannelSettings',
         component: () => import('@/views/settings/ChannelSettingsPage.vue'),
         meta: {
-          title: '渠道设置',
+          title: '娓犻亾璁剧疆',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -649,7 +668,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsQuickReplies',
         component: () => import('@/views/settings/QuickRepliesPage.vue'),
         meta: {
-          title: '快捷回复',
+          title: '蹇嵎鍥炲',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -659,7 +678,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsAutoMessages',
         component: () => import('@/views/settings/AutoMessagesPage.vue'),
         meta: {
-          title: '自动消息',
+          title: '鑷姩娑堟伅',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -669,7 +688,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsCleaningSettings',
         component: () => import('@/views/settings/CleaningSettingsPage.vue'),
         meta: {
-          title: '保洁设置',
+          title: '淇濇磥璁剧疆',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -679,7 +698,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsCleaningSupplies',
         component: () => import('@/views/settings/CleaningSuppliesPage.vue'),
         meta: {
-          title: '易耗品',
+          title: '鏄撹€楀搧',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -689,7 +708,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsPricingTools',
         component: () => import('@/views/settings/PricingToolsPage.vue'),
         meta: {
-          title: '定价工具',
+          title: '瀹氫环宸ュ叿',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -699,7 +718,7 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsPaymentPlatforms',
         component: () => import('@/views/settings/PaymentPlatformsPage.vue'),
         meta: {
-          title: '支付平台',
+          title: '鏀粯骞冲彴',
           requiresAuth: true,
           requiresStore: true,
         },
@@ -720,3 +739,4 @@ const router = createRouter({
 registerRouterGuards(router)
 
 export default router
+

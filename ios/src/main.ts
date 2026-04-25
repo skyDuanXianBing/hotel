@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import { IonicVue } from '@ionic/vue'
 import App from './App.vue'
 import router from './router'
-import { applyStoredThemePreference } from '@/utils/theme'
+import { applyLightTheme } from '@/utils/theme'
 
 const pinia = createPinia()
 
@@ -30,8 +30,9 @@ import '@ionic/vue/css/display.css'
 
 /* Theme variables */
 import './theme/variables.css'
+import './theme/settings-shared.css'
 
-applyStoredThemePreference()
+applyLightTheme()
 
 const app = createApp(App)
 

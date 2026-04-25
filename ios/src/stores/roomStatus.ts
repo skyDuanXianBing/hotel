@@ -95,8 +95,11 @@ export type RoomStatusBusinessState =
 
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 const DEFAULT_SORT_ORDER = Number.MAX_SAFE_INTEGER
-const DATE_WINDOW_SIZE = 5
-const SELECTED_DATE_OFFSET = 1
+export const ROOM_STATUS_VIEWPORT_DAYS = 5
+const DATE_WINDOW_SIZE = 14
+const SELECTED_DATE_OFFSET = 5
+const CALENDAR_RANGE_BUFFER_BEFORE = 2
+const CALENDAR_RANGE_BUFFER_AFTER = 2
 const NATURAL_COMPARE_OPTIONS: Intl.CollatorOptions = {
   numeric: true,
   sensitivity: 'base',
@@ -397,8 +400,11 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const visibleRange = computed(() => {
     return {
-      startDate: addDays(windowStartDate.value, -2),
-      endDate: addDays(windowStartDate.value, 11),
+      startDate: addDays(windowStartDate.value, -CALENDAR_RANGE_BUFFER_BEFORE),
+      endDate: addDays(
+        windowStartDate.value,
+        DATE_WINDOW_SIZE - 1 + CALENDAR_RANGE_BUFFER_AFTER,
+      ),
     }
   })
 

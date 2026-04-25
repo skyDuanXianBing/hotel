@@ -13,7 +13,6 @@
       <section class="mobile-hero settings-page-block__hero">
         <p class="mobile-note settings-page-block__eyebrow">账号与角色</p>
         <h1 class="mobile-title">{{ roleTitle }}</h1>
-        <p class="mobile-subtitle">补齐角色权限矩阵，房型范围仅对“查看房态”开放设置。</p>
         <div class="mobile-chip-row">
           <span class="mobile-chip">权限 {{ selectedPermissionCount }}</span>
           <span class="mobile-chip">房型 {{ roomTypes.length }}</span>

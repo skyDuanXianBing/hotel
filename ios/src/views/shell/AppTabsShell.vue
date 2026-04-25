@@ -15,14 +15,6 @@
           <ion-icon :icon="receiptOutline" />
           <ion-label>订单</ion-label>
         </ion-tab-button>
-        <ion-tab-button tab="channels" :href="ROUTE_PATHS.channels">
-          <ion-icon :icon="gitNetworkOutline" />
-          <ion-label>渠道</ion-label>
-        </ion-tab-button>
-        <ion-tab-button tab="statistics" :href="ROUTE_PATHS.statistics">
-          <ion-icon :icon="statsChartOutline" />
-          <ion-label>统计</ion-label>
-        </ion-tab-button>
         <ion-tab-button tab="reviews" :href="ROUTE_PATHS.reviews">
           <ion-icon :icon="clipboardOutline" />
           <ion-label>审查</ion-label>
@@ -33,7 +25,6 @@
         </ion-tab-button>
       </ion-tab-bar>
     </ion-tabs>
-    <GlobalQuickTools />
   </ion-page>
 </template>
 
@@ -50,34 +41,53 @@ import {
 import {
   bedOutline,
   clipboardOutline,
-  gitNetworkOutline,
   homeOutline,
   receiptOutline,
   settingsOutline,
-  statsChartOutline,
 } from 'ionicons/icons'
-import GlobalQuickTools from '@/components/global/GlobalQuickTools.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 </script>
 
 <style scoped>
 .mobile-tabbar {
-  padding-inline: 6px;
+  padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(164, 181, 216, 0.14);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--ios-pms-shadow-tabbar);
+  backdrop-filter: blur(18px);
 }
 
 .mobile-tabbar :deep(ion-tab-button) {
+  --color: #8c98b1;
+  --color-selected: #3474f6;
   min-width: 0;
-  gap: 4px;
-  padding-inline: 4px;
+  gap: 5px;
+  padding: 8px 2px 10px;
+  border-radius: 16px;
+  position: relative;
+  background: transparent;
+  box-shadow: none;
+}
+
+.mobile-tabbar :deep(ion-tab-button::part(native)) {
+  border-radius: 16px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.mobile-tabbar :deep(ion-tab-button.tab-selected),
+.mobile-tabbar :deep(ion-tab-button.tab-selected::part(native)) {
+  background: transparent;
+  box-shadow: none;
 }
 
 .mobile-tabbar :deep(ion-icon) {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .mobile-tabbar :deep(ion-label) {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 </style>

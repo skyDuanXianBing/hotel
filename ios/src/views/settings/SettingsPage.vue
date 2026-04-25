@@ -8,11 +8,18 @@
 
     <ion-content fullscreen class="mobile-page settings-page">
       <section class="settings-hero">
-        <div class="settings-hero__row">
-          <h1 class="settings-hero__title">{{ storeTitle }}</h1>
-          <span class="settings-hero__role">{{ storeRoleLabel }}</span>
+        <div class="settings-hero__profile">
+          <div class="settings-hero__logo-shell" aria-hidden="true">
+            <div class="settings-hero__logo-frame">
+              <img src="/settings-logo.png" alt="" class="settings-hero__logo" />
+            </div>
+          </div>
+
+          <div class="settings-hero__body">
+            <h1 class="settings-hero__title">{{ storeTitle }}</h1>
+            <p class="settings-hero__user">{{ currentUserLabel }}</p>
+          </div>
         </div>
-        <p class="settings-hero__user">{{ currentUserLabel }}</p>
       </section>
 
       <div class="mobile-stack">
@@ -41,31 +48,6 @@
         </section>
 
         <section class="settings-group">
-          <h2 class="settings-group__title">显示与主题</h2>
-          <div class="settings-theme-panel">
-            <div class="settings-theme-panel__header">
-              <div>
-                <strong>主题模式</strong>
-                <p>可选择跟随系统，或固定浅色 / 深色显示。</p>
-              </div>
-              <span class="settings-entry__badge">{{ themePreferenceLabel }}</span>
-            </div>
-
-            <ion-segment :value="themePreference" @ionChange="handleThemePreferenceChange">
-              <ion-segment-button value="system">
-                <ion-label>跟随系统</ion-label>
-              </ion-segment-button>
-              <ion-segment-button value="light">
-                <ion-label>浅色</ion-label>
-              </ion-segment-button>
-              <ion-segment-button value="dark">
-                <ion-label>深色</ion-label>
-              </ion-segment-button>
-            </ion-segment>
-          </div>
-        </section>
-
-        <section class="settings-group">
           <h2 class="settings-group__title">账号操作</h2>
           <div class="settings-group__list">
             <button type="button" class="settings-entry" @click="handleOpenProfile">
@@ -75,15 +57,6 @@
               <div class="settings-entry__body">
                 <strong>个人中心</strong>
                 <p>{{ currentUserLabel }}</p>
-              </div>
-              <ion-icon :icon="chevronForwardOutline" class="settings-entry__arrow" />
-            </button>
-            <button type="button" class="settings-entry" @click="handleOpenPassword">
-              <div class="settings-entry__icon settings-entry__icon--secondary">
-                <ion-icon :icon="lockClosedOutline" />
-              </div>
-              <div class="settings-entry__body">
-                <strong>修改密码</strong>
               </div>
               <ion-icon :icon="chevronForwardOutline" class="settings-entry__arrow" />
             </button>
@@ -117,6 +90,16 @@
         </section>
       </div>
     </ion-content>
+
+    <MemoSheetModal :is-open="visibleToolsStore.memoOpen" @dismiss="visibleToolsStore.closeMemo" />
+
+    <RecordTransactionModal
+      :is-open="visibleToolsStore.recordOpen"
+      @dismiss="visibleToolsStore.closeRecord"
+      @success="handleRecordSuccess"
+    />
+
+    <ContactSupportModal :is-open="visibleToolsStore.contactOpen" @dismiss="visibleToolsStore.closeContact" />
   </ion-page>
 </template>
 
@@ -125,10 +108,7 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
-  IonLabel,
   IonPage,
-  IonSegment,
-  IonSegmentButton,
   IonTitle,
   IonToolbar,
 } from '@ionic/vue'
@@ -143,7 +123,6 @@ import {
   createOutline,
   documentTextOutline,
   headsetOutline,
-  lockClosedOutline,
   logOutOutline,
   notificationsOutline,
   peopleOutline,
@@ -155,19 +134,16 @@ import {
   swapHorizontalOutline,
   walletOutline,
 } from 'ionicons/icons'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import ContactSupportModal from '@/components/global/ContactSupportModal.vue'
+import MemoSheetModal from '@/components/global/MemoSheetModal.vue'
+import RecordTransactionModal from '@/components/notes/RecordTransactionModal.vue'
 import { useRouter } from 'vue-router'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import { useVisibleToolsStore } from '@/stores/visibleTools'
 import { showSuccessToast } from '@/utils/notify'
-import {
-  applyThemePreference,
-  getStoredThemePreference,
-  setStoredThemePreference,
-  type ThemePreference,
-} from '@/utils/theme'
 
 interface SettingsEntry {
   key: string
@@ -189,7 +165,6 @@ const router = useRouter()
 const storeStore = useStoreStore()
 const userStore = useUserStore()
 const visibleToolsStore = useVisibleToolsStore()
-const themePreference = ref<ThemePreference>(getStoredThemePreference())
 
 const currentUserLabel = computed(() => {
   if (!userStore.currentUser) {
@@ -221,18 +196,6 @@ const storeRoleLabel = computed(() => {
   return '待确认'
 })
 
-const themePreferenceLabel = computed(() => {
-  if (themePreference.value === 'light') {
-    return '浅色'
-  }
-
-  if (themePreference.value === 'dark') {
-    return '深色'
-  }
-
-  return '跟随系统'
-})
-
 const entryGroups = computed<SettingsGroup[]>(() => {
   return [
     {
@@ -251,7 +214,7 @@ const entryGroups = computed<SettingsGroup[]>(() => {
         {
           key: 'store-details',
           title: '门店详情',
-          description: '设施、照片、入住退房时间',
+          description: '设施、时区、币种',
           path: ROUTE_PATHS.settingsStoreDetails,
           icon: buildOutline,
         },
@@ -428,10 +391,6 @@ async function handleOpenProfile() {
   await router.push(ROUTE_PATHS.profile)
 }
 
-async function handleOpenPassword() {
-  await router.push(ROUTE_PATHS.profile)
-}
-
 function handleOpenMemoTool() {
   visibleToolsStore.openMemo()
 }
@@ -444,125 +403,139 @@ function handleOpenContactTool() {
   visibleToolsStore.openContact()
 }
 
-function handleThemePreferenceChange(event: CustomEvent<{ value?: string | number }>) {
-  const nextValue = event.detail.value
-  if (nextValue !== 'system' && nextValue !== 'light' && nextValue !== 'dark') {
-    return
-  }
-
-  themePreference.value = nextValue
-  setStoredThemePreference(nextValue)
-  applyThemePreference(nextValue)
-  showSuccessToast('主题模式已更新')
+function handleRecordSuccess() {
+  showSuccessToast('已完成记一笔录入')
 }
+
 </script>
 
 <style scoped>
 .settings-page {
   display: block;
+  --background: var(--ios-pms-bg-page);
 }
 
 .settings-hero {
-  padding: 18px;
-  border: 1px solid var(--app-border);
-  border-radius: 20px;
+  padding: var(--ios-pms-space-5);
+  margin-bottom: var(--ios-pms-space-4);
+  border: 1px solid rgba(210, 220, 238, 0.78);
+  border-radius: var(--ios-pms-radius-card);
   background:
-    linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.08), transparent 60%),
-    var(--app-surface-strong);
-  box-shadow: var(--app-shadow);
+    radial-gradient(circle at top right, rgba(90, 144, 255, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 252, 255, 0.96)),
+    var(--ios-pms-surface-strong);
+  box-shadow:
+    0 18px 40px rgba(132, 153, 191, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
-.settings-hero__row {
+.settings-hero__profile {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 18px;
+}
+
+.settings-hero__logo-shell {
+  flex-shrink: 0;
+}
+
+.settings-hero__logo-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  padding: 1px;
+  border: 1px solid rgba(216, 223, 234, 0.95);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow:
+    0 8px 18px rgba(150, 165, 196, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.settings-hero__logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.settings-hero__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  min-height: 64px;
 }
 
 .settings-hero__title {
   margin: 0;
-  color: var(--app-heading);
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.settings-hero__role {
-  flex-shrink: 0;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--ios-pms-text-primary);
+  font-size: 17px;
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.24;
+  letter-spacing: -0.03em;
 }
 
 .settings-hero__user {
   margin: 6px 0 0;
-  color: var(--app-muted);
-  font-size: 13px;
+  color: var(--ios-pms-text-muted);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.24;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .settings-group {
-  padding: 16px;
-  border: 1px solid var(--app-border);
-  border-radius: 20px;
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
+  padding: calc(var(--ios-pms-space-5) - 2px) var(--ios-pms-space-5);
+  border: 1px solid rgba(217, 226, 241, 0.82);
+  border-radius: var(--ios-pms-radius-card);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(251, 252, 255, 0.96)),
+    var(--ios-pms-surface);
+  box-shadow: 0 16px 34px rgba(145, 164, 198, 0.07);
 }
 
 .settings-group__title {
-  margin: 0 0 12px;
-  color: var(--app-heading);
-  font-size: 15px;
-  font-weight: 700;
+  margin: 0 0 calc(var(--ios-pms-space-3) + 2px);
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: -0.035em;
 }
 
 .settings-group__list {
   display: grid;
-  gap: 2px;
-}
-
-.settings-theme-panel {
-  display: grid;
-  gap: 12px;
-}
-
-.settings-theme-panel__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.settings-theme-panel__header strong {
-  display: block;
-  color: var(--app-heading);
-  font-size: 14px;
-}
-
-.settings-theme-panel__header p {
-  margin: 4px 0 0;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 1.5;
+  gap: 0;
 }
 
 .settings-entry {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 12px;
+  padding: 15px 2px;
   border: none;
-  border-radius: 14px;
+  border-radius: 0;
   background: transparent;
   font: inherit;
   text-align: left;
-  transition: background 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.settings-entry + .settings-entry {
+  border-top: 1px solid rgba(225, 232, 243, 0.88);
 }
 
 .settings-entry:active {
-  background: var(--app-primary-soft);
+  background: rgba(93, 145, 245, 0.08);
+  transform: translateY(1px);
 }
 
 .settings-entry__icon {
@@ -570,21 +543,22 @@ function handleThemePreferenceChange(event: CustomEvent<{ value?: string | numbe
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(225, 232, 243, 0.88);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(247, 250, 255, 0.98), rgba(239, 244, 253, 0.95));
+  color: var(--ios-pms-primary);
   font-size: 18px;
 }
 
 .settings-entry__icon--secondary {
-  background: var(--app-secondary-soft);
+  background: linear-gradient(180deg, rgba(247, 248, 255, 0.98), rgba(239, 242, 255, 0.95));
   color: var(--ion-color-secondary);
 }
 
 .settings-entry__icon--danger {
-  background: var(--app-danger-soft);
+  background: linear-gradient(180deg, rgba(255, 248, 248, 0.98), rgba(255, 240, 240, 0.95));
   color: var(--ion-color-danger);
 }
 
@@ -595,15 +569,18 @@ function handleThemePreferenceChange(event: CustomEvent<{ value?: string | numbe
 
 .settings-entry__body strong {
   display: block;
-  color: var(--app-heading);
-  font-size: 14px;
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
 }
 
 .settings-entry__body p {
-  margin: 2px 0 0;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 1.3;
+  margin: 4px 0 0;
+  color: var(--ios-pms-text-secondary);
+  font-size: var(--ios-pms-font-body-sm-size);
+  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -611,19 +588,23 @@ function handleThemePreferenceChange(event: CustomEvent<{ value?: string | numbe
 
 .settings-entry__badge {
   flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 11px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid rgba(221, 229, 242, 0.92);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(246, 248, 253, 0.96);
+  color: var(--ios-pms-primary-strong);
+  font-size: var(--ios-pms-font-body-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
 }
 
 .settings-entry__arrow {
   flex-shrink: 0;
-  color: var(--app-muted);
-  font-size: 16px;
-  opacity: 0.4;
+  color: #b2bfd5;
+  font-size: 17px;
+  opacity: 1;
 }
 
 .settings-entry--danger .settings-entry__body strong {
@@ -633,34 +614,66 @@ function handleThemePreferenceChange(event: CustomEvent<{ value?: string | numbe
 .settings-tools-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--ios-pms-space-3);
 }
 
 .settings-tool-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px 8px;
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
-  background: var(--app-surface-strong);
+  gap: var(--ios-pms-space-2);
+  padding: 15px 8px 13px;
+  border: 1px solid rgba(223, 230, 242, 0.88);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 255, 0.98), rgba(243, 247, 255, 0.94)),
+    var(--ios-pms-surface-strong);
   font: inherit;
-  transition: background 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .settings-tool-btn:active {
-  background: var(--app-primary-soft);
+  background: rgba(93, 145, 245, 0.08);
+  border-color: rgba(179, 197, 232, 0.96);
+  transform: translateY(1px);
 }
 
 .settings-tool-btn ion-icon {
-  font-size: 22px;
-  color: var(--ion-color-primary);
+  font-size: 21px;
+  color: var(--ios-pms-primary);
 }
 
 .settings-tool-btn span {
-  color: var(--app-heading);
+  color: var(--ios-pms-text-primary);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: var(--ios-pms-weight-medium);
+}
+
+@media (max-width: 374px) {
+  .settings-hero {
+    padding: var(--ios-pms-space-4);
+  }
+
+  .settings-hero__logo-frame {
+    width: 60px;
+    height: 60px;
+    padding: 1px;
+    border-radius: 12px;
+  }
+
+  .settings-hero__body {
+    min-height: 60px;
+  }
+
+  .settings-group {
+    padding: var(--ios-pms-space-4);
+  }
+
+  .settings-tools-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

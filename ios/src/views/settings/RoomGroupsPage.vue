@@ -1,130 +1,87 @@
 <template>
-  <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.settings" />
-        </ion-buttons>
-        <ion-title>房间分组</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="handleCreateGroup">新增</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content fullscreen class="mobile-page settings-page-block">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新房间分组" refreshing-spinner="crescent" />
-      </ion-refresher>
-
-      <section class="mobile-hero settings-page-block__hero">
-        <p class="mobile-note settings-page-block__eyebrow">住宿设置</p>
-        <h1 class="mobile-title">房间分组</h1>
-        <p class="mobile-subtitle">支持新增、编辑、删除分组，并通过多选房间维护成员。</p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">分组 {{ groups.length }}</span>
-          <span class="mobile-chip">房间 {{ rooms.length }}</span>
+  <SettingsCrudPage
+    :back-href="ROUTE_PATHS.settings"
+    title="房间分组"
+    hero-eyebrow="住宿设置"
+    hero-title="房间分组"
+    :chips="[
+      { label: `分组 ${groups.length}` },
+      { label: `房间 ${rooms.length}` },
+    ]"
+    toolbar-action-label="新增"
+    :show-refresher="true"
+    refresher-pulling-text="下拉刷新房间分组"
+    section-title="分组列表"
+    :loading="loading"
+    :modal-open="editorOpen"
+    :modal-title="editingGroupId ? '编辑房间分组' : '新增房间分组'"
+    @toolbar-action="handleCreateGroup"
+    @refresh="handleRefresh"
+    @dismiss-editor="handleDismissEditor"
+  >
+    <div v-if="groups.length > 0" class="mobile-list settings-minimal-list">
+      <article v-for="group in groups" :key="group.id" class="settings-minimal-card">
+        <div class="settings-minimal-card__header">
+          <div class="settings-minimal-card__title-group">
+            <strong>{{ group.name }}</strong>
+            <p class="settings-minimal-card__summary">{{ group.description || formatGroupPreview(group.memberRoomIds) }}</p>
+          </div>
+          <span class="settings-minimal-card__badge">房间 {{ group.memberRoomIds.length }}</span>
         </div>
-      </section>
 
-      <div class="mobile-stack">
-        <section class="mobile-card">
-          <div class="mobile-inline-row settings-page-block__section-header">
-            <div>
-              <h2 class="mobile-section-title">分组列表</h2>
-              <p class="mobile-note">移动端保留卡片摘要，不搬运桌面大表格。</p>
-            </div>
-            <ion-spinner v-if="loading" name="crescent" />
-          </div>
+        <div v-if="group.description && group.memberRoomIds.length > 0" class="settings-minimal-card__meta">
+          <span class="settings-minimal-card__meta-pill">{{ formatGroupPreview(group.memberRoomIds) }}</span>
+        </div>
 
-          <div v-if="groups.length > 0" class="mobile-list settings-card-list">
-            <article v-for="group in groups" :key="group.id" class="settings-card-item">
-              <div class="settings-card-item__header">
-                <div>
-                  <strong>{{ group.name }}</strong>
-                  <p>{{ group.description || '未填写分组说明' }}</p>
-                </div>
-                <span class="settings-card-item__badge">房间 {{ group.memberRoomIds.length }}</span>
-              </div>
+        <div class="settings-minimal-card__actions">
+          <ion-button size="small" fill="outline" @click="handleEditGroup(group)">编辑</ion-button>
+          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteGroup(group)">删除</ion-button>
+        </div>
+      </article>
+    </div>
 
-              <p class="mobile-note">{{ formatGroupMembers(group.memberRoomIds) }}</p>
+    <p v-else-if="!loading" class="mobile-note">当前暂无房间分组。</p>
 
-              <div class="settings-card-item__actions">
-                <ion-button size="small" fill="outline" @click="handleEditGroup(group)">编辑</ion-button>
-                <ion-button size="small" color="danger" fill="clear" @click="handleDeleteGroup(group)">删除</ion-button>
-              </div>
-            </article>
-          </div>
+    <template #modalContent>
+      <div class="settings-form-grid">
+        <label class="settings-form-field">
+          <span>分组名称</span>
+          <ion-input v-model="groupForm.name" fill="outline" placeholder="请输入分组名称" />
+        </label>
 
-          <p v-else-if="!loading" class="mobile-note">当前暂无房间分组。</p>
-        </section>
+        <label class="settings-form-field settings-form-field--full">
+          <span>分组说明</span>
+          <ion-textarea v-model="groupForm.description" :rows="4" fill="outline" placeholder="请输入分组说明" />
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>房间成员</span>
+          <ion-select v-model="groupForm.roomIds" fill="outline" interface="modal" multiple>
+            <ion-select-option v-for="room in rooms" :key="room.id" :value="room.id">
+              {{ room.roomNumber }} · {{ room.roomType.name }}
+            </ion-select-option>
+          </ion-select>
+        </label>
       </div>
+    </template>
 
-      <ion-modal :is-open="editorOpen" @didDismiss="handleDismissEditor">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingGroupId ? '编辑房间分组' : '新增房间分组' }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissEditor">关闭</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <div class="settings-form-grid">
-              <label class="settings-form-field">
-                <span>分组名称</span>
-                <ion-input v-model="groupForm.name" fill="outline" placeholder="请输入分组名称" />
-              </label>
-
-              <label class="settings-form-field settings-form-field--full">
-                <span>分组说明</span>
-                <ion-textarea v-model="groupForm.description" :rows="4" fill="outline" placeholder="请输入分组说明" />
-              </label>
-
-              <label class="settings-form-field settings-form-field--full">
-                <span>房间成员</span>
-                <ion-select v-model="groupForm.roomIds" fill="outline" interface="modal" multiple>
-                  <ion-select-option v-for="room in rooms" :key="room.id" :value="room.id">
-                    {{ room.roomNumber }} · {{ room.roomType.name }}
-                  </ion-select-option>
-                </ion-select>
-              </label>
-            </div>
-
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveGroup">
-                {{ submitting ? '提交中...' : '保存分组' }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
-    </ion-content>
-  </ion-page>
+    <template #modalActions>
+      <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+      <ion-button :disabled="submitting" @click="handleSaveGroup">
+        {{ submitting ? '提交中...' : '保存分组' }}
+      </ion-button>
+    </template>
+  </SettingsCrudPage>
 </template>
 
 <script setup lang="ts">
 import {
   alertController,
-  IonBackButton,
   IonButton,
-  IonButtons,
-  IonContent,
-  IonHeader,
   IonInput,
-  IonModal,
-  IonPage,
-  IonRefresher,
-  IonRefresherContent,
   IonSelect,
   IonSelectOption,
-  IonSpinner,
   IonTextarea,
-  IonTitle,
-  IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { ref } from 'vue'
@@ -138,6 +95,7 @@ import {
   updateRoomGroup,
 } from '@/api/roomGroup'
 import { getRooms } from '@/api/rooms'
+import SettingsCrudPage from '@/components/settings/families/SettingsCrudPage.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import type { RoomDTO, RoomGroupDTO } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -177,7 +135,7 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   return fallbackMessage
 }
 
-function formatGroupMembers(roomIds: number[]) {
+function formatGroupPreview(roomIds: number[]) {
   if (roomIds.length === 0) {
     return '当前分组未分配房间'
   }
@@ -191,10 +149,14 @@ function formatGroupMembers(roomIds: number[]) {
   }
 
   if (labels.length === 0) {
-    return '已分配房间，但列表尚未恢复'
+    return `已关联 ${roomIds.length} 间房`
   }
 
-  return labels.join('、')
+  const preview = labels.slice(0, 3).join('、')
+  if (labels.length > 3) {
+    return `房间 ${preview} 等 ${labels.length} 间`
+  }
+  return `房间 ${preview}`
 }
 
 async function confirmDelete(name: string) {
@@ -359,102 +321,3 @@ onIonViewWillEnter(async () => {
   await loadPageData()
 })
 </script>
-
-<style scoped>
-.settings-page-block {
-  display: block;
-}
-
-.settings-page-block__hero {
-  margin-top: 4px;
-}
-
-.settings-page-block__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-}
-
-.settings-page-block__section-header {
-  align-items: flex-start;
-}
-
-.settings-card-list {
-  margin-top: 16px;
-}
-
-.settings-card-item {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.settings-card-item__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.settings-card-item__header strong,
-.settings-card-item__header p {
-  margin: 0;
-}
-
-.settings-card-item__header p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-}
-
-.settings-card-item__badge {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.settings-card-item__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.settings-modal-page {
-  --padding-top: 16px;
-  --padding-bottom: 24px;
-  --padding-start: 16px;
-  --padding-end: 16px;
-}
-
-.settings-form-grid {
-  display: grid;
-  gap: 14px;
-}
-
-.settings-form-field {
-  display: grid;
-  gap: 8px;
-}
-
-.settings-form-field span {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.settings-form-field--full {
-  grid-column: 1 / -1;
-}
-
-.settings-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 18px;
-}
-</style>

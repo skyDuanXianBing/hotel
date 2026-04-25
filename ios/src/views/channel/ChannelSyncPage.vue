@@ -15,27 +15,45 @@
       </ion-refresher>
 
       <section v-if="channelView" class="mobile-hero channel-sync-hero">
-        <p class="mobile-note channel-sync-hero__eyebrow">同步中心</p>
         <h1 class="mobile-title">{{ channelView.name }}</h1>
-        <p class="mobile-subtitle">在移动端执行日历同步与全量刷新，并查看每个阶段的结果反馈。</p>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">{{ channelView.statusLabel }}</span>
-          <span class="mobile-chip">{{ capability.groupLabel }}映射 {{ mappingStatus?.mappedRoomIdCount || 0 }}</span>
-          <span class="mobile-chip">范围 {{ syncDays }} 天</span>
+          <span class="mobile-chip channel-sync-hero__chip channel-sync-hero__chip--status">
+            {{ channelView.statusLabel }}
+          </span>
+          <span class="mobile-chip channel-sync-hero__chip channel-sync-hero__chip--metric">
+            房型 {{ syncMappedRoomCount }}
+          </span>
+          <span class="mobile-chip channel-sync-hero__chip channel-sync-hero__chip--metric">
+            范围 {{ syncDays }} 天
+          </span>
         </div>
       </section>
 
       <div v-if="channelView" class="mobile-stack">
-        <section class="mobile-card">
-          <div class="mobile-inline-row">
-            <div>
-              <h2 class="mobile-section-title">同步范围</h2>
-              <p class="mobile-note">日历同步与全量刷新都会使用该范围天数。</p>
+        <section class="mobile-card channel-sync-page__toolbar-card">
+          <div class="channel-sync-page__toolbar-head">
+            <div class="channel-sync-page__toolbar-main">
+              <strong>{{ syncOverviewText }}</strong>
+              <p>先选范围，再执行日历同步或完整刷新</p>
             </div>
-            <ion-spinner v-if="loading || actionLoading" name="crescent" />
+            <div class="channel-sync-page__toolbar-side">
+              <ion-spinner v-if="loading || actionLoading" name="crescent" />
+              <ion-button
+                size="small"
+                fill="outline"
+                class="channel-sync-page__action-secondary"
+                @click="reloadSyncPage"
+              >
+                刷新
+              </ion-button>
+            </div>
           </div>
 
-          <ion-segment :value="syncDays" @ionChange="handleSyncDaysChange">
+          <ion-segment
+            class="channel-sync-page__range-segment"
+            :value="syncDays"
+            @ionChange="handleSyncDaysChange"
+          >
             <ion-segment-button value="30">
               <ion-label>30 天</ion-label>
             </ion-segment-button>
@@ -47,19 +65,17 @@
             </ion-segment-button>
           </ion-segment>
 
-          <p v-if="loadNotice" class="mobile-note channel-sync-page__warning">{{ loadNotice }}</p>
-        </section>
-
-        <section class="mobile-card">
-          <h2 class="mobile-section-title">执行动作</h2>
-          <p class="mobile-note">日历同步优先推送房量与价格；全量刷新会先重拉房型、价盘，再推送 ARI。</p>
-
           <div class="channel-sync-page__actions">
-            <ion-button :disabled="!canRunSync || actionLoading" @click="handleCalendarSync">
+            <ion-button
+              class="channel-sync-page__action-primary"
+              :disabled="!canRunSync || actionLoading"
+              @click="handleCalendarSync"
+            >
               {{ actionLoading && runningAction === 'calendar' ? '同步中...' : '日历同步' }}
             </ion-button>
             <ion-button
               fill="outline"
+              class="channel-sync-page__action-secondary"
               :disabled="!canRunSync || actionLoading"
               @click="handleFullRefresh"
             >
@@ -67,26 +83,34 @@
             </ion-button>
             <ion-button
               v-if="capability.supportsInventorySettings"
-              fill="outline"
+              fill="clear"
+              class="channel-sync-page__action-link"
               :disabled="actionLoading"
               @click="openInventoryPage"
             >
-              Airbnb 房量设置
+              房量设置
             </ion-button>
           </div>
 
-          <p v-if="!canRunSync" class="mobile-note channel-sync-page__warning">
-            {{ syncBlockedMessage }}
+          <p v-if="syncCombinedNotice" class="mobile-note channel-sync-page__warning">
+            {{ syncCombinedNotice }}
           </p>
         </section>
 
-        <section class="mobile-card">
-          <h2 class="mobile-section-title">最近结果</h2>
+        <section class="mobile-card channel-sync-page__result-card">
+          <div class="channel-sync-page__section-heading">
+            <h2 class="mobile-section-title">执行反馈</h2>
+            <p class="mobile-note">{{ syncResultsSummaryText }}</p>
+          </div>
+
           <div v-if="stageResults.length > 0" class="channel-sync-page__result-list">
             <article
               v-for="item in stageResults"
               :key="item.key"
-              class="channel-sync-page__result-item"
+              :class="[
+                'channel-sync-page__result-item',
+                `channel-sync-page__result-item--${item.statusColor}`,
+              ]"
             >
               <div class="channel-sync-page__result-header">
                 <strong>{{ item.label }}</strong>
@@ -95,16 +119,10 @@
               <p>{{ item.message }}</p>
             </article>
           </div>
-          <p v-else class="mobile-note">尚未在当前会话执行同步动作。</p>
-        </section>
 
-        <section class="mobile-card">
-          <h2 class="mobile-section-title">说明</h2>
-          <ul class="mobile-bullet-list">
-            <li>日历同步：按当前范围依次推送房量与价格。</li>
-            <li>全量刷新：按房型、价盘、ARI 顺序执行，阶段失败会逐条展示。</li>
-            <li>如当前渠道无 Su 能力或未授权，会明确提示而不是静默失败。</li>
-          </ul>
+          <p v-else class="mobile-note channel-sync-page__empty">
+            尚未在当前会话执行同步动作。
+          </p>
         </section>
       </div>
 
@@ -137,10 +155,7 @@ import {
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  buildChannelDetailPath,
-  buildChannelInventoryPath,
-} from '@/router/guards'
+import { buildChannelDetailPath, buildChannelInventoryPath } from '@/router/guards'
 import {
   buildChannelViewModel,
   getChannelActionCapability,
@@ -158,6 +173,7 @@ import {
   type OtaIntegrationDTO,
   type SuMappingStatusSummary,
 } from '@/api/otaIntegration'
+import { resolveChannelWarningMessage, resolveMappingStatusNotice } from '@/utils/channelMessage'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
@@ -214,16 +230,90 @@ const syncBlockedMessage = computed(() => {
     return '请先完成授权或重连，再执行同步动作。'
   }
   if (!capability.value.supportsSu) {
-    return '当前渠道没有可用的同步接口，移动端暂不支持直接执行日历同步或全量刷新。'
+    return '当前渠道没有可用的同步接口，移动端暂不支持直接执行同步。'
   }
   return ''
 })
+const syncMappedRoomCount = computed(() => Number(mappingStatus.value?.mappedRoomIdCount || 0))
+const syncActiveRatePlanCount = computed(() => Number(mappingStatus.value?.activeRatePlanCount || 0))
+const syncMappingNotice = computed(() => resolveMappingStatusNotice(mappingStatus.value?.error))
+const syncOverviewText = computed(() => {
+  if (!channelView.value) {
+    return '同步面板待刷新'
+  }
+  if (!capability.value.supportsSu) {
+    return '当前渠道不支持同步动作'
+  }
+  if (!channelView.value.isConnected) {
+    return '完成授权后可执行同步'
+  }
+  if (syncMappedRoomCount.value === 0 && syncActiveRatePlanCount.value === 0) {
+    return `已授权 · 范围 ${syncDays.value} 天`
+  }
+  return `房型 ${syncMappedRoomCount.value} · 活跃价盘 ${syncActiveRatePlanCount.value} · 范围 ${syncDays.value} 天`
+})
+const syncCombinedNotice = computed(() => {
+  return joinUniqueMessages([
+    loadNotice.value,
+    syncMappingNotice.value,
+    canRunSync.value ? '' : syncBlockedMessage.value,
+  ])
+})
+const syncResultsSummaryText = computed(() => {
+  if (actionLoading.value && stageResults.value.length === 0) {
+    return '同步执行中，完成后会显示各阶段结果'
+  }
+  if (stageResults.value.length === 0) {
+    return '最近执行的阶段结果会显示在这里'
+  }
+
+  let successCount = 0
+  let warningCount = 0
+  let dangerCount = 0
+
+  for (const item of stageResults.value) {
+    if (item.statusColor === 'success') {
+      successCount += 1
+      continue
+    }
+    if (item.statusColor === 'warning') {
+      warningCount += 1
+      continue
+    }
+    if (item.statusColor === 'danger') {
+      dangerCount += 1
+    }
+  }
+
+  const pieces = [`共 ${stageResults.value.length} 个阶段`]
+  if (successCount > 0) {
+    pieces.push(`成功 ${successCount}`)
+  }
+  if (warningCount > 0) {
+    pieces.push(`待处理 ${warningCount}`)
+  }
+  if (dangerCount > 0) {
+    pieces.push(`失败 ${dangerCount}`)
+  }
+  return pieces.join(' · ')
+})
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
-  if (error instanceof Error && error.message) {
-    return error.message
+  return resolveChannelWarningMessage(error, fallbackMessage)
+}
+
+function joinUniqueMessages(messages: Array<string | null | undefined>) {
+  const result: string[] = []
+
+  for (const message of messages) {
+    const normalizedMessage = (message || '').trim()
+    if (!normalizedMessage || result.includes(normalizedMessage)) {
+      continue
+    }
+    result.push(normalizedMessage)
   }
-  return fallbackMessage
+
+  return result.join(' · ')
 }
 
 function ensureCanRunSyncAction() {
@@ -283,7 +373,7 @@ async function loadPage() {
     const nextCapability = getChannelActionCapability(detailResponse.data.code)
     if (!nextCapability.supportsSu) {
       mappingStatus.value = null
-      loadNotice.value = '当前渠道没有 Su 同步能力，页面仅保留能力说明。'
+      loadNotice.value = '当前渠道没有 Su 同步能力，无法在移动端执行同步。'
       return
     }
 
@@ -485,9 +575,7 @@ async function handleFullRefresh() {
         ),
       )
     } else {
-      nextResults.push(
-        buildWarningStage('ari', 'ARI 推送', ariResponse.data.error || 'ARI 推送未完成'),
-      )
+      nextResults.push(buildWarningStage('ari', 'ARI 推送', ariResponse.data.error || 'ARI 推送未完成'))
     }
 
     stageResults.value = nextResults
@@ -510,6 +598,16 @@ async function handleFullRefresh() {
 
 async function openInventoryPage() {
   await router.push(buildChannelInventoryPath(otaId.value))
+}
+
+async function reloadSyncPage() {
+  try {
+    await loadPage()
+  } catch (error) {
+    if (!isHandledRequestError(error)) {
+      showWarningToast(resolveWarningMessage(error, '刷新同步状态失败'))
+    }
+  }
 }
 
 async function maybeHandleAutoAction() {
@@ -552,28 +650,226 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
-.channel-sync-hero__eyebrow {
-  color: var(--ion-color-primary);
+.channel-sync-page {
+  --background: linear-gradient(180deg, #eef3fb 0%, #f4f7fc 18%, #f8fafd 100%);
+}
+
+.channel-sync-hero {
+  padding: 20px 20px 18px;
+  border-color: rgba(110, 131, 171, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(251, 253, 255, 0.86));
+  box-shadow: 0 16px 28px rgba(22, 38, 70, 0.035);
+}
+
+.channel-sync-hero::before {
+  background: linear-gradient(135deg, rgba(55, 95, 167, 0.08), transparent 62%);
+}
+
+.channel-sync-hero .mobile-title {
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.channel-sync-hero .mobile-chip-row {
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.channel-sync-hero__chip {
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 700;
+  backdrop-filter: blur(10px);
 }
 
-.channel-sync-page__warning {
-  margin-top: 12px;
-  color: var(--ion-color-warning);
+.channel-sync-hero__chip--status {
+  border-color: rgba(64, 101, 181, 0.14);
+  background: rgba(64, 101, 181, 0.08);
+  color: #3558a6;
 }
 
-.channel-sync-page__actions,
+.channel-sync-hero__chip--metric {
+  border-color: rgba(117, 136, 173, 0.1);
+  background: rgba(247, 249, 252, 0.94);
+  color: #60708d;
+}
+
+.channel-sync-page__toolbar-card,
+.channel-sync-page__result-card {
+  border-color: rgba(112, 130, 166, 0.1);
+  box-shadow: 0 14px 26px rgba(22, 38, 70, 0.035);
+}
+
+.channel-sync-page__toolbar-card {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(249, 252, 255, 0.92));
+}
+
+.channel-sync-page__toolbar-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 52px;
+  background: linear-gradient(90deg, rgba(68, 103, 180, 0.06), transparent 72%);
+  pointer-events: none;
+}
+
+.channel-sync-page__toolbar-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.channel-sync-page__toolbar-head,
+.channel-sync-page__toolbar-main,
 .channel-sync-page__result-list {
   display: grid;
   gap: 12px;
+}
+
+.channel-sync-page__toolbar-head {
+  gap: 14px;
+}
+
+.channel-sync-page__toolbar-main strong,
+.channel-sync-page__result-item strong {
+  margin: 0;
+  color: var(--app-heading);
+}
+
+.channel-sync-page__toolbar-main strong {
+  display: block;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+}
+
+.channel-sync-page__toolbar-main p,
+.channel-sync-page__result-item p {
+  margin: 6px 0 0;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.channel-sync-page__toolbar-main p {
+  color: var(--ios-pms-text-soft);
+  font-size: 12px;
+}
+
+.channel-sync-page__toolbar-side,
+.channel-sync-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.channel-sync-page__toolbar-side {
+  justify-content: flex-end;
+}
+
+.channel-sync-page__toolbar-side ion-spinner {
+  color: var(--ios-pms-primary);
+  transform: scale(0.82);
+}
+
+.channel-sync-page__range-segment {
+  padding: 3px;
+  border-color: rgba(111, 130, 168, 0.12);
+  border-radius: 16px;
+  background: rgba(236, 241, 249, 0.88);
+}
+
+.channel-sync-page__range-segment ion-segment-button {
+  --border-radius: 13px;
+  --indicator-color: rgba(86, 116, 173, 0.16);
+  min-height: 38px;
+  font-size: 12px;
+}
+
+.channel-sync-page__actions {
+  margin-top: 16px;
+}
+
+.channel-sync-page__actions ion-button {
+  min-height: 38px;
+  margin: 0;
+  --border-radius: 14px;
+}
+
+.channel-sync-page__action-primary {
+  --background: #234ebd;
+  --background-activated: #2046aa;
+  --background-hover: #2046aa;
+  --box-shadow: 0 10px 20px rgba(35, 78, 189, 0.18);
+  --padding-start: 18px;
+  --padding-end: 18px;
+}
+
+.channel-sync-page__action-secondary {
+  --background: rgba(255, 255, 255, 0.72);
+  --border-color: rgba(71, 101, 163, 0.18);
+  --color: #3f609b;
+  --padding-start: 14px;
+  --padding-end: 14px;
+}
+
+.channel-sync-page__action-link {
+  --color: #5573ad;
+  --padding-start: 4px;
+  --padding-end: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.channel-sync-page__warning {
+  margin-top: 10px;
+  padding: 10px 12px 10px 14px;
+  border-left: 3px solid #eb9629;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 248, 238, 0.98), rgba(255, 251, 246, 0.92));
+  color: #b16d12;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.channel-sync-page__section-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.channel-sync-page__section-heading .mobile-section-title {
+  margin-bottom: 0;
+}
+
+.channel-sync-page__result-list {
+  gap: 10px;
   margin-top: 16px;
 }
 
 .channel-sync-page__result-item {
   padding: 14px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid var(--app-border);
+  border: 1px solid rgba(112, 130, 166, 0.11);
+}
+
+.channel-sync-page__result-item--success {
+  background: linear-gradient(180deg, rgba(241, 250, 246, 0.98), rgba(248, 252, 249, 0.94));
+  border-color: rgba(61, 137, 102, 0.14);
+}
+
+.channel-sync-page__result-item--warning {
+  background: linear-gradient(180deg, rgba(255, 249, 240, 0.98), rgba(255, 252, 247, 0.94));
+  border-color: rgba(222, 149, 44, 0.16);
+}
+
+.channel-sync-page__result-item--danger {
+  background: linear-gradient(180deg, rgba(255, 245, 245, 0.98), rgba(255, 250, 250, 0.94));
+  border-color: rgba(213, 96, 96, 0.14);
 }
 
 .channel-sync-page__result-header {
@@ -583,15 +879,34 @@ onIonViewWillEnter(async () => {
   gap: 12px;
 }
 
-.channel-sync-page__result-item strong,
-.channel-sync-page__result-item p {
-  margin: 0;
+.channel-sync-page__result-header ion-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
-.channel-sync-page__result-item p {
-  margin-top: 8px;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.6;
+.channel-sync-page__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  margin-top: 16px;
+  padding: 28px 18px;
+  border: 1px dashed rgba(117, 136, 173, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(250, 252, 255, 0.9), rgba(246, 249, 253, 0.76));
+  color: var(--ios-pms-text-soft);
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .channel-sync-page__toolbar-side {
+    justify-content: flex-start;
+  }
+
+  .channel-sync-page__actions ion-button {
+    flex: 1 1 100%;
+  }
 }
 </style>

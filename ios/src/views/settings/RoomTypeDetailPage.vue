@@ -17,7 +17,6 @@
       <section class="mobile-hero room-type-detail-hero">
         <p class="mobile-note room-type-detail-hero__eyebrow">房型详情</p>
         <h1 class="mobile-title">{{ roomType?.name || '房型详情' }}</h1>
-        <p class="mobile-subtitle">这里展示房型完整信息，房间号可在房型编辑页统一维护。</p>
         <div class="mobile-chip-row">
           <span class="mobile-chip">{{ shortNameText }}</span>
           <span class="mobile-chip">{{ getBasePriceText(roomType || emptyRoomType) }}</span>
@@ -30,7 +29,6 @@
           <div class="mobile-inline-row room-type-detail-card__header">
             <div>
               <h2 class="mobile-section-title">基本信息</h2>
-              <p class="mobile-note">查看基础属性、入住能力与说明字段。</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
@@ -85,7 +83,6 @@
         <section class="mobile-card room-type-detail-card">
           <div>
             <h2 class="mobile-section-title">价格信息</h2>
-            <p class="mobile-note">默认价用于摘要展示，周价格用于日粒度维护。</p>
           </div>
 
           <div class="detail-price-grid">
@@ -103,7 +100,6 @@
         <section class="mobile-card room-type-detail-card">
           <div>
             <h2 class="mobile-section-title">设施与房间号</h2>
-            <p class="mobile-note">设施展示当前已保存内容；房间号仍需回到房型编辑页统一维护。</p>
           </div>
 
           <div class="detail-tags">
@@ -115,14 +111,13 @@
             <span v-for="roomNumber in roomNumbers" :key="roomNumber" class="detail-tag detail-tag--room">
               {{ roomNumber }}
             </span>
-            <span v-if="roomNumbers.length === 0" class="mobile-note">当前还没有维护房间号</span>
+            <span v-if="roomNumbers.length === 0" class="mobile-note">未设置房间号</span>
           </div>
         </section>
 
         <section class="mobile-card room-type-detail-card">
           <div>
             <h2 class="mobile-section-title">图片信息</h2>
-            <p class="mobile-note">桌面图与移动图统一合并展示，便于快速核对当前媒体配置。</p>
           </div>
 
           <div v-if="photoUrls.length > 0" class="detail-photo-grid">

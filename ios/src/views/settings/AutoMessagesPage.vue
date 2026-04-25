@@ -20,7 +20,6 @@
       <section class="mobile-hero settings-auto-messages-hero">
         <p class="mobile-note settings-auto-messages-hero__eyebrow">沟通与自动化</p>
         <h1 class="mobile-title">自动消息</h1>
-        <p class="mobile-subtitle">支持查看、启停、复制与基础配置，并可按房型、分组或房间设置发送范围。</p>
         <div class="mobile-chip-row">
           <span class="mobile-chip">消息 {{ messages.length }}</span>
           <span class="mobile-chip">渠道 {{ channels.length }}</span>
@@ -34,31 +33,38 @@
           <div class="mobile-inline-row settings-auto-messages-page__section-header">
             <div>
               <h2 class="mobile-section-title">消息列表</h2>
-              <p class="mobile-note">支持全部房型、按房型、按分组、按房间四种发送范围。</p>
             </div>
             <ion-spinner v-if="loading" name="crescent" />
           </div>
 
-          <div v-if="messages.length > 0" class="mobile-list settings-auto-messages-list">
-            <article v-for="message in messages" :key="message.id" class="settings-auto-message-card">
-              <div class="settings-auto-message-card__header">
-                <div>
+          <div v-if="messages.length > 0" class="mobile-list settings-minimal-list settings-auto-messages-list">
+            <article v-for="message in messages" :key="message.id" class="settings-minimal-card settings-auto-message-card">
+              <div class="settings-minimal-card__header">
+                <div class="settings-minimal-card__title-group">
                   <strong>{{ message.title }}</strong>
-                  <p>{{ message.message }}</p>
+                  <p class="settings-minimal-card__summary settings-minimal-card__summary--clamp-two">
+                    {{ message.message }}
+                  </p>
                 </div>
-                <span class="settings-auto-message-card__status" :class="message.enabled ? 'is-active' : 'is-inactive'">
+                <span
+                  class="settings-minimal-card__badge"
+                  :class="message.enabled ? 'settings-minimal-card__badge--success' : 'settings-minimal-card__badge--warning'"
+                >
                   {{ message.enabled ? '已启用' : '已停用' }}
                 </span>
               </div>
 
-              <div class="settings-auto-message-card__meta">
-                <span>动作：{{ formatActionLabel(message.action) }}</span>
-                <span>发送：{{ formatTimingLabel(message.sendTiming) }}</span>
-                <span>渠道：{{ formatChannelSummary(message.channels) }}</span>
-                <span>范围：{{ formatRoomSummary(message.roomSelectionType, message.roomSelection) }}</span>
+              <div class="settings-minimal-card__meta">
+                <span class="settings-minimal-card__meta-pill">{{ formatAutomationSummary(message) }}</span>
+                <span v-if="formatChannelTag(message.channels)" class="settings-minimal-card__meta-pill">
+                  {{ formatChannelTag(message.channels) }}
+                </span>
+                <span class="settings-minimal-card__meta-pill">
+                  {{ formatRoomSummary(message.roomSelectionType, message.roomSelection) }}
+                </span>
               </div>
 
-              <div class="settings-auto-message-card__actions">
+              <div class="settings-minimal-card__actions settings-minimal-card__actions--dense">
                 <ion-button size="small" fill="outline" @click="handleEditMessage(message)">编辑</ion-button>
                 <ion-button size="small" fill="outline" @click="handleCopyMessage(message)">复制</ion-button>
                 <ion-button size="small" fill="outline" @click="handleToggleMessage(message)">
@@ -74,13 +80,6 @@
           <p v-else-if="!loading" class="mobile-note settings-auto-messages-page__empty-state">当前暂无自动消息。</p>
         </section>
 
-        <section class="mobile-card">
-          <h2 class="mobile-section-title">首版说明</h2>
-          <ul class="mobile-bullet-list">
-            <li>已覆盖渠道多选、房型 / 分组 / 房间范围、动作、发送时机、启停、复制与删除。</li>
-            <li>复杂房间大列表继续使用 modal 选择，避免在移动端塞入大弹层。</li>
-          </ul>
-        </section>
       </div>
 
       <ion-modal :is-open="editorOpen" @didDismiss="handleDismissEditor">
@@ -108,7 +107,6 @@
 
               <div class="settings-variable-panel">
                 <h3>插入变量</h3>
-                  <p class="mobile-note">点击后会插入到消息末尾。</p>
                 <div class="settings-variable-panel__list">
                   <button
                     v-for="variable in messageVariables"
@@ -134,7 +132,6 @@
               <div class="settings-toggle-field">
                 <div>
                   <strong>过时补发</strong>
-                  <p>开启后，过期场景也会按设定继续补发。</p>
                 </div>
                 <ion-toggle v-model="messageForm.resendOnExpire" />
               </div>
@@ -188,12 +185,12 @@
               <template v-if="messageForm.action === 'CHECK_IN' || messageForm.action === 'CHECK_OUT'">
                 <label class="settings-form-field">
                   <span>天数偏移</span>
-                  <ion-input v-model="messageForm.day" fill="outline" inputmode="numeric" placeholder="例如 0 / -1 / 1" />
+                  <ion-input v-model="messageForm.day" fill="outline" inputmode="numeric" placeholder="0 / -1 / 1" />
                 </label>
 
                 <label class="settings-form-field">
                   <span>发送时间</span>
-                  <ion-input v-model="messageForm.time" fill="outline" placeholder="例如 14:00" />
+                  <ion-input v-model="messageForm.time" fill="outline" placeholder="14:00" />
                 </label>
               </template>
 
@@ -209,7 +206,6 @@
               <div class="settings-toggle-field">
                 <div>
                   <strong>启用状态</strong>
-                  <p>保存后会按当前开关状态生效。</p>
                 </div>
                 <ion-toggle v-model="messageForm.enabled" />
               </div>
@@ -405,6 +401,10 @@ function formatTimingLabel(value: string) {
   return value || '未设置'
 }
 
+function formatAutomationSummary(message: AutoMessageDTO) {
+  return `${formatActionLabel(message.action)} · ${formatTimingLabel(message.sendTiming)}`
+}
+
 function formatChannelSummary(rawValue: string) {
   const channelIds = parseNumberList(rawValue)
   if (channelIds.length === 0) {
@@ -423,6 +423,14 @@ function formatChannelSummary(rawValue: string) {
     return '全部渠道'
   }
   return names.join('、')
+}
+
+function formatChannelTag(rawValue: string) {
+  const summary = formatChannelSummary(rawValue)
+  if (summary === '全部渠道') {
+    return ''
+  }
+  return `渠道 ${summary}`
 }
 
 function formatRoomSummary(roomSelectionType: RoomSelectionType, rawValue: string) {
@@ -765,72 +773,12 @@ onIonViewWillEnter(async () => {
   font-weight: 700;
 }
 
+.settings-auto-messages-page > .mobile-stack {
+  margin-top: var(--ios-pms-space-4);
+}
+
 .settings-auto-messages-page__section-header {
   align-items: flex-start;
-}
-
-.settings-auto-messages-list {
-  margin-top: 16px;
-}
-
-.settings-auto-message-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.settings-auto-message-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.settings-auto-message-card__header strong,
-.settings-auto-message-card__header p {
-  margin: 0;
-}
-
-.settings-auto-message-card__header p {
-  margin-top: 8px;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.settings-auto-message-card__status {
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.settings-auto-message-card__status.is-active {
-  background: rgba(15, 159, 110, 0.12);
-  color: var(--ion-color-success);
-}
-
-.settings-auto-message-card__status.is-inactive {
-  background: rgba(217, 119, 6, 0.12);
-  color: var(--ion-color-warning);
-}
-
-.settings-auto-message-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  margin-top: 12px;
-  color: var(--app-muted);
-  font-size: 12px;
-}
-
-.settings-auto-message-card__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 14px;
 }
 
 .settings-auto-messages-page__empty-state {

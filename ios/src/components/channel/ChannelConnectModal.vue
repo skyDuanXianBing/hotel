@@ -9,24 +9,21 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content>
+    <ion-content class="channel-connect-modal__content">
       <section class="channel-connect-modal__hero">
+        <span class="channel-connect-modal__eyebrow">准备连接</span>
         <strong>{{ channelName }}</strong>
+        <p>授权完成后会自动回到当前页面，并刷新当前渠道的状态。</p>
       </section>
 
-      <ion-list inset>
-        <ion-item lines="none">
-          <div class="channel-connect-modal__section">
-            <h3>开始前请确认</h3>
-            <ul>
-              <li>请使用拥有渠道酒店 / 账号权限的正式账号授权。</li>
-              <li>授权完成后，返回应用会自动刷新当前渠道状态。</li>
-              <li>若显示“映射未完成”，请继续进入 Su 向导补齐房型与价盘映射。</li>
-            </ul>
-          </div>
-        </ion-item>
-
-      </ion-list>
+      <section class="channel-connect-modal__section">
+        <h3>开始前请确认</h3>
+        <ul>
+          <li>请使用拥有渠道酒店 / 账号权限的正式账号授权。</li>
+          <li>授权完成后，返回应用会自动刷新当前渠道状态。</li>
+          <li>若显示“映射未完成”，请继续进入 Su 向导补齐房型与价盘映射。</li>
+        </ul>
+      </section>
     </ion-content>
 
     <ion-footer>
@@ -47,8 +44,6 @@ import {
   IonContent,
   IonFooter,
   IonHeader,
-  IonItem,
-  IonList,
   IonModal,
   IonTitle,
   IonToolbar,
@@ -69,17 +64,33 @@ const title = computed(() => `${props.channelName || '渠道'}授权说明`)
 </script>
 
 <style scoped>
+.channel-connect-modal__content {
+  --padding-top: 10px;
+  --padding-bottom: calc(20px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
 .channel-connect-modal__hero {
-  margin: 16px;
-  padding: 18px;
-  border-radius: 20px;
-  background: var(--app-primary-soft);
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  border: 1px solid var(--app-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 255, 0.94));
+}
+
+.channel-connect-modal__eyebrow {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: var(--ion-color-primary);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .channel-connect-modal__hero strong {
   display: block;
-  font-size: 18px;
+  font-size: 20px;
   color: var(--app-heading);
+  letter-spacing: -0.02em;
 }
 
 .channel-connect-modal__hero p,
@@ -92,13 +103,17 @@ const title = computed(() => `${props.channelName || '渠道'}授权说明`)
 }
 
 .channel-connect-modal__section {
-  padding: 6px 0;
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid var(--app-border);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .channel-connect-modal__section h3 {
   margin: 0;
   color: var(--app-heading);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .channel-connect-modal__section ul {
@@ -108,8 +123,12 @@ const title = computed(() => `${props.channelName || '渠道'}授权说明`)
 
 .channel-connect-modal__footer {
   display: flex;
-  justify-content: flex-end;
   gap: 10px;
-  padding: 0 16px;
+  padding: 0 16px calc(4px + var(--app-safe-bottom));
+}
+
+.channel-connect-modal__footer ion-button {
+  flex: 1;
+  --box-shadow: none;
 }
 </style>

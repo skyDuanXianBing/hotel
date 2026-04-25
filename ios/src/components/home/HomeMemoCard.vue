@@ -13,14 +13,16 @@
     </div>
 
     <template v-else>
-      <ion-textarea
-        v-model="textareaValue"
-        auto-grow
-        class="memo-textarea"
-        fill="outline"
-        placeholder="记录今日重点事项或待办…"
-        :rows="4"
-      />
+      <div class="memo-editor">
+        <ion-textarea
+          v-model="textareaValue"
+          auto-grow
+          class="memo-textarea"
+          fill="outline"
+          placeholder="记录今日重点事项或待办"
+          :rows="4"
+        />
+      </div>
     </template>
   </section>
 </template>
@@ -52,56 +54,66 @@ const textareaValue = computed({
 
 <style scoped>
 .memo-section {
-  padding: 18px;
-  border: 1px solid var(--app-border);
-  border-radius: 20px;
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
+  padding: 20px 18px;
+  border: 1px solid rgba(97, 124, 177, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 30px rgba(77, 98, 145, 0.08);
 }
 
 .memo-section__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .memo-section__title {
   margin: 0;
-  color: var(--app-heading);
-  font-size: 16px;
-  font-weight: 700;
+  color: #16233b;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .memo-status {
-  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid rgba(116, 163, 251, 0.1);
   border-radius: 999px;
-  background: rgba(var(--ion-color-primary-rgb), 0.06);
-  color: var(--app-muted);
+  background: rgba(115, 164, 255, 0.08);
+  color: #8c98b1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .memo-status--saving {
-  background: var(--app-primary-soft-strong);
-  color: var(--ion-color-primary);
+  background: rgba(115, 164, 255, 0.14);
+  color: #3f7cff;
+}
+
+.memo-editor,
+.memo-skeleton {
+  padding: 12px;
+  border: 1px solid rgba(115, 139, 188, 0.1);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(248, 250, 255, 0.98), rgba(255, 255, 255, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .memo-textarea {
-  --background: var(--app-surface-muted);
-  --border-radius: 14px;
-  --border-color: var(--app-border);
-  --padding-start: 14px;
-  --padding-end: 14px;
+  --background: transparent;
+  --border-radius: 16px;
+  --border-color: transparent;
+  --padding-start: 4px;
+  --padding-end: 4px;
   min-height: 120px;
+  color: #16233b;
   font-size: 14px;
-}
-
-.memo-skeleton {
-  padding: 14px;
-  border: 1px solid var(--app-border);
-  border-radius: 14px;
-  background: var(--app-surface-muted);
 }
 
 .memo-skeleton__line {

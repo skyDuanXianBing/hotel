@@ -14,19 +14,16 @@
         <ion-refresher-content pulling-text="下拉刷新数据中心" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section class="mobile-hero data-center-page__hero">
-        <p class="mobile-note data-center-page__eyebrow">数据中心</p>
-        <h1 class="mobile-title">{{ storeName }}</h1>
-        <p class="mobile-subtitle">{{ pageDescription }}</p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">{{ activePrimaryLabel }}</span>
-          <span class="mobile-chip">{{ dateRangeLabel }}</span>
-          <span class="mobile-chip">移动端优先</span>
-        </div>
-      </section>
-
       <div class="mobile-stack">
-        <section class="mobile-card">
+        <section class="mobile-card data-center-page__toolbar-card">
+          <div class="data-center-page__toolbar-copy">
+            <p class="data-center-page__toolbar-store">{{ storeName }}</p>
+            <div class="data-center-page__toolbar-meta">
+              <span>{{ activePrimaryLabel }}</span>
+              <span>{{ dateRangeLabel }}</span>
+            </div>
+          </div>
+
           <ion-segment :value="activePrimarySection" @ionChange="handlePrimarySectionChange">
             <ion-segment-button value="overview">
               <ion-label>总览</ion-label>
@@ -38,31 +35,38 @@
               <ion-label>记一笔</ion-label>
             </ion-segment-button>
           </ion-segment>
-        </section>
 
-        <section class="mobile-card data-center-page__filter-card">
-          <div class="data-center-page__preset-list">
-            <button
-              v-for="preset in DATE_PRESETS"
-              :key="preset.value"
-              type="button"
-              class="data-center-page__preset-button"
-              :class="{ 'is-active': activeDatePreset === preset.value }"
-              @click="handlePresetClick(preset.value)"
-            >
-              {{ preset.label }}
-            </button>
-          </div>
+          <div class="data-center-page__filter-shell">
+            <div class="data-center-page__preset-list">
+              <button
+                v-for="preset in DATE_PRESETS"
+                :key="preset.value"
+                type="button"
+                class="data-center-page__preset-button"
+                :class="{ 'is-active': activeDatePreset === preset.value }"
+                @click="handlePresetClick(preset.value)"
+              >
+                {{ preset.label }}
+              </button>
+            </div>
 
-          <div class="data-center-page__date-grid">
-            <label class="data-center-page__date-field">
-              <span>开始日期</span>
-              <input v-model="startDate" type="date" class="data-center-page__date-input" @change="handleManualDateChange" />
-            </label>
-            <label class="data-center-page__date-field">
-              <span>结束日期</span>
-              <input v-model="endDate" type="date" class="data-center-page__date-input" @change="handleManualDateChange" />
-            </label>
+            <div class="data-center-page__date-grid" role="group" aria-label="日期范围">
+              <input
+                v-model="startDate"
+                aria-label="开始日期"
+                type="date"
+                class="data-center-page__date-input"
+                @change="handleManualDateChange"
+              />
+              <span class="data-center-page__date-separator">-</span>
+              <input
+                v-model="endDate"
+                aria-label="结束日期"
+                type="date"
+                class="data-center-page__date-input"
+                @change="handleManualDateChange"
+              />
+            </div>
           </div>
         </section>
 
@@ -85,20 +89,20 @@
         <template v-else>
           <template v-if="activePrimarySection === 'overview'">
             <section class="mobile-card">
-              <ion-segment :value="activeOverviewTab" @ionChange="handleOverviewTabChange">
-                <ion-segment-button value="business">
-                  <ion-label>营业概况</ion-label>
-                </ion-segment-button>
-                <ion-segment-button value="revenue">
-                  <ion-label>流水汇总</ion-label>
-                </ion-segment-button>
-                <ion-segment-button value="channel">
-                  <ion-label>渠道汇总</ion-label>
-                </ion-segment-button>
-                <ion-segment-button value="sales">
-                  <ion-label>销售汇总</ion-label>
-                </ion-segment-button>
-              </ion-segment>
+              <div class="data-center-page__tab-grid" role="tablist" aria-label="总览分类">
+                <button
+                  v-for="tab in OVERVIEW_TABS"
+                  :key="tab.value"
+                  type="button"
+                  role="tab"
+                  class="data-center-page__tab-button"
+                  :aria-selected="activeOverviewTab === tab.value ? 'true' : 'false'"
+                  :class="{ 'is-active': activeOverviewTab === tab.value }"
+                  @click="handleOverviewTabSelect(tab.value)"
+                >
+                  {{ tab.label }}
+                </button>
+              </div>
             </section>
 
             <section v-if="activeOverviewTab === 'business'" class="mobile-card">
@@ -137,7 +141,6 @@
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">消费分类分布</h2>
-                  <p class="mobile-note">移动端以摘要列表代替拥挤图表。</p>
                 </div>
               </div>
 
@@ -343,13 +346,14 @@
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">销售汇总</h2>
-                  <p class="mobile-note">支持按关键字搜索销售订单，方便快速定位目标记录。</p>
                 </div>
               </div>
 
               <ion-searchbar
+                ref="salesSearchbarRef"
                 v-model="salesKeywordInput"
                 :debounce="0"
+                class="data-center-page__sales-searchbar"
                 placeholder="搜索订单号、渠道号、客户名、手机号"
               />
 
@@ -371,6 +375,27 @@
             </section>
 
             <section v-if="activeOverviewTab === 'sales'" class="mobile-card">
+              <div class="mobile-inline-row">
+                <div>
+                  <h2 class="mobile-section-title">销售订单明细</h2>
+                </div>
+              </div>
+              <div v-if="salesSummary.orderDetails.length > 0" class="data-center-page__card-list">
+                <article v-for="item in salesSummary.orderDetails" :key="item.id" class="data-center-page__detail-card">
+                  <div class="data-center-page__detail-header">
+                    <strong>{{ item.guestName || item.customerName || '未命名住客' }}</strong>
+                    <span class="data-center-page__amount">{{ formatCurrency(item.amount) }}</span>
+                  </div>
+                  <p class="mobile-note">订单号 {{ item.orderNumber }}</p>
+                  <p class="mobile-note">渠道号 {{ item.channelNumber || '-' }}</p>
+                  <p class="mobile-note">{{ item.channelName || '未知渠道' }} · {{ formatDateTime(item.createdAt) }}</p>
+                  <p class="mobile-note">手机号 {{ item.phone || '-' }}</p>
+                </article>
+              </div>
+              <p v-else class="mobile-note">当前日期范围暂无销售订单。</p>
+            </section>
+
+            <section v-if="activeOverviewTab === 'sales'" class="mobile-card">
               <h2 class="mobile-section-title">每日销售额</h2>
               <div v-if="salesTrendItems.length > 0" class="data-center-page__summary-list">
                 <article
@@ -387,23 +412,6 @@
               </div>
               <p v-else class="mobile-note">当前日期范围暂无销售趋势数据。</p>
             </section>
-
-            <section v-if="activeOverviewTab === 'sales'" class="mobile-card">
-              <h2 class="mobile-section-title">销售订单明细</h2>
-              <div v-if="salesSummary.orderDetails.length > 0" class="data-center-page__card-list">
-                <article v-for="item in salesSummary.orderDetails" :key="item.id" class="data-center-page__detail-card">
-                  <div class="data-center-page__detail-header">
-                    <strong>{{ item.guestName || item.customerName || '未命名住客' }}</strong>
-                    <span class="data-center-page__amount">{{ formatCurrency(item.amount) }}</span>
-                  </div>
-                  <p class="mobile-note">订单号 {{ item.orderNumber }}</p>
-                  <p class="mobile-note">渠道号 {{ item.channelNumber || '-' }}</p>
-                  <p class="mobile-note">{{ item.channelName || '未知渠道' }} · {{ formatDateTime(item.createdAt) }}</p>
-                  <p class="mobile-note">手机号 {{ item.phone || '-' }}</p>
-                </article>
-              </div>
-              <p v-else class="mobile-note">当前日期范围暂无销售订单。</p>
-            </section>
           </template>
 
           <template v-if="activePrimarySection === 'accommodation'">
@@ -411,7 +419,6 @@
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">经营指标</h2>
-                  <p class="mobile-note">按当前日期范围查看经营指标、趋势与明细。</p>
                 </div>
               </div>
 
@@ -447,7 +454,6 @@
               <div class="mobile-inline-row">
                 <div>
                   <h2 class="mobile-section-title">经营指标趋势</h2>
-                  <p class="mobile-note">展示所选日期范围内的逐日趋势结果。</p>
                 </div>
               </div>
 
@@ -483,15 +489,25 @@
             </section>
 
             <section class="mobile-card">
-              <div class="mobile-inline-row">
-                <div>
+              <div class="mobile-inline-row data-center-page__detail-toolbar">
+                <div class="data-center-page__detail-toolbar-copy">
                   <h2 class="mobile-section-title">经营指标明细</h2>
-                  <p class="mobile-note">补齐房费、间夜、入住率与 RevPAR 明细结果。</p>
                 </div>
-                <ion-button size="small" fill="outline" @click="handleExportAccommodationDetails">导出明细</ion-button>
+                <ion-button
+                  size="small"
+                  fill="outline"
+                  class="data-center-page__export-button"
+                  @click="handleExportAccommodationDetails"
+                >
+                  导出明细
+                </ion-button>
               </div>
 
-              <ion-segment :value="activeAccommodationDetailTab" @ionChange="handleAccommodationDetailTabChange">
+              <ion-segment
+                :value="activeAccommodationDetailTab"
+                class="data-center-page__segment-grid data-center-page__segment-grid--detail"
+                @ionChange="handleAccommodationDetailTabChange"
+              >
                 <ion-segment-button value="roomFee">
                   <ion-label>房费明细</ion-label>
                 </ion-segment-button>
@@ -521,33 +537,6 @@
               </div>
               <p v-else class="mobile-note">当前日期范围暂无经营指标明细。</p>
               <p class="mobile-note">如需导出，可先记录当前筛选条件后再到电脑端处理。</p>
-            </section>
-
-            <section class="mobile-card">
-              <h2 class="mobile-section-title">当前已支持口径</h2>
-              <div class="data-center-page__summary-list">
-                <article class="data-center-page__summary-item">
-                  <div>
-                    <strong>统计天数</strong>
-                    <p class="mobile-note">用于解释 ADR、入住率与 RevPAR 的计算口径</p>
-                  </div>
-                  <strong>{{ formatCount(operationalMetrics.days) }}</strong>
-                </article>
-                <article class="data-center-page__summary-item">
-                  <div>
-                    <strong>总房间数</strong>
-                    <p class="mobile-note">门店房量基数</p>
-                  </div>
-                  <strong>{{ formatCount(operationalMetrics.totalRooms) }}</strong>
-                </article>
-                <article class="data-center-page__summary-item">
-                  <div>
-                    <strong>平均每日售出间夜</strong>
-                    <p class="mobile-note">累计售出间夜 ÷ 统计天数</p>
-                  </div>
-                  <strong>{{ formatCount(averageDailySoldRoomNights) }}</strong>
-                </article>
-              </div>
             </section>
           </template>
 
@@ -642,11 +631,6 @@
                   <ion-label>支出</ion-label>
                 </ion-segment-button>
               </ion-segment>
-
-              <div class="data-center-page__inline-actions">
-                <ion-button size="small" fill="outline" @click="handleExportNotes">导出报表</ion-button>
-                <ion-button size="small" fill="outline" @click="handleVoucherComingSoon">凭证说明</ion-button>
-              </div>
             </section>
 
             <section class="mobile-card">
@@ -676,6 +660,10 @@
                 </article>
               </div>
               <p v-else class="mobile-note">当前日期范围暂无记一笔明细。</p>
+              <div class="data-center-page__subtle-actions">
+                <ion-button size="small" fill="outline" @click="handleExportNotes">导出报表</ion-button>
+                <ion-button size="small" fill="outline" @click="handleVoucherComingSoon">凭证说明</ion-button>
+              </div>
             </section>
           </template>
         </template>
@@ -701,8 +689,8 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/vue'
-import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   getBusinessOverview,
   getChannelSummary,
@@ -726,7 +714,6 @@ import {
   type NotesStatisticsDTO,
   type NoteType,
 } from '@/api/notes'
-import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
@@ -757,11 +744,27 @@ interface DatePresetOption {
   value: DatePreset
 }
 
+interface OverviewTabOption {
+  label: string
+  value: OverviewTab
+}
+
+type SearchbarElement = HTMLElement & {
+  getInputElement?: () => Promise<HTMLInputElement>
+}
+
 const DATE_PRESETS: DatePresetOption[] = [
   { label: '今天', value: 'today' },
   { label: '昨天', value: 'yesterday' },
   { label: '本周', value: 'week' },
   { label: '本月', value: 'month' },
+]
+
+const OVERVIEW_TABS: OverviewTabOption[] = [
+  { label: '营业概况', value: 'business' },
+  { label: '流水汇总', value: 'revenue' },
+  { label: '渠道汇总', value: 'channel' },
+  { label: '销售汇总', value: 'sales' },
 ]
 
 const NOTE_CATEGORY_LABEL_MAP: Record<string, string> = {
@@ -786,13 +789,14 @@ const NOTE_PAYMENT_METHOD_LABEL_MAP: Record<string, string> = {
 }
 
 const route = useRoute()
-const router = useRouter()
 const storeStore = useStoreStore()
 
 const activeDatePreset = ref<DatePreset | ''>('today')
 const startDate = ref('')
 const endDate = ref('')
+const activePrimarySection = ref<DataCenterSection>('overview')
 const activeOverviewTab = ref<OverviewTab>('business')
+const salesSearchbarRef = ref<SearchbarElement | null>(null)
 const salesKeywordInput = ref('')
 const salesKeyword = ref('')
 const notesStatsMode = ref<NotesStatsMode>('project')
@@ -813,18 +817,6 @@ const notesList = ref<NoteDTO[]>([])
 
 const storeName = computed(() => {
   return storeStore.currentStore?.name || '未选择门店'
-})
-
-const activePrimarySection = computed<DataCenterSection>(() => {
-  if (route.name === 'StatisticsAccommodation') {
-    return 'accommodation'
-  }
-
-  if (route.name === 'StatisticsNotes') {
-    return 'notes'
-  }
-
-  return 'overview'
 })
 
 const activePrimaryLabel = computed(() => {
@@ -851,40 +843,16 @@ const pageTitle = computed(() => {
   return '数据中心'
 })
 
-const pageDescription = computed(() => {
-  if (activePrimarySection.value === 'accommodation') {
-    return '聚焦经营指标、趋势与明细，方便按日期查看经营表现。'
-  }
-
-  if (activePrimarySection.value === 'notes') {
-    return '查看记一笔的收支统计与明细列表，方便快速核对每日记录。'
-  }
-
-  if (activeOverviewTab.value === 'revenue') {
-    return '按支付方式、款项分类和按日流水查看经营资金结构。'
-  }
-
-  if (activeOverviewTab.value === 'channel') {
-    return '聚焦渠道收入、间夜与渠道明细，按移动端摘要表达。'
-  }
-
-  if (activeOverviewTab.value === 'sales') {
-    return '支持关键字搜索销售订单，便于快速定位客户与订单。'
-  }
-
-  return '总览包含营业概况、流水汇总、渠道汇总和销售汇总。'
-})
-
 const dateRangeLabel = computed(() => {
   if (!startDate.value || !endDate.value) {
     return '未选择日期'
   }
 
   if (startDate.value === endDate.value) {
-    return startDate.value
+    return formatDisplayDate(startDate.value)
   }
 
-  return `${startDate.value} 至 ${endDate.value}`
+  return `${formatDisplayDate(startDate.value)}-${formatDisplayDate(endDate.value)}`
 })
 
 const businessTrendItems = computed(() => {
@@ -931,14 +899,6 @@ const channelAverageRevenuePerNight = computed(() => {
   return channelDisplaySummary.value.totalRevenue / channelDisplaySummary.value.totalRoomNights
 })
 
-const averageDailySoldRoomNights = computed(() => {
-  if (!operationalMetrics.value.days) {
-    return 0
-  }
-
-  return operationalMetrics.value.totalSoldRoomNights / operationalMetrics.value.days
-})
-
 const activeNotesIncomeStats = computed(() => {
   if (notesStatsMode.value === 'payment') {
     return notesStatistics.value.incomeByPayment
@@ -959,7 +919,8 @@ applyDatePreset('today', false)
 
 watch(
   () => route.name,
-  async () => {
+  async (nextRouteName) => {
+    activePrimarySection.value = resolvePrimarySection(nextRouteName)
     await loadCurrentSection()
   },
   { immediate: true },
@@ -974,6 +935,19 @@ watch(
 
     await loadCurrentSection()
   },
+)
+
+watch(
+  [activePrimarySection, activeOverviewTab, salesSearchbarRef],
+  async ([nextPrimarySection, nextOverviewTab, searchbarEl]) => {
+    if (nextPrimarySection !== 'overview' || nextOverviewTab !== 'sales' || !searchbarEl) {
+      return
+    }
+
+    await nextTick()
+    await tuneSalesSearchbarInput(searchbarEl)
+  },
+  { flush: 'post' },
 )
 
 function createEmptyBusinessOverview(): BusinessOverviewDTO {
@@ -1072,6 +1046,26 @@ function formatShortDate(value: string) {
   const month = String(parsed.getMonth() + 1).padStart(2, '0')
   const day = String(parsed.getDate()).padStart(2, '0')
   return `${month}-${day}`
+}
+
+function formatDisplayDate(value: string) {
+  if (!value) {
+    return '-'
+  }
+
+  return value.replace(/-/g, '/')
+}
+
+async function tuneSalesSearchbarInput(target: SearchbarElement | null) {
+  if (!target?.getInputElement) {
+    return
+  }
+
+  const input = await target.getInputElement()
+  input.style.fontSize = '12px'
+  input.style.paddingInlineStart = '1.5rem'
+  input.style.paddingInlineEnd = '0.5rem'
+  input.style.letterSpacing = '0'
 }
 
 function formatDateTime(value: string) {
@@ -1316,22 +1310,16 @@ function applyDatePreset(preset: DatePreset, shouldLoad = true) {
   }
 }
 
-async function navigateToSection(section: DataCenterSection) {
-  let targetPath: string = ROUTE_PATHS.statisticsOverview
-
-  if (section === 'accommodation') {
-    targetPath = ROUTE_PATHS.statisticsAccommodation
+function resolvePrimarySection(routeName: unknown): DataCenterSection {
+  if (routeName === 'StatisticsAccommodation') {
+    return 'accommodation'
   }
 
-  if (section === 'notes') {
-    targetPath = ROUTE_PATHS.statisticsNotes
+  if (routeName === 'StatisticsNotes') {
+    return 'notes'
   }
 
-  if (route.path === targetPath) {
-    return
-  }
-
-  await router.push(targetPath)
+  return 'overview'
 }
 
 async function loadCurrentSection() {
@@ -1492,15 +1480,15 @@ async function reloadCurrentSection() {
 
 async function handlePrimarySectionChange(event: CustomEvent) {
   const nextValue = event.detail.value as DataCenterSection
-  if (!nextValue) {
+  if (!nextValue || nextValue === activePrimarySection.value) {
     return
   }
 
-  await navigateToSection(nextValue)
+  activePrimarySection.value = nextValue
+  await loadCurrentSection()
 }
 
-async function handleOverviewTabChange(event: CustomEvent) {
-  const nextValue = event.detail.value as OverviewTab
+async function handleOverviewTabSelect(nextValue: OverviewTab) {
   if (!nextValue || nextValue === activeOverviewTab.value) {
     return
   }
@@ -1600,22 +1588,54 @@ async function handlePullRefresh(event: CustomEvent) {
   display: block;
 }
 
-.data-center-page__hero {
-  margin-top: 4px;
-}
-
-.data-center-page__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-}
-
-.data-center-page__filter-card,
+.data-center-page__toolbar-card,
 .data-center-page__loading-card,
 .data-center-page__error-card,
 .data-center-page__notice-card,
 .data-center-page__coming-soon-card {
   display: grid;
   gap: 10px;
+}
+
+.data-center-page__toolbar-card {
+  gap: 14px;
+}
+
+.data-center-page__toolbar-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.data-center-page__toolbar-store {
+  margin: 0;
+  color: var(--app-heading);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.data-center-page__toolbar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.data-center-page__toolbar-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--app-surface-muted);
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.data-center-page__filter-shell {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border);
 }
 
 .data-center-page__loading-card {
@@ -1657,23 +1677,17 @@ async function handlePullRefresh(event: CustomEvent) {
 
 .data-center-page__date-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.data-center-page__date-field {
-  display: grid;
-  gap: 6px;
-  color: var(--app-muted);
-  font-size: 12px;
-  font-weight: 600;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
 }
 
 .data-center-page__date-input {
   box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   min-height: 42px;
-  padding: 10px 8px;
+  padding: 10px 6px;
   border: 1px solid var(--app-border);
   border-radius: 14px;
   background: var(--app-surface);
@@ -1682,25 +1696,144 @@ async function handlePullRefresh(event: CustomEvent) {
   text-align: center;
 }
 
-.data-center-page__metric-grid {
+.data-center-page__date-separator {
+  color: var(--app-muted);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.data-center-page__tab-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: 18px;
+  background: var(--app-surface-muted);
+}
+
+.data-center-page__tab-button {
+  min-height: 48px;
+  padding: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--app-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.data-center-page__tab-button.is-active {
+  background: var(--app-primary-soft-strong);
+  color: var(--ion-color-primary);
+}
+
+.data-center-page__segment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px;
+}
+
+.data-center-page__segment-grid ion-segment-button {
+  --padding-start: 10px;
+  --padding-end: 10px;
+  grid-row: auto;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  white-space: normal;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.data-center-page__segment-grid ion-segment-button::before {
+  display: none;
+}
+
+.data-center-page__segment-grid ion-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: initial;
+  line-height: 1.3;
+}
+
+.data-center-page__segment-grid--detail ion-segment-button {
+  min-height: 52px;
+  font-size: 12px;
+}
+
+.data-center-page__detail-toolbar {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.data-center-page__detail-toolbar-copy {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.data-center-page__export-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.data-center-page__export-button::part(native) {
+  white-space: nowrap;
+}
+
+.data-center-page__sales-searchbar {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  --placeholder-font-weight: 400;
+}
+
+.data-center-page__metric-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   margin-top: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .data-center-page__metric-card {
   display: grid;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid var(--app-border);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.84);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.data-center-page__metric-card + .data-center-page__metric-card {
+  border-top: 1px solid var(--app-border);
 }
 
 .data-center-page__metric-card.is-primary {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 16px;
   background: linear-gradient(135deg, var(--app-primary-soft-strong), rgba(59, 130, 246, 0.12));
-  border-color: var(--app-border-strong);
+}
+
+.data-center-page__metric-card:not(.is-primary) .data-center-page__metric-label {
+  color: var(--app-heading);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.data-center-page__metric-card:not(.is-primary) .data-center-page__metric-value {
+  font-size: 16px;
+  text-align: right;
 }
 
 .data-center-page__metric-label {
@@ -1714,10 +1847,19 @@ async function handlePullRefresh(event: CustomEvent) {
   line-height: 1.3;
 }
 
+.data-center-page__metric-card.is-primary .data-center-page__metric-value {
+  font-size: 24px;
+}
+
 .data-center-page__summary-list,
 .data-center-page__card-list {
   display: grid;
-  gap: 12px;
+  gap: 0;
+  margin-top: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .data-center-page__summary-item,
@@ -1726,10 +1868,15 @@ async function handlePullRefresh(event: CustomEvent) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--app-border);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.84);
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.data-center-page__summary-item + .data-center-page__summary-item,
+.data-center-page__detail-card + .data-center-page__detail-card {
+  border-top: 1px solid var(--app-border);
 }
 
 .data-center-page__summary-item--stack,
@@ -1788,15 +1935,25 @@ async function handlePullRefresh(event: CustomEvent) {
   color: var(--ion-color-danger);
 }
 
-@media (max-width: 360px) {
-  .data-center-page__date-grid,
-  .data-center-page__metric-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.data-center-page__subtle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border);
+}
 
+@media (max-width: 360px) {
+  .data-center-page__metric-card:not(.is-primary),
   .data-center-page__summary-item,
   .data-center-page__detail-header {
     display: grid;
+  }
+
+  .data-center-page__subtle-actions {
+    justify-content: flex-start;
   }
 }
 </style>

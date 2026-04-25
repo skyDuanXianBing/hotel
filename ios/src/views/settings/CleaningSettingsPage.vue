@@ -1,166 +1,124 @@
 <template>
-  <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.settings" />
-        </ion-buttons>
-        <ion-title>保洁设置</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content fullscreen class="mobile-page settings-page-block">
-      <section class="mobile-hero settings-page-block__hero">
-        <p class="mobile-note settings-page-block__eyebrow">保洁设置</p>
-        <h1 class="mobile-title">保洁配置</h1>
-        <p class="mobile-subtitle">维护门店保洁时段、自动任务与保洁员列表。</p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">保洁员 {{ cleaners.length }}</span>
-          <span class="mobile-chip">{{ configForm.enabled ? '配置已启用' : '配置已停用' }}</span>
+  <SettingsPageShell
+    :back-href="ROUTE_PATHS.settings"
+    title="保洁设置"
+    hero-eyebrow="保洁设置"
+    hero-title="保洁配置"
+    :chips="[
+      { label: `保洁员 ${cleaners.length}` },
+      { label: configForm.enabled ? '配置已启用' : '配置已停用' },
+    ]"
+    content-class="settings-page-block"
+    hero-class="settings-page-block__hero"
+    eyebrow-class="settings-page-block__eyebrow"
+  >
+    <SettingsSectionCard
+      title="门店级配置"
+      :loading="loading"
+      header-class="settings-page-block__section-header"
+    >
+      <div class="settings-toggle-field">
+        <div>
+          <strong>启用保洁配置</strong>
         </div>
-      </section>
-
-      <div class="mobile-stack">
-        <section class="mobile-card">
-          <div class="mobile-inline-row settings-page-block__section-header">
-            <div>
-              <h2 class="mobile-section-title">门店级配置</h2>
-              <p class="mobile-note">配置保洁时间窗口与自动生成任务规则。</p>
-            </div>
-            <ion-spinner v-if="loading" name="crescent" />
-          </div>
-
-          <div class="settings-toggle-field">
-            <div>
-              <strong>启用保洁配置</strong>
-              <p>停用后仅关闭自动任务，不影响已生成任务。</p>
-            </div>
-            <ion-toggle v-model="configForm.enabled" />
-          </div>
-
-          <div class="settings-form-grid settings-form-grid--top">
-            <label class="settings-form-field">
-              <span>住中开始</span>
-              <ion-input v-model="configForm.stayStartTime" fill="outline" placeholder="10:00" />
-            </label>
-            <label class="settings-form-field">
-              <span>住中结束</span>
-              <ion-input v-model="configForm.stayEndTime" fill="outline" placeholder="15:00" />
-            </label>
-            <label class="settings-form-field">
-              <span>退房开始</span>
-              <ion-input v-model="configForm.checkoutStartTime" fill="outline" placeholder="11:00" />
-            </label>
-            <label class="settings-form-field">
-              <span>退房结束</span>
-              <ion-input v-model="configForm.checkoutEndTime" fill="outline" placeholder="17:00" />
-            </label>
-          </div>
-
-          <div class="settings-toggle-field settings-toggle-field--top">
-            <div>
-              <strong>自动生成住中任务</strong>
-              <p>启用后按窗口自动生成住中清洁任务。</p>
-            </div>
-            <ion-toggle v-model="configForm.autoStayTask" />
-          </div>
-
-          <div class="settings-toggle-field settings-toggle-field--top">
-            <div>
-              <strong>自动生成退房任务</strong>
-              <p>启用后按窗口自动生成退房清洁任务。</p>
-            </div>
-            <ion-toggle v-model="configForm.autoCheckoutTask" />
-          </div>
-
-          <div class="settings-form-actions settings-form-actions--section">
-            <ion-button fill="outline" :disabled="loading || savingConfig" @click="loadPageData">重置</ion-button>
-            <ion-button :disabled="loading || savingConfig" @click="handleSaveConfig">
-              {{ savingConfig ? '保存中...' : '保存保洁配置' }}
-            </ion-button>
-            <ion-button fill="outline" @click="handleOpenSupplies">易耗品</ion-button>
-          </div>
-        </section>
-
-        <section class="mobile-card">
-          <div class="mobile-inline-row settings-page-block__section-header">
-            <div>
-              <h2 class="mobile-section-title">保洁员</h2>
-              <p class="mobile-note">保洁员通过邮箱和姓名维护。</p>
-            </div>
-            <ion-button size="small" @click="handleCreateCleaner">新增保洁员</ion-button>
-          </div>
-
-          <div v-if="cleaners.length > 0" class="mobile-list settings-card-list">
-            <article v-for="cleaner in cleaners" :key="cleaner.id" class="settings-card-item">
-              <div>
-                <strong>{{ cleaner.name }}</strong>
-                <p>{{ cleaner.email }}</p>
-              </div>
-              <div class="settings-card-item__actions">
-                <ion-button size="small" fill="outline" @click="handleEditCleaner(cleaner)">编辑</ion-button>
-                <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCleaner(cleaner)">删除</ion-button>
-              </div>
-            </article>
-          </div>
-
-          <p v-else-if="!loading" class="mobile-note">当前暂无保洁员。</p>
-        </section>
+        <ion-toggle v-model="configForm.enabled" />
       </div>
 
-      <ion-modal :is-open="editorOpen" @didDismiss="handleDismissEditor">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingCleanerId ? '编辑保洁员' : '新增保洁员' }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissEditor">关闭</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
+      <div class="settings-form-grid settings-form-grid--top">
+        <label class="settings-form-field">
+          <span>住中开始</span>
+          <ion-input v-model="configForm.stayStartTime" fill="outline" placeholder="10:00" />
+        </label>
+        <label class="settings-form-field">
+          <span>住中结束</span>
+          <ion-input v-model="configForm.stayEndTime" fill="outline" placeholder="15:00" />
+        </label>
+        <label class="settings-form-field">
+          <span>退房开始</span>
+          <ion-input v-model="configForm.checkoutStartTime" fill="outline" placeholder="11:00" />
+        </label>
+        <label class="settings-form-field">
+          <span>退房结束</span>
+          <ion-input v-model="configForm.checkoutEndTime" fill="outline" placeholder="17:00" />
+        </label>
+      </div>
 
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <div class="settings-form-grid">
-              <label class="settings-form-field">
-                <span>姓名</span>
-                <ion-input v-model="cleanerForm.name" fill="outline" placeholder="请输入保洁员姓名" />
-              </label>
-              <label class="settings-form-field">
-                <span>邮箱</span>
-                <ion-input v-model="cleanerForm.email" fill="outline" placeholder="请输入邮箱地址" />
-              </label>
-            </div>
+      <div class="settings-toggle-field settings-toggle-field--top">
+        <div>
+          <strong>自动生成住中任务</strong>
+        </div>
+        <ion-toggle v-model="configForm.autoStayTask" />
+      </div>
 
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
-              <ion-button :disabled="submittingCleaner" @click="handleSaveCleaner">
-                {{ submittingCleaner ? '提交中...' : '保存保洁员' }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
-    </ion-content>
-  </ion-page>
+      <div class="settings-toggle-field settings-toggle-field--top">
+        <div>
+          <strong>自动生成退房任务</strong>
+        </div>
+        <ion-toggle v-model="configForm.autoCheckoutTask" />
+      </div>
+
+      <div class="settings-form-actions settings-form-actions--section">
+        <ion-button fill="outline" :disabled="loading || savingConfig" @click="loadPageData">重置</ion-button>
+        <ion-button :disabled="loading || savingConfig" @click="handleSaveConfig">
+          {{ savingConfig ? '保存中...' : '保存保洁配置' }}
+        </ion-button>
+        <ion-button fill="outline" @click="handleOpenSupplies">易耗品</ion-button>
+      </div>
+    </SettingsSectionCard>
+
+    <SettingsSectionCard
+      title="保洁员"
+      header-class="settings-page-block__section-header"
+    >
+      <template #headerActions>
+        <ion-button size="small" @click="handleCreateCleaner">新增保洁员</ion-button>
+      </template>
+
+      <div v-if="cleaners.length > 0" class="mobile-list settings-card-list">
+        <article v-for="cleaner in cleaners" :key="cleaner.id" class="settings-card-item">
+          <div>
+            <strong>{{ cleaner.name }}</strong>
+            <p>{{ cleaner.email }}</p>
+          </div>
+          <div class="settings-card-item__actions">
+            <ion-button size="small" fill="outline" @click="handleEditCleaner(cleaner)">编辑</ion-button>
+            <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCleaner(cleaner)">删除</ion-button>
+          </div>
+        </article>
+      </div>
+
+      <p v-else-if="!loading" class="mobile-note">当前暂无保洁员。</p>
+    </SettingsSectionCard>
+
+    <SettingsEditorModal
+      :is-open="editorOpen"
+      :title="editingCleanerId ? '编辑保洁员' : '新增保洁员'"
+      @close="handleDismissEditor"
+      @didDismiss="handleDismissEditor"
+    >
+      <div class="settings-form-grid">
+        <label class="settings-form-field">
+          <span>姓名</span>
+          <ion-input v-model="cleanerForm.name" fill="outline" placeholder="请输入保洁员姓名" />
+        </label>
+        <label class="settings-form-field">
+          <span>邮箱</span>
+          <ion-input v-model="cleanerForm.email" fill="outline" placeholder="请输入邮箱地址" />
+        </label>
+      </div>
+
+      <template #actions>
+        <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+        <ion-button :disabled="submittingCleaner" @click="handleSaveCleaner">
+          {{ submittingCleaner ? '提交中...' : '保存保洁员' }}
+        </ion-button>
+      </template>
+    </SettingsEditorModal>
+  </SettingsPageShell>
 </template>
 
 <script setup lang="ts">
-import {
-  alertController,
-  IonBackButton,
-  IonButton,
-  IonButtons,
-  IonContent,
-  IonHeader,
-  IonInput,
-  IonModal,
-  IonPage,
-  IonSpinner,
-  IonTitle,
-  IonToggle,
-  IonToolbar,
-  onIonViewWillEnter,
-} from '@ionic/vue'
+import { alertController, IonButton, IonInput, IonToggle, onIonViewWillEnter } from '@ionic/vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -171,6 +129,9 @@ import {
   updateCleaner,
   updateCleaningConfig,
 } from '@/api/cleaning'
+import SettingsEditorModal from '@/components/settings/base/SettingsEditorModal.vue'
+import SettingsPageShell from '@/components/settings/base/SettingsPageShell.vue'
+import SettingsSectionCard from '@/components/settings/base/SettingsSectionCard.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
@@ -377,115 +338,3 @@ onIonViewWillEnter(async () => {
   await loadPageData()
 })
 </script>
-
-<style scoped>
-.settings-page-block {
-  display: block;
-}
-
-.settings-page-block__hero {
-  margin-top: 4px;
-}
-
-.settings-page-block__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-}
-
-.settings-page-block__section-header {
-  align-items: flex-start;
-}
-
-.settings-toggle-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: var(--app-primary-soft);
-}
-
-.settings-toggle-field--top {
-  margin-top: 12px;
-}
-
-.settings-toggle-field strong,
-.settings-toggle-field p {
-  margin: 0;
-}
-
-.settings-toggle-field p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 12px;
-}
-
-.settings-form-grid {
-  display: grid;
-  gap: 14px;
-}
-
-.settings-form-grid--top {
-  margin-top: 12px;
-}
-
-.settings-form-field {
-  display: grid;
-  gap: 8px;
-}
-
-.settings-form-field span {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.settings-card-list {
-  margin-top: 16px;
-}
-
-.settings-card-item {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.settings-card-item strong,
-.settings-card-item p {
-  margin: 0;
-}
-
-.settings-card-item p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-}
-
-.settings-card-item__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.settings-modal-page {
-  --padding-top: 16px;
-  --padding-bottom: 24px;
-  --padding-start: 16px;
-  --padding-end: 16px;
-}
-
-.settings-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 18px;
-}
-
-.settings-form-actions--section {
-  margin-top: 18px;
-}
-</style>

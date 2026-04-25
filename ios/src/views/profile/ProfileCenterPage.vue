@@ -15,35 +15,20 @@
       </ion-refresher>
 
       <section class="mobile-hero profile-hero">
-        <p class="mobile-note profile-hero__eyebrow">账号中心迁移</p>
-        <h1 class="mobile-title">{{ displayName }}</h1>
-        <p class="mobile-subtitle">{{ userStore.currentUser?.email || '未恢复邮箱信息' }}</p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">昵称可编辑</span>
-          <span class="mobile-chip">支持改密</span>
-          <span class="mobile-chip">与 Web 资料字段对齐</span>
+        <div class="profile-hero__content">
+          <h1 class="mobile-title">{{ displayName }}</h1>
+          <p class="mobile-subtitle">{{ userStore.currentUser?.email || '未恢复邮箱信息' }}</p>
         </div>
       </section>
 
       <div class="mobile-stack">
-        <section class="mobile-card profile-avatar-card">
-          <div class="profile-avatar-card__avatar">
-            <img v-if="form.avatar.trim()" :src="form.avatar.trim()" alt="头像" />
-            <span v-else>{{ avatarFallback }}</span>
-          </div>
-          <div>
-            <h2 class="mobile-section-title">资料概览</h2>
-            <p class="mobile-note">修改密码成功后会强制重新登录，保持与 Web 行为一致。</p>
-          </div>
-        </section>
-
         <section class="mobile-card profile-form-card">
-          <div class="mobile-inline-row">
+          <div class="mobile-inline-row profile-form-card__header">
             <div>
               <h2 class="mobile-section-title">个人资料</h2>
               <p class="mobile-note">支持昵称、性别和头像地址维护。</p>
             </div>
-            <ion-spinner v-if="loading || saving" name="crescent" />
+            <ion-spinner v-if="loading || saving" class="profile-form-card__spinner" name="crescent" />
           </div>
 
           <div class="profile-form-grid">
@@ -77,7 +62,7 @@
 
         <section class="mobile-card profile-security-card">
           <h2 class="mobile-section-title">账户安全</h2>
-          <p class="mobile-note">建议定期更新密码，确保新密码与旧密码不同。</p>
+          <p class="mobile-note">修改密码后需要重新登录，请设置与旧密码不同的新密码。</p>
           <ion-button fill="outline" @click="passwordModalOpen = true">修改密码</ion-button>
         </section>
       </div>
@@ -93,7 +78,7 @@
         </ion-header>
 
         <ion-content class="mobile-page profile-modal-page">
-          <section class="mobile-card profile-form-card">
+          <section class="mobile-card profile-form-card profile-form-card--modal">
             <div class="profile-form-grid">
               <label class="profile-form-field">
                 <span>当前密码</span>
@@ -111,7 +96,7 @@
               </label>
             </div>
 
-            <div class="profile-form-actions">
+            <div class="profile-form-actions profile-form-actions--modal">
               <ion-button fill="outline" :disabled="changingPassword" @click="handleDismissPasswordModal">
                 取消
               </ion-button>
@@ -183,14 +168,6 @@ const displayName = computed(() => {
   }
 
   return '个人中心'
-})
-
-const avatarFallback = computed(() => {
-  const value = displayName.value.trim()
-  if (!value) {
-    return '我'
-  }
-  return value.slice(0, 1)
 })
 
 function normalizeGender(value?: string | null) {
@@ -328,42 +305,41 @@ onIonViewWillEnter(async () => {
 <style scoped>
 .profile-page {
   display: block;
+  --background: var(--ios-pms-bg-page);
 }
 
 .profile-hero {
   margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
-.profile-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
+.profile-hero::before {
+  display: none;
 }
 
-.profile-avatar-card {
-  display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
+.profile-hero__content {
+  padding: 8px 4px 0;
+}
+
+.profile-hero .mobile-title {
+  font-size: 34px;
+  line-height: 1.06;
+  letter-spacing: -0.045em;
+}
+
+.profile-hero .mobile-subtitle {
+  max-width: 30ch;
+  margin-top: 6px;
+  font-size: 15px;
+}
+
+.profile-page > .mobile-stack {
   gap: 14px;
-  align-items: center;
-}
-
-.profile-avatar-card__avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: var(--app-primary-soft-strong);
-  color: var(--ion-color-primary);
-  font-size: 28px;
-  font-weight: 700;
-  overflow: hidden;
-}
-
-.profile-avatar-card__avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  margin-top: var(--ios-pms-space-4);
+  padding-bottom: calc(20px + var(--app-safe-bottom));
 }
 
 .profile-form-card,
@@ -372,36 +348,137 @@ onIonViewWillEnter(async () => {
   gap: 14px;
 }
 
+.profile-form-card {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.profile-form-card__header {
+  align-items: flex-start;
+}
+
+.profile-form-card__header .mobile-note {
+  max-width: 30ch;
+  margin-top: 2px;
+}
+
+.profile-form-card__spinner {
+  flex-shrink: 0;
+  margin-top: 4px;
+  color: var(--ios-pms-primary);
+}
+
 .profile-form-grid {
   display: grid;
-  gap: 14px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(110, 134, 181, 0.1);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(246, 249, 255, 0.78), rgba(251, 253, 255, 0.96));
 }
 
 .profile-form-field {
   display: grid;
   gap: 8px;
+  padding: 13px 14px;
+}
+
+.profile-form-field + .profile-form-field {
+  border-top: 1px solid rgba(116, 138, 185, 0.08);
 }
 
 .profile-form-field span {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--ios-pms-text-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .profile-form-field--full {
   grid-column: 1 / -1;
 }
 
+.profile-form-field :deep(ion-input),
+.profile-form-field :deep(ion-select) {
+  --background: rgba(255, 255, 255, 0.9);
+  --border-color: rgba(116, 138, 185, 0.1);
+  --highlight-color-focused: var(--ios-pms-primary);
+  --highlight-color-valid: var(--ios-pms-primary);
+  --border-radius: 14px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  min-height: 50px;
+}
+
 .profile-form-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 8px;
+  margin-top: 0;
+}
+
+.profile-form-actions ion-button {
+  margin: 0;
+  min-height: 48px;
+  font-size: 14px;
+  font-weight: 700;
+  --border-radius: 16px;
+}
+
+.profile-form-actions ion-button:first-child {
+  --background: rgba(255, 255, 255, 0.72);
+  --border-color: rgba(116, 138, 185, 0.14);
+  --color: var(--ios-pms-text-secondary);
+}
+
+.profile-form-actions ion-button:last-child {
+  --box-shadow: var(--app-button-shadow);
+}
+
+.profile-security-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'title action'
+    'note action';
+  align-items: center;
+  padding: 16px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(251, 253, 255, 0.96));
+}
+
+.profile-security-card .mobile-section-title {
+  grid-area: title;
+  margin-bottom: 0;
+}
+
+.profile-security-card .mobile-note {
+  grid-area: note;
+  max-width: 26ch;
+}
+
+.profile-security-card > ion-button {
+  grid-area: action;
+  margin: 0;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --border-radius: 16px;
+  --background: rgba(255, 255, 255, 0.76);
+  --border-color: rgba(116, 138, 185, 0.14);
+  --color: var(--ios-pms-primary-strong);
 }
 
 .profile-modal-page {
-  --padding-top: 16px;
-  --padding-bottom: 24px;
+  --padding-top: 12px;
+  --padding-bottom: 20px;
   --padding-start: 16px;
   --padding-end: 16px;
+}
+
+.profile-form-card--modal {
+  padding: 20px;
+  box-shadow: none;
+}
+
+.profile-form-actions--modal {
+  margin-top: 0;
 }
 </style>
