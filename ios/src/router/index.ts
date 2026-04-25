@@ -450,6 +450,7 @@ const routes: RouteRecordRaw[] = [
           title: '娑堟伅',
           requiresAuth: true,
           requiresStore: true,
+          tab: 'messages',
         },
       },
       {
