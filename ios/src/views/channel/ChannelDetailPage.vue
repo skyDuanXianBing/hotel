@@ -14,131 +14,98 @@
         <ion-refresher-content pulling-text="下拉刷新渠道详情" refreshing-spinner="crescent" />
       </ion-refresher>
 
-      <section v-if="channelView" class="mobile-hero channel-detail-hero">
-        <p class="mobile-note channel-detail-hero__eyebrow">渠道详情</p>
-        <h1 class="mobile-title">{{ channelView.name }}</h1>
-        <p class="mobile-subtitle">{{ channelView.actionHint }}</p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">{{ channelView.statusLabel }}</span>
-          <span class="mobile-chip">{{ channelView.code }}</span>
-          <span class="mobile-chip">{{ channelView.lastStatusText }}</span>
-        </div>
-      </section>
-
       <div v-if="channelView" class="mobile-stack">
-        <section class="mobile-card">
-          <div class="mobile-inline-row">
-            <div>
-              <h2 class="mobile-section-title">关键操作</h2>
-              <p class="mobile-note">授权 / 重连、映射查看、价格比例编辑都集中在这里。</p>
+        <section class="mobile-card channel-detail-page__header-card">
+          <div class="channel-detail-page__brand">
+            <div class="channel-detail-page__logo-wrap">
+              <img :src="channelView.logoUrl" :alt="channelView.name" class="channel-detail-page__logo" />
             </div>
-            <ion-spinner v-if="loading || actionLoading" name="crescent" />
+
+            <div class="channel-detail-page__brand-copy">
+              <h1 class="channel-detail-page__title">{{ channelView.name }}</h1>
+            </div>
           </div>
 
-          <div class="channel-detail-page__actions">
-            <ion-button @click="openConnectEntry">{{ channelView.actionLabel }}</ion-button>
-            <ion-button fill="outline" @click="openMappingPage">查看映射</ion-button>
-            <ion-button fill="outline" :disabled="!channelView" @click="openPriceEditor">
-              价格比例
-            </ion-button>
-            <ion-button v-if="channelView.isConnected" color="danger" fill="outline" @click="handleDisconnect">
-              断开连接
-            </ion-button>
+          <div class="channel-detail-page__meta-row">
+            <span class="channel-detail-page__meta-pill" :class="statusToneClass">{{ channelView.statusLabel }}</span>
+            <span v-if="channelView.propertyId" class="channel-detail-page__meta-pill">
+              标识 {{ channelView.propertyId }}
+            </span>
+            <span class="channel-detail-page__meta-pill">更新 {{ channelView.lastStatusText }}</span>
           </div>
         </section>
 
-        <section class="mobile-card">
-          <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
-            <ion-segment-button value="overview">
-              <ion-label>概览</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="settings">
-              <ion-label>设置</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="notes">
-              <ion-label>说明</ion-label>
-            </ion-segment-button>
-          </ion-segment>
+        <section class="mobile-card channel-detail-page__section-card">
+          <div class="channel-detail-page__primary-action">
+            <div class="channel-detail-page__primary-copy">
+              <strong>{{ primaryActionTitle }}</strong>
+              <p>{{ primaryActionDescription }}</p>
+            </div>
+            <div class="channel-detail-page__primary-controls">
+              <ion-spinner v-if="loading || actionLoading" name="crescent" />
+              <ion-button @click="openConnectEntry">{{ primaryActionButtonText }}</ion-button>
+            </div>
+          </div>
+
+          <div class="channel-detail-page__entry-list">
+            <button
+              v-if="showMappingEntry"
+              type="button"
+              class="channel-detail-page__entry"
+              @click="openMappingPage"
+            >
+              <div class="channel-detail-page__entry-copy">
+                <strong>{{ groupLabel }}映射</strong>
+                <p>{{ mappingEntryDescription }}</p>
+              </div>
+              <span class="channel-detail-page__entry-arrow">›</span>
+            </button>
+
+            <button type="button" class="channel-detail-page__entry" @click="openPriceEditor">
+              <div class="channel-detail-page__entry-copy">
+                <strong>价格比例</strong>
+                <p>{{ priceSummary }}</p>
+              </div>
+              <span class="channel-detail-page__entry-arrow">›</span>
+            </button>
+
+            <button
+              v-if="showSyncEntry"
+              type="button"
+              class="channel-detail-page__entry"
+              @click="openSyncPage"
+            >
+              <div class="channel-detail-page__entry-copy">
+                <strong>同步中心</strong>
+                <p>进入同步页执行日历同步或全量刷新。</p>
+              </div>
+              <span class="channel-detail-page__entry-arrow">›</span>
+            </button>
+
+            <button
+              v-if="channelCapability.supportsInventorySettings"
+              type="button"
+              class="channel-detail-page__entry"
+              @click="openInventoryPage"
+            >
+              <div class="channel-detail-page__entry-copy">
+                <strong>房量设置</strong>
+                <p>管理房量同步与预订设置。</p>
+              </div>
+              <span class="channel-detail-page__entry-arrow">›</span>
+            </button>
+          </div>
         </section>
 
-        <section v-if="activeSegment === 'overview'" class="mobile-card mobile-list channel-detail-page__summary-list">
-          <article class="channel-detail-page__summary-item">
-            <strong>连接状态</strong>
-            <p>{{ channelView.statusDescription }}</p>
-          </article>
-
-          <article class="channel-detail-page__summary-item">
-            <strong>渠道属性标识</strong>
-            <p>{{ channelView.propertyId || '暂未回填' }}</p>
-          </article>
-
-          <article class="channel-detail-page__summary-item">
-            <strong>映射摘要</strong>
-            <p>
-              房型 {{ mappingStatus?.mappedRoomIdCount || 0 }} / 价盘
-              {{ mappingStatus?.activeRatePlanCount || 0 }}
-            </p>
-            <p v-if="mappingStatusNotice">{{ mappingStatusNotice }}</p>
-          </article>
-
-          <article class="channel-detail-page__summary-item">
-            <strong>价格比例</strong>
-            <p>{{ priceSummary }}</p>
-          </article>
-        </section>
-
-        <section v-else-if="activeSegment === 'settings'" class="mobile-card mobile-list channel-detail-page__summary-list">
-          <article class="channel-detail-page__summary-item">
-            <strong>同步与刷新</strong>
-            <p>已授权且支持同步的渠道可执行日历同步与全量刷新，阶段失败会逐条提示。</p>
-            <div class="channel-detail-page__inline-actions">
-              <ion-button size="small" :disabled="!canOpenSyncAction" @click="openSyncAction('calendar')">
-                日历同步
-              </ion-button>
-              <ion-button
-                size="small"
-                fill="outline"
-                :disabled="!canOpenSyncAction"
-                @click="openSyncAction('full-refresh')"
-              >
-                全量刷新
-              </ion-button>
+        <section v-if="channelView.isConnected" class="mobile-card channel-detail-page__danger-card">
+          <h2 class="mobile-section-title">危险操作</h2>
+          <button type="button" class="channel-detail-page__danger-action" @click="handleDisconnect">
+            <div class="channel-detail-page__entry-copy">
+              <strong>断开连接</strong>
+              <p>断开后需要重新授权，现有移动端入口将失效。</p>
             </div>
-            <p v-if="syncActionBlockedMessage">{{ syncActionBlockedMessage }}</p>
-          </article>
-
-          <article class="channel-detail-page__summary-item">
-            <strong>{{ groupLabel }}映射管理</strong>
-            <p>移动端已补齐 {{ groupLabel }} 管理层，并支持通过深编辑草稿整理 PMS 房型与价盘选择。</p>
-            <div class="channel-detail-page__inline-actions">
-              <ion-button size="small" fill="outline" @click="openMappingPage">
-                进入{{ groupLabel }}管理
-              </ion-button>
-            </div>
-          </article>
-
-          <article v-if="channelCapability.supportsInventorySettings" class="channel-detail-page__summary-item">
-            <strong>Airbnb 房量设置</strong>
-            <p>已提供房量同步与预订设置草稿页；若后端未开放保存接口，会明确提示当前为降级模式。</p>
-            <div class="channel-detail-page__inline-actions">
-              <ion-button size="small" fill="outline" @click="openInventoryPage">进入房量设置</ion-button>
-            </div>
-          </article>
-
-          <article class="channel-detail-page__summary-item">
-            <strong>连接历史</strong>
-            <p>当前后端尚未提供移动端连接历史接口，首版仅保留说明位，不做静默隐藏。</p>
-          </article>
-        </section>
-
-        <section v-else class="mobile-card">
-          <h2 class="mobile-section-title">首版说明</h2>
-          <ul class="mobile-bullet-list">
-            <li>已保留授权 / 重连、Su 映射明细查看与价格比例更新主链路。</li>
-            <li>已新增同步中心、Airbnb 房量设置承载页与映射管理层。</li>
-            <li>若渠道状态长时间未更新，可重新进入授权向导以刷新连接状态。</li>
-            <li>对当前后端未开放的保存能力，移动端会给出明确降级提示。</li>
-          </ul>
+            <span class="channel-detail-page__danger-text">断开</span>
+          </button>
         </section>
       </div>
 
@@ -180,12 +147,9 @@ import {
   IonButtons,
   IonContent,
   IonHeader,
-  IonLabel,
   IonPage,
   IonRefresher,
   IonRefresherContent,
-  IonSegment,
-  IonSegmentButton,
   IonSpinner,
   IonTitle,
   IonToolbar,
@@ -225,13 +189,10 @@ import {
 import { ROUTE_PATHS } from '@/router/guards'
 import {
   resolveChannelWarningMessage,
-  resolveMappingStatusNotice,
   sanitizeChannelWarningMessage,
 } from '@/utils/channelMessage'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
-
-type DetailSegment = 'overview' | 'settings' | 'notes'
 
 const route = useRoute()
 const router = useRouter()
@@ -241,9 +202,7 @@ const actionLoading = ref(false)
 const priceSubmitting = ref(false)
 const channel = ref<OtaIntegrationDTO | null>(null)
 const mappingStatus = ref<SuMappingStatusSummary | null>(null)
-const mappingStatusNotice = ref('')
 const priceAdjustment = ref<ChannelPriceAdjustmentDTO | null>(null)
-const activeSegment = ref<DetailSegment>('overview')
 const connectModalOpen = ref(false)
 const widgetModalOpen = ref(false)
 const priceSheetOpen = ref(false)
@@ -279,34 +238,86 @@ const priceSummary = computed(() => {
   }
   return formatAdjustmentSummary(resolvedPriceAdjustment.value)
 })
+
 const channelCapability = computed(() => getChannelActionCapability(channel.value?.code))
 const groupLabel = computed(() => getChannelGroupLabel(channel.value?.code))
-const canOpenSyncAction = computed(() => {
+const showMappingEntry = computed(() => channelCapability.value.supportsSu)
+const showSyncEntry = computed(() => {
   if (!channelView.value) {
     return false
   }
-
   return channelView.value.isConnected && channelCapability.value.supportsSu
 })
-const syncActionBlockedMessage = computed(() => {
+
+const primaryActionButtonText = computed(() => {
+  if (!channelView.value) {
+    return '管理'
+  }
+  if (!channelView.value.isConnected) {
+    return '授权'
+  }
+  if (channelView.value.mappingReady) {
+    return '管理'
+  }
+  return '继续'
+})
+
+const primaryActionTitle = computed(() => {
+  if (!channelView.value) {
+    return '整理当前渠道'
+  }
+  if (!channelView.value.isConnected) {
+    return '当前尚未授权'
+  }
+  return '已授权'
+})
+
+const primaryActionDescription = computed(() => {
   if (!channelView.value) {
     return '渠道详情加载中，请稍后再试。'
   }
   if (!channelView.value.isConnected) {
-    return '请先完成授权或重连，再执行同步动作。'
+    return '先完成授权，再继续映射、价格比例和同步相关操作。'
   }
-  if (!channelCapability.value.supportsSu) {
-    return '当前渠道没有可用同步接口。'
+  if (channelView.value.mappingReady) {
+    return '可继续查看配置、调整价格比例，或重新进入连接向导。'
   }
-  return ''
+  return '建议优先检查映射状态，补齐房型与价盘后再继续同步。'
+})
+
+const mappingEntryDescription = computed(() => {
+  if (!mappingStatus.value) {
+    return `查看当前${groupLabel.value}映射状态与分组。`
+  }
+
+  if (mappingStatus.value.error) {
+    return '当前未映射或映射异常'
+  }
+
+  const mappedRoomCount = mappingStatus.value.mappedRoomIdCount || 0
+  const activeRatePlanCount = mappingStatus.value.activeRatePlanCount || 0
+  if (mappedRoomCount === 0 && activeRatePlanCount === 0) {
+    return '当前未映射'
+  }
+
+  return `房型 ${mappedRoomCount} / 价盘 ${activeRatePlanCount}`
+})
+
+const statusToneClass = computed(() => {
+  if (!channelView.value) {
+    return ''
+  }
+  if (channelView.value.mappingReady) {
+    return 'channel-detail-page__meta-pill--ready'
+  }
+  if (channelView.value.isConnected) {
+    return 'channel-detail-page__meta-pill--partial'
+  }
+  return 'channel-detail-page__meta-pill--idle'
 })
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   return resolveChannelWarningMessage(error, fallbackMessage)
-}
-
-function syncMappingStatusNotice() {
-  mappingStatusNotice.value = resolveMappingStatusNotice(mappingStatus.value?.error)
 }
 
 async function loadDetail() {
@@ -347,16 +358,9 @@ async function loadDetail() {
     } else {
       mappingStatus.value = null
     }
-
-    syncMappingStatusNotice()
   } finally {
     loading.value = false
   }
-}
-
-function handleSegmentChange(event: CustomEvent) {
-  const nextValue = event.detail.value as DetailSegment
-  activeSegment.value = nextValue || 'overview'
 }
 
 function openConnectEntry() {
@@ -485,16 +489,10 @@ async function openMappingPage() {
   })
 }
 
-async function openSyncAction(action: 'calendar' | 'full-refresh') {
-  if (!canOpenSyncAction.value) {
-    showWarningToast(syncActionBlockedMessage.value || '当前无法执行同步动作')
-    return
-  }
-
+async function openSyncPage() {
   await router.push({
     name: 'ChannelSync',
     params: { otaId: otaId.value },
-    query: { action },
   })
 }
 
@@ -519,45 +517,172 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
-.channel-detail-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
+.channel-detail-page {
+  --background: var(--ios-pms-bg-page-plain);
 }
 
-.channel-detail-page__actions {
+.channel-detail-page__header-card,
+.channel-detail-page__section-card,
+.channel-detail-page__danger-card {
+  padding: 18px;
+}
+
+.channel-detail-page__brand {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 16px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
 }
 
-.channel-detail-page__summary-list {
-  gap: 12px;
-}
-
-.channel-detail-page__summary-item {
-  padding: 14px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
+.channel-detail-page__logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 20px;
   border: 1px solid var(--app-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 255, 0.92));
+  overflow: hidden;
 }
 
-.channel-detail-page__summary-item strong,
-.channel-detail-page__summary-item p {
+.channel-detail-page__logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.channel-detail-page__brand-copy {
+  min-width: 0;
+}
+
+.channel-detail-page__title {
   margin: 0;
+  color: var(--app-heading);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
-.channel-detail-page__summary-item p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.channel-detail-page__inline-actions {
+.channel-detail-page__meta-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 16px;
+}
+
+.channel-detail-page__meta-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(115, 164, 255, 0.06);
+  color: var(--ios-pms-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.channel-detail-page__meta-pill--ready {
+  background: rgba(23, 166, 115, 0.12);
+  color: #17815e;
+}
+
+.channel-detail-page__meta-pill--partial {
+  background: rgba(255, 186, 56, 0.16);
+  color: #996515;
+}
+
+.channel-detail-page__meta-pill--idle {
+  background: rgba(115, 130, 157, 0.12);
+  color: #6c7992;
+}
+
+.channel-detail-page__primary-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+}
+
+.channel-detail-page__primary-controls {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.channel-detail-page__primary-copy strong,
+.channel-detail-page__entry-copy strong {
+  display: block;
+  margin: 0;
+  color: var(--app-heading);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.channel-detail-page__primary-copy p,
+.channel-detail-page__entry-copy p {
+  margin: 6px 0 0;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.channel-detail-page__entry-list {
+  display: grid;
+}
+
+.channel-detail-page__entry,
+.channel-detail-page__danger-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.channel-detail-page__entry-list .channel-detail-page__entry:first-child,
+.channel-detail-page__danger-action {
+  border-top: 1px solid var(--app-border);
+}
+
+.channel-detail-page__entry + .channel-detail-page__entry {
+  border-top: 1px solid var(--app-border);
+}
+
+.channel-detail-page__entry-copy {
+  min-width: 0;
+}
+
+.channel-detail-page__entry-arrow {
+  color: var(--ios-pms-text-disabled);
+  font-size: 18px;
+}
+
+.channel-detail-page__danger-card {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.channel-detail-page__danger-text {
+  color: var(--ion-color-danger);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 360px) {
+  .channel-detail-page__primary-action {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .channel-detail-page__primary-controls {
+    justify-content: flex-start;
+  }
 }
 </style>

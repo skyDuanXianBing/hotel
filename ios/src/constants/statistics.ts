@@ -27,6 +27,10 @@ export interface StatisticsReportDefinition {
   metrics: StatisticsMetric[]
   sections: StatisticsSection[]
   boundaryNotes: string[]
+  metricsDescription?: string | null
+  showHero?: boolean
+  showSections?: boolean
+  showBoundaryNotes?: boolean
 }
 
 export const STATISTICS_HOME_METRICS: StatisticsMetric[] = [
@@ -175,6 +179,10 @@ export const STATISTICS_REPORTS: Record<string, StatisticsReportDefinition> = {
   },
   operationReport: {
     key: 'operation-report',
+    metricsDescription: null,
+    showHero: false,
+    showSections: false,
+    showBoundaryNotes: false,
     title: '经营报表',
     shortTitle: '经营',
     path: ROUTE_PATHS.statisticsOperationReport,

@@ -91,7 +91,7 @@ const handleRecordSuccess = () => {
 .quick-tools-root {
   position: fixed;
   left: 18px;
-  bottom: calc(env(safe-area-inset-bottom) + 82px);
+  bottom: calc(env(safe-area-inset-bottom) + 84px);
   z-index: 1200;
 }
 
@@ -99,12 +99,14 @@ const handleRecordSuccess = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.26);
   border-radius: 999px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  padding: 13px 18px;
+  background: linear-gradient(135deg, #2d73ff, #4d8bff);
   color: #fff;
-  box-shadow: var(--app-floating-shadow);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 16px 28px rgba(68, 116, 238, 0.24);
   font: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -115,7 +117,7 @@ const handleRecordSuccess = () => {
 }
 
 .quick-tools-sheet-page {
-  --padding-top: 16px;
+  --padding-top: 20px;
   --padding-bottom: 24px;
   --padding-start: 16px;
   --padding-end: 16px;
@@ -123,42 +125,41 @@ const handleRecordSuccess = () => {
 
 .quick-tools-sheet-card {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .quick-tools-sheet-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  padding: 14px;
-  border: 1px solid var(--app-border);
-  border-radius: 14px;
-  background: var(--app-surface-strong);
-  color: var(--app-heading);
+  padding: 16px;
+  border: 1px solid rgba(168, 183, 216, 0.16);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 10px 24px rgba(121, 146, 190, 0.08);
+  color: #171f34;
   text-align: left;
   font: inherit;
-  transition: background 0.15s ease;
+  transition: transform 0.18s ease, background 0.18s ease;
 }
 
 .quick-tools-sheet-item:active {
-  background: var(--app-primary-soft);
+  transform: scale(0.985);
+  background: rgba(115, 164, 255, 0.06);
 }
 
 .quick-tools-sheet-item strong {
   margin: 0;
   font-size: 15px;
+  font-weight: 700;
 }
 
 .quick-tools-sheet-item ion-icon {
   flex-shrink: 0;
   font-size: 22px;
-  color: var(--ion-color-primary);
-}
-
-.quick-tools-sheet-item ion-icon {
-  flex-shrink: 0;
-  font-size: 22px;
-  color: var(--ion-color-primary);
+  color: #3474f6;
 }
 </style>

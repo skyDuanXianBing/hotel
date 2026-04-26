@@ -1,12 +1,11 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getMessageThreads } from '@/api/message'
-import { getNotificationMessagesByType, getNotificationSettings } from '@/api/notification'
-import { buildMessageDetailPath, ROUTE_PATHS } from '@/router/guards'
+import { getNotificationSettings } from '@/api/notification'
+import { buildMessageDetailPath } from '@/router/guards'
 import type { MessageThreadDTO } from '@/types/message'
 import type { NotificationSettingDTO, NotificationSettingRequest } from '@/types/settings'
 
-const ORDER_NOTIFICATION_TYPE = 'ORDER'
 const POLL_INTERVAL = 15000
 const POPUP_DURATION = 5000
 
@@ -152,49 +151,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   }
 
   const pollOrderNotifications = async () => {
-    try {
-      if (!activeUserId.value) {
-        return
-      }
-
-      const popupEnabled = settings.value ? settings.value.orderPopup : true
-      if (!popupEnabled) {
-        return
-      }
-
-      const response = await getNotificationMessagesByType(
-        activeUserId.value,
-        ORDER_NOTIFICATION_TYPE,
-        0,
-        10,
-        false,
-      )
-
-      if (!response.success || !response.data) {
-        return
-      }
-
-      const content = response.data.content || []
-
-      for (const item of content) {
-        const uniqueKey = `order:${item.id}`
-        if (shownKeys.has(uniqueKey)) {
-          continue
-        }
-
-        shownKeys.add(uniqueKey)
-        enqueue({
-          id: uniqueKey,
-          title: item.title || '订单提醒',
-          content: item.content || '你有一条新的订单提醒',
-          detail: '订单通知',
-          targetPath: ROUTE_PATHS.orderNotifications,
-          type: 'order',
-        })
-      }
-    } catch {
-      return
-    }
+    return
   }
 
   const pollMessageNotifications = async () => {

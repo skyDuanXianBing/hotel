@@ -1,6 +1,14 @@
 import 'vue-router'
 
-export type AppTabKey = 'home' | 'rooms' | 'orders' | 'channels' | 'statistics' | 'reviews' | 'settings'
+export type AppTabKey =
+  | 'home'
+  | 'rooms'
+  | 'orders'
+  | 'messages'
+  | 'channels'
+  | 'statistics'
+  | 'reviews'
+  | 'settings'
 
 declare module 'vue-router' {
   interface RouteMeta {

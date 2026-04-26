@@ -3,7 +3,6 @@
     <div class="mobile-inline-row room-type-summary__header">
       <div>
         <h2 class="mobile-section-title">房型视角</h2>
-        <p class="mobile-note">勾选需要保留的房型，点击确定后再应用到房态列表。</p>
       </div>
       <ion-button fill="clear" size="small" @click="$emit('reset')">重置筛选</ion-button>
     </div>
@@ -63,6 +62,18 @@ const selectedRoomTypeSet = computed(() => new Set(props.selectedRoomTypes))
 </script>
 
 <style scoped>
+.room-type-summary__header {
+  margin-bottom: 14px;
+}
+
+.room-type-summary__header h2 {
+  margin: 0;
+}
+
+.room-type-summary__header ion-button {
+  --color: #6f7f99;
+}
+
 .room-type-summary__list {
   display: grid;
   gap: 10px;
@@ -70,17 +81,23 @@ const selectedRoomTypeSet = computed(() => new Set(props.selectedRoomTypes))
 
 .room-type-summary__item {
   appearance: none;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
-  border-radius: 18px;
-  padding: 14px;
+  border: 1px solid rgba(112, 138, 187, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 250, 255, 0.9));
+  border-radius: 22px;
+  padding: 16px;
   text-align: left;
   color: inherit;
+  box-shadow: 0 14px 28px rgba(83, 107, 152, 0.05);
 }
 
 .room-type-summary__item--selected {
-  border-color: var(--app-border-strong);
-  background: var(--app-primary-soft-strong);
+  border-color: rgba(63, 124, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(235, 243, 255, 0.96), rgba(229, 238, 255, 0.92));
+  box-shadow:
+    0 16px 30px rgba(83, 107, 152, 0.06),
+    0 0 0 1px rgba(63, 124, 255, 0.1);
 }
 
 .room-type-summary__title-main {
@@ -92,8 +109,8 @@ const selectedRoomTypeSet = computed(() => new Set(props.selectedRoomTypes))
 .room-type-summary__checkbox {
   width: 22px;
   height: 22px;
-  border-radius: 8px;
-  border: 1px solid var(--app-border-strong);
+  border-radius: 10px;
+  border: 1px solid rgba(63, 124, 255, 0.18);
   background: rgba(255, 255, 255, 0.96);
   display: inline-flex;
   align-items: center;
@@ -105,8 +122,8 @@ const selectedRoomTypeSet = computed(() => new Set(props.selectedRoomTypes))
 }
 
 .room-type-summary__checkbox--selected {
-  background: var(--ion-color-primary);
-  border-color: var(--ion-color-primary);
+  background: linear-gradient(180deg, #4b86ff 0%, #2f6df2 100%);
+  border-color: #2f6df2;
   color: #ffffff;
 }
 
@@ -119,8 +136,28 @@ const selectedRoomTypeSet = computed(() => new Set(props.selectedRoomTypes))
 }
 
 .room-type-summary__metrics {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 12px;
   color: var(--app-muted);
+}
+
+.room-type-summary__title-row strong {
+  color: #1d2942;
+  font-size: 15px;
+}
+
+.room-type-summary__title-row > span {
+  color: #6f7f99;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.room-type-summary__metrics span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(240, 244, 255, 0.78);
 }
 </style>

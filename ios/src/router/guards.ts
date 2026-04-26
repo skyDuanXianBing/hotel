@@ -4,6 +4,7 @@ import { hasStoredCurrentStore, hasStoredToken } from '@/utils/storage'
 
 export const ROUTE_PATHS = {
   login: '/auth/login',
+  loginCodeVerify: '/auth/login/code-verify',
   register: '/auth/register',
   forgotPassword: '/auth/forgot-password',
   publicRegistrationBooking: '/public/registration-booking/:bookingKey',
@@ -16,6 +17,7 @@ export const ROUTE_PATHS = {
   storeSelection: '/store/selection',
   tabsRoot: '/tabs',
   home: '/tabs/home',
+  homeCustomize: '/tabs/home/customize',
   rooms: '/tabs/rooms',
   roomsRoomTable: '/tabs/rooms/room-table',
   roomsPricing: '/tabs/rooms/pricing',

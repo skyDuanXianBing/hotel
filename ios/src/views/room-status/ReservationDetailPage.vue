@@ -15,50 +15,63 @@
       </ion-refresher>
 
       <section class="mobile-hero reservation-detail-hero" v-if="reservation">
-        <p class="mobile-note reservation-detail-hero__eyebrow">订单详情</p>
+        <div class="reservation-detail-hero__topline">
+          <p class="mobile-note reservation-detail-hero__eyebrow">订单详情</p>
+          <span class="mobile-chip reservation-detail-hero__status">{{ statusText }}</span>
+        </div>
         <h1 class="mobile-title">{{ reservation.guestName }}</h1>
-        <p class="mobile-subtitle">{{ reservation.orderNumber }} · {{ reservation.roomTypeName || '待排房' }} {{ reservation.roomNumber || '' }}</p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">{{ statusText }}</span>
-          <span class="mobile-chip">{{ reservation.channelName || '自来客' }}</span>
-          <span class="mobile-chip">{{ reservation.checkInDate }} ~ {{ reservation.checkOutDate }}</span>
+        <p class="mobile-subtitle reservation-detail-hero__orderline">
+          {{ reservation.orderNumber }} · {{ reservation.channelName || '自来客' }}
+        </p>
+
+        <div class="reservation-detail-hero__meta-grid">
+          <div class="reservation-detail-hero__meta-item">
+            <span>入住</span>
+            <strong>{{ reservation.checkInDate }}</strong>
+          </div>
+          <div class="reservation-detail-hero__meta-item">
+            <span>离店</span>
+            <strong>{{ reservation.checkOutDate }}</strong>
+          </div>
+          <div class="reservation-detail-hero__meta-item">
+            <span>房间</span>
+            <strong>{{ reservation.roomTypeName || '待排房' }} {{ reservation.roomNumber || '' }}</strong>
+          </div>
+          <div class="reservation-detail-hero__meta-item">
+            <span>入住人数</span>
+            <strong>{{ reservation.adults || 1 }} 成人 · {{ reservation.children || 0 }} 儿童</strong>
+          </div>
+        </div>
+
+        <div v-if="sourceOrderTab || orderBoxItem" class="mobile-chip-row reservation-detail-hero__chips">
           <span v-if="sourceOrderTab" class="mobile-chip">来源：{{ getOrderTabLabel(sourceOrderTab) }}</span>
           <span v-if="orderBoxItem" class="mobile-chip">已在订单盒子</span>
         </div>
       </section>
 
       <div class="mobile-stack" v-if="reservation">
-        <section class="mobile-card">
-          <div class="mobile-inline-row">
-            <div>
-              <h2 class="mobile-section-title">关键操作</h2>
-              <p class="mobile-note">办理入住、退房、修改订单与金额补录为主操作，打印和订单盒子动作收纳到更多操作。</p>
-            </div>
-            <ion-spinner v-if="actionLoading || loading" name="crescent" />
+        <section class="mobile-card reservation-detail-panel">
+          <div v-if="actionLoading || loading" class="detail-actions__busy">
+            <ion-spinner name="crescent" />
           </div>
 
           <div class="detail-actions">
-            <ion-button v-if="canEditOrder" fill="outline" @click="showBookingModal = true">修改订单</ion-button>
-            <ion-button v-if="canCheckIn" color="success" @click="handleCheckIn">办理入住</ion-button>
-            <ion-button v-if="canCheckOut" color="warning" @click="handleCheckOut">办理退房</ion-button>
-            <ion-button fill="outline" @click="presentMoreActions">更多操作</ion-button>
+            <ion-button v-if="canCheckIn" class="detail-actions__primary" color="success" @click="handleCheckIn">办理入住</ion-button>
+            <ion-button v-else-if="canCheckOut" class="detail-actions__primary" color="warning" @click="handleCheckOut">办理退房</ion-button>
+            <ion-button v-if="canEditOrder" fill="outline" class="detail-actions__secondary" @click="showBookingModal = true">修改订单</ion-button>
+            <ion-button
+              fill="outline"
+              class="detail-actions__secondary"
+              :class="{ 'detail-actions__secondary--solo': !canEditOrder && !canCheckIn && !canCheckOut }"
+              @click="presentMoreActions"
+            >
+              更多操作
+            </ion-button>
           </div>
         </section>
 
-        <section v-if="isOrderContext || orderBoxItem" class="mobile-card">
-          <h2 class="mobile-section-title">订单上下文</h2>
-          <p class="mobile-note">
-            可在更多操作中完成打印、移入/移出订单盒子、取消订单与查看房间。
-          </p>
-          <div v-if="orderBoxItem" class="detail-context-card">
-            <p>移入时间：{{ orderBoxMovedInAtText }}</p>
-            <p>移入人：{{ orderBoxItem.movedInBy || '-' }}</p>
-            <p v-if="orderBoxItem.notes">盒子备注：{{ orderBoxItem.notes }}</p>
-          </div>
-        </section>
-
-        <section class="mobile-card">
-          <ion-segment v-model="activeSegment">
+        <section class="mobile-card reservation-detail-content">
+          <ion-segment v-model="activeSegment" class="reservation-detail-content__segment">
             <ion-segment-button value="detail">
               <ion-label>详情</ion-label>
             </ion-segment-button>
@@ -69,147 +82,180 @@
               <ion-label>渠道</ion-label>
             </ion-segment-button>
           </ion-segment>
-        </section>
 
-        <section v-if="activeSegment === 'detail'" class="mobile-card mobile-list">
-          <article class="detail-summary-card">
-            <div class="detail-summary-card__row">
-              <span>订单金额</span>
-              <strong>{{ totalAmountText }}</strong>
-            </div>
-            <div class="detail-summary-card__row">
-              <span>已收款</span>
-              <strong>{{ totalPaymentText }}</strong>
-            </div>
-            <div class="detail-summary-card__row">
-              <span>其他消费</span>
-              <strong>{{ totalConsumptionText }}</strong>
-            </div>
-            <div class="detail-summary-card__row">
-              <span>还需付款</span>
-              <strong :class="remainingPaymentClass">{{ remainingPaymentText }}</strong>
-            </div>
-          </article>
+          <div v-if="activeSegment === 'detail'" class="reservation-detail-content__body reservation-detail-content__body--detail">
+            <article class="detail-section detail-summary-card">
+              <div class="detail-summary-card__hero">
+                <div class="detail-summary-card__hero-copy">
+                  <span>{{ remainingPaymentLabel }}</span>
+                  <strong :class="['detail-summary-card__amount', remainingPaymentClass]">{{ remainingPaymentText }}</strong>
+                </div>
+                <div class="detail-summary-card__hero-side">
+                  <span>订单金额</span>
+                  <strong>{{ totalAmountText }}</strong>
+                </div>
+              </div>
 
-          <article class="detail-section">
-            <h3>入住信息</h3>
-            <p>房间：{{ reservation.roomTypeName || '待排房' }} {{ reservation.roomNumber || '' }}</p>
-            <p>入住：{{ reservation.checkInDate }}</p>
-            <p>离店：{{ reservation.checkOutDate }}</p>
-            <p>成人 / 儿童：{{ reservation.adults || 1 }} / {{ reservation.children || 0 }}</p>
-            <p>备注：{{ reservation.notes || '无' }}</p>
-          </article>
+              <div class="detail-summary-card__metrics">
+                <div class="detail-summary-card__metric">
+                  <span>已收款</span>
+                  <strong>{{ totalPaymentText }}</strong>
+                </div>
+                <div class="detail-summary-card__metric">
+                  <span>其他消费</span>
+                  <strong>{{ totalConsumptionText }}</strong>
+                </div>
+              </div>
+            </article>
 
-          <article class="detail-section">
-            <div class="mobile-inline-row">
-              <h3>消费记录</h3>
-            </div>
-            <div v-if="consumptions.length > 0" class="detail-list">
-              <div v-for="item in consumptions" :key="item.id || `${item.item}-${item.date}`" class="detail-list__item">
+            <article class="detail-section">
+              <div class="detail-section__head">
+                <h3>入住信息</h3>
+              </div>
+
+              <div class="detail-fact-list">
+                <div class="detail-fact-list__row">
+                  <span>房间</span>
+                  <strong>{{ reservation.roomTypeName || '待排房' }} {{ reservation.roomNumber || '' }}</strong>
+                </div>
+                <div class="detail-fact-list__row">
+                  <span>入住</span>
+                  <strong>{{ reservation.checkInDate }}</strong>
+                </div>
+                <div class="detail-fact-list__row">
+                  <span>离店</span>
+                  <strong>{{ reservation.checkOutDate }}</strong>
+                </div>
+                <div class="detail-fact-list__row">
+                  <span>成人 / 儿童</span>
+                  <strong>{{ reservation.adults || 1 }} / {{ reservation.children || 0 }}</strong>
+                </div>
+                <div v-if="reservation.notes" class="detail-fact-list__row detail-fact-list__row--stacked">
+                  <span>备注</span>
+                  <p>{{ reservation.notes }}</p>
+                </div>
+              </div>
+            </article>
+
+            <article class="detail-section">
+              <div class="detail-section__head">
+                <h3>消费记录</h3>
+                <span v-if="consumptions.length > 0" class="detail-section__meta">{{ consumptions.length }} 条</span>
+              </div>
+
+              <div v-if="consumptions.length > 0" class="detail-list">
+                <div v-for="item in consumptions" :key="item.id || `${item.item}-${item.date}`" class="detail-list__item">
+                  <div class="detail-list__main">
+                    <strong>{{ item.item }}</strong>
+                    <div class="detail-list__meta">
+                      <span>× {{ item.quantity }}</span>
+                      <span>{{ item.date }}</span>
+                    </div>
+                    <p v-if="item.remark">{{ item.remark }}</p>
+                  </div>
+                  <div class="detail-list__actions">
+                    <strong class="detail-list__amount">{{ formatAmount(item.amount) }}</strong>
+                    <ion-button fill="clear" size="small" color="danger" @click="handleDeleteConsumption(item.id)">删除</ion-button>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="mobile-note">暂无消费记录。</p>
+            </article>
+
+            <article class="detail-section">
+              <div class="detail-section__head">
+                <h3>收款记录</h3>
+                <span v-if="payments.length > 0" class="detail-section__meta">{{ payments.length }} 条</span>
+              </div>
+
+              <div v-if="payments.length > 0" class="detail-list">
+                <div
+                  v-for="item in payments"
+                  :key="item.id || `${item.type}-${item.date}`"
+                  class="detail-list__item"
+                >
+                  <div class="detail-list__main">
+                    <strong>{{ item.type }}</strong>
+                    <div class="detail-list__meta">
+                      <span>{{ item.paymentMethod }}</span>
+                      <span>{{ item.date }}</span>
+                    </div>
+                    <p v-if="item.remark">{{ item.remark }}</p>
+                  </div>
+                  <div class="detail-list__actions">
+                    <strong class="detail-list__amount">{{ formatAmount(item.amount) }}</strong>
+                    <ion-button fill="clear" size="small" color="danger" @click="handleDeletePayment(item.id)">删除</ion-button>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="mobile-note">暂无收款记录。</p>
+            </article>
+
+            <article class="detail-section detail-reminder-card">
+              <div class="detail-reminder-card__header">
                 <div>
-                  <strong>{{ item.item }} × {{ item.quantity }}</strong>
-                  <p>{{ item.date }} · {{ item.remark || '无备注' }}</p>
+                  <h3>订单提醒</h3>
+                  <p>{{ orderReminderDescription }}</p>
                 </div>
-                <div class="detail-list__actions">
-                  <strong>{{ formatAmount(item.amount) }}</strong>
-                  <ion-button fill="clear" size="small" color="danger" @click="handleDeleteConsumption(item.id)">删除</ion-button>
-                </div>
+                <strong class="detail-reminder-card__count">{{ orderReminderCountText }}</strong>
               </div>
-            </div>
-            <p v-else class="mobile-note">暂无消费记录。</p>
-          </article>
 
-          <article class="detail-section">
-            <div class="mobile-inline-row">
-              <h3>收款记录</h3>
-            </div>
-            <div v-if="payments.length > 0" class="detail-list">
-              <div
-                v-for="item in payments"
-                :key="item.id || `${item.type}-${item.date}`"
-                class="detail-list__item"
-              >
-                <div>
-                  <strong>{{ item.type }}</strong>
-                  <p>{{ item.paymentMethod }} · {{ item.date }} · {{ item.remark || '无备注' }}</p>
-                </div>
-                <div class="detail-list__actions">
-                  <strong>{{ formatAmount(item.amount) }}</strong>
-                  <ion-button fill="clear" size="small" color="danger" @click="handleDeletePayment(item.id)">删除</ion-button>
-                </div>
+              <div class="detail-reminder-card__actions">
+                <ion-button fill="outline" size="small" @click="openOrderNotifications">查看提醒</ion-button>
               </div>
-            </div>
-            <p v-else class="mobile-note">暂无收款记录。</p>
-          </article>
-
-          <article class="detail-section detail-reminder-card">
-            <div class="mobile-inline-row detail-reminder-card__header">
-              <div>
-                <h3>订单提醒</h3>
-                <p>{{ orderReminderDescription }}</p>
-              </div>
-              <strong class="detail-reminder-card__count">{{ orderReminderCountText }}</strong>
-            </div>
-
-            <div class="detail-reminder-card__actions">
-              <ion-button fill="outline" size="small" @click="openOrderNotifications">查看提醒</ion-button>
-            </div>
-          </article>
-        </section>
-
-        <section v-if="activeSegment === 'logs'" class="mobile-card">
-          <h2 class="mobile-section-title">操作日志</h2>
-          <div v-if="logs.length > 0" class="detail-list">
-            <div v-for="item in logs" :key="item.id" class="log-item">
-              <div class="mobile-inline-row">
-                <strong>{{ item.action }}</strong>
-                <span class="mobile-note">{{ item.timestamp }}</span>
-              </div>
-              <p class="mobile-note">操作人：{{ item.operator }}</p>
-              <p v-if="item.content" class="mobile-note">{{ item.content }}</p>
-              <div v-if="item.details && item.details.length > 0" class="log-item__details">
-                <p v-for="detail in item.details" :key="`${item.id}-${detail.label}`" class="mobile-note">
-                  {{ detail.label }}：{{ detail.value }}
-                </p>
-              </div>
-            </div>
+            </article>
           </div>
-          <p v-else class="mobile-note">暂无日志。</p>
-        </section>
 
-        <section v-if="activeSegment === 'channel'" class="mobile-card">
-          <h2 class="mobile-section-title">渠道信息</h2>
-          <div class="detail-list">
-            <div class="detail-list__item">
-              <div>
-                <strong>渠道名称</strong>
-                <p>{{ channelInfo?.channelName || reservation.channelName || '自来客' }}</p>
+          <div v-else-if="activeSegment === 'logs'" class="reservation-detail-content__body">
+            <article class="detail-section detail-section--timeline">
+              <div v-if="logs.length > 0" class="detail-log-list">
+                <div v-for="item in logs" :key="item.id" class="log-item">
+                  <div class="log-item__head">
+                    <strong>{{ item.action }}</strong>
+                    <span class="mobile-note">{{ item.timestamp }}</span>
+                  </div>
+                  <p class="mobile-note">操作人：{{ item.operator }}</p>
+                  <p v-if="item.content" class="mobile-note">{{ item.content }}</p>
+                  <div v-if="item.details && item.details.length > 0" class="log-item__details">
+                    <p v-for="detail in item.details" :key="`${item.id}-${detail.label}`" class="mobile-note">
+                      {{ detail.label }}：{{ detail.value }}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="detail-list__item">
-              <div>
-                <strong>渠道订单号</strong>
-                <p>{{ channelInfo?.channelOrderNumber || reservation.channelOrderNumber || '无' }}</p>
+              <p v-else class="mobile-note">暂无日志。</p>
+            </article>
+          </div>
+
+          <div v-else class="reservation-detail-content__body">
+            <article class="detail-section">
+              <div class="detail-section__head">
+                <h2 class="mobile-section-title">渠道信息</h2>
               </div>
-            </div>
-            <div class="detail-list__item">
-              <div>
-                <strong>价格计划</strong>
-                <p>{{ channelInfo?.pricePlan || reservation.pricePlan || '无' }}</p>
+
+              <div class="detail-definition-list">
+                <div class="detail-definition-list__row">
+                  <span class="detail-definition-list__label">渠道名称</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.channelName || reservation.channelName || '自来客' }}</strong>
+                </div>
+                <div class="detail-definition-list__row">
+                  <span class="detail-definition-list__label">渠道订单号</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.channelOrderNumber || reservation.channelOrderNumber || '无' }}</strong>
+                </div>
+                <div class="detail-definition-list__row">
+                  <span class="detail-definition-list__label">价格计划</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.pricePlan || reservation.pricePlan || '无' }}</strong>
+                </div>
+                <div class="detail-definition-list__row">
+                  <span class="detail-definition-list__label">支付方式</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.paymentMethod || reservation.paymentMethod || '未记录' }}</strong>
+                </div>
+                <div class="detail-definition-list__row">
+                  <span class="detail-definition-list__label">特殊需求</span>
+                  <strong class="detail-definition-list__value">{{ channelInfo?.specialRequests || reservation.notes || '无' }}</strong>
+                </div>
               </div>
-            </div>
-            <div class="detail-list__item">
-              <div>
-                <strong>支付方式</strong>
-                <p>{{ channelInfo?.paymentMethod || reservation.paymentMethod || '未记录' }}</p>
-              </div>
-            </div>
-            <div class="detail-list__item">
-              <div>
-                <strong>特殊需求</strong>
-                <p>{{ channelInfo?.specialRequests || reservation.notes || '无' }}</p>
-              </div>
-            </div>
+            </article>
           </div>
         </section>
       </div>
@@ -403,6 +449,15 @@ const remainingPayment = computed(() => {
 })
 
 const remainingPaymentText = computed(() => formatAmount(remainingPayment.value))
+const remainingPaymentLabel = computed(() => {
+  if (remainingPayment.value > 0) {
+    return '还需付款'
+  }
+  if (remainingPayment.value < 0) {
+    return '超收金额'
+  }
+  return '账目状态'
+})
 
 const remainingPaymentClass = computed(() => {
   if (remainingPayment.value > 0) {
@@ -945,67 +1000,419 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.reservation-detail-page {
+  --background: var(--ios-pms-bg-page-plain);
+}
+
+.reservation-detail-page .mobile-stack {
+  gap: var(--ios-pms-space-3);
+}
+
+.reservation-detail-hero {
+  margin-bottom: var(--ios-pms-space-3);
+  background: var(--ios-pms-surface-strong);
+}
+
+.reservation-detail-hero::before {
+  display: none;
+}
+
+.reservation-detail-hero__topline,
+.detail-section__head,
+.log-item__head,
+.detail-reminder-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ios-pms-space-3);
+}
+
+.reservation-detail-hero__eyebrow {
+  color: var(--ios-pms-primary);
+  font-weight: var(--ios-pms-weight-bold);
+}
+
+.reservation-detail-hero__status {
+  flex-shrink: 0;
+}
+
+.reservation-detail-hero__orderline {
+  margin-top: var(--ios-pms-space-2);
+}
+
+.reservation-detail-hero__meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ios-pms-space-3);
+  margin-top: var(--ios-pms-space-5);
+}
+
+.reservation-detail-hero__meta-item,
+.detail-summary-card__hero-copy,
+.detail-summary-card__hero-side,
+.detail-summary-card__metric,
+.detail-key-item {
+  min-width: 0;
+  display: grid;
+  gap: var(--ios-pms-space-1);
+}
+
+.reservation-detail-hero__meta-item {
+  padding-top: var(--ios-pms-space-3);
+  border-top: 1px solid var(--ios-pms-divider);
+}
+
+.reservation-detail-hero__meta-item span,
+.detail-summary-card__hero span,
+.detail-summary-card__metric span,
+.detail-key-item span,
+.detail-note-row span,
+.detail-definition-list__label {
+  color: var(--ios-pms-text-soft);
+  font-size: var(--ios-pms-font-body-sm-size);
+  line-height: 1.4;
+}
+
+.reservation-detail-hero__meta-item strong,
+.detail-summary-card__hero-side strong,
+.detail-summary-card__metric strong,
+.detail-key-item strong,
+.detail-definition-list__value {
+  color: var(--ios-pms-text-secondary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.4;
+}
+
+.reservation-detail-hero__chips {
+  margin-top: var(--ios-pms-space-4);
+}
+
+.detail-reminder-card__header > div,
+.detail-list__main,
+.detail-summary-card__hero-copy {
+  min-width: 0;
+}
+
+.reservation-detail-panel {
+  padding: var(--ios-pms-space-4);
+}
+
+.detail-actions__busy {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--ios-pms-space-2);
+}
+
 .detail-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--ios-pms-space-2);
 }
 
-.detail-summary-card,
-.detail-section,
-.detail-list__item,
-.log-item,
-.detail-context-card {
-  padding: 14px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid var(--app-border);
+.detail-actions__primary {
+  grid-column: 1 / -1;
+}
+
+.detail-actions__secondary--solo {
+  grid-column: 1 / -1;
+}
+
+.reservation-detail-content {
+  overflow: hidden;
+  padding: 0;
+}
+
+.reservation-detail-content__segment {
+  padding: var(--ios-pms-space-4) var(--ios-pms-space-5) 0;
+}
+
+.reservation-detail-content__body {
+  display: grid;
+  gap: 0;
+  padding: var(--ios-pms-space-2) var(--ios-pms-space-5) var(--ios-pms-space-5);
+}
+
+.reservation-detail-content__body--detail {
+  padding-top: var(--ios-pms-space-3);
+}
+
+.detail-section {
+  padding: var(--ios-pms-space-4) 0;
+}
+
+.detail-section + .detail-section {
+  border-top: 1px solid var(--ios-pms-divider);
 }
 
 .detail-summary-card,
 .detail-list,
+.detail-log-list,
 .log-item__details,
-.detail-reminder-card {
+.detail-reminder-card,
+.detail-definition-list,
+.detail-fact-list,
+.detail-summary-card__metrics {
   display: grid;
-  gap: 10px;
+  gap: 0;
 }
 
-.detail-summary-card__row,
-.detail-list__item,
-.detail-list__actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: center;
+.detail-section__head {
+  margin-bottom: var(--ios-pms-space-3);
 }
 
-.detail-section h3,
-.detail-list__item strong,
+.detail-section__head h2,
+.detail-section__head h3,
+.detail-list__main strong,
 .log-item strong {
   margin: 0;
 }
 
-.detail-section p,
-.detail-list__item p,
-.detail-context-card p {
-  margin: 6px 0 0;
-  color: var(--app-muted);
-  font-size: 13px;
+.detail-section__head h2,
+.detail-section__head h3 {
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: var(--ios-pms-weight-bold);
 }
 
-.detail-reminder-card__header {
+.detail-section__meta {
+  flex-shrink: 0;
+  color: var(--ios-pms-text-soft);
+  font-size: var(--ios-pms-font-body-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.detail-section--timeline {
+  padding-top: var(--ios-pms-space-5);
+}
+
+.detail-summary-card {
+  gap: var(--ios-pms-space-4);
+}
+
+.detail-summary-card__hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ios-pms-space-3);
+  padding-bottom: var(--ios-pms-space-3);
+  border-bottom: 1px solid var(--ios-pms-divider);
+}
+
+.detail-summary-card__hero-side {
+  text-align: right;
+}
+
+.detail-summary-card__amount {
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-metric-lg-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.detail-summary-card__metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+
+.detail-summary-card__metric + .detail-summary-card__metric {
+  padding-left: var(--ios-pms-space-3);
+  margin-left: var(--ios-pms-space-3);
+  border-left: 1px solid var(--ios-pms-divider);
+}
+
+.detail-fact-list__row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--ios-pms-space-3);
+  padding: var(--ios-pms-space-3) 0;
+}
+
+.detail-fact-list__row + .detail-fact-list__row {
+  border-top: 1px solid var(--ios-pms-divider);
+}
+
+.detail-fact-list__row strong {
+  color: var(--ios-pms-text-secondary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.45;
+}
+
+.detail-fact-list__row p {
+  margin: 0;
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detail-list__item,
+.detail-list__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ios-pms-space-3);
+}
+
+.detail-list__item,
+.log-item,
+.detail-definition-list__row {
+  padding: var(--ios-pms-space-3) 0;
+}
+
+.detail-list__item + .detail-list__item,
+.log-item + .log-item,
+.detail-definition-list__row + .detail-definition-list__row {
+  border-top: 1px solid var(--ios-pms-divider);
+}
+
+.detail-list__item {
   align-items: flex-start;
 }
 
+.detail-list__main strong {
+  display: block;
+  color: var(--ios-pms-text-secondary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.35;
+}
+
+.detail-list__main p,
+.detail-list__meta,
+.log-item p,
+.log-item__details p,
+.detail-reminder-card p {
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detail-list__main p,
+.detail-list__meta {
+  margin: var(--ios-pms-space-1) 0 0;
+}
+
+.detail-list__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+}
+
+.detail-list__actions {
+  flex-shrink: 0;
+  display: grid;
+  justify-items: end;
+  text-align: right;
+}
+
+.detail-list__amount {
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-heavy);
+}
+
+.detail-reminder-card {
+  gap: var(--ios-pms-space-3);
+}
+
+.detail-reminder-card__header {
+  align-items: center;
+}
+
 .detail-reminder-card__count {
-  color: var(--ion-color-primary);
-  font-size: 18px;
+  flex-shrink: 0;
+  color: var(--ios-pms-primary);
+  font-size: var(--ios-pms-font-metric-md-size);
+  font-weight: var(--ios-pms-weight-heavy);
   white-space: nowrap;
 }
 
 .detail-reminder-card__actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.detail-log-list {
+  position: relative;
+  padding-left: 20px;
+}
+
+.detail-log-list::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(52, 116, 246, 0.2), var(--ios-pms-divider));
+}
+
+.log-item {
+  position: relative;
+  padding: 0 0 0 var(--ios-pms-space-5);
+}
+
+.log-item + .log-item {
+  margin-top: var(--ios-pms-space-4);
+  padding-top: var(--ios-pms-space-4);
+  border-top: none;
+}
+
+.log-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ios-pms-primary);
+  box-shadow: 0 0 0 4px rgba(115, 164, 255, 0.12);
+}
+
+.log-item__head {
+  align-items: center;
+}
+
+.log-item__head strong {
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.35;
+}
+
+.log-item__head .mobile-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--ios-pms-border-faint);
+  border-radius: var(--ios-pms-radius-pill);
+  background: var(--ios-pms-surface-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: var(--ios-pms-text-soft);
+  font-size: var(--ios-pms-font-note-size);
+}
+
+.log-item__details {
+  padding-top: var(--ios-pms-space-2);
+  gap: var(--ios-pms-space-1);
+}
+
+.detail-definition-list__row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--ios-pms-space-3);
+}
+
+.detail-definition-list__value {
+  word-break: break-word;
 }
 
 .is-danger {
@@ -1016,8 +1423,41 @@ onMounted(async () => {
   color: var(--ion-color-success);
 }
 
-.reservation-detail-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
+@media (max-width: 374px) {
+  .reservation-detail-hero__meta-grid,
+  .detail-summary-card__metrics,
+  .detail-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-detail-hero__topline,
+  .detail-summary-card__hero,
+  .detail-list__item,
+  .detail-reminder-card__header,
+  .log-item__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .detail-list__actions,
+  .detail-reminder-card__actions {
+    justify-items: start;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .log-item {
+    padding-left: var(--ios-pms-space-4);
+  }
+
+  .detail-definition-list__row {
+    grid-template-columns: 1fr;
+    gap: var(--ios-pms-space-1);
+  }
+
+  .detail-fact-list__row {
+    grid-template-columns: 1fr;
+    gap: var(--ios-pms-space-1);
+  }
 }
 </style>

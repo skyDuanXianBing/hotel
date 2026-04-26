@@ -9,73 +9,135 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content class="booking-modal__content">
-      <section class="booking-modal__hero">
-        <strong>{{ roomLabel }}</strong>
-        <p>{{ form.checkInDate }} 入住 · {{ form.checkOutDate }} 离店</p>
-      </section>
+    <ion-content class="mobile-page booking-modal__content">
+      <div class="mobile-stack">
+        <section class="mobile-card booking-modal__sheet">
+          <section class="booking-modal__hero">
+            <div class="booking-modal__hero-topline">
+              <span class="booking-modal__eyebrow">{{ modalTitle }}</span>
+              <div class="booking-modal__amount-chip">
+                <span>订单金额</span>
+                <strong>{{ priceText }}</strong>
+              </div>
+            </div>
+            <strong>{{ roomLabel }}</strong>
+            <p>{{ bookingSummaryText }}</p>
 
-      <ion-list inset>
-        <ion-item>
-          <ion-input v-model="form.guestName" label="姓名" label-placement="stacked" placeholder="请输入客人姓名" />
-        </ion-item>
-        <ion-item>
-          <ion-input v-model="form.guestPhone" label="手机" label-placement="stacked" placeholder="请输入手机号" />
-        </ion-item>
-        <ion-item>
-          <ion-select
-            v-model="form.channelId"
-            interface="action-sheet"
-            label="渠道"
-            label-placement="stacked"
-            placeholder="请选择渠道"
-          >
-            <ion-select-option v-for="item in channels" :key="item.id" :value="item.id">
-              {{ item.name }}
-            </ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-input v-model="form.checkInDate" type="date" label="入住日期" label-placement="stacked" />
-        </ion-item>
-        <ion-item>
-          <ion-input v-model="form.checkOutDate" type="date" label="离店日期" label-placement="stacked" />
-        </ion-item>
-        <ion-item>
-          <ion-input v-model.number="form.adults" type="number" min="1" label="成人" label-placement="stacked" />
-        </ion-item>
-        <ion-item>
-          <ion-input v-model.number="form.children" type="number" min="0" label="儿童" label-placement="stacked" />
-        </ion-item>
-        <ion-item>
-          <ion-input
-            v-model.number="form.totalAmount"
-            type="number"
-            min="0"
-            label="订单金额"
-            label-placement="stacked"
-          />
-        </ion-item>
-        <ion-item lines="none">
-          <ion-textarea
-            v-model="form.notes"
-            auto-grow
-            label="备注"
-            label-placement="stacked"
-            placeholder="可填写特殊需求、渠道号或入住备注"
-          />
-        </ion-item>
-      </ion-list>
+            <div class="booking-modal__meta-grid">
+              <div class="booking-modal__meta-item">
+                <span>入住</span>
+                <strong>{{ form.checkInDate || '--' }}</strong>
+              </div>
+              <div class="booking-modal__meta-item">
+                <span>离店</span>
+                <strong>{{ form.checkOutDate || '--' }}</strong>
+              </div>
+              <div class="booking-modal__meta-item">
+                <span>共住</span>
+                <strong>{{ stayNightsText }}</strong>
+              </div>
+            </div>
+          </section>
 
+          <section class="booking-modal__section">
+            <div class="booking-modal__section-head">
+              <div>
+                <h2>客人信息</h2>
+              </div>
+            </div>
+
+            <div class="booking-modal__field-grid">
+              <label class="booking-field">
+                <span>姓名</span>
+                <ion-input v-model="form.guestName" fill="outline" placeholder="请输入客人姓名" />
+              </label>
+              <label class="booking-field">
+                <span>手机</span>
+                <ion-input v-model="form.guestPhone" fill="outline" placeholder="请输入手机号" />
+              </label>
+              <label class="booking-field booking-field--full">
+                <span>渠道</span>
+                <ion-select v-model="form.channelId" fill="outline" interface="action-sheet" placeholder="请选择渠道">
+                  <ion-select-option v-for="item in channels" :key="item.id" :value="item.id">
+                    {{ item.name }}
+                  </ion-select-option>
+                </ion-select>
+              </label>
+            </div>
+          </section>
+
+          <section class="booking-modal__section">
+            <div class="booking-modal__section-head">
+              <div>
+                <h2>入住安排</h2>
+              </div>
+            </div>
+
+            <div class="booking-modal__field-grid">
+              <label class="booking-field">
+                <span>入住日期</span>
+                <ion-input v-model="form.checkInDate" fill="outline" type="date" />
+              </label>
+              <label class="booking-field">
+                <span>离店日期</span>
+                <ion-input v-model="form.checkOutDate" fill="outline" type="date" />
+              </label>
+              <label class="booking-field">
+                <span>成人</span>
+                <ion-input v-model.number="form.adults" fill="outline" type="number" min="1" />
+              </label>
+              <label class="booking-field">
+                <span>儿童</span>
+                <ion-input v-model.number="form.children" fill="outline" type="number" min="0" />
+              </label>
+            </div>
+          </section>
+
+          <section class="booking-modal__section">
+            <div class="booking-modal__section-head">
+              <div>
+                <h2>费用与备注</h2>
+              </div>
+            </div>
+
+            <div class="booking-modal__field-grid">
+              <label class="booking-field booking-field--full">
+                <span>订单金额</span>
+                <div class="booking-field__amount">
+                  <span class="booking-field__currency">¥</span>
+                  <ion-input v-model.number="form.totalAmount" fill="outline" type="number" min="0" />
+                </div>
+                <small class="booking-field__assist">{{ priceLoading ? '正在根据日期重新计算金额' : '如有特殊价格，可直接在此覆盖' }}</small>
+              </label>
+              <label class="booking-field booking-field--full">
+                <span>备注</span>
+                <ion-textarea
+                  v-model="form.notes"
+                  auto-grow
+                  :rows="4"
+                  fill="outline"
+                  placeholder="可填写特殊需求、渠道号或入住备注"
+                />
+              </label>
+            </div>
+          </section>
+        </section>
+      </div>
     </ion-content>
 
     <ion-footer>
       <ion-toolbar>
         <div class="booking-modal__footer">
-          <ion-button fill="outline" @click="handleDismiss">取消</ion-button>
-          <ion-button :disabled="submitting || priceLoading" @click="handleSubmit">
-            {{ submitText }}
-          </ion-button>
+          <div class="booking-modal__footer-summary">
+            <span>当前金额</span>
+            <strong>{{ priceText }}</strong>
+          </div>
+          <div class="booking-modal__footer-actions">
+            <ion-button fill="outline" @click="handleDismiss">取消</ion-button>
+            <ion-button :disabled="submitting || priceLoading" @click="handleSubmit">
+              {{ submitText }}
+            </ion-button>
+          </div>
         </div>
       </ion-toolbar>
     </ion-footer>
@@ -90,8 +152,6 @@ import {
   IonFooter,
   IonHeader,
   IonInput,
-  IonItem,
-  IonList,
   IonModal,
   IonSelect,
   IonSelectOption,
@@ -178,6 +238,33 @@ const roomLabel = computed(() => {
 
 const priceText = computed(() => {
   return priceLoading.value ? '计算中...' : `¥${Number(form.value.totalAmount || 0).toFixed(2)}`
+})
+
+const stayNightsText = computed(() => {
+  if (!form.value.checkInDate || !form.value.checkOutDate) {
+    return '--'
+  }
+
+  const start = new Date(form.value.checkInDate)
+  const end = new Date(form.value.checkOutDate)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return '--'
+  }
+
+  const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays <= 0) {
+    return '0 晚'
+  }
+
+  return `${diffDays} 晚`
+})
+
+const bookingSummaryText = computed(() => {
+  if (!form.value.checkInDate || !form.value.checkOutDate) {
+    return '请补全入住与离店时间'
+  }
+
+  return `${form.value.checkInDate} 入住 · ${form.value.checkOutDate} 离店 · ${stayNightsText.value}`
 })
 
 function getRoomId() {
@@ -281,31 +368,195 @@ watch(
 
 <style scoped>
 .booking-modal__content {
-  --padding-bottom: 24px;
+  --background: var(--ios-pms-bg-page-plain);
+  --padding-bottom: calc(26px + var(--app-safe-bottom));
+}
+
+.booking-modal__sheet {
+  overflow: hidden;
+  padding: 0;
 }
 
 .booking-modal__hero {
-  margin: 16px;
-  padding: 16px;
-  border-radius: 20px;
-  background: var(--app-primary-soft);
+  padding: var(--ios-pms-space-5);
+  background: linear-gradient(180deg, var(--ios-pms-surface-strong), rgba(246, 249, 255, 0.88));
+}
+
+.booking-modal__hero-topline,
+.booking-modal__footer,
+.booking-modal__section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ios-pms-space-3);
+}
+
+.booking-modal__eyebrow,
+.booking-modal__meta-item span,
+.booking-field > span,
+.booking-modal__amount-chip span,
+.booking-modal__footer-summary span,
+.booking-field__assist {
+  color: var(--ios-pms-text-soft);
+  font-size: var(--ios-pms-font-body-sm-size);
+  line-height: 1.4;
+}
+
+.booking-modal__eyebrow {
+  color: var(--ios-pms-primary);
+  font-weight: var(--ios-pms-weight-bold);
+}
+
+.booking-modal__amount-chip,
+.booking-modal__footer-summary {
+  flex-shrink: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.booking-modal__amount-chip {
+  min-width: 104px;
+  padding: 10px 12px;
+  border: 1px solid var(--ios-pms-border-faint);
+  border-radius: var(--ios-pms-radius-card-sm);
+  background: var(--ios-pms-primary-soft);
+  text-align: right;
+}
+
+.booking-modal__hero > strong {
+  display: block;
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.3;
 }
 
 .booking-modal__hero p,
-.booking-modal__note p {
-  margin: 6px 0 0;
-  color: var(--app-muted);
+.booking-modal__section-head p {
+  margin: var(--ios-pms-space-2) 0 0;
+  color: var(--ios-pms-text-muted);
   font-size: 13px;
+  line-height: 1.6;
 }
 
-.booking-modal__note {
-  margin: 0 16px;
+.booking-modal__amount-chip strong,
+.booking-modal__footer-summary strong {
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.2;
+}
+
+.booking-modal__meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ios-pms-space-3);
+  margin-top: var(--ios-pms-space-4);
+}
+
+.booking-modal__meta-item {
+  min-width: 0;
+  display: grid;
+  gap: var(--ios-pms-space-1);
+  padding-top: var(--ios-pms-space-3);
+  border-top: 1px solid var(--ios-pms-divider);
+}
+
+.booking-modal__meta-item strong {
+  color: var(--ios-pms-text-secondary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
+  line-height: 1.4;
+}
+
+.booking-modal__section {
+  padding: var(--ios-pms-space-5);
+}
+
+.booking-modal__section + .booking-modal__section {
+  border-top: 1px solid var(--ios-pms-divider);
+}
+
+.booking-modal__section-head h2 {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-heavy);
+}
+
+.booking-modal__field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ios-pms-space-4) var(--ios-pms-space-3);
+  margin-top: var(--ios-pms-space-4);
+}
+
+.booking-field {
+  min-width: 0;
+  display: grid;
+  gap: var(--ios-pms-space-2);
+}
+
+.booking-field--full {
+  grid-column: 1 / -1;
+}
+
+.booking-field__amount {
+  position: relative;
+}
+
+.booking-field__currency {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  z-index: 1;
+  transform: translateY(-50%);
+  color: var(--ios-pms-text-soft);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
+  pointer-events: none;
+}
+
+.booking-field__amount ion-input {
+  --padding-start: 28px;
+}
+
+.booking-field__assist {
+  margin-top: -2px;
 }
 
 .booking-modal__footer {
+  align-items: center;
+  padding: 0 16px;
+}
+
+.booking-modal__footer-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 0 16px;
+}
+
+@media (max-width: 374px) {
+  .booking-modal__hero-topline,
+  .booking-modal__footer,
+  .booking-modal__section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .booking-modal__meta-grid,
+  .booking-modal__field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-modal__amount-chip,
+  .booking-modal__footer-summary {
+    text-align: left;
+  }
+
+  .booking-modal__footer-actions {
+    width: 100%;
+  }
 }
 </style>

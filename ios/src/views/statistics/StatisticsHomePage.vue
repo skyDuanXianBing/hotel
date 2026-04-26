@@ -159,36 +159,41 @@ async function handleOpenReviews() {
 
 <style scoped>
 .statistics-home-page__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
+  color: var(--ios-pms-primary);
+  font-size: var(--ios-pms-font-body-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
 }
 
 .statistics-home-page__metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  gap: var(--ios-pms-space-3);
+  margin-top: var(--ios-pms-space-4);
 }
 
 .statistics-home-page__metric-card,
 .statistics-home-page__report-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
+  padding: var(--ios-pms-space-4);
+  border-radius: var(--ios-pms-radius-card-sm);
+  border: 1px solid var(--ios-pms-border-soft);
   background: rgba(255, 255, 255, 0.84);
 }
 
 .statistics-home-page__metric-label {
   display: block;
-  color: var(--app-muted);
-  font-size: 12px;
+  color: var(--ios-pms-text-muted);
+  font-size: var(--ios-pms-font-body-md-size);
+  font-weight: var(--ios-pms-weight-medium);
 }
 
 .statistics-home-page__metric-value {
   display: block;
-  margin-top: 8px;
-  color: var(--app-heading);
-  font-size: 24px;
+  margin-top: var(--ios-pms-space-2);
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-metric-lg-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1;
+  letter-spacing: -0.04em;
 }
 
 .statistics-home-page__metric-value.is-primary {
@@ -209,34 +214,47 @@ async function handleOpenReviews() {
 
 .statistics-home-page__review-card {
   display: grid;
-  gap: 12px;
+  gap: var(--ios-pms-space-3);
 }
 
 .statistics-home-page__review-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--ios-pms-space-2);
 }
 
 .statistics-home-page__review-pill,
 .statistics-home-page__report-badge {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--app-primary-soft);
-  color: var(--ion-color-primary);
-  font-size: 12px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 13px;
+  border: 1px solid rgba(116, 163, 251, 0.08);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(115, 164, 255, 0.06);
+  color: var(--ios-pms-primary-strong);
+  font-size: var(--ios-pms-font-body-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
 }
 
 .statistics-home-page__report-list {
   display: grid;
-  gap: 12px;
-  margin-top: 16px;
+  gap: var(--ios-pms-space-3);
+  margin-top: var(--ios-pms-space-4);
 }
 
 .statistics-home-page__report-card {
   width: 100%;
+  border: none;
+  border-radius: 0;
+  padding: 14px 2px;
+  background: transparent;
+  box-shadow: none;
   text-align: left;
+}
+
+.statistics-home-page__report-card + .statistics-home-page__report-card {
+  border-top: 1px solid var(--ios-pms-divider);
 }
 
 .statistics-home-page__report-header {
@@ -246,11 +264,18 @@ async function handleOpenReviews() {
   align-items: flex-start;
 }
 
+.statistics-home-page__report-header strong {
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.25;
+}
+
 .statistics-home-page__report-body p {
-  margin: 8px 0 0;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.6;
+  margin: 3px 0 0;
+  color: var(--ios-pms-text-muted);
+  font-size: var(--ios-pms-font-body-sm-size);
+  line-height: 1.45;
   display: -webkit-box;
   overflow: hidden;
   -webkit-line-clamp: 2;

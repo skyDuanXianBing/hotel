@@ -1,226 +1,209 @@
 <template>
-  <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.settings" />
-        </ion-buttons>
-        <ion-title>门店详情</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content fullscreen class="mobile-page settings-detail-page">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新门店详情" refreshing-spinner="crescent" />
-      </ion-refresher>
-
-      <section class="mobile-hero settings-detail-hero">
-        <p class="mobile-note settings-detail-hero__eyebrow">门店设置</p>
-        <h1 class="mobile-title">{{ pageTitle }}</h1>
-        <p class="mobile-subtitle">补齐设施、照片、地图占位、入住退房时间与门店政策等关键字段。</p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">设施 {{ selectedFacilityLabels.length }}</span>
-          <span class="mobile-chip">照片 {{ photoCount }}</span>
-          <span class="mobile-chip">{{ locationLabel }}</span>
+  <SettingsDetailFormShell
+    :back-href="ROUTE_PATHS.settings"
+    title="门店详情"
+    hero-eyebrow="当前门店"
+    :hero-title="pageTitle"
+    :show-refresher="true"
+    refresher-pulling-text="下拉刷新门店详情"
+    @refresh="handleRefresh"
+  >
+    <template #heroExtra>
+      <div class="settings-detail-hero__summary">
+        <div class="settings-detail-hero__meta">
+          <div class="settings-detail-hero__meta-item">
+            <span class="settings-detail-hero__meta-label">地区</span>
+            <strong>{{ locationLabel }}</strong>
+          </div>
+          <div class="settings-detail-hero__meta-item">
+            <span class="settings-detail-hero__meta-label">语言</span>
+            <strong>{{ languageLabel }}</strong>
+          </div>
+          <div class="settings-detail-hero__meta-item">
+            <span class="settings-detail-hero__meta-label">时区</span>
+            <strong>{{ timezoneLabel }}</strong>
+          </div>
+          <div class="settings-detail-hero__meta-item">
+            <span class="settings-detail-hero__meta-label">币种</span>
+            <strong>{{ currencyLabel }}</strong>
+          </div>
         </div>
-      </section>
-
-      <div class="mobile-stack">
-        <section class="mobile-card">
-          <div class="mobile-inline-row settings-detail-page__section-header">
-            <div>
-              <h2 class="mobile-section-title">门店详情</h2>
-              <p class="mobile-note">门店基础详情、地区语言、照片链接与地图说明统一在此维护。</p>
-            </div>
-            <ion-spinner v-if="loading" name="crescent" />
-          </div>
-
-          <div class="settings-form-grid">
-            <label class="settings-form-field">
-              <span>邮箱地址</span>
-              <ion-input v-model="form.email" fill="outline" placeholder="请输入邮箱地址" />
-            </label>
-
-            <label class="settings-form-field">
-              <span>语言</span>
-              <ion-select v-model="form.language" fill="outline" interface="modal">
-                <ion-select-option v-for="option in LANGUAGE_OPTIONS" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </ion-select-option>
-              </ion-select>
-            </label>
-
-            <label class="settings-form-field settings-form-field--full">
-              <span>详细地址</span>
-              <ion-input v-model="form.address" fill="outline" placeholder="请输入详细地址" />
-            </label>
-
-            <label class="settings-form-field">
-              <span>城市</span>
-              <ion-input v-model="form.city" fill="outline" placeholder="请输入城市" />
-            </label>
-
-            <label class="settings-form-field">
-              <span>州 / 省</span>
-              <ion-input v-model="form.state" fill="outline" placeholder="请输入州 / 省" />
-            </label>
-
-            <label class="settings-form-field">
-              <span>国家</span>
-              <ion-select v-model="form.country" fill="outline" interface="modal">
-                <ion-select-option v-for="option in COUNTRY_OPTIONS" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </ion-select-option>
-              </ion-select>
-            </label>
-
-            <label class="settings-form-field">
-              <span>时区</span>
-              <ion-select v-model="form.timezone" fill="outline" interface="modal">
-                <ion-select-option v-for="option in TIMEZONE_OPTIONS" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </ion-select-option>
-              </ion-select>
-            </label>
-
-            <label class="settings-form-field">
-              <span>币种</span>
-              <ion-select v-model="form.currency" fill="outline" interface="modal">
-                <ion-select-option v-for="option in CURRENCY_OPTIONS" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </ion-select-option>
-              </ion-select>
-            </label>
-
-            <label class="settings-form-field">
-              <span>入住时间</span>
-              <ion-select v-model="policyForm.checkinTime" fill="outline" interface="modal">
-                <ion-select-option v-for="option in STORE_TIME_OPTIONS" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </ion-select-option>
-              </ion-select>
-            </label>
-
-            <label class="settings-form-field">
-              <span>退房时间</span>
-              <ion-select v-model="policyForm.checkoutTime" fill="outline" interface="modal">
-                <ion-select-option v-for="option in STORE_TIME_OPTIONS" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </ion-select-option>
-              </ion-select>
-            </label>
-
-            <label class="settings-form-field settings-form-field--full">
-              <span>门店设施</span>
-              <ion-select v-model="selectedFacilityLabels" fill="outline" interface="modal" multiple>
-                <ion-select-option v-for="item in STORE_FACILITY_OPTIONS" :key="item.label" :value="item.label">
-                  {{ item.label }}
-                </ion-select-option>
-              </ion-select>
-            </label>
-
-            <label class="settings-form-field settings-form-field--full">
-              <span>门店描述</span>
-              <ion-textarea v-model="form.description" :rows="4" fill="outline" placeholder="请输入门店描述" />
-            </label>
-
-            <label class="settings-form-field settings-form-field--full">
-              <span>桌面照片链接</span>
-              <ion-textarea
-                v-model="form.desktopPhotoUrlsText"
-                :rows="4"
-                fill="outline"
-                placeholder="每行一个照片链接"
-              />
-            </label>
-
-            <label class="settings-form-field settings-form-field--full">
-              <span>移动照片链接</span>
-              <ion-textarea
-                v-model="form.mobilePhotoUrlsText"
-                :rows="4"
-                fill="outline"
-                placeholder="每行一个照片链接"
-              />
-            </label>
-          </div>
-        </section>
-
-        <section class="mobile-card">
-          <h2 class="mobile-section-title">门店政策</h2>
-          <div class="settings-form-grid">
-            <label class="settings-form-field settings-form-field--full">
-              <span>儿童政策</span>
-              <ion-textarea v-model="policyForm.childPolicy" :rows="3" fill="outline" placeholder="请输入儿童政策" />
-            </label>
-
-            <label class="settings-form-field settings-form-field--full">
-              <span>吸烟政策</span>
-              <ion-textarea v-model="policyForm.smokingPolicy" :rows="3" fill="outline" placeholder="请输入吸烟政策" />
-            </label>
-
-            <label class="settings-form-field settings-form-field--full">
-              <span>宠物政策</span>
-              <ion-textarea v-model="policyForm.petPolicy" :rows="3" fill="outline" placeholder="请输入宠物政策" />
-            </label>
-
-            <label class="settings-form-field settings-form-field--full">
-              <span>附加规则</span>
-              <ion-textarea
-                v-model="policyForm.additionalRules"
-                :rows="4"
-                fill="outline"
-                placeholder="请输入附加规则"
-              />
-            </label>
-
-            <label class="settings-form-field settings-form-field--full">
-              <span>酒店条款</span>
-              <ion-textarea v-model="policyForm.hotelTerms" :rows="4" fill="outline" placeholder="请输入酒店条款" />
-            </label>
-          </div>
-        </section>
-
-        <section class="mobile-card">
-          <h2 class="mobile-section-title">地图占位</h2>
-          <div class="settings-map-placeholder">
-            <strong>{{ form.address || '未填写地址' }}</strong>
-            <p>移动端当前只展示地图占位与地址信息，后续若接入地图 SDK，将直接复用此地址字段。</p>
-          </div>
-        </section>
-
-        <section class="mobile-card settings-detail-page__actions-card">
-          <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">重置</ion-button>
-          <ion-button :disabled="loading || saving" @click="handleSave">
-            {{ saving ? '保存中...' : '保存门店详情' }}
-          </ion-button>
-        </section>
       </div>
-    </ion-content>
-  </ion-page>
+    </template>
+
+    <SettingsSectionCard
+      title="门店详情"
+      :loading="loading"
+      header-class="settings-detail-page__section-header"
+    >
+      <div class="settings-form-grid settings-form-grid--top">
+        <label class="settings-form-field">
+          <span>邮箱地址</span>
+          <ion-input v-model="form.email" fill="outline" placeholder="请输入邮箱地址" />
+        </label>
+
+        <label class="settings-form-field">
+          <span>语言</span>
+          <ion-select v-model="form.language" fill="outline" interface="modal">
+            <ion-select-option v-for="option in LANGUAGE_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </ion-select-option>
+          </ion-select>
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>详细地址</span>
+          <ion-input v-model="form.address" fill="outline" placeholder="请输入详细地址" />
+        </label>
+
+        <label class="settings-form-field">
+          <span>城市</span>
+          <ion-input v-model="form.city" fill="outline" placeholder="请输入城市" />
+        </label>
+
+        <label class="settings-form-field">
+          <span>州 / 省</span>
+          <ion-input v-model="form.state" fill="outline" placeholder="请输入州 / 省" />
+        </label>
+
+        <label class="settings-form-field">
+          <span>国家</span>
+          <ion-select v-model="form.country" fill="outline" interface="modal">
+            <ion-select-option v-for="option in COUNTRY_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </ion-select-option>
+          </ion-select>
+        </label>
+
+        <label class="settings-form-field">
+          <span>时区</span>
+          <ion-select v-model="form.timezone" fill="outline" interface="modal">
+            <ion-select-option v-for="option in TIMEZONE_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </ion-select-option>
+          </ion-select>
+        </label>
+
+        <label class="settings-form-field">
+          <span>币种</span>
+          <ion-select v-model="form.currency" fill="outline" interface="modal">
+            <ion-select-option v-for="option in CURRENCY_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </ion-select-option>
+          </ion-select>
+        </label>
+
+        <label class="settings-form-field">
+          <span>入住时间</span>
+          <ion-select v-model="policyForm.checkinTime" fill="outline" interface="modal">
+            <ion-select-option v-for="option in STORE_TIME_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </ion-select-option>
+          </ion-select>
+        </label>
+
+        <label class="settings-form-field">
+          <span>退房时间</span>
+          <ion-select v-model="policyForm.checkoutTime" fill="outline" interface="modal">
+            <ion-select-option v-for="option in STORE_TIME_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </ion-select-option>
+          </ion-select>
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>门店设施</span>
+          <ion-select v-model="selectedFacilityLabels" fill="outline" interface="modal" multiple>
+            <ion-select-option v-for="item in STORE_FACILITY_OPTIONS" :key="item.label" :value="item.label">
+              {{ item.label }}
+            </ion-select-option>
+          </ion-select>
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>门店描述</span>
+          <ion-textarea v-model="form.description" :rows="4" fill="outline" placeholder="请输入门店描述" />
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>桌面照片链接</span>
+          <ion-textarea
+            v-model="form.desktopPhotoUrlsText"
+            :rows="4"
+            fill="outline"
+            placeholder="每行一个照片链接"
+          />
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>移动照片链接</span>
+          <ion-textarea
+            v-model="form.mobilePhotoUrlsText"
+            :rows="4"
+            fill="outline"
+            placeholder="每行一个照片链接"
+          />
+        </label>
+      </div>
+    </SettingsSectionCard>
+
+    <SettingsSectionCard title="门店政策">
+      <div class="settings-form-grid settings-form-grid--top">
+        <label class="settings-form-field settings-form-field--full">
+          <span>儿童政策</span>
+          <ion-textarea v-model="policyForm.childPolicy" :rows="3" fill="outline" placeholder="请输入儿童政策" />
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>吸烟政策</span>
+          <ion-textarea v-model="policyForm.smokingPolicy" :rows="3" fill="outline" placeholder="请输入吸烟政策" />
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>宠物政策</span>
+          <ion-textarea v-model="policyForm.petPolicy" :rows="3" fill="outline" placeholder="请输入宠物政策" />
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>附加规则</span>
+          <ion-textarea
+            v-model="policyForm.additionalRules"
+            :rows="4"
+            fill="outline"
+            placeholder="请输入附加规则"
+          />
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>酒店条款</span>
+          <ion-textarea v-model="policyForm.hotelTerms" :rows="4" fill="outline" placeholder="请输入酒店条款" />
+        </label>
+      </div>
+    </SettingsSectionCard>
+
+    <SettingsSectionCard title="地址与定位">
+      <div class="settings-map-placeholder">
+        <strong>{{ form.address || '未填写地址' }}</strong>
+      </div>
+    </SettingsSectionCard>
+
+    <template #bottomActions>
+      <div class="settings-page-actions">
+        <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">重置</ion-button>
+        <ion-button :disabled="loading || saving" @click="handleSave">
+          {{ saving ? '保存中...' : '保存门店详情' }}
+        </ion-button>
+      </div>
+    </template>
+  </SettingsDetailFormShell>
 </template>
 
 <script setup lang="ts">
-import {
-  IonBackButton,
-  IonButton,
-  IonButtons,
-  IonContent,
-  IonHeader,
-  IonInput,
-  IonPage,
-  IonRefresher,
-  IonRefresherContent,
-  IonSelect,
-  IonSelectOption,
-  IonSpinner,
-  IonTextarea,
-  IonTitle,
-  IonToolbar,
-  onIonViewWillEnter,
-} from '@ionic/vue'
+import { IonButton, IonInput, IonSelect, IonSelectOption, IonTextarea, onIonViewWillEnter } from '@ionic/vue'
 import { computed, ref } from 'vue'
 import { getStoreById, getStorePolicy, updateStore, updateStorePolicy } from '@/api/store'
+import SettingsSectionCard from '@/components/settings/base/SettingsSectionCard.vue'
+import SettingsDetailFormShell from '@/components/settings/families/SettingsDetailFormShell.vue'
 import { STORE_FACILITY_OPTIONS } from '@/constants/settings'
 import {
   COUNTRY_OPTIONS,
@@ -267,8 +250,14 @@ const locationLabel = computed(() => {
   }
   return values.join(' · ')
 })
-const photoCount = computed(() => {
-  return normalizeTextList(form.value.desktopPhotoUrlsText).length + normalizeTextList(form.value.mobilePhotoUrlsText).length
+const languageLabel = computed(() => {
+  return resolveOptionLabel(LANGUAGE_OPTIONS, form.value.language, '未设置语言')
+})
+const timezoneLabel = computed(() => {
+  return resolveOptionLabel(TIMEZONE_OPTIONS, form.value.timezone, '未设置时区')
+})
+const currencyLabel = computed(() => {
+  return resolveOptionLabel(CURRENCY_OPTIONS, form.value.currency, '未设置币种')
 })
 
 function createEmptyForm(): StoreDetailsFormState {
@@ -304,6 +293,14 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
     return error.message
   }
   return fallbackMessage
+}
+
+function resolveOptionLabel(
+  options: ReadonlyArray<{ value: string; label: string }>,
+  value: string,
+  fallback: string,
+) {
+  return options.find((option) => option.value === value)?.label || value || fallback
 }
 
 function fillStoreForm(store: StoreDTO) {
@@ -473,44 +470,6 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
-.settings-detail-page {
-  display: block;
-}
-
-.settings-detail-hero {
-  margin-top: 4px;
-}
-
-.settings-detail-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-}
-
-.settings-detail-page__section-header {
-  align-items: flex-start;
-}
-
-.settings-form-grid {
-  display: grid;
-  gap: 14px;
-  margin-top: 16px;
-}
-
-.settings-form-field {
-  display: grid;
-  gap: 8px;
-}
-
-.settings-form-field span {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.settings-form-field--full {
-  grid-column: 1 / -1;
-}
-
 .settings-map-placeholder {
   display: grid;
   gap: 8px;
@@ -527,12 +486,5 @@ onIonViewWillEnter(async () => {
 .settings-map-placeholder p {
   color: var(--app-muted);
   line-height: 1.6;
-}
-
-.settings-detail-page__actions-card {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 </style>

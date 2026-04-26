@@ -1,231 +1,191 @@
 <template>
-  <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.settings" />
-        </ion-buttons>
-        <ion-title>消费项</ion-title>
-      </ion-toolbar>
-    </ion-header>
+  <SettingsPageShell
+    :back-href="ROUTE_PATHS.settings"
+    title="消费项"
+    hero-eyebrow="价格与商品"
+    hero-title="消费项管理"
+    :chips="[{ label: `消费项 ${items.length}` }, { label: `分类 ${categories.length}` }]"
+    :show-refresher="true"
+    refresher-pulling-text="下拉刷新消费项"
+    content-class="settings-page-block"
+    hero-class="settings-page-block__hero"
+    eyebrow-class="settings-page-block__eyebrow"
+    @refresh="handleRefresh"
+  >
+    <section class="mobile-card">
+      <div class="mobile-inline-row settings-consumption-page__toolbar">
+        <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
+          <ion-segment-button value="items">
+            <ion-label>消费项</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="categories">
+            <ion-label>分类</ion-label>
+          </ion-segment-button>
+        </ion-segment>
 
-    <ion-content fullscreen class="mobile-page settings-consumption-page">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新消费项" refreshing-spinner="crescent" />
-      </ion-refresher>
+        <ion-button size="small" @click="handleOpenCreate">
+          {{ activeSegment === 'items' ? '新增消费项' : '新增分类' }}
+        </ion-button>
+      </div>
+    </section>
 
-      <section class="mobile-hero settings-consumption-hero">
-        <p class="mobile-note settings-consumption-hero__eyebrow">价格与商品</p>
-        <h1 class="mobile-title">消费项管理</h1>
-        <p class="mobile-subtitle">首版已拆为“消费项 / 分类”两段视图，支持基础增删改与启停。</p>
-        <div class="mobile-chip-row">
-          <span class="mobile-chip">消费项 {{ items.length }}</span>
-          <span class="mobile-chip">分类 {{ categories.length }}</span>
-        </div>
-      </section>
+    <SettingsSectionCard
+      v-if="activeSegment === 'items'"
+      title="消费项列表"
+      :loading="loading"
+      header-class="settings-page-block__section-header"
+    >
+      <div v-if="items.length > 0" class="mobile-list settings-minimal-list">
+        <article v-for="item in items" :key="item.id" class="settings-minimal-card settings-consumption-item-card">
+          <div class="settings-minimal-card__header">
+            <div class="settings-minimal-card__title-group">
+              <strong>{{ item.name }}</strong>
+              <p class="settings-minimal-card__summary">{{ item.category }}</p>
+            </div>
+            <span class="settings-minimal-card__badge">¥{{ item.price.toFixed(2) }}</span>
+          </div>
 
-      <div class="mobile-stack">
-        <section class="mobile-card">
-          <div class="mobile-inline-row settings-consumption-page__toolbar">
-            <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
-              <ion-segment-button value="items">
-                <ion-label>消费项</ion-label>
-              </ion-segment-button>
-              <ion-segment-button value="categories">
-                <ion-label>分类</ion-label>
-              </ion-segment-button>
-            </ion-segment>
+          <div class="settings-minimal-card__meta">
+            <span
+              class="settings-minimal-card__meta-pill"
+              :class="item.enabled ? 'settings-minimal-card__meta-pill--success' : 'settings-minimal-card__meta-pill--warning'"
+            >
+              {{ item.enabled ? '已启用' : '已停用' }}
+            </span>
+          </div>
 
-            <ion-button size="small" @click="handleOpenCreate">
-              {{ activeSegment === 'items' ? '新增消费项' : '新增分类' }}
+          <div class="settings-minimal-card__actions">
+            <ion-button size="small" fill="outline" @click="handleEditItem(item)">编辑</ion-button>
+            <ion-button size="small" fill="outline" @click="handleToggleItem(item)">
+              {{ item.enabled ? '停用' : '启用' }}
             </ion-button>
+            <ion-button size="small" color="danger" fill="clear" @click="handleDeleteItem(item)">删除</ion-button>
           </div>
-        </section>
-
-        <section v-if="activeSegment === 'items'" class="mobile-card">
-          <div class="mobile-inline-row settings-consumption-page__section-header">
-            <div>
-              <h2 class="mobile-section-title">消费项列表</h2>
-              <p class="mobile-note">可直接启用或停用消费项，方便门店日常管理。</p>
-            </div>
-            <ion-spinner v-if="loading" name="crescent" />
-          </div>
-
-          <div v-if="items.length > 0" class="mobile-list settings-consumption-items-list">
-            <article v-for="item in items" :key="item.id" class="settings-consumption-item-card">
-              <div class="settings-consumption-item-card__header">
-                <div>
-                  <strong>{{ item.name }}</strong>
-                  <p>{{ item.category }}</p>
-                </div>
-                <span class="settings-consumption-item-card__price">¥{{ item.price.toFixed(2) }}</span>
-              </div>
-
-              <p class="mobile-note">{{ item.description || '未填写描述' }}</p>
-
-              <div class="settings-consumption-item-card__actions">
-                <ion-button size="small" fill="outline" @click="handleEditItem(item)">编辑</ion-button>
-                <ion-button size="small" fill="outline" @click="handleToggleItem(item)">
-                  {{ item.enabled ? '停用' : '启用' }}
-                </ion-button>
-                <ion-button size="small" color="danger" fill="clear" @click="handleDeleteItem(item)">
-                  删除
-                </ion-button>
-              </div>
-            </article>
-          </div>
-
-          <p v-else-if="!loading" class="mobile-note settings-consumption-page__empty-state">当前暂无消费项。</p>
-        </section>
-
-        <section v-else class="mobile-card">
-          <div class="mobile-inline-row settings-consumption-page__section-header">
-            <div>
-              <h2 class="mobile-section-title">分类列表</h2>
-              <p class="mobile-note">首版保留分类基础增删改与计数展示。</p>
-            </div>
-            <ion-spinner v-if="loading" name="crescent" />
-          </div>
-
-          <div v-if="categories.length > 0" class="mobile-list settings-consumption-categories-list">
-            <article v-for="category in categories" :key="category.id" class="settings-consumption-category-card">
-              <div>
-                <strong>{{ category.name }}</strong>
-                <p>{{ category.description || '未填写分类说明' }}</p>
-              </div>
-
-              <div class="settings-consumption-category-card__footer">
-                <span>消费项数 {{ category.count || 0 }}</span>
-                <div class="settings-consumption-category-card__actions">
-                  <ion-button size="small" fill="outline" @click="handleEditCategory(category)">编辑</ion-button>
-                  <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCategory(category)">
-                    删除
-                  </ion-button>
-                </div>
-              </div>
-            </article>
-          </div>
-
-          <p v-else-if="!loading" class="mobile-note settings-consumption-page__empty-state">当前暂无消费项分类。</p>
-        </section>
+        </article>
       </div>
 
-      <ion-modal :is-open="itemEditorOpen" @didDismiss="handleDismissItemEditor">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingItemId ? '编辑消费项' : '新增消费项' }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissItemEditor">关闭</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
+      <p v-else-if="!loading" class="mobile-note settings-empty-state">当前暂无消费项。</p>
+    </SettingsSectionCard>
 
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <div class="settings-form-grid">
-              <label class="settings-form-field">
-                <span>分类</span>
-                <ion-select v-model="itemForm.category" fill="outline" interface="modal">
-                  <ion-select-option v-for="category in categories" :key="category.id" :value="category.name">
-                    {{ category.name }}
-                  </ion-select-option>
-                </ion-select>
-              </label>
-
-              <label class="settings-form-field">
-                <span>名称</span>
-                <ion-input v-model="itemForm.name" fill="outline" placeholder="请输入消费项名称" />
-              </label>
-
-              <label class="settings-form-field">
-                <span>价格</span>
-                <ion-input v-model="itemForm.price" fill="outline" inputmode="decimal" placeholder="0.00" />
-              </label>
-
-              <div class="settings-toggle-field">
-                <div>
-                  <strong>启用状态</strong>
-                  <p>保存后会直接更新消费项当前状态。</p>
-                </div>
-                <ion-toggle v-model="itemForm.enabled" />
-              </div>
-
-              <label class="settings-form-field settings-form-field--full">
-                <span>描述</span>
-                <ion-textarea v-model="itemForm.description" :rows="4" fill="outline" placeholder="请输入描述" />
-              </label>
+    <SettingsSectionCard
+      v-else
+      title="分类列表"
+      :loading="loading"
+      header-class="settings-page-block__section-header"
+    >
+      <div v-if="categories.length > 0" class="mobile-list settings-minimal-list">
+        <article
+          v-for="category in categories"
+          :key="category.id"
+          class="settings-minimal-card settings-consumption-category-card"
+        >
+          <div class="settings-minimal-card__header">
+            <div class="settings-minimal-card__title-group">
+              <strong>{{ category.name }}</strong>
+              <p class="settings-minimal-card__summary settings-minimal-card__summary--clamp-two">
+                {{ category.description || '未填写分类说明' }}
+              </p>
             </div>
+            <span class="settings-minimal-card__badge">消费项 {{ category.count || 0 }}</span>
+          </div>
 
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissItemEditor">取消</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveItem">
-                {{ submitting ? '提交中...' : '保存消费项' }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
+          <div class="settings-minimal-card__actions">
+            <ion-button size="small" fill="outline" @click="handleEditCategory(category)">编辑</ion-button>
+            <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCategory(category)">删除</ion-button>
+          </div>
+        </article>
+      </div>
 
-      <ion-modal :is-open="categoryEditorOpen" @didDismiss="handleDismissCategoryEditor">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingCategoryId ? '编辑分类' : '新增分类' }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissCategoryEditor">关闭</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
+      <p v-else-if="!loading" class="mobile-note settings-empty-state">当前暂无消费项分类。</p>
+    </SettingsSectionCard>
 
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <div class="settings-form-grid">
-              <label class="settings-form-field">
-                <span>分类名称</span>
-                <ion-input v-model="categoryForm.name" fill="outline" placeholder="请输入分类名称" />
-              </label>
+    <SettingsEditorModal
+      :is-open="itemEditorOpen"
+      :title="editingItemId ? '编辑消费项' : '新增消费项'"
+      @close="handleDismissItemEditor"
+      @didDismiss="handleDismissItemEditor"
+    >
+      <div class="settings-form-grid">
+        <label class="settings-form-field">
+          <span>分类</span>
+          <ion-select v-model="itemForm.category" fill="outline" interface="modal">
+            <ion-select-option v-for="category in categories" :key="category.id" :value="category.name">
+              {{ category.name }}
+            </ion-select-option>
+          </ion-select>
+        </label>
 
-              <label class="settings-form-field settings-form-field--full">
-                <span>分类描述</span>
-                <ion-textarea v-model="categoryForm.description" :rows="4" fill="outline" placeholder="请输入分类说明" />
-              </label>
-            </div>
+        <label class="settings-form-field">
+          <span>名称</span>
+          <ion-input v-model="itemForm.name" fill="outline" placeholder="请输入消费项名称" />
+        </label>
 
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissCategoryEditor">取消</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveCategory">
-                {{ submitting ? '提交中...' : '保存分类' }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
-    </ion-content>
-  </ion-page>
+        <label class="settings-form-field">
+          <span>价格</span>
+          <ion-input v-model="itemForm.price" fill="outline" inputmode="decimal" placeholder="0.00" />
+        </label>
+
+        <div class="settings-toggle-field">
+          <div>
+            <strong>启用状态</strong>
+          </div>
+          <ion-toggle v-model="itemForm.enabled" />
+        </div>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>描述</span>
+          <ion-textarea v-model="itemForm.description" :rows="4" fill="outline" placeholder="请输入描述" />
+        </label>
+      </div>
+
+      <template #actions>
+        <ion-button fill="outline" @click="handleDismissItemEditor">取消</ion-button>
+        <ion-button :disabled="submitting" @click="handleSaveItem">
+          {{ submitting ? '提交中...' : '保存消费项' }}
+        </ion-button>
+      </template>
+    </SettingsEditorModal>
+
+    <SettingsEditorModal
+      :is-open="categoryEditorOpen"
+      :title="editingCategoryId ? '编辑分类' : '新增分类'"
+      @close="handleDismissCategoryEditor"
+      @didDismiss="handleDismissCategoryEditor"
+    >
+      <div class="settings-form-grid">
+        <label class="settings-form-field">
+          <span>分类名称</span>
+          <ion-input v-model="categoryForm.name" fill="outline" placeholder="请输入分类名称" />
+        </label>
+
+        <label class="settings-form-field settings-form-field--full">
+          <span>分类描述</span>
+          <ion-textarea v-model="categoryForm.description" :rows="4" fill="outline" placeholder="请输入分类说明" />
+        </label>
+      </div>
+
+      <template #actions>
+        <ion-button fill="outline" @click="handleDismissCategoryEditor">取消</ion-button>
+        <ion-button :disabled="submitting" @click="handleSaveCategory">
+          {{ submitting ? '提交中...' : '保存分类' }}
+        </ion-button>
+      </template>
+    </SettingsEditorModal>
+  </SettingsPageShell>
 </template>
 
 <script setup lang="ts">
 import {
   alertController,
-  IonBackButton,
   IonButton,
-  IonButtons,
-  IonContent,
-  IonHeader,
   IonInput,
   IonLabel,
-  IonModal,
-  IonPage,
-  IonRefresher,
-  IonRefresherContent,
   IonSegment,
   IonSegmentButton,
   IonSelect,
   IonSelectOption,
-  IonSpinner,
   IonTextarea,
-  IonTitle,
   IonToggle,
-  IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { ref } from 'vue'
@@ -242,6 +202,9 @@ import {
   type ConsumptionCategoryDTO,
   type ConsumptionItemDTO,
 } from '@/api/consumptionItem'
+import SettingsEditorModal from '@/components/settings/base/SettingsEditorModal.vue'
+import SettingsPageShell from '@/components/settings/base/SettingsPageShell.vue'
+import SettingsSectionCard from '@/components/settings/base/SettingsSectionCard.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
@@ -567,139 +530,7 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
-.settings-consumption-page {
-  display: block;
-}
-
-.settings-consumption-hero {
-  margin-top: 4px;
-}
-
-.settings-consumption-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-}
-
-.settings-consumption-page__toolbar,
-.settings-consumption-page__section-header {
+.settings-consumption-page__toolbar {
   align-items: flex-start;
-}
-
-.settings-consumption-items-list,
-.settings-consumption-categories-list {
-  margin-top: 16px;
-}
-
-.settings-consumption-item-card,
-.settings-consumption-category-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.settings-consumption-item-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.settings-consumption-item-card__header strong,
-.settings-consumption-item-card__header p,
-.settings-consumption-category-card strong,
-.settings-consumption-category-card p {
-  margin: 0;
-}
-
-.settings-consumption-item-card__header p,
-.settings-consumption-category-card p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-}
-
-.settings-consumption-item-card__price {
-  color: var(--ion-color-primary);
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.settings-consumption-item-card__actions,
-.settings-consumption-category-card__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-}
-
-.settings-consumption-category-card__footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-top: 14px;
-  color: var(--app-muted);
-  font-size: 12px;
-}
-
-.settings-consumption-page__empty-state {
-  padding-top: 16px;
-}
-
-.settings-modal-page {
-  --padding-top: 16px;
-  --padding-bottom: 24px;
-  --padding-start: 16px;
-  --padding-end: 16px;
-}
-
-.settings-form-grid {
-  display: grid;
-  gap: 14px;
-}
-
-.settings-form-field {
-  display: grid;
-  gap: 8px;
-}
-
-.settings-form-field span {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.settings-form-field--full {
-  grid-column: 1 / -1;
-}
-
-.settings-toggle-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: var(--app-primary-soft);
-}
-
-.settings-toggle-field strong,
-.settings-toggle-field p {
-  margin: 0;
-}
-
-.settings-toggle-field p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 12px;
-}
-
-.settings-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 18px;
 }
 </style>

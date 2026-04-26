@@ -15,61 +15,57 @@
       </ion-refresher>
 
       <section v-if="channelView" class="mobile-hero channel-mapping-hero">
-        <p class="mobile-note channel-mapping-hero__eyebrow">映射管理</p>
         <h1 class="mobile-title">{{ channelView.name }}</h1>
-        <p class="mobile-subtitle">已补齐 {{ groupLabel }} 管理层，并支持用移动端深编辑草稿整理 PMS 房型与价盘选择。</p>
         <div class="mobile-chip-row">
-          <span class="mobile-chip">{{ channelView.statusLabel }}</span>
-          <span class="mobile-chip">分组 {{ mappingGroups.length }}</span>
-          <span class="mobile-chip">价盘 {{ totalRatePlanCount }}</span>
+          <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--status">
+            {{ channelView.statusLabel }}
+          </span>
+          <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--metric">
+            分组 {{ mappingGroups.length }}
+          </span>
+          <span class="mobile-chip channel-mapping-hero__chip channel-mapping-hero__chip--metric">
+            价盘 {{ totalRatePlanCount }}
+          </span>
         </div>
       </section>
 
       <div v-if="channelView" class="mobile-stack">
-        <section class="mobile-card">
-          <div class="mobile-inline-row">
-            <div>
-              <h2 class="mobile-section-title">映射摘要</h2>
-              <p class="mobile-note">房型 {{ mappingStatus?.mappedRoomIdCount || 0 }}，活跃价盘 {{ mappingStatus?.activeRatePlanCount || 0 }}</p>
+        <section class="mobile-card channel-mapping-page__toolbar-card">
+          <div class="channel-mapping-page__toolbar">
+            <div class="channel-mapping-page__toolbar-main">
+              <strong>{{ mappingOverviewText }}</strong>
+              <p>按{{ groupLabel }}分组查看并继续编辑</p>
             </div>
-            <ion-spinner v-if="loading" name="crescent" />
+            <div class="channel-mapping-page__toolbar-actions">
+              <ion-spinner v-if="loading" name="crescent" />
+              <ion-button size="small" class="channel-mapping-page__action-primary" @click="openConnectEntry">
+                编辑映射
+              </ion-button>
+              <ion-button
+                size="small"
+                fill="outline"
+                class="channel-mapping-page__action-secondary"
+                @click="reloadMapping"
+              >
+                刷新
+              </ion-button>
+            </div>
           </div>
 
-          <div class="channel-mapping-page__actions">
-            <ion-button @click="openConnectEntry">编辑映射</ion-button>
-            <ion-button fill="outline" @click="reloadMapping">刷新映射</ion-button>
-          </div>
-
-          <p v-if="mappingStatusNotice" class="mobile-note channel-mapping-page__warning">{{ mappingStatusNotice }}</p>
-          <p v-if="loadNotice" class="mobile-note channel-mapping-page__warning">{{ loadNotice }}</p>
-        </section>
-
-        <section class="mobile-card">
-          <ion-segment :value="activeSegment" @ionChange="handleActiveSegmentChange">
-            <ion-segment-button value="management">
-              <ion-label>{{ groupLabel }}管理</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="details">
-              <ion-label>映射明细</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-        </section>
-
-        <section class="mobile-card">
           <div class="channel-mapping-page__filters">
-            <ion-segment :value="filterMode" @ionChange="handleFilterModeChange">
+            <ion-segment class="channel-mapping-page__filter-segment" :value="filterMode" @ionChange="handleFilterModeChange">
               <ion-segment-button value="all">
                 <ion-label>全部</ion-label>
               </ion-segment-button>
               <ion-segment-button value="active">
-                <ion-label>已连接</ion-label>
+                <ion-label>已映射</ion-label>
               </ion-segment-button>
               <ion-segment-button value="problem">
                 <ion-label>待处理</ion-label>
               </ion-segment-button>
             </ion-segment>
 
-            <ion-item>
+            <ion-item v-if="hotelOptions.length > 1" class="channel-mapping-page__filter-item">
               <ion-select
                 :value="selectedHotelKey"
                 interface="action-sheet"
@@ -81,84 +77,76 @@
                 <ion-select-option v-for="item in hotelOptions" :key="item" :value="item">
                   {{ item }}
                 </ion-select-option>
-              </ion-select>
+                </ion-select>
             </ion-item>
           </div>
+
+          <p v-if="combinedNotice" class="mobile-note channel-mapping-page__warning">{{ combinedNotice }}</p>
         </section>
 
-        <section v-if="activeSegment === 'management'" class="mobile-card">
-          <div class="mobile-inline-row">
-            <div>
-              <h2 class="mobile-section-title">{{ groupLabel }}管理层</h2>
-              <p class="mobile-note">先看分组状态，再按分组进入深编辑，避免在长表里来回查找。</p>
-            </div>
-          </div>
-
+        <section class="mobile-card channel-mapping-page__list-card">
           <div v-if="filteredGroups.length > 0" class="mobile-list channel-mapping-page__group-list">
             <article v-for="group in filteredGroups" :key="group.id" class="channel-mapping-page__group-card">
-              <div class="channel-mapping-page__group-header">
-                <div>
-                  <h3>{{ group.title }}</h3>
-                  <p>{{ groupLabel }}标识：{{ group.hotelKey }}</p>
+              <button
+                type="button"
+                class="channel-mapping-page__group-toggle"
+                @click="toggleGroupExpansion(group.hotelKey)"
+              >
+                <div class="channel-mapping-page__group-header">
+                  <div>
+                    <h3>{{ group.title }}</h3>
+                    <p>{{ groupLabel }}标识：{{ group.hotelKey }}</p>
+                  </div>
+                  <div class="channel-mapping-page__group-header-side">
+                    <ion-badge :color="group.statusColor">{{ group.statusLabel }}</ion-badge>
+                    <span
+                      class="channel-mapping-page__group-arrow"
+                      :class="{ 'channel-mapping-page__group-arrow--expanded': isGroupExpanded(group.hotelKey) }"
+                    >
+                      ›
+                    </span>
+                  </div>
                 </div>
-                <ion-badge :color="group.statusColor">{{ group.statusLabel }}</ion-badge>
-              </div>
 
-              <div class="channel-mapping-page__group-meta">
-                <span>房型标识 {{ group.roomIds.length > 0 ? group.roomIds.join(' / ') : '暂无' }}</span>
-                <span>活跃价盘 {{ group.activeRatePlanCount }}</span>
-                <span>总价盘 {{ group.ratePlans.length }}</span>
-              </div>
-
-              <p v-if="resolveDraftSummary(group.hotelKey)" class="mobile-note channel-mapping-page__draft-text">
-                {{ resolveDraftSummary(group.hotelKey) }}
-              </p>
+                <div class="channel-mapping-page__group-meta">
+                  <span>房型 {{ group.roomIds.length }}</span>
+                  <span>活跃价盘 {{ group.activeRatePlanCount }}</span>
+                  <span>总价盘 {{ group.ratePlans.length }}</span>
+                  <span
+                    v-if="resolveDraftBadge(group.hotelKey)"
+                    class="channel-mapping-page__draft-badge"
+                  >
+                    {{ resolveDraftBadge(group.hotelKey) }}
+                  </span>
+                </div>
+              </button>
 
               <div class="channel-mapping-page__management-actions">
-                <ion-button size="small" fill="outline" @click="viewGroupDetails(group)">
-                  查看明细
+                <ion-button size="small" fill="outline" @click="toggleGroupExpansion(group.hotelKey)">
+                  {{ isGroupExpanded(group.hotelKey) ? '收起明细' : '展开明细' }}
                 </ion-button>
                 <ion-button size="small" @click="openEditor(group)">深度编辑</ion-button>
               </div>
-            </article>
-          </div>
 
-          <p v-else class="mobile-note channel-mapping-page__empty">
-            {{ emptyStateText }}
-          </p>
-        </section>
+              <div v-if="isGroupExpanded(group.hotelKey)" class="channel-mapping-page__group-details">
+                <p v-if="group.roomIds.length > 0" class="mobile-note channel-mapping-page__group-ids">
+                  房型标识：{{ group.roomIds.join(' / ') }}
+                </p>
 
-        <section v-else class="mobile-card">
-          <div class="mobile-inline-row">
-            <div>
-              <h2 class="mobile-section-title">映射列表</h2>
-              <p class="mobile-note">展示 PMS 房型 / 价盘与渠道房型 / 价盘的当前映射关系。</p>
-            </div>
-          </div>
-
-          <div v-if="filteredGroups.length > 0" class="mobile-list channel-mapping-page__group-list">
-            <article v-for="group in filteredGroups" :key="group.id" class="channel-mapping-page__group-card">
-              <div class="channel-mapping-page__group-header">
-                <div>
-                  <h3>{{ group.title }}</h3>
-                  <p>房型标识：{{ group.roomIds.length > 0 ? group.roomIds.join(' / ') : '暂无' }}</p>
-                </div>
-                <ion-badge :color="group.statusColor">{{ group.statusLabel }}</ion-badge>
-              </div>
-
-              <div v-if="group.ratePlans.length > 0" class="channel-mapping-page__plans">
-                <div v-for="plan in group.ratePlans" :key="plan.id" class="channel-mapping-page__plan-item">
-                  <div class="channel-mapping-page__plan-header">
-                    <strong>{{ plan.title }}</strong>
-                    <ion-badge :color="plan.statusColor">{{ plan.statusLabel }}</ion-badge>
+                <div v-if="group.ratePlans.length > 0" class="channel-mapping-page__plans">
+                  <div v-for="plan in group.ratePlans" :key="plan.id" class="channel-mapping-page__plan-item">
+                    <div class="channel-mapping-page__plan-header">
+                      <strong>{{ plan.title }}</strong>
+                      <ion-badge :color="plan.statusColor">{{ plan.statusLabel }}</ion-badge>
+                    </div>
+                    <p>PMS：房型 {{ plan.pmsRoomId }} · 价盘 {{ plan.pmsRateId }}</p>
+                    <p>渠道：房型 {{ plan.channelRoomId }} · 价盘 {{ plan.channelRateId }}</p>
+                    <p class="channel-mapping-page__plan-secondary">价格模型 {{ plan.pricingModel }}</p>
                   </div>
-                  <p>PMS 房型：{{ plan.pmsRoomId }} · PMS 价盘：{{ plan.pmsRateId }}</p>
-                  <p>渠道房型：{{ plan.channelRoomId }} · 渠道价盘：{{ plan.channelRateId }}</p>
-                  <p>价格模型：{{ plan.pricingModel }}</p>
                 </div>
-              </div>
 
-              <p v-else class="mobile-note">该分组暂无可展示的价盘映射。</p>
+                <p v-else class="mobile-note">该分组暂无可展示的价盘映射。</p>
+              </div>
             </article>
           </div>
 
@@ -203,7 +191,7 @@
           <div v-if="editorGroup && editorState">
             <div class="channel-mapping-page__editor-hero">
               <strong>{{ editorGroup.title }}</strong>
-              <p>当前后端未开放独立保存接口。移动端会先保存本地草稿，并可继续打开 Su 向导完成最终提交。</p>
+              <p>先保存本地草稿，再按需打开向导完成最终提交。</p>
             </div>
 
             <section v-if="editorLoading" class="channel-mapping-page__editor-loading">
@@ -333,7 +321,6 @@ import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
 type MappingFilterMode = 'all' | 'active' | 'problem'
-type MappingSegment = 'management' | 'details'
 
 interface MappingOption {
   value: string
@@ -379,7 +366,7 @@ const mappingStatus = ref<SuMappingStatusSummary | null>(null)
 const mappingGroups = ref<SuHotelMappingView[]>([])
 const filterMode = ref<MappingFilterMode>('all')
 const selectedHotelKey = ref('all')
-const activeSegment = ref<MappingSegment>('management')
+const expandedGroupKeys = ref<string[]>([])
 const connectModalOpen = ref(false)
 const widgetModalOpen = ref(false)
 const loadNotice = ref('')
@@ -411,6 +398,9 @@ const pageTitle = computed(() => {
 
 const groupLabel = computed(() => getChannelGroupLabel(channel.value?.code))
 const mappingStatusNotice = computed(() => resolveMappingStatusNotice(mappingStatus.value?.error))
+const combinedNotice = computed(() => {
+  return [mappingStatusNotice.value, loadNotice.value].filter(Boolean).join('；')
+})
 
 const hotelOptions = computed(() => {
   const result: string[] = []
@@ -432,14 +422,35 @@ const totalRatePlanCount = computed(() => {
   return total
 })
 
+const mappingOverviewText = computed(() => {
+  if (!mappingStatus.value) {
+    if (mappingGroups.value.length > 0) {
+      return `分组 ${mappingGroups.value.length} · 价盘 ${totalRatePlanCount.value}`
+    }
+    return '映射数据待刷新'
+  }
+
+  if (mappingStatus.value.error) {
+    return '当前未映射或映射异常'
+  }
+
+  const mappedRoomCount = mappingStatus.value.mappedRoomIdCount || 0
+  const activeRatePlanCount = mappingStatus.value.activeRatePlanCount || 0
+  if (mappedRoomCount === 0 && activeRatePlanCount === 0) {
+    return '当前未映射'
+  }
+
+  return `房型 ${mappedRoomCount} · 活跃价盘 ${activeRatePlanCount}`
+})
+
 const emptyStateText = computed(() => {
   if (!channelView.value) {
     return '暂无可展示的映射数据。'
   }
   if (!resolveSuChannelId(channelView.value.code)) {
-    return '该渠道当前没有 Su 映射明细接口，首版仅展示连接状态与详情摘要。'
+    return '该渠道当前不支持映射明细。'
   }
-  return '当前筛选条件下没有映射结果，可尝试切换筛选或重新进入编辑映射。'
+  return '当前筛选下没有映射结果。'
 })
 
 function resolveWarningMessage(error: unknown, fallbackMessage: string) {
@@ -508,21 +519,21 @@ function getOptionLabel(options: MappingOption[], value: string, fallback: strin
   return fallback
 }
 
-function resolveDraftSummary(hotelKey: string) {
+function formatDraftBadgeTime(value: string) {
+  const formatted = formatDateTime(value)
+  if (formatted.length >= 16) {
+    return formatted.slice(5)
+  }
+  return formatted
+}
+
+function resolveDraftBadge(hotelKey: string) {
   const draft = mappingDrafts.value[getDraftKey(hotelKey)]
   if (!draft) {
     return ''
   }
 
-  let selectedPlanCount = 0
-  for (const item of draft.plans) {
-    if (item.selectedPmsRatePlan) {
-      selectedPlanCount += 1
-    }
-  }
-
-  const roomTypeLabel = draft.selectedPmsRoomTypeLabel || '未选 PMS 房型'
-  return `本地草稿：${roomTypeLabel}，价盘已选 ${selectedPlanCount} 项，保存于 ${formatDateTime(draft.savedAt)}`
+  return `有草稿 · ${formatDraftBadgeTime(draft.savedAt)}`
 }
 
 function createEditorState(group: SuHotelMappingView): MappingEditorState {
@@ -646,6 +657,7 @@ async function loadMappingPage() {
     if (!suChannelId) {
       mappingStatus.value = null
       mappingGroups.value = []
+      expandedGroupKeys.value = []
       return
     }
 
@@ -674,14 +686,19 @@ async function loadMappingPage() {
       )
       loadNotice.value = loadNotice.value ? `${loadNotice.value}；${nextWarning}` : nextWarning
     }
+
+    if (selectedHotelKey.value !== 'all' && !mappingGroups.value.some((item) => item.hotelKey === selectedHotelKey.value)) {
+      selectedHotelKey.value = 'all'
+    }
+
+    const availableHotelKeys = new Set(mappingGroups.value.map((item) => item.hotelKey))
+    expandedGroupKeys.value = expandedGroupKeys.value.filter((item) => availableHotelKeys.has(item))
+    if (expandedGroupKeys.value.length === 0 && mappingGroups.value.length === 1) {
+      expandedGroupKeys.value = [mappingGroups.value[0].hotelKey]
+    }
   } finally {
     loading.value = false
   }
-}
-
-function handleActiveSegmentChange(event: CustomEvent) {
-  const nextSegment = event.detail.value as MappingSegment
-  activeSegment.value = nextSegment || 'management'
 }
 
 function handleFilterModeChange(event: CustomEvent) {
@@ -691,11 +708,22 @@ function handleFilterModeChange(event: CustomEvent) {
 
 function handleHotelChange(event: CustomEvent) {
   selectedHotelKey.value = (event.detail.value as string) || 'all'
+  if (selectedHotelKey.value !== 'all') {
+    expandedGroupKeys.value = Array.from(new Set([...expandedGroupKeys.value, selectedHotelKey.value]))
+  }
 }
 
-function viewGroupDetails(group: SuHotelMappingView) {
-  selectedHotelKey.value = group.hotelKey
-  activeSegment.value = 'details'
+function isGroupExpanded(hotelKey: string) {
+  return expandedGroupKeys.value.includes(hotelKey)
+}
+
+function toggleGroupExpansion(hotelKey: string) {
+  if (isGroupExpanded(hotelKey)) {
+    expandedGroupKeys.value = expandedGroupKeys.value.filter((item) => item !== hotelKey)
+    return
+  }
+
+  expandedGroupKeys.value = [...expandedGroupKeys.value, hotelKey]
 }
 
 function openConnectEntry() {
@@ -838,18 +866,81 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
-.channel-mapping-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
+.channel-mapping-page {
+  --background: linear-gradient(180deg, #eef3fb 0%, #f4f7fc 18%, #f8fafd 100%);
 }
 
-.channel-mapping-page__actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.channel-mapping-hero {
+  padding: 20px 20px 18px;
+  border-color: rgba(110, 131, 171, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(251, 253, 255, 0.84));
+  box-shadow: 0 16px 28px rgba(22, 38, 70, 0.035);
+}
+
+.channel-mapping-hero::before {
+  background: linear-gradient(135deg, rgba(62, 98, 175, 0.08), transparent 62%);
+}
+
+.channel-mapping-hero .mobile-title {
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.channel-mapping-hero .mobile-chip-row {
   gap: 10px;
   margin-top: 16px;
 }
 
+.channel-mapping-hero__chip {
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+}
+
+.channel-mapping-hero__chip--status {
+  border-color: rgba(64, 101, 181, 0.14);
+  background: rgba(64, 101, 181, 0.08);
+  color: #3558a6;
+}
+
+.channel-mapping-hero__chip--metric {
+  border-color: rgba(117, 136, 173, 0.1);
+  background: rgba(247, 249, 252, 0.94);
+  color: #60708d;
+}
+
+.channel-mapping-page__toolbar-card,
+.channel-mapping-page__list-card {
+  border-color: rgba(112, 130, 166, 0.1);
+  box-shadow: 0 14px 26px rgba(22, 38, 70, 0.035);
+}
+
+.channel-mapping-page__toolbar-card {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(249, 252, 255, 0.92));
+}
+
+.channel-mapping-page__toolbar-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 52px;
+  background: linear-gradient(90deg, rgba(68, 103, 180, 0.06), transparent 72%);
+  pointer-events: none;
+}
+
+.channel-mapping-page__toolbar-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.channel-mapping-page__toolbar,
 .channel-mapping-page__filters,
 .channel-mapping-page__group-list,
 .channel-mapping-page__plans,
@@ -859,18 +950,128 @@ onIonViewWillEnter(async () => {
   gap: 12px;
 }
 
+.channel-mapping-page__toolbar {
+  gap: 14px;
+}
+
+.channel-mapping-page__toolbar-main strong,
+.channel-mapping-page__group-header h3,
+.channel-mapping-page__plan-item strong,
+.channel-mapping-page__editor-plan-item strong,
+.channel-mapping-page__editor-hero strong {
+  margin: 0;
+  color: var(--app-heading);
+}
+
+.channel-mapping-page__toolbar-main strong {
+  display: block;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+}
+
+.channel-mapping-page__toolbar-main p,
+.channel-mapping-page__group-header p,
+.channel-mapping-page__plan-item p,
+.channel-mapping-page__editor-plan-item p,
+.channel-mapping-page__editor-hero p,
+.channel-mapping-page__group-ids {
+  margin: 6px 0 0;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.channel-mapping-page__toolbar-main p {
+  color: var(--ios-pms-text-soft);
+  font-size: 12px;
+}
+
+.channel-mapping-page__toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.channel-mapping-page__toolbar-actions ion-spinner {
+  color: var(--ios-pms-primary);
+  transform: scale(0.82);
+}
+
+.channel-mapping-page__action-primary {
+  --background: #234ebd;
+  --background-activated: #2046aa;
+  --background-hover: #2046aa;
+  --box-shadow: 0 10px 20px rgba(35, 78, 189, 0.18);
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.channel-mapping-page__action-secondary {
+  --background: rgba(255, 255, 255, 0.72);
+  --border-color: rgba(71, 101, 163, 0.18);
+  --color: #3f609b;
+  --padding-start: 14px;
+  --padding-end: 14px;
+}
+
+.channel-mapping-page__filters {
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.channel-mapping-page__filter-segment {
+  padding: 3px;
+  border-color: rgba(111, 130, 168, 0.12);
+  border-radius: 16px;
+  background: rgba(236, 241, 249, 0.88);
+}
+
+.channel-mapping-page__filter-segment ion-segment-button {
+  --border-radius: 13px;
+  --indicator-color: rgba(86, 116, 173, 0.16);
+  min-height: 38px;
+  font-size: 12px;
+}
+
+.channel-mapping-page__filter-item {
+  margin: 0;
+  border: 1px solid rgba(112, 130, 166, 0.11);
+  border-radius: 16px;
+  background: rgba(252, 253, 255, 0.84);
+  --padding-start: 4px;
+  --inner-padding-end: 4px;
+}
+
 .channel-mapping-page__warning {
-  margin-top: 12px;
-  color: var(--ion-color-warning);
+  margin-top: 10px;
+  padding: 10px 12px 10px 14px;
+  border-left: 3px solid #eb9629;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 248, 238, 0.98), rgba(255, 251, 246, 0.92));
+  color: #b16d12;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .channel-mapping-page__group-card,
 .channel-mapping-page__plan-item,
 .channel-mapping-page__editor-plan-item {
-  padding: 14px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid var(--app-border);
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 251, 254, 0.94));
+  border: 1px solid rgba(112, 130, 166, 0.11);
+  box-shadow: 0 12px 24px rgba(22, 38, 70, 0.035);
+}
+
+.channel-mapping-page__group-toggle {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
 }
 
 .channel-mapping-page__group-header,
@@ -881,40 +1082,76 @@ onIonViewWillEnter(async () => {
   gap: 12px;
 }
 
-.channel-mapping-page__group-header h3,
-.channel-mapping-page__group-header p,
-.channel-mapping-page__plan-item p,
-.channel-mapping-page__plan-item strong,
-.channel-mapping-page__editor-plan-item p,
-.channel-mapping-page__editor-plan-item strong,
-.channel-mapping-page__editor-hero strong,
-.channel-mapping-page__editor-hero p {
-  margin: 0;
+.channel-mapping-page__group-header-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.channel-mapping-page__group-header p,
-.channel-mapping-page__plan-item p,
-.channel-mapping-page__editor-plan-item p,
-.channel-mapping-page__editor-hero p,
-.channel-mapping-page__draft-text {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.6;
+.channel-mapping-page__group-arrow {
+  color: var(--ios-pms-text-disabled);
+  font-size: 20px;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.channel-mapping-page__group-header ion-badge,
+.channel-mapping-page__plan-header ion-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.channel-mapping-page__group-header h3 {
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+.channel-mapping-page__group-header p {
+  color: var(--ios-pms-text-soft);
+  font-size: 12px;
+}
+
+.channel-mapping-page__group-arrow--expanded {
+  transform: rotate(90deg);
 }
 
 .channel-mapping-page__group-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 14px;
-  margin-top: 12px;
-  color: var(--app-muted);
-  font-size: 12px;
+  gap: 8px;
+  margin-top: 14px;
 }
 
-.channel-mapping-page__draft-text,
+.channel-mapping-page__group-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(117, 136, 173, 0.09);
+  border-radius: 999px;
+  background: rgba(245, 248, 252, 0.92);
+  color: #61718d;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.channel-mapping-page__draft-badge {
+  border-color: rgba(52, 116, 246, 0.14);
+  background: rgba(52, 116, 246, 0.09);
+  color: #315fc1;
+  font-weight: 600;
+}
+
+.channel-mapping-page__group-details,
 .channel-mapping-page__management-actions {
   margin-top: 12px;
+}
+
+.channel-mapping-page__group-details {
+  padding-top: 14px;
+  border-top: 1px solid rgba(113, 132, 170, 0.11);
 }
 
 .channel-mapping-page__management-actions,
@@ -924,8 +1161,56 @@ onIonViewWillEnter(async () => {
   gap: 8px;
 }
 
+.channel-mapping-page__management-actions ion-button,
+.channel-mapping-page__editor-actions ion-button {
+  min-height: 34px;
+  --border-radius: 12px;
+  font-size: 12px;
+}
+
+.channel-mapping-page__group-ids {
+  color: var(--ios-pms-text-soft);
+  font-size: 12px;
+}
+
+.channel-mapping-page__plans {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.channel-mapping-page__plan-item {
+  padding: 14px 14px 13px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(248, 250, 253, 0.96), rgba(244, 247, 252, 0.88));
+  border-color: rgba(114, 132, 170, 0.08);
+  box-shadow: none;
+}
+
+.channel-mapping-page__plan-item strong {
+  font-size: 14px;
+}
+
+.channel-mapping-page__plan-item p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.channel-mapping-page__plan-secondary {
+  color: var(--ios-pms-text-soft);
+  font-size: 11px;
+}
+
 .channel-mapping-page__empty {
-  padding-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 28px 18px;
+  border: 1px dashed rgba(117, 136, 173, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(250, 252, 255, 0.9), rgba(246, 249, 253, 0.76));
+  color: var(--ios-pms-text-soft);
+  text-align: center;
 }
 
 .channel-mapping-page__editor-page {
@@ -938,7 +1223,8 @@ onIonViewWillEnter(async () => {
 .channel-mapping-page__editor-hero {
   padding: 18px;
   border-radius: 18px;
-  background: var(--app-primary-soft);
+  border: 1px solid rgba(112, 130, 166, 0.1);
+  background: linear-gradient(180deg, rgba(247, 250, 255, 0.98), rgba(241, 246, 255, 0.9));
 }
 
 .channel-mapping-page__editor-loading {
@@ -963,5 +1249,11 @@ onIonViewWillEnter(async () => {
 .channel-mapping-page__editor-field span {
   font-size: 13px;
   font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .channel-mapping-page__toolbar-actions {
+    justify-content: flex-start;
+  }
 }
 </style>

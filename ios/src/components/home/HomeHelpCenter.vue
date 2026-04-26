@@ -2,7 +2,7 @@
   <section class="help-section">
     <div class="help-section__header">
       <h2 class="help-section__title">帮助中心</h2>
-      <button type="button" class="help-section__more" @click="handleMore">全部 ›</button>
+      <button type="button" class="help-section__more" @click="handleMore">全部 →</button>
     </div>
 
     <div class="help-list">
@@ -16,11 +16,15 @@
         <div class="help-item__icon" :class="`help-item__icon--${item.tone}`">
           <ion-icon :icon="item.icon" />
         </div>
+
         <div class="help-item__body">
           <strong>{{ item.title }}</strong>
           <p>{{ item.description }}</p>
         </div>
-        <ion-icon :icon="chevronForwardOutline" class="help-item__arrow" />
+
+        <div class="help-item__meta">
+          <ion-icon :icon="chevronForwardOutline" class="help-item__arrow" />
+        </div>
       </button>
     </div>
   </section>
@@ -60,68 +64,89 @@ function handleMore() {
 
 <style scoped>
 .help-section {
-  padding: 18px;
-  border: 1px solid var(--app-border);
-  border-radius: 20px;
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
+  padding: 18px 18px 14px;
+  border: 1px solid var(--ios-pms-border-faint);
+  border-radius: var(--ios-pms-radius-card);
+  background: var(--ios-pms-surface);
+  box-shadow: var(--ios-pms-shadow-card);
 }
 
 .help-section__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .help-section__title {
   margin: 0;
-  color: var(--app-heading);
-  font-size: 16px;
-  font-weight: 700;
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-md-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  letter-spacing: -0.03em;
 }
 
 .help-section__more {
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--ion-color-primary);
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 13px;
+  border: 1px solid rgba(116, 163, 251, 0.08);
+  border-radius: var(--ios-pms-radius-pill);
+  background: rgba(115, 164, 255, 0.06);
+  color: var(--ios-pms-primary-strong);
+  box-shadow: none;
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--ios-pms-font-body-sm-size);
+  font-weight: var(--ios-pms-weight-bold);
 }
 
 .help-list {
   display: grid;
-  gap: 8px;
+  gap: 0;
 }
 
 .help-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 12px;
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
-  background: var(--app-surface-strong);
+  padding: 14px 2px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   font: inherit;
   text-align: left;
-  transition: background 0.15s ease;
+  transition:
+    background-color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.help-item + .help-item {
+  border-top: 1px solid var(--ios-pms-divider);
 }
 
 .help-item:active {
-  background: var(--app-primary-soft);
+  background: rgba(79, 123, 217, 0.03);
+}
+
+.help-item:focus-visible {
+  outline: none;
+  background: rgba(79, 123, 217, 0.03);
 }
 
 .help-item__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border: none;
+  border-radius: var(--ios-pms-radius-icon);
+  box-shadow: none;
   font-size: 18px;
 }
 
@@ -146,30 +171,46 @@ function handleMore() {
 }
 
 .help-item__body {
-  flex: 1;
   min-width: 0;
 }
 
 .help-item__body strong {
   display: block;
-  color: var(--app-heading);
-  font-size: 14px;
+  color: var(--ios-pms-text-primary);
+  font-size: var(--ios-pms-font-title-sm-size);
+  font-weight: var(--ios-pms-weight-heavy);
+  line-height: 1.25;
 }
 
 .help-item__body p {
-  margin: 2px 0 0;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: nowrap;
+  margin: 3px 0 0;
+  color: var(--ios-pms-text-muted);
+  font-size: var(--ios-pms-font-body-sm-size);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.help-item__meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
 }
 
 .help-item__arrow {
-  flex-shrink: 0;
-  color: var(--app-muted);
-  font-size: 16px;
-  opacity: 0.5;
+  color: var(--ios-pms-text-disabled);
+  font-size: 15px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .help-item {
+    transition: none;
+  }
 }
 </style>

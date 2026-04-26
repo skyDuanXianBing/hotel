@@ -1,129 +1,125 @@
 <template>
   <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.login" />
-        </ion-buttons>
-        <ion-title class="mobile-toolbar-title">注册</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
     <ion-content fullscreen class="mobile-page auth-page">
-      <section class="mobile-hero auth-hero">
-        <p class="mobile-note auth-hero__eyebrow">THE HOST HUB</p>
-        <h1 class="mobile-title">创建您的账户</h1>
-        <p class="mobile-subtitle">
-          加入 THE HOST HUB，提升运营效率，轻松管理您的门店。
-        </p>
-      </section>
-
       <div class="mobile-stack">
         <section class="mobile-card auth-card">
-          <div class="auth-card__header">
-            <h2 class="mobile-section-title">立即注册</h2>
-            <p class="mobile-note">请填写邮箱、验证码和密码，提交前需确认相关协议。</p>
+          <button v-if="step === 'details'" class="auth-back-button" type="button" @click="handleBackToEmailStep">
+            <span class="auth-back-button__icon">‹</span>
+          </button>
+
+          <div class="auth-card__header" :class="{ 'auth-card__header--details': step === 'details' }">
+            <h2 class="mobile-section-title">{{ currentTitle }}</h2>
+            <p class="mobile-note auth-card__subtitle">{{ currentSubtitle }}</p>
           </div>
 
           <ion-list lines="none" class="auth-list">
-            <ion-item class="auth-item">
-              <ion-input
-                v-model="form.email"
-                autocomplete="email"
-                inputmode="email"
-                label="邮箱"
-                label-placement="stacked"
-                placeholder="请输入注册邮箱"
-                type="email"
-              />
-            </ion-item>
+            <template v-if="step === 'email'">
+              <p class="auth-field-label">邮箱</p>
+              <ion-item :class="['auth-item', { 'auth-item--focused': focusedField === 'email' }]">
+                <ion-input
+                  v-model="emailStepForm.email"
+                  autocomplete="email"
+                  inputmode="email"
+                  placeholder="邮箱"
+                  type="email"
+                  @ionBlur="handleInputBlur('email')"
+                  @ionFocus="handleInputFocus('email')"
+                />
+              </ion-item>
 
-            <ion-item class="auth-item">
-              <ion-input
-                v-model="form.verificationCode"
-                autocomplete="one-time-code"
-                inputmode="numeric"
-                label="验证码"
-                label-placement="stacked"
-                :maxlength="VERIFICATION_CODE_LENGTH"
-                placeholder="请输入 6 位验证码"
-                type="text"
-              />
-            </ion-item>
+              <ion-button
+                expand="block"
+                :class="[
+                  'auth-submit-button',
+                  'auth-submit-button--email-step',
+                  { 'auth-submit-button--disabled': sendingRegisterCode },
+                ]"
+                :disabled="sendingRegisterCode"
+                @click="handleContinueRegister"
+              >
+                <ion-spinner v-if="sendingRegisterCode" name="crescent" />
+                <span v-else>继续</span>
+              </ion-button>
+            </template>
 
-            <ion-button
-              class="auth-code-button"
-              expand="block"
-              fill="outline"
-              :disabled="isSendingCode || countdown > 0"
-              @click="handleSendVerificationCode"
-            >
-              <ion-spinner v-if="isSendingCode" name="crescent" />
-              <span v-else>{{ sendCodeButtonLabel }}</span>
-            </ion-button>
+            <template v-else>
+              <p class="auth-field-label">邮箱</p>
+              <ion-item class="auth-item auth-item--readonly">
+                <ion-input :model-value="detailsForm.email" readonly type="email" />
+              </ion-item>
 
-            <ion-item class="auth-item">
-              <ion-input
-                v-model="form.password"
-                autocomplete="new-password"
-                label="密码"
-                label-placement="stacked"
-                placeholder="请设置密码（6-20 位）"
-                type="password"
-              />
-            </ion-item>
+              <p class="auth-field-label">品牌名或姓名</p>
+              <ion-item :class="['auth-item', { 'auth-item--focused': focusedField === 'displayName' }]">
+                <ion-input
+                  v-model="detailsForm.displayName"
+                  placeholder="输入名称"
+                  type="text"
+                  @ionBlur="handleInputBlur('displayName')"
+                  @ionFocus="handleInputFocus('displayName')"
+                />
+              </ion-item>
 
-            <ion-item class="auth-item">
-              <ion-input
-                v-model="form.confirmPassword"
-                autocomplete="new-password"
-                label="确认密码"
-                label-placement="stacked"
-                placeholder="请再次输入密码"
-                type="password"
-              />
-            </ion-item>
+              <p class="auth-field-label">邮箱验证码</p>
+              <ion-item :class="['auth-item', { 'auth-item--focused': focusedField === 'verificationCode' }]">
+                <ion-input
+                  v-model="detailsForm.verificationCode"
+                  autocomplete="one-time-code"
+                  inputmode="numeric"
+                  :maxlength="VERIFICATION_CODE_LENGTH"
+                  placeholder="请输入邮箱验证码"
+                  type="text"
+                  @ionBlur="handleInputBlur('verificationCode')"
+                  @ionFocus="handleInputFocus('verificationCode')"
+                />
+              </ion-item>
+
+              <p class="auth-field-label">密码</p>
+              <ion-item :class="['auth-item', { 'auth-item--focused': focusedField === 'password' }]">
+                <ion-input
+                  v-model="detailsForm.password"
+                  autocomplete="new-password"
+                  placeholder="字母或数字，8~16位"
+                  type="password"
+                  @ionBlur="handleInputBlur('password')"
+                  @ionFocus="handleInputFocus('password')"
+                />
+              </ion-item>
+
+              <label class="auth-agreement-row">
+                <input v-model="detailsForm.agreeToTerms" class="auth-agreement-row__native" type="checkbox" />
+                <span class="auth-agreement-row__box">
+                  <span class="auth-agreement-row__check">✓</span>
+                </span>
+                <span class="auth-agreement-row__text">我已阅读并同意用户协议和隐私协议</span>
+              </label>
+
+              <ion-button
+                expand="block"
+                :class="['auth-submit-button', { 'auth-submit-button--disabled': !canSubmitRegister || submitting }]"
+                :disabled="!canSubmitRegister || submitting"
+                @click="handleSubmitRegister"
+              >
+                <ion-spinner v-if="submitting" name="crescent" />
+                <span v-else>注册</span>
+              </ion-button>
+            </template>
           </ion-list>
 
-          <div class="auth-checkbox-row auth-checkbox-row--top">
-            <ion-checkbox :checked="form.agreeToTerms" @ionChange="handleAgreeToTermsChange" />
-            <span>我已阅读并同意《用户服务协议》《隐私政策》和《会员服务条款》</span>
+          <div v-if="step === 'email'" class="auth-footer-link">
+            <button class="auth-text-button auth-footer-link__button" type="button" @click="handleGoToLogin">
+              已有账号？登录
+            </button>
           </div>
 
-          <ion-button expand="block" class="auth-submit-button" :disabled="submitting" @click="handleRegister">
-            <ion-spinner v-if="submitting" name="crescent" />
-            <span v-else>提交注册</span>
-          </ion-button>
-
-          <div class="auth-footer-link">
-            <span>已有账户？</span>
-            <button class="auth-text-button" type="button" @click="handleGoToLogin">立即登录</button>
-          </div>
         </section>
-
-
       </div>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import {
-  IonBackButton,
-  IonButton,
-  IonButtons,
-  IonCheckbox,
-  IonContent,
-  IonHeader,
-  IonInput,
-  IonItem,
-  IonList,
-  IonPage,
-  IonSpinner,
-  IonTitle,
-  IonToolbar,
-} from '@ionic/vue'
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { IonButton, IonContent, IonInput, IonItem, IonList, IonPage, IonSpinner } from '@ionic/vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { register, sendVerificationCode } from '@/api/auth'
 import { ROUTE_PATHS } from '@/router/guards'
@@ -131,100 +127,88 @@ import type { RegisterRequest } from '@/types/auth'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
-const PASSWORD_MIN_LENGTH = 6
-const PASSWORD_MAX_LENGTH = 20
+const PASSWORD_MIN_LENGTH = 8
+const PASSWORD_MAX_LENGTH = 16
 const VERIFICATION_CODE_LENGTH = 6
-const VERIFICATION_CODE_SECONDS = 60
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+type RegisterStep = 'email' | 'details'
+type FocusedField = 'email' | 'displayName' | 'verificationCode' | 'password' | null
 
 const router = useRouter()
 const route = useRoute()
 
-const countdown = ref(0)
+const step = ref<RegisterStep>('email')
+const focusedField = ref<FocusedField>(null)
+const sendingRegisterCode = ref(false)
 const submitting = ref(false)
-const isSendingCode = ref(false)
-const form = reactive({
+
+const emailStepForm = reactive({
   email: '',
+})
+
+const detailsForm = reactive({
+  email: '',
+  displayName: '',
   verificationCode: '',
   password: '',
-  confirmPassword: '',
   agreeToTerms: false,
 })
 
-let countdownTimer: number | null = null
-
-const sendCodeButtonLabel = computed(() => {
-  if (countdown.value > 0) {
-    return `${countdown.value}s 后可重新发送`
+const currentTitle = computed(() => {
+  if (step.value === 'email') {
+    return 'Hi 你好！'
   }
 
-  return '发送注册验证码'
+  return '欢迎使用Hostex'
 })
 
-const resolveErrorMessage = (error: unknown, fallbackMessage: string) => {
-  if (error instanceof Error && error.message) {
-    return error.message
+const currentSubtitle = computed(() => {
+  if (step.value === 'email') {
+    return '请输入邮箱'
   }
 
-  return fallbackMessage
+  return '正在创建Hostex账号'
+})
+
+const normalizeEmail = (value: string) => value.trim()
+
+const canSubmitRegister = computed(() => {
+  return (
+    detailsForm.displayName.trim().length > 0 &&
+    detailsForm.verificationCode.trim().length === VERIFICATION_CODE_LENGTH &&
+    detailsForm.password.trim().length >= PASSWORD_MIN_LENGTH &&
+    detailsForm.password.trim().length <= PASSWORD_MAX_LENGTH &&
+    detailsForm.agreeToTerms
+  )
+})
+
+const handleInputFocus = (field: Exclude<FocusedField, null>) => {
+  focusedField.value = field
 }
 
-const clearCountdownTimer = () => {
-  if (countdownTimer === null) {
-    return
+const handleInputBlur = (field: Exclude<FocusedField, null>) => {
+  if (focusedField.value === field) {
+    focusedField.value = null
   }
-
-  window.clearInterval(countdownTimer)
-  countdownTimer = null
 }
-
-const startCountdown = () => {
-  clearCountdownTimer()
-  countdown.value = VERIFICATION_CODE_SECONDS
-
-  countdownTimer = window.setInterval(() => {
-    if (countdown.value <= 1) {
-      countdown.value = 0
-      clearCountdownTimer()
-      return
-    }
-
-    countdown.value -= 1
-  }, 1000)
-}
-
-const normalizeEmail = () => form.email.trim()
 
 const applyEmailPrefill = (emailQuery: unknown) => {
   if (typeof emailQuery !== 'string') {
     return
   }
 
-  const email = emailQuery.trim()
+  const email = normalizeEmail(emailQuery)
   if (!email) {
     return
   }
 
-  form.email = email
+  emailStepForm.email = email
+  detailsForm.email = email
 }
 
-const buildLoginRouteLocation = () => {
-  const email = normalizeEmail()
-
-  if (!email) {
-    return { path: ROUTE_PATHS.login }
-  }
-
-  return {
-    path: ROUTE_PATHS.login,
-    query: {
-      email,
-    },
-  }
-}
-
-const validateEmail = () => {
-  const email = normalizeEmail()
+const validateEmail = (emailValue: string) => {
+  const email = normalizeEmail(emailValue)
 
   if (!email) {
     showWarningToast('请输入邮箱')
@@ -239,48 +223,32 @@ const validateEmail = () => {
   return email
 }
 
-const validateRegisterForm = (): RegisterRequest | null => {
-  const email = validateEmail()
-  const verificationCode = form.verificationCode.trim()
-  const password = form.password.trim()
-  const confirmPassword = form.confirmPassword.trim()
+const validateRegisterPayload = (): RegisterRequest | null => {
+  const email = validateEmail(detailsForm.email)
+  const verificationCode = detailsForm.verificationCode.trim()
+  const password = detailsForm.password.trim()
 
   if (!email) {
     return null
   }
 
-  if (!verificationCode) {
-    showWarningToast('请输入验证码')
+  if (!detailsForm.displayName.trim()) {
+    showWarningToast('请输入品牌名或姓名')
     return null
   }
 
   if (verificationCode.length !== VERIFICATION_CODE_LENGTH) {
-    showWarningToast(`验证码需为 ${VERIFICATION_CODE_LENGTH} 位`)
+    showWarningToast('请输入 6 位邮箱验证码')
     return null
   }
 
-  if (!password) {
-    showWarningToast('请输入密码')
+  if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+    showWarningToast(`密码需为 ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} 位`) 
     return null
   }
 
-  if (password.length < PASSWORD_MIN_LENGTH) {
-    showWarningToast(`密码长度至少为 ${PASSWORD_MIN_LENGTH} 位`)
-    return null
-  }
-
-  if (password.length > PASSWORD_MAX_LENGTH) {
-    showWarningToast(`密码长度不能超过 ${PASSWORD_MAX_LENGTH} 位`)
-    return null
-  }
-
-  if (!confirmPassword) {
-    showWarningToast('请再次输入密码')
-    return null
-  }
-
-  if (password !== confirmPassword) {
-    showWarningToast('两次输入的密码不一致')
+  if (!detailsForm.agreeToTerms) {
+    showWarningToast('请先阅读并同意用户协议和隐私协议')
     return null
   }
 
@@ -291,21 +259,17 @@ const validateRegisterForm = (): RegisterRequest | null => {
   }
 }
 
-const handleAgreeToTermsChange = (event: CustomEvent) => {
-  form.agreeToTerms = Boolean(event.detail.checked)
-}
-
-const handleSendVerificationCode = async () => {
-  if (isSendingCode.value || countdown.value > 0) {
+const handleContinueRegister = async () => {
+  if (sendingRegisterCode.value) {
     return
   }
 
-  const email = validateEmail()
+  const email = validateEmail(emailStepForm.email)
   if (!email) {
     return
   }
 
-  isSendingCode.value = true
+  sendingRegisterCode.value = true
 
   try {
     const response = await sendVerificationCode({
@@ -318,28 +282,28 @@ const handleSendVerificationCode = async () => {
       return
     }
 
+    detailsForm.email = email
+    step.value = 'details'
     showSuccessToast('验证码已发送，请查收邮箱')
-    startCountdown()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(resolveErrorMessage(error, '验证码发送失败'))
+      showErrorToast(error instanceof Error ? error.message : '验证码发送失败')
     }
   } finally {
-    isSendingCode.value = false
+    sendingRegisterCode.value = false
   }
 }
 
-const handleRegister = async () => {
-  if (submitting.value) {
+const handleBackToEmailStep = () => {
+  step.value = 'email'
+}
+
+const handleSubmitRegister = async () => {
+  if (submitting.value || !canSubmitRegister.value) {
     return
   }
 
-  if (!form.agreeToTerms) {
-    showWarningToast('请先阅读并同意用户服务协议、隐私政策和会员服务条款')
-    return
-  }
-
-  const payload = validateRegisterForm()
+  const payload = validateRegisterPayload()
   if (!payload) {
     return
   }
@@ -355,10 +319,15 @@ const handleRegister = async () => {
     }
 
     showSuccessToast('注册成功，请登录')
-    await router.replace(buildLoginRouteLocation())
+    await router.replace({
+      path: ROUTE_PATHS.login,
+      query: {
+        email: payload.email,
+      },
+    })
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(resolveErrorMessage(error, '注册失败'))
+      showErrorToast(error instanceof Error ? error.message : '注册失败')
     }
   } finally {
     submitting.value = false
@@ -366,7 +335,12 @@ const handleRegister = async () => {
 }
 
 const handleGoToLogin = async () => {
-  await router.replace(buildLoginRouteLocation())
+  const email = normalizeEmail(emailStepForm.email)
+
+  await router.push({
+    path: ROUTE_PATHS.login,
+    query: email ? { email } : undefined,
+  })
 }
 
 watch(
@@ -378,138 +352,333 @@ watch(
     immediate: true,
   },
 )
-
-onBeforeUnmount(() => {
-  clearCountdownTimer()
-})
 </script>
 
 <style scoped>
 .auth-page {
+  --auth-control-radius: 13px;
+  --background: #fcfcfc;
+  --padding-top: calc(38px + var(--app-safe-top));
+  --padding-bottom: calc(28px + var(--app-safe-bottom));
+  --padding-start: 24px;
+  --padding-end: 24px;
   display: block;
+  color: #1f2128;
 }
 
-.auth-hero {
-  margin-top: 20px;
-  margin-bottom: 24px;
-  text-align: center;
-}
-
-.auth-hero__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 13px;
-  margin-bottom: 8px;
-}
-
-.mobile-title {
-  font-size: 30px;
-  font-weight: 800;
-  margin-bottom: 12px;
-  color: var(--app-heading);
-}
-
-.mobile-subtitle {
-  font-size: 15px;
-  color: var(--app-muted);
-  line-height: 1.6;
+.mobile-stack {
+  min-height: calc(100vh - var(--app-safe-top) - var(--app-safe-bottom) - 72px);
+  overflow: hidden;
 }
 
 .auth-card {
-  padding: 24px 20px;
-  border-radius: 24px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.02);
+  width: 100%;
+  max-width: 560px;
+  margin: 0;
+  padding: 74px 0 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  border: 0;
+  min-height: calc(100vh - var(--app-safe-top) - var(--app-safe-bottom) - 74px);
+  height: calc(100vh - var(--app-safe-top) - var(--app-safe-bottom) - 74px);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-back-button {
+  position: absolute;
+  top: 4px;
+  left: -2px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #1f2128;
+}
+
+.auth-back-button__icon {
+  font-size: 48px;
+  line-height: 1;
+  transform: translateY(-2px);
 }
 
 .auth-card__header {
-  margin-bottom: 20px;
+  margin: 0 0 28px;
+}
+
+.auth-card__header--details {
+  margin-top: 8px;
+}
+
+.mobile-section-title {
+  margin: 0;
+  color: #1f2128;
+  font-size: clamp(29px, 9vw, 35px);
+  font-weight: 400;
+  line-height: 1.18;
+}
+
+.mobile-section-title::before {
+  content: '👋 ';
+}
+
+.auth-card__subtitle {
+  margin: 12px 0 0;
+  color: #8f949e;
+  font-size: clamp(16px, 4.8vw, 18px);
+  line-height: 1.4;
 }
 
 .auth-list {
-  margin: 16px 0 8px;
+  margin: 0;
   background: transparent;
 }
 
+.auth-field-label {
+  margin: 0 0 10px 2px;
+  color: #666b74;
+  font-size: clamp(16px, 4.9vw, 19px);
+  font-weight: 400;
+  line-height: 1.32;
+}
+
 .auth-item {
-  --background: #f8fafc;
-  --border-radius: 14px;
-  --padding-start: 16px;
-  --padding-end: 16px;
+  --auth-input-height: clamp(54px, 13.5vw, 64px);
+  --background: #fcfcfc;
+  --border-radius: var(--auth-control-radius);
+  --padding-start: 20px;
+  --padding-end: 20px;
   --inner-padding-end: 0;
-  margin-bottom: 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  --inner-padding-top: 0;
+  --inner-padding-bottom: 0;
+  --highlight-height: 0;
+  margin-bottom: 18px;
+  --min-height: var(--auth-input-height);
+  height: var(--auth-input-height);
+  min-height: var(--auth-input-height);
+  border: 2px solid #dde5e8;
+  border-radius: var(--auth-control-radius);
+  box-shadow: none;
+  transition: border-color 0.2s ease;
+  position: relative;
+}
+
+.auth-item--readonly {
+  background: #f7f8fa;
+}
+
+.auth-item::part(native) {
+  min-height: var(--auth-input-height);
+  height: var(--auth-input-height);
+  padding-top: 0;
+  padding-bottom: 0;
+  display: flex;
+  align-items: center;
+}
+
+.auth-item.item-has-focus,
+.auth-item--focused {
+  border-color: #3484ea;
+}
+
+:deep(.auth-item ion-input) {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --placeholder-color: #c4c8cf;
+  --placeholder-opacity: 1;
+}
+
+:deep(.auth-item ion-input::part(native)) {
+  height: auto;
+  min-height: 0;
+  line-height: 1.2;
+}
+
+:deep(.auth-item .input-wrapper),
+:deep(.auth-item .native-wrapper) {
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+:deep(.auth-item .native-input),
+:deep(.auth-item input) {
+  color: #1f2128;
+  font-size: clamp(16px, 5.1vw, 20px);
+  font-weight: 400;
+  height: auto;
+  min-height: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 1.2;
+}
+
+:deep(.auth-item--readonly .native-input),
+:deep(.auth-item--readonly input) {
+  color: #b8bcc4;
+}
+
+.auth-agreement-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 2px 0 20px;
+  cursor: pointer;
+}
+
+.auth-agreement-row__native {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-agreement-row__box {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid #d6dbe2;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   transition: all 0.2s ease;
 }
 
-.auth-item.item-has-focus {
-  border-color: var(--ion-color-primary);
+.auth-agreement-row__check {
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s ease;
 }
 
-.auth-code-button {
-  margin-top: 8px;
-  margin-bottom: 12px;
-  --border-radius: 14px;
-  min-height: 48px;
+.auth-agreement-row__native:checked + .auth-agreement-row__box {
+  border-color: #43d38d;
+  background: #43d38d;
 }
 
-.auth-checkbox-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.5;
+.auth-agreement-row__native:checked + .auth-agreement-row__box .auth-agreement-row__check {
+  opacity: 1;
+  transform: scale(1);
 }
 
-.auth-checkbox-row--top {
-  margin-top: 14px;
+.auth-agreement-row__text {
+  color: #1f2128;
+  font-size: clamp(16px, 4.8vw, 18px);
+  line-height: 1.4;
 }
 
 .auth-submit-button {
-  margin-top: 24px;
-  min-height: 52px;
-  font-weight: 600;
-  font-size: 16px;
-  --border-radius: 14px;
-  --box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.3);
+  margin-top: 10px;
+  min-height: clamp(54px, 13.5vw, 64px);
+  font-size: clamp(21px, 5.8vw, 24px);
+  font-weight: 400;
+  letter-spacing: 0;
+  --border-radius: var(--auth-control-radius);
+  --background: #3484ea;
+  --background-activated: #2e77d4;
+  --background-focused: #2e77d4;
+  --background-hover: #2e77d4;
+  --box-shadow: none;
+  --color: #ffffff;
+}
+
+.auth-submit-button--email-step {
+  margin-top: 30px;
+}
+
+.auth-submit-button--disabled {
+  --background: #f9f9f9;
+  --background-activated: #f9f9f9;
+  --background-focused: #f9f9f9;
+  --background-hover: #f9f9f9;
+  --color: #c6c9d1;
+  --border-color: #dde5e8;
+  --border-style: solid;
+  --border-width: 2px;
+  opacity: 1;
+}
+
+:deep(.auth-submit-button--disabled.button-disabled) {
+  opacity: 1;
+}
+
+:deep(.auth-submit-button--disabled.button-disabled .button-native) {
+  opacity: 1;
+  color: #c6c9d1;
+  background: #f9f9f9;
+  border-color: #dde5e8;
 }
 
 .auth-footer-link {
+  margin-top: auto;
+  margin-bottom: 2px;
+  padding-top: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  margin-top: 16px;
-  color: var(--app-muted);
-  font-size: 14px;
+}
+
+.auth-footer-link__button {
+  color: #3484ea;
+  font-size: clamp(16px, 4.8vw, 18px);
+  font-weight: 400;
+  line-height: 1.24;
 }
 
 .auth-text-button {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--ion-color-primary);
   font: inherit;
-  font-weight: 600;
 }
 
-:deep(.auth-item ion-input) {
-  --padding-top: 10px;
-  --padding-bottom: 10px;
+@media (min-width: 768px) {
+  .auth-page {
+    --padding-top: calc(78px + var(--app-safe-top));
+    --padding-start: 56px;
+    --padding-end: 56px;
+  }
+
+  .auth-card {
+    margin: 0 auto;
+    min-height: calc(100vh - var(--app-safe-top) - var(--app-safe-bottom) - 102px);
+  }
 }
 
-:deep(.auth-item .label-text-wrapper) {
-  margin-bottom: 8px;
-  color: var(--app-heading);
-  font-weight: 600;
-}
+@media (max-width: 480px) {
+  .auth-card {
+    padding-top: 52px;
+  }
 
-:deep(.auth-checkbox-row ion-checkbox) {
-  margin-top: 1px;
+  .auth-back-button {
+    top: 0;
+  }
+
+  .auth-card__header--details {
+    margin-top: 4px;
+  }
+
+  .auth-footer-link {
+    padding-top: 20px;
+  }
+
 }
 </style>

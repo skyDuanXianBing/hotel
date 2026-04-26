@@ -1,148 +1,114 @@
 <template>
-  <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.settings" />
-        </ion-buttons>
-        <ion-title>记一笔设置</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="handleCreateCategory">新增</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
+  <SettingsSortablePage
+    :back-href="ROUTE_PATHS.settings"
+    title="记一笔设置"
+    hero-eyebrow="财务设置"
+    hero-title="记一笔分类"
+    toolbar-action-label="新增"
+    :show-refresher="true"
+    refresher-pulling-text="下拉刷新记一笔设置"
+    section-title="分类列表"
+    :loading="loading"
+    :modal-open="editorOpen"
+    :modal-title="editingCategoryId ? '编辑分类' : '新增分类'"
+    @toolbar-action="handleCreateCategory"
+    @refresh="handleRefresh"
+    @dismiss-editor="handleDismissEditor"
+  >
+    <template #controls>
+      <ion-segment :value="activeType" @ionChange="handleTypeChange">
+        <ion-segment-button value="income">
+          <ion-label>收入</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="expense">
+          <ion-label>支出</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </template>
 
-    <ion-content fullscreen class="mobile-page settings-page-block">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新记一笔设置" refreshing-spinner="crescent" />
-      </ion-refresher>
-
-      <section class="mobile-hero settings-page-block__hero">
-        <p class="mobile-note settings-page-block__eyebrow">财务设置</p>
-        <h1 class="mobile-title">记一笔分类</h1>
-        <p class="mobile-subtitle">按收入 / 支出两类维护分类，并支持顺序调整。</p>
-      </section>
-
-      <div class="mobile-stack">
-        <section class="mobile-card">
-          <ion-segment :value="activeType" @ionChange="handleTypeChange">
-            <ion-segment-button value="income">
-              <ion-label>收入</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="expense">
-              <ion-label>支出</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-        </section>
-
-        <section class="mobile-card">
-          <div class="mobile-inline-row settings-page-block__section-header">
-            <div>
-              <h2 class="mobile-section-title">分类列表</h2>
-              <p class="mobile-note">顺序保存后会影响记一笔页的展示优先级。</p>
-            </div>
-            <ion-spinner v-if="loading" name="crescent" />
+    <div v-if="currentCategories.length > 0" class="mobile-list settings-minimal-list">
+      <article v-for="(category, index) in currentCategories" :key="category.id" class="settings-minimal-card">
+        <div class="settings-minimal-card__header">
+          <div class="settings-minimal-card__title-group">
+            <strong>{{ category.name }}</strong>
+            <p class="settings-minimal-card__summary">顺序 {{ index + 1 }}</p>
           </div>
+          <span
+            class="settings-minimal-card__badge"
+            :class="category.type === 'income' ? 'settings-minimal-card__badge--success' : 'settings-minimal-card__badge--warning'"
+          >
+            {{ category.type === 'income' ? '收入' : '支出' }}
+          </span>
+        </div>
 
-          <div v-if="currentCategories.length > 0" class="mobile-list settings-card-list">
-            <article v-for="(category, index) in currentCategories" :key="category.id" class="settings-card-item">
-              <div>
-                <strong>{{ category.name }}</strong>
-                <p>顺序 {{ index + 1 }} · {{ category.type === 'income' ? '收入' : '支出' }}</p>
-              </div>
+        <div class="settings-minimal-card__actions settings-minimal-card__actions--dense">
+          <ion-button size="small" fill="outline" @click="handleEditCategory(category)">编辑</ion-button>
+          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">上移</ion-button>
+          <ion-button
+            size="small"
+            fill="outline"
+            :disabled="index === currentCategories.length - 1"
+            @click="handleMove(index, 1)"
+          >
+            下移
+          </ion-button>
+          <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCategory(category)">删除</ion-button>
+        </div>
+      </article>
+    </div>
 
-              <div class="settings-card-item__actions">
-                <ion-button size="small" fill="outline" @click="handleEditCategory(category)">编辑</ion-button>
-                <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">上移</ion-button>
-                <ion-button
-                  size="small"
-                  fill="outline"
-                  :disabled="index === currentCategories.length - 1"
-                  @click="handleMove(index, 1)"
-                >
-                  下移
-                </ion-button>
-                <ion-button size="small" color="danger" fill="clear" @click="handleDeleteCategory(category)">删除</ion-button>
-              </div>
-            </article>
-          </div>
+    <p v-else-if="!loading" class="mobile-note">当前分类为空。</p>
 
-          <p v-else-if="!loading" class="mobile-note">当前分类为空。</p>
-
-          <div class="settings-form-actions settings-form-actions--section">
-            <ion-button fill="outline" :disabled="loading || savingOrder" @click="loadPageData">重置</ion-button>
-            <ion-button :disabled="loading || savingOrder || currentCategories.length === 0" @click="handleSaveOrder">
-              {{ savingOrder ? '保存中...' : '保存顺序' }}
-            </ion-button>
-          </div>
-        </section>
+    <template #sectionFooter>
+      <div class="settings-form-actions settings-form-actions--section">
+        <ion-button fill="outline" :disabled="loading || savingOrder" @click="loadPageData">重置</ion-button>
+        <ion-button :disabled="loading || savingOrder || currentCategories.length === 0" @click="handleSaveOrder">
+          {{ savingOrder ? '保存中...' : '保存顺序' }}
+        </ion-button>
       </div>
+    </template>
 
-      <ion-modal :is-open="editorOpen" @didDismiss="handleDismissEditor">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ editingCategoryId ? '编辑分类' : '新增分类' }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="handleDismissEditor">关闭</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
+    <template #modalContent>
+      <div class="settings-form-grid">
+        <label class="settings-form-field">
+          <span>分类名称</span>
+          <ion-input v-model="categoryForm.name" fill="outline" placeholder="请输入分类名称" />
+        </label>
 
-        <ion-content class="mobile-page settings-modal-page">
-          <section class="mobile-card">
-            <div class="settings-form-grid">
-              <label class="settings-form-field">
-                <span>分类名称</span>
-                <ion-input v-model="categoryForm.name" fill="outline" placeholder="请输入分类名称" />
-              </label>
+        <label class="settings-form-field">
+          <span>分类类型</span>
+          <ion-select v-model="categoryForm.type" fill="outline" interface="action-sheet">
+            <ion-select-option value="income">收入</ion-select-option>
+            <ion-select-option value="expense">支出</ion-select-option>
+          </ion-select>
+        </label>
+      </div>
+    </template>
 
-              <label class="settings-form-field">
-                <span>分类类型</span>
-                <ion-select v-model="categoryForm.type" fill="outline" interface="action-sheet">
-                  <ion-select-option value="income">收入</ion-select-option>
-                  <ion-select-option value="expense">支出</ion-select-option>
-                </ion-select>
-              </label>
-            </div>
-
-            <div class="settings-form-actions">
-              <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
-              <ion-button :disabled="submitting" @click="handleSaveCategory">
-                {{ submitting ? '提交中...' : '保存分类' }}
-              </ion-button>
-            </div>
-          </section>
-        </ion-content>
-      </ion-modal>
-    </ion-content>
-  </ion-page>
+    <template #modalActions>
+      <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
+      <ion-button :disabled="submitting" @click="handleSaveCategory">
+        {{ submitting ? '提交中...' : '保存分类' }}
+      </ion-button>
+    </template>
+  </SettingsSortablePage>
 </template>
 
 <script setup lang="ts">
 import {
   alertController,
-  IonBackButton,
   IonButton,
-  IonButtons,
-  IonContent,
-  IonHeader,
   IonInput,
   IonLabel,
-  IonModal,
-  IonPage,
-  IonRefresher,
-  IonRefresherContent,
   IonSegment,
   IonSegmentButton,
   IonSelect,
   IonSelectOption,
-  IonSpinner,
-  IonTitle,
-  IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
 import { createCategory, deleteCategory, getAllCategories, updateCategoriesOrder, updateCategory } from '@/api/noteCategory'
+import SettingsSortablePage from '@/components/settings/families/SettingsSortablePage.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import type { NoteCategoryDTO, NoteCategoryType } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
@@ -343,86 +309,3 @@ onIonViewWillEnter(async () => {
   await loadPageData()
 })
 </script>
-
-<style scoped>
-.settings-page-block {
-  display: block;
-}
-
-.settings-page-block__hero {
-  margin-top: 4px;
-}
-
-.settings-page-block__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-}
-
-.settings-page-block__section-header {
-  align-items: flex-start;
-}
-
-.settings-card-list {
-  margin-top: 16px;
-}
-
-.settings-card-item {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--app-border);
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.settings-card-item strong,
-.settings-card-item p {
-  margin: 0;
-}
-
-.settings-card-item p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-}
-
-.settings-card-item__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.settings-modal-page {
-  --padding-top: 16px;
-  --padding-bottom: 24px;
-  --padding-start: 16px;
-  --padding-end: 16px;
-}
-
-.settings-form-grid {
-  display: grid;
-  gap: 14px;
-}
-
-.settings-form-field {
-  display: grid;
-  gap: 8px;
-}
-
-.settings-form-field span {
-  color: var(--app-heading);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.settings-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 18px;
-}
-
-.settings-form-actions--section {
-  margin-top: 18px;
-}
-</style>

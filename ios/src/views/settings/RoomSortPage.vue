@@ -1,93 +1,62 @@
 <template>
-  <ion-page>
-    <ion-header translucent>
-      <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.settings" />
-        </ion-buttons>
-        <ion-title>排序设置</ion-title>
-      </ion-toolbar>
-    </ion-header>
+  <SettingsSortablePage
+    :back-href="ROUTE_PATHS.settings"
+    title="排序设置"
+    hero-eyebrow="住宿设置"
+    hero-title="排序设置"
+    :show-refresher="true"
+    refresher-pulling-text="下拉刷新排序设置"
+    section-title="当前顺序"
+    :loading="loading"
+    @refresh="handleRefresh"
+  >
+    <template #controls>
+      <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
+        <ion-segment-button value="ROOM_TYPE">
+          <ion-label>房型</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="ROOM">
+          <ion-label>房间</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="GROUP">
+          <ion-label>分组</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </template>
 
-    <ion-content fullscreen class="mobile-page settings-page-block">
-      <ion-refresher slot="fixed" @ionRefresh="handleRefresh">
-        <ion-refresher-content pulling-text="下拉刷新排序设置" refreshing-spinner="crescent" />
-      </ion-refresher>
+    <div v-if="currentItems.length > 0" class="mobile-list settings-card-list">
+      <article v-for="(item, index) in currentItems" :key="item.id" class="settings-card-item settings-card-item--compact">
+        <div>
+          <strong>{{ item.name }}</strong>
+          <p>{{ item.description }}</p>
+        </div>
 
-      <section class="mobile-hero settings-page-block__hero">
-        <p class="mobile-note settings-page-block__eyebrow">住宿设置</p>
-        <h1 class="mobile-title">排序设置</h1>
-        <p class="mobile-subtitle">使用上移 / 下移替代桌面拖拽排序，覆盖房型、房间、分组三类实体。</p>
-      </section>
+        <div class="settings-card-item__actions settings-card-item__actions--vertical">
+          <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">上移</ion-button>
+          <ion-button size="small" fill="outline" :disabled="index === currentItems.length - 1" @click="handleMove(index, 1)">下移</ion-button>
+        </div>
+      </article>
+    </div>
 
-      <div class="mobile-stack">
-        <section class="mobile-card">
-          <ion-segment :value="activeSegment" @ionChange="handleSegmentChange">
-            <ion-segment-button value="ROOM_TYPE">
-              <ion-label>房型</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="ROOM">
-              <ion-label>房间</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="GROUP">
-              <ion-label>分组</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-        </section>
+    <p v-else-if="!loading" class="mobile-note">当前分类暂无可排序数据。</p>
 
-        <section class="mobile-card">
-          <div class="mobile-inline-row settings-page-block__section-header">
-            <div>
-              <h2 class="mobile-section-title">当前顺序</h2>
-              <p class="mobile-note">保存后会写入当前用户的排序配置。</p>
-            </div>
-            <ion-spinner v-if="loading" name="crescent" />
-          </div>
-
-          <div v-if="currentItems.length > 0" class="mobile-list settings-card-list">
-            <article v-for="(item, index) in currentItems" :key="item.id" class="settings-card-item settings-card-item--compact">
-              <div>
-                <strong>{{ item.name }}</strong>
-                <p>{{ item.description }}</p>
-              </div>
-
-              <div class="settings-card-item__actions settings-card-item__actions--vertical">
-                <ion-button size="small" fill="outline" :disabled="index === 0" @click="handleMove(index, -1)">上移</ion-button>
-                <ion-button size="small" fill="outline" :disabled="index === currentItems.length - 1" @click="handleMove(index, 1)">下移</ion-button>
-              </div>
-            </article>
-          </div>
-
-          <p v-else-if="!loading" class="mobile-note">当前分类暂无可排序数据。</p>
-
-          <div class="settings-form-actions settings-form-actions--section">
-            <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">重置</ion-button>
-            <ion-button :disabled="loading || saving || currentItems.length === 0" @click="handleSaveSortOrder">
-              {{ saving ? '保存中...' : '保存顺序' }}
-            </ion-button>
-          </div>
-        </section>
+    <template #sectionFooter>
+      <div class="settings-form-actions settings-form-actions--section">
+        <ion-button fill="outline" :disabled="loading || saving" @click="loadPageData">重置</ion-button>
+        <ion-button :disabled="loading || saving || currentItems.length === 0" @click="handleSaveSortOrder">
+          {{ saving ? '保存中...' : '保存顺序' }}
+        </ion-button>
       </div>
-    </ion-content>
-  </ion-page>
+    </template>
+  </SettingsSortablePage>
 </template>
 
 <script setup lang="ts">
 import {
-  IonBackButton,
   IonButton,
-  IonButtons,
-  IonContent,
-  IonHeader,
   IonLabel,
-  IonPage,
-  IonRefresher,
-  IonRefresherContent,
   IonSegment,
   IonSegmentButton,
-  IonSpinner,
-  IonTitle,
-  IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { computed, ref } from 'vue'
@@ -95,6 +64,7 @@ import { getAllRoomGroups } from '@/api/roomGroup'
 import { getRooms } from '@/api/rooms'
 import { getSortOrderMap, updateSortOrders } from '@/api/sortConfig'
 import { getAllRoomTypes } from '@/api/roomType'
+import SettingsSortablePage from '@/components/settings/families/SettingsSortablePage.vue'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useUserStore } from '@/stores/user'
 import type { RoomDTO, RoomGroupDTO, SortEntityType } from '@/types/settings'
@@ -264,27 +234,6 @@ onIonViewWillEnter(async () => {
 </script>
 
 <style scoped>
-.settings-page-block {
-  display: block;
-}
-
-.settings-page-block__hero {
-  margin-top: 4px;
-}
-
-.settings-page-block__eyebrow {
-  color: var(--ion-color-primary);
-  font-weight: 700;
-}
-
-.settings-page-block__section-header {
-  align-items: flex-start;
-}
-
-.settings-card-list {
-  margin-top: 16px;
-}
-
 .settings-card-item {
   display: flex;
   justify-content: space-between;
@@ -296,36 +245,8 @@ onIonViewWillEnter(async () => {
   background: rgba(255, 255, 255, 0.82);
 }
 
-.settings-card-item strong,
-.settings-card-item p {
-  margin: 0;
-}
-
-.settings-card-item p {
-  margin-top: 6px;
-  color: var(--app-muted);
-  font-size: 13px;
-}
-
-.settings-card-item__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .settings-card-item__actions--vertical {
   flex-direction: column;
   align-items: stretch;
-}
-
-.settings-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.settings-form-actions--section {
-  margin-top: 18px;
 }
 </style>

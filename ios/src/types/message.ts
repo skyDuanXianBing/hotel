@@ -12,6 +12,9 @@ export interface MessageThreadDTO {
   threadId?: string
   listingId?: string
   listingName?: string
+  roomTypeName?: string
+  checkInDate?: string
+  checkOutDate?: string
   lastMessage?: string
   lastActivity: string
   unreadCount: number
