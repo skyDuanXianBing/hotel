@@ -10,7 +10,7 @@
     </ion-header>
 
     <ion-content fullscreen class="mobile-page statistics-report-page">
-      <section class="mobile-hero statistics-report-page__hero">
+      <section v-if="definition.showHero !== false" class="mobile-hero statistics-report-page__hero">
         <p class="mobile-note statistics-report-page__eyebrow">{{ definition.eyebrow }}</p>
         <h1 class="mobile-title">{{ definition.title }}</h1>
         <p class="mobile-subtitle">{{ definition.subtitle }}</p>
@@ -24,7 +24,9 @@
           <div class="mobile-inline-row">
             <div>
               <h2 class="mobile-section-title">关键指标</h2>
-              <p class="mobile-note">聚焦最关键的指标与结论，方便快速浏览。</p>
+              <p v-if="definition.metricsDescription !== null" class="mobile-note">
+                {{ definition.metricsDescription ?? '聚焦最关键的指标与结论，方便快速浏览。' }}
+              </p>
             </div>
           </div>
 
@@ -43,7 +45,7 @@
           </div>
         </section>
 
-        <section class="mobile-card mobile-list">
+        <section v-if="definition.showSections !== false" class="mobile-card mobile-list">
           <article
             v-for="section in definition.sections"
             :key="section.title"
@@ -57,7 +59,7 @@
           </article>
         </section>
 
-        <section class="mobile-card">
+        <section v-if="definition.showBoundaryNotes !== false" class="mobile-card">
           <h2 class="mobile-section-title">查看提示</h2>
           <ul class="mobile-bullet-list">
             <li v-for="note in definition.boundaryNotes" :key="note">{{ note }}</li>
@@ -66,7 +68,7 @@
 
         <section class="mobile-card statistics-report-page__actions">
           <ion-button expand="block" fill="outline" @click="handleBackToStatistics">返回统计首页</ion-button>
-          <ion-button expand="block" @click="handleOpenReviews">前往审查</ion-button>
+          <ion-button expand="block" @click="handleOpenReviews">前往审核</ion-button>
         </section>
       </div>
     </ion-content>
@@ -88,7 +90,7 @@ import { useRouter } from 'vue-router'
 import { ROUTE_PATHS } from '@/router/guards'
 import type { StatisticsReportDefinition } from '@/constants/statistics'
 
-const props = defineProps<{
+defineProps<{
   definition: StatisticsReportDefinition
 }>()
 

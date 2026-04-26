@@ -156,6 +156,11 @@
           已有账户？
           <el-link type="primary" :underline="false" @click="goToLogin">立即登录</el-link>
         </div>
+        <div class="support-link-row">
+          <el-link type="primary" :underline="false" @click="goToTechnicalSupport">
+            技术支持网站
+          </el-link>
+        </div>
       </div>
     </div>
   </div>
@@ -295,6 +300,10 @@ const goToTermsOfService = () => {
 // 跳转到隐私政策
 const goToPrivacyPolicy = () => {
   router.push('/legal/privacy')
+}
+// 跳转到技术支持网站
+const goToTechnicalSupport = () => {
+  router.push('/legal/support')
 }
 </script>
 
@@ -480,6 +489,11 @@ const goToPrivacyPolicy = () => {
   text-align: center;
   font-size: 14px;
   color: #666;
+}
+
+.support-link-row {
+  margin-top: 12px;
+  text-align: center;
 }
 
 /* 表单样式调整 */

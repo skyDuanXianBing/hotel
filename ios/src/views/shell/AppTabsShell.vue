@@ -11,9 +11,9 @@
           <ion-icon :icon="bedOutline" />
           <ion-label>房态</ion-label>
         </ion-tab-button>
-        <ion-tab-button tab="orders" :href="ROUTE_PATHS.orders">
-          <ion-icon :icon="receiptOutline" />
-          <ion-label>订单</ion-label>
+        <ion-tab-button tab="messages" :href="ROUTE_PATHS.messages">
+          <ion-icon :icon="chatbubblesOutline" />
+          <ion-label>消息</ion-label>
         </ion-tab-button>
         <ion-tab-button tab="reviews" :href="ROUTE_PATHS.reviews">
           <ion-icon :icon="clipboardOutline" />
@@ -40,9 +40,9 @@ import {
 } from '@ionic/vue'
 import {
   bedOutline,
+  chatbubblesOutline,
   clipboardOutline,
   homeOutline,
-  receiptOutline,
   settingsOutline,
 } from 'ionicons/icons'
 import { ROUTE_PATHS } from '@/router/guards'

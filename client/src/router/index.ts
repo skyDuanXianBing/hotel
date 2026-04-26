@@ -524,6 +524,12 @@ const router = createRouter({
       meta: { title: '隐私政策' },
     },
     {
+      path: '/legal/support',
+      name: 'TechnicalSupport',
+      component: () => import('@/views/legal/TechnicalSupport.vue'),
+      meta: { title: '技术支持网站' },
+    },
+    {
       path: '/share/:token',
       name: 'RoomStatusShareView',
       component: () => import('@/views/share/RoomStatusShareView.vue'),

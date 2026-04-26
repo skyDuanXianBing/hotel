@@ -76,7 +76,6 @@ import {
 import {
   barChartOutline,
   bedOutline,
-  documentTextOutline,
   receiptOutline,
 } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
@@ -145,14 +144,6 @@ const helpItems: HomeHelpRouteItem[] = [
     icon: bedOutline,
     tone: 'success',
     path: ROUTE_PATHS.rooms,
-  },
-  {
-    key: 'order-usage',
-    title: '订单操作',
-    description: '如何使用订单操作的功能？',
-    icon: documentTextOutline,
-    tone: 'secondary',
-    path: ROUTE_PATHS.orders,
   },
 ]
 
