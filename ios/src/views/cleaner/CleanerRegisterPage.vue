@@ -1,11 +1,11 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.cleanerLogin" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.cleanerLogin" />
         </ion-buttons>
-        <ion-title class="mobile-toolbar-title">保洁员注册</ion-title>
+        <ion-title class="app-page-header__title">保洁员注册</ion-title>
       </ion-toolbar>
     </ion-header>
 

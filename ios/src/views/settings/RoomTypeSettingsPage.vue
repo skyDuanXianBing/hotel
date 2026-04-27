@@ -1,13 +1,13 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.settings" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.settings" />
         </ion-buttons>
-        <ion-title>房型设置</ion-title>
+        <ion-title class="app-page-header__title">房型设置</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="handleCreateRoomType">新增</ion-button>
+          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleCreateRoomType">新增</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>

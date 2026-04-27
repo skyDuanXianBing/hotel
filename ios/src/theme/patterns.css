@@ -230,7 +230,7 @@ button {
 }
 
 .mobile-toolbar-title {
-  padding-top: max(var(--app-safe-top), 0px);
+  padding-top: 0;
 }
 
 @media (min-width: 768px) {

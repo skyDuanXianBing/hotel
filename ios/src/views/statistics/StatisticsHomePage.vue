@@ -1,8 +1,11 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">统计</ion-title>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-buttons slot="start">
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
+        </ion-buttons>
+        <ion-title class="app-page-header__title">统计</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -97,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { IonButton, IonContent, IonHeader, IonLabel, IonPage, IonSegment, IonSegmentButton, IonTitle, IonToolbar, onIonViewWillEnter } from '@ionic/vue'
+import { IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonLabel, IonPage, IonSegment, IonSegmentButton, IonTitle, IonToolbar, onIonViewWillEnter } from '@ionic/vue'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { STATISTICS_HOME_METRICS, STATISTICS_REPORTS, type StatisticsMetric, type StatisticsReportCategory } from '@/constants/statistics'

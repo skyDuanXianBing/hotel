@@ -1,8 +1,8 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">公开登记入口</ion-title>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-title class="app-page-header__title">公开登记入口</ion-title>
       </ion-toolbar>
     </ion-header>
 

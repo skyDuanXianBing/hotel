@@ -2,6 +2,9 @@
   <ion-page>
     <ion-header translucent>
       <ion-toolbar class="orders-header__toolbar">
+        <ion-buttons slot="start">
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
+        </ion-buttons>
         <ion-title class="orders-header__title">订单</ion-title>
         <ion-buttons slot="end">
           <ion-button class="orders-header__icon-btn" fill="clear" @click="handleToggleSearch">
@@ -203,6 +206,7 @@
 import {
   actionSheetController,
   alertController,
+  IonBackButton,
   IonButton,
   IonButtons,
   IonContent,

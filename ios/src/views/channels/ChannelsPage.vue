@@ -1,8 +1,11 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">渠道</ion-title>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-buttons slot="start">
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
+        </ion-buttons>
+        <ion-title class="app-page-header__title">渠道</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -52,6 +55,8 @@
 
 <script setup lang="ts">
 import {
+  IonBackButton,
+  IonButtons,
   IonContent,
   IonHeader,
   IonPage,
@@ -78,6 +83,7 @@ import {
   getSuMappingStatus,
   type SuMappingStatusSummary,
 } from '@/api/otaIntegration'
+import { ROUTE_PATHS } from '@/router/guards'
 import { showWarningToast } from '@/utils/notify'
 import {
   resolveChannelWarningMessage,

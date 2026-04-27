@@ -1,11 +1,11 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.rooms" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.rooms" />
         </ion-buttons>
-        <ion-title>房价管理</ion-title>
+        <ion-title class="app-page-header__title">房价管理</ion-title>
         <ion-buttons slot="end">
           <ion-button @click="handleOpenHistory">改价记录</ion-button>
         </ion-buttons>

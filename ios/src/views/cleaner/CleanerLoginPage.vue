@@ -1,8 +1,8 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">保洁员登录</ion-title>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-title class="app-page-header__title">保洁员登录</ion-title>
       </ion-toolbar>
     </ion-header>
 

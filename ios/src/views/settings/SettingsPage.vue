@@ -1,8 +1,11 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">设置</ion-title>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-buttons slot="start">
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
+        </ion-buttons>
+        <ion-title class="app-page-header__title">设置</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -105,6 +108,9 @@
 
 <script setup lang="ts">
 import {
+  alertController,
+  IonBackButton,
+  IonButtons,
   IonContent,
   IonHeader,
   IonIcon,
@@ -382,7 +388,33 @@ async function handleOpenEntry(path: string) {
   await router.push(path)
 }
 
+async function confirmLogout() {
+  const alert = await alertController.create({
+    header: '退出登录',
+    message: '确认退出当前账号吗？',
+    buttons: [
+      {
+        text: '取消',
+        role: 'cancel',
+      },
+      {
+        text: '确定',
+        role: 'destructive',
+      },
+    ],
+  })
+
+  await alert.present()
+  const result = await alert.onDidDismiss()
+  return result.role === 'destructive'
+}
+
 async function handleLogout() {
+  const confirmed = await confirmLogout()
+  if (!confirmed) {
+    return
+  }
+
   await userStore.logout()
   await router.replace(ROUTE_PATHS.login)
 }
