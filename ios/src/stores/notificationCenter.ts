@@ -46,6 +46,7 @@ function buildThreadDetail(thread: MessageThreadDTO) {
 
 export const useNotificationCenterStore = defineStore('notificationCenter', () => {
   const items = ref<InAppNotificationItem[]>([])
+  const unreadMessageCount = ref(0)
   const activeUserId = ref<number | null>(null)
   const started = ref(false)
 
@@ -102,6 +103,20 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     dismissTimers.clear()
     shownKeys.clear()
     items.value = []
+    unreadMessageCount.value = 0
+  }
+
+  const syncUnreadMessageCount = (threads: MessageThreadDTO[]) => {
+    let nextCount = 0
+
+    for (const thread of threads) {
+      const unreadCount = Number(thread.unreadCount) || 0
+      if (unreadCount > 0) {
+        nextCount += unreadCount
+      }
+    }
+
+    unreadMessageCount.value = nextCount
   }
 
   const stop = () => {
@@ -156,6 +171,15 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
 
   const pollMessageNotifications = async () => {
     try {
+      const nextResponse = await getMessageThreads()
+      if (!nextResponse.success || !nextResponse.data) {
+        return
+      }
+
+      syncUnreadMessageCount(nextResponse.data)
+      return
+/*
+
       const popupEnabled = settings.value ? settings.value.chatPopup : true
       if (!popupEnabled) {
         return
@@ -188,6 +212,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
           type: 'message',
         })
       }
+*/
     } catch {
       return
     }
@@ -225,11 +250,13 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
 
   return {
     items,
+    unreadMessageCount,
     started,
     enqueue,
     dismiss,
     start,
     stop,
     applySettingsSnapshot,
+    syncUnreadMessageCount,
   }
 })

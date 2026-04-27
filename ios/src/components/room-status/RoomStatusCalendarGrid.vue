@@ -1,6 +1,56 @@
 <template>
   <section class="room-calendar" :class="{ 'is-loading': loading }">
-    <div ref="scrollContainer" class="room-calendar__scroll">
+    <div class="room-calendar__sticky-header">
+      <div
+        ref="headerScrollContainer"
+        class="room-calendar__header-scroll"
+        @scroll.passive="handleHeaderScroll"
+      >
+        <div class="room-calendar__inner" :style="{ minWidth: `${totalMinWidth}px` }">
+          <div class="room-calendar__row room-calendar__row--header" :style="gridStyle">
+            <button
+              class="room-calendar__corner"
+              type="button"
+              aria-label="閫夋嫨鏃ユ湡"
+              @click="openDatePicker"
+            >
+              <input
+                ref="stickyDatePickerInput"
+                class="room-calendar__date-input"
+                :value="selectedDateValue"
+                type="date"
+                @change="handleDateInputChange"
+              />
+              <strong class="room-calendar__corner-date">{{ selectedDateLabel }}</strong>
+              <ion-icon :icon="caretDownOutline" class="room-calendar__corner-caret" />
+            </button>
+
+            <button
+              v-for="day in days"
+              :key="`sticky-${day.date}`"
+              class="room-calendar__day"
+              :class="{
+                'is-selected': day.isSelected,
+                'is-today': day.isToday,
+                'is-weekend': isWeekend(day),
+              }"
+              type="button"
+              @click="$emit('select-date', day.date)"
+            >
+              <span class="room-calendar__day-number">{{ getDayDateLabel(day) }}</span>
+              <strong class="room-calendar__day-weekday">{{ getDayWeekdayLabel(day) }}</strong>
+              <span class="room-calendar__day-capacity">{{ getDayCapacityLabel(day) }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      ref="scrollContainer"
+      class="room-calendar__scroll"
+      @scroll.passive="handleBodyScroll"
+    >
       <div class="room-calendar__inner" :style="{ minWidth: `${totalMinWidth}px` }">
         <div class="room-calendar__row room-calendar__row--header" :style="gridStyle">
           <button
@@ -192,7 +242,10 @@ const emit = defineEmits<{
 }>()
 
 const datePickerInput = ref<HTMLInputElement | null>(null)
+const stickyDatePickerInput = ref<HTMLInputElement | null>(null)
+const headerScrollContainer = ref<HTMLDivElement | null>(null)
 const scrollContainer = ref<HTMLDivElement | null>(null)
+let syncingScroll = false
 
 const gridStyle = computed(() => ({
   gridTemplateColumns: `${ROOM_COLUMN_WIDTH}px repeat(${props.days.length}, minmax(${DAY_MIN_WIDTH}px, 1fr))`,
@@ -236,10 +289,7 @@ function alignSelectedDateIntoView() {
   const preferredStartIndex = Math.min(Math.max(selectedIndex - 1, 0), maxStartIndex)
   const targetLeft = preferredStartIndex * DAY_MIN_WIDTH
 
-  container.scrollTo({
-    left: targetLeft,
-    behavior: 'auto',
-  })
+  syncScrollLeft(targetLeft)
 }
 
 watch(
@@ -252,7 +302,7 @@ watch(
 )
 
 function openDatePicker() {
-  const input = datePickerInput.value
+  const input = stickyDatePickerInput.value || datePickerInput.value
   if (!input) {
     return
   }
@@ -265,6 +315,41 @@ function openDatePicker() {
   }
 
   input.click()
+}
+
+function syncScrollLeft(left: number) {
+  if (headerScrollContainer.value) {
+    headerScrollContainer.value.scrollLeft = left
+  }
+
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollLeft = left
+  }
+}
+
+function syncScrollContainers(source: HTMLDivElement | null, target: HTMLDivElement | null) {
+  if (!source || !target || syncingScroll) {
+    return
+  }
+
+  if (target.scrollLeft === source.scrollLeft) {
+    return
+  }
+
+  syncingScroll = true
+  target.scrollLeft = source.scrollLeft
+
+  requestAnimationFrame(() => {
+    syncingScroll = false
+  })
+}
+
+function handleHeaderScroll() {
+  syncScrollContainers(headerScrollContainer.value, scrollContainer.value)
+}
+
+function handleBodyScroll() {
+  syncScrollContainers(scrollContainer.value, headerScrollContainer.value)
 }
 
 function handleDateInputChange(event: Event) {
@@ -349,6 +434,18 @@ function getDayDateLabel(day: RoomStatusDateItem) {
   }
 
   return String(Number(date))
+}
+
+function isWeekend(day: RoomStatusDateItem) {
+  return day.weekday === '六' || day.weekday === '日'
+}
+
+function getDayWeekdayLabel(day: RoomStatusDateItem) {
+  return `周${day.weekday}`
+}
+
+function getDayCapacityLabel(day: RoomStatusDateItem) {
+  return `余 ${day.availableRooms}`
 }
 
 function getGroupAvailableCount(group: RoomStatusRoomGroup, date: string) {
@@ -485,14 +582,29 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   opacity: 0.94;
 }
 
+.room-calendar__sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+}
+
+.room-calendar__header-scroll,
 .room-calendar__scroll {
   overflow-x: auto;
-  overflow-y: visible;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
 
+.room-calendar__header-scroll {
+  overflow-y: hidden;
+}
+
+.room-calendar__scroll {
+  overflow-y: visible;
+}
+
+.room-calendar__header-scroll::-webkit-scrollbar,
 .room-calendar__scroll::-webkit-scrollbar {
   display: none;
 }
@@ -510,13 +622,14 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
 }
 
 .room-calendar__row--header {
-  position: sticky;
-  top: 0;
-  z-index: 8;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.94));
   border-bottom: 1px solid rgba(112, 138, 187, 0.1);
   box-shadow: 0 8px 18px rgba(88, 110, 151, 0.04);
+}
+
+.room-calendar__scroll > .room-calendar__inner > .room-calendar__row--header {
+  display: none;
 }
 
 .room-calendar__row--group {
