@@ -18,7 +18,7 @@
               {{ notificationCenterStore.unreadMessageCount }}
             </span>
           </span>
-          <ion-label class="mobile-tabbar__message-label">消息</ion-label>
+          <ion-label>消息</ion-label>
         </ion-tab-button>
         <ion-tab-button tab="reviews" :href="ROUTE_PATHS.reviews">
           <ion-icon :icon="clipboardOutline" />
@@ -109,7 +109,7 @@ const notificationCenterStore = useNotificationCenterStore()
   transform: translateY(-1px);
 }
 
-.mobile-tabbar__message-label {
+.mobile-tabbar :deep(ion-tab-button[tab='messages'] ion-label) {
   transform: translateY(2.5px);
 }
 
