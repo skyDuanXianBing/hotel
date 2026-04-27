@@ -234,6 +234,7 @@ import {
 } from '@/api/message'
 import { getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
 import { ROUTE_PATHS } from '@/router/guards'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { MessageDTO, MessageThreadDTO } from '@/types/message'
 import { MessageSenderType } from '@/types/message'
 import { isHandledRequestError } from '@/utils/request'
@@ -252,6 +253,7 @@ interface IonContentScrollTarget {
 
 const route = useRoute()
 const router = useRouter()
+const notificationCenterStore = useNotificationCenterStore()
 
 const loading = ref(false)
 const sending = ref(false)
@@ -471,6 +473,7 @@ async function loadThreads() {
   }
 
   threads.value = response.data
+  notificationCenterStore.syncUnreadMessageCount(threads.value)
 }
 
 async function loadMessages() {

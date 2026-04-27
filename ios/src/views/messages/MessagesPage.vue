@@ -176,6 +176,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMessageThreads } from '@/api/message'
 import { buildMessageDetailPath } from '@/router/guards'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { MessageThreadDTO } from '@/types/message'
 import { isHandledRequestError } from '@/utils/request'
 import { showWarningToast } from '@/utils/notify'
@@ -225,6 +226,7 @@ const DEFAULT_CHANNEL_BRAND: ChannelBrand = {
 }
 
 const router = useRouter()
+const notificationCenterStore = useNotificationCenterStore()
 
 const loading = ref(false)
 const isSearchVisible = ref(false)
@@ -623,6 +625,7 @@ async function loadThreads() {
 
     ensureActiveChannelStillExists(response.data)
     threads.value = response.data
+    notificationCenterStore.syncUnreadMessageCount(threads.value)
   } catch (error) {
     loadNotice.value = resolveWarningMessage(error, '加载会话失败')
     if (!isHandledRequestError(error)) {
