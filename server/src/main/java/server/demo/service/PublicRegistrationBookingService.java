@@ -25,17 +25,20 @@ public class PublicRegistrationBookingService {
     private final PublicRegistrationService publicRegistrationService;
     private final RegistrationLinkService registrationLinkService;
     private final StoreRepository storeRepository;
+    private final ReservationBookingKeyResolver reservationBookingKeyResolver;
 
     public PublicRegistrationBookingService(
             ReservationRepository reservationRepository,
             PublicRegistrationService publicRegistrationService,
             RegistrationLinkService registrationLinkService,
-            StoreRepository storeRepository
+            StoreRepository storeRepository,
+            ReservationBookingKeyResolver reservationBookingKeyResolver
     ) {
         this.reservationRepository = reservationRepository;
         this.publicRegistrationService = publicRegistrationService;
         this.registrationLinkService = registrationLinkService;
         this.storeRepository = storeRepository;
+        this.reservationBookingKeyResolver = reservationBookingKeyResolver;
     }
 
     @Transactional
@@ -45,16 +48,7 @@ public class PublicRegistrationBookingService {
         }
 
         String normalizedBookingKey = bookingKey.trim();
-
-        List<Reservation> reservations = reservationRepository.findByStoreIdAndChannelOrderNumber(storeId, normalizedBookingKey);
-        if (reservations == null || reservations.isEmpty()) {
-            reservations = reservationRepository.findByStoreIdAndExternalBookingKey(storeId, normalizedBookingKey);
-        }
-        if (reservations == null || reservations.isEmpty()) {
-            // fallback: single-room bookingKey might be orderNumber (local booking)
-            Reservation single = reservationRepository.findByStoreIdAndOrderNumber(storeId, normalizedBookingKey).orElse(null);
-            reservations = single == null ? List.of() : List.of(single);
-        }
+        List<Reservation> reservations = reservationBookingKeyResolver.findReservationsByBookingKey(storeId, normalizedBookingKey);
 
         if (reservations.isEmpty()) {
             throw new RuntimeException("预订不存在");
@@ -119,9 +113,7 @@ public class PublicRegistrationBookingService {
         }
 
         String key = bookingKey.trim();
-        if (matchesBookingKey(reservation.getChannelOrderNumber(), key)
-                || matchesBookingKey(reservation.getExternalBookingKey(), key)
-                || matchesBookingKey(reservation.getOrderNumber(), key)) {
+        if (reservationBookingKeyResolver.matchesReservationBookingKey(reservation, key)) {
             return;
         }
 
@@ -159,12 +151,5 @@ public class PublicRegistrationBookingService {
 
     private static String nullToEmpty(String s) {
         return s == null ? "" : s;
-    }
-
-    private static boolean matchesBookingKey(String candidate, String bookingKey) {
-        if (candidate == null || candidate.isBlank() || bookingKey == null || bookingKey.isBlank()) {
-            return false;
-        }
-        return candidate.trim().equalsIgnoreCase(bookingKey.trim());
     }
 }
