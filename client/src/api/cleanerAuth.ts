@@ -10,6 +10,7 @@ export interface ApiResponse<T> {
 // 保洁员信息
 export interface CleanerDTO {
   id: number
+  userId: number
   storeId: number
   name: string
   email: string

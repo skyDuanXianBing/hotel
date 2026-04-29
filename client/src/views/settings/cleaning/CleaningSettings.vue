@@ -550,7 +550,7 @@ const handleDeleteCleaner = (row: Cleaner) => {
         }
       } catch (error) {
         console.error('删除保洁员失败:', error)
-        ElMessage.error('删除失败')
+        ElMessage.error((error as any)?.response?.data?.message || (error as any)?.message || '删除失败')
       } finally {
         loading.value = false
       }

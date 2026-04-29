@@ -25,6 +25,9 @@ public class CleanerAuthService {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private CleanerIdentityService cleanerIdentityService;
+
     /**
      * 保洁员登录 - 使用密码
      *
@@ -46,8 +49,13 @@ public class CleanerAuthService {
             throw new RuntimeException("邮箱或密码不正确");
         }
 
-        // 生成token (使用cleaner id作为用户ID)
-        String token = jwtUtil.generateToken(cleaner.getId(), cleaner.getEmail());
+        cleaner = cleanerIdentityService.ensureCleanerIdentity(cleaner);
+        if (cleaner.getUserId() == null) {
+            throw new RuntimeException("保洁员身份异常，无法完成登录");
+        }
+
+        // 生成token (使用真实 userId 作为用户ID)
+        String token = jwtUtil.generateToken(cleaner.getUserId(), cleaner.getEmail());
 
         // 返回登录响应
         return new CleanerLoginResponse(token, new CleanerDTO(cleaner));

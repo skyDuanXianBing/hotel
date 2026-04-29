@@ -28,6 +28,10 @@ public interface CleanerRepository extends JpaRepository<Cleaner, Long> {
      */
     List<Cleaner> findByStoreId(Long storeId);
 
+    List<Cleaner> findByStoreIdAndIsActiveTrue(Long storeId);
+
+    List<Cleaner> findByStoreIdAndEmailIgnoreCase(Long storeId, String email);
+
     /**
      * 根据邮箱查找保洁员
      */

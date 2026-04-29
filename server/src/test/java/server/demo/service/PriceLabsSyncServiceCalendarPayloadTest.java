@@ -112,7 +112,7 @@ class PriceLabsSyncServiceCalendarPayloadTest {
         ReflectionTestUtils.setField(service, "roomRepo", roomRepository);
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
 
-        service.syncListingRatePlanAndCalendar(7L, roomType, selectedPlan, PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS);
+        service.syncListingRatePlanAndCalendar(7L, roomType, selectedPlan, null, PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS);
 
         verify(apiClient).pushCalendar(any());
 

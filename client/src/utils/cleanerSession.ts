@@ -3,7 +3,8 @@ export const CLEANER_USER_KEY = 'cleanerUser'
 export const CLEANER_STORE_KEY = 'cleanerCurrentStore'
 
 export interface CleanerSessionUser {
-  id: number
+  userId: number
+  cleanerId: number
   email: string
   nickname: string
   avatar?: string
@@ -22,9 +23,18 @@ export const readCleanerUser = (): CleanerSessionUser | null => {
   if (!raw) return null
 
   try {
-    return JSON.parse(raw) as CleanerSessionUser
+    const parsed = JSON.parse(raw) as Partial<CleanerSessionUser>
+    if (
+      typeof parsed.userId !== 'number' ||
+      typeof parsed.cleanerId !== 'number' ||
+      parsed.isCleaner !== true
+    ) {
+      clearCleanerSession()
+      return null
+    }
+    return parsed as CleanerSessionUser
   } catch {
-    localStorage.removeItem(CLEANER_USER_KEY)
+    clearCleanerSession()
     return null
   }
 }

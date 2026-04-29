@@ -10,9 +10,11 @@ import server.demo.dto.CleanerInvitationDTO;
 import server.demo.dto.CleanerRegistrationDTO;
 import server.demo.entity.Cleaner;
 import server.demo.entity.CleanerInvitation;
+import server.demo.entity.User;
 import server.demo.repository.CleanerInvitationRepository;
 import server.demo.repository.CleanerRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.service.CleanerIdentityService;
 import server.demo.service.CleanerInvitationService;
 import server.demo.service.EmailService;
 
@@ -20,9 +22,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * 保洁员邀请Service实现类
- */
 @Service
 public class CleanerInvitationServiceImpl implements CleanerInvitationService {
 
@@ -41,6 +40,9 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
     @Autowired
     private StoreRepository storeRepository;
 
+    @Autowired
+    private CleanerIdentityService cleanerIdentityService;
+
     @Value("${app.frontend.url:http://localhost:8091}")
     private String frontendUrl;
 
@@ -50,20 +52,16 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
     @Override
     @Transactional
     public CleanerInvitation sendInvitation(CleanerInvitationDTO invitationDTO) {
-        // 检查是否已经有待处理的邀请
         List<CleanerInvitation> existingInvitations = invitationRepository
                 .findByEmailAndStatus(invitationDTO.getEmail(), "pending");
 
-        // 将已存在的待处理邀请标记为过期
         for (CleanerInvitation existing : existingInvitations) {
             existing.setStatus("expired");
             invitationRepository.save(existing);
         }
 
-        // 生成唯一token
         String token = UUID.randomUUID().toString();
 
-        // 创建新邀请
         CleanerInvitation invitation = new CleanerInvitation();
         invitation.setEmail(invitationDTO.getEmail());
         invitation.setName(invitationDTO.getName());
@@ -71,15 +69,13 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
         invitation.setUserId(invitationDTO.getUserId());
         invitation.setStoreId(invitationDTO.getStoreId());
         invitation.setStatus("pending");
-        invitation.setExpiresAt(LocalDateTime.now().plusDays(7)); // 7天有效期
+        invitation.setExpiresAt(LocalDateTime.now().plusDays(7));
 
         invitation = invitationRepository.save(invitation);
 
-        // 构建邀请链接
         String invitationUrl = buildInvitationUrl(token);
         String storeName = resolveStoreName(invitationDTO.getStoreId());
 
-        // 发送邀请邮件
         try {
             emailService.sendCleanerInvitation(
                     invitationDTO.getEmail(),
@@ -115,30 +111,61 @@ public class CleanerInvitationServiceImpl implements CleanerInvitationService {
     @Override
     @Transactional
     public Cleaner registerCleaner(CleanerRegistrationDTO registrationDTO) {
-        // 验证token
         CleanerInvitation invitation = validateToken(registrationDTO.getToken());
 
-        // 检查邮箱是否一致
-        if (!invitation.getEmail().equals(registrationDTO.getEmail())) {
+        String registrationEmail = registrationDTO.getEmail() == null
+                ? null
+                : registrationDTO.getEmail().trim();
+        if (!invitation.getEmail().equalsIgnoreCase(registrationEmail)) {
             throw new RuntimeException("邮箱地址不匹配");
         }
 
-        // 检查邮箱是否已被注册为保洁员
-        if (cleanerRepository.findByEmail(registrationDTO.getEmail()).isPresent()) {
-            throw new RuntimeException("该邮箱已被注册为保洁员");
+        String cleanerName = registrationDTO.getName() == null
+                ? ""
+                : registrationDTO.getName().trim();
+        String encodedPassword = passwordEncoder.encode(registrationDTO.getPassword());
+
+        List<Cleaner> storeCleaners = cleanerRepository.findByStoreIdAndEmailIgnoreCase(
+                invitation.getStoreId(),
+                registrationEmail
+        );
+        if (storeCleaners.size() > 1) {
+            throw new RuntimeException("当前门店下存在重复的保洁员档案，请联系管理员检查数据");
         }
 
-        // 创建保洁员记录 - 直接在Cleaner表中存储认证信息
-        Cleaner cleaner = new Cleaner();
-        cleaner.setUserId(invitation.getUserId()); // 使用邀请人的userId
-        cleaner.setStoreId(invitation.getStoreId());
-        cleaner.setName(registrationDTO.getName());
-        cleaner.setEmail(registrationDTO.getEmail());
-        cleaner.setPassword(passwordEncoder.encode(registrationDTO.getPassword())); // 加密密码
-        cleaner.setIsActive(true); // 设置为激活状态
-        cleaner = cleanerRepository.save(cleaner);
+        Cleaner existingCleaner = storeCleaners.isEmpty() ? null : storeCleaners.get(0);
+        if (existingCleaner != null && Boolean.TRUE.equals(existingCleaner.getIsActive())) {
+            throw new RuntimeException("该账号已是当前门店保洁员");
+        }
 
-        // 标记邀请为已接受
+        User user = cleanerIdentityService.createOrReuseCleanerUserAccount(
+                registrationEmail,
+                cleanerName,
+                encodedPassword,
+                invitation.getStoreId(),
+                invitation.getUserId()
+        );
+
+        Cleaner cleaner;
+        if (existingCleaner != null) {
+            existingCleaner.setUserId(user.getId());
+            existingCleaner.setStoreId(invitation.getStoreId());
+            existingCleaner.setName(cleanerName);
+            existingCleaner.setEmail(registrationEmail);
+            existingCleaner.setPassword(user.getPassword());
+            existingCleaner.setIsActive(true);
+            cleaner = cleanerRepository.save(existingCleaner);
+        } else {
+            cleaner = new Cleaner();
+            cleaner.setUserId(user.getId());
+            cleaner.setStoreId(invitation.getStoreId());
+            cleaner.setName(cleanerName);
+            cleaner.setEmail(registrationEmail);
+            cleaner.setPassword(user.getPassword());
+            cleaner.setIsActive(true);
+            cleaner = cleanerRepository.save(cleaner);
+        }
+
         invitation.setStatus("accepted");
         invitationRepository.save(invitation);
 
