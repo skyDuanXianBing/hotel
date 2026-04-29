@@ -33,7 +33,7 @@ public interface CleaningTaskService {
     /**
      * 根据ID获取任务详情
      */
-    CleaningTaskDTO getTaskById(Long id);
+    CleaningTaskDTO getTaskById(Long userId, Long id);
 
     /**
      * 分页查询任务列表(支持多条件筛选)
@@ -70,22 +70,22 @@ public interface CleaningTaskService {
     /**
      * 保洁员接受任务
      */
-    CleaningTaskDTO acceptTask(Long taskId);
+    CleaningTaskDTO acceptTask(Long userId, Long taskId);
 
     /**
      * 保洁员拒绝任务
      */
-    CleaningTaskDTO rejectTask(Long taskId);
+    CleaningTaskDTO rejectTask(Long userId, Long taskId);
 
     /**
      * 开始任务
      */
-    CleaningTaskDTO startTask(Long taskId);
+    CleaningTaskDTO startTask(Long userId, Long taskId);
 
     /**
      * 完成任务
      */
-    CleaningTaskDTO completeTask(Long taskId, Long approverId);
+    CleaningTaskDTO completeTask(Long userId, Long taskId, Long approverId);
 
     /**
      * 批量创建任务

@@ -82,6 +82,7 @@ class PriceLabsServiceCreateConnectionSyncTest {
                 5L,
                 roomType,
                 pricePlan,
+                null,
                 PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS
         );
     }
@@ -121,6 +122,7 @@ class PriceLabsServiceCreateConnectionSyncTest {
                 5L,
                 roomType,
                 pricePlan,
+                null,
                 PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS
         );
 

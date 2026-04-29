@@ -69,6 +69,8 @@ public interface CleaningTaskRepository extends JpaRepository<CleaningTask, Long
      */
     List<CleaningTask> findByCleanerId(Long cleanerId);
 
+    boolean existsByCleanerId(Long cleanerId);
+
     /**
      * 根据任务类型查询
      */

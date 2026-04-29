@@ -17,6 +17,7 @@ import server.demo.repository.CleaningTaskRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.UserRepository;
 import server.demo.service.CleaningTaskAutoService;
+import server.demo.service.CleanerIdentityService;
 import server.demo.service.CleaningTaskService;
 
 import java.time.LocalDate;
@@ -44,6 +45,9 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
     @Autowired
     private CleaningTaskAutoService cleaningTaskAutoService;
+
+    @Autowired
+    private CleanerIdentityService cleanerIdentityService;
 
     @Override
     @Transactional
@@ -123,9 +127,13 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     }
 
     @Override
-    public CleaningTaskDTO getTaskById(Long id) {
+    public CleaningTaskDTO getTaskById(Long userId, Long id) {
         CleaningTask task = cleaningTaskRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("任务不存在"));
+        Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
+        if (currentCleaner.isPresent()) {
+            ensureCleanerOwnsTask(task, currentCleaner.get());
+        }
         return convertToDTO(task);
     }
 
@@ -147,8 +155,14 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
         Long storeId = getCurrentStoreId();
         cleaningTaskAutoService.markExpiredTasks(storeId, LocalDate.now());
 
+        Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
+        Long effectiveCleanerId = cleanerId;
+        if (currentCleaner.isPresent()) {
+            effectiveCleanerId = currentCleaner.get().getId();
+        }
+
         Page<CleaningTask> tasks = cleaningTaskRepository.findWithFiltersByStore(
-                storeId, startDate, endDate, status, taskType, roomId, cleanerId, roomTypeId, pageable
+                storeId, startDate, endDate, status, taskType, roomId, effectiveCleanerId, roomTypeId, pageable
         );
 
         return tasks.map(this::convertToDTO);
@@ -177,13 +191,18 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
         // 获取当前门店ID
         Long storeId = getCurrentStoreId();
         cleaningTaskAutoService.markExpiredTasks(storeId, LocalDate.now());
+        Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
+        Long effectiveCleanerId = cleanerId;
+        if (currentCleaner.isPresent()) {
+            effectiveCleanerId = currentCleaner.get().getId();
+        }
 
         List<CleaningTask> tasks;
 
-        if ((status != null && !status.isEmpty()) || cleanerId != null) {
+        if ((status != null && !status.isEmpty()) || effectiveCleanerId != null) {
             // 如果指定了状态,需要筛选
             tasks = cleaningTaskRepository.findWithFiltersByStore(
-                    storeId, startDate, endDate, status, null, null, cleanerId, null, Pageable.unpaged()
+                    storeId, startDate, endDate, status, null, null, effectiveCleanerId, null, Pageable.unpaged()
             ).getContent();
         } else {
             // 否则查询所有
@@ -228,9 +247,13 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
     @Override
     @Transactional
-    public CleaningTaskDTO acceptTask(Long taskId) {
+    public CleaningTaskDTO acceptTask(Long userId, Long taskId) {
         CleaningTask task = cleaningTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("任务不存在"));
+        Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
+        if (currentCleaner.isPresent()) {
+            ensureCleanerOwnsTask(task, currentCleaner.get());
+        }
 
         if (!"assigned".equals(task.getStatus())) {
             throw new RuntimeException("只有已分配的任务才能接受");
@@ -244,9 +267,13 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
     @Override
     @Transactional
-    public CleaningTaskDTO rejectTask(Long taskId) {
+    public CleaningTaskDTO rejectTask(Long userId, Long taskId) {
         CleaningTask task = cleaningTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("任务不存在"));
+        Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
+        if (currentCleaner.isPresent()) {
+            ensureCleanerOwnsTask(task, currentCleaner.get());
+        }
 
         if (!"assigned".equals(task.getStatus())) {
             throw new RuntimeException("只有已分配的任务才能拒绝");
@@ -262,9 +289,13 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
     @Override
     @Transactional
-    public CleaningTaskDTO startTask(Long taskId) {
+    public CleaningTaskDTO startTask(Long userId, Long taskId) {
         CleaningTask task = cleaningTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("任务不存在"));
+        Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
+        if (currentCleaner.isPresent()) {
+            ensureCleanerOwnsTask(task, currentCleaner.get());
+        }
 
         task.setStatus("in_progress");
         task.setStartTime(LocalDateTime.now());
@@ -275,9 +306,18 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
     @Override
     @Transactional
-    public CleaningTaskDTO completeTask(Long taskId, Long approverId) {
+    public CleaningTaskDTO completeTask(Long userId, Long taskId, Long approverId) {
         CleaningTask task = cleaningTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("任务不存在"));
+
+        Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
+        if (currentCleaner.isPresent()) {
+            ensureCleanerOwnsTask(task, currentCleaner.get());
+            approverId = userId;
+        }
+        if (approverId == null) {
+            throw new RuntimeException("审批人不存在");
+        }
 
         User approver = userRepository.findById(approverId)
                 .orElseThrow(() -> new RuntimeException("审批人不存在"));
@@ -339,6 +379,17 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
         }
 
         return statusCount;
+    }
+
+    private Optional<Cleaner> findCurrentCleaner(Long userId) {
+        Long storeId = getCurrentStoreId();
+        return cleanerIdentityService.findCleanerByUserIdAndStoreId(userId, storeId);
+    }
+
+    private void ensureCleanerOwnsTask(CleaningTask task, Cleaner cleaner) {
+        if (task.getCleaner() == null || !Objects.equals(task.getCleaner().getId(), cleaner.getId())) {
+            throw new RuntimeException("只能查看或操作分配给自己的任务");
+        }
     }
 
     /**

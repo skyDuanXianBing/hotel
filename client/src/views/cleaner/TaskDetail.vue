@@ -216,15 +216,9 @@ const handleReject = async () => {
 const handleComplete = async () => {
   if (!task.value) return
 
-  const userId = cleanerUser?.id
-  if (!userId) {
-    ElMessage.error('用户信息无效')
-    return
-  }
-
   try {
     loading.value = true
-    const response = await completeCleaningTask(task.value.id, userId)
+    const response = await completeCleaningTask(task.value.id)
 
     if (response.success) {
       ElMessage.success('打扫完成')

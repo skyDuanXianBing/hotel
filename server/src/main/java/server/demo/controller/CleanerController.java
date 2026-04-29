@@ -3,15 +3,14 @@ package server.demo.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import server.demo.annotation.StoreScoped;
+import server.demo.context.StoreContext;
+import server.demo.context.StoreContextHolder;
 import server.demo.dto.ApiResponse;
 import server.demo.entity.Cleaner;
 import server.demo.service.CleanerService;
 
 import java.util.List;
 
-/**
- * 保洁员控制器
- */
 @RestController
 @RequestMapping("/api/v1/cleaners")
 @StoreScoped
@@ -20,9 +19,6 @@ public class CleanerController {
     @Autowired
     private CleanerService cleanerService;
 
-    /**
-     * 获取当前门店的保洁员列表
-     */
     @GetMapping
     public ApiResponse<List<Cleaner>> getCleaners() {
         Long storeId = getCurrentStoreId();
@@ -30,9 +26,6 @@ public class CleanerController {
         return ApiResponse.success("获取保洁员列表成功", cleaners);
     }
 
-    /**
-     * 根据用户ID和门店ID获取保洁员列表(已废弃)
-     */
     @Deprecated
     @GetMapping("/user/{userId}/store/{storeId}")
     public ApiResponse<List<Cleaner>> getCleanersByUserIdAndStoreId(
@@ -42,9 +35,6 @@ public class CleanerController {
         return ApiResponse.success("获取保洁员列表成功", cleaners);
     }
 
-    /**
-     * 根据用户ID获取保洁员列表(已废弃)
-     */
     @Deprecated
     @GetMapping("/user/{userId}")
     public ApiResponse<List<Cleaner>> getCleanersByUserId(@PathVariable Long userId) {
@@ -53,9 +43,6 @@ public class CleanerController {
         return ApiResponse.success("获取保洁员列表成功", cleaners);
     }
 
-    /**
-     * 根据门店ID获取保洁员列表(已废弃)
-     */
     @Deprecated
     @GetMapping("/store/{storeId}")
     public ApiResponse<List<Cleaner>> getCleanersByStoreId(@PathVariable Long storeId) {
@@ -63,20 +50,6 @@ public class CleanerController {
         return ApiResponse.success("获取保洁员列表成功", cleaners);
     }
 
-    /**
-     * 获取当前门店ID
-     */
-    private Long getCurrentStoreId() {
-        server.demo.context.StoreContext storeContext = server.demo.context.StoreContextHolder.getContext();
-        if (storeContext == null || storeContext.getStoreId() == null) {
-            throw new RuntimeException("无法获取当前门店信息");
-        }
-        return storeContext.getStoreId();
-    }
-
-    /**
-     * 根据ID获取保洁员详情
-     */
     @GetMapping("/{id}")
     public ApiResponse<Cleaner> getCleanerById(@PathVariable Long id) {
         return cleanerService.getCleanerById(id)
@@ -84,18 +57,12 @@ public class CleanerController {
                 .orElse(ApiResponse.error("保洁员不存在"));
     }
 
-    /**
-     * 创建保洁员
-     */
     @PostMapping
     public ApiResponse<Cleaner> createCleaner(@RequestBody Cleaner cleaner) {
         Cleaner createdCleaner = cleanerService.createCleaner(cleaner);
         return ApiResponse.success("创建保洁员成功", createdCleaner);
     }
 
-    /**
-     * 更新保洁员
-     */
     @PutMapping("/{id}")
     public ApiResponse<Cleaner> updateCleaner(
             @PathVariable Long id,
@@ -108,12 +75,21 @@ public class CleanerController {
         }
     }
 
-    /**
-     * 删除保洁员
-     */
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteCleaner(@PathVariable Long id) {
-        cleanerService.deleteCleaner(id);
-        return ApiResponse.success("删除保洁员成功", null);
+        try {
+            cleanerService.deleteCleaner(getCurrentStoreId(), id);
+            return ApiResponse.success("删除保洁员成功", null);
+        } catch (RuntimeException e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    private Long getCurrentStoreId() {
+        StoreContext storeContext = StoreContextHolder.getContext();
+        if (storeContext == null || storeContext.getStoreId() == null) {
+            throw new RuntimeException("无法获取当前门店信息");
+        }
+        return storeContext.getStoreId();
     }
 }

@@ -383,11 +383,9 @@ const loadCalendarData = async () => {
 
   try {
     loading.value = true
-    const cleanerId = cleanerUser.value?.id
     const response = await getCalendarViewData({
       startDate,
       endDate,
-      cleanerId,
     })
 
     if (response.success && response.data) {
@@ -551,9 +549,7 @@ const handleComplete = async () => {
     })
 
     actionLoading.value = true
-    // 完成任务需要approverId，这里使用当前用户ID
-    const approverId = cleanerUser.value?.id || 0
-    const response = await completeCleaningTask(selectedTask.value.id, approverId)
+    const response = await completeCleaningTask(selectedTask.value.id)
 
     if (response.success) {
       ElMessage.success('任务已完成')

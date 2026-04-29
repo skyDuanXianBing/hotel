@@ -425,10 +425,10 @@ export const startCleaningTask = async (
  */
 export const completeCleaningTask = async (
   id: number,
-  approverId: number
+  approverId?: number
 ): Promise<ApiResponse<CleaningTaskDTO>> => {
   return await request.post(`/cleaning-tasks/${id}/complete`, null, {
-    params: { approverId }
+    params: approverId == null ? undefined : { approverId }
   })
 }
 

@@ -103,9 +103,10 @@ public class CleaningTaskController {
      */
     @GetMapping("/{id}")
     @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
-    public ApiResponse<CleaningTaskDTO> getTaskById(@PathVariable Long id) {
+    public ApiResponse<CleaningTaskDTO> getTaskById(@PathVariable Long id, HttpServletRequest request) {
         try {
-            CleaningTaskDTO task = cleaningTaskService.getTaskById(id);
+            Long userId = (Long) request.getAttribute("userId");
+            CleaningTaskDTO task = cleaningTaskService.getTaskById(userId, id);
             return ApiResponse.success("获取任务成功", task);
         } catch (Exception e) {
             return ApiResponse.error("获取任务失败: " + e.getMessage());
@@ -209,9 +210,10 @@ public class CleaningTaskController {
      */
     @PostMapping("/{id}/accept")
     @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
-    public ApiResponse<CleaningTaskDTO> acceptTask(@PathVariable Long id) {
+    public ApiResponse<CleaningTaskDTO> acceptTask(@PathVariable Long id, HttpServletRequest request) {
         try {
-            CleaningTaskDTO task = cleaningTaskService.acceptTask(id);
+            Long userId = (Long) request.getAttribute("userId");
+            CleaningTaskDTO task = cleaningTaskService.acceptTask(userId, id);
             return ApiResponse.success("接受任务成功", task);
         } catch (Exception e) {
             return ApiResponse.error("接受任务失败: " + e.getMessage());
@@ -223,9 +225,10 @@ public class CleaningTaskController {
      */
     @PostMapping("/{id}/reject")
     @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
-    public ApiResponse<CleaningTaskDTO> rejectTask(@PathVariable Long id) {
+    public ApiResponse<CleaningTaskDTO> rejectTask(@PathVariable Long id, HttpServletRequest request) {
         try {
-            CleaningTaskDTO task = cleaningTaskService.rejectTask(id);
+            Long userId = (Long) request.getAttribute("userId");
+            CleaningTaskDTO task = cleaningTaskService.rejectTask(userId, id);
             return ApiResponse.success("拒绝任务成功", task);
         } catch (Exception e) {
             return ApiResponse.error("拒绝任务失败: " + e.getMessage());
@@ -237,9 +240,10 @@ public class CleaningTaskController {
      */
     @PostMapping("/{id}/start")
     @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
-    public ApiResponse<CleaningTaskDTO> startTask(@PathVariable Long id) {
+    public ApiResponse<CleaningTaskDTO> startTask(@PathVariable Long id, HttpServletRequest request) {
         try {
-            CleaningTaskDTO task = cleaningTaskService.startTask(id);
+            Long userId = (Long) request.getAttribute("userId");
+            CleaningTaskDTO task = cleaningTaskService.startTask(userId, id);
             return ApiResponse.success("开始任务成功", task);
         } catch (Exception e) {
             return ApiResponse.error("开始任务失败: " + e.getMessage());
@@ -253,9 +257,11 @@ public class CleaningTaskController {
     @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> completeTask(
             @PathVariable Long id,
-            @RequestParam Long approverId) {
+            @RequestParam(required = false) Long approverId,
+            HttpServletRequest request) {
         try {
-            CleaningTaskDTO task = cleaningTaskService.completeTask(id, approverId);
+            Long userId = (Long) request.getAttribute("userId");
+            CleaningTaskDTO task = cleaningTaskService.completeTask(userId, id, approverId);
             return ApiResponse.success("完成任务成功", task);
         } catch (Exception e) {
             return ApiResponse.error("完成任务失败: " + e.getMessage());

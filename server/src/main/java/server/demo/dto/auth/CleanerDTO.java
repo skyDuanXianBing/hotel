@@ -11,6 +11,8 @@ public class CleanerDTO {
 
     private Long id;
 
+    private Long userId;
+
     private Long storeId;
 
     private String name;
@@ -27,6 +29,7 @@ public class CleanerDTO {
 
     public CleanerDTO(Cleaner cleaner) {
         this.id = cleaner.getId();
+        this.userId = cleaner.getUserId();
         this.storeId = cleaner.getStoreId();
         this.name = cleaner.getName();
         this.email = cleaner.getEmail();
@@ -43,6 +46,14 @@ public class CleanerDTO {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public Long getStoreId() {

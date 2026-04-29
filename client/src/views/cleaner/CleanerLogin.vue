@@ -123,8 +123,13 @@ const handleLogin = async () => {
         return
       }
       const cleanerData = response.data.cleaner
+      if (!cleanerData?.userId || !cleanerData?.id) {
+        ElMessage.error('登录失败，保洁员身份信息不完整')
+        return
+      }
       const userInfo: CleanerSessionUser = {
-        id: cleanerData.id,
+        userId: cleanerData.userId,
+        cleanerId: cleanerData.id,
         email: cleanerData.email,
         nickname: cleanerData.name,
         avatar: undefined,
