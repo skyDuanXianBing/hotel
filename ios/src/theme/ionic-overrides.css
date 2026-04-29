@@ -79,8 +79,12 @@ ion-page > ion-header:not(.rooms-header) > ion-toolbar ion-title,
 ion-tab-bar {
   --background: var(--ion-tab-bar-background);
   --border: 0;
-  min-height: calc(64px + var(--app-safe-bottom));
-  padding: 8px 6px calc(8px + var(--app-safe-bottom));
+  --tabbar-visual-height: 50px;
+  --tabbar-button-height: 44px;
+  box-sizing: border-box;
+  height: calc(var(--tabbar-visual-height) + var(--app-safe-bottom));
+  min-height: calc(var(--tabbar-visual-height) + var(--app-safe-bottom));
+  padding: 3px 6px calc(3px + var(--app-safe-bottom));
   border-top: 1px solid rgba(164, 181, 216, 0.14);
   backdrop-filter: blur(18px);
   box-shadow: var(--ios-pms-shadow-tabbar);
@@ -89,9 +93,9 @@ ion-tab-bar {
 ion-tab-button {
   --color: #8c98b1;
   --color-selected: var(--ios-pms-primary);
-  min-height: 54px;
-  gap: 5px;
-  padding: 8px 2px 10px;
+  min-height: var(--tabbar-button-height);
+  gap: 3px;
+  padding: 3px 2px 2px;
   border-radius: 16px;
   background: transparent;
   box-shadow: none;
