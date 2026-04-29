@@ -1,14 +1,19 @@
 <template>
   <ion-page :class="pageClass">
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button :default-href="backHref" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="backHref" />
         </ion-buttons>
-        <ion-title>{{ title }}</ion-title>
+        <ion-title class="app-page-header__title">{{ title }}</ion-title>
         <ion-buttons v-if="toolbarActionLabel || slots.toolbarEnd" slot="end">
           <slot name="toolbarEnd">
-            <ion-button :disabled="toolbarActionDisabled" @click="emit('toolbarAction')">
+            <ion-button
+              class="app-page-header__text-btn"
+              fill="clear"
+              :disabled="toolbarActionDisabled"
+              @click="emit('toolbarAction')"
+            >
               {{ toolbarActionLabel }}
             </ion-button>
           </slot>

@@ -1,10 +1,13 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">{{ pageTitle }}</ion-title>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-buttons slot="start">
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
+        </ion-buttons>
+        <ion-title class="app-page-header__title">{{ pageTitle }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="handleRefreshTap">刷新</ion-button>
+          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleRefreshTap">刷新</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -674,6 +677,7 @@
 
 <script setup lang="ts">
 import {
+  IonBackButton,
   IonButton,
   IonButtons,
   IonContent,
@@ -714,6 +718,7 @@ import {
   type NotesStatisticsDTO,
   type NoteType,
 } from '@/api/notes'
+import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'

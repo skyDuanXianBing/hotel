@@ -70,8 +70,9 @@
           >
             AI
           </ion-button>
-          <div class="message-composer__input">
+          <div class="message-composer__input" @click="handleFocusComposer">
             <ion-textarea
+              ref="composerTextareaRef"
               v-model="composerValue"
               auto-grow
               :rows="1"
@@ -251,6 +252,11 @@ interface IonContentScrollTarget {
   scrollToBottom(duration?: number): Promise<void>
 }
 
+interface IonTextareaFocusTarget {
+  setFocus?: () => Promise<void>
+  getInputElement?: () => Promise<HTMLInputElement | HTMLTextAreaElement>
+}
+
 const route = useRoute()
 const router = useRouter()
 const notificationCenterStore = useNotificationCenterStore()
@@ -273,6 +279,7 @@ const aiPolishLoading = ref(false)
 const aiPolishInstruction = ref('')
 const aiPolishHistory = ref<AiPolishHistoryItem[]>([])
 const contentRef = ref<unknown>(null)
+const composerTextareaRef = ref<unknown>(null)
 
 let pollTimer = 0
 
@@ -370,6 +377,55 @@ function resolveContentScrollTarget() {
   }
 
   return null
+}
+
+function isIonTextareaFocusTarget(value: unknown): value is IonTextareaFocusTarget {
+  return Boolean(value) && (typeof (value as IonTextareaFocusTarget).setFocus === 'function' || typeof (value as IonTextareaFocusTarget).getInputElement === 'function')
+}
+
+function resolveComposerTextareaTarget() {
+  const textareaValue = composerTextareaRef.value as { $el?: unknown } | null
+
+  if (isIonTextareaFocusTarget(textareaValue)) {
+    return textareaValue
+  }
+
+  if (textareaValue?.$el && isIonTextareaFocusTarget(textareaValue.$el)) {
+    return textareaValue.$el
+  }
+
+  return null
+}
+
+async function focusComposerInput() {
+  if (sending.value || !activeThread.value || activeThread.value.closed) {
+    return
+  }
+
+  await nextTick()
+
+  const target = resolveComposerTextareaTarget()
+  if (!target) {
+    return
+  }
+
+  try {
+    if (target.setFocus) {
+      await target.setFocus()
+      return
+    }
+
+    if (target.getInputElement) {
+      const input = await target.getInputElement()
+      input.focus()
+    }
+  } catch {
+    // Ignore focus failures caused by page transition timing.
+  }
+}
+
+function handleFocusComposer() {
+  void focusComposerInput()
 }
 
 async function scrollToConversationBottom(duration = 0) {
@@ -1067,10 +1123,12 @@ ion-header::after {
   padding: 0 2px;
   border-radius: 20px;
   background: #f5f7fa;
+  overflow: hidden;
 }
 
 .message-composer__textarea {
   margin: 0;
+  --composer-textarea-max-height: 136px;
   --background: transparent;
   --padding-start: 12px;
   --padding-end: 12px;
@@ -1080,8 +1138,45 @@ ion-header::after {
   --placeholder-color: #a0a8b6;
 }
 
-.message-composer__textarea :deep(.native-textarea) {
-  max-height: 116px;
+.message-composer__textarea :deep(.textarea-wrapper),
+.message-composer__textarea :deep(.textarea-wrapper-inner),
+.message-composer__textarea :deep(.native-wrapper) {
+  max-height: var(--composer-textarea-max-height);
+}
+
+.message-composer__textarea :deep(.native-wrapper) {
+  overflow: hidden;
+}
+
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-ios),
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-md) {
+  max-height: var(--composer-textarea-max-height);
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 148, 164, 0.72) transparent;
+}
+
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-ios::-webkit-scrollbar),
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-md::-webkit-scrollbar) {
+  width: 6px;
+}
+
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-ios::-webkit-scrollbar-track),
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-md::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-ios::-webkit-scrollbar-thumb),
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-md::-webkit-scrollbar-thumb) {
+  border-radius: 999px;
+  background: rgba(139, 148, 164, 0.72);
+}
+
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-ios::-webkit-scrollbar-thumb:hover),
+.message-composer__textarea :deep(.native-textarea.sc-ion-textarea-md::-webkit-scrollbar-thumb:hover) {
+  background: rgba(103, 113, 132, 0.82);
 }
 
 .message-composer__send {
