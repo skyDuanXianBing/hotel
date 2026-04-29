@@ -11,7 +11,6 @@ export const ROUTE_PATHS = {
   publicRegistrationForm: '/public/registration/:orderNumber',
   publicRoomStatusShare: '/public/share/:token',
   cleanerRegister: '/cleaner/register',
-  cleanerLogin: '/cleaner/login',
   cleanerDashboard: '/cleaner/dashboard',
   cleanerTaskDetail: '/cleaner/task/:id',
   storeSelection: '/store/selection',
@@ -181,11 +180,11 @@ export const registerRouterGuards = (router: Router) => {
     }
 
     if (requiresCleanerAuth && !hasCleanerLoginToken) {
-      return ROUTE_PATHS.cleanerLogin
+      return ROUTE_PATHS.login
     }
 
     if (requiresCleanerStore && !hasCleanerCurrentStore) {
-      return ROUTE_PATHS.cleanerLogin
+      return ROUTE_PATHS.login
     }
 
     if (adminPublicOnly && hasAdminToken) {

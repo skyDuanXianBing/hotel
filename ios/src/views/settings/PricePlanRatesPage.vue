@@ -1,13 +1,13 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.settingsPricePlans" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.settingsPricePlans" />
         </ion-buttons>
-        <ion-title>房型价格</ion-title>
+        <ion-title class="app-page-header__title">房型价格</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="handleCreateRelation">新增关联</ion-button>
+          <ion-button class="app-page-header__text-btn" fill="clear" @click="handleCreateRelation">新增关联</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>

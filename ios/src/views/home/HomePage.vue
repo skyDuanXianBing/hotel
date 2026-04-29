@@ -1,10 +1,10 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">首页</ion-title>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-title class="app-page-header__title">首页</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="goToStoreSelection">切换门店</ion-button>
+          <ion-button class="app-page-header__text-btn" fill="clear" @click="goToStoreSelection">切换门店</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -610,24 +610,11 @@ ion-toolbar {
   letter-spacing: -0.04em;
 }
 
-ion-button::part(native) {
-  min-height: 34px;
-  padding: 0 13px;
-  border: 1px solid rgba(116, 163, 251, 0.08);
-  border-radius: var(--ios-pms-radius-pill);
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--ios-pms-primary-strong);
-  box-shadow: 0 8px 18px rgba(94, 122, 177, 0.08);
-  font-size: var(--ios-pms-font-body-md-size);
-  font-weight: var(--ios-pms-weight-bold);
-  letter-spacing: -0.01em;
-}
-
 .home-shell {
   position: relative;
   --home-section-gap: 8px;
   padding:
-    calc(var(--ion-safe-area-top, 0px) + 6px)
+    6px
     0
     calc(var(--ion-safe-area-bottom, 0px) + 24px);
 }

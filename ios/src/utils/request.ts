@@ -148,7 +148,7 @@ const handleUnauthorized = async () => {
 
   showErrorToast('登录已过期，请重新登录')
 
-  const redirectPath = useCleanerSession ? ROUTE_PATHS.cleanerLogin : ROUTE_PATHS.login
+  const redirectPath = ROUTE_PATHS.login
 
   if (router.currentRoute.value.path !== redirectPath) {
     await router.replace(redirectPath)

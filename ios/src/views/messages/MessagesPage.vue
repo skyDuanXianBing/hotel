@@ -2,6 +2,9 @@
   <ion-page>
     <ion-header translucent>
       <ion-toolbar class="orders-header__toolbar">
+        <ion-buttons slot="start">
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.home" />
+        </ion-buttons>
         <ion-title class="orders-header__title">消息</ion-title>
         <ion-buttons slot="end">
           <ion-button class="orders-header__icon-btn" fill="clear" @click="handleToggleSearch">
@@ -157,6 +160,7 @@
 
 <script setup lang="ts">
 import {
+  IonBackButton,
   IonButton,
   IonButtons,
   IonContent,
@@ -175,7 +179,7 @@ import { closeOutline, homeOutline, mailOutline, searchOutline, timeOutline } fr
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getMessageThreads } from '@/api/message'
-import { buildMessageDetailPath } from '@/router/guards'
+import { buildMessageDetailPath, ROUTE_PATHS } from '@/router/guards'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { MessageThreadDTO } from '@/types/message'
 import { isHandledRequestError } from '@/utils/request'

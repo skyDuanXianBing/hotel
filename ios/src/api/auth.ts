@@ -1,5 +1,6 @@
 import request from '@/utils/request'
 import type { ApiResponse } from '@/types/api'
+import { AUTH_LOGIN_FAILURE_STATUSES } from '@/constants/auth'
 import type {
   ChangePasswordRequest,
   LoginByCodeRequest,
@@ -17,6 +18,7 @@ export const loginByPassword = (data: LoginByPasswordRequest) => {
     url: '/auth/login/password',
     method: 'POST',
     data,
+    suppressErrorStatuses: [...AUTH_LOGIN_FAILURE_STATUSES],
   })
 }
 

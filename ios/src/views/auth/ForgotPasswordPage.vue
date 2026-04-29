@@ -1,11 +1,11 @@
 <template>
   <ion-page>
     <ion-header translucent class="forgot-password-header">
-      <ion-toolbar class="forgot-password-toolbar">
+      <ion-toolbar class="forgot-password-toolbar app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button class="forgot-password-back" :default-href="ROUTE_PATHS.login" text="" />
+          <ion-back-button class="forgot-password-back app-page-header__back-btn" :default-href="ROUTE_PATHS.login" text="" />
         </ion-buttons>
-        <ion-title class="mobile-toolbar-title forgot-password-toolbar__title">忘记密码</ion-title>
+        <ion-title class="forgot-password-toolbar__title app-page-header__title">忘记密码</ion-title>
       </ion-toolbar>
     </ion-header>
 

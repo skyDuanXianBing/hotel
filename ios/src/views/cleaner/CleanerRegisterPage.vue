@@ -1,11 +1,11 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.cleanerLogin" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.login" />
         </ion-buttons>
-        <ion-title class="mobile-toolbar-title">保洁员注册</ion-title>
+        <ion-title class="app-page-header__title">保洁员注册</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -13,7 +13,7 @@
       <section class="mobile-hero cleaner-auth-page__hero">
         <p class="mobile-note cleaner-auth-page__eyebrow">Cleaner Invitation</p>
         <h1 class="mobile-title">完成邀请注册</h1>
-        <p class="mobile-subtitle">先校验邀请链接，再设置登录密码，注册成功后即可进入保洁员登录页。</p>
+        <p class="mobile-subtitle">先校验邀请链接，再设置登录密码，注册成功后即可回到主登录页。</p>
       </section>
 
       <div class="mobile-stack">
@@ -127,12 +127,12 @@ function buildLoginLocation() {
 
   if (!normalizedEmail) {
     return {
-      path: ROUTE_PATHS.cleanerLogin,
+      path: ROUTE_PATHS.login,
     }
   }
 
   return {
-    path: ROUTE_PATHS.cleanerLogin,
+    path: ROUTE_PATHS.login,
     query: {
       email: normalizedEmail,
     },
@@ -184,7 +184,7 @@ function validateForm() {
 
 async function redirectToLoginWithError(message: string) {
   showErrorToast(message)
-  await router.replace(ROUTE_PATHS.cleanerLogin)
+  await router.replace(ROUTE_PATHS.login)
 }
 
 async function loadInvitation() {

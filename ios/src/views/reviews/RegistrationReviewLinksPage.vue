@@ -1,13 +1,17 @@
 <template>
   <ion-page class="registration-review-links-route">
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-button fill="clear" class="registration-review-links-page__back-button" @click="handleBack">
+          <ion-button
+            fill="clear"
+            class="registration-review-links-page__back-button app-page-header__text-btn"
+            @click="handleBack"
+          >
             返回
           </ion-button>
         </ion-buttons>
-        <ion-title class="mobile-toolbar-title">链接列表</ion-title>
+        <ion-title class="app-page-header__title">链接列表</ion-title>
       </ion-toolbar>
     </ion-header>
 

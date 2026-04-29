@@ -165,13 +165,16 @@ import { computed, reactive, ref, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { loginByPassword, sendVerificationCode } from '@/api/auth'
+import { cleanerLoginByPassword } from '@/api/cleanerAuth'
+import { AUTH_LOGIN_FAILURE_STATUSES, LOGIN_FAILURE_MESSAGE } from '@/constants/auth'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
-import type { LoginByPasswordRequest, LoginResponse } from '@/types/auth'
+import type { CleanerDTO, CleanerSessionUser, LoginByPasswordRequest, LoginResponse } from '@/types/auth'
+import { saveCleanerSession } from '@/utils/cleanerSession'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
-import { isHandledRequestError } from '@/utils/request'
+import { getRequestErrorStatus, isHandledRequestError } from '@/utils/request'
 
 const PASSWORD_MIN_LENGTH = 6
 const GRAPHIC_CAPTCHA_LENGTH = 4
@@ -403,6 +406,71 @@ const persistLoginSession = (payload: LoginResponse) => {
   storeStore.setCurrentStore(null)
 }
 
+const buildCleanerSessionUser = (cleaner: CleanerDTO): CleanerSessionUser => {
+  return {
+    id: cleaner.id,
+    email: cleaner.email,
+    nickname: cleaner.name,
+    gender: 'private',
+    createdAt: cleaner.createdAt,
+    updatedAt: cleaner.updatedAt,
+    isCleaner: true,
+  }
+}
+
+const isLoginFailureError = (error: unknown) => {
+  const status = getRequestErrorStatus(error)
+
+  if (status === null) {
+    return false
+  }
+
+  return AUTH_LOGIN_FAILURE_STATUSES.some((failureStatus) => failureStatus === status)
+}
+
+const loginAsAdmin = async (payload: LoginByPasswordRequest) => {
+  try {
+    const response = await loginByPassword(payload)
+
+    if (!response.success || !response.data) {
+      return false
+    }
+
+    persistLoginSession(response.data)
+    showSuccessToast('登录成功，请选择门店')
+    await router.replace(ROUTE_PATHS.storeSelection)
+    return true
+  } catch (error) {
+    if (isLoginFailureError(error)) {
+      return false
+    }
+
+    throw error
+  }
+}
+
+const loginAsCleaner = async (payload: LoginByPasswordRequest) => {
+  try {
+    const response = await cleanerLoginByPassword(payload)
+
+    if (!response.success || !response.data?.token || !response.data.cleaner) {
+      return false
+    }
+
+    const cleanerUser = buildCleanerSessionUser(response.data.cleaner)
+    saveCleanerSession(response.data.token, cleanerUser, response.data.cleaner.storeId)
+    showSuccessToast('登录成功，已进入保洁工作台')
+    await router.replace(ROUTE_PATHS.cleanerDashboard)
+    return true
+  } catch (error) {
+    if (isLoginFailureError(error)) {
+      return false
+    }
+
+    throw error
+  }
+}
+
 const resetModeSpecificFields = () => {
   form.password = ''
   form.verificationCode = ''
@@ -524,16 +592,17 @@ const handleLogin = async () => {
   submitting.value = true
 
   try {
-    const response = await loginByPassword(payload)
-
-    if (!response.success || !response.data) {
-      showErrorToast(response.message || '登录失败')
+    const adminLoggedIn = await loginAsAdmin(payload)
+    if (adminLoggedIn) {
       return
     }
 
-    persistLoginSession(response.data)
-    showSuccessToast('登录成功，请选择门店')
-    await router.replace(ROUTE_PATHS.storeSelection)
+    const cleanerLoggedIn = await loginAsCleaner(payload)
+    if (cleanerLoggedIn) {
+      return
+    }
+
+    showErrorToast(LOGIN_FAILURE_MESSAGE)
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showErrorToast(resolveErrorMessage(error, '登录失败'))

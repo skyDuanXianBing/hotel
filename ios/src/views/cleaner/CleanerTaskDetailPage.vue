@@ -1,11 +1,11 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.cleanerDashboard" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.cleanerDashboard" />
         </ion-buttons>
-        <ion-title>任务详情</ion-title>
+        <ion-title class="app-page-header__title">任务详情</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -284,7 +284,7 @@ onIonViewWillEnter(async () => {
   cleanerUser.value = readCleanerUser()
 
   if (!cleanerUser.value) {
-    await router.replace(ROUTE_PATHS.cleanerLogin)
+    await router.replace(ROUTE_PATHS.login)
     return
   }
 

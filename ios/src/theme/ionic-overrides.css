@@ -1,29 +1,79 @@
 ion-header {
   backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 ion-header::after {
   display: none;
 }
 
-ion-header ion-toolbar {
-  --background: rgba(255, 255, 255, 0.72);
+ion-page > ion-header:not(.rooms-header) > ion-toolbar,
+.app-page-header__toolbar,
+.orders-header__toolbar {
+  --background: rgba(255, 255, 255, 0.94);
   --border-color: transparent;
+  --border-width: 0;
   --padding-start: 10px;
   --padding-end: 10px;
   --min-height: 48px;
   color: var(--ios-pms-text-primary);
 }
 
-ion-header.header-collapse-condense ion-toolbar {
-  --background: rgba(255, 255, 255, 0.72);
+ion-page > ion-header:not(.rooms-header).header-collapse-condense > ion-toolbar {
+  --background: rgba(255, 255, 255, 0.94);
 }
 
-ion-title {
+ion-page > ion-header:not(.rooms-header) > ion-toolbar ion-title,
+.app-page-header__title,
+.orders-header__title {
   color: var(--ios-pms-text-primary);
-  font-size: var(--ios-pms-font-title-md-size);
+  font-size: var(--ios-pms-font-title-xl-size);
   font-weight: var(--ios-pms-weight-heavy);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
+}
+
+.app-page-header__back-btn {
+  --color: #141821;
+  --icon-font-size: 22px;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  min-width: 34px;
+  min-height: 34px;
+  margin: 0;
+}
+
+.app-page-header__text-btn {
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --color: #141821;
+  min-height: 34px;
+  margin: 0;
+  font-size: var(--ios-pms-font-body-md-size);
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: -0.01em;
+}
+
+.app-page-header__text-btn::part(native) {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-page-header__icon-btn,
+.orders-header__icon-btn {
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --color: #141821;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  font-size: 25px;
 }
 
 ion-tab-bar {
