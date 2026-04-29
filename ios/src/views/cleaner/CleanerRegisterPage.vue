@@ -3,11 +3,7 @@
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-<<<<<<< HEAD
-          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.cleanerLogin" />
-=======
-          <ion-back-button :default-href="ROUTE_PATHS.login" />
->>>>>>> master
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.login" />
         </ion-buttons>
         <ion-title class="app-page-header__title">保洁员注册</ion-title>
       </ion-toolbar>
