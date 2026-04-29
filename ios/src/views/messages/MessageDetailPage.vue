@@ -965,13 +965,16 @@ ion-header::after {
 .message-thread-stream {
   display: grid;
   gap: 14px;
-  padding: 4px 12px 28px;
+  --message-opposite-edge-inset: 18px;
+  padding: 4px 16px 28px;
 }
 
 .message-row {
   display: flex;
   align-items: flex-end;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
 }
 
 .message-row.is-staff {
@@ -1002,16 +1005,22 @@ ion-header::after {
 }
 
 .message-row__body {
-  display: grid;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  max-width: min(78%, 420px);
+  min-width: 0;
+  max-width: calc(100% - 46px - var(--message-opposite-edge-inset));
+  align-items: flex-start;
 }
 
 .message-row.is-staff .message-row__body {
-  justify-items: end;
+  align-items: flex-end;
 }
 
 .message-bubble {
+  width: fit-content;
+  max-width: 100%;
   padding: 12px 14px;
   border-radius: 18px;
   background: #ffffff;
@@ -1032,6 +1041,8 @@ ion-header::after {
 .message-bubble__text {
   margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   line-height: 1.56;
   font-size: 15px;
 }
