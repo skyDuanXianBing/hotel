@@ -14,6 +14,7 @@ import server.demo.entity.RegistrationForm;
 import server.demo.entity.RegistrationGuest;
 import server.demo.entity.Reservation;
 import server.demo.enums.RegistrationFormStatus;
+import server.demo.enums.ReservationStatus;
 import server.demo.repository.RegistrationFormRepository;
 import server.demo.repository.RegistrationGuestRepository;
 import server.demo.repository.ReservationRepository;
@@ -68,10 +69,14 @@ public class RegistrationAdminController {
     public ApiResponse<List<AdminRegistrationListItemDTO>> list(
             @RequestParam(name = "status", required = false) RegistrationFormStatus status,
             @RequestParam(name = "channelId", required = false) Long channelId,
+            @RequestParam(name = "reservationStatus", required = false) ReservationStatus reservationStatus,
             @RequestParam(name = "checkInDate", required = false) LocalDate checkInDate,
             @RequestParam(name = "checkOutDate", required = false) LocalDate checkOutDate
     ) {
-        return ApiResponse.success("ok", registrationAdminService.list(status, channelId, checkInDate, checkOutDate));
+        return ApiResponse.success(
+                "ok",
+                registrationAdminService.list(status, channelId, reservationStatus, checkInDate, checkOutDate)
+        );
     }
 
     @GetMapping("/link-inbox")

@@ -386,7 +386,7 @@ function hasStatus(tasks: CleaningTaskDTO[], status: CleanerTaskStatusKey) {
 
 async function loadCalendarData() {
   if (!cleanerUser.value?.id) {
-    await router.replace(ROUTE_PATHS.cleanerLogin)
+    await router.replace(ROUTE_PATHS.login)
     return
   }
 
@@ -483,7 +483,7 @@ async function handleOpenTask(taskId: number) {
 
 async function handleLogout() {
   clearCleanerSession()
-  await router.replace(ROUTE_PATHS.cleanerLogin)
+  await router.replace(ROUTE_PATHS.login)
 }
 
 async function handleRefresh(event: CustomEvent) {
@@ -495,7 +495,7 @@ onIonViewWillEnter(async () => {
   cleanerUser.value = readCleanerUser()
 
   if (!cleanerUser.value) {
-    await router.replace(ROUTE_PATHS.cleanerLogin)
+    await router.replace(ROUTE_PATHS.login)
     return
   }
 

@@ -127,6 +127,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     List<Reservation> findByStoreIdAndChannelOrderNumber(Long storeId, String channelOrderNumber);
 
+    List<Reservation> findByStoreIdAndOrderNumberContainingIgnoreCase(Long storeId, String orderNumberKeyword);
+
     @Query("""
            SELECT r
            FROM Reservation r
@@ -139,6 +141,20 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     List<Reservation> findByStoreIdAndExternalBookingKeyWithRoomType(
            @Param("storeId") Long storeId,
            @Param("externalBookingKey") String externalBookingKey
+    );
+
+    @Query("""
+           SELECT r
+           FROM Reservation r
+           LEFT JOIN FETCH r.room room
+           LEFT JOIN FETCH room.roomType
+           WHERE r.storeId = :storeId
+             AND LOWER(r.orderNumber) LIKE LOWER(CONCAT('%', :orderNumberKeyword, '%'))
+           ORDER BY r.createdAt DESC
+           """)
+    List<Reservation> findByStoreIdAndOrderNumberContainingWithRoomType(
+           @Param("storeId") Long storeId,
+           @Param("orderNumberKeyword") String orderNumberKeyword
     );
 
     List<Reservation> findByStoreIdAndExternalBookingKey(Long storeId, String externalBookingKey);

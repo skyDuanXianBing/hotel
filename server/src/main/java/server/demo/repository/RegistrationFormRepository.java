@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import server.demo.entity.RegistrationForm;
 import server.demo.enums.RegistrationFormStatus;
+import server.demo.enums.ReservationStatus;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,6 +29,7 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
             WHERE f.storeId = :storeId
               AND (:status IS NULL OR f.status = :status)
               AND (:channelId IS NULL OR c.id = :channelId)
+              AND (:reservationStatus IS NULL OR r.status = :reservationStatus)
               AND (:checkInDate IS NULL OR r.checkInDate = :checkInDate)
               AND (:checkOutDate IS NULL OR r.checkOutDate = :checkOutDate)
             ORDER BY f.updatedAt DESC
@@ -36,6 +38,7 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
             @Param("storeId") Long storeId,
             @Param("status") RegistrationFormStatus status,
             @Param("channelId") Long channelId,
+            @Param("reservationStatus") ReservationStatus reservationStatus,
             @Param("checkInDate") LocalDate checkInDate,
             @Param("checkOutDate") LocalDate checkOutDate
     );

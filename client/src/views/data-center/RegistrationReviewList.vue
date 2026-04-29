@@ -25,6 +25,19 @@
         >
           <el-option v-for="c in channels" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>
+        <el-select
+          v-model="reservationStatus"
+          clearable
+          placeholder="订单状态"
+          style="width: 180px"
+        >
+          <el-option
+            v-for="option in reservationStatusOptions"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
+          />
+        </el-select>
         <el-date-picker
           v-model="checkInDate"
           type="date"
@@ -97,6 +110,7 @@ type Row = {
   guestName: string
   checkInDate: string
   checkOutDate: string
+  reservationStatus?: string | null
   status: string
   submittedAt?: string
   updatedAt?: string
@@ -108,11 +122,21 @@ const loading = ref(false)
 const status = ref<string | null>(null)
 const channels = ref<ChannelDTO[]>([])
 const channelId = ref<number | null>(null)
+const reservationStatus = ref<string | null>(null)
 const checkInDate = ref<string | null>(null)
 const checkOutDate = ref<string | null>(null)
 const linkDrawerVisible = ref(false)
 const linkLoading = ref(false)
 const linkRows = ref<RegistrationLinkInboxItemDTO[]>([])
+
+const reservationStatusOptions = [
+  { label: '待确认', value: 'REQUESTED' },
+  { label: '已预订', value: 'CONFIRMED' },
+  { label: '已入住', value: 'CHECKED_IN' },
+  { label: '已退房', value: 'CHECKED_OUT' },
+  { label: '已取消', value: 'CANCELLED' },
+  { label: '未到店', value: 'NO_SHOW' },
+]
 
 function toDayNumber(dateValue?: string | null) {
   if (!dateValue) {
@@ -177,6 +201,7 @@ async function loadChannels() {
 
 function resetFilters() {
   channelId.value = null
+  reservationStatus.value = null
   checkInDate.value = null
   checkOutDate.value = null
   load()
@@ -188,6 +213,7 @@ async function load() {
     const params: Record<string, string | number> = {}
     if (status.value) params.status = status.value
     if (channelId.value) params.channelId = channelId.value
+    if (reservationStatus.value) params.reservationStatus = reservationStatus.value
     if (checkInDate.value) params.checkInDate = checkInDate.value
     if (checkOutDate.value) params.checkOutDate = checkOutDate.value
 
