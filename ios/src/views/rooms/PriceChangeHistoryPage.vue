@@ -1,11 +1,11 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-back-button :default-href="ROUTE_PATHS.roomsPricing" />
+          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.roomsPricing" />
         </ion-buttons>
-        <ion-title>改价记录</ion-title>
+        <ion-title class="app-page-header__title">改价记录</ion-title>
       </ion-toolbar>
     </ion-header>
 

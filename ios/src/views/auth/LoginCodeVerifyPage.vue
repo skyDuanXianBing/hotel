@@ -12,7 +12,7 @@
             <p class="mobile-note auth-card__subtitle">
               请输入发送至
               <strong>{{ email }}</strong>
-              的9位验证码，有效期10分钟，如未收到，请尝试重新获取验证码
+              的6位验证码，有效期10分钟，如未收到，请尝试重新获取验证码
             </p>
           </div>
 
@@ -68,7 +68,7 @@ import type { LoginResponse } from '@/types/auth'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
-const CODE_LENGTH = 9
+const CODE_LENGTH = 6
 const RESEND_SECONDS = 60
 
 const router = useRouter()

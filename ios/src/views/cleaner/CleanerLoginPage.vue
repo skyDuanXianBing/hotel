@@ -2,50 +2,33 @@
   <ion-page>
     <ion-header translucent>
       <ion-toolbar class="app-page-header__toolbar">
-        <ion-buttons slot="start">
-          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.login" />
-        </ion-buttons>
-        <ion-title class="app-page-header__title">保洁员注册</ion-title>
+        <ion-title class="app-page-header__title">保洁员登录</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content fullscreen class="mobile-page cleaner-auth-page">
       <section class="mobile-hero cleaner-auth-page__hero">
-        <p class="mobile-note cleaner-auth-page__eyebrow">Cleaner Invitation</p>
-        <h1 class="mobile-title">完成邀请注册</h1>
-        <p class="mobile-subtitle">先校验邀请链接，再设置登录密码，注册成功后即可回到主登录页。</p>
+        <p class="mobile-note cleaner-auth-page__eyebrow">Cleaner Workspace</p>
+        <h1 class="mobile-title">保洁员工作台</h1>
+        <p class="mobile-subtitle">使用邀请注册后的邮箱和密码登录，进入自己的任务工作台。</p>
       </section>
 
       <div class="mobile-stack">
         <section class="mobile-card cleaner-auth-page__card">
           <div class="cleaner-auth-page__header">
-            <h2 class="mobile-section-title">创建账户</h2>
-            <p class="mobile-note">姓名和邮箱以邀请信息为准，密码长度至少 6 位。</p>
+            <h2 class="mobile-section-title">欢迎回来</h2>
+            <p class="mobile-note">登录后可查看月历任务、按日期查看详情并处理任务状态。</p>
           </div>
-
-          <p v-if="validating" class="mobile-note">正在校验邀请链接...</p>
 
           <ion-list lines="none" class="cleaner-auth-page__list">
             <ion-item class="cleaner-auth-page__item">
               <ion-input
-                v-model="name"
-                :disabled="validating || submitting || invitationLocked"
-                label="姓名"
-                label-placement="stacked"
-                placeholder="请输入姓名"
-                type="text"
-              />
-            </ion-item>
-
-            <ion-item class="cleaner-auth-page__item">
-              <ion-input
                 v-model="email"
-                :disabled="validating || submitting || invitationLocked"
                 autocomplete="email"
                 inputmode="email"
                 label="邮箱"
                 label-placement="stacked"
-                placeholder="请输入邮箱"
+                placeholder="请输入登录邮箱"
                 type="email"
               />
             </ion-item>
@@ -53,24 +36,25 @@
             <ion-item class="cleaner-auth-page__item">
               <ion-input
                 v-model="password"
-                :disabled="validating || submitting"
-                autocomplete="new-password"
+                autocomplete="current-password"
                 label="密码"
                 label-placement="stacked"
-                placeholder="请设置密码"
+                placeholder="请输入密码"
                 type="password"
               />
             </ion-item>
           </ion-list>
 
-          <ion-button expand="block" class="cleaner-auth-page__submit" :disabled="submitting || validating" @click="handleRegister">
+          <ion-button expand="block" class="cleaner-auth-page__submit" :disabled="submitting" @click="handleLogin">
             <ion-spinner v-if="submitting" name="crescent" />
-            <span v-else>提交注册</span>
+            <span v-else>登录并进入工作台</span>
           </ion-button>
 
           <div class="cleaner-auth-page__footer-link">
-            <span>已经注册完成？</span>
-            <button class="cleaner-auth-page__text-button" type="button" @click="handleGoToLogin">去登录</button>
+            <span>收到邀请链接？</span>
+            <button class="cleaner-auth-page__text-button" type="button" @click="handleGoToRegister">
+              去注册
+            </button>
           </div>
         </section>
       </div>
@@ -80,9 +64,7 @@
 
 <script setup lang="ts">
 import {
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
   IonHeader,
   IonInput,
@@ -93,12 +75,14 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/vue'
-import { computed, onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { registerCleaner, validateInvitationToken } from '@/api/cleaning'
+import { cleanerLoginByPassword } from '@/api/cleanerAuth'
 import { ROUTE_PATHS } from '@/router/guards'
+import type { CleanerSessionUser } from '@/types/auth'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+import { saveCleanerSession } from '@/utils/cleanerSession'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PASSWORD_MIN_LENGTH = 6
@@ -106,53 +90,26 @@ const PASSWORD_MIN_LENGTH = 6
 const route = useRoute()
 const router = useRouter()
 
-const name = ref('')
 const email = ref('')
 const password = ref('')
-const validating = ref(false)
 const submitting = ref(false)
-const invitationLocked = ref(false)
 
-const invitationToken = computed(() => {
-  const tokenQuery = route.query.token
-  if (typeof tokenQuery !== 'string') {
-    return ''
+function applyEmailPrefill(value: unknown) {
+  if (typeof value !== 'string') {
+    return
   }
 
-  return tokenQuery.trim()
-})
-
-function buildLoginLocation() {
-  const normalizedEmail = email.value.trim()
-
-  if (!normalizedEmail) {
-    return {
-      path: ROUTE_PATHS.login,
-    }
+  const nextEmail = value.trim()
+  if (!nextEmail) {
+    return
   }
 
-  return {
-    path: ROUTE_PATHS.login,
-    query: {
-      email: normalizedEmail,
-    },
-  }
+  email.value = nextEmail
 }
 
 function validateForm() {
-  const normalizedName = name.value.trim()
   const normalizedEmail = email.value.trim()
   const normalizedPassword = password.value.trim()
-
-  if (!invitationToken.value) {
-    showWarningToast('邀请链接无效')
-    return null
-  }
-
-  if (!normalizedName) {
-    showWarningToast('请输入姓名')
-    return null
-  }
 
   if (!normalizedEmail) {
     showWarningToast('请输入邮箱')
@@ -175,52 +132,31 @@ function validateForm() {
   }
 
   return {
-    token: invitationToken.value,
-    name: normalizedName,
     email: normalizedEmail,
     password: normalizedPassword,
   }
 }
 
-async function redirectToLoginWithError(message: string) {
-  showErrorToast(message)
-  await router.replace(ROUTE_PATHS.login)
-}
-
-async function loadInvitation() {
-  if (!invitationToken.value) {
-    await redirectToLoginWithError('邀请链接无效')
-    return
-  }
-
-  validating.value = true
-
-  try {
-    const response = await validateInvitationToken(invitationToken.value)
-    if (!response.success || !response.data) {
-      await redirectToLoginWithError(response.message || '邀请链接已失效')
-      return
-    }
-
-    name.value = response.data.name
-    email.value = response.data.email
-    invitationLocked.value = true
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '邀请校验失败'
-
-    if (!isHandledRequestError(error)) {
-      await redirectToLoginWithError(message)
-      return
-    }
-
-    await redirectToLoginWithError(message)
-  } finally {
-    validating.value = false
+function buildCleanerSessionUser(cleaner: {
+  id: number
+  email: string
+  name: string
+  createdAt: string
+  updatedAt: string
+}): CleanerSessionUser {
+  return {
+    id: cleaner.id,
+    email: cleaner.email,
+    nickname: cleaner.name,
+    gender: 'private',
+    createdAt: cleaner.createdAt,
+    updatedAt: cleaner.updatedAt,
+    isCleaner: true,
   }
 }
 
-async function handleRegister() {
-  if (submitting.value || validating.value) {
+async function handleLogin() {
+  if (submitting.value) {
     return
   }
 
@@ -232,30 +168,39 @@ async function handleRegister() {
   submitting.value = true
 
   try {
-    const response = await registerCleaner(payload)
-    if (!response.success) {
-      showErrorToast(response.message || '注册失败')
+    const response = await cleanerLoginByPassword(payload)
+
+    if (!response.success || !response.data?.token || !response.data.cleaner) {
+      showErrorToast(response.message || '登录失败')
       return
     }
 
-    showSuccessToast('注册成功，请登录')
-    await router.replace(buildLoginLocation())
+    const cleanerUser = buildCleanerSessionUser(response.data.cleaner)
+    saveCleanerSession(response.data.token, cleanerUser, response.data.cleaner.storeId)
+    showSuccessToast('登录成功')
+    await router.replace(ROUTE_PATHS.cleanerDashboard)
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showErrorToast(error instanceof Error ? error.message : '注册失败')
+      showErrorToast(error instanceof Error ? error.message : '登录失败')
     }
   } finally {
     submitting.value = false
   }
 }
 
-async function handleGoToLogin() {
-  await router.replace(buildLoginLocation())
+async function handleGoToRegister() {
+  await router.push(ROUTE_PATHS.cleanerRegister)
 }
 
-onMounted(async () => {
-  await loadInvitation()
-})
+watch(
+  () => route.query.email,
+  (nextEmail) => {
+    applyEmailPrefill(nextEmail)
+  },
+  {
+    immediate: true,
+  },
+)
 </script>
 
 <style scoped>

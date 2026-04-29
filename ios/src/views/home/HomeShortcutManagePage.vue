@@ -1,15 +1,15 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
+      <ion-toolbar class="app-page-header__toolbar">
         <ion-buttons slot="start">
-          <ion-button fill="clear" class="shortcut-manage-toolbar__back" @click="handleBack">
+          <ion-button fill="clear" class="shortcut-manage-toolbar__back app-page-header__icon-btn" @click="handleBack">
             <ion-icon slot="icon-only" :icon="chevronBackOutline" />
           </ion-button>
         </ion-buttons>
-        <ion-title class="mobile-toolbar-title">管理</ion-title>
+        <ion-title class="app-page-header__title">管理</ion-title>
         <ion-buttons slot="end">
-          <ion-button :disabled="!hasChanges" @click="handleSave">保存</ion-button>
+          <ion-button class="app-page-header__text-btn" fill="clear" :disabled="!hasChanges" @click="handleSave">保存</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>

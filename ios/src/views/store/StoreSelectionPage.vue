@@ -1,10 +1,10 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar>
-        <ion-title class="mobile-toolbar-title">选择门店</ion-title>
+      <ion-toolbar class="app-page-header__toolbar">
+        <ion-title class="app-page-header__title">选择门店</ion-title>
         <ion-buttons slot="end">
-          <ion-button :disabled="isLoggingOut" @click="handleLogout">
+          <ion-button class="app-page-header__text-btn" fill="clear" :disabled="isLoggingOut" @click="handleLogout">
             <ion-icon slot="start" :icon="logOutOutline" />
             <span>退出</span>
           </ion-button>
