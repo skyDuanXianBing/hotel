@@ -58,7 +58,12 @@ const notificationCenterStore = useNotificationCenterStore()
 
 <style scoped>
 .mobile-tabbar {
-  padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+  --tabbar-visual-height: 50px;
+  --tabbar-button-height: 44px;
+  box-sizing: border-box;
+  height: calc(var(--tabbar-visual-height) + var(--app-safe-bottom));
+  min-height: calc(var(--tabbar-visual-height) + var(--app-safe-bottom));
+  padding: 3px 6px calc(3px + var(--app-safe-bottom));
   border-top: 1px solid rgba(164, 181, 216, 0.14);
   background: rgba(255, 255, 255, 0.88);
   box-shadow: var(--ios-pms-shadow-tabbar);
@@ -69,8 +74,9 @@ const notificationCenterStore = useNotificationCenterStore()
   --color: #8c98b1;
   --color-selected: #3474f6;
   min-width: 0;
-  gap: 5px;
-  padding: 8px 2px 10px;
+  min-height: var(--tabbar-button-height);
+  gap: 3px;
+  padding: 3px 2px 2px;
   border-radius: 16px;
   position: relative;
   background: transparent;
