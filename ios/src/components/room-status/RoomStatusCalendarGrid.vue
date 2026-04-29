@@ -11,7 +11,7 @@
             <button
               class="room-calendar__corner"
               type="button"
-              aria-label="閫夋嫨鏃ユ湡"
+              aria-label="选择日期"
               @click="openDatePicker"
             >
               <input

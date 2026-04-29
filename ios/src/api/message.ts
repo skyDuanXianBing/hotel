@@ -4,7 +4,6 @@ import {
   getMockThreadMessages,
   MESSAGE_API_MOCK_ENABLED,
   pollMockThreadMessages,
-  sendMockAiChatMessage,
   sendMockThreadMessage,
 } from '@/mocks/message'
 import type { ApiResponse } from '@/types/api'
@@ -66,10 +65,6 @@ export const sendThreadMessage = (threadId: number, data: MessageSendRequest) =>
 }
 
 export const sendAiChatMessage = (data: ChatMessageRequest) => {
-  if (MESSAGE_API_MOCK_ENABLED) {
-    return sendMockAiChatMessage(data)
-  }
-
   return request<ApiResponse<ChatMessageResponse>>({
     url: '/chat/message',
     method: 'POST',
