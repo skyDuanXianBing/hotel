@@ -7,6 +7,7 @@ import server.demo.dto.registration.*;
 import server.demo.entity.*;
 import server.demo.enums.RegistrationFormStatus;
 import server.demo.enums.RegistrationReviewAction;
+import server.demo.enums.ReservationStatus;
 import server.demo.repository.*;
 import server.demo.util.StoreContextUtils;
 
@@ -40,6 +41,7 @@ public class RegistrationAdminService {
     public List<AdminRegistrationListItemDTO> list(
             RegistrationFormStatus status,
             Long channelId,
+            ReservationStatus reservationStatus,
             LocalDate checkInDate,
             LocalDate checkOutDate
     ) {
@@ -48,6 +50,7 @@ public class RegistrationAdminService {
                 storeId,
                 status,
                 channelId,
+                reservationStatus,
                 checkInDate,
                 checkOutDate
         );
@@ -65,6 +68,7 @@ public class RegistrationAdminService {
                 dto.setGuestName(reservation.getGuestName());
                 dto.setCheckInDate(reservation.getCheckInDate());
                 dto.setCheckOutDate(reservation.getCheckOutDate());
+                dto.setReservationStatus(reservation.getStatus());
                 dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
                 dto.setChannelName(reservation.getChannel() != null ? reservation.getChannel().getName() : null);
             }

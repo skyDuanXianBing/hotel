@@ -30,7 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +40,7 @@ class SuMessagingServiceTest {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
         ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver = new ReservationBookingKeyResolver(reservationRepository);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
         SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
@@ -50,6 +50,7 @@ class SuMessagingServiceTest {
                 threadRepository,
                 messageRepository,
                 reservationRepository,
+                reservationBookingKeyResolver,
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -65,16 +66,17 @@ class SuMessagingServiceTest {
         thread.setLastActivity(LocalDateTime.now());
 
         Reservation reservation = new Reservation();
+        reservation.setId(11L);
         reservation.setCheckInDate(LocalDate.of(2026, 4, 18));
         reservation.setCheckOutDate(LocalDate.of(2026, 4, 22));
         RoomType roomType = new RoomType();
-        roomType.setName("高级双床房");
+        roomType.setName("Deluxe Twin");
         Room room = new Room();
         room.setRoomType(roomType);
         reservation.setRoom(room);
 
         when(threadRepository.findByStoreIdOrderByLastActivityDesc(10L)).thenReturn(List.of(thread));
-        when(reservationRepository.findByStoreIdAndChannelIdAndExternalBookingKeyWithRoomType(10L, 244L, "HMKMSRREFW"))
+        when(reservationRepository.findByStoreIdAndExternalBookingKeyWithRoomType(10L, "HMKMSRREFW"))
                 .thenReturn(List.of(reservation));
         when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(1L, SuMessagingSenderType.GUEST))
                 .thenReturn(0L);
@@ -84,16 +86,16 @@ class SuMessagingServiceTest {
         assertEquals(1, result.size());
         assertEquals(LocalDate.of(2026, 4, 18), result.get(0).getCheckInDate());
         assertEquals(LocalDate.of(2026, 4, 22), result.get(0).getCheckOutDate());
-        assertEquals("高级双床房", result.get(0).getRoomTypeName());
-        verify(reservationRepository, never()).findByStoreIdAndChannelOrderNumberWithRoomType(10L, "HMKMSRREFW");
-        verify(reservationRepository, never()).findByStoreIdAndOrderNumberWithRoomType(10L, "HMKMSRREFW");
+        assertEquals("Deluxe Twin", result.get(0).getRoomTypeName());
+        verify(reservationRepository).findByStoreIdAndExternalBookingKeyWithRoomType(10L, "HMKMSRREFW");
     }
 
     @Test
-    void handleInboundMessage_shouldUpsertThreadSaveMessageAndBroadcast() throws Exception {
+    void listThreads_shouldResolveReservationFromOrderNumberLikeValue() {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
         ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver = new ReservationBookingKeyResolver(reservationRepository);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
         SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
@@ -103,6 +105,61 @@ class SuMessagingServiceTest {
                 threadRepository,
                 messageRepository,
                 reservationRepository,
+                reservationBookingKeyResolver,
+                suApiClient,
+                suAccessTokenService,
+                objectMapper,
+                realtimeGateway
+        );
+
+        SuMessageThread thread = new SuMessageThread();
+        thread.setId(2L);
+        thread.setStoreId(26L);
+        thread.setChannelId(244);
+        thread.setBookingId("HM855QW52K");
+        thread.setThreadId("2395583851");
+        thread.setThreadKey("2395583851");
+        thread.setLastActivity(LocalDateTime.now());
+
+        Reservation reservation = new Reservation();
+        reservation.setId(144L);
+        reservation.setOrderNumber("SU26-HM855QW52K_W39FVCQYSN-1775039201599");
+        reservation.setCheckInDate(LocalDate.of(2026, 4, 29));
+        reservation.setCheckOutDate(LocalDate.of(2026, 5, 3));
+
+        when(threadRepository.findByStoreIdOrderByLastActivityDesc(26L)).thenReturn(List.of(thread));
+        when(reservationRepository.findByStoreIdAndExternalBookingKeyWithRoomType(26L, "HM855QW52K")).thenReturn(List.of());
+        when(reservationRepository.findByStoreIdAndChannelOrderNumberWithRoomType(26L, "HM855QW52K")).thenReturn(List.of());
+        when(reservationRepository.findByStoreIdAndOrderNumberWithRoomType(26L, "HM855QW52K")).thenReturn(List.of());
+        when(reservationRepository.findByStoreIdAndOrderNumberContainingWithRoomType(26L, "HM855QW52K"))
+                .thenReturn(List.of(reservation));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(2L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+
+        List<SuMessagingThreadDTO> result = service.listThreads(26L);
+
+        assertEquals(1, result.size());
+        assertEquals(LocalDate.of(2026, 4, 29), result.get(0).getCheckInDate());
+        assertEquals(LocalDate.of(2026, 5, 3), result.get(0).getCheckOutDate());
+        verify(reservationRepository).findByStoreIdAndOrderNumberContainingWithRoomType(26L, "HM855QW52K");
+    }
+
+    @Test
+    void handleInboundMessage_shouldUpsertThreadSaveMessageAndBroadcast() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver = new ReservationBookingKeyResolver(reservationRepository);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        SuMessagingService service = new SuMessagingService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                reservationBookingKeyResolver,
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -133,9 +190,9 @@ class SuMessagingServiceTest {
         when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M1")).thenReturn(Optional.empty());
         when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 244, "T1")).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(inv -> {
-            SuMessageThread thread = inv.getArgument(0);
-            thread.setId(99L);
-            return thread;
+            SuMessageThread savedThread = inv.getArgument(0);
+            savedThread.setId(99L);
+            return savedThread;
         });
         when(messageRepository.save(any())).thenAnswer(inv -> {
             SuMessage message = inv.getArgument(0);
@@ -178,6 +235,7 @@ class SuMessagingServiceTest {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
         ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver = new ReservationBookingKeyResolver(reservationRepository);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
         SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
@@ -187,6 +245,7 @@ class SuMessagingServiceTest {
                 threadRepository,
                 messageRepository,
                 reservationRepository,
+                reservationBookingKeyResolver,
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -209,9 +268,9 @@ class SuMessagingServiceTest {
         when(messageRepository.findByStoreIdAndExternalMessageId(10L, "M2")).thenReturn(Optional.empty());
         when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(10L, 19, "6022279490")).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(inv -> {
-            SuMessageThread thread = inv.getArgument(0);
-            thread.setId(199L);
-            return thread;
+            SuMessageThread savedThread = inv.getArgument(0);
+            savedThread.setId(199L);
+            return savedThread;
         });
         when(messageRepository.save(any())).thenAnswer(inv -> {
             SuMessage message = inv.getArgument(0);
@@ -234,6 +293,7 @@ class SuMessagingServiceTest {
         SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
         SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
         ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver = new ReservationBookingKeyResolver(reservationRepository);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
         SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
@@ -243,6 +303,7 @@ class SuMessagingServiceTest {
                 threadRepository,
                 messageRepository,
                 reservationRepository,
+                reservationBookingKeyResolver,
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -279,7 +340,7 @@ class SuMessagingServiceTest {
 
         SuMessagingSendRequest request = new SuMessagingSendRequest();
         request.setContent("Hi");
-        request.setSenderName("�ͷ�A");
+        request.setSenderName("Front Desk");
 
         service.sendMessage(10L, 5L, request);
 
@@ -299,7 +360,7 @@ class SuMessagingServiceTest {
         verify(messageRepository).save(msgCaptor.capture());
         SuMessage saved = msgCaptor.getValue();
         assertEquals(SuMessagingSenderType.STAFF, saved.getSenderType());
-        assertEquals("�ͷ�A", saved.getSenderName());
+        assertEquals("Front Desk", saved.getSenderName());
         assertEquals(Boolean.TRUE, saved.getIsRead());
 
         verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
