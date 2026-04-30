@@ -3,7 +3,7 @@
     <ion-header translucent>
       <ion-toolbar class="message-detail-header">
         <ion-buttons slot="start">
-          <ion-back-button class="message-detail-header__back" :default-href="ROUTE_PATHS.messages" />
+          <ion-back-button class="message-detail-header__back" :default-href="defaultBackHref" />
         </ion-buttons>
         <ion-title class="message-detail-header__title">
           <span>{{ pageTitle }}</span>
@@ -44,7 +44,21 @@
           </div>
           <div class="message-row__body">
             <div class="message-bubble">
-              <p class="message-bubble__text">{{ message.content }}</p>
+              <p class="message-bubble__text">
+                <template v-for="(segment, index) in parseMessageContent(message.content)" :key="`${message.id}-${index}`">
+                  <a
+                    v-if="segment.type === 'link'"
+                    class="message-bubble__link"
+                    :href="segment.href"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    @click.prevent="handleOpenMessageLink(segment.href)"
+                  >
+                    {{ segment.text }}
+                  </a>
+                  <span v-else>{{ segment.text }}</span>
+                </template>
+              </p>
             </div>
             <div class="message-row__meta">
               <span>{{ formatDateTime(message.timestamp) }}</span>
@@ -257,6 +271,22 @@ interface IonTextareaFocusTarget {
   getInputElement?: () => Promise<HTMLInputElement | HTMLTextAreaElement>
 }
 
+interface MessageTextSegment {
+  type: 'text'
+  text: string
+}
+
+interface MessageLinkSegment {
+  type: 'link'
+  text: string
+  href: string
+}
+
+type MessageContentSegment = MessageTextSegment | MessageLinkSegment
+
+const URL_PATTERN = /((?:https?:\/\/|www\.)[^\s<]+)/gi
+const TRAILING_URL_PUNCTUATION_PATTERN = /[),.!?\]}]+$/
+
 const route = useRoute()
 const router = useRouter()
 const notificationCenterStore = useNotificationCenterStore()
@@ -282,11 +312,28 @@ const contentRef = ref<unknown>(null)
 const composerTextareaRef = ref<unknown>(null)
 
 let pollTimer = 0
+let pageRequestToken = 0
 
 const threadId = computed(() => Number(route.params.threadId || 0))
+const defaultBackHref = computed(() => {
+  const routeBackHref = route.query.defaultHref
+  if (typeof routeBackHref === 'string' && routeBackHref) {
+    return routeBackHref
+  }
+
+  return ROUTE_PATHS.messages
+})
 
 function hasValidThreadId(value: number) {
   return Number.isInteger(value) && value > 0
+}
+
+function invalidatePageRequests() {
+  pageRequestToken += 1
+}
+
+function isActivePageRequest(requestToken: number, expectedThreadId: number) {
+  return requestToken === pageRequestToken && threadId.value === expectedThreadId
 }
 
 const activeThread = computed(() => {
@@ -486,6 +533,97 @@ function formatDateTime(value: string) {
   return `${month}-${day} ${hours}:${minutes}`
 }
 
+function normalizeExternalUrl(rawUrl: string) {
+  const trimmedUrl = rawUrl.trim()
+  if (!trimmedUrl) {
+    return ''
+  }
+
+  if (/^https?:\/\//i.test(trimmedUrl)) {
+    return trimmedUrl
+  }
+
+  return `https://${trimmedUrl}`
+}
+
+function splitTrailingUrlPunctuation(rawUrl: string) {
+  const trailingMatch = rawUrl.match(TRAILING_URL_PUNCTUATION_PATTERN)
+  if (!trailingMatch) {
+    return {
+      normalizedUrl: rawUrl,
+      trailingText: '',
+    }
+  }
+
+  return {
+    normalizedUrl: rawUrl.slice(0, -trailingMatch[0].length),
+    trailingText: trailingMatch[0],
+  }
+}
+
+function parseMessageContent(content: string) {
+  const segments: MessageContentSegment[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  URL_PATTERN.lastIndex = 0
+
+  while ((match = URL_PATTERN.exec(content)) !== null) {
+    const matchedText = match[0]
+    const matchStart = match.index
+    const matchEnd = matchStart + matchedText.length
+
+    if (matchStart > lastIndex) {
+      segments.push({
+        type: 'text',
+        text: content.slice(lastIndex, matchStart),
+      })
+    }
+
+    const { normalizedUrl, trailingText } = splitTrailingUrlPunctuation(matchedText)
+    if (normalizedUrl) {
+      segments.push({
+        type: 'link',
+        text: normalizedUrl,
+        href: normalizeExternalUrl(normalizedUrl),
+      })
+    }
+
+    if (trailingText) {
+      segments.push({
+        type: 'text',
+        text: trailingText,
+      })
+    }
+
+    lastIndex = matchEnd
+  }
+
+  if (lastIndex < content.length) {
+    segments.push({
+      type: 'text',
+      text: content.slice(lastIndex),
+    })
+  }
+
+  if (segments.length === 0) {
+    segments.push({
+      type: 'text',
+      text: content,
+    })
+  }
+
+  return segments
+}
+
+function handleOpenMessageLink(url: string) {
+  if (!url) {
+    return
+  }
+
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
 function buildConversationContext() {
   const historyLines: string[] = []
   const recentMessages = messages.value.slice(-20)
@@ -522,36 +660,67 @@ function getLatestTimestamp() {
   return messages.value[messages.value.length - 1].timestamp
 }
 
-async function loadThreads() {
+function findThreadById(threadItems: MessageThreadDTO[], targetThreadId: number) {
+  for (const item of threadItems) {
+    if (item.id === targetThreadId) {
+      return item
+    }
+  }
+
+  return null
+}
+
+async function loadThreads(requestToken?: number, expectedThreadId?: number) {
   const response = await getMessageThreads()
   if (!response.success || !response.data) {
     throw new Error(response.message || '加载会话失败')
   }
 
+  if (
+    typeof requestToken === 'number' &&
+    typeof expectedThreadId === 'number' &&
+    !isActivePageRequest(requestToken, expectedThreadId)
+  ) {
+    return null
+  }
+
   threads.value = response.data
-  notificationCenterStore.syncUnreadMessageCount(threads.value)
+  notificationCenterStore.syncMessageThreads(threads.value)
+  return response.data
 }
 
-async function loadMessages() {
-  const response = await getThreadMessages(threadId.value)
+async function loadMessages(expectedThreadId: number, requestToken?: number) {
+  const response = await getThreadMessages(expectedThreadId)
   if (!response.success || !response.data) {
     throw new Error(response.message || '加载消息失败')
   }
 
+  if (
+    typeof requestToken === 'number' &&
+    !isActivePageRequest(requestToken, expectedThreadId)
+  ) {
+    return false
+  }
+
   messages.value = sortMessages(response.data)
+  return true
 }
 
-async function resolveReservationId() {
+async function resolveReservationId(
+  targetThread: MessageThreadDTO | null,
+  expectedThreadId: number,
+  requestToken?: number,
+) {
   reservationId.value = null
   if (MESSAGE_API_MOCK_ENABLED) {
     return
   }
 
-  if (!activeThread.value) {
+  if (!targetThread) {
     return
   }
 
-  const keyword = (activeThread.value.bookingId || activeThread.value.threadId || '').trim()
+  const keyword = (targetThread.bookingId || targetThread.threadId || '').trim()
   if (!keyword) {
     return
   }
@@ -563,6 +732,13 @@ async function resolveReservationId() {
   })
 
   if (!response.success || !response.data) {
+    return
+  }
+
+  if (
+    typeof requestToken === 'number' &&
+    !isActivePageRequest(requestToken, expectedThreadId)
+  ) {
     return
   }
 
@@ -592,17 +768,15 @@ function stopPolling() {
   }
 }
 
-function startPolling() {
+function startPolling(expectedThreadId: number, requestToken: number) {
   stopPolling()
 
-  const currentThreadId = threadId.value
-  if (!hasValidThreadId(currentThreadId)) {
+  if (!hasValidThreadId(expectedThreadId)) {
     return
   }
 
   pollTimer = window.setInterval(async () => {
-    const activeThreadId = threadId.value
-    if (!hasValidThreadId(activeThreadId) || activeThreadId !== currentThreadId) {
+    if (!isActivePageRequest(requestToken, expectedThreadId)) {
       stopPolling()
       return
     }
@@ -613,8 +787,12 @@ function startPolling() {
     }
 
     try {
-      const response = await pollThreadMessages(activeThreadId, latestTimestamp)
+      const response = await pollThreadMessages(expectedThreadId, latestTimestamp)
       if (!response.success || !response.data || response.data.length === 0) {
+        return
+      }
+
+      if (!isActivePageRequest(requestToken, expectedThreadId)) {
         return
       }
 
@@ -634,7 +812,11 @@ function startPolling() {
       }
 
       messages.value = sortMessages(existing)
-      await loadThreads()
+      const nextThreads = await loadThreads(requestToken, expectedThreadId)
+      if (!nextThreads || !isActivePageRequest(requestToken, expectedThreadId)) {
+        return
+      }
+
       await scrollToConversationBottom(180)
       if (!activeThread.value) {
         stopPolling()
@@ -646,28 +828,50 @@ function startPolling() {
 }
 
 async function loadPage() {
-  if (!hasValidThreadId(threadId.value)) {
+  const currentThreadId = threadId.value
+  const requestToken = ++pageRequestToken
+
+  if (!hasValidThreadId(currentThreadId)) {
     stopPolling()
     loadNotice.value = '缺少会话编号'
     return
   }
 
+  stopPolling()
   loading.value = true
   loadNotice.value = ''
 
   try {
-    await loadThreads()
-    await loadMessages()
-    await resolveReservationId()
-    startPolling()
+    const nextThreads = await loadThreads(requestToken, currentThreadId)
+    if (!nextThreads || !isActivePageRequest(requestToken, currentThreadId)) {
+      return
+    }
+
+    const messagesLoaded = await loadMessages(currentThreadId, requestToken)
+    if (!messagesLoaded || !isActivePageRequest(requestToken, currentThreadId)) {
+      return
+    }
+
+    const targetThread = findThreadById(nextThreads, currentThreadId)
+    await resolveReservationId(targetThread, currentThreadId, requestToken)
+    if (!isActivePageRequest(requestToken, currentThreadId)) {
+      return
+    }
+
+    startPolling(currentThreadId, requestToken)
     await scrollToConversationBottom()
   } catch (error) {
+    if (!isActivePageRequest(requestToken, currentThreadId)) {
+      return
+    }
     loadNotice.value = resolveWarningMessage(error, '会话加载失败')
     if (!isHandledRequestError(error)) {
       showWarningToast(loadNotice.value)
     }
   } finally {
-    loading.value = false
+    if (requestToken === pageRequestToken) {
+      loading.value = false
+    }
   }
 }
 
@@ -710,7 +914,7 @@ async function handleOpenReservation() {
   await router.push({
     name: 'OrderReservationDetail',
     params: { reservationId: reservationId.value },
-    query: { defaultHref: ROUTE_PATHS.messages },
+    query: { defaultHref: route.fullPath },
   })
 }
 
@@ -874,10 +1078,12 @@ onIonViewWillEnter(async () => {
 })
 
 onIonViewWillLeave(() => {
+  invalidatePageRequests()
   stopPolling()
 })
 
 onUnmounted(() => {
+  invalidatePageRequests()
   stopPolling()
 })
 </script>
@@ -1045,6 +1251,15 @@ ion-header::after {
   word-break: break-word;
   line-height: 1.56;
   font-size: 15px;
+}
+
+.message-bubble__link {
+  color: #1f6feb;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .message-row__meta {

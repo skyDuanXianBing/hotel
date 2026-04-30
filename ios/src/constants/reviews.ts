@@ -16,6 +16,9 @@ export interface ReviewGuest {
   id: string
   sortOrder: number
   name: string
+  firstName: string
+  lastName: string
+  birthday: string
   idType: string
   idNumber: string
   phone: string

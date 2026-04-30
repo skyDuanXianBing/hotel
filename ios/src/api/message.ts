@@ -36,6 +36,7 @@ export const getThreadMessages = (threadId: number) => {
   return request<ApiResponse<MessageDTO[]>>({
     url: `/su-messaging/threads/${threadId}/messages`,
     method: 'GET',
+    suppressErrorStatuses: [400, 403, 404],
   })
 }
 

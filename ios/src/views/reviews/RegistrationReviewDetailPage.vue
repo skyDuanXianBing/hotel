@@ -19,8 +19,21 @@
 
       <template v-else-if="record">
         <section class="mobile-hero registration-review-detail-page__hero">
-          <p class="mobile-note registration-review-detail-page__eyebrow">登记审查详情</p>
-          <h1 class="mobile-title">{{ record.guestName }}</h1>
+          <div class="registration-review-detail-page__hero-header">
+            <div class="registration-review-detail-page__hero-copy">
+              <p class="mobile-note registration-review-detail-page__eyebrow">登记审查详情</p>
+              <h1 class="mobile-title">{{ record.guestName }}</h1>
+            </div>
+            <ion-button
+              class="registration-review-detail-page__preview-trigger"
+              fill="outline"
+              size="small"
+              :disabled="!hasGuestPreview"
+              @click="handleOpenGuestPreview"
+            >
+              预览
+            </ion-button>
+          </div>
           <p class="mobile-subtitle">{{ record.roomLabel }} · {{ record.channelName }} · #{{ record.formId }}</p>
           <div class="mobile-chip-row">
             <span class="mobile-chip">{{ getReviewStatusLabel(record.status) }}</span>
@@ -85,7 +98,7 @@
                       <p><strong>手机号：</strong>{{ guest.phone }}</p>
                       <p><strong>国籍：</strong>{{ guest.nationality }}</p>
                       <p><strong>居住地：</strong>{{ guest.residenceType }}</p>
-                      <p><strong>Passport：</strong>{{ guest.passportNumber }}</p>
+                      <p><strong>护照号：</strong>{{ guest.passportNumber }}</p>
                       <p><strong>前泊地：</strong>{{ guest.priorStay }}</p>
                       <p><strong>行先：</strong>{{ guest.nextDestination }}</p>
                     </div>
@@ -174,6 +187,68 @@
           <ion-button expand="block" @click="handleBackToList">返回审查列表</ion-button>
         </section>
       </div>
+
+      <ion-modal class="registration-review-detail-page__preview-modal" :is-open="guestPreviewOpen" @didDismiss="handleCloseGuestPreview">
+        <ion-content class="registration-review-detail-page__preview-content">
+          <div class="registration-review-detail-page__preview-shell">
+            <div class="registration-review-detail-page__preview-topbar">
+              <h2>入住人预览</h2>
+              <button
+                class="registration-review-detail-page__preview-close"
+                type="button"
+                aria-label="关闭预览"
+                @click="handleCloseGuestPreview"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div class="mobile-list">
+              <article
+                v-for="guest in record?.guests || []"
+                :key="`preview-${guest.id}`"
+                class="registration-review-detail-page__preview-card"
+              >
+                <h3>入住人 {{ guest.sortOrder }}</h3>
+                <div class="registration-review-detail-page__preview-fields">
+                  <div class="registration-review-detail-page__preview-field">
+                    <span>名</span>
+                    <strong>{{ resolveGuestPreviewValue(guest.firstName) }}</strong>
+                  </div>
+                  <div class="registration-review-detail-page__preview-field">
+                    <span>姓</span>
+                    <strong>{{ resolveGuestPreviewValue(guest.lastName) }}</strong>
+                  </div>
+                  <div class="registration-review-detail-page__preview-field">
+                    <span>居住地</span>
+                    <strong>{{ resolveGuestPreviewValue(guest.residenceType) }}</strong>
+                  </div>
+                  <div class="registration-review-detail-page__preview-field">
+                    <span>出生日期</span>
+                    <strong>{{ resolveGuestPreviewValue(guest.birthday) }}</strong>
+                  </div>
+                  <div class="registration-review-detail-page__preview-field">
+                    <span>手机号</span>
+                    <strong>{{ resolveGuestPreviewValue(guest.phone) }}</strong>
+                  </div>
+                  <div class="registration-review-detail-page__preview-field">
+                    <span>护照号</span>
+                    <strong>{{ resolveGuestPreviewValue(guest.passportNumber) }}</strong>
+                  </div>
+                  <div class="registration-review-detail-page__preview-field">
+                    <span>国籍</span>
+                    <strong>{{ resolveGuestPreviewValue(guest.nationality) }}</strong>
+                  </div>
+                </div>
+              </article>
+
+              <section v-if="!hasGuestPreview" class="mobile-card">
+                <p class="mobile-note">暂无可预览的入住人信息。</p>
+              </section>
+            </div>
+          </div>
+        </ion-content>
+      </ion-modal>
     </ion-content>
   </ion-page>
 </template>
@@ -185,6 +260,7 @@ import {
   IonButtons,
   IonContent,
   IonHeader,
+  IonModal,
   IonPage,
   IonSpinner,
   IonTextarea,
@@ -218,6 +294,7 @@ const isLoading = ref(false)
 const isSubmitting = ref(false)
 const isPdfDownloading = ref(false)
 const activeAttachmentId = ref('')
+const guestPreviewOpen = ref(false)
 const loadError = ref('')
 
 const formId = computed(() => {
@@ -238,6 +315,8 @@ const canReview = computed(() => {
 
   return record.value.status === 'pending' || record.value.status === 'draft'
 })
+
+const hasGuestPreview = computed(() => Boolean(record.value?.guests.length))
 
 watch(
   formId,
@@ -292,6 +371,28 @@ function resolveGuestLabel(guestId: string) {
   }
 
   return `${targetGuest.sortOrder}. ${targetGuest.name}`
+}
+
+function resolveGuestPreviewValue(value?: string) {
+  const nextValue = String(value || '').trim()
+
+  if (!nextValue || nextValue === '—' || nextValue === '未提供') {
+    return '-'
+  }
+
+  return nextValue
+}
+
+function handleOpenGuestPreview() {
+  if (!hasGuestPreview.value) {
+    return
+  }
+
+  guestPreviewOpen.value = true
+}
+
+function handleCloseGuestPreview() {
+  guestPreviewOpen.value = false
 }
 
 async function handleDownloadPdf() {
@@ -451,6 +552,36 @@ async function handleOpenLinks() {
   font-weight: 700;
 }
 
+.registration-review-detail-page__hero {
+  display: grid;
+  gap: 14px;
+}
+
+.registration-review-detail-page__hero-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.registration-review-detail-page__hero-copy {
+  min-width: 0;
+}
+
+.registration-review-detail-page__hero-copy .mobile-title {
+  margin-top: 4px;
+}
+
+.registration-review-detail-page__preview-trigger {
+  flex-shrink: 0;
+  --background: rgba(255, 255, 255, 0.76);
+  --border-color: rgba(58, 120, 255, 0.24);
+  --border-radius: 999px;
+  --color: var(--ion-color-primary);
+  font-weight: 600;
+  backdrop-filter: blur(18px);
+}
+
 .registration-review-detail-page__summary-grid,
 .registration-review-detail-page__actions-grid {
   display: grid;
@@ -525,7 +656,105 @@ async function handleOpenLinks() {
   gap: 10px;
 }
 
+:global(ion-modal.registration-review-detail-page__preview-modal) {
+  --border-radius: 28px 28px 0 0;
+  --backdrop-opacity: 0.24;
+  --box-shadow: 0 -28px 56px rgba(15, 23, 42, 0.2);
+}
+
+.registration-review-detail-page__preview-content {
+  --background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+}
+
+.registration-review-detail-page__preview-shell {
+  min-height: 100%;
+  padding: 18px 16px calc(28px + var(--app-safe-bottom));
+  display: grid;
+  gap: 14px;
+}
+
+.registration-review-detail-page__preview-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.registration-review-detail-page__preview-topbar h2 {
+  margin: 0;
+  color: var(--ios-pms-text-primary);
+  font-size: 24px;
+  font-weight: var(--ios-pms-weight-bold);
+  letter-spacing: -0.03em;
+}
+
+.registration-review-detail-page__preview-close {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #7b8798;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.registration-review-detail-page__preview-card {
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 18px 34px rgba(148, 163, 184, 0.12);
+}
+
+.registration-review-detail-page__preview-card h3 {
+  margin: 0 0 14px;
+  color: var(--ios-pms-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.registration-review-detail-page__preview-fields {
+  display: grid;
+}
+
+.registration-review-detail-page__preview-field {
+  display: grid;
+  gap: 6px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.registration-review-detail-page__preview-field:first-child {
+  padding-top: 0;
+}
+
+.registration-review-detail-page__preview-field:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.registration-review-detail-page__preview-field span {
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.registration-review-detail-page__preview-field strong {
+  color: var(--ios-pms-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
 @media (max-width: 360px) {
+  .registration-review-detail-page__hero-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .registration-review-detail-page__summary-grid,
   .registration-review-detail-page__actions-grid,
   .registration-review-detail-page__detail-grid {
