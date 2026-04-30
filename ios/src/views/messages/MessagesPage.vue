@@ -629,7 +629,7 @@ async function loadThreads() {
 
     ensureActiveChannelStillExists(response.data)
     threads.value = response.data
-    notificationCenterStore.syncUnreadMessageCount(threads.value)
+    notificationCenterStore.syncMessageThreads(threads.value)
   } catch (error) {
     loadNotice.value = resolveWarningMessage(error, '加载会话失败')
     if (!isHandledRequestError(error)) {

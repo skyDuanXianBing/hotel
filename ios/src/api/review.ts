@@ -30,6 +30,7 @@ interface RegistrationGuestDTO {
   sortOrder?: number | null
   lastName?: string | null
   firstName?: string | null
+  birthday?: string | null
   nationality?: string | null
   residenceType?: string | null
   phone?: string | null
@@ -254,7 +255,10 @@ const mapGuests = (guests?: RegistrationGuestDTO[] | null): ReviewGuest[] => {
       id: String(guest.id ?? `${index + 1}`),
       sortOrder,
       name: buildGuestName(guest),
-      idType: 'Passport',
+      firstName: guest.firstName || '',
+      lastName: guest.lastName || '',
+      birthday: guest.birthday ? formatDate(guest.birthday) : '',
+      idType: '护照',
       idNumber,
       phone: guest.phone || '未提供',
       relation: buildGuestRelation(guest, index),

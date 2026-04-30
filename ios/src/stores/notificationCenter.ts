@@ -47,6 +47,7 @@ function buildThreadDetail(thread: MessageThreadDTO) {
 export const useNotificationCenterStore = defineStore('notificationCenter', () => {
   const items = ref<InAppNotificationItem[]>([])
   const unreadMessageCount = ref(0)
+  const messageThreads = ref<MessageThreadDTO[]>([])
   const activeUserId = ref<number | null>(null)
   const started = ref(false)
 
@@ -104,6 +105,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     shownKeys.clear()
     items.value = []
     unreadMessageCount.value = 0
+    messageThreads.value = []
   }
 
   const syncUnreadMessageCount = (threads: MessageThreadDTO[]) => {
@@ -117,6 +119,11 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     }
 
     unreadMessageCount.value = nextCount
+  }
+
+  const syncMessageThreads = (threads: MessageThreadDTO[]) => {
+    messageThreads.value = [...threads]
+    syncUnreadMessageCount(messageThreads.value)
   }
 
   const stop = () => {
@@ -176,7 +183,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
         return
       }
 
-      syncUnreadMessageCount(nextResponse.data)
+      syncMessageThreads(nextResponse.data)
       return
 /*
 
@@ -251,12 +258,14 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   return {
     items,
     unreadMessageCount,
+    messageThreads,
     started,
     enqueue,
     dismiss,
     start,
     stop,
     applySettingsSnapshot,
+    syncMessageThreads,
     syncUnreadMessageCount,
   }
 })

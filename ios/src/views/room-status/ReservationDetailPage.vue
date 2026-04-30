@@ -19,10 +19,26 @@
           <p class="mobile-note reservation-detail-hero__eyebrow">订单详情</p>
           <span class="mobile-chip reservation-detail-hero__status">{{ statusText }}</span>
         </div>
-        <h1 class="mobile-title">{{ reservation.guestName }}</h1>
-        <p class="mobile-subtitle reservation-detail-hero__orderline">
-          {{ reservation.orderNumber }} · {{ reservation.channelName || '自来客' }}
-        </p>
+
+        <div class="reservation-detail-hero__headline-row">
+          <div class="reservation-detail-hero__headline-copy">
+            <h1 class="mobile-title">{{ reservation.guestName }}</h1>
+            <p class="mobile-subtitle reservation-detail-hero__orderline">
+              {{ reservation.orderNumber }} · {{ reservation.channelName || '自来客' }}
+            </p>
+          </div>
+
+          <div v-if="linkedMessageThread" class="reservation-detail-hero__message-entry">
+            <ion-button
+              fill="outline"
+              size="small"
+              class="reservation-detail-hero__message-button"
+              @click="openLinkedMessageThread"
+            >
+              查看消息
+            </ion-button>
+          </div>
+        </div>
 
         <div class="reservation-detail-hero__meta-grid">
           <div class="reservation-detail-hero__meta-item">
@@ -51,7 +67,7 @@
 
       <div class="mobile-stack" v-if="reservation">
         <section class="mobile-card reservation-detail-panel">
-          <div v-if="actionLoading || loading" class="detail-actions__busy">
+          <div v-if="actionLoading" class="detail-actions__busy">
             <ion-spinner name="crescent" />
           </div>
 
@@ -238,6 +254,13 @@
                   <span class="detail-definition-list__label">渠道名称</span>
                   <strong class="detail-definition-list__value">{{ channelInfo?.channelName || reservation.channelName || '自来客' }}</strong>
                 </div>
+                <div v-if="linkedMessageThread" class="detail-definition-list__row">
+                  <span class="detail-definition-list__label">关联会话</span>
+                  <div class="detail-linked-thread">
+                    <strong class="detail-definition-list__value">{{ linkedMessageThreadLabel }}</strong>
+                    <p class="mobile-note">{{ linkedMessageThreadMeta }}</p>
+                  </div>
+                </div>
                 <div class="detail-definition-list__row">
                   <span class="detail-definition-list__label">渠道订单号</span>
                   <strong class="detail-definition-list__value">{{ channelInfo?.channelOrderNumber || reservation.channelOrderNumber || '无' }}</strong>
@@ -330,6 +353,8 @@ import {
   type ReservationChannelInfoDTO,
   type ReservationDTO,
 } from '@/api/reservation'
+import { getMessageThreads } from '@/api/message'
+import type { MessageThreadDTO } from '@/types/message'
 import {
   deleteConsumption,
   getConsumptionsByReservationId,
@@ -343,14 +368,16 @@ import {
   type PaymentDTO,
 } from '@/api/payment'
 import { getUnreadNotificationCountByType } from '@/api/notification'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useRoomStatusStore } from '@/stores/roomStatus'
-import { ROUTE_PATHS } from '@/router/guards'
+import { ROUTE_PATHS, buildMessageDetailPath } from '@/router/guards'
 import { useUserStore } from '@/stores/user'
 import { isHandledRequestError } from '@/utils/request'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 
 const route = useRoute()
 const router = useRouter()
+const notificationCenterStore = useNotificationCenterStore()
 const roomStatusStore = useRoomStatusStore()
 const userStore = useUserStore()
 
@@ -369,8 +396,11 @@ const totalPayment = ref(0)
 const orderBoxItem = ref<OrderBoxItem | null>(null)
 const orderReminderCount = ref(0)
 const orderReminderNotice = ref('')
+const linkedMessageThread = ref<MessageThreadDTO | null>(null)
 const showBookingModal = ref(false)
 const showCancelModal = ref(false)
+
+let detailLoadToken = 0
 
 const reservationId = computed(() => Number(route.params.reservationId || 0))
 const VALID_ORDER_TABS: OrderTabValue[] = [
@@ -427,6 +457,34 @@ const isOrderContext = computed(() => {
   return defaultBackHref.value.includes(ROUTE_PATHS.orders)
 })
 const orderBoxMovedInAtText = computed(() => formatDateTime(orderBoxItem.value?.movedInAt))
+const linkedMessageThreadLabel = computed(() => {
+  if (!linkedMessageThread.value) {
+    return ''
+  }
+
+  return (
+    linkedMessageThread.value.guestName ||
+    linkedMessageThread.value.listingName ||
+    linkedMessageThread.value.channelName ||
+    `会话 #${linkedMessageThread.value.id}`
+  )
+})
+const linkedMessageThreadMeta = computed(() => {
+  if (!linkedMessageThread.value) {
+    return ''
+  }
+
+  const parts = [
+    linkedMessageThread.value.channelName,
+    linkedMessageThread.value.closed ? '已关闭' : '进行中',
+  ]
+
+  if (linkedMessageThread.value.unreadCount > 0) {
+    parts.push(`未读 ${linkedMessageThread.value.unreadCount} 条`)
+  }
+
+  return parts.filter(Boolean).join(' · ')
+})
 
 const totalAmountText = computed(() => formatAmount(reservation.value?.totalAmount))
 const totalConsumptionText = computed(() => formatAmount(totalConsumption.value))
@@ -498,6 +556,97 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   return fallbackMessage
 }
 
+function normalizeMessageMatchValue(value?: string | null) {
+  const normalizedValue = String(value || '')
+    .trim()
+    .toLowerCase()
+
+  return normalizedValue || null
+}
+
+function buildReservationMessageKeys(reservationItem: ReservationDTO) {
+  const keys = new Set<string>()
+  const rawValues = [
+    reservationItem.channelOrderNumber,
+    reservationItem.suReservationId,
+    reservationItem.reservationNotifId,
+    reservationItem.orderNumber,
+  ]
+
+  for (const rawValue of rawValues) {
+    const normalizedValue = normalizeMessageMatchValue(rawValue)
+    if (normalizedValue) {
+      keys.add(normalizedValue)
+    }
+  }
+
+  return Array.from(keys)
+}
+
+function normalizeMessageChannelName(value?: string | null) {
+  const normalizedValue = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s._-]+/g, '')
+
+  return normalizedValue || null
+}
+
+function resolveLinkedMessageThread(
+  threads: MessageThreadDTO[],
+  reservationItem: ReservationDTO,
+) {
+  const reservationKeys = buildReservationMessageKeys(reservationItem)
+  if (reservationKeys.length === 0) {
+    return null
+  }
+
+  const reservationChannelName = normalizeMessageChannelName(reservationItem.channelName)
+  let bookingIdMatch: MessageThreadDTO | null = null
+  let threadIdMatch: MessageThreadDTO | null = null
+  let threadIdChannelMatch: MessageThreadDTO | null = null
+
+  for (const thread of threads) {
+    const bookingId = normalizeMessageMatchValue(thread.bookingId)
+    const externalThreadId = normalizeMessageMatchValue(thread.threadId)
+    const channelNameMatches =
+      Boolean(reservationChannelName) &&
+      normalizeMessageChannelName(thread.channelName) === reservationChannelName
+    const hasBookingIdMatch = Boolean(bookingId && reservationKeys.includes(bookingId))
+    const hasThreadIdMatch = Boolean(externalThreadId && reservationKeys.includes(externalThreadId))
+
+    if (!hasBookingIdMatch && !hasThreadIdMatch) {
+      continue
+    }
+
+    if (hasBookingIdMatch && channelNameMatches) {
+      return thread
+    }
+
+    if (hasThreadIdMatch && channelNameMatches && !threadIdChannelMatch) {
+      threadIdChannelMatch = thread
+    }
+
+    if (hasBookingIdMatch && !bookingIdMatch) {
+      bookingIdMatch = thread
+    }
+
+    if (hasThreadIdMatch && !threadIdMatch) {
+      threadIdMatch = thread
+    }
+  }
+
+  if (bookingIdMatch) {
+    return bookingIdMatch
+  }
+
+  if (threadIdChannelMatch) {
+    return threadIdChannelMatch
+  }
+
+  return threadIdMatch
+}
+
 async function ensureUserId() {
   if (userStore.currentUser?.id) {
     return userStore.currentUser.id
@@ -532,6 +681,63 @@ async function openOrderNotifications() {
   await router.push(ROUTE_PATHS.orderNotifications)
 }
 
+async function openLinkedMessageThread() {
+  if (!linkedMessageThread.value) {
+    return
+  }
+
+  await router.push({
+    path: buildMessageDetailPath(linkedMessageThread.value.id),
+    query: {
+      defaultHref: route.fullPath,
+    },
+  })
+}
+
+function isCurrentDetailRequest(requestToken: number, currentReservationId: number) {
+  return requestToken === detailLoadToken && reservationId.value === currentReservationId
+}
+
+function syncLinkedMessageThreadFromThreads(
+  threads: MessageThreadDTO[],
+  reservationItem: ReservationDTO,
+  requestToken: number,
+) {
+  if (!isCurrentDetailRequest(requestToken, reservationItem.id)) {
+    return
+  }
+
+  linkedMessageThread.value = resolveLinkedMessageThread(threads, reservationItem)
+}
+
+async function refreshLinkedMessageThread(
+  reservationItem: ReservationDTO,
+  requestToken: number,
+  prefetchedThreads?: Promise<MessageThreadDTO[] | null>,
+) {
+  syncLinkedMessageThreadFromThreads(notificationCenterStore.messageThreads, reservationItem, requestToken)
+
+  const nextThreads =
+    (await
+      (prefetchedThreads ||
+        getMessageThreads()
+          .then((response) => {
+            if (!response.success || !response.data) {
+              return null
+            }
+
+            return response.data
+          })
+          .catch(() => null))) || null
+
+  if (!nextThreads) {
+    return
+  }
+
+  notificationCenterStore.syncMessageThreads(nextThreads)
+  syncLinkedMessageThreadFromThreads(nextThreads, reservationItem, requestToken)
+}
+
 async function confirmAction(header: string, message: string, confirmText: string, destructive = false) {
   const alert = await alertController.create({
     header,
@@ -558,32 +764,60 @@ async function confirmAction(header: string, message: string, confirmText: strin
 
 async function loadDetail() {
   if (!reservationId.value) {
+    detailLoadToken += 1
     orderBoxItem.value = null
     orderReminderCount.value = 0
     orderReminderNotice.value = ''
+    linkedMessageThread.value = null
     return
+  }
+
+  const currentReservationId = reservationId.value
+  const requestToken = ++detailLoadToken
+  const prefetchedThreads = getMessageThreads()
+    .then((response) => {
+      if (!response.success || !response.data) {
+        return null
+      }
+
+      return response.data
+    })
+    .catch(() => null)
+
+  if (reservation.value?.id !== currentReservationId) {
+    linkedMessageThread.value = null
   }
 
   loading.value = true
   try {
-    const reservationResponse = await getReservationById(reservationId.value)
+    const reservationResponse = await getReservationById(currentReservationId)
+    if (!isCurrentDetailRequest(requestToken, currentReservationId)) {
+      return
+    }
     if (!reservationResponse.success || !reservationResponse.data) {
       throw new Error(reservationResponse.message || '订单详情加载失败')
     }
-    reservation.value = reservationResponse.data
+    const currentReservation = reservationResponse.data
+    reservation.value = currentReservation
+    syncLinkedMessageThreadFromThreads(notificationCenterStore.messageThreads, currentReservation, requestToken)
+    void refreshLinkedMessageThread(currentReservation, requestToken, prefetchedThreads)
 
     const [results] = await Promise.all([
       Promise.allSettled([
-        getReservationChannelInfo(reservationId.value),
-        getReservationLogs(reservationId.value),
-        getConsumptionsByReservationId(reservationId.value),
-        getPaymentsByReservationId(reservationId.value),
-        getTotalConsumption(reservationId.value),
-        getTotalPayment(reservationId.value),
+        getReservationChannelInfo(currentReservationId),
+        getReservationLogs(currentReservationId),
+        getConsumptionsByReservationId(currentReservationId),
+        getPaymentsByReservationId(currentReservationId),
+        getTotalConsumption(currentReservationId),
+        getTotalPayment(currentReservationId),
         getOrderBoxList(),
       ]),
       loadOrderReminderCount(),
     ])
+
+    if (!isCurrentDetailRequest(requestToken, currentReservationId)) {
+      return
+    }
 
     const [
       channelResult,
@@ -615,12 +849,14 @@ async function loadDetail() {
     }
     if (orderBoxResult.status === 'fulfilled' && orderBoxResult.value.success) {
       orderBoxItem.value =
-        orderBoxResult.value.data.find((item) => item.reservation.id === reservationId.value) || null
+        orderBoxResult.value.data.find((item) => item.reservation.id === currentReservationId) || null
     } else {
       orderBoxItem.value = null
     }
   } finally {
-    loading.value = false
+    if (requestToken === detailLoadToken) {
+      loading.value = false
+    }
   }
 }
 
@@ -1036,8 +1272,38 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
+.reservation-detail-hero__headline-row {
+  display: block;
+}
+
+.reservation-detail-hero__headline-copy {
+  min-width: 0;
+}
+
 .reservation-detail-hero__orderline {
   margin-top: var(--ios-pms-space-2);
+}
+
+.reservation-detail-hero__message-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--ios-pms-space-3);
+}
+
+.reservation-detail-hero__message-button {
+  margin: 0;
+  --border-radius: var(--ios-pms-radius-xl);
+  --border-color: rgba(137, 174, 255, 0.38);
+  --background: rgba(255, 255, 255, 0.7);
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --padding-top: 4px;
+  --padding-bottom: 4px;
+  min-height: 32px;
+  color: var(--ios-pms-primary);
+  font-size: 12px;
+  font-weight: var(--ios-pms-weight-bold);
+  backdrop-filter: blur(12px);
 }
 
 .reservation-detail-hero__meta-grid {
@@ -1411,6 +1677,17 @@ onMounted(async () => {
   gap: var(--ios-pms-space-3);
 }
 
+.detail-linked-thread {
+  min-width: 0;
+}
+
+.detail-linked-thread .mobile-note {
+  margin: var(--ios-pms-space-1) 0 0;
+  color: var(--ios-pms-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .detail-definition-list__value {
   word-break: break-word;
 }
@@ -1430,13 +1707,19 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
+  .reservation-detail-hero__headline-row,
   .reservation-detail-hero__topline,
   .detail-summary-card__hero,
   .detail-list__item,
   .detail-reminder-card__header,
   .log-item__head {
+    grid-template-columns: 1fr;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .reservation-detail-hero__message-entry {
+    justify-content: flex-start;
   }
 
   .detail-list__actions,
