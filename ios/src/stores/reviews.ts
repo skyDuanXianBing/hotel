@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRegistrationLinkInbox, getRegistrationReviewList, type RegistrationReviewListParams } from '@/api/review'
-import type { ReviewLinkEntry, ReviewRecord } from '@/constants/reviews'
+import { sortReviewRecordsByCheckInDate, type ReviewLinkEntry, type ReviewRecord } from '@/constants/reviews'
 import { showUnhandledRequestWarning } from '@/utils/requestError'
 
 export const useReviewStore = defineStore('reviews', () => {
@@ -36,7 +36,7 @@ export const useReviewStore = defineStore('reviews', () => {
 
     try {
       const nextRecords = await getRegistrationReviewList(params)
-      records.value = nextRecords
+      records.value = sortReviewRecordsByCheckInDate(nextRecords)
       hasLoaded.value = true
       return true
     } catch (error) {

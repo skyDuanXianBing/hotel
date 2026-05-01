@@ -56,6 +56,13 @@
               去注册
             </button>
           </div>
+
+          <div class="cleaner-auth-page__footer-link cleaner-auth-page__footer-link--secondary">
+            <span>不是保洁人员？</span>
+            <button class="cleaner-auth-page__text-button" type="button" @click="handleGoToAdminLogin">
+              返回登录
+            </button>
+          </div>
         </section>
       </div>
     </ion-content>
@@ -192,6 +199,20 @@ async function handleGoToRegister() {
   await router.push(ROUTE_PATHS.cleanerRegister)
 }
 
+async function handleGoToAdminLogin() {
+  const normalizedEmail = email.value.trim()
+
+  if (!normalizedEmail) {
+    await router.replace(ROUTE_PATHS.login)
+    return
+  }
+
+  await router.replace({
+    path: ROUTE_PATHS.login,
+    query: { email: normalizedEmail },
+  })
+}
+
 watch(
   () => route.query.email,
   (nextEmail) => {
@@ -259,6 +280,10 @@ watch(
   gap: 6px;
   color: var(--app-muted);
   font-size: 14px;
+}
+
+.cleaner-auth-page__footer-link--secondary {
+  margin-top: 6px;
 }
 
 .cleaner-auth-page__text-button {

@@ -84,6 +84,15 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: ROUTE_PATHS.cleanerLogin,
+    name: 'CleanerLogin',
+    component: () => import('@/views/cleaner/CleanerLoginPage.vue'),
+    meta: {
+      title: '保洁员登录',
+      cleanerPublicOnly: true,
+    },
+  },
+  {
     path: ROUTE_PATHS.cleanerDashboard,
     name: 'CleanerDashboard',
     component: () => import('@/views/cleaner/CleanerDashboardPage.vue'),

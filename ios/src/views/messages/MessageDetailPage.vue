@@ -1094,7 +1094,7 @@ onUnmounted(() => {
   --padding-top: 8px;
   --padding-start: 0;
   --padding-end: 0;
-  --padding-bottom: calc(118px + var(--app-safe-bottom));
+  --padding-bottom: 90px;
   --background: linear-gradient(180deg, #f7f8fa 0%, #f1f3f6 100%);
 }
 
@@ -1305,7 +1305,7 @@ ion-header::after {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 10px 12px calc(12px + var(--app-safe-bottom));
+  padding: 10px 12px 12px;
   background: linear-gradient(180deg, rgba(241, 243, 246, 0) 0%, rgba(241, 243, 246, 0.94) 28%, #f1f3f6 100%);
 }
 

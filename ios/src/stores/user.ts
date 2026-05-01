@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
 import type { UserDTO } from '@/types/auth'
 import { getStoredUser, writeStoredJson, USER_KEY } from '@/utils/storage'
+import { clearAutoLoginCredentials } from '@/utils/autoLogin'
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref<UserDTO | null>(null)
@@ -58,6 +59,7 @@ export const useUserStore = defineStore('user', () => {
     } catch {
       // 忽略登出异常，保持本地状态清理
     } finally {
+      clearAutoLoginCredentials()
       authStore.clearToken()
       setUser(null)
       storeStore.clearStoreData()

@@ -17,27 +17,55 @@
 </template>
 
 <script setup lang="ts">
+import { App as CapacitorApp } from '@capacitor/app'
 import { IonApp, IonLoading, IonRouterOutlet, IonToast } from '@ionic/vue'
 import { onBeforeUnmount, onMounted } from 'vue'
 import AppNotificationOverlay from '@/components/global/AppNotificationOverlay.vue'
 import { useAppStore } from '@/stores/app'
 import { APP_TOAST_EVENT_NAME, type AppToastEventDetail } from '@/utils/notify'
+import { restoreAdminSessionIfNeeded } from '@/utils/request'
 
 const appStore = useAppStore()
+let removeAppStateListener: (() => void) | null = null
 
 const handleToastEvent: EventListener = (event) => {
   const toastEvent = event as CustomEvent<AppToastEventDetail>
   appStore.showToast(toastEvent.detail)
 }
 
+const restoreSessionSilently = async () => {
+  try {
+    await restoreAdminSessionIfNeeded()
+  } catch {
+    // 静默续登失败时由请求层或登录页接管，无需在根组件重复提示
+  }
+}
+
+const initializeRuntimeState = async () => {
+  await appStore.restoreRuntimeState()
+  await restoreSessionSilently()
+}
+
 onMounted(() => {
-  void appStore.restoreRuntimeState()
+  void initializeRuntimeState()
 
   if (typeof window === 'undefined') {
     return
   }
 
   window.addEventListener(APP_TOAST_EVENT_NAME, handleToastEvent)
+
+  void CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+    if (!isActive) {
+      return
+    }
+
+    void restoreSessionSilently()
+  }).then((listener) => {
+    removeAppStateListener = () => {
+      void listener.remove()
+    }
+  })
 })
 
 onBeforeUnmount(() => {
@@ -46,6 +74,11 @@ onBeforeUnmount(() => {
   }
 
   window.removeEventListener(APP_TOAST_EVENT_NAME, handleToastEvent)
+
+  if (removeAppStateListener) {
+    removeAppStateListener()
+    removeAppStateListener = null
+  }
 })
 </script>
 

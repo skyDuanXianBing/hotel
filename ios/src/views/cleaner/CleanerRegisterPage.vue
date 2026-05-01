@@ -1,13 +1,13 @@
 <template>
   <ion-page>
     <ion-header translucent>
-      <ion-toolbar class="app-page-header__toolbar">
-        <ion-buttons slot="start">
-          <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.login" />
-        </ion-buttons>
-        <ion-title class="app-page-header__title">保洁员注册</ion-title>
-      </ion-toolbar>
-    </ion-header>
+        <ion-toolbar class="app-page-header__toolbar">
+          <ion-buttons slot="start">
+            <ion-back-button class="app-page-header__back-btn" :default-href="ROUTE_PATHS.cleanerLogin" />
+          </ion-buttons>
+          <ion-title class="app-page-header__title">保洁员注册</ion-title>
+        </ion-toolbar>
+      </ion-header>
 
     <ion-content fullscreen class="mobile-page cleaner-auth-page">
       <section class="mobile-hero cleaner-auth-page__hero">
@@ -127,12 +127,12 @@ function buildLoginLocation() {
 
   if (!normalizedEmail) {
     return {
-      path: ROUTE_PATHS.login,
+      path: ROUTE_PATHS.cleanerLogin,
     }
   }
 
   return {
-    path: ROUTE_PATHS.login,
+    path: ROUTE_PATHS.cleanerLogin,
     query: {
       email: normalizedEmail,
     },
@@ -184,7 +184,7 @@ function validateForm() {
 
 async function redirectToLoginWithError(message: string) {
   showErrorToast(message)
-  await router.replace(ROUTE_PATHS.login)
+  await router.replace(ROUTE_PATHS.cleanerLogin)
 }
 
 async function loadInvitation() {

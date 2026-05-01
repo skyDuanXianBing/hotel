@@ -160,6 +160,9 @@
                 <strong class="room-calendar__reservation-guest">
                   {{ cell.reservation.guestName || '未命名客人' }}
                 </strong>
+                <span v-if="hasReservationNotes(cell.reservation)" class="room-calendar__reservation-note-badge">
+                  有备注
+                </span>
                 <span class="room-calendar__reservation-channel">
                   {{ cell.item.statusText }}
                 </span>
@@ -221,6 +224,7 @@ type RowCell =
 
 const ROOM_COLUMN_WIDTH = 86
 const DAY_MIN_WIDTH = 58
+const LOAD_NEXT_WINDOW_THRESHOLD_PX = DAY_MIN_WIDTH
 
 const props = withDefaults(
   defineProps<{
@@ -239,6 +243,8 @@ const emit = defineEmits<{
   'select-reservation': [reservationId: number]
   'open-room-actions': [payload: { roomId: number; date: string }]
   'go-today': []
+  'load-previous-window': []
+  'load-next-window': []
 }>()
 
 const datePickerInput = ref<HTMLInputElement | null>(null)
@@ -246,6 +252,8 @@ const stickyDatePickerInput = ref<HTMLInputElement | null>(null)
 const headerScrollContainer = ref<HTMLDivElement | null>(null)
 const scrollContainer = ref<HTMLDivElement | null>(null)
 let syncingScroll = false
+let hasRequestedPreviousWindow = false
+let hasRequestedNextWindow = false
 
 const gridStyle = computed(() => ({
   gridTemplateColumns: `${ROOM_COLUMN_WIDTH}px repeat(${props.days.length}, minmax(${DAY_MIN_WIDTH}px, 1fr))`,
@@ -295,6 +303,8 @@ function alignSelectedDateIntoView() {
 watch(
   selectedDateValue,
   async () => {
+    hasRequestedPreviousWindow = false
+    hasRequestedNextWindow = false
     await nextTick()
     alignSelectedDateIntoView()
   },
@@ -344,12 +354,60 @@ function syncScrollContainers(source: HTMLDivElement | null, target: HTMLDivElem
   })
 }
 
+function shouldLoadPreviousWindow(container: HTMLDivElement | null) {
+  if (!container || props.loading || hasRequestedPreviousWindow) {
+    return false
+  }
+
+  const maxScrollLeft = container.scrollWidth - container.clientWidth
+  if (maxScrollLeft <= 0) {
+    return false
+  }
+
+  return container.scrollLeft <= LOAD_NEXT_WINDOW_THRESHOLD_PX
+}
+
+function requestPreviousWindowIfNeeded(container: HTMLDivElement | null) {
+  if (!shouldLoadPreviousWindow(container)) {
+    return
+  }
+
+  hasRequestedPreviousWindow = true
+  emit('load-previous-window')
+}
+
+function shouldLoadNextWindow(container: HTMLDivElement | null) {
+  if (!container || props.loading || hasRequestedNextWindow) {
+    return false
+  }
+
+  const maxScrollLeft = container.scrollWidth - container.clientWidth
+  if (maxScrollLeft <= 0) {
+    return false
+  }
+
+  return maxScrollLeft - container.scrollLeft <= LOAD_NEXT_WINDOW_THRESHOLD_PX
+}
+
+function requestNextWindowIfNeeded(container: HTMLDivElement | null) {
+  if (!shouldLoadNextWindow(container)) {
+    return
+  }
+
+  hasRequestedNextWindow = true
+  emit('load-next-window')
+}
+
 function handleHeaderScroll() {
   syncScrollContainers(headerScrollContainer.value, scrollContainer.value)
+  requestPreviousWindowIfNeeded(headerScrollContainer.value)
+  requestNextWindowIfNeeded(headerScrollContainer.value)
 }
 
 function handleBodyScroll() {
   syncScrollContainers(scrollContainer.value, headerScrollContainer.value)
+  requestPreviousWindowIfNeeded(scrollContainer.value)
+  requestNextWindowIfNeeded(scrollContainer.value)
 }
 
 function handleDateInputChange(event: Event) {
@@ -489,6 +547,16 @@ function resolveReservationTone(reservation: ReservationDTO) {
 
   const fallbackTones = ['sand', 'mint', 'rose', 'azure', 'slate']
   return fallbackTones[reservation.id % fallbackTones.length]
+}
+
+function getReservationNotesText(reservation: ReservationDTO) {
+  const reservationWithRemark = reservation as ReservationDTO & { remark?: string }
+  const notesValue = reservation.notes ?? reservationWithRemark.remark ?? ''
+  return notesValue.trim()
+}
+
+function hasReservationNotes(reservation: ReservationDTO) {
+  return getReservationNotesText(reservation).length > 0
 }
 
 function getEmptyCellClass(item: RoomTimelineItem) {
@@ -1073,5 +1141,21 @@ function getRoomCellAriaLabel(room: RoomStatusRoomItem) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.room-calendar__reservation-note-badge {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 14px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
 }
 </style>

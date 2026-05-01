@@ -104,6 +104,8 @@
           @select-date="handleSelectDate"
           @select-reservation="openReservationDetail"
           @open-room-actions="handleOpenGridAction"
+          @load-previous-window="handlePreviousWindow"
+          @load-next-window="handleNextWindow"
           @go-today="handleGoToday"
         />
 

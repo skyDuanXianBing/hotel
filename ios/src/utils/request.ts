@@ -1,22 +1,48 @@
 import router from '@/router'
-import { ROUTE_PATHS } from '@/router/guards'
+import { resolveDefaultAuthenticatedPath, ROUTE_PATHS } from '@/router/guards'
+import { useAuthStore } from '@/stores/auth'
 import type { ApiResponse, RequestConfig } from '@/types/api'
+import {
+  clearAutoLoginCredentials,
+  hasStoredAutoLoginCredentials,
+  loadRenewableAutoLoginCredentials,
+  saveAutoLoginCredentials,
+  shouldRenewTokenSoon,
+  touchAutoLoginActivity,
+} from '@/utils/autoLogin'
 import {
   clearCleanerSession,
   getCleanerToken,
   readCleanerStoreId,
 } from '@/utils/cleanerSession'
 import {
+  CURRENT_STORE_KEY,
   clearSessionStorage,
   getStoredCurrentStoreId,
+  getStoredCurrentStore,
   getStoredToken,
+  STORES_KEY,
+  USER_KEY,
+  writeStoredJson,
 } from '@/utils/storage'
 import { API_BASE_URL } from '@/constants/api'
+import type { LoginByPasswordRequest, LoginResponse } from '@/types/auth'
 import { showErrorToast, sanitizeUserFacingMessage } from '@/utils/notify'
 
 const REQUEST_TIMEOUT = 10000
 const REQUEST_ERROR_HANDLED_KEY = 'toastHandled'
 const REQUEST_ERROR_STATUS_KEY = 'status'
+const AUTHENTICATION_FREE_PATHS = [
+  '/auth/login/password',
+  '/auth/login/code',
+  '/auth/cleaner/login/password',
+  '/auth/register',
+  '/auth/send-code',
+  '/auth/reset-password',
+]
+const PUBLIC_ROUTE_PREFIXES = ['/public/']
+
+let silentReauthPromise: Promise<boolean> | null = null
 
 const trimLeadingSlash = (value: string) => value.replace(/^\/+/, '')
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
@@ -24,6 +50,71 @@ const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value)
 
 const isCleanerPath = (path: string) => path.startsWith('/cleaner')
+
+const pathMatchesPrefix = (path: string, prefix: string) => {
+  if (path === prefix) {
+    return true
+  }
+
+  if (prefix.endsWith('/')) {
+    return path.startsWith(prefix)
+  }
+
+  return path.startsWith(`${prefix}/`)
+}
+
+const isPublicRoutePath = (path: string) => {
+  return PUBLIC_ROUTE_PREFIXES.some((prefix) => pathMatchesPrefix(path, prefix))
+}
+
+const isAdminPublicRoutePath = (path: string) => {
+  if (!path) {
+    return false
+  }
+
+  return (
+    path === ROUTE_PATHS.login ||
+    path === ROUTE_PATHS.loginCodeVerify ||
+    path === ROUTE_PATHS.register ||
+    path === ROUTE_PATHS.forgotPassword ||
+    isPublicRoutePath(path)
+  )
+}
+
+const normalizeApiPath = (url: string) => {
+  if (!url) {
+    return ''
+  }
+
+  try {
+    const parsedUrl = isAbsoluteUrl(url) ? new URL(url) : new URL(buildRequestUrl(url), window.location.origin)
+    const basePath = new URL(trimTrailingSlash(API_BASE_URL), window.location.origin).pathname
+    const requestPath = parsedUrl.pathname
+
+    if (requestPath.startsWith(basePath)) {
+      const normalized = requestPath.slice(basePath.length)
+      return normalized.startsWith('/') ? normalized : `/${normalized}`
+    }
+
+    return requestPath
+  } catch {
+    if (url.startsWith('http')) {
+      return url
+    }
+
+    return url.startsWith('/') ? url : `/${url}`
+  }
+}
+
+const isAuthenticationFreeRequest = (url: string) => {
+  const normalizedPath = normalizeApiPath(url)
+
+  return AUTHENTICATION_FREE_PATHS.some((path) => pathMatchesPrefix(normalizedPath, path))
+}
+
+const shouldUseAdminAutoReauthForRoute = (path: string) => {
+  return Boolean(path) && !isCleanerPath(path) && !isAdminPublicRoutePath(path)
+}
 
 const getActiveRoutePath = () => {
   const currentPath = router.currentRoute.value.path
@@ -36,6 +127,153 @@ const getActiveRoutePath = () => {
   }
 
   return ''
+}
+
+const syncAdminSessionStorage = (payload: LoginResponse, resetCurrentStore: boolean) => {
+  const authStore = useAuthStore()
+  authStore.setToken(payload.token)
+
+  writeStoredJson(USER_KEY, payload.user)
+  writeStoredJson(STORES_KEY, payload.stores ?? [])
+
+  if (resetCurrentStore) {
+    writeStoredJson(CURRENT_STORE_KEY, null)
+    return
+  }
+
+  const currentStore = getStoredCurrentStore()
+  const hasMatchingCurrentStore = Boolean(
+    currentStore?.id && payload.stores?.some((store) => store.id === currentStore.id),
+  )
+
+  if (!hasMatchingCurrentStore) {
+    writeStoredJson(CURRENT_STORE_KEY, null)
+  }
+}
+
+const handleRecoveredAdminSessionRedirect = async () => {
+  const currentPath = router.currentRoute.value.path
+
+  if (!isAdminPublicRoutePath(currentPath)) {
+    return
+  }
+
+  const redirectPath = resolveDefaultAuthenticatedPath()
+
+  if (redirectPath !== currentPath) {
+    await router.replace(redirectPath)
+  }
+}
+
+const getHandledRequestErrorStatus = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return null
+  }
+
+  const status = Reflect.get(error, REQUEST_ERROR_STATUS_KEY)
+  return typeof status === 'number' ? status : null
+}
+
+const performSilentAdminLogin = async (redirectAfterSuccess: boolean) => {
+  if (silentReauthPromise) {
+    return silentReauthPromise
+  }
+
+  silentReauthPromise = (async () => {
+    const credentials = await loadRenewableAutoLoginCredentials()
+
+    if (!credentials) {
+      return false
+    }
+
+    const payload: LoginByPasswordRequest = {
+      email: credentials.email,
+      password: credentials.password,
+      rememberMe: true,
+    }
+
+    try {
+      const response = await executeRequest<ApiResponse<LoginResponse>>(
+        {
+          url: '/auth/login/password',
+          method: 'POST',
+          data: payload,
+          suppressErrorStatuses: [400, 401, 403],
+          skipAutoReauth: true,
+          skipUnauthorizedHandling: true,
+        },
+        'json',
+      )
+
+      if (!response.success || !response.data?.token) {
+        clearAutoLoginCredentials()
+        return false
+      }
+
+      syncAdminSessionStorage(response.data, false)
+
+      try {
+        await saveAutoLoginCredentials({
+          email: credentials.email,
+          password: credentials.password,
+          token: response.data.token,
+        })
+      } catch {
+        clearAutoLoginCredentials()
+      }
+
+      if (redirectAfterSuccess) {
+        await handleRecoveredAdminSessionRedirect()
+      }
+
+      return true
+    } catch (error) {
+      const status = getHandledRequestErrorStatus(error)
+
+      if (status === 400 || status === 401 || status === 403) {
+        clearAutoLoginCredentials()
+      }
+
+      return false
+    } finally {
+      silentReauthPromise = null
+    }
+  })()
+
+  return silentReauthPromise
+}
+
+const ensureAdminSessionIfNeeded = async (force = false) => {
+  const activeRoutePath = getActiveRoutePath()
+  const token = getStoredToken()
+
+  if (!force && !shouldUseAdminAutoReauthForRoute(activeRoutePath)) {
+    if (token) {
+      await touchAutoLoginActivity()
+    }
+    return Boolean(token)
+  }
+
+  if (!hasStoredAutoLoginCredentials()) {
+    if (token) {
+      await touchAutoLoginActivity()
+    }
+    return Boolean(token)
+  }
+
+  if (token) {
+    await touchAutoLoginActivity()
+
+    if (!shouldRenewTokenSoon(token)) {
+      return true
+    }
+  }
+
+  return performSilentAdminLogin(force)
+}
+
+export const restoreAdminSessionIfNeeded = async () => {
+  return ensureAdminSessionIfNeeded(true)
 }
 
 const buildRequestUrl = (url: string, params?: RequestConfig['params']) => {
@@ -136,19 +374,24 @@ const resolveErrorMessage = (payload: unknown, fallbackMessage: string) => {
   return sanitizeUserFacingMessage(fallbackMessage)
 }
 
-const handleUnauthorized = async () => {
+const handleUnauthorized = async (clearAutoLogin = false) => {
   const activeRoutePath = getActiveRoutePath()
   const useCleanerSession = isCleanerPath(activeRoutePath)
 
   if (useCleanerSession) {
     clearCleanerSession()
   } else {
+    useAuthStore().clearToken()
     clearSessionStorage()
+
+    if (clearAutoLogin) {
+      clearAutoLoginCredentials()
+    }
   }
 
   showErrorToast('登录已过期，请重新登录')
 
-  const redirectPath = ROUTE_PATHS.login
+  const redirectPath = useCleanerSession ? ROUTE_PATHS.cleanerLogin : ROUTE_PATHS.login
 
   if (router.currentRoute.value.path !== redirectPath) {
     await router.replace(redirectPath)
@@ -193,6 +436,16 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
   }, timeoutMs)
 
   try {
+    const activeRoutePath = getActiveRoutePath()
+    const shouldAttemptAdminSessionRestore =
+      !config.skipAutoReauth &&
+      !isAuthenticationFreeRequest(config.url) &&
+      shouldUseAdminAutoReauthForRoute(activeRoutePath)
+
+    if (shouldAttemptAdminSessionRestore) {
+      await ensureAdminSessionIfNeeded(false)
+    }
+
     const response = await fetch(buildRequestUrl(config.url, config.params), {
       method: config.method ?? 'GET',
       headers: createHeaders(config),
@@ -209,9 +462,30 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
     if (!response.ok) {
       const message = resolveErrorMessage(payload, response.statusText || '请求失败')
       const shouldSuppressErrorToast = config.suppressErrorStatuses?.includes(response.status) === true
+      const canRecoverUnauthorized =
+        response.status === 401 &&
+        !config.skipAutoReauth &&
+        !config.skipUnauthorizedHandling &&
+        !config.retriedAfterReauth &&
+        !isAuthenticationFreeRequest(config.url) &&
+        shouldUseAdminAutoReauthForRoute(activeRoutePath)
 
-      if (response.status === 401) {
-        await handleUnauthorized()
+      if (canRecoverUnauthorized) {
+        const restored = await performSilentAdminLogin(false)
+
+        if (restored) {
+          return executeRequest<T>(
+            {
+              ...config,
+              retriedAfterReauth: true,
+            },
+            responseType,
+          )
+        }
+      }
+
+      if (response.status === 401 && !config.skipUnauthorizedHandling) {
+        await handleUnauthorized(canRecoverUnauthorized)
       } else if (!shouldSuppressErrorToast) {
         if (response.status === 403) {
           showErrorToast(message || '您没有权限执行此操作')

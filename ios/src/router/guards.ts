@@ -10,6 +10,7 @@ export const ROUTE_PATHS = {
   publicRegistrationBooking: '/public/registration-booking/:bookingKey',
   publicRegistrationForm: '/public/registration/:orderNumber',
   publicRoomStatusShare: '/public/share/:token',
+  cleanerLogin: '/cleaner/login',
   cleanerRegister: '/cleaner/register',
   cleanerDashboard: '/cleaner/dashboard',
   cleanerTaskDetail: '/cleaner/task/:id',
@@ -180,11 +181,11 @@ export const registerRouterGuards = (router: Router) => {
     }
 
     if (requiresCleanerAuth && !hasCleanerLoginToken) {
-      return ROUTE_PATHS.login
+      return ROUTE_PATHS.cleanerLogin
     }
 
     if (requiresCleanerStore && !hasCleanerCurrentStore) {
-      return ROUTE_PATHS.login
+      return ROUTE_PATHS.cleanerLogin
     }
 
     if (adminPublicOnly && hasAdminToken) {

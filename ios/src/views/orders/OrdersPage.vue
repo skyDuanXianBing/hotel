@@ -487,6 +487,27 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   return fallbackMessage
 }
 
+function escapeAlertMessage(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\n/g, '<br />')
+}
+
+async function presentReservationNotes(reservation: ReservationDTO) {
+  const notesText = reservation.notes?.trim() || '暂无客人备注'
+  const alert = await alertController.create({
+    header: '客人备注',
+    message: escapeAlertMessage(notesText),
+    buttons: ['知道了'],
+  })
+
+  await alert.present()
+}
+
 function resetPagination() {
   page.value = 0
   totalPages.value = 1
@@ -958,6 +979,12 @@ async function presentReservationActions(reservation: ReservationDTO, orderBoxIt
       text: '查看详情',
       handler: () => {
         void openReservationDetail(reservation.id)
+      },
+    },
+    {
+      text: '查看客人备注',
+      handler: () => {
+        void presentReservationNotes(reservation)
       },
     },
   ]

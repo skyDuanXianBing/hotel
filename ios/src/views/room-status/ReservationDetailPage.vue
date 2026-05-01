@@ -146,10 +146,6 @@
                   <span>成人 / 儿童</span>
                   <strong>{{ reservation.adults || 1 }} / {{ reservation.children || 0 }}</strong>
                 </div>
-                <div v-if="reservation.notes" class="detail-fact-list__row detail-fact-list__row--stacked">
-                  <span>备注</span>
-                  <p>{{ reservation.notes }}</p>
-                </div>
               </div>
             </article>
 
@@ -436,6 +432,19 @@ const pageTitle = computed(() => {
 })
 
 const statusText = computed(() => getReservationStatusText(reservation.value?.status))
+const reservationNotesText = computed(() => {
+  const notes = reservation.value?.notes?.trim()
+  if (notes) {
+    return notes
+  }
+
+  const specialRequests = channelInfo.value?.specialRequests?.trim()
+  if (specialRequests) {
+    return specialRequests
+  }
+
+  return ''
+})
 const sourceOrderTab = computed<OrderTabValue | null>(() => {
   const routeTab = route.query.fromTab
   if (typeof routeTab !== 'string') {
@@ -554,6 +563,16 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
     return error.message
   }
   return fallbackMessage
+}
+
+function escapeAlertMessage(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\n/g, '<br />')
 }
 
 function normalizeMessageMatchValue(value?: string | null) {
@@ -1157,6 +1176,12 @@ async function presentMoreActions() {
         handlePrint()
       },
     },
+    {
+      text: '查看客人备注',
+      handler: () => {
+        void presentReservationNotes()
+      },
+    },
   ]
 
   if (isOrderContext.value || orderBoxItem.value) {
@@ -1209,6 +1234,17 @@ async function presentMoreActions() {
   })
 
   await actionSheet.present()
+}
+
+async function presentReservationNotes() {
+  const notesText = reservationNotesText.value || '暂无客人备注'
+  const alert = await alertController.create({
+    header: '客人备注',
+    message: escapeAlertMessage(notesText),
+    buttons: ['知道了'],
+  })
+
+  await alert.present()
 }
 
 const canCancelOrder = computed(() => {
