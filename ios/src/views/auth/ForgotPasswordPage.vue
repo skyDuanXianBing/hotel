@@ -407,7 +407,8 @@ onBeforeUnmount(() => {
 }
 
 .forgot-password-page {
-  --padding-top: calc(4px + var(--app-safe-top));
+  /* ion-header translucent + fullscreen already offsets the iOS safe-area top */
+  --padding-top: 4px;
   --padding-bottom: calc(20px + var(--app-safe-bottom));
   --padding-start: 24px;
   --padding-end: 24px;
