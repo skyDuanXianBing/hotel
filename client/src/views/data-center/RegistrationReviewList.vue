@@ -51,7 +51,7 @@
           type="date"
           value-format="YYYY-MM-DD"
           clearable
-          placeholder="退房日期"
+          placeholder="离店日期"
           style="width: 160px"
         />
         <el-button type="primary" :loading="loading" @click="load">搜索</el-button>
@@ -63,7 +63,7 @@
         <el-table-column prop="channelName" label="渠道" min-width="140" />
         <el-table-column prop="guestName" label="客人" min-width="120" />
         <el-table-column prop="checkInDate" label="入住" min-width="110" />
-        <el-table-column prop="checkOutDate" label="退房" min-width="110" />
+        <el-table-column prop="checkOutDate" label="离店" min-width="110" />
         <el-table-column prop="status" label="状态" min-width="110" />
         <el-table-column prop="submittedAt" label="提交时间" min-width="170" />
         <el-table-column prop="updatedAt" label="更新时间" min-width="170" />
@@ -72,6 +72,20 @@
 
     <el-drawer v-model="linkDrawerVisible" title="链接列表" size="80%">
       <div class="drawer-actions">
+        <el-select
+          v-model="linkReservationStatus"
+          clearable
+          placeholder="预订状态"
+          style="width: 160px"
+          @change="loadLinks"
+        >
+          <el-option
+            v-for="option in linkReservationStatusOptions"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
+          />
+        </el-select>
         <el-button :loading="linkLoading" @click="loadLinks">刷新</el-button>
       </div>
 
@@ -79,7 +93,12 @@
         <el-table-column prop="createdAt" label="时间" min-width="170" />
         <el-table-column prop="guestName" label="客人" min-width="110" />
         <el-table-column prop="checkInDate" label="入住" min-width="110" />
-        <el-table-column prop="checkOutDate" label="退房" min-width="110" />
+        <el-table-column prop="checkOutDate" label="离店" min-width="110" />
+        <el-table-column label="预订状态" min-width="120">
+          <template #default="{ row }">
+            {{ getReservationStatusLabel(row.reservationStatus) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="roomCount" label="房间数" width="90" />
         <el-table-column label="链接" min-width="240">
           <template #default="{ row }">
@@ -128,6 +147,7 @@ const checkOutDate = ref<string | null>(null)
 const linkDrawerVisible = ref(false)
 const linkLoading = ref(false)
 const linkRows = ref<RegistrationLinkInboxItemDTO[]>([])
+const linkReservationStatus = ref<string | null>(null)
 
 const reservationStatusOptions = [
   { label: '待确认', value: 'REQUESTED' },
@@ -136,6 +156,11 @@ const reservationStatusOptions = [
   { label: '已退房', value: 'CHECKED_OUT' },
   { label: '已取消', value: 'CANCELLED' },
   { label: '未到店', value: 'NO_SHOW' },
+]
+
+const linkReservationStatusOptions = [
+  { label: '已预订', value: 'CONFIRMED' },
+  { label: '已取消', value: 'CANCELLED' },
 ]
 
 function toDayNumber(dateValue?: string | null) {
@@ -248,7 +273,7 @@ function go(row: Row) {
 async function loadLinks() {
   linkLoading.value = true
   try {
-    const resp = await getRegistrationLinkInbox()
+    const resp = await getRegistrationLinkInbox(linkReservationStatus.value)
     linkRows.value = resp.success ? (resp.data || []) : []
     if (!resp.success) {
       ElMessage.error(resp.message || '加载失败')
@@ -263,6 +288,25 @@ async function loadLinks() {
 function openLinkDrawer() {
   linkDrawerVisible.value = true
   loadLinks()
+}
+
+function getReservationStatusLabel(status?: string | null) {
+  switch (status) {
+    case 'CONFIRMED':
+      return '已预订'
+    case 'CANCELLED':
+      return '已取消'
+    case 'CHECKED_IN':
+      return '已入住'
+    case 'CHECKED_OUT':
+      return '已退房'
+    case 'REQUESTED':
+      return '待确认'
+    case 'NO_SHOW':
+      return '未到店'
+    default:
+      return '-'
+  }
 }
 
 async function copy(text: string) {
@@ -320,6 +364,7 @@ onMounted(() => {
 .drawer-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
   margin-bottom: 12px;
 }
 .link-cell {

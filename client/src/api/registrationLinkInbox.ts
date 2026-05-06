@@ -14,10 +14,13 @@ export interface RegistrationLinkInboxItemDTO {
   checkInDate: string | null
   checkOutDate: string | null
   roomCount: number
+  reservationStatus: string | null
   createdAt: string
 }
 
-export const getRegistrationLinkInbox = async (): Promise<ApiResponse<RegistrationLinkInboxItemDTO[]>> => {
-  return await request.get('/registrations/link-inbox')
+export const getRegistrationLinkInbox = async (
+  reservationStatus?: string | null
+): Promise<ApiResponse<RegistrationLinkInboxItemDTO[]>> => {
+  const params = reservationStatus ? { reservationStatus } : undefined
+  return await request.get('/registrations/link-inbox', { params })
 }
-

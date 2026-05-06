@@ -113,6 +113,20 @@ public class StoreService {
         return storeUser.map(su -> convertToDTO(su.getStore(), su.getRole()));
     }
 
+    public List<PermissionDTO> getCurrentUserEffectivePermissions(Long storeId, Long userId) {
+        StoreUser storeUser = storeUserRepository.findByStoreIdAndUserId(storeId, userId)
+                .orElseThrow(() -> new RuntimeException("No permission"));
+
+        if (isStoreManager(storeUser)) {
+            return buildManagerPermissions();
+        }
+
+        return mergeEffectivePermissions(
+                storeUser.getRoles(),
+                loadStoreUserExtraPermissions(storeUser.getId())
+        );
+    }
+
     @Transactional
     public StoreDTO updateStore(Long storeId, Long userId, CreateStoreRequest request) {
         StoreUser storeUser = storeUserRepository.findByStoreIdAndUserId(storeId, userId)
@@ -671,6 +685,175 @@ public class StoreService {
             out.add(dto);
         }
         return out;
+    }
+
+    private static boolean isStoreManager(StoreUser storeUser) {
+        if (storeUser == null || storeUser.getRole() == null) {
+            return false;
+        }
+        return "owner".equals(storeUser.getRole()) || "admin".equals(storeUser.getRole());
+    }
+
+    private static List<PermissionDTO> buildManagerPermissions() {
+        List<PermissionDTO> permissions = new ArrayList<>();
+        for (PermissionModule module : PermissionModule.values()) {
+            for (PermissionAction action : PermissionAction.values()) {
+                if (!belongsToModule(module, action)) {
+                    continue;
+                }
+
+                PermissionDTO dto = new PermissionDTO();
+                dto.setModule(module);
+                dto.setAction(action);
+                if (module == PermissionModule.ACCOMMODATION && action == PermissionAction.VIEW_ROOM_STATUS) {
+                    dto.setRoomTypeId(0L);
+                    dto.setAllRoomTypes(true);
+                } else {
+                    dto.setRoomTypeId(0L);
+                    dto.setAllRoomTypes(false);
+                }
+                permissions.add(dto);
+            }
+        }
+        return permissions;
+    }
+
+    private static boolean belongsToModule(PermissionModule module, PermissionAction action) {
+        return switch (module) {
+            case ACCOMMODATION -> switch (action) {
+                case VIEW_ROOM_STATUS,
+                        EDIT_ROOM_STATUS,
+                        VIEW_ROOM_OPERATION_LOG,
+                        VIEW_ROOM_INFO,
+                        ROOM_SHARE,
+                        VIEW_ROOM_PRICE,
+                        EDIT_ROOM_PRICE,
+                        VIEW_PRICE_LOG,
+                        BATCH_CHANGE_PRICE,
+                        BREAKFAST_PACKAGE,
+                        RESERVATION_CALENDAR,
+                        TASK_LIST -> true;
+                default -> false;
+            };
+            case ORDER -> switch (action) {
+                case VIEW_ORDERS, CREATE_ORDER, MODIFY_ORDER, DELETE_ORDER, CANCEL_ORDER -> true;
+                default -> false;
+            };
+            case CHANNEL -> action == PermissionAction.VIEW_CHANNELS || action == PermissionAction.MANAGE_CHANNELS;
+            case CUSTOMER -> action == PermissionAction.VIEW_CUSTOMERS || action == PermissionAction.MANAGE_CUSTOMERS;
+            case STATISTICS -> action == PermissionAction.VIEW_STATS || action == PermissionAction.EXPORT_STATS;
+            case SETTINGS -> switch (action) {
+                case VIEW_SETTINGS,
+                        MODIFY_SETTINGS,
+                        MODIFY_STORE_SETTINGS,
+                        MANAGE_EMPLOYEE_ACCOUNTS,
+                        MANAGE_PAYMENT_METHODS -> true;
+                default -> false;
+            };
+            case DATA_CENTER -> action == PermissionAction.VIEW_DATA || action == PermissionAction.EXPORT_DATA;
+            case SENSITIVE -> action == PermissionAction.VIEW_FINANCIAL_DATA
+                    || action == PermissionAction.DELETE_IMPORTANT_DATA;
+        };
+    }
+
+    private static List<PermissionDTO> mergeEffectivePermissions(
+            Set<Role> roles,
+            List<StoreUserPermission> extraPermissions
+    ) {
+        LinkedHashMap<String, PermissionDTO> merged = new LinkedHashMap<>();
+        mergeRolePermissions(merged, roles);
+        mergeStoreUserPermissions(merged, extraPermissions);
+        return new ArrayList<>(merged.values());
+    }
+
+    private static void mergeRolePermissions(LinkedHashMap<String, PermissionDTO> merged, Set<Role> roles) {
+        if (roles == null || roles.isEmpty()) {
+            return;
+        }
+
+        for (Role role : roles) {
+            if (role == null || role.getRolePermissions() == null || role.getRolePermissions().isEmpty()) {
+                continue;
+            }
+
+            for (RolePermission permission : role.getRolePermissions()) {
+                if (permission == null || permission.getModule() == null || permission.getAction() == null) {
+                    continue;
+                }
+
+                putPermission(
+                        merged,
+                        permission.getModule(),
+                        permission.getAction(),
+                        permission.getRoomTypeId(),
+                        permission.getAllRoomTypes(),
+                        permission.getRoomTypeId(),
+                        null
+                );
+            }
+        }
+    }
+
+    private static void mergeStoreUserPermissions(
+            LinkedHashMap<String, PermissionDTO> merged,
+            List<StoreUserPermission> extraPermissions
+    ) {
+        if (extraPermissions == null || extraPermissions.isEmpty()) {
+            return;
+        }
+
+        for (StoreUserPermission permission : extraPermissions) {
+            if (permission == null || permission.getModule() == null || permission.getAction() == null) {
+                continue;
+            }
+
+            putPermission(
+                    merged,
+                    permission.getModule(),
+                    permission.getAction(),
+                    permission.getRoomTypeId(),
+                    permission.getAllRoomTypes(),
+                    permission.getRoomTypeId(),
+                    null
+            );
+        }
+    }
+
+    private static void putPermission(
+            LinkedHashMap<String, PermissionDTO> merged,
+            PermissionModule module,
+            PermissionAction action,
+            Long rawRoomTypeId,
+            Boolean rawAllRoomTypes,
+            Long roomTypeId,
+            String roomTypeName
+    ) {
+        boolean isRoomStatusPermission =
+                module == PermissionModule.ACCOMMODATION && action == PermissionAction.VIEW_ROOM_STATUS;
+        boolean allRoomTypes = isRoomStatusPermission
+                && (Boolean.TRUE.equals(rawAllRoomTypes) || rawRoomTypeId == null || rawRoomTypeId == 0L);
+        long normalizedRoomTypeId = allRoomTypes || roomTypeId == null ? 0L : roomTypeId;
+
+        if (allRoomTypes) {
+            merged.entrySet().removeIf(entry -> entry.getValue().getModule() == module
+                    && entry.getValue().getAction() == action);
+        }
+
+        String key = module + "|" + action + "|" + normalizedRoomTypeId;
+        if (allRoomTypes && merged.containsKey(key)) {
+            return;
+        }
+        if (!allRoomTypes && merged.containsKey(module + "|" + action + "|0")) {
+            return;
+        }
+
+        PermissionDTO dto = new PermissionDTO();
+        dto.setModule(module);
+        dto.setAction(action);
+        dto.setRoomTypeId(normalizedRoomTypeId);
+        dto.setAllRoomTypes(allRoomTypes);
+        dto.setRoomTypeName(roomTypeName);
+        merged.putIfAbsent(key, dto);
     }
 
     private void replaceStoreUserExtraPermissions(StoreUser storeUser, List<PermissionDTO> extraPermissionDTOs) {

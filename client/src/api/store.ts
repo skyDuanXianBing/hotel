@@ -188,6 +188,12 @@ export const getStoreMemberDetail = async (
   return await request.get(`/stores/${storeId}/members/${userId}`)
 }
 
+export const getMyStorePermissions = async (
+  storeId: number
+): Promise<ApiResponse<PermissionDTO[]>> => {
+  return await request.get(`/stores/${storeId}/my-permissions`)
+}
+
 export const updateStoreMemberPermission = async (
   storeId: number,
   userId: number,

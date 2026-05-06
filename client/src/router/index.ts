@@ -1,4 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { PermissionAction, PermissionModule } from '@/api/role'
+import { pinia } from '@/stores/pinia'
+import {
+  usePermissionStore,
+  type PermissionMatchMode,
+  type PermissionRequirement,
+} from '@/stores/permission'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -441,6 +448,12 @@ const router = createRouter({
           component: () => import('@/views/notifications/OrderNotifications.vue'),
           meta: { title: '订单通知', requiresAuth: true },
         },
+        {
+          path: 'forbidden',
+          name: 'Forbidden',
+          component: () => import('@/views/common/ForbiddenPage.vue'),
+          meta: { title: '暂无权限', requiresAuth: true },
+        },
       ],
     },
     // 空白布局路由（登录、注册等）
@@ -538,8 +551,85 @@ const router = createRouter({
   ],
 })
 
+const routePermissionConfig = new Map<
+  string,
+  { requirements: PermissionRequirement[]; matchMode?: PermissionMatchMode }
+>([
+  ['RoomStatusCalendar', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_STATUS }] }],
+  ['RoomStatusDaily', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_STATUS }] }],
+  ['RoomStatusChannel', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_STATUS }] }],
+  ['RoomPriceManagement', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_PRICE }] }],
+  ['RoomPriceBulkUpdate', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.BATCH_CHANGE_PRICE }] }],
+  ['PriceChangeHistory', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_PRICE_LOG }] }],
+  ['BulkPriceChange', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.BATCH_CHANGE_PRICE }] }],
+  ['RoomTable', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_INFO }] }],
+  ['HousekeepingList', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
+  ['HousekeeperList', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
+  ['CleaningOverview', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
+  ['CleaningTaskList', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
+  ['HousekeepingTask', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
+  ['DailyTask', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
+  ['TaskStatistics', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
+  ['Channel', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
+  ['Order', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
+  ['OrderNotifications', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
+  ['DataCenterOverview', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['DataCenterAccommodation', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['DataCenterNotes', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['DataCenterRegistrations', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['DataCenterRegistrationDetail', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['BusinessSummary', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['ChannelSummary', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['NotesSummary', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['OperationReport', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['AccommodationReport', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['RevenueSummary', { requirements: [{ module: PermissionModule.SENSITIVE, action: PermissionAction.VIEW_FINANCIAL_DATA }] }],
+  ['FinanceReport', { requirements: [{ module: PermissionModule.SENSITIVE, action: PermissionAction.VIEW_FINANCIAL_DATA }] }],
+  ['Wallet', { requirements: [{ module: PermissionModule.SENSITIVE, action: PermissionAction.VIEW_FINANCIAL_DATA }] }],
+  ['StoreBasicInfo', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['StoreDetails', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['NotificationSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['GeneralChannelSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['QuickReply', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['AutoMessage', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['CleaningSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['CleaningSupplies', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['AutoCheckinSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['PricingTools', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['PaymentPlatforms', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['RoomTypeManagement', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['RoomOwnership', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['RoomTypeDetails', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['PricePlan', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['ConsumptionItems', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['RoomGroup', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['RoomSort', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['RoomStatusConfig', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['RoomManagement', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['ChannelSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['PackageSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['QueueSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['BookingFunction', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['Automation', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['PaymentMethods', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['NoteSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['AccountList', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS }] }],
+  ['RoleManagement', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS }] }],
+])
+
+router.getRoutes().forEach((route) => {
+  const routeName = typeof route.name === 'string' ? route.name : ''
+  const config = routePermissionConfig.get(routeName)
+  if (!config) {
+    return
+  }
+
+  route.meta.requiredPermissions = config.requirements
+  route.meta.permissionMatchMode = config.matchMode ?? 'all'
+})
+
 // 路由守卫：检查登录状态
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const isCleanerRoute = to.path.startsWith('/cleaner')
   const pmsToken = localStorage.getItem('token')
   const cleanerToken = localStorage.getItem('cleanerToken')
@@ -611,6 +701,33 @@ router.beforeEach((to, from, next) => {
     // 重定向到门店选择页面
     next('/store/selection')
     return
+  }
+
+  if (!isCleanerRoute && to.name !== 'Forbidden' && hasCurrentStore) {
+    const requiredPermissions = to.meta.requiredPermissions as PermissionRequirement[] | undefined
+    const permissionMatchMode =
+      (to.meta.permissionMatchMode as PermissionMatchMode | undefined) || 'all'
+
+    if (requiredPermissions?.length) {
+      const permissionStore = usePermissionStore(pinia)
+      try {
+        await permissionStore.fetchCurrentStorePermissions()
+      } catch {
+        next({
+          name: 'Forbidden',
+          query: { from: to.fullPath },
+        })
+        return
+      }
+
+      if (!permissionStore.hasPermissions(requiredPermissions, permissionMatchMode)) {
+        next({
+          name: 'Forbidden',
+          query: { from: to.fullPath },
+        })
+        return
+      }
+    }
   }
 
   next()

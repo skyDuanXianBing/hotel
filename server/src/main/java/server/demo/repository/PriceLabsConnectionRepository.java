@@ -20,10 +20,16 @@ public interface PriceLabsConnectionRepository extends JpaRepository<PriceLabsCo
      */
     List<PriceLabsConnection> findByStoreId(Long storeId);
 
+    List<PriceLabsConnection> findByStoreIdOrderByCreatedAtDesc(Long storeId);
+
+    List<PriceLabsConnection> findByStoreIdAndAccountIdOrderByCreatedAtDesc(Long storeId, Long accountId);
+
     /**
      * 根据门店ID查找启用的连接
      */
     List<PriceLabsConnection> findByStoreIdAndIsEnabledTrue(Long storeId);
+
+    List<PriceLabsConnection> findByStoreIdAndAccountIdAndIsEnabledTrue(Long storeId, Long accountId);
 
     /**
      * 根据房型ID查找连接
@@ -45,6 +51,10 @@ public interface PriceLabsConnectionRepository extends JpaRepository<PriceLabsCo
     Optional<PriceLabsConnection> findByRoomTypeIdAndPricePlanId(Long roomTypeId, Long pricePlanId);
 
     Optional<PriceLabsConnection> findByStoreIdAndRoomTypeIdAndPricePlanId(Long storeId, Long roomTypeId, Long pricePlanId);
+
+    long countByStoreIdAndAccountId(Long storeId, Long accountId);
+
+    boolean existsByStoreIdAndAccountId(Long storeId, Long accountId);
 
     /**
      * 根据 PriceLabs listing_id 查找连接

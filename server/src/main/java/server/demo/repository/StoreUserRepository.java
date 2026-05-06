@@ -20,6 +20,12 @@ public interface StoreUserRepository extends JpaRepository<StoreUser, Long> {
      */
     List<StoreUser> findByUserId(Long userId);
 
+    @Query("SELECT DISTINCT su FROM StoreUser su " +
+            "LEFT JOIN FETCH su.store " +
+            "LEFT JOIN FETCH su.roles " +
+            "WHERE su.user.id = :userId")
+    List<StoreUser> findByUserIdWithStoreAndRoles(@Param("userId") Long userId);
+
     /**
      * 查询门店的所有成员关联
      */

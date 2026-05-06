@@ -117,6 +117,58 @@
           </div>
 
           <!-- 工具栏 -->
+          <div class="integration-config-section">
+            <div class="section-row">
+              <div class="section-label">
+                <h3 class="label-title">多账号管理</h3>
+                <p class="label-desc">多个 PriceLabs 账号可以同时生效，房型连接会绑定到具体账号</p>
+              </div>
+              <div class="config-form">
+                <el-button type="primary" @click="openCreateAccountDialog">添加账号</el-button>
+              </div>
+            </div>
+            <el-table
+              :data="accounts"
+              border
+              size="small"
+              class="config-table account-table"
+              v-loading="accountsLoading"
+            >
+              <el-table-column prop="accountName" label="账号名称" min-width="180" />
+              <el-table-column prop="priceLabsEmail" label="PriceLabs 邮箱" min-width="220" />
+              <el-table-column label="状态" width="120" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">
+                    {{ row.isEnabled ? '已启用' : '未启用' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="已绑房型" width="120" align="center">
+                <template #default="{ row }">
+                  {{ row.connectionCount ?? 0 }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="220" align="center">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="selectAccount(row.id)">查看房型</el-button>
+                  <el-button link type="primary" @click="openEditAccountDialog(row)">编辑</el-button>
+                  <el-button
+                    link
+                    :type="row.isEnabled ? 'warning' : 'success'"
+                    @click="handleToggleAccount(row)"
+                  >
+                    {{ row.isEnabled ? '禁用' : '启用' }}
+                  </el-button>
+                  <el-button link type="danger" @click="handleDeleteAccount(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div v-if="selectedAccountName" class="account-filter-tip">
+              当前只展示账号“{{ selectedAccountName }}”绑定房型的同步状态
+              <el-button link type="primary" @click="clearSelectedAccount">查看全部</el-button>
+            </div>
+          </div>
+
           <div class="toolbar">
             <div class="toolbar-left">
               <span class="filter-label">连接状态</span>
@@ -131,6 +183,7 @@
 
           <!-- 配置表格 -->
           <el-table :data="filteredConnections" border stripe class="config-table" v-loading="connectionsLoading">
+            <el-table-column prop="accountName" label="账号" min-width="160" />
             <el-table-column prop="roomTypeName" label="房型" min-width="180" />
             <el-table-column prop="pricePlanName" label="价格计划" min-width="150" />
             <el-table-column prop="priceLabsListingId" label="Listing ID" min-width="200" />
@@ -256,6 +309,20 @@
         </template>
       </el-alert>
       <el-form :model="connectionForm" label-width="100px">
+        <el-form-item label="账号" required>
+          <el-select
+            v-model="connectionForm.accountId"
+            placeholder="请选择账号"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="account in enabledAccounts"
+              :key="account.id"
+              :label="account.accountName"
+              :value="account.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="房型" required>
           <el-select
             v-model="connectionForm.roomTypeId"
@@ -296,6 +363,30 @@
     </el-dialog>
 
     <!-- 编辑价格调整对话框 -->
+    <el-dialog
+      v-model="showAccountDialog"
+      :title="editingAccountId ? '编辑账号' : '添加账号'"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="accountForm" label-width="110px">
+        <el-form-item label="账号名称" required>
+          <el-input v-model="accountForm.accountName" placeholder="例如：主账号 / Airbnb 账号 A" />
+        </el-form-item>
+        <el-form-item label="PriceLabs 邮箱" required>
+          <el-input v-model="accountForm.priceLabsEmail" placeholder="example@email.com" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showAccountDialog = false">取消</el-button>
+          <el-button type="primary" :loading="saveAccountLoading" @click="handleSaveAccount">
+            保存
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
     <el-dialog
       v-model="showAdjustmentDialog"
       title="编辑渠道价格调整"
@@ -549,6 +640,7 @@ import {
   type PriceAdjustmentType,
 } from '@/api/otaIntegration'
 import type {
+  PriceLabsAccountDTO,
   PriceLabsIntegrationDTO,
   PriceLabsConnectionDTO,
   PriceLabsSyncLogDTO,
@@ -569,6 +661,10 @@ const integration = ref<PriceLabsIntegrationDTO>({
   successSyncCount: 0,
 })
 const toggleLoading = ref(false)
+
+const accounts = ref<PriceLabsAccountDTO[]>([])
+const accountsLoading = ref(false)
+const selectedAccountId = ref<number | null>(null)
 
 // 连接列表
 const connections = ref<PriceLabsConnectionDTO[]>([])
@@ -621,7 +717,15 @@ const roomTypeBoundPricePlans = ref<PricePlanDTO[]>([])
 // 添加连接对话框
 const showConnectionDialog = ref(false)
 const saveConnectionLoading = ref(false)
+const showAccountDialog = ref(false)
+const saveAccountLoading = ref(false)
+const editingAccountId = ref<number | null>(null)
+const accountForm = reactive({
+  accountName: '',
+  priceLabsEmail: '',
+})
 const connectionForm = reactive({
+  accountId: null as number | null,
   roomTypeId: null as number | null,
   pricePlanId: null as number | null,
 })
@@ -641,19 +745,32 @@ const adjustmentForm = reactive({
 
 // 过滤后的连接列表
 const filteredConnections = computed(() => {
+  let result = connections.value
+  if (selectedAccountId.value !== null) {
+    result = result.filter((conn) => conn.accountId === selectedAccountId.value)
+  }
   if (connectionFilter.value === 'all') {
-    return connections.value
+    return result
   }
   const isConnected = connectionFilter.value === 'connected'
-  return connections.value.filter((conn) =>
+  return result.filter((conn) =>
     isConnected ? conn.syncStatus === 'connected' : conn.syncStatus !== 'connected'
   )
+})
+
+const enabledAccounts = computed(() => accounts.value.filter((account) => account.isEnabled))
+
+const selectedAccountName = computed(() => {
+  if (selectedAccountId.value === null) {
+    return ''
+  }
+  return accounts.value.find((account) => account.id === selectedAccountId.value)?.accountName || ''
 })
 
 const enabledConnectionByRoomTypeId = computed(() => {
   const map = new Map<number, PriceLabsConnectionDTO>()
   for (const conn of connections.value) {
-    if (conn.isEnabled) {
+    if (conn.isEnabled && conn.accountEnabled !== false) {
       map.set(conn.roomTypeId, conn)
     }
   }
@@ -683,6 +800,7 @@ const addDays = (date: Date, days: number): Date => {
 const loadAllData = async () => {
   await Promise.all([
     loadIntegration(),
+    loadAccounts(),
     loadConnections(),
     loadChannelAdjustments(),
     loadRoomTypes(),
@@ -702,6 +820,26 @@ const loadIntegration = async () => {
 }
 
 // 加载连接列表
+const loadAccounts = async () => {
+  accountsLoading.value = true
+  try {
+    const res = await priceLabsApi.getAccounts()
+    if (res.success) {
+      accounts.value = res.data
+      if (
+        selectedAccountId.value !== null &&
+        !res.data.some((account) => account.id === selectedAccountId.value)
+      ) {
+        selectedAccountId.value = null
+      }
+    }
+  } catch (error) {
+    console.error('鍔犺浇 PriceLabs 璐﹀彿鍒楄〃澶辫触:', error)
+  } finally {
+    accountsLoading.value = false
+  }
+}
+
 const loadConnections = async () => {
   connectionsLoading.value = true
   try {
@@ -820,6 +958,109 @@ const handleRoomTypeChange = async (roomTypeId: number | null) => {
 }
 
 // 保存配置
+const selectAccount = (accountId: number) => {
+  selectedAccountId.value = accountId
+}
+
+const clearSelectedAccount = () => {
+  selectedAccountId.value = null
+}
+
+const openCreateAccountDialog = () => {
+  editingAccountId.value = null
+  accountForm.accountName = ''
+  accountForm.priceLabsEmail = ''
+  showAccountDialog.value = true
+}
+
+const openEditAccountDialog = (account: PriceLabsAccountDTO) => {
+  editingAccountId.value = account.id
+  accountForm.accountName = account.accountName
+  accountForm.priceLabsEmail = account.priceLabsEmail
+  showAccountDialog.value = true
+}
+
+const handleSaveAccount = async () => {
+  if (!accountForm.accountName.trim() || !accountForm.priceLabsEmail.trim()) {
+    ElMessage.warning('请先填写账号名称和邮箱')
+    return
+  }
+
+  saveAccountLoading.value = true
+  try {
+    const payload = {
+      accountName: accountForm.accountName.trim(),
+      priceLabsEmail: accountForm.priceLabsEmail.trim(),
+    }
+
+    const res = editingAccountId.value
+      ? await priceLabsApi.updateAccount(editingAccountId.value, payload)
+      : await priceLabsApi.createAccount(payload)
+
+    if (res.success) {
+      await priceLabsApi.updateIntegrationConfig({
+        priceLabsEmail: payload.priceLabsEmail,
+      })
+      ElMessage.success(editingAccountId.value ? '账号更新成功' : '账号创建成功')
+      showAccountDialog.value = false
+      await loadAccounts()
+      await loadIntegration()
+    } else {
+      ElMessage.error(res.message || '保存账号失败')
+    }
+  } catch (error) {
+    console.error('保存 PriceLabs 账号失败:', error)
+    ElMessage.error('保存账号失败')
+  } finally {
+    saveAccountLoading.value = false
+  }
+}
+
+const handleToggleAccount = async (account: PriceLabsAccountDTO) => {
+  try {
+    const res = await priceLabsApi.updateAccountStatus(account.id, !account.isEnabled)
+    if (res.success) {
+      if (!res.data.isEnabled && selectedAccountId.value === account.id) {
+        selectedAccountId.value = account.id
+      }
+      ElMessage.success(res.data.isEnabled ? '账号已启用' : '账号已禁用')
+      await loadAccounts()
+      await loadConnections()
+    } else {
+      ElMessage.error(res.message || '更新账号状态失败')
+    }
+  } catch (error) {
+    console.error('更新 PriceLabs 账号状态失败:', error)
+    ElMessage.error('更新账号状态失败')
+  }
+}
+
+const handleDeleteAccount = async (account: PriceLabsAccountDTO) => {
+  try {
+    await ElMessageBox.confirm(`确定删除账号“${account.accountName}”吗？`, '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    const res = await priceLabsApi.deleteAccount(account.id)
+    if (res.success) {
+      if (selectedAccountId.value === account.id) {
+        selectedAccountId.value = null
+      }
+      ElMessage.success('账号删除成功')
+      await loadAccounts()
+      await loadConnections()
+      await loadIntegration()
+    } else {
+      ElMessage.error(res.message || '删除账号失败')
+    }
+  } catch (error) {
+    if (error) {
+      console.error('删除 PriceLabs 账号失败:', error)
+    }
+  }
+}
+
 const handleSaveConfig = async () => {
   if (!integration.value.priceLabsEmail) {
     ElMessage.warning('请输入 PriceLabs 邮箱地址')
@@ -827,8 +1068,18 @@ const handleSaveConfig = async () => {
   }
 
   try {
+    const normalizedEmail = integration.value.priceLabsEmail.trim()
+    const existingAccount = accounts.value.find((account) => account.priceLabsEmail === normalizedEmail)
+    if (!existingAccount) {
+      await priceLabsApi.createAccount({
+        accountName: normalizedEmail,
+        priceLabsEmail: normalizedEmail,
+      })
+      await loadAccounts()
+    }
+
     const res = await priceLabsApi.updateIntegrationConfig({
-      priceLabsEmail: integration.value.priceLabsEmail,
+      priceLabsEmail: normalizedEmail,
     })
     if (res.success) {
       integration.value = res.data
@@ -842,13 +1093,50 @@ const handleSaveConfig = async () => {
   }
 }
 
+const ensureIntegrationEmailForAccount = async (accountId?: number | null) => {
+  const account =
+    accounts.value.find((item) => item.id === accountId) ||
+    accounts.value.find((item) => item.id === selectedAccountId.value) ||
+    enabledAccounts.value[0]
+
+  if (!account?.priceLabsEmail?.trim()) {
+    return false
+  }
+
+  const nextEmail = account.priceLabsEmail.trim()
+  if (integration.value.priceLabsEmail?.trim() === nextEmail) {
+    return true
+  }
+
+  const res = await priceLabsApi.updateIntegrationConfig({
+    priceLabsEmail: nextEmail,
+  })
+  if (!res.success) {
+    ElMessage.error(res.message || '同步 PriceLabs 默认邮箱失败')
+    return false
+  }
+
+  integration.value = res.data
+  return true
+}
+
 // 切换集成状态
 const handleToggleIntegration = async (enabled: boolean) => {
-  // 启用前检查是否已配置邮箱
-  if (enabled && (!integration.value.priceLabsEmail || !integration.value.priceLabsEmail.trim())) {
-    ElMessage.warning('请先配置 PriceLabs 邮箱地址')
+  if (enabled && enabledAccounts.value.length === 0) {
+    ElMessage.warning('请先添加并启用至少一个 PriceLabs 账号')
     integration.value.isEnabled = false
     return
+  }
+
+  if (enabled) {
+    const synced = await ensureIntegrationEmailForAccount(
+      selectedAccountId.value ?? enabledAccounts.value[0]?.id ?? null,
+    )
+    if (!synced) {
+      ElMessage.warning('当前没有可用的 PriceLabs 账号邮箱，请先检查账号配置')
+      integration.value.isEnabled = false
+      return
+    }
   }
 
   toggleLoading.value = true
@@ -872,6 +1160,11 @@ const handleToggleIntegration = async (enabled: boolean) => {
 
 // 添加连接
 const handleAddConnection = () => {
+  if (enabledAccounts.value.length === 0) {
+    ElMessage.warning('请先添加并启用至少一个 PriceLabs 账号')
+    return
+  }
+  connectionForm.accountId = selectedAccountId.value ?? enabledAccounts.value[0]?.id ?? null
   connectionForm.roomTypeId = null
   connectionForm.pricePlanId = null
   roomTypeBoundPricePlans.value = []
@@ -880,6 +1173,10 @@ const handleAddConnection = () => {
 
 // 保存连接
 const handleSaveConnection = async () => {
+  if (!connectionForm.accountId) {
+    ElMessage.warning('请选择要绑定的账号')
+    return
+  }
   if (!connectionForm.roomTypeId) {
     ElMessage.warning('请选择房型')
     return
@@ -905,8 +1202,9 @@ const handleSaveConnection = async () => {
   saveConnectionLoading.value = true
   try {
     if (!integration.value.isEnabled) {
-      if (!integration.value.priceLabsEmail || !integration.value.priceLabsEmail.trim()) {
-        ElMessage.warning('请先配置 PriceLabs 邮箱地址')
+      const synced = await ensureIntegrationEmailForAccount(connectionForm.accountId)
+      if (!synced) {
+        ElMessage.warning('所选账号缺少可用邮箱，请先完善账号配置')
         return
       }
 
@@ -924,7 +1222,11 @@ const handleSaveConnection = async () => {
       }
     }
 
-    const res = await priceLabsApi.createConnection(connectionForm.roomTypeId, connectionForm.pricePlanId)
+    const res = await priceLabsApi.createConnection(
+      connectionForm.accountId,
+      connectionForm.roomTypeId,
+      connectionForm.pricePlanId,
+    )
     if (res.success) {
       ElMessage.success('添加连接成功')
       showConnectionDialog.value = false

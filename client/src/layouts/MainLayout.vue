@@ -6,8 +6,10 @@ import { House, Message, Bell, User, EditPen, Headset, Wallet, Document, Phone, 
 import CustomerService from '@/components/CustomerService.vue'
 import RecordTransaction from '@/components/RecordTransaction.vue'
 import NotificationPopup from '@/components/NotificationPopup.vue'
+import { PermissionAction, PermissionModule } from '@/api/role'
 import { useUserStore } from '@/stores/user'
 import { useMemoStore } from '@/stores/memo'
+import { usePermissionStore } from '@/stores/permission'
 import { useStoreStore } from '@/stores/store'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { StoreDTO } from '@/api/store'
@@ -16,6 +18,7 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const memoStore = useMemoStore()
+const permissionStore = usePermissionStore()
 const storeStore = useStoreStore()
 const notificationCenterStore = useNotificationCenterStore()
 
@@ -54,6 +57,63 @@ const showContactDialog = ref(false)
 const currentUser = computed(() => userStore.currentUser)
 const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.email || '')
 
+interface NavItem {
+  label: string
+  path: string
+}
+
+const canAccessAccommodation = computed(() =>
+  permissionStore.hasPermissions(
+    [
+      { module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_STATUS },
+      { module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_PRICE },
+      { module: PermissionModule.ACCOMMODATION, action: PermissionAction.VIEW_ROOM_INFO },
+      { module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST },
+    ],
+    'any'
+  )
+)
+
+const canAccessChannel = computed(() =>
+  permissionStore.hasPermission(PermissionModule.CHANNEL, PermissionAction.VIEW_CHANNELS)
+)
+
+const canAccessOrder = computed(() =>
+  permissionStore.hasPermission(PermissionModule.ORDER, PermissionAction.VIEW_ORDERS)
+)
+
+const canAccessStatistics = computed(() =>
+  permissionStore.hasPermission(PermissionModule.STATISTICS, PermissionAction.VIEW_STATS)
+)
+
+const canAccessSettings = computed(() =>
+  permissionStore.hasPermissions(
+    [
+      { module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS },
+      { module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS },
+    ],
+    'any'
+  )
+)
+
+const canAccessWallet = computed(() =>
+  permissionStore.hasPermission(PermissionModule.SENSITIVE, PermissionAction.VIEW_FINANCIAL_DATA)
+)
+
+const navItems = computed<NavItem[]>(() => {
+  const items: Array<NavItem & { visible: boolean }> = [
+    { label: '首页', path: '/', visible: true },
+    { label: '房态', path: '/accommodation', visible: canAccessAccommodation.value },
+    { label: '渠道', path: '/channel', visible: canAccessChannel.value },
+    { label: '订单', path: '/order', visible: canAccessOrder.value },
+    { label: '统计', path: '/data-center/overview', visible: canAccessStatistics.value },
+    { label: '审查', path: '/data-center/registrations', visible: canAccessStatistics.value },
+    { label: '设置', path: '/settings', visible: canAccessSettings.value },
+  ]
+
+  return items.filter((item) => item.visible)
+})
+
 onMounted(() => {
   if (localStorage.getItem('token')) {
     userStore.fetchCurrentUser().catch(() => {
@@ -65,6 +125,21 @@ onMounted(() => {
     loadStores()
   }
 })
+
+watch(
+  () => currentStore.value?.id,
+  (storeId) => {
+    if (!storeId) {
+      permissionStore.clearPermissions()
+      return
+    }
+
+    void permissionStore.fetchCurrentStorePermissions(true).catch(() => {
+      // route guard will handle restricted pages when needed
+    })
+  },
+  { immediate: true },
+)
 
 watch(
   notificationPopupRef,
@@ -161,6 +236,7 @@ const handleHelpCenter = () => {
 const handleLogout = async () => {
   try {
     await userStore.logout()
+    permissionStore.clearPermissions()
     ElMessage.success('已退出登录')
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : '退出登录失败'
@@ -216,13 +292,9 @@ const handleLogout = async () => {
           @select="handleMenuClick"
           class="nav-menu"
         >
-          <el-menu-item index="/">首页</el-menu-item>
-          <el-menu-item index="/accommodation">房态</el-menu-item>
-          <el-menu-item index="/channel">渠道</el-menu-item>
-          <el-menu-item index="/order">订单</el-menu-item>
-          <el-menu-item index="/data-center/overview">统计</el-menu-item>
-          <el-menu-item index="/data-center/registrations">审查</el-menu-item>
-          <el-menu-item index="/settings">设置</el-menu-item>
+          <el-menu-item v-for="item in navItems" :key="item.path" :index="item.path">
+            {{ item.label }}
+          </el-menu-item>
         </el-menu>
       </nav>
 
@@ -241,7 +313,7 @@ const handleLogout = async () => {
                     系统通知
                   </span>
                 </el-dropdown-item>
-                <el-dropdown-item @click="handleOrderNotification">
+                <el-dropdown-item v-if="canAccessOrder" @click="handleOrderNotification">
                   <span class="inbox-item">
                     <span class="inbox-dot order"></span>
                     订单通知
@@ -279,7 +351,7 @@ const handleLogout = async () => {
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <el-tooltip content="钱包" placement="bottom">
+          <el-tooltip v-if="canAccessWallet" content="钱包" placement="bottom">
             <el-button text class="action-icon" @click="handleWalletClick">
               <el-icon><Wallet /></el-icon>
             </el-button>

@@ -193,6 +193,21 @@ public class StoreController {
         }
     }
 
+    @GetMapping("/{id}/my-permissions")
+    public ResponseEntity<ApiResponse<List<PermissionDTO>>> getMyPermissions(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest
+    ) {
+        try {
+            Long userId = (Long) httpRequest.getAttribute("userId");
+            List<PermissionDTO> permissions = storeService.getCurrentUserEffectivePermissions(id, userId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "获取当前成员权限成功", permissions));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
     /**
      * Get store member detail
      */

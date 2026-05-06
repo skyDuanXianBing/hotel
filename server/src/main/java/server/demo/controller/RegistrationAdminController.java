@@ -80,9 +80,11 @@ public class RegistrationAdminController {
     }
 
     @GetMapping("/link-inbox")
-    public ApiResponse<List<RegistrationLinkInboxItemDTO>> linkInbox() {
+    public ApiResponse<List<RegistrationLinkInboxItemDTO>> linkInbox(
+            @RequestParam(name = "reservationStatus", required = false) ReservationStatus reservationStatus
+    ) {
         Long storeId = StoreContextUtils.requireStoreId();
-        return ApiResponse.success("ok", registrationLinkInboxService.listTop200(storeId));
+        return ApiResponse.success("ok", registrationLinkInboxService.listTop200(storeId, reservationStatus));
     }
 
     @GetMapping("/{formId}")

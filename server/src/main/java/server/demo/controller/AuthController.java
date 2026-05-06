@@ -61,6 +61,7 @@ public class AuthController {
     public ApiResponse<LoginResponse> loginByPassword(@Valid @RequestBody LoginByPasswordRequest request) {
         try {
             LoginResponse loginResponse = authService.loginByPassword(request);
+            authService.ensurePmsLoginAllowed(loginResponse);
             return ApiResponse.success("登录成功", loginResponse);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
@@ -77,6 +78,7 @@ public class AuthController {
     public ApiResponse<LoginResponse> loginByCode(@Valid @RequestBody LoginByCodeRequest request) {
         try {
             LoginResponse loginResponse = authService.loginByCode(request);
+            authService.ensurePmsLoginAllowed(loginResponse);
             return ApiResponse.success("登录成功", loginResponse);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());

@@ -29,7 +29,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -55,6 +57,9 @@ public class PriceLabsService {
 
     @Autowired
     private PriceLabsConnectionRepository connectionRepository;
+
+    @Autowired
+    private PriceLabsAccountRepository accountRepository;
 
     @Autowired
     private ChannelPriceRepository channelPriceRepository;
@@ -105,6 +110,7 @@ public class PriceLabsService {
      */
     public PriceLabsIntegrationDTO getIntegration() {
         Long storeId = StoreContextHolder.getContext().getStoreId();
+        ensureLegacyAccountMapping(storeId);
         return integrationRepository.findByStoreId(storeId)
                 .map(this::convertToIntegrationDTO)
                 .orElse(createDefaultIntegrationDTO(storeId));
@@ -195,7 +201,101 @@ public class PriceLabsService {
 
         integration.setPriceLabsEmail(priceLabsEmail);
         PriceLabsIntegration saved = integrationRepository.save(integration);
+        ensureLegacyAccountMapping(storeId);
         return convertToIntegrationDTO(saved);
+    }
+
+    public List<PriceLabsAccountDTO> getAccounts() {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        ensureLegacyAccountMapping(storeId);
+        return accountRepository.findByStoreIdOrderByCreatedAtAsc(storeId).stream()
+                .map(this::convertToAccountDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public PriceLabsAccountDTO createAccount(String accountName, String priceLabsEmail) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        ensureLegacyAccountMapping(storeId);
+
+        String normalizedEmail = normalizeEmail(priceLabsEmail);
+        if (normalizedEmail == null) {
+            throw new RuntimeException("PriceLabs 账号邮箱不能为空");
+        }
+        if (accountRepository.existsByStoreIdAndPriceLabsEmail(storeId, normalizedEmail)) {
+            throw new RuntimeException("该 PriceLabs 账号已存在");
+        }
+
+        String normalizedName = normalizeAccountName(accountName, normalizedEmail);
+        if (accountRepository.existsByStoreIdAndAccountName(storeId, normalizedName)) {
+            throw new RuntimeException("账号名称已存在，请更换后重试");
+        }
+
+        PriceLabsAccount account = new PriceLabsAccount();
+        account.setStoreId(storeId);
+        account.setAccountName(normalizedName);
+        account.setPriceLabsEmail(normalizedEmail);
+        account.setIsEnabled(true);
+        return convertToAccountDTO(accountRepository.save(account));
+    }
+
+    @Transactional
+    public Optional<PriceLabsAccountDTO> updateAccount(Long accountId, String accountName, String priceLabsEmail) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        ensureLegacyAccountMapping(storeId);
+
+        return accountRepository.findByStoreIdAndId(storeId, accountId)
+                .map(account -> {
+                    String normalizedEmail = normalizeEmail(priceLabsEmail);
+                    if (normalizedEmail == null) {
+                        throw new RuntimeException("PriceLabs 账号邮箱不能为空");
+                    }
+                    String normalizedName = normalizeAccountName(accountName, normalizedEmail);
+
+                    accountRepository.findByStoreIdAndPriceLabsEmail(storeId, normalizedEmail)
+                            .ifPresent(existing -> {
+                                if (!existing.getId().equals(account.getId())) {
+                                    throw new RuntimeException("该 PriceLabs 账号已存在");
+                                }
+                            });
+
+                    if (!normalizedName.equals(account.getAccountName())
+                            && accountRepository.existsByStoreIdAndAccountName(storeId, normalizedName)) {
+                        throw new RuntimeException("账号名称已存在，请更换后重试");
+                    }
+
+                    account.setAccountName(normalizedName);
+                    account.setPriceLabsEmail(normalizedEmail);
+                    return convertToAccountDTO(accountRepository.save(account));
+                });
+    }
+
+    @Transactional
+    public Optional<PriceLabsAccountDTO> updateAccountStatus(Long accountId, Boolean enabled) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        ensureLegacyAccountMapping(storeId);
+
+        return accountRepository.findByStoreIdAndId(storeId, accountId)
+                .map(account -> {
+                    account.setIsEnabled(Boolean.TRUE.equals(enabled));
+                    return convertToAccountDTO(accountRepository.save(account));
+                });
+    }
+
+    @Transactional
+    public boolean deleteAccount(Long accountId) {
+        Long storeId = StoreContextHolder.getContext().getStoreId();
+        ensureLegacyAccountMapping(storeId);
+
+        return accountRepository.findByStoreIdAndId(storeId, accountId)
+                .map(account -> {
+                    if (connectionRepository.existsByStoreIdAndAccountId(storeId, accountId)) {
+                        throw new RuntimeException("该账号下仍有已绑定房间，请先删除或改绑连接");
+                    }
+                    accountRepository.delete(account);
+                    return true;
+                })
+                .orElse(false);
     }
 
     // ==================== 连接配置管理 ====================
@@ -205,7 +305,8 @@ public class PriceLabsService {
      */
     public List<PriceLabsConnectionDTO> getConnections() {
         Long storeId = StoreContextHolder.getContext().getStoreId();
-        return connectionRepository.findByStoreId(storeId).stream()
+        ensureLegacyAccountMapping(storeId);
+        return connectionRepository.findByStoreIdOrderByCreatedAtDesc(storeId).stream()
                 .map(this::convertToConnectionDTO)
                 .collect(Collectors.toList());
     }
@@ -214,8 +315,18 @@ public class PriceLabsService {
      * 创建连接配置
      */
     @Transactional
-    public PriceLabsConnectionDTO createConnection(Long roomTypeId, Long pricePlanId) {
+    public PriceLabsConnectionDTO createConnection(Long accountId, Long roomTypeId, Long pricePlanId) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
+        ensureLegacyAccountMapping(storeId);
+
+        if (accountId == null) {
+            throw new RuntimeException("PriceLabs account is required");
+        }
+        PriceLabsAccount account = accountRepository.findByStoreIdAndId(storeId, accountId)
+                .orElseThrow(() -> new RuntimeException("PriceLabs account not found"));
+        if (!Boolean.TRUE.equals(account.getIsEnabled())) {
+            throw new RuntimeException("Please enable the selected PriceLabs account first");
+        }
 
         if (roomTypeId == null) {
             throw new RuntimeException("房型不能为空");
@@ -265,6 +376,7 @@ public class PriceLabsService {
         }
         PriceLabsConnection connection = new PriceLabsConnection(roomType, pricePlan);
         connection.setStoreId(storeId);
+        connection.setAccount(account);
         String listingId = PriceLabsIdUtil.formatListingIdWithTimestamp(storeId, roomTypeId);
         connection.setPriceLabsListingId(listingId);
 
@@ -285,10 +397,15 @@ public class PriceLabsService {
     @Transactional
     public Optional<PriceLabsConnectionDTO> updateConnectionStatus(Long connectionId, Boolean enabled) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
+        ensureLegacyAccountMapping(storeId);
 
         return connectionRepository.findById(connectionId)
                 .filter(conn -> conn.getStoreId().equals(storeId))
                 .map(conn -> {
+                    if (Boolean.TRUE.equals(enabled)
+                            && (conn.getAccount() == null || !Boolean.TRUE.equals(conn.getAccount().getIsEnabled()))) {
+                        throw new RuntimeException("璇峰厛鍚敤杩炴帴鎵€灞炵殑 PriceLabs 璐﹀彿");
+                    }
                     // 稳定优先：启用连接前，确保同一房型没有其它启用连接
                     if (Boolean.TRUE.equals(enabled) && conn.getRoomType() != null && conn.getRoomType().getId() != null) {
                         connectionRepository.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, conn.getRoomType().getId())
@@ -895,10 +1012,29 @@ public class PriceLabsService {
         return dto;
     }
 
+    private PriceLabsAccountDTO convertToAccountDTO(PriceLabsAccount entity) {
+        PriceLabsAccountDTO dto = new PriceLabsAccountDTO();
+        dto.setId(entity.getId());
+        dto.setStoreId(entity.getStoreId());
+        dto.setAccountName(entity.getAccountName());
+        dto.setPriceLabsEmail(entity.getPriceLabsEmail());
+        dto.setIsEnabled(entity.getIsEnabled());
+        dto.setConnectionCount(connectionRepository.countByStoreIdAndAccountId(entity.getStoreId(), entity.getId()));
+        dto.setCreatedAt(entity.getCreatedAt());
+        dto.setUpdatedAt(entity.getUpdatedAt());
+        return dto;
+    }
+
     private PriceLabsConnectionDTO convertToConnectionDTO(PriceLabsConnection entity) {
         PriceLabsConnectionDTO dto = new PriceLabsConnectionDTO();
         dto.setId(entity.getId());
         dto.setStoreId(entity.getStoreId());
+        if (entity.getAccount() != null) {
+            dto.setAccountId(entity.getAccount().getId());
+            dto.setAccountName(entity.getAccount().getAccountName());
+            dto.setAccountEmail(entity.getAccount().getPriceLabsEmail());
+            dto.setAccountEnabled(entity.getAccount().getIsEnabled());
+        }
         dto.setRoomTypeId(entity.getRoomType().getId());
         dto.setRoomTypeName(entity.getRoomType().getName());
         dto.setPricePlanId(entity.getPricePlan().getId());
@@ -1030,5 +1166,53 @@ public class PriceLabsService {
         return PriceLabsDistributionMode.INVRATECONTROL_ONLY.equals(normalized)
                 || PriceLabsDistributionMode.AVAILABILITY_ONLY.equals(normalized)
                 || PriceLabsDistributionMode.BOTH.equals(normalized);
+    }
+
+    private void ensureLegacyAccountMapping(Long storeId) {
+        if (storeId == null) {
+            return;
+        }
+
+        PriceLabsIntegration integration = integrationRepository.findByStoreId(storeId).orElse(null);
+        String legacyEmail = integration != null ? normalizeEmail(integration.getPriceLabsEmail()) : null;
+        if (legacyEmail == null) {
+            return;
+        }
+
+        PriceLabsAccount account = accountRepository.findByStoreIdAndPriceLabsEmail(storeId, legacyEmail)
+                .orElseGet(() -> {
+                    PriceLabsAccount created = new PriceLabsAccount();
+                    created.setStoreId(storeId);
+                    created.setAccountName(normalizeAccountName(null, legacyEmail));
+                    created.setPriceLabsEmail(legacyEmail);
+                    created.setIsEnabled(integration == null || !Boolean.FALSE.equals(integration.getIsEnabled()));
+                    return accountRepository.save(created);
+                });
+
+        connectionRepository.findByStoreId(storeId).stream()
+                .filter(conn -> conn.getAccount() == null)
+                .forEach(conn -> {
+                    conn.setAccount(account);
+                    connectionRepository.save(conn);
+                });
+    }
+
+    private String normalizeEmail(String priceLabsEmail) {
+        if (priceLabsEmail == null) {
+            return null;
+        }
+        String normalized = priceLabsEmail.trim().toLowerCase(Locale.ROOT);
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String normalizeAccountName(String accountName, String fallbackEmail) {
+        String candidate = accountName != null ? accountName.trim() : "";
+        if (!candidate.isEmpty()) {
+            return candidate;
+        }
+        if (fallbackEmail != null && !fallbackEmail.isBlank()) {
+            return fallbackEmail;
+        }
+        throw new RuntimeException("账号名称不能为空");
     }
 }

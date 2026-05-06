@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   Setting,
@@ -13,9 +13,15 @@ import {
   ArrowRight,
   Menu as MenuIcon,
 } from '@element-plus/icons-vue'
+import { PermissionAction, PermissionModule } from '@/api/role'
+import {
+  usePermissionStore,
+  type PermissionRequirement,
+} from '@/stores/permission'
 
 const router = useRouter()
 const route = useRoute()
+const permissionStore = usePermissionStore()
 
 // 侧边栏折叠状态
 const isCollapsed = ref(false)
@@ -32,8 +38,17 @@ interface MenuItem {
   label: string
   icon?: any
   path?: string
+  requiredPermissions?: PermissionRequirement[]
   children?: MenuItem[]
 }
+
+const storeSettingsPermission: PermissionRequirement[] = [
+  { module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS },
+]
+
+const accountSettingsPermission: PermissionRequirement[] = [
+  { module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS },
+]
 
 const menuItems: MenuItem[] = [
   {
@@ -41,11 +56,11 @@ const menuItems: MenuItem[] = [
     label: '住宿设置',
     icon: House,
     children: [
-      { key: 'room-type', label: '房间设置', path: '/settings/room-type' },
-      { key: 'price-plan', label: '价格计划', path: '/settings/room/price-plan' },
-      { key: 'consumption-items', label: '消费项设置', path: '/settings/room/consumption-items' },
-      { key: 'room-group', label: '房间分组设置', path: '/settings/room/room-group' },
-      { key: 'room-sort', label: '排序设置', path: '/settings/room/room-sort' },
+      { key: 'room-type', label: '房间设置', path: '/settings/room-type', requiredPermissions: storeSettingsPermission },
+      { key: 'price-plan', label: '价格计划', path: '/settings/room/price-plan', requiredPermissions: storeSettingsPermission },
+      { key: 'consumption-items', label: '消费项设置', path: '/settings/room/consumption-items', requiredPermissions: storeSettingsPermission },
+      { key: 'room-group', label: '房间分组设置', path: '/settings/room/room-group', requiredPermissions: storeSettingsPermission },
+      { key: 'room-sort', label: '排序设置', path: '/settings/room/room-sort', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
@@ -53,8 +68,8 @@ const menuItems: MenuItem[] = [
     label: '财务设置',
     icon: Coin,
     children: [
-      { key: 'payment-methods', label: '收款方式', path: '/settings/payment-methods' },
-      { key: 'note-settings', label: '记一笔设置', path: '/settings/finance/note-settings' },
+      { key: 'payment-methods', label: '收款方式', path: '/settings/payment-methods', requiredPermissions: storeSettingsPermission },
+      { key: 'note-settings', label: '记一笔设置', path: '/settings/finance/note-settings', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
@@ -62,8 +77,8 @@ const menuItems: MenuItem[] = [
     label: '账号管理',
     icon: Grid,
     children: [
-      { key: 'account-list', label: '账号列表', path: '/settings/account/account-list' },
-      { key: 'role-management', label: '角色管理', path: '/settings/account/role-management' },
+      { key: 'account-list', label: '账号列表', path: '/settings/account/account-list', requiredPermissions: accountSettingsPermission },
+      { key: 'role-management', label: '角色管理', path: '/settings/account/role-management', requiredPermissions: accountSettingsPermission },
     ],
   },
   {
@@ -71,8 +86,8 @@ const menuItems: MenuItem[] = [
     label: '门店设置',
     icon: Shop,
     children: [
-      { key: 'store-basic-info', label: '基本信息', path: '/settings/store/basic-info' },
-      { key: 'store-details', label: '门店详情', path: '/settings/store/details' },
+      { key: 'store-basic-info', label: '基本信息', path: '/settings/store/basic-info', requiredPermissions: storeSettingsPermission },
+      { key: 'store-details', label: '门店详情', path: '/settings/store/details', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
@@ -80,10 +95,10 @@ const menuItems: MenuItem[] = [
     label: '通用设置',
     icon: Setting,
     children: [
-      { key: 'notification-settings', label: '通知设置', path: '/settings/general/notification' },
-      { key: 'channel-settings', label: '渠道设置', path: '/settings/general/channel' },
-      { key: 'quick-reply', label: '快捷回复', path: '/settings/general/quick-reply' },
-      { key: 'auto-message', label: '自动化消息', path: '/settings/general/auto-message' },
+      { key: 'notification-settings', label: '通知设置', path: '/settings/general/notification', requiredPermissions: storeSettingsPermission },
+      { key: 'channel-settings', label: '渠道设置', path: '/settings/general/channel', requiredPermissions: storeSettingsPermission },
+      { key: 'quick-reply', label: '快捷回复', path: '/settings/general/quick-reply', requiredPermissions: storeSettingsPermission },
+      { key: 'auto-message', label: '自动化消息', path: '/settings/general/auto-message', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
@@ -91,8 +106,8 @@ const menuItems: MenuItem[] = [
     label: '保洁设置',
     icon: BrushFilled,
     children: [
-      { key: 'cleaning-settings', label: '设置', path: '/settings/cleaning/settings' },
-      { key: 'cleaning-supplies', label: '易耗品', path: '/settings/cleaning/supplies' },
+      { key: 'cleaning-settings', label: '设置', path: '/settings/cleaning/settings', requiredPermissions: storeSettingsPermission },
+      { key: 'cleaning-supplies', label: '易耗品', path: '/settings/cleaning/supplies', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
@@ -100,11 +115,28 @@ const menuItems: MenuItem[] = [
     label: '第三方集成',
     icon: Connection,
     children: [
-      { key: 'pricing-tools', label: '定价工具', path: '/settings/third-party/pricing-tools' },
-      { key: 'payment-platforms', label: '支付平台', path: '/settings/third-party/payment-platforms' },
+      { key: 'pricing-tools', label: '定价工具', path: '/settings/third-party/pricing-tools', requiredPermissions: storeSettingsPermission },
+      { key: 'payment-platforms', label: '支付平台', path: '/settings/third-party/payment-platforms', requiredPermissions: storeSettingsPermission },
     ],
   },
 ]
+
+const filteredMenuItems = computed(() =>
+  menuItems
+    .map((item) => {
+      const children = item.children?.filter(
+        (child) =>
+          !child.requiredPermissions ||
+          permissionStore.hasPermissions(child.requiredPermissions, 'all')
+      )
+
+      return {
+        ...item,
+        children,
+      }
+    })
+    .filter((item) => item.children && item.children.length > 0)
+)
 
 const handleMenuClick = (item: MenuItem) => {
   if (item.path) {
@@ -142,7 +174,7 @@ const getMenuTitle = () => {
         </div>
 
         <el-collapse v-model="activeCollapse" class="settings-menu">
-          <el-collapse-item v-for="item in menuItems" :key="item.key" :name="item.key">
+          <el-collapse-item v-for="item in filteredMenuItems" :key="item.key" :name="item.key">
             <template #title>
               <div class="menu-title">
                 <el-icon><component :is="item.icon" /></el-icon>

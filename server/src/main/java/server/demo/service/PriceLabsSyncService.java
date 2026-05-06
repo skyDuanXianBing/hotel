@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.PriceLabsWebhookRequest;
+import server.demo.entity.PriceLabsAccount;
 import server.demo.entity.PriceLabsConnection;
 import server.demo.entity.PriceLabsIntegration;
 import server.demo.entity.PriceLabsSyncLog;
@@ -110,7 +111,7 @@ public class PriceLabsSyncService {
 
             LocalDateTime now = LocalDateTime.now();
             connectionRepo.findByStoreId(storeId).forEach(conn -> {
-                if (conn.getIsEnabled()) {
+                if (isConnectionActive(conn)) {
                     conn.setSyncStatus(PriceLabsSyncStatus.CONNECTED);
                     conn.setLastSyncAt(now);
                     conn.setErrorMessage(null);
@@ -151,9 +152,7 @@ public class PriceLabsSyncService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         int pullDays = clampSyncDays(days);
 
-        List<PriceLabsConnection> enabledConnections = connectionRepo.findByStoreId(storeId).stream()
-                .filter(conn -> Boolean.TRUE.equals(conn.getIsEnabled()))
-                .collect(Collectors.toList());
+        List<PriceLabsConnection> enabledConnections = findActiveConnections(storeId);
 
         if (enabledConnections.isEmpty()) {
             logger.warn("[PriceLabsPull] skip get_prices because no enabled PriceLabs connections. storeId={}", storeId);
@@ -239,9 +238,7 @@ public class PriceLabsSyncService {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         int pullDays = clampSyncDays(days);
 
-        List<PriceLabsConnection> enabledConnections = connectionRepo.findByStoreId(storeId).stream()
-                .filter(conn -> Boolean.TRUE.equals(conn.getIsEnabled()))
-                .collect(Collectors.toList());
+        List<PriceLabsConnection> enabledConnections = findActiveConnections(storeId);
 
         if (enabledConnections.isEmpty()) {
             logger.warn("[PriceLabsPull] skip get_prices(pull_sync) because no enabled PriceLabs connections. storeId={}", storeId);
@@ -357,6 +354,7 @@ public class PriceLabsSyncService {
         }
 
         PriceLabsConnection connection = connectionRepo.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, roomTypeId)
+                .filter(this::isConnectionActive)
                 .orElseThrow(() -> new RuntimeException("No enabled PriceLabs connection found"));
 
         String listingId = connection.getPriceLabsListingId();
@@ -483,19 +481,19 @@ public class PriceLabsSyncService {
 
         PriceLabsIntegration integration = integrationRepo.findByStoreId(storeId)
             .orElseThrow(() -> new RuntimeException("PriceLabs integration not found for store: " + storeId));
-        String userToken = integration.getPriceLabsEmail();
-        if (userToken == null || userToken.trim().isEmpty()) {
-            throw new RuntimeException("PriceLabs email (user_token) not configured for store: " + storeId);
-        }
-
-        List<RoomType> rts = roomTypeRepo.findByStoreId(storeId);
-        if (rts.isEmpty()) {
-            logger.warn("No room types for store {}", storeId);
+        List<PriceLabsConnection> activeConnections = findActiveConnections(storeId);
+        if (activeConnections.isEmpty()) {
+            logger.warn("No active PriceLabs connections for store {}", storeId);
             return;
         }
 
-        List<PriceLabsApiClient.ListingData> listings = rts.stream()
-            .map(rt -> toListing(rt, store, userToken))
+        List<PriceLabsApiClient.ListingData> listings = activeConnections.stream()
+            .map(conn -> toListing(
+                    conn.getRoomType(),
+                    store,
+                    resolveUserToken(conn, integration),
+                    normalizeListingId(conn, storeId)
+            ))
             .collect(Collectors.toList());
 
         PriceLabsApiClient.PriceLabsResponse res = apiClient.pushListings(listings);
@@ -515,20 +513,20 @@ public class PriceLabsSyncService {
     @Transactional
     public void syncRatePlans(Long storeId) {
         logger.info("Sync rate plans for store {}", storeId);
-        List<RoomType> rts = roomTypeRepo.findByStoreId(storeId);
-        if (rts.isEmpty()) {
-            logger.warn("No room types for store {}", storeId);
+        List<PriceLabsConnection> activeConnections = findActiveConnections(storeId);
+        if (activeConnections.isEmpty()) {
+            logger.warn("No active PriceLabs connections for store {}", storeId);
             return;
         }
 
         List<PriceLabsApiClient.RatePlanData> all = new ArrayList<>();
-        for (RoomType rt : rts) {
-            List<RoomTypePricePlan> plans = rtppRepo.findByRoomTypeId(rt.getId());
-            if (plans.isEmpty()) {
-                logger.warn("No price plans for room type {}", rt.getName());
+        for (PriceLabsConnection conn : activeConnections) {
+            RoomType rt = conn.getRoomType();
+            PricePlan pricePlan = conn.getPricePlan();
+            if (rt == null || pricePlan == null) {
                 continue;
             }
-            all.addAll(plans.stream().map(p -> toRatePlan(rt, p)).collect(Collectors.toList()));
+            all.addAll(buildRatePlanPayloadForRoomType(rt, pricePlan, normalizeListingId(conn, storeId)));
         }
 
         if (all.isEmpty()) {
@@ -556,9 +554,9 @@ public class PriceLabsSyncService {
         Store store = storeRepo.findById(storeId)
             .orElseThrow(() -> new RuntimeException("Store not found: " + storeId));
         String currency = (store.getCurrency() != null && !store.getCurrency().trim().isEmpty()) ? store.getCurrency().trim() : "CNY";
-        List<RoomType> rts = roomTypeRepo.findByStoreId(storeId);
-        if (rts.isEmpty()) {
-            logger.warn("No room types for store {}", storeId);
+        List<PriceLabsConnection> activeConnections = findActiveConnections(storeId);
+        if (activeConnections.isEmpty()) {
+            logger.warn("No active PriceLabs connections for store {}", storeId);
             return;
         }
 
@@ -566,29 +564,28 @@ public class PriceLabsSyncService {
         Map<Long, Map<LocalDate, Integer>> blockedUnitsByRoomTypeAndDate = buildBlockedUnitsByRoomTypeAndDate(storeId, start, end);
 
         List<PriceLabsApiClient.CalendarData> all = new ArrayList<>();
-        for (RoomType rt : rts) {
-            List<RoomTypePricePlan> plans = rtppRepo.findByRoomTypeId(rt.getId());
-            if (plans.isEmpty()) {
-                logger.warn("No price plans for room type {}", rt.getName());
+        for (PriceLabsConnection conn : activeConnections) {
+            RoomType rt = conn.getRoomType();
+            PricePlan plan = conn.getPricePlan();
+            if (rt == null || plan == null) {
                 continue;
             }
             PriceLabsApiClient.MultiUnitInfo multiUnitInfo = buildMultiUnitInfo(storeId, rt);
-            for (RoomTypePricePlan p : plans) {
-                PricePlan plan = p.getPricePlan();
-                List<RoomPrice> prices = roomPriceRepo.findByStoreIdAndRoomTypeIdAndPriceDateBetween(storeId, rt.getId(), start, end);
-                PriceLabsApiClient.CalendarData cal = toCalendar(
-                        rt,
-                        plan,
-                    PriceLabsIdUtil.formatListingId(rt.getStoreId(), rt.getId()),
-                        prices,
-                        start,
-                        end,
-                        currency,
-                        bookedUnitsByRoomTypeAndDate,
-                        blockedUnitsByRoomTypeAndDate,
-                        multiUnitInfo
-                );
-                if (cal.getCalendar() != null && !cal.getCalendar().isEmpty()) all.add(cal);
+            List<RoomPrice> prices = roomPriceRepo.findByStoreIdAndRoomTypeIdAndPriceDateBetween(storeId, rt.getId(), start, end);
+            PriceLabsApiClient.CalendarData cal = toCalendar(
+                    rt,
+                    plan,
+                    normalizeListingId(conn, storeId),
+                    prices,
+                    start,
+                    end,
+                    currency,
+                    bookedUnitsByRoomTypeAndDate,
+                    blockedUnitsByRoomTypeAndDate,
+                    multiUnitInfo
+            );
+            if (cal.getCalendar() != null && !cal.getCalendar().isEmpty()) {
+                all.add(cal);
             }
         }
 
@@ -680,11 +677,6 @@ public class PriceLabsSyncService {
             return;
         }
 
-        String userToken = integration.getPriceLabsEmail();
-        if (userToken == null || userToken.trim().isEmpty()) {
-            return;
-        }
-
         Store store = storeRepo.findById(storeId).orElse(null);
         if (store == null) {
             return;
@@ -698,7 +690,14 @@ public class PriceLabsSyncService {
         }
 
         validateStoreForPriceLabs(store);
-        String listingId = resolveListingIdForRoomType(storeId, roomType.getId());
+        PriceLabsConnection connection = connectionRepo.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, roomType.getId())
+                .filter(this::isConnectionActive)
+                .orElse(null);
+        if (connection == null) {
+            return;
+        }
+        String userToken = resolveUserToken(connection, integration);
+        String listingId = normalizeListingId(connection, storeId);
         PriceLabsApiClient.PriceLabsResponse listingRes = apiClient.pushListings(List.of(toListing(roomType, store, userToken, listingId)));
         if (listingRes.getFailure() != null && !listingRes.getFailure().isEmpty()) {
             throw new RuntimeException("房源推送失败：" + summarizeFailures(listingRes.getFailure()));
@@ -738,11 +737,6 @@ public class PriceLabsSyncService {
             return;
         }
 
-        String userToken = integration.getPriceLabsEmail();
-        if (userToken == null || userToken.trim().isEmpty()) {
-            return;
-        }
-
         Store store = storeRepo.findById(storeId).orElse(null);
         if (store == null) {
             return;
@@ -750,18 +744,24 @@ public class PriceLabsSyncService {
 
         validateStoreForPriceLabs(store);
 
-        List<RoomType> fallbackRoomTypes = roomTypeRepo.findByStoreId(storeId).stream()
-                .filter(rt -> rt.getRoomTypeAddress() == null || rt.getRoomTypeAddress().isBlank())
+        List<PriceLabsConnection> fallbackConnections = findActiveConnections(storeId).stream()
+                .filter(conn -> conn.getRoomType() != null)
+                .filter(conn -> conn.getRoomType().getRoomTypeAddress() == null || conn.getRoomType().getRoomTypeAddress().isBlank())
                 .collect(Collectors.toList());
 
-        if (fallbackRoomTypes.isEmpty()) {
+        if (fallbackConnections.isEmpty()) {
             return;
         }
 
         List<PriceLabsApiClient.ListingData> listings = new ArrayList<>();
-        for (RoomType roomType : fallbackRoomTypes) {
-            String listingId = resolveListingIdForRoomType(storeId, roomType.getId());
-            listings.add(toListing(roomType, store, userToken, listingId));
+        for (PriceLabsConnection connection : fallbackConnections) {
+            RoomType roomType = connection.getRoomType();
+            listings.add(toListing(
+                    roomType,
+                    store,
+                    resolveUserToken(connection, integration),
+                    normalizeListingId(connection, storeId)
+            ));
         }
 
         PriceLabsApiClient.PriceLabsResponse listingRes = apiClient.pushListings(listings);
@@ -802,10 +802,10 @@ public class PriceLabsSyncService {
             throw new RuntimeException("PriceLabs integration is disabled");
         }
 
-        String userToken = integration.getPriceLabsEmail();
-        if (userToken == null || userToken.trim().isEmpty()) {
-            throw new RuntimeException("PriceLabs email (user_token) not configured for store: " + storeId);
-        }
+        PriceLabsConnection connection = connectionRepo.findByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomType.getId(), pricePlan.getId())
+                .filter(this::isConnectionActive)
+                .orElse(null);
+        String userToken = resolveUserToken(connection, integration);
 
         String resolvedListingId = (listingId != null && !listingId.isBlank())
             ? listingId
@@ -832,6 +832,7 @@ public class PriceLabsSyncService {
         PriceLabsConnection temp = new PriceLabsConnection(roomType, pricePlan);
         temp.setStoreId(storeId);
         temp.setIsEnabled(true);
+        temp.setAccount(connection != null ? connection.getAccount() : null);
         temp.setPriceLabsListingId(resolvedListingId);
         syncCalendarForConnections(storeId, List.of(temp), start, end);
 
@@ -1258,7 +1259,7 @@ public class PriceLabsSyncService {
             }
 
             List<PriceLabsConnection> enabled = candidates.stream()
-                    .filter(conn -> Boolean.TRUE.equals(conn.getIsEnabled()))
+                    .filter(this::isConnectionActive)
                     .filter(conn -> storeIdFromListing == null || storeIdFromListing.equals(conn.getStoreId()))
                     .collect(Collectors.toList());
             if (enabled.isEmpty()) {
@@ -1451,6 +1452,33 @@ public class PriceLabsSyncService {
         return null;
     }
 
+    private List<PriceLabsConnection> findActiveConnections(Long storeId) {
+        return connectionRepo.findByStoreId(storeId).stream()
+                .filter(this::isConnectionActive)
+                .collect(Collectors.toList());
+    }
+
+    private boolean isConnectionActive(PriceLabsConnection connection) {
+        if (connection == null || !Boolean.TRUE.equals(connection.getIsEnabled())) {
+            return false;
+        }
+        PriceLabsAccount account = connection.getAccount();
+        return account == null || Boolean.TRUE.equals(account.getIsEnabled());
+    }
+
+    private String resolveUserToken(PriceLabsConnection connection, PriceLabsIntegration integration) {
+        if (connection != null && connection.getAccount() != null) {
+            String accountToken = connection.getAccount().getPriceLabsEmail();
+            if (accountToken != null && !accountToken.trim().isEmpty()) {
+                return accountToken.trim();
+            }
+        }
+        if (integration != null && integration.getPriceLabsEmail() != null && !integration.getPriceLabsEmail().trim().isEmpty()) {
+            return integration.getPriceLabsEmail().trim();
+        }
+        throw new RuntimeException("PriceLabs email (user_token) not configured");
+    }
+
     private List<PriceLabsConnection> dedupeConnections(List<PriceLabsConnection> connections) {
         if (connections == null || connections.isEmpty()) {
             return List.of();
@@ -1556,7 +1584,8 @@ public class PriceLabsSyncService {
             throw new IllegalArgumentException("storeId and roomTypeId are required");
         }
 
-        Optional<PriceLabsConnection> enabledConn = connectionRepo.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, roomTypeId);
+        Optional<PriceLabsConnection> enabledConn = connectionRepo.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(storeId, roomTypeId)
+                .filter(this::isConnectionActive);
         if (enabledConn.isPresent()) {
             String listingId = enabledConn.get().getPriceLabsListingId();
             if (listingId != null && !listingId.isBlank()) {
@@ -1595,7 +1624,7 @@ public class PriceLabsSyncService {
     private void markEnabledConnectionsAsError(Long storeId, String message) {
         LocalDateTime now = LocalDateTime.now();
         connectionRepo.findByStoreId(storeId).forEach(conn -> {
-            if (conn.getIsEnabled()) {
+            if (isConnectionActive(conn)) {
                 conn.setSyncStatus(PriceLabsSyncStatus.ERROR);
                 conn.setLastSyncAt(now);
                 conn.setErrorMessage(message);

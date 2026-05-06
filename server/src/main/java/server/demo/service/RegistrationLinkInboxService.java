@@ -5,11 +5,14 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import server.demo.dto.registration.RegistrationLinkInboxItemDTO;
 import server.demo.entity.RegistrationLinkInboxItem;
+import server.demo.entity.Reservation;
+import server.demo.enums.ReservationStatus;
 import server.demo.repository.RegistrationLinkInboxRepository;
 
 import java.net.URI;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,15 +21,18 @@ public class RegistrationLinkInboxService {
 
     private final RegistrationLinkInboxRepository inboxRepository;
     private final RegistrationLinkService registrationLinkService;
+    private final ReservationBookingKeyResolver reservationBookingKeyResolver;
     private final String serverBaseUrl;
 
     public RegistrationLinkInboxService(
             RegistrationLinkInboxRepository inboxRepository,
             RegistrationLinkService registrationLinkService,
+            ReservationBookingKeyResolver reservationBookingKeyResolver,
             @Value("${server.base-url}") String serverBaseUrl
     ) {
         this.inboxRepository = inboxRepository;
         this.registrationLinkService = registrationLinkService;
+        this.reservationBookingKeyResolver = reservationBookingKeyResolver;
         this.serverBaseUrl = serverBaseUrl;
     }
 
@@ -62,11 +68,16 @@ public class RegistrationLinkInboxService {
         }
     }
 
-    public List<RegistrationLinkInboxItemDTO> listTop200(Long storeId) {
+    public List<RegistrationLinkInboxItemDTO> listTop200(Long storeId, ReservationStatus reservationStatus) {
         List<RegistrationLinkInboxItem> items = inboxRepository.findTop200ByStoreIdOrderByCreatedAtDesc(storeId);
         List<RegistrationLinkInboxItemDTO> dtos = new ArrayList<>();
         URI baseUri = parseBaseUri(serverBaseUrl);
         for (RegistrationLinkInboxItem it : items) {
+            ReservationStatus resolvedStatus = resolveReservationStatus(storeId, it.getBookingKey());
+            if (reservationStatus != null && resolvedStatus != reservationStatus) {
+                continue;
+            }
+
             RegistrationLinkInboxItemDTO dto = new RegistrationLinkInboxItemDTO();
             dto.setId(it.getId());
             dto.setBookingKey(it.getBookingKey());
@@ -75,10 +86,39 @@ public class RegistrationLinkInboxService {
             dto.setCheckInDate(it.getCheckInDate());
             dto.setCheckOutDate(it.getCheckOutDate());
             dto.setRoomCount(it.getRoomCount());
+            dto.setReservationStatus(resolvedStatus);
             dto.setCreatedAt(it.getCreatedAt());
             dtos.add(dto);
         }
         return dtos;
+    }
+
+    private ReservationStatus resolveReservationStatus(Long storeId, String bookingKey) {
+        if (storeId == null || bookingKey == null || bookingKey.isBlank()) {
+            return null;
+        }
+
+        List<Reservation> reservations = reservationBookingKeyResolver.findReservationsByBookingKey(storeId, bookingKey);
+        if (reservations.isEmpty()) {
+            return null;
+        }
+
+        return reservations.stream()
+                .map(Reservation::getStatus)
+                .filter(status -> status != null)
+                .max(Comparator.comparingInt(this::statusPriority))
+                .orElse(null);
+    }
+
+    private int statusPriority(ReservationStatus status) {
+        return switch (status) {
+            case CANCELLED -> 100;
+            case NO_SHOW -> 90;
+            case CHECKED_IN -> 80;
+            case CHECKED_OUT -> 70;
+            case CONFIRMED -> 60;
+            case REQUESTED -> 50;
+        };
     }
 
     private URI parseBaseUri(String base) {

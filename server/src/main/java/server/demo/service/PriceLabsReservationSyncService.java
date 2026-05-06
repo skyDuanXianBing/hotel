@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.entity.PriceLabsConnection;
 import server.demo.entity.PriceLabsIntegration;
+import server.demo.entity.PriceLabsAccount;
 import server.demo.entity.Reservation;
 import server.demo.entity.RoomBlockout;
 import server.demo.entity.Store;
@@ -350,6 +351,10 @@ public class PriceLabsReservationSyncService {
         List<PriceLabsConnection> enabled = connectionRepo.findByStoreIdAndIsEnabledTrue(storeId);
         Map<Long, String> map = new HashMap<>();
         for (PriceLabsConnection conn : enabled) {
+            PriceLabsAccount account = conn.getAccount();
+            if (account != null && !Boolean.TRUE.equals(account.getIsEnabled())) {
+                continue;
+            }
             if (conn == null || conn.getRoomType() == null || conn.getRoomType().getId() == null) continue;
             Long roomTypeId = conn.getRoomType().getId();
 

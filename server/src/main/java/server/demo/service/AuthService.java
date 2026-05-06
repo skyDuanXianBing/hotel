@@ -8,14 +8,24 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import server.demo.dto.StoreDTO;
 import server.demo.dto.auth.*;
+import server.demo.entity.Cleaner;
+import server.demo.entity.StoreUser;
+import server.demo.entity.StoreUserPermission;
 import server.demo.entity.User;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
+import server.demo.repository.CleanerRepository;
+import server.demo.repository.StoreUserPermissionRepository;
+import server.demo.repository.StoreUserRepository;
 import server.demo.repository.UserRepository;
 import server.demo.util.JwtUtil;
 import server.demo.util.RedisUtil;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 认证服务
@@ -41,9 +51,19 @@ public class AuthService {
     @Autowired
     private StoreService storeService;
 
+    @Autowired
+    private CleanerRepository cleanerRepository;
+
+    @Autowired
+    private StoreUserRepository storeUserRepository;
+
+    @Autowired
+    private StoreUserPermissionRepository storeUserPermissionRepository;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private static final Set<String> ALLOWED_GENDERS = Set.of("male", "female", "private");
+    private static final String CLEANER_LOGIN_ENTRY_MESSAGE = "请前往保洁员登录入口";
 
     /**
      * 发送验证码
@@ -309,5 +329,79 @@ public class AuthService {
         // 更新密码
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+    public void ensurePmsLoginAllowed(LoginResponse loginResponse) {
+        if (loginResponse == null || loginResponse.getUser() == null) {
+            return;
+        }
+
+        Long userId = loginResponse.getUser().getId();
+        if (userId == null) {
+            return;
+        }
+
+        List<StoreUser> activeStoreUsers = storeUserRepository.findByUserIdWithStoreAndRoles(userId)
+                .stream()
+                .filter(storeUser -> storeUser != null && Boolean.TRUE.equals(storeUser.getIsActive()))
+                .toList();
+        if (activeStoreUsers.isEmpty()) {
+            return;
+        }
+
+        boolean hasRegularPmsAccess = activeStoreUsers.stream()
+                .anyMatch(storeUser -> !isCleanerOnlyMembership(storeUser));
+        if (hasRegularPmsAccess) {
+            return;
+        }
+
+        Set<Long> activeStoreIds = activeStoreUsers.stream()
+                .map(StoreUser::getStore)
+                .filter(Objects::nonNull)
+                .map(store -> store.getId())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (activeStoreIds.isEmpty()) {
+            return;
+        }
+
+        boolean hasActiveCleanerIdentity = cleanerRepository.findByUserId(userId).stream()
+                .anyMatch(cleaner -> cleaner != null
+                        && Boolean.TRUE.equals(cleaner.getIsActive())
+                        && activeStoreIds.contains(cleaner.getStoreId()));
+        if (hasActiveCleanerIdentity) {
+            throw new RuntimeException(CLEANER_LOGIN_ENTRY_MESSAGE);
+        }
+    }
+
+    private boolean isCleanerOnlyMembership(StoreUser storeUser) {
+        if (storeUser == null || !Boolean.TRUE.equals(storeUser.getIsActive())) {
+            return false;
+        }
+
+        if (!"member".equals(storeUser.getRole())) {
+            return false;
+        }
+
+        if (storeUser.getRoles() != null && !storeUser.getRoles().isEmpty()) {
+            return false;
+        }
+
+        if (storeUser.getId() == null) {
+            return false;
+        }
+
+        List<StoreUserPermission> permissions =
+                storeUserPermissionRepository.findByStoreUser_Id(storeUser.getId());
+        if (permissions == null || permissions.isEmpty()) {
+            return false;
+        }
+
+        return permissions.stream().allMatch(this::isCleanerTaskListPermission);
+    }
+
+    private boolean isCleanerTaskListPermission(StoreUserPermission permission) {
+        return permission != null
+                && permission.getModule() == PermissionModule.ACCOMMODATION
+                && permission.getAction() == PermissionAction.TASK_LIST;
     }
 }

@@ -5,10 +5,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
+import server.demo.entity.PriceLabsAccount;
 import server.demo.entity.PriceLabsConnection;
 import server.demo.entity.PricePlan;
 import server.demo.entity.RoomType;
+import server.demo.repository.PriceLabsAccountRepository;
 import server.demo.repository.PriceLabsConnectionRepository;
+import server.demo.repository.PriceLabsIntegrationRepository;
 
 import java.util.Optional;
 
@@ -33,31 +36,67 @@ class PriceLabsServiceConnectionPolicyTest {
         StoreContextHolder.setContext(new StoreContext(1L, 5L, "ADMIN"));
 
         PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
+        PriceLabsAccountRepository accountRepository = mock(PriceLabsAccountRepository.class);
+        PriceLabsIntegrationRepository integrationRepository = mock(PriceLabsIntegrationRepository.class);
 
-        RoomType rt = new RoomType();
-        rt.setId(34L);
+        PriceLabsAccount account = buildEnabledAccount();
+        RoomType roomType = new RoomType();
+        roomType.setId(34L);
 
-        PricePlan plan = new PricePlan();
-        plan.setId(10L);
-        plan.setName("主计划");
+        PricePlan existingPlan = new PricePlan();
+        existingPlan.setId(10L);
+        existingPlan.setName("Primary Plan");
 
         PriceLabsConnection existing = new PriceLabsConnection();
         existing.setId(100L);
         existing.setStoreId(5L);
-        existing.setRoomType(rt);
-        existing.setPricePlan(plan);
+        existing.setRoomType(roomType);
+        existing.setPricePlan(existingPlan);
         existing.setIsEnabled(true);
 
+        when(integrationRepository.findByStoreId(5L)).thenReturn(Optional.empty());
+        when(accountRepository.findByStoreIdAndId(5L, 7L)).thenReturn(Optional.of(account));
         when(connectionRepository.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(5L, 34L))
                 .thenReturn(Optional.of(existing));
 
         PriceLabsService service = new PriceLabsService();
+        ReflectionTestUtils.setField(service, "integrationRepository", integrationRepository);
+        ReflectionTestUtils.setField(service, "accountRepository", accountRepository);
         ReflectionTestUtils.setField(service, "connectionRepository", connectionRepository);
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.createConnection(34L, 11L));
-        assertTrue(ex.getMessage().contains("已绑定价格计划"));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.createConnection(7L, 34L, 11L));
+        assertTrue(ex.getMessage().contains("Primary Plan"));
 
         verify(connectionRepository, times(1)).findByStoreIdAndRoomTypeIdAndIsEnabledTrue(5L, 34L);
+        verify(connectionRepository, never()).save(any());
+    }
+
+    @Test
+    void createConnection_shouldRejectWhenAccountDisabled() {
+        StoreContextHolder.setContext(new StoreContext(1L, 5L, "ADMIN"));
+
+        PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
+        PriceLabsAccountRepository accountRepository = mock(PriceLabsAccountRepository.class);
+        PriceLabsIntegrationRepository integrationRepository = mock(PriceLabsIntegrationRepository.class);
+
+        PriceLabsAccount account = new PriceLabsAccount();
+        account.setId(7L);
+        account.setStoreId(5L);
+        account.setAccountName("Disabled Account");
+        account.setPriceLabsEmail("disabled@example.com");
+        account.setIsEnabled(false);
+
+        when(integrationRepository.findByStoreId(5L)).thenReturn(Optional.empty());
+        when(accountRepository.findByStoreIdAndId(5L, 7L)).thenReturn(Optional.of(account));
+
+        PriceLabsService service = new PriceLabsService();
+        ReflectionTestUtils.setField(service, "integrationRepository", integrationRepository);
+        ReflectionTestUtils.setField(service, "accountRepository", accountRepository);
+        ReflectionTestUtils.setField(service, "connectionRepository", connectionRepository);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.createConnection(7L, 34L, 11L));
+        assertTrue(ex.getMessage().contains("Please enable the selected PriceLabs account first"));
+
         verify(connectionRepository, never()).save(any());
     }
 
@@ -66,45 +105,60 @@ class PriceLabsServiceConnectionPolicyTest {
         StoreContextHolder.setContext(new StoreContext(1L, 5L, "ADMIN"));
 
         PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
+        PriceLabsIntegrationRepository integrationRepository = mock(PriceLabsIntegrationRepository.class);
 
-        RoomType rt = new RoomType();
-        rt.setId(34L);
+        RoomType roomType = new RoomType();
+        roomType.setId(34L);
 
         PricePlan planToEnable = new PricePlan();
         planToEnable.setId(11L);
-        planToEnable.setName("周末计划");
+        planToEnable.setName("Weekend Plan");
+
+        PriceLabsAccount account = buildEnabledAccount();
 
         PriceLabsConnection target = new PriceLabsConnection();
         target.setId(200L);
         target.setStoreId(5L);
-        target.setRoomType(rt);
+        target.setRoomType(roomType);
         target.setPricePlan(planToEnable);
+        target.setAccount(account);
         target.setIsEnabled(false);
 
         PricePlan existingPlan = new PricePlan();
         existingPlan.setId(10L);
-        existingPlan.setName("主计划");
+        existingPlan.setName("Primary Plan");
 
         PriceLabsConnection existingEnabled = new PriceLabsConnection();
         existingEnabled.setId(100L);
         existingEnabled.setStoreId(5L);
-        existingEnabled.setRoomType(rt);
+        existingEnabled.setRoomType(roomType);
         existingEnabled.setPricePlan(existingPlan);
         existingEnabled.setIsEnabled(true);
 
+        when(integrationRepository.findByStoreId(5L)).thenReturn(Optional.empty());
         when(connectionRepository.findById(200L)).thenReturn(Optional.of(target));
         when(connectionRepository.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(5L, 34L))
                 .thenReturn(Optional.of(existingEnabled));
 
         PriceLabsService service = new PriceLabsService();
+        ReflectionTestUtils.setField(service, "integrationRepository", integrationRepository);
         ReflectionTestUtils.setField(service, "connectionRepository", connectionRepository);
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> service.updateConnectionStatus(200L, true));
-        assertTrue(ex.getMessage().contains("已绑定价格计划"));
+        assertTrue(ex.getMessage().contains("Primary Plan"));
 
         verify(connectionRepository, times(1)).findById(200L);
         verify(connectionRepository, times(1)).findByStoreIdAndRoomTypeIdAndIsEnabledTrue(5L, 34L);
         verify(connectionRepository, never()).save(any());
     }
-}
 
+    private PriceLabsAccount buildEnabledAccount() {
+        PriceLabsAccount account = new PriceLabsAccount();
+        account.setId(7L);
+        account.setStoreId(5L);
+        account.setAccountName("Main Account");
+        account.setPriceLabsEmail("main@example.com");
+        account.setIsEnabled(true);
+        return account;
+    }
+}

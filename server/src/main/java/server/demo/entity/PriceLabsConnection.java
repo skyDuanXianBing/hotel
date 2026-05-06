@@ -25,6 +25,10 @@ public class PriceLabsConnection implements StoreScopedEntity {
     @Column(name = "store_id", nullable = false)
     private Long storeId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id")
+    private PriceLabsAccount account;
+
     /**
      * 关联的房型
      */
@@ -126,6 +130,14 @@ public class PriceLabsConnection implements StoreScopedEntity {
     @Override
     public void setStoreId(Long storeId) {
         this.storeId = storeId;
+    }
+
+    public PriceLabsAccount getAccount() {
+        return account;
+    }
+
+    public void setAccount(PriceLabsAccount account) {
+        this.account = account;
     }
 
     public RoomType getRoomType() {

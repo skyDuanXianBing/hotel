@@ -136,9 +136,10 @@ public class PriceLabsController {
     public ResponseEntity<ApiResponse<PriceLabsConnectionDTO>> createConnection(
             @RequestBody Map<String, Long> request) {
         try {
+            Long accountId = request.get("accountId");
             Long roomTypeId = request.get("roomTypeId");
             Long pricePlanId = request.get("pricePlanId");
-            PriceLabsConnectionDTO connection = priceLabsService.createConnection(roomTypeId, pricePlanId);
+            PriceLabsConnectionDTO connection = priceLabsService.createConnection(accountId, roomTypeId, pricePlanId);
             return ResponseEntity.ok(ApiResponse.success("创建连接成功", connection));
         } catch (Exception e) {
             return ResponseEntity.status(500)

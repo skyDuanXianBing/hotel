@@ -92,12 +92,27 @@ export interface PriceLabsIntegrationDTO {
   successSyncCount?: number
 }
 
+export interface PriceLabsAccountDTO {
+  id: number
+  storeId: number
+  accountName: string
+  priceLabsEmail: string
+  isEnabled: boolean
+  connectionCount?: number
+  createdAt?: string
+  updatedAt?: string
+}
+
 /**
  * PriceLabs 连接配置 DTO
  */
 export interface PriceLabsConnectionDTO {
   id: number
   storeId: number
+  accountId?: number
+  accountName?: string
+  accountEmail?: string
+  accountEnabled?: boolean
   roomTypeId: number
   roomTypeName: string
   pricePlanId: number
@@ -215,6 +230,38 @@ export const updateIntegrationConfig = async (
   return await request.patch('/pricelabs/integration/config', config)
 }
 
+export const getAccounts = async (): Promise<ApiResponse<PriceLabsAccountDTO[]>> => {
+  return await request.get('/pricelabs/accounts')
+}
+
+export const createAccount = async (data: {
+  accountName: string
+  priceLabsEmail: string
+}): Promise<ApiResponse<PriceLabsAccountDTO>> => {
+  return await request.post('/pricelabs/accounts', data)
+}
+
+export const updateAccount = async (
+  id: number,
+  data: {
+    accountName: string
+    priceLabsEmail: string
+  },
+): Promise<ApiResponse<PriceLabsAccountDTO>> => {
+  return await request.put(`/pricelabs/accounts/${id}`, data)
+}
+
+export const updateAccountStatus = async (
+  id: number,
+  enabled: boolean,
+): Promise<ApiResponse<PriceLabsAccountDTO>> => {
+  return await request.patch(`/pricelabs/accounts/${id}/status`, { enabled })
+}
+
+export const deleteAccount = async (id: number): Promise<ApiResponse<void>> => {
+  return await request.delete(`/pricelabs/accounts/${id}`)
+}
+
 // ==================== 连接配置 API ====================
 
 /**
@@ -228,10 +275,11 @@ export const getConnections = async (): Promise<ApiResponse<PriceLabsConnectionD
  * 创建连接配置
  */
 export const createConnection = async (
+  accountId: number,
   roomTypeId: number,
   pricePlanId: number,
 ): Promise<ApiResponse<PriceLabsConnectionDTO>> => {
-  return await request.post('/pricelabs/connections', { roomTypeId, pricePlanId })
+  return await request.post('/pricelabs/connections', { accountId, roomTypeId, pricePlanId })
 }
 
 /**

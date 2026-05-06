@@ -9,6 +9,10 @@ public class PriceLabsConnectionDTO {
 
     private Long id;
     private Long storeId;
+    private Long accountId;
+    private String accountName;
+    private String accountEmail;
+    private Boolean accountEnabled;
     private Long roomTypeId;
     private String roomTypeName;
     private Long pricePlanId;
@@ -43,6 +47,38 @@ public class PriceLabsConnectionDTO {
 
     public Long getRoomTypeId() {
         return roomTypeId;
+    }
+
+    public Long getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(Long accountId) {
+        this.accountId = accountId;
+    }
+
+    public String getAccountName() {
+        return accountName;
+    }
+
+    public void setAccountName(String accountName) {
+        this.accountName = accountName;
+    }
+
+    public String getAccountEmail() {
+        return accountEmail;
+    }
+
+    public void setAccountEmail(String accountEmail) {
+        this.accountEmail = accountEmail;
+    }
+
+    public Boolean getAccountEnabled() {
+        return accountEnabled;
+    }
+
+    public void setAccountEnabled(Boolean accountEnabled) {
+        this.accountEnabled = accountEnabled;
     }
 
     public void setRoomTypeId(Long roomTypeId) {

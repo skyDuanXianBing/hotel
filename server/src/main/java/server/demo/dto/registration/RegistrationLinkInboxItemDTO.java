@@ -2,6 +2,7 @@ package server.demo.dto.registration;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import server.demo.enums.ReservationStatus;
 
 public class RegistrationLinkInboxItemDTO {
     private Long id;
@@ -11,6 +12,7 @@ public class RegistrationLinkInboxItemDTO {
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private Integer roomCount;
+    private ReservationStatus reservationStatus;
     private LocalDateTime createdAt;
 
     public Long getId() {
@@ -69,6 +71,14 @@ public class RegistrationLinkInboxItemDTO {
         this.roomCount = roomCount;
     }
 
+    public ReservationStatus getReservationStatus() {
+        return reservationStatus;
+    }
+
+    public void setReservationStatus(ReservationStatus reservationStatus) {
+        this.reservationStatus = reservationStatus;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -77,4 +87,3 @@ public class RegistrationLinkInboxItemDTO {
         this.createdAt = createdAt;
     }
 }
-
