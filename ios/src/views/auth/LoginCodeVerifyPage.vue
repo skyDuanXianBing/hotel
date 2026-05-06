@@ -65,6 +65,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import type { LoginResponse } from '@/types/auth'
+import { clearAutoLoginCredentials } from '@/utils/autoLogin'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
@@ -212,6 +213,7 @@ const trySubmitLogin = async () => {
       return
     }
 
+    clearAutoLoginCredentials()
     persistLoginSession(response.data)
     showSuccessToast('登录成功，请选择门店')
     await router.replace(ROUTE_PATHS.storeSelection)

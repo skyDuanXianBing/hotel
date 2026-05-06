@@ -284,7 +284,7 @@ onIonViewWillEnter(async () => {
   cleanerUser.value = readCleanerUser()
 
   if (!cleanerUser.value) {
-    await router.replace(ROUTE_PATHS.login)
+    await router.replace(ROUTE_PATHS.cleanerLogin)
     return
   }
 

@@ -4,7 +4,6 @@ import {
   getMockThreadMessages,
   MESSAGE_API_MOCK_ENABLED,
   pollMockThreadMessages,
-  sendMockAiChatMessage,
   sendMockThreadMessage,
 } from '@/mocks/message'
 import type { ApiResponse } from '@/types/api'
@@ -37,6 +36,7 @@ export const getThreadMessages = (threadId: number) => {
   return request<ApiResponse<MessageDTO[]>>({
     url: `/su-messaging/threads/${threadId}/messages`,
     method: 'GET',
+    suppressErrorStatuses: [400, 403, 404],
   })
 }
 
@@ -66,10 +66,6 @@ export const sendThreadMessage = (threadId: number, data: MessageSendRequest) =>
 }
 
 export const sendAiChatMessage = (data: ChatMessageRequest) => {
-  if (MESSAGE_API_MOCK_ENABLED) {
-    return sendMockAiChatMessage(data)
-  }
-
   return request<ApiResponse<ChatMessageResponse>>({
     url: '/chat/message',
     method: 'POST',

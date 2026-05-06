@@ -14,4 +14,7 @@ export interface RequestConfig {
   headers?: Record<string, string>
   timeoutMs?: number
   suppressErrorStatuses?: number[]
+  skipAutoReauth?: boolean
+  skipUnauthorizedHandling?: boolean
+  retriedAfterReauth?: boolean
 }

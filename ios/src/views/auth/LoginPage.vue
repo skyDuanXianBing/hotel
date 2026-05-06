@@ -138,8 +138,16 @@
             </ion-segment-button>
           </ion-segment>
 
-          <div :class="['auth-footer-link', { 'auth-footer-link--password': loginMode === 'password' }]">
-            <button class="auth-text-button" type="button" @click="handleGoToRegister">注册新账号</button>
+          <div class="auth-footer">
+            <div class="auth-helper-link">
+              <span>你是保洁人员吗？</span>
+              <button class="auth-text-button auth-helper-link__button" type="button" @click="handleGoToCleanerLogin">
+                去保洁登录
+              </button>
+            </div>
+            <div :class="['auth-footer-link', { 'auth-footer-link--password': loginMode === 'password' }]">
+              <button class="auth-text-button" type="button" @click="handleGoToRegister">注册新账号</button>
+            </div>
           </div>
         </section>
       </div>
@@ -165,14 +173,13 @@ import { computed, reactive, ref, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { loginByPassword, sendVerificationCode } from '@/api/auth'
-import { cleanerLoginByPassword } from '@/api/cleanerAuth'
 import { AUTH_LOGIN_FAILURE_STATUSES, LOGIN_FAILURE_MESSAGE } from '@/constants/auth'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
-import type { CleanerDTO, CleanerSessionUser, LoginByPasswordRequest, LoginResponse } from '@/types/auth'
-import { saveCleanerSession } from '@/utils/cleanerSession'
+import type { LoginByPasswordRequest, LoginResponse } from '@/types/auth'
+import { clearAutoLoginCredentials, saveAutoLoginCredentials } from '@/utils/autoLogin'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { getRequestErrorStatus, isHandledRequestError } from '@/utils/request'
 
@@ -406,18 +413,6 @@ const persistLoginSession = (payload: LoginResponse) => {
   storeStore.setCurrentStore(null)
 }
 
-const buildCleanerSessionUser = (cleaner: CleanerDTO): CleanerSessionUser => {
-  return {
-    id: cleaner.id,
-    email: cleaner.email,
-    nickname: cleaner.name,
-    gender: 'private',
-    createdAt: cleaner.createdAt,
-    updatedAt: cleaner.updatedAt,
-    isCleaner: true,
-  }
-}
-
 const isLoginFailureError = (error: unknown) => {
   const status = getRequestErrorStatus(error)
 
@@ -437,30 +432,23 @@ const loginAsAdmin = async (payload: LoginByPasswordRequest) => {
     }
 
     persistLoginSession(response.data)
+
+    if (!payload.rememberMe) {
+      clearAutoLoginCredentials()
+    } else {
+      try {
+        await saveAutoLoginCredentials({
+          email: payload.email,
+          password: payload.password,
+          token: response.data.token,
+        })
+      } catch {
+        clearAutoLoginCredentials()
+      }
+    }
+
     showSuccessToast('登录成功，请选择门店')
     await router.replace(ROUTE_PATHS.storeSelection)
-    return true
-  } catch (error) {
-    if (isLoginFailureError(error)) {
-      return false
-    }
-
-    throw error
-  }
-}
-
-const loginAsCleaner = async (payload: LoginByPasswordRequest) => {
-  try {
-    const response = await cleanerLoginByPassword(payload)
-
-    if (!response.success || !response.data?.token || !response.data.cleaner) {
-      return false
-    }
-
-    const cleanerUser = buildCleanerSessionUser(response.data.cleaner)
-    saveCleanerSession(response.data.token, cleanerUser, response.data.cleaner.storeId)
-    showSuccessToast('登录成功，已进入保洁工作台')
-    await router.replace(ROUTE_PATHS.cleanerDashboard)
     return true
   } catch (error) {
     if (isLoginFailureError(error)) {
@@ -597,11 +585,6 @@ const handleLogin = async () => {
       return
     }
 
-    const cleanerLoggedIn = await loginAsCleaner(payload)
-    if (cleanerLoggedIn) {
-      return
-    }
-
     showErrorToast(LOGIN_FAILURE_MESSAGE)
   } catch (error) {
     if (!isHandledRequestError(error)) {
@@ -610,6 +593,20 @@ const handleLogin = async () => {
   } finally {
     submitting.value = false
   }
+}
+
+const handleGoToCleanerLogin = async () => {
+  const email = normalizeEmail()
+
+  if (!email) {
+    await router.push(ROUTE_PATHS.cleanerLogin)
+    return
+  }
+
+  await router.push({
+    path: ROUTE_PATHS.cleanerLogin,
+    query: { email },
+  })
 }
 
 watch(
@@ -871,10 +868,29 @@ watch(
   overflow: visible;
 }
 
-.auth-footer-link {
+.auth-footer {
   margin-top: auto;
   margin-bottom: 2px;
   padding-top: 64px;
+  display: grid;
+  gap: 12px;
+}
+
+.auth-helper-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #5d626b;
+  font-size: clamp(14px, 4.1vw, 16px);
+  line-height: 1.24;
+}
+
+.auth-helper-link__button {
+  color: #3484ea;
+}
+
+.auth-footer-link {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1042,7 +1058,7 @@ watch(
     font-size: 26px;
   }
 
-  .auth-footer-link {
+  .auth-footer {
     padding-top: 56px;
   }
 }

@@ -16,6 +16,9 @@ export interface ReviewGuest {
   id: string
   sortOrder: number
   name: string
+  firstName: string
+  lastName: string
+  birthday: string
   idType: string
   idNumber: string
   phone: string
@@ -67,6 +70,42 @@ export interface ReviewRecord {
   attachments: ReviewAttachment[]
   reviewNote: string
   history: ReviewHistoryItem[]
+}
+
+const INVALID_CHECK_IN_DATE_ORDER = Number.MAX_SAFE_INTEGER
+
+const parseCheckInDateOrder = (value: string) => {
+  const dateParts = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value)
+
+  if (!dateParts) {
+    return INVALID_CHECK_IN_DATE_ORDER
+  }
+
+  const year = Number(dateParts[1])
+  const month = Number(dateParts[2])
+  const day = Number(dateParts[3])
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return INVALID_CHECK_IN_DATE_ORDER
+  }
+
+  return year * 10000 + month * 100 + day
+}
+
+export const sortReviewRecordsByCheckInDate = (records: ReviewRecord[]) => {
+  return records
+    .map((record, index) => ({ record, index }))
+    .sort((left, right) => {
+      const leftOrder = parseCheckInDateOrder(left.record.checkInDate)
+      const rightOrder = parseCheckInDateOrder(right.record.checkInDate)
+
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder
+      }
+
+      return left.index - right.index
+    })
+    .map((item) => item.record)
 }
 
 export const REVIEW_STATUS_OPTIONS = [
