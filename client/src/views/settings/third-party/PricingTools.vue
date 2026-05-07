@@ -62,16 +62,23 @@
                 <p class="label-desc">请输入您在 PriceLabs 注册的邮箱地址</p>
               </div>
               <div class="config-form">
-                <el-input
-                  v-model="integration.priceLabsEmail"
-                  placeholder="example@email.com"
+                <el-select
+                  v-model="defaultAccountId"
+                  placeholder="璇烽€夋嫨榛樿璐﹀彿"
                   style="width: 300px; margin-right: 12px"
                   :disabled="integration.isEnabled"
-                />
+                >
+                  <el-option
+                    v-for="account in accounts"
+                    :key="account.id"
+                    :label="`${account.accountName} (${account.priceLabsEmail})`"
+                    :value="account.id"
+                  />
+                </el-select>
                 <el-button
                   type="primary"
-                  :disabled="!integration.priceLabsEmail || integration.isEnabled"
-                  @click="handleSaveConfig"
+                  :disabled="!defaultAccountId || integration.isEnabled"
+                  @click="handleSaveDefaultAccountConfig"
                 >
                   保存配置
                 </el-button>
@@ -664,6 +671,7 @@ const toggleLoading = ref(false)
 
 const accounts = ref<PriceLabsAccountDTO[]>([])
 const accountsLoading = ref(false)
+const defaultAccountId = ref<number | null>(null)
 const selectedAccountId = ref<number | null>(null)
 
 // 连接列表
@@ -720,6 +728,7 @@ const saveConnectionLoading = ref(false)
 const showAccountDialog = ref(false)
 const saveAccountLoading = ref(false)
 const editingAccountId = ref<number | null>(null)
+const editingAccountOriginalEmail = ref('')
 const accountForm = reactive({
   accountName: '',
   priceLabsEmail: '',
@@ -767,6 +776,20 @@ const selectedAccountName = computed(() => {
   return accounts.value.find((account) => account.id === selectedAccountId.value)?.accountName || ''
 })
 
+const normalizeEmailValue = (email?: string | null) => email?.trim().toLowerCase() || ''
+
+const syncDefaultAccountSelection = () => {
+  const currentEmail = normalizeEmailValue(integration.value.priceLabsEmail)
+  if (!currentEmail) {
+    defaultAccountId.value = null
+    return
+  }
+
+  defaultAccountId.value =
+    accounts.value.find((account) => normalizeEmailValue(account.priceLabsEmail) === currentEmail)?.id ??
+    null
+}
+
 const enabledConnectionByRoomTypeId = computed(() => {
   const map = new Map<number, PriceLabsConnectionDTO>()
   for (const conn of connections.value) {
@@ -776,6 +799,21 @@ const enabledConnectionByRoomTypeId = computed(() => {
   }
   return map
 })
+
+const getConnectionAccountLabel = (connection: PriceLabsConnectionDTO): string => {
+  const accountName = connection.accountName?.trim()
+  const accountEmail = connection.accountEmail?.trim()
+
+  if (accountName && accountEmail && accountName !== accountEmail) {
+    return `${accountName} (${accountEmail})`
+  }
+  return accountName || accountEmail || '未知账号'
+}
+
+const findDuplicateConnection = (roomTypeId: number, pricePlanId: number) =>
+  connections.value.find(
+    (conn) => conn.roomTypeId === roomTypeId && conn.pricePlanId === pricePlanId
+  )
 
 // 进入配置页面
 const handleConfigure = () => {
@@ -813,6 +851,7 @@ const loadIntegration = async () => {
     const res = await priceLabsApi.getIntegration()
     if (res.success) {
       integration.value = res.data
+      syncDefaultAccountSelection()
     }
   } catch (error) {
     console.error('加载集成配置失败:', error)
@@ -826,6 +865,7 @@ const loadAccounts = async () => {
     const res = await priceLabsApi.getAccounts()
     if (res.success) {
       accounts.value = res.data
+      syncDefaultAccountSelection()
       if (
         selectedAccountId.value !== null &&
         !res.data.some((account) => account.id === selectedAccountId.value)
@@ -968,6 +1008,7 @@ const clearSelectedAccount = () => {
 
 const openCreateAccountDialog = () => {
   editingAccountId.value = null
+  editingAccountOriginalEmail.value = ''
   accountForm.accountName = ''
   accountForm.priceLabsEmail = ''
   showAccountDialog.value = true
@@ -975,6 +1016,7 @@ const openCreateAccountDialog = () => {
 
 const openEditAccountDialog = (account: PriceLabsAccountDTO) => {
   editingAccountId.value = account.id
+  editingAccountOriginalEmail.value = account.priceLabsEmail
   accountForm.accountName = account.accountName
   accountForm.priceLabsEmail = account.priceLabsEmail
   showAccountDialog.value = true
@@ -992,15 +1034,29 @@ const handleSaveAccount = async () => {
       accountName: accountForm.accountName.trim(),
       priceLabsEmail: accountForm.priceLabsEmail.trim(),
     }
+    const isEditingCurrentDefault =
+      editingAccountId.value !== null &&
+      normalizeEmailValue(integration.value.priceLabsEmail) ===
+        normalizeEmailValue(editingAccountOriginalEmail.value)
+    const shouldInitializeDefault =
+      editingAccountId.value === null && !normalizeEmailValue(integration.value.priceLabsEmail)
 
     const res = editingAccountId.value
       ? await priceLabsApi.updateAccount(editingAccountId.value, payload)
       : await priceLabsApi.createAccount(payload)
 
     if (res.success) {
-      await priceLabsApi.updateIntegrationConfig({
-        priceLabsEmail: payload.priceLabsEmail,
-      })
+      if (isEditingCurrentDefault || shouldInitializeDefault) {
+        const updateRes = await priceLabsApi.updateIntegrationConfig({
+          priceLabsEmail: payload.priceLabsEmail,
+        })
+        if (!updateRes.success) {
+          ElMessage.error(updateRes.message || '鏇存柊榛樿璐﹀彿澶辫触')
+          return
+        }
+        integration.value = updateRes.data
+        defaultAccountId.value = res.data.id
+      }
       ElMessage.success(editingAccountId.value ? '账号更新成功' : '账号创建成功')
       showAccountDialog.value = false
       await loadAccounts()
@@ -1061,6 +1117,35 @@ const handleDeleteAccount = async (account: PriceLabsAccountDTO) => {
   }
 }
 
+const handleSaveDefaultAccountConfig = async () => {
+  if (!defaultAccountId.value) {
+    ElMessage.warning('璇峰厛閫夋嫨榛樿 PriceLabs 璐﹀彿')
+    return
+  }
+
+  try {
+    const account = accounts.value.find((item) => item.id === defaultAccountId.value)
+    if (!account?.priceLabsEmail?.trim()) {
+      ElMessage.warning('褰撳墠榛樿璐﹀彿缂哄皯鍙敤閭')
+      return
+    }
+
+    const res = await priceLabsApi.updateIntegrationConfig({
+      priceLabsEmail: account.priceLabsEmail.trim(),
+    })
+    if (res.success) {
+      integration.value = res.data
+      defaultAccountId.value = account.id
+      ElMessage.success('閰嶇疆淇濆瓨鎴愬姛')
+      return
+    }
+    ElMessage.error(res.message || '淇濆瓨澶辫触')
+  } catch (error) {
+    console.error('淇濆瓨閰嶇疆澶辫触:', error)
+    ElMessage.error('淇濆瓨澶辫触')
+  }
+}
+
 const handleSaveConfig = async () => {
   if (!integration.value.priceLabsEmail) {
     ElMessage.warning('请输入 PriceLabs 邮箱地址')
@@ -1105,6 +1190,7 @@ const ensureIntegrationEmailForAccount = async (accountId?: number | null) => {
 
   const nextEmail = account.priceLabsEmail.trim()
   if (integration.value.priceLabsEmail?.trim() === nextEmail) {
+    defaultAccountId.value = account.id
     return true
   }
 
@@ -1117,6 +1203,7 @@ const ensureIntegrationEmailForAccount = async (accountId?: number | null) => {
   }
 
   integration.value = res.data
+  defaultAccountId.value = account.id
   return true
 }
 
@@ -1129,9 +1216,18 @@ const handleToggleIntegration = async (enabled: boolean) => {
   }
 
   if (enabled) {
-    const synced = await ensureIntegrationEmailForAccount(
-      selectedAccountId.value ?? enabledAccounts.value[0]?.id ?? null,
-    )
+    const defaultAccount = accounts.value.find((item) => item.id === defaultAccountId.value)
+    if (!defaultAccount) {
+      ElMessage.warning('璇峰厛淇濆瓨榛樿 PriceLabs 璐﹀彿閰嶇疆')
+      integration.value.isEnabled = false
+      return
+    }
+    if (!defaultAccount.isEnabled) {
+      ElMessage.warning('璇峰厛鍚敤褰撳墠榛樿 PriceLabs 璐﹀彿')
+      integration.value.isEnabled = false
+      return
+    }
+    const synced = await ensureIntegrationEmailForAccount(defaultAccount.id)
     if (!synced) {
       ElMessage.warning('当前没有可用的 PriceLabs 账号邮箱，请先检查账号配置')
       integration.value.isEnabled = false
@@ -1193,6 +1289,18 @@ const handleSaveConnection = async () => {
     ElMessage.warning('请选择价格计划')
     return
   }
+ 
+  const duplicateConnection = findDuplicateConnection(
+    connectionForm.roomTypeId,
+    connectionForm.pricePlanId,
+  )
+  if (duplicateConnection) {
+    ElMessage.warning(
+      `该房型与价格计划已绑定到账号“${getConnectionAccountLabel(duplicateConnection)}”，请先查看现有连接并删除或调整后再重试。`,
+    )
+    return
+  }
+
   const isBoundPlan = roomTypeBoundPricePlans.value.some((plan) => plan.id === connectionForm.pricePlanId)
   if (!isBoundPlan) {
     ElMessage.warning('请选择该房型在“价格计划-应用房型”中已绑定的价格计划')
@@ -1229,14 +1337,18 @@ const handleSaveConnection = async () => {
     )
     if (res.success) {
       ElMessage.success('添加连接成功')
+      selectedAccountId.value = res.data.accountId ?? connectionForm.accountId
       showConnectionDialog.value = false
+      await loadAccounts()
       await loadConnections()
       await loadIntegration()
       return
     }
     if (res.data) {
       ElMessage.warning(res.message || '连接已保存，但同步失败')
+      selectedAccountId.value = res.data.accountId ?? connectionForm.accountId
       showConnectionDialog.value = false
+      await loadAccounts()
       await loadConnections()
       await loadIntegration()
       return
@@ -1304,6 +1416,7 @@ const handleDeleteConnection = async (row: PriceLabsConnectionDTO) => {
     const res = await priceLabsApi.deleteConnection(row.id)
     if (res.success) {
       ElMessage.success('删除成功')
+      await loadAccounts()
       await loadConnections()
       await loadIntegration()
     } else {

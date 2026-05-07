@@ -9,11 +9,13 @@ import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.entity.PriceLabsAccount;
 import server.demo.entity.PriceLabsConnection;
+import server.demo.entity.PriceLabsIntegration;
 import server.demo.entity.PricePlan;
 import server.demo.entity.RoomType;
 import server.demo.repository.PriceLabsAccountRepository;
 import server.demo.repository.PriceLabsConnectionRepository;
 import server.demo.repository.PriceLabsIntegrationRepository;
+import server.demo.repository.PriceLabsSyncLogRepository;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
@@ -26,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -49,6 +52,7 @@ class PriceLabsServiceCreateConnectionSyncTest {
         PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
         PriceLabsAccountRepository accountRepository = mock(PriceLabsAccountRepository.class);
         PriceLabsIntegrationRepository integrationRepository = mock(PriceLabsIntegrationRepository.class);
+        PriceLabsSyncLogRepository syncLogRepository = mock(PriceLabsSyncLogRepository.class);
         RoomTypeRepository roomTypeRepository = mock(RoomTypeRepository.class);
         PricePlanRepository pricePlanRepository = mock(PricePlanRepository.class);
         RoomRepository roomRepository = mock(RoomRepository.class);
@@ -76,6 +80,7 @@ class PriceLabsServiceCreateConnectionSyncTest {
                 connectionRepository,
                 accountRepository,
                 integrationRepository,
+                syncLogRepository,
                 roomTypeRepository,
                 pricePlanRepository,
                 roomRepository,
@@ -109,6 +114,7 @@ class PriceLabsServiceCreateConnectionSyncTest {
         PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
         PriceLabsAccountRepository accountRepository = mock(PriceLabsAccountRepository.class);
         PriceLabsIntegrationRepository integrationRepository = mock(PriceLabsIntegrationRepository.class);
+        PriceLabsSyncLogRepository syncLogRepository = mock(PriceLabsSyncLogRepository.class);
         RoomTypeRepository roomTypeRepository = mock(RoomTypeRepository.class);
         PricePlanRepository pricePlanRepository = mock(PricePlanRepository.class);
         RoomRepository roomRepository = mock(RoomRepository.class);
@@ -143,6 +149,7 @@ class PriceLabsServiceCreateConnectionSyncTest {
                 connectionRepository,
                 accountRepository,
                 integrationRepository,
+                syncLogRepository,
                 roomTypeRepository,
                 pricePlanRepository,
                 roomRepository,
@@ -161,6 +168,7 @@ class PriceLabsServiceCreateConnectionSyncTest {
         PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
         PriceLabsAccountRepository accountRepository = mock(PriceLabsAccountRepository.class);
         PriceLabsIntegrationRepository integrationRepository = mock(PriceLabsIntegrationRepository.class);
+        PriceLabsSyncLogRepository syncLogRepository = mock(PriceLabsSyncLogRepository.class);
         RoomTypeRepository roomTypeRepository = mock(RoomTypeRepository.class);
         PricePlanRepository pricePlanRepository = mock(PricePlanRepository.class);
         RoomRepository roomRepository = mock(RoomRepository.class);
@@ -187,6 +195,7 @@ class PriceLabsServiceCreateConnectionSyncTest {
                 connectionRepository,
                 accountRepository,
                 integrationRepository,
+                syncLogRepository,
                 roomTypeRepository,
                 pricePlanRepository,
                 roomRepository,
@@ -197,10 +206,71 @@ class PriceLabsServiceCreateConnectionSyncTest {
         assertThrows(RuntimeException.class, () -> service.createConnection(8L, 34L, 10L));
     }
 
+    @Test
+    void legacyAccountMapping_shouldCreateLegacyAccountOnlyOnceAcrossRepeatedReads() {
+        StoreContextHolder.setContext(new StoreContext(1L, 5L, "ADMIN"));
+
+        PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
+        PriceLabsAccountRepository accountRepository = mock(PriceLabsAccountRepository.class);
+        PriceLabsIntegrationRepository integrationRepository = mock(PriceLabsIntegrationRepository.class);
+        PriceLabsSyncLogRepository syncLogRepository = mock(PriceLabsSyncLogRepository.class);
+        RoomTypeRepository roomTypeRepository = mock(RoomTypeRepository.class);
+        PricePlanRepository pricePlanRepository = mock(PricePlanRepository.class);
+        RoomRepository roomRepository = mock(RoomRepository.class);
+        RoomTypePricePlanRepository roomTypePricePlanRepository = mock(RoomTypePricePlanRepository.class);
+        PriceLabsSyncService syncService = mock(PriceLabsSyncService.class);
+
+        PriceLabsAccount account = new PriceLabsAccount();
+        account.setId(18L);
+        account.setStoreId(5L);
+        account.setAccountName("284033031@qq.com");
+        account.setPriceLabsEmail("284033031@qq.com");
+        account.setIsEnabled(true);
+
+        PriceLabsIntegration integration = new PriceLabsIntegration(5L);
+        integration.setId(11L);
+        integration.setIsEnabled(true);
+        integration.setPriceLabsEmail("284033031@qq.com");
+
+        when(integrationRepository.findByStoreId(5L)).thenReturn(Optional.of(integration));
+        when(accountRepository.findByStoreIdAndPriceLabsEmail(5L, "284033031@qq.com"))
+                .thenReturn(Optional.empty(), Optional.of(account), Optional.of(account));
+        when(accountRepository.findByStoreIdOrderByCreatedAtAsc(5L)).thenReturn(List.of(account));
+        when(accountRepository.save(any())).thenReturn(account);
+        when(connectionRepository.findByStoreId(5L)).thenReturn(List.of());
+        when(connectionRepository.countConnectedRoomTypes(5L)).thenReturn(0L);
+        when(connectionRepository.countByStoreIdAndAccountId(5L, 18L)).thenReturn(0L);
+        when(syncLogRepository.countByStoreId(5L)).thenReturn(0L);
+        when(syncLogRepository.countByStoreIdAndStatus(eq(5L), any(server.demo.enums.SyncStatus.class)))
+                .thenReturn(0L);
+
+        PriceLabsService service = buildService(
+                connectionRepository,
+                accountRepository,
+                integrationRepository,
+                syncLogRepository,
+                roomTypeRepository,
+                pricePlanRepository,
+                roomRepository,
+                roomTypePricePlanRepository,
+                syncService
+        );
+
+        var integrationDto = service.getIntegration();
+        var accounts = service.getAccounts();
+
+        assertEquals("284033031@qq.com", integrationDto.getPriceLabsEmail());
+        assertEquals(1, accounts.size());
+        assertEquals("284033031@qq.com", accounts.get(0).getPriceLabsEmail());
+        assertTrue(accounts.get(0).getIsEnabled());
+        verify(accountRepository, times(1)).save(any());
+    }
+
     private PriceLabsService buildService(
             PriceLabsConnectionRepository connectionRepository,
             PriceLabsAccountRepository accountRepository,
             PriceLabsIntegrationRepository integrationRepository,
+            PriceLabsSyncLogRepository syncLogRepository,
             RoomTypeRepository roomTypeRepository,
             PricePlanRepository pricePlanRepository,
             RoomRepository roomRepository,
@@ -211,6 +281,7 @@ class PriceLabsServiceCreateConnectionSyncTest {
         ReflectionTestUtils.setField(service, "integrationRepository", integrationRepository);
         ReflectionTestUtils.setField(service, "accountRepository", accountRepository);
         ReflectionTestUtils.setField(service, "connectionRepository", connectionRepository);
+        ReflectionTestUtils.setField(service, "syncLogRepository", syncLogRepository);
         ReflectionTestUtils.setField(service, "roomTypeRepository", roomTypeRepository);
         ReflectionTestUtils.setField(service, "pricePlanRepository", pricePlanRepository);
         ReflectionTestUtils.setField(service, "roomRepository", roomRepository);

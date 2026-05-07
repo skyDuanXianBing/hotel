@@ -72,6 +72,59 @@ class PriceLabsServiceConnectionPolicyTest {
     }
 
     @Test
+    void createConnection_shouldExposeReadableMessageWhenRoomTypeAndPricePlanAlreadyBound() {
+        StoreContextHolder.setContext(new StoreContext(1L, 5L, "ADMIN"));
+
+        PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
+        PriceLabsAccountRepository accountRepository = mock(PriceLabsAccountRepository.class);
+        PriceLabsIntegrationRepository integrationRepository = mock(PriceLabsIntegrationRepository.class);
+
+        PriceLabsAccount selectedAccount = buildEnabledAccount();
+
+        PriceLabsAccount existingAccount = new PriceLabsAccount();
+        existingAccount.setId(9L);
+        existingAccount.setStoreId(5L);
+        existingAccount.setAccountName("Secondary Account");
+        existingAccount.setPriceLabsEmail("secondary@example.com");
+        existingAccount.setIsEnabled(true);
+
+        RoomType roomType = new RoomType();
+        roomType.setId(34L);
+        roomType.setName("Family Suite");
+
+        PricePlan pricePlan = new PricePlan();
+        pricePlan.setId(11L);
+        pricePlan.setName("Weekend Plan");
+
+        PriceLabsConnection existing = new PriceLabsConnection();
+        existing.setId(101L);
+        existing.setStoreId(5L);
+        existing.setAccount(existingAccount);
+        existing.setRoomType(roomType);
+        existing.setPricePlan(pricePlan);
+        existing.setIsEnabled(false);
+
+        when(integrationRepository.findByStoreId(5L)).thenReturn(Optional.empty());
+        when(accountRepository.findByStoreIdAndId(5L, 7L)).thenReturn(Optional.of(selectedAccount));
+        when(connectionRepository.findByStoreIdAndRoomTypeIdAndIsEnabledTrue(5L, 34L))
+                .thenReturn(Optional.empty());
+        when(connectionRepository.findByStoreIdAndRoomTypeIdAndPricePlanId(5L, 34L, 11L))
+                .thenReturn(Optional.of(existing));
+
+        PriceLabsService service = new PriceLabsService();
+        ReflectionTestUtils.setField(service, "integrationRepository", integrationRepository);
+        ReflectionTestUtils.setField(service, "accountRepository", accountRepository);
+        ReflectionTestUtils.setField(service, "connectionRepository", connectionRepository);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.createConnection(7L, 34L, 11L));
+        assertTrue(ex.getMessage().contains("Family Suite"));
+        assertTrue(ex.getMessage().contains("Weekend Plan"));
+        assertTrue(ex.getMessage().contains("Secondary Account"));
+
+        verify(connectionRepository, never()).save(any());
+    }
+
+    @Test
     void createConnection_shouldRejectWhenAccountDisabled() {
         StoreContextHolder.setContext(new StoreContext(1L, 5L, "ADMIN"));
 

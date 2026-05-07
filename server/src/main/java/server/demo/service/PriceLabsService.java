@@ -1,6 +1,7 @@
 package server.demo.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -51,6 +52,7 @@ public class PriceLabsService {
 
     private static final String OTA_CHANNEL_CODE_AIRBNB = "AIRBNB";
     private static final String OTA_CHANNEL_CODE_BOOKING = "BOOKING";
+    private static final Object LEGACY_ACCOUNT_MAPPING_LOCK = new Object();
 
     @Autowired
     private PriceLabsIntegrationRepository integrationRepository;
@@ -351,10 +353,10 @@ public class PriceLabsService {
             throw new RuntimeException("该房型已绑定价格计划：" + planName + "，请先禁用或删除后再添加");
         });
 
-        // 检查是否已存在
-        if (connectionRepository.findByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomTypeId, pricePlanId).isPresent()) {
-            throw new RuntimeException("该房型与价格计划的连接已存在");
-        }
+        connectionRepository.findByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomTypeId, pricePlanId)
+                .ifPresent(existing -> {
+                    throw new RuntimeException(buildDuplicateConnectionMessage(existing));
+                });
 
         RoomType roomType = roomTypeRepository.findByStoreIdAndId(storeId, roomTypeId)
                 .orElseThrow(() -> new RuntimeException("房型不存在"));
@@ -380,12 +382,23 @@ public class PriceLabsService {
         String listingId = PriceLabsIdUtil.formatListingIdWithTimestamp(storeId, roomTypeId);
         connection.setPriceLabsListingId(listingId);
 
-        PriceLabsConnection saved = connectionRepository.save(connection);
+        PriceLabsConnection saved;
+        try {
+            saved = connectionRepository.save(connection);
+        } catch (DataIntegrityViolationException ex) {
+            PriceLabsConnection existing = connectionRepository
+                    .findByStoreIdAndRoomTypeIdAndPricePlanId(storeId, roomTypeId, pricePlanId)
+                    .orElse(null);
+            if (existing != null) {
+                throw new RuntimeException(buildDuplicateConnectionMessage(existing), ex);
+            }
+            throw ex;
+        }
         priceLabsSyncService.syncListingRatePlanAndCalendar(
                 storeId,
                 roomType,
                 pricePlan,
-            saved.getPriceLabsListingId(),
+                saved.getPriceLabsListingId(),
                 PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS
         );
         return convertToConnectionDTO(saved);
@@ -1173,28 +1186,30 @@ public class PriceLabsService {
             return;
         }
 
-        PriceLabsIntegration integration = integrationRepository.findByStoreId(storeId).orElse(null);
-        String legacyEmail = integration != null ? normalizeEmail(integration.getPriceLabsEmail()) : null;
-        if (legacyEmail == null) {
-            return;
+        synchronized (LEGACY_ACCOUNT_MAPPING_LOCK) {
+            PriceLabsIntegration integration = integrationRepository.findByStoreId(storeId).orElse(null);
+            String legacyEmail = integration != null ? normalizeEmail(integration.getPriceLabsEmail()) : null;
+            if (legacyEmail == null) {
+                return;
+            }
+
+            PriceLabsAccount account = accountRepository.findByStoreIdAndPriceLabsEmail(storeId, legacyEmail)
+                    .orElseGet(() -> {
+                        PriceLabsAccount created = new PriceLabsAccount();
+                        created.setStoreId(storeId);
+                        created.setAccountName(normalizeAccountName(null, legacyEmail));
+                        created.setPriceLabsEmail(legacyEmail);
+                        created.setIsEnabled(integration == null || !Boolean.FALSE.equals(integration.getIsEnabled()));
+                        return accountRepository.save(created);
+                    });
+
+            connectionRepository.findByStoreId(storeId).stream()
+                    .filter(conn -> conn.getAccount() == null)
+                    .forEach(conn -> {
+                        conn.setAccount(account);
+                        connectionRepository.save(conn);
+                    });
         }
-
-        PriceLabsAccount account = accountRepository.findByStoreIdAndPriceLabsEmail(storeId, legacyEmail)
-                .orElseGet(() -> {
-                    PriceLabsAccount created = new PriceLabsAccount();
-                    created.setStoreId(storeId);
-                    created.setAccountName(normalizeAccountName(null, legacyEmail));
-                    created.setPriceLabsEmail(legacyEmail);
-                    created.setIsEnabled(integration == null || !Boolean.FALSE.equals(integration.getIsEnabled()));
-                    return accountRepository.save(created);
-                });
-
-        connectionRepository.findByStoreId(storeId).stream()
-                .filter(conn -> conn.getAccount() == null)
-                .forEach(conn -> {
-                    conn.setAccount(account);
-                    connectionRepository.save(conn);
-                });
     }
 
     private String normalizeEmail(String priceLabsEmail) {
@@ -1214,5 +1229,52 @@ public class PriceLabsService {
             return fallbackEmail;
         }
         throw new RuntimeException("账号名称不能为空");
+    }
+    private String buildDuplicateConnectionMessage(PriceLabsConnection existing) {
+        String roomTypeName = "当前房型";
+        String pricePlanName = "当前价格计划";
+        String accountLabel = "未知账号";
+
+        try {
+            if (existing.getRoomType() != null && existing.getRoomType().getName() != null
+                    && !existing.getRoomType().getName().isBlank()) {
+                roomTypeName = existing.getRoomType().getName();
+            }
+        } catch (Exception ignored) {
+            // ignore lazy load errors for message building
+        }
+
+        try {
+            if (existing.getPricePlan() != null && existing.getPricePlan().getName() != null
+                    && !existing.getPricePlan().getName().isBlank()) {
+                pricePlanName = existing.getPricePlan().getName();
+            }
+        } catch (Exception ignored) {
+            // ignore lazy load errors for message building
+        }
+
+        try {
+            if (existing.getAccount() != null) {
+                String accountName = existing.getAccount().getAccountName();
+                String accountEmail = existing.getAccount().getPriceLabsEmail();
+                if (accountName != null && !accountName.isBlank() && accountEmail != null
+                        && !accountEmail.isBlank() && !accountName.equals(accountEmail)) {
+                    accountLabel = accountName + " (" + accountEmail + ")";
+                } else if (accountName != null && !accountName.isBlank()) {
+                    accountLabel = accountName;
+                } else if (accountEmail != null && !accountEmail.isBlank()) {
+                    accountLabel = accountEmail;
+                }
+            }
+        } catch (Exception ignored) {
+            // ignore lazy load errors for message building
+        }
+
+        return String.format(
+                "房型“%s”的价格计划“%s”已绑定到 PriceLabs 账号“%s”，请先查看现有连接并删除或调整后再重试",
+                roomTypeName,
+                pricePlanName,
+                accountLabel
+        );
     }
 }
