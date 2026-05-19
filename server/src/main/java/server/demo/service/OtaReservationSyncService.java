@@ -670,7 +670,8 @@ public class OtaReservationSyncService {
                             reservationId,
                             roomReservationIdentity,
                             channelBookingId,
-                            externalBookingKey
+                            externalBookingKey,
+                            roomStayCount > 1
                     );
 
                     Reservation reservation = lookupResult.reservation();
@@ -1272,7 +1273,8 @@ public class OtaReservationSyncService {
             String suReservationId,
             String roomReservationIdentity,
             String channelOrderNumber,
-            String externalBookingKey
+            String externalBookingKey,
+            boolean multiRoomReservation
     ) {
         String normalizedGeneratedOrderNumber = normalizeLookupKey(generatedOrderNumber);
         String normalizedSuReservationId = normalizeLookupKey(suReservationId);
@@ -1309,6 +1311,20 @@ public class OtaReservationSyncService {
                 }
                 return new ReservationLookupResult(existing, "SU_ROOM_KEY", resolvedOrderNumber);
             }
+        }
+
+        if (multiRoomReservation) {
+            reservationLogger.info(
+                    "[ReservationUpsert] multi-room reservation skips order-level fallback. storeId={}, channelId={}, suReservationId={}, roomReservationId={}, externalBookingKey={}, channelOrderNumber={}, generatedOrderNumber={}",
+                    storeId,
+                    channelId,
+                    normalizedSuReservationId,
+                    normalizedRoomReservationIdentity,
+                    normalizedExternalBookingKey,
+                    normalizedChannelOrderNumber,
+                    normalizedGeneratedOrderNumber
+            );
+            return new ReservationLookupResult(new Reservation(), "INSERT_NEW", normalizedGeneratedOrderNumber);
         }
 
         if (channelId != null && normalizedExternalBookingKey != null) {

@@ -41,7 +41,8 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 "6588792273_W39FVCQYSN",
                 "1775048736013",
                 "6588792273",
-                "6588792273"
+                "6588792273",
+                false
         );
 
         assertSame(existing, result.reservation());
@@ -69,7 +70,8 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 "R-100",
                 "ROOM-2",
                 "BOOKING-200",
-                "BOOKING-200"
+                "BOOKING-200",
+                false
         );
 
         assertSame(existing, result.reservation());
@@ -100,11 +102,39 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 "R-200",
                 "ROOM-3",
                 "BOOKING-300",
-                "BOOKING-300"
+                "BOOKING-300",
+                false
         );
 
         assertEquals("INSERT_NEW", result.matchStrategy());
         assertEquals("SU26-NEW", result.resolvedOrderNumber());
+    }
+
+    @Test
+    void resolveReservationTargetForUpsert_shouldInsertNewForMultiRoomReservationBeforeOrderLevelFallback() {
+        ReservationRepository repository = mock(ReservationRepository.class);
+        OtaReservationSyncService service = createService(repository);
+
+        when(repository.findByStoreIdAndOrderNumber(10L, "SU26-BOOKING-ROOM-2"))
+                .thenReturn(Optional.empty());
+        when(repository.findByStoreIdAndSuReservationIdAndRoomReservationId(10L, "6253752979_W39FVCQYSN", "1779165101753"))
+                .thenReturn(Optional.empty());
+
+        OtaReservationSyncService.ReservationLookupResult result = service.resolveReservationTargetForUpsert(
+                10L,
+                19L,
+                "SU26-BOOKING-ROOM-2",
+                "6253752979_W39FVCQYSN",
+                "1779165101753",
+                "6253752979",
+                "6253752979",
+                true
+        );
+
+        assertEquals("INSERT_NEW", result.matchStrategy());
+        assertEquals("SU26-BOOKING-ROOM-2", result.resolvedOrderNumber());
+        verify(repository, never()).findByStoreIdAndChannelIdAndExternalBookingKey(10L, 19L, "6253752979");
+        verify(repository, never()).findByStoreIdAndChannelOrderNumber(10L, "6253752979");
     }
 
 
