@@ -271,6 +271,38 @@ public class StoreService {
         User invitedUser = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("用户不存在，请先让该用户注册账号"));
 
+        Optional<StoreUser> existingStoreUser = storeUserRepository.findByStoreIdAndUserId(storeId, invitedUser.getId());
+        if (existingStoreUser.isPresent() && !Boolean.TRUE.equals(existingStoreUser.get().getIsActive())) {
+            StoreUser inactiveStoreUser = existingStoreUser.get();
+            inactiveStoreUser.setStore(operator.getStore());
+            inactiveStoreUser.setUser(invitedUser);
+            inactiveStoreUser.setRole(request.getRole());
+            inactiveStoreUser.setIsActive(true);
+            inactiveStoreUser.setInvitedBy(operatorUserId);
+
+            Set<Role> roles = new HashSet<>();
+            if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
+                for (Long roleId : request.getRoleIds()) {
+                    Role role = roleRepository.findById(roleId)
+                            .orElseThrow(() -> new RuntimeException("Role not found: " + roleId));
+
+                    if (!storeId.equals(role.getStoreId())) {
+                        throw new RuntimeException("Role does not belong to current store");
+                    }
+
+                    roles.add(role);
+                }
+            }
+            inactiveStoreUser.setRoles(roles);
+
+            StoreUser restoredStoreUser = storeUserRepository.save(inactiveStoreUser);
+            replaceStoreUserExtraPermissions(restoredStoreUser, request.getExtraPermissions());
+            return convertToStoreUserDTO(
+                    restoredStoreUser,
+                    loadStoreUserExtraPermissions(restoredStoreUser.getId())
+            );
+        }
+
         if (storeUserRepository.existsByStoreIdAndUserId(storeId, invitedUser.getId())) {
             throw new RuntimeException("该用户已是门店成员");
         }
