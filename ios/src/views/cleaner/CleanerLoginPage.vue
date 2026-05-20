@@ -41,13 +41,6 @@
           </ion-button>
 
           <div class="auth-footer">
-            <div class="auth-helper-link">
-              <span>收到邀请链接？</span>
-              <button class="auth-text-button auth-helper-link__button" type="button" @click="handleGoToRegister">
-                去注册
-              </button>
-            </div>
-
             <div class="auth-helper-link auth-helper-link--secondary">
               <span>不是保洁人员？</span>
               <button class="auth-text-button auth-helper-link__button" type="button" @click="handleGoToAdminLogin">
@@ -187,10 +180,6 @@ async function handleLogin() {
   } finally {
     submitting.value = false
   }
-}
-
-async function handleGoToRegister() {
-  await router.push(ROUTE_PATHS.cleanerRegister)
 }
 
 async function handleGoToAdminLogin() {

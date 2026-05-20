@@ -28,14 +28,15 @@
             </p>
           </div>
 
-          <div v-if="linkedMessageThread" class="reservation-detail-hero__message-entry">
+          <div class="reservation-detail-hero__message-entry">
             <ion-button
               fill="outline"
               size="small"
               class="reservation-detail-hero__message-button"
-              @click="openLinkedMessageThread"
+              :disabled="!reservation"
+              @click="openReservationMessages"
             >
-              查看消息
+              消息
             </ion-button>
           </div>
         </div>
@@ -710,6 +711,60 @@ async function openLinkedMessageThread() {
     query: {
       defaultHref: route.fullPath,
     },
+  })
+}
+
+function buildReservationMessageQuery(reservationItem: ReservationDTO) {
+  const query: Record<string, string> = {
+    defaultHref: route.fullPath,
+  }
+
+  if (reservationItem.id) {
+    query.reservationId = String(reservationItem.id)
+  }
+
+  const orderNumber = reservationItem.orderNumber?.trim()
+  if (orderNumber) {
+    query.orderNumber = orderNumber
+  }
+
+  const channelOrderNumber = reservationItem.channelOrderNumber?.trim()
+  if (channelOrderNumber) {
+    query.channelOrderNumber = channelOrderNumber
+  }
+
+  const suReservationId = reservationItem.suReservationId?.trim()
+  if (suReservationId) {
+    query.suReservationId = suReservationId
+  }
+
+  const reservationNotifId = reservationItem.reservationNotifId?.trim()
+  if (reservationNotifId) {
+    query.reservationNotifId = reservationNotifId
+  }
+
+  const guestName = reservationItem.guestName?.trim()
+  if (guestName) {
+    query.guestName = guestName
+  }
+
+  return query
+}
+
+async function openReservationMessages() {
+  if (linkedMessageThread.value) {
+    await openLinkedMessageThread()
+    return
+  }
+
+  if (!reservation.value) {
+    showWarningToast('订单数据仍在加载，请稍后再试')
+    return
+  }
+
+  await router.push({
+    path: ROUTE_PATHS.messages,
+    query: buildReservationMessageQuery(reservation.value),
   })
 }
 

@@ -7,6 +7,8 @@ import {
   type PermissionRequirement,
 } from '@/stores/permission'
 
+const APP_TITLE = '房东智控中心（THE HOST HUB）'
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -490,9 +492,10 @@ const router = createRouter({
     },
     {
       path: '/register',
+      alias: '/auth/register',
       name: 'Register',
       component: () => import('@/views/auth/RegisterPage.vue'),
-      meta: { title: '注册' },
+      meta: { title: APP_TITLE },
     },
     {
       path: '/cleaner/register',
@@ -731,6 +734,17 @@ router.beforeEach(async (to, from, next) => {
   }
 
   next()
+})
+
+router.afterEach((to) => {
+  const routeTitle = typeof to.meta.title === 'string' ? to.meta.title : ''
+
+  if (!routeTitle || routeTitle === APP_TITLE) {
+    document.title = APP_TITLE
+    return
+  }
+
+  document.title = `${routeTitle} - ${APP_TITLE}`
 })
 
 export default router

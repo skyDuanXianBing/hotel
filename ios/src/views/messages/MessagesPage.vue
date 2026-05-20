@@ -7,6 +7,14 @@
         </ion-buttons>
         <ion-title class="orders-header__title">消息</ion-title>
         <ion-buttons slot="end">
+          <ion-button
+            class="orders-header__text-btn"
+            :class="{ 'is-active': translationEnabled }"
+            fill="clear"
+            @click="handleOpenTranslationSettings"
+          >
+            翻译
+          </ion-button>
           <ion-button class="orders-header__icon-btn" fill="clear" @click="handleToggleSearch">
             <ion-icon :icon="isSearchVisible ? closeOutline : searchOutline" />
           </ion-button>
@@ -123,7 +131,9 @@
                   <span class="messages-thread-item__date">{{ formatThreadDate(thread.lastActivity) }}</span>
                 </div>
 
-                <p class="messages-thread-item__preview">{{ thread.lastMessage || '暂无最新消息' }}</p>
+                <p class="messages-thread-item__preview">
+                  {{ getThreadPreviewText(thread) }}
+                </p>
 
                 <div class="messages-thread-item__meta">
                   <div class="messages-thread-item__meta-line">
@@ -155,6 +165,64 @@
         </section>
       </div>
     </ion-content>
+
+    <ion-modal
+      class="message-translation-modal"
+      :is-open="translationSettingsOpen"
+      @didDismiss="handleDismissTranslationSettings"
+    >
+      <ion-header translucent class="message-translation-modal__header">
+        <ion-toolbar class="message-translation-modal__toolbar">
+          <ion-title>全局消息翻译</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="handleDismissTranslationSettings">关闭</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="mobile-page message-translation-modal__page">
+        <section class="mobile-card message-translation-sheet">
+          <div class="message-translation-sheet__intro">
+            <h2 class="mobile-section-title">ChatGPT 翻译</h2>
+            <p class="mobile-note">开启一次后，消息列表和所有会话详情都会按这个配置自动翻译。</p>
+          </div>
+
+          <div class="message-translation-setting-row">
+            <div>
+              <strong>翻译所有消息</strong>
+              <p>列表会翻译会话预览，进入任意会话后会自动翻译最近聊天内容。</p>
+            </div>
+            <ion-toggle v-model="translationEnabled" aria-label="翻译所有消息" />
+          </div>
+
+          <label class="message-translation-field">
+            <span>目标语言</span>
+            <ion-select v-model="translationTargetLanguage" interface="action-sheet" placeholder="请选择目标语言">
+              <ion-select-option
+                v-for="option in MESSAGE_TRANSLATION_LANGUAGE_OPTIONS"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </ion-select-option>
+            </ion-select>
+          </label>
+
+          <div class="message-translation-actions">
+            <ion-button
+              fill="outline"
+              :disabled="isApplyingTranslationSettings"
+              @click="handleDismissTranslationSettings"
+            >
+              取消
+            </ion-button>
+            <ion-button :disabled="isApplyingTranslationSettings" @click="handleApplyTranslationSettings">
+              {{ isApplyingTranslationSettings ? '保存中...' : '保存并翻译' }}
+            </ion-button>
+          </div>
+        </section>
+      </ion-content>
+    </ion-modal>
   </ion-page>
 </template>
 
@@ -166,24 +234,35 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonModal,
   IonPage,
   IonRefresher,
   IonRefresherContent,
   IonSearchbar,
+  IonSelect,
+  IonSelectOption,
   IonSpinner,
   IonTitle,
+  IonToggle,
   IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue'
 import { closeOutline, homeOutline, mailOutline, searchOutline, timeOutline } from 'ionicons/icons'
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getMessageThreads } from '@/api/message'
 import { buildMessageDetailPath, ROUTE_PATHS } from '@/router/guards'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import type { MessageThreadDTO } from '@/types/message'
 import { isHandledRequestError } from '@/utils/request'
-import { showWarningToast } from '@/utils/notify'
+import { showSuccessToast, showWarningToast } from '@/utils/notify'
+import {
+  loadMessageTranslationSettings,
+  MESSAGE_TRANSLATION_LANGUAGE_OPTIONS,
+  requestAiMessageTranslation,
+  saveMessageTranslationSettings,
+  type MessageTranslationLanguageValue,
+} from '@/utils/messageTranslation'
 
 type MessageTabValue = 'all' | 'unread' | 'closed'
 
@@ -229,6 +308,7 @@ const DEFAULT_CHANNEL_BRAND: ChannelBrand = {
   label: '客',
 }
 
+const route = useRoute()
 const router = useRouter()
 const notificationCenterStore = useNotificationCenterStore()
 
@@ -239,6 +319,15 @@ const loadNotice = ref('')
 const activeTab = ref<MessageTabValue>('all')
 const activeChannel = ref(ALL_CHANNEL_VALUE)
 const threads = ref<MessageThreadDTO[]>([])
+const routeTargetHandled = ref(false)
+const translationSettingsOpen = ref(false)
+const isApplyingTranslationSettings = ref(false)
+const translationEnabled = ref(false)
+const translationTargetLanguage = ref<MessageTranslationLanguageValue>('zh-CN')
+const translatedThreadPreviewMap = ref<Record<string, string>>({})
+const translationPendingMap = ref<Record<string, boolean>>({})
+
+let previewTranslationRunId = 0
 
 const trimmedKeyword = computed(() => searchKeyword.value.trim())
 
@@ -339,6 +428,47 @@ const hasActiveFilters = computed(() => {
   return activeChannel.value !== ALL_CHANNEL_VALUE || Boolean(trimmedKeyword.value)
 })
 
+const routeTarget = computed(() => {
+  const reservationIdText = getRouteQueryText(route.query.reservationId)
+  const reservationIdNumber = Number(reservationIdText)
+
+  return {
+    reservationId:
+      reservationIdText && Number.isInteger(reservationIdNumber) && reservationIdNumber > 0
+        ? reservationIdNumber
+        : null,
+    orderNumber: getRouteQueryText(route.query.orderNumber),
+    channelOrderNumber: getRouteQueryText(route.query.channelOrderNumber),
+    suReservationId: getRouteQueryText(route.query.suReservationId),
+    reservationNotifId: getRouteQueryText(route.query.reservationNotifId),
+    guestName: getRouteQueryText(route.query.guestName),
+  }
+})
+
+const hasRouteTarget = computed(() => {
+  const target = routeTarget.value
+  return Boolean(
+    target.reservationId ||
+      target.orderNumber ||
+      target.channelOrderNumber ||
+      target.suReservationId ||
+      target.reservationNotifId ||
+      target.guestName,
+  )
+})
+
+const routeTargetKey = computed(() => {
+  const target = routeTarget.value
+  return [
+    target.reservationId ? String(target.reservationId) : '',
+    target.orderNumber,
+    target.channelOrderNumber,
+    target.suReservationId,
+    target.reservationNotifId,
+    target.guestName,
+  ].join('|')
+})
+
 const resultsSummaryText = computed(() => {
   const unreadLabel = unreadThreadCount.value > 0 ? ` · 未读 ${unreadThreadCount.value}` : ''
   return `${activeTabLabel.value} · ${displayedThreads.value.length} 条会话${unreadLabel}`
@@ -390,6 +520,263 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
   }
 
   return fallbackMessage
+}
+
+function syncTranslationSettingsFromStorage() {
+  const settings = loadMessageTranslationSettings()
+  const shouldClearCaches =
+    translationEnabled.value !== settings.enabled ||
+    translationTargetLanguage.value !== settings.targetLanguage
+
+  translationEnabled.value = settings.enabled
+  translationTargetLanguage.value = settings.targetLanguage
+
+  if (shouldClearCaches) {
+    clearThreadTranslationCaches()
+  }
+}
+
+function clearThreadTranslationCaches() {
+  translatedThreadPreviewMap.value = {}
+  translationPendingMap.value = {}
+  previewTranslationRunId += 1
+}
+
+function getThreadPreviewKey(thread: MessageThreadDTO) {
+  return `thread:${thread.id}:${thread.lastMessage || ''}`
+}
+
+function getTranslatedThreadPreviewText(thread: MessageThreadDTO) {
+  return translatedThreadPreviewMap.value[getThreadPreviewKey(thread)] || ''
+}
+
+function getThreadPreviewText(thread: MessageThreadDTO) {
+  const originalText = thread.lastMessage || '暂无最新消息'
+  if (!translationEnabled.value) {
+    return originalText
+  }
+
+  const translatedText = getTranslatedThreadPreviewText(thread)
+  if (translatedText && translatedText !== thread.lastMessage?.trim()) {
+    return translatedText
+  }
+
+  return originalText
+}
+
+function markTranslationPending(key: string, pending: boolean) {
+  if (pending) {
+    translationPendingMap.value = {
+      ...translationPendingMap.value,
+      [key]: true,
+    }
+    return
+  }
+
+  const nextMap = { ...translationPendingMap.value }
+  delete nextMap[key]
+  translationPendingMap.value = nextMap
+}
+
+async function ensureThreadPreviewTranslation(thread: MessageThreadDTO) {
+  if (!translationEnabled.value || !thread.lastMessage?.trim()) {
+    return
+  }
+
+  const key = getThreadPreviewKey(thread)
+  if (translatedThreadPreviewMap.value[key] || translationPendingMap.value[key]) {
+    return
+  }
+
+  markTranslationPending(key, true)
+  try {
+    const translatedText = await requestAiMessageTranslation(
+      thread.lastMessage,
+      translationTargetLanguage.value,
+    )
+    if (!translationEnabled.value) {
+      return
+    }
+
+    translatedThreadPreviewMap.value = {
+      ...translatedThreadPreviewMap.value,
+      [key]: translatedText,
+    }
+  } catch (error) {
+    console.error('翻译会话预览失败:', error)
+  } finally {
+    markTranslationPending(key, false)
+  }
+}
+
+async function translateDisplayedThreadPreviews() {
+  if (!translationEnabled.value) {
+    return
+  }
+
+  const runId = ++previewTranslationRunId
+  const targetThreads = [...displayedThreads.value]
+  for (const thread of targetThreads) {
+    if (runId !== previewTranslationRunId || !translationEnabled.value) {
+      return
+    }
+
+    await ensureThreadPreviewTranslation(thread)
+  }
+}
+
+function handleOpenTranslationSettings() {
+  syncTranslationSettingsFromStorage()
+  translationSettingsOpen.value = true
+}
+
+function handleDismissTranslationSettings() {
+  translationSettingsOpen.value = false
+}
+
+async function handleApplyTranslationSettings() {
+  isApplyingTranslationSettings.value = true
+  try {
+    saveMessageTranslationSettings({
+      enabled: translationEnabled.value,
+      targetLanguage: translationTargetLanguage.value,
+    })
+    translationSettingsOpen.value = false
+    clearThreadTranslationCaches()
+
+    if (translationEnabled.value) {
+      void translateDisplayedThreadPreviews()
+    }
+
+    showSuccessToast('全局翻译设置已更新')
+  } catch (error) {
+    console.error('保存全局翻译设置失败:', error)
+    showWarningToast('翻译设置保存失败')
+  } finally {
+    isApplyingTranslationSettings.value = false
+  }
+}
+
+function getRouteQueryText(value: unknown) {
+  if (Array.isArray(value)) {
+    return String(value[0] || '').trim()
+  }
+
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+
+  return ''
+}
+
+function toComparableText(value?: string | null) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function matchesThreadKeyword(thread: MessageThreadDTO, keyword: string) {
+  const normalizedKeyword = toComparableText(keyword)
+  if (!normalizedKeyword) {
+    return false
+  }
+
+  const values = [thread.bookingId, thread.threadId]
+  for (const value of values) {
+    const normalizedValue = toComparableText(value)
+    if (!normalizedValue) {
+      continue
+    }
+
+    if (
+      normalizedValue === normalizedKeyword ||
+      normalizedValue.includes(normalizedKeyword) ||
+      normalizedKeyword.includes(normalizedValue)
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function resolveThreadByRouteTarget() {
+  if (threads.value.length === 0) {
+    return null
+  }
+
+  const target = routeTarget.value
+  const bookingCandidates = [
+    target.channelOrderNumber,
+    target.suReservationId,
+    target.reservationNotifId,
+    target.orderNumber,
+  ]
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  for (const thread of threads.value) {
+    for (const candidate of bookingCandidates) {
+      if (matchesThreadKeyword(thread, candidate)) {
+        return thread
+      }
+    }
+  }
+
+  const guestNameKeyword = toComparableText(target.guestName)
+  if (!guestNameKeyword) {
+    return null
+  }
+
+  for (const thread of threads.value) {
+    const threadGuestName = toComparableText(thread.guestName)
+    if (threadGuestName === guestNameKeyword || threadGuestName.includes(guestNameKeyword)) {
+      return thread
+    }
+  }
+
+  return null
+}
+
+function getMessageDetailDefaultHref() {
+  const routeDefaultHref = route.query.defaultHref
+  if (typeof routeDefaultHref === 'string' && routeDefaultHref) {
+    return routeDefaultHref
+  }
+
+  return ROUTE_PATHS.messages
+}
+
+async function applyRouteMessageTarget() {
+  if (!hasRouteTarget.value || routeTargetHandled.value || threads.value.length === 0) {
+    return
+  }
+
+  const target = routeTarget.value
+  const preferredKeyword =
+    target.channelOrderNumber ||
+    target.suReservationId ||
+    target.reservationNotifId ||
+    target.orderNumber ||
+    target.guestName
+  if (preferredKeyword && !searchKeyword.value.trim()) {
+    searchKeyword.value = preferredKeyword
+  }
+
+  const matchedThread = resolveThreadByRouteTarget()
+  routeTargetHandled.value = true
+
+  if (!matchedThread) {
+    if (!loadNotice.value) {
+      loadNotice.value = '暂未找到该订单对应的会话，可在当前结果中继续查找。'
+    }
+    return
+  }
+
+  await router.push({
+    path: buildMessageDetailPath(matchedThread.id),
+    query: {
+      defaultHref: getMessageDetailDefaultHref(),
+    },
+  })
 }
 
 function ensureActiveChannelStillExists(nextThreads: MessageThreadDTO[]) {
@@ -630,6 +1017,10 @@ async function loadThreads() {
     ensureActiveChannelStillExists(response.data)
     threads.value = response.data
     notificationCenterStore.syncMessageThreads(threads.value)
+    await applyRouteMessageTarget()
+    if (translationEnabled.value) {
+      void translateDisplayedThreadPreviews()
+    }
   } catch (error) {
     loadNotice.value = resolveWarningMessage(error, '加载会话失败')
     if (!isHandledRequestError(error)) {
@@ -642,15 +1033,24 @@ async function loadThreads() {
 
 function handleSelectTab(value: MessageTabValue) {
   activeTab.value = value
+  if (translationEnabled.value) {
+    void translateDisplayedThreadPreviews()
+  }
 }
 
 function handleSelectChannel(value: string) {
   activeChannel.value = value
+  if (translationEnabled.value) {
+    void translateDisplayedThreadPreviews()
+  }
 }
 
 function handleResetFilters() {
   activeChannel.value = ALL_CHANNEL_VALUE
   searchKeyword.value = ''
+  if (translationEnabled.value) {
+    void translateDisplayedThreadPreviews()
+  }
 }
 
 function handleToggleSearch() {
@@ -673,7 +1073,25 @@ async function handleRefresh(event: CustomEvent) {
   }
 }
 
+watch(
+  () => routeTargetKey.value,
+  () => {
+    routeTargetHandled.value = false
+    void applyRouteMessageTarget()
+  },
+)
+
+watch(
+  () => displayedThreads.value.map((thread) => getThreadPreviewKey(thread)).join('|'),
+  () => {
+    if (translationEnabled.value) {
+      void translateDisplayedThreadPreviews()
+    }
+  },
+)
+
 onIonViewWillEnter(async () => {
+  syncTranslationSettingsFromStorage()
   await loadThreads()
 })
 </script>
@@ -711,6 +1129,140 @@ onIonViewWillEnter(async () => {
   height: 34px;
   margin: 0;
   font-size: 25px;
+}
+
+.orders-header__text-btn {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  --color: #6f7786;
+  min-width: 46px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.orders-header__text-btn.is-active {
+  --color: #4a98ff;
+}
+
+ion-modal.message-translation-modal {
+  --border-radius: 30px 30px 0 0;
+  --backdrop-opacity: 0.24;
+  --box-shadow: 0 -28px 56px rgba(15, 23, 42, 0.2);
+}
+
+.message-translation-modal__header {
+  backdrop-filter: blur(16px);
+}
+
+.message-translation-modal__toolbar {
+  --background: rgba(248, 249, 251, 0.94);
+  --border-width: 0;
+  --padding-start: 10px;
+  --padding-end: 10px;
+}
+
+.message-translation-modal__toolbar ion-title {
+  padding: 4px 0 2px;
+  color: #1b2330;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.message-translation-modal__toolbar ion-button {
+  --color: #536074;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.message-translation-modal__page {
+  --background: linear-gradient(180deg, #f7f8fa 0%, #f1f3f6 100%);
+  --padding-top: 18px;
+  --padding-bottom: calc(28px + var(--app-safe-bottom));
+  --padding-start: 16px;
+  --padding-end: 16px;
+}
+
+.message-translation-sheet {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(218, 223, 232, 0.92);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(22px);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.1);
+}
+
+.message-translation-sheet__intro {
+  display: grid;
+  gap: 6px;
+}
+
+.message-translation-sheet__intro h2,
+.message-translation-sheet__intro p {
+  margin: 0;
+}
+
+.message-translation-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(224, 229, 237, 0.96);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(249, 250, 252, 0.98), rgba(242, 245, 248, 0.92));
+}
+
+.message-translation-setting-row strong {
+  display: block;
+  color: #1b2330;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.message-translation-setting-row p {
+  margin: 4px 0 0;
+  color: #8791a2;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.message-translation-setting-row ion-toggle {
+  flex-shrink: 0;
+}
+
+.message-translation-field {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border: 1px solid rgba(224, 229, 237, 0.96);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(249, 250, 252, 0.98), rgba(242, 245, 248, 0.92));
+}
+
+.message-translation-field span {
+  color: #556173;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.message-translation-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.message-translation-actions ion-button {
+  margin: 0;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .orders-page__shell {

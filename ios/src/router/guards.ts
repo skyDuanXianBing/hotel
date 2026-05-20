@@ -2,6 +2,8 @@ import type { Router } from 'vue-router'
 import { hasCleanerStore, hasCleanerToken } from '@/utils/cleanerSession'
 import { hasStoredCurrentStore, hasStoredToken } from '@/utils/storage'
 
+const APP_TITLE = '房东智控中心（THE HOST HUB）'
+
 export const ROUTE_PATHS = {
   login: '/auth/login',
   loginCodeVerify: '/auth/login/code-verify',
@@ -12,6 +14,7 @@ export const ROUTE_PATHS = {
   publicRoomStatusShare: '/public/share/:token',
   cleanerLogin: '/cleaner/login',
   cleanerRegister: '/cleaner/register',
+  cleanerInviteRegister: '/cleaner/invite-register',
   cleanerDashboard: '/cleaner/dashboard',
   cleanerTaskDetail: '/cleaner/task/:id',
   storeSelection: '/store/selection',
@@ -140,10 +143,14 @@ export const resolveDefaultAuthenticatedPath = () => {
 
 const buildDocumentTitle = (title?: string) => {
   if (!title) {
-    return 'The Host iOS'
+    return APP_TITLE
   }
 
-  return `${title} - The Host iOS`
+  if (title === APP_TITLE) {
+    return APP_TITLE
+  }
+
+  return `${title} - ${APP_TITLE}`
 }
 
 const hasRouteParamValue = (param: unknown) => {

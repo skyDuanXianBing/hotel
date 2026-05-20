@@ -5,6 +5,7 @@ import { getNotificationSettings } from '@/api/notification'
 import { buildMessageDetailPath } from '@/router/guards'
 import type { MessageThreadDTO } from '@/types/message'
 import type { NotificationSettingDTO, NotificationSettingRequest } from '@/types/settings'
+import { getStoredCurrentStoreId, getStoredToken } from '@/utils/storage'
 
 const POLL_INTERVAL = 15000
 const POPUP_DURATION = 5000
@@ -42,6 +43,10 @@ function buildThreadTitle(thread: MessageThreadDTO) {
 function buildThreadDetail(thread: MessageThreadDTO) {
   const orderCode = thread.bookingId || thread.threadId || '-'
   return `${thread.channelName} · 订单 ${orderCode}`
+}
+
+function hasAuthenticatedNotificationContext() {
+  return Boolean(getStoredToken() && getStoredCurrentStoreId())
 }
 
 export const useNotificationCenterStore = defineStore('notificationCenter', () => {
@@ -177,6 +182,11 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   }
 
   const pollMessageNotifications = async () => {
+    if (!hasAuthenticatedNotificationContext()) {
+      stop()
+      return
+    }
+
     try {
       const nextResponse = await getMessageThreads()
       if (!nextResponse.success || !nextResponse.data) {
@@ -227,6 +237,11 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
 
   const start = async (userId: number) => {
     if (typeof window === 'undefined') {
+      return
+    }
+
+    if (!hasAuthenticatedNotificationContext()) {
+      stop()
       return
     }
 

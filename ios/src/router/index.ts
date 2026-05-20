@@ -77,11 +77,18 @@ const routes: RouteRecordRaw[] = [
   {
     path: ROUTE_PATHS.cleanerRegister,
     name: 'CleanerRegister',
-    component: () => import('@/views/cleaner/CleanerRegisterPage.vue'),
-    meta: {
-      title: 'Cleaner Register',
-      cleanerPublicOnly: true,
-    },
+    redirect: (to) => ({
+      path: ROUTE_PATHS.cleanerLogin,
+      query: to.query,
+    }),
+  },
+  {
+    path: ROUTE_PATHS.cleanerInviteRegister,
+    name: 'CleanerInviteRegister',
+    redirect: (to) => ({
+      path: ROUTE_PATHS.cleanerLogin,
+      query: to.query,
+    }),
   },
   {
     path: ROUTE_PATHS.cleanerLogin,

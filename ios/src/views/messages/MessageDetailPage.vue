@@ -60,6 +60,14 @@
                 </template>
               </p>
             </div>
+            <div v-if="shouldShowTranslatedMessage(message)" class="message-translation-card">
+              <span class="message-translation-card__label">译文</span>
+              <p>{{ getTranslatedMessageText(message) }}</p>
+            </div>
+            <div v-else-if="shouldShowTranslationPending(message)" class="message-translation-card is-loading">
+              <ion-spinner name="crescent" />
+              <span>正在翻译...</span>
+            </div>
             <div class="message-row__meta">
               <span>{{ formatDateTime(message.timestamp) }}</span>
               <span v-if="message.deliveryStatus === 'FAILED'" class="message-row__failed">发送失败</span>
@@ -254,8 +262,14 @@ import type { MessageDTO, MessageThreadDTO } from '@/types/message'
 import { MessageSenderType } from '@/types/message'
 import { isHandledRequestError } from '@/utils/request'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
+import {
+  loadMessageTranslationSettings,
+  requestAiMessageTranslation,
+  type MessageTranslationLanguageValue,
+} from '@/utils/messageTranslation'
 
 const MESSAGE_POLL_INTERVAL = 8000
+const INITIAL_TRANSLATION_BATCH_SIZE = 20
 
 interface AiPolishHistoryItem {
   role: 'user' | 'assistant'
@@ -308,6 +322,10 @@ const aiPolishOpen = ref(false)
 const aiPolishLoading = ref(false)
 const aiPolishInstruction = ref('')
 const aiPolishHistory = ref<AiPolishHistoryItem[]>([])
+const translationEnabled = ref(false)
+const translationTargetLanguage = ref<MessageTranslationLanguageValue>('zh-CN')
+const translatedMessageMap = ref<Record<string, string>>({})
+const translationPendingMap = ref<Record<string, boolean>>({})
 const contentRef = ref<unknown>(null)
 const composerTextareaRef = ref<unknown>(null)
 
@@ -652,6 +670,112 @@ function parseAiDraft(rawReply: string) {
   }
 }
 
+function syncTranslationSettingsFromStorage() {
+  const settings = loadMessageTranslationSettings()
+  const shouldClearCaches =
+    translationEnabled.value !== settings.enabled ||
+    translationTargetLanguage.value !== settings.targetLanguage
+
+  translationEnabled.value = settings.enabled
+  translationTargetLanguage.value = settings.targetLanguage
+
+  if (shouldClearCaches) {
+    clearTranslationCaches()
+  }
+}
+
+function clearTranslationCaches() {
+  translatedMessageMap.value = {}
+  translationPendingMap.value = {}
+}
+
+function getMessageTranslationKey(message: MessageDTO) {
+  return `message:${message.id}:${message.content}`
+}
+
+function getTranslatedMessageText(message: MessageDTO) {
+  return translatedMessageMap.value[getMessageTranslationKey(message)] || ''
+}
+
+function markTranslationPending(key: string, pending: boolean) {
+  if (pending) {
+    translationPendingMap.value = {
+      ...translationPendingMap.value,
+      [key]: true,
+    }
+    return
+  }
+
+  const nextMap = { ...translationPendingMap.value }
+  delete nextMap[key]
+  translationPendingMap.value = nextMap
+}
+
+function shouldShowTranslatedMessage(message: MessageDTO) {
+  if (!translationEnabled.value) {
+    return false
+  }
+
+  const translated = getTranslatedMessageText(message)
+  return Boolean(translated && translated !== message.content.trim())
+}
+
+function shouldShowTranslationPending(message: MessageDTO) {
+  if (!translationEnabled.value) {
+    return false
+  }
+
+  const key = getMessageTranslationKey(message)
+  return Boolean(translationPendingMap.value[key] && !getTranslatedMessageText(message))
+}
+
+function requestAiTranslation(sourceText: string) {
+  return requestAiMessageTranslation(sourceText, translationTargetLanguage.value)
+}
+
+async function ensureMessageTranslation(message: MessageDTO) {
+  if (!translationEnabled.value || !message.content.trim()) {
+    return
+  }
+
+  const key = getMessageTranslationKey(message)
+  if (translatedMessageMap.value[key] || translationPendingMap.value[key]) {
+    return
+  }
+
+  markTranslationPending(key, true)
+  try {
+    const translated = await requestAiTranslation(message.content)
+    if (!translationEnabled.value) {
+      return
+    }
+
+    translatedMessageMap.value = {
+      ...translatedMessageMap.value,
+      [key]: translated,
+    }
+  } catch (error) {
+    console.error('翻译消息失败:', error)
+  } finally {
+    markTranslationPending(key, false)
+  }
+}
+
+async function translateMessagesSequentially(items: MessageDTO[]) {
+  for (const message of items) {
+    await ensureMessageTranslation(message)
+  }
+}
+
+async function translateCurrentConversation() {
+  if (!translationEnabled.value) {
+    return
+  }
+
+  const latestMessages = sortMessages(messages.value).slice(-INITIAL_TRANSLATION_BATCH_SIZE)
+  await translateMessagesSequentially(latestMessages)
+}
+
 function getLatestTimestamp() {
   if (messages.value.length === 0) {
     return ''
@@ -703,6 +827,10 @@ async function loadMessages(expectedThreadId: number, requestToken?: number) {
   }
 
   messages.value = sortMessages(response.data)
+  if (translationEnabled.value) {
+    clearTranslationCaches()
+    void translateCurrentConversation()
+  }
   return true
 }
 
@@ -797,6 +925,7 @@ function startPolling(expectedThreadId: number, requestToken: number) {
       }
 
       const existing = [...messages.value]
+      const newMessages: MessageDTO[] = []
       for (const incoming of response.data) {
         let exists = false
         for (const item of existing) {
@@ -808,10 +937,14 @@ function startPolling(expectedThreadId: number, requestToken: number) {
 
         if (!exists) {
           existing.push(incoming)
+          newMessages.push(incoming)
         }
       }
 
       messages.value = sortMessages(existing)
+      if (translationEnabled.value && newMessages.length > 0) {
+        void translateMessagesSequentially(newMessages)
+      }
       const nextThreads = await loadThreads(requestToken, expectedThreadId)
       if (!nextThreads || !isActivePageRequest(requestToken, expectedThreadId)) {
         return
@@ -893,6 +1026,9 @@ async function handleSendMessage() {
 
     composerValue.value = ''
     messages.value = sortMessages([...messages.value, response.data])
+    if (translationEnabled.value) {
+      void ensureMessageTranslation(response.data)
+    }
     await loadThreads()
     await scrollToConversationBottom(180)
     showSuccessToast('消息已发送')
@@ -1074,6 +1210,7 @@ async function handleRefresh(event: CustomEvent) {
 }
 
 onIonViewWillEnter(async () => {
+  syncTranslationSettingsFromStorage()
   await loadPage()
 })
 
@@ -1260,6 +1397,53 @@ ion-header::after {
   text-underline-offset: 2px;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.message-translation-card {
+  display: grid;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(129, 140, 248, 0.2);
+  border-radius: 16px;
+  background: rgba(238, 242, 255, 0.92);
+  color: #35405a;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.08);
+}
+
+.message-row.is-staff .message-translation-card {
+  background: rgba(250, 255, 243, 0.92);
+  border-color: rgba(124, 184, 80, 0.2);
+}
+
+.message-translation-card__label {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.message-translation-card p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.message-translation-card.is-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #7a8598;
+  font-size: 12px;
+}
+
+.message-translation-card.is-loading ion-spinner {
+  width: 13px;
+  height: 13px;
 }
 
 .message-row__meta {

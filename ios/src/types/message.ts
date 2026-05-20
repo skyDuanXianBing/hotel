@@ -40,6 +40,7 @@ export interface ChatMessageRequest {
   message: string
   sessionId?: string
   userId?: string
+  taskType?: 'DEFAULT' | 'TRANSLATION'
 }
 
 export interface ChatMessageResponse {

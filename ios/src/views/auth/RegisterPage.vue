@@ -131,6 +131,7 @@ const PASSWORD_MIN_LENGTH = 8
 const PASSWORD_MAX_LENGTH = 16
 const VERIFICATION_CODE_LENGTH = 6
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const APP_NAME = '房东智控中心'
 
 type RegisterStep = 'email' | 'details'
 type FocusedField = 'email' | 'displayName' | 'verificationCode' | 'password' | null
@@ -160,7 +161,7 @@ const currentTitle = computed(() => {
     return 'Hi 你好！'
   }
 
-  return '欢迎使用Hostex'
+  return `欢迎使用${APP_NAME}`
 })
 
 const currentSubtitle = computed(() => {
@@ -168,7 +169,7 @@ const currentSubtitle = computed(() => {
     return '请输入邮箱'
   }
 
-  return '正在创建Hostex账号'
+  return `正在创建${APP_NAME}账号`
 })
 
 const normalizeEmail = (value: string) => value.trim()

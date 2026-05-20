@@ -34,11 +34,13 @@ import { IonIcon } from '@ionic/vue'
 import { chatbubbleOutline, closeOutline, receiptOutline } from 'ionicons/icons'
 import { onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const notificationCenterStore = useNotificationCenterStore()
 const userStore = useUserStore()
 const storeStore = useStoreStore()
@@ -53,9 +55,9 @@ const handleOpenNotification = async (id: string, targetPath: string) => {
 }
 
 watch(
-  [() => userStore.currentUser?.id, () => storeStore.currentStore?.id],
-  async ([userId, storeId]) => {
-    if (!userId || !storeId) {
+  [() => authStore.token, () => userStore.currentUser?.id, () => storeStore.currentStore?.id],
+  async ([token, userId, storeId]) => {
+    if (!token || !userId || !storeId) {
       notificationCenterStore.stop()
       return
     }
