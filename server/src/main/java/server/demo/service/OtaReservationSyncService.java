@@ -26,6 +26,8 @@ import server.demo.util.UtcTimeUtil;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.UnexpectedRollbackException;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 
@@ -896,25 +898,15 @@ public class OtaReservationSyncService {
                                         roomTypeIds,
                                         formatDateRanges(ranges)
                                 );
-                                suAriAutoSyncService.enqueueForStoreDateRanges(
-                                        store.getId(),
-                                        "su_reservation_webhook",
-                                        ranges,
-                                        roomTypeIds,
-                                        null,
-                                        true,
-                                        false,
-                                        false,
-                                        false
-                                );
-                                reservationLogger.info(
-                                        "[ReservationUpsert][SuAriTrace] enqueue submitted. traceId={}, storeId={}, hotelId={}, reservationId={}, notifId={}, orderNumber={}",
-                                        ariTraceId,
+                                scheduleSuAvailabilitySyncAfterCommit(
                                         store.getId(),
                                         suHotelId,
-                                        reservation != null ? reservation.getId() : null,
                                         notifId,
-                                        orderNumber
+                                        orderNumber,
+                                        reservation != null ? reservation.getId() : null,
+                                        ariTraceId,
+                                        ranges,
+                                        roomTypeIds
                                 );
                             }
                         } catch (Exception ex) {
@@ -1569,6 +1561,61 @@ public class OtaReservationSyncService {
         String rid = reservationId != null ? String.valueOf(reservationId) : "na";
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         return "ari-" + (notifPart != null ? notifPart : (orderPart != null ? orderPart : "na")) + "-" + rid + "-" + suffix;
+    }
+
+    void scheduleSuAvailabilitySyncAfterCommit(
+            Long storeId,
+            String hotelId,
+            String notifId,
+            String orderNumber,
+            Long reservationId,
+            String ariTraceId,
+            List<SuAriAutoSyncService.DateRange> ranges,
+            Set<Long> roomTypeIds
+    ) {
+        if (storeId == null || suAriAutoSyncService == null || ranges == null || ranges.isEmpty()
+                || roomTypeIds == null || roomTypeIds.isEmpty()) {
+            return;
+        }
+
+        List<SuAriAutoSyncService.DateRange> scopedRanges = List.copyOf(ranges);
+        Set<Long> scopedRoomTypeIds = new LinkedHashSet<>(roomTypeIds);
+        Runnable enqueue = () -> {
+            suAriAutoSyncService.enqueueForStoreDateRanges(
+                    storeId,
+                    "su_reservation_webhook",
+                    scopedRanges,
+                    scopedRoomTypeIds,
+                    null,
+                    true,
+                    false,
+                    false,
+                    false
+            );
+            reservationLogger.info(
+                    "[ReservationUpsert][SuAriTrace] enqueue submitted. traceId={}, storeId={}, hotelId={}, reservationId={}, notifId={}, orderNumber={}, roomTypeScope={}, ranges={}",
+                    ariTraceId,
+                    storeId,
+                    hotelId,
+                    reservationId,
+                    notifId,
+                    orderNumber,
+                    scopedRoomTypeIds,
+                    formatDateRanges(scopedRanges)
+            );
+        };
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            enqueue.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                enqueue.run();
+            }
+        });
     }
 
     private static String formatDateRanges(List<SuAriAutoSyncService.DateRange> ranges) {
