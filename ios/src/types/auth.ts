@@ -42,15 +42,18 @@ export interface LoginResponse {
 
 export interface CleanerDTO {
   id: number
+  userId: number
   storeId: number
   name: string
   email: string
+  isActive: boolean
   createdAt: string
   updatedAt: string
 }
 
 export interface CleanerSessionUser {
-  id: number
+  userId: number
+  cleanerId: number
   email: string
   nickname: string
   avatar?: string

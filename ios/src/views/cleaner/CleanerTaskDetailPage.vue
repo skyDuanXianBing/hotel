@@ -244,7 +244,7 @@ async function handleComplete() {
     return
   }
 
-  const cleanerId = cleanerUser.value?.id
+  const cleanerId = cleanerUser.value?.cleanerId
   if (!cleanerId) {
     showWarningToast('未获取到当前保洁员信息')
     return

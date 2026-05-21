@@ -416,7 +416,7 @@ function hasStatus(tasks: CleaningTaskDTO[], status: CleanerTaskStatusKey) {
 }
 
 async function loadCalendarData() {
-  if (!cleanerUser.value?.id) {
+  if (!cleanerUser.value?.cleanerId) {
     await router.replace(ROUTE_PATHS.cleanerLogin)
     return
   }
@@ -428,7 +428,7 @@ async function loadCalendarData() {
     const response = await getCalendarViewData({
       startDate: monthRange.startDate,
       endDate: monthRange.endDate,
-      cleanerId: cleanerUser.value.id,
+      cleanerId: cleanerUser.value.cleanerId,
     })
 
     if (!response.success || !response.data) {

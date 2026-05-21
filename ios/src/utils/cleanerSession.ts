@@ -24,7 +24,22 @@ export const hasCleanerToken = () => {
 }
 
 export const readCleanerUser = () => {
-  return readStoredJson<CleanerSessionUser>(CLEANER_USER_KEY)
+  const parsed = readStoredJson<Partial<CleanerSessionUser>>(CLEANER_USER_KEY)
+
+  if (!parsed) {
+    return null
+  }
+
+  if (
+    typeof parsed.userId !== 'number' ||
+    typeof parsed.cleanerId !== 'number' ||
+    parsed.isCleaner !== true
+  ) {
+    clearCleanerSession()
+    return null
+  }
+
+  return parsed as CleanerSessionUser
 }
 
 export const readCleanerStore = () => {
@@ -43,6 +58,10 @@ export const readCleanerStoreId = () => {
 
 export const hasCleanerStore = () => {
   return Boolean(readCleanerStoreId())
+}
+
+export const hasCleanerSession = () => {
+  return Boolean(getCleanerToken() && readCleanerUser())
 }
 
 export const saveCleanerSession = (

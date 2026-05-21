@@ -22,6 +22,7 @@ import { IonApp, IonLoading, IonRouterOutlet, IonToast } from '@ionic/vue'
 import { onBeforeUnmount, onMounted } from 'vue'
 import AppNotificationOverlay from '@/components/global/AppNotificationOverlay.vue'
 import { useAppStore } from '@/stores/app'
+import { hasCleanerSession } from '@/utils/cleanerSession'
 import { APP_TOAST_EVENT_NAME, type AppToastEventDetail } from '@/utils/notify'
 import { restoreAdminSessionIfNeeded } from '@/utils/request'
 
@@ -34,6 +35,14 @@ const handleToastEvent: EventListener = (event) => {
 }
 
 const restoreSessionSilently = async () => {
+  if (hasCleanerSession()) {
+    return
+  }
+
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/cleaner')) {
+    return
+  }
+
   try {
     await restoreAdminSessionIfNeeded()
   } catch {

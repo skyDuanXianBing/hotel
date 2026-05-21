@@ -60,7 +60,11 @@ import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { cleanerLoginByPassword } from '@/api/cleanerAuth'
 import { ROUTE_PATHS } from '@/router/guards'
+import { useAuthStore } from '@/stores/auth'
+import { useStoreStore } from '@/stores/store'
+import { useUserStore } from '@/stores/user'
 import type { CleanerSessionUser } from '@/types/auth'
+import { clearAutoLoginCredentials } from '@/utils/autoLogin'
 import { saveCleanerSession } from '@/utils/cleanerSession'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
@@ -72,6 +76,9 @@ type FocusedField = 'email' | 'password' | null
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
+const userStore = useUserStore()
+const storeStore = useStoreStore()
 
 const email = ref('')
 const password = ref('')
@@ -133,13 +140,15 @@ function validateForm() {
 
 function buildCleanerSessionUser(cleaner: {
   id: number
+  userId: number
   email: string
   name: string
   createdAt: string
   updatedAt: string
 }): CleanerSessionUser {
   return {
-    id: cleaner.id,
+    userId: cleaner.userId,
+    cleanerId: cleaner.id,
     email: cleaner.email,
     nickname: cleaner.name,
     gender: 'private',
@@ -147,6 +156,13 @@ function buildCleanerSessionUser(cleaner: {
     updatedAt: cleaner.updatedAt,
     isCleaner: true,
   }
+}
+
+function clearAdminSessionForCleanerLogin() {
+  clearAutoLoginCredentials()
+  authStore.clearToken()
+  userStore.setUser(null)
+  storeStore.clearStoreData()
 }
 
 async function handleLogin() {
@@ -169,7 +185,13 @@ async function handleLogin() {
       return
     }
 
+    if (!response.data.cleaner.userId || !response.data.cleaner.id || !response.data.cleaner.storeId) {
+      showErrorToast('登录失败，保洁员身份信息不完整')
+      return
+    }
+
     const cleanerUser = buildCleanerSessionUser(response.data.cleaner)
+    clearAdminSessionForCleanerLogin()
     saveCleanerSession(response.data.token, cleanerUser, response.data.cleaner.storeId)
     showSuccessToast('登录成功')
     await router.replace(ROUTE_PATHS.cleanerDashboard)

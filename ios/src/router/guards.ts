@@ -1,5 +1,5 @@
 import type { Router } from 'vue-router'
-import { hasCleanerStore, hasCleanerToken } from '@/utils/cleanerSession'
+import { hasCleanerSession, hasCleanerStore } from '@/utils/cleanerSession'
 import { hasStoredCurrentStore, hasStoredToken } from '@/utils/storage'
 
 const APP_TITLE = '房东智控中心（THE HOST HUB）'
@@ -126,6 +126,10 @@ export const buildPublicRoomStatusSharePath = (token: string) => {
 }
 
 export const resolveDefaultAuthenticatedPath = () => {
+  if (hasCleanerSession() && hasCleanerStore()) {
+    return ROUTE_PATHS.cleanerDashboard
+  }
+
   if (hasStoredToken()) {
     if (!hasStoredCurrentStore()) {
       return ROUTE_PATHS.storeSelection
@@ -133,11 +137,6 @@ export const resolveDefaultAuthenticatedPath = () => {
 
     return ROUTE_PATHS.home
   }
-
-  if (hasCleanerToken() && hasCleanerStore()) {
-    return ROUTE_PATHS.cleanerDashboard
-  }
-
   return ROUTE_PATHS.login
 }
 
@@ -165,7 +164,7 @@ export const registerRouterGuards = (router: Router) => {
   router.beforeEach((to) => {
     const hasAdminToken = hasStoredToken()
     const hasAdminStore = hasStoredCurrentStore()
-    const hasCleanerLoginToken = hasCleanerToken()
+    const hasCleanerLoginSession = hasCleanerSession()
     const hasCleanerCurrentStore = hasCleanerStore()
     const requiresAdminAuth = to.matched.some((record) => record.meta.requiresAuth)
     const requiresAdminStore = to.matched.some((record) => record.meta.requiresStore)
@@ -183,11 +182,19 @@ export const registerRouterGuards = (router: Router) => {
       return true
     }
 
-    if (cleanerPublicOnly && hasCleanerLoginToken) {
+    if (cleanerPublicOnly && hasCleanerLoginSession) {
       return ROUTE_PATHS.cleanerDashboard
     }
 
-    if (requiresCleanerAuth && !hasCleanerLoginToken) {
+    if (adminPublicOnly && hasCleanerLoginSession) {
+      return ROUTE_PATHS.cleanerDashboard
+    }
+
+    if (requiresAdminAuth && hasCleanerLoginSession && !requiresCleanerAuth) {
+      return ROUTE_PATHS.cleanerDashboard
+    }
+
+    if (requiresCleanerAuth && !hasCleanerLoginSession) {
       return ROUTE_PATHS.cleanerLogin
     }
 

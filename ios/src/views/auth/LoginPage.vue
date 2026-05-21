@@ -173,7 +173,11 @@ import { computed, reactive, ref, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { loginByPassword, sendVerificationCode } from '@/api/auth'
-import { AUTH_LOGIN_FAILURE_STATUSES, LOGIN_FAILURE_MESSAGE } from '@/constants/auth'
+import {
+  AUTH_LOGIN_FAILURE_STATUSES,
+  CLEANER_LOGIN_ENTRY_MESSAGE,
+  LOGIN_FAILURE_MESSAGE,
+} from '@/constants/auth'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
@@ -423,11 +427,24 @@ const isLoginFailureError = (error: unknown) => {
   return AUTH_LOGIN_FAILURE_STATUSES.some((failureStatus) => failureStatus === status)
 }
 
+const redirectToCleanerLogin = async (email: string) => {
+  showWarningToast('请使用保洁员入口登录')
+  await router.replace({
+    path: ROUTE_PATHS.cleanerLogin,
+    query: { email },
+  })
+}
+
 const loginAsAdmin = async (payload: LoginByPasswordRequest) => {
   try {
     const response = await loginByPassword(payload)
 
     if (!response.success || !response.data) {
+      if (response.message?.includes(CLEANER_LOGIN_ENTRY_MESSAGE)) {
+        await redirectToCleanerLogin(payload.email)
+        return true
+      }
+
       return false
     }
 
@@ -451,6 +468,12 @@ const loginAsAdmin = async (payload: LoginByPasswordRequest) => {
     await router.replace(ROUTE_PATHS.storeSelection)
     return true
   } catch (error) {
+    const errorMessage = resolveErrorMessage(error, '')
+    if (errorMessage.includes(CLEANER_LOGIN_ENTRY_MESSAGE)) {
+      await redirectToCleanerLogin(payload.email)
+      return true
+    }
+
     if (isLoginFailureError(error)) {
       return false
     }
