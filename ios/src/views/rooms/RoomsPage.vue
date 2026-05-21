@@ -803,14 +803,23 @@ function openQuickAction(roomId: number, businessDate?: string) {
   showQuickActionSheet.value = true
 }
 
+function clearSelectedRoomContext() {
+  selectedRoomId.value = 0
+  selectedBusinessDate.value = ''
+}
+
 function handleOpenGridAction(payload: { roomId: number; date: string }) {
   openQuickAction(payload.roomId, payload.date)
 }
 
 function handleQuickActionDismiss() {
   showQuickActionSheet.value = false
-  selectedRoomId.value = 0
-  selectedBusinessDate.value = ''
+
+  if (showBookingModal.value || showCloseRoomModal.value) {
+    return
+  }
+
+  clearSelectedRoomContext()
 }
 
 function handleFabClick() {
@@ -990,14 +999,18 @@ async function handleMoveSelectedReservationToOrderBox() {
 
 function handleCloseBookingModal() {
   showBookingModal.value = false
+  clearSelectedRoomContext()
 }
 
 function handleCloseRoomModalDismiss() {
   showCloseRoomModal.value = false
+  clearSelectedRoomContext()
 }
 
 async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
-  if (!selectedRoom.value) {
+  const currentRoom = selectedRoom.value
+
+  if (!currentRoom) {
     showWarningToast('未选择房间')
     return
   }
@@ -1010,7 +1023,7 @@ async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
   const requestData: CreateReservationRequest = {
     guestName: payload.guestName,
     guestPhone: payload.guestPhone,
-    roomId: selectedRoom.value.roomId,
+    roomId: currentRoom.roomId,
     channelId: payload.channelId,
     checkInDate: payload.checkInDate,
     checkOutDate: payload.checkOutDate,
@@ -1030,6 +1043,7 @@ async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
 
     showSuccessToast(bookingMode.value === 'check-in' ? '入住已创建' : '预订已创建')
     showBookingModal.value = false
+    clearSelectedRoomContext()
     await roomStatusStore.refreshAll()
   } catch (error) {
     if (!isHandledRequestError(error)) {
@@ -1041,19 +1055,23 @@ async function handleBookingSubmit(payload: BookingFormSubmitPayload) {
 }
 
 async function handleCloseRoomSubmit(payload: CloseRoomSubmitPayload) {
-  if (!selectedRoom.value) {
+  const currentRoom = selectedRoom.value
+
+  if (!currentRoom) {
+    showWarningToast('未选择房间')
     return
   }
 
   try {
     await roomStatusStore.closeRooms({
-      roomIds: [selectedRoom.value.roomId],
+      roomIds: [currentRoom.roomId],
       startDate: payload.startDate,
       endDate: payload.endDate,
       type: payload.type,
       remark: payload.remark,
     })
     showCloseRoomModal.value = false
+    clearSelectedRoomContext()
   } catch (error) {
     if (!isHandledRequestError(error)) {
       showWarningToast(resolveWarningMessage(error, '关房失败'))
