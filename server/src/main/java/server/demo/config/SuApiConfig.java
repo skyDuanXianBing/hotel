@@ -21,6 +21,26 @@ public class SuApiConfig {
     private String baseUrl;
 
     /**
+     * 是否启用本地 Mock Su API，由 channel.e2e.local-enabled 统一驱动。
+     */
+    private boolean localMockEnabled;
+
+    /**
+     * 本地 Mock Su API 基础 URL。
+     */
+    private String localMockBaseUrl;
+
+    /**
+     * 本地 Mock Su API Client ID。
+     */
+    private String localMockClientId;
+
+    /**
+     * 本地 Mock Su API Client Secret。
+     */
+    private String localMockClientSecret;
+
+    /**
      * Su 环境：sandbox / production。
      */
     private String env;
@@ -51,6 +71,9 @@ public class SuApiConfig {
     private String pmsName;
 
     public String getBaseUrl() {
+        if (localMockEnabled) {
+            return requireLocalMockValue(localMockBaseUrl, "base-url");
+        }
         if (isNotBlank(baseUrl)) {
             return baseUrl.trim();
         }
@@ -74,6 +97,9 @@ public class SuApiConfig {
     }
 
     public String getClientId() {
+        if (localMockEnabled) {
+            return requireLocalMockValue(localMockClientId, "client-id");
+        }
         return clientId;
     }
 
@@ -82,6 +108,9 @@ public class SuApiConfig {
     }
 
     public String getClientSecret() {
+        if (localMockEnabled) {
+            return requireLocalMockValue(localMockClientSecret, "client-secret");
+        }
         if (isNotBlank(clientSecret)) {
             return clientSecret.trim();
         }
@@ -132,6 +161,38 @@ public class SuApiConfig {
         this.pmsName = pmsName;
     }
 
+    public boolean isLocalMockEnabled() {
+        return localMockEnabled;
+    }
+
+    public void setLocalMockEnabled(boolean localMockEnabled) {
+        this.localMockEnabled = localMockEnabled;
+    }
+
+    public String getLocalMockBaseUrl() {
+        return localMockBaseUrl;
+    }
+
+    public void setLocalMockBaseUrl(String localMockBaseUrl) {
+        this.localMockBaseUrl = localMockBaseUrl;
+    }
+
+    public String getLocalMockClientId() {
+        return localMockClientId;
+    }
+
+    public void setLocalMockClientId(String localMockClientId) {
+        this.localMockClientId = localMockClientId;
+    }
+
+    public String getLocalMockClientSecret() {
+        return localMockClientSecret;
+    }
+
+    public void setLocalMockClientSecret(String localMockClientSecret) {
+        this.localMockClientSecret = localMockClientSecret;
+    }
+
     private String resolveEnv() {
         String normalizedEnv = env == null ? SU_ENV_SANDBOX : env.trim().toLowerCase();
         if (normalizedEnv.isBlank() || SU_ENV_SANDBOX.equals(normalizedEnv)) {
@@ -142,6 +203,16 @@ public class SuApiConfig {
         }
         throw new IllegalStateException(
                 "Invalid su.api.env / SU_ENV: " + env + ". Expected: sandbox or production."
+        );
+    }
+
+    private String requireLocalMockValue(String value, String propertyName) {
+        if (isNotBlank(value)) {
+            return value.trim();
+        }
+        throw new IllegalStateException(
+                "Missing su.api.local-mock-" + propertyName
+                        + " while channel.e2e.local-enabled / CHANNEL_E2E_LOCAL_ENABLED is true."
         );
     }
 

@@ -99,4 +99,66 @@ class SuApiConfigTest {
 
         assertThrows(IllegalStateException.class, config::getClientSecret);
     }
+
+    @Test
+    void shouldUseLocalMockConfigWhenEnabled() {
+        SuApiConfig config = new SuApiConfig();
+        config.setLocalMockEnabled(true);
+        config.setLocalMockBaseUrl(" http://localhost:4000 ");
+        config.setLocalMockClientId(" mock-client-id ");
+        config.setLocalMockClientSecret(" mock-client-secret ");
+        config.setEnv("production");
+        config.setBaseUrl("https://connect.su-api.com");
+        config.setClientId("production-client-id");
+        config.setClientSecret("production-secret");
+
+        assertEquals("http://localhost:4000", config.getBaseUrl());
+        assertEquals("mock-client-id", config.getClientId());
+        assertEquals("mock-client-secret", config.getClientSecret());
+    }
+
+    @Test
+    void shouldDescribeUnifiedLocalE2EFlagWhenLocalMockValueMissing() {
+        SuApiConfig config = new SuApiConfig();
+        config.setLocalMockEnabled(true);
+        config.setLocalMockBaseUrl("http://localhost:4000");
+        config.setLocalMockClientId("mock-client-id");
+        config.setLocalMockClientSecret(" ");
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, config::getClientSecret);
+
+        assertEquals(
+                "Missing su.api.local-mock-client-secret "
+                        + "while channel.e2e.local-enabled / CHANNEL_E2E_LOCAL_ENABLED is true.",
+                exception.getMessage()
+        );
+    }
+
+    @Test
+    void shouldKeepExistingConfigWhenLocalMockDisabled() {
+        SuApiConfig config = new SuApiConfig();
+        config.setLocalMockEnabled(false);
+        config.setLocalMockBaseUrl("http://localhost:4000");
+        config.setLocalMockClientId("mock-client-id");
+        config.setLocalMockClientSecret("mock-client-secret");
+        config.setEnv("production");
+        config.setBaseUrl(" https://connect.su-api.com ");
+        config.setClientId("production-client-id");
+        config.setClientSecret(" production-secret ");
+
+        assertEquals("https://connect.su-api.com", config.getBaseUrl());
+        assertEquals("production-client-id", config.getClientId());
+        assertEquals("production-secret", config.getClientSecret());
+    }
+
+    @Test
+    void shouldThrowWhenLocalMockSecretMissing() {
+        SuApiConfig config = new SuApiConfig();
+        config.setLocalMockEnabled(true);
+        config.setLocalMockBaseUrl("http://localhost:4000");
+        config.setLocalMockClientId("mock-client-id");
+        config.setLocalMockClientSecret(" ");
+
+        assertThrows(IllegalStateException.class, config::getClientSecret);
+    }
 }
