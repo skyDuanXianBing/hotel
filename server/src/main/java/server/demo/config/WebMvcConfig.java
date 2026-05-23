@@ -36,6 +36,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/v1/room-status-share/public/**",
                         "/api/v1/pricelabs/webhook/**",
                         "/api/v1/su/webhook/**",
+                        "/api/v1/test-support/channel-e2e/setup-local",
                         "/api/v1/health"
                 );
 

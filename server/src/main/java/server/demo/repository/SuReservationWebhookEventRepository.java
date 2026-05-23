@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import server.demo.entity.SuReservationWebhookEvent;
 import server.demo.enums.SuWebhookEventStatus;
+import server.demo.enums.SuWebhookEventType;
 
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
@@ -31,8 +32,26 @@ public interface SuReservationWebhookEventRepository extends JpaRepository<SuRes
             Pageable pageable
     );
 
-        List<SuReservationWebhookEvent> findTop200ByStoreIdOrderByCreatedAtDesc(Long storeId);
+    List<SuReservationWebhookEvent> findTop200ByStoreIdOrderByCreatedAtDesc(Long storeId);
+
+    @Query("""
+            SELECT e
+            FROM SuReservationWebhookEvent e
+            WHERE e.storeId = :storeId
+              AND (:hotelId IS NULL OR e.hotelId = :hotelId)
+              AND (:reservationNotifId IS NULL OR e.reservationNotifId = :reservationNotifId)
+              AND (:status IS NULL OR e.status = :status)
+              AND (:eventType IS NULL OR e.eventType = :eventType)
+            ORDER BY e.createdAt DESC, e.id DESC
+            """)
+    List<SuReservationWebhookEvent> findRecentByStoreIdAndFilters(
+            @Param("storeId") Long storeId,
+            @Param("hotelId") String hotelId,
+            @Param("reservationNotifId") String reservationNotifId,
+            @Param("status") SuWebhookEventStatus status,
+            @Param("eventType") SuWebhookEventType eventType,
+            Pageable pageable
+    );
 
     List<SuReservationWebhookEvent> findByStatusOrderByUpdatedAtDesc(SuWebhookEventStatus status, Pageable pageable);
 }
-

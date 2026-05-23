@@ -1,6 +1,7 @@
 package server.demo.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +18,19 @@ public interface SuMessageRepository extends JpaRepository<SuMessage, Long> {
     List<SuMessage> findByThread_IdOrderBySentAtAsc(Long threadId);
 
     List<SuMessage> findByThread_IdAndSentAtAfterOrderBySentAtAsc(Long threadId, LocalDateTime since);
+
+    @Query("""
+            SELECT m
+            FROM SuMessage m
+            WHERE m.storeId = :storeId
+              AND m.thread.id = :threadId
+            ORDER BY m.sentAt ASC, m.id ASC
+            """)
+    List<SuMessage> findByStoreIdAndThreadIdOrderBySentAtAsc(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            Pageable pageable
+    );
 
     long countByThread_IdAndSenderTypeAndIsReadFalse(Long threadId, SuMessagingSenderType senderType);
 

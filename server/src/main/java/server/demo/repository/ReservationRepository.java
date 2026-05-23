@@ -159,6 +159,31 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     List<Reservation> findByStoreIdAndExternalBookingKey(Long storeId, String externalBookingKey);
 
+    @Query("""
+            SELECT DISTINCT r
+            FROM Reservation r
+            LEFT JOIN FETCH r.room room
+            LEFT JOIN FETCH room.roomType
+            LEFT JOIN FETCH r.channel
+            WHERE r.storeId = :storeId
+              AND (
+                    (:reservationNotifId IS NOT NULL AND r.reservationNotifId = :reservationNotifId)
+                    OR (:suReservationId IS NOT NULL AND r.suReservationId = :suReservationId)
+                    OR (:channelOrderNumber IS NOT NULL AND r.channelOrderNumber = :channelOrderNumber)
+                    OR (:externalBookingKey IS NOT NULL AND r.externalBookingKey = :externalBookingKey)
+                    OR (:orderNumber IS NOT NULL AND r.orderNumber = :orderNumber)
+                  )
+            ORDER BY r.createdAt DESC
+            """)
+    List<Reservation> findByStoreIdAndChannelE2ELookupKeys(
+            @Param("storeId") Long storeId,
+            @Param("reservationNotifId") String reservationNotifId,
+            @Param("suReservationId") String suReservationId,
+            @Param("channelOrderNumber") String channelOrderNumber,
+            @Param("externalBookingKey") String externalBookingKey,
+            @Param("orderNumber") String orderNumber
+    );
+
     List<Reservation> findByStoreIdAndGuestNameContainingIgnoreCase(Long storeId, String guestName);
 
     List<Reservation> findByStoreIdAndGuestPhone(Long storeId, String guestPhone);
