@@ -1,0 +1,46 @@
+{
+  "message": "Hello, I would like to ask about early check-in availability?",
+  "guestid": "320338222",
+  "bookingid": "ABCXYZ123",
+  "listingid": "47522522",
+  "bookingflag": "B",
+  "messageid": "9623318922",
+  "channel_id": "244",
+  "threadid": "991462322",
+  "hotelid": "HOTEL_ID",
+  "user_details": {
+    "roles": [
+      { "role": "owner", "user_ids": [22533556] },
+      { "role": "guest", "user_ids": [311357532] }
+    ],
+    "users": [
+      {
+        "first_name": "Host",
+        "location": "Tokyo, Japan",
+        "preferred_locale": "ja",
+        "id": 22533556
+      },
+      {
+        "id": 311357532,
+        "first_name": "Chris",
+        "location": "London, UK",
+        "preferred_locale": "en"
+      }
+    ]
+  },
+  "booking_details": {
+    "expected_payout_amount_accurate": "15000",
+    "checkout_date": "2026-06-15",
+    "number_of_infants": 0,
+    "listing_name": "Cozy Tokyo Apartment",
+    "number_of_adults": 2,
+    "reservation_confirmation_code": "ABCXYZ123",
+    "number_of_children": 0,
+    "nights": 3,
+    "listing_id": "47522522",
+    "checkin_date": "2026-06-12",
+    "listing_id_str": "47522522",
+    "number_of_guests": 2
+  },
+  "attachment": []
+}
