@@ -31,10 +31,14 @@ public interface OtaIntegrationRepository extends JpaRepository<OtaIntegration, 
      */
     Optional<OtaIntegration> findByStoreIdAndCode(Long storeId, String code);
 
+    List<OtaIntegration> findAllByStoreIdAndCodeOrderByIdAsc(Long storeId, String code);
+
     /**
      * 根据门店ID和渠道名称查询
      */
     Optional<OtaIntegration> findByStoreIdAndName(Long storeId, String name);
+
+    List<OtaIntegration> findAllByStoreIdAndNameOrderByIdAsc(Long storeId, String name);
 
     /**
      * 检查门店是否存在指定渠道代码的配置

@@ -4,10 +4,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import server.demo.entity.Store;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface StoreRepository extends JpaRepository<Store, Long> {
     Optional<Store> findByName(String name);
     Optional<Store> findBySuHotelId(String suHotelId);
+    List<Store> findAllBySuHotelIdOrderByIdAsc(String suHotelId);
 }

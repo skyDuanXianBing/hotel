@@ -16,6 +16,10 @@ public interface RoomTypeRepository extends JpaRepository<RoomType, Long> {
 
     Optional<RoomType> findByStoreIdAndCode(Long storeId, String code);
 
+    List<RoomType> findAllByStoreIdAndCodeOrderByIdAsc(Long storeId, String code);
+
+    List<RoomType> findAllByStoreIdAndNameOrderByIdAsc(Long storeId, String name);
+
     List<RoomType> findByStoreIdAndNameContainingIgnoreCase(Long storeId, String name);
 
     boolean existsByStoreIdAndCode(Long storeId, String code);

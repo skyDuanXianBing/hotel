@@ -48,8 +48,18 @@ import java.util.List;
 public class ChannelE2ETestSupportService {
 
     private static final int MAX_RESERVATION_LOOKUP_RESULTS = 50;
+    private static final String CHANNEL_CODE_DIRECT = "DIRECT";
     private static final String CHANNEL_CODE_AIRBNB = "AIRBNB";
     private static final String CHANNEL_CODE_BOOKING = "BOOKING";
+    private static final List<String> LOCAL_SETUP_CHANNEL_CODES = List.of(
+            CHANNEL_CODE_DIRECT,
+            CHANNEL_CODE_AIRBNB,
+            CHANNEL_CODE_BOOKING
+    );
+    private static final List<String> LOCAL_SETUP_OTA_CODES = List.of(
+            CHANNEL_CODE_BOOKING,
+            CHANNEL_CODE_AIRBNB
+    );
     private static final String LOCAL_SETUP_EMAIL = "channel-e2e-local@thehosthub.test";
     private static final String LOCAL_SETUP_USERNAME = "local_channel_e2e";
     private static final String LOCAL_SETUP_PASSWORD = "local-channel-e2e-password";
@@ -169,6 +179,13 @@ public class ChannelE2ETestSupportService {
         List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
         List<PricePlan> pricePlans = pricePlanRepository.findByStoreIdOrderByName(storeId);
         List<OtaIntegration> otaIntegrations = otaIntegrationRepository.findByStoreId(storeId);
+        if (isLocalSetupStore(store)) {
+            roomTypes = selectLocalSetupRoomTypes(roomTypes);
+            rooms = selectLocalSetupRooms(rooms, firstRoomType(roomTypes));
+            pricePlans = selectLocalSetupPricePlans(pricePlans);
+            channels = selectLocalSetupChannels(channels);
+            otaIntegrations = selectLocalSetupOtaIntegrations(otaIntegrations);
+        }
 
         WebhookConfigSummary webhookConfig = buildWebhookConfig(suHotelId);
         List<String> missingRequirements = findMissingRequirements(
@@ -374,7 +391,7 @@ public class ChannelE2ETestSupportService {
     }
 
     private Store ensureLocalSetupStore(User user, List<String> created, List<String> reused) {
-        Store existingStore = storeRepository.findBySuHotelId(LOCAL_SETUP_SU_HOTEL_ID).orElse(null);
+        Store existingStore = firstStore(storeRepository.findAllBySuHotelIdOrderByIdAsc(LOCAL_SETUP_SU_HOTEL_ID));
         if (existingStore != null) {
             reused.add("store:" + existingStore.getId());
             return existingStore;
@@ -449,9 +466,9 @@ public class ChannelE2ETestSupportService {
             List<String> created,
             List<String> reused
     ) {
-        PricePlan existingPricePlan = pricePlanRepository
-                .findByStoreIdAndName(storeId, LOCAL_SETUP_PRICE_PLAN_NAME)
-                .orElse(null);
+        PricePlan existingPricePlan = firstPricePlan(
+                pricePlanRepository.findAllByStoreIdAndNameOrderByIdAsc(storeId, LOCAL_SETUP_PRICE_PLAN_NAME)
+        );
         if (existingPricePlan != null) {
             reused.add("pricePlan:" + existingPricePlan.getId());
             return existingPricePlan;
@@ -478,10 +495,16 @@ public class ChannelE2ETestSupportService {
             List<String> created,
             List<String> reused
     ) {
-        RoomType existingRoomType = roomTypeRepository
-                .findByStoreIdAndCode(storeId, LOCAL_SETUP_ROOM_TYPE_CODE)
-                .orElse(null);
+        RoomType existingRoomType = firstRoomType(
+                roomTypeRepository.findAllByStoreIdAndCodeOrderByIdAsc(storeId, LOCAL_SETUP_ROOM_TYPE_CODE)
+        );
+        if (existingRoomType == null) {
+            existingRoomType = firstRoomType(
+                    roomTypeRepository.findAllByStoreIdAndNameOrderByIdAsc(storeId, LOCAL_SETUP_ROOM_TYPE_NAME)
+            );
+        }
         if (existingRoomType != null) {
+            existingRoomType = normalizeLocalSetupRoomType(existingRoomType, user);
             reused.add("roomType:" + existingRoomType.getId());
             return existingRoomType;
         }
@@ -511,7 +534,7 @@ public class ChannelE2ETestSupportService {
     ) {
         List<Room> rooms = new ArrayList<>();
         for (String roomNumber : LOCAL_SETUP_ROOM_NUMBERS) {
-            Room room = roomRepository.findByStoreIdAndRoomNumber(storeId, roomNumber).orElse(null);
+            Room room = firstRoom(roomRepository.findAllByStoreIdAndRoomNumberOrderByIdAsc(storeId, roomNumber));
             if (room == null) {
                 room = createLocalSetupRoom(storeId, user, roomType, roomNumber, created);
             } else {
@@ -592,11 +615,34 @@ public class ChannelE2ETestSupportService {
             List<String> created,
             List<String> reused
     ) {
-        OtaIntegration existingIntegration = otaIntegrationRepository.findByStoreIdAndCode(storeId, code).orElse(null);
+        OtaIntegration existingIntegration = firstOtaIntegration(
+                otaIntegrationRepository.findAllByStoreIdAndCodeOrderByIdAsc(storeId, code)
+        );
+        if (existingIntegration == null) {
+            existingIntegration = firstOtaIntegration(
+                    otaIntegrationRepository.findAllByStoreIdAndNameOrderByIdAsc(storeId, name)
+            );
+        }
         if (existingIntegration != null) {
             boolean changed = false;
+            if (!code.equals(existingIntegration.getCode())) {
+                existingIntegration.setCode(code);
+                changed = true;
+            }
+            if (!name.equals(existingIntegration.getName())) {
+                existingIntegration.setName(name);
+                changed = true;
+            }
             if (!Boolean.TRUE.equals(existingIntegration.getEnabled())) {
                 existingIntegration.setEnabled(true);
+                changed = true;
+            }
+            if (!Boolean.TRUE.equals(existingIntegration.getIsConnected())) {
+                existingIntegration.setIsConnected(true);
+                changed = true;
+            }
+            if (existingIntegration.getConnectedAt() == null) {
+                existingIntegration.setConnectedAt(LocalDateTime.now());
                 changed = true;
             }
             if (existingIntegration.getDefaultPricePlan() == null) {
@@ -621,7 +667,8 @@ public class ChannelE2ETestSupportService {
         OtaIntegration integration = new OtaIntegration(name, code);
         integration.setStoreId(storeId);
         integration.setEnabled(true);
-        integration.setIsConnected(false);
+        integration.setIsConnected(true);
+        integration.setConnectedAt(LocalDateTime.now());
         integration.setPropertyId(LOCAL_SETUP_SU_HOTEL_ID);
         integration.setSuPropertyId(LOCAL_SETUP_SU_HOTEL_ID);
         integration.setPriceAdjustmentType(PriceAdjustmentType.PERCENTAGE);
@@ -630,6 +677,273 @@ public class ChannelE2ETestSupportService {
         integration.setDefaultPricePlan(pricePlan);
         otaIntegrationRepository.save(integration);
         created.add("otaIntegration:" + code);
+    }
+
+    private List<Channel> selectLocalSetupChannels(List<Channel> channels) {
+        List<Channel> selected = new ArrayList<>();
+        for (String code : LOCAL_SETUP_CHANNEL_CODES) {
+            Channel channel = selectChannelByCode(channels, code);
+            if (channel != null) {
+                selected.add(channel);
+            }
+        }
+        return selected;
+    }
+
+    private List<RoomType> selectLocalSetupRoomTypes(List<RoomType> roomTypes) {
+        RoomType roomType = selectRoomTypeByCode(roomTypes, LOCAL_SETUP_ROOM_TYPE_CODE);
+        if (roomType == null) {
+            roomType = selectRoomTypeByName(roomTypes, LOCAL_SETUP_ROOM_TYPE_NAME);
+        }
+        if (roomType == null) {
+            return List.of();
+        }
+        return List.of(roomType);
+    }
+
+    private List<Room> selectLocalSetupRooms(List<Room> rooms, RoomType roomType) {
+        List<Room> selected = new ArrayList<>();
+        for (String roomNumber : LOCAL_SETUP_ROOM_NUMBERS) {
+            Room room = selectRoomByNumber(rooms, roomNumber, roomType);
+            if (room != null) {
+                selected.add(room);
+            }
+        }
+        return selected;
+    }
+
+    private List<PricePlan> selectLocalSetupPricePlans(List<PricePlan> pricePlans) {
+        PricePlan pricePlan = selectPricePlanByName(pricePlans, LOCAL_SETUP_PRICE_PLAN_NAME);
+        if (pricePlan == null) {
+            return List.of();
+        }
+        return List.of(pricePlan);
+    }
+
+    private List<OtaIntegration> selectLocalSetupOtaIntegrations(List<OtaIntegration> otaIntegrations) {
+        List<OtaIntegration> selected = new ArrayList<>();
+        for (String code : LOCAL_SETUP_OTA_CODES) {
+            OtaIntegration integration = selectOtaIntegrationByCode(otaIntegrations, code);
+            if (integration != null) {
+                selected.add(integration);
+            }
+        }
+        return selected;
+    }
+
+    private Channel selectChannelByCode(List<Channel> channels, String code) {
+        Channel selected = null;
+        for (Channel channel : channels) {
+            if (!matchesText(channel.getCode(), code)) {
+                continue;
+            }
+            if (selected == null || isBetterLocalSetupChannel(channel, selected)) {
+                selected = channel;
+            }
+        }
+        return selected;
+    }
+
+    private RoomType selectRoomTypeByCode(List<RoomType> roomTypes, String code) {
+        RoomType selected = null;
+        for (RoomType roomType : roomTypes) {
+            if (!matchesText(roomType.getCode(), code)) {
+                continue;
+            }
+            if (selected == null || hasLowerId(roomType.getId(), selected.getId())) {
+                selected = roomType;
+            }
+        }
+        return selected;
+    }
+
+    private RoomType selectRoomTypeByName(List<RoomType> roomTypes, String name) {
+        RoomType selected = null;
+        for (RoomType roomType : roomTypes) {
+            if (!matchesText(roomType.getName(), name)) {
+                continue;
+            }
+            if (selected == null || hasLowerId(roomType.getId(), selected.getId())) {
+                selected = roomType;
+            }
+        }
+        return selected;
+    }
+
+    private Room selectRoomByNumber(List<Room> rooms, String roomNumber, RoomType roomType) {
+        Room selected = null;
+        for (Room room : rooms) {
+            if (!matchesText(room.getRoomNumber(), roomNumber)) {
+                continue;
+            }
+            if (selected == null || isBetterLocalSetupRoom(room, selected, roomType)) {
+                selected = room;
+            }
+        }
+        return selected;
+    }
+
+    private PricePlan selectPricePlanByName(List<PricePlan> pricePlans, String name) {
+        PricePlan selected = null;
+        for (PricePlan pricePlan : pricePlans) {
+            if (!matchesText(pricePlan.getName(), name)) {
+                continue;
+            }
+            if (selected == null || hasLowerId(pricePlan.getId(), selected.getId())) {
+                selected = pricePlan;
+            }
+        }
+        return selected;
+    }
+
+    private OtaIntegration selectOtaIntegrationByCode(List<OtaIntegration> otaIntegrations, String code) {
+        OtaIntegration selected = null;
+        for (OtaIntegration integration : otaIntegrations) {
+            if (!matchesText(integration.getCode(), code)) {
+                continue;
+            }
+            if (selected == null || isBetterLocalSetupOtaIntegration(integration, selected)) {
+                selected = integration;
+            }
+        }
+        return selected;
+    }
+
+    private boolean isBetterLocalSetupChannel(Channel candidate, Channel selected) {
+        boolean candidateReady = Boolean.TRUE.equals(candidate.getEnabled())
+                && Boolean.TRUE.equals(candidate.getIsActive());
+        boolean selectedReady = Boolean.TRUE.equals(selected.getEnabled())
+                && Boolean.TRUE.equals(selected.getIsActive());
+        if (candidateReady != selectedReady) {
+            return candidateReady;
+        }
+        return hasLowerId(candidate.getId(), selected.getId());
+    }
+
+    private boolean isBetterLocalSetupRoom(Room candidate, Room selected, RoomType roomType) {
+        Long roomTypeId = roomType != null ? roomType.getId() : null;
+        boolean candidateMatchesRoomType = roomTypeId != null
+                && candidate.getRoomType() != null
+                && roomTypeId.equals(candidate.getRoomType().getId());
+        boolean selectedMatchesRoomType = roomTypeId != null
+                && selected.getRoomType() != null
+                && roomTypeId.equals(selected.getRoomType().getId());
+        if (candidateMatchesRoomType != selectedMatchesRoomType) {
+            return candidateMatchesRoomType;
+        }
+
+        boolean candidateAvailable = candidate.getStatus() == RoomStatus.AVAILABLE;
+        boolean selectedAvailable = selected.getStatus() == RoomStatus.AVAILABLE;
+        if (candidateAvailable != selectedAvailable) {
+            return candidateAvailable;
+        }
+
+        return hasLowerId(candidate.getId(), selected.getId());
+    }
+
+    private boolean isBetterLocalSetupOtaIntegration(OtaIntegration candidate, OtaIntegration selected) {
+        boolean candidateReady = Boolean.TRUE.equals(candidate.getEnabled())
+                && Boolean.TRUE.equals(candidate.getIsConnected());
+        boolean selectedReady = Boolean.TRUE.equals(selected.getEnabled())
+                && Boolean.TRUE.equals(selected.getIsConnected());
+        if (candidateReady != selectedReady) {
+            return candidateReady;
+        }
+        return hasLowerId(candidate.getId(), selected.getId());
+    }
+
+    private RoomType normalizeLocalSetupRoomType(RoomType roomType, User user) {
+        boolean changed = false;
+        if (!LOCAL_SETUP_ROOM_TYPE_CODE.equals(roomType.getCode())) {
+            roomType.setCode(LOCAL_SETUP_ROOM_TYPE_CODE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_ROOM_TYPE_NAME.equals(roomType.getName())) {
+            roomType.setName(LOCAL_SETUP_ROOM_TYPE_NAME);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_ROOM_TYPE_CODE.equals(roomType.getSuRoomType())) {
+            roomType.setSuRoomType(LOCAL_SETUP_ROOM_TYPE_CODE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(roomType.getDefaultPrice())) {
+            roomType.setDefaultPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        if (roomType.getMaxGuests() == null || roomType.getMaxGuests() < 1) {
+            roomType.setMaxGuests(2);
+            changed = true;
+        }
+        if (roomType.getMaxChildOccupancy() == null) {
+            roomType.setMaxChildOccupancy(0);
+            changed = true;
+        }
+        if (roomType.getUser() == null) {
+            roomType.setUser(user);
+            changed = true;
+        }
+        if (changed) {
+            return roomTypeRepository.save(roomType);
+        }
+        return roomType;
+    }
+
+    private boolean isLocalSetupStore(Store store) {
+        return matchesText(store.getSuHotelId(), LOCAL_SETUP_SU_HOTEL_ID);
+    }
+
+    private Store firstStore(List<Store> stores) {
+        if (stores.isEmpty()) {
+            return null;
+        }
+        return stores.get(0);
+    }
+
+    private PricePlan firstPricePlan(List<PricePlan> pricePlans) {
+        if (pricePlans.isEmpty()) {
+            return null;
+        }
+        return pricePlans.get(0);
+    }
+
+    private RoomType firstRoomType(List<RoomType> roomTypes) {
+        if (roomTypes.isEmpty()) {
+            return null;
+        }
+        return roomTypes.get(0);
+    }
+
+    private Room firstRoom(List<Room> rooms) {
+        if (rooms.isEmpty()) {
+            return null;
+        }
+        return rooms.get(0);
+    }
+
+    private OtaIntegration firstOtaIntegration(List<OtaIntegration> integrations) {
+        if (integrations.isEmpty()) {
+            return null;
+        }
+        return integrations.get(0);
+    }
+
+    private boolean matchesText(String actual, String expected) {
+        String normalizedActual = normalize(actual);
+        String normalizedExpected = normalize(expected);
+        if (normalizedActual == null || normalizedExpected == null) {
+            return false;
+        }
+        return normalizedActual.equalsIgnoreCase(normalizedExpected);
+    }
+
+    private boolean hasLowerId(Long candidateId, Long selectedId) {
+        if (candidateId == null) {
+            return false;
+        }
+        if (selectedId == null) {
+            return true;
+        }
+        return candidateId < selectedId;
     }
 
     private Store requireStore(Long storeId) {
@@ -703,7 +1017,8 @@ public class ChannelE2ETestSupportService {
             String code = normalize(integration.getCode());
             boolean supported = CHANNEL_CODE_BOOKING.equals(code) || CHANNEL_CODE_AIRBNB.equals(code);
             boolean enabled = Boolean.TRUE.equals(integration.getEnabled());
-            if (supported && enabled) {
+            boolean connected = Boolean.TRUE.equals(integration.getIsConnected());
+            if (supported && enabled && connected) {
                 return true;
             }
         }

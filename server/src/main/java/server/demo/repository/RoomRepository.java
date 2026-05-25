@@ -22,6 +22,8 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
     Optional<Room> findByStoreIdAndRoomNumber(Long storeId, String roomNumber);
 
+    List<Room> findAllByStoreIdAndRoomNumberOrderByIdAsc(Long storeId, String roomNumber);
+
     List<Room> findByStoreId(Long storeId);
 
     List<Room> findByStoreIdAndIdIn(Long storeId, Collection<Long> ids);

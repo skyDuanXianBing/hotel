@@ -18,6 +18,8 @@ public interface PricePlanRepository extends JpaRepository<PricePlan, Long> {
 
     Optional<PricePlan> findByStoreIdAndName(Long storeId, String name);
 
+    List<PricePlan> findAllByStoreIdAndNameOrderByIdAsc(Long storeId, String name);
+
     boolean existsByStoreIdAndName(Long storeId, String name);
 
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PricePlan p WHERE p.storeId = :storeId AND p.name = :name AND p.id != :id")

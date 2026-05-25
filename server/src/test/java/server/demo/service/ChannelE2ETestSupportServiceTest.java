@@ -2,11 +2,16 @@ package server.demo.service;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import server.demo.entity.OtaIntegration;
 import server.demo.service.ChannelE2ETestSupportService.TestSupportAccessException;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChannelE2ETestSupportServiceTest {
 
@@ -84,6 +89,51 @@ class ChannelE2ETestSupportServiceTest {
         assertDoesNotThrow(() -> service.validateTestSupportAccess(" " + VALID_KEY + " "));
     }
 
+    @Test
+    void hasSupportedOtaIntegration_requiresSupportedEnabledAndConnectedIntegration() {
+        ChannelE2ETestSupportService service = newService(true, VALID_KEY);
+
+        Boolean supported = ReflectionTestUtils.invokeMethod(
+                service,
+                "hasSupportedOtaIntegration",
+                List.of(buildIntegration("BOOKING", true, true))
+        );
+
+        assertTrue(Boolean.TRUE.equals(supported));
+    }
+
+    @Test
+    void hasSupportedOtaIntegration_rejectsDisconnectedSupportedIntegration() {
+        ChannelE2ETestSupportService service = newService(true, VALID_KEY);
+
+        Boolean supported = ReflectionTestUtils.invokeMethod(
+                service,
+                "hasSupportedOtaIntegration",
+                List.of(buildIntegration("BOOKING", true, false))
+        );
+
+        assertFalse(Boolean.TRUE.equals(supported));
+    }
+
+    @Test
+    void hasSupportedOtaIntegration_rejectsDisabledAndUnsupportedIntegrations() {
+        ChannelE2ETestSupportService service = newService(true, VALID_KEY);
+
+        Boolean disabledSupported = ReflectionTestUtils.invokeMethod(
+                service,
+                "hasSupportedOtaIntegration",
+                List.of(buildIntegration("AIRBNB", false, true))
+        );
+        Boolean unsupported = ReflectionTestUtils.invokeMethod(
+                service,
+                "hasSupportedOtaIntegration",
+                List.of(buildIntegration("EXPEDIA", true, true))
+        );
+
+        assertFalse(Boolean.TRUE.equals(disabledSupported));
+        assertFalse(Boolean.TRUE.equals(unsupported));
+    }
+
     private ChannelE2ETestSupportService newService(boolean localE2EEnabled, String testSupportKey) {
         ChannelE2ETestSupportService service = new ChannelE2ETestSupportService(
                 null,
@@ -105,5 +155,13 @@ class ChannelE2ETestSupportServiceTest {
         ReflectionTestUtils.setField(service, "localE2EEnabled", localE2EEnabled);
         ReflectionTestUtils.setField(service, "testSupportKey", testSupportKey);
         return service;
+    }
+
+    private OtaIntegration buildIntegration(String code, boolean enabled, boolean connected) {
+        OtaIntegration integration = new OtaIntegration();
+        integration.setCode(code);
+        integration.setEnabled(enabled);
+        integration.setIsConnected(connected);
+        return integration;
     }
 }
