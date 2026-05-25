@@ -41,7 +41,7 @@ public class RegistrationMessageService {
     private final RegistrationMessageLogRepository messageLogRepository;
     private final RegistrationLinkService registrationLinkService;
     private final ReservationBookingKeyResolver reservationBookingKeyResolver;
-    private final String serverBaseUrl;
+    private final String frontendBaseUrl;
 
     public RegistrationMessageService(
             RegistrationFormRepository formRepository,
@@ -52,7 +52,7 @@ public class RegistrationMessageService {
             RegistrationMessageLogRepository messageLogRepository,
             RegistrationLinkService registrationLinkService,
             ReservationBookingKeyResolver reservationBookingKeyResolver,
-            @Value("${server.base-url}") String serverBaseUrl
+            @Value("${app.frontend.url}") String frontendBaseUrl
     ) {
         this.formRepository = formRepository;
         this.reservationRepository = reservationRepository;
@@ -62,7 +62,7 @@ public class RegistrationMessageService {
         this.messageLogRepository = messageLogRepository;
         this.registrationLinkService = registrationLinkService;
         this.reservationBookingKeyResolver = reservationBookingKeyResolver;
-        this.serverBaseUrl = serverBaseUrl;
+        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     @Transactional
@@ -240,7 +240,7 @@ public class RegistrationMessageService {
         }
 
         String token = registrationLinkService.generateToken(reservation.getStoreId(), bookingKey);
-        String base = serverBaseUrl != null ? serverBaseUrl.trim() : "";
+        String base = frontendBaseUrl != null ? frontendBaseUrl.trim() : "";
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }

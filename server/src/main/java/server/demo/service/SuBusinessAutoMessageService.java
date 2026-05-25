@@ -81,7 +81,7 @@ public class SuBusinessAutoMessageService {
     private final SuMessagingRealtimeGateway realtimeGateway;
     private final ObjectMapper objectMapper;
     private final RegistrationLinkService registrationLinkService;
-    private final String serverBaseUrl;
+    private final String frontendBaseUrl;
     private final String templateSenderName;
 
     public SuBusinessAutoMessageService(
@@ -99,7 +99,7 @@ public class SuBusinessAutoMessageService {
             SuMessagingRealtimeGateway realtimeGateway,
             ObjectMapper objectMapper,
             RegistrationLinkService registrationLinkService,
-            @Value("${server.base-url}") String serverBaseUrl,
+            @Value("${app.frontend.url}") String frontendBaseUrl,
             @Value("${su.messaging.auto-template.sender-name:Auto Message}") String templateSenderName
     ) {
         this.sendLogRepository = sendLogRepository;
@@ -116,7 +116,7 @@ public class SuBusinessAutoMessageService {
         this.realtimeGateway = realtimeGateway;
         this.objectMapper = objectMapper;
         this.registrationLinkService = registrationLinkService;
-        this.serverBaseUrl = serverBaseUrl;
+        this.frontendBaseUrl = frontendBaseUrl;
         this.templateSenderName = templateSenderName;
     }
 
@@ -1096,7 +1096,7 @@ public class SuBusinessAutoMessageService {
         }
 
         String token = registrationLinkService.generateToken(reservation.getStoreId(), bookingKey);
-        String base = serverBaseUrl != null ? serverBaseUrl.trim() : "";
+        String base = frontendBaseUrl != null ? frontendBaseUrl.trim() : "";
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }

@@ -62,8 +62,8 @@ public class RegistrationAdminController {
     @Autowired
     private RegistrationLinkInboxService registrationLinkInboxService;
 
-    @org.springframework.beans.factory.annotation.Value("${server.base-url}")
-    private String serverBaseUrl;
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.url}")
+    private String frontendBaseUrl;
 
     @GetMapping
     public ApiResponse<List<AdminRegistrationListItemDTO>> list(
@@ -158,7 +158,7 @@ public class RegistrationAdminController {
         Reservation reservation = reservationRepository.findByStoreIdAndOrderNumber(storeId, orderNumber)
                 .orElseThrow(() -> new RuntimeException("订单不存在"));
         String token = registrationLinkService.generateToken(storeId, orderNumber);
-        String base = serverBaseUrl != null ? serverBaseUrl.trim() : "";
+        String base = frontendBaseUrl != null ? frontendBaseUrl.trim() : "";
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }

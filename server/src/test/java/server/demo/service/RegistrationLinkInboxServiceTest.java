@@ -1,6 +1,7 @@
 package server.demo.service;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import server.demo.dto.registration.RegistrationLinkInboxItemDTO;
 import server.demo.entity.RegistrationLinkInboxItem;
@@ -10,8 +11,11 @@ import server.demo.repository.RegistrationLinkInboxRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RegistrationLinkInboxServiceTest {
@@ -71,6 +75,65 @@ class RegistrationLinkInboxServiceTest {
         assertEquals("BOOK-1", result.get(0).getBookingKey());
         assertEquals(ReservationStatus.CONFIRMED, result.get(0).getReservationStatus());
         assertEquals("https://example.com/r/BOOK-1?t=1", result.get(0).getLinkUrl());
+    }
+
+    @Test
+    void recordIfAbsent_shouldUseFrontendBaseUrlForPublicBookingLink() {
+        RegistrationLinkInboxRepository inboxRepository = Mockito.mock(RegistrationLinkInboxRepository.class);
+        RegistrationLinkService registrationLinkService = new RegistrationLinkService("test-secret", 90);
+        ReservationBookingKeyResolver reservationBookingKeyResolver = Mockito.mock(ReservationBookingKeyResolver.class);
+
+        RegistrationLinkInboxService service = new RegistrationLinkInboxService(
+                inboxRepository,
+                registrationLinkService,
+                reservationBookingKeyResolver,
+                "http://localhost:8091"
+        );
+
+        when(inboxRepository.findByStoreIdAndBookingKey(26L, "BOOK-LOCAL"))
+                .thenReturn(Optional.empty());
+
+        service.recordIfAbsent(26L, "BOOK-LOCAL", "Alice", null, null, 1);
+
+        ArgumentCaptor<RegistrationLinkInboxItem> captor = ArgumentCaptor.forClass(RegistrationLinkInboxItem.class);
+        verify(inboxRepository).save(captor.capture());
+
+        String linkUrl = captor.getValue().getLinkUrl();
+        assertTrue(linkUrl.startsWith("http://localhost:8091/rb/BOOK-LOCAL?t="));
+
+        String token = linkUrl.substring(linkUrl.indexOf("?t=") + 3);
+        RegistrationLinkService.Claims claims = registrationLinkService.verifyToken("BOOK-LOCAL", token);
+        assertEquals(26L, claims.getStoreId());
+    }
+
+    @Test
+    void listTop200_shouldRewriteStoredServerHostToFrontendBaseUrlAndPreserveTokenPathQuery() {
+        RegistrationLinkInboxRepository inboxRepository = Mockito.mock(RegistrationLinkInboxRepository.class);
+        RegistrationLinkService registrationLinkService = Mockito.mock(RegistrationLinkService.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver = Mockito.mock(ReservationBookingKeyResolver.class);
+
+        RegistrationLinkInboxService service = new RegistrationLinkInboxService(
+                inboxRepository,
+                registrationLinkService,
+                reservationBookingKeyResolver,
+                "http://localhost:8091/"
+        );
+
+        RegistrationLinkInboxItem item = new RegistrationLinkInboxItem();
+        item.setId(1L);
+        item.setStoreId(26L);
+        item.setBookingKey("BOOK-LOCAL");
+        item.setLinkUrl("http://localhost:8092/rb/BOOK-LOCAL?t=store-token&lang=zh");
+        item.setRoomCount(1);
+        setCreatedAt(item, LocalDateTime.of(2026, 5, 24, 10, 0));
+
+        when(inboxRepository.findTop200ByStoreIdOrderByCreatedAtDesc(26L))
+                .thenReturn(List.of(item));
+
+        List<RegistrationLinkInboxItemDTO> result = service.listTop200(26L, null);
+
+        assertEquals(1, result.size());
+        assertEquals("http://localhost:8091/rb/BOOK-LOCAL?t=store-token&lang=zh", result.get(0).getLinkUrl());
     }
 
     private static void setCreatedAt(RegistrationLinkInboxItem item, LocalDateTime createdAt) {

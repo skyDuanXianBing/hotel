@@ -22,18 +22,18 @@ public class RegistrationLinkInboxService {
     private final RegistrationLinkInboxRepository inboxRepository;
     private final RegistrationLinkService registrationLinkService;
     private final ReservationBookingKeyResolver reservationBookingKeyResolver;
-    private final String serverBaseUrl;
+    private final String frontendBaseUrl;
 
     public RegistrationLinkInboxService(
             RegistrationLinkInboxRepository inboxRepository,
             RegistrationLinkService registrationLinkService,
             ReservationBookingKeyResolver reservationBookingKeyResolver,
-            @Value("${server.base-url}") String serverBaseUrl
+            @Value("${app.frontend.url}") String frontendBaseUrl
     ) {
         this.inboxRepository = inboxRepository;
         this.registrationLinkService = registrationLinkService;
         this.reservationBookingKeyResolver = reservationBookingKeyResolver;
-        this.serverBaseUrl = serverBaseUrl;
+        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     public void recordIfAbsent(Long storeId,
@@ -59,7 +59,7 @@ public class RegistrationLinkInboxService {
         item.setCheckInDate(checkInDate);
         item.setCheckOutDate(checkOutDate);
         item.setRoomCount(roomCount != null && roomCount > 0 ? roomCount : 1);
-        item.setLinkUrl(registrationLinkService.buildPublicBookingLink(serverBaseUrl, storeId, key));
+        item.setLinkUrl(registrationLinkService.buildPublicBookingLink(frontendBaseUrl, storeId, key));
 
         try {
             inboxRepository.save(item);
@@ -71,7 +71,7 @@ public class RegistrationLinkInboxService {
     public List<RegistrationLinkInboxItemDTO> listTop200(Long storeId, ReservationStatus reservationStatus) {
         List<RegistrationLinkInboxItem> items = inboxRepository.findTop200ByStoreIdOrderByCreatedAtDesc(storeId);
         List<RegistrationLinkInboxItemDTO> dtos = new ArrayList<>();
-        URI baseUri = parseBaseUri(serverBaseUrl);
+        URI baseUri = parseBaseUri(frontendBaseUrl);
         for (RegistrationLinkInboxItem it : items) {
             ReservationStatus resolvedStatus = resolveReservationStatus(storeId, it.getBookingKey());
             if (reservationStatus != null && resolvedStatus != reservationStatus) {
@@ -141,7 +141,7 @@ public class RegistrationLinkInboxService {
     }
 
     private String resolveLinkUrl(URI baseUri, String storedUrl, Long storeId, String bookingKey) {
-        // Prefer preserving existing token/path, but upgrade scheme/host to current server.base-url.
+        // Prefer preserving existing token/path, but upgrade scheme/host to current frontend URL.
         if (baseUri != null && storedUrl != null && !storedUrl.isBlank()) {
             try {
                 URI u = URI.create(storedUrl.trim());
@@ -163,6 +163,6 @@ public class RegistrationLinkInboxService {
         }
 
         // Fallback: regenerate a link (token changes, but remains valid).
-        return registrationLinkService.buildPublicBookingLink(serverBaseUrl, storeId, bookingKey);
+        return registrationLinkService.buildPublicBookingLink(frontendBaseUrl, storeId, bookingKey);
     }
 }
