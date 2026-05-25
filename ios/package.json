@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "VITE_LOCAL_API_BASE_URL=http://localhost:8092/api/v1 VITE_USE_CLOUD_API=false VITE_ALLOW_SU_WIDGET_LOCAL=true vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "test:e2e": "cypress run",

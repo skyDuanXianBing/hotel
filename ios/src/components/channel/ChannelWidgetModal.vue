@@ -89,6 +89,15 @@ type WidgetLanguage = 'zn' | 'en'
 const REACT_UMD_URL = 'https://unpkg.com/react@18.2.0/umd/react.production.min.js'
 const REACT_DOM_UMD_URL = 'https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js'
 const WIDGET_LANGUAGE_STORAGE_KEY = 'ios_su_widget_language'
+const LOCAL_MOCK_CHANNEL_ID_HEADER = 'X-Su-Channel-Id'
+const SU_HEADER_AUTHORIZATION = 'authorization'
+const SU_HEADER_TOKEN_ID = 'token-id'
+const SU_HEADER_APP_ID = 'app-id'
+const SU_HEADER_CLIENT_ID = 'client-id'
+const SU_PROXY_HEADER_AUTHORIZATION = 'X-Su-Authorization'
+const SU_PROXY_HEADER_TOKEN_ID = 'X-Su-Token-Id'
+const SU_PROXY_HEADER_APP_ID = 'X-Su-App-Id'
+const SU_PROXY_HEADER_CLIENT_ID = 'X-Su-Client-Id'
 
 const props = defineProps<{
   isOpen: boolean
@@ -116,6 +125,23 @@ const widgetLanguage = ref<WidgetLanguage>(readInitialWidgetLanguage())
 
 let uninstallSuConfigProxy: null | (() => void) = null
 let reactRoot: { unmount: () => void } | null = null
+let suConfigProxyContext: {
+  tokenId: string
+  appId: string
+  clientId: string
+} | null = null
+
+function setSuConfigProxyContext(widgetConfig: WidgetTokenResponse) {
+  suConfigProxyContext = {
+    tokenId: widgetConfig.tokenId?.trim() || '',
+    appId: widgetConfig.appId?.trim() || '',
+    clientId: widgetConfig.clientId?.trim() || widgetConfig.appId?.trim() || '',
+  }
+}
+
+function clearSuConfigProxyContext() {
+  suConfigProxyContext = null
+}
 
 function clearWidgetContainer() {
   const container = document.getElementById(widgetContainerId)
@@ -167,7 +193,28 @@ function resolveSuConfigProxyUrl(url: unknown) {
   return `${SU_CONFIG_PROXY_BASE}/${env}/${path}${parsed.search}`
 }
 
-function installSuConfigProxy() {
+function resolveLocalMockChannelId(channelId: unknown) {
+  if (!isLocalhost()) {
+    return null
+  }
+
+  if (import.meta.env.VITE_ALLOW_SU_WIDGET_LOCAL !== 'true') {
+    return null
+  }
+
+  if (typeof channelId !== 'string') {
+    return null
+  }
+
+  const normalizedChannelId = channelId.trim()
+  if (normalizedChannelId === '19' || normalizedChannelId === '244') {
+    return normalizedChannelId
+  }
+
+  return null
+}
+
+function installSuConfigProxy(localMockChannelId: string | null) {
   const originalOpen = XMLHttpRequest.prototype.open
   const originalSend = XMLHttpRequest.prototype.send
   const originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader
@@ -176,6 +223,9 @@ function installSuConfigProxy() {
   type XhrMeta = {
     isSuConfig: boolean
     suAuthorization?: string
+    hasTokenIdHeader?: boolean
+    hasAppIdHeader?: boolean
+    hasClientIdHeader?: boolean
   }
 
   const metaByXhr = new WeakMap<XMLHttpRequest, XhrMeta>()
@@ -199,10 +249,23 @@ function installSuConfigProxy() {
 
   XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
     const meta = metaByXhr.get(this)
-    if (meta?.isSuConfig && name.toLowerCase() === 'authorization') {
-      meta.suAuthorization = value
-      metaByXhr.set(this, meta)
-      return
+    if (meta?.isSuConfig && typeof name === 'string') {
+      const lowerName = name.toLowerCase()
+      if (lowerName === SU_HEADER_AUTHORIZATION) {
+        meta.suAuthorization = value
+        metaByXhr.set(this, meta)
+        return
+      }
+      if (lowerName === SU_HEADER_TOKEN_ID) {
+        meta.hasTokenIdHeader = true
+        metaByXhr.set(this, meta)
+      } else if (lowerName === SU_HEADER_APP_ID) {
+        meta.hasAppIdHeader = true
+        metaByXhr.set(this, meta)
+      } else if (lowerName === SU_HEADER_CLIENT_ID) {
+        meta.hasClientIdHeader = true
+        metaByXhr.set(this, meta)
+      }
     }
 
     return originalSetRequestHeader.call(this, name, value)
@@ -214,7 +277,28 @@ function installSuConfigProxy() {
       const token = localStorage.getItem('token')
       if (meta.suAuthorization) {
         try {
-          originalSetRequestHeader.call(this, 'X-Su-Authorization', meta.suAuthorization)
+          originalSetRequestHeader.call(this, SU_PROXY_HEADER_AUTHORIZATION, meta.suAuthorization)
+        } catch {
+          // ignore
+        }
+      }
+      if (!meta.hasTokenIdHeader && suConfigProxyContext?.tokenId) {
+        try {
+          originalSetRequestHeader.call(this, SU_PROXY_HEADER_TOKEN_ID, suConfigProxyContext.tokenId)
+        } catch {
+          // ignore
+        }
+      }
+      if (!meta.hasAppIdHeader && suConfigProxyContext?.appId) {
+        try {
+          originalSetRequestHeader.call(this, SU_PROXY_HEADER_APP_ID, suConfigProxyContext.appId)
+        } catch {
+          // ignore
+        }
+      }
+      if (!meta.hasClientIdHeader && suConfigProxyContext?.clientId) {
+        try {
+          originalSetRequestHeader.call(this, SU_PROXY_HEADER_CLIENT_ID, suConfigProxyContext.clientId)
         } catch {
           // ignore
         }
@@ -222,6 +306,13 @@ function installSuConfigProxy() {
       if (token) {
         try {
           originalSetRequestHeader.call(this, 'Authorization', `Bearer ${token}`)
+        } catch {
+          // ignore
+        }
+      }
+      if (localMockChannelId) {
+        try {
+          originalSetRequestHeader.call(this, LOCAL_MOCK_CHANNEL_ID_HEADER, localMockChannelId)
         } catch {
           // ignore
         }
@@ -239,23 +330,33 @@ function installSuConfigProxy() {
         return originalFetch(input as RequestInfo, init)
       }
 
-      const headers = new Headers(init?.headers || {})
+      const upstreamRequest = new Request(input as RequestInfo, init)
+      const proxiedRequest = new Request(proxyUrl, upstreamRequest)
+      const headers = new Headers(proxiedRequest.headers)
       const token = localStorage.getItem('token')
-      const suAuthorization = headers.get('authorization')
+      const suAuthorization = headers.get(SU_HEADER_AUTHORIZATION)
 
       if (suAuthorization) {
-        headers.delete('authorization')
-        headers.set('X-Su-Authorization', suAuthorization)
+        headers.delete(SU_HEADER_AUTHORIZATION)
+        headers.set(SU_PROXY_HEADER_AUTHORIZATION, suAuthorization)
+      }
+      if (!headers.has(SU_HEADER_TOKEN_ID) && suConfigProxyContext?.tokenId) {
+        headers.set(SU_PROXY_HEADER_TOKEN_ID, suConfigProxyContext.tokenId)
+      }
+      if (!headers.has(SU_HEADER_APP_ID) && suConfigProxyContext?.appId) {
+        headers.set(SU_PROXY_HEADER_APP_ID, suConfigProxyContext.appId)
+      }
+      if (!headers.has(SU_HEADER_CLIENT_ID) && suConfigProxyContext?.clientId) {
+        headers.set(SU_PROXY_HEADER_CLIENT_ID, suConfigProxyContext.clientId)
       }
       if (token) {
         headers.set('Authorization', `Bearer ${token}`)
       }
+      if (localMockChannelId) {
+        headers.set(LOCAL_MOCK_CHANNEL_ID_HEADER, localMockChannelId)
+      }
 
-      return originalFetch(proxyUrl, {
-        ...init,
-        headers,
-        credentials: 'include',
-      })
+      return originalFetch(proxiedRequest, { headers, credentials: 'include' })
     }
   }
 
@@ -370,6 +471,7 @@ async function loadWidget() {
   loading.value = true
   errorMessage.value = ''
   clearWidgetContainer()
+  clearSuConfigProxyContext()
 
   try {
     const response = await getSuWidgetToken(props.otaId, {
@@ -378,13 +480,14 @@ async function loadWidget() {
     if (!response.success || !response.data) {
       throw new Error(response.message || '获取渠道向导失败')
     }
+    setSuConfigProxyContext(response.data)
 
     if (isLocalhost() && import.meta.env.VITE_ALLOW_SU_WIDGET_LOCAL !== 'true') {
       throw new Error('本地地址无法直接加载 Su Widget，请使用已部署域名或开启 VITE_ALLOW_SU_WIDGET_LOCAL=true')
     }
 
     uninstallSuConfigProxy?.()
-    uninstallSuConfigProxy = installSuConfigProxy()
+    uninstallSuConfigProxy = installSuConfigProxy(resolveLocalMockChannelId(response.data.channelId))
 
     await loadWidgetScript(response.data.scriptUrl)
     loading.value = false
@@ -411,6 +514,7 @@ function handleLanguageChange(event: CustomEvent) {
 
 function cleanupWidget() {
   clearWidgetContainer()
+  clearSuConfigProxyContext()
   uninstallSuConfigProxy?.()
   uninstallSuConfigProxy = null
 }
