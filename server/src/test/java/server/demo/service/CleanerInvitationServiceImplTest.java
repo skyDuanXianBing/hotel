@@ -90,7 +90,16 @@ class CleanerInvitationServiceImplTest {
         assertEquals(5L, cleaner.getId());
         assertEquals(88L, cleaner.getUserId());
         assertEquals("Cleaner New", cleaner.getName());
+        assertEquals("encoded-password", cleaner.getPassword());
         assertEquals(Boolean.TRUE, cleaner.getIsActive());
+        verify(passwordEncoder).encode("plain-password");
+        verify(cleanerIdentityService).createOrReuseCleanerUserAccount(
+                "cleaner@example.com",
+                "Cleaner New",
+                "encoded-password",
+                26L,
+                7L
+        );
         verify(cleanerRepository).save(inactiveCleaner);
         assertEquals("accepted", invitation.getStatus());
     }

@@ -49,6 +49,14 @@ public class CleanerService {
 
     @Transactional
     public Cleaner createCleaner(Cleaner cleaner) {
+        if (cleaner.getPassword() == null || cleaner.getPassword().isBlank()) {
+            throw new RuntimeException("保洁员密码不能为空，请通过邀请邮件完成注册");
+        }
+
+        if (cleaner.getIsActive() == null) {
+            cleaner.setIsActive(true);
+        }
+
         return cleanerRepository.save(cleaner);
     }
 

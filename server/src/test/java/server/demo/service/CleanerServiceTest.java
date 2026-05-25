@@ -29,6 +29,26 @@ import static org.mockito.Mockito.when;
 class CleanerServiceTest {
 
     @Test
+    void createCleaner_shouldRejectMissingPasswordWithoutDefaultPassword() {
+        CleanerRepository cleanerRepository = Mockito.mock(CleanerRepository.class);
+
+        CleanerService service = new CleanerService();
+        ReflectionTestUtils.setField(service, "cleanerRepository", cleanerRepository);
+
+        Cleaner cleaner = new Cleaner();
+        cleaner.setUserId(7L);
+        cleaner.setStoreId(11L);
+        cleaner.setName("Local Cleaner");
+        cleaner.setEmail("cleaner-local@example.com");
+        cleaner.setIsActive(null);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> service.createCleaner(cleaner));
+
+        assertEquals("保洁员密码不能为空，请通过邀请邮件完成注册", exception.getMessage());
+        verify(cleanerRepository, never()).save(any(Cleaner.class));
+    }
+
+    @Test
     void deleteCleaner_shouldRejectWhenCleanerStillHasTasks() {
         CleanerRepository cleanerRepository = Mockito.mock(CleanerRepository.class);
         CleaningTaskRepository cleaningTaskRepository = Mockito.mock(CleaningTaskRepository.class);
