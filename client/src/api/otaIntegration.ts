@@ -127,6 +127,8 @@ export interface WidgetTokenResponse {
   tokenId: string
   propertyId: string
   appId: string
+  clientId?: string
+  channelId?: string
   channelCode: string
   scriptUrl: string
   type: string

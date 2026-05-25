@@ -67,6 +67,7 @@ import {
   syncSuRooms,
   type WidgetTokenResponse,
 } from '@/api/otaIntegration'
+import { clearGlobalSuConfigProxyContext, setGlobalSuConfigProxyContext } from '@/utils/suConfigProxy'
 
 /**
  * Su Widget 全局对象类型定义
@@ -138,6 +139,9 @@ const SU_PROXY_HEADER_AUTHORIZATION = 'X-Su-Authorization'
 const SU_PROXY_HEADER_TOKEN_ID = 'X-Su-Token-Id'
 const SU_PROXY_HEADER_APP_ID = 'X-Su-App-Id'
 const SU_PROXY_HEADER_CLIENT_ID = 'X-Su-Client-Id'
+const LOCAL_MOCK_CHANNEL_ID_HEADER = 'X-Su-Channel-Id'
+const BOOKING_LOCAL_MOCK_CHANNEL_ID = '19'
+const AIRBNB_LOCAL_MOCK_CHANNEL_ID = '244'
 
 let uninstallSuConfigProxy: null | (() => void) = null
 let lastChannelHotelDeniedToastAt = 0
@@ -145,18 +149,30 @@ let suConfigProxyContext: {
   tokenId: string
   appId: string
   clientId: string
+  localMockChannelId: string | null
 } | null = null
 
 const setSuConfigProxyContext = (widgetConfig: WidgetTokenResponse) => {
+  const appId = widgetConfig.appId?.trim() || ''
+  const clientId = widgetConfig.clientId?.trim() || appId
+  const localMockChannelId = resolveAllowedLocalMockChannelId(widgetConfig.channelId)
   suConfigProxyContext = {
     tokenId: widgetConfig.tokenId?.trim() || '',
-    appId: widgetConfig.appId?.trim() || '',
-    clientId: widgetConfig.appId?.trim() || '',
+    appId,
+    clientId,
+    localMockChannelId,
   }
+  setGlobalSuConfigProxyContext({
+    tokenId: suConfigProxyContext.tokenId,
+    appId: suConfigProxyContext.appId,
+    clientId: suConfigProxyContext.clientId,
+    channelId: localMockChannelId,
+  })
 }
 
 const clearSuConfigProxyContext = () => {
   suConfigProxyContext = null
+  clearGlobalSuConfigProxyContext()
 }
 
 const maybeNotifyChannelHotelIdDenied = (raw: unknown) => {
@@ -179,6 +195,28 @@ const maybeNotifyChannelHotelIdDenied = (raw: unknown) => {
 const isLocalhost = (): boolean => {
   const host = window.location.hostname
   return host === 'localhost' || host === '127.0.0.1'
+}
+
+const isLocalWidgetMockAllowed = (): boolean => {
+  return isLocalhost() && import.meta.env.DEV && import.meta.env.VITE_ALLOW_SU_WIDGET_LOCAL === 'true'
+}
+
+const resolveAllowedLocalMockChannelId = (
+  channelId: string | null | undefined,
+): string | null => {
+  if (!isLocalWidgetMockAllowed()) {
+    return null
+  }
+
+  const normalizedChannelId = channelId?.trim() || ''
+  if (
+    normalizedChannelId === BOOKING_LOCAL_MOCK_CHANNEL_ID ||
+    normalizedChannelId === AIRBNB_LOCAL_MOCK_CHANNEL_ID
+  ) {
+    return normalizedChannelId
+  }
+
+  return null
 }
 
 // 保存 React root 引用，用于正确卸载
@@ -432,6 +470,17 @@ const installSuConfigProxy = (): (() => void) => {
           // ignore
         }
       }
+      if (suConfigProxyContext?.localMockChannelId) {
+        try {
+          originalSetRequestHeader.call(
+            this,
+            LOCAL_MOCK_CHANNEL_ID_HEADER,
+            suConfigProxyContext.localMockChannelId,
+          )
+        } catch {
+          // ignore
+        }
+      }
 
       const token = localStorage.getItem('token')
       if (token) {
@@ -472,6 +521,9 @@ const installSuConfigProxy = (): (() => void) => {
       }
       if (!headers.has(SU_HEADER_CLIENT_ID) && suConfigProxyContext?.clientId) {
         headers.set(SU_PROXY_HEADER_CLIENT_ID, suConfigProxyContext.clientId)
+      }
+      if (suConfigProxyContext?.localMockChannelId) {
+        headers.set(LOCAL_MOCK_CHANNEL_ID_HEADER, suConfigProxyContext.localMockChannelId)
       }
       if (token) {
         headers.set('Authorization', `Bearer ${token}`)
