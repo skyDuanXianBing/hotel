@@ -263,6 +263,7 @@ public class OtaIntegrationController {
             String tokenId,
             String propertyId,
             String appId,
+            String channelId,
             String channelCode,
             String scriptUrl,
             String type,

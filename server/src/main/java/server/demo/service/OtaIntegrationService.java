@@ -297,6 +297,7 @@ public class OtaIntegrationService {
         otaIntegrationRepository.save(integration);
 
         // 6. 获取渠道代码
+        String channelId = resolveSuWidgetChannelId(integration.getCode());
         String channelCode = suApiClient.getEncryptedChannelCode(integration.getCode());
         String widgetLanguage = resolveWidgetLanguage(language);
 
@@ -305,6 +306,7 @@ public class OtaIntegrationService {
                 widgetResponse.getData().getTokenId(),
                 widgetResponse.getData().getProppmsid(),
                 suApiConfig.getClientId(),
+                channelId,
                 channelCode,
                 "https://static.otaswitch.com/JS/script.js",
                 "channel-Mapping",
@@ -321,6 +323,20 @@ public class OtaIntegrationService {
             return "en";
         }
         return "zn";
+    }
+
+    private static String resolveSuWidgetChannelId(String otaCode) {
+        if (otaCode == null) {
+            return "";
+        }
+        String code = otaCode.trim().toUpperCase();
+        if ("BOOKING".equals(code) || "BOOKING.COM".equals(code)) {
+            return "19";
+        }
+        if ("AIRBNB".equals(code)) {
+            return "244";
+        }
+        return "";
     }
 
     /**

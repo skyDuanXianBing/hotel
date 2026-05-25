@@ -103,7 +103,7 @@ class SuApiConfigTest {
     @Test
     void shouldUseLocalMockConfigWhenEnabled() {
         SuApiConfig config = new SuApiConfig();
-        config.setLocalMockEnabled(true);
+        config.setChannelE2ELocalEnabled(true);
         config.setLocalMockBaseUrl(" http://localhost:4000 ");
         config.setLocalMockClientId(" mock-client-id ");
         config.setLocalMockClientSecret(" mock-client-secret ");
@@ -120,7 +120,7 @@ class SuApiConfigTest {
     @Test
     void shouldDescribeUnifiedLocalE2EFlagWhenLocalMockValueMissing() {
         SuApiConfig config = new SuApiConfig();
-        config.setLocalMockEnabled(true);
+        config.setChannelE2ELocalEnabled(true);
         config.setLocalMockBaseUrl("http://localhost:4000");
         config.setLocalMockClientId("mock-client-id");
         config.setLocalMockClientSecret(" ");
@@ -137,7 +137,7 @@ class SuApiConfigTest {
     @Test
     void shouldKeepExistingConfigWhenLocalMockDisabled() {
         SuApiConfig config = new SuApiConfig();
-        config.setLocalMockEnabled(false);
+        config.setChannelE2ELocalEnabled(false);
         config.setLocalMockBaseUrl("http://localhost:4000");
         config.setLocalMockClientId("mock-client-id");
         config.setLocalMockClientSecret("mock-client-secret");
@@ -154,7 +154,7 @@ class SuApiConfigTest {
     @Test
     void shouldThrowWhenLocalMockSecretMissing() {
         SuApiConfig config = new SuApiConfig();
-        config.setLocalMockEnabled(true);
+        config.setChannelE2ELocalEnabled(true);
         config.setLocalMockBaseUrl("http://localhost:4000");
         config.setLocalMockClientId("mock-client-id");
         config.setLocalMockClientSecret(" ");

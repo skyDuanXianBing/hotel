@@ -26,15 +26,47 @@ class ChannelE2ELocalConfigBindingTest {
     @Test
     void unifiedLocalE2EFlagEnablesLocalMockAndTestSupportFlag() {
         contextRunner
-                .withPropertyValues("CHANNEL_E2E_LOCAL_ENABLED=true")
+                .withPropertyValues(
+                        "CHANNEL_E2E_LOCAL_ENABLED=true",
+                        "SU_API_LOCAL_MOCK_BASE_URL=http://localhost:4000",
+                        "SU_API_LOCAL_MOCK_CLIENT_ID=mock-client-id",
+                        "SU_API_LOCAL_MOCK_CLIENT_SECRET=mock-client-secret"
+                )
                 .run(context -> {
                     SuApiConfig suApiConfig = context.getBean(SuApiConfig.class);
                     ChannelE2EFlagProbe probe = context.getBean(ChannelE2EFlagProbe.class);
 
                     assertEquals("true", context.getEnvironment().getProperty("channel.e2e.local-enabled"));
-                    assertEquals("true", context.getEnvironment().getProperty("su.api.local-mock-enabled"));
                     assertTrue(suApiConfig.isLocalMockEnabled());
+                    assertEquals("http://localhost:4000", suApiConfig.getBaseUrl());
+                    assertEquals("mock-client-id", suApiConfig.getClientId());
+                    assertEquals("mock-client-secret", suApiConfig.getClientSecret());
                     assertTrue(probe.isLocalEnabled());
+                });
+    }
+
+    @Test
+    void suLocalMockEnvDoesNotEnableLocalMockWithoutUnifiedLocalE2EFlag() {
+        contextRunner
+                .withPropertyValues(
+                        "CHANNEL_E2E_LOCAL_ENABLED=false",
+                        "SU_API_LOCAL_MOCK_ENABLED=true",
+                        "SU_API_BASE_URL=https://connect.su-api.com",
+                        "SU_CLIENT_ID=production-client-id",
+                        "SU_CLIENT_SECRET=production-secret",
+                        "SU_API_LOCAL_MOCK_BASE_URL=http://localhost:4000",
+                        "SU_API_LOCAL_MOCK_CLIENT_ID=mock-client-id",
+                        "SU_API_LOCAL_MOCK_CLIENT_SECRET=mock-client-secret"
+                )
+                .run(context -> {
+                    SuApiConfig suApiConfig = context.getBean(SuApiConfig.class);
+                    ChannelE2EFlagProbe probe = context.getBean(ChannelE2EFlagProbe.class);
+
+                    assertFalse(probe.isLocalEnabled());
+                    assertFalse(suApiConfig.isLocalMockEnabled());
+                    assertEquals("https://connect.su-api.com", suApiConfig.getBaseUrl());
+                    assertEquals("production-client-id", suApiConfig.getClientId());
+                    assertEquals("production-secret", suApiConfig.getClientSecret());
                 });
     }
 

@@ -1,5 +1,6 @@
 package server.demo.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -21,9 +22,10 @@ public class SuApiConfig {
     private String baseUrl;
 
     /**
-     * 是否启用本地 Mock Su API，由 channel.e2e.local-enabled 统一驱动。
+     * 是否启用本地 Mock Su API，只由 channel.e2e.local-enabled 统一驱动。
      */
-    private boolean localMockEnabled;
+    @Value("${channel.e2e.local-enabled:false}")
+    private boolean channelE2ELocalEnabled;
 
     /**
      * 本地 Mock Su API 基础 URL。
@@ -71,7 +73,7 @@ public class SuApiConfig {
     private String pmsName;
 
     public String getBaseUrl() {
-        if (localMockEnabled) {
+        if (isLocalMockEnabled()) {
             return requireLocalMockValue(localMockBaseUrl, "base-url");
         }
         if (isNotBlank(baseUrl)) {
@@ -97,10 +99,10 @@ public class SuApiConfig {
     }
 
     public String getClientId() {
-        if (localMockEnabled) {
+        if (isLocalMockEnabled()) {
             return requireLocalMockValue(localMockClientId, "client-id");
         }
-        return clientId;
+        return getRealClientId();
     }
 
     public void setClientId(String clientId) {
@@ -108,14 +110,33 @@ public class SuApiConfig {
     }
 
     public String getClientSecret() {
-        if (localMockEnabled) {
+        if (isLocalMockEnabled()) {
             return requireLocalMockValue(localMockClientSecret, "client-secret");
         }
+        return getRealClientSecret();
+    }
+
+    public String getRealClientId() {
+        return clientId;
+    }
+
+    public String getRealClientSecret() {
+        return getRealClientSecretForEnv(resolveEnv());
+    }
+
+    public String getRealProductionClientSecret() {
+        return getRealClientSecretForEnv(SU_ENV_PRODUCTION);
+    }
+
+    public String getRealSandboxClientSecret() {
+        return getRealClientSecretForEnv(SU_ENV_SANDBOX);
+    }
+
+    private String getRealClientSecretForEnv(String normalizedEnv) {
         if (isNotBlank(clientSecret)) {
             return clientSecret.trim();
         }
 
-        String normalizedEnv = resolveEnv();
         if (SU_ENV_SANDBOX.equals(normalizedEnv)) {
             if (!isNotBlank(clientSecretSandbox)) {
                 throw new IllegalStateException(
@@ -131,6 +152,18 @@ public class SuApiConfig {
             );
         }
         return clientSecretProduction.trim();
+    }
+
+    public String getRequiredLocalMockBaseUrl() {
+        return requireLocalMockValue(localMockBaseUrl, "base-url");
+    }
+
+    public String getRequiredLocalMockClientId() {
+        return requireLocalMockValue(localMockClientId, "client-id");
+    }
+
+    public String getRequiredLocalMockClientSecret() {
+        return requireLocalMockValue(localMockClientSecret, "client-secret");
     }
 
     public void setClientSecret(String clientSecret) {
@@ -162,11 +195,11 @@ public class SuApiConfig {
     }
 
     public boolean isLocalMockEnabled() {
-        return localMockEnabled;
+        return channelE2ELocalEnabled;
     }
 
-    public void setLocalMockEnabled(boolean localMockEnabled) {
-        this.localMockEnabled = localMockEnabled;
+    public void setChannelE2ELocalEnabled(boolean channelE2ELocalEnabled) {
+        this.channelE2ELocalEnabled = channelE2ELocalEnabled;
     }
 
     public String getLocalMockBaseUrl() {

@@ -50,14 +50,26 @@ public class SuConfigProxyController {
     private static final String SU_PROXY_TOKEN_ID_HEADER = "X-Su-Token-Id";
     private static final String SU_PROXY_APP_ID_HEADER = "X-Su-App-Id";
     private static final String SU_PROXY_CLIENT_ID_HEADER = "X-Su-Client-Id";
+    private static final String SU_PROXY_CHANNEL_ID_HEADER = "X-Su-Channel-Id";
     private static final String SU_UPSTREAM_TOKEN_ID_HEADER = "token-id";
     private static final String SU_UPSTREAM_APP_ID_HEADER = "app-id";
     private static final String SU_UPSTREAM_CLIENT_ID_HEADER = "client-id";
     private static final String SU_UPSTREAM_CLIENT_SECRET_HEADER = "client-secret";
+    private static final String BOOKING_CHANNEL_ID = "19";
+    private static final String AIRBNB_CHANNEL_ID = "244";
 
     private final RestTemplate restTemplate;
     private final SuApiConfig suApiConfig;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
+    private enum TargetType {
+        REAL_PROD,
+        REAL_SANDBOX,
+        LOCAL_MOCK
+    }
+
+    private record ProxyTarget(TargetType type, String baseUrl) {
+    }
 
     public SuConfigProxyController(RestTemplate restTemplate, SuApiConfig suApiConfig) {
         this.restTemplate = restTemplate;
@@ -73,8 +85,8 @@ public class SuConfigProxyController {
             @RequestBody(required = false) byte[] body,
             HttpServletRequest request
     ) {
-        String upstreamBase = resolveUpstreamBase(env);
-        if (upstreamBase == null) {
+        TargetType requestedTargetType = resolveRequestedTargetType(env);
+        if (requestedTargetType == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(("{\"success\":false,\"message\":\"Unsupported Su env: " + env + "\",\"data\":null}").getBytes());
@@ -94,6 +106,8 @@ public class SuConfigProxyController {
                     .body("{\"success\":false,\"message\":\"Only /Config/jservice/** is allowed\",\"data\":null}".getBytes());
         }
 
+        ProxyTarget proxyTarget = resolveProxyTarget(requestedTargetType);
+        String upstreamBase = proxyTarget.baseUrl();
         String query = request.getQueryString();
         String targetUrl = upstreamBase + "/Config/" + remainingPath + (query != null && !query.isBlank() ? "?" + query : "");
 
@@ -106,7 +120,7 @@ public class SuConfigProxyController {
                     .body("{\"success\":false,\"message\":\"Unsupported HTTP method\",\"data\":null}".getBytes());
         }
 
-        HttpHeaders outgoingHeaders = buildOutgoingHeaders(request);
+        HttpHeaders outgoingHeaders = buildOutgoingHeaders(request, proxyTarget.type());
         logProxyRequest(targetUrl, request, outgoingHeaders);
         ResponseEntity<byte[]> upstreamResponse;
         try {
@@ -182,16 +196,37 @@ public class SuConfigProxyController {
         }
     }
 
-    private String resolveUpstreamBase(String env) {
+    private TargetType resolveRequestedTargetType(String env) {
         if (env == null) {
             return null;
         }
         String normalized = env.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "prod", "production" -> UPSTREAM_PROD;
-            case "sandbox" -> UPSTREAM_SANDBOX;
+            case "prod", "production" -> TargetType.REAL_PROD;
+            case "sandbox" -> TargetType.REAL_SANDBOX;
             default -> null;
         };
+    }
+
+    private ProxyTarget resolveProxyTarget(TargetType requestedTargetType) {
+        if (suApiConfig.isLocalMockEnabled()) {
+            return new ProxyTarget(TargetType.LOCAL_MOCK, trimTrailingSlash(suApiConfig.getRequiredLocalMockBaseUrl()));
+        }
+        if (TargetType.REAL_SANDBOX.equals(requestedTargetType)) {
+            return new ProxyTarget(TargetType.REAL_SANDBOX, UPSTREAM_SANDBOX);
+        }
+        return new ProxyTarget(TargetType.REAL_PROD, UPSTREAM_PROD);
+    }
+
+    private String trimTrailingSlash(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.trim();
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
     }
 
     private String extractRemainingPath(HttpServletRequest request) {
@@ -203,7 +238,10 @@ public class SuConfigProxyController {
         return pathMatcher.extractPathWithinPattern(bestMatchPattern, pathWithinMapping);
     }
 
-    private HttpHeaders buildOutgoingHeaders(HttpServletRequest request) {
+    private HttpHeaders buildOutgoingHeaders(
+            HttpServletRequest request,
+            TargetType targetType
+    ) {
         HttpHeaders headers = new HttpHeaders();
 
         String suAuthorization = normalizeHeaderValue(request.getHeader(SU_AUTH_HEADER));
@@ -237,7 +275,12 @@ public class SuConfigProxyController {
                     || lower.equals(SU_AUTH_HEADER.toLowerCase(Locale.ROOT))
                     || lower.equals(SU_PROXY_TOKEN_ID_HEADER.toLowerCase(Locale.ROOT))
                     || lower.equals(SU_PROXY_APP_ID_HEADER.toLowerCase(Locale.ROOT))
-                    || lower.equals(SU_PROXY_CLIENT_ID_HEADER.toLowerCase(Locale.ROOT))) {
+                    || lower.equals(SU_PROXY_CLIENT_ID_HEADER.toLowerCase(Locale.ROOT))
+                    || lower.equals(SU_PROXY_CHANNEL_ID_HEADER.toLowerCase(Locale.ROOT))
+                    || lower.equals(SU_UPSTREAM_TOKEN_ID_HEADER)
+                    || lower.equals(SU_UPSTREAM_APP_ID_HEADER)
+                    || lower.equals(SU_UPSTREAM_CLIENT_ID_HEADER)
+                    || lower.equals(SU_UPSTREAM_CLIENT_SECRET_HEADER)) {
                 continue;
             }
 
@@ -254,11 +297,11 @@ public class SuConfigProxyController {
             headers.set(SU_UPSTREAM_TOKEN_ID_HEADER, suTokenId);
         }
 
-        String fallbackClientId = normalizeHeaderValue(suApiConfig.getClientId());
+        String fallbackClientId = resolveFallbackClientId(targetType);
         if (headers.getFirst(SU_UPSTREAM_CLIENT_ID_HEADER) == null && fallbackClientId != null) {
             headers.set(SU_UPSTREAM_CLIENT_ID_HEADER, fallbackClientId);
         }
-        if (suClientId != null && !suClientId.isBlank()) {
+        if (shouldUseIncomingRealSuContextHeaders(targetType) && suClientId != null && !suClientId.isBlank()) {
             headers.set(SU_UPSTREAM_CLIENT_ID_HEADER, suClientId);
         }
 
@@ -266,13 +309,13 @@ public class SuConfigProxyController {
         if (headers.getFirst(SU_UPSTREAM_APP_ID_HEADER) == null && finalClientId != null) {
             headers.set(SU_UPSTREAM_APP_ID_HEADER, finalClientId);
         }
-        if (suAppId != null && !suAppId.isBlank()) {
+        if (shouldUseIncomingRealSuContextHeaders(targetType) && suAppId != null && !suAppId.isBlank()) {
             headers.set(SU_UPSTREAM_APP_ID_HEADER, suAppId);
         }
 
         if (headers.getFirst(SU_UPSTREAM_CLIENT_SECRET_HEADER) == null) {
             try {
-                String fallbackClientSecret = normalizeHeaderValue(suApiConfig.getClientSecret());
+                String fallbackClientSecret = resolveFallbackClientSecret(targetType);
                 if (fallbackClientSecret != null) {
                     headers.set(SU_UPSTREAM_CLIENT_SECRET_HEADER, fallbackClientSecret);
                 }
@@ -281,11 +324,41 @@ public class SuConfigProxyController {
             }
         }
 
+        String channelId = normalizeHeaderValue(request.getHeader(SU_PROXY_CHANNEL_ID_HEADER));
+        if (TargetType.LOCAL_MOCK.equals(targetType) && isAllowedLocalMockChannelId(channelId)) {
+            headers.set(SU_PROXY_CHANNEL_ID_HEADER, channelId);
+        }
+
         if (headers.getAccept() == null || headers.getAccept().isEmpty()) {
             headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         }
 
         return headers;
+    }
+
+    private String resolveFallbackClientId(TargetType targetType) {
+        if (TargetType.LOCAL_MOCK.equals(targetType)) {
+            return normalizeHeaderValue(suApiConfig.getRequiredLocalMockClientId());
+        }
+        return normalizeHeaderValue(suApiConfig.getRealClientId());
+    }
+
+    private String resolveFallbackClientSecret(TargetType targetType) {
+        if (TargetType.LOCAL_MOCK.equals(targetType)) {
+            return normalizeHeaderValue(suApiConfig.getRequiredLocalMockClientSecret());
+        }
+        if (TargetType.REAL_SANDBOX.equals(targetType)) {
+            return normalizeHeaderValue(suApiConfig.getRealSandboxClientSecret());
+        }
+        return normalizeHeaderValue(suApiConfig.getRealProductionClientSecret());
+    }
+
+    private boolean shouldUseIncomingRealSuContextHeaders(TargetType targetType) {
+        return !TargetType.LOCAL_MOCK.equals(targetType);
+    }
+
+    private boolean isAllowedLocalMockChannelId(String channelId) {
+        return BOOKING_CHANNEL_ID.equals(channelId) || AIRBNB_CHANNEL_ID.equals(channelId);
     }
 
     private void logProxyRequest(String targetUrl, HttpServletRequest request, HttpHeaders outgoingHeaders) {
