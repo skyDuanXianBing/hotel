@@ -8,7 +8,8 @@
     "type-check": "tsc --noEmit && vue-tsc --noEmit -p tsconfig.app.json",
     "build": "tsc && vite build",
     "start": "node dist/index.js",
-    "verify:local-e2e": "tsx src/scripts/verify-local-e2e.ts"
+    "verify:local-e2e": "tsx src/scripts/verify-local-e2e.ts",
+    "verify:channel-mapping": "tsx src/scripts/verify-channel-mapping.ts"
   },
   "dependencies": {
     "axios": "^1.7.0",

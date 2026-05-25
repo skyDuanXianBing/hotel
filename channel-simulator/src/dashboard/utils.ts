@@ -46,13 +46,13 @@ export function buildReadinessParts(value: unknown): ReadinessParts {
       missingRequirements.add(String(item))
     }
     for (const item of getArray(source, 'channels')) {
-      channels.push(item)
+      pushUniqueEntity(channels, item, 'channel', ['code', 'name'])
     }
     for (const item of getArray(source, 'roomTypes')) {
-      roomTypes.push(item)
+      pushUniqueEntity(roomTypes, item, 'roomType', ['code', 'name'])
     }
     for (const item of getArray(source, 'rooms')) {
-      rooms.push(item)
+      pushUniqueEntity(rooms, item, 'room', ['roomNumber'])
     }
     if (!suHotelId) {
       suHotelId = getText(source, ['suHotelId', 'hotelId'])
@@ -173,4 +173,34 @@ function getArray(source: unknown, key: string): unknown[] {
     return value
   }
   return []
+}
+
+function pushUniqueEntity(items: unknown[], item: unknown, type: string, keys: string[]): void {
+  const key = buildEntityKey(item, type, keys)
+  for (const existing of items) {
+    if (buildEntityKey(existing, type, keys) === key) {
+      return
+    }
+  }
+  items.push(item)
+}
+
+function buildEntityKey(item: unknown, type: string, keys: string[]): string {
+  if (!isObject(item)) {
+    return `${type}:raw:${String(item)}`
+  }
+
+  for (const key of keys) {
+    const text = getText(item, [key])
+    if (text) {
+      return `${type}:${key}:${text.toLowerCase()}`
+    }
+  }
+
+  const id = getText(item, ['id'])
+  if (id) {
+    return `${type}:id:${id}`
+  }
+
+  return `${type}:json:${JSON.stringify(item)}`
 }
