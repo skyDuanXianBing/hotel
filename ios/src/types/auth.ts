@@ -87,6 +87,11 @@ export interface CleanerInvitationInfo {
   updatedAt: string
 }
 
+export interface CleanerInvitationRequest {
+  email: string
+  name: string
+}
+
 export interface CleanerRegistrationRequest {
   token: string
   name: string

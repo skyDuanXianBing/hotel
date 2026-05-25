@@ -139,7 +139,7 @@
                 expand="block"
                 class="public-room-card__button"
                 :disabled="savingOrderNumber === room.orderNumber"
-                @click="handleContinue(room.orderNumber)"
+                @click="handleContinue(room.orderNumber, room.roomRegistrationLink)"
               >
                 <ion-spinner v-if="savingOrderNumber === room.orderNumber" name="crescent" />
                 <span v-else>{{ t('continue') }}</span>
@@ -326,6 +326,29 @@ const applyBooking = (response: PublicRegistrationBookingResponse) => {
   })
 }
 
+const buildRegistrationFormLocation = (orderNumber: string, roomRegistrationLink: string) => {
+  const language = selectedLanguage.value || 'zh'
+  const link = String(roomRegistrationLink || '').trim()
+  if (!link) {
+    return null
+  }
+
+  try {
+    const url = new URL(link, window.location.origin)
+    url.searchParams.set('lang', language)
+    if (!url.searchParams.get('t')) {
+      return null
+    }
+
+    return {
+      path: buildPublicRegistrationFormPath(orderNumber),
+      query: Object.fromEntries(url.searchParams.entries()),
+    }
+  } catch {
+    return null
+  }
+}
+
 const loadBooking = async () => {
   if (!selectedLanguage.value) {
     return
@@ -365,10 +388,16 @@ const handleChangeLanguage = (language: PublicRegistrationLanguage) => {
   writePublicRegistrationLanguage(language)
 }
 
-const handleContinue = async (orderNumber: string) => {
+const handleContinue = async (orderNumber: string, roomRegistrationLink: string) => {
   const guestCount = guestCountByOrder[orderNumber]
   if (!guestCount || guestCount < 1) {
     showWarningToast('请选择入住人数')
+    return
+  }
+
+  const formLocation = buildRegistrationFormLocation(orderNumber, roomRegistrationLink)
+  if (!formLocation) {
+    showWarningToast('登记链接无效，请联系住宿方重新发送链接')
     return
   }
 
@@ -376,13 +405,7 @@ const handleContinue = async (orderNumber: string) => {
 
   try {
     await setPublicRegistrationRoomGuestCount(bookingKey.value, orderNumber, token.value, guestCount)
-    await router.push({
-      path: buildPublicRegistrationFormPath(orderNumber),
-      query: {
-        t: token.value,
-        lang: selectedLanguage.value,
-      },
-    })
+    await router.push(formLocation)
   } catch {
     return
   } finally {

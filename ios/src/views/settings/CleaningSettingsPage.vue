@@ -71,7 +71,7 @@
       header-class="settings-page-block__section-header"
     >
       <template #headerActions>
-        <ion-button size="small" @click="handleCreateCleaner">新增保洁员</ion-button>
+        <ion-button size="small" @click="handleCreateCleaner">发送保洁邀请</ion-button>
       </template>
 
       <div v-if="cleaners.length > 0" class="mobile-list settings-card-list">
@@ -92,7 +92,7 @@
 
     <SettingsEditorModal
       :is-open="editorOpen"
-      :title="editingCleanerId ? '编辑保洁员' : '新增保洁员'"
+      :title="editingCleanerId ? '编辑保洁员' : '发送保洁邀请'"
       @close="handleDismissEditor"
       @didDismiss="handleDismissEditor"
     >
@@ -110,7 +110,7 @@
       <template #actions>
         <ion-button fill="outline" @click="handleDismissEditor">取消</ion-button>
         <ion-button :disabled="submittingCleaner" @click="handleSaveCleaner">
-          {{ submittingCleaner ? '提交中...' : '保存保洁员' }}
+          {{ cleanerSubmitText }}
         </ion-button>
       </template>
     </SettingsEditorModal>
@@ -119,13 +119,13 @@
 
 <script setup lang="ts">
 import { alertController, IonButton, IonInput, IonToggle, onIonViewWillEnter } from '@ionic/vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  createCleaner,
   deleteCleaner,
   getCleaners,
   getOrCreateCleaningConfig,
+  sendCleanerInvitation,
   updateCleaner,
   updateCleaningConfig,
 } from '@/api/cleaning'
@@ -139,6 +139,8 @@ import type { CleanerDTO, CleaningConfigRequest, CleanerRequest } from '@/types/
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 const router = useRouter()
 const storeStore = useStoreStore()
 const userStore = useUserStore()
@@ -151,6 +153,15 @@ const cleaners = ref<CleanerDTO[]>([])
 const editorOpen = ref(false)
 const editingCleanerId = ref<number | null>(null)
 const cleanerForm = ref<{ name: string; email: string }>({ name: '', email: '' })
+const cleanerSubmitText = computed(() => {
+  if (submittingCleaner.value) {
+    return '提交中...'
+  }
+  if (editingCleanerId.value) {
+    return '保存保洁员'
+  }
+  return '发送邀请邮件'
+})
 const configForm = ref<CleaningConfigRequest>({
   enabled: true,
   stayStartTime: '10:00',
@@ -276,34 +287,42 @@ async function handleSaveCleaner() {
     showWarningToast('请输入保洁员邮箱')
     return
   }
+  if (!EMAIL_PATTERN.test(cleanerForm.value.email.trim())) {
+    showWarningToast('请输入有效的邮箱地址')
+    return
+  }
 
   submittingCleaner.value = true
   try {
-    const payload: CleanerRequest = {
-      userId,
-      storeId,
-      name: cleanerForm.value.name.trim(),
-      email: cleanerForm.value.email.trim(),
-    }
+    const name = cleanerForm.value.name.trim()
+    const email = cleanerForm.value.email.trim()
 
     if (editingCleanerId.value) {
+      const payload: CleanerRequest = {
+        userId,
+        storeId,
+        name,
+        email,
+      }
       const response = await updateCleaner(editingCleanerId.value, payload)
       if (!response.success) {
         throw new Error(response.message || '更新保洁员失败')
       }
+      showSuccessToast('保洁员信息已保存')
     } else {
-      const response = await createCleaner(payload)
+      const response = await sendCleanerInvitation({ name, email })
       if (!response.success) {
-        throw new Error(response.message || '创建保洁员失败')
+        throw new Error(response.message || '发送邀请失败')
       }
+      showSuccessToast('邀请邮件已发送，对方可通过邮件链接注册并创建密码')
     }
 
-    showSuccessToast('保洁员已保存')
     handleDismissEditor()
     await loadPageData()
   } catch (error) {
     if (!isHandledRequestError(error)) {
-      showWarningToast(resolveWarningMessage(error, '保存保洁员失败'))
+      const fallbackMessage = editingCleanerId.value ? '保存保洁员失败' : '发送邀请失败'
+      showWarningToast(resolveWarningMessage(error, fallbackMessage))
     }
   } finally {
     submittingCleaner.value = false

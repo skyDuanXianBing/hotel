@@ -1,5 +1,9 @@
 import type { ApiResponse } from '@/types/api'
-import type { CleanerInvitationInfo, CleanerRegistrationRequest } from '@/types/auth'
+import type {
+  CleanerInvitationInfo,
+  CleanerInvitationRequest,
+  CleanerRegistrationRequest,
+} from '@/types/auth'
 import type {
   CleanerRequest,
   CleaningConfigDTO,
@@ -100,6 +104,10 @@ export const validateInvitationToken = (token: string) => {
 
 export const registerCleaner = (data: CleanerRegistrationRequest) => {
   return request.post<ApiResponse<CleanerDTO>>('/cleaner-invitations/register', data)
+}
+
+export const sendCleanerInvitation = (data: CleanerInvitationRequest) => {
+  return request.post<ApiResponse<string>>('/cleaner-invitations/send', data)
 }
 
 export const getCleaningConfigsByUserId = (userId: number) => {

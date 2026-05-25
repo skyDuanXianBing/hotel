@@ -91,6 +91,8 @@ interface ReviewDecisionRequest {
   note: string
 }
 
+const PUBLIC_REGISTRATION_BOOKING_PATHS = ['/rb', '/public/registration-booking'] as const
+
 export interface RegistrationReviewListParams {
   status?: Exclude<ReviewFilterStatus, 'all'>
   channelId?: number
@@ -166,6 +168,88 @@ const mapFilterStatusToBackend = (status?: Exclude<ReviewFilterStatus, 'all'>) =
   }
 
   return undefined
+}
+
+const trimSlashes = (value: string) => {
+  return value.replace(/^\/+|\/+$/g, '')
+}
+
+const buildConfiguredBasePath = () => {
+  const baseUrl = import.meta.env.BASE_URL || '/'
+  const trimmedBaseUrl = baseUrl.trim()
+
+  if (!trimmedBaseUrl || trimmedBaseUrl === '/') {
+    return ''
+  }
+
+  const normalizedBaseUrl = trimSlashes(trimmedBaseUrl)
+  if (!normalizedBaseUrl) {
+    return ''
+  }
+
+  return `/${normalizedBaseUrl}`
+}
+
+const stripConfiguredBasePath = (pathname: string) => {
+  const basePath = buildConfiguredBasePath()
+  if (!basePath) {
+    return pathname
+  }
+
+  if (pathname === basePath) {
+    return '/'
+  }
+
+  if (pathname.startsWith(`${basePath}/`)) {
+    return pathname.slice(basePath.length)
+  }
+
+  return pathname
+}
+
+const isPublicRegistrationBookingPath = (pathname: string) => {
+  const routePath = stripConfiguredBasePath(pathname)
+
+  for (const publicPath of PUBLIC_REGISTRATION_BOOKING_PATHS) {
+    if (routePath === publicPath || routePath.startsWith(`${publicPath}/`)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+const buildFrontendPublicPath = (pathname: string) => {
+  const basePath = buildConfiguredBasePath()
+  const routePath = stripConfiguredBasePath(pathname)
+
+  if (!basePath) {
+    return routePath
+  }
+
+  return `${basePath}${routePath}`
+}
+
+const normalizePublicRegistrationLinkUrl = (linkUrl?: string | null) => {
+  const normalizedLinkUrl = linkUrl?.trim()
+  if (!normalizedLinkUrl) {
+    return ''
+  }
+
+  if (typeof window === 'undefined' || !window.location.origin) {
+    return normalizedLinkUrl
+  }
+
+  try {
+    const parsedUrl = new URL(normalizedLinkUrl, window.location.origin)
+    if (!isPublicRegistrationBookingPath(parsedUrl.pathname)) {
+      return normalizedLinkUrl
+    }
+
+    return `${window.location.origin}${buildFrontendPublicPath(parsedUrl.pathname)}${parsedUrl.search}${parsedUrl.hash}`
+  } catch {
+    return normalizedLinkUrl
+  }
 }
 
 const buildRoomLabel = (roomTypeName?: string | null, roomNumber?: string | null) => {
@@ -299,7 +383,7 @@ const mapLinkInboxItems = (items?: RegistrationLinkInboxItemDTO[] | null): Revie
     return {
       id: String(item.id ?? `${index + 1}`),
       bookingKey: item.bookingKey || '—',
-      linkUrl: item.linkUrl || '',
+      linkUrl: normalizePublicRegistrationLinkUrl(item.linkUrl),
       guestName: item.guestName || '未命名住客',
       checkInDate: formatDate(item.checkInDate),
       checkOutDate: formatDate(item.checkOutDate),
