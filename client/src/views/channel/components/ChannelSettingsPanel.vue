@@ -5,10 +5,10 @@
       <div class="breadcrumb">
         <el-button type="text" class="back-btn" @click="$emit('close')">
           <el-icon><ArrowLeft /></el-icon>
-          直连设置
+          {{ t('channel.settings.directSettings') }}
         </el-button>
         <span class="breadcrumb-separator">&gt;</span>
-        <span class="breadcrumb-item active">{{ channel?.name || '' }}渠道设置</span>
+        <span class="breadcrumb-item active">{{ channelSettingsTitle }}</span>
       </div>
     </div>
 
@@ -19,21 +19,18 @@
           <img :src="channel?.logoUrl" :alt="channel?.name" class="channel-logo-large-img" />
         </div>
         <div class="channel-desc">
-          <h3 class="channel-title-highlight">{{ channel?.name || '' }}渠道设置</h3>
-          <p>
-            渠道连接是管理渠道房量、房价等信息的关键，一旦连接并匹配成功，房东智控中心（THE HOST
-            HUB）就能够获取渠道订单信息并允许在PMS中控制房量。如需详细的操作说明，请见帮助中心。
-          </p>
+          <h3 class="channel-title-highlight">{{ channelSettingsTitle }}</h3>
+          <p>{{ t('channel.settings.description') }}</p>
         </div>
         <div class="channel-actions">
           <template v-if="!isAirbnb">
-            <el-button @click="$emit('showHistory')">连接历史</el-button>
+            <el-button @click="$emit('showHistory')">{{ t('channel.settings.history') }}</el-button>
           </template>
           <el-button
             type="primary"
             @click="isAirbnb ? $emit('addAccount') : $emit('addHotel')"
           >
-            {{ isAirbnb ? '添加帐户' : '添加酒店' }}
+            {{ isAirbnb ? t('channel.settings.addAccount') : t('channel.settings.addHotel') }}
           </el-button>
         </div>
       </div>
@@ -42,7 +39,7 @@
       <div class="channel-tabs-section">
         <el-tabs v-model="currentTab" class="channel-settings-tabs">
           <!-- Airbnb: 帐户列表 -->
-          <el-tab-pane v-if="isAirbnb" label="帐户列表" name="accountList">
+          <el-tab-pane v-if="isAirbnb" :label="t('channel.settings.tabs.accountList')" name="accountList">
             <AccountListTab
               :accounts="airbnbAccounts"
               @disconnect="(row) => $emit('disconnectAccount', row)"
@@ -50,7 +47,7 @@
           </el-tab-pane>
 
           <!-- 酒店列表（非 Airbnb） -->
-          <el-tab-pane v-if="!isAirbnb" label="酒店列表" name="hotelList">
+          <el-tab-pane v-if="!isAirbnb" :label="t('channel.settings.tabs.hotelList')" name="hotelList">
             <HotelListTab
               :hotels="hotels"
               @edit="(row) => $emit('editHotel', row)"
@@ -59,7 +56,7 @@
           </el-tab-pane>
 
           <!-- 映射 -->
-          <el-tab-pane label="映射" name="mapping">
+          <el-tab-pane :label="t('channel.settings.tabs.mapping')" name="mapping">
             <MappingTab
               :is-airbnb="isAirbnb"
               :mapping-data="flattenedMappingData"
@@ -83,7 +80,7 @@
           </el-tab-pane>
 
           <!-- 日历 -->
-          <el-tab-pane label="日历" name="calendar">
+          <el-tab-pane :label="t('channel.settings.tabs.calendar')" name="calendar">
             <CalendarTab
               :calendar-data="calendarData"
               :calendar-dates="calendarDates"
@@ -102,7 +99,7 @@
           </el-tab-pane>
 
           <!-- Airbnb: 房量设置 -->
-          <el-tab-pane v-if="isAirbnb" label="房量设置" name="roomSettings">
+          <el-tab-pane v-if="isAirbnb" :label="t('channel.settings.tabs.roomSettings')" name="roomSettings">
             <RoomSettingsTab
               :data="roomSettingsData"
               :dates="roomSettingsDates"
@@ -117,7 +114,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import type {
   ChannelItem,
@@ -179,7 +177,11 @@ defineEmits<{
 }>()
 
 // 标签页状态
+const { t } = useI18n()
 const currentTab = ref(props.isAirbnb ? 'accountList' : 'hotelList')
+const channelSettingsTitle = computed(() =>
+  t('channel.settings.channelSettings', { name: props.channel?.name || '' }),
+)
 
 // 筛选状态（本地管理）
 const mappingConnectionStatus = ref('all')
@@ -246,6 +248,7 @@ const calendarDisplayItem = ref('all')
   margin-bottom: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   display: flex;
+  flex-wrap: wrap;
   gap: 24px;
   align-items: flex-start;
 }
@@ -289,9 +292,14 @@ const calendarDisplayItem = ref('all')
 
 .channel-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: flex-start;
   flex-shrink: 0;
+}
+
+.channel-actions .el-button {
+  white-space: normal;
 }
 
 /* 标签页区域 */

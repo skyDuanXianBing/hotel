@@ -17,11 +17,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import StatisticsSidebar from '@/components/StatisticsSidebar.vue'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 // 根据当前路由确定激活的Tab
 const activeTab = computed(() => {
@@ -46,13 +48,13 @@ const navigateToTab = (tabName: string) => {
       router.push('/statistics/channel-summary')
       break
     case 'revenue-summary':
-      ElMessage.info('流水汇总功能开发中...')
+      ElMessage.info(t('stage5.statistics.layout.revenueComingSoon'))
       break
     case 'customer-type-summary':
-      ElMessage.info('客户类型汇总功能开发中...')
+      ElMessage.info(t('stage5.statistics.layout.customerTypeComingSoon'))
       break
     case 'sales-summary':
-      ElMessage.info('销售汇总功能开发中...')
+      ElMessage.info(t('stage5.statistics.layout.salesComingSoon'))
       break
   }
 }

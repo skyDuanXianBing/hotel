@@ -1,14 +1,16 @@
 <template>
   <div class="hotel-list-tab">
     <el-table :data="hotels" border style="width: 100%">
-      <el-table-column prop="hotelCode" label="酒店编码" min-width="180" />
-      <el-table-column prop="hotelName" label="酒店名称" min-width="220" />
-      <el-table-column prop="priceMode" label="价格模式" min-width="180" />
-      <el-table-column prop="status" label="状态" min-width="120" />
-      <el-table-column label="操作" min-width="180" fixed="right">
+      <el-table-column prop="hotelCode" :label="t('channel.hotel.hotelCode')" min-width="180" />
+      <el-table-column prop="hotelName" :label="t('channel.hotel.hotelName')" min-width="220" />
+      <el-table-column prop="priceMode" :label="t('channel.hotel.priceMode')" min-width="180" />
+      <el-table-column prop="status" :label="t('channel.hotel.status')" min-width="120" />
+      <el-table-column :label="t('channel.hotel.actions')" min-width="180" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" link @click="emit('edit', row)">编辑</el-button>
-          <el-button type="danger" link @click="emit('disconnect', row)">断开连接</el-button>
+          <el-button type="primary" link @click="emit('edit', row)">{{ t('channel.hotel.edit') }}</el-button>
+          <el-button type="danger" link @click="emit('disconnect', row)">
+            {{ t('channel.hotel.disconnect') }}
+          </el-button>
         </template>
       </el-table-column>
       <template #empty>
@@ -39,7 +41,7 @@
               stroke-linecap="round"
             />
           </svg>
-          <p class="empty-text">无数据</p>
+          <p class="empty-text">{{ t('channel.hotel.empty') }}</p>
         </div>
       </template>
     </el-table>
@@ -47,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { HotelItem } from '../../types'
 
 defineProps<{
@@ -57,6 +60,8 @@ const emit = defineEmits<{
   edit: [row: HotelItem]
   disconnect: [row: HotelItem]
 }>()
+
+const { t } = useI18n()
 </script>
 
 <style scoped>

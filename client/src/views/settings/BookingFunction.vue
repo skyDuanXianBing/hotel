@@ -1,22 +1,30 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Notebook } from '@element-plus/icons-vue'
 
+const { t } = useI18n()
 const loading = ref(false)
 </script>
 
 <template>
   <div class="booking-function">
     <div class="page-header">
-      <h3>订单功能设置</h3>
-      <p class="page-description">配置订单管理的相关功能</p>
+      <h3>{{ t('settings.placeholders.bookingFunction.title') }}</h3>
+      <p class="page-description">{{ t('settings.placeholders.bookingFunction.description') }}</p>
     </div>
 
     <div class="content-area">
       <el-card>
         <div class="placeholder-content">
           <el-icon size="48" color="#d9d9d9"><Notebook /></el-icon>
-          <p>订单功能设置开发中...</p>
+          <p>
+            {{
+              t('settings.common.inDevelopment', {
+                name: t('settings.placeholders.bookingFunction.title'),
+              })
+            }}
+          </p>
         </div>
       </el-card>
     </div>

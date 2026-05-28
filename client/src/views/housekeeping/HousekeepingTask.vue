@@ -1,61 +1,59 @@
 <template>
   <div class="housekeeping-task">
-    <!-- 顶部切换门店 -->
     <header class="task-header">
       <el-button class="switch-store-btn" @click="handleSwitchStore">
-        切换门店
+        {{ t('pages.housekeepingTask.switchStore') }}
         <el-icon class="btn-icon"><DCaret /></el-icon>
       </el-button>
     </header>
 
-    <!-- 任务卡片列表 -->
     <div class="task-container">
-      <!-- 每日任务 -->
       <div class="task-card" @click="handleDailyTask">
         <div class="card-icon-wrapper">
           <el-icon class="card-icon" :size="40"><Tickets /></el-icon>
         </div>
         <div class="card-content">
-          <h3 class="card-title">每日任务</h3>
-          <p class="card-desc">按任务列表的格式查看、</p>
-          <p class="card-desc">执行单日保洁</p>
+          <h3 class="card-title">{{ t('pages.housekeepingTask.dailyTask.title') }}</h3>
+          <p class="card-desc">{{ t('pages.housekeepingTask.dailyTask.desc1') }}</p>
+          <p class="card-desc">{{ t('pages.housekeepingTask.dailyTask.desc2') }}</p>
         </div>
       </div>
 
-      <!-- 房务房态 -->
       <div class="task-card" @click="handleRoomStatus">
         <div class="card-icon-wrapper">
           <el-icon class="card-icon" :size="40"><OfficeBuilding /></el-icon>
         </div>
         <div class="card-content">
-          <h3 class="card-title">房务房态</h3>
-          <p class="card-desc">按实时房态的格式查看、</p>
-          <p class="card-desc">执行当日保洁</p>
+          <h3 class="card-title">{{ t('pages.housekeepingTask.roomStatus.title') }}</h3>
+          <p class="card-desc">{{ t('pages.housekeepingTask.roomStatus.desc1') }}</p>
+          <p class="card-desc">{{ t('pages.housekeepingTask.roomStatus.desc2') }}</p>
         </div>
       </div>
 
-      <!-- 任务统计 -->
       <div class="task-card" @click="handleTaskStatistics">
         <div class="card-icon-wrapper">
           <el-icon class="card-icon" :size="40"><PieChart /></el-icon>
         </div>
         <div class="card-content">
-          <h3 class="card-title">任务统计</h3>
-          <p class="card-desc">查看所有已打扫的保洁任务</p>
+          <h3 class="card-title">{{ t('pages.housekeepingTask.statistics.title') }}</h3>
+          <p class="card-desc">{{ t('pages.housekeepingTask.statistics.desc1') }}</p>
         </div>
       </div>
     </div>
 
-    <!-- 底部水印 -->
     <footer class="task-footer">
       <div class="footer-logo">
         <el-icon :size="24"><House /></el-icon>
-        <span class="footer-text"> 提供技术支持</span>
+        <span class="footer-text">{{ t('pages.housekeepingTask.footer') }}</span>
       </div>
     </footer>
 
-    <!-- 切换门店对话框 -->
-    <el-dialog v-model="showSwitchDialog" title="切换门店" width="90%" class="switch-dialog">
+    <el-dialog
+      v-model="showSwitchDialog"
+      :title="t('pages.housekeepingTask.dialog.title')"
+      width="90%"
+      class="switch-dialog"
+    >
       <el-radio-group v-model="selectedStore" class="store-list">
         <el-radio
           v-for="store in stores"
@@ -64,12 +62,16 @@
           class="store-item"
           size="large"
         >
-          {{ store.name }}
+          {{ getStoreName(store.nameKey) }}
         </el-radio>
       </el-radio-group>
       <template #footer>
-        <el-button @click="showSwitchDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirmSwitch">确定</el-button>
+        <el-button @click="showSwitchDialog = false">
+          {{ t('pages.housekeepingTask.dialog.cancel') }}
+        </el-button>
+        <el-button type="primary" @click="handleConfirmSwitch">
+          {{ t('pages.housekeepingTask.dialog.confirm') }}
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -78,46 +80,46 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Tickets, OfficeBuilding, PieChart, DCaret, House } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { DCaret, House, OfficeBuilding, PieChart, Tickets } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const { t } = useI18n()
 
-// 切换门店对话框
 const showSwitchDialog = ref(false)
 const selectedStore = ref(1)
 
-// 门店列表（模拟数据）
 const stores = ref([
-  { id: 1, name: '总店' },
-  { id: 2, name: '分店A' },
-  { id: 3, name: '分店B' },
+  { id: 1, nameKey: 'headStore' },
+  { id: 2, nameKey: 'branchA' },
+  { id: 3, nameKey: 'branchB' },
 ])
 
-// 切换门店
+const getStoreName = (nameKey: string) => t(`pages.housekeepingTask.stores.${nameKey}`)
+
 const handleSwitchStore = () => {
   showSwitchDialog.value = true
 }
 
-// 确认切换门店
 const handleConfirmSwitch = () => {
-  const store = stores.value.find((s) => s.id === selectedStore.value)
-  ElMessage.success(`已切换到${store?.name}`)
+  const store = stores.value.find((item) => item.id === selectedStore.value)
+  ElMessage.success(
+    t('pages.housekeepingTask.switched', {
+      name: store ? getStoreName(store.nameKey) : '',
+    }),
+  )
   showSwitchDialog.value = false
 }
 
-// 每日任务
 const handleDailyTask = () => {
   router.push('/housekeeping/daily-task')
 }
 
-// 房务房态
 const handleRoomStatus = () => {
-  ElMessage.info('跳转到房务房态页面')
-  // router.push('/housekeeping/room-status')
+  ElMessage.info(t('pages.housekeepingTask.roomStatus.pending'))
 }
 
-// 任务统计
 const handleTaskStatistics = () => {
   router.push('/housekeeping/statistics')
 }
@@ -131,7 +133,6 @@ const handleTaskStatistics = () => {
   flex-direction: column;
 }
 
-/* 顶部切换门店 */
 .task-header {
   padding: 20px;
   text-align: center;
@@ -161,7 +162,6 @@ const handleTaskStatistics = () => {
   margin-left: 4px;
 }
 
-/* 任务卡片容器 */
 .task-container {
   flex: 1;
   padding: 20px;
@@ -173,7 +173,6 @@ const handleTaskStatistics = () => {
   margin: 0 auto;
 }
 
-/* 任务卡片 */
 .task-card {
   background: white;
   border-radius: 16px;
@@ -225,7 +224,6 @@ const handleTaskStatistics = () => {
   line-height: 1.6;
 }
 
-/* 底部水印 */
 .task-footer {
   padding: 30px 20px;
   text-align: center;
@@ -243,7 +241,6 @@ const handleTaskStatistics = () => {
   color: #ccc;
 }
 
-/* 切换门店对话框 */
 .switch-dialog :deep(.el-dialog__header) {
   text-align: center;
   font-weight: bold;
@@ -267,7 +264,6 @@ const handleTaskStatistics = () => {
   background: #fff7e6;
 }
 
-/* 响应式设计 - 手机端 */
 @media (max-width: 768px) {
   .task-header {
     padding: 16px;
@@ -314,7 +310,6 @@ const handleTaskStatistics = () => {
   }
 }
 
-/* 超小屏幕 */
 @media (max-width: 480px) {
   .housekeeping-task {
     background: linear-gradient(180deg, #f39c12 0%, #f39c12 160px, #f5f5f5 160px);
@@ -370,7 +365,6 @@ const handleTaskStatistics = () => {
   }
 }
 
-/* 平板端 */
 @media (min-width: 769px) and (max-width: 1024px) {
   .task-container {
     max-width: 800px;
@@ -381,7 +375,6 @@ const handleTaskStatistics = () => {
   }
 }
 
-/* 大屏幕 */
 @media (min-width: 1025px) {
   .task-container {
     max-width: 1000px;

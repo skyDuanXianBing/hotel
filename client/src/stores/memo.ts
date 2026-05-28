@@ -2,23 +2,18 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getMemo, saveMemo } from '@/api/memo'
 import { ElMessage } from 'element-plus'
+import { i18n } from '@/locales'
+
+const translate = (key: string) => i18n.global.t(key)
 
 export const useMemoStore = defineStore('memo', () => {
-  // 备忘录内容
   const memoContent = ref('')
-  // 加载状态
   const loading = ref(false)
-  // 最后保存时间
   const lastSavedAt = ref<Date | null>(null)
-  // 自动保存状态
   const autoSaving = ref(false)
 
-  // 定时器
   let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-  /**
-   * 加载备忘录内容
-   */
   const loadMemo = async () => {
     loading.value = true
     try {
@@ -27,15 +22,12 @@ export const useMemoStore = defineStore('memo', () => {
         memoContent.value = response.data || ''
       }
     } catch (error) {
-      console.error('加载备忘录失败:', error)
+      console.error('Failed to load memo:', error)
     } finally {
       loading.value = false
     }
   }
 
-  /**
-   * 立即保存备忘录
-   */
   const saveImmediately = async () => {
     if (loading.value || autoSaving.value) {
       return
@@ -46,33 +38,25 @@ export const useMemoStore = defineStore('memo', () => {
       await saveMemo(memoContent.value)
       lastSavedAt.value = new Date()
     } catch (error) {
-      console.error('保存备忘录失败:', error)
-      ElMessage.error('保存备忘录失败')
+      console.error('Failed to save memo:', error)
+      ElMessage.error(translate('stage6.common.messages.memoSaveFailed'))
     } finally {
       autoSaving.value = false
     }
   }
 
-  /**
-   * 延迟保存备忘录（防抖）
-   */
   const saveMemoDebounced = (content: string) => {
     memoContent.value = content
 
-    // 清除之前的定时器
     if (saveTimer) {
       clearTimeout(saveTimer)
     }
 
-    // 设置新的定时器，500ms后保存
     saveTimer = setTimeout(async () => {
       await saveImmediately()
     }, 500)
   }
 
-  /**
-   * 格式化最后保存时间
-   */
   const getFormattedSaveTime = () => {
     if (!lastSavedAt.value) {
       return ''

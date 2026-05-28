@@ -48,11 +48,11 @@ export interface RenderQuickReplyTemplateResult {
 }
 
 /**
- * 渲染快捷回复模板：支持两套变量语法
- * 1) 新语法：{{guest_name}}
- * 2) 旧语法：{Guest's name}
+ * Render quick reply templates with two variable syntaxes:
+ * 1) New syntax: {{guest_name}}
+ * 2) Legacy syntax: {Guest's name}
  *
- * 缺失数据时保留占位符，并返回 missingKeys 便于 UI 提示。
+ * When data is missing, keep the placeholder and return missingKeys for UI hints.
  */
 export const renderQuickReplyTemplate = (
   template: string,
@@ -66,7 +66,7 @@ export const renderQuickReplyTemplate = (
   const valueByKey = KEY_TO_VALUE(context)
   const missing = new Set<QuickReplyTemplateKey>()
 
-  // 新语法：{{ key }}
+  // New syntax: {{ key }}
   const moustacheRegex = /\{\{\s*([a-z0-9_]+)\s*\}\}/gi
   let rendered = source.replace(moustacheRegex, (rawToken, rawKey: string) => {
     const key = rawKey.toLowerCase() as QuickReplyTemplateKey
@@ -80,7 +80,7 @@ export const renderQuickReplyTemplate = (
     return rawToken
   })
 
-  // 旧语法：{Label}
+  // Legacy syntax: {Label}
   const legacyRegex = /\{([^{}]+)\}/g
   rendered = rendered.replace(legacyRegex, (rawToken, inner: string) => {
     const label = inner.trim()
@@ -106,15 +106,31 @@ export const renderQuickReplyTemplate = (
 
 export const formatMissingQuickReplyKeys = (missingKeys: QuickReplyTemplateKey[]) => {
   const labels: Record<QuickReplyTemplateKey, string> = {
-    property_name: '房源名称',
-    guest_name: '住客姓名',
-    guest_phone: '住客电话',
-    checkin_date: '入住日期',
-    checkout_date: '退房日期',
-    room_type_name: '房型名称',
-    rate_plan_name: '价计划名称',
+    property_name: 'Property name',
+    guest_name: 'Guest name',
+    guest_phone: 'Guest phone',
+    checkin_date: 'Check-in date',
+    checkout_date: 'Check-out date',
+    room_type_name: 'Room type name',
+    rate_plan_name: 'Rate plan name',
   }
 
   return missingKeys.map((key) => labels[key] || key).join('、')
 }
 
+export const formatMissingQuickReplyKeyLabels = (
+  missingKeys: QuickReplyTemplateKey[],
+  translate: (key: string) => string,
+) => {
+  const labelKeys: Record<QuickReplyTemplateKey, string> = {
+    property_name: 'stage6.components.quickReplyTemplate.propertyName',
+    guest_name: 'stage6.components.quickReplyTemplate.guestName',
+    guest_phone: 'stage6.components.quickReplyTemplate.guestPhone',
+    checkin_date: 'stage6.components.quickReplyTemplate.checkinDate',
+    checkout_date: 'stage6.components.quickReplyTemplate.checkoutDate',
+    room_type_name: 'stage6.components.quickReplyTemplate.roomTypeName',
+    rate_plan_name: 'stage6.components.quickReplyTemplate.ratePlanName',
+  }
+
+  return missingKeys.map((key) => translate(labelKeys[key]) || key).join('、')
+}

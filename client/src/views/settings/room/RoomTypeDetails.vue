@@ -2,21 +2,21 @@
   <div class="room-type-details-container">
     <div class="breadcrumb-section">
       <el-breadcrumb separator=">">
-        <el-breadcrumb-item @click="handleBack" class="breadcrumb-link">房型设置</el-breadcrumb-item>
-        <el-breadcrumb-item>房型详情</el-breadcrumb-item>
+        <el-breadcrumb-item @click="handleBack" class="breadcrumb-link">{{ t('settingsStage4.roomTypeDetails.breadcrumb.settings') }}</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ t('settingsStage4.roomTypeDetails.breadcrumb.details') }}</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
     <div class="content-section">
       <el-tabs v-model="activeTab" class="room-tabs">
-        <el-tab-pane label="基本信息" name="basic">
+        <el-tab-pane :label="t('settingsStage4.roomTypeDetails.tabs.basic')" name="basic">
           <div class="tab-content">
             <div class="info-notice">
-              请使用英文填写名称与描述。
+              {{ t('settingsStage4.roomTypeDetails.notice') }}
             </div>
 
             <el-form :model="formData" label-width="100px" class="detail-form">
-              <el-form-item label="英文名称" required>
+              <el-form-item :label="t('settingsStage4.roomTypeDetails.fields.englishName')" required>
                 <el-input
                   v-model="formData.name"
                   placeholder="Please input English name"
@@ -25,7 +25,7 @@
                 />
               </el-form-item>
 
-              <el-form-item label="英文描述">
+              <el-form-item :label="t('settingsStage4.roomTypeDetails.fields.englishDescription')">
                 <el-input
                   v-model="formData.description"
                   type="textarea"
@@ -38,7 +38,7 @@
 
               <el-row :gutter="16">
                 <el-col :span="12">
-                  <el-form-item label="房间类型">
+                  <el-form-item :label="t('settingsStage4.roomTypeDetails.fields.roomType')">
                     <el-select
                       v-model="formData.suRoomType"
                       placeholder="Select Type"
@@ -54,7 +54,7 @@
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="最大入住总人数">
+                  <el-form-item :label="t('settingsStage4.roomTypeDetails.fields.maxGuests')">
                     <el-input-number
                       v-model="formData.maxGuests"
                       :min="1"
@@ -67,7 +67,7 @@
 
               <el-row :gutter="16">
                 <el-col :span="12">
-                  <el-form-item label="儿童最大入住">
+                  <el-form-item :label="t('settingsStage4.roomTypeDetails.fields.maxChildren')">
                     <el-input-number
                       v-model="formData.maxChildOccupancy"
                       :min="0"
@@ -80,7 +80,7 @@
 
               <el-row :gutter="16">
                 <el-col :span="12">
-                  <el-form-item label="房型面积">
+                  <el-form-item :label="t('settingsStage4.roomTypeDetails.fields.size')">
                     <el-input-number
                       v-model="formData.sizeMeasurement"
                       :min="0"
@@ -91,16 +91,16 @@
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="面积单位">
+                  <el-form-item :label="t('settingsStage4.roomTypeDetails.fields.sizeUnit')">
                     <el-select
                       v-model="formData.sizeMeasurementUnit"
-                      placeholder="请选择面积单位"
+                      :placeholder="t('settingsStage4.roomTypeDetails.placeholders.sizeUnit')"
                       style="width: 100%"
                     >
                       <el-option
                         v-for="option in ROOM_SIZE_UNIT_OPTIONS"
                         :key="option.value"
-                        :label="option.label"
+                        :label="option.labelKey ? t(option.labelKey) : option.label"
                         :value="option.value"
                       />
                     </el-select>
@@ -110,48 +110,48 @@
             </el-form>
 
             <div class="form-actions">
-              <el-button @click="handleBack">返回</el-button>
-              <el-button type="primary" :loading="savingBasic" @click="handleSaveBasic">保存</el-button>
+              <el-button @click="handleBack">{{ t('settingsStage4.roomTypeDetails.back') }}</el-button>
+              <el-button type="primary" :loading="savingBasic" @click="handleSaveBasic">{{ t('settings.common.save') }}</el-button>
             </div>
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="设施" name="facilities">
+        <el-tab-pane :label="t('settingsStage4.roomTypeDetails.tabs.facilities')" name="facilities">
           <div class="tab-content">
             <div
               v-for="section in ROOM_FACILITY_SECTIONS"
               :key="section.title"
               class="facilities-section"
             >
-              <h3 class="section-title">{{ section.title }}</h3>
+              <h3 class="section-title">{{ t(section.titleKey) }}</h3>
               <div class="facility-grid">
                 <el-checkbox
                   v-for="facility in section.items"
                   :key="facility.key"
                   v-model="facilityState[facility.key]"
                 >
-                  {{ facility.label }}
+                  {{ t(facility.labelKey) }}
                 </el-checkbox>
               </div>
             </div>
 
             <div class="form-actions">
-              <el-button @click="handleBack">返回</el-button>
+              <el-button @click="handleBack">{{ t('settingsStage4.roomTypeDetails.back') }}</el-button>
               <el-button type="primary" :loading="savingFacilities" @click="handleSaveFacilities">
-                保存
+                {{ t('settings.common.save') }}
               </el-button>
             </div>
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="照片" name="photos">
+        <el-tab-pane :label="t('settingsStage4.roomTypeDetails.tabs.photos')" name="photos">
           <div class="tab-content">
             <div class="photo-section">
-              <h3 class="section-title">照片</h3>
+              <h3 class="section-title">{{ t('settingsStage4.roomTypeDetails.photos.title') }}</h3>
               <div class="photo-info">
-                <p>最多上传 40 张图片。</p>
-                <p>仅支持图片格式，单张大小不超过 5MB。</p>
-                <p>建议图片宽度至少 1200px，以保证渠道展示效果。</p>
+                <p>{{ t('settingsStage4.roomTypeDetails.photos.maxCount') }}</p>
+                <p>{{ t('settingsStage4.roomTypeDetails.photos.typeAndSize') }}</p>
+                <p>{{ t('settingsStage4.roomTypeDetails.photos.recommendedSize') }}</p>
               </div>
               <div class="upload-area">
                 <el-upload
@@ -163,14 +163,14 @@
                   :http-request="handlePhotoRequest"
                 >
                   <el-icon class="upload-icon"><Upload /></el-icon>
-                  <div class="upload-text">上传图片</div>
+                  <div class="upload-text">{{ t('settingsStage4.roomTypeDetails.photos.upload') }}</div>
                 </el-upload>
               </div>
             </div>
 
             <div class="form-actions">
-              <el-button @click="handleBack">返回</el-button>
-              <el-button type="primary" :loading="savingPhotos" @click="handleSavePhotos">保存</el-button>
+              <el-button @click="handleBack">{{ t('settingsStage4.roomTypeDetails.back') }}</el-button>
+              <el-button type="primary" :loading="savingPhotos" @click="handleSavePhotos">{{ t('settings.common.save') }}</el-button>
             </div>
           </div>
         </el-tab-pane>
@@ -182,6 +182,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   ElMessage,
   type UploadRawFile,
@@ -243,6 +244,7 @@ type FacilityState = Record<string, boolean>
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 const activeTab = ref('basic')
 const savingBasic = ref(false)
@@ -410,7 +412,7 @@ const buildPayload = (): CreateRoomTypeRequest => ({
 const loadRoomTypeDetails = async () => {
   const roomTypeId = Number(route.params.id)
   if (!roomTypeId) {
-    ElMessage.error('Room type ID is missing')
+    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.roomTypeIdMissing'))
     handleBack()
     return
   }
@@ -422,7 +424,7 @@ const loadRoomTypeDetails = async () => {
     ])
 
     if (!detailResponse.success || !detailResponse.data) {
-      ElMessage.error(detailResponse.message || 'Failed to load room type details')
+      ElMessage.error(detailResponse.message || t('settingsStage4.roomTypeDetails.messages.loadFailed'))
       return
     }
 
@@ -462,19 +464,19 @@ const loadRoomTypeDetails = async () => {
     }
   } catch (error) {
     console.error('Failed to load room type details:', error)
-    ElMessage.error('Failed to load room type details')
+    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.loadFailed'))
   }
 }
 
 const saveRoomType = async (successMessage: string) => {
   if (!formData.id) {
-    ElMessage.error('Room type ID is missing')
+    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.roomTypeIdMissing'))
     return false
   }
 
   const response = await updateRoomType(formData.id, buildPayload())
   if (!response.success) {
-    ElMessage.error(response.message || 'Save failed')
+    ElMessage.error(response.message || t('settingsStage4.roomTypeDetails.messages.saveFailed'))
     return false
   }
 
@@ -490,10 +492,10 @@ const handleBack = () => {
 const handleSaveBasic = async () => {
   try {
     savingBasic.value = true
-    await saveRoomType('Saved successfully')
+    await saveRoomType(t('settingsStage4.storeBasic.messages.saveSuccess'))
   } catch (error) {
     console.error('Failed to save room type:', error)
-    ElMessage.error('Failed to save room type')
+    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.saveFailed'))
   } finally {
     savingBasic.value = false
   }
@@ -502,10 +504,10 @@ const handleSaveBasic = async () => {
 const handleSaveFacilities = async () => {
   try {
     savingFacilities.value = true
-    await saveRoomType('Facilities saved successfully')
+    await saveRoomType(t('settingsStage4.roomTypeDetails.messages.facilitiesSaved'))
   } catch (error) {
     console.error('Failed to save facilities:', error)
-    ElMessage.error('Failed to save facilities')
+    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.facilitiesSaveFailed'))
   } finally {
     savingFacilities.value = false
   }
@@ -514,10 +516,10 @@ const handleSaveFacilities = async () => {
 const handleSavePhotos = async () => {
   try {
     savingPhotos.value = true
-    await saveRoomType('Photos saved successfully')
+    await saveRoomType(t('settingsStage4.roomTypeDetails.messages.photosSaved'))
   } catch (error) {
     console.error('Failed to save photos:', error)
-    ElMessage.error('Failed to save photos')
+    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.photosSaveFailed'))
   } finally {
     savingPhotos.value = false
   }
@@ -528,12 +530,12 @@ const beforeUpload = (file: UploadRawFile) => {
   const isLt5M = file.size / 1024 / 1024 < 5
 
   if (!isImage) {
-    ElMessage.error('Only image files are allowed')
+    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.onlyImages'))
     return false
   }
 
   if (!isLt5M) {
-    ElMessage.error('Image size must be <= 5MB')
+    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.imageTooLarge'))
     return false
   }
 
@@ -544,7 +546,7 @@ const handlePhotoUpload = async (options: UploadRequestOptions) => {
   try {
     const response = await uploadMedia('room-type-desktop', options.file as File)
     if (!response.success || !response.data) {
-      throw new Error(response.message || 'Upload failed')
+      throw new Error(response.message || t('settingsStage4.roomTypeDetails.messages.uploadFailed'))
     }
 
     const matchedFile = photos.value.find((file) => file.uid === options.file.uid)
@@ -563,10 +565,10 @@ const handlePhotoUpload = async (options: UploadRequestOptions) => {
     }
 
     options.onSuccess?.(response)
-    ElMessage.success('Upload succeeded')
+    ElMessage.success(t('settingsStage4.roomTypeDetails.messages.uploadSuccess'))
   } catch (error) {
     console.error('Upload failed:', error)
-    ElMessage.error('Upload failed')
+    ElMessage.error(t('settingsStage4.roomTypeDetails.messages.uploadFailed'))
     options.onError?.(buildUploadAjaxError(error))
   }
 }
@@ -699,4 +701,3 @@ onMounted(() => {
   margin-right: 0;
 }
 </style>
-

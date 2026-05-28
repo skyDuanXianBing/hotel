@@ -9,14 +9,14 @@
           <el-date-picker
             v-model="visibleDateRange"
             type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
+            range-separator="-"
+            :start-placeholder="t('accommodation.common.startDate')"
+            :end-placeholder="t('accommodation.common.endDate')"
             format="YYYY-MM-DD"
             value-format="YYYY-MM-DD"
             :clearable="false"
           />
-          <el-button @click="goToToday">今日</el-button>
+          <el-button @click="goToToday">{{ t('roomStatus.common.today') }}</el-button>
           <el-button @click="nextWeek" :icon="ArrowRight" circle />
         </div>
 
@@ -24,7 +24,7 @@
           <el-autocomplete
             v-model="searchKeyword"
             :fetch-suggestions="querySearchAsync"
-            placeholder="房号、手机号、订单号、渠道订单号、房间号、客户"
+            :placeholder="t('roomStatus.common.searchPlaceholder')"
             :prefix-icon="Search"
             clearable
             style="width: 400px; margin-right: 10px"
@@ -41,12 +41,12 @@
                     size="small"
                     :style="{
                       backgroundColor:
-                        getChannelByName(item.channelName || '自来客')?.color || '#409EFF',
+                        getChannelByName(item.channelName || t('roomStatus.common.defaultChannel'))?.color || '#409EFF',
                       borderColor:
-                        getChannelByName(item.channelName || '自来客')?.color || '#409EFF',
+                        getChannelByName(item.channelName || t('roomStatus.common.defaultChannel'))?.color || '#409EFF',
                       color: 'white',
                     }"
-                    >{{ item.channelName || '自来客' }}</el-tag
+                    >{{ item.channelName || t('roomStatus.common.defaultChannel') }}</el-tag
                   >
                   <el-tag :type="getStatusTagType(item.status || 'CONFIRMED')" size="small">
                     {{ getReservationStatusText(item.status || 'CONFIRMED') }}
@@ -59,12 +59,12 @@
           <!-- 批量置脏/净下拉菜单 -->
           <el-dropdown @command="handleBatchCleanCommand">
             <el-button type="primary">
-              批量脏/净 <el-icon><ArrowDown /></el-icon>
+              {{ t('roomStatus.batchClean.dropdown') }} <el-icon><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="clean">批量置净</el-dropdown-item>
-                <el-dropdown-item command="dirty">批量置脏</el-dropdown-item>
+                <el-dropdown-item command="clean">{{ t('roomStatus.batchClean.clean') }}</el-dropdown-item>
+                <el-dropdown-item command="dirty">{{ t('roomStatus.batchClean.dirty') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -72,12 +72,12 @@
           <!-- 批量开/关房下拉菜单 -->
           <el-dropdown @command="handleBatchRoomCommand">
             <el-button type="primary">
-              批量开/关房 <el-icon><ArrowDown /></el-icon>
+              {{ t('roomStatus.batchRoom.dropdown') }} <el-icon><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="open">批量开房</el-dropdown-item>
-                <el-dropdown-item command="close">批量关房</el-dropdown-item>
+                <el-dropdown-item command="open">{{ t('roomStatus.batchRoom.open') }}</el-dropdown-item>
+                <el-dropdown-item command="close">{{ t('roomStatus.batchRoom.close') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -86,7 +86,7 @@
             :type="showCellDefaultPrice ? 'primary' : 'default'"
             @click="showCellDefaultPrice = !showCellDefaultPrice"
           >
-            {{ showCellDefaultPrice ? '隐藏价格' : '显示价格' }}
+            {{ showCellDefaultPrice ? t('roomStatus.common.hidePrice') : t('roomStatus.common.showPrice') }}
           </el-button>
           <el-select
             v-if="showCellDefaultPrice"
@@ -94,9 +94,9 @@
             class="cell-price-source-select"
             size="small"
             :loading="loadingCellPricePlanOptions"
-            placeholder="请选择"
+            :placeholder="t('roomStatus.common.select')"
           >
-            <el-option label="默认价格" value="default" />
+            <el-option :label="t('roomStatus.common.defaultPrice')" value="default" />
             <el-option
               v-for="plan in calendarCellPricePlanOptions"
               :key="plan.id"
@@ -115,12 +115,12 @@
           <div class="date-header">
             <div class="header-cell sticky-left-primary">
               <div class="header-cell-content clickable-header" @click="toggleFilterSidebar">
-                筛选 <el-icon><ArrowDown /></el-icon>
+                {{ t('roomStatus.common.filter') }} <el-icon><ArrowDown /></el-icon>
               </div>
             </div>
             <div class="header-cell sticky-left-secondary">
               <div class="header-cell-content clickable-header" @click="toggleRoomCollapse">
-                {{ isRoomCollapsed ? '展开' : '收起' }}
+                {{ isRoomCollapsed ? t('accommodation.common.expand') : t('accommodation.common.collapse') }}
                 <el-icon><component :is="isRoomCollapsed ? ArrowDown : ArrowUp" /></el-icon>
               </div>
             </div>
@@ -137,7 +137,7 @@
                 <div class="month-day">{{ formatMonthDay(date.date) }}</div>
                 <div class="weekday">{{ getWeekday(date.date) }}</div>
               </div>
-              <div class="date-time">剩{{ getAvailableRoomsCount(date.date) }}间</div>
+              <div class="date-time">{{ t('roomStatus.common.remainingRooms', { count: getAvailableRoomsCount(date.date) }) }}</div>
             </div>
           </div>
 
@@ -152,8 +152,8 @@
                 <path d="M55 65 Q60 70 65 65" stroke="#4A5568" stroke-width="2" stroke-linecap="round" fill="none"/>
               </svg>
             </div>
-            <div class="empty-text">暂无可用房型房间</div>
-            <el-button type="primary" @click="goToRoomTypeManagement">添加房型</el-button>
+            <div class="empty-text">{{ t('roomStatus.common.noAvailableRooms') }}</div>
+            <el-button type="primary" @click="goToRoomTypeManagement">{{ t('roomStatus.common.addRoomType') }}</el-button>
           </div>
 
           <!-- 房间状态网格 -->
@@ -186,7 +186,7 @@
                 class="room-number"
                 :class="{ 'with-dirty-icon': !isRoomCollapsed && getRoomNumberDirtyStatus(roomData.roomId) }"
               >
-                  {{ isRoomCollapsed ? '剩余' : roomData.roomNumber }}
+                  {{ isRoomCollapsed ? t('roomStatus.common.remaining') : roomData.roomNumber }}
                 </div>
               </div>
 
@@ -242,10 +242,10 @@
                   <el-icon><Remove /></el-icon>
                 </div>
 
-              <div
+                <div
                   v-if="hasReservationNotes(dailyStatus)"
                   class="reservation-note-indicator"
-                  title="该订单有备注"
+                  :title="t('roomStatus.common.orderHasNote')"
                 />
 
                 <div
@@ -330,7 +330,7 @@
                   class="today-action-btn"
                   @click="handleQuickAction('book')"
                 >
-                  预订
+                  {{ t('roomStatus.action.book') }}
                 </el-button>
 
                 <el-button
@@ -338,7 +338,7 @@
                   class="today-action-btn"
                   @click="handleQuickAction('check-in')"
                 >
-                  入住
+                  {{ t('roomStatus.action.checkIn') }}
                 </el-button>
               </div>
             </template>
@@ -360,13 +360,13 @@
                 class="secondary-action-btn"
                 @click="openQuickPriceDialog"
               >
-                改价
+                {{ t('roomStatus.quickPrice.singleTitle') }}
               </el-button>
               <el-button class="secondary-action-btn" @click="handleQuickAction('close')">
-                关房
+                {{ t('roomStatus.action.closeRoom') }}
               </el-button>
               <el-button class="secondary-action-btn" @click="handleQuickAction('cancel')">
-                取消
+                {{ t('roomStatus.action.cancel') }}
               </el-button>
             </div>
           </div>
@@ -381,9 +381,9 @@
         @close="closeQuickPriceDialog"
       >
         <div class="quick-price-dialog-content">
-          <p>房间：{{ quickPriceDisplayRoomLabel }}</p>
+          <p>{{ t('roomStatus.common.room') }}：{{ quickPriceDisplayRoomLabel }}</p>
           <p>{{ quickPriceDisplayDateLabel }}：{{ quickPriceDisplayDate }}</p>
-          <p>来源：{{ getCellPriceSourceLabel() }}</p>
+          <p>{{ t('roomStatus.common.source') }}：{{ getCellPriceSourceLabel() }}</p>
           <el-input-number
             v-model="quickPriceForm.price"
             :min="0"
@@ -395,9 +395,9 @@
         </div>
         <template #footer>
           <div class="dialog-footer">
-            <el-button @click="closeQuickPriceDialog">取消</el-button>
+            <el-button @click="closeQuickPriceDialog">{{ t('accommodation.common.cancel') }}</el-button>
             <el-button type="primary" :loading="quickPriceSaving" @click="saveQuickActionPrice">
-              保存
+              {{ t('accommodation.common.save') }}
             </el-button>
           </div>
         </template>
@@ -418,7 +418,7 @@
           <!-- 停用标识 -->
           <div class="closed-indicator">
             <el-icon class="closed-icon"><Remove /></el-icon>
-            <span class="status-text">停用</span>
+            <span class="status-text">{{ t('roomStatus.closeRoom.type.stop') }}</span>
           </div>
 
           <!-- 房间信息 -->
@@ -433,15 +433,15 @@
               class="primary-action-btn"
               @click="handleClosedRoomAction('open')"
             >
-              开房
+              {{ t('roomStatus.batchRoom.open') }}
             </el-button>
 
             <div class="secondary-actions">
               <el-button class="secondary-action-btn" @click="handleClosedRoomAction('reserve')">
-                转预订
+                {{ t('roomStatus.action.book') }}
               </el-button>
               <el-button class="secondary-action-btn" @click="handleClosedRoomAction('cancel')">
-                取消
+                {{ t('roomStatus.action.cancel') }}
               </el-button>
             </div>
           </div>
@@ -478,23 +478,23 @@
           <div class="card-actions">
             <!-- 根据预订状态显示不同的按钮 -->
             <template v-if="isConfirmedStatus(hoverReservation?.status)">
-              <el-button type="warning" size="small"> 已预订 </el-button>
+              <el-button type="warning" size="small"> {{ t('roomStatus.status.confirmed') }} </el-button>
             </template>
 
             <template v-else-if="isCheckedInStatus(hoverReservation?.status)">
-              <el-button type="primary" size="small"> 已入住 </el-button>
+              <el-button type="primary" size="small"> {{ t('roomStatus.status.checkedIn') }} </el-button>
             </template>
 
             <template v-else-if="isCheckedOutStatus(hoverReservation?.status)">
-              <el-button type="info" size="small" disabled> 已退房 </el-button>
+              <el-button type="info" size="small" disabled> {{ t('roomStatus.status.checkedOut') }} </el-button>
             </template>
 
             <template v-else-if="isCancelledStatus(hoverReservation?.status)">
-              <el-button type="danger" size="small" disabled> 已取消 </el-button>
+              <el-button type="danger" size="small" disabled> {{ t('roomStatus.status.cancelled') }} </el-button>
             </template>
 
             <template v-else-if="isNoShowStatus(hoverReservation?.status)">
-              <el-button type="warning" size="small"> 未到店 </el-button>
+              <el-button type="warning" size="small"> {{ t('roomStatus.status.noShow') }} </el-button>
             </template>
 
             <!-- 默认情况 -->
@@ -504,13 +504,15 @@
               </el-button>
             </template>
 
-            <el-button size="small" @click="hideHoverCard">关闭</el-button>
+            <el-button size="small" @click="hideHoverCard">{{ t('roomStatus.hoverCard.close') }}</el-button>
           </div>
         </div>
 
         <div class="stay-info">
           <el-icon><Calendar /></el-icon>
-          {{ hoverReservation?.checkInDate }}入住 | {{ hoverReservation?.checkOutDate }}离店 | 共{{ getReservationStayNightsText(hoverReservation) }}
+          {{ hoverReservation?.checkInDate }}{{ t('roomStatus.hoverCard.checkInDate') }} |
+          {{ hoverReservation?.checkOutDate }}{{ t('roomStatus.hoverCard.checkOutDate') }} |
+          {{ getReservationStayNightsText(hoverReservation) }}
         </div>
 
         <div class="channel-info">
@@ -520,32 +522,32 @@
 
         <!-- 状态信息 -->
         <div class="status-info" v-if="hoverReservation?.status">
-          <span class="status-label">状态：</span>
+          <span class="status-label">{{ t('roomStatus.hoverCard.status') }}</span>
           <el-tag :type="getStatusTagType(hoverReservation.status)" size="small">
             {{ getReservationStatusText(hoverReservation.status) }}
           </el-tag>
         </div>
 
         <div class="price-info">
-          <span>订单总额: ¥{{ hoverReservation?.totalAmount || '0.00' }}</span>
-          <span class="received">已收款: ¥{{ totalPayment.toFixed(2) }}</span>
+          <span>{{ t('roomStatus.hoverCard.totalOrderAmount', { amount: hoverReservation?.totalAmount || '0.00' }) }}</span>
+          <span class="received">{{ t('roomStatus.hoverCard.paidAmount', { amount: totalPayment.toFixed(2) }) }}</span>
         </div>
 
         <div class="notes">
-          <div class="notes-label">备注：</div>
+          <div class="notes-label">{{ t('roomStatus.hoverCard.notes') }}</div>
           <div v-if="getReservationNotesText(hoverReservation)" class="notes-content">
             {{ getReservationNotesText(hoverReservation) }}
           </div>
-          <div v-else class="notes-content notes-content-empty">无</div>
+          <div v-else class="notes-content notes-content-empty">{{ t('roomStatus.hoverCard.none') }}</div>
         </div>
       </div>
 
       <!-- 筛选侧边栏 -->
-      <el-drawer v-model="showFilterSidebar" title="房型筛选" direction="rtl" size="320px">
+      <el-drawer v-model="showFilterSidebar" :title="t('roomStatus.filterDrawer.roomTypeFilter')" direction="rtl" size="320px">
         <div class="filter-content">
           <div class="filter-section">
             <div class="section-header">
-              <span>全选</span>
+              <span>{{ t('roomStatus.filterDrawer.selectAll') }}</span>
               <el-checkbox
                 :model-value="
                   filterOptions.selectedRoomTypes.length === filterOptions.roomTypes.length
@@ -579,7 +581,7 @@
 
           <div class="filter-section" v-if="filterOptions.roomGroups.length > 0">
             <div class="section-header">
-              <span>分组筛选</span>
+              <span>{{ t('roomStatus.filterDrawer.groupFilter') }}</span>
             </div>
 
             <div class="room-type-list">
@@ -600,8 +602,8 @@
           </div>
 
           <div class="filter-actions">
-            <el-button @click="resetFilters">重置</el-button>
-            <el-button type="primary" @click="applyFilters">确定</el-button>
+            <el-button @click="resetFilters">{{ t('accommodation.common.reset') }}</el-button>
+            <el-button type="primary" @click="applyFilters">{{ t('accommodation.common.confirm') }}</el-button>
           </div>
         </div>
       </el-drawer>
@@ -609,7 +611,13 @@
       <!-- 预订/修改订单/直接入住通用侧边栏 -->
       <el-drawer
         v-model="showBookingSidebar"
-        :title="bookingMode === 'create' ? '全日房' : bookingMode === 'check-in' ? '直接入住' : '修改订单'"
+        :title="
+          bookingMode === 'create'
+            ? t('roomStatus.booking.drawerTitle.create')
+            : bookingMode === 'check-in'
+              ? t('roomStatus.booking.drawerTitle.checkIn')
+              : t('roomStatus.booking.drawerTitle.edit')
+        "
         direction="rtl"
         size="700px"
         :show-close="false"
@@ -618,18 +626,18 @@
           <div class="booking-content">
             <!-- 基本信息 -->
             <div class="booking-section">
-              <h3>基本信息</h3>
+              <h3>{{ t('roomStatus.booking.basicInfo') }}</h3>
               <el-form :model="bookingForm" label-width="80px">
-                <el-form-item label="姓名">
-                  <el-input v-model="bookingForm.guestName" placeholder="请输入姓名" />
+                <el-form-item :label="t('roomStatus.booking.guestName')">
+                  <el-input v-model="bookingForm.guestName" :placeholder="t('roomStatus.booking.guestNamePlaceholder')" />
                 </el-form-item>
-                <el-form-item label="手机">
-                  <el-input v-model="bookingForm.guestPhone" placeholder="请输入手机号" />
+                <el-form-item :label="t('roomStatus.booking.guestPhone')">
+                  <el-input v-model="bookingForm.guestPhone" :placeholder="t('roomStatus.booking.guestPhonePlaceholder')" />
                 </el-form-item>
-                <el-form-item label="渠道">
+                <el-form-item :label="t('roomStatus.booking.channel')">
                   <el-select
                     v-model="bookingForm.channelId"
-                    placeholder="请选择渠道"
+                    :placeholder="t('roomStatus.booking.channelPlaceholder')"
                     style="width: 100%"
                   >
                     <template #prefix v-if="selectedChannel">
@@ -653,12 +661,12 @@
                         <el-tag size="small" type="info" style="margin-left: auto; font-size: 10px">
                           {{
                             channel.type === 'OTA'
-                              ? '在线旅行社'
+                              ? t('roomStatus.booking.channelType.ota')
                               : channel.type === 'DIRECT'
-                                ? '直销'
+                                ? t('roomStatus.booking.channelType.direct')
                                 : channel.type === 'TRAVEL_AGENCY'
-                                  ? '旅行社'
-                                  : '企业客户'
+                                  ? t('roomStatus.booking.channelType.travelAgency')
+                                  : t('roomStatus.booking.channelType.enterprise')
                           }}
                         </el-tag>
                       </div>
@@ -670,23 +678,23 @@
 
             <!-- 房间信息 -->
             <div class="booking-section">
-              <h3>房间信息</h3>
+              <h3>{{ t('roomStatus.booking.roomInfo') }}</h3>
 
               <div class="room-selection">
                 <div class="date-range">
                   <el-date-picker
                     v-model="bookingForm.checkInDate"
                     type="date"
-                    placeholder="入住日期"
+                    :placeholder="t('roomStatus.booking.checkInDate')"
                     format="YYYY-MM-DD"
                     value-format="YYYY-MM-DD"
                     style="width: 48%"
                   />
-                  <span>至</span>
+                  <span>-</span>
                   <el-date-picker
                     v-model="bookingForm.checkOutDate"
                     type="date"
-                    placeholder="离店日期"
+                    :placeholder="t('roomStatus.booking.checkOutDate')"
                     format="YYYY-MM-DD"
                     value-format="YYYY-MM-DD"
                     style="width: 48%"
@@ -696,21 +704,21 @@
                   <span>{{ getRoomDisplayText() }}</span>
                   <span class="price" v-if="isLoadingPrice">
                     <el-icon class="is-loading"><Loading /></el-icon>
-                    计算中...
+                    {{ t('roomStatus.booking.calculating') }}
                   </span>
                   <span class="price" v-else>¥ {{ bookingForm.totalAmount.toFixed(2) || '0.00' }}</span>
-                  <el-button link>入住</el-button>
+                  <el-button link>{{ t('roomStatus.booking.stayAction') }}</el-button>
                 </div>
                 <div class="manual-price-row">
                   <el-switch
                     v-model="isManualPrice"
-                    active-text="手动改价"
-                    inactive-text="自动计算"
+                    :active-text="t('roomStatus.booking.manualPrice')"
+                    :inactive-text="t('roomStatus.booking.autoPrice')"
                   />
                   <el-select
                     v-if="pricePlanOptions.length > 0"
                     v-model="selectedPricePlanId"
-                    placeholder="请选择"
+                    :placeholder="t('roomStatus.booking.selectPricePlan')"
                     style="width: 180px"
                   >
                     <el-option
@@ -735,11 +743,11 @@
 
             <!-- 消费信息 -->
             <div class="booking-section">
-              <h3>消费信息</h3>
+              <h3>{{ t('roomStatus.booking.consumptionInfo') }}</h3>
               <div v-for="item in consumptionItems" :key="item.id" class="info-row">
                 <el-select
                   v-model="item.type"
-                  placeholder="选择消费项目"
+                  :placeholder="t('roomStatus.booking.selectConsumptionItem')"
                   style="width: 120px"
                   :loading="enabledConsumptionItemsLoading"
                   filterable
@@ -761,7 +769,7 @@
                 />
                 <el-input
                   v-model="item.amount"
-                  placeholder="金额"
+                  :placeholder="t('roomStatus.booking.amountPlaceholder')"
                   type="number"
                   style="width: 100px"
                 >
@@ -770,27 +778,27 @@
                 <el-date-picker
                   v-model="item.date"
                   type="date"
-                  placeholder="日期"
+                  :placeholder="t('roomStatus.booking.datePlaceholder')"
                   format="MM-DD"
                   value-format="YYYY-MM-DD"
                   style="width: 100px"
                 />
-                <el-button link class="action-btn" @click="() => {}">备注</el-button>
+                <el-button link class="action-btn" @click="() => {}">{{ t('roomStatus.booking.noteButton') }}</el-button>
                 <el-button link class="action-btn danger" @click="removeConsumptionItem(item.id)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
               <el-button link class="add-btn" @click="addConsumptionItem">
                 <el-icon><Plus /></el-icon>
-                添加消费
+                {{ t('roomStatus.booking.addConsumption') }}
               </el-button>
             </div>
 
             <!-- 收款信息 -->
             <div class="booking-section">
-              <h3>收款信息</h3>
+              <h3>{{ t('roomStatus.booking.paymentInfo') }}</h3>
               <div v-for="item in paymentItems" :key="item.id" class="info-row">
-                <el-select v-model="item.type" placeholder="收款类型" style="width: 120px">
+                <el-select v-model="item.type" :placeholder="t('roomStatus.booking.paymentType')" style="width: 120px">
                   <el-option
                     v-for="option in paymentTypeOptions"
                     :key="option.value"
@@ -798,7 +806,7 @@
                     :value="option.value"
                   />
                 </el-select>
-                <el-select v-model="item.paymentMethod" placeholder="支付方式" style="width: 110px">
+                <el-select v-model="item.paymentMethod" :placeholder="t('roomStatus.booking.paymentMethodPlaceholder')" style="width: 110px">
                   <el-option
                     v-for="option in paymentMethodOptions"
                     :key="option.value"
@@ -808,7 +816,7 @@
                 </el-select>
                 <el-input
                   v-model="item.amount"
-                  placeholder="金额"
+                  :placeholder="t('roomStatus.booking.amountPlaceholder')"
                   type="number"
                   style="width: 100px"
                 >
@@ -817,30 +825,30 @@
                 <el-date-picker
                   v-model="item.date"
                   type="date"
-                  placeholder="日期"
+                  :placeholder="t('roomStatus.booking.datePlaceholder')"
                   format="MM-DD"
                   value-format="YYYY-MM-DD"
                   style="width: 100px"
                 />
-                <el-button link class="action-btn" @click="() => {}">备注</el-button>
+                <el-button link class="action-btn" @click="() => {}">{{ t('roomStatus.booking.noteButton') }}</el-button>
                 <el-button link class="action-btn danger" @click="removePaymentItem(item.id)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </div>
               <el-button link class="add-btn" @click="addPaymentItem">
                 <el-icon><Plus /></el-icon>
-                添加收款
+                {{ t('roomStatus.booking.addPayment') }}
               </el-button>
             </div>
 
             <!-- 备注信息 -->
             <div class="booking-section">
-              <h3>备注信息</h3>
+              <h3>{{ t('roomStatus.booking.notesInfo') }}</h3>
               <el-input
                 v-model="bookingForm.notes"
                 type="textarea"
                 :rows="4"
-                placeholder="请输入备注信息"
+                :placeholder="t('roomStatus.booking.notesPlaceholder')"
                 maxlength="2048"
                 show-word-limit
               />
@@ -850,18 +858,24 @@
           <!-- 底部操作区域 -->
           <div class="booking-footer">
             <div class="total-amount">
-              订单金额：
+              {{ t('roomStatus.booking.orderAmount') }}：
               <span v-if="isLoadingPrice">
                 <el-icon class="is-loading"><Loading /></el-icon>
-                计算中...
+                {{ t('roomStatus.booking.calculating') }}
               </span>
               <span v-else>¥{{ bookingForm.totalAmount.toFixed(2) || '0.00' }}</span>
             </div>
 
             <div class="actions">
-              <el-button @click="showBookingSidebar = false">取消</el-button>
+              <el-button @click="showBookingSidebar = false">{{ t('accommodation.common.cancel') }}</el-button>
               <el-button type="primary" @click="submitBooking">
-                {{ bookingMode === 'create' ? '提交订单' : bookingMode === 'check-in' ? '确认入住' : '保存' }}
+                {{
+                  bookingMode === 'create'
+                    ? t('roomStatus.booking.submit.create')
+                    : bookingMode === 'check-in'
+                      ? t('roomStatus.booking.submit.checkIn')
+                      : t('roomStatus.booking.submit.edit')
+                }}
               </el-button>
             </div>
           </div>
@@ -873,9 +887,9 @@
         <template #header>
           <div class="detail-header">
             <el-tabs v-model="activeDetailTab">
-              <el-tab-pane label="详细信息" name="detail" />
-              <el-tab-pane label="操作日志" name="log" />
-              <el-tab-pane label="渠道信息" name="channel" />
+              <el-tab-pane :label="t('roomStatus.detail.tabs.detail')" name="detail" />
+              <el-tab-pane :label="t('roomStatus.detail.tabs.log')" name="log" />
+              <el-tab-pane :label="t('roomStatus.detail.tabs.channel')" name="channel" />
             </el-tabs>
           </div>
         </template>
@@ -884,7 +898,7 @@
           <div v-if="activeDetailTab === 'detail'">
             <div class="guest-header">
               <div class="guest-main">
-                <h3>{{ selectedReservation?.guestName || '客户姓名' }}</h3>
+                <h3>{{ selectedReservation?.guestName || t('roomStatus.detail.guestNameFallback') }}</h3>
                 <el-button
                   type="primary"
                   plain
@@ -892,7 +906,7 @@
                   :disabled="!selectedReservation"
                   @click="goToMessages"
                 >
-                  去聊天
+                  {{ t('roomStatus.detail.goChat') }}
                 </el-button>
               </div>
               <div class="status-tags">
@@ -902,14 +916,14 @@
                 <el-tag
                   :style="{
                     backgroundColor:
-                      getChannelByName(selectedReservation?.channelName || '自来客')?.color ||
+                      getChannelByName(selectedReservation?.channelName || t('roomStatus.common.defaultChannel'))?.color ||
                       '#409EFF',
                     borderColor:
-                      getChannelByName(selectedReservation?.channelName || '自来客')?.color ||
+                      getChannelByName(selectedReservation?.channelName || t('roomStatus.common.defaultChannel'))?.color ||
                       '#409EFF',
                     color: 'white',
                   }"
-                  >{{ selectedReservation?.channelName || '自来客' }}</el-tag
+                  >{{ selectedReservation?.channelName || t('roomStatus.common.defaultChannel') }}</el-tag
                 >
               </div>
             </div>
@@ -917,7 +931,7 @@
             <div class="order-summary">
               <div class="amounts">
                 <div class="amount-item">
-                  <span>订单金额</span>
+                  <span>{{ t('roomStatus.detail.orderAmount') }}</span>
                   <span class="amount">{{ selectedReservation?.totalAmount || '0.00' }}</span>
                 </div>
                 <div
@@ -927,17 +941,17 @@
                     selectedReservation?.currentRoomPrice !== selectedReservation?.totalAmount
                   "
                 >
-                  <span>当前房价</span>
+                  <span>{{ t('roomStatus.detail.currentRoomPrice') }}</span>
                   <span class="amount current-price">{{
                     selectedReservation?.currentRoomPrice || '0.00'
                   }}</span>
                 </div>
                 <div class="amount-item">
-                  <span>已付金额</span>
+                  <span>{{ t('roomStatus.detail.paidAmount') }}</span>
                   <span class="amount">{{ totalPayment.toFixed(2) }}</span>
                 </div>
                 <div class="amount-item">
-                  <span>还需付款</span>
+                  <span>{{ t('roomStatus.detail.remainingPayment') }}</span>
                   <span class="amount" :class="{ red: remainingPayment > 0, green: remainingPayment < 0 }">
                     {{ remainingPayment >= 0 ? remainingPayment.toFixed(2) : '+' + Math.abs(remainingPayment).toFixed(2) }}
                   </span>
@@ -946,7 +960,7 @@
             </div>
 
             <div class="room-info-detail">
-              <h4>房间信息：¥{{ selectedReservation?.totalAmount || '0.00' }} 排房</h4>
+              <h4>{{ t('roomStatus.detail.roomInfoTitle') }}：¥{{ selectedReservation?.totalAmount || '0.00' }} {{ t('roomStatus.booking.stayAction') }}</h4>
               <div class="room-card">
                 <div class="room-header">
                   <span class="room-name"
@@ -955,7 +969,7 @@
                     }}</span
                   >
                   <span class="room-dates"
-                    >{{ selectedReservation?.checkInDate }} 至
+                    >{{ selectedReservation?.checkInDate }} -
                     {{ selectedReservation?.checkOutDate }}，{{ getReservationStayNightsText(selectedReservation) }}</span
                   >
                   <div class="room-actions">
@@ -963,14 +977,14 @@
                       v-if="isConfirmedStatus(selectedReservation?.status || '')"
                       size="small"
                       @click="handleCheckIn"
-                      >办理入住</el-button
+                      >{{ t('roomStatus.detail.checkInAction') }}</el-button
                     >
                     <el-button
                       v-if="isCheckedInStatus(selectedReservation?.status || '')"
                       size="small"
                       type="danger"
                       @click="handleCheckOut"
-                      >办理退房</el-button
+                      >{{ t('roomStatus.detail.checkOutAction') }}</el-button
                     >
                     <span class="room-price">
                       ¥{{ selectedReservation?.totalAmount || '0.00' }}
@@ -981,7 +995,7 @@
                         "
                         class="current-room-price"
                       >
-                        (当前: ¥{{ selectedReservation?.currentRoomPrice }})
+                        ({{ t('roomStatus.detail.currentRoomPrice') }}: ¥{{ selectedReservation?.currentRoomPrice }})
                       </span>
                     </span>
                     <el-button
@@ -1000,10 +1014,10 @@
                 <el-collapse-item name="1">
                   <template #title>
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%">
-                      <span>其他消费：+¥{{ Math.abs(totalConsumption).toFixed(2) }}</span>
+                      <span>{{ t('roomStatus.detail.otherConsumption') }}：+¥{{ Math.abs(totalConsumption).toFixed(2) }}</span>
                       <el-button link type="primary" @click.stop="openAddConsumptionSidebar">
                         <el-icon><Plus /></el-icon>
-                        添加消费
+                        {{ t('roomStatus.detail.addConsumption') }}
                       </el-button>
                     </div>
                   </template>
@@ -1015,19 +1029,19 @@
                     style="width: 100%"
                     :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
                   >
-                    <el-table-column prop="item" label="消费项目" width="120">
+                    <el-table-column prop="item" :label="t('roomStatus.detail.consumptionColumns.item')" width="120">
                       <template #default="{ row }">
                         {{ row.item }}×{{ row.quantity }}
                       </template>
                     </el-table-column>
-                    <el-table-column prop="amount" label="消费金额" width="100" align="right">
+                    <el-table-column prop="amount" :label="t('roomStatus.detail.consumptionColumns.amount')" width="100" align="right">
                       <template #default="{ row }">
                         {{ row.amount }}
                       </template>
                     </el-table-column>
-                    <el-table-column prop="date" label="消费日期" width="120" />
-                    <el-table-column prop="createdBy" label="录人人" min-width="120" />
-                    <el-table-column label="操作" width="100" align="center">
+                    <el-table-column prop="date" :label="t('roomStatus.detail.consumptionColumns.date')" width="120" />
+                    <el-table-column prop="createdBy" :label="t('roomStatus.detail.consumptionColumns.createdBy')" min-width="120" />
+                    <el-table-column :label="t('roomStatus.common.action')" width="100" align="center">
                       <template #default="{ row }">
                         <el-button link @click="handleDeleteConsumption(row.id)">
                           <el-icon color="#f56c6c"><Delete /></el-icon>
@@ -1042,10 +1056,10 @@
                 <el-collapse-item name="2">
                   <template #title>
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%">
-                      <span>收款金额：¥{{ totalPayment.toFixed(2) }}</span>
+                      <span>{{ t('roomStatus.detail.paymentAmount') }}：¥{{ totalPayment.toFixed(2) }}</span>
                       <el-button link type="primary" @click.stop="openPaymentSidebar">
                         <el-icon><Plus /></el-icon>
-                        收款/退款
+                        {{ t('roomStatus.detail.addPaymentRefund') }}
                       </el-button>
                     </div>
                   </template>
@@ -1057,21 +1071,21 @@
                     style="width: 100%"
                     :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
                   >
-                    <el-table-column prop="type" label="项目" width="100" />
-                    <el-table-column prop="paymentMethod" label="支付方式" width="140" />
-                    <el-table-column prop="amount" label="金额" width="100" align="right">
+                    <el-table-column prop="type" :label="t('roomStatus.detail.paymentColumns.item')" width="100" />
+                    <el-table-column prop="paymentMethod" :label="t('roomStatus.detail.paymentColumns.paymentMethod')" width="140" />
+                    <el-table-column prop="amount" :label="t('roomStatus.detail.paymentColumns.amount')" width="100" align="right">
                       <template #default="{ row }">
                         ¥{{ row.amount }}
                       </template>
                     </el-table-column>
-                    <el-table-column label="日期" width="100">
+                    <el-table-column :label="t('roomStatus.detail.paymentColumns.date')" width="100">
                       <template #default="{ row }">
                         {{ formatShortDate(row.date) }}
                       </template>
                     </el-table-column>
-                    <el-table-column label="操作" min-width="100" align="center">
+                    <el-table-column :label="t('roomStatus.detail.paymentColumns.action')" min-width="100" align="center">
                       <template #default="{ row }">
-                        <el-button link type="danger" @click="handleDeletePayment(row.id)">删除</el-button>
+                        <el-button link type="danger" @click="handleDeletePayment(row.id)">{{ t('roomStatus.detail.paymentColumns.delete') }}</el-button>
                         <el-button link>
                           <el-icon><Right /></el-icon>
                         </el-button>
@@ -1083,9 +1097,9 @@
             </div>
 
             <div class="order-info">
-              <p><strong>订单号：</strong>{{ selectedReservation?.orderNumber || '无' }}</p>
-              <p><strong>客人手机：</strong>{{ selectedReservation?.phone || '无' }}</p>
-              <p><strong>备注：</strong>{{ getReservationNotesText(selectedReservation) || '无' }}</p>
+              <p><strong>{{ t('roomStatus.detail.orderInfo.orderNumber') }}：</strong>{{ selectedReservation?.orderNumber || t('roomStatus.common.none') }}</p>
+              <p><strong>{{ t('roomStatus.detail.orderInfo.guestPhone') }}：</strong>{{ selectedReservation?.phone || t('roomStatus.common.none') }}</p>
+              <p><strong>{{ t('roomStatus.detail.orderInfo.notes') }}：</strong>{{ getReservationNotesText(selectedReservation) || t('roomStatus.common.none') }}</p>
               <div class="order-notes-editor">
                 <el-input
                   v-model="detailNotesDraft"
@@ -1093,7 +1107,7 @@
                   :rows="3"
                   maxlength="500"
                   show-word-limit
-                  placeholder="请输入备注"
+                  :placeholder="t('roomStatus.detail.orderInfo.notesPlaceholder')"
                 />
                 <div class="order-notes-actions">
                   <el-button
@@ -1102,7 +1116,7 @@
                     :loading="savingDetailNotes"
                     @click="saveDetailReservationNotes"
                   >
-                    保存备注
+                    {{ t('roomStatus.common.saveNotes') }}
                   </el-button>
                 </div>
               </div>
@@ -1111,12 +1125,12 @@
             <div class="more-actions">
               <el-dropdown @command="handleMoreActions">
                 <el-button link>
-                  更多操作 <el-icon><ArrowDown /></el-icon>
+                  {{ t('roomStatus.common.moreActions') }} <el-icon><ArrowDown /></el-icon>
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="moveToOrderBox">移入订单盒子</el-dropdown-item>
-                    <el-dropdown-item command="cancelReservation">取消预约</el-dropdown-item>
+                    <el-dropdown-item command="moveToOrderBox">{{ t('roomStatus.common.moveToOrderBox') }}</el-dropdown-item>
+                    <el-dropdown-item command="cancelReservation">{{ t('roomStatus.common.cancelReservation') }}</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -1132,35 +1146,35 @@
                   size="small"
                   @click="logFilterType = 'all'"
                 >
-                  全部日志
+                  {{ t('roomStatus.detail.log.all') }}
                 </el-button>
                 <el-button
                   :type="logFilterType === 'order' ? 'primary' : 'default'"
                   size="small"
                   @click="logFilterType = 'order'"
                 >
-                  订单日志
+                  {{ t('roomStatus.detail.log.order') }}
                 </el-button>
                 <el-button
                   :type="logFilterType === 'billing' ? 'primary' : 'default'"
                   size="small"
                   @click="logFilterType = 'billing'"
                 >
-                  账单日志
+                  {{ t('roomStatus.detail.log.billing') }}
                 </el-button>
                 <el-button
                   :type="logFilterType === 'compensation' ? 'primary' : 'default'"
                   size="small"
                   @click="handleOpenCompensationPanel"
                 >
-                  补偿/重试
+                  {{ t('roomStatus.detail.log.compensation') }}
                 </el-button>
               </div>
 
               <div v-if="logFilterType === 'compensation'" class="compensation-panel" v-loading="suWebhookEventsLoading">
                 <div class="compensation-toolbar">
                   <div class="toolbar-left">
-                    <span class="toolbar-label">状态</span>
+                    <span class="toolbar-label">{{ t('roomStatus.detail.log.status') }}</span>
                     <el-select v-model="suWebhookStatusFilter" style="width: 220px">
                       <el-option
                         v-for="opt in suWebhookStatusOptions"
@@ -1171,9 +1185,9 @@
                     </el-select>
                   </div>
                   <div class="toolbar-right">
-                    <el-button @click="loadSuWebhookEvents">刷新</el-button>
+                    <el-button @click="loadSuWebhookEvents">{{ t('roomStatus.common.refresh') }}</el-button>
                     <el-button type="primary" :loading="suWebhookEventsProcessing" @click="handleProcessSuWebhookEvents">
-                      立即处理
+                      {{ t('roomStatus.common.processNow') }}
                     </el-button>
                   </div>
                 </div>
@@ -1181,11 +1195,11 @@
                 <el-table :data="suWebhookEvents" border size="small">
                   <el-table-column prop="reservationNotifId" label="reservation_notif_id" min-width="200" />
                   <el-table-column prop="hotelId" label="hotel_id" min-width="120" />
-                  <el-table-column prop="status" label="状态" width="120" align="center" />
-                  <el-table-column prop="retryCount" label="重试次数" width="100" align="center" />
-                  <el-table-column prop="nextRetryAt" label="下次重试" min-width="160" />
-                  <el-table-column prop="updatedAt" label="更新时间" min-width="160" />
-                  <el-table-column label="错误" min-width="260">
+                  <el-table-column prop="status" :label="t('roomStatus.detail.log.status')" width="120" align="center" />
+                  <el-table-column prop="retryCount" :label="t('roomStatus.detail.log.retryCount')" width="100" align="center" />
+                  <el-table-column prop="nextRetryAt" :label="t('roomStatus.detail.log.nextRetryAt')" min-width="160" />
+                  <el-table-column prop="updatedAt" :label="t('roomStatus.detail.log.updatedAt')" min-width="160" />
+                  <el-table-column :label="t('roomStatus.detail.log.error')" min-width="260">
                     <template #default="{ row }">
                       <el-tooltip v-if="row.lastError" placement="top" :content="row.lastError">
                         <span class="error-ellipsis">{{ row.lastError }}</span>
@@ -1195,7 +1209,7 @@
                   </el-table-column>
                 </el-table>
 
-                <el-empty v-if="suWebhookEvents.length === 0" description="暂无补偿事件" />
+                <el-empty v-if="suWebhookEvents.length === 0" :description="t('roomStatus.detail.log.noCompensationEvents')" />
               </div>
 
               <template v-else>
@@ -1210,7 +1224,7 @@
                     <div class="log-item">
                       <div class="log-header">
                         <span class="log-action">{{ log.action }}</span>
-                        <span class="log-operator">操作人: {{ log.operator }}</span>
+                        <span class="log-operator">{{ t('roomStatus.detail.log.operator', { name: log.operator }) }}</span>
                       </div>
                       <div class="log-content" v-if="log.content">
                         {{ log.content }}
@@ -1227,7 +1241,7 @@
               </template>
 
               <!-- 空状态 -->
-              <el-empty v-if="logFilterType !== 'compensation' && filteredOperationLogs.length === 0" description="暂无操作日志" />
+              <el-empty v-if="logFilterType !== 'compensation' && filteredOperationLogs.length === 0" :description="t('roomStatus.detail.log.noLogs')" />
             </div>
           </div>
 
@@ -1239,30 +1253,30 @@
                   <div class="channel-logo">
                     <span class="logo-text">{{ channelLogoText }}</span>
                   </div>
-                  <h3>{{ channelInfo?.channelName || selectedReservation?.channelName || '自来客' }}</h3>
+                  <h3>{{ channelInfo?.channelName || selectedReservation?.channelName || t('roomStatus.common.defaultChannel') }}</h3>
                 </div>
               </div>
 
               <!-- 订单详情 -->
               <div class="channel-section">
-                <h4>订单详情</h4>
+                <h4>{{ t('roomStatus.detail.channelInfo.orderDetails') }}</h4>
                 <div class="info-grid">
                   <div class="info-item">
-                    <span class="label">渠道订单号:</span>
+                    <span class="label">{{ t('roomStatus.detail.channelInfo.channelOrderNumber') }}:</span>
                     <span class="value">{{ channelInfo?.channelOrderNumber || selectedReservation?.orderNumber || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <span class="label">预定状态:</span>
+                    <span class="label">{{ t('roomStatus.detail.channelInfo.bookingStatus') }}:</span>
                     <el-tag :type="getStatusTagType(selectedReservation?.status || 'CONFIRMED')">
                       {{ getReservationStatusText(selectedReservation?.status || 'CONFIRMED') }}
                     </el-tag>
                   </div>
                   <div class="info-item">
-                    <span class="label">预定日期:</span>
+                    <span class="label">{{ t('roomStatus.detail.channelInfo.bookingDate') }}:</span>
                     <span class="value">{{ channelInfo?.bookingDate || selectedReservation?.createdAt || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <span class="label">支付方式:</span>
+                    <span class="label">{{ t('roomStatus.detail.channelInfo.paymentMethod') }}:</span>
                     <el-tag v-if="channelInfo?.paymentMethod" type="warning">
                       {{ channelInfo.paymentMethod }}
                     </el-tag>
@@ -1273,7 +1287,7 @@
 
               <!-- 价格信息 -->
               <div class="channel-section">
-                <h4>价格信息</h4>
+                <h4>{{ t('roomStatus.detail.channelInfo.priceInfo') }}</h4>
                 <div class="price-table">
                   <el-table :data="channelPriceRows" border>
                     <el-table-column prop="label" label="" width="150" />
@@ -1284,26 +1298,26 @@
 
               <!-- 房间详情 -->
               <div class="channel-section">
-                <h4>房间详情</h4>
+                <h4>{{ t('roomStatus.detail.channelInfo.roomDetails') }}</h4>
                 <div class="info-grid">
                   <div class="info-item">
-                    <span class="label">房型:</span>
+                    <span class="label">{{ t('roomStatus.detail.channelInfo.roomType') }}:</span>
                     <span class="value">{{ selectedReservation?.roomTypeName || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <span class="label">客人姓名:</span>
-                    <span class="value">{{ selectedReservation?.guestName || '-' }} ({{ selectedReservation?.adults || 1 }}成人, {{ selectedReservation?.children || 0 }}儿童)</span>
+                    <span class="label">{{ t('roomStatus.detail.channelInfo.guestName') }}:</span>
+                    <span class="value">{{ selectedReservation?.guestName || '-' }} ({{ t('roomStatus.detail.channelInfo.adultsChildren', { adults: selectedReservation?.adults || 1, children: selectedReservation?.children || 0 }) }})</span>
                   </div>
                   <div class="info-item">
-                    <span class="label">入离日期:</span>
+                    <span class="label">{{ t('roomStatus.detail.channelInfo.stayDates') }}:</span>
                     <span class="value">{{ selectedReservation?.checkInDate }} ~ {{ selectedReservation?.checkOutDate }}</span>
                   </div>
                   <div class="info-item">
-                    <span class="label">间夜数:</span>
+                    <span class="label">{{ t('roomStatus.detail.channelInfo.stayNights') }}:</span>
                     <span class="value">{{ channelNightsText }}</span>
                   </div>
                   <div class="info-item">
-                    <span class="label">价格计划:</span>
+                    <span class="label">{{ t('roomStatus.detail.channelInfo.pricePlan') }}:</span>
                     <span class="value">{{ channelInfo?.pricePlan || '-' }}</span>
                   </div>
                 </div>
@@ -1311,20 +1325,20 @@
 
               <!-- 特殊需求 -->
               <div class="channel-section">
-                <h4>特殊需求</h4>
+                <h4>{{ t('roomStatus.detail.channelInfo.specialRequests') }}</h4>
                 <div class="special-requests">
                   <p v-if="channelInfo?.specialRequests || selectedReservation?.notes">
                     {{ channelInfo?.specialRequests || selectedReservation?.notes }}
                   </p>
-                  <el-empty v-else description="无特殊需求" :image-size="60" />
+                  <el-empty v-else :description="t('roomStatus.detail.channelInfo.noSpecialRequests')" :image-size="60" />
                 </div>
               </div>
             </div>
           </div>
 
           <div class="detail-footer">
-            <el-button @click="showBookingDetailSidebar = false">打印</el-button>
-            <el-button type="primary" @click="handleModifyOrder">修改订单</el-button>
+            <el-button @click="showBookingDetailSidebar = false">{{ t('roomStatus.detail.footer.print') }}</el-button>
+            <el-button type="primary" @click="handleModifyOrder">{{ t('roomStatus.detail.footer.modifyOrder') }}</el-button>
             <el-button
               v-if="
                 selectedDate &&
@@ -1334,7 +1348,7 @@
               type="success"
               @click="handleCheckIn"
             >
-              办理入住
+              {{ t('roomStatus.detail.footer.checkIn') }}
             </el-button>
           </div>
         </div>
@@ -1343,14 +1357,14 @@
       <!-- 取消预约侧边栏 -->
       <el-drawer
         v-model="showCancelReservationSidebar"
-        title="取消预约"
+        :title="t('roomStatus.cancelReservation.title')"
         direction="rtl"
         size="400px"
       >
         <div class="cancel-reservation-content">
           <div class="warning-info">
             <el-alert
-              title="确认要取消此预约吗？"
+              :title="t('roomStatus.cancelReservation.confirmAlert')"
               type="warning"
               show-icon
               :closable="false"
@@ -1359,25 +1373,25 @@
 
             <div class="reservation-info" v-if="selectedReservation">
               <div class="info-row">
-                <span class="label">订单号：</span>
+                <span class="label">{{ t('roomStatus.common.orderNumber') }}：</span>
                 <span class="value">{{ selectedReservation.orderNumber }}</span>
               </div>
               <div class="info-row">
-                <span class="label">客人姓名：</span>
+                <span class="label">{{ t('roomStatus.common.guestName') }}：</span>
                 <span class="value">{{ selectedReservation.guestName }}</span>
               </div>
               <div class="info-row">
-                <span class="label">房间：</span>
+                <span class="label">{{ t('roomStatus.cancelReservation.room') }}：</span>
                 <span class="value"
                   >{{ selectedReservation.roomTypeName }}-{{ selectedReservation.roomNumber }}</span
                 >
               </div>
               <div class="info-row">
-                <span class="label">入住日期：</span>
+                <span class="label">{{ t('roomStatus.common.checkInDate') }}：</span>
                 <span class="value">{{ selectedReservation.checkInDate }}</span>
               </div>
               <div class="info-row">
-                <span class="label">离店日期：</span>
+                <span class="label">{{ t('roomStatus.common.checkOutDate') }}：</span>
                 <span class="value">{{ selectedReservation.checkOutDate }}</span>
               </div>
             </div>
@@ -1385,37 +1399,37 @@
 
           <div class="cancel-form">
             <el-form :model="cancelForm" label-width="100px">
-              <el-form-item label="取消原因">
+              <el-form-item :label="t('roomStatus.cancelReservation.reason')">
                 <el-select
                   v-model="cancelForm.reason"
-                  placeholder="请选择取消原因"
+                  :placeholder="t('roomStatus.cancelReservation.reasonPlaceholder')"
                   style="width: 100%"
                 >
-                  <el-option label="客人主动取消" value="guest_cancel" />
-                  <el-option label="房间问题" value="room_issue" />
-                  <el-option label="系统错误" value="system_error" />
-                  <el-option label="其他原因" value="other" />
+                  <el-option :label="t('roomStatus.cancelReservation.reasons.guest_cancel')" value="guest_cancel" />
+                  <el-option :label="t('roomStatus.cancelReservation.reasons.room_issue')" value="room_issue" />
+                  <el-option :label="t('roomStatus.cancelReservation.reasons.system_error')" value="system_error" />
+                  <el-option :label="t('roomStatus.cancelReservation.reasons.other')" value="other" />
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="备注说明">
+              <el-form-item :label="t('roomStatus.cancelReservation.noteLabel')">
                 <el-input
                   v-model="cancelForm.notes"
                   type="textarea"
                   :rows="3"
-                  placeholder="请输入取消说明..."
+                  :placeholder="t('roomStatus.cancelReservation.notePlaceholder')"
                 />
               </el-form-item>
 
-              <el-form-item label="退款处理">
+              <el-form-item :label="t('roomStatus.cancelReservation.refundHandling')">
                 <el-radio-group v-model="cancelForm.refundType">
-                  <el-radio value="full">全额退款</el-radio>
-                  <el-radio value="partial">部分退款</el-radio>
-                  <el-radio value="none">不退款</el-radio>
+                  <el-radio value="full">{{ t('roomStatus.cancelReservation.refundTypes.full') }}</el-radio>
+                  <el-radio value="partial">{{ t('roomStatus.cancelReservation.refundTypes.partial') }}</el-radio>
+                  <el-radio value="none">{{ t('roomStatus.cancelReservation.refundTypes.none') }}</el-radio>
                 </el-radio-group>
               </el-form-item>
 
-              <el-form-item v-if="cancelForm.refundType === 'partial'" label="退款金额">
+              <el-form-item v-if="cancelForm.refundType === 'partial'" :label="t('roomStatus.cancelReservation.refundAmount')">
                 <el-input-number
                   v-model="cancelForm.refundAmount"
                   :min="0"
@@ -1428,8 +1442,8 @@
           </div>
 
           <div class="cancel-actions">
-            <el-button @click="showCancelReservationSidebar = false">取消</el-button>
-            <el-button type="danger" @click="confirmCancelReservation">确认取消预约</el-button>
+            <el-button @click="showCancelReservationSidebar = false">{{ t('accommodation.common.cancel') }}</el-button>
+            <el-button type="danger" @click="confirmCancelReservation">{{ t('roomStatus.cancelReservation.confirmButton') }}</el-button>
           </div>
         </div>
       </el-drawer>
@@ -1446,9 +1460,9 @@
             <div style="display: flex; align-items: center; gap: 12px">
               <el-button link @click="showAddConsumptionSidebar = false">
                 <el-icon><ArrowLeft /></el-icon>
-                返回
+                {{ t('roomStatus.consumption.back') }}
               </el-button>
-              <span style="font-size: 16px; font-weight: 500">添加消费</span>
+              <span style="font-size: 16px; font-weight: 500">{{ t('roomStatus.consumption.title') }}</span>
             </div>
             <el-button link @click="showAddConsumptionSidebar = false">
               <el-icon><Close /></el-icon>
@@ -1458,10 +1472,10 @@
 
         <div style="padding: 20px">
             <el-form :model="consumptionForm" label-position="left" label-width="100px">
-            <el-form-item label="消费项目" required>
+            <el-form-item :label="t('roomStatus.consumption.item')" required>
               <el-select
                 v-model="consumptionForm.item"
-                placeholder="项目"
+                :placeholder="t('roomStatus.consumption.itemPlaceholder')"
                 style="width: 100%"
                 :loading="enabledConsumptionItemsLoading"
                 filterable
@@ -1476,7 +1490,7 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item label="数量" required>
+            <el-form-item :label="t('roomStatus.consumption.quantity')" required>
               <el-input-number
                 v-model="consumptionForm.quantity"
                 :min="1"
@@ -1486,29 +1500,29 @@
               />
             </el-form-item>
 
-            <el-form-item label="金额" required>
-              <el-input v-model="consumptionForm.amount" placeholder="请输入金额" type="number">
+            <el-form-item :label="t('roomStatus.consumption.amount')" required>
+              <el-input v-model="consumptionForm.amount" :placeholder="t('roomStatus.consumption.amountPlaceholder')" type="number">
                 <template #prefix>¥</template>
               </el-input>
             </el-form-item>
 
-            <el-form-item label="消费日期" required>
+            <el-form-item :label="t('roomStatus.consumption.date')" required>
               <el-date-picker
                 v-model="consumptionForm.date"
                 type="date"
-                placeholder="选择日期"
+                :placeholder="t('roomStatus.consumption.datePlaceholder')"
                 style="width: 100%"
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
               />
             </el-form-item>
 
-            <el-form-item label="备注">
+            <el-form-item :label="t('roomStatus.consumption.note')">
               <el-input
                 v-model="consumptionForm.remark"
                 type="textarea"
                 :rows="4"
-                placeholder="备注信息"
+                :placeholder="t('roomStatus.consumption.notePlaceholder')"
                 maxlength="200"
                 show-word-limit
               />
@@ -1516,8 +1530,8 @@
           </el-form>
 
           <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px">
-            <el-button @click="showAddConsumptionSidebar = false">取消</el-button>
-            <el-button type="primary" @click="submitConsumption">确定</el-button>
+            <el-button @click="showAddConsumptionSidebar = false">{{ t('accommodation.common.cancel') }}</el-button>
+            <el-button type="primary" @click="submitConsumption">{{ t('accommodation.common.confirm') }}</el-button>
           </div>
         </div>
       </el-drawer>
@@ -1534,11 +1548,11 @@
             <div style="display: flex; align-items: center; gap: 12px">
               <el-button link @click="showPaymentSidebar = false">
                 <el-icon><ArrowLeft /></el-icon>
-                返回
+                {{ t('roomStatus.cancelReservation.back') }}
               </el-button>
               <el-tabs v-model="activePaymentTab" style="margin: 0">
-                <el-tab-pane label="收款" name="payment" />
-                <el-tab-pane label="退款" name="refund" />
+                <el-tab-pane :label="t('roomStatus.payment.tabs.payment')" name="payment" />
+                <el-tab-pane :label="t('roomStatus.payment.tabs.refund')" name="refund" />
               </el-tabs>
             </div>
             <el-button link @click="showPaymentSidebar = false">
@@ -1553,17 +1567,17 @@
             <!-- 金额信息卡片 -->
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px">
               <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px">
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">订单金额</div>
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">{{ t('roomStatus.payment.orderAmount') }}</div>
                 <div style="font-size: 18px; font-weight: 600; color: #1890ff">
                   ¥{{ Number(selectedReservation?.totalAmount || 0).toFixed(2) }}
                 </div>
               </div>
               <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px">
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">已收金额</div>
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">{{ t('roomStatus.payment.paidAmount') }}</div>
                 <div style="font-size: 18px; font-weight: 600; color: #1890ff">¥{{ totalPayment.toFixed(2) }}</div>
               </div>
               <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px">
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">还差付款</div>
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">{{ t('roomStatus.payment.remainingPayment') }}</div>
                 <div
                   style="font-size: 18px; font-weight: 600"
                   :style="{ color: remainingPayment >= 0 ? '#ef4444' : '#10b981' }"
@@ -1575,15 +1589,15 @@
 
             <!-- 收款类型选择 -->
             <el-form :model="paymentForm" label-position="left">
-              <el-form-item label="项目" required style="margin-bottom: 20px">
+              <el-form-item :label="t('roomStatus.payment.type')" required style="margin-bottom: 20px">
                 <el-radio-group v-model="paymentForm.type">
-                  <el-radio value="payment">收款</el-radio>
-                  <el-radio value="deposit">收押金</el-radio>
+                  <el-radio value="payment">{{ t('roomStatus.payment.typeOptions.payment') }}</el-radio>
+                  <el-radio value="deposit">{{ t('roomStatus.payment.typeOptions.deposit') }}</el-radio>
                 </el-radio-group>
               </el-form-item>
 
-              <el-form-item label="支付方式" required>
-                <el-select v-model="paymentForm.paymentMethod" placeholder="请选择" style="width: 100%">
+              <el-form-item :label="t('roomStatus.payment.paymentMethod')" required>
+                <el-select v-model="paymentForm.paymentMethod" :placeholder="t('roomStatus.common.select')" style="width: 100%">
                   <el-option
                     v-for="option in paymentMethodOptions"
                     :key="option.value"
@@ -1593,29 +1607,29 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="金额" required>
-                <el-input v-model="paymentForm.amount" placeholder="金额" type="number">
+              <el-form-item :label="t('roomStatus.payment.amount')" required>
+                <el-input v-model="paymentForm.amount" :placeholder="t('roomStatus.payment.amountPlaceholder')" type="number">
                   <template #prefix>¥</template>
                 </el-input>
               </el-form-item>
 
-              <el-form-item label="日期" required>
+              <el-form-item :label="t('roomStatus.payment.date')" required>
                 <el-date-picker
                   v-model="paymentForm.date"
                   type="date"
-                  placeholder="选择日期"
+                  :placeholder="t('roomStatus.payment.datePlaceholder')"
                   style="width: 100%"
                   format="MM-DD"
                   value-format="YYYY-MM-DD"
                 />
               </el-form-item>
 
-              <el-form-item label="备注">
+              <el-form-item :label="t('roomStatus.payment.note')">
                 <el-input
                   v-model="paymentForm.remark"
                   type="textarea"
                   :rows="4"
-                  placeholder="备注信息"
+                  :placeholder="t('roomStatus.payment.notePlaceholder')"
                   maxlength="200"
                   show-word-limit
                 />
@@ -1628,17 +1642,17 @@
             <!-- 金额信息卡片 -->
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px">
               <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px">
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">订单金额</div>
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">{{ t('roomStatus.payment.orderAmount') }}</div>
                 <div style="font-size: 18px; font-weight: 600; color: #1890ff">
                   ¥{{ Number(selectedReservation?.totalAmount || 0).toFixed(2) }}
                 </div>
               </div>
               <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px">
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">已收金额</div>
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">{{ t('roomStatus.payment.paidAmount') }}</div>
                 <div style="font-size: 18px; font-weight: 600; color: #1890ff">¥{{ totalPayment.toFixed(2) }}</div>
               </div>
               <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px">
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">还差付款</div>
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px">{{ t('roomStatus.payment.remainingPayment') }}</div>
                 <div
                   style="font-size: 18px; font-weight: 600"
                   :style="{ color: remainingPayment >= 0 ? '#ef4444' : '#10b981' }"
@@ -1655,42 +1669,42 @@
                 style="flex: 1"
                 @click="refundType = 'online'"
               >
-                线上原路退款
+                {{ t('roomStatus.payment.refundOnline') }}
               </el-button>
               <el-button
                 :type="refundType === 'offline' ? 'primary' : 'default'"
                 style="flex: 1"
                 @click="refundType = 'offline'"
               >
-                线下退款
+                {{ t('roomStatus.payment.refundOffline') }}
               </el-button>
             </div>
 
             <!-- 提示文字 -->
-            <div style="font-size: 14px; color: #6b7280; margin-bottom: 16px">请选择需要退款的流水</div>
+            <div style="font-size: 14px; color: #6b7280; margin-bottom: 16px">{{ t('roomStatus.payment.selectRefundRecord') }}</div>
 
             <!-- 退款记录表格 -->
             <el-table :data="[]" border style="width: 100%">
-              <el-table-column prop="date" label="发生日期" width="100" />
-              <el-table-column prop="amount" label="收款金额" width="100" />
-              <el-table-column prop="remark" label="备注" />
-              <el-table-column prop="refundable" label="可退金额" width="100" />
+              <el-table-column prop="date" :label="t('roomStatus.payment.refundColumns.date')" width="100" />
+              <el-table-column prop="amount" :label="t('roomStatus.payment.refundColumns.amount')" width="100" />
+              <el-table-column prop="remark" :label="t('roomStatus.payment.refundColumns.note')" />
+              <el-table-column prop="refundable" :label="t('roomStatus.payment.refundColumns.refundable')" width="100" />
             </el-table>
 
-            <el-empty description="暂无数据" style="padding: 40px 0" />
+            <el-empty :description="t('roomStatus.common.none')" style="padding: 40px 0" />
           </div>
 
           <!-- 底部按钮 -->
           <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px">
-            <el-button @click="showPaymentSidebar = false">取消</el-button>
+            <el-button @click="showPaymentSidebar = false">{{ t('accommodation.common.cancel') }}</el-button>
             <el-button
               v-if="activePaymentTab === 'payment'"
               type="primary"
               @click="submitPayment"
             >
-              下一步
+              {{ t('roomStatus.batchSelection.nextStep') }}
             </el-button>
-            <el-button v-if="activePaymentTab === 'refund'" type="primary" disabled>下一步</el-button>
+            <el-button v-if="activePaymentTab === 'refund'" type="primary" disabled>{{ t('roomStatus.batchSelection.nextStep') }}</el-button>
           </div>
         </div>
       </el-drawer>
@@ -1710,14 +1724,14 @@
                   v-model="batchSelectAll"
                   :indeterminate="batchSelectIndeterminate"
                 >
-                  全部
+                  {{ t('roomStatus.batchSelection.all') }}
                 </el-checkbox>
                 <span class="selection-count">{{ batchSelectedCount }}/{{ batchTotalCount }}</span>
               </div>
 
               <el-input
                 v-model="batchSearchKeyword"
-                placeholder="请输入搜索内容"
+                :placeholder="t('roomStatus.batchSelection.searchPlaceholder')"
                 clearable
                 class="batch-search-input"
               />
@@ -1761,11 +1775,11 @@
 
             <div class="selected-rooms-area">
               <div class="selection-header">
-                <span class="selected-rooms-title">已选{{ batchSelectedCount }}间房</span>
+                <span class="selected-rooms-title">{{ t('roomStatus.batchSelection.selectedRooms', { count: batchSelectedCount }) }}</span>
               </div>
 
               <div v-if="batchSelectedRooms.length === 0" class="empty-selection">
-                <p>请在左侧选择要操作的房型和房间</p>
+                <p>{{ t('roomStatus.batchSelection.emptyTip') }}</p>
               </div>
               <div v-else class="selected-room-list">
                 <div
@@ -1785,9 +1799,9 @@
 
         <template #footer>
           <div class="batch-dialog-footer">
-            <el-button @click="cancelBatchOperation">取消</el-button>
+            <el-button @click="cancelBatchOperation">{{ t('accommodation.common.cancel') }}</el-button>
             <el-button type="primary" @click="confirmBatchOperation">
-              {{ batchAction === 'close' || batchAction === 'open' ? '下一步' : '确定' }}
+              {{ batchAction === 'close' || batchAction === 'open' ? t('roomStatus.batchSelection.nextStep') : t('accommodation.common.confirm') }}
             </el-button>
           </div>
         </template>
@@ -1796,13 +1810,13 @@
       <!-- 关房弹窗 -->
       <el-dialog
         v-model="showCloseRoomDialog"
-        title="关房"
+        :title="t('roomStatus.closeRoom.title')"
         width="600px"
         :close-on-click-modal="false"
       >
         <div class="close-room-content">
           <el-alert
-            title="房间转'停用房'或'维修房'后，将会影响入住率"
+            :title="t('roomStatus.closeRoom.affectedOccupancy')"
             type="info"
             show-icon
             :closable="false"
@@ -1810,15 +1824,15 @@
           />
 
           <el-form :model="closeRoomForm" label-width="80px">
-            <el-form-item label="关房类型">
+            <el-form-item :label="t('roomStatus.closeRoom.typeLabel')">
               <el-radio-group v-model="closeRoomForm.type">
-                <el-radio value="stop">停用房</el-radio>
-                <el-radio value="maintenance">维修房</el-radio>
-                <el-radio value="retain">保留房</el-radio>
+                <el-radio value="stop">{{ t('roomStatus.closeRoom.type.stop') }}</el-radio>
+                <el-radio value="maintenance">{{ t('roomStatus.closeRoom.type.maintenance') }}</el-radio>
+                <el-radio value="retain">{{ t('roomStatus.closeRoom.type.retain') }}</el-radio>
               </el-radio-group>
             </el-form-item>
 
-            <el-form-item label="时间">
+            <el-form-item :label="t('roomStatus.closeRoom.timeLabel')">
               <div class="date-range-container">
                 <el-date-picker
                   v-model="closeRoomForm.startDate"
@@ -1828,7 +1842,7 @@
                   value-format="YYYY-MM-DD"
                   style="width: 45%"
                 />
-                <span style="margin: 0 10px">至</span>
+                <span style="margin: 0 10px">-</span>
                 <el-date-picker
                   v-model="closeRoomForm.endDate"
                   type="date"
@@ -1840,11 +1854,11 @@
               </div>
             </el-form-item>
 
-            <el-form-item label="备注">
+            <el-form-item :label="t('roomStatus.closeRoom.remarkLabel')">
               <el-input
                 v-model="closeRoomForm.remark"
                 type="textarea"
-                placeholder="请输入内容（选填）"
+                :placeholder="t('roomStatus.closeRoom.remarkPlaceholder')"
                 :rows="4"
                 maxlength="200"
                 show-word-limit
@@ -1855,8 +1869,8 @@
 
         <template #footer>
           <div class="dialog-footer">
-            <el-button @click="cancelCloseRoom">取消</el-button>
-            <el-button type="primary" @click="confirmCloseRoom">确定</el-button>
+            <el-button @click="cancelCloseRoom">{{ t('accommodation.common.cancel') }}</el-button>
+            <el-button type="primary" @click="confirmCloseRoom">{{ t('accommodation.common.confirm') }}</el-button>
           </div>
         </template>
       </el-dialog>
@@ -1864,13 +1878,13 @@
       <!-- 批量关房详细设置弹窗 -->
       <el-dialog
         v-model="showBatchCloseRoomDialog"
-        :title="batchAction === 'open' ? '批量开房' : '批量关房'"
+        :title="batchAction === 'open' ? t('roomStatus.closeRoom.batchOpenTitle') : t('roomStatus.closeRoom.batchCloseTitle')"
         width="600px"
         :close-on-click-modal="false"
       >
         <div class="batch-close-room-content">
           <el-alert
-            title="房间转'停用房'或'维修房'后，将会影响入住率"
+            :title="t('roomStatus.closeRoom.affectedOccupancy')"
             type="info"
             show-icon
             :closable="false"
@@ -1878,7 +1892,7 @@
           />
 
           <el-form :model="batchCloseForm" label-width="80px">
-            <el-form-item label="房间">
+            <el-form-item :label="t('roomStatus.closeRoom.roomLabel')">
               <div class="selected-rooms-display">
                 <div
                   v-for="room in batchCloseSelectedRooms"
@@ -1891,26 +1905,26 @@
                   </el-button>
                 </div>
                 <span v-if="batchCloseSelectedRooms.length === 0" class="batch-close-empty-tip">
-                  请先在上一步选择房间
+                  {{ t('roomStatus.closeRoom.selectedRoomsEmpty') }}
                 </span>
               </div>
             </el-form-item>
 
-            <el-form-item label="日期">
+            <el-form-item :label="t('roomStatus.closeRoom.dateLabel')">
               <div class="date-range-container">
                 <el-date-picker
                   v-model="batchCloseForm.startDate"
                   type="date"
-                  placeholder="开始日期"
+                  :placeholder="t('accommodation.common.startDate')"
                   format="YYYY-MM-DD"
                   value-format="YYYY-MM-DD"
                   style="width: 45%"
                 />
-                <span style="margin: 0 10px">至</span>
+                <span style="margin: 0 10px">-</span>
                 <el-date-picker
                   v-model="batchCloseForm.endDate"
                   type="date"
-                  placeholder="结束日期"
+                  :placeholder="t('accommodation.common.endDate')"
                   format="YYYY-MM-DD"
                   value-format="YYYY-MM-DD"
                   style="width: 45%"
@@ -1923,28 +1937,28 @@
                   </el-button>
                   <template #dropdown>
                     <el-dropdown-menu>
-                      <el-dropdown-item command="all">全部日期</el-dropdown-item>
-                      <el-dropdown-item command="weekday">工作日</el-dropdown-item>
-                      <el-dropdown-item command="weekend">周末</el-dropdown-item>
+                      <el-dropdown-item command="all">{{ t('roomStatus.closeRoom.allDates') }}</el-dropdown-item>
+                      <el-dropdown-item command="weekday">{{ t('roomStatus.closeRoom.weekdaysOnly') }}</el-dropdown-item>
+                      <el-dropdown-item command="weekend">{{ t('roomStatus.closeRoom.weekendsOnly') }}</el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
               </div>
             </el-form-item>
 
-            <el-form-item label="关房类型">
+            <el-form-item :label="t('roomStatus.closeRoom.typeLabel')">
               <el-radio-group v-model="batchCloseForm.type">
-                <el-radio value="stop">停用房</el-radio>
-                <el-radio value="maintenance">维修房</el-radio>
-                <el-radio value="retain">保留房</el-radio>
+                <el-radio value="stop">{{ t('roomStatus.closeRoom.type.stop') }}</el-radio>
+                <el-radio value="maintenance">{{ t('roomStatus.closeRoom.type.maintenance') }}</el-radio>
+                <el-radio value="retain">{{ t('roomStatus.closeRoom.type.retain') }}</el-radio>
               </el-radio-group>
             </el-form-item>
 
-            <el-form-item label="备注">
+            <el-form-item :label="t('roomStatus.closeRoom.remarkLabel')">
               <el-input
                 v-model="batchCloseForm.remark"
                 type="textarea"
-                placeholder="请输入内容（选填）"
+                :placeholder="t('roomStatus.closeRoom.remarkPlaceholder')"
                 :rows="4"
                 maxlength="200"
                 show-word-limit
@@ -1955,15 +1969,15 @@
 
         <template #footer>
           <div class="dialog-footer">
-            <el-button @click="cancelBatchCloseRoom">上一步</el-button>
-            <el-button type="primary" @click="confirmBatchCloseRoom">确定</el-button>
+            <el-button @click="cancelBatchCloseRoom">{{ t('roomStatus.closeRoom.firstStep') }}</el-button>
+            <el-button type="primary" @click="confirmBatchCloseRoom">{{ t('accommodation.common.confirm') }}</el-button>
           </div>
         </template>
       </el-dialog>
 
       <el-dialog
         v-model="showRoomChangeConfirmDialog"
-        title="确定要换房吗？"
+        :title="t('roomStatus.roomChange.confirmTitle')"
         width="520px"
         :close-on-click-modal="false"
       >
@@ -1971,17 +1985,17 @@
           <p class="room-change-summary" v-if="pendingRoomChange">
             {{ pendingRoomChange.guestName || '-' }}：
             {{ pendingRoomChange.sourceRoomNumber || '-' }} -> {{ pendingRoomChange.targetRoomNumber || '-' }}
-            （{{ pendingRoomChange.checkInDate }} 至 {{ pendingRoomChange.checkOutDate }}）
+            （{{ pendingRoomChange.checkInDate }} - {{ pendingRoomChange.checkOutDate }}）
           </p>
           <el-checkbox v-model="roomChangeUpdatePrice" class="room-change-price-checkbox">
-            换房同时更新房价
+            {{ t('roomStatus.roomChange.updatePrice') }}
           </el-checkbox>
         </div>
         <template #footer>
           <div class="dialog-footer">
-            <el-button @click="cancelRoomChangeConfirm">取消</el-button>
+            <el-button @click="cancelRoomChangeConfirm">{{ t('accommodation.common.cancel') }}</el-button>
             <el-button type="primary" :loading="roomChangeSubmitting" @click="confirmRoomChange">
-              确定
+              {{ t('accommodation.common.confirm') }}
             </el-button>
           </div>
         </template>
@@ -1994,6 +2008,7 @@
 import { ref, onMounted, onActivated, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   ArrowLeft,
   ArrowRight,
@@ -2045,6 +2060,7 @@ import {
 import { getSortOrderMap } from '@/api/sortConfig'
 import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO, type RoomGroupMemberDTO } from '@/api/roomGroup'
 import { calculateTotalPriceByDates } from '@/utils/priceHelper'
+import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
 import { getStoreTodayYmd } from '@/utils/storeDateTime'
 import { createConsumption, getConsumptionsByReservationId, deleteConsumption, getTotalConsumption, type ConsumptionDTO } from '@/api/consumption'
 import { createPayment, getPaymentsByReservationId, deletePayment, getTotalPayment, type PaymentDTO } from '@/api/payment'
@@ -2062,6 +2078,13 @@ const router = useRouter()
 const route = useRoute()
 const roomStatusStore = useRoomStatusStore()
 const userStore = useUserStore()
+const { t } = useI18n()
+const {
+  batchDateSelectorLabelMap,
+  closeRoomTypeLabelMap,
+  formatMonthDay: formatAccommodationMonthDay,
+  weekdayShortMap,
+} = useAccommodationI18n()
 
 // 响应式数据
 const searchKeyword = ref('')
@@ -2147,7 +2170,11 @@ const roomChangeSubmitting = ref(false)
 const pendingRoomChange = ref<PendingRoomChange | null>(null)
 
 const currentOperatorName = computed(() => {
-  return userStore.currentUser?.nickname || userStore.currentUser?.email || '系统'
+  return (
+    userStore.currentUser?.nickname ||
+    userStore.currentUser?.email ||
+    t('accommodation.priceHistory.operatorOptions.system')
+  )
 })
 
 // 操作日志相关
@@ -2173,44 +2200,44 @@ interface OperationLogSample {
 const operationLogSamples = ref<OperationLogSample[]>([
   {
     id: '1',
-    action: '办理入住',
+    action: t('roomStatus.sampleLogs.actions.checkIn'),
     operator: '齐藤 广志',
     timestamp: '2026/01/31 16:34:20',
     type: 'order',
-    content: '入住房间: Tanpopo Inn304-304',
+    content: t('roomStatus.sampleLogs.content.checkInRoom', { room: 'Tanpopo Inn304-304' }),
   },
   {
     id: '2',
-    action: '新增预订订单',
-    operator: '系统',
+    action: t('roomStatus.sampleLogs.actions.newReservation'),
+    operator: t('roomStatus.sampleLogs.operators.system'),
     timestamp: '2025/11/24 19:30:52',
     type: 'order',
     details: [
-      { label: '联系人', value: 'KAZUKO KIMURA' },
-      { label: '手机号', value: '+81 9051835283' },
-      { label: '邮箱', value: 'kkimur.786937@guest.booking.com' },
-      { label: '渠道', value: 'Booking.com' },
-      { label: '渠道订单号', value: '6538219044' },
-      { label: '房间', value: '北赤羽304-304' },
-      { label: '入住类型', value: '正常入住' },
-      { label: '入离时间', value: '2026-01-31 16:00 至 2026-02-01 10:00' },
-      { label: '成人数', value: '2' },
-      { label: '房费', value: '¥6,018.46' },
-      { label: '订单金额', value: '¥6,018.46' },
+      { label: t('roomStatus.sampleLogs.labels.contact'), value: 'KAZUKO KIMURA' },
+      { label: t('roomStatus.sampleLogs.labels.phone'), value: '+81 9051835283' },
+      { label: t('roomStatus.sampleLogs.labels.email'), value: 'kkimur.786937@guest.booking.com' },
+      { label: t('roomStatus.sampleLogs.labels.channel'), value: 'Booking.com' },
+      { label: t('roomStatus.sampleLogs.labels.channelOrderNumber'), value: '6538219044' },
+      { label: t('roomStatus.sampleLogs.labels.room'), value: '北赤羽304-304' },
+      { label: t('roomStatus.sampleLogs.labels.checkInType'), value: t('roomStatus.sampleLogs.values.normalCheckIn') },
+      { label: t('roomStatus.sampleLogs.labels.stayPeriod'), value: t('roomStatus.sampleLogs.values.sampleStayPeriod') },
+      { label: t('roomStatus.sampleLogs.labels.adults'), value: '2' },
+      { label: t('roomStatus.sampleLogs.labels.roomFee'), value: '¥6,018.46' },
+      { label: t('roomStatus.sampleLogs.labels.orderAmount'), value: '¥6,018.46' },
     ],
   },
   {
     id: '3',
-    action: '收银',
-    operator: '系统',
+    action: t('roomStatus.sampleLogs.actions.paymentReceived'),
+    operator: t('roomStatus.sampleLogs.operators.system'),
     timestamp: '2025/11/24 19:30:52',
     type: 'billing',
     details: [
-      { label: '类型', value: '收款-订单金额' },
-      { label: '金额', value: '¥14,018.46' },
-      { label: '归属营业日', value: '2025-11-24' },
-      { label: '支付方式', value: 'Booking代收' },
-      { label: '备注', value: '-' },
+      { label: t('roomStatus.sampleLogs.labels.type'), value: t('roomStatus.sampleLogs.values.paymentOrderAmount') },
+      { label: t('roomStatus.sampleLogs.labels.amount'), value: '¥14,018.46' },
+      { label: t('roomStatus.sampleLogs.labels.businessDate'), value: '2025-11-24' },
+      { label: t('roomStatus.sampleLogs.labels.paymentMethod'), value: t('roomStatus.sampleLogs.values.bookingCollection') },
+      { label: t('roomStatus.sampleLogs.labels.note'), value: '-' },
     ],
   },
 ])
@@ -2232,13 +2259,13 @@ const suWebhookEvents = ref<SuReservationWebhookEventDTO[]>([])
 const suWebhookEventsLoading = ref(false)
 const suWebhookEventsProcessing = ref(false)
 
-const suWebhookStatusOptions: Array<{ label: string; value: SuWebhookEventStatus }> = [
-  { label: '失败（FAILED）', value: 'FAILED' },
-  { label: '已进入死信（DEAD）', value: 'DEAD' },
-  { label: '已接收（RECEIVED）', value: 'RECEIVED' },
-  { label: '处理中（PROCESSING）', value: 'PROCESSING' },
-  { label: '已处理（PROCESSED）', value: 'PROCESSED' },
-]
+const suWebhookStatusOptions = computed<Array<{ label: string; value: SuWebhookEventStatus }>>(() => [
+  { label: t('roomStatus.webhook.statusOptions.FAILED'), value: 'FAILED' },
+  { label: t('roomStatus.webhook.statusOptions.DEAD'), value: 'DEAD' },
+  { label: t('roomStatus.webhook.statusOptions.RECEIVED'), value: 'RECEIVED' },
+  { label: t('roomStatus.webhook.statusOptions.PROCESSING'), value: 'PROCESSING' },
+  { label: t('roomStatus.webhook.statusOptions.PROCESSED'), value: 'PROCESSED' },
+])
 
 const loadSuWebhookEvents = async () => {
   suWebhookEventsLoading.value = true
@@ -2263,14 +2290,14 @@ const handleProcessSuWebhookEvents = async () => {
   try {
     const res = await processSuWebhookEvents({ limit: 50 })
     if (res.success) {
-      ElMessage.success(`已触发处理：${res.data ?? 0} 条`)
+      ElMessage.success(t('roomStatus.messages.triggerProcessSuccess', { count: res.data ?? 0 }))
     } else {
-      ElMessage.error(res.message || '触发处理失败')
+      ElMessage.error(res.message || t('roomStatus.messages.triggerProcessFailed'))
     }
     await loadSuWebhookEvents()
   } catch (error) {
     console.error('触发补偿处理失败:', error)
-    ElMessage.error('触发处理失败，请稍后再试')
+    ElMessage.error(t('roomStatus.messages.triggerProcessFailed'))
   } finally {
     suWebhookEventsProcessing.value = false
   }
@@ -2442,7 +2469,7 @@ const getReservationStayNights = (reservation: Record<string, any> | null | unde
 }
 
 const getReservationStayNightsText = (reservation: Record<string, any> | null | undefined) => {
-  return `${getReservationStayNights(reservation)}晚`
+  return t('roomStatus.common.nights', { count: getReservationStayNights(reservation) })
 }
 
 const channelNights = computed(() => {
@@ -2460,15 +2487,15 @@ const channelNights = computed(() => {
 })
 
 const channelNightsText = computed(() => {
-  return channelNights.value ? `${channelNights.value} 晚` : '-'
+  return channelNights.value ? t('roomStatus.common.nights', { count: channelNights.value }) : '-'
 })
 
 const channelPriceRows = computed(() => {
   const total = channelInfo.value?.totalAmount ?? selectedReservation.value?.totalAmount
   return [
-    { label: '总价', value: formatMoney(total) },
-    { label: '佣金', value: formatMoney(channelInfo.value?.commission) },
-    { label: '其他附加费', value: formatMoney(channelInfo.value?.otherFees) },
+    { label: t('roomStatus.detail.channelInfo.totalPrice'), value: formatMoney(total) },
+    { label: t('roomStatus.detail.channelInfo.commission'), value: formatMoney(channelInfo.value?.commission) },
+    { label: t('roomStatus.detail.channelInfo.otherFees'), value: formatMoney(channelInfo.value?.otherFees) },
   ]
 })
 
@@ -2637,21 +2664,24 @@ const handleConsumptionFormItemChange = (key: string) => {
 }
 
 // 收款类型选项
-const paymentTypeOptions = [
-  { label: '收押金', value: '收押金' },
-  { label: '收房费', value: '收房费' },
-  { label: '收消费', value: '收消费' },
-  { label: '其他', value: '其他' },
-]
+const paymentTypeOptions = computed(() => [
+  { label: t('roomStatus.payment.bookingTypeOptions.deposit'), value: '收押金' },
+  { label: t('roomStatus.payment.bookingTypeOptions.roomFee'), value: '收房费' },
+  { label: t('roomStatus.payment.bookingTypeOptions.consumption'), value: '收消费' },
+  { label: t('roomStatus.payment.bookingTypeOptions.other'), value: '其他' },
+])
 
 // 支付方式选项
-const FALLBACK_PAYMENT_METHOD_OPTIONS = [
-  { label: '微信', value: '微信' },
-  { label: '支付宝', value: '支付宝' },
-  { label: '现金', value: '现金' },
-  { label: '银行卡', value: '银行卡' },
-]
-const paymentMethodOptions = ref<{ label: string; value: string }[]>([...FALLBACK_PAYMENT_METHOD_OPTIONS])
+const fallbackPaymentMethodOptions = computed(() => [
+  { label: t('roomStatus.payment.methodOptions.wechat'), value: '微信' },
+  { label: t('roomStatus.payment.methodOptions.alipay'), value: '支付宝' },
+  { label: t('roomStatus.payment.methodOptions.cash'), value: '现金' },
+  { label: t('roomStatus.payment.methodOptions.bankCard'), value: '银行卡' },
+])
+const customPaymentMethodOptions = ref<{ label: string; value: string }[] | null>(null)
+const paymentMethodOptions = computed(() => {
+  return customPaymentMethodOptions.value ?? fallbackPaymentMethodOptions.value
+})
 
 const getDefaultPaymentMethodValue = () => {
   return paymentMethodOptions.value[0]?.value || ''
@@ -2661,16 +2691,16 @@ const loadPaymentMethodOptions = async () => {
   try {
     const response = await getEnabledPaymentMethods()
     if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-      paymentMethodOptions.value = response.data.map((item: PaymentMethodDTO) => ({
+      customPaymentMethodOptions.value = response.data.map((item: PaymentMethodDTO) => ({
         label: item.name,
         value: item.name,
       }))
       return
     }
-    paymentMethodOptions.value = [...FALLBACK_PAYMENT_METHOD_OPTIONS]
+    customPaymentMethodOptions.value = null
   } catch (error) {
     console.error('加载收款方式失败:', error)
-    paymentMethodOptions.value = [...FALLBACK_PAYMENT_METHOD_OPTIONS]
+    customPaymentMethodOptions.value = null
   }
 }
 
@@ -2690,7 +2720,7 @@ const pricePlanOptions = computed(() => {
     }
     unique.set(planId, {
       id: planId,
-      name: mapping.pricePlan?.name || `计划${planId}`,
+      name: mapping.pricePlan?.name || `${t('roomStatus.common.defaultPrice')} ${planId}`,
     })
   })
   return Array.from(unique.values())
@@ -2744,8 +2774,7 @@ const CELL_PRICE_SOURCE_STORAGE_KEY = 'room-status-calendar.cell-price-display-s
 
 // 批量操作相关
 const showBatchDialog = ref(false)
-const batchDialogTitle = ref('')
-const batchAction = ref('')
+const batchAction = ref<BatchActionType>('')
 const batchMode = ref(false)
 const selectedCells = ref<Set<string>>(new Set()) // 存储选中的单元格key: roomId-date
 const quickActionDateRange = ref<{ startDate: string; endDate: string } | null>(null)
@@ -2776,6 +2805,23 @@ interface BatchRoomGroup {
 const batchSearchKeyword = ref('')
 const batchSelectedRoomIds = ref<number[]>([])
 const batchExpandedRoomTypes = ref<string[]>([])
+
+const getBatchActionTitle = (action: BatchActionType) => {
+  switch (action) {
+    case 'dirty':
+      return t('roomStatus.batchClean.dirty')
+    case 'clean':
+      return t('roomStatus.batchClean.clean')
+    case 'open':
+      return t('roomStatus.batchRoom.open')
+    case 'close':
+      return t('roomStatus.batchRoom.close')
+    default:
+      return ''
+  }
+}
+
+const batchDialogTitle = computed(() => getBatchActionTitle(batchAction.value))
 
 // 房间折叠相关
 const isRoomCollapsed = ref(false)
@@ -2845,7 +2891,7 @@ const calendarCellPricePlanOptions = computed(() => {
     }
     unique.set(planId, {
       id: planId,
-      name: mapping.pricePlan?.name || `计划${planId}`,
+      name: mapping.pricePlan?.name || `${t('roomStatus.common.defaultPrice')} ${planId}`,
     })
   })
   return Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
@@ -2877,14 +2923,14 @@ const getSelectedCellPricePlanId = () => {
 
 const getCellPriceSourceLabel = () => {
   if (cellPriceDisplaySource.value === 'default') {
-    return '默认价格'
+    return t('roomStatus.common.defaultPrice')
   }
   const selectedPlanId = getSelectedCellPricePlanId()
   if (!selectedPlanId) {
-    return '价格计划'
+    return t('roomStatus.common.pricePlan')
   }
   const selectedPlan = calendarCellPricePlanOptions.value.find((item) => item.id === selectedPlanId)
-  return selectedPlan?.name || '价格计划'
+  return selectedPlan?.name || t('roomStatus.common.pricePlan')
 }
 
 const getRoomTypeIdsSignature = () => {
@@ -3397,12 +3443,7 @@ const batchSelectIndeterminate = computed(() => {
 const isBatchRoomAction = computed(() => batchAction.value === 'close' || batchAction.value === 'open')
 
 const batchDateSelectorText = computed(() => {
-  const modeTextMap: Record<BatchWeekMode, string> = {
-    all: '全部日期',
-    weekday: '适用工作日',
-    weekend: '适用周末',
-  }
-  return modeTextMap[batchCloseForm.value.weekMode]
+  return batchDateSelectorLabelMap.value[batchCloseForm.value.weekMode]
 })
 
 // 计算属性
@@ -3505,7 +3546,7 @@ const goToRoomTypeManagement = () => {
 const goToMessages = async () => {
   const reservation = selectedReservation.value
   if (!reservation) {
-    ElMessage.warning('订单数据加载中，请稍后重试')
+    ElMessage.warning(t('roomStatus.detail.messages.orderLoading'))
     return
   }
 
@@ -3536,23 +3577,20 @@ const goToMessages = async () => {
     })
   } catch (error) {
     console.error('跳转聊天页失败:', error)
-    ElMessage.error('跳转聊天页失败')
+    ElMessage.error(t('roomStatus.detail.messages.chatFailed'))
   }
 }
 
 const formatMonthDay = (date: string) => {
-  // 如果是今天，显示"今天"
   if (isToday(date)) {
-    return '今天'
+    return t('roomStatus.common.today')
   }
 
-  const d = new Date(date)
-  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return formatAccommodationMonthDay(new Date(date))
 }
 
 const getWeekday = (date: string) => {
-  const weekdays = ['日', '一', '二', '三', '四', '五', '六']
-  return weekdays[new Date(date).getDay()]
+  return weekdayShortMap.value[new Date(date).getDay()]
 }
 
 const getDayOfWeek = (date: string) => {
@@ -3597,11 +3635,11 @@ const isAfterToday = (date: string) => {
 // 获取订单类型文本
 const getOrderTypeText = (date: string) => {
   if (isBeforeToday(date)) {
-    return '补录'
+    return t('roomStatus.action.supplement')
   } else if (isAfterToday(date)) {
-    return '预订'
+    return t('roomStatus.action.book')
   } else {
-    return '入住'
+    return t('roomStatus.action.checkIn')
   }
 }
 
@@ -3619,20 +3657,19 @@ const getOrderButtonType = (date: string) => {
 // 获取预订状态文本
 const getReservationStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
-    CONFIRMED: '已预订',
-    CHECKED_IN: '已入住',
-    CHECKED_OUT: '已退房',
-    CANCELLED: '已取消',
-    NO_SHOW: '未到店',
-    // 添加可能的其他格式
-    confirmed: '已预订',
-    checked_in: '已入住',
-    checked_out: '已退房',
-    cancelled: '已取消',
-    no_show: '未到店',
+    CONFIRMED: t('roomStatus.status.confirmed'),
+    CHECKED_IN: t('roomStatus.status.checkedIn'),
+    CHECKED_OUT: t('roomStatus.status.checkedOut'),
+    CANCELLED: t('roomStatus.status.cancelled'),
+    NO_SHOW: t('roomStatus.status.noShow'),
+    confirmed: t('roomStatus.status.confirmed'),
+    checked_in: t('roomStatus.status.checkedIn'),
+    checked_out: t('roomStatus.status.checkedOut'),
+    cancelled: t('roomStatus.status.cancelled'),
+    no_show: t('roomStatus.status.noShow'),
   }
 
-  return statusMap[status] || '已预订'
+  return statusMap[status] || t('roomStatus.status.confirmed')
 }
 
 // 获取状态标签类型
@@ -3772,7 +3809,7 @@ const loadRoomStatusCalendarData = async () => {
     }
   } catch (error) {
     console.error('加载房态日历数据失败:', error)
-    ElMessage.warning('加载房态数据失败，使用模拟数据')
+    ElMessage.warning(t('roomStatus.messages.loadCalendarFallback'))
     // 发生错误时保持使用模拟数据
   } finally {
     loading.value = false
@@ -3855,7 +3892,7 @@ const loadRoomTypesData = async () => {
     }
   } catch (error) {
     console.error('加载房型数据失败:', error)
-    ElMessage.error('加载房态数据失败')
+    ElMessage.error(t('roomStatus.messages.loadCalendarFailed'))
   } finally {
     loading.value = false
   }
@@ -3920,7 +3957,6 @@ const filteredRooms = computed(() => {
 // 批量操作相关方法
 // 处理批量置脏/净命令
 const handleBatchCleanCommand = (command: string) => {
-  batchDialogTitle.value = command === 'dirty' ? '批量置脏' : '批量置净'
   batchAction.value = command as BatchActionType
   batchMode.value = true
   batchSearchKeyword.value = ''
@@ -3932,7 +3968,6 @@ const handleBatchCleanCommand = (command: string) => {
 
 // 处理批量开关房命令
 const handleBatchRoomCommand = (command: string) => {
-  batchDialogTitle.value = command === 'open' ? '批量开房' : '批量关房'
   batchAction.value = command as BatchActionType
   batchMode.value = true
   batchSearchKeyword.value = ''
@@ -4220,16 +4255,16 @@ const buildReservationUpdateRequest = (
 const updateReservationPriceAfterRoomChange = async (reservationId: number, targetRoomId: number) => {
   const reservationResp = await getReservationById(reservationId)
   if (!reservationResp.success || !reservationResp.data) {
-    throw new Error(reservationResp.message || '获取最新订单信息失败')
+    throw new Error(reservationResp.message || t('roomStatus.roomChange.fetchLatestFailed'))
   }
   const latestReservation = reservationResp.data
   if (!latestReservation.checkInDate || !latestReservation.checkOutDate) {
-    throw new Error('订单缺少入住和退房日期，无法更新房价')
+    throw new Error(t('roomStatus.roomChange.missingStayDates'))
   }
 
   const roomTypeResp = await getRoomTypeByRoomId(targetRoomId)
   if (!roomTypeResp.success || !roomTypeResp.data) {
-    throw new Error(roomTypeResp.message || '获取目标房型失败')
+    throw new Error(roomTypeResp.message || t('roomStatus.roomChange.targetRoomTypeFailed'))
   }
 
   const newTotalAmount = calculateTotalPriceByDates(
@@ -4245,7 +4280,7 @@ const updateReservationPriceAfterRoomChange = async (reservationId: number, targ
   )
   const updateResp = await updateReservation(reservationId, updatePayload)
   if (!updateResp.success) {
-    throw new Error(updateResp.message || '更新房价失败')
+    throw new Error(updateResp.message || t('roomStatus.roomChange.updatePriceFailed'))
   }
 }
 
@@ -4259,7 +4294,7 @@ const confirmRoomChange = async () => {
   try {
     const assignResp = await assignReservationRoom(pending.reservationId, pending.targetRoomId)
     if (!assignResp.success) {
-      ElMessage.error(assignResp.message || '换房失败')
+      ElMessage.error(assignResp.message || t('roomStatus.roomChange.failed'))
       return
     }
 
@@ -4270,7 +4305,7 @@ const confirmRoomChange = async () => {
         priceUpdated = true
       } catch (error: any) {
         console.error('换房后更新房价失败:', error)
-        ElMessage.warning(error?.message || '换房成功，但房价更新失败')
+        ElMessage.warning(error?.message || t('roomStatus.roomChange.priceUpdateFailed'))
       }
     }
 
@@ -4279,13 +4314,15 @@ const confirmRoomChange = async () => {
     await loadRoomStatusCalendarData()
 
     if (roomChangeUpdatePrice.value) {
-      ElMessage.success(priceUpdated ? '换房成功，房价已更新' : '换房成功')
+      ElMessage.success(
+        priceUpdated ? t('roomStatus.roomChange.successWithPrice') : t('roomStatus.roomChange.success'),
+      )
       return
     }
-    ElMessage.success('换房成功')
+    ElMessage.success(t('roomStatus.roomChange.success'))
   } catch (error: any) {
     console.error('换房失败:', error)
-    ElMessage.error(error?.message || '换房失败，请稍后重试')
+    ElMessage.error(error?.message || t('roomStatus.booking.messages.requestFailed'))
   } finally {
     roomChangeSubmitting.value = false
     roomChangeUpdatePrice.value = false
@@ -4507,7 +4544,7 @@ const updateCalendarReservationNotes = (reservationId: number, notes: string) =>
 const saveDetailReservationNotes = async () => {
   const reservationId = Number(selectedReservation.value?.id || 0)
   if (!reservationId) {
-    ElMessage.warning('未找到订单信息')
+    ElMessage.warning(t('roomStatus.messages.missingOrderInfo'))
     return
   }
 
@@ -4516,7 +4553,7 @@ const saveDetailReservationNotes = async () => {
   try {
     const reservationResp = await getReservationById(reservationId)
     if (!reservationResp.success || !reservationResp.data) {
-      ElMessage.error(reservationResp.message || '获取订单信息失败')
+      ElMessage.error(reservationResp.message || t('roomStatus.messages.missingOrderInfo'))
       return
     }
 
@@ -4525,7 +4562,7 @@ const saveDetailReservationNotes = async () => {
       latestReservation.roomId || selectedReservation.value?.roomId || selectedRoom.value?.roomId || 0,
     )
     if (!roomId) {
-      ElMessage.error('订单缺少房间信息，无法保存备注')
+      ElMessage.error(t('roomStatus.detail.messages.notesRoomMissing'))
       return
     }
 
@@ -4537,7 +4574,7 @@ const saveDetailReservationNotes = async () => {
     updatePayload.notes = nextNotes
     const updateResp = await updateReservation(reservationId, updatePayload)
     if (!updateResp.success) {
-      ElMessage.error(updateResp.message || '保存备注失败')
+      ElMessage.error(updateResp.message || t('roomStatus.detail.messages.notesSaveFailed'))
       return
     }
 
@@ -4552,12 +4589,12 @@ const saveDetailReservationNotes = async () => {
       }
     }
     updateCalendarReservationNotes(reservationId, nextNotes)
-    ElMessage.success('备注保存成功')
+    ElMessage.success(t('roomStatus.detail.messages.notesSaveSuccess'))
 
     await loadRoomStatusCalendarData()
   } catch (error: any) {
     console.error('保存订单备注失败:', error)
-    ElMessage.error(error?.message || '保存备注失败，请稍后重试')
+    ElMessage.error(error?.message || t('roomStatus.detail.messages.notesSaveFailed'))
   } finally {
     savingDetailNotes.value = false
   }
@@ -4635,7 +4672,7 @@ const removeBatchSelectedRoom = (roomId: number) => {
 // 确认批量操作
 const confirmBatchOperation = () => {
   if (batchSelectedRoomIds.value.length === 0) {
-    ElMessage.warning('请先选择要操作的房间')
+    ElMessage.warning(t('roomStatus.closeRoom.messages.selectRoomsFirst'))
     return
   }
 
@@ -4654,7 +4691,7 @@ const confirmBatchOperation = () => {
     return
   }
 
-  ElMessage.success(`${batchDialogTitle.value}操作已完成`)
+  ElMessage.success(t('roomStatus.messages.batchOperationCompleted', { action: batchDialogTitle.value }))
   showBatchDialog.value = false
   batchMode.value = false
   selectedCells.value.clear()
@@ -4715,9 +4752,11 @@ const getRoomNumberDirtyStatus = (roomId: number) => {
 
 const dirtyHoverActionText = computed(() => {
   if (hoverDirtyRoomId.value === null) {
-    return '转脏房'
+    return t('roomStatus.batchClean.markDirty')
   }
-  return getRoomNumberDirtyStatus(hoverDirtyRoomId.value) ? '转净房' : '转脏房'
+  return getRoomNumberDirtyStatus(hoverDirtyRoomId.value)
+    ? t('roomStatus.batchClean.markClean')
+    : t('roomStatus.batchClean.markDirty')
 })
 
 const getCollapsedCellStatus = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
@@ -4728,7 +4767,7 @@ const getCollapsedCellStatus = (roomData: CalendarRoomData, dailyStatus: DailyRo
     dailyStatus.status !== RoomStatus.AVAILABLE
 
   return {
-    label: isFull ? '满房' : '1',
+    label: isFull ? t('roomStatus.common.fullRoom') : '1',
     isFull,
   }
 }
@@ -4796,7 +4835,9 @@ const onRoomNumberClick = (event: MouseEvent, roomData: CalendarRoomData) => {
       nextStatusMap.set(roomData.roomId, true)
     }
     roomNumberDirtyStatus.value = nextStatusMap
-    ElMessage.success(currentStatus ? '已置净房' : '已置脏房')
+    ElMessage.success(
+      currentStatus ? t('roomStatus.batchClean.setCleanSuccess') : t('roomStatus.batchClean.setDirtySuccess'),
+    )
   }
 }
 
@@ -4920,7 +4961,7 @@ const handleClosedRoomAction = (action: string) => {
           endDate: date,
         })
         if (!resp.success) {
-          ElMessage.error(resp.message || '开房失败')
+          ElMessage.error(resp.message || t('roomStatus.closeRoom.messages.openFailed'))
           return
         }
         const currentStatus = roomExtraStatus.value.get(key) || {
@@ -4933,18 +4974,18 @@ const handleClosedRoomAction = (action: string) => {
           isClosed: false,
           closeType: '',
         })
-        ElMessage.success('已开房')
+        ElMessage.success(t('roomStatus.closeRoom.messages.openSuccess'))
         hideClosedRoomActions()
         await loadRoomStatusCalendarData()
       } catch (error: any) {
-        ElMessage.error(error?.message || '开房失败')
+        ElMessage.error(error?.message || t('roomStatus.closeRoom.messages.openFailed'))
       }
     })()
   } else if (action === 'reserve') {
     // 转预订操作
     console.log('转预订操作')
     // TODO: 实现转预订逻辑
-    ElMessage.info('转预订功能开发中')
+    ElMessage.info(t('roomStatus.messages.reserveConversionPending'))
     hideClosedRoomActions() // 转预订后关闭弹窗
   } else if (action === 'cancel') {
     // 取消操作 - 只关闭弹窗
@@ -5001,21 +5042,21 @@ const submitBooking = async () => {
   try {
     // 验证表单数据
     if (!bookingForm.value.guestName) {
-      ElMessage.warning('请输入客人姓名')
+      ElMessage.warning(t('roomStatus.booking.messages.guestNameRequired'))
       return
     }
     if (!bookingForm.value.channelId) {
-      ElMessage.warning('请选择渠道')
+      ElMessage.warning(t('roomStatus.booking.messages.channelRequired'))
       return
     }
     if (!bookingForm.value.checkInDate || !bookingForm.value.checkOutDate) {
-      ElMessage.warning('请选择入住和离店日期')
+      ElMessage.warning(t('roomStatus.booking.messages.datesRequired'))
       return
     }
 
     // 新建模式需要选择房间，编辑模式使用现有房间
     if (bookingMode.value === 'create' && !selectedRoom.value) {
-      ElMessage.warning('请选择房间')
+      ElMessage.warning(t('roomStatus.booking.messages.roomRequired'))
       return
     }
 
@@ -5053,10 +5094,10 @@ const submitBooking = async () => {
     if (response.success) {
       const message =
         bookingMode.value === 'create'
-          ? `预订创建成功！订单号：${response.data.orderNumber}`
+          ? t('roomStatus.booking.messages.createSuccess', { orderNumber: response.data.orderNumber })
           : bookingMode.value === 'check-in'
-            ? `入住成功！订单号：${response.data.orderNumber}`
-            : '订单修改成功！'
+            ? t('roomStatus.booking.messages.checkInSuccess', { orderNumber: response.data.orderNumber })
+            : t('roomStatus.booking.messages.editSuccess')
       ElMessage.success(message)
 
       // 如果是创建或直接入住模式，保存消费和收款信息
@@ -5117,15 +5158,20 @@ const submitBooking = async () => {
             if (successCount > 0) {
               console.log(`成功保存 ${successCount} 条消费/收款记录`)
               if (failCount > 0) {
-                ElMessage.warning(`${successCount} 条记录保存成功，${failCount} 条失败`)
+                ElMessage.warning(
+                  t('roomStatus.booking.messages.relatedRecordsPartial', {
+                    successCount,
+                    failCount,
+                  }),
+                )
               }
             }
             if (failCount === results.length && results.length > 0) {
-              ElMessage.error('消费/收款记录保存失败')
+              ElMessage.error(t('roomStatus.booking.messages.relatedRecordsFailed'))
             }
           } catch (error) {
             console.error('保存消费/收款记录时出错:', error)
-            ElMessage.warning('订单创建成功，但消费/收款记录保存失败')
+            ElMessage.warning(t('roomStatus.booking.messages.relatedRecordsPartialCreate'))
           }
         }
       }
@@ -5140,8 +5186,8 @@ const submitBooking = async () => {
     } else {
       const message =
         bookingMode.value === 'create'
-          ? `预订创建失败：${response.message}`
-          : `订单修改失败：${response.message}`
+          ? t('roomStatus.booking.messages.createFailed', { message: response.message })
+          : t('roomStatus.booking.messages.editFailed', { message: response.message })
       ElMessage.error(message)
     }
   } catch (error: any) {
@@ -5149,7 +5195,7 @@ const submitBooking = async () => {
     const errorMessage =
       error?.response?.data?.message ||
       error?.message ||
-      `${bookingMode.value === 'create' ? '预订创建' : '订单修改'}失败，请稍后重试`
+      t('roomStatus.booking.messages.requestFailed')
     ElMessage.error(errorMessage)
   }
 }
@@ -5191,7 +5237,7 @@ const resetBookingForm = () => {
 const handleModifyOrder = () => {
   isManualPrice.value = false
   if (!selectedReservation.value) {
-    ElMessage.warning('未找到订单信息')
+    ElMessage.warning(t('roomStatus.messages.missingOrderInfo'))
     return
   }
 
@@ -5256,15 +5302,15 @@ const openPaymentSidebar = () => {
 // 提交添加消费
 const submitConsumption = async () => {
   if (!consumptionForm.value.item) {
-    ElMessage.warning('请选择消费项目')
+    ElMessage.warning(t('roomStatus.consumption.messages.itemRequired'))
     return
   }
   if (!consumptionForm.value.amount || consumptionForm.value.amount <= 0) {
-    ElMessage.warning('请输入有效金额')
+    ElMessage.warning(t('roomStatus.consumption.messages.amountInvalid'))
     return
   }
   if (!selectedReservation.value?.id) {
-    ElMessage.warning('未找到订单信息')
+    ElMessage.warning(t('roomStatus.consumption.messages.reservationMissing'))
     return
   }
 
@@ -5281,7 +5327,7 @@ const submitConsumption = async () => {
 
     const response = await createConsumption(consumptionData)
     if (response.success) {
-      ElMessage.success('消费记录添加成功')
+      ElMessage.success(t('roomStatus.consumption.messages.success'))
       showAddConsumptionSidebar.value = false
       // 刷新消费记录列表
       await loadConsumptionAndPaymentData()
@@ -5291,26 +5337,26 @@ const submitConsumption = async () => {
       }
       console.log('消费记录添加成功，当前消费列表:', consumptionList.value)
     } else {
-      ElMessage.error(response.message || '添加消费记录失败')
+      ElMessage.error(response.message || t('roomStatus.consumption.messages.failed'))
     }
   } catch (error: any) {
     console.error('添加消费记录失败:', error)
-    ElMessage.error('网络错误，添加消费记录失败')
+    ElMessage.error(t('roomStatus.consumption.messages.networkFailed'))
   }
 }
 
 // 提交收款
 const submitPayment = async () => {
   if (!paymentForm.value.paymentMethod) {
-    ElMessage.warning('请选择支付方式')
+    ElMessage.warning(t('roomStatus.payment.messages.paymentMethodRequired'))
     return
   }
   if (!paymentForm.value.amount || paymentForm.value.amount <= 0) {
-    ElMessage.warning('请输入有效金额')
+    ElMessage.warning(t('roomStatus.payment.messages.amountInvalid'))
     return
   }
   if (!selectedReservation.value?.id) {
-    ElMessage.warning('未找到订单信息')
+    ElMessage.warning(t('roomStatus.payment.messages.reservationMissing'))
     return
   }
 
@@ -5327,7 +5373,7 @@ const submitPayment = async () => {
 
     const response = await createPayment(paymentData)
     if (response.success) {
-      ElMessage.success('收款记录添加成功')
+      ElMessage.success(t('roomStatus.payment.messages.success'))
       showPaymentSidebar.value = false
       // 刷新收款记录列表
       await loadConsumptionAndPaymentData()
@@ -5337,11 +5383,11 @@ const submitPayment = async () => {
       }
       console.log('收款记录添加成功，当前收款列表:', paymentList.value)
     } else {
-      ElMessage.error(response.message || '添加收款记录失败')
+      ElMessage.error(response.message || t('roomStatus.payment.messages.failed'))
     }
   } catch (error: any) {
     console.error('添加收款记录失败:', error)
-    ElMessage.error('网络错误，添加收款记录失败')
+    ElMessage.error(t('roomStatus.payment.messages.networkFailed'))
   }
 }
 
@@ -5407,23 +5453,27 @@ const loadConsumptionAndPaymentData = async () => {
 // 删除消费记录
 const handleDeleteConsumption = async (id: number) => {
   try {
-    await ElMessageBox.confirm('确认删除此消费记录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('roomStatus.consumption.messages.deleteConfirm'),
+      t('roomStatus.consumption.messages.deleteTitle'),
+      {
+        confirmButtonText: t('accommodation.common.confirm'),
+        cancelButtonText: t('accommodation.common.cancel'),
+        type: 'warning',
+      },
+    )
 
     const response = await deleteConsumption(id)
     if (response.success) {
-      ElMessage.success('删除成功')
+      ElMessage.success(t('roomStatus.consumption.messages.deleteSuccess'))
       await loadConsumptionAndPaymentData()
     } else {
-      ElMessage.error(response.message || '删除失败')
+      ElMessage.error(response.message || t('roomStatus.consumption.messages.deleteFailed'))
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('删除消费记录失败:', error)
-      ElMessage.error('删除失败')
+      ElMessage.error(t('roomStatus.consumption.messages.deleteFailed'))
     }
   }
 }
@@ -5431,23 +5481,27 @@ const handleDeleteConsumption = async (id: number) => {
 // 删除收款记录
 const handleDeletePayment = async (id: number) => {
   try {
-    await ElMessageBox.confirm('确认删除此收款记录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('roomStatus.payment.messages.deleteConfirm'),
+      t('roomStatus.payment.messages.deleteTitle'),
+      {
+        confirmButtonText: t('accommodation.common.confirm'),
+        cancelButtonText: t('accommodation.common.cancel'),
+        type: 'warning',
+      },
+    )
 
     const response = await deletePayment(id)
     if (response.success) {
-      ElMessage.success('删除成功')
+      ElMessage.success(t('roomStatus.payment.messages.deleteSuccess'))
       await loadConsumptionAndPaymentData()
     } else {
-      ElMessage.error(response.message || '删除失败')
+      ElMessage.error(response.message || t('roomStatus.payment.messages.deleteFailed'))
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('删除收款记录失败:', error)
-      ElMessage.error('删除失败')
+      ElMessage.error(t('roomStatus.payment.messages.deleteFailed'))
     }
   }
 }
@@ -5469,14 +5523,14 @@ const handleMoreActions = (command: string) => {
 // 移入订单盒子
 const handleMoveToOrderBox = async () => {
   if (!selectedReservation.value) {
-    ElMessage.warning('未找到订单信息')
+    ElMessage.warning(t('roomStatus.messages.missingOrderInfo'))
     return
   }
 
   // 检查订单状态
   const status = selectedReservation.value.status
   if (status !== 'CONFIRMED' && status !== 'RESERVED') {
-    ElMessage.warning('只有已预订的房间可以移入订单盒子')
+    ElMessage.warning(t('roomStatus.detail.messages.moveToOrderBoxOnlyConfirmed'))
     return
   }
 
@@ -5484,22 +5538,24 @@ const handleMoveToOrderBox = async () => {
     const { moveToOrderBox } = await import('@/api/orderBox')
 
     ElMessageBox.confirm(
-      '移入订单盒子后，该房间将不实际排房，不占库存，营业数据不进行统计。是否继续?',
-      '确认移入订单盒子',
+      t('roomStatus.detail.messages.moveToOrderBoxConfirm'),
+      t('roomStatus.detail.messages.moveToOrderBoxConfirmTitle'),
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('accommodation.common.confirm'),
+        cancelButtonText: t('accommodation.common.cancel'),
         type: 'warning',
       }
     )
       .then(async () => {
-        const loadingInstance = ElLoading.service({ text: '正在移入订单盒子...' })
+        const loadingInstance = ElLoading.service({
+          text: t('roomStatus.detail.messages.moveToOrderBoxLoading'),
+        })
         try {
           const response = await moveToOrderBox({
             reservationId: selectedReservation.value!.id,
           })
           if (response.success) {
-            ElMessage.success('已移入订单盒子')
+            ElMessage.success(t('roomStatus.detail.messages.moveToOrderBoxSuccess'))
             // 关闭侧边栏并刷新数据
             showBookingDetailSidebar.value = false
             loadRoomStatusCalendarData()
@@ -5508,7 +5564,7 @@ const handleMoveToOrderBox = async () => {
           }
         } catch (error) {
           console.error('移入订单盒子失败:', error)
-          ElMessage.error('移入订单盒子失败')
+          ElMessage.error(t('roomStatus.detail.messages.moveToOrderBoxFailed'))
         } finally {
           loadingInstance.close()
         }
@@ -5518,14 +5574,14 @@ const handleMoveToOrderBox = async () => {
       })
   } catch (error) {
     console.error('加载订单盒子模块失败:', error)
-    ElMessage.error('功能加载失败')
+    ElMessage.error(t('roomStatus.detail.messages.featureLoadFailed'))
   }
 }
 
 // 显示取消预约侧边栏
 const handleShowCancelReservation = () => {
   if (!selectedReservation.value) {
-    ElMessage.warning('未找到订单信息')
+    ElMessage.warning(t('roomStatus.cancelReservation.messages.notFound'))
     return
   }
 
@@ -5544,19 +5600,19 @@ const handleShowCancelReservation = () => {
 const confirmCancelReservation = async () => {
   try {
     if (!selectedReservation.value) {
-      ElMessage.warning('未找到订单信息')
+      ElMessage.warning(t('roomStatus.cancelReservation.messages.notFound'))
       return
     }
 
     if (!cancelForm.value.reason) {
-      ElMessage.warning('请选择取消原因')
+      ElMessage.warning(t('roomStatus.cancelReservation.messages.reasonRequired'))
       return
     }
 
     // 确认对话框
-    await ElMessageBox.confirm(`确认要取消此预约吗？此操作不可撤销。`, '取消预约确认', {
-      confirmButtonText: '确认取消',
-      cancelButtonText: '返回',
+    await ElMessageBox.confirm(t('roomStatus.cancelReservation.confirmDialogMessage'), t('roomStatus.cancelReservation.confirmDialogTitle'), {
+      confirmButtonText: t('roomStatus.cancelReservation.confirmButton'),
+      cancelButtonText: t('roomStatus.cancelReservation.back'),
       type: 'warning',
     })
 
@@ -5564,9 +5620,9 @@ const confirmCancelReservation = async () => {
     const response = await cancelReservation(selectedReservation.value.id)
 
     if (response.success) {
-      ElMessage.success('预约已取消')
+      ElMessage.success(t('roomStatus.cancelReservation.messages.success'))
     } else {
-      ElMessage.error('取消预约失败：' + response.message)
+      ElMessage.error(`${t('roomStatus.cancelReservation.messages.failed')}：${response.message}`)
       return
     }
 
@@ -5577,7 +5633,7 @@ const confirmCancelReservation = async () => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('取消预约失败:', error)
-      ElMessage.error('取消预约失败，请稍后重试')
+      ElMessage.error(t('roomStatus.cancelReservation.messages.failed'))
     }
   }
 }
@@ -5586,17 +5642,17 @@ const confirmCancelReservation = async () => {
 const handleCheckIn = async () => {
   try {
     if (!selectedReservation.value) {
-      ElMessage.warning('未找到订单信息')
+      ElMessage.warning(t('roomStatus.messages.missingOrderInfo'))
       return
     }
 
     // 确认对话框
     await ElMessageBox.confirm(
-      `确认为客户 ${selectedReservation.value.guestName} 办理入住手续吗？`,
-      '办理入住',
+      t('roomStatus.messages.confirmCheckInForGuest', { guestName: selectedReservation.value.guestName }),
+      t('roomStatus.messages.checkInTitle'),
       {
-        confirmButtonText: '确认入住',
-        cancelButtonText: '取消',
+        confirmButtonText: t('roomStatus.detail.checkInAction'),
+        cancelButtonText: t('accommodation.common.cancel'),
         type: 'success',
       },
     )
@@ -5605,19 +5661,18 @@ const handleCheckIn = async () => {
     const response = await checkInReservation(selectedReservation.value.id)
 
     if (response.success) {
-      ElMessage.success('入住办理成功！')
+      ElMessage.success(t('roomStatus.messages.checkInSuccess'))
 
       // 关闭侧边栏并刷新数据
       showBookingDetailSidebar.value = false
       await loadRoomStatusCalendarData()
     } else {
-      ElMessage.error('办理入住失败：' + response.message)
+      ElMessage.error(`${t('roomStatus.messages.checkInFailed')}：${response.message}`)
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('办理入住失败:', error)
-      const errorMessage =
-        error?.response?.data?.message || error?.message || '办理入住失败，请稍后重试'
+      const errorMessage = error?.response?.data?.message || error?.message || t('roomStatus.messages.checkInFailed')
       ElMessage.error(errorMessage)
     }
   }
@@ -5627,17 +5682,17 @@ const handleCheckIn = async () => {
 const handleCheckOut = async () => {
   try {
     if (!selectedReservation.value) {
-      ElMessage.warning('未找到订单信息')
+      ElMessage.warning(t('roomStatus.messages.missingOrderInfo'))
       return
     }
 
     // 确认对话框
     await ElMessageBox.confirm(
-      `确认为客户 ${selectedReservation.value.guestName} 办理退房手续吗？`,
-      '办理退房',
+      t('roomStatus.messages.confirmCheckOutForGuest', { guestName: selectedReservation.value.guestName }),
+      t('roomStatus.messages.checkOutTitle'),
       {
-        confirmButtonText: '确认退房',
-        cancelButtonText: '取消',
+        confirmButtonText: t('roomStatus.detail.checkOutAction'),
+        cancelButtonText: t('accommodation.common.cancel'),
         type: 'warning',
       },
     )
@@ -5646,19 +5701,18 @@ const handleCheckOut = async () => {
     const response = await checkOutReservation(selectedReservation.value.id)
 
     if (response.success) {
-      ElMessage.success('退房办理成功！')
+      ElMessage.success(t('roomStatus.messages.checkOutSuccess'))
 
       // 关闭侧边栏并刷新数据
       showBookingDetailSidebar.value = false
       await loadRoomStatusCalendarData()
     } else {
-      ElMessage.error('办理退房失败：' + response.message)
+      ElMessage.error(`${t('roomStatus.messages.checkOutFailed')}：${response.message}`)
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('办理退房失败:', error)
-      const errorMessage =
-        error?.response?.data?.message || error?.message || '办理退房失败，请稍后重试'
+      const errorMessage = error?.response?.data?.message || error?.message || t('roomStatus.messages.checkOutFailed')
       ElMessage.error(errorMessage)
     }
   }
@@ -5667,14 +5721,14 @@ const handleCheckOut = async () => {
 // 获取房间显示文本
 const getRoomDisplayText = () => {
   if (!selectedRoom.value || !bookingForm.value.checkInDate || !bookingForm.value.checkOutDate) {
-    return '请选择房间和日期'
+    return t('roomStatus.booking.roomDisplayPlaceholder')
   }
 
   const checkIn = new Date(bookingForm.value.checkInDate)
   const checkOut = new Date(bookingForm.value.checkOutDate)
   const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
 
-  return `${nights}晚 ${selectedRoom.value.roomNumber}/${selectedRoom.value.roomType}`
+  return `${t('roomStatus.common.nights', { count: nights })} ${selectedRoom.value.roomNumber}/${selectedRoom.value.roomType}`
 }
 
 // 获取房间价格信息
@@ -5691,11 +5745,11 @@ const fetchRoomTypePrice = async (roomId: number) => {
       updateBookingPrice()
     } else {
       console.error('获取房型价格失败:', response.message)
-      ElMessage.error('获取房型价格失败')
+      ElMessage.error(t('roomStatus.messages.roomTypePriceFailed'))
     }
   } catch (error) {
     console.error('获取房型价格出错:', error)
-    ElMessage.error('获取房型价格出错')
+    ElMessage.error(t('roomStatus.messages.roomTypePriceError'))
   } finally {
     isLoadingPrice.value = false
   }
@@ -5905,11 +5959,15 @@ const isQuickPriceRangeMode = computed(() => {
 })
 
 const quickPriceDialogTitle = computed(() => {
-  return isQuickPriceRangeMode.value ? '区间改价' : '改价'
+  return isQuickPriceRangeMode.value
+    ? t('roomStatus.quickPrice.rangeTitle')
+    : t('roomStatus.quickPrice.singleTitle')
 })
 
 const quickPriceDisplayDateLabel = computed(() => {
-  return isQuickPriceRangeMode.value ? '日期范围' : '日期'
+  return isQuickPriceRangeMode.value
+    ? t('roomStatus.quickPrice.dateRangeLabel')
+    : t('roomStatus.quickPrice.dateLabel')
 })
 
 const quickPriceDisplayDate = computed(() => {
@@ -5932,7 +5990,7 @@ const openQuickPriceDialog = () => {
     return
   }
   if (!canQuickEditPrice()) {
-    ElMessage.warning('当前格子不支持改价')
+    ElMessage.warning(t('roomStatus.quickPrice.unsupportedCell'))
     return
   }
   const currentPrice = Number(getQuickActionDisplayPriceValue() || 0)
@@ -5943,7 +6001,7 @@ const openQuickPriceDialog = () => {
 const saveQuickActionPrice = async () => {
   const targetRange = getQuickPriceTargetRange()
   if (!targetRange || !quickActionRoom.value) {
-    ElMessage.warning('未找到改价目标')
+    ElMessage.warning(t('roomStatus.quickPrice.targetMissing'))
     return
   }
   if (!ensureContinuousQuickActionSelection()) {
@@ -5951,13 +6009,13 @@ const saveQuickActionPrice = async () => {
   }
   const roomTypeId = getQuickActionRoomTypeId()
   if (!roomTypeId) {
-    ElMessage.warning('未找到房型信息')
+    ElMessage.warning(t('roomStatus.quickPrice.roomTypeMissing'))
     return
   }
 
   const nextPrice = Number(quickPriceForm.value.price || 0)
   if (!Number.isFinite(nextPrice) || nextPrice < 0) {
-    ElMessage.warning('请输入有效价格')
+    ElMessage.warning(t('roomStatus.quickPrice.invalidPrice'))
     return
   }
 
@@ -5971,14 +6029,14 @@ const saveQuickActionPrice = async () => {
         price: Number(nextPrice.toFixed(2)),
       })
       if (!response.success) {
-        ElMessage.error(response.message || '改价失败')
+        ElMessage.error(response.message || t('roomStatus.quickPrice.failed'))
         return
       }
       await loadCalendarDefaultManagementPrices(true)
     } else {
       const selectedPlanId = getSelectedCellPricePlanId()
       if (!selectedPlanId) {
-        ElMessage.warning('请先选择价格计划')
+        ElMessage.warning(t('roomStatus.quickPrice.selectPricePlanFirst'))
         return
       }
       const operator = currentOperatorName.value
@@ -5992,18 +6050,18 @@ const saveQuickActionPrice = async () => {
       }
       const response = await updatePriceByPlan(requestData, operator)
       if (!response.success) {
-        ElMessage.error(response.message || '改价失败')
+        ElMessage.error(response.message || t('roomStatus.quickPrice.failed'))
         return
       }
       await loadCalendarManagementPrices(true)
     }
 
-    ElMessage.success('改价成功')
+    ElMessage.success(t('roomStatus.quickPrice.success'))
     closeQuickPriceDialog()
     hideQuickActions()
   } catch (error: any) {
     console.error('日历改单价失败:', error)
-    ElMessage.error(error?.message || '改价失败，请稍后重试')
+    ElMessage.error(error?.message || t('roomStatus.quickPrice.failed'))
   } finally {
     quickPriceSaving.value = false
   }
@@ -6132,7 +6190,7 @@ const ensureContinuousQuickActionSelection = () => {
   if (selectedCells.value.size <= 1) return true
   if (isSelectionContinuousForRoom(quickActionRoom.value.roomId)) return true
 
-  ElMessage.warning('当前点选包含不连续日期，请补齐中间日期或改用拖动连续选择')
+  ElMessage.warning(t('roomStatus.messages.notContinuousDates'))
   return false
 }
 
@@ -6189,7 +6247,7 @@ const handleQuickAction = (action: string) => {
 // 处理直接入住（今天的空房间）
 const handleDirectCheckIn = () => {
   if (!quickActionRoom.value || !quickActionDate.value) {
-    ElMessage.warning('房间或日期信息缺失')
+    ElMessage.warning(t('roomStatus.messages.missingRoomOrDate'))
     return
   }
 
@@ -6219,17 +6277,17 @@ const handleDirectCheckIn = () => {
 const handleQuickCheckIn = async () => {
   try {
     if (!hoverReservation.value) {
-      ElMessage.warning('未找到预订信息')
+      ElMessage.warning(t('roomStatus.messages.missingReservationInfo'))
       return
     }
 
     // 确认对话框
     await ElMessageBox.confirm(
-      `确认为客户 ${hoverReservation.value.guestName} 办理入住手续吗？`,
-      '快速入住',
+      t('roomStatus.messages.confirmCheckInForGuest', { guestName: hoverReservation.value.guestName }),
+      t('roomStatus.messages.quickCheckInTitle'),
       {
-        confirmButtonText: '确认入住',
-        cancelButtonText: '取消',
+        confirmButtonText: t('roomStatus.detail.checkInAction'),
+        cancelButtonText: t('accommodation.common.cancel'),
         type: 'success',
       },
     )
@@ -6238,19 +6296,18 @@ const handleQuickCheckIn = async () => {
     const response = await checkInReservation(hoverReservation.value.id)
 
     if (response.success) {
-      ElMessage.success('入住办理成功！')
+      ElMessage.success(t('roomStatus.messages.checkInSuccess'))
 
       // 隐藏悬停卡片并刷新数据
       hideHoverCard()
       await loadRoomStatusCalendarData()
     } else {
-      ElMessage.error('办理入住失败：' + response.message)
+      ElMessage.error(`${t('roomStatus.messages.checkInFailed')}：${response.message}`)
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('快速入住失败:', error)
-      const errorMessage =
-        error?.response?.data?.message || error?.message || '办理入住失败，请稍后重试'
+      const errorMessage = error?.response?.data?.message || error?.message || t('roomStatus.messages.checkInFailed')
       ElMessage.error(errorMessage)
     }
   }
@@ -6260,17 +6317,17 @@ const handleQuickCheckIn = async () => {
 const handleQuickCheckOut = async () => {
   try {
     if (!hoverReservation.value) {
-      ElMessage.warning('未找到预订信息')
+      ElMessage.warning(t('roomStatus.messages.missingReservationInfo'))
       return
     }
 
     // 确认对话框
     await ElMessageBox.confirm(
-      `确认为客户 ${hoverReservation.value.guestName} 办理退房手续吗？`,
-      '快速退房',
+      t('roomStatus.messages.confirmCheckOutForGuest', { guestName: hoverReservation.value.guestName }),
+      t('roomStatus.messages.quickCheckOutTitle'),
       {
-        confirmButtonText: '确认退房',
-        cancelButtonText: '取消',
+        confirmButtonText: t('roomStatus.detail.checkOutAction'),
+        cancelButtonText: t('accommodation.common.cancel'),
         type: 'warning',
       },
     )
@@ -6279,18 +6336,18 @@ const handleQuickCheckOut = async () => {
     const response = await checkOutReservation(hoverReservation.value.id)
 
     if (response.success) {
-      ElMessage.success('退房办理成功！')
+      ElMessage.success(t('roomStatus.messages.checkOutSuccess'))
 
       // 隐藏悬停卡片并刷新数据
       hideHoverCard()
       await loadRoomStatusCalendarData()
     } else {
-      ElMessage.error('办理退房失败：' + response.message)
+      ElMessage.error(`${t('roomStatus.messages.checkOutFailed')}：${response.message}`)
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('快速退房失败:', error)
-      ElMessage.error('办理退房失败，请稍后重试')
+      ElMessage.error(t('roomStatus.messages.checkOutFailed'))
     }
   }
 }
@@ -6308,7 +6365,7 @@ const cancelCloseRoom = () => {
 
 const confirmCloseRoom = async () => {
   if (!closeRoomData.value.room || !closeRoomForm.value.startDate || !closeRoomForm.value.endDate) {
-    ElMessage.warning('请填写完整信息')
+    ElMessage.warning(t('roomStatus.closeRoom.messages.incompleteInfo'))
     return
   }
 
@@ -6323,16 +6380,18 @@ const confirmCloseRoom = async () => {
     })
 
     if (!resp.success) {
-      ElMessage.error(resp.message || '关房失败')
+      ElMessage.error(resp.message || t('roomStatus.closeRoom.messages.failed'))
       return
     }
 
-    ElMessage.success(`关房已保存（${resp.data?.affectedDays ?? 0} 天）`)
+    ElMessage.success(
+      t('roomStatus.closeRoom.messages.saveSuccess', { days: resp.data?.affectedDays ?? 0 }),
+    )
     showCloseRoomDialog.value = false
     cancelCloseRoom()
     await loadRoomStatusCalendarData()
   } catch (error: any) {
-    ElMessage.error(error?.message || '关房失败')
+    ElMessage.error(error?.message || t('roomStatus.closeRoom.messages.failed'))
   }
 }
 
@@ -6416,15 +6475,15 @@ const buildBatchDateRanges = (startDate: string, endDate: string, weekMode: Batc
 
 const confirmBatchCloseRoom = async () => {
   if (!batchCloseForm.value.startDate || !batchCloseForm.value.endDate) {
-    ElMessage.warning('请填写完整信息')
+    ElMessage.warning(t('roomStatus.closeRoom.messages.incompleteInfo'))
     return
   }
   if (batchCloseForm.value.startDate > batchCloseForm.value.endDate) {
-    ElMessage.warning('开始日期不能晚于结束日期')
+    ElMessage.warning(t('roomStatus.closeRoom.messages.invalidDateRange'))
     return
   }
   if (batchCloseSelectedRoomIds.value.length === 0) {
-    ElMessage.warning('请先选择要操作的房间')
+    ElMessage.warning(t('roomStatus.closeRoom.messages.selectRoomsFirst'))
     return
   }
 
@@ -6435,7 +6494,7 @@ const confirmBatchCloseRoom = async () => {
       batchCloseForm.value.weekMode,
     )
     if (dateRanges.length === 0) {
-      ElMessage.warning('当前日期范围内没有可应用的日期')
+      ElMessage.warning(t('roomStatus.closeRoom.messages.noApplicableDates'))
       return
     }
 
@@ -6451,12 +6510,12 @@ const confirmBatchCloseRoom = async () => {
           remark: batchCloseForm.value.remark,
         })
         if (!resp.success) {
-          ElMessage.error(resp.message || '批量关房失败')
+          ElMessage.error(resp.message || t('roomStatus.closeRoom.messages.batchCloseFailed'))
           return
         }
         totalAffectedDays += resp.data?.affectedDays ?? 0
       }
-      ElMessage.success(`批量关房已保存（${totalAffectedDays} 天）`)
+      ElMessage.success(t('roomStatus.closeRoom.messages.batchCloseSuccess', { days: totalAffectedDays }))
     } else {
       for (const range of dateRanges) {
         const resp = await openRoomBlockouts({
@@ -6465,12 +6524,12 @@ const confirmBatchCloseRoom = async () => {
           endDate: range.endDate,
         })
         if (!resp.success) {
-          ElMessage.error(resp.message || '批量开房失败')
+          ElMessage.error(resp.message || t('roomStatus.closeRoom.messages.batchOpenFailed'))
           return
         }
         totalAffectedDays += resp.data?.affectedDays ?? 0
       }
-      ElMessage.success(`批量开房已保存（${totalAffectedDays} 天）`)
+      ElMessage.success(t('roomStatus.closeRoom.messages.batchOpenSuccess', { days: totalAffectedDays }))
     }
 
     showBatchCloseRoomDialog.value = false
@@ -6491,7 +6550,7 @@ const confirmBatchCloseRoom = async () => {
 
     await loadRoomStatusCalendarData()
   } catch (error: any) {
-    ElMessage.error(error?.message || `${batchDialogTitle.value}失败`)
+    ElMessage.error(error?.message || t('roomStatus.messages.actionFailed', { action: batchDialogTitle.value }))
   }
 }
 
@@ -6579,7 +6638,7 @@ const loadChannels = async () => {
       const defaultChannels = [
         {
           id: 1,
-          name: '自来客',
+          name: t('roomStatus.common.defaultChannel'),
           code: 'DIRECT',
           type: 'DIRECT',
           color: '#409EFF',
@@ -6590,7 +6649,7 @@ const loadChannels = async () => {
         },
         {
           id: 2,
-          name: '携程',
+          name: 'Ctrip',
           code: 'CTRIP',
           type: 'OTA',
           color: '#1890FF',
@@ -6623,7 +6682,7 @@ const loadChannels = async () => {
         },
         {
           id: 5,
-          name: '去哪儿',
+          name: 'Qunar',
           code: 'QUNAR',
           type: 'OTA',
           color: '#00C1DE',

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import type { BaseRoomType } from '@/types/room'
 
@@ -24,6 +25,8 @@ const emit = defineEmits<{
   save: [data: RoomTypeBasicForm]
 }>()
 
+const { t } = useI18n()
+
 // 表单数据
 const basicForm = ref<RoomTypeBasicForm>({
   id: props.roomType.id,
@@ -44,11 +47,11 @@ const shortNameCount = computed(() => basicForm.value.shortName.length)
 // 保存
 const handleSave = () => {
   if (!basicForm.value.name.trim()) {
-    ElMessage.warning('请输入房型名称')
+    ElMessage.warning(t('settingsStage4.roomTypeManagement.messages.nameRequired'))
     return
   }
   if (!basicForm.value.shortName.trim()) {
-    ElMessage.warning('请输入房型简称')
+    ElMessage.warning(t('settingsStage4.roomTypeManagement.messages.shortNameRequired'))
     return
   }
 
@@ -70,18 +73,18 @@ const handleCancel = () => {
   <div class="room-type-basic-info">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h2 class="page-title">编辑房型</h2>
+      <h2 class="page-title">{{ t('settingsStage4.roomTypeManagement.actions.editRoomType') }}</h2>
     </div>
 
     <!-- 表单内容 -->
     <div class="form-container">
       <el-form :model="basicForm" label-width="100px" class="basic-form">
         <!-- 房型名称 -->
-        <el-form-item label="房型名称" required>
+        <el-form-item :label="t('settingsStage4.roomTypeManagement.fields.roomTypeName')" required>
           <div class="input-with-count">
             <el-input
               v-model="basicForm.name"
-              placeholder="请输入房型名称"
+              :placeholder="t('settingsStage4.roomTypeManagement.placeholders.roomTypeName')"
               maxlength="30"
               class="name-input"
             />
@@ -90,11 +93,11 @@ const handleCancel = () => {
         </el-form-item>
 
         <!-- 房型简称 -->
-        <el-form-item label="房型简称" required>
+        <el-form-item :label="t('settingsStage4.roomTypeManagement.fields.shortName')" required>
           <div class="input-with-count">
             <el-input
               v-model="basicForm.shortName"
-              placeholder="请输入房型简称"
+              :placeholder="t('settingsStage4.roomTypeManagement.placeholders.shortName')"
               maxlength="20"
               class="short-name-input"
             />
@@ -103,11 +106,11 @@ const handleCancel = () => {
         </el-form-item>
 
         <!-- 房间默认价 -->
-        <el-form-item label="房间默认价" required>
+        <el-form-item :label="t('settingsStage4.roomTypeManagement.fields.defaultRoomPrice')" required>
           <div class="pricing-section">
             <el-radio-group v-model="basicForm.pricingType" class="pricing-radios">
-              <el-radio label="fixed">每日固定价</el-radio>
-              <el-radio label="flexible">区分平日、周末价</el-radio>
+              <el-radio label="fixed">{{ t('settingsStage4.roomTypeManagement.options.fixedDailyPrice') }}</el-radio>
+              <el-radio label="flexible">{{ t('settingsStage4.roomTypeManagement.options.weekdayWeekendPrice') }}</el-radio>
             </el-radio-group>
 
             <div class="price-inputs">
@@ -125,7 +128,7 @@ const handleCancel = () => {
 
               <div v-else class="flexible-price">
                 <div class="price-group">
-                  <span class="price-label">平日价</span>
+                  <span class="price-label">{{ t('settingsStage4.roomTypeManagement.fields.weekdayPrice') }}</span>
                   <span class="currency">¥</span>
                   <el-input-number
                     v-model="basicForm.weekdayPrice"
@@ -137,7 +140,7 @@ const handleCancel = () => {
                   />
                 </div>
                 <div class="price-group">
-                  <span class="price-label">周末价</span>
+                  <span class="price-label">{{ t('settingsStage4.roomTypeManagement.fields.weekendPrice') }}</span>
                   <span class="currency">¥</span>
                   <el-input-number
                     v-model="basicForm.weekendPrice"
@@ -154,19 +157,23 @@ const handleCancel = () => {
         </el-form-item>
 
         <!-- 房间数量 -->
-        <el-form-item label="房间数量" required>
+        <el-form-item :label="t('settingsStage4.roomTypeManagement.fields.roomCount')" required>
           <div class="room-count-section">
-            <span class="count-text">{{ basicForm.roomCount }}间</span>
+            <span class="count-text">
+              {{ t('settingsStage4.roomTypeManagement.units.roomsCount', { count: basicForm.roomCount }) }}
+            </span>
           </div>
         </el-form-item>
 
         <!-- 房间号 -->
-        <el-form-item label="房间号">
+        <el-form-item :label="t('settingsStage4.roomTypeManagement.fields.roomNumbers')">
           <div class="room-numbers-section">
             <div class="room-numbers-info">
-              <span>房间号可查看、编辑，如需增加或删除请前往</span>
-              <el-button type="primary" link class="manage-link">「房间管理」</el-button>
-              <span>操作</span>
+              <span>{{ t('settingsStage4.roomTypeManagement.hints.roomNumbersManagePrefix') }}</span>
+              <el-button type="primary" link class="manage-link">
+                {{ t('settingsStage4.roomTypeManagement.hints.roomManagementLink') }}
+              </el-button>
+              <span>{{ t('settingsStage4.roomTypeManagement.hints.roomNumbersManageSuffix') }}</span>
             </div>
             <div class="room-number-display">
               <div
@@ -183,10 +190,10 @@ const handleCancel = () => {
 
       <!-- 底部按钮 -->
       <div class="form-footer">
-        <el-button @click="handleCancel" class="cancel-btn">取消</el-button>
-        <el-button type="primary" @click="handleSave" class="save-btn">保存</el-button>
+        <el-button @click="handleCancel" class="cancel-btn">{{ t('settings.common.cancel') }}</el-button>
+        <el-button type="primary" @click="handleSave" class="save-btn">{{ t('settings.common.save') }}</el-button>
         <el-button type="primary" @click="handleSaveAndComplete" class="save-complete-btn"
-          >保存并完善信息</el-button
+          >{{ t('settingsStage4.roomTypeManagement.actions.saveAndComplete') }}</el-button
         >
       </div>
     </div>

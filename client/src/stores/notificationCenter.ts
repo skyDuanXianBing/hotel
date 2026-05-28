@@ -7,6 +7,7 @@ import {
 } from '@/api/notification'
 import { parseUtcDateTime } from '@/utils/storeDateTime'
 import { createSuMessagingSocket, type SuMessagingRealtimeEvent } from '@/utils/suMessagingSocket'
+import { i18n } from '@/locales'
 
 type PopupNotificationType = 'order' | 'message'
 
@@ -43,6 +44,7 @@ interface NotificationCenterStartOptions {
 const ORDER_NOTIFICATION_TYPE = 'ORDER'
 const ORDER_POLL_INTERVAL = 10_000
 const CHAT_RECONNECT_INTERVAL = 3_000
+const translate = (key: string) => i18n.global.t(key)
 const DEFAULT_SETTINGS: NotificationSettingsSnapshot = {
   orderPopup: true,
   orderSound: true,
@@ -125,7 +127,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
 
   const resolveAudioSrc = (type: PopupNotificationType, title?: string) => {
     if (type === 'order') {
-      if (title && title.includes('取消')) {
+      if (title && /cancel|\u53d6\u6d88|\u30ad\u30e3\u30f3\u30bb\u30eb/i.test(title)) {
         return '/sounds/cancel.mp3'
       }
       return '/sounds/order-notification.mp3'
@@ -145,7 +147,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
       return
     } catch (error) {
       if (!fallbackEnabled) {
-        console.warn('播放提示音失败:', error)
+        console.warn('Failed to play notification sound:', error)
         return
       }
     }
@@ -155,7 +157,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
       fallbackAudio.preload = 'auto'
       await fallbackAudio.play()
     } catch (error) {
-      console.warn('播放提示音失败:', error)
+      console.warn('Failed to play notification sound:', error)
     }
   }
 
@@ -164,9 +166,9 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
       showPopup({
         id: `order-${notification.id}`,
         type: 'order',
-        title: notification.title || '新订单提醒',
+        title: notification.title || translate('stage6.common.messages.newOrderNotification'),
         content: normalizeMessageText(notification.content),
-        channel: '订单通知',
+        channel: translate('stage6.common.messages.orderNotificationChannel'),
         guestName: '-',
         orderNumber: notification.relatedId ? String(notification.relatedId) : '-',
         time: toDate(notification.createdAt),
@@ -185,10 +187,10 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
       showPopup({
         id: `chat-${event.threadId}-${event.message.id}`,
         type: 'message',
-        title: '新聊天消息',
-        content: content || '您收到一条新的聊天消息',
-        channel: '聊天消息',
-        guestName: event.message.senderName || '客人',
+        title: translate('stage6.common.messages.newChatMessage'),
+        content: content || translate('stage6.common.messages.newChatMessageContent'),
+        channel: translate('stage6.common.messages.chatMessageChannel'),
+        guestName: event.message.senderName || translate('stage6.common.messages.guestFallback'),
         orderNumber: event.threadId ? String(event.threadId) : '-',
         time: toDate(event.message.timestamp),
         onClick: onChatClick,
@@ -218,7 +220,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
         settings.value = { ...DEFAULT_SETTINGS }
       }
     } catch (error) {
-      console.warn('加载通知设置失败，使用默认配置:', error)
+      console.warn('Failed to load notification settings; using defaults:', error)
       settings.value = { ...DEFAULT_SETTINGS }
     }
   }
@@ -249,7 +251,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
       newItems.forEach((item) => seededOrderIds.add(item.id))
       newItems.slice().reverse().forEach((item) => emitOrderNotification(item))
     } catch (error) {
-      console.warn('轮询订单通知失败:', error)
+      console.warn('Failed to poll order notifications:', error)
     }
   }
 
@@ -310,7 +312,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
         const payload = JSON.parse(event.data) as SuMessagingRealtimeEvent
         handleChatRealtimeEvent(payload)
       } catch (error) {
-        console.warn('解析聊天实时事件失败:', error)
+        console.warn('Failed to parse chat realtime event:', error)
       }
     }
     chatSocket.onclose = () => {

@@ -9,6 +9,9 @@ import {
   type UpdateProfileRequest,
   type UserDTO,
 } from '@/api/auth'
+import { i18n } from '@/locales'
+
+const translate = (key: string) => i18n.global.t(key)
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref<UserDTO | null>(null)
@@ -47,7 +50,7 @@ export const useUserStore = defineStore('user', () => {
     try {
       const response = (await getCurrentUser()) as any
       if (!response.success || !response.data) {
-        throw new Error(response.message || '获取用户信息失败')
+        throw new Error(response.message || translate('stage6.common.messages.fetchUserInfoFailed'))
       }
       setUser(response.data)
       return response.data
@@ -62,7 +65,7 @@ export const useUserStore = defineStore('user', () => {
   const updateProfile = async (payload: UpdateProfileRequest) => {
     const response = (await updateProfileApi(payload)) as any
     if (!response.success || !response.data) {
-      throw new Error(response.message || '更新个人资料失败')
+      throw new Error(response.message || translate('stage6.common.messages.updateProfileFailed'))
     }
     setUser(response.data)
     return response.data
@@ -71,7 +74,7 @@ export const useUserStore = defineStore('user', () => {
   const changePassword = async (payload: ChangePasswordRequest) => {
     const response = (await changePasswordApi(payload)) as any
     if (!response.success) {
-      throw new Error(response.message || '修改密码失败')
+      throw new Error(response.message || translate('stage6.common.messages.changePasswordFailed'))
     }
     return response.message
   }
@@ -80,7 +83,7 @@ export const useUserStore = defineStore('user', () => {
     try {
       await logoutApi()
     } catch {
-      // 忽略登出接口异常，依然清理本地状态
+      // Ignore logout API errors and still clear local state.
     } finally {
       localStorage.removeItem('token')
       setUser(null)

@@ -1,17 +1,17 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="关联房间"
+    :title="t('stage6.components.roomSelector.title')"
     width="800px"
     :before-close="handleClose"
     class="room-selector-dialog"
   >
     <div class="room-selector-content">
-      <!-- 搜索框和统计信息 -->
+      <!-- Search box and summary -->
       <div class="selector-header">
         <el-input
           v-model="searchKeyword"
-          placeholder="搜索房间号或房型"
+          :placeholder="t('stage6.components.roomSelector.searchPlaceholder')"
           clearable
           style="width: 300px"
         >
@@ -20,15 +20,15 @@
           </template>
         </el-input>
         <div class="selection-info">
-          <span>全部</span>
+          <span>{{ t('stage6.common.labels.all') }}</span>
           <span class="count">{{ totalRoomCount }}/{{ totalRoomCount }}</span>
           <el-divider direction="vertical" />
-          <span>已选</span>
+          <span>{{ t('stage6.common.labels.selected') }}</span>
           <span class="count selected">({{ selectedRooms.length }})</span>
         </div>
       </div>
 
-      <!-- 房间树形列表 -->
+      <!-- Room tree list -->
       <div class="room-tree-container">
         <el-tree
           ref="treeRef"
@@ -54,8 +54,8 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleConfirm">确定</el-button>
+        <el-button @click="handleClose">{{ t('stage6.common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="handleConfirm">{{ t('stage6.common.actions.confirm') }}</el-button>
       </div>
     </template>
   </el-dialog>
@@ -63,8 +63,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import type { ElTree } from 'element-plus'
 
 interface RoomData {
@@ -104,6 +104,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+const { t } = useI18n()
 
 const visible = computed({
   get: () => props.modelValue,
@@ -114,15 +115,15 @@ const treeRef = ref<InstanceType<typeof ElTree>>()
 const searchKeyword = ref('')
 const selectedRooms = ref<number[]>([])
 
-// 树形结构配置
+// Tree configuration
 const treeProps = {
   children: 'children',
   label: 'label',
 }
 
-// 构建树形数据
+// Build tree data
 const buildTreeData = (rooms: RoomData[]): TreeNode[] => {
-  // 按房型分组
+  // Group by room type.
   const roomTypeMap = new Map<number, RoomData[]>()
 
   rooms.forEach((room) => {
@@ -133,11 +134,11 @@ const buildTreeData = (rooms: RoomData[]): TreeNode[] => {
     roomTypeMap.get(roomTypeId)!.push(room)
   })
 
-  // 构建树形结构
+  // Build the tree structure.
   const treeData: TreeNode[] = []
 
   roomTypeMap.forEach((roomList, roomTypeId) => {
-    const roomTypeName = roomList[0]?.roomType.name || '未知房型'
+    const roomTypeName = roomList[0]?.roomType.name || t('stage6.components.roomSelector.unknownRoomType')
     const children: TreeNode[] = roomList.map((room) => ({
       id: `room-${room.id}`,
       label: room.roomNumber,
@@ -158,10 +159,10 @@ const buildTreeData = (rooms: RoomData[]): TreeNode[] => {
   return treeData
 }
 
-// 原始树形数据
+// Original tree data
 const treeData = computed(() => buildTreeData(props.rooms))
 
-// 过滤后的树形数据
+// Filtered tree data
 const filteredTreeData = computed(() => {
   if (!searchKeyword.value.trim()) {
     return treeData.value
@@ -188,17 +189,17 @@ const filteredTreeData = computed(() => {
     .filter(Boolean) as TreeNode[]
 })
 
-// 总房间数
+// Total room count
 const totalRoomCount = computed(() => {
   return props.rooms.length
 })
 
-// 默认展开的节点
+// Default expanded nodes
 const defaultExpandedKeys = computed(() => {
   return treeData.value.map((node) => node.id)
 })
 
-// 处理选择变化
+// Handle selection changes
 const handleCheckChange = () => {
   const checkedNodes = treeRef.value?.getCheckedNodes(false, false) || []
   selectedRooms.value = checkedNodes
@@ -206,23 +207,23 @@ const handleCheckChange = () => {
     .map((node: any) => node.roomId)
 }
 
-// 确认选择
+// Confirm selection
 const handleConfirm = () => {
   emit('confirm', selectedRooms.value)
   handleClose()
 }
 
-// 关闭对话框
+// Close the dialog
 const handleClose = () => {
   visible.value = false
 }
 
-// 监听对话框打开,初始化选中状态
+// Watch dialog opening and initialize selected state
 watch(visible, (newVal) => {
   if (newVal) {
     selectedRooms.value = [...props.selectedRoomIds]
 
-    // 延迟设置选中状态,确保树形结构已渲染
+    // Delay selected state setup until the tree has rendered.
     setTimeout(() => {
       if (treeRef.value) {
         const checkedKeys = props.selectedRoomIds.map((id) => `room-${id}`)
@@ -301,7 +302,7 @@ watch(visible, (newVal) => {
   font-size: 16px;
 }
 
-/* 房型节点样式 - 第一层节点 */
+/* Room type node styles - first level */
 .room-tree :deep(.el-tree > .el-tree-node > .el-tree-node__content) {
   font-weight: 600;
   background-color: #f5f7fa;
@@ -311,7 +312,7 @@ watch(visible, (newVal) => {
   background-color: #e8edf5;
 }
 
-/* 房间节点样式 */
+/* Room node styles */
 .room-tree :deep(.el-tree-node__children .el-tree-node__content) {
   padding-left: 40px;
 }

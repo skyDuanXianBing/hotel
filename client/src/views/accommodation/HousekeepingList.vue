@@ -1,10 +1,9 @@
 <template>
   <div class="housekeeping-list">
-    <!-- 搜索栏 -->
     <div class="search-bar">
       <el-input
         v-model="searchQuery"
-        placeholder="搜索房型房间、保洁员"
+        :placeholder="t('pages.housekeepingList.searchPlaceholder')"
         class="search-input"
         clearable
       >
@@ -16,7 +15,7 @@
       <el-date-picker
         v-model="selectedDate"
         type="date"
-        placeholder="日期选择"
+        :placeholder="t('pages.housekeepingList.datePlaceholder')"
         format="YYYY-MM-DD"
         value-format="YYYY-MM-DD"
         class="date-picker"
@@ -24,11 +23,11 @@
 
       <el-select
         v-model="selectedHousekeeper"
-        placeholder="保洁员"
+        :placeholder="t('pages.housekeepingList.housekeeperPlaceholder')"
         clearable
         class="housekeeper-select"
       >
-        <el-option label="全部" value="" />
+        <el-option :label="t('pages.housekeepingList.all')" value="" />
         <el-option
           v-for="housekeeper in housekeepers"
           :key="housekeeper.id"
@@ -37,96 +36,117 @@
         />
       </el-select>
 
-      <el-button class="status-btn">全部</el-button>
+      <el-button class="status-btn">{{ t('pages.housekeepingList.all') }}</el-button>
     </div>
 
-    <!-- 筛选栏 -->
     <div class="filter-bar">
       <div class="filter-left">
         <el-select
           v-model="filters.cleaningStatus"
-          placeholder="保洁状态"
+          :placeholder="t('pages.housekeepingList.filters.cleaningStatus')"
           clearable
           class="filter-select"
         >
-          <el-option label="全部" value="" />
-          <el-option label="未开始" value="not_started" />
-          <el-option label="进行中" value="in_progress" />
-          <el-option label="已完成" value="completed" />
+          <el-option :label="t('pages.housekeepingList.all')" value="" />
+          <el-option
+            :label="t('pages.housekeepingList.statuses.notStarted')"
+            value="not_started"
+          />
+          <el-option
+            :label="t('pages.housekeepingList.statuses.inProgress')"
+            value="in_progress"
+          />
+          <el-option
+            :label="t('pages.housekeepingList.statuses.completed')"
+            value="completed"
+          />
         </el-select>
 
         <el-select
           v-model="filters.roomType"
-          placeholder="房间类型"
+          :placeholder="t('pages.housekeepingList.filters.roomType')"
           clearable
           class="filter-select"
         >
-          <el-option label="全部" value="" />
+          <el-option :label="t('pages.housekeepingList.all')" value="" />
         </el-select>
 
         <el-select
           v-model="filters.roomGroup"
-          placeholder="房间分组"
+          :placeholder="t('pages.housekeepingList.filters.roomGroup')"
           clearable
           class="filter-select"
         >
-          <el-option label="全部" value="" />
+          <el-option :label="t('pages.housekeepingList.all')" value="" />
         </el-select>
 
         <el-select
           v-model="filters.auditStatus"
-          placeholder="审核状态"
+          :placeholder="t('pages.housekeepingList.filters.auditStatus')"
           clearable
           class="filter-select"
         >
-          <el-option label="全部" value="" />
+          <el-option :label="t('pages.housekeepingList.all')" value="" />
         </el-select>
       </div>
 
       <div class="filter-right">
-        <el-button link type="primary">收起筛选 <el-icon><ArrowUp /></el-icon></el-button>
-        <el-button type="primary" size="small">导出明细</el-button>
-        <el-button type="primary" size="small">添加任务</el-button>
+        <el-button link type="primary">
+          {{ t('pages.housekeepingList.collapseFilters') }}
+          <el-icon><ArrowUp /></el-icon>
+        </el-button>
+        <el-button type="primary" size="small">
+          {{ t('pages.housekeepingList.exportDetails') }}
+        </el-button>
+        <el-button type="primary" size="small">{{ t('pages.housekeepingList.addTask') }}</el-button>
       </div>
     </div>
 
-    <!-- 数据表格 -->
     <el-table
       :data="housekeepingList"
       style="width: 100%"
-      empty-text="暂无数据"
+      :empty-text="t('pages.housekeepingList.empty')"
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="55" />
-      <el-table-column prop="timeSlot" label="时段" width="80" />
-      <el-table-column prop="roomType" label="房型" width="120" />
-      <el-table-column prop="roomNumber" label="房间" width="100" />
-      <el-table-column prop="roomGroup" label="房间分组" width="120" />
-      <el-table-column prop="checkoutTime" label="退房时间" width="180" />
-      <el-table-column prop="housekeeper" label="保洁员" width="150" />
-      <el-table-column prop="cleaningStatus" label="保洁状态" width="100">
+      <el-table-column prop="timeSlot" :label="t('pages.housekeepingList.columns.timeSlot')" width="80" />
+      <el-table-column prop="roomType" :label="t('pages.housekeepingList.columns.roomType')" width="120" />
+      <el-table-column prop="roomNumber" :label="t('pages.housekeepingList.columns.roomNumber')" width="100" />
+      <el-table-column prop="roomGroup" :label="t('pages.housekeepingList.columns.roomGroup')" width="120" />
+      <el-table-column prop="checkoutTime" :label="t('pages.housekeepingList.columns.checkoutTime')" width="180" />
+      <el-table-column prop="housekeeper" :label="t('pages.housekeepingList.columns.housekeeper')" width="150" />
+      <el-table-column
+        prop="cleaningStatus"
+        :label="t('pages.housekeepingList.columns.cleaningStatus')"
+        width="120"
+      >
         <template #default="{ row }">
           <el-tag :type="getStatusType(row.cleaningStatus)">
-            {{ row.cleaningStatus }}
+            {{ getStatusLabel(row.cleaningStatus) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="250" fixed="right">
+      <el-table-column :label="t('pages.housekeepingList.columns.actions')" width="250" fixed="right">
         <template #default>
-          <el-button link type="primary" size="small">通知保洁员</el-button>
-          <el-button link type="primary" size="small">编辑</el-button>
-          <el-button link type="danger" size="small">删除</el-button>
+          <el-button link type="primary" size="small">
+            {{ t('pages.housekeepingList.actions.notify') }}
+          </el-button>
+          <el-button link type="primary" size="small">{{ t('pages.housekeepingList.actions.edit') }}</el-button>
+          <el-button link type="danger" size="small">{{ t('pages.housekeepingList.actions.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <!-- 批量操作栏和分页 -->
     <div class="table-footer">
       <div class="batch-actions">
-        <el-checkbox v-model="selectAll" @change="handleSelectAll">全选</el-checkbox>
-        <span class="selected-count">已选 {{ selectedItems.length }} 条</span>
-        <el-button size="small">批量通知保洁员</el-button>
-        <el-button size="small">批量调整保洁状态</el-button>
+        <el-checkbox v-model="selectAll" @change="handleSelectAll">
+          {{ t('pages.housekeepingList.selectAll') }}
+        </el-checkbox>
+        <span class="selected-count">
+          {{ t('pages.housekeepingList.selectedCount', { count: selectedItems.length }) }}
+        </span>
+        <el-button size="small">{{ t('pages.housekeepingList.batchNotify') }}</el-button>
+        <el-button size="small">{{ t('pages.housekeepingList.batchUpdateStatus') }}</el-button>
       </div>
 
       <el-pagination
@@ -144,65 +164,58 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Search, ArrowUp } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
+import { ArrowUp, Search } from '@element-plus/icons-vue'
 
-// 搜索和筛选
+const { t } = useI18n()
+
 const searchQuery = ref('')
 const selectedDate = ref('')
 const selectedHousekeeper = ref('')
 
-// 保洁员列表
-const housekeepers = ref<any[]>([
-  { id: 1, name: '小林' },
-  { id: 2, name: 'll' }
+const housekeepers = ref([
+  { id: 1, name: t('pages.housekeepingList.mock.housekeeperA') },
+  { id: 2, name: t('pages.housekeepingList.mock.housekeeperB') },
 ])
 
-// 筛选条件
 const filters = ref({
   cleaningStatus: '',
   roomType: '',
   roomGroup: '',
-  auditStatus: ''
+  auditStatus: '',
 })
 
-// 房务列表数据
-const housekeepingList = ref<any[]>([
+const housekeepingList = ref([
   {
     id: 1,
     timeSlot: '-',
-    roomType: '大床房',
+    roomType: t('pages.housekeepingList.mock.roomType'),
     roomNumber: 'a01',
-    roomGroup: '未分组房间',
+    roomGroup: t('pages.housekeepingList.mock.roomGroup'),
     checkoutTime: '2025-10-01 12:00:00',
-    housekeeper: '小林、ll',
-    cleaningStatus: '未开始'
-  }
+    housekeeper: t('pages.housekeepingList.mock.joinedHousekeepers'),
+    cleaningStatus: 'not_started',
+  },
 ])
 
-// 批量选择
 const selectAll = ref(false)
 const selectedItems = ref<any[]>([])
 
-// 分页
 const pagination = ref({
   current: 1,
   size: 25,
-  total: 1
+  total: 1,
 })
 
-// 处理选择变化
 const handleSelectionChange = (selection: any[]) => {
   selectedItems.value = selection
   selectAll.value = selection.length === housekeepingList.value.length
 }
 
-// 处理全选
 const handleSelectAll = (checked: boolean) => {
-  // 这里需要手动触发表格的全选/取消全选
-  console.log('全选状态:', checked)
+  console.log('select all status:', checked)
 }
 
-// 分页事件
 const handlePageChange = (page: number) => {
   pagination.value.current = page
 }
@@ -211,14 +224,22 @@ const handleSizeChange = (size: number) => {
   pagination.value.size = size
 }
 
-// 状态类型转换
 const getStatusType = (status: string) => {
   const typeMap: Record<string, string> = {
-    未开始: 'info',
-    进行中: 'warning',
-    已完成: 'success'
+    not_started: 'info',
+    in_progress: 'warning',
+    completed: 'success',
   }
   return typeMap[status] || 'info'
+}
+
+const getStatusLabel = (status: string) => {
+  const labelMap: Record<string, string> = {
+    not_started: t('pages.housekeepingList.statuses.notStarted'),
+    in_progress: t('pages.housekeepingList.statuses.inProgress'),
+    completed: t('pages.housekeepingList.statuses.completed'),
+  }
+  return labelMap[status] || status
 }
 </script>
 
@@ -228,7 +249,6 @@ const getStatusType = (status: string) => {
   background: #fff;
 }
 
-/* 搜索栏 */
 .search-bar {
   display: flex;
   gap: 12px;
@@ -252,7 +272,6 @@ const getStatusType = (status: string) => {
   min-width: 80px;
 }
 
-/* 筛选栏 */
 .filter-bar {
   display: flex;
   justify-content: space-between;
@@ -278,7 +297,6 @@ const getStatusType = (status: string) => {
   align-items: center;
 }
 
-/* 表格底部 */
 .table-footer {
   margin-top: 16px;
   display: flex;
@@ -299,7 +317,6 @@ const getStatusType = (status: string) => {
   color: #666;
 }
 
-/* 响应式 */
 @media (max-width: 1400px) {
   .search-bar {
     flex-wrap: wrap;

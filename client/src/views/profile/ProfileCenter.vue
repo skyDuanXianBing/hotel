@@ -3,11 +3,13 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { UserFilled } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/stores/user'
 import type { UserDTO } from '@/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -58,7 +60,8 @@ onMounted(async () => {
     try {
       await userStore.fetchCurrentUser(true)
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : '加载用户信息失败'
+      const message =
+        error instanceof Error ? error.message : t('stage6.common.messages.fetchUserInfoFailed')
       ElMessage.error(message)
     } finally {
       loading.value = false
@@ -81,7 +84,7 @@ const isDirty = computed(() => {
 
 const handleSave = async () => {
   if (!formData.nickname.trim()) {
-    ElMessage.warning('昵称不能为空')
+    ElMessage.warning(t('pages.profile.nicknameRequired'))
     return
   }
 
@@ -92,12 +95,13 @@ const handleSave = async () => {
       gender: formData.gender,
       avatar: formData.avatar.trim() || undefined,
     })
-    ElMessage.success('个人资料已更新')
+    ElMessage.success(t('pages.profile.saveSuccess'))
     if (userStore.currentUser) {
       syncForm(userStore.currentUser)
     }
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : '更新个人资料失败'
+    const message =
+      error instanceof Error ? error.message : t('stage6.common.messages.updateProfileFailed')
     ElMessage.error(message)
   } finally {
     saving.value = false
@@ -115,18 +119,37 @@ const resetPasswordForm = () => {
   passwordFormRef.value?.clearValidate()
 }
 
-const passwordRules: FormRules = {
-  currentPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+const passwordRules = computed<FormRules>(() => ({
+  currentPassword: [
+    {
+      required: true,
+      message: t('pages.profile.validation.currentPasswordRequired'),
+      trigger: 'blur',
+    },
+  ],
   newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, max: 64, message: '密码长度需在6到64个字符之间', trigger: 'blur' },
+    {
+      required: true,
+      message: t('pages.profile.validation.newPasswordRequired'),
+      trigger: 'blur',
+    },
+    {
+      min: 6,
+      max: 64,
+      message: t('pages.profile.validation.newPasswordLength'),
+      trigger: 'blur',
+    },
   ],
   confirmPassword: [
-    { required: true, message: '请确认新密码', trigger: 'blur' },
+    {
+      required: true,
+      message: t('pages.profile.validation.confirmPasswordRequired'),
+      trigger: 'blur',
+    },
     {
       validator: (_rule, value, callback) => {
         if (value !== passwordForm.newPassword) {
-          callback(new Error('两次输入的密码不一致'))
+          callback(new Error(t('pages.profile.validation.confirmPasswordMismatch')))
         } else {
           callback()
         }
@@ -134,7 +157,7 @@ const passwordRules: FormRules = {
       trigger: 'blur',
     },
   ],
-}
+}))
 
 const submitChangePassword = async () => {
   if (!passwordFormRef.value) return
@@ -151,13 +174,14 @@ const submitChangePassword = async () => {
       newPassword: passwordForm.newPassword,
       confirmPassword: passwordForm.confirmPassword,
     })
-    ElMessage.success('密码修改成功，请重新登录')
+    ElMessage.success(t('pages.profile.changePasswordSuccess'))
     passwordDialogVisible.value = false
     resetPasswordForm()
     await userStore.logout()
     router.replace('/login')
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : '修改密码失败'
+    const message =
+      error instanceof Error ? error.message : t('stage6.common.messages.changePasswordFailed')
     ElMessage.error(message)
   } finally {
     passwordLoading.value = false
@@ -177,24 +201,26 @@ const submitChangePassword = async () => {
             class="avatar"
           />
           <div class="profile-header__detail">
-            <div class="profile-email">{{ userInfo?.email || '—' }}</div>
-            <el-link type="primary" :underline="false" @click="handleChangePassword">修改密码</el-link>
+            <div class="profile-email">{{ userInfo?.email || t('pages.profile.emailFallback') }}</div>
+            <el-link type="primary" :underline="false" @click="handleChangePassword">
+              {{ t('pages.profile.changePassword') }}
+            </el-link>
           </div>
         </div>
 
         <el-form ref="profileFormRef" :model="formData" class="profile-form" label-width="80px">
-          <el-form-item label="昵称">
-            <el-input v-model="formData.nickname" placeholder="请输入昵称" />
+          <el-form-item :label="t('pages.profile.nickname')">
+            <el-input v-model="formData.nickname" :placeholder="t('pages.profile.nicknamePlaceholder')" />
           </el-form-item>
-          <el-form-item label="性别">
+          <el-form-item :label="t('pages.profile.gender')">
             <el-radio-group v-model="formData.gender" class="gender-group">
-              <el-radio-button label="male">男</el-radio-button>
-              <el-radio-button label="female">女</el-radio-button>
-              <el-radio-button label="private">保密</el-radio-button>
+              <el-radio-button label="male">{{ t('pages.profile.genderOptions.male') }}</el-radio-button>
+              <el-radio-button label="female">{{ t('pages.profile.genderOptions.female') }}</el-radio-button>
+              <el-radio-button label="private">{{ t('pages.profile.genderOptions.private') }}</el-radio-button>
             </el-radio-group>
           </el-form-item>
-          <el-form-item label="头像地址">
-            <el-input v-model="formData.avatar" placeholder="请输入头像 URL（可选）" />
+          <el-form-item :label="t('pages.profile.avatar')">
+            <el-input v-model="formData.avatar" :placeholder="t('pages.profile.avatarPlaceholder')" />
           </el-form-item>
           <div class="form-actions">
             <el-button
@@ -204,22 +230,24 @@ const submitChangePassword = async () => {
               :disabled="!isDirty"
               @click="handleSave"
             >
-              保存
+              {{ t('pages.profile.save') }}
             </el-button>
           </div>
         </el-form>
       </el-card>
 
       <el-card class="security-card" :body-style="{ padding: '24px 32px' }">
-        <h3 class="card-title">账户安全</h3>
-        <p class="card-subtitle">定期更新密码可以提升账户安全，请确保新密码与旧密码不同。</p>
-        <el-button type="primary" plain @click="handleChangePassword">修改密码</el-button>
+        <h3 class="card-title">{{ t('pages.profile.securityTitle') }}</h3>
+        <p class="card-subtitle">{{ t('pages.profile.securitySubtitle') }}</p>
+        <el-button type="primary" plain @click="handleChangePassword">
+          {{ t('pages.profile.changePassword') }}
+        </el-button>
       </el-card>
     </div>
 
     <el-dialog
       v-model="passwordDialogVisible"
-      title="修改密码"
+      :title="t('pages.profile.passwordDialogTitle')"
       width="420px"
       @close="resetPasswordForm"
     >
@@ -229,35 +257,35 @@ const submitChangePassword = async () => {
         :rules="passwordRules"
         label-width="100px"
       >
-        <el-form-item label="当前密码" prop="currentPassword">
+        <el-form-item :label="t('pages.profile.currentPassword')" prop="currentPassword">
           <el-input
             v-model="passwordForm.currentPassword"
             type="password"
             show-password
-            placeholder="请输入当前密码"
+            :placeholder="t('pages.profile.currentPasswordPlaceholder')"
           />
         </el-form-item>
-        <el-form-item label="新密码" prop="newPassword">
+        <el-form-item :label="t('pages.profile.newPassword')" prop="newPassword">
           <el-input
             v-model="passwordForm.newPassword"
             type="password"
             show-password
-            placeholder="请输入新密码"
+            :placeholder="t('pages.profile.newPasswordPlaceholder')"
           />
         </el-form-item>
-        <el-form-item label="确认新密码" prop="confirmPassword">
+        <el-form-item :label="t('pages.profile.confirmPassword')" prop="confirmPassword">
           <el-input
             v-model="passwordForm.confirmPassword"
             type="password"
             show-password
-            placeholder="请再次输入新密码"
+            :placeholder="t('pages.profile.confirmPasswordPlaceholder')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="passwordDialogVisible = false">取消</el-button>
+        <el-button @click="passwordDialogVisible = false">{{ t('stage6.common.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="passwordLoading" @click="submitChangePassword">
-          确认修改
+          {{ t('stage6.common.actions.confirm') }}
         </el-button>
       </template>
     </el-dialog>

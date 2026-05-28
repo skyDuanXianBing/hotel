@@ -1,21 +1,21 @@
 <template>
   <el-dialog
-    title="添加房间"
     v-model="dialogVisible"
+    :title="t('stage6.components.addRoomDialog.title')"
     width="600px"
     @close="handleClose"
   >
     <div class="add-room-dialog">
-      <!-- 顶部统计信息 -->
+      <!-- Selection summary -->
       <div class="room-stats">
         <span class="stats-text">
-          {{ selectedRooms.length }}/{{ totalRooms }} 已选{{ selectedRooms.length }}间
+          {{ t('stage6.components.addRoomDialog.selectedOfTotal', { selected: selectedRooms.length, total: totalRooms }) }}
         </span>
       </div>
 
-      <!-- 房间选择区域 -->
+      <!-- Room selection area -->
       <div class="room-selection-area">
-        <!-- 左侧：房型树 -->
+        <!-- Left: room type tree -->
         <div class="room-type-tree">
           <div class="tree-header">
             <el-checkbox 
@@ -23,7 +23,7 @@
               :indeterminate="isIndeterminate"
               @change="handleSelectAll"
             >
-              全部
+              {{ t('stage6.components.addRoomDialog.allRooms') }}
             </el-checkbox>
             <el-button 
               type="primary" 
@@ -32,7 +32,7 @@
               @click="selectAllRooms"
               class="select-all-btn"
             >
-              全选
+              {{ t('stage6.common.actions.selectAll') }}
             </el-button>
             <el-button 
               type="primary" 
@@ -41,7 +41,7 @@
               @click="clearAllSelection"
               class="clear-all-btn"
             >
-              清空
+              {{ t('stage6.common.actions.clear') }}
             </el-button>
           </div>
           
@@ -51,7 +51,7 @@
               :key="roomType.id"
               class="room-type-item"
             >
-              <!-- 房型标题 -->
+              <!-- Room type title -->
               <div class="room-type-header" @click="toggleRoomType(roomType.id)">
                 <el-icon 
                   :class="expandedRoomTypes.includes(roomType.id) ? 'expanded' : 'collapsed'"
@@ -69,7 +69,7 @@
                 </el-checkbox>
               </div>
 
-              <!-- 房间列表 -->
+              <!-- Room list -->
               <div 
                 v-if="expandedRoomTypes.includes(roomType.id)" 
                 class="room-list"
@@ -91,10 +91,10 @@
           </div>
         </div>
 
-        <!-- 右侧：已选房间列表 -->
+        <!-- Right: selected room list -->
         <div class="selected-rooms-panel">
           <div class="panel-header">
-            已选{{ selectedRooms.length }}间
+            {{ t('stage6.components.addRoomDialog.selectedRooms', { count: selectedRooms.length }) }}
           </div>
           <div class="selected-rooms-list">
             <div 
@@ -109,11 +109,11 @@
                 @click="handleRoomSelect(roomId, false)"
                 class="remove-btn"
               >
-                移除
+                {{ t('stage6.common.actions.remove') }}
               </el-button>
             </div>
             <div v-if="selectedRooms.length === 0" class="empty-state">
-              暂无选择房间
+              {{ t('stage6.components.addRoomDialog.emptySelected') }}
             </div>
           </div>
         </div>
@@ -122,8 +122,8 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleConfirm">确定</el-button>
+        <el-button @click="handleClose">{{ t('stage6.common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="handleConfirm">{{ t('stage6.common.actions.confirm') }}</el-button>
       </div>
     </template>
   </el-dialog>
@@ -133,10 +133,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { request } from '@/utils/request'
 import type { ApiResponse } from '@/types/room'
 
-// 接口定义
+// Interface definitions
 interface Room {
   id: number
   roomNumber: string
@@ -152,7 +153,7 @@ interface RoomType {
   rooms: Room[]
 }
 
-// 组件属性
+// Component props
 interface Props {
   modelValue: boolean
   selectedRoomIds?: number[]
@@ -168,8 +169,9 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+const { t } = useI18n()
 
-// 响应式数据
+// Reactive state
 const dialogVisible = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
@@ -180,7 +182,7 @@ const allRooms = ref<Room[]>([])
 const selectedRooms = ref<number[]>([...props.selectedRoomIds])
 const expandedRoomTypes = ref<number[]>([])
 
-// 计算属性
+// Computed state
 const roomTypesWithRooms = computed<RoomType[]>(() => {
   const roomTypeMap = new Map<number, RoomType>()
   
@@ -204,7 +206,7 @@ const totalRooms = computed(() => allRooms.value.length)
 const selectAll = computed({
   get: () => selectedRooms.value.length === totalRooms.value && totalRooms.value > 0,
   set: (value) => {
-    // 通过handleSelectAll处理
+    // Handled by handleSelectAll
   }
 })
 
@@ -212,7 +214,7 @@ const isIndeterminate = computed(() => {
   return selectedRooms.value.length > 0 && selectedRooms.value.length < totalRooms.value
 })
 
-// 获取房间数据
+// Load room data
 const fetchRooms = async () => {
   try {
     loading.value = true
@@ -222,37 +224,37 @@ const fetchRooms = async () => {
     if (response.success) {
       allRooms.value = response.data
     } else {
-      ElMessage.error(response.message || '获取房间数据失败')
-      // 如果后端失败，使用模拟数据
+      ElMessage.error(response.message || t('stage6.components.addRoomDialog.loadFailed'))
+      // Use demo data when the backend request fails
       allRooms.value = [
         {
           id: 1,
           roomNumber: 'a01',
-          roomType: { id: 1, name: '大床房' }
+          roomType: { id: 1, name: t('stage6.components.addRoomDialog.demoRoomTypes.queen') }
         },
         {
           id: 2,
           roomNumber: 'd01',
-          roomType: { id: 2, name: '双人床' }
+          roomType: { id: 2, name: t('stage6.components.addRoomDialog.demoRoomTypes.twin') }
         }
       ]
     }
     
-    // 默认收起所有房型
+    // Collapse all room types by default
     expandedRoomTypes.value = []
   } catch (error) {
-    console.error('获取房间数据失败:', error)
-    // 网络错误时使用模拟数据
+    console.error('Failed to load room data:', error)
+    // Use demo data on network errors
     allRooms.value = [
       {
         id: 1,
         roomNumber: 'a01',
-        roomType: { id: 1, name: '大床房' }
+        roomType: { id: 1, name: t('stage6.components.addRoomDialog.demoRoomTypes.queen') }
       },
       {
         id: 2,
         roomNumber: 'd01',
-        roomType: { id: 2, name: '双人床' }
+        roomType: { id: 2, name: t('stage6.components.addRoomDialog.demoRoomTypes.twin') }
       }
     ]
     expandedRoomTypes.value = []
@@ -261,7 +263,7 @@ const fetchRooms = async () => {
   }
 }
 
-// 处理全选/取消全选
+// Handle select all / clear all
 const handleSelectAll = (checked: boolean) => {
   if (checked) {
     selectedRooms.value = allRooms.value.map(room => room.id)
@@ -270,17 +272,17 @@ const handleSelectAll = (checked: boolean) => {
   }
 }
 
-// 全选所有房间
+// Select all rooms
 const selectAllRooms = () => {
   selectedRooms.value = allRooms.value.map(room => room.id)
 }
 
-// 清空所有选择
+// Clear all selections
 const clearAllSelection = () => {
   selectedRooms.value = []
 }
 
-// 处理房型选择
+// Handle room type selection
 const handleRoomTypeSelect = (roomTypeId: number, checked: boolean) => {
   const roomType = roomTypesWithRooms.value.find(rt => rt.id === roomTypeId)
   if (!roomType) return
@@ -288,19 +290,19 @@ const handleRoomTypeSelect = (roomTypeId: number, checked: boolean) => {
   const roomIds = roomType.rooms.map(room => room.id)
   
   if (checked) {
-    // 添加该房型下的所有房间
+    // Add all rooms under this room type
     roomIds.forEach(roomId => {
       if (!selectedRooms.value.includes(roomId)) {
         selectedRooms.value.push(roomId)
       }
     })
   } else {
-    // 移除该房型下的所有房间
+    // Remove all rooms under this room type
     selectedRooms.value = selectedRooms.value.filter(roomId => !roomIds.includes(roomId))
   }
 }
 
-// 处理单个房间选择
+// Handle single room selection
 const handleRoomSelect = (roomId: number, checked: boolean) => {
   if (checked) {
     if (!selectedRooms.value.includes(roomId)) {
@@ -311,7 +313,7 @@ const handleRoomSelect = (roomId: number, checked: boolean) => {
   }
 }
 
-// 判断房型是否全选
+// Check whether a room type is fully selected
 const isRoomTypeSelected = (roomTypeId: number): boolean => {
   const roomType = roomTypesWithRooms.value.find(rt => rt.id === roomTypeId)
   if (!roomType || roomType.rooms.length === 0) return false
@@ -320,7 +322,7 @@ const isRoomTypeSelected = (roomTypeId: number): boolean => {
   return roomIds.every(roomId => selectedRooms.value.includes(roomId))
 }
 
-// 判断房型是否部分选择
+// Check whether a room type is partially selected
 const isRoomTypeIndeterminate = (roomTypeId: number): boolean => {
   const roomType = roomTypesWithRooms.value.find(rt => rt.id === roomTypeId)
   if (!roomType) return false
@@ -331,7 +333,7 @@ const isRoomTypeIndeterminate = (roomTypeId: number): boolean => {
   return selectedCount > 0 && selectedCount < roomIds.length
 }
 
-// 切换房型展开/收起
+// Toggle room type expansion
 const toggleRoomType = (roomTypeId: number) => {
   const index = expandedRoomTypes.value.indexOf(roomTypeId)
   if (index > -1) {
@@ -341,24 +343,26 @@ const toggleRoomType = (roomTypeId: number) => {
   }
 }
 
-// 获取房间显示名称
+// Get room display name
 const getRoomDisplayName = (roomId: number): string => {
   const room = allRooms.value.find(r => r.id === roomId)
-  return room ? `${room.roomType.name} - ${room.roomNumber}` : `房间${roomId}`
+  return room
+    ? `${room.roomType.name} - ${room.roomNumber}`
+    : t('stage6.components.addRoomDialog.fallbackRoom', { id: roomId })
 }
 
-// 处理关闭
+// Handle close
 const handleClose = () => {
   dialogVisible.value = false
 }
 
-// 处理确认
+// Handle confirm
 const handleConfirm = () => {
   emit('confirm', selectedRooms.value)
   dialogVisible.value = false
 }
 
-// 监听弹窗打开
+// Watch dialog open state
 watch(() => props.modelValue, (newValue) => {
   if (newValue) {
     selectedRooms.value = [...props.selectedRoomIds]
@@ -366,7 +370,7 @@ watch(() => props.modelValue, (newValue) => {
   }
 })
 
-// 监听外部传入的选中房间
+// Watch externally provided selected rooms
 watch(() => props.selectedRoomIds, (newValue) => {
   selectedRooms.value = [...newValue]
 })
@@ -524,7 +528,7 @@ onMounted(() => {
   gap: 12px;
 }
 
-/* 滚动条样式 */
+/* Scrollbar styles */
 .tree-content::-webkit-scrollbar,
 .selected-rooms-list::-webkit-scrollbar {
   width: 6px;

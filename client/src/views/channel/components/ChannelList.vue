@@ -1,10 +1,10 @@
 <template>
   <div class="channel-list-panel">
     <div class="page-header">
-      <h2>渠道管理</h2>
+      <h2>{{ t('channel.list.title') }}</h2>
       <div class="header-tabs">
         <el-tabs v-model="activeTab">
-          <el-tab-pane label="OTA渠道" name="ota" />
+          <el-tab-pane :label="t('channel.list.otaTab')" name="ota" />
         </el-tabs>
       </div>
     </div>
@@ -12,7 +12,7 @@
     <!-- OTA渠道内容 -->
     <div v-if="activeTab === 'ota'" class="channel-content">
       <div class="channel-section">
-        <h3 class="section-title">OTA渠道</h3>
+        <h3 class="section-title">{{ t('channel.list.otaSection') }}</h3>
         <div class="channel-grid">
           <div
             v-for="channel in channels"
@@ -28,7 +28,9 @@
                 class="status-dot"
                 :class="channel.connected ? 'connected' : 'disconnected'"
               />
-              <span class="status-text">{{ channel.connected ? '已设置' : '未设置' }}</span>
+              <span class="status-text">
+                {{ channel.connected ? t('channel.list.connected') : t('channel.list.disconnected') }}
+              </span>
             </div>
             <div class="channel-card-actions">
               <el-button
@@ -38,7 +40,7 @@
                 class="manage-btn"
                 @click="$emit('manage', channel)"
               >
-                管理
+                {{ t('channel.list.manage') }}
               </el-button>
               <el-button
                 :type="channel.connected ? 'default' : 'primary'"
@@ -46,7 +48,7 @@
                 class="config-btn"
                 @click="$emit('connect', channel)"
               >
-                {{ channel.connected ? '重新授权' : '配置' }}
+                {{ channel.connected ? t('channel.list.reconnect') : t('channel.list.configure') }}
               </el-button>
             </div>
           </div>
@@ -57,17 +59,17 @@
     <!-- 查看介绍内容 -->
     <div v-if="activeTab === 'intro'" class="intro-content">
       <div class="intro-section">
-        <h3>渠道管理功能介绍</h3>
-        <p>通过渠道管理，您可以：</p>
+        <h3>{{ t('channel.list.introTitle') }}</h3>
+        <p>{{ t('channel.list.introLead') }}</p>
         <ul>
-          <li>连接各大OTA平台，实现房量同步</li>
-          <li>统一管理多个渠道的房态信息</li>
-          <li>自动化价格和库存更新</li>
-          <li>查看各渠道的订单数据</li>
+          <li>{{ t('channel.list.introItems.connect') }}</li>
+          <li>{{ t('channel.list.introItems.status') }}</li>
+          <li>{{ t('channel.list.introItems.pricing') }}</li>
+          <li>{{ t('channel.list.introItems.orders') }}</li>
         </ul>
       </div>
       <div class="intro-section">
-        <h3>支持的主要渠道</h3>
+        <h3>{{ t('channel.list.supportedTitle') }}</h3>
         <div class="channel-category-list">
           <div v-for="category in categories" :key="category.name" class="category">
             <h4>{{ category.name }}</h4>
@@ -84,7 +86,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ChannelItem } from '../types'
 import { CHANNEL_CATEGORIES } from '../constants'
 
@@ -98,7 +101,18 @@ defineEmits<{
 }>()
 
 const activeTab = ref('ota')
-const categories = CHANNEL_CATEGORIES
+const { t } = useI18n()
+const categoryNameMap: Record<string, string> = {
+  domesticOta: 'channel.categories.domesticOta',
+  homestay: 'channel.categories.homestay',
+  internationalOta: 'channel.categories.internationalOta',
+}
+const categories = computed(() =>
+  CHANNEL_CATEGORIES.map((category) => ({
+    ...category,
+    name: t(categoryNameMap[category.key] || category.name),
+  })),
+)
 </script>
 
 <style scoped>
@@ -217,13 +231,16 @@ const categories = CHANNEL_CATEGORIES
 .channel-card-actions {
   width: 100%;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
 }
 
 .channel-card-actions .el-button {
   flex: 1;
+  min-width: 0;
   margin: 0;
+  white-space: normal;
 }
 
 /* 介绍内容 */

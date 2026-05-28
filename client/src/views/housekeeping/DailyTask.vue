@@ -1,14 +1,13 @@
 <template>
   <div class="daily-task">
-    <!-- 顶部标题栏 -->
     <header class="task-header">
       <div class="header-left">
-        <h2 class="header-title">保洁任务</h2>
+        <h2 class="header-title">{{ t('pages.housekeepingDailyTask.title') }}</h2>
         <el-icon class="header-icon"><Calendar /></el-icon>
         <el-date-picker
           v-model="selectedDate"
           type="date"
-          placeholder="选择日期"
+          :placeholder="t('pages.housekeepingDailyTask.datePlaceholder')"
           class="date-picker"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
@@ -19,31 +18,38 @@
       </el-button>
     </header>
 
-    <!-- 搜索和筛选 -->
     <div class="search-bar">
       <el-input
         v-model="searchKeyword"
-        placeholder="搜索房间号"
+        :placeholder="t('pages.housekeepingDailyTask.searchPlaceholder')"
         class="search-input"
         :prefix-icon="Search"
       />
       <el-button class="filter-btn" @click="handleFilter">
         <el-icon><Filter /></el-icon>
-        筛选
+        {{ t('pages.housekeepingDailyTask.filter') }}
       </el-button>
     </div>
 
-    <!-- 统计信息 -->
     <div class="statistics-bar">
       <p class="statistics-text">
-        共有 {{ totalTasks }} 个任务，已打扫 {{ completedTasks }} 个
+        {{
+          t('pages.housekeepingDailyTask.statistics.totalCompleted', {
+            total: totalTasks,
+            completed: completedTasks,
+          })
+        }}
       </p>
       <p class="statistics-text">
-        已过期 {{ expiredTasks }} 个，还剩 {{ remainingTasks }} 个
+        {{
+          t('pages.housekeepingDailyTask.statistics.expiredRemaining', {
+            expired: expiredTasks,
+            remaining: remainingTasks,
+          })
+        }}
       </p>
     </div>
 
-    <!-- 任务列表 -->
     <div class="task-list">
       <div
         v-for="task in taskList"
@@ -55,56 +61,48 @@
           {{ getStatusText(task.status) }}
         </div>
         <div class="task-content">
-          <h3 class="task-type">{{ task.type }}</h3>
-          <p class="task-room">{{ task.roomType }}</p>
+          <h3 class="task-type">{{ getTaskTypeText(task.type) }}</h3>
+          <p class="task-room">{{ getRoomTypeText(task.roomType) }}</p>
           <p class="task-room-number">{{ task.roomNumber }}</p>
-          <p class="task-time">打扫时间：{{ task.cleanTime || '-' }}</p>
+          <p class="task-time">
+            {{ t('pages.housekeepingDailyTask.cleanTime', { time: task.cleanTime || '-' }) }}
+          </p>
         </div>
       </div>
 
-      <!-- 空状态 -->
-      <el-empty v-if="taskList.length === 0" description="暂无任务" />
+      <el-empty v-if="taskList.length === 0" :description="t('pages.housekeepingDailyTask.empty')" />
     </div>
 
-    <!-- 底部水印 -->
     <footer class="task-footer">
       <div class="footer-logo">
         <el-icon :size="24"><House /></el-icon>
-        <span class="footer-text">提供技术支持</span>
+        <span class="footer-text">{{ t('pages.housekeepingDailyTask.footer') }}</span>
       </div>
     </footer>
 
-    <!-- 任务详情弹窗 -->
-    <TaskDetailDialog
-      v-model="showTaskDetail"
-      :task="selectedTask"
-      @refresh="handleRefresh"
-    />
+    <TaskDetailDialog v-model="showTaskDetail" :task="selectedTask" @refresh="handleRefresh" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { Calendar, Refresh, Search, Filter, House } from '@element-plus/icons-vue'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Calendar, Filter, House, Refresh, Search } from '@element-plus/icons-vue'
 import TaskDetailDialog from './components/TaskDetailDialog.vue'
 
-// 日期选择
+const { t } = useI18n()
+
 const selectedDate = ref(new Date().toISOString().split('T')[0])
-
-// 搜索关键词
 const searchKeyword = ref('')
-
-// 任务详情弹窗
 const showTaskDetail = ref(false)
 const selectedTask = ref<any>(null)
 
-// 任务列表（模拟数据）
 const taskList = ref([
   {
     id: 1,
-    type: '退脏房',
-    roomType: '大床房',
+    type: 'checkoutRoom',
+    roomType: 'deluxeDouble',
     roomNumber: 'a01',
     cleanTime: '',
     status: 'expired',
@@ -113,44 +111,50 @@ const taskList = ref([
   },
 ])
 
-// 统计数据
 const totalTasks = computed(() => taskList.value.length)
-const completedTasks = computed(
-  () => taskList.value.filter((t) => t.status === 'completed').length
-)
-const expiredTasks = computed(() => taskList.value.filter((t) => t.status === 'expired').length)
-const remainingTasks = computed(() => taskList.value.filter((t) => t.status === 'pending').length)
+const completedTasks = computed(() => taskList.value.filter((item) => item.status === 'completed').length)
+const expiredTasks = computed(() => taskList.value.filter((item) => item.status === 'expired').length)
+const remainingTasks = computed(() => taskList.value.filter((item) => item.status === 'pending').length)
 
-// 获取状态文本
 const getStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
-    pending: '待打扫',
-    completed: '已完成',
-    expired: '已过期',
+    pending: t('pages.housekeepingDailyTask.statuses.pending'),
+    completed: t('pages.housekeepingDailyTask.statuses.completed'),
+    expired: t('pages.housekeepingDailyTask.statuses.expired'),
+    cleaning: t('pages.housekeepingDailyTask.statuses.cleaning'),
   }
   return statusMap[status] || status
 }
 
-// 刷新任务列表
+const getTaskTypeText = (type: string) => {
+  const typeMap: Record<string, string> = {
+    checkoutRoom: t('pages.housekeepingDailyTask.taskTypes.checkoutRoom'),
+  }
+  return typeMap[type] || type
+}
+
+const getRoomTypeText = (roomType: string) => {
+  const roomTypeMap: Record<string, string> = {
+    deluxeDouble: t('pages.housekeepingDailyTask.roomTypes.deluxeDouble'),
+  }
+  return roomTypeMap[roomType] || roomType
+}
+
 const handleRefresh = () => {
-  ElMessage.success('刷新成功')
-  // TODO: 调用API刷新任务列表
+  ElMessage.success(t('pages.housekeepingDailyTask.messages.refreshSuccess'))
 }
 
-// 筛选
 const handleFilter = () => {
-  ElMessage.info('筛选功能待实现')
+  ElMessage.info(t('pages.housekeepingDailyTask.messages.filterPending'))
 }
 
-// 点击任务卡片
 const handleTaskClick = (task: any) => {
   selectedTask.value = task
   showTaskDetail.value = true
 }
 
-// 初始化
 onMounted(() => {
-  // TODO: 加载任务列表数据
+  console.log('daily task mounted')
 })
 </script>
 
@@ -162,7 +166,6 @@ onMounted(() => {
   flex-direction: column;
 }
 
-/* 顶部标题栏 */
 .task-header {
   background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
   padding: 16px 20px;
@@ -217,7 +220,6 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* 搜索和筛选 */
 .search-bar {
   padding: 16px 20px;
   background: white;
@@ -234,7 +236,6 @@ onMounted(() => {
   border: 1px solid #ddd;
 }
 
-/* 统计信息 */
 .statistics-bar {
   background: #f0f0f0;
   padding: 12px 20px;
@@ -247,7 +248,6 @@ onMounted(() => {
   margin: 4px 0;
 }
 
-/* 任务列表 */
 .task-list {
   flex: 1;
   padding: 16px 20px;
@@ -329,7 +329,6 @@ onMounted(() => {
   margin: 8px 0 0 0;
 }
 
-/* 底部水印 */
 .task-footer {
   padding: 20px;
   text-align: center;
@@ -349,7 +348,6 @@ onMounted(() => {
   color: #ccc;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .task-header {
     padding: 12px 16px;

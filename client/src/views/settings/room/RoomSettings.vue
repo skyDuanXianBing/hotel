@@ -3,8 +3,8 @@
     <!-- 顶部信息栏 -->
     <div class="header-info">
       <div class="header-actions">
-        <el-button @click="handleRoomOwnership">房间归属</el-button>
-        <el-button type="primary" @click="handleAdd">新增</el-button>
+        <el-button @click="handleRoomOwnership">{{ t('settingsStage4.roomSettings.roomOwnership') }}</el-button>
+        <el-button type="primary" @click="handleAdd">{{ t('settings.common.add') }}</el-button>
       </div>
     </div>
 
@@ -16,64 +16,64 @@
         border
         stripe
         class="room-settings-table"
-        element-loading-text="加载中..."
+        :element-loading-text="t('settings.common.loading')"
       >
-        <el-table-column prop="name" label="房型名称" min-width="150" fixed />
-        <el-table-column prop="shortName" label="简称" min-width="120" />
+        <el-table-column prop="name" :label="t('settingsStage4.roomSettings.columns.roomTypeName')" min-width="150" fixed />
+        <el-table-column prop="shortName" :label="t('settingsStage4.roomSettings.columns.shortName')" min-width="120" />
 
         <!-- 默认价格标题 -->
-        <el-table-column align="center" label="默认价格">
-          <el-table-column prop="mondayPrice" label="一" min-width="100" align="center">
+        <el-table-column align="center" :label="t('settingsStage4.roomSettings.columns.defaultPrice')">
+          <el-table-column prop="mondayPrice" :label="t('settingsStage4.weekdays.monShort')" min-width="100" align="center">
             <template #default="{ row }">
               <span>¥{{ formatPrice(row.mondayPrice) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="tuesdayPrice" label="二" min-width="100" align="center">
+          <el-table-column prop="tuesdayPrice" :label="t('settingsStage4.weekdays.tueShort')" min-width="100" align="center">
             <template #default="{ row }">
               <span>¥{{ formatPrice(row.tuesdayPrice) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="wednesdayPrice" label="三" min-width="100" align="center">
+          <el-table-column prop="wednesdayPrice" :label="t('settingsStage4.weekdays.wedShort')" min-width="100" align="center">
             <template #default="{ row }">
               <span>¥{{ formatPrice(row.wednesdayPrice) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="thursdayPrice" label="四" min-width="100" align="center">
+          <el-table-column prop="thursdayPrice" :label="t('settingsStage4.weekdays.thuShort')" min-width="100" align="center">
             <template #default="{ row }">
               <span>¥{{ formatPrice(row.thursdayPrice) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="fridayPrice" label="五" min-width="100" align="center">
+          <el-table-column prop="fridayPrice" :label="t('settingsStage4.weekdays.friShort')" min-width="100" align="center">
             <template #default="{ row }">
               <span>¥{{ formatPrice(row.fridayPrice) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="saturdayPrice" label="六" min-width="100" align="center">
+          <el-table-column prop="saturdayPrice" :label="t('settingsStage4.weekdays.satShort')" min-width="100" align="center">
             <template #default="{ row }">
               <span>¥{{ formatPrice(row.saturdayPrice) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="sundayPrice" label="日" min-width="100" align="center">
+          <el-table-column prop="sundayPrice" :label="t('settingsStage4.weekdays.sunShort')" min-width="100" align="center">
             <template #default="{ row }">
               <span>¥{{ formatPrice(row.sundayPrice) }}</span>
             </template>
           </el-table-column>
         </el-table-column>
 
-        <el-table-column prop="roomCount" label="房间数" min-width="100" align="center" />
-        <el-table-column prop="roomNumbers" label="房间号" min-width="150">
+        <el-table-column prop="roomCount" :label="t('settingsStage4.roomSettings.columns.roomCount')" min-width="100" align="center" />
+        <el-table-column prop="roomNumbers" :label="t('settingsStage4.roomSettings.columns.roomNumbers')" min-width="150">
           <template #default="{ row }">
             {{ (row.roomNumbers || []).join(', ') }}
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="280" fixed="right" align="center">
+        <el-table-column :label="t('settings.common.operation')" width="280" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-              <el-button link type="primary" @click="handleViewDetails(row)">详情</el-button>
-              <el-button link type="primary" @click="handleSort(row)">排序</el-button>
-              <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+              <el-button link type="primary" @click="handleEdit(row)">{{ t('settings.common.edit') }}</el-button>
+              <el-button link type="primary" @click="handleViewDetails(row)">{{ t('settingsStage4.common.details') }}</el-button>
+              <el-button link type="primary" @click="handleSort(row)">{{ t('settings.layout.items.roomSort') }}</el-button>
+              <el-button link type="danger" @click="handleDelete(row)">{{ t('settings.common.delete') }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -81,7 +81,7 @@
 
       <!-- 分页 -->
       <div class="pagination-container">
-        <div class="pagination-info">共 {{ total }} 条</div>
+        <div class="pagination-info">{{ t('settingsStage4.common.itemsTotal', { count: total }) }}</div>
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
@@ -102,104 +102,104 @@
       :close-on-click-modal="false"
     >
       <el-form :model="formData" label-width="120px">
-        <el-form-item label="房型名称" required>
-          <el-input v-model="formData.name" placeholder="请输入房型名称" />
+        <el-form-item :label="t('settingsStage4.roomSettings.fields.roomTypeName')" required>
+          <el-input v-model="formData.name" :placeholder="t('settingsStage4.roomSettings.placeholders.roomTypeName')" />
         </el-form-item>
 
-        <el-form-item label="简称" required>
-          <el-input v-model="formData.shortName" placeholder="请输入简称" />
+        <el-form-item :label="t('settingsStage4.roomSettings.fields.shortName')" required>
+          <el-input v-model="formData.shortName" :placeholder="t('settingsStage4.roomSettings.placeholders.shortName')" />
         </el-form-item>
 
-        <el-form-item label="最大入住人数">
+        <el-form-item :label="t('settingsStage4.roomSettings.fields.maxGuests')">
           <el-input-number v-model="formData.maxGuests" :min="1" />
         </el-form-item>
 
-        <el-form-item label="默认门市价">
+        <el-form-item :label="t('settingsStage4.roomSettings.fields.defaultWalkInRate')">
           <div class="price-section">
             <!-- 快速填充 -->
             <div class="quick-fill-section">
-              <span class="quick-fill-label">快速填充</span>
+              <span class="quick-fill-label">{{ t('settingsStage4.roomSettings.fields.quickFill') }}</span>
               <el-input-number
                 v-model="quickFillPrice"
                 :min="0"
                 :precision="0"
-                placeholder="输入价格后点击应用"
+                :placeholder="t('settingsStage4.roomSettings.placeholders.quickFillPrice')"
                 class="quick-fill-input"
               />
-              <el-button @click="handleQuickFill" class="quick-fill-btn">应用到全部</el-button>
+              <el-button @click="handleQuickFill" class="quick-fill-btn">{{ t('settingsStage4.common.applyToAll') }}</el-button>
             </div>
 
             <!-- 价格网格 -->
             <div class="price-grid">
               <div class="price-item">
-                <span>一</span>
+                <span>{{ t('settingsStage4.weekdays.monShort') }}</span>
                 <el-input-number v-model="formData.mondayPrice" :min="0" :precision="0" />
               </div>
               <div class="price-item">
-                <span>二</span>
+                <span>{{ t('settingsStage4.weekdays.tueShort') }}</span>
                 <el-input-number v-model="formData.tuesdayPrice" :min="0" :precision="0" />
               </div>
               <div class="price-item">
-                <span>三</span>
+                <span>{{ t('settingsStage4.weekdays.wedShort') }}</span>
                 <el-input-number v-model="formData.wednesdayPrice" :min="0" :precision="0" />
               </div>
               <div class="price-item">
-                <span>四</span>
+                <span>{{ t('settingsStage4.weekdays.thuShort') }}</span>
                 <el-input-number v-model="formData.thursdayPrice" :min="0" :precision="0" />
               </div>
               <div class="price-item">
-                <span>五</span>
+                <span>{{ t('settingsStage4.weekdays.friShort') }}</span>
                 <el-input-number v-model="formData.fridayPrice" :min="0" :precision="0" />
               </div>
               <div class="price-item">
-                <span>六</span>
+                <span>{{ t('settingsStage4.weekdays.satShort') }}</span>
                 <el-input-number v-model="formData.saturdayPrice" :min="0" :precision="0" />
               </div>
               <div class="price-item">
-                <span>日</span>
+                <span>{{ t('settingsStage4.weekdays.sunShort') }}</span>
                 <el-input-number v-model="formData.sundayPrice" :min="0" :precision="0" />
               </div>
             </div>
           </div>
         </el-form-item>
 
-        <el-form-item label="房间数">
+        <el-form-item :label="t('settingsStage4.roomSettings.fields.roomCount')">
           <el-input-number v-model="formData.roomCount" :min="0" />
-          <span class="unit">间</span>
+          <span class="unit">{{ t('settingsStage4.common.unitRooms') }}</span>
         </el-form-item>
 
-        <el-form-item label="房型地址">
+        <el-form-item :label="t('settingsStage4.roomSettings.fields.roomTypeAddress')">
           <el-input
             v-model="formData.roomTypeAddress"
-            placeholder="请输入房型地址（可选）"
+            :placeholder="t('settingsStage4.roomSettings.placeholders.roomTypeAddress')"
             clearable
           />
         </el-form-item>
 
-        <el-form-item label="附近车站">
+        <el-form-item :label="t('settingsStage4.roomSettings.fields.nearbyStation')">
           <el-input
             v-model="formData.nearbyStation"
-            placeholder="请输入附近车站（可选）"
+            :placeholder="t('settingsStage4.roomSettings.placeholders.nearbyStation')"
             clearable
           />
         </el-form-item>
 
-        <el-form-item label="入住指南链接">
+        <el-form-item :label="t('settingsStage4.roomSettings.fields.checkInGuideLink')">
           <el-input 
             v-model="formData.checkInGuideLink" 
-            placeholder="请输入入住指南链接（可选）"
+            :placeholder="t('settingsStage4.roomSettings.placeholders.checkInGuideLink')"
             clearable
           />
-          <div class="field-hint">审核通过后，此链接将显示给客人</div>
+          <div class="field-hint">{{ t('settingsStage4.roomSettings.hints.guideVisibleAfterApproval') }}</div>
         </el-form-item>
 
-        <el-form-item label="房间号 / 房间密码">
+        <el-form-item :label="t('settingsStage4.roomSettings.fields.roomNumberAndPassword')">
           <div class="room-numbers-container">
             <div
               v-if="formData.rooms.length === 0"
               class="empty-room-hint"
             >
-              房间删除后,将不对关联的订单也将无法操作"撤销退房"和"恢复预订"。
+              {{ t('settingsStage4.roomSettings.hints.emptyRooms') }}
             </div>
             <div class="room-numbers-list">
               <div
@@ -209,12 +209,12 @@
               >
                 <el-input
                   v-model="formData.rooms[index].roomNumber"
-                  placeholder="请输入房间号"
+                  :placeholder="t('settingsStage4.roomSettings.placeholders.roomNumber')"
                   class="room-number-input"
                 />
                 <el-input
                   v-model="formData.rooms[index].smartlockPasscode"
-                  placeholder="房间密码（可选）"
+                  :placeholder="t('settingsStage4.roomSettings.placeholders.roomPassword')"
                   class="room-passcode-input"
                   clearable
                 />
@@ -230,7 +230,7 @@
               </div>
             </div>
             <el-button type="primary" link @click="addNewRoom" class="add-room-btn">
-              <el-icon><Plus /></el-icon> 新增
+              <el-icon><Plus /></el-icon> {{ t('settings.common.add') }}
             </el-button>
           </div>
         </el-form-item>
@@ -238,8 +238,8 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showDialog = false">取消</el-button>
-          <el-button type="primary" @click="handleSave">保存</el-button>
+          <el-button @click="showDialog = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleSave">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -249,6 +249,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import {
@@ -260,6 +261,7 @@ import {
 } from '@/api/roomType'
 
 const router = useRouter()
+const { t } = useI18n()
 
 interface RoomTypeData {
   id?: number
@@ -294,13 +296,13 @@ const quickFillPrice = ref<number | null>(null)
 
 // 房型数据列表
 const roomTypeList = ref<RoomTypeData[]>([])
-const reservationStatusTextMap: Record<string, string> = {
-  REQUESTED: '待确认',
-  CONFIRMED: '已确认',
-  CHECKED_IN: '已入住',
-  CHECKED_OUT: '已退房',
-  CANCELLED: '已取消',
-}
+const reservationStatusTextMap = computed<Record<string, string>>(() => ({
+  REQUESTED: t('settingsStage4.reservationStatus.REQUESTED'),
+  CONFIRMED: t('settingsStage4.reservationStatus.CONFIRMED'),
+  CHECKED_IN: t('settingsStage4.reservationStatus.CHECKED_IN'),
+  CHECKED_OUT: t('settingsStage4.reservationStatus.CHECKED_OUT'),
+  CANCELLED: t('settingsStage4.reservationStatus.CANCELLED'),
+}))
 
 // 表单数据
 const formData = ref<RoomTypeData>({
@@ -323,7 +325,11 @@ const formData = ref<RoomTypeData>({
 })
 
 // 对话框标题
-const dialogTitle = computed(() => (isEdit.value ? '编辑房型' : '新增房型'))
+const dialogTitle = computed(() =>
+  isEdit.value
+    ? t('settingsStage4.roomSettings.dialog.editTitle')
+    : t('settingsStage4.roomSettings.dialog.addTitle'),
+)
 
 // 分页数据
 const paginatedData = computed(() => {
@@ -394,22 +400,22 @@ watch(
 // 快速填充价格到所有天
 const handleQuickFill = () => {
   if (quickFillPrice.value === null || quickFillPrice.value === undefined) {
-    ElMessage.warning('请先输入快速填充价格')
+    ElMessage.warning(t('settingsStage4.roomSettings.messages.quickFillPriceRequired'))
     return
   }
 
   if (quickFillPrice.value < 0) {
-    ElMessage.warning('价格不能为负数')
+    ElMessage.warning(t('settingsStage4.roomSettings.messages.priceCannotBeNegative'))
     return
   }
 
   // 确认是否要应用到全部
   ElMessageBox.confirm(
-    `确定要将价格 ¥${quickFillPrice.value} 应用到周一至周日吗?此操作将覆盖当前所有价格设置。`,
-    '确认快速填充',
+    t('settingsStage4.roomSettings.messages.quickFillConfirm', { price: quickFillPrice.value }),
+    t('settingsStage4.roomSettings.messages.quickFillTitle'),
     {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+      confirmButtonText: t('settings.common.confirmButton'),
+      cancelButtonText: t('settings.common.cancelButton'),
       type: 'warning',
     }
   )
@@ -421,7 +427,7 @@ const handleQuickFill = () => {
       formData.value.fridayPrice = quickFillPrice.value!
       formData.value.saturdayPrice = quickFillPrice.value!
       formData.value.sundayPrice = quickFillPrice.value!
-      ElMessage.success('价格已应用到全部')
+      ElMessage.success(t('settingsStage4.roomSettings.messages.quickFillSuccess'))
     })
     .catch(() => {
       // 用户取消,不执行任何操作
@@ -497,11 +503,11 @@ const loadRoomTypes = async () => {
       })
       total.value = roomTypeList.value.length
     } else {
-      ElMessage.error(response.message || '加载房型数据失败')
+      ElMessage.error(response.message || t('settingsStage4.roomSettings.messages.loadFailed'))
     }
   } catch (error) {
     console.error('加载房型数据失败:', error)
-    ElMessage.error('加载房型数据失败')
+    ElMessage.error(t('settingsStage4.roomSettings.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -568,11 +574,11 @@ const handleSort = (_row?: RoomTypeData) => {
 // 删除
 const handleDelete = (row: RoomTypeData) => {
   ElMessageBox.confirm(
-    `确定要删除房型"${row.name}"吗?`,
-    '确认删除',
+    t('settingsStage4.roomSettings.messages.deleteConfirm', { name: row.name }),
+    t('settingsStage4.roomSettings.messages.deleteTitle'),
     {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+      confirmButtonText: t('settings.common.confirmButton'),
+      cancelButtonText: t('settings.common.cancelButton'),
       type: 'warning',
     }
   )
@@ -582,43 +588,53 @@ const handleDelete = (row: RoomTypeData) => {
         if (row.id) {
           const response = await deleteRoomType(row.id)
           if (response.success) {
-            ElMessage.success('删除成功')
+            ElMessage.success(t('settings.common.deleteSuccess'))
             await loadRoomTypes()
           } else {
             const blockInfo = response.data as RoomTypeDeleteBlockInfo | null
             if (blockInfo && blockInfo.totalBlockingReservations > 0) {
               const sampleCount = blockInfo.sample?.length || 0
-              const header = `阻塞订单数：${blockInfo.totalBlockingReservations}（最多展示 ${sampleCount} 条）\n`
+              const header = t('settingsStage4.roomSettings.messages.deleteBlockedHeader', {
+                count: blockInfo.totalBlockingReservations,
+                sampleCount,
+              })
               const body = sampleCount
                 ? blockInfo.sample
                     .map((r, idx) => {
                       const orderNumber = r.orderNumber || '-'
                       const statusCode = r.status || '-'
-                      const statusText = reservationStatusTextMap[statusCode] || statusCode
+                      const statusText = reservationStatusTextMap.value[statusCode] || statusCode
                       const roomNumber = r.roomNumber || '-'
                       const dateRange = `${r.checkInDate || '-'} ~ ${r.checkOutDate || '-'}`
-                      return `${idx + 1}. 订单号：${orderNumber}  状态：${statusText}(${statusCode})  房间：${roomNumber}  日期：${dateRange}`
+                      return t('settingsStage4.roomSettings.messages.deleteBlockedSample', {
+                        index: idx + 1,
+                        orderNumber,
+                        statusText,
+                        statusCode,
+                        roomNumber,
+                        dateRange,
+                      })
                     })
                     .join('\n')
-                : '当前没有可展示的样例订单，请根据阻塞总数先处理相关订单。'
-              const tip = '\n\n请先对以上订单执行“办理退房”或“取消订单”后，再重试删除房型。'
+                : t('settingsStage4.roomSettings.messages.deleteBlockedNoSample')
+              const tip = t('settingsStage4.roomSettings.messages.deleteBlockedTip')
 
               await ElMessageBox.alert(
                 h('div', { style: 'white-space: pre-wrap; line-height: 1.6;' }, header + body + tip),
-                '无法删除房型',
-                { type: 'warning', confirmButtonText: '知道了' }
+                t('settingsStage4.roomSettings.messages.deleteBlockedTitle'),
+                { type: 'warning', confirmButtonText: t('settingsStage4.common.gotIt') }
               )
               return
             }
-            await ElMessageBox.alert(response.message || '删除失败', '删除失败', {
+            await ElMessageBox.alert(response.message || t('settings.common.deleteFailed'), t('settings.common.deleteFailed'), {
               type: 'error',
-              confirmButtonText: '知道了',
+              confirmButtonText: t('settingsStage4.common.gotIt'),
             })
           }
         }
       } catch (error) {
         console.error('删除失败:', error)
-        ElMessage.error('删除失败')
+        ElMessage.error(t('settings.common.deleteFailed'))
       } finally {
         loading.value = false
       }
@@ -631,15 +647,15 @@ const handleDelete = (row: RoomTypeData) => {
 // 保存
 const handleSave = async () => {
   if (!formData.value.name.trim()) {
-    ElMessage.warning('请输入房型名称')
+    ElMessage.warning(t('settingsStage4.roomSettings.messages.nameRequired'))
     return
   }
   if (!formData.value.shortName.trim()) {
-    ElMessage.warning('请输入简称')
+    ElMessage.warning(t('settingsStage4.roomSettings.messages.shortNameRequired'))
     return
   }
   if (isEdit.value && !formData.value.code.trim()) {
-    ElMessage.error('房型代码缺失，无法更新。请刷新页面后重试。')
+    ElMessage.error(t('settingsStage4.roomSettings.messages.codeMissing'))
     return
   }
 
@@ -654,14 +670,14 @@ const handleSave = async () => {
   const validRoomNumbers = validRooms.map(item => item.roomNumber)
 
   if (validRoomNumbers.length === 0) {
-    ElMessage.warning('请至少输入一个房间号')
+    ElMessage.warning(t('settingsStage4.roomSettings.messages.roomNumberRequired'))
     return
   }
 
   // 检查房间号是否重复
   const uniqueRoomNumbers = new Set(validRoomNumbers)
   if (uniqueRoomNumbers.size !== validRoomNumbers.length) {
-    ElMessage.warning('房间号不能重复')
+    ElMessage.warning(t('settingsStage4.roomSettings.messages.roomNumberDuplicate'))
     return
   }
 
@@ -687,14 +703,21 @@ const handleSave = async () => {
     if (conflictRoomNumbers.length > 0) {
       const first = conflictRoomNumbers[0]
       const conflictRoomType = occupiedRoomNumberToRoomType.get(first)
-      const roomTypeName = conflictRoomType ? `${conflictRoomType.name}（${conflictRoomType.shortName}）` : '其他房型'
-      ElMessage.warning(`房间号 ${first} 已存在于房型 ${roomTypeName}，请先删除/更换后再保存`)
+      const roomTypeName = conflictRoomType
+        ? `${conflictRoomType.name} (${conflictRoomType.shortName})`
+        : t('settingsStage4.common.otherRoomType')
+      ElMessage.warning(
+        t('settingsStage4.roomSettings.messages.roomNumberConflict', {
+          roomNumber: first,
+          roomTypeName,
+        }),
+      )
       return
     }
 
     const normalizedCheckInGuideLink = normalizeCheckInGuideLink(formData.value.checkInGuideLink)
     if (formData.value.checkInGuideLink?.trim() && !normalizedCheckInGuideLink) {
-      ElMessage.warning('入住指南链接仅支持 http:// 或 https://')
+      ElMessage.warning(t('settingsStage4.roomSettings.messages.invalidGuideLink'))
       return
     }
 
@@ -735,15 +758,24 @@ const handleSave = async () => {
     console.log('✅ 保存响应:', response)
 
     if (response.success) {
-      ElMessage.success(isEdit.value ? '更新成功' : '新增成功')
+      ElMessage.success(
+        isEdit.value
+          ? t('settingsStage4.roomSettings.messages.updateSuccess')
+          : t('settingsStage4.roomSettings.messages.createSuccess'),
+      )
       showDialog.value = false
       await loadRoomTypes()
     } else {
-      ElMessage.error(response.message || (isEdit.value ? '更新失败' : '新增失败'))
+      ElMessage.error(
+        response.message ||
+          (isEdit.value
+            ? t('settingsStage4.roomSettings.messages.updateFailed')
+            : t('settingsStage4.roomSettings.messages.createFailed')),
+      )
     }
   } catch (error) {
     console.error('保存失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settingsStage4.roomSettings.messages.saveFailed'))
   } finally {
     loading.value = false
   }

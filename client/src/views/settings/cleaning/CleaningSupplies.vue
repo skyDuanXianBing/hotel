@@ -2,7 +2,7 @@
   <div class="supplies-container">
     <!-- 顶部提示信息 -->
     <div class="notice-banner">
-      <span>您可以添加易耗品并与房型关联,对易耗品进行编辑或删除后,系统会将结果同步到引用该易耗品的房型中。</span>
+      <span>{{ t('settingsStage4.cleaningSupplies.notice') }}</span>
     </div>
 
     <!-- 搜索和添加按钮 -->
@@ -13,7 +13,7 @@
         class="search-input"
         clearable
       />
-      <el-button type="primary" @click="handleAddSupply">添加易耗品</el-button>
+      <el-button type="primary" @click="handleAddSupply">{{ t('settingsStage4.cleaningSupplies.actions.addSupply') }}</el-button>
     </div>
 
     <!-- 易耗品卡片网格 -->
@@ -22,7 +22,7 @@
       <div v-if="showSupplyInput" class="supply-card editing">
         <el-input
           v-model="newSupplyName"
-          placeholder="请输入分类名称"
+          :placeholder="t('settingsStage4.cleaningSupplies.placeholders.categoryName')"
           @keyup.enter="handleSaveNewSupply"
         />
         <div class="card-actions">
@@ -50,13 +50,13 @@
     <!-- 添加易耗品对话框 -->
     <el-dialog
       v-model="showSupplyDialog"
-      title="添加易耗品"
+      :title="t('settingsStage4.cleaningSupplies.actions.addSupply')"
       width="600px"
       :close-on-click-modal="false"
     >
       <el-form :model="supplyForm" label-width="100px">
-        <el-form-item label="房型">
-          <el-select v-model="supplyForm.roomType" placeholder="请选择房型" style="width: 100%">
+        <el-form-item :label="t('settingsStage4.cleaningSettings.fields.roomType')">
+          <el-select v-model="supplyForm.roomType" :placeholder="t('settingsStage4.cleaningSettings.placeholders.selectRoomType')" style="width: 100%">
             <el-option
               v-for="roomType in availableRoomTypes"
               :key="roomType"
@@ -65,19 +65,19 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="易耗品">
+        <el-form-item :label="t('settingsStage4.cleaningSettings.fields.supplies')">
           <el-input
             v-model="supplyForm.supplies"
             type="textarea"
             :rows="4"
-            placeholder="请输入易耗品名称,多个易耗品请用逗号分隔"
+            :placeholder="t('settingsStage4.cleaningSupplies.placeholders.supplies')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showSupplyDialog = false">取消</el-button>
-          <el-button type="primary" @click="handleSaveSupply">保存</el-button>
+          <el-button @click="showSupplyDialog = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleSaveSupply">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -88,6 +88,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Grid, Check, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   getAllCleaningSupplies,
   createCleaningSupply,
@@ -103,6 +104,7 @@ interface SupplyItem {
 }
 
 const storeStore = useStoreStore()
+const { t } = useI18n()
 const loading = ref(false)
 const searchText = ref('')
 const showSupplyDialog = ref(false)
@@ -129,11 +131,11 @@ const loadRoomTypes = async () => {
     if (response.success && response.data) {
       availableRoomTypes.value = response.data.map((rt: RoomTypeDTO) => rt.name)
     } else {
-      ElMessage.error(response.message || '加载房型列表失败')
+      ElMessage.error(response.message || t('settingsStage4.cleaningSettings.messages.loadRoomTypesFailed'))
     }
   } catch (error) {
     console.error('加载房型列表失败:', error)
-    ElMessage.error('加载房型列表失败')
+    ElMessage.error(t('settingsStage4.cleaningSettings.messages.loadRoomTypesFailed'))
   } finally {
     loading.value = false
   }
@@ -142,7 +144,7 @@ const loadRoomTypes = async () => {
 // 加载易耗品列表
 const loadSupplies = async () => {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.storeBasic.messages.selectStore'))
     supplies.value = []
     return
   }
@@ -153,11 +155,11 @@ const loadSupplies = async () => {
     if (response.success && response.data) {
       supplies.value = response.data
     } else {
-      ElMessage.error(response.message || '加载易耗品列表失败')
+      ElMessage.error(response.message || t('settingsStage4.cleaningSettings.messages.loadSuppliesFailed'))
     }
   } catch (error) {
     console.error('加载易耗品列表失败:', error)
-    ElMessage.error('加载易耗品列表失败')
+    ElMessage.error(t('settingsStage4.cleaningSettings.messages.loadSuppliesFailed'))
   } finally {
     loading.value = false
   }
@@ -185,7 +187,7 @@ const handleAddSupply = () => {
 // 保存新增易耗品分类 - 内联卡片方式
 const handleSaveNewSupply = async () => {
   if (!newSupplyName.value.trim()) {
-    ElMessage.warning('请输入分类名称')
+    ElMessage.warning(t('settingsStage4.cleaningSupplies.messages.categoryNameRequired'))
     return
   }
 
@@ -197,16 +199,16 @@ const handleSaveNewSupply = async () => {
     })
 
     if (response.success) {
-      ElMessage.success('新增分类成功')
+      ElMessage.success(t('settingsStage4.cleaningSupplies.messages.categoryAddSuccess'))
       showSupplyInput.value = false
       newSupplyName.value = ''
       await loadSupplies()
     } else {
-      ElMessage.error(response.message || '新增失败')
+      ElMessage.error(response.message || t('settingsStage4.cleaningSupplies.messages.addFailed'))
     }
   } catch (error) {
     console.error('新增失败:', error)
-    ElMessage.error('新增失败')
+    ElMessage.error(t('settingsStage4.cleaningSupplies.messages.addFailed'))
   } finally {
     loading.value = false
   }
@@ -221,7 +223,7 @@ const handleCancelNewSupply = () => {
 // 保存易耗品 - 对话框方式(保留用于编辑)
 const handleSaveSupply = async () => {
   if (!supplyForm.roomType.trim()) {
-    ElMessage.warning('请选择房型')
+    ElMessage.warning(t('settingsStage4.cleaningSettings.messages.selectRoomType'))
     return
   }
 
@@ -240,7 +242,7 @@ const handleSaveSupply = async () => {
         supplies: supplyForm.supplies,
       })
       if (response.success) {
-        ElMessage.success('更新成功')
+        ElMessage.success(t('settingsStage4.cleaningSupplies.messages.updateSuccess'))
       }
     } else {
       // 添加新的房型易耗品
@@ -249,7 +251,7 @@ const handleSaveSupply = async () => {
         supplies: supplyForm.supplies,
       })
       if (response.success) {
-        ElMessage.success('添加成功')
+        ElMessage.success(t('settingsStage4.cleaningSupplies.messages.addSuccess'))
       }
     }
 
@@ -257,11 +259,11 @@ const handleSaveSupply = async () => {
       showSupplyDialog.value = false
       await loadSupplies()
     } else {
-      ElMessage.error(response.message || '保存失败')
+      ElMessage.error(response.message || t('settingsStage4.storeBasic.messages.saveFailed'))
     }
   } catch (error) {
     console.error('保存失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settingsStage4.storeBasic.messages.saveFailed'))
   } finally {
     loading.value = false
   }

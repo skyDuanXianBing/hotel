@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import {
@@ -11,6 +12,7 @@ import {
   type CreateChannelRequest,
 } from '@/api/channel'
 
+const { t } = useI18n()
 const loading = ref(false)
 const channels = ref<ChannelDTO[]>([])
 const selectedChannelIds = ref<number[]>([])
@@ -47,12 +49,12 @@ const colorOptions = [
 ]
 
 // 渠道类型选项
-const typeOptions = [
-  { label: '在线旅行社', value: 'OTA' },
-  { label: '直销', value: 'DIRECT' },
-  { label: '旅行社', value: 'TRAVEL_AGENCY' },
-  { label: '企业客户', value: 'CORPORATE' },
-]
+const typeOptions = computed(() => [
+  { label: t('settings.channelSettings.types.OTA'), value: 'OTA' },
+  { label: t('settings.channelSettings.types.DIRECT'), value: 'DIRECT' },
+  { label: t('settings.channelSettings.types.TRAVEL_AGENCY'), value: 'TRAVEL_AGENCY' },
+  { label: t('settings.channelSettings.types.CORPORATE'), value: 'CORPORATE' },
+])
 
 // 加载渠道列表
 const loadChannels = async () => {
@@ -63,12 +65,12 @@ const loadChannels = async () => {
       channels.value = response.data
     } else {
       channels.value = []
-      ElMessage.error(response.message || '加载渠道失败')
+      ElMessage.error(response.message || t('settings.channelSettings.messages.loadFailed'))
     }
   } catch (error) {
     console.error('加载渠道失败:', error)
     channels.value = []
-    ElMessage.error('加载渠道失败，请检查网络或权限')
+    ElMessage.error(t('settings.channelSettings.messages.loadFailedWithHint'))
   } finally {
     const currentIds = new Set(channels.value.map((channel) => channel.id))
     selectedChannelIds.value = selectedChannelIds.value.filter((id) => currentIds.has(id))
@@ -144,15 +146,19 @@ const saveChannel = async () => {
       : ((await createChannel(channelForm.value)) as any)
 
     if (response.success) {
-      ElMessage.success(isEditing.value ? '渠道更新成功' : '渠道创建成功')
+      ElMessage.success(
+        isEditing.value
+          ? t('settings.channelSettings.messages.updateSuccess')
+          : t('settings.channelSettings.messages.createSuccess'),
+      )
       showChannelDialog.value = false
       await loadChannels()
     } else {
-      ElMessage.error(response.message || '操作失败')
+      ElMessage.error(response.message || t('settings.common.operationFailed'))
     }
   } catch (error) {
     console.error('保存渠道失败:', error)
-    ElMessage.error('操作失败，请稍后重试')
+    ElMessage.error(t('settings.common.operationFailedRetry'))
   } finally {
     loading.value = false
   }
@@ -161,9 +167,9 @@ const saveChannel = async () => {
 // 删除渠道
 const handleDeleteChannel = async (channel: ChannelDTO) => {
   try {
-    await ElMessageBox.confirm(`确认删除渠道"${channel.name}"吗？`, '删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('settings.channelSettings.messages.deleteConfirm', { name: channel.name }), t('settings.common.deleteConfirmTitle'), {
+      confirmButtonText: t('settings.common.confirmButton'),
+      cancelButtonText: t('settings.common.cancelButton'),
       type: 'warning',
     })
 
@@ -171,15 +177,15 @@ const handleDeleteChannel = async (channel: ChannelDTO) => {
     const response = (await deleteChannel(channel.id)) as any
     if (response.success) {
       selectedChannelIds.value = selectedChannelIds.value.filter((id) => id !== channel.id)
-      ElMessage.success('删除成功')
+      ElMessage.success(t('settings.common.deleteSuccess'))
       await loadChannels()
     } else {
-      ElMessage.error(response.message || '删除失败')
+      ElMessage.error(response.message || t('settings.common.deleteFailed'))
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('删除渠道失败:', error)
-      ElMessage.error('删除失败，请稍后重试')
+      ElMessage.error(t('settings.common.operationFailedRetry'))
     }
   } finally {
     loading.value = false
@@ -193,9 +199,9 @@ const handleBatchDelete = async () => {
 
   const selectedChannels = channels.value.filter((channel) => selectedChannelIds.value.includes(channel.id))
   try {
-    await ElMessageBox.confirm(`确认删除选中的 ${selectedChannels.length} 个渠道吗？`, '批量删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('settings.channelSettings.messages.batchDeleteConfirm', { count: selectedChannels.length }), t('settings.common.batchDeleteConfirmTitle'), {
+      confirmButtonText: t('settings.common.confirmButton'),
+      cancelButtonText: t('settings.common.cancelButton'),
       type: 'warning',
     })
 
@@ -204,7 +210,10 @@ const handleBatchDelete = async () => {
       selectedChannels.map(async (channel) => {
         const response = await deleteChannel(channel.id)
         if (!response.success) {
-          throw new Error(response.message || `删除渠道“${channel.name}”失败`)
+          throw new Error(
+            response.message ||
+              t('settings.channelSettings.messages.deleteChannelFailed', { name: channel.name }),
+          )
         }
         return channel.name
       })
@@ -214,22 +223,27 @@ const handleBatchDelete = async () => {
     const failedChannels: string[] = []
     deleteResults.forEach((item, index) => {
       if (item.status === 'rejected') {
-        failedChannels.push(selectedChannels[index]?.name || '未知渠道')
+        failedChannels.push(selectedChannels[index]?.name || t('settings.common.none'))
       }
     })
 
     await loadChannels()
 
     if (failedChannels.length === 0) {
-      ElMessage.success(`批量删除成功，共删除 ${successCount} 个渠道`)
+      ElMessage.success(t('settings.channelSettings.messages.batchDeleteSuccess', { count: successCount }))
       return
     }
 
-    ElMessage.warning(`批量删除完成：成功 ${successCount} 个，失败 ${failedChannels.length} 个`)
+    ElMessage.warning(
+      t('settings.channelSettings.messages.batchDeletePartial', {
+        successCount,
+        failedCount: failedChannels.length,
+      }),
+    )
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('批量删除渠道失败:', error)
-      ElMessage.error('批量删除失败，请稍后重试')
+      ElMessage.error(t('settings.channelSettings.messages.batchDeleteFailedRetry'))
     }
   } finally {
     loading.value = false
@@ -238,13 +252,9 @@ const handleBatchDelete = async () => {
 
 // 获取类型显示文本
 const getTypeText = (type: string) => {
-  const typeMap: Record<string, string> = {
-    OTA: '在线旅行社',
-    DIRECT: '直销',
-    TRAVEL_AGENCY: '旅行社',
-    CORPORATE: '企业客户',
-  }
-  return typeMap[type] || type
+  const typeKey = `settings.channelSettings.types.${type}`
+  const translated = t(typeKey)
+  return translated === typeKey ? type : translated
 }
 
 onMounted(() => {
@@ -256,25 +266,29 @@ onMounted(() => {
   <div class="channel-settings">
     <div class="page-header">
       <div class="header-left">
-        <h3>渠道设置</h3>
+        <h3>{{ t('settings.channelSettings.title') }}</h3>
         <div class="help-info">
-          <p>1. 渠道设为全渠道用，须在制售酒饭店中准确为出来。同时中可以添加各渠道的基础。</p>
-          <p>2. 系统预设最不可修改名称，仅支持修改各类型及颜色。</p>
+          <p>1. {{ t('settings.channelSettings.tips.usage') }}</p>
+          <p>2. {{ t('settings.channelSettings.tips.preset') }}</p>
         </div>
       </div>
       <div class="header-right">
-        <el-checkbox v-model="selectAllChannels" @change="handleToggleSelectAll">全选</el-checkbox>
+        <el-checkbox v-model="selectAllChannels" @change="handleToggleSelectAll">
+          {{ t('settings.channelSettings.selectAll') }}
+        </el-checkbox>
         <el-button type="danger" plain :disabled="selectedCount === 0" @click="handleBatchDelete">
-          删除选中（{{ selectedCount }}）
+          {{ t('settings.channelSettings.deleteSelected', { count: selectedCount }) }}
         </el-button>
-        <el-button type="primary" :icon="Plus" @click="openAddDialog"> 新增渠道 </el-button>
+        <el-button type="primary" :icon="Plus" @click="openAddDialog">
+          {{ t('settings.channelSettings.add') }}
+        </el-button>
       </div>
     </div>
 
     <div class="content-area">
       <div class="section">
-        <h4 class="section-title">可用渠道</h4>
-        <p class="section-desc">明亮显示：可用、倾斜：禁用。可定义的颜色。</p>
+        <h4 class="section-title">{{ t('settings.channelSettings.available') }}</h4>
+        <p class="section-desc">{{ t('settings.channelSettings.availableDesc') }}</p>
 
         <div class="channels-grid">
           <div
@@ -309,8 +323,8 @@ onMounted(() => {
       </div>
 
       <div class="section" v-if="disabledChannels.length > 0">
-        <h4 class="section-title">停用渠道</h4>
-        <p class="section-desc">明亮显示：可用、倾斜：禁用。不影响下单卖房。</p>
+        <h4 class="section-title">{{ t('settings.channelSettings.disabled') }}</h4>
+        <p class="section-desc">{{ t('settings.channelSettings.disabledDesc') }}</p>
 
         <div class="channels-grid">
           <div
@@ -347,18 +361,22 @@ onMounted(() => {
     <!-- 渠道编辑对话框 -->
     <el-dialog
       v-model="showChannelDialog"
-      :title="isEditing ? '编辑渠道' : '新增渠道'"
+      :title="
+        isEditing
+          ? t('settings.channelSettings.dialogTitle.edit')
+          : t('settings.channelSettings.dialogTitle.add')
+      "
       width="500px"
     >
       <el-form :model="channelForm" label-width="80px">
-        <el-form-item label="渠道名称" required>
-          <el-input v-model="channelForm.name" placeholder="请输入渠道名称" />
+        <el-form-item :label="t('settings.channelSettings.fields.name')" required>
+          <el-input v-model="channelForm.name" :placeholder="t('settings.channelSettings.placeholders.name')" />
         </el-form-item>
-        <el-form-item label="渠道代码" required>
-          <el-input v-model="channelForm.code" placeholder="请输入渠道代码" />
+        <el-form-item :label="t('settings.channelSettings.fields.code')" required>
+          <el-input v-model="channelForm.code" :placeholder="t('settings.channelSettings.placeholders.code')" />
         </el-form-item>
-        <el-form-item label="渠道类型" required>
-          <el-select v-model="channelForm.type" placeholder="请选择渠道类型">
+        <el-form-item :label="t('settings.channelSettings.fields.type')" required>
+          <el-select v-model="channelForm.type" :placeholder="t('settings.channelSettings.placeholders.type')">
             <el-option
               v-for="option in typeOptions"
               :key="option.value"
@@ -367,7 +385,7 @@ onMounted(() => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="显示颜色" required>
+        <el-form-item :label="t('settings.channelSettings.fields.color')" required>
           <div class="color-picker-container">
             <el-color-picker v-model="channelForm.color" />
             <div class="color-options">
@@ -382,23 +400,27 @@ onMounted(() => {
             </div>
           </div>
         </el-form-item>
-        <el-form-item label="状态">
-          <el-switch v-model="channelForm.enabled" active-text="启用" inactive-text="禁用" />
+        <el-form-item :label="t('settings.channelSettings.fields.status')">
+          <el-switch
+            v-model="channelForm.enabled"
+            :active-text="t('settings.common.enabled')"
+            :inactive-text="t('settings.common.disabled')"
+          />
         </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item :label="t('settings.channelSettings.fields.remark')">
           <el-input
             v-model="channelForm.description"
             type="textarea"
-            placeholder="请输入备注信息"
+            :placeholder="t('settings.channelSettings.placeholders.remark')"
             :rows="3"
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="showChannelDialog = false">取消</el-button>
+          <el-button @click="showChannelDialog = false">{{ t('settings.common.cancel') }}</el-button>
           <el-button type="primary" @click="saveChannel" :loading="loading">
-            {{ isEditing ? '更新' : '创建' }}
+            {{ isEditing ? t('settings.common.update') : t('settings.common.create') }}
           </el-button>
         </span>
       </template>

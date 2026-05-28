@@ -3,19 +3,12 @@
     <!-- 左侧蓝色背景区域 -->
     <div class="left-section">
       <div class="left-content">
-        <h1 class="main-title">房东智控中心</h1>
-        <h1 class="sub-title">THE HOST HUB</h1>
+        <h1 class="main-title">{{ t('auth.hero.titlePrimary') }}</h1>
+        <h1 class="sub-title">{{ t('auth.hero.titleSecondary') }}</h1>
 
-        <p class="description">
-          Trusted by over 100,000 properties worldwide.<br />
-          Streamline your operations with our powerful order<br />
-          management system.
-        </p>
+        <p class="description">{{ t('auth.hero.description') }}</p>
 
-        <p class="trial-info">
-          Register now to get a 30-day free trial with full<br />
-          access to all features. No credit card required.
-        </p>
+        <p class="trial-info">{{ t('auth.hero.trialInfo') }}</p>
 
         <!-- 装饰性浏览器窗口 -->
         <div class="browser-window">
@@ -32,35 +25,31 @@
     <div class="right-section">
       <!-- 语言选择 -->
       <div class="language-selector">
-        <el-dropdown>
-          <span class="language-text">
-            简体中文 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>简体中文</el-dropdown-item>
-              <el-dropdown-item>English</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <LanguageSwitcher variant="auth" />
       </div>
 
       <div class="form-container">
         <!-- 标题 -->
-        <h2 class="form-title">{{ loginMode === 'password' ? '登录' : '验证码登录' }}</h2>
+        <h2 class="form-title">
+          {{ loginMode === 'password' ? t('auth.login.title.password') : t('auth.login.title.code') }}
+        </h2>
         <p class="form-subtitle">
-          {{ loginMode === 'password' ? '欢迎回来，请登录您的账户' : '使用邮箱验证码快速登录您的账户' }}
+          {{
+            loginMode === 'password'
+              ? t('auth.login.subtitle.password')
+              : t('auth.login.subtitle.code')
+          }}
         </p>
 
         <!-- 登录表单 -->
         <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
           <!-- 邮箱 -->
           <div class="form-item">
-            <label class="form-label">邮箱</label>
+            <label class="form-label">{{ t('common.email') }}</label>
             <el-form-item prop="email">
               <el-input
                 v-model="loginForm.email"
-                placeholder="请输入您的邮箱"
+                :placeholder="t('auth.login.emailPlaceholder')"
                 size="large"
                 :prefix-icon="Message"
               />
@@ -71,21 +60,21 @@
           <template v-if="loginMode === 'password'">
             <div class="form-item">
               <div class="label-row">
-                <label class="form-label">密码</label>
+                <label class="form-label">{{ t('common.password') }}</label>
                 <el-link
                   type="primary"
                   :underline="false"
                   @click="goToForgotPassword"
                   class="forgot-link"
                 >
-                  忘记密码?
+                  {{ t('auth.login.forgotPassword') }}
                 </el-link>
               </div>
               <el-form-item prop="password">
                 <el-input
                   v-model="loginForm.password"
                   type="password"
-                  placeholder="请输入您的密码"
+                  :placeholder="t('auth.login.passwordPlaceholder')"
                   size="large"
                   :prefix-icon="Lock"
                   show-password
@@ -95,14 +84,14 @@
 
             <!-- 记住密码 -->
             <div class="options-row">
-              <el-checkbox v-model="loginForm.rememberMe">记住密码</el-checkbox>
+              <el-checkbox v-model="loginForm.rememberMe">{{ t('auth.login.rememberPassword') }}</el-checkbox>
               <el-link
                 type="primary"
                 :underline="false"
                 @click="switchLoginMode"
                 class="switch-mode-link"
               >
-                验证码登录
+                {{ t('auth.login.switchToCode') }}
               </el-link>
             </div>
           </template>
@@ -110,17 +99,17 @@
           <!-- 验证码登录模式 -->
           <template v-else>
             <div class="form-item">
-              <label class="form-label">验证码</label>
+              <label class="form-label">{{ t('common.verificationCode') }}</label>
               <el-form-item prop="verificationCode">
                 <el-input
                   v-model="loginForm.verificationCode"
-                  placeholder="请输入验证码"
+                  :placeholder="t('auth.login.codePlaceholder')"
                   size="large"
                   :prefix-icon="Key"
                 >
                   <template #append>
                     <el-button :disabled="countdown > 0" @click="sendVerificationCode">
-                      {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+                      {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
                     </el-button>
                   </template>
                 </el-input>
@@ -129,14 +118,14 @@
 
             <!-- 记住登录状态 -->
             <div class="options-row">
-              <el-checkbox v-model="loginForm.rememberMe">记住登录状态</el-checkbox>
+              <el-checkbox v-model="loginForm.rememberMe">{{ t('auth.login.rememberSession') }}</el-checkbox>
               <el-link
                 type="primary"
                 :underline="false"
                 @click="switchLoginMode"
                 class="switch-mode-link"
               >
-                密码登录
+                {{ t('auth.login.switchToPassword') }}
               </el-link>
             </div>
           </template>
@@ -144,17 +133,17 @@
           <!-- 同意协议 -->
           <div class="agreement-row">
             <el-checkbox v-model="loginForm.agreeToTerms">
-              我已阅读并同意
+              {{ t('auth.login.agreementPrefix') }}
               <el-link
                 type="primary"
                 :underline="false"
                 @click.stop.prevent="goToTermsOfService"
               >
-                《用户服务协议》
+                {{ t('common.termsOfService') }}
               </el-link>
-              和
+              {{ t('auth.login.agreementJoiner') }}
               <el-link type="primary" :underline="false" @click.stop.prevent="goToPrivacyPolicy">
-                《隐私政策》
+                {{ t('common.privacyPolicy') }}
               </el-link>
             </el-checkbox>
           </div>
@@ -167,18 +156,18 @@
             :loading="loading"
             @click="handleLogin"
           >
-            登录
+            {{ t('auth.login.submit') }}
           </el-button>
         </el-form>
 
         <!-- 注册链接 -->
         <div class="register-link">
-          还没有账户？
-          <el-link type="primary" :underline="false" @click="goToRegister">立即注册</el-link>
+          {{ t('auth.login.registerPrefix') }}
+          <el-link type="primary" :underline="false" @click="goToRegister">{{ t('auth.login.registerAction') }}</el-link>
         </div>
         <div class="support-link-row">
           <el-link type="primary" :underline="false" @click="goToTechnicalSupport">
-            技术支持网站
+            {{ t('common.supportSite') }}
           </el-link>
         </div>
       </div>
@@ -187,10 +176,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Message, Lock, Key, ArrowDown } from '@element-plus/icons-vue'
+import { Message, Lock, Key } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import { useUserStore } from '@/stores/user'
 import { useStoreStore } from '@/stores/store'
 import {
@@ -202,6 +193,7 @@ import {
 const router = useRouter()
 const userStore = useUserStore()
 const storeStore = useStoreStore()
+const { t } = useI18n()
 
 // 登录模式：password（密码登录）或 code（验证码登录）
 const loginMode = ref<'password' | 'code'>('password')
@@ -225,20 +217,20 @@ const loginForm = reactive({
 })
 
 // 表单验证规则
-const loginRules: FormRules = {
+const loginRules = computed<FormRules>(() => ({
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
+    { required: true, message: t('auth.login.validation.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('auth.login.validation.emailInvalid'), trigger: 'blur' },
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少为6位', trigger: 'blur' },
+    { required: true, message: t('auth.login.validation.passwordRequired'), trigger: 'blur' },
+    { min: 6, message: t('auth.login.validation.passwordMin'), trigger: 'blur' },
   ],
   verificationCode: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { len: 6, message: '验证码为6位数字', trigger: 'blur' },
+    { required: true, message: t('auth.login.validation.codeRequired'), trigger: 'blur' },
+    { len: 6, message: t('auth.login.validation.codeLength'), trigger: 'blur' },
   ],
-}
+}))
 
 // 切换登录模式
 const switchLoginMode = () => {
@@ -263,7 +255,7 @@ const sendVerificationCode = async () => {
       type: 'login',
     })
 
-    ElMessage.success('验证码已发送，请查收邮箱')
+    ElMessage.success(t('auth.login.codeSent'))
 
     // 开始倒计时
     countdown.value = 60
@@ -274,7 +266,7 @@ const sendVerificationCode = async () => {
       }
     }, 1000)
   } catch (error: any) {
-    const message = error.response?.data?.message || error.message || '验证码发送失败'
+    const message = error.response?.data?.message || error.message || t('auth.login.failed')
     ElMessage.error(message)
   }
 }
@@ -282,7 +274,7 @@ const sendVerificationCode = async () => {
 // 登录处理
 const handleLogin = async () => {
   if (!loginForm.agreeToTerms) {
-    ElMessage.warning('请先阅读并同意用户服务协议和隐私政策')
+    ElMessage.warning(t('auth.login.agreementRequired'))
     return
   }
 
@@ -309,7 +301,7 @@ const handleLogin = async () => {
 
     // 检查响应是否成功
     if (!response.success || !response.data) {
-      ElMessage.error(response.message || '登录失败')
+      ElMessage.error(response.message || t('auth.login.failed'))
       loading.value = false
       return
     }
@@ -325,7 +317,7 @@ const handleLogin = async () => {
       storeStore.setStores(stores)
     }
 
-    ElMessage.success('登录成功')
+    ElMessage.success(t('auth.login.success'))
 
     // 登录成功后始终跳转到门店选择页面,让用户自己选择门店
     router.push('/store/selection')
@@ -333,7 +325,7 @@ const handleLogin = async () => {
     loading.value = false
   } catch (error: any) {
     loading.value = false
-    const message = error.response?.data?.message || error.message || '登录失败'
+    const message = error.response?.data?.message || error.message || t('auth.login.failed')
     ElMessage.error(message)
   }
 }
@@ -426,6 +418,7 @@ const goToTechnicalSupport = () => {
   line-height: 1.8;
   margin-bottom: 30px;
   opacity: 0.95;
+  white-space: pre-line;
 }
 
 .trial-info {
@@ -433,6 +426,7 @@ const goToTechnicalSupport = () => {
   line-height: 1.8;
   margin-bottom: 60px;
   opacity: 0.95;
+  white-space: pre-line;
 }
 
 .browser-window {

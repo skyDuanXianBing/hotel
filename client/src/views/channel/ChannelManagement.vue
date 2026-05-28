@@ -5,7 +5,7 @@
       <!-- 收起导航按钮 -->
       <div class="sidebar-header" @click="toggleSidebar">
         <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
-        <span v-if="!isCollapsed" class="sidebar-title">收起导航</span>
+        <span v-if="!isCollapsed" class="sidebar-title">{{ t('channel.sidebar.collapse') }}</span>
         <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
         <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
       </div>
@@ -18,11 +18,11 @@
       >
         <el-menu-item index="channel-list">
           <el-icon><List /></el-icon>
-          <span>渠道列表</span>
+          <span>{{ t('channel.sidebar.list') }}</span>
         </el-menu-item>
         <el-menu-item index="price-ratio">
           <el-icon><Money /></el-icon>
-          <span>价格比例</span>
+          <span>{{ t('channel.sidebar.priceRatio') }}</span>
         </el-menu-item>
       </el-menu>
     </div>
@@ -134,6 +134,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Menu as MenuIcon, ArrowLeft, ArrowRight, List, Money } from '@element-plus/icons-vue'
 
@@ -180,10 +181,11 @@ const {
   priceRatioData,
   priceRatioLoading,
   loadPriceRatioData,
-  parseRatioString,
   savePriceRatio,
   flattenMappingData,
 } = useChannelData()
+
+const { t } = useI18n()
 
 // Sidebar folding status
 const isCollapsed = ref(false)
@@ -329,17 +331,17 @@ const handleRoomSettingsStartDateChange = (val: string) => {
 // ──────────── Hotel Actions ────────────
 
 const handleEditHotel = (row: HotelItem) => {
-  ElMessage.info(`编辑酒店: ${row.hotelName}`)
+  ElMessage.info(t('channel.messages.editHotel', { name: row.hotelName }))
 }
 
 const handleDisconnectHotel = async (row: HotelItem) => {
   try {
     await ElMessageBox.confirm(
-      `确定要断开与酒店 "${row.hotelName}" 的连接吗？断开后将无法同步该酒店的订单和房态。`,
-      '断开连接',
+      t('channel.messages.disconnectHotelConfirm', { name: row.hotelName }),
+      t('channel.dialogs.common.disconnectTitle'),
       {
-        confirmButtonText: '确定断开',
-        cancelButtonText: '取消',
+        confirmButtonText: t('channel.dialogs.common.disconnectConfirm'),
+        cancelButtonText: t('channel.dialogs.common.cancel'),
         type: 'warning',
       },
     )
@@ -348,7 +350,7 @@ const handleDisconnectHotel = async (row: HotelItem) => {
     if (index > -1) {
       hotelList.value.splice(index, 1)
     }
-    ElMessage.success(`已断开与酒店 "${row.hotelName}" 的连接`)
+    ElMessage.success(t('channel.messages.hotelDisconnected', { name: row.hotelName }))
   } catch {
     // Cancelled
   }
@@ -356,17 +358,21 @@ const handleDisconnectHotel = async (row: HotelItem) => {
 
 const handleDisconnectAccount = async (row: AirbnbAccount) => {
   try {
-    await ElMessageBox.confirm(`确定要断开与帐户 "${row.account}" 的连接吗？`, '断开连接', {
-      confirmButtonText: '确定断开',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('channel.messages.disconnectAccountConfirm', { name: row.account }),
+      t('channel.dialogs.common.disconnectTitle'),
+      {
+        confirmButtonText: t('channel.dialogs.common.disconnectConfirm'),
+        cancelButtonText: t('channel.dialogs.common.cancel'),
+        type: 'warning',
+      },
+    )
 
     const index = airbnbAccountList.value.findIndex((item) => item.id === row.id)
     if (index > -1) {
       airbnbAccountList.value.splice(index, 1)
     }
-    ElMessage.success(`已断开与帐户 "${row.account}" 的连接`)
+    ElMessage.success(t('channel.messages.accountDisconnected', { name: row.account }))
   } catch {
     // Cancelled
   }
@@ -404,22 +410,26 @@ const handleSaveMapping = (roomGroupId: string) => {
   }
   editingRoomId.value = null
   updateFlattenedMappingData()
-  ElMessage.success('保存成功')
+  ElMessage.success(t('channel.messages.saveSuccess'))
 }
 
 const handleDisconnectMapping = async (row: FlattenedMappingItem) => {
   try {
-    await ElMessageBox.confirm(`确定要断开房型 "${row.channelRoomType}" 的映射吗？`, '断开连接', {
-      confirmButtonText: '确定断开',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('channel.messages.disconnectMappingConfirm', { name: row.channelRoomType }),
+      t('channel.dialogs.common.disconnectTitle'),
+      {
+        confirmButtonText: t('channel.dialogs.common.disconnectConfirm'),
+        cancelButtonText: t('channel.dialogs.common.cancel'),
+        type: 'warning',
+      },
+    )
     const groupIndex = roomMappingData.value.findIndex((g) => g.roomGroupId === row.roomGroupId)
     if (groupIndex > -1) {
       roomMappingData.value.splice(groupIndex, 1)
       updateFlattenedMappingData()
     }
-    ElMessage.success('映射已断开')
+    ElMessage.success(t('channel.messages.mappingDisconnected'))
   } catch {
     // Cancelled
   }
@@ -432,7 +442,7 @@ const handleManageMapping = (row: FlattenedMappingItem) => {
 
 const handleSaveBookingSettings = (newSettings: BookingSettings) => {
   bookingSettings.value = newSettings
-  ElMessage.success('预定设置已保存')
+  ElMessage.success(t('channel.messages.bookingSettingsSaved'))
   showBookingSettingsDrawer.value = false
 }
 
@@ -454,10 +464,10 @@ const handleAddHotel = () => {
 const handleAirbnbConnect = () => {
   showAddAccountDialog.value = false
   ElMessageBox.alert(
-    '当前生产渠道管理页尚未配置 Airbnb 账号 OAuth 授权入口，因此不会跳转占位授权地址，也不会伪造授权成功或写入模拟账号。需要验证完整链路时，请在独立 channel-simulator 中执行全流程模拟。',
-    'Airbnb 授权提示',
+    t('channel.messages.airbnbAuthNotice'),
+    t('channel.dialogs.addAccount.title'),
     {
-      confirmButtonText: '我知道了',
+      confirmButtonText: t('channel.dialogs.common.understood'),
       type: 'info',
     },
   )
@@ -466,10 +476,12 @@ const handleAirbnbConnect = () => {
 const handleHotelAuthorize = () => {
   showAddHotelDialog.value = false
   ElMessageBox.alert(
-    '当前生产渠道管理页不会执行模拟授权，也不会向真实酒店列表写入模拟酒店。需要验证完整链路时，请在独立 channel-simulator 中执行全流程模拟。',
-    `${selectedChannel.value?.name || '该渠道'}接入提示`,
+    t('channel.messages.channelAuthNotice'),
+    t('channel.dialogs.addHotel.title', {
+      name: selectedChannel.value?.name || t('channel.dialogs.addHotel.fallbackChannel'),
+    }),
     {
-      confirmButtonText: '我知道了',
+      confirmButtonText: t('channel.dialogs.common.understood'),
       type: 'info',
     },
   )
@@ -478,14 +490,14 @@ const handleHotelAuthorize = () => {
 // ──────────── Price Ratio Actions ────────────
 
 const handleEditPriceRatio = (row: any) => {
-  const parsed = parseRatioString(row.ratio)
+  const adjustmentValue = row.adjustmentValue ?? 0
   editingPriceRatio.value = {
     channelId: row.channelId,
     channel: row.channel,
     ratio: row.ratio,
-    adjustmentType: parsed.type,
-    adjustmentValue: parsed.value,
-    adjustmentUnit: parsed.unit,
+    adjustmentType: adjustmentValue > 0 ? 'expensive' : 'cheaper',
+    adjustmentValue: Math.abs(adjustmentValue),
+    adjustmentUnit: row.adjustmentType === 'FIXED' ? '¥' : '%',
     autoSyncPrice: row.autoSyncPrice,
     backendAdjustmentType: row.adjustmentType,
   }
@@ -524,7 +536,7 @@ const handleConfirmNotice = () => {
 
 const handleWidgetSuccess = () => {
   if (selectedChannel.value) {
-    ElMessage.success(`${selectedChannel.value.name}连接成功！`)
+    ElMessage.success(t('channel.messages.widgetConnected', { name: selectedChannel.value.name }))
     loadChannels()
   }
   showWidgetDialog.value = false
@@ -536,25 +548,25 @@ const handleWidgetSynced = () => {
 }
 
 const handleWidgetError = (error: string) => {
-  console.error('Widget连接错误:', error)
+  console.error(t('channel.messages.widgetError'), error)
 }
 
 // ──────────── Extra Tab Buttons ────────────
 
 const handleRefreshChannelInfo = () => {
-  ElMessage.warning('真实渠道刷新接口尚未接入；模拟流程请在独立 channel-simulator 中验证。')
+  ElMessage.warning(t('channel.messages.refreshNotReady'))
 }
 
 const handleImportOrders = () => {
-  ElMessage.warning('真实订单导入接口尚未接入；模拟流程请在独立 channel-simulator 中验证。')
+  ElMessage.warning(t('channel.messages.importNotReady'))
 }
 
 const handleSyncFromCalendar = () => {
-  ElMessage.warning('真实日历同步接口尚未接入；模拟流程请在独立 channel-simulator 中验证。')
+  ElMessage.warning(t('channel.messages.calendarSyncNotReady'))
 }
 
 const handleFullRefresh = () => {
-  ElMessage.warning('真实全量刷新接口尚未接入；模拟流程请在独立 channel-simulator 中验证。')
+  ElMessage.warning(t('channel.messages.fullRefreshNotReady'))
 }
 
 onMounted(() => {

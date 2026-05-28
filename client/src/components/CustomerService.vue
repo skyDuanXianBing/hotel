@@ -1,10 +1,9 @@
 <template>
   <div v-if="visible" class="customer-service-chat">
-    <!-- 标题栏 -->
     <div class="chat-header">
       <div class="header-left">
         <el-icon class="service-icon"><Headset /></el-icon>
-        <span class="service-title">客服</span>
+        <span class="service-title">{{ t('stage6.components.customerService.title') }}</span>
       </div>
       <div class="header-right">
         <el-button text size="small" class="header-btn">
@@ -19,24 +18,25 @@
       </div>
     </div>
 
-    <!-- 聊天消息区域 -->
-    <div class="chat-messages" ref="messagesContainer">
+    <div ref="messagesContainer" class="chat-messages">
       <div class="message-list">
         <div v-for="message in messages" :key="message.id" :class="['message-item', message.type]">
           <div class="message-time">{{ message.time }}</div>
           <div class="message-content">
-            <!-- 住户自己发送的消息显示在右边 -->
             <div v-if="message.type === 'guest'" class="guest-message-wrapper">
               <div class="guest-message-content">
                 {{ message.content }}
               </div>
               <div class="guest-avatar">
-                <el-icon class="avatar-icon">{{
-                  message.senderName ? message.senderName.charAt(0) : '客'
-                }}</el-icon>
+                <el-icon class="avatar-icon">
+                  {{
+                    message.senderName
+                      ? message.senderName.charAt(0)
+                      : t('stage6.components.customerService.guestAvatarFallback')
+                  }}
+                </el-icon>
               </div>
             </div>
-            <!-- 客服回复的消息显示在左边 -->
             <div v-else class="staff-message">
               <div class="staff-avatar">
                 <el-icon class="avatar-icon"><Headset /></el-icon>
@@ -50,7 +50,6 @@
       </div>
     </div>
 
-    <!-- 输入区域 -->
     <div class="chat-input">
       <div class="input-tools">
         <el-button text size="small" class="tool-btn">
@@ -74,7 +73,9 @@
           :rows="3"
           resize="none"
           :placeholder="
-            serviceAvailable && selectedRoomId ? '请输入您的问题...' : '正在连接客服...'
+            serviceAvailable && selectedRoomId
+              ? t('stage6.components.customerService.placeholderReady')
+              : t('stage6.components.customerService.placeholderConnecting')
           "
           :disabled="isLoading"
           @keydown.enter.prevent="sendMessage"
@@ -83,11 +84,15 @@
           type="primary"
           size="small"
           class="send-btn"
-          @click="sendMessage"
           :disabled="!inputMessage.trim() || isLoading || !selectedRoomId"
           :loading="isLoading"
+          @click="sendMessage"
         >
-          {{ isLoading ? '发送中' : '发送' }}
+          {{
+            isLoading
+              ? t('stage6.common.actions.sending')
+              : t('stage6.common.actions.send')
+          }}
         </el-button>
       </div>
     </div>
@@ -95,30 +100,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
+  ChatDotSquare,
+  Close,
+  Download,
   Headset,
+  Link,
   Microphone,
   Minus,
-  Close,
-  ChatDotSquare,
   Picture,
-  Link,
-  Download,
 } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import {
+  createChatRoom,
   getActiveChatRooms,
   getRoomMessages,
-  sendRealTimeMessage,
+  MessageType,
   pollNewMessages,
-  createChatRoom,
-  type ChatRoomInfo,
+  sendRealTimeMessage,
+  SenderType,
   type RealTimeChatRequest,
   type RealTimeChatResponse,
-  SenderType,
-  MessageType,
 } from '../api/realTimeChat'
-import { ElMessage } from 'element-plus'
 
 interface Message {
   id: number
@@ -128,33 +133,37 @@ interface Message {
   senderName?: string
 }
 
-// Props
 const props = defineProps<{
   visible: boolean
 }>()
 
-// Emits
 const emit = defineEmits<{
   close: []
   minimize: []
 }>()
 
-// 状态
+const { t, locale } = useI18n()
+
 const inputMessage = ref('')
 const messagesContainer = ref<HTMLElement>()
 const messages = ref<Message[]>([])
 const isLoading = ref(false)
 const serviceAvailable = ref(true)
 
-// 聊天室相关状态
-const chatRooms = ref<ChatRoomInfo[]>([])
 const selectedRoomId = ref<string>('')
-const guestName = ref('住户')
-const guestRoomNumber = ref('1001')
+const guestName = ref(t('stage6.components.customerService.defaultGuestName'))
+const guestRoomNumber = ref(t('stage6.components.customerService.defaultGuestRoom'))
 const pollingInterval = ref<number | null>(null)
 const lastPollTime = ref<string>('')
 
-// 方法
+const formatMessageTime = (date: Date) =>
+  date.toLocaleTimeString(locale.value, {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+
 const close = () => {
   emit('close')
 }
@@ -168,17 +177,11 @@ const sendMessage = async () => {
 
   const messageContent = inputMessage.value.trim()
 
-  // 立即显示住户消息
   const guestMessage: Message = {
     id: Date.now(),
     type: 'guest',
     content: messageContent,
-    time: new Date().toLocaleTimeString('zh-CN', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }),
+    time: formatMessageTime(new Date()),
     senderName: guestName.value,
   }
 
@@ -186,7 +189,6 @@ const sendMessage = async () => {
   inputMessage.value = ''
   await scrollToBottom()
 
-  // 发送到服务器
   isLoading.value = true
 
   try {
@@ -202,20 +204,17 @@ const sendMessage = async () => {
     const response = await sendRealTimeMessage(chatRequest)
 
     if (response.success) {
-      console.log('住户消息发送成功:', response.data)
-      // 更新最后轮询时间
+      console.log('Guest message sent:', response.data)
       lastPollTime.value = new Date().toISOString()
-      // 立即轮询一次以获取可能的新消息
       setTimeout(() => pollMessages(), 100)
     } else {
-      console.error('客服消息发送失败:', response.message)
-      ElMessage.error('消息发送失败')
+      console.error('Support message send failed:', response.message)
+      ElMessage.error(t('stage6.components.customerService.sendFailed'))
     }
   } catch (error) {
-    console.error('发送客服消息失败:', error)
-    ElMessage.error('网络错误，消息发送失败')
+    console.error('Failed to send support message:', error)
+    ElMessage.error(t('stage6.components.customerService.networkSendFailed'))
 
-    // 检查服务可用性
     if (error instanceof TypeError && error.message.includes('fetch')) {
       serviceAvailable.value = false
       setTimeout(() => {
@@ -227,18 +226,15 @@ const sendMessage = async () => {
   }
 }
 
-// 创建或获取住户聊天室
 const createGuestChatRoom = async () => {
   try {
-    console.log('住户正在获取或创建聊天室...', {
+    console.log('Guest is getting or creating chat room...', {
       guestName: guestName.value,
       guestRoomNumber: guestRoomNumber.value,
     })
 
-    // 首先检查是否已有当前住户的活跃聊天室
     const roomsResponse = await getActiveChatRooms()
     if (roomsResponse.success && roomsResponse.data && roomsResponse.data.length > 0) {
-      // 查找当前住户的聊天室
       const existingRoom = roomsResponse.data.find(
         (room) =>
           room.guestName === guestName.value && room.guestRoomNumber === guestRoomNumber.value,
@@ -246,54 +242,34 @@ const createGuestChatRoom = async () => {
 
       if (existingRoom) {
         selectedRoomId.value = existingRoom.roomId
-        console.log('住户找到已存在的聊天室:', { roomId: selectedRoomId.value })
+        console.log('Guest found existing chat room:', { roomId: selectedRoomId.value })
 
-        // 加载该聊天室的消息历史
         await loadRoomMessages(selectedRoomId.value)
         lastPollTime.value = new Date().toISOString()
-
-        // 开始轮询新消息
         startPolling()
         return
       }
     }
 
-    // 如果没有现有聊天室，创建新的
-    console.log('住户正在创建新聊天室...')
+    console.log('Guest is creating a new chat room...')
     const response = await createChatRoom(guestName.value, guestRoomNumber.value)
-    console.log('创建聊天室响应:', response)
+    console.log('Create chat room response:', response)
 
     if (response.success && response.data) {
       selectedRoomId.value = response.data.roomId
       lastPollTime.value = new Date().toISOString()
-      console.log('住户聊天室创建成功:', { roomId: selectedRoomId.value })
+      console.log('Guest chat room created:', { roomId: selectedRoomId.value })
 
-      // 加载该聊天室的消息历史
       await loadRoomMessages(selectedRoomId.value)
-
-      // 开始轮询新消息
       startPolling()
     } else {
-      console.error('创建聊天室失败:', response.message)
+      console.error('Failed to create chat room:', response.message)
     }
   } catch (error) {
-    console.error('创建聊天室失败:', error)
+    console.error('Failed to create chat room:', error)
   }
 }
 
-// 选择聊天室
-const selectChatRoom = async (roomId: string) => {
-  selectedRoomId.value = roomId
-  lastPollTime.value = new Date().toISOString()
-
-  // 加载该聊天室的消息历史
-  await loadRoomMessages(roomId)
-
-  // 开始轮询新消息
-  startPolling()
-}
-
-// 加载聊天室消息
 const loadRoomMessages = async (roomId: string) => {
   try {
     const response = await getRoomMessages(roomId)
@@ -302,29 +278,23 @@ const loadRoomMessages = async (roomId: string) => {
         id: msg.messageId,
         type: msg.senderType === SenderType.STAFF ? 'staff' : 'guest',
         content: msg.messageContent,
-        time: new Date(msg.sentAt).toLocaleTimeString('zh-CN', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        }),
+        time: formatMessageTime(new Date(msg.sentAt)),
         senderName: msg.senderName,
       }))
       await scrollToBottom()
     }
   } catch (error) {
-    console.error('加载聊天室消息失败:', error)
+    console.error('Failed to load chat room messages:', error)
   }
 }
 
-// 轮询新消息
 const pollMessages = async () => {
   if (!selectedRoomId.value) {
-    console.log('住户轮询停止：没有selectedRoomId')
+    console.log('Guest polling stopped: selectedRoomId is missing')
     return
   }
 
-  console.log('住户轮询新消息中...', {
+  console.log('Guest is polling new messages...', {
     roomId: selectedRoomId.value,
     lastPollTime: lastPollTime.value,
   })
@@ -333,62 +303,52 @@ const pollMessages = async () => {
     const response = await pollNewMessages(selectedRoomId.value, lastPollTime.value)
 
     if (response.success && response.data) {
-      console.log('住户收到轮询响应:', response.data)
+      console.log('Guest received polling response:', response.data)
       response.data.forEach((msg: RealTimeChatResponse) => {
-        console.log('住户处理消息:', msg)
-        // 只添加不是当前住户发送的消息（即客服消息）
+        console.log('Guest handling message:', msg)
         if (msg.senderType === SenderType.STAFF) {
           const staffMessage: Message = {
             id: msg.messageId,
             type: 'staff',
             content: msg.messageContent,
-            time: new Date(msg.sentAt).toLocaleTimeString('zh-CN', {
-              hour12: false,
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            }),
+            time: formatMessageTime(new Date(msg.sentAt)),
             senderName: msg.senderName,
           }
 
-          // 检查是否已经存在，避免重复添加
           const exists = messages.value.find((m) => m.id === msg.messageId)
-          console.log('住户消息是否已存在:', exists)
+          console.log('Guest message already exists:', exists)
           if (!exists) {
-            console.log('添加客服消息到住户界面:', staffMessage)
+            console.log('Adding support message to guest UI:', staffMessage)
             messages.value.push(staffMessage)
           } else {
-            console.log('消息已存在，跳过')
+            console.log('Message already exists, skipping')
           }
         } else {
-          console.log('跳过住户自己的消息')
+          console.log('Skipping guest-owned message')
         }
       })
 
       if (response.data.length > 0) {
         await scrollToBottom()
-        // 更新最后轮询时间
         lastPollTime.value = new Date().toISOString()
       }
     }
   } catch (error) {
-    console.error('轮询消息失败:', error)
+    console.error('Failed to poll messages:', error)
   }
 }
 
-// 开始轮询
 const startPolling = () => {
   if (pollingInterval.value) {
     clearInterval(pollingInterval.value)
   }
 
-  console.log('住户开始轮询...')
+  console.log('Guest polling started...')
   pollingInterval.value = window.setInterval(() => {
     pollMessages()
-  }, 1000) // 每1秒轮询一次，与客服端保持一致
+  }, 1000)
 }
 
-// 停止轮询
 const stopPolling = () => {
   if (pollingInterval.value) {
     clearInterval(pollingInterval.value)
@@ -403,32 +363,26 @@ const scrollToBottom = async () => {
   }
 }
 
-// 初始化住户聊天界面
 const initializeGuestChat = async () => {
-  // 创建住户聊天室
   await createGuestChatRoom()
 }
 
-// 监听组件显示状态，首次显示时初始化
 watch(
   () => props.visible,
   (newVisible) => {
     if (newVisible) {
       initializeGuestChat()
     } else {
-      // 隐藏时停止轮询
       stopPolling()
     }
   },
   { immediate: true },
 )
 
-// 组件挂载时滚动到底部
 onMounted(() => {
   scrollToBottom()
 })
 
-// 组件卸载时清理资源
 onUnmounted(() => {
   stopPolling()
 })
@@ -456,7 +410,6 @@ onUnmounted(() => {
   writing-mode: horizontal-tb;
 }
 
-/* 标题栏 */
 .chat-header {
   background: linear-gradient(135deg, #4f7bff 0%, #3a6aff 100%);
   color: white;
@@ -501,7 +454,6 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* 消息区域 */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -534,12 +486,10 @@ onUnmounted(() => {
   width: 100%;
 }
 
-/* 住户自己的消息 - 右对齐 */
 .message-item.guest .message-content {
   justify-content: flex-end;
 }
 
-/* 客服回复的消息 - 左对齐 */
 .message-item.staff .message-content {
   justify-content: flex-start;
 }
@@ -624,7 +574,6 @@ onUnmounted(() => {
   text-orientation: mixed;
 }
 
-/* 输入区域 */
 .chat-input {
   border-top: 1px solid #e8e8e8;
   background: white;
@@ -713,7 +662,6 @@ onUnmounted(() => {
   box-shadow: none;
 }
 
-/* 滚动条样式 */
 .chat-messages::-webkit-scrollbar {
   width: 6px;
 }
@@ -732,7 +680,6 @@ onUnmounted(() => {
   background: #a8a8a8;
 }
 
-/* 动画效果 */
 .customer-service-chat {
   animation: slideIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
@@ -748,7 +695,6 @@ onUnmounted(() => {
   }
 }
 
-/* 响应式设计 */
 @media (max-width: 480px) {
   .customer-service-chat {
     width: 360px;

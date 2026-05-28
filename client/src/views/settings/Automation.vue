@@ -1,22 +1,30 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Cpu } from '@element-plus/icons-vue'
 
+const { t } = useI18n()
 const loading = ref(false)
 </script>
 
 <template>
   <div class="automation">
     <div class="page-header">
-      <h3>前台自动化</h3>
-      <p class="page-description">配置前台操作的自动化规则</p>
+      <h3>{{ t('settings.placeholders.automation.title') }}</h3>
+      <p class="page-description">{{ t('settings.placeholders.automation.description') }}</p>
     </div>
 
     <div class="content-area">
       <el-card>
         <div class="placeholder-content">
           <el-icon size="48" color="#d9d9d9"><Cpu /></el-icon>
-          <p>前台自动化功能开发中...</p>
+          <p>
+            {{
+              t('settings.common.inDevelopment', {
+                name: t('settings.placeholders.automation.title'),
+              })
+            }}
+          </p>
         </div>
       </el-card>
     </div>

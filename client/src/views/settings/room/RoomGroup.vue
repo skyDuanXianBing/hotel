@@ -7,7 +7,7 @@
       show-icon
     >
       <template #default>
-        设置分组后,可在日历房态页面按照分组进行筛选。例:可设置【杭州西湖区】分组,将所有位于西湖区的房间分配在该分组下
+        {{ t('settingsStage4.roomGroup.notice') }}
       </template>
     </el-alert>
 
@@ -18,18 +18,18 @@
         <div class="add-group-section" v-if="isEditing">
           <el-input
             v-model="newGroupName"
-            placeholder="输入分组名称"
+            :placeholder="t('settingsStage4.roomGroup.placeholders.newGroupName')"
             style="width: 300px"
             maxlength="20"
             show-word-limit
           />
-          <el-button type="primary" @click="handleAddGroup">+ 新增</el-button>
+          <el-button type="primary" @click="handleAddGroup">+ {{ t('settingsStage4.roomGroup.addGroup') }}</el-button>
         </div>
         <div class="action-buttons">
-          <el-button v-if="!isEditing" type="primary" @click="handleStartEdit">编辑</el-button>
+          <el-button v-if="!isEditing" type="primary" @click="handleStartEdit">{{ t('settings.common.edit') }}</el-button>
           <template v-else>
-            <el-button @click="handleCancelEdit">取消</el-button>
-            <el-button type="primary" @click="handleConfirmEdit">保存</el-button>
+            <el-button @click="handleCancelEdit">{{ t('settings.common.cancel') }}</el-button>
+            <el-button type="primary" @click="handleConfirmEdit">{{ t('settings.common.save') }}</el-button>
           </template>
         </div>
       </div>
@@ -45,7 +45,7 @@
             <el-input
               v-if="isEditing"
               v-model="group.name"
-              placeholder="分组名称"
+              :placeholder="t('settingsStage4.roomGroup.placeholders.groupName')"
               class="group-name-input"
             />
             <span v-else class="group-name">{{ group.name }}</span>
@@ -55,7 +55,7 @@
               type="danger"
               @click="handleDeleteGroup(group)"
             >
-              删除分组
+              {{ t('settingsStage4.roomGroup.deleteGroup') }}
             </el-button>
           </div>
           <draggable
@@ -98,8 +98,8 @@
         <!-- 未分组房间 -->
         <div class="ungrouped-section">
           <div class="ungrouped-header">
-            <span class="ungrouped-title">未分组房间</span>
-            <span v-if="!isEditing" class="ungrouped-hint">点击编辑才可拖拽房间至分组</span>
+            <span class="ungrouped-title">{{ t('settingsStage4.roomGroup.ungroupedRooms') }}</span>
+            <span v-if="!isEditing" class="ungrouped-hint">{{ t('settingsStage4.roomGroup.editHint') }}</span>
           </div>
           <draggable
             v-if="isEditing"
@@ -144,6 +144,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import draggable from 'vuedraggable'
 import { useUserStore } from '@/stores/user'
@@ -163,6 +164,7 @@ import { getRooms, type RoomDTO } from '@/api/room'
 
 const userStore = useUserStore()
 const storeStore = useStoreStore()
+const { t } = useI18n()
 
 interface Room {
   id: number
@@ -208,7 +210,7 @@ const loadRooms = async () => {
     }
   } catch (error) {
     console.error('加载房间列表失败:', error)
-    ElMessage.error('加载房间列表失败')
+    ElMessage.error(t('settingsStage4.roomGroup.messages.loadRoomsFailed'))
   }
 }
 
@@ -217,7 +219,7 @@ const loadRooms = async () => {
  */
 const loadRoomGroups = async () => {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
 
@@ -247,7 +249,7 @@ const loadRoomGroups = async () => {
     }
   } catch (error) {
     console.error('加载房间分组失败:', error)
-    ElMessage.error('加载房间分组失败')
+    ElMessage.error(t('settingsStage4.roomGroup.messages.loadGroupsFailed'))
   }
 }
 
@@ -308,7 +310,7 @@ const handleStartEdit = () => {
 
 const handleAddGroup = () => {
   if (!newGroupName.value.trim()) {
-    ElMessage.warning('请输入分组名称')
+    ElMessage.warning(t('settingsStage4.roomGroup.messages.groupNameRequired'))
     return
   }
 
@@ -321,20 +323,20 @@ const handleAddGroup = () => {
 
   editRoomGroups.value.push(newGroup)
   newGroupName.value = ''
-  ElMessage.success('添加成功')
+  ElMessage.success(t('settingsStage4.roomGroup.messages.addSuccess'))
 }
 
 const handleDeleteGroup = (group: RoomGroup) => {
-  ElMessageBox.confirm(`确定要删除分组 "${group.name}" 吗?`, '删除确认', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
+  ElMessageBox.confirm(t('settingsStage4.roomGroup.messages.deleteConfirm', { name: group.name }), t('settings.common.deleteConfirmTitle'), {
+    confirmButtonText: t('settings.common.confirmButton'),
+    cancelButtonText: t('settings.common.cancelButton'),
     type: 'warning',
   })
     .then(() => {
       const index = editRoomGroups.value.findIndex(g => g.id === group.id)
       if (index !== -1) {
         editRoomGroups.value.splice(index, 1)
-        ElMessage.success('删除成功')
+        ElMessage.success(t('settings.common.deleteSuccess'))
       }
     })
     .catch(() => {
@@ -357,14 +359,14 @@ const handleCancelEdit = () => {
 
 const handleConfirmEdit = async () => {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.roomGroup.messages.selectStore'))
     return
   }
 
   // 验证所有分组都有名称
   const hasEmptyName = editRoomGroups.value.some((group) => !group.name.trim())
   if (hasEmptyName) {
-    ElMessage.warning('请为所有分组设置名称')
+    ElMessage.warning(t('settingsStage4.roomGroup.messages.allGroupsNeedName'))
     return
   }
 
@@ -416,7 +418,7 @@ const handleConfirmEdit = async () => {
       }
     }
 
-    ElMessage.success('保存成功')
+    ElMessage.success(t('settingsStage4.roomGroup.messages.saveSuccess'))
     isEditing.value = false
     editRoomGroups.value = []
     newGroupName.value = ''
@@ -424,7 +426,7 @@ const handleConfirmEdit = async () => {
     await loadRoomGroups()
   } catch (error) {
     console.error('保存失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settingsStage4.roomGroup.messages.saveFailed'))
   }
 }
 </script>

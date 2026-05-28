@@ -6,24 +6,24 @@
         <el-date-picker
           v-model="startDate"
           type="date"
-          placeholder="开始日期"
+          :placeholder="t('stage5.common.date.startDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
         />
-        <span class="date-separator">至</span>
+        <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
         <el-date-picker
           v-model="endDate"
           type="date"
-          placeholder="结束日期"
+          :placeholder="t('stage5.common.date.endDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
         />
-        <el-button type="primary" @click="handleQuery">查询</el-button>
+        <el-button type="primary" @click="handleQuery">{{ t('stage5.common.actions.query') }}</el-button>
       </div>
 
       <!-- 记一笔概况 -->
       <div class="section-header">
-        <h2>记一笔概况</h2>
+        <h2>{{ t('stage5.statistics.notes.overview') }}</h2>
       </div>
 
       <!-- 统计卡片 -->
@@ -33,7 +33,7 @@
             <el-icon><Money /></el-icon>
           </div>
           <div class="card-content">
-            <div class="card-label">净收入</div>
+            <div class="card-label">{{ t('stage5.statistics.notes.netIncome') }}</div>
             <div class="card-value">¥{{ summaryStats.netIncome.toFixed(2) }}</div>
           </div>
         </div>
@@ -43,7 +43,7 @@
             <el-icon><Wallet /></el-icon>
           </div>
           <div class="card-content">
-            <div class="card-label">总收入</div>
+            <div class="card-label">{{ t('stage5.statistics.notes.totalIncome') }}</div>
             <div class="card-value">¥{{ summaryStats.totalIncome.toFixed(2) }}</div>
           </div>
         </div>
@@ -53,7 +53,7 @@
             <el-icon><ShoppingCart /></el-icon>
           </div>
           <div class="card-content">
-            <div class="card-label">总支出</div>
+            <div class="card-label">{{ t('stage5.statistics.notes.totalExpense') }}</div>
             <div class="card-value">¥{{ summaryStats.totalExpense.toFixed(2) }}</div>
           </div>
         </div>
@@ -61,32 +61,32 @@
 
       <!-- 记一笔收支统计 -->
       <div class="statistics-section">
-        <div class="section-title">记一笔收支统计</div>
+        <div class="section-title">{{ t('stage5.statistics.notes.incomeExpenseStats') }}</div>
 
         <el-tabs v-model="activeTab" class="statistics-tabs">
           <!-- 按项目 -->
-          <el-tab-pane label="按项目" name="byProject">
+          <el-tab-pane :label="t('stage5.statistics.notes.byProject')" name="byProject">
             <div class="charts-row">
               <div class="chart-wrapper">
-                <div class="chart-title">总收入</div>
+                <div class="chart-title">{{ t('stage5.statistics.notes.totalIncome') }}</div>
                 <div ref="incomeProjectChartRef" class="pie-chart"></div>
               </div>
               <div class="chart-wrapper">
-                <div class="chart-title">总支出</div>
+                <div class="chart-title">{{ t('stage5.statistics.notes.totalExpense') }}</div>
                 <div ref="expenseProjectChartRef" class="pie-chart"></div>
               </div>
             </div>
           </el-tab-pane>
 
           <!-- 按支付方式 -->
-          <el-tab-pane label="按支付方式" name="byPaymentMethod">
+          <el-tab-pane :label="t('stage5.statistics.notes.byPaymentMethod')" name="byPaymentMethod">
             <div class="charts-row">
               <div class="chart-wrapper">
-                <div class="chart-title">总收入</div>
+                <div class="chart-title">{{ t('stage5.statistics.notes.totalIncome') }}</div>
                 <div ref="incomePaymentChartRef" class="pie-chart"></div>
               </div>
               <div class="chart-wrapper">
-                <div class="chart-title">总支出</div>
+                <div class="chart-title">{{ t('stage5.statistics.notes.totalExpense') }}</div>
                 <div ref="expensePaymentChartRef" class="pie-chart"></div>
               </div>
             </div>
@@ -97,55 +97,59 @@
       <!-- 记一笔明细 -->
       <div class="details-section">
         <div class="details-header">
-          <h3>记一笔明细 ({{ formatDateRange }})</h3>
+          <h3>{{ t('stage5.statistics.notes.details') }} {{ t('stage5.statistics.common.detailsPeriod', { period: formatDateRange }) }}</h3>
           <div class="header-actions">
-            <el-select v-model="filterType" placeholder="类型" style="width: 120px">
-              <el-option label="全部" value="all" />
-              <el-option label="收入" value="income" />
-              <el-option label="支出" value="expense" />
+            <el-select v-model="filterType" :placeholder="t('stage5.common.filters.type')" style="width: 120px">
+              <el-option :label="t('stage5.common.filters.all')" value="all" />
+              <el-option :label="t('stage5.statistics.notes.income')" value="income" />
+              <el-option :label="t('stage5.statistics.notes.expense')" value="expense" />
             </el-select>
-            <el-button type="primary" @click="handleExport">导出报表</el-button>
+            <el-button type="primary" @click="handleExport">{{ t('stage5.common.actions.exportReport') }}</el-button>
           </div>
         </div>
 
         <!-- 数据表格 -->
         <el-table :data="filteredTableData" border stripe class="details-table">
-          <el-table-column prop="datetime" label="时间" width="180" />
-          <el-table-column prop="type" label="类型" width="100">
+          <el-table-column prop="datetime" :label="t('stage5.common.fields.time')" width="180" />
+          <el-table-column prop="type" :label="t('stage5.common.fields.type')" width="100">
             <template #default="{ row }">
               <el-tag :type="row.type === 'income' ? 'success' : 'danger'">
-                {{ row.type === 'income' ? '收入' : '支出' }}
+                {{ row.type === 'income' ? t('stage5.statistics.notes.income') : t('stage5.statistics.notes.expense') }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="category" label="项目" width="150" />
-          <el-table-column prop="amount" label="金额" width="120" align="right">
+          <el-table-column prop="category" :label="t('stage5.common.fields.project')" width="150" />
+          <el-table-column prop="amount" :label="t('stage5.common.fields.amount')" width="120" align="right">
             <template #default="{ row }">
               <span :class="{ 'income-amount': row.type === 'income', 'expense-amount': row.type === 'expense' }">
                 {{ row.type === 'income' ? '+' : '-' }}¥{{ row.amount.toFixed(2) }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="paymentMethod" label="收款方式" width="120" />
-          <el-table-column prop="roomNumber" label="关联房间" width="100" />
-          <el-table-column prop="voucher" label="凭证" width="80" align="center">
+          <el-table-column prop="paymentMethod" :label="t('stage5.statistics.notes.paymentReceivedMethod')" width="120" />
+          <el-table-column prop="roomNumber" :label="t('stage5.statistics.notes.relatedRoom')" width="100" />
+          <el-table-column prop="voucher" :label="t('stage5.common.fields.voucher')" width="80" align="center">
             <template #default="{ row }">
               <el-button v-if="row.voucherCount > 0" link type="primary" @click="handleViewVoucher(row)">
-                查看({{ row.voucherCount }})
+                {{ t('stage5.common.actions.view') }}({{ row.voucherCount }})
               </el-button>
               <span v-else>-</span>
             </template>
           </el-table-column>
-          <el-table-column prop="notes" label="备注" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="notes" :label="t('stage5.common.fields.note')" min-width="150" show-overflow-tooltip />
         </el-table>
 
         <!-- 分页和统计 -->
         <div class="table-footer">
           <div class="footer-stats">
-            共计{{ filteredTableData.length }}条记录，净收入：
-            <span class="net-income-value">¥{{ netIncomeAmount.toFixed(2) }}</span> | 总收入：
-            <span class="income-value">¥{{ totalIncomeAmount.toFixed(2) }}</span> | 总支出：
-            <span class="expense-value">¥{{ totalExpenseAmount.toFixed(2) }}</span>
+            {{
+              t('stage5.statistics.notes.recordsSummary', {
+                count: filteredTableData.length,
+                netIncome: `¥${netIncomeAmount.toFixed(2)}`,
+                totalIncome: `¥${totalIncomeAmount.toFixed(2)}`,
+                totalExpense: `¥${totalExpenseAmount.toFixed(2)}`,
+              })
+            }}
           </div>
           <el-pagination
             v-model:current-page="currentPage"
@@ -164,12 +168,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Money, Wallet, ShoppingCart } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import StatisticsLayout from './StatisticsLayout.vue'
 import { getNotesStatistics, getNotesList } from '@/api/notes'
+
+const { t } = useI18n()
 
 // 日期范围
 const today = new Date().toISOString().split('T')[0]
@@ -193,31 +200,31 @@ const summaryStats = ref({
 
 // 图表数据
 const incomeByProject = ref([
-  { name: '房费收入', value: 0 },
-  { name: '押金收入', value: 0 },
-  { name: '赔偿收入', value: 0 },
-  { name: '其他收入', value: 0 },
+  { name: t('stage5.statistics.notes.roomFeeIncome'), value: 0 },
+  { name: t('stage5.statistics.notes.depositIncome'), value: 0 },
+  { name: t('stage5.statistics.notes.compensationIncome'), value: 0 },
+  { name: t('stage5.statistics.notes.otherIncome'), value: 0 },
 ])
 
 const expenseByProject = ref([
-  { name: '房间维修', value: 0 },
-  { name: '清洁费用', value: 0 },
-  { name: '用品采购', value: 0 },
-  { name: '其他支出', value: 0 },
+  { name: t('stage5.statistics.notes.roomRepair'), value: 0 },
+  { name: t('stage5.statistics.notes.cleaningFee'), value: 0 },
+  { name: t('stage5.statistics.notes.suppliesPurchase'), value: 0 },
+  { name: t('stage5.statistics.notes.otherExpense'), value: 0 },
 ])
 
 const incomeByPayment = ref([
-  { name: '现金', value: 0 },
-  { name: '支付宝', value: 0 },
-  { name: '微信', value: 0 },
-  { name: '银行卡', value: 0 },
+  { name: t('stage5.statistics.notes.cash'), value: 0 },
+  { name: t('stage5.statistics.notes.alipay'), value: 0 },
+  { name: t('stage5.statistics.notes.wechat'), value: 0 },
+  { name: t('stage5.statistics.notes.bankCard'), value: 0 },
 ])
 
 const expenseByPayment = ref([
-  { name: '现金', value: 0 },
-  { name: '支付宝', value: 0 },
-  { name: '微信', value: 0 },
-  { name: '银行卡', value: 0 },
+  { name: t('stage5.statistics.notes.cash'), value: 0 },
+  { name: t('stage5.statistics.notes.alipay'), value: 0 },
+  { name: t('stage5.statistics.notes.wechat'), value: 0 },
+  { name: t('stage5.statistics.notes.bankCard'), value: 0 },
 ])
 
 // 明细数据
@@ -239,7 +246,7 @@ const formatDateRange = computed(() => {
   if (startDate.value === endDate.value) {
     return startDate.value
   }
-  return `${startDate.value} 至 ${endDate.value}`
+  return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
 })
 
 // 筛选后的表格数据
@@ -332,7 +339,11 @@ const createPieChartOption = (data: any[], total: number, type: 'income' | 'expe
           show: true,
           position: 'center',
           formatter: () => {
-            return `{title|${type === 'income' ? '总收入' : '总支出'}}\n{value|¥${total.toFixed(2)}}`
+            const title =
+              type === 'income'
+                ? t('stage5.statistics.notes.totalIncome')
+                : t('stage5.statistics.notes.totalExpense')
+            return `{title|${title}}\n{value|¥${total.toFixed(2)}}`
           },
           rich: {
             title: {
@@ -447,7 +458,7 @@ const loadData = async () => {
       // 更新图表
       updateCharts()
     } else {
-      ElMessage.error(statsResponse.message || '获取统计数据失败')
+      ElMessage.error(statsResponse.message || t('stage5.statistics.notes.statsLoadFailed'))
     }
 
     // 获取明细列表
@@ -468,20 +479,20 @@ const loadData = async () => {
         notes: item.notes || '-',
       }))
     } else {
-      ElMessage.error(listResponse.message || '获取明细列表失败')
+      ElMessage.error(listResponse.message || t('stage5.statistics.notes.listLoadFailed'))
     }
 
-    ElMessage.success('数据加载成功')
+    ElMessage.success(t('stage5.common.messages.dataLoadSuccess'))
   } catch (error) {
-    console.error('加载数据失败:', error)
-    ElMessage.error('加载数据失败')
+    console.error(t('stage5.common.messages.dataLoadFailed'), error)
+    ElMessage.error(t('stage5.common.messages.dataLoadFailed'))
   }
 }
 
 // 查询
 const handleQuery = () => {
   if (!startDate.value || !endDate.value) {
-    ElMessage.warning('请选择日期范围')
+    ElMessage.warning(t('stage5.common.messages.pleaseSelectDateRange'))
     return
   }
   loadData()
@@ -489,12 +500,12 @@ const handleQuery = () => {
 
 // 导出报表
 const handleExport = () => {
-  ElMessage.info('导出报表功能开发中...')
+  ElMessage.info(t('stage5.common.messages.exportComingSoon'))
 }
 
 // 查看凭证
 const handleViewVoucher = (row: any) => {
-  ElMessage.info('查看凭证功能开发中...')
+  ElMessage.info(t('stage5.statistics.notes.viewVoucherComingSoon'))
 }
 
 // 分页处理

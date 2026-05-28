@@ -3,19 +3,12 @@
     <!-- 左侧蓝色背景区域 -->
     <div class="left-section">
       <div class="left-content">
-        <h1 class="main-title">房东智控中心</h1>
-        <h1 class="sub-title">THE HOST HUB</h1>
+        <h1 class="main-title">{{ t('auth.hero.titlePrimary') }}</h1>
+        <h1 class="sub-title">{{ t('auth.hero.titleSecondary') }}</h1>
 
-        <p class="description">
-          Trusted by over 100,000 properties worldwide.<br />
-          Streamline your operations with our powerful order<br />
-          management system.
-        </p>
+        <p class="description">{{ t('auth.hero.description') }}</p>
 
-        <p class="trial-info">
-          Register now to get a 30-day free trial with full<br />
-          access to all features. No credit card required.
-        </p>
+        <p class="trial-info">{{ t('auth.hero.trialInfo') }}</p>
 
         <!-- 装饰性浏览器窗口 -->
         <div class="browser-window">
@@ -32,23 +25,13 @@
     <div class="right-section">
       <!-- 语言选择 -->
       <div class="language-selector">
-        <el-dropdown>
-          <span class="language-text">
-            简体中文 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>简体中文</el-dropdown-item>
-              <el-dropdown-item>English</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <LanguageSwitcher variant="auth" />
       </div>
 
       <div class="form-container">
         <!-- 标题 -->
-        <h2 class="form-title">立即注册</h2>
-        <p class="form-subtitle">创建账户，并开始使用房东智控中心（THE HOST HUB）</p>
+        <h2 class="form-title">{{ t('auth.register.title') }}</h2>
+        <p class="form-subtitle">{{ t('auth.register.subtitle') }}</p>
 
         <!-- 注册表单 -->
         <el-form
@@ -59,11 +42,11 @@
         >
           <!-- 邮箱 -->
           <div class="form-item">
-            <label class="form-label">邮箱</label>
+            <label class="form-label">{{ t('common.email') }}</label>
             <el-form-item prop="email">
               <el-input
                 v-model="registerForm.email"
-                placeholder="请输入您的邮箱"
+                :placeholder="t('auth.register.emailPlaceholder')"
                 size="large"
                 :prefix-icon="Message"
               />
@@ -72,17 +55,17 @@
 
           <!-- 验证码 -->
           <div class="form-item">
-            <label class="form-label">验证码</label>
+            <label class="form-label">{{ t('common.verificationCode') }}</label>
             <el-form-item prop="verificationCode">
               <el-input
                 v-model="registerForm.verificationCode"
-                placeholder="请输入验证码"
+                :placeholder="t('auth.register.codePlaceholder')"
                 size="large"
                 :prefix-icon="Key"
               >
                 <template #append>
                   <el-button :disabled="countdown > 0" @click="sendVerificationCode">
-                    {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+                    {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
                   </el-button>
                 </template>
               </el-input>
@@ -91,12 +74,12 @@
 
           <!-- 设置密码 -->
           <div class="form-item">
-            <label class="form-label">设置密码</label>
+            <label class="form-label">{{ t('auth.register.passwordLabel') }}</label>
             <el-form-item prop="password">
               <el-input
                 v-model="registerForm.password"
                 type="password"
-                placeholder="请设置密码（6-20位字符）"
+                :placeholder="t('auth.register.passwordPlaceholder')"
                 size="large"
                 :prefix-icon="Lock"
                 show-password
@@ -106,12 +89,12 @@
 
           <!-- 确认密码 -->
           <div class="form-item">
-            <label class="form-label">确认密码</label>
+            <label class="form-label">{{ t('auth.register.confirmPasswordLabel') }}</label>
             <el-form-item prop="confirmPassword">
               <el-input
                 v-model="registerForm.confirmPassword"
                 type="password"
-                placeholder="请再次输入密码"
+                :placeholder="t('auth.register.confirmPasswordPlaceholder')"
                 size="large"
                 :prefix-icon="Lock"
                 show-password
@@ -122,20 +105,20 @@
           <!-- 同意协议 -->
           <div class="agreement-row">
             <el-checkbox v-model="registerForm.agreeToTerms">
-              我已阅读并同意
+              {{ t('auth.register.agreementPrefix') }}
               <el-link
                 type="primary"
                 :underline="false"
                 @click.stop.prevent="goToTermsOfService"
               >
-                《用户服务协议》
+                {{ t('common.termsOfService') }}
               </el-link>
-              、
+              {{ t('auth.register.agreementComma') }}
               <el-link type="primary" :underline="false" @click.stop.prevent="goToPrivacyPolicy">
-                《隐私政策》
+                {{ t('common.privacyPolicy') }}
               </el-link>
-              和
-              <el-link type="primary" :underline="false">《会员服务条款》</el-link>
+              {{ t('auth.register.agreementJoiner') }}
+              <el-link type="primary" :underline="false">{{ t('common.memberTerms') }}</el-link>
             </el-checkbox>
           </div>
 
@@ -147,18 +130,18 @@
             :loading="loading"
             @click="handleRegister"
           >
-            立即注册
+            {{ t('auth.register.submit') }}
           </el-button>
         </el-form>
 
         <!-- 登录链接 -->
         <div class="login-link">
-          已有账户？
-          <el-link type="primary" :underline="false" @click="goToLogin">立即登录</el-link>
+          {{ t('auth.register.loginPrefix') }}
+          <el-link type="primary" :underline="false" @click="goToLogin">{{ t('auth.register.loginAction') }}</el-link>
         </div>
         <div class="support-link-row">
           <el-link type="primary" :underline="false" @click="goToTechnicalSupport">
-            技术支持网站
+            {{ t('common.supportSite') }}
           </el-link>
         </div>
       </div>
@@ -167,16 +150,19 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Message, Lock, Key, ArrowDown } from '@element-plus/icons-vue'
+import { Message, Lock, Key } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import {
   sendVerificationCode as sendVerificationCodeAPI,
   register as registerAPI,
 } from '@/api/auth'
 
 const router = useRouter()
+const { t } = useI18n()
 
 // 倒计时
 const countdown = ref(0)
@@ -199,33 +185,33 @@ const registerForm = reactive({
 // 自定义验证：确认密码
 const validateConfirmPassword = (rule: any, value: any, callback: any) => {
   if (value === '') {
-    callback(new Error('请再次输入密码'))
+    callback(new Error(t('auth.register.validation.confirmPasswordRequired')))
   } else if (value !== registerForm.password) {
-    callback(new Error('两次输入的密码不一致'))
+    callback(new Error(t('auth.register.validation.confirmPasswordMismatch')))
   } else {
     callback()
   }
 }
 
 // 表单验证规则
-const registerRules: FormRules = {
+const registerRules = computed<FormRules>(() => ({
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
+    { required: true, message: t('auth.register.validation.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('auth.register.validation.emailInvalid'), trigger: 'blur' },
   ],
   verificationCode: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { len: 6, message: '验证码为6位数字', trigger: 'blur' },
+    { required: true, message: t('auth.register.validation.codeRequired'), trigger: 'blur' },
+    { len: 6, message: t('auth.register.validation.codeLength'), trigger: 'blur' },
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度为6-20位字符', trigger: 'blur' },
+    { required: true, message: t('auth.register.validation.passwordRequired'), trigger: 'blur' },
+    { min: 6, max: 20, message: t('auth.register.validation.passwordLength'), trigger: 'blur' },
   ],
   confirmPassword: [
-    { required: true, message: '请再次输入密码', trigger: 'blur' },
+    { required: true, message: t('auth.register.validation.confirmPasswordRequired'), trigger: 'blur' },
     { validator: validateConfirmPassword, trigger: 'blur' },
   ],
-}
+}))
 
 // 发送验证码
 const sendVerificationCode = async () => {
@@ -243,7 +229,7 @@ const sendVerificationCode = async () => {
       type: 'register',
     })
 
-    ElMessage.success('验证码已发送,请查收邮箱')
+    ElMessage.success(t('auth.register.codeSent'))
 
     // 开始倒计时
     countdown.value = 60
@@ -254,14 +240,14 @@ const sendVerificationCode = async () => {
       }
     }, 1000)
   } catch (error: any) {
-    ElMessage.error(error.message || '验证码发送失败')
+    ElMessage.error(error.message || t('auth.register.failed'))
   }
 }
 
 // 注册处理
 const handleRegister = async () => {
   if (!registerForm.agreeToTerms) {
-    ElMessage.warning('请先阅读并同意用户服务协议、隐私政策和会员服务条款')
+    ElMessage.warning(t('auth.register.agreementRequired'))
     return
   }
 
@@ -277,12 +263,12 @@ const handleRegister = async () => {
       password: registerForm.password,
     })
 
-    ElMessage.success('注册成功，请登录')
+    ElMessage.success(t('auth.register.success'))
     router.push('/login')
     loading.value = false
   } catch (error: any) {
     loading.value = false
-    const message = error.response?.data?.message || error.message || '注册失败'
+    const message = error.response?.data?.message || error.message || t('auth.register.failed')
     ElMessage.error(message)
   }
 }
@@ -370,6 +356,7 @@ const goToTechnicalSupport = () => {
   line-height: 1.8;
   margin-bottom: 30px;
   opacity: 0.95;
+  white-space: pre-line;
 }
 
 .trial-info {
@@ -377,6 +364,7 @@ const goToTechnicalSupport = () => {
   line-height: 1.8;
   margin-bottom: 60px;
   opacity: 0.95;
+  white-space: pre-line;
 }
 
 .browser-window {

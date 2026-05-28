@@ -4,23 +4,23 @@
     <!-- 日期筛选 -->
     <div class="filter-section">
       <el-select v-model="dateType" style="width: 100px">
-        <el-option label="今天" value="today" />
-        <el-option label="昨天" value="yesterday" />
-        <el-option label="本周" value="week" />
-        <el-option label="本月" value="month" />
+        <el-option :label="t('stage5.common.date.today')" value="today" />
+        <el-option :label="t('stage5.common.date.yesterday')" value="yesterday" />
+        <el-option :label="t('stage5.common.date.thisWeek')" value="week" />
+        <el-option :label="t('stage5.common.date.thisMonth')" value="month" />
       </el-select>
       <el-date-picker
         v-model="startDate"
         type="date"
-        placeholder="选择日期"
+        :placeholder="t('stage5.common.date.selectDate')"
         format="YYYY/MM/DD"
         value-format="YYYY-MM-DD"
       />
-      <span class="date-separator">至</span>
+      <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
       <el-date-picker
         v-model="endDate"
         type="date"
-        placeholder="选择日期"
+        :placeholder="t('stage5.common.date.selectDate')"
         format="YYYY/MM/DD"
         value-format="YYYY-MM-DD"
       />
@@ -29,8 +29,8 @@
     <!-- 经营指标统计 -->
     <div class="metrics-section">
       <h3 class="section-title">
-        经营指标
-        <el-tooltip content="统计说明" placement="right">
+        {{ t('stage5.statistics.accommodation.operationalMetrics') }}
+        <el-tooltip :content="t('stage5.statistics.common.statsInfo')" placement="right">
           <el-icon class="info-icon"><QuestionFilled /></el-icon>
         </el-tooltip>
       </h3>
@@ -41,7 +41,7 @@
             <el-icon size="32" color="#5b8ff9"><House /></el-icon>
           </div>
           <div class="metric-content">
-            <div class="metric-label">总房费</div>
+            <div class="metric-label">{{ t('stage5.statistics.accommodation.totalRoomFee') }}</div>
             <div class="metric-value">¥{{ metrics.totalRoomFee.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
           </div>
         </div>
@@ -52,8 +52,8 @@
           </div>
           <div class="metric-content">
             <div class="metric-label">
-              平均房价
-              <el-tooltip content="ADR" placement="top">
+              {{ t('stage5.statistics.accommodation.avgDailyRate') }}
+              <el-tooltip :content="t('stage5.statistics.accommodation.avgDailyRate')" placement="top">
                 <el-icon class="small-info"><QuestionFilled /></el-icon>
               </el-tooltip>
             </div>
@@ -67,8 +67,8 @@
           </div>
           <div class="metric-content">
             <div class="metric-label">
-              入住率
-              <el-tooltip content="Occ" placement="top">
+              {{ t('stage5.statistics.accommodation.occupancyRate') }}
+              <el-tooltip :content="t('stage5.statistics.accommodation.occupancyRate')" placement="top">
                 <el-icon class="small-info"><QuestionFilled /></el-icon>
               </el-tooltip>
             </div>
@@ -82,8 +82,8 @@
           </div>
           <div class="metric-content">
             <div class="metric-label">
-              平均每房收益
-              <el-tooltip content="RevPAR" placement="top">
+              {{ t('stage5.statistics.accommodation.revPAR') }}
+              <el-tooltip :content="t('stage5.statistics.accommodation.revPAR')" placement="top">
                 <el-icon class="small-info"><QuestionFilled /></el-icon>
               </el-tooltip>
             </div>
@@ -97,8 +97,8 @@
           </div>
           <div class="metric-content">
             <div class="metric-label">
-              累计出售间夜数
-              <el-tooltip content="间夜数" placement="top">
+              {{ t('stage5.statistics.accommodation.totalRoomNights') }}
+              <el-tooltip :content="t('stage5.statistics.accommodation.roomNights')" placement="top">
                 <el-icon class="small-info"><QuestionFilled /></el-icon>
               </el-tooltip>
             </div>
@@ -112,8 +112,8 @@
           </div>
           <div class="metric-content">
             <div class="metric-label">
-              平均每日间夜数
-              <el-tooltip content="平均每日间夜数" placement="top">
+              {{ t('stage5.statistics.accommodation.avgDailyRoomNights') }}
+              <el-tooltip :content="t('stage5.statistics.accommodation.avgDailyRoomNights')" placement="top">
                 <el-icon class="small-info"><QuestionFilled /></el-icon>
               </el-tooltip>
             </div>
@@ -125,7 +125,7 @@
 
     <!-- 经营指标趋势图 -->
     <div class="trend-section">
-      <h3 class="section-title">经营指标趋势</h3>
+      <h3 class="section-title">{{ t('stage5.statistics.accommodation.operationalTrend') }}</h3>
 
       <div class="trend-tabs">
         <el-button
@@ -144,8 +144,8 @@
     <!-- 数据明细表格 -->
     <div class="table-section">
       <h3 class="section-title">
-        数据明细 ({{ dateRangeLabel }})
-        <el-button type="primary" style="float: right">导出明细</el-button>
+        {{ t('stage5.statistics.accommodation.dataDetails') }} ({{ dateRangeLabel }})
+        <el-button type="primary" style="float: right">{{ t('stage5.common.actions.exportDetails') }}</el-button>
       </h3>
 
       <div class="table-tabs">
@@ -162,9 +162,9 @@
 
       <!-- 房费明细表格 -->
       <el-table v-if="activeTableTab === 'room-fee'" :data="roomFeeData" border stripe class="detail-table">
-        <el-table-column prop="roomType" label="房型" min-width="150" align="center" />
-        <el-table-column prop="roomNumber" label="房间" min-width="120" align="center" />
-        <el-table-column prop="total" label="合计" min-width="150" align="center">
+        <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="150" align="center" />
+        <el-table-column prop="roomNumber" :label="t('stage5.common.fields.room')" min-width="120" align="center" />
+        <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
           <template #default="{ row }">
             <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
           </template>
@@ -178,9 +178,9 @@
 
       <!-- 间夜明细表格 -->
       <el-table v-if="activeTableTab === 'checkin'" :data="checkinData" border stripe class="detail-table">
-        <el-table-column prop="roomType" label="房型" min-width="150" align="center" />
-        <el-table-column prop="roomNumber" label="房间" min-width="120" align="center" />
-        <el-table-column prop="total" label="合计" min-width="150" align="center">
+        <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="150" align="center" />
+        <el-table-column prop="roomNumber" :label="t('stage5.common.fields.room')" min-width="120" align="center" />
+        <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
           <template #default="{ row }">
             <span class="amount-bold">{{ row.total }}</span>
           </template>
@@ -190,8 +190,8 @@
 
       <!-- 入住率明细表格 -->
       <el-table v-if="activeTableTab === 'occupancy'" :data="occupancyData" border stripe class="detail-table">
-        <el-table-column prop="roomType" label="房型" min-width="200" align="center" />
-        <el-table-column prop="total" label="合计" min-width="150" align="center">
+        <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="200" align="center" />
+        <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
           <template #default="{ row }">
             <span class="amount-bold">{{ row.total.toFixed(2) }}%</span>
           </template>
@@ -203,8 +203,8 @@
 
       <!-- RevPAR明细表格 -->
       <el-table v-if="activeTableTab === 'revpar'" :data="revparData" border stripe class="detail-table">
-        <el-table-column prop="roomType" label="房型" min-width="200" align="center" />
-        <el-table-column prop="total" label="合计" min-width="150" align="center">
+        <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="200" align="center" />
+        <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
           <template #default="{ row }">
             <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
           </template>
@@ -222,6 +222,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { QuestionFilled, House, TrendCharts, SuccessFilled, Money, Calendar, Clock } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -233,6 +234,7 @@ import {
   type OperationalRoomDetailDTO,
 } from '@/api/statistics'
 
+const { t } = useI18n()
 const dateType = ref('today')
 const loading = ref(false)
 
@@ -255,7 +257,7 @@ const toNumber = (value: unknown): number => {
 
 // 日期范围标签 - 动态显示选择的日期范围
 const dateRangeLabel = computed(() => {
-  return `${startDate.value} 至 ${endDate.value}`
+  return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
 })
 
 const currentDateLabel = computed(() => {
@@ -264,10 +266,13 @@ const currentDateLabel = computed(() => {
 
   if (!year || !month || !day) {
     const today = new Date()
-    return `${today.getMonth() + 1}月${today.getDate()}日`
+    return t('stage5.common.date.monthDay', {
+      month: today.getMonth() + 1,
+      day: today.getDate(),
+    })
   }
 
-  return `${month}月${day}日`
+  return t('stage5.common.date.monthDay', { month, day })
 })
 
 // 经营指标数据
@@ -295,11 +300,11 @@ const loadOperationalMetrics = async () => {
       const data = response.data
       applyOperationalMetricsData(data)
     } else {
-      ElMessage.error(response.message || '获取经营指标数据失败')
+      ElMessage.error(response.message || t('stage5.statistics.accommodation.loadMetricsFailed'))
     }
   } catch (error) {
-    console.error('加载经营指标数据失败:', error)
-    ElMessage.error('加载经营指标数据失败')
+    console.error('Failed to load operational metrics:', error)
+    ElMessage.error(t('stage5.statistics.accommodation.loadMetricsFailed'))
   } finally {
     loading.value = false
   }
@@ -308,21 +313,26 @@ const loadOperationalMetrics = async () => {
 const mapRoomDetailRows = (details: OperationalRoomDetailDTO[] | undefined) => {
   const rows = (details || []).map(item => ({
     roomType: item.roomType || '-',
-    roomNumber: item.roomNumber || '-',
+    roomNumber:
+      item.roomNumber === '小计' || item.roomNumber === t('stage5.statistics.accommodation.subtotal')
+        ? t('stage5.statistics.accommodation.subtotal')
+        : item.roomNumber || '-',
+    isSubtotal:
+      item.roomNumber === '小计' || item.roomNumber === t('stage5.statistics.accommodation.subtotal'),
     total: toNumber(item.total),
     currentDate: toNumber(item.currentDate),
   }))
 
   const roomCountByType = new Map<string, number>()
   rows.forEach(row => {
-    if (row.roomNumber !== '小计') {
+    if (!row.isSubtotal) {
       roomCountByType.set(row.roomType, (roomCountByType.get(row.roomType) || 0) + 1)
     }
   })
 
   // 单房间房型的小计与明细完全重复，过滤掉该小计行以避免视觉重复。
   return rows.filter(row => {
-    if (row.roomNumber !== '小计') {
+    if (!row.isSubtotal) {
       return true
     }
     return (roomCountByType.get(row.roomType) || 0) > 1
@@ -364,12 +374,12 @@ const applyOperationalMetricsData = (data: OperationalMetricsDTO) => {
 }
 
 // 趋势图选项卡
-const trendTabs = [
-  { key: 'room-fee', label: '总房费' },
-  { key: 'avg-price', label: '平均房价' },
-  { key: 'avg-revenue', label: '平均每房收益' },
-  { key: 'occupancy', label: '间夜数' },
-]
+const trendTabs = computed(() => [
+  { key: 'room-fee', label: t('stage5.statistics.accommodation.totalRoomFee') },
+  { key: 'avg-price', label: t('stage5.statistics.accommodation.avgDailyRate') },
+  { key: 'avg-revenue', label: t('stage5.statistics.accommodation.revPAR') },
+  { key: 'occupancy', label: t('stage5.statistics.accommodation.roomNights') },
+])
 const activeTrendTab = ref('room-fee')
 
 // 趋势数据(待从后端获取)
@@ -382,18 +392,19 @@ const trendData = ref<Record<string, number[]>>({
 })
 
 // 表格选项卡
-const tableTabs = [
-  { key: 'room-fee', label: '房费明细' },
-  { key: 'checkin', label: '间夜明细' },
-  { key: 'occupancy', label: '入住率明细' },
-  { key: 'revpar', label: 'RevPAR明细' },
-]
+const tableTabs = computed(() => [
+  { key: 'room-fee', label: t('stage5.statistics.accommodation.roomFeeDetails') },
+  { key: 'checkin', label: t('stage5.statistics.accommodation.roomNightDetails') },
+  { key: 'occupancy', label: t('stage5.statistics.accommodation.occupancyDetails') },
+  { key: 'revpar', label: t('stage5.statistics.accommodation.revparDetails') },
+])
 const activeTableTab = ref('room-fee')
 
 // 房费明细数据
 interface RoomFeeItem {
   roomType: string
   roomNumber: string
+  isSubtotal?: boolean
   total: number
   currentDate: number
 }
@@ -404,6 +415,7 @@ const roomFeeData = ref<RoomFeeItem[]>([])
 interface CheckinItem {
   roomType: string
   roomNumber: string
+  isSubtotal?: boolean
   total: number
   currentDate: number
 }
@@ -422,6 +434,7 @@ const occupancyData = ref<OccupancyItem[]>([])
 // RevPAR明细数据
 interface RevPARItem {
   roomType: string
+  isSubtotal?: boolean
   total: number
   currentDate: number
 }
@@ -445,7 +458,7 @@ const updateLineChart = (tabKey: string) => {
   if (!lineChart) return
 
   const data = trendData.value[tabKey] || []
-  const tabLabel = trendTabs.find(t => t.key === tabKey)?.label || ''
+  const tabLabel = trendTabs.value.find(tab => tab.key === tabKey)?.label || ''
 
   const option = {
     tooltip: {

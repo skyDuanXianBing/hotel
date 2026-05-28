@@ -1,12 +1,15 @@
 <template>
   <StatisticsLayout>
     <div class="operation-report-container">
-      <h2 class="page-title">经营报表</h2>
+      <h2 class="page-title">{{ t('stage5.statistics.reports.operationReport') }}</h2>
 
-      <!-- 报表列表网格 -->
       <div class="reports-grid">
-        <!-- 台账明细表 -->
-        <div class="report-item" @click="downloadReport('ledger')">
+        <div
+          v-for="report in reports"
+          :key="report.type"
+          class="report-item"
+          @click="downloadReport(report.type)"
+        >
           <div class="report-icon">
             <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
               <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
@@ -16,49 +19,7 @@
               <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
             </svg>
           </div>
-          <div class="report-name">台账明细表</div>
-        </div>
-
-        <!-- 经理日报表 -->
-        <div class="report-item" @click="downloadReport('daily')">
-          <div class="report-icon">
-            <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
-              <rect x="15" y="15" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="25" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="35" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-            </svg>
-          </div>
-          <div class="report-name">经理日报表</div>
-        </div>
-
-        <!-- 权责物资业报表 -->
-        <div class="report-item" @click="downloadReport('materials')">
-          <div class="report-icon">
-            <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
-              <rect x="15" y="15" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="25" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="35" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-            </svg>
-          </div>
-          <div class="report-name">权责物资业报表</div>
-        </div>
-
-        <!-- 兵器类住房明细表 -->
-        <div class="report-item" @click="downloadReport('housing')">
-          <div class="report-icon">
-            <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
-              <rect x="15" y="15" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="25" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="35" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-            </svg>
-          </div>
-          <div class="report-name">兵器类住房明细表</div>
+          <div class="report-name">{{ t(report.labelKey) }}</div>
         </div>
       </div>
     </div>
@@ -66,19 +27,23 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import StatisticsLayout from './StatisticsLayout.vue'
 
-// 下载报表
-const downloadReport = (reportType: string) => {
-  const reportNames: Record<string, string> = {
-    ledger: '台账明细表',
-    daily: '经理日报表',
-    materials: '权责物资业报表',
-    housing: '兵器类住房明细表'
-  }
+const { t } = useI18n()
 
-  ElMessage.info(`正在生成${reportNames[reportType]}...`)
+const reports = [
+  { type: 'ledger', labelKey: 'stage5.statistics.reports.ledgerDetail' },
+  { type: 'daily', labelKey: 'stage5.statistics.reports.managerDaily' },
+  { type: 'materials', labelKey: 'stage5.statistics.reports.materialsReport' },
+  { type: 'housing', labelKey: 'stage5.statistics.reports.housingDetail' },
+]
+
+const downloadReport = (reportType: string) => {
+  const report = reports.find((item) => item.type === reportType)
+  const name = report ? t(report.labelKey) : reportType
+  ElMessage.info(t('stage5.statistics.reports.generating', { name }))
 
   // TODO: 实现实际的报表下载逻辑
   // 这里可以调用后端API生成Excel报表并下载

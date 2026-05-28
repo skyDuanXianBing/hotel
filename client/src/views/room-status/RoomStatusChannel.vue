@@ -1,23 +1,21 @@
 <template>
   <div class="room-status-channel">
-    <!-- 头部说明 -->
     <div class="header-notice">
       <el-alert
-        title="根据上的数字代表在渠道售卖的房间数量，最多不会超过房型的测试房量。"
+        :title="t('pages.roomStatusChannel.notice')"
         type="info"
         :closable="false"
         show-icon
       />
     </div>
 
-    <!-- 工具栏 -->
     <div class="toolbar">
       <div class="date-section">
-        <label>日期</label>
+        <label>{{ t('pages.roomStatusChannel.date') }}</label>
         <el-date-picker
           v-model="selectedDate"
           type="date"
-          placeholder="选择日期"
+          :placeholder="t('pages.roomStatusChannel.datePlaceholder')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           @change="onDateChange"
@@ -25,8 +23,12 @@
       </div>
 
       <div class="room-type-filter">
-        <el-select v-model="selectedRoomType" placeholder="本地房型" @change="onRoomTypeChange">
-          <el-option label="全部" value="" />
+        <el-select
+          v-model="selectedRoomType"
+          :placeholder="t('pages.roomStatusChannel.localRoomTypePlaceholder')"
+          @change="onRoomTypeChange"
+        >
+          <el-option :label="t('pages.roomStatusChannel.all')" value="" />
           <el-option
             v-for="roomType in roomTypes"
             :key="roomType.id"
@@ -37,43 +39,44 @@
       </div>
 
       <div class="actions">
-        <el-button type="primary" @click="loadStatusLogs">房态修改记录</el-button>
-        <el-button type="primary">批量修改</el-button>
+        <el-button type="primary" @click="loadStatusLogs">
+          {{ t('pages.roomStatusChannel.statusLog') }}
+        </el-button>
+        <el-button type="primary">{{ t('pages.roomStatusChannel.bulkEdit') }}</el-button>
       </div>
     </div>
 
-    <!-- 主要内容 -->
     <div class="channel-content" v-loading="loading">
       <div class="channel-table">
-        <!-- 表头 -->
         <div class="table-header">
-          <div class="column-label">本地房型</div>
-          <div class="column-label">渠道房型</div>
+          <div class="column-label">{{ t('pages.roomStatusChannel.localRoomType') }}</div>
+          <div class="column-label">{{ t('pages.roomStatusChannel.channelRoomType') }}</div>
         </div>
 
-        <!-- 表格内容 -->
         <div class="table-body">
           <div v-if="channelData.length === 0" class="empty-state">
             <div class="empty-icon">
               <el-icon size="48"><Box /></el-icon>
             </div>
-            <div class="empty-text">暂无数据</div>
+            <div class="empty-text">{{ t('pages.roomStatusChannel.empty') }}</div>
           </div>
 
           <div v-else class="channel-mapping-list">
             <div v-for="mapping in channelData" :key="mapping.id" class="mapping-row">
-              <!-- 本地房型列 -->
               <div class="local-room-type">
                 <div class="room-type-info">
                   <div class="room-type-name">{{ mapping.localRoomType.name }}</div>
                   <div class="room-type-details">
-                    <span class="total-rooms">总房间: {{ mapping.localRoomType.totalRooms }}</span>
-                    <span class="available-rooms">可用: {{ mapping.availableRooms }}</span>
+                    <span class="total-rooms">
+                      {{ t('pages.roomStatusChannel.totalRooms', { count: mapping.localRoomType.totalRooms }) }}
+                    </span>
+                    <span class="available-rooms">
+                      {{ t('pages.roomStatusChannel.availableRooms', { count: mapping.availableRooms }) }}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <!-- 渠道房型列 -->
               <div class="channel-room-types">
                 <div
                   v-for="channelMapping in mapping.channelMappings"
@@ -92,7 +95,7 @@
 
                   <div class="channel-actions">
                     <el-button size="small" @click="editChannelMapping(mapping, channelMapping)">
-                      编辑
+                      {{ t('pages.roomStatusChannel.edit') }}
                     </el-button>
                   </div>
                 </div>
@@ -103,23 +106,29 @@
       </div>
     </div>
 
-    <!-- 编辑渠道映射弹窗 -->
-    <el-dialog v-model="showEditDialog" title="编辑渠道房型映射" width="600px">
+    <el-dialog
+      v-model="showEditDialog"
+      :title="t('pages.roomStatusChannel.dialog.title')"
+      width="600px"
+    >
       <div class="edit-dialog-content">
         <el-form label-width="120px">
-          <el-form-item label="本地房型">
+          <el-form-item :label="t('pages.roomStatusChannel.dialog.localRoomType')">
             <span>{{ editingMapping?.localRoomType.name }}</span>
           </el-form-item>
 
-          <el-form-item label="渠道">
+          <el-form-item :label="t('pages.roomStatusChannel.dialog.channel')">
             <span>{{ editingChannelMapping?.channelName }}</span>
           </el-form-item>
 
-          <el-form-item label="渠道房型名称">
-            <el-input v-model="editForm.channelRoomTypeName" placeholder="请输入渠道房型名称" />
+          <el-form-item :label="t('pages.roomStatusChannel.dialog.channelRoomTypeName')">
+            <el-input
+              v-model="editForm.channelRoomTypeName"
+              :placeholder="t('pages.roomStatusChannel.dialog.channelRoomTypePlaceholder')"
+            />
           </el-form-item>
 
-          <el-form-item label="可用房间数">
+          <el-form-item :label="t('pages.roomStatusChannel.dialog.availableCount')">
             <el-input-number
               v-model="editForm.availableCount"
               :min="0"
@@ -128,7 +137,7 @@
             />
           </el-form-item>
 
-          <el-form-item label="总房间数">
+          <el-form-item :label="t('pages.roomStatusChannel.dialog.totalCount')">
             <el-input-number
               v-model="editForm.totalCount"
               :min="0"
@@ -137,52 +146,59 @@
             />
           </el-form-item>
 
-          <el-form-item label="价格">
+          <el-form-item :label="t('pages.roomStatusChannel.dialog.price')">
             <el-input-number
               v-model="editForm.price"
               :min="0"
               :precision="2"
               controls-position="right"
             />
-            <span style="margin-left: 10px">元</span>
+            <span style="margin-left: 10px">{{ t('pages.roomStatusChannel.dialog.currencyUnit') }}</span>
           </el-form-item>
 
-          <el-form-item label="备注">
+          <el-form-item :label="t('pages.roomStatusChannel.dialog.notes')">
             <el-input
               v-model="editForm.notes"
               type="textarea"
               :rows="3"
-              placeholder="请输入备注信息"
+              :placeholder="t('pages.roomStatusChannel.dialog.notesPlaceholder')"
             />
           </el-form-item>
         </el-form>
       </div>
 
       <template #footer>
-        <el-button @click="showEditDialog = false">取消</el-button>
-        <el-button type="primary" @click="confirmEdit">确定</el-button>
+        <el-button @click="showEditDialog = false">
+          {{ t('pages.roomStatusChannel.dialog.cancel') }}
+        </el-button>
+        <el-button type="primary" @click="confirmEdit">
+          {{ t('pages.roomStatusChannel.dialog.confirm') }}
+        </el-button>
       </template>
     </el-dialog>
 
-    <!-- 房态修改记录弹窗 -->
-    <el-dialog v-model="showLogsDialog" title="房态修改记录" width="800px">
+    <el-dialog
+      v-model="showLogsDialog"
+      :title="t('pages.roomStatusChannel.logs.title')"
+      width="800px"
+    >
       <div class="logs-content">
         <el-table :data="statusLogs" stripe>
-          <el-table-column prop="roomNumber" label="房间号" width="100" />
-          <el-table-column prop="date" label="日期" width="120" />
-          <el-table-column prop="oldStatus" label="原状态" width="100">
+          <el-table-column prop="roomNumber" :label="t('pages.roomStatusChannel.logs.roomNumber')" width="100" />
+          <el-table-column prop="date" :label="t('pages.roomStatusChannel.logs.date')" width="120" />
+          <el-table-column prop="oldStatus" :label="t('pages.roomStatusChannel.logs.oldStatus')" width="120">
             <template #default="{ row }">
               <span class="status-tag">{{ getStatusText(row.oldStatus) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="newStatus" label="新状态" width="100">
+          <el-table-column prop="newStatus" :label="t('pages.roomStatusChannel.logs.newStatus')" width="120">
             <template #default="{ row }">
               <span class="status-tag">{{ getStatusText(row.newStatus) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="reason" label="原因" />
-          <el-table-column prop="operatorName" label="操作人" width="100" />
-          <el-table-column prop="operatedAt" label="操作时间" width="180">
+          <el-table-column prop="reason" :label="t('pages.roomStatusChannel.logs.reason')" />
+          <el-table-column prop="operatorName" :label="t('pages.roomStatusChannel.logs.operator')" width="100" />
+          <el-table-column prop="operatedAt" :label="t('pages.roomStatusChannel.logs.operatedAt')" width="180">
             <template #default="{ row }">
               {{ formatDateTime(row.operatedAt) }}
             </template>
@@ -194,15 +210,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Box } from '@element-plus/icons-vue'
 import { useRoomStatusStore } from '@/stores/roomStatus'
-import type { BaseRoomType, Channel, RoomStatus, RoomStatusLog } from '@/types/room'
+import type { BaseRoomType, RoomStatus } from '@/types/room'
 
+const { t, locale } = useI18n()
 const roomStatusStore = useRoomStatusStore()
 
-// 模拟数据接口
 interface ChannelMapping {
   channelId: number
   channelName: string
@@ -219,7 +236,6 @@ interface LocalRoomTypeMapping {
   channelMappings: ChannelMapping[]
 }
 
-// 响应式数据
 const selectedDate = ref<string>(new Date().toISOString().split('T')[0])
 const selectedRoomType = ref<string>('')
 const showEditDialog = ref(false)
@@ -235,38 +251,54 @@ const editForm = ref({
   notes: '',
 })
 
-// 静态房型数据
 const mockRoomTypes = [
-  { id: 1, name: '大床房', code: 'DBF', totalRooms: 10, description: '舒适大床房' },
-  { id: 2, name: '标准间', code: 'BZJ', totalRooms: 15, description: '标准双人间' },
-  { id: 3, name: '套房', code: 'TF', totalRooms: 5, description: '豪华套房' },
+  {
+    id: 1,
+    name: t('pages.roomStatusChannel.roomTypes.deluxeDouble'),
+    code: 'DBF',
+    totalRooms: 10,
+    description: t('pages.roomStatusChannel.roomTypes.deluxeDoubleDesc'),
+  },
+  {
+    id: 2,
+    name: t('pages.roomStatusChannel.roomTypes.standardTwin'),
+    code: 'BZJ',
+    totalRooms: 15,
+    description: t('pages.roomStatusChannel.roomTypes.standardTwinDesc'),
+  },
+  {
+    id: 3,
+    name: t('pages.roomStatusChannel.roomTypes.suite'),
+    code: 'TF',
+    totalRooms: 5,
+    description: t('pages.roomStatusChannel.roomTypes.suiteDesc'),
+  },
 ]
 
-// 静态渠道数据
 const mockChannelData: LocalRoomTypeMapping[] = [
   {
     id: 1,
     localRoomType: {
       id: 1,
-      name: '大床房',
+      name: t('pages.roomStatusChannel.roomTypes.deluxeDouble'),
       code: 'DBF',
       totalRooms: 10,
-      description: '舒适大床房',
+      description: t('pages.roomStatusChannel.roomTypes.deluxeDoubleDesc'),
     },
     availableRooms: 8,
     channelMappings: [
       {
         channelId: 1,
-        channelName: '携程',
-        channelRoomTypeName: '豪华大床房',
+        channelName: t('pages.roomStatusChannel.channels.ctrip'),
+        channelRoomTypeName: t('pages.roomStatusChannel.mappingNames.ctripDeluxeDouble'),
         availableCount: 5,
         totalCount: 8,
         price: 288,
       },
       {
         channelId: 2,
-        channelName: '美团',
-        channelRoomTypeName: '舒适大床间',
+        channelName: t('pages.roomStatusChannel.channels.meituan'),
+        channelRoomTypeName: t('pages.roomStatusChannel.mappingNames.meituanDeluxeDouble'),
         availableCount: 3,
         totalCount: 5,
         price: 268,
@@ -277,25 +309,25 @@ const mockChannelData: LocalRoomTypeMapping[] = [
     id: 2,
     localRoomType: {
       id: 2,
-      name: '标准间',
+      name: t('pages.roomStatusChannel.roomTypes.standardTwin'),
       code: 'BZJ',
       totalRooms: 15,
-      description: '标准双人间',
+      description: t('pages.roomStatusChannel.roomTypes.standardTwinDesc'),
     },
     availableRooms: 12,
     channelMappings: [
       {
         channelId: 1,
-        channelName: '携程',
-        channelRoomTypeName: '经济标准间',
+        channelName: t('pages.roomStatusChannel.channels.ctrip'),
+        channelRoomTypeName: t('pages.roomStatusChannel.mappingNames.ctripStandardTwin'),
         availableCount: 8,
         totalCount: 12,
         price: 198,
       },
       {
         channelId: 3,
-        channelName: '飞猪',
-        channelRoomTypeName: '标准双人房',
+        channelName: t('pages.roomStatusChannel.channels.fliggy'),
+        channelRoomTypeName: t('pages.roomStatusChannel.mappingNames.fliggyStandardTwin'),
         availableCount: 4,
         totalCount: 8,
         price: 188,
@@ -306,17 +338,17 @@ const mockChannelData: LocalRoomTypeMapping[] = [
     id: 3,
     localRoomType: {
       id: 3,
-      name: '套房',
+      name: t('pages.roomStatusChannel.roomTypes.suite'),
       code: 'TF',
       totalRooms: 5,
-      description: '豪华套房',
+      description: t('pages.roomStatusChannel.roomTypes.suiteDesc'),
     },
     availableRooms: 4,
     channelMappings: [
       {
         channelId: 1,
-        channelName: '携程',
-        channelRoomTypeName: '豪华套房',
+        channelName: t('pages.roomStatusChannel.channels.ctrip'),
+        channelRoomTypeName: t('pages.roomStatusChannel.mappingNames.ctripSuite'),
         availableCount: 2,
         totalCount: 4,
         price: 588,
@@ -325,7 +357,6 @@ const mockChannelData: LocalRoomTypeMapping[] = [
   },
 ]
 
-// 静态修改记录数据
 const mockStatusLogs = [
   {
     id: 1,
@@ -334,8 +365,8 @@ const mockStatusLogs = [
     date: '2025-09-23',
     oldStatus: 'AVAILABLE',
     newStatus: 'MAINTENANCE',
-    reason: '清洁维护',
-    operatorName: '管理员',
+    reason: t('pages.roomStatusChannel.logReasons.cleaningMaintenance'),
+    operatorName: t('pages.roomStatusChannel.operator'),
     operatedAt: '2025-09-23T10:30:00',
   },
   {
@@ -345,20 +376,17 @@ const mockStatusLogs = [
     date: '2025-09-23',
     oldStatus: 'MAINTENANCE',
     newStatus: 'AVAILABLE',
-    reason: '维护完成',
-    operatorName: '管理员',
+    reason: t('pages.roomStatusChannel.logReasons.maintenanceCompleted'),
+    operatorName: t('pages.roomStatusChannel.operator'),
     operatedAt: '2025-09-23T14:15:00',
   },
 ]
 
 const channelData = ref<LocalRoomTypeMapping[]>(mockChannelData)
-
-// 计算属性
 const loading = ref(false)
 const roomTypes = ref(mockRoomTypes)
 const statusLogs = ref(mockStatusLogs)
 
-// 方法
 const onDateChange = (value: string | null) => {
   if (value) {
     selectedDate.value = value
@@ -387,38 +415,32 @@ const editChannelMapping = (mapping: LocalRoomTypeMapping, channelMapping: Chann
 
 const confirmEdit = async () => {
   try {
-    // 这里应该调用API更新渠道映射
-    // await updateChannelMapping(editingChannelMapping.value.channelId, editForm.value)
-
-    // 更新本地数据
     if (editingChannelMapping.value) {
       Object.assign(editingChannelMapping.value, editForm.value)
     }
 
-    ElMessage.success('渠道映射更新成功')
+    ElMessage.success(t('pages.roomStatusChannel.messages.updateSuccess'))
     showEditDialog.value = false
-  } catch (error) {
-    ElMessage.error('渠道映射更新失败')
+  } catch {
+    ElMessage.error(t('pages.roomStatusChannel.messages.updateFailed'))
   }
 }
 
 const getStatusText = (status: RoomStatus) => {
-  const statusMap = {
-    AVAILABLE: '可用',
-    OCCUPIED: '已入住',
-    RESERVED: '已预订',
-    MAINTENANCE: '维修',
-    OUT_OF_ORDER: '停用',
+  const statusMap: Record<string, string> = {
+    AVAILABLE: t('pages.roomStatusChannel.statuses.AVAILABLE'),
+    OCCUPIED: t('pages.roomStatusChannel.statuses.OCCUPIED'),
+    RESERVED: t('pages.roomStatusChannel.statuses.RESERVED'),
+    MAINTENANCE: t('pages.roomStatusChannel.statuses.MAINTENANCE'),
+    OUT_OF_ORDER: t('pages.roomStatusChannel.statuses.OUT_OF_ORDER'),
   }
-  return statusMap[status] || '未知'
+  return statusMap[status] || t('pages.roomStatusChannel.statuses.unknown')
 }
 
-const formatDateTime = (dateTime: string) => {
-  return new Date(dateTime).toLocaleString('zh-CN')
-}
+const formatDateTime = (dateTime: string) =>
+  new Date(dateTime).toLocaleString(locale.value === 'zh-CN' ? 'zh-CN' : locale.value)
 
 const loadChannelData = async () => {
-  // 静态数据，根据选中房型筛选
   if (selectedRoomType.value) {
     channelData.value = mockChannelData.filter(
       (item) => item.localRoomType.id.toString() === selectedRoomType.value,
@@ -426,18 +448,16 @@ const loadChannelData = async () => {
   } else {
     channelData.value = mockChannelData
   }
-  console.log('使用静态渠道数据，无需从服务器加载')
+  console.log('using static channel data')
 }
 
 const loadStatusLogs = async () => {
-  // 静态数据，直接显示弹窗
   showLogsDialog.value = true
-  console.log('使用静态修改记录数据')
+  console.log('using static status logs')
 }
 
-// 生命周期
 onMounted(async () => {
-  // 静态数据，无需从服务器获取
+  void roomStatusStore
   loadChannelData()
 })
 </script>

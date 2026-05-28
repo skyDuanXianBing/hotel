@@ -5,21 +5,21 @@
       <div class="filter-row">
         <!-- 操作日期 -->
         <div class="filter-group">
-          <span class="filter-label">操作日期</span>
+          <span class="filter-label">{{ t('accommodation.priceHistory.operationDate') }}</span>
           <el-date-picker
             v-model="operateDateStart"
             type="date"
-            placeholder="开始日期"
+            :placeholder="t('accommodation.common.startDate')"
             format="YYYY/MM/DD"
             value-format="YYYY-MM-DD"
             size="default"
             style="width: 160px"
           />
-          <span class="date-separator">至</span>
+          <span class="date-separator">{{ t('accommodation.common.rangeTo') }}</span>
           <el-date-picker
             v-model="operateDateEnd"
             type="date"
-            placeholder="结束日期"
+            :placeholder="t('accommodation.common.endDate')"
             format="YYYY/MM/DD"
             value-format="YYYY-MM-DD"
             size="default"
@@ -29,14 +29,14 @@
 
         <!-- 本地房型 -->
         <div class="filter-group">
-          <span class="filter-label">本地房型</span>
+          <span class="filter-label">{{ t('accommodation.priceHistory.localRoomType') }}</span>
           <el-select
             v-model="filters.roomTypeId"
-            placeholder="全部房型"
+            :placeholder="t('accommodation.priceHistory.allRoomTypes')"
             clearable
             style="width: 180px"
           >
-            <el-option label="全部房型" :value="null" />
+            <el-option :label="t('accommodation.priceHistory.allRoomTypes')" :value="null" />
             <el-option
               v-for="roomType in roomTypes"
               :key="roomType.id"
@@ -48,14 +48,14 @@
 
         <!-- PMS价格计划 -->
         <div class="filter-group">
-          <span class="filter-label">PMS价格计划</span>
+          <span class="filter-label">{{ t('accommodation.priceHistory.pmsPricePlan') }}</span>
           <el-select
             v-model="filters.pricePlanId"
-            placeholder="全部价格计划"
+            :placeholder="t('accommodation.priceHistory.allPricePlans')"
             clearable
             style="width: 180px"
           >
-            <el-option label="全部价格计划" :value="null" />
+            <el-option :label="t('accommodation.priceHistory.allPricePlans')" :value="null" />
             <el-option
               v-for="plan in pricePlans"
               :key="plan.id"
@@ -67,7 +67,7 @@
 
         <!-- 收起按钮 -->
         <el-link type="primary" :underline="false" @click="toggleFilters" class="toggle-link">
-          {{ showAllFilters ? '收起' : '展开' }} <el-icon><ArrowUp v-if="showAllFilters" /><ArrowDown v-else /></el-icon>
+          {{ showAllFilters ? t('accommodation.priceHistory.collapse') : t('accommodation.priceHistory.expand') }} <el-icon><ArrowUp v-if="showAllFilters" /><ArrowDown v-else /></el-icon>
         </el-link>
       </div>
 
@@ -75,21 +75,21 @@
       <div v-if="showAllFilters" class="filter-row">
         <!-- 价格日期 -->
         <div class="filter-group">
-          <span class="filter-label">价格日期</span>
+          <span class="filter-label">{{ t('accommodation.priceHistory.priceDate') }}</span>
           <el-date-picker
             v-model="priceDateStart"
             type="date"
-            placeholder="开始日期"
+            :placeholder="t('accommodation.common.startDate')"
             format="YYYY/MM/DD"
             value-format="YYYY-MM-DD"
             size="default"
             style="width: 160px"
           />
-          <span class="date-separator">至</span>
+          <span class="date-separator">{{ t('accommodation.common.rangeTo') }}</span>
           <el-date-picker
             v-model="priceDateEnd"
             type="date"
-            placeholder="结束日期"
+            :placeholder="t('accommodation.common.endDate')"
             format="YYYY/MM/DD"
             value-format="YYYY-MM-DD"
             size="default"
@@ -99,27 +99,27 @@
 
         <!-- 操作人 -->
         <div class="filter-group">
-          <span class="filter-label">操作人</span>
+          <span class="filter-label">{{ t('accommodation.priceHistory.operator') }}</span>
           <el-select
             v-model="filters.operator"
-            placeholder="全部"
+            :placeholder="t('accommodation.common.all')"
             clearable
             style="width: 180px"
           >
-            <el-option label="全部" :value="null" />
-            <el-option label="系统" value="系统" />
+            <el-option :label="t('accommodation.common.all')" :value="null" />
+            <el-option :label="t('accommodation.priceHistory.operatorOptions.system')" value="SYSTEM" />
           </el-select>
         </div>
 
         <!-- 更改项目 -->
         <div class="filter-group">
-          <span class="filter-label">更改项目</span>
+          <span class="filter-label">{{ t('accommodation.priceHistory.changeItem') }}</span>
           <el-select
             v-model="filters.changeType"
-            placeholder="价格"
+            :placeholder="t('accommodation.priceHistory.changeTypeOptions.price')"
             style="width: 180px"
           >
-            <el-option label="价格" value="价格" />
+          <el-option :label="t('accommodation.priceHistory.changeTypeOptions.price')" value="PRICE" />
           </el-select>
         </div>
       </div>
@@ -134,23 +134,23 @@
         v-loading="loading"
         style="width: 100%"
       >
-        <el-table-column prop="roomTypeName" label="本地房型" min-width="120" />
-        <el-table-column prop="pricePlanName" label="PMS价格计划" min-width="150" />
-        <el-table-column prop="priceDate" label="价格日期" min-width="180" />
-        <el-table-column prop="applyDays" label="适用周几" width="100" />
-        <el-table-column prop="changeType" label="调整类型" width="100" />
-        <el-table-column prop="changeValue" label="调整记录" width="120">
+        <el-table-column prop="roomTypeName" :label="t('accommodation.priceHistory.columns.roomTypeName')" min-width="120" />
+        <el-table-column prop="pricePlanName" :label="t('accommodation.priceHistory.columns.pricePlanName')" min-width="150" />
+        <el-table-column prop="priceDate" :label="t('accommodation.priceHistory.columns.priceDate')" min-width="180" />
+        <el-table-column prop="applyDays" :label="t('accommodation.priceHistory.columns.applyDays')" width="100" />
+        <el-table-column prop="changeType" :label="t('accommodation.priceHistory.columns.changeType')" width="100" />
+        <el-table-column prop="changeValue" :label="t('accommodation.priceHistory.columns.changeValue')" width="120">
           <template #default="{ row }">
             <span class="price-value">{{ row.changeValue }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="operator" label="操作人" width="100" />
-        <el-table-column prop="operateTime" label="操作时间" min-width="180" />
+        <el-table-column prop="operator" :label="t('accommodation.priceHistory.columns.operator')" width="100" />
+        <el-table-column prop="operateTime" :label="t('accommodation.priceHistory.columns.operateTime')" min-width="180" />
       </el-table>
 
       <!-- 分页 -->
       <div class="pagination-container">
-        <span class="pagination-total">共 {{ pagination.total }} 条</span>
+        <span class="pagination-total">{{ t('accommodation.common.totalCount', { count: pagination.total }) }}</span>
         <el-pagination
           v-model:current-page="pagination.pageNum"
           v-model:page-size="pagination.pageSize"
@@ -169,12 +169,14 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { getAllRoomTypes } from '@/api/roomType'
 import { getAllPricePlans } from '@/api/pricePlan'
 import { getPriceChangeHistory, type PriceChangeHistoryDTO } from '@/api/roomPrice'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
+const { t } = useI18n()
 const showAllFilters = ref(false)
 const loading = ref(false)
 
@@ -188,7 +190,7 @@ const filters = reactive({
   roomTypeId: null as number | null,
   pricePlanId: null as number | null,
   operator: null as string | null,
-  changeType: '价格'
+    changeType: 'PRICE'
 })
 
 // 房型数据
@@ -259,7 +261,7 @@ const loadHistory = async () => {
     }
   } catch (error) {
     console.error('加载改价历史失败:', error)
-    ElMessage.error('加载改价历史失败')
+    ElMessage.error(t('accommodation.priceHistory.loadFailed'))
   } finally {
     loading.value = false
   }

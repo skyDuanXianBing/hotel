@@ -6,36 +6,36 @@
         <el-date-picker
           :model-value="startDate"
           type="date"
-          placeholder="选择日期"
+          :placeholder="t('channel.calendar.selectDate')"
           value-format="YYYY-MM-DD"
           style="width: 160px"
           @update:model-value="(val: string) => emit('update:startDate', val)"
         />
         <el-select
           :model-value="roomType"
-          placeholder="房型"
+          :placeholder="t('channel.calendar.roomType')"
           style="width: 160px"
           @update:model-value="(val: string) => emit('update:roomType', val)"
         >
-          <el-option label="全部" value="" />
+          <el-option :label="t('channel.calendar.all')" value="" />
         </el-select>
         <el-select
           :model-value="displayItem"
-          placeholder="显示项"
+          :placeholder="t('channel.calendar.displayItem')"
           style="width: 140px"
           @update:model-value="(val: string) => emit('update:displayItem', val)"
         >
-          <el-option label="全部" value="" />
-          <el-option label="价格" value="price" />
-          <el-option label="房量" value="inventory" />
+          <el-option :label="t('channel.calendar.all')" value="" />
+          <el-option :label="t('channel.calendar.price')" value="price" />
+          <el-option :label="t('channel.calendar.inventory')" value="inventory" />
         </el-select>
       </div>
       <div class="filter-right">
-        <el-button @click="emit('syncFromCalendar')">从日历同步</el-button>
-        <el-button type="primary" @click="emit('fullRefresh')">全量刷新</el-button>
+        <el-button @click="emit('syncFromCalendar')">{{ t('channel.calendar.syncFromCalendar') }}</el-button>
+        <el-button type="primary" @click="emit('fullRefresh')">{{ t('channel.calendar.fullRefresh') }}</el-button>
         <el-select
           :model-value="selectedHotelId"
-          placeholder="选择酒店"
+          :placeholder="t('channel.calendar.selectHotel')"
           style="width: 200px"
           clearable
           @update:model-value="(val: number | null) => emit('update:selectedHotelId', val)"
@@ -58,7 +58,7 @@
         border
         style="width: 100%"
       >
-        <el-table-column label="日期" width="120" fixed="left">
+        <el-table-column :label="t('channel.calendar.date')" width="120" fixed="left">
           <template #default="{ row }">
             <span :class="{ 'title-label': row.type === 'title' }">{{ row.label }}</span>
           </template>
@@ -99,7 +99,7 @@
 
         <template #empty>
           <div class="empty-state">
-            <p class="empty-text">无数据</p>
+            <p class="empty-text">{{ t('channel.calendar.empty') }}</p>
           </div>
         </template>
       </el-table>
@@ -108,6 +108,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { CalendarRow, CalendarDate, HotelItem } from '../../types'
 
 const props = defineProps<{
@@ -128,6 +129,8 @@ const emit = defineEmits<{
   syncFromCalendar: []
   fullRefresh: []
 }>()
+
+const { t } = useI18n()
 
 const calendarSpanMethod = ({
   row,
@@ -166,12 +169,18 @@ const calendarSpanMethod = ({
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .filter-right {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-bar .el-button {
+  white-space: normal;
 }
 
 .table-section {

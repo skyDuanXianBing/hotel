@@ -7,7 +7,7 @@
       show-icon
     >
       <template #default>
-        拖拽{{ currentTabText }}即可进行{{ currentTabText }},排序完成之后,房态日历将按照下方顺序展示。
+        {{ t('settingsStage4.roomSort.notice', { name: currentTabText }) }}
       </template>
     </el-alert>
 
@@ -15,7 +15,7 @@
     <div class="content-area">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <!-- 房型排序 -->
-        <el-tab-pane label="房型排序" name="roomType">
+        <el-tab-pane :label="t('settingsStage4.roomSort.tabs.roomType')" name="roomType">
           <div class="sort-grid">
             <div
               v-for="(item, index) in roomTypes"
@@ -30,12 +30,12 @@
               <span class="item-name">{{ item.name }}</span>
             </div>
           </div>
-          <div v-if="isLoading" class="loading-text">加载中...</div>
-          <div v-else-if="roomTypes.length === 0" class="empty-text">暂无房型数据</div>
+          <div v-if="isLoading" class="loading-text">{{ t('settings.common.loading') }}</div>
+          <div v-else-if="roomTypes.length === 0" class="empty-text">{{ t('settingsStage4.roomSort.empty.roomType') }}</div>
         </el-tab-pane>
 
         <!-- 房间排序 -->
-        <el-tab-pane label="房间排序" name="room">
+        <el-tab-pane :label="t('settingsStage4.roomSort.tabs.room')" name="room">
           <div class="sort-grid">
             <div
               v-for="(item, index) in rooms"
@@ -53,12 +53,12 @@
               </div>
             </div>
           </div>
-          <div v-if="isLoading" class="loading-text">加载中...</div>
-          <div v-else-if="rooms.length === 0" class="empty-text">暂无房间数据</div>
+          <div v-if="isLoading" class="loading-text">{{ t('settings.common.loading') }}</div>
+          <div v-else-if="rooms.length === 0" class="empty-text">{{ t('settingsStage4.roomSort.empty.room') }}</div>
         </el-tab-pane>
 
         <!-- 分组排序 -->
-        <el-tab-pane label="分组排序" name="group">
+        <el-tab-pane :label="t('settingsStage4.roomSort.tabs.group')" name="group">
           <div class="sort-grid">
             <div
               v-for="(item, index) in groups"
@@ -73,8 +73,8 @@
               <span class="item-name">{{ item.name }}</span>
             </div>
           </div>
-          <div v-if="isLoading" class="loading-text">加载中...</div>
-          <div v-else-if="groups.length === 0" class="empty-text">暂无分组数据</div>
+          <div v-if="isLoading" class="loading-text">{{ t('settings.common.loading') }}</div>
+          <div v-else-if="groups.length === 0" class="empty-text">{{ t('settingsStage4.roomSort.empty.group') }}</div>
         </el-tab-pane>
       </el-tabs>
     </div>
@@ -83,6 +83,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Menu } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -92,6 +93,7 @@ import { getAllRoomGroups, type RoomGroupDTO } from '@/api/roomGroup'
 import { getSortOrderMap, updateSortOrders } from '@/api/sortConfig'
 
 const userStore = useUserStore()
+const { t } = useI18n()
 
 interface RoomType {
   id: number
@@ -151,7 +153,7 @@ const loadRoomTypes = async () => {
     }
   } catch (error) {
     console.error('加载房型失败:', error)
-    ElMessage.error('加载房型失败')
+    ElMessage.error(t('settingsStage4.roomSort.messages.loadRoomTypesFailed'))
   } finally {
     isLoading.value = false
   }
@@ -184,7 +186,7 @@ const loadRooms = async () => {
     }
   } catch (error) {
     console.error('加载房间失败:', error)
-    ElMessage.error('加载房间失败')
+    ElMessage.error(t('settingsStage4.roomSort.messages.loadRoomsFailed'))
   } finally {
     isLoading.value = false
   }
@@ -216,7 +218,7 @@ const loadGroups = async () => {
     }
   } catch (error) {
     console.error('加载分组失败:', error)
-    ElMessage.error('加载分组失败')
+    ElMessage.error(t('settingsStage4.roomSort.messages.loadGroupsFailed'))
   } finally {
     isLoading.value = false
   }
@@ -235,7 +237,7 @@ const saveSortOrder = async (sortType: string, entityIds: number[]) => {
     })
   } catch (error) {
     console.error('保存排序失败:', error)
-    ElMessage.error('保存排序失败')
+    ElMessage.error(t('settingsStage4.roomSort.messages.saveSortFailed'))
   }
 }
 
@@ -243,13 +245,13 @@ const saveSortOrder = async (sortType: string, entityIds: number[]) => {
 const currentTabText = computed(() => {
   switch (activeTab.value) {
     case 'roomType':
-      return '房型排序'
+      return t('settingsStage4.roomSort.tabs.roomType')
     case 'room':
-      return '房间排序'
+      return t('settingsStage4.roomSort.tabs.room')
     case 'group':
-      return '分组排序'
+      return t('settingsStage4.roomSort.tabs.group')
     default:
-      return '排序'
+      return t('settingsStage4.roomSort.tabs.default')
   }
 })
 
@@ -289,17 +291,17 @@ const handleDrop = async (dropIndex: number, type: string) => {
   switch (type) {
     case 'roomType':
       targetArray = roomTypes.value
-      arrayName = '房型'
+      arrayName = t('settingsStage4.roomSort.entities.roomType')
       sortType = 'ROOM_TYPE'
       break
     case 'room':
       targetArray = rooms.value
-      arrayName = '房间'
+      arrayName = t('settingsStage4.roomSort.entities.room')
       sortType = 'ROOM'
       break
     case 'group':
       targetArray = groups.value
-      arrayName = '分组'
+      arrayName = t('settingsStage4.roomSort.entities.group')
       sortType = 'GROUP'
       break
   }
@@ -313,7 +315,7 @@ const handleDrop = async (dropIndex: number, type: string) => {
   const entityIds = targetArray.map((item) => item.id)
   await saveSortOrder(sortType, entityIds)
 
-  ElMessage.success(`${arrayName}排序已更新`)
+  ElMessage.success(t('settingsStage4.roomSort.messages.sortUpdated', { name: arrayName }))
   draggedIndex.value = -1
 }
 </script>

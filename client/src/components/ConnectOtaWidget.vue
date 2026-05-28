@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="`连接到 ${otaName}`"
+    :title="t('stage6.components.connectOtaWidget.title', { name: otaName })"
     width="800px"
     :close-on-click-modal="false"
     @close="handleClose"
@@ -11,7 +11,7 @@
         <el-icon class="is-loading" :size="40">
           <Loading />
         </el-icon>
-        <p>正在加载连接向导...</p>
+        <p>{{ t('stage6.components.connectOtaWidget.loading') }}</p>
       </div>
 
       <div v-else-if="error" class="error-container">
@@ -19,17 +19,17 @@
           <CircleClose />
         </el-icon>
         <p class="error-message">{{ error }}</p>
-        <el-button type="primary" @click="loadWidget">重试</el-button>
+        <el-button type="primary" @click="loadWidget">{{ t('stage6.common.actions.retry') }}</el-button>
       </div>
 
-      <!-- Su Widget 挂载点 -->
+      <!-- Su Widget mount point -->
       <div v-else id="su-widget-container" class="widget-content"></div>
     </div>
 
     <template #footer>
       <div class="dialog-footer">
         <div class="language-selector">
-          <span class="language-label">语言</span>
+          <span class="language-label">{{ t('stage6.components.connectOtaWidget.language') }}</span>
           <el-select
             v-model="widgetLanguage"
             size="small"
@@ -37,7 +37,7 @@
             :disabled="loading"
             @change="handleWidgetLanguageChange"
           >
-            <el-option label="中文" value="zn" />
+            <el-option :label="t('stage6.components.connectOtaWidget.chinese')" value="zn" />
             <el-option label="English" value="en" />
           </el-select>
         </div>
@@ -48,9 +48,9 @@
           :disabled="loading"
           @click="handleSyncRooms"
         >
-          一键推送PMS房型列表（认证用）
+          {{ t('stage6.components.connectOtaWidget.syncForCertification') }}
         </el-button>
-        <el-button @click="handleClose">关闭</el-button>
+        <el-button @click="handleClose">{{ t('stage6.common.actions.close') }}</el-button>
       </div>
     </template>
   </el-dialog>
@@ -60,6 +60,7 @@
 import { nextTick, ref, watch, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading, CircleClose } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import {
   getSuWidgetToken,
   syncSuAri,
@@ -70,7 +71,7 @@ import {
 import { clearGlobalSuConfigProxyContext, setGlobalSuConfigProxyContext } from '@/utils/suConfigProxy'
 
 /**
- * Su Widget 全局对象类型定义
+ * Su Widget global object type definition
  */
 interface SuOtaSwitchConfig {
   type: string
@@ -108,6 +109,7 @@ const emit = defineEmits<{
   synced: []
   error: [error: string]
 }>()
+const { t } = useI18n()
 
 const visible = ref(false)
 const loading = ref(false)
@@ -188,7 +190,7 @@ const maybeNotifyChannelHotelIdDenied = (raw: unknown) => {
   }
   lastChannelHotelDeniedToastAt = now
   ElMessage.error(
-    '渠道酒店标识无权限或不存在，请使用Booking.com后台的正确Property ID，并确认该账号有该酒店权限。',
+    t('stage6.components.connectOtaWidget.hotelAccessDenied'),
   )
 }
 
@@ -219,23 +221,23 @@ const resolveAllowedLocalMockChannelId = (
   return null
 }
 
-// 保存 React root 引用，用于正确卸载
+// Keep the React root reference so it can be unmounted correctly.
 let suWidgetRoot: any = null
 
 const clearWidgetContainer = () => {
   const container = document.getElementById('su-widget-container')
   if (container) {
-    // 如果有保存的 React root，先卸载
+    // Unmount any saved React root first.
     if (suWidgetRoot) {
       try {
         suWidgetRoot.unmount()
       } catch (e) {
-        console.warn('卸载 React root 失败:', e)
+        console.warn('Failed to unmount React root:', e)
       }
       suWidgetRoot = null
     }
     
-    // 尝试使用 ReactDOM 的方式卸载（兼容旧版本）
+    // Try ReactDOM unmounting for older versions.
     if (window.ReactDOM && typeof (window.ReactDOM as any).unmountComponentAtNode === 'function') {
       try {
         (window.ReactDOM as any).unmountComponentAtNode(container)
@@ -244,21 +246,21 @@ const clearWidgetContainer = () => {
       }
     }
     
-    // 清空容器内容
+    // Clear the container contents.
     container.innerHTML = ''
     
-    // 移除 React 内部标记（React 18 会在容器上设置 _reactRootContainer）
+    // Remove React internal markers. React 18 sets _reactRootContainer on the container.
     delete (container as any)._reactRootContainer
     delete (container as any).__reactContainer$
     
-    // 移除所有以 __react 开头的属性
+    // Remove all properties starting with __react.
     Object.keys(container).forEach(key => {
       if (key.startsWith('__react')) {
         delete (container as any)[key]
       }
     })
     
-    // 完全替换容器元素以确保 React 不会检测到旧的 root
+    // Replace the container element entirely so React cannot detect the old root.
     const parent = container.parentElement
     if (parent) {
       const newContainer = document.createElement('div')
@@ -276,7 +278,7 @@ const loadExternalScriptOnce = (id: string, scriptUrl: string): Promise<void> =>
       script.dataset.loaded = 'true'
     }
 
-    // 若已存在且全局对象已经就绪，直接认为已加载
+    // If it already exists and the global object is ready, treat it as loaded.
     if (existing) {
       const loadedFlag = existing.dataset.loaded === 'true'
       const isReactReady = id === 'widget-react-script' ? Boolean(window.React) : true
@@ -296,7 +298,7 @@ const loadExternalScriptOnce = (id: string, scriptUrl: string): Promise<void> =>
         resolve()
       })
       existing.addEventListener('error', () => {
-        reject(new Error(`外部脚本加载失败：${scriptUrl}`))
+        reject(new Error(t('stage6.components.connectOtaWidget.externalScriptFailed', { url: scriptUrl })))
       })
       return
     }
@@ -312,7 +314,7 @@ const loadExternalScriptOnce = (id: string, scriptUrl: string): Promise<void> =>
       resolve()
     }
     script.onerror = () => {
-      reject(new Error(`外部脚本加载失败：${scriptUrl}`))
+      reject(new Error(t('stage6.components.connectOtaWidget.externalScriptFailed', { url: scriptUrl })))
     }
 
     document.body.appendChild(script)
@@ -326,7 +328,7 @@ const ensureWidgetRuntimeReady = async () => {
   const hasCreateRoot = typeof (window.ReactDOM as any)?.createRoot === 'function'
   if (!hasCreateRoot) {
     throw new Error(
-      'Su Widget 依赖未就绪：ReactDOM.createRoot 不存在（通常是 react-dom 脚本未加载成功或被拦截）',
+      t('stage6.components.connectOtaWidget.runtimeNotReady'),
     )
   }
 }
@@ -359,13 +361,13 @@ const resolveSuConfigProxyUrl = (url: unknown): string | null => {
 }
 
 /**
- * Su Widget 会在浏览器里直接请求 Su 的 Config 接口（connect(-sandbox).su-api.com/Config/...），
- * 但 Su 侧不对第三方域名开放 CORS，导致浏览器拦截并白屏。
+ * Su Widget directly requests Su Config endpoints (connect(-sandbox).su-api.com/Config/...),
+ * but Su does not allow CORS for third-party domains, which causes browser blocking and a blank page.
  *
- * 这里用“临时拦截”把这些请求重写到后端代理：
+ * This temporary interception rewrites those requests to the backend proxy:
  * - url: https://connect(-sandbox).su-api.com/Config/...  ->  {VITE_API_BASE_URL}/su/config/{env}/...
- * - 额外注入本系统 JWT（Authorization）用于访问后端 /api/v1/**
- * - 若 Su 请求本身需要 Authorization，则搬运到 X-Su-Authorization 给后端再转回 Su
+ * - injects the system JWT (Authorization) for /api/v1/** requests
+ * - if the Su request itself needs Authorization, moves it to X-Su-Authorization and passes it back to Su
  */
 const installSuConfigProxy = (): (() => void) => {
   const originalOpen = XMLHttpRequest.prototype.open
@@ -403,7 +405,7 @@ const installSuConfigProxy = (): (() => void) => {
     if (meta?.isSuConfig && typeof name === 'string') {
       const loweredName = name.toLowerCase()
       if (loweredName === SU_HEADER_AUTHORIZATION) {
-        // 避免与本系统 JWT 冲突：先把 Su 的 Authorization 暂存，后续通过 X-Su-Authorization 传给后端
+        // Avoid conflicting with the system JWT: stash Su Authorization first, then pass it to the backend via X-Su-Authorization.
         meta.suAuth = value
         metaByXhr.set(this, meta)
         return
@@ -551,7 +553,7 @@ const installSuConfigProxy = (): (() => void) => {
 }
 
 /**
- * 监听modelValue变化,同步到visible
+ * Watch modelValue changes and sync them to visible.
  */
 watch(
   () => props.modelValue,
@@ -565,24 +567,24 @@ watch(
 )
 
 /**
- * 监听visible变化,同步到modelValue
+ * Watch visible changes and sync them to modelValue.
  */
 watch(visible, (newValue) => {
   emit('update:modelValue', newValue)
 })
 
 /**
- * 加载Su Widget脚本
+ * Load the Su Widget script.
  */
 const loadWidgetScript = (scriptUrl: string): Promise<void> => {
   return new Promise((resolve, reject) => {
-    // 如果脚本已加载,直接返回
+    // Return immediately if the script is already loaded.
     if (widgetScriptLoaded.value || window.loadScript) {
       resolve()
       return
     }
 
-    // 检查是否已经有脚本标签
+    // Check whether a script tag already exists.
     const existingScript = document.querySelector(`script[src="${scriptUrl}"]`)
     if (existingScript) {
       widgetScriptLoaded.value = true
@@ -590,7 +592,7 @@ const loadWidgetScript = (scriptUrl: string): Promise<void> => {
       return
     }
 
-    // 动态创建script标签加载Su Widget脚本
+    // Dynamically create a script tag to load the Su Widget script.
     const script = document.createElement('script')
     script.src = scriptUrl
     script.async = true
@@ -601,7 +603,7 @@ const loadWidgetScript = (scriptUrl: string): Promise<void> => {
     }
 
     script.onerror = () => {
-      reject(new Error('无法加载Su Widget脚本'))
+      reject(new Error(t('stage6.components.connectOtaWidget.scriptLoadFailed')))
     }
 
     document.head.appendChild(script)
@@ -609,31 +611,31 @@ const loadWidgetScript = (scriptUrl: string): Promise<void> => {
 }
 
 /**
- * 初始化Su Widget
+ * Initialize the Su Widget.
  */
 const initializeWidget = async (widgetConfig: WidgetTokenResponse) => {
   try {
-    // 确保loadScript全局函数已加载
+    // Ensure the global loadScript function is available.
     if (!window.loadScript) {
-      throw new Error('Su Widget脚本未正确加载（loadScript 不存在）')
+      throw new Error(t('stage6.components.connectOtaWidget.scriptNotLoaded'))
     }
 
-    // 确保 React/ReactDOM 依赖先加载完成（Su 官方 script.js 自带加载但不等待，会导致偶发 race）
+    // Ensure React/ReactDOM dependencies finish loading first. Su's script starts loading them but does not wait, which can race.
     await ensureWidgetRuntimeReady()
 
     if (!widgetConfig.appId) {
-      throw new Error('缺少 Su appId（client-id）')
+      throw new Error(t('stage6.components.connectOtaWidget.missingAppId'))
     }
 
     if (!widgetConfig.propertyId) {
-      throw new Error('缺少 Su propertyId（proppmsid）')
+      throw new Error(t('stage6.components.connectOtaWidget.missingPropertyId'))
     }
 
     if (!widgetConfig.tokenId) {
-      throw new Error('缺少 Su tokenId（token_id）')
+      throw new Error(t('stage6.components.connectOtaWidget.missingTokenId'))
     }
 
-    // 配置Widget
+    // Configure the widget.
     const config: SuOtaSwitchConfig = {
       type: widgetConfig.type || 'channel-Mapping',
       elementId: 'su-widget-container',
@@ -647,31 +649,31 @@ const initializeWidget = async (widgetConfig: WidgetTokenResponse) => {
       },
     }
 
-    // 代理拦截会在 loadWidget() 中优先安装；这里兜底确保已安装（仅在弹窗期间生效，关闭时会卸载）
+    // The proxy interception is installed first in loadWidget(); this fallback ensures it is present while the dialog is open.
     if (!uninstallSuConfigProxy) {
       uninstallSuConfigProxy = installSuConfigProxy()
     }
 
-    // 初始化Widget
+    // Initialize the widget.
     window.loadScript(config)
 
-    // 监听Widget事件(如果Su提供了事件API)
-    // 注: 根据Su API文档,Widget可能会触发连接成功/失败等事件
-    // 这里需要根据实际Su Widget文档调整
+    // Listen for widget events if Su exposes an event API.
+    // According to Su API docs, the widget may emit connection success/failure events.
+    // Adjust this based on the actual Su Widget documentation.
 
-    ElMessage.success('连接向导已加载')
+    ElMessage.success(t('stage6.components.connectOtaWidget.loaded'))
   } catch (err) {
-    console.error('Widget初始化失败:', err)
+    console.error('Widget initialization failed:', err)
     throw err
   }
 }
 
 /**
- * 加载Widget
+ * Load the widget.
  */
 const loadWidget = async () => {
   if (!props.otaId) {
-    error.value = '缺少OTA配置ID'
+    error.value = t('stage6.components.connectOtaWidget.missingOtaConfigId')
     return
   }
 
@@ -681,20 +683,19 @@ const loadWidget = async () => {
   clearSuConfigProxyContext()
 
   try {
-    // 1. 获取Widget Token
+    // 1. Fetch the widget token.
     const response = await getSuWidgetToken(props.otaId, {
       language: widgetLanguage.value,
     })
     if (!response.success || !response.data) {
-      throw new Error(response.message || '获取连接配置失败')
+      throw new Error(response.message || t('stage6.components.connectOtaWidget.configLoadFailed'))
     }
     setSuConfigProxyContext(response.data)
 
-    // 本地开发环境：允许请求后端拿到 token（便于验证后端是否已联通 Su），但不强制加载 Widget
+    // Local development: allow fetching the token to verify backend Su connectivity, but do not force widget loading.
     if (isLocalhost() && import.meta.env.VITE_ALLOW_SU_WIDGET_LOCAL !== 'true') {
       const currentOrigin = window.location.origin
-      const tip =
-        `已从后端获取 Su 授权信息（token_id / proppmsid），但 Su Widget 不能在本地地址加载（当前：${currentOrigin}）。请使用已部署域名/内网穿透域名并让 Su 侧加入白名单；如需强制本地尝试，可设置 VITE_ALLOW_SU_WIDGET_LOCAL=true。`
+      const tip = t('stage6.components.connectOtaWidget.localWidgetBlocked', { origin: currentOrigin })
       error.value = tip
       emit('error', tip)
       ElMessage.warning(tip)
@@ -702,21 +703,21 @@ const loadWidget = async () => {
       return
     }
 
-    // 2. 安装 Su Config 代理拦截（必须早于加载 Su script.js：script 加载后可能立即发起 Config 请求）
+    // 2. Install the Su Config proxy before loading Su script.js, which may request Config immediately.
     uninstallSuConfigProxy?.()
     uninstallSuConfigProxy = installSuConfigProxy()
 
-    // 3. 加载Widget脚本（scriptUrl 来自后端）
+    // 3. Load the widget script. scriptUrl comes from the backend.
     await loadWidgetScript(response.data.scriptUrl)
 
-    // 4. 确保容器已渲染再初始化（否则 loading 状态下容器不存在，widget 无法挂载）
+    // 4. Ensure the container is rendered before initializing; it does not exist while loading.
     loading.value = false
     await nextTick()
     clearWidgetContainer()
     await initializeWidget(response.data)
   } catch (err: any) {
-    console.error('加载Widget失败:', err)
-    error.value = err?.message || '加载连接向导失败，请重试'
+    console.error('Failed to load widget:', err)
+    error.value = err?.message || t('stage6.components.connectOtaWidget.loadFailed')
     emit('error', error.value)
     ElMessage.error(error.value)
   } finally {
@@ -732,11 +733,11 @@ const handleWidgetLanguageChange = async (language: WidgetLanguage) => {
 }
 
 /**
- * 关闭对话框
+ * Close the dialog.
  */
 const handleSyncRooms = async () => {
   if (!props.otaId) {
-    ElMessage.error('缺少OTA配置ID')
+    ElMessage.error(t('stage6.components.connectOtaWidget.missingOtaConfigId'))
     return
   }
 
@@ -744,41 +745,49 @@ const handleSyncRooms = async () => {
   try {
     const roomsResp = await syncSuRooms(props.otaId)
     if (!roomsResp.success || !roomsResp.data) {
-      throw new Error(roomsResp.message || '房型列表同步失败')
+      throw new Error(roomsResp.message || t('stage6.components.connectOtaWidget.roomSyncFailed'))
     }
     if (!roomsResp.data.roomsSynced) {
-      throw new Error(roomsResp.data.roomsError || '房型列表同步失败')
+      throw new Error(roomsResp.data.roomsError || t('stage6.components.connectOtaWidget.roomSyncFailed'))
     }
 
     const ratePlansResp = await syncSuRatePlans(props.otaId)
     if (!ratePlansResp.success || !ratePlansResp.data) {
-      throw new Error(ratePlansResp.message || '价格计划列表同步失败')
+      throw new Error(ratePlansResp.message || t('stage6.components.connectOtaWidget.ratePlanSyncFailed'))
     }
     if (!ratePlansResp.data.ratePlansSynced) {
-      throw new Error(ratePlansResp.data.ratePlansError || '价格计划列表同步失败')
+      throw new Error(ratePlansResp.data.ratePlansError || t('stage6.components.connectOtaWidget.ratePlanSyncFailed'))
     }
 
     const ariResp = await syncSuAri(props.otaId, 365)
     if (!ariResp.success || !ariResp.data) {
-      throw new Error(ariResp.message || '基础ARI同步失败')
+      throw new Error(ariResp.message || t('stage6.components.connectOtaWidget.ariSyncFailed'))
     }
     if (!ariResp.data.availabilityPushed || !ariResp.data.ratesPushed) {
-      throw new Error(ariResp.data.error || '基础ARI同步失败')
+      throw new Error(ariResp.data.error || t('stage6.components.connectOtaWidget.ariSyncFailed'))
     }
     ElMessage.success(
-      `基础ARI已推送未来${ariResp.data.days}天（可用性段${ariResp.data.availabilitySegments}，房价段${ariResp.data.rateSegments}）`,
+      t('stage6.components.connectOtaWidget.ariPushed', {
+        days: ariResp.data.days,
+        availabilitySegments: ariResp.data.availabilitySegments,
+        rateSegments: ariResp.data.rateSegments,
+      }),
     )
     ElMessage.success(
-      `已推送${roomsResp.data.roomCount}个房型、${ratePlansResp.data.pricePlanCount}个价格计划，并预热未来${ariResp.data.days}天基础ARI`,
+      t('stage6.components.connectOtaWidget.syncCompleted', {
+        roomCount: roomsResp.data.roomCount,
+        pricePlanCount: ratePlansResp.data.pricePlanCount,
+        days: ariResp.data.days,
+      }),
     )
     await loadWidget()
     emit('synced')
   } catch (err: any) {
-    const message = err?.message || '同步失败'
+    const message = err?.message || t('stage6.components.connectOtaWidget.syncFailed')
     if (message.includes('roomid') && message.includes('20')) {
-      await ElMessageBox.alert(message, 'ä¸€é”®æŽ¨é€å¤±è´¥', {
+      await ElMessageBox.alert(message, t('stage6.components.connectOtaWidget.syncFailedTitle'), {
         type: 'error',
-        confirmButtonText: 'çŸ¥é“äº†',
+        confirmButtonText: t('stage6.components.connectOtaWidget.gotIt'),
       })
     } else {
       ElMessage.error(message)
@@ -791,7 +800,7 @@ const handleSyncRooms = async () => {
 
 const handleClose = () => {
   visible.value = false
-  // 清理Widget容器
+  // Clean up the widget container.
   clearWidgetContainer()
   clearSuConfigProxyContext()
   uninstallSuConfigProxy?.()
@@ -799,7 +808,7 @@ const handleClose = () => {
 }
 
 /**
- * 组件卸载时清理
+ * Clean up on component unmount.
  */
 onUnmounted(() => {
   handleClose()

@@ -1,29 +1,29 @@
 <template>
   <div class="notifications-page">
     <div class="page-header">
-      <h2>系统通知</h2>
+      <h2>{{ t('pages.notifications.system.title') }}</h2>
     </div>
 
     <div class="notifications-content">
       <!-- 标签页 -->
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="全部" name="all" />
+        <el-tab-pane :label="t('pages.notifications.common.tabs.all')" name="all" />
         <el-tab-pane name="unread">
           <template #label>
             <span class="tab-label">
-              未读
+              {{ t('pages.notifications.common.tabs.unread') }}
               <el-badge v-if="unreadCount > 0" :value="unreadCount" class="unread-badge" />
             </span>
           </template>
         </el-tab-pane>
-        <el-tab-pane label="已读" name="read" />
+        <el-tab-pane :label="t('pages.notifications.common.tabs.read')" name="read" />
       </el-tabs>
 
       <!-- 搜索和筛选栏 -->
       <div class="filter-bar">
         <el-input
           v-model="searchQuery"
-          placeholder="搜索消息标题、消息内容"
+          :placeholder="t('pages.notifications.system.searchPlaceholder')"
           :prefix-icon="Search"
           clearable
           class="search-input"
@@ -31,22 +31,22 @@
         />
         <el-select
           v-model="selectedType"
-          placeholder="消息类型"
+          :placeholder="t('pages.notifications.system.typePlaceholder')"
           clearable
           class="type-select"
           @change="handleTypeChange"
         >
-          <el-option label="全部" value="" />
-          <el-option label="系统通知" value="SYSTEM" />
-          <el-option label="保洁通知" value="CLEANING" />
-          <el-option label="任务待分配" value="TASK" />
+          <el-option :label="t('pages.notifications.system.types.all')" value="" />
+          <el-option :label="t('pages.notifications.system.types.SYSTEM')" value="SYSTEM" />
+          <el-option :label="t('pages.notifications.system.types.CLEANING')" value="CLEANING" />
+          <el-option :label="t('pages.notifications.system.types.TASK')" value="TASK" />
         </el-select>
         <el-button
           v-if="unreadCount > 0"
           type="primary"
           @click="handleMarkAllAsRead"
         >
-          一键已读
+          {{ t('pages.notifications.system.markAllAsRead') }}
         </el-button>
       </div>
 
@@ -57,14 +57,18 @@
         stripe
         class="notifications-table"
       >
-        <el-table-column prop="notificationType" label="消息类型" width="120">
+        <el-table-column
+          prop="notificationType"
+          :label="t('pages.notifications.system.columns.type')"
+          width="120"
+        >
           <template #default="{ row }">
             <el-tag :type="getNotificationTypeTag(row.notificationType)" size="small">
               {{ getNotificationTypeLabel(row.notificationType) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="title" label="消息标题" min-width="200">
+        <el-table-column prop="title" :label="t('pages.notifications.system.columns.title')" min-width="200">
           <template #default="{ row }">
             <div class="title-cell">
               <span v-if="!row.isRead" class="unread-dot"></span>
@@ -72,17 +76,17 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="content" label="消息内容" min-width="300">
+        <el-table-column prop="content" :label="t('pages.notifications.system.columns.content')" min-width="300">
           <template #default="{ row }">
             <span class="content-text">{{ row.content }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="时间" width="180">
+        <el-table-column prop="createdAt" :label="t('pages.notifications.system.columns.time')" width="180">
           <template #default="{ row }">
             {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column :label="t('pages.notifications.system.columns.actions')" width="150" fixed="right">
           <template #default="{ row }">
             <el-button
               v-if="!row.isRead"
@@ -91,7 +95,7 @@
               size="small"
               @click="handleMarkAsRead(row.id)"
             >
-              标为已读
+              {{ t('pages.notifications.system.actions.markAsRead') }}
             </el-button>
             <el-button
               type="danger"
@@ -99,7 +103,7 @@
               size="small"
               @click="handleDelete(row.id)"
             >
-              删除
+              {{ t('pages.notifications.system.actions.delete') }}
             </el-button>
           </template>
         </el-table-column>
@@ -125,6 +129,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
 import {
@@ -142,6 +147,7 @@ import { formatStoreDateTime, resolveStoreTimeZone } from '@/utils/storeDateTime
 
 const userStore = useUserStore()
 const storeStore = useStoreStore()
+const { t } = useI18n()
 const currentStoreTimeZone = computed(() => resolveStoreTimeZone(storeStore.currentStore?.timezone))
 
 // 标签页状态
@@ -159,9 +165,9 @@ const unreadCount = ref(0)
 
 // 通知类型标签映射
 const notificationTypeMap: Record<string, { label: string; tag: string }> = {
-  SYSTEM: { label: '系统通知', tag: 'primary' },
-  CLEANING: { label: '保洁通知', tag: 'success' },
-  TASK: { label: '任务待分配', tag: 'warning' },
+  SYSTEM: { label: 'pages.notifications.system.types.SYSTEM', tag: 'primary' },
+  CLEANING: { label: 'pages.notifications.system.types.CLEANING', tag: 'success' },
+  TASK: { label: 'pages.notifications.system.types.TASK', tag: 'warning' },
 }
 
 /**
@@ -175,7 +181,7 @@ const getNotificationTypeTag = (type: string): string => {
  * 获取通知类型标签文本
  */
 const getNotificationTypeLabel = (type: string): string => {
-  return notificationTypeMap[type]?.label || type
+  return notificationTypeMap[type] ? t(notificationTypeMap[type].label) : type
 }
 
 /**
@@ -232,7 +238,7 @@ const loadNotifications = async () => {
     }
   } catch (error) {
     console.error('加载通知失败:', error)
-    ElMessage.error('加载通知失败')
+    ElMessage.error(t('pages.notifications.system.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -300,13 +306,13 @@ const handleMarkAsRead = async (id: number) => {
   try {
     const response = await markNotificationAsRead(id)
     if (response.success) {
-      ElMessage.success('已标记为已读')
+      ElMessage.success(t('pages.notifications.system.markReadSuccess'))
       await loadNotifications()
       await loadUnreadCount()
     }
   } catch (error) {
     console.error('标记已读失败:', error)
-    ElMessage.error('标记已读失败')
+    ElMessage.error(t('pages.notifications.system.markReadFailed'))
   }
 }
 
@@ -317,9 +323,9 @@ const handleMarkAllAsRead = async () => {
   if (!userStore.currentUser?.id) return
 
   try {
-    await ElMessageBox.confirm('确定要将所有未读消息标记为已读吗?', '确认操作', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('pages.notifications.system.markAllConfirm'), t('pages.notifications.common.confirmTitle'), {
+      confirmButtonText: t('stage6.common.actions.confirm'),
+      cancelButtonText: t('stage6.common.actions.cancel'),
       type: 'warning',
     })
 
@@ -331,14 +337,14 @@ const handleMarkAllAsRead = async () => {
     }
 
     if (response.success) {
-      ElMessage.success(`已标记 ${response.data} 条消息为已读`)
+      ElMessage.success(t('pages.notifications.common.markedCount', { count: response.data }))
       await loadNotifications()
       await loadUnreadCount()
     }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('一键已读失败:', error)
-      ElMessage.error('一键已读失败')
+      ElMessage.error(t('pages.notifications.system.markAllFailed'))
     }
   }
 }
@@ -348,22 +354,22 @@ const handleMarkAllAsRead = async () => {
  */
 const handleDelete = async (id: number) => {
   try {
-    await ElMessageBox.confirm('确定要删除这条通知吗?', '确认删除', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('pages.notifications.system.deleteConfirm'), t('pages.notifications.common.deleteConfirmTitle'), {
+      confirmButtonText: t('stage6.common.actions.confirm'),
+      cancelButtonText: t('stage6.common.actions.cancel'),
       type: 'warning',
     })
 
     const response = await deleteNotificationMessage(id)
     if (response.success) {
-      ElMessage.success('删除成功')
+      ElMessage.success(t('pages.notifications.system.deleteSuccess'))
       await loadNotifications()
       await loadUnreadCount()
     }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除失败:', error)
-      ElMessage.error('删除失败')
+      ElMessage.error(t('pages.notifications.system.deleteFailed'))
     }
   }
 }

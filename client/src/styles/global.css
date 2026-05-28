@@ -1,4 +1,4 @@
-/* 全局样式 */
+/* Global styles */
 * {
   margin: 0;
   padding: 0;
@@ -16,7 +16,7 @@ body {
   height: 100%;
 }
 
-/* 覆盖Element Plus默认样式 */
+/* Element Plus overrides */
 .el-menu {
   border-right: none;
 }
@@ -35,7 +35,7 @@ body {
   background-color: #f5f5f5;
 }
 
-/* 表格样式 */
+/* Table styles */
 .el-table {
   background-color: white;
   border-radius: 4px;
@@ -45,18 +45,18 @@ body {
   background-color: #fafafa;
 }
 
-/* 卡片样式 */
+/* Card styles */
 .el-card {
   margin-bottom: 20px;
 }
 
-/* 分页样式 */
+/* Pagination styles */
 .el-pagination {
   margin-top: 20px;
   text-align: right;
 }
 
-/* 搜索表单样式 */
+/* Search form styles */
 .search-form {
   background: white;
   padding: 20px;
@@ -68,7 +68,7 @@ body {
   margin-bottom: 0;
 }
 
-/* 操作按钮样式 */
+/* Action button styles */
 .action-buttons {
   margin-bottom: 20px;
 }
@@ -77,12 +77,12 @@ body {
   margin-right: 10px;
 }
 
-/* 状态标签样式 */
+/* Status tag styles */
 .status-tag {
   margin-right: 5px;
 }
 
-/* 响应式布局 */
+/* Responsive layout */
 @media (max-width: 768px) {
   .el-aside {
     width: 200px !important;

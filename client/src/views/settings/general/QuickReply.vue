@@ -3,21 +3,25 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div>
-        <h2 class="page-title">快捷回复</h2>
-        <p class="page-description">设置常用的快捷回复模板</p>
+        <h2 class="page-title">{{ t('settings.quickReply.title') }}</h2>
+        <p class="page-description">{{ t('settings.quickReply.description') }}</p>
       </div>
-      <el-button type="primary" @click="handleCreate">创建</el-button>
+      <el-button type="primary" @click="handleCreate">{{ t('settings.quickReply.create') }}</el-button>
     </div>
 
     <!-- 表格 -->
     <div class="table-container">
       <el-table :data="quickReplies" style="width: 100%" v-loading="loading">
-        <el-table-column prop="title" label="标题" min-width="200" />
-        <el-table-column prop="message" label="消息" min-width="400" show-overflow-tooltip />
-        <el-table-column label="Action" width="200" align="center">
+        <el-table-column prop="title" :label="t('settings.quickReply.columns.title')" min-width="200" />
+        <el-table-column prop="message" :label="t('settings.quickReply.columns.message')" min-width="400" show-overflow-tooltip />
+        <el-table-column :label="t('settings.quickReply.columns.action')" width="200" align="center">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
+            <el-button link type="primary" @click="handleEdit(row)">
+              {{ t('settings.common.edit') }}
+            </el-button>
+            <el-button link type="danger" @click="handleDelete(row.id)">
+              {{ t('settings.common.delete') }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -26,57 +30,47 @@
     <!-- 创建/编辑对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="isEditing ? '编辑快捷回复' : '创建快捷回复'"
+      :title="
+        isEditing
+          ? t('settings.quickReply.dialogTitle.edit')
+          : t('settings.quickReply.dialogTitle.create')
+      "
       width="800px"
       :close-on-click-modal="false"
     >
       <el-form :model="form" :rules="formRules" ref="formRef" label-width="80px">
-        <el-form-item label="标题" prop="title">
+        <el-form-item :label="t('settings.quickReply.fields.title')" prop="title">
           <el-input
             v-model="form.title"
-            placeholder="这不会展示给客人"
+            :placeholder="t('settings.quickReply.placeholders.title')"
             maxlength="200"
             show-word-limit
           />
         </el-form-item>
 
-        <el-form-item label="消息" prop="message">
+        <el-form-item :label="t('settings.quickReply.fields.message')" prop="message">
           <el-input
             v-model="form.message"
             type="textarea"
             :rows="6"
-            placeholder="请输入快捷回复的内容"
+            :placeholder="t('settings.quickReply.placeholders.message')"
             maxlength="1500"
             show-word-limit
           />
         </el-form-item>
 
-        <el-form-item label="插入变量">
+        <el-form-item :label="t('settings.quickReply.fields.variables')">
           <div class="variable-info">
-            选择一个短代码并将其添加到您的消息中。 每次您使用消息时，
-            正确的详细信息都会自动填充。
+            {{ t('settings.quickReply.variableInfo') }}
           </div>
           <div class="variable-buttons">
-            <el-button size="small" @click="insertVariable('Property name')">
-              Property name
-            </el-button>
-            <el-button size="small" @click="insertVariable(`Guest's name`)">
-              Guest's name
-            </el-button>
-            <el-button size="small" @click="insertVariable(`Guest's phone number`)">
-              Guest's phone number
-            </el-button>
-            <el-button size="small" @click="insertVariable('Check-in date')">
-              Check-in date
-            </el-button>
-            <el-button size="small" @click="insertVariable('Checkout date')">
-              Checkout date
-            </el-button>
-            <el-button size="small" @click="insertVariable('Room type name')">
-              Room type name
-            </el-button>
-            <el-button size="small" @click="insertVariable('Rate plan name')">
-              Rate plan name
+            <el-button
+              v-for="variable in quickReplyVariables"
+              :key="variable.value"
+              size="small"
+              @click="insertVariable(variable.value)"
+            >
+              {{ t(variable.labelKey) }}
             </el-button>
           </div>
         </el-form-item>
@@ -84,8 +78,8 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSave">保存</el-button>
+          <el-button @click="dialogVisible = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleSave">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -94,6 +88,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   getAllQuickReplies,
@@ -104,6 +99,7 @@ import {
 } from '@/api/quickReply'
 import { useStoreStore } from '@/stores/store'
 
+const { t } = useI18n()
 const storeStore = useStoreStore()
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -113,20 +109,30 @@ const formRef = ref<FormInstance>()
 
 const quickReplies = ref<QuickReplyDTO[]>([])
 
+const quickReplyVariables = [
+  { labelKey: 'settings.quickReply.variables.propertyName', value: 'Property name' },
+  { labelKey: 'settings.quickReply.variables.guestName', value: "Guest's name" },
+  { labelKey: 'settings.quickReply.variables.guestPhone', value: "Guest's phone number" },
+  { labelKey: 'settings.quickReply.variables.checkInDate', value: 'Check-in date' },
+  { labelKey: 'settings.quickReply.variables.checkoutDate', value: 'Checkout date' },
+  { labelKey: 'settings.quickReply.variables.roomTypeName', value: 'Room type name' },
+  { labelKey: 'settings.quickReply.variables.ratePlanName', value: 'Rate plan name' },
+] as const
+
 const form = reactive({
   title: '',
   message: '',
 })
 
 const formRules: FormRules = {
-  title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  message: [{ required: true, message: '请输入消息内容', trigger: 'blur' }],
+  title: [{ required: true, message: t('settings.quickReply.validation.titleRequired'), trigger: 'blur' }],
+  message: [{ required: true, message: t('settings.quickReply.validation.messageRequired'), trigger: 'blur' }],
 }
 
 // 加载快捷回复列表
 const loadQuickReplies = async () => {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settings.quickReply.messages.selectStore'))
     quickReplies.value = []
     return
   }
@@ -137,11 +143,11 @@ const loadQuickReplies = async () => {
     if (response.success && response.data) {
       quickReplies.value = response.data
     } else {
-      ElMessage.error(response.message || '加载快捷回复列表失败')
+      ElMessage.error(response.message || t('settings.quickReply.messages.loadFailed'))
     }
   } catch (error) {
     console.error('加载快捷回复列表失败:', error)
-    ElMessage.error('加载快捷回复列表失败')
+    ElMessage.error(t('settings.quickReply.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -184,16 +190,20 @@ const handleSave = async () => {
       }
 
       if (response.success) {
-        ElMessage.success(isEditing.value ? '更新成功' : '创建成功')
+        ElMessage.success(
+          isEditing.value
+            ? t('settings.quickReply.messages.updateSuccess')
+            : t('settings.quickReply.messages.createSuccess'),
+        )
         dialogVisible.value = false
         await loadQuickReplies()
       } else {
-        ElMessage.error(response.message || '保存失败')
+        ElMessage.error(response.message || t('settings.quickReply.messages.saveFailed'))
       }
     }
   } catch (error) {
     console.error('保存失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settings.quickReply.messages.saveFailed'))
   } finally {
     loading.value = false
   }
@@ -202,24 +212,24 @@ const handleSave = async () => {
 // 删除快捷回复
 const handleDelete = async (id: number) => {
   try {
-    await ElMessageBox.confirm('确定要删除这条快捷回复吗?', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('settings.quickReply.messages.deleteConfirm'), t('settings.common.deleteConfirmTitle'), {
+      confirmButtonText: t('settings.common.confirmButton'),
+      cancelButtonText: t('settings.common.cancelButton'),
       type: 'warning',
     })
 
     loading.value = true
     const response = await deleteQuickReply(id)
     if (response.success) {
-      ElMessage.success('删除成功')
+      ElMessage.success(t('settings.common.deleteSuccess'))
       await loadQuickReplies()
     } else {
-      ElMessage.error(response.message || '删除失败')
+      ElMessage.error(response.message || t('settings.common.deleteFailed'))
     }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除失败:', error)
-      ElMessage.error('删除失败')
+      ElMessage.error(t('settings.common.deleteFailed'))
     }
   } finally {
     loading.value = false

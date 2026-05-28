@@ -6,14 +6,14 @@
         <div class="info-item">
           <span class="info-number">1.</span>
           <span class="info-text">
-            拖动房间号可以更改房间归属的房型与房间的排序,房间的排序仅影响房态页面【按房型排序】模式下的排序顺序。
+            {{ t('settingsStage4.roomOwnership.notices.dragSort') }}
           </span>
         </div>
         <div class="info-item">
           <span class="info-number">2.</span>
           <span class="info-text">
-            更改房间归属后,将自动刷新您有订单的房型房间信息与开关房记录。
-            <span class="warning-text">届时会都更新为变更后的房型房间,该操作不影响历史报表统计,请谨慎修改。</span>
+            {{ t('settingsStage4.roomOwnership.notices.refresh') }}
+            <span class="warning-text">{{ t('settingsStage4.roomOwnership.notices.warning') }}</span>
           </span>
         </div>
       </div>
@@ -22,7 +22,7 @@
     <!-- 房型房间列表 -->
     <div class="room-list-wrapper">
       <el-table :data="roomTypeList" border class="room-table" v-loading="loading">
-        <el-table-column prop="name" label="房型名称" width="300" align="left">
+        <el-table-column prop="name" :label="t('settingsStage4.roomSettings.columns.roomTypeName')" width="300" align="left">
           <template #default="{ row }">
             <div class="room-type-cell">
               <div class="room-type-name">{{ row.name }}</div>
@@ -33,13 +33,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="defaultPrice" label="默认价" width="150" align="center">
+        <el-table-column prop="defaultPrice" :label="t('settingsStage4.roomOwnership.columns.defaultPrice')" width="150" align="center">
           <template #default="{ row }">
             <span>¥{{ formatPrice(row.defaultPrice) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="房间号" align="left">
+        <el-table-column :label="t('settingsStage4.roomSettings.columns.roomNumbers')" align="left">
           <template #default="{ row }">
             <div class="room-numbers-container">
               <draggable
@@ -67,8 +67,8 @@
 
     <!-- 底部操作按钮 -->
     <div class="footer-actions">
-      <el-button @click="handleCancel">取消</el-button>
-      <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
+      <el-button @click="handleCancel">{{ t('settings.common.cancel') }}</el-button>
+      <el-button type="primary" @click="handleSave" :loading="saving">{{ t('settings.common.save') }}</el-button>
     </div>
   </div>
 </template>
@@ -76,6 +76,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Grid, DocumentCopy } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
@@ -99,6 +100,7 @@ interface RoomTypeItem {
 }
 
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const saving = ref(false)
 const roomTypeList = ref<RoomTypeItem[]>([])
@@ -121,7 +123,7 @@ const loadData = async () => {
     ])
 
     if (!roomTypesResponse.success || !roomsResponse.success) {
-      ElMessage.error('加载数据失败')
+      ElMessage.error(t('settingsStage4.roomOwnership.messages.loadFailed'))
       return
     }
 
@@ -144,7 +146,7 @@ const loadData = async () => {
       // 检查是否有未绑定的房间或营销房型
       let warning = ''
       if (typeRooms.length === 0) {
-        warning = '本房型已绑定OTA渠道/营销房型,请都开通后操作'
+        warning = t('settingsStage4.roomOwnership.warningBoundChannel')
       }
 
       return {
@@ -157,7 +159,7 @@ const loadData = async () => {
     })
   } catch (error) {
     console.error('加载数据失败:', error)
-    ElMessage.error('加载数据失败')
+    ElMessage.error(t('settingsStage4.roomOwnership.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -178,14 +180,14 @@ const handleRoomChange = (roomType: RoomTypeItem, event: any) => {
 // 复制房间号
 const handleCopyRoom = (room: RoomItem) => {
   navigator.clipboard.writeText(room.roomNumber)
-  ElMessage.success(`已复制房间号: ${room.roomNumber}`)
+  ElMessage.success(t('settingsStage4.roomOwnership.messages.copySuccess', { roomNumber: room.roomNumber }))
 }
 
 // 取消
 const handleCancel = () => {
-  ElMessageBox.confirm('确定要取消吗?未保存的更改将丢失。', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
+  ElMessageBox.confirm(t('settingsStage4.roomOwnership.messages.cancelConfirm'), t('settingsStage4.roomOwnership.messages.cancelTitle'), {
+    confirmButtonText: t('settings.common.confirmButton'),
+    cancelButtonText: t('settings.common.cancelButton'),
     type: 'warning',
   })
     .then(() => {
@@ -204,7 +206,7 @@ const handleSave = async () => {
     // TODO: 调用后端API保存房间归属关系
     // 需要将 roomTypeList 中的房间归属信息提交到后端
 
-    ElMessage.success('保存成功')
+    ElMessage.success(t('settingsStage4.roomOwnership.messages.saveSuccess'))
 
     // 延迟返回,让用户看到成功提示
     setTimeout(() => {
@@ -212,7 +214,7 @@ const handleSave = async () => {
     }, 1000)
   } catch (error) {
     console.error('保存失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settingsStage4.roomOwnership.messages.saveFailed'))
   } finally {
     saving.value = false
   }

@@ -5,7 +5,7 @@
       <!-- 收起导航按钮 -->
       <div class="sidebar-header" @click="toggleSidebar">
         <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
-        <span v-if="!isCollapsed" class="sidebar-title">收起导航</span>
+        <span v-if="!isCollapsed" class="sidebar-title">{{ t('accommodation.layout.collapseNav') }}</span>
         <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
         <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
       </div>
@@ -20,26 +20,26 @@
         <!-- 房态 -->
         <el-menu-item index="room-status-calendar">
           <el-icon><House /></el-icon>
-          <span>房态</span>
+          <span>{{ t('accommodation.layout.roomStatus') }}</span>
         </el-menu-item>
 
         <!-- 房情表 -->
         <el-menu-item index="room-table">
           <el-icon><Tickets /></el-icon>
-          <span>房情表</span>
+          <span>{{ t('accommodation.layout.roomTable') }}</span>
         </el-menu-item>
 
         <!-- 房价&房量 -->
         <el-sub-menu index="room-price">
           <template #title>
             <el-icon><Money /></el-icon>
-            <span>房价&房量</span>
+            <span>{{ t('accommodation.layout.roomPriceInventory') }}</span>
           </template>
           <el-menu-item index="room-price-management">
-            <span>房价管理</span>
+            <span>{{ t('accommodation.layout.roomPriceManagement') }}</span>
           </el-menu-item>
           <el-menu-item index="price-change-history">
-            <span>改价记录</span>
+            <span>{{ t('accommodation.layout.priceChangeHistory') }}</span>
           </el-menu-item>
         </el-sub-menu>
 
@@ -53,13 +53,13 @@
         <el-sub-menu index="cleaning">
           <template #title>
             <el-icon><BrushFilled /></el-icon>
-            <span>保洁</span>
+            <span>{{ t('accommodation.layout.cleaning') }}</span>
           </template>
           <el-menu-item index="cleaning-overview">
-            <span>任务概览</span>
+            <span>{{ t('accommodation.layout.taskOverview') }}</span>
           </el-menu-item>
           <el-menu-item index="cleaning-task-list">
-            <span>任务列表</span>
+            <span>{{ t('accommodation.layout.taskList') }}</span>
           </el-menu-item>
         </el-sub-menu>
       </el-menu>
@@ -75,10 +75,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { House, BrushFilled, Money, Tickets, ArrowLeft, ArrowRight, Menu as MenuIcon } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 // 侧边栏折叠状态
 const isCollapsed = ref(false)

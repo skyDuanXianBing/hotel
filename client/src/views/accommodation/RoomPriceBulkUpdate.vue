@@ -2,15 +2,15 @@
   <div class="bulk-update-page">
     <div class="page-tabs">
       <el-tabs v-model="activeTab" @tab-click="handleTabClick">
-        <el-tab-pane label="日历" name="calendar"></el-tab-pane>
-        <el-tab-pane label="批量更新" name="bulk-update"></el-tab-pane>
+        <el-tab-pane :label="t('accommodation.roomPriceBulk.tabCalendar')" name="calendar"></el-tab-pane>
+        <el-tab-pane :label="t('accommodation.roomPriceBulk.tabBulkUpdate')" name="bulk-update"></el-tab-pane>
       </el-tabs>
     </div>
 
     <el-form label-width="110px" class="bulk-form">
-      <el-form-item label="房型&价位" required class="form-item room-type-select-wrapper">
+      <el-form-item :label="t('accommodation.roomPriceBulk.roomTypeAndPrice')" required class="form-item room-type-select-wrapper">
         <div class="selected-tags-area" @click="toggleTreeDropdown">
-          <span v-if="selectedTags.length === 0" class="placeholder-text">请选择</span>
+          <span v-if="selectedTags.length === 0" class="placeholder-text">{{ t('accommodation.roomPriceBulk.placeholders.select') }}</span>
 
           <el-tag
             v-for="tag in selectedTags"
@@ -29,7 +29,7 @@
 
         <transition name="dropdown">
           <div v-show="showTreeDropdown" class="tree-select-dropdown">
-            <el-input v-model="filterText" placeholder="搜索房型/价位" class="filter-input" />
+            <el-input v-model="filterText" :placeholder="t('accommodation.roomPriceBulk.searchRoomTypePrice')" class="filter-input" />
             <el-tree
               ref="treeRef"
               :data="treeData"
@@ -42,28 +42,28 @@
               class="selection-tree"
             />
             <div class="tree-footer">
-              <el-button size="small" @click="clearSelection">清空</el-button>
-              <el-button size="small" type="primary" @click="showTreeDropdown = false">完成</el-button>
+              <el-button size="small" @click="clearSelection">{{ t('accommodation.roomPriceBulk.clear') }}</el-button>
+              <el-button size="small" type="primary" @click="showTreeDropdown = false">{{ t('accommodation.roomPriceBulk.done') }}</el-button>
             </div>
           </div>
         </transition>
       </el-form-item>
 
-      <el-form-item label="日期范围" required class="form-item">
+      <el-form-item :label="t('accommodation.common.dateRange')" required class="form-item">
         <div class="date-range-wrapper">
           <el-date-picker
             v-model="startDate"
             type="date"
-            placeholder="开始日期"
+            :placeholder="t('accommodation.common.startDate')"
             format="YYYY/MM/DD"
             value-format="YYYY-MM-DD"
             size="default"
           />
-          <span class="date-separator">至</span>
+          <span class="date-separator">-</span>
           <el-date-picker
             v-model="endDate"
             type="date"
-            placeholder="结束日期"
+            :placeholder="t('accommodation.common.endDate')"
             format="YYYY/MM/DD"
             value-format="YYYY-MM-DD"
             size="default"
@@ -71,63 +71,61 @@
         </div>
       </el-form-item>
 
-      <el-form-item label="星期" class="form-item">
+      <el-form-item :label="t('accommodation.common.weekdays')" class="form-item">
         <div class="weekday-selector">
           <el-checkbox-group v-model="selectedWeekdays" class="weekday-group" @change="handleWeekdayChange">
-            <el-checkbox :label="0">全部</el-checkbox>
-            <el-checkbox :label="1">周一</el-checkbox>
-            <el-checkbox :label="2">周二</el-checkbox>
-            <el-checkbox :label="3">周三</el-checkbox>
-            <el-checkbox :label="4">周四</el-checkbox>
-            <el-checkbox :label="5">周五</el-checkbox>
-            <el-checkbox :label="6">周六</el-checkbox>
-            <el-checkbox :label="7">周日</el-checkbox>
+            <el-checkbox v-for="weekday in weekdayOptions" :key="weekday.value" :label="weekday.value">
+              {{ weekday.label }}
+            </el-checkbox>
           </el-checkbox-group>
-          <el-button text type="primary" @click="invertWeekdaySelection">反选</el-button>
+          <el-button text type="primary" @click="invertWeekdaySelection">{{ t('accommodation.roomPrice.invertSelection') }}</el-button>
         </div>
       </el-form-item>
 
-      <el-form-item label="设置项" required class="form-item">
-        <el-select v-model="settingType" placeholder="请选择" style="width: 200px">
-          <el-option label="价格" value="price" />
-          <el-option label="最小入住天数" value="minStay" />
-          <el-option label="最大入住天数" value="maxStay" />
+      <el-form-item :label="t('accommodation.roomPriceBulk.setting')" required class="form-item">
+        <el-select v-model="settingType" :placeholder="t('accommodation.common.select')" style="width: 200px">
+          <el-option
+            v-for="option in bulkSettingOptions"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
+          />
         </el-select>
       </el-form-item>
 
-      <el-form-item v-if="settingType === 'price'" label="批量填值" class="form-item">
+      <el-form-item v-if="settingType === 'price'" :label="t('accommodation.roomPriceBulk.batchValue')" class="form-item">
         <div class="value-batch-wrapper">
           <el-radio-group v-model="priceMode" class="price-mode-group">
-            <el-radio value="fixed" label="固定值" />
-            <el-radio value="relative" label="基于当前值" />
+            <el-radio value="fixed" :label="t('accommodation.roomPriceBulk.fixedValue')" />
+            <el-radio value="relative" :label="t('accommodation.roomPriceBulk.basedOnCurrent')" />
           </el-radio-group>
 
           <div v-if="priceMode === 'relative'" class="relative-price-options">
             <el-radio-group v-model="relativeType" class="relative-type-group">
-              <el-radio value="cheaper" label="减" />
-              <el-radio value="expensive" label="加" />
+              <el-radio value="cheaper" :label="t('accommodation.roomPriceBulk.decrease')" />
+              <el-radio value="expensive" :label="t('accommodation.roomPriceBulk.increase')" />
             </el-radio-group>
             <el-radio-group v-model="relativeValueMode" class="relative-type-group">
-              <el-radio value="amount" label="按金额" />
-              <el-radio value="percent" label="按百分比" />
+              <el-radio value="amount" :label="t('accommodation.roomPriceBulk.byAmount')" />
+              <el-radio value="percent" :label="t('accommodation.roomPriceBulk.byPercent')" />
             </el-radio-group>
           </div>
 
           <div class="batch-input-row">
-            <el-input v-model="batchValue" type="number" placeholder="请输入价格" style="width: 260px">
+            <el-input v-model="batchValue" type="number" :placeholder="valuePlaceholder" style="width: 260px">
               <template #append>{{ batchValueUnit }}</template>
             </el-input>
-            <span class="auto-apply-hint">输入后自动应用到明细</span>
+            <span class="auto-apply-hint">{{ t('accommodation.roomPriceBulk.autoApplyHint') }}</span>
           </div>
         </div>
       </el-form-item>
 
-      <el-form-item v-else label="批量填值" class="form-item">
+      <el-form-item v-else :label="t('accommodation.roomPriceBulk.batchValue')" class="form-item">
         <div class="batch-input-row">
-          <el-input v-model="batchValue" type="number" placeholder="请输入天数(1-99)" style="width: 260px">
-            <template #append>天</template>
+          <el-input v-model="batchValue" type="number" :placeholder="valuePlaceholder" style="width: 260px">
+            <template #append>{{ batchValueUnit }}</template>
           </el-input>
-          <span class="auto-apply-hint">输入后自动应用到明细</span>
+          <span class="auto-apply-hint">{{ t('accommodation.roomPriceBulk.autoApplyHint') }}</span>
         </div>
       </el-form-item>
 
@@ -136,30 +134,30 @@
           <el-icon :size="48" color="#c0c4cc">
             <Document />
           </el-icon>
-          <p class="empty-text">请先选择房型&价位</p>
+          <p class="empty-text">{{ t('accommodation.roomPriceBulk.selectRoomTypePriceFirst') }}</p>
         </div>
         <el-table v-else :data="tableRows" border style="width: 100%">
-          <el-table-column prop="roomTypeName" label="房型" min-width="180" />
-          <el-table-column prop="pricePlanName" label="价格计划" min-width="180" />
-          <el-table-column label="值" min-width="220">
+          <el-table-column prop="roomTypeName" :label="t('accommodation.roomPriceBulk.table.roomType')" min-width="180" />
+          <el-table-column prop="pricePlanName" :label="t('accommodation.roomPriceBulk.table.pricePlan')" min-width="180" />
+          <el-table-column :label="t('accommodation.roomPriceBulk.table.value')" min-width="220">
             <template #default="{ row }">
               <div v-if="showRelativePreviewColumn" class="value-range-preview">
                 <template v-if="relativePreviewByKey[row.key]">
                   <div class="range-line">
-                    当前区间：{{
-                      formatRangeText(
+                    {{ t('accommodation.roomPriceBulk.table.currentRange', {
+                      value: formatRangeText(
                         relativePreviewByKey[row.key].currentMin,
                         relativePreviewByKey[row.key].currentMax,
                       )
-                    }}
+                    }) }}
                   </div>
                   <div class="range-line range-line-result">
-                    计算结果：{{
-                      formatRangeText(
+                    {{ t('accommodation.roomPriceBulk.table.resultRange', {
+                      value: formatRangeText(
                         relativePreviewByKey[row.key].adjustedMin,
                         relativePreviewByKey[row.key].adjustedMax,
                       )
-                    }}
+                    }) }}
                   </div>
                   <div
                     v-for="line in channelRangePreviewByKey[row.key] || []"
@@ -169,12 +167,11 @@
                     {{ line }}
                   </div>
                 </template>
-                <span v-else class="range-empty">输入批量值后自动显示最小/最大值</span>
+                <span v-else class="range-empty">{{ t('accommodation.roomPriceBulk.table.rangeEmpty') }}</span>
               </div>
               <template v-else>
                 <el-input v-model="row.value" type="number" :placeholder="valuePlaceholder">
-                  <template v-if="settingType === 'price'" #append>JPY</template>
-                  <template v-else #append>天</template>
+                  <template #append>{{ batchValueUnit }}</template>
                 </el-input>
                 <div v-if="settingType === 'price'" class="value-range-preview channel-preview-fixed">
                   <div
@@ -188,18 +185,18 @@
               </template>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="120" align="center">
+          <el-table-column :label="t('accommodation.roomPriceBulk.table.action')" width="120" align="center">
             <template #default="{ row }">
-              <el-button link type="danger" @click="removeRow(row.key)">移除</el-button>
+              <el-button link type="danger" @click="removeRow(row.key)">{{ t('accommodation.roomPriceBulk.table.remove') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
       </div>
 
       <div class="footer-actions">
-        <el-button @click="handleCancel" size="large">取消</el-button>
+        <el-button @click="handleCancel" size="large">{{ t('accommodation.common.cancel') }}</el-button>
         <el-button type="primary" @click="handleSave" size="large" :loading="saving">
-          保存
+          {{ t('accommodation.common.save') }}
         </el-button>
       </div>
     </el-form>
@@ -209,6 +206,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, Document } from '@element-plus/icons-vue'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
@@ -225,6 +223,7 @@ import {
   type PriceAdjustmentType,
 } from '@/api/pricelabs'
 import { useUserStore } from '@/stores/user'
+import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
 
 type TreeNode = {
   value: string
@@ -264,6 +263,8 @@ type ChannelAdjustmentPreview = {
 
 const router = useRouter()
 const userStore = useUserStore()
+const { t } = useI18n()
+const { weekdayOptions, bulkSettingOptions } = useAccommodationI18n()
 
 const activeTab = ref('bulk-update')
 const saving = ref(false)
@@ -313,7 +314,9 @@ let autoApplyTimer: ReturnType<typeof setTimeout> | null = null
 let relativeApplyRequestSeq = 0
 
 const valuePlaceholder = computed(() => {
-  return settingType.value === 'price' ? '请输入价格' : '请输入天数(1-99)'
+  return settingType.value === 'price'
+    ? t('accommodation.roomPriceBulk.placeholders.inputPrice')
+    : t('accommodation.roomPriceBulk.placeholders.inputDays')
 })
 
 const showRelativePreviewColumn = computed(() => {
@@ -322,12 +325,12 @@ const showRelativePreviewColumn = computed(() => {
 
 const batchValueUnit = computed(() => {
   if (settingType.value !== 'price') {
-    return 'JPY'
+    return t('accommodation.common.dayUnit')
   }
   if (priceMode.value === 'relative' && relativeValueMode.value === 'percent') {
     return '%'
   }
-  return 'JPY'
+  return t('accommodation.common.jpy')
 })
 
 const formatPriceNumber = (value: number) => {
@@ -549,7 +552,7 @@ const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) =>
     relativePreviewByKey.value = {}
     relativeDateValuesByKey.value = {}
     if (!silent) {
-      ElMessage.warning('请先输入值')
+    ElMessage.warning(t('accommodation.roomPriceBulk.messages.inputValueFirst'))
     }
     return
   }
@@ -560,7 +563,7 @@ const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) =>
       relativePreviewByKey.value = {}
       relativeDateValuesByKey.value = {}
       if (!silent) {
-        ElMessage.warning('请输入有效价格')
+        ElMessage.warning(t('accommodation.roomPriceBulk.messages.invalidPrice'))
       }
       return
     }
@@ -573,7 +576,7 @@ const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) =>
       relativePreviewByKey.value = {}
       relativeDateValuesByKey.value = {}
       if (!silent) {
-        ElMessage.success('已应用到明细')
+        ElMessage.success(t('accommodation.roomPriceBulk.messages.applied'))
       }
       return
     }
@@ -582,7 +585,7 @@ const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) =>
       relativePreviewByKey.value = {}
       relativeDateValuesByKey.value = {}
       if (!silent) {
-        ElMessage.warning('请先选择日期范围')
+        ElMessage.warning(t('accommodation.roomPriceBulk.messages.selectDateRangeFirst'))
       }
       return
     }
@@ -590,7 +593,7 @@ const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) =>
       relativePreviewByKey.value = {}
       relativeDateValuesByKey.value = {}
       if (!silent) {
-        ElMessage.warning('开始日期不能晚于结束日期')
+        ElMessage.warning(t('accommodation.roomPriceBulk.messages.invalidDateRange'))
       }
       return
     }
@@ -656,18 +659,18 @@ const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) =>
 
       if (Object.keys(previewMap).length === 0) {
         if (!silent) {
-          ElMessage.warning('当前区间未找到可计算的价格数据')
+          ElMessage.warning(t('accommodation.roomPriceBulk.messages.noPriceDataInRange'))
         }
         return
       }
 
       if (!silent) {
-        ElMessage.success('已应用到明细')
+        ElMessage.success(t('accommodation.roomPriceBulk.messages.applied'))
       }
     } catch (error) {
       console.error('获取当前区间价格失败:', error)
       if (!silent) {
-        ElMessage.error('获取当前区间价格失败')
+        ElMessage.error(t('accommodation.roomPriceBulk.messages.saveFailed'))
       }
     }
     return
@@ -676,7 +679,7 @@ const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) =>
   const days = parseInt(batchValue.value, 10)
   if (Number.isNaN(days) || days < 1 || days > 99) {
     if (!silent) {
-      ElMessage.warning('请输入有效天数（1-99）')
+      ElMessage.warning(t('accommodation.roomPriceBulk.messages.invalidDays'))
     }
     return
   }
@@ -686,7 +689,7 @@ const applyBatchValue = async ({ silent = false }: { silent?: boolean } = {}) =>
     rowValueByKey.value[row.key] = row.value
   })
   if (!silent) {
-    ElMessage.success('已应用到明细')
+    ElMessage.success(t('accommodation.roomPriceBulk.messages.applied'))
   }
 }
 
@@ -700,25 +703,44 @@ const normalizeWeekdaysPayload = () => {
 const validateRowValue = (row: TableRow): string | null => {
   if (showRelativePreviewColumn.value) {
     if (!relativePreviewByKey.value[row.key]) {
-      return `${row.roomTypeName}/${row.pricePlanName}：请先输入批量值并生成计算结果`
+      return t('accommodation.roomPriceBulk.validation.relativePreviewMissing', {
+        roomType: row.roomTypeName,
+        pricePlan: row.pricePlanName,
+      })
     }
     const dateValues = relativeDateValuesByKey.value[row.key]
     if (!dateValues || Object.keys(dateValues).length === 0) {
-      return `${row.roomTypeName}/${row.pricePlanName}：未生成可保存的结果`
+      return t('accommodation.roomPriceBulk.validation.relativeResultMissing', {
+        roomType: row.roomTypeName,
+        pricePlan: row.pricePlanName,
+      })
     }
     return null
   }
 
-  if (!row.value) return `${row.roomTypeName}/${row.pricePlanName}：请填写值`
+  if (!row.value) {
+    return t('accommodation.roomPriceBulk.validation.valueRequired', {
+      roomType: row.roomTypeName,
+      pricePlan: row.pricePlanName,
+    })
+  }
   if (settingType.value === 'price') {
     const v = parseFloat(row.value)
-    if (Number.isNaN(v) || v <= 0) return `${row.roomTypeName}/${row.pricePlanName}：价格无效`
+    if (Number.isNaN(v) || v <= 0) {
+      return t('accommodation.roomPriceBulk.validation.invalidPrice', {
+        roomType: row.roomTypeName,
+        pricePlan: row.pricePlanName,
+      })
+    }
     return null
   }
 
   const days = parseInt(row.value, 10)
   if (Number.isNaN(days) || days < 1 || days > 99) {
-    return `${row.roomTypeName}/${row.pricePlanName}：天数无效（1-99）`
+    return t('accommodation.roomPriceBulk.validation.invalidDays', {
+      roomType: row.roomTypeName,
+      pricePlan: row.pricePlanName,
+    })
   }
   return null
 }
@@ -754,15 +776,15 @@ const handleCancel = () => {
 
 const handleSave = async () => {
   if (selectedPlanIds.value.length === 0 || tableRows.value.length === 0) {
-    ElMessage.warning('请选择房型&价位')
+    ElMessage.warning(t('accommodation.roomPriceBulk.messages.selectRoomTypePrice'))
     return
   }
   if (!startDate.value || !endDate.value) {
-    ElMessage.warning('请选择日期范围')
+    ElMessage.warning(t('accommodation.roomPriceBulk.messages.selectDateRange'))
     return
   }
   if (startDate.value > endDate.value) {
-    ElMessage.warning('开始日期不能晚于结束日期')
+    ElMessage.warning(t('accommodation.roomPriceBulk.messages.invalidDateRange'))
     return
   }
 
@@ -774,7 +796,10 @@ const handleSave = async () => {
     }
   }
 
-  const operator = userStore.currentUser?.nickname || userStore.currentUser?.email || '系统'
+  const operator =
+    userStore.currentUser?.nickname ||
+    userStore.currentUser?.email ||
+    '系统'
   const weekdays = normalizeWeekdaysPayload()
   const errors: string[] = []
 
@@ -787,9 +812,9 @@ const handleSave = async () => {
         const dates = Object.keys(dateValues).sort((a, b) => a.localeCompare(b))
 
         for (const date of dates) {
-          const req: UpdatePriceByPlanRequest = {
-            roomTypeId: row.roomTypeId,
-            pricePlanId: row.pricePlanId,
+        const req: UpdatePriceByPlanRequest = {
+          roomTypeId: row.roomTypeId,
+          pricePlanId: row.pricePlanId,
             startDate: date,
             endDate: date,
             applyWeekdaysInRange: true,
@@ -799,11 +824,11 @@ const handleSave = async () => {
           try {
             const resp = (await updatePriceByPlan(req, operator)) as any
             if (!resp.success) {
-              errors.push(`${row.roomTypeName}/${row.pricePlanName}(${date}): ${resp.message || '保存失败'}`)
+              errors.push(`${row.roomTypeName}/${row.pricePlanName}(${date}): ${resp.message || t('accommodation.roomPriceBulk.messages.saveFailed')}`)
               break
             }
           } catch (e: any) {
-            errors.push(`${row.roomTypeName}/${row.pricePlanName}(${date}): ${e?.message || '保存失败'}`)
+            errors.push(`${row.roomTypeName}/${row.pricePlanName}(${date}): ${e?.message || t('accommodation.roomPriceBulk.messages.saveFailed')}`)
             break
           }
         }
@@ -831,10 +856,10 @@ const handleSave = async () => {
       try {
         const resp = (await updatePriceByPlan(req, operator)) as any
         if (!resp.success) {
-          errors.push(`${row.roomTypeName}/${row.pricePlanName}: ${resp.message || '保存失败'}`)
+          errors.push(`${row.roomTypeName}/${row.pricePlanName}: ${resp.message || t('accommodation.roomPriceBulk.messages.saveFailed')}`)
         }
       } catch (e: any) {
-        errors.push(`${row.roomTypeName}/${row.pricePlanName}: ${e?.message || '保存失败'}`)
+        errors.push(`${row.roomTypeName}/${row.pricePlanName}: ${e?.message || t('accommodation.roomPriceBulk.messages.saveFailed')}`)
       }
     }
 
@@ -844,7 +869,7 @@ const handleSave = async () => {
       return
     }
 
-    ElMessage.success('批量更新成功')
+    ElMessage.success(t('accommodation.roomPriceBulk.messages.updateSuccess'))
   } finally {
     saving.value = false
   }
@@ -892,11 +917,11 @@ const loadTreeData = async () => {
     )
 
     roomTypeNodes.sort((a, b) => a.label.localeCompare(b.label))
-    treeData.value = [{ value: 'all', label: '全部', children: roomTypeNodes }]
+    treeData.value = [{ value: 'all', label: t('accommodation.roomPriceBulk.tree.all'), children: roomTypeNodes }]
     leafMetaByKey.value = leafMeta
   } catch (error) {
     console.error('加载房型&价格计划失败:', error)
-    ElMessage.error('加载房型&价格计划失败')
+    ElMessage.error(t('accommodation.roomPriceBulk.messages.loadTreeFailed'))
   }
 }
 

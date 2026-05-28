@@ -1,14 +1,13 @@
 <template>
   <div class="task-statistics">
-    <!-- 顶部标题栏 -->
     <header class="task-header">
       <div class="header-left">
-        <h2 class="header-title">任务统计</h2>
+        <h2 class="header-title">{{ t('pages.housekeepingStatistics.title') }}</h2>
         <el-icon class="header-icon"><Calendar /></el-icon>
         <el-date-picker
           v-model="selectedMonth"
           type="month"
-          placeholder="选择月份"
+          :placeholder="t('pages.housekeepingStatistics.monthPlaceholder')"
           class="date-picker"
           format="YYYY-MM"
           value-format="YYYY-MM"
@@ -19,74 +18,90 @@
       </el-button>
     </header>
 
-    <!-- 统计汇总 -->
     <div class="summary-bar">
       <p class="summary-text">
-        共 {{ totalTasks }} 次保洁，费用 <span class="amount">¥{{ totalAmount.toFixed(2) }}</span> 元
+        {{
+          t('pages.housekeepingStatistics.summary', {
+            count: totalTasks,
+            amount: formatAmount(totalAmount),
+          })
+        }}
       </p>
     </div>
 
-    <!-- 任务记录列表 -->
     <div class="record-list">
       <div v-for="record in recordList" :key="record.id" class="record-card">
         <div class="record-main">
-          <h3 class="record-title">{{ record.type }}</h3>
-          <p class="record-room">{{ record.room }}</p>
+          <h3 class="record-title">{{ getRecordType(record.type) }}</h3>
+          <p class="record-room">{{ getRecordRoom(record.room) }}</p>
         </div>
         <div class="record-right">
           <p class="record-date">{{ record.date }}</p>
-          <p class="record-amount">¥{{ record.amount.toFixed(2) }}</p>
+          <p class="record-amount">{{ formatAmount(record.amount) }}</p>
         </div>
       </div>
 
-      <!-- 空状态 -->
-      <el-empty v-if="recordList.length === 0" description="暂无记录" />
+      <el-empty
+        v-if="recordList.length === 0"
+        :description="t('pages.housekeepingStatistics.empty')"
+      />
     </div>
 
-    <!-- 底部水印 -->
     <footer class="task-footer">
       <div class="footer-logo">
         <el-icon :size="24"><House /></el-icon>
-        <span class="footer-text">提供技术支持</span>
+        <span class="footer-text">{{ t('pages.housekeepingStatistics.footer') }}</span>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { Calendar, Refresh, House } from '@element-plus/icons-vue'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Calendar, House, Refresh } from '@element-plus/icons-vue'
 
-// 月份选择
+const { t } = useI18n()
+
 const selectedMonth = ref(new Date().toISOString().substring(0, 7))
 
-// 任务记录列表（模拟数据）
 const recordList = ref([
   {
     id: 1,
-    type: '抹尘',
-    room: '大床房-a01',
+    type: 'dusting',
+    room: 'deluxeDoubleRoomA01',
     date: '2025-10-02',
-    amount: 0.0,
+    amount: 0,
   },
 ])
 
-// 统计数据
 const totalTasks = computed(() => recordList.value.length)
-const totalAmount = computed(() =>
-  recordList.value.reduce((sum, record) => sum + record.amount, 0)
-)
+const totalAmount = computed(() => recordList.value.reduce((sum, record) => sum + record.amount, 0))
 
-// 刷新任务记录
 const handleRefresh = () => {
-  ElMessage.success('刷新成功')
-  // TODO: 调用API刷新任务记录
+  ElMessage.success(t('pages.housekeepingStatistics.messages.refreshSuccess'))
 }
 
-// 初始化
+const formatAmount = (amount: number) =>
+  t('pages.housekeepingStatistics.amount.currency', { value: amount.toFixed(2) })
+
+const getRecordType = (type: string) => {
+  const typeMap: Record<string, string> = {
+    dusting: t('pages.housekeepingStatistics.records.dusting'),
+  }
+  return typeMap[type] || type
+}
+
+const getRecordRoom = (room: string) => {
+  const roomMap: Record<string, string> = {
+    deluxeDoubleRoomA01: t('pages.housekeepingStatistics.records.deluxeDoubleRoomA01'),
+  }
+  return roomMap[room] || room
+}
+
 onMounted(() => {
-  // TODO: 加载任务记录数据
+  console.log('task statistics mounted')
 })
 </script>
 
@@ -98,7 +113,6 @@ onMounted(() => {
   flex-direction: column;
 }
 
-/* 顶部标题栏 */
 .task-header {
   background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
   padding: 16px 20px;
@@ -153,7 +167,6 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* 统计汇总 */
 .summary-bar {
   background: #f0f0f0;
   padding: 16px 20px;
@@ -166,13 +179,6 @@ onMounted(() => {
   margin: 0;
 }
 
-.amount {
-  color: #e74c3c;
-  font-weight: bold;
-  font-size: 16px;
-}
-
-/* 任务记录列表 */
 .record-list {
   flex: 1;
   padding: 16px 20px;
@@ -230,7 +236,6 @@ onMounted(() => {
   margin: 0;
 }
 
-/* 底部水印 */
 .task-footer {
   padding: 20px;
   text-align: center;
@@ -250,7 +255,6 @@ onMounted(() => {
   color: #ccc;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .task-header {
     padding: 12px 16px;

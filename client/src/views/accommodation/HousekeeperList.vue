@@ -1,15 +1,14 @@
 <template>
   <div class="housekeeper-list">
-    <!-- 提示信息栏 -->
     <div v-if="showInfoBanner" class="info-banner">
       <div class="info-content">
         <div class="info-item">
           <span class="info-number">1.</span>
-          <span class="info-text">「保洁员列表」为独立功能，和PMS中已有「账号列表」功能无关。</span>
+          <span class="info-text">{{ t('pages.housekeeperList.info.first') }}</span>
         </div>
         <div class="info-item">
           <span class="info-number">2.</span>
-          <span class="info-text">保洁员可通过关注微信公众号「PMS房务管家」，接收分派的保洁任务。</span>
+          <span class="info-text">{{ t('pages.housekeeperList.info.second') }}</span>
         </div>
       </div>
       <el-button type="text" class="close-btn" @click="closeInfoBanner">
@@ -17,11 +16,10 @@
       </el-button>
     </div>
 
-    <!-- 搜索和操作栏 -->
     <div class="search-toolbar">
       <el-input
         v-model="searchQuery"
-        placeholder="搜索保洁员姓名、保洁员手机号"
+        :placeholder="t('pages.housekeeperList.searchPlaceholder')"
         class="search-input"
         clearable
       >
@@ -30,33 +28,49 @@
         </template>
       </el-input>
 
-      <el-button type="primary" @click="handleAdd">添加保洁员</el-button>
+      <el-button type="primary" @click="handleAdd">
+        {{ t('pages.housekeeperList.add') }}
+      </el-button>
     </div>
 
-    <!-- 保洁员表格 -->
-    <el-table :data="housekeeperList" style="width: 100%" empty-text="暂无数据">
-      <el-table-column prop="name" label="保洁员姓名" width="180" />
-      <el-table-column prop="phone" label="保洁员手机号" width="180" />
-      <el-table-column prop="associatedRooms" label="关联房间" min-width="200" />
-      <el-table-column prop="wechatNickname" label="微信昵称" width="150" />
-      <el-table-column label="状态" width="120" align="center">
+    <el-table
+      :data="housekeeperList"
+      style="width: 100%"
+      :empty-text="t('pages.housekeeperList.empty')"
+    >
+      <el-table-column prop="name" :label="t('pages.housekeeperList.columns.name')" width="180" />
+      <el-table-column prop="phone" :label="t('pages.housekeeperList.columns.phone')" width="180" />
+      <el-table-column
+        prop="associatedRooms"
+        :label="t('pages.housekeeperList.columns.associatedRooms')"
+        min-width="200"
+      />
+      <el-table-column
+        prop="wechatNickname"
+        :label="t('pages.housekeeperList.columns.wechatNickname')"
+        width="150"
+      />
+      <el-table-column :label="t('pages.housekeeperList.columns.status')" width="120" align="center">
         <template #default="{ row }">
           <el-switch
             v-model="row.enabled"
-            active-text="启用"
+            :active-text="t('pages.housekeeperList.status.enabled')"
             @change="handleStatusChange(row)"
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150" align="center">
+      <el-table-column :label="t('pages.housekeeperList.columns.actions')" width="150" align="center">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-          <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          <el-button link type="primary" size="small" @click="handleEdit(row)">
+            {{ t('pages.housekeeperList.actions.edit') }}
+          </el-button>
+          <el-button link type="danger" size="small" @click="handleDelete(row)">
+            {{ t('pages.housekeeperList.actions.delete') }}
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <!-- 分页 -->
     <div class="pagination-container">
       <el-pagination
         v-model:current-page="pagination.current"
@@ -73,78 +87,76 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Close } from '@element-plus/icons-vue'
+import { Close, Search } from '@element-plus/icons-vue'
 
-// 提示信息显示状态
+const { t } = useI18n()
+
 const showInfoBanner = ref(true)
-
-// 搜索关键字
 const searchQuery = ref('')
 
-// 保洁员列表数据
 const housekeeperList = ref<any[]>([
   {
     id: 1,
-    name: '小林',
+    name: t('pages.housekeeperList.mock.nameA'),
     phone: '12345678901',
-    associatedRooms: '大床房-a01',
-    wechatNickname: '昵',
-    enabled: true
+    associatedRooms: t('pages.housekeeperList.mock.associatedRooms'),
+    wechatNickname: t('pages.housekeeperList.mock.nicknameUnknown'),
+    enabled: true,
   },
   {
     id: 2,
-    name: 'll',
+    name: t('pages.housekeeperList.mock.nameB'),
     phone: '13423456782',
-    associatedRooms: '大床房-a01',
-    wechatNickname: '绑定微信',
-    enabled: true
-  }
+    associatedRooms: t('pages.housekeeperList.mock.associatedRooms'),
+    wechatNickname: t('pages.housekeeperList.mock.nicknameBound'),
+    enabled: true,
+  },
 ])
 
-// 分页
 const pagination = ref({
   current: 1,
   size: 25,
-  total: 2
+  total: 2,
 })
 
-// 关闭提示信息
 const closeInfoBanner = () => {
   showInfoBanner.value = false
 }
 
-// 添加保洁员
 const handleAdd = () => {
-  ElMessage.info('添加保洁员功能')
+  ElMessage.info(t('pages.housekeeperList.messages.addPending'))
 }
 
-// 编辑保洁员
 const handleEdit = (row: any) => {
-  ElMessage.info(`编辑保洁员：${row.name}`)
+  ElMessage.info(t('pages.housekeeperList.messages.editPending', { name: row.name }))
 }
 
-// 删除保洁员
 const handleDelete = async (row: any) => {
   try {
-    await ElMessageBox.confirm(`确定要删除保洁员"${row.name}"吗？`, '确认删除', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    ElMessage.success('删除成功')
+    await ElMessageBox.confirm(
+      t('pages.housekeeperList.messages.deleteConfirm', { name: row.name }),
+      t('pages.housekeeperList.messages.deleteTitle'),
+      {
+        confirmButtonText: t('pages.housekeeperList.messages.confirm'),
+        cancelButtonText: t('pages.housekeeperList.messages.cancel'),
+        type: 'warning',
+      },
+    )
+    ElMessage.success(t('pages.housekeeperList.messages.deleteSuccess'))
   } catch {
-    // 取消删除
+    // no-op
   }
 }
 
-// 状态变更
 const handleStatusChange = (row: any) => {
-  const status = row.enabled ? '启用' : '禁用'
-  ElMessage.success(`已${status}保洁员：${row.name}`)
+  const status = row.enabled
+    ? t('pages.housekeeperList.status.enabled')
+    : t('pages.housekeeperList.status.disabled')
+  ElMessage.success(t('pages.housekeeperList.messages.statusChanged', { name: row.name, status }))
 }
 
-// 分页事件
 const handlePageChange = (page: number) => {
   pagination.value.current = page
 }
@@ -160,7 +172,6 @@ const handleSizeChange = (size: number) => {
   background: #fff;
 }
 
-/* 提示信息栏 */
 .info-banner {
   background: #e6f4ff;
   border: 1px solid #91caff;
@@ -206,7 +217,6 @@ const handleSizeChange = (size: number) => {
   color: #333;
 }
 
-/* 搜索和操作栏 */
 .search-toolbar {
   display: flex;
   justify-content: space-between;
@@ -218,14 +228,12 @@ const handleSizeChange = (size: number) => {
   width: 400px;
 }
 
-/* 分页容器 */
 .pagination-container {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
 }
 
-/* 响应式 */
 @media (max-width: 768px) {
   .search-toolbar {
     flex-direction: column;

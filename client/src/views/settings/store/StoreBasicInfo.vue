@@ -2,8 +2,8 @@
   <div class="store-basic-info-container">
     <!-- 标题和编辑按钮 -->
     <div class="page-header">
-      <h2 class="page-title">门店基本信息</h2>
-      <el-button type="primary" @click="handleEdit">编辑</el-button>
+      <h2 class="page-title">{{ t('settingsStage4.storeBasic.title') }}</h2>
+      <el-button type="primary" @click="handleEdit">{{ t('settings.common.edit') }}</el-button>
     </div>
 
     <!-- 信息展示卡片 -->
@@ -11,55 +11,55 @@
       <div class="info-grid">
         <!-- 第一行 -->
         <div class="info-item">
-          <span class="info-label">门店名称</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.name') }}</span>
           <span class="info-value">{{ storeInfo.name }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">门店电话</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.phone') }}</span>
           <span class="info-value">{{ storeInfo.phone }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">门店类型</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.type') }}</span>
           <span class="info-value">{{ storeInfo.type }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">时区</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.timezone') }}</span>
           <span class="info-value">{{ storeInfo.timezone }}</span>
         </div>
 
         <!-- 第二行 -->
         <div class="info-item">
-          <span class="info-label">门店ID</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.storeId') }}</span>
           <span class="info-value">{{ storeInfo.id }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">负责人</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.manager') }}</span>
           <span class="info-value">{{ storeInfo.manager }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">Owner's Email</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.ownerEmail') }}</span>
           <span class="info-value">{{ storeInfo.ownerEmail }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">创建时间</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.createdAt') }}</span>
           <span class="info-value">{{ storeInfo.createdAt }}</span>
         </div>
 
         <!-- 第三行 -->
         <div class="info-item">
-          <span class="info-label">门店地址</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.address') }}</span>
           <span class="info-value">{{ storeInfo.address }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">城市</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.city') }}</span>
           <span class="info-value">{{ storeInfo.city }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">国家和地区</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.country') }}</span>
           <span class="info-value">{{ storeInfo.country }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">货币</span>
+          <span class="info-label">{{ t('settingsStage4.storeBasic.fields.currency') }}</span>
           <span class="info-value">{{ storeInfo.currency }}</span>
         </div>
       </div>
@@ -68,37 +68,37 @@
     <!-- 编辑对话框 -->
     <el-dialog
       v-model="editDialogVisible"
-      title="编辑门店基本信息"
+      :title="t('settingsStage4.storeBasic.dialog.editTitle')"
       width="800px"
       :close-on-click-modal="false"
     >
       <el-form :model="editForm" :rules="formRules" ref="formRef" label-width="120px">
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="门店名称" prop="name">
-              <el-input v-model="editForm.name" placeholder="请输入门店名称" />
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.name')" prop="name">
+              <el-input v-model="editForm.name" :placeholder="t('settingsStage4.storeBasic.placeholders.name')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="门店电话" prop="phone">
-              <el-input v-model="editForm.phone" placeholder="请输入门店电话" />
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.phone')" prop="phone">
+              <el-input v-model="editForm.phone" :placeholder="t('settingsStage4.storeBasic.placeholders.phone')" />
             </el-form-item>
           </el-col>
         </el-row>
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="门店类型" prop="type">
-              <el-select v-model="editForm.type" placeholder="请选择门店类型" style="width: 100%">
-                <el-option label="日式旅馆" value="日式旅馆" />
-                <el-option label="酒店" value="酒店" />
-                <el-option label="民宿" value="民宿" />
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.type')" prop="type">
+              <el-select v-model="editForm.type" :placeholder="t('settingsStage4.storeBasic.placeholders.type')" style="width: 100%">
+                <el-option :label="t('settingsStage4.storeBasic.typeOptions.ryokan')" value="RYOKAN" />
+                <el-option :label="t('settingsStage4.storeBasic.typeOptions.hotel')" value="HOTEL" />
+                <el-option :label="t('settingsStage4.storeBasic.typeOptions.homestay')" value="HOMESTAY" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="时区" prop="timezone">
-              <el-select v-model="editForm.timezone" placeholder="请选择时区" style="width: 100%">
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.timezone')" prop="timezone">
+              <el-select v-model="editForm.timezone" :placeholder="t('settingsStage4.storeBasic.placeholders.timezone')" style="width: 100%">
                 <el-option label="Asia/Tokyo" value="Asia/Tokyo" />
                 <el-option label="Asia/Shanghai" value="Asia/Shanghai" />
                 <el-option label="Asia/Hong_Kong" value="Asia/Hong_Kong" />
@@ -109,30 +109,30 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="负责人" prop="manager">
-              <el-input v-model="editForm.manager" placeholder="请输入负责人姓名" />
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.manager')" prop="manager">
+              <el-input v-model="editForm.manager" :placeholder="t('settingsStage4.storeBasic.placeholders.manager')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="Owner's Email" prop="ownerEmail">
-              <el-input v-model="editForm.ownerEmail" placeholder="请输入邮箱地址" />
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.ownerEmail')" prop="ownerEmail">
+              <el-input v-model="editForm.ownerEmail" :placeholder="t('settingsStage4.storeBasic.placeholders.ownerEmail')" />
             </el-form-item>
           </el-col>
         </el-row>
 
-        <el-form-item label="门店地址" prop="address">
-          <el-input v-model="editForm.address" placeholder="请输入门店地址" />
+        <el-form-item :label="t('settingsStage4.storeBasic.fields.address')" prop="address">
+          <el-input v-model="editForm.address" :placeholder="t('settingsStage4.storeBasic.placeholders.address')" />
         </el-form-item>
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="城市" prop="city">
-              <el-input v-model="editForm.city" placeholder="请输入城市" />
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.city')" prop="city">
+              <el-input v-model="editForm.city" :placeholder="t('settingsStage4.storeBasic.placeholders.city')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="国家和地区" prop="country">
-              <el-select v-model="editForm.country" placeholder="请选择国家" style="width: 100%">
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.country')" prop="country">
+              <el-select v-model="editForm.country" :placeholder="t('settingsStage4.storeBasic.placeholders.country')" style="width: 100%">
                 <el-option label="Japan" value="Japan" />
                 <el-option label="China" value="China" />
                 <el-option label="Korea" value="Korea" />
@@ -141,8 +141,8 @@
           </el-col>
         </el-row>
 
-        <el-form-item label="货币" prop="currency">
-          <el-select v-model="editForm.currency" placeholder="请选择货币" style="width: 100%">
+        <el-form-item :label="t('settingsStage4.storeBasic.fields.currency')" prop="currency">
+          <el-select v-model="editForm.currency" :placeholder="t('settingsStage4.storeBasic.placeholders.currency')" style="width: 100%">
             <el-option label="JPY" value="JPY" />
             <el-option label="CNY" value="CNY" />
             <el-option label="USD" value="USD" />
@@ -152,8 +152,8 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelEdit">取消</el-button>
-          <el-button type="primary" @click="handleSaveEdit">保存</el-button>
+          <el-button @click="handleCancelEdit">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleSaveEdit">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -163,6 +163,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { getStoreById, updateStore, type StoreDTO } from '@/api/store'
 import { useStoreStore } from '@/stores/store'
 
@@ -184,6 +185,7 @@ interface StoreInfo {
 const editDialogVisible = ref(false)
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const { t, locale } = useI18n()
 
 // 使用 Pinia store 获取当前门店
 const storeStore = useStoreStore()
@@ -219,21 +221,21 @@ const editForm = reactive<StoreInfo>({
   currency: '',
 })
 
-const formRules: FormRules = {
-  name: [{ required: true, message: '请输入门店名称', trigger: 'blur' }],
-  phone: [{ required: true, message: '请输入门店电话', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择门店类型', trigger: 'change' }],
-  timezone: [{ required: true, message: '请选择时区', trigger: 'change' }],
-  manager: [{ required: true, message: '请输入负责人姓名', trigger: 'blur' }],
+const formRules = computed<FormRules>(() => ({
+  name: [{ required: true, message: t('settingsStage4.storeBasic.validation.nameRequired'), trigger: 'blur' }],
+  phone: [{ required: true, message: t('settingsStage4.storeBasic.validation.phoneRequired'), trigger: 'blur' }],
+  type: [{ required: true, message: t('settingsStage4.storeBasic.validation.typeRequired'), trigger: 'change' }],
+  timezone: [{ required: true, message: t('settingsStage4.storeBasic.validation.timezoneRequired'), trigger: 'change' }],
+  manager: [{ required: true, message: t('settingsStage4.storeBasic.validation.managerRequired'), trigger: 'blur' }],
   ownerEmail: [
-    { required: true, message: '请输入邮箱地址', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
+    { required: true, message: t('settingsStage4.storeBasic.validation.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('settingsStage4.storeBasic.validation.emailInvalid'), trigger: 'blur' },
   ],
-  address: [{ required: true, message: '请输入门店地址', trigger: 'blur' }],
-  city: [{ required: true, message: '请输入城市', trigger: 'blur' }],
-  country: [{ required: true, message: '请选择国家', trigger: 'change' }],
-  currency: [{ required: true, message: '请选择货币', trigger: 'change' }],
-}
+  address: [{ required: true, message: t('settingsStage4.storeBasic.validation.addressRequired'), trigger: 'blur' }],
+  city: [{ required: true, message: t('settingsStage4.storeBasic.validation.cityRequired'), trigger: 'blur' }],
+  country: [{ required: true, message: t('settingsStage4.storeBasic.validation.countryRequired'), trigger: 'change' }],
+  currency: [{ required: true, message: t('settingsStage4.storeBasic.validation.currencyRequired'), trigger: 'change' }],
+}))
 
 const handleEdit = () => {
   Object.assign(editForm, storeInfo.value)
@@ -247,7 +249,7 @@ const handleCancelEdit = () => {
 // 加载门店信息
 const loadStoreInfo = async () => {
   if (!currentStoreId.value) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.storeBasic.messages.selectStore'))
     return
   }
 
@@ -264,18 +266,18 @@ const loadStoreInfo = async () => {
         timezone: data.timezone || '',
         manager: data.manager || '',
         ownerEmail: data.ownerEmail || '',
-        createdAt: data.createdAt ? new Date(data.createdAt).toLocaleDateString('zh-CN') : '',
+        createdAt: data.createdAt ? new Date(data.createdAt).toLocaleDateString(locale.value) : '',
         address: data.address || '',
         city: data.city || '',
         country: data.country || '',
         currency: data.currency || '',
       }
     } else {
-      ElMessage.error(response.message || '加载门店信息失败')
+      ElMessage.error(response.message || t('settingsStage4.storeBasic.messages.loadFailed'))
     }
   } catch (error) {
     console.error('加载门店信息失败:', error)
-    ElMessage.error('加载门店信息失败')
+    ElMessage.error(t('settingsStage4.storeBasic.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -283,7 +285,7 @@ const loadStoreInfo = async () => {
 
 const handleSaveEdit = async () => {
   if (!currentStoreId.value) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.storeBasic.messages.selectStore'))
     return
   }
 
@@ -305,17 +307,17 @@ const handleSaveEdit = async () => {
       })
 
       if (response.success) {
-        ElMessage.success('保存成功')
+        ElMessage.success(t('settingsStage4.storeBasic.messages.saveSuccess'))
         editDialogVisible.value = false
         // 重新加载数据
         await loadStoreInfo()
       } else {
-        ElMessage.error(response.message || '保存失败')
+        ElMessage.error(response.message || t('settingsStage4.storeBasic.messages.saveFailed'))
       }
     }
   } catch (error) {
     console.error('保存失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settingsStage4.storeBasic.messages.saveFailed'))
   } finally {
     loading.value = false
   }

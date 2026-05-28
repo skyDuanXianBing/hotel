@@ -3,24 +3,12 @@
     <div class="top-nav">
       <div class="logo">
         <el-icon :size="28" color="#1890ff"><HomeFilled /></el-icon>
-        <span class="logo-text">房东智控中心（THE HOST HUB）</span>
+        <span class="logo-text">{{ t('app.name') }}</span>
       </div>
       <div class="user-info">
-        <el-dropdown trigger="click">
-          <div class="user-dropdown">
-            <el-icon><Document /></el-icon>
-            <span>简体中文</span>
-            <el-icon class="arrow-down"><ArrowDown /></el-icon>
-          </div>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>简体中文</el-dropdown-item>
-              <el-dropdown-item>English</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <LanguageSwitcher />
         <span class="user-email">{{ userEmail }}</span>
-        <el-button link type="danger" @click="handleLogout">退出</el-button>
+        <el-button link type="danger" @click="handleLogout">{{ t('layout.logout') }}</el-button>
       </div>
     </div>
 
@@ -28,13 +16,13 @@
       <div class="toolbar">
         <el-input
           v-model="searchKeyword"
-          placeholder="搜索门店名称"
+          :placeholder="t('stage6.components.storeSelection.searchPlaceholder')"
           class="search-input"
           :prefix-icon="Search"
           clearable
         />
         <el-button type="primary" size="large" @click="showCreateDialog">
-          创建新门店
+          {{ t('stage6.components.storeSelection.createStore') }}
         </el-button>
       </div>
 
@@ -42,7 +30,7 @@
         <el-icon class="is-loading" :size="40">
           <Loading />
         </el-icon>
-        <p>加载中...</p>
+        <p>{{ t('stage6.components.storeSelection.loading') }}</p>
       </div>
 
       <div v-else class="store-grid">
@@ -68,19 +56,23 @@
                 :loading="deletingStoreId === store.id"
                 @click.stop="handleDeleteStore(store)"
               >
-                删除
+                {{ t('stage6.common.actions.delete') }}
               </el-button>
             </div>
           </div>
           <div class="store-body">
             <h3 class="store-title">{{ store.name }}</h3>
-            <p class="store-validity">有效期至: {{ formatDate(store.updatedAt) }}</p>
+            <p class="store-validity">
+              {{ t('stage6.components.storeSelection.validUntil', { date: formatDate(store.updatedAt) }) }}
+            </p>
           </div>
         </div>
 
         <div v-if="filteredStores.length === 0 && !loading" class="empty-state">
-          <el-empty description="暂无门店数据">
-            <el-button type="primary" @click="showCreateDialog">创建新门店</el-button>
+          <el-empty :description="t('stage6.components.storeSelection.emptyStores')">
+            <el-button type="primary" @click="showCreateDialog">
+              {{ t('stage6.components.storeSelection.createStore') }}
+            </el-button>
           </el-empty>
         </div>
       </div>
@@ -88,14 +80,14 @@
 
     <el-dialog
       v-model="createDialogVisible"
-      title="创建新门店"
+      :title="t('stage6.components.storeSelection.createStore')"
       width="600px"
       :close-on-click-modal="false"
     >
       <template #header>
         <div class="dialog-header">
           <el-icon :size="24" color="#1890ff"><HomeFilled /></el-icon>
-          <span>创建新门店</span>
+          <span>{{ t('stage6.components.storeSelection.createStore') }}</span>
         </div>
       </template>
 
@@ -106,35 +98,35 @@
         label-position="top"
         class="create-form"
       >
-        <el-form-item label="新门店名称" prop="name">
+        <el-form-item :label="t('stage6.components.storeSelection.form.storeName')" prop="name">
           <el-input
             v-model="form.name"
-            placeholder="请输入门店名称"
+            :placeholder="t('stage6.components.storeSelection.form.storeNamePlaceholder')"
             size="large"
             maxlength="50"
           />
         </el-form-item>
 
-        <el-form-item label="房产类型" prop="type">
+        <el-form-item :label="t('stage6.components.storeSelection.form.propertyType')" prop="type">
           <el-select
             v-model="form.type"
-            placeholder="请选择房产类型"
+            :placeholder="t('stage6.components.storeSelection.form.propertyTypePlaceholder')"
             size="large"
             style="width: 100%"
           >
             <el-option
               v-for="option in PROPERTY_TYPE_OPTIONS"
               :key="option.value"
-              :label="option.label"
+              :label="getOptionLabel(PROPERTY_TYPE_OPTIONS, option.value)"
               :value="option.value"
             />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="国家" prop="country">
+        <el-form-item :label="t('stage6.components.storeSelection.form.country')" prop="country">
           <el-select
             v-model="form.country"
-            placeholder="请选择国家"
+            :placeholder="t('stage6.components.storeSelection.form.countryPlaceholder')"
             size="large"
             filterable
             style="width: 100%"
@@ -142,28 +134,28 @@
             <el-option
               v-for="option in COUNTRY_OPTIONS"
               :key="option.value"
-              :label="option.label"
+              :label="getOptionLabel(COUNTRY_OPTIONS, option.value)"
               :value="option.value"
             />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="城市" prop="city">
-          <el-input v-model="form.city" placeholder="请输入城市" size="large" />
+        <el-form-item :label="t('stage6.components.storeSelection.form.city')" prop="city">
+          <el-input v-model="form.city" :placeholder="t('stage6.components.storeSelection.form.cityPlaceholder')" size="large" />
         </el-form-item>
 
-        <el-form-item label="详细地址" prop="address">
+        <el-form-item :label="t('stage6.components.storeSelection.form.address')" prop="address">
           <el-input
             v-model="form.address"
-            placeholder="请输入详细地址"
+            :placeholder="t('stage6.components.storeSelection.form.addressPlaceholder')"
             size="large"
             type="textarea"
             :rows="2"
           />
         </el-form-item>
 
-        <el-form-item label="电话号码" prop="phone">
-          <el-input v-model="form.phone" placeholder="请输入电话号码" size="large">
+        <el-form-item :label="t('stage6.components.storeSelection.form.phone')" prop="phone">
+          <el-input v-model="form.phone" :placeholder="t('stage6.components.storeSelection.form.phonePlaceholder')" size="large">
             <template #prepend>
               <el-select v-model="phonePrefix" style="width: 100px">
                 <el-option
@@ -177,14 +169,14 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item label="联系人姓名" prop="manager">
-          <el-input v-model="form.manager" placeholder="请输入联系人姓名" size="large" />
+        <el-form-item :label="t('stage6.components.storeSelection.form.manager')" prop="manager">
+          <el-input v-model="form.manager" :placeholder="t('stage6.components.storeSelection.form.managerPlaceholder')" size="large" />
         </el-form-item>
 
-        <el-form-item label="时区" prop="timezone">
+        <el-form-item :label="t('stage6.components.storeSelection.form.timezone')" prop="timezone">
           <el-select
             v-model="form.timezone"
-            placeholder="请选择时区"
+            :placeholder="t('stage6.components.storeSelection.form.timezonePlaceholder')"
             size="large"
             filterable
             style="width: 100%"
@@ -198,33 +190,33 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="货币" prop="currency">
+        <el-form-item :label="t('stage6.components.storeSelection.form.currency')" prop="currency">
           <el-select
             v-model="form.currency"
-            placeholder="请选择货币"
+            :placeholder="t('stage6.components.storeSelection.form.currencyPlaceholder')"
             size="large"
             style="width: 100%"
           >
             <el-option
               v-for="option in CURRENCY_OPTIONS"
               :key="option.value"
-              :label="option.label"
+              :label="getOptionLabel(CURRENCY_OPTIONS, option.value)"
               :value="option.value"
             />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="语言" prop="language">
+        <el-form-item :label="t('stage6.components.storeSelection.form.language')" prop="language">
           <el-select
             v-model="form.language"
-            placeholder="请选择语言"
+            :placeholder="t('stage6.components.storeSelection.form.languagePlaceholder')"
             size="large"
             style="width: 100%"
           >
             <el-option
               v-for="option in LANGUAGE_OPTIONS"
               :key="option.value"
-              :label="option.label"
+              :label="getOptionLabel(LANGUAGE_OPTIONS, option.value)"
               :value="option.value"
             />
           </el-select>
@@ -232,26 +224,26 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="入住时间" prop="checkinTime">
+            <el-form-item :label="t('stage6.components.storeSelection.form.checkinTime')" prop="checkinTime">
               <el-time-select
                 v-model="form.checkinTime"
                 start="00:00"
                 step="00:30"
                 end="23:30"
-                placeholder="请选择入住时间"
+                :placeholder="t('stage6.components.storeSelection.form.checkinTimePlaceholder')"
                 size="large"
                 style="width: 100%"
               />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="退房时间" prop="checkoutTime">
+            <el-form-item :label="t('stage6.components.storeSelection.form.checkoutTime')" prop="checkoutTime">
               <el-time-select
                 v-model="form.checkoutTime"
                 start="00:00"
                 step="00:30"
                 end="23:30"
-                placeholder="请选择退房时间"
+                :placeholder="t('stage6.components.storeSelection.form.checkoutTimePlaceholder')"
                 size="large"
                 style="width: 100%"
               />
@@ -259,18 +251,20 @@
           </el-col>
         </el-row>
 
-        <el-form-item label="渠道直连" prop="createSuProperty">
+        <el-form-item :label="t('stage6.components.storeSelection.form.channelConnection')" prop="createSuProperty">
           <el-checkbox v-model="form.createSuProperty">
-            创建门店后同步创建/覆盖渠道物业（用于后续打开授权 Widget）
+            {{ t('stage6.components.storeSelection.form.createSuProperty') }}
           </el-checkbox>
         </el-form-item>
       </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="createDialogVisible = false" size="large">取消</el-button>
+          <el-button @click="createDialogVisible = false" size="large">
+            {{ t('stage6.common.actions.cancel') }}
+          </el-button>
           <el-button type="primary" @click="handleCreateStore" :loading="submitting" size="large">
-            创建新门店
+            {{ t('stage6.components.storeSelection.createStore') }}
           </el-button>
         </div>
       </template>
@@ -280,17 +274,17 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   Loading,
   Search,
-  Document,
-  ArrowDown,
   HomeFilled,
 } from '@element-plus/icons-vue'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import type { StoreDTO, StoreRequest } from '@/api/store'
 import {
   COUNTRY_OPTIONS,
@@ -299,12 +293,14 @@ import {
   PHONE_PREFIX_OPTIONS,
   PROPERTY_TYPE_OPTIONS,
   TIMEZONE_OPTIONS,
+  type StoreOption,
   getStoreOptionLabel,
 } from '@/constants/storeOptions'
 
 const router = useRouter()
 const storeStore = useStoreStore()
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const loading = ref(false)
 const stores = ref<StoreDTO[]>([])
@@ -337,20 +333,20 @@ const createDefaultForm = (): StoreRequest => ({
 
 const form = ref<StoreRequest>(createDefaultForm())
 
-const rules: FormRules = {
-  name: [{ required: true, message: '请输入门店名称', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择房产类型', trigger: 'change' }],
-  country: [{ required: true, message: '请选择国家', trigger: 'change' }],
-  city: [{ required: true, message: '请输入城市', trigger: 'blur' }],
-  address: [{ required: true, message: '请输入详细地址', trigger: 'blur' }],
-  phone: [{ required: true, message: '请输入电话号码', trigger: 'blur' }],
-  manager: [{ required: true, message: '请输入联系人姓名', trigger: 'blur' }],
-  timezone: [{ required: true, message: '请选择时区', trigger: 'change' }],
-  currency: [{ required: true, message: '请选择货币', trigger: 'change' }],
-  language: [{ required: true, message: '请选择语言', trigger: 'change' }],
-  checkinTime: [{ required: true, message: '请选择入住时间', trigger: 'change' }],
-  checkoutTime: [{ required: true, message: '请选择退房时间', trigger: 'change' }],
-}
+const rules = computed<FormRules>(() => ({
+  name: [{ required: true, message: t('stage6.components.storeSelection.validation.storeName'), trigger: 'blur' }],
+  type: [{ required: true, message: t('stage6.components.storeSelection.validation.propertyType'), trigger: 'change' }],
+  country: [{ required: true, message: t('stage6.components.storeSelection.validation.country'), trigger: 'change' }],
+  city: [{ required: true, message: t('stage6.components.storeSelection.validation.city'), trigger: 'blur' }],
+  address: [{ required: true, message: t('stage6.components.storeSelection.validation.address'), trigger: 'blur' }],
+  phone: [{ required: true, message: t('stage6.components.storeSelection.validation.phone'), trigger: 'blur' }],
+  manager: [{ required: true, message: t('stage6.components.storeSelection.validation.manager'), trigger: 'blur' }],
+  timezone: [{ required: true, message: t('stage6.components.storeSelection.validation.timezone'), trigger: 'change' }],
+  currency: [{ required: true, message: t('stage6.components.storeSelection.validation.currency'), trigger: 'change' }],
+  language: [{ required: true, message: t('stage6.components.storeSelection.validation.language'), trigger: 'change' }],
+  checkinTime: [{ required: true, message: t('stage6.components.storeSelection.validation.checkinTime'), trigger: 'change' }],
+  checkoutTime: [{ required: true, message: t('stage6.components.storeSelection.validation.checkoutTime'), trigger: 'change' }],
+}))
 
 const filteredStores = computed(() => {
   if (!searchKeyword.value) {
@@ -370,7 +366,7 @@ const loadStores = async () => {
   try {
     stores.value = await storeStore.fetchUserStores(true)
   } catch (error: any) {
-    ElMessage.error(error.message || '加载门店列表失败')
+    ElMessage.error(error.message || t('stage6.components.storeSelection.messages.loadStoresFailed'))
   } finally {
     loading.value = false
   }
@@ -379,12 +375,12 @@ const loadStores = async () => {
 const handleDeleteStore = async (store: StoreDTO) => {
   try {
     await ElMessageBox.confirm(
-      `确定删除门店“${store.name}”吗？删除后该门店将从列表中移除。`,
-      '删除门店',
+      t('stage6.components.storeSelection.messages.deleteConfirm', { name: store.name }),
+      t('stage6.components.storeSelection.messages.deleteTitle'),
       {
         type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('stage6.common.actions.delete'),
+        cancelButtonText: t('stage6.common.actions.cancel'),
       }
     )
   } catch {
@@ -394,18 +390,18 @@ const handleDeleteStore = async (store: StoreDTO) => {
   deletingStoreId.value = store.id
   try {
     await storeStore.deleteStore(store.id)
-    ElMessage.success('门店已删除')
+    ElMessage.success(t('stage6.components.storeSelection.messages.deleteSuccess'))
     await loadStores()
   } catch (error: any) {
     if (error?.code === '953') {
       await ElMessageBox.alert(
-        'Su 返回错误码 953：该 Property 仍与渠道存在映射，请先在 Su 侧解绑渠道映射后再重试删除门店。',
-        '无法删除门店',
-        { type: 'warning', confirmButtonText: '知道了' }
+        t('stage6.components.storeSelection.messages.suDeleteBlocked'),
+        t('stage6.components.storeSelection.messages.deleteBlockedTitle'),
+        { type: 'warning', confirmButtonText: t('stage6.components.storeSelection.messages.gotIt') }
       )
       return
     }
-    ElMessage.error(error.message || '删除门店失败')
+    ElMessage.error(error.message || t('stage6.components.storeSelection.messages.deleteFailed'))
   } finally {
     deletingStoreId.value = null
   }
@@ -413,7 +409,7 @@ const handleDeleteStore = async (store: StoreDTO) => {
 
 const selectStore = (store: StoreDTO) => {
   storeStore.setCurrentStore(store)
-  ElMessage.success(`已切换到门店: ${store.name}`)
+  ElMessage.success(t('layout.store.switched', { name: store.name }))
   router.push('/')
 }
 
@@ -444,9 +440,9 @@ const handleCreateStore = async () => {
 
     const result = await storeStore.createStore(requestData)
     const newStore = result.store
-    const message = result.message || '门店创建成功'
+    const message = result.message || t('stage6.components.storeSelection.messages.createSuccess')
 
-    if (message.includes('失败')) {
+    if (message.includes('\u5931\u8d25') || message.toLowerCase().includes('fail')) {
       ElMessage.warning(message)
     } else {
       ElMessage.success(message)
@@ -456,13 +452,15 @@ const handleCreateStore = async () => {
     await loadStores()
     selectStore(newStore)
   } catch (error: any) {
-    ElMessage.error(error.message || '创建门店失败')
+    ElMessage.error(error.message || t('stage6.components.storeSelection.messages.createFailed'))
   } finally {
     submitting.value = false
   }
 }
 
-const formatPropertyType = (value?: string) => getStoreOptionLabel(PROPERTY_TYPE_OPTIONS, value)
+const getOptionLabel = (options: StoreOption[], value?: string) => getStoreOptionLabel(options, value, t)
+
+const formatPropertyType = (value?: string) => getOptionLabel(PROPERTY_TYPE_OPTIONS, value)
 
 const handleLogout = async () => {
   await userStore.logout()

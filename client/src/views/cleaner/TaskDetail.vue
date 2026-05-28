@@ -3,7 +3,7 @@
     <!-- 顶部返回 -->
     <div class="header">
       <el-icon class="back-icon" @click="handleBack"><ArrowLeft /></el-icon>
-      <span class="title">任务详情</span>
+      <span class="title">{{ t('stage5.cleaner.dashboard.taskDetails') }}</span>
     </div>
 
     <!-- 任务信息 -->
@@ -12,25 +12,25 @@
       <div class="section">
         <div class="hotel-info">
           <el-icon class="hotel-icon"><OfficeBuilding /></el-icon>
-          <span class="hotel-name">{{ task.roomType || '标准房' }}</span>
+          <span class="hotel-name">{{ task.roomType || t('stage5.cleaner.dashboard.defaultRoomType') }}</span>
         </div>
       </div>
 
       <!-- 房型 -->
       <div class="section">
-        <div class="label">房型</div>
+        <div class="label">{{ t('stage5.cleaner.dashboard.roomType') }}</div>
         <div class="value">{{ task.roomNumber || '-' }}</div>
       </div>
 
       <!-- 房间 -->
       <div class="section">
-        <div class="label">房间</div>
+        <div class="label">{{ t('stage5.cleaner.dashboard.roomNumber') }}</div>
         <div class="value">{{ task.roomNumber || '-' }}</div>
       </div>
 
       <!-- 任务状态 -->
       <div class="section">
-        <div class="label">任务状态</div>
+        <div class="label">{{ t('stage5.cleaner.dashboard.taskStatus') }}</div>
         <div class="value">
           <el-tag
             :type="getStatusType(task.status)"
@@ -43,25 +43,25 @@
 
       <!-- 任务类型 -->
       <div class="section">
-        <div class="label">任务类型</div>
+        <div class="label">{{ t('stage5.cleaner.dashboard.taskType') }}</div>
         <div class="value">{{ getTaskTypeText(task.taskType) }}</div>
       </div>
 
       <!-- 任务时间 -->
       <div class="section">
-        <div class="label">任务时间</div>
+        <div class="label">{{ t('stage5.cleaner.dashboard.taskTime') }}</div>
         <div class="value">{{ task.estimatedTime || '10:00-16:00' }}</div>
       </div>
 
       <!-- 任务通知 -->
       <div class="section">
-        <div class="label">任务通知</div>
+        <div class="label">{{ t('stage5.cleaner.dashboard.taskNotice') }}</div>
         <div class="value">-</div>
       </div>
 
       <!-- 下个订单 -->
       <div class="section">
-        <div class="label">下个订单</div>
+        <div class="label">{{ t('stage5.cleaner.dashboard.nextOrder') }}</div>
         <div class="value">
           <div v-if="task.notes" class="order-info">
             {{ task.notes }}
@@ -80,7 +80,7 @@
         class="action-button reject-button"
         @click="handleReject"
       >
-        拒绝
+        {{ t('stage5.cleaner.dashboard.reject') }}
       </el-button>
       <el-button
         v-if="task && task.status === 'assigned'"
@@ -89,7 +89,7 @@
         class="action-button accept-button"
         @click="handleAccept"
       >
-        接受
+        {{ t('stage5.cleaner.dashboard.accept') }}
       </el-button>
       <el-button
         v-if="task && task.status === 'in_progress'"
@@ -98,7 +98,7 @@
         class="action-button complete-button"
         @click="handleComplete"
       >
-        打扫完成
+        {{ t('stage5.cleaner.dashboard.cleaningCompleted') }}
       </el-button>
     </div>
 
@@ -110,6 +110,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, OfficeBuilding } from '@element-plus/icons-vue'
 import {
@@ -123,6 +124,7 @@ import { readCleanerUser } from '@/utils/cleanerSession'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const cleanerUser = readCleanerUser()
 
 const loading = ref(false)
@@ -132,7 +134,7 @@ const task = ref<CleaningTaskDTO | null>(null)
 const loadTaskDetail = async () => {
   const taskId = route.params.id as string
   if (!taskId) {
-    ElMessage.error('任务ID无效')
+    ElMessage.error(t('stage5.cleaner.dashboard.invalidTaskId'))
     return
   }
 
@@ -143,11 +145,11 @@ const loadTaskDetail = async () => {
     if (response.success && response.data) {
       task.value = response.data
     } else {
-      ElMessage.error(response.message || '获取任务详情失败')
+      ElMessage.error(response.message || t('stage5.cleaner.dashboard.loadTaskDetailFailed'))
     }
   } catch (error) {
-    console.error('加载任务详情失败:', error)
-    ElMessage.error('加载任务详情失败')
+    console.error('Failed to load cleaner task detail:', error)
+    ElMessage.error(t('stage5.cleaner.dashboard.loadTaskDetailFailed'))
   } finally {
     loading.value = false
   }
@@ -167,16 +169,16 @@ const handleAccept = async () => {
     const response = await acceptCleaningTask(task.value.id)
 
     if (response.success) {
-      ElMessage.success('已接受任务')
+      ElMessage.success(t('stage5.cleaner.dashboard.acceptedTask'))
       // 更新任务状态
       task.value.status = 'in_progress'
       task.value.startTime = new Date().toISOString()
     } else {
-      ElMessage.error(response.message || '接受任务失败')
+      ElMessage.error(response.message || t('stage5.cleaner.dashboard.actionFailed'))
     }
   } catch (error) {
-    console.error('接受任务失败:', error)
-    ElMessage.error('接受任务失败')
+    console.error('Failed to accept cleaning task:', error)
+    ElMessage.error(t('stage5.cleaner.dashboard.actionFailed'))
   } finally {
     loading.value = false
   }
@@ -187,9 +189,9 @@ const handleReject = async () => {
   if (!task.value) return
 
   try {
-    await ElMessageBox.confirm('确定要拒绝这个任务吗?', '确认拒绝', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('stage5.cleaner.dashboard.confirmRejectMessage'), t('stage5.cleaner.dashboard.confirmRejectTitle'), {
+      confirmButtonText: t('stage5.cleaner.dashboard.confirmButton'),
+      cancelButtonText: t('stage5.common.actions.cancel'),
       type: 'warning',
     })
 
@@ -197,15 +199,15 @@ const handleReject = async () => {
     const response = await rejectCleaningTask(task.value.id)
 
     if (response.success) {
-      ElMessage.success('已拒绝任务')
+      ElMessage.success(t('stage5.cleaner.dashboard.rejectedTask'))
       router.back()
     } else {
-      ElMessage.error(response.message || '拒绝任务失败')
+      ElMessage.error(response.message || t('stage5.cleaner.dashboard.actionFailed'))
     }
   } catch (error: any) {
     if (error !== 'cancel') {
-      console.error('拒绝任务失败:', error)
-      ElMessage.error('拒绝任务失败')
+      console.error('Failed to reject cleaning task:', error)
+      ElMessage.error(t('stage5.cleaner.dashboard.actionFailed'))
     }
   } finally {
     loading.value = false
@@ -221,7 +223,7 @@ const handleComplete = async () => {
     const response = await completeCleaningTask(task.value.id)
 
     if (response.success) {
-      ElMessage.success('打扫完成')
+      ElMessage.success(t('stage5.cleaner.dashboard.completedCleaning'))
       // 更新任务状态
       task.value.status = 'completed'
       task.value.completeTime = new Date().toISOString()
@@ -231,11 +233,11 @@ const handleComplete = async () => {
         router.back()
       }, 1500)
     } else {
-      ElMessage.error(response.message || '操作失败')
+      ElMessage.error(response.message || t('stage5.cleaner.dashboard.actionFailed'))
     }
   } catch (error) {
-    console.error('完成任务失败:', error)
-    ElMessage.error('操作失败')
+    console.error('Failed to complete cleaning task:', error)
+    ElMessage.error(t('stage5.cleaner.dashboard.actionFailed'))
   } finally {
     loading.value = false
   }
@@ -244,11 +246,11 @@ const handleComplete = async () => {
 // 获取状态文本
 const getStatusText = (status: string): string => {
   const statusMap: Record<string, string> = {
-    expired: '已过期',
-    pending: '待分配',
-    assigned: '待接受',
-    in_progress: '待打扫',
-    completed: '已完成',
+    expired: t('stage5.cleaner.dashboard.status.expired'),
+    pending: t('stage5.cleaner.dashboard.status.pending'),
+    assigned: t('stage5.cleaner.dashboard.status.assigned'),
+    in_progress: t('stage5.cleaner.dashboard.status.inProgress'),
+    completed: t('stage5.cleaner.dashboard.status.completed'),
   }
   return statusMap[status] || status
 }
@@ -268,16 +270,16 @@ const getStatusType = (status: string): string => {
 // 获取任务类型文本
 const getTaskTypeText = (taskType: string): string => {
   const typeMap: Record<string, string> = {
-    checkout: '退房清洁',
-    daily: '日常清洁',
-    deep: '深度清洁',
+    checkout: t('stage5.cleaner.dashboard.taskTypes.checkout'),
+    daily: t('stage5.cleaner.dashboard.taskTypes.daily'),
+    deep: t('stage5.cleaner.dashboard.taskTypes.deep'),
   }
   return typeMap[taskType] || taskType
 }
 
 onMounted(() => {
   if (!cleanerUser) {
-    ElMessage.error('登录状态已失效，请重新登录')
+    ElMessage.error(t('stage5.cleaner.dashboard.sessionExpired'))
     router.replace('/cleaner/login')
     return
   }

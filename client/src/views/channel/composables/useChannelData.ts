@@ -1,4 +1,5 @@
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { getAllOtaIntegrations, getSuMappingStatus, type OtaIntegrationDTO } from '@/api/otaIntegration'
 import {
@@ -23,6 +24,8 @@ import { CHANNEL_LOGO_MAP } from '../constants'
  * 渠道管理页面共享业务逻辑
  */
 export function useChannelData() {
+  const { t } = useI18n()
+
   // ──────────── OTA 渠道列表 ────────────
   const otaChannels = ref<ChannelItem[]>([])
   const channelsLoading = ref(false)
@@ -70,7 +73,7 @@ export function useChannelData() {
       }
     } catch (error) {
       console.error('加载OTA直连渠道数据失败:', error)
-      ElMessage.error('加载OTA直连渠道数据失败')
+      ElMessage.error(t('channel.messages.loadOtaFailed'))
     } finally {
       channelsLoading.value = false
     }
@@ -122,11 +125,19 @@ export function useChannelData() {
           let ratio: string
 
           if (adjustmentValue === 0) {
-            ratio = '等同于基本价格'
+            ratio = t('channel.priceRatio.sameAsBase')
           } else {
             const unit = item.adjustmentType === 'FIXED' ? '¥' : '%'
-            const typeText = adjustmentValue > 0 ? '贵' : '便宜'
-            ratio = `${Math.abs(adjustmentValue)} ${unit} 比基准价${typeText}`
+            ratio =
+              adjustmentValue > 0
+                ? t('channel.priceRatio.moreExpensiveThanBase', {
+                    value: Math.abs(adjustmentValue),
+                    unit,
+                  })
+                : t('channel.priceRatio.cheaperThanBase', {
+                    value: Math.abs(adjustmentValue),
+                    unit,
+                  })
           }
 
           return {
@@ -141,31 +152,13 @@ export function useChannelData() {
       }
     } catch (error) {
       console.error('加载价格比例数据失败:', error)
-      ElMessage.error('加载价格比例数据失败')
+      ElMessage.error(t('channel.priceRatio.updateFailed'))
     } finally {
       priceRatioLoading.value = false
     }
   }
 
-  // ──────────── 价格比例解析 / 格式化 ────────────
-
-  /** 解析现有 ratio 字符串 */
-  const parseRatioString = (
-    ratio: string,
-  ): { type: 'cheaper' | 'expensive'; value: number; unit: '%' | '¥' } => {
-    const defaultResult = { type: 'cheaper' as const, value: 0, unit: '%' as const }
-    if (ratio === '等同于基本价格') return defaultResult
-
-    const match = ratio.match(/(\d+)\s*([%¥])\s*比基准价(贵|便宜)/)
-    if (match) {
-      return {
-        type: match[3] === '贵' ? 'expensive' : 'cheaper',
-        value: parseInt(match[1], 10),
-        unit: match[2] as '%' | '¥',
-      }
-    }
-    return defaultResult
-  }
+  // ──────────── 价格比例格式化 ────────────
 
   /** 将编辑态转为显示字符串 */
   const formatRatioString = (
@@ -173,9 +166,10 @@ export function useChannelData() {
     value: number,
     unit: '%' | '¥',
   ): string => {
-    if (value === 0) return '等同于基本价格'
-    const typeText = type === 'expensive' ? '贵' : '便宜'
-    return `${value} ${unit} 比基准价${typeText}`
+    if (value === 0) return t('channel.priceRatio.sameAsBase')
+    return type === 'expensive'
+      ? t('channel.priceRatio.moreExpensiveThanBase', { value, unit })
+      : t('channel.priceRatio.cheaperThanBase', { value, unit })
   }
 
   /** 保存价格比例 */
@@ -216,15 +210,15 @@ export function useChannelData() {
             autoSyncPrice,
           }
         }
-        ElMessage.success('价格比例已更新')
+        ElMessage.success(t('channel.priceRatio.updated'))
         return true
       } else {
-        ElMessage.error(response.message || '更新失败')
+        ElMessage.error(response.message || t('channel.priceRatio.updateFailed'))
         return false
       }
     } catch (error) {
       console.error('更新价格比例失败:', error)
-      ElMessage.error('更新价格比例失败，请重试')
+      ElMessage.error(t('channel.priceRatio.retryFailed'))
       return false
     }
   }
@@ -286,7 +280,6 @@ export function useChannelData() {
     priceRatioData,
     priceRatioLoading,
     loadPriceRatioData,
-    parseRatioString,
     formatRatioString,
     savePriceRatio,
     // 工具

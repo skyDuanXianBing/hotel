@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter, useRoute } from 'vue-router'
 import {
   Setting,
@@ -22,6 +23,7 @@ import {
 const router = useRouter()
 const route = useRoute()
 const permissionStore = usePermissionStore()
+const { t } = useI18n()
 
 // 侧边栏折叠状态
 const isCollapsed = ref(false)
@@ -53,70 +55,70 @@ const accountSettingsPermission: PermissionRequirement[] = [
 const menuItems: MenuItem[] = [
   {
     key: 'room',
-    label: '住宿设置',
+    label: 'settings.layout.groups.room',
     icon: House,
     children: [
-      { key: 'room-type', label: '房间设置', path: '/settings/room-type', requiredPermissions: storeSettingsPermission },
-      { key: 'price-plan', label: '价格计划', path: '/settings/room/price-plan', requiredPermissions: storeSettingsPermission },
-      { key: 'consumption-items', label: '消费项设置', path: '/settings/room/consumption-items', requiredPermissions: storeSettingsPermission },
-      { key: 'room-group', label: '房间分组设置', path: '/settings/room/room-group', requiredPermissions: storeSettingsPermission },
-      { key: 'room-sort', label: '排序设置', path: '/settings/room/room-sort', requiredPermissions: storeSettingsPermission },
+      { key: 'room-type', label: 'settings.layout.items.roomType', path: '/settings/room-type', requiredPermissions: storeSettingsPermission },
+      { key: 'price-plan', label: 'settings.layout.items.pricePlan', path: '/settings/room/price-plan', requiredPermissions: storeSettingsPermission },
+      { key: 'consumption-items', label: 'settings.layout.items.consumptionItems', path: '/settings/room/consumption-items', requiredPermissions: storeSettingsPermission },
+      { key: 'room-group', label: 'settings.layout.items.roomGroup', path: '/settings/room/room-group', requiredPermissions: storeSettingsPermission },
+      { key: 'room-sort', label: 'settings.layout.items.roomSort', path: '/settings/room/room-sort', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
     key: 'finance',
-    label: '财务设置',
+    label: 'settings.layout.groups.finance',
     icon: Coin,
     children: [
-      { key: 'payment-methods', label: '收款方式', path: '/settings/payment-methods', requiredPermissions: storeSettingsPermission },
-      { key: 'note-settings', label: '记一笔设置', path: '/settings/finance/note-settings', requiredPermissions: storeSettingsPermission },
+      { key: 'payment-methods', label: 'settings.layout.items.paymentMethods', path: '/settings/payment-methods', requiredPermissions: storeSettingsPermission },
+      { key: 'note-settings', label: 'settings.layout.items.noteSettings', path: '/settings/finance/note-settings', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
     key: 'finance-account',
-    label: '账号管理',
+    label: 'settings.layout.groups.account',
     icon: Grid,
     children: [
-      { key: 'account-list', label: '账号列表', path: '/settings/account/account-list', requiredPermissions: accountSettingsPermission },
-      { key: 'role-management', label: '角色管理', path: '/settings/account/role-management', requiredPermissions: accountSettingsPermission },
+      { key: 'account-list', label: 'settings.layout.items.accountList', path: '/settings/account/account-list', requiredPermissions: accountSettingsPermission },
+      { key: 'role-management', label: 'settings.layout.items.roleManagement', path: '/settings/account/role-management', requiredPermissions: accountSettingsPermission },
     ],
   },
   {
     key: 'store',
-    label: '门店设置',
+    label: 'settings.layout.groups.store',
     icon: Shop,
     children: [
-      { key: 'store-basic-info', label: '基本信息', path: '/settings/store/basic-info', requiredPermissions: storeSettingsPermission },
-      { key: 'store-details', label: '门店详情', path: '/settings/store/details', requiredPermissions: storeSettingsPermission },
+      { key: 'store-basic-info', label: 'settings.layout.items.storeBasicInfo', path: '/settings/store/basic-info', requiredPermissions: storeSettingsPermission },
+      { key: 'store-details', label: 'settings.layout.items.storeDetails', path: '/settings/store/details', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
     key: 'general',
-    label: '通用设置',
+    label: 'settings.layout.groups.general',
     icon: Setting,
     children: [
-      { key: 'notification-settings', label: '通知设置', path: '/settings/general/notification', requiredPermissions: storeSettingsPermission },
-      { key: 'channel-settings', label: '渠道设置', path: '/settings/general/channel', requiredPermissions: storeSettingsPermission },
-      { key: 'quick-reply', label: '快捷回复', path: '/settings/general/quick-reply', requiredPermissions: storeSettingsPermission },
-      { key: 'auto-message', label: '自动化消息', path: '/settings/general/auto-message', requiredPermissions: storeSettingsPermission },
+      { key: 'notification-settings', label: 'settings.layout.items.notificationSettings', path: '/settings/general/notification', requiredPermissions: storeSettingsPermission },
+      { key: 'channel-settings', label: 'settings.layout.items.channelSettings', path: '/settings/general/channel', requiredPermissions: storeSettingsPermission },
+      { key: 'quick-reply', label: 'settings.layout.items.quickReply', path: '/settings/general/quick-reply', requiredPermissions: storeSettingsPermission },
+      { key: 'auto-message', label: 'settings.layout.items.autoMessage', path: '/settings/general/auto-message', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
     key: 'cleaning',
-    label: '保洁设置',
+    label: 'settings.layout.groups.cleaning',
     icon: BrushFilled,
     children: [
-      { key: 'cleaning-settings', label: '设置', path: '/settings/cleaning/settings', requiredPermissions: storeSettingsPermission },
-      { key: 'cleaning-supplies', label: '易耗品', path: '/settings/cleaning/supplies', requiredPermissions: storeSettingsPermission },
+      { key: 'cleaning-settings', label: 'settings.layout.items.cleaningSettings', path: '/settings/cleaning/settings', requiredPermissions: storeSettingsPermission },
+      { key: 'cleaning-supplies', label: 'settings.layout.items.cleaningSupplies', path: '/settings/cleaning/supplies', requiredPermissions: storeSettingsPermission },
     ],
   },
   {
     key: 'third-party',
-    label: '第三方集成',
+    label: 'settings.layout.groups.thirdParty',
     icon: Connection,
     children: [
-      { key: 'pricing-tools', label: '定价工具', path: '/settings/third-party/pricing-tools', requiredPermissions: storeSettingsPermission },
-      { key: 'payment-platforms', label: '支付平台', path: '/settings/third-party/payment-platforms', requiredPermissions: storeSettingsPermission },
+      { key: 'pricing-tools', label: 'settings.layout.items.pricingTools', path: '/settings/third-party/pricing-tools', requiredPermissions: storeSettingsPermission },
+      { key: 'payment-platforms', label: 'settings.layout.items.paymentPlatforms', path: '/settings/third-party/payment-platforms', requiredPermissions: storeSettingsPermission },
     ],
   },
 ]
@@ -149,7 +151,7 @@ const isActive = (path: string) => {
 }
 
 const getMenuTitle = () => {
-  return route.meta?.title || '设置'
+  return route.meta?.title || t('settings.layout.fallbackTitle')
 }
 </script>
 
@@ -168,7 +170,7 @@ const getMenuTitle = () => {
         <!-- 收起导航按钮 -->
         <div class="sidebar-header" @click="toggleSidebar">
           <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
-          <span v-if="!isCollapsed" class="sidebar-title">收起导航</span>
+          <span v-if="!isCollapsed" class="sidebar-title">{{ t('settings.layout.collapseNavigation') }}</span>
           <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
           <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
         </div>
@@ -178,7 +180,7 @@ const getMenuTitle = () => {
             <template #title>
               <div class="menu-title">
                 <el-icon><component :is="item.icon" /></el-icon>
-                <span v-if="!isCollapsed">{{ item.label }}</span>
+                <span v-if="!isCollapsed">{{ t(item.label) }}</span>
               </div>
             </template>
 
@@ -189,7 +191,7 @@ const getMenuTitle = () => {
                 :class="['menu-item', { active: isActive(child.path!) }]"
                 @click="handleMenuClick(child)"
               >
-                {{ child.label }}
+                {{ t(child.label) }}
               </div>
             </div>
           </el-collapse-item>

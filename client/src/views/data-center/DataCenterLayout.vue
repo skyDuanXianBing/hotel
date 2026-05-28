@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { DataAnalysis } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 interface MenuItem {
   key: string
@@ -12,11 +14,11 @@ interface MenuItem {
   path: string
 }
 
-const menuItems: MenuItem[] = [
-  { key: 'overview', label: '总览', path: '/data-center/overview' },
-  { key: 'accommodation', label: '住宿', path: '/data-center/accommodation' },
-  { key: 'notes', label: '记一笔', path: '/data-center/notes' },
-]
+const menuItems = computed<MenuItem[]>(() => [
+  { key: 'overview', label: t('stage5.dataCenter.layout.menu.overview'), path: '/data-center/overview' },
+  { key: 'accommodation', label: t('stage5.dataCenter.layout.menu.accommodation'), path: '/data-center/accommodation' },
+  { key: 'notes', label: t('stage5.dataCenter.layout.menu.notes'), path: '/data-center/notes' },
+])
 
 const handleMenuClick = (item: MenuItem) => {
   if (item.path) {
@@ -29,7 +31,8 @@ const isActive = (path: string) => {
 }
 
 const getMenuTitle = () => {
-  return route.meta?.title || '数据中心'
+  const current = menuItems.value.find((item) => item.path === route.path)
+  return current?.label || t('stage5.dataCenter.layout.dataCenter')
 }
 </script>
 
@@ -38,7 +41,7 @@ const getMenuTitle = () => {
     <!-- 面包屑导航 -->
     <div class="breadcrumb-section">
       <el-breadcrumb separator="/">
-        <el-breadcrumb-item>数据中心</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ t('stage5.dataCenter.layout.dataCenter') }}</el-breadcrumb-item>
         <el-breadcrumb-item>{{ getMenuTitle() }}</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
@@ -48,7 +51,7 @@ const getMenuTitle = () => {
       <aside class="data-center-sidebar">
         <div class="sidebar-header">
           <el-icon size="20"><DataAnalysis /></el-icon>
-          <span class="sidebar-title">数据分析</span>
+          <span class="sidebar-title">{{ t('stage5.dataCenter.layout.dataAnalysis') }}</span>
         </div>
         <div class="menu-list">
           <div

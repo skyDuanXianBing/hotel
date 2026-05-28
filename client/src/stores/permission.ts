@@ -7,6 +7,7 @@ import {
 } from '@/api/role'
 import { getMyStorePermissions } from '@/api/store'
 import { useStoreStore } from '@/stores/store'
+import { i18n } from '@/locales'
 
 export interface PermissionRequirement {
   module: PermissionModule
@@ -23,6 +24,8 @@ const buildPermissionKey = (permission: PermissionDTO) =>
     permission.roomTypeId ?? 0,
     permission.allRoomTypes ? 1 : 0,
   ].join('|')
+
+const translate = (key: string) => i18n.global.t(key)
 
 export const usePermissionStore = defineStore('permission', () => {
   const storeStore = useStoreStore()
@@ -63,7 +66,7 @@ export const usePermissionStore = defineStore('permission', () => {
     try {
       const response = await getMyStorePermissions(currentStoreId.value)
       if (!response.success) {
-        throw new Error(response.message || '获取当前门店权限失败')
+        throw new Error(response.message || translate('stage6.common.messages.fetchStorePermissionsFailed'))
       }
       permissions.value = response.data || []
       loadedStoreId.value = currentStoreId.value

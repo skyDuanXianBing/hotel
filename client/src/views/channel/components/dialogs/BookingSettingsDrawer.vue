@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import type { BookingSettings } from '../../types'
 
@@ -12,6 +13,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   save: [data: BookingSettings]
 }>()
+
+const { t } = useI18n()
 
 /** 本地编辑副本，避免直接修改 prop */
 const localForm = ref<BookingSettings>({ ...props.settings })
@@ -37,7 +40,7 @@ function handleSave() {
 <template>
   <el-drawer
     :model-value="modelValue"
-    title="预定设置"
+    :title="t('channel.dialogs.bookingSettings.title')"
     direction="rtl"
     size="400px"
     :before-close="handleClose"
@@ -47,82 +50,82 @@ function handleSave() {
       <!-- 提前预订量 -->
       <div class="form-item">
         <div class="form-label">
-          <span>提前预订量</span>
+          <span>{{ t('channel.dialogs.bookingSettings.advanceBooking') }}</span>
           <el-icon class="help-icon"><QuestionFilled /></el-icon>
         </div>
-        <div class="form-desc">你需要客人提前多少小时预订?</div>
+        <div class="form-desc">{{ t('channel.dialogs.bookingSettings.advanceBookingDesc') }}</div>
         <div class="form-control">
-          <el-select v-model="localForm.advanceBookingHours" placeholder="请选择">
+          <el-select v-model="localForm.advanceBookingHours" :placeholder="t('channel.dialogs.bookingSettings.select')">
             <el-option
               v-for="i in [1, 2, 3, 6, 12, 24, 48]"
               :key="i"
-              :label="`${i} 小时`"
+              :label="t('channel.dialogs.bookingSettings.hours', { count: i })"
               :value="i"
             />
           </el-select>
-          <span class="control-unit">小时</span>
+          <span class="control-unit">{{ t('channel.dialogs.bookingSettings.hourUnit') }}</span>
         </div>
       </div>
 
       <!-- 未在邀请时间完成 -->
       <div class="form-item">
-        <div class="form-desc">未在您的邀请时间段完成的预订将变为"预订申请"。</div>
+        <div class="form-desc">{{ t('channel.dialogs.bookingSettings.approvalDesc') }}</div>
         <el-radio-group v-model="localForm.requireApproval">
-          <el-radio :value="true">是</el-radio>
-          <el-radio :value="false">否</el-radio>
+          <el-radio :value="true">{{ t('channel.dialogs.bookingSettings.yes') }}</el-radio>
+          <el-radio :value="false">{{ t('channel.dialogs.bookingSettings.no') }}</el-radio>
         </el-radio-group>
       </div>
 
       <!-- 准备时间 -->
       <div class="form-item">
         <div class="form-label">
-          <span>准备时间</span>
+          <span>{{ t('channel.dialogs.bookingSettings.preparationTime') }}</span>
         </div>
-        <div class="form-desc">预订日期和入住日之间隔最大天数。</div>
+        <div class="form-desc">{{ t('channel.dialogs.bookingSettings.preparationDesc') }}</div>
         <div class="form-control">
-          <el-select v-model="localForm.preparationNights" placeholder="请选择">
-            <el-option label="无" :value="0" />
+          <el-select v-model="localForm.preparationNights" :placeholder="t('channel.dialogs.bookingSettings.select')">
+            <el-option :label="t('channel.dialogs.bookingSettings.none')" :value="0" />
             <el-option
               v-for="i in [1, 2, 3, 5, 7]"
               :key="i"
-              :label="`${i} 晚`"
+              :label="t('channel.dialogs.bookingSettings.nights', { count: i })"
               :value="i"
             />
           </el-select>
-          <span class="control-unit">晚</span>
+          <span class="control-unit">{{ t('channel.dialogs.bookingSettings.nightUnit') }}</span>
         </div>
       </div>
 
       <!-- 预订开放期 -->
       <div class="form-item">
         <div class="form-label">
-          <span>预订开放期</span>
+          <span>{{ t('channel.dialogs.bookingSettings.bookingWindow') }}</span>
           <el-icon class="help-icon"><QuestionFilled /></el-icon>
         </div>
-        <div class="form-desc">预订日期和入住日之间隔最大天数。</div>
+        <div class="form-desc">{{ t('channel.dialogs.bookingSettings.bookingWindowDesc') }}</div>
         <div class="form-control">
-          <el-select v-model="localForm.bookingWindowDays" placeholder="请选择">
+          <el-select v-model="localForm.bookingWindowDays" :placeholder="t('channel.dialogs.bookingSettings.select')">
             <el-option
               v-for="i in [30, 60, 90, 180, 365, 730]"
               :key="i"
-              :label="`${i} 天`"
+              :label="t('channel.dialogs.bookingSettings.days', { count: i })"
               :value="i"
             />
           </el-select>
-          <span class="control-unit">天</span>
+          <span class="control-unit">{{ t('channel.dialogs.bookingSettings.dayUnit') }}</span>
         </div>
       </div>
 
       <!-- 入住窗口 -->
       <div class="form-item">
         <div class="form-label">
-          <span>入住窗口</span>
+          <span>{{ t('channel.dialogs.bookingSettings.checkInWindow') }}</span>
         </div>
 
         <!-- 入住开始时间 -->
         <div class="form-subitem">
-          <div class="form-desc">入住开始时间</div>
-          <el-select v-model="localForm.checkInStartTime" placeholder="请选择">
+          <div class="form-desc">{{ t('channel.dialogs.bookingSettings.checkInStart') }}</div>
+          <el-select v-model="localForm.checkInStartTime" :placeholder="t('channel.dialogs.bookingSettings.select')">
             <el-option
               v-for="hour in 24"
               :key="hour"
@@ -134,9 +137,9 @@ function handleSave() {
 
         <!-- 入住结束时间 -->
         <div class="form-subitem">
-          <div class="form-desc">入住结束时间</div>
-          <el-select v-model="localForm.checkInEndTime" placeholder="请选择">
-            <el-option label="不限" value="" />
+          <div class="form-desc">{{ t('channel.dialogs.bookingSettings.checkInEnd') }}</div>
+          <el-select v-model="localForm.checkInEndTime" :placeholder="t('channel.dialogs.bookingSettings.select')">
+            <el-option :label="t('channel.dialogs.bookingSettings.unlimited')" value="" />
             <el-option
               v-for="hour in 24"
               :key="hour"
@@ -150,11 +153,11 @@ function handleSave() {
       <!-- 离店时间 -->
       <div class="form-item">
         <div class="form-label">
-          <span>离店时间</span>
+          <span>{{ t('channel.dialogs.bookingSettings.checkOutTime') }}</span>
         </div>
         <div class="form-subitem">
-          <div class="form-desc">之前离店</div>
-          <el-select v-model="localForm.checkOutTime" placeholder="请选择">
+          <div class="form-desc">{{ t('channel.dialogs.bookingSettings.beforeCheckOut') }}</div>
+          <el-select v-model="localForm.checkOutTime" :placeholder="t('channel.dialogs.bookingSettings.select')">
             <el-option
               v-for="hour in 24"
               :key="hour"
@@ -169,8 +172,8 @@ function handleSave() {
     <!-- 抽屉底部按钮 -->
     <template #footer>
       <div class="drawer-footer">
-        <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSave">保存</el-button>
+        <el-button @click="handleClose">{{ t('channel.dialogs.common.cancel') }}</el-button>
+        <el-button type="primary" @click="handleSave">{{ t('channel.dialogs.common.save') }}</el-button>
       </div>
     </template>
   </el-drawer>

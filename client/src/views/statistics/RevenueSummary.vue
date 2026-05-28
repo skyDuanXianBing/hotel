@@ -3,26 +3,26 @@
     <div class="revenue-summary-content">
       <!-- 日期选择器 -->
       <div class="date-selector">
-        <el-select v-model="dateRange" class="date-quick-select" placeholder="自定义">
-          <el-option label="今天" value="today" />
-          <el-option label="昨天" value="yesterday" />
-          <el-option label="本周" value="this-week" />
-          <el-option label="本月" value="this-month" />
-          <el-option label="自定义" value="custom" />
+        <el-select v-model="dateRange" class="date-quick-select" :placeholder="t('stage5.common.date.custom')">
+          <el-option :label="t('stage5.common.date.today')" value="today" />
+          <el-option :label="t('stage5.common.date.yesterday')" value="yesterday" />
+          <el-option :label="t('stage5.common.date.thisWeek')" value="this-week" />
+          <el-option :label="t('stage5.common.date.thisMonth')" value="this-month" />
+          <el-option :label="t('stage5.common.date.custom')" value="custom" />
         </el-select>
         <el-date-picker
           v-model="startDate"
           type="date"
-          placeholder="开始日期"
+          :placeholder="t('stage5.common.date.startDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           class="date-picker"
         />
-        <span class="date-separator">至</span>
+        <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
         <el-date-picker
           v-model="endDate"
           type="date"
-          placeholder="结束日期"
+          :placeholder="t('stage5.common.date.endDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           class="date-picker"
@@ -32,25 +32,25 @@
       <!-- 流水概况 -->
       <div class="overview-section">
         <div class="section-header">
-          <h2>流水概况</h2>
-          <span class="section-info">统计说明 <el-icon><QuestionFilled /></el-icon></span>
+          <h2>{{ t('stage5.statistics.revenue.overview') }}</h2>
+          <span class="section-info">{{ t('stage5.statistics.common.statsInfo') }} <el-icon><QuestionFilled /></el-icon></span>
         </div>
 
         <!-- Tab 切换 -->
         <el-tabs v-model="activeTab" class="overview-tabs">
-          <el-tab-pane label="支付方式" name="payment"></el-tab-pane>
-          <el-tab-pane label="款项分类" name="category"></el-tab-pane>
+          <el-tab-pane :label="t('stage5.statistics.revenue.paymentMethod')" name="payment"></el-tab-pane>
+          <el-tab-pane :label="t('stage5.statistics.revenue.category')" name="category"></el-tab-pane>
         </el-tabs>
 
         <!-- 流水卡片 -->
         <div class="revenue-cards">
           <!-- 总流水卡片 -->
           <div class="total-card">
-            <div class="card-title">总流水</div>
+            <div class="card-title">{{ t('stage5.statistics.revenue.totalRevenue') }}</div>
             <div class="card-amount">¥ {{ totalRevenue.toFixed(2) }}</div>
             <div class="card-details">
-              <span>总收款 ¥ {{ totalIncome.toFixed(2) }}</span>
-              <span>总支出 ¥ {{ totalExpense.toFixed(2) }}</span>
+              <span>{{ t('stage5.statistics.revenue.totalIncome') }} ¥ {{ totalIncome.toFixed(2) }}</span>
+              <span>{{ t('stage5.statistics.revenue.totalExpense') }} ¥ {{ totalExpense.toFixed(2) }}</span>
             </div>
           </div>
 
@@ -71,13 +71,13 @@
         <div class="chart-row">
           <!-- 总收款分布 -->
           <div class="chart-container">
-            <div class="chart-title">总收款分布</div>
+            <div class="chart-title">{{ t('stage5.statistics.revenue.incomeDistribution') }}</div>
             <div ref="incomeChartRef" class="pie-chart"></div>
           </div>
 
           <!-- 总支出分布 -->
           <div class="chart-container">
-            <div class="chart-title">总支出分布</div>
+            <div class="chart-title">{{ t('stage5.statistics.revenue.expenseDistribution') }}</div>
             <div ref="expenseChartRef" class="pie-chart"></div>
           </div>
         </div>
@@ -86,8 +86,8 @@
       <!-- 流水明细 -->
       <div class="details-section">
         <div class="details-header">
-          <h3>流水明细 ({{ formatDateRange }})</h3>
-          <el-button type="primary" @click="handleExport">导出明细</el-button>
+          <h3>{{ t('stage5.statistics.revenue.details') }} {{ t('stage5.statistics.common.detailsPeriod', { period: formatDateRange }) }}</h3>
+          <el-button type="primary" @click="handleExport">{{ t('stage5.common.actions.exportDetails') }}</el-button>
         </div>
 
         <div class="details-table">
@@ -99,13 +99,13 @@
             :summary-method="getSummaries"
             border
           >
-            <el-table-column prop="paymentMethod" label="支付方式" width="120" fixed>
+            <el-table-column prop="paymentMethod" :label="t('stage5.statistics.revenue.paymentMethod')" width="120" fixed>
               <template #default="{ row }">
                 <span class="payment-name">{{ row.paymentMethod }}</span>
               </template>
             </el-table-column>
 
-            <el-table-column prop="total" label="合计" width="120" align="right" fixed>
+            <el-table-column prop="total" :label="t('stage5.common.fields.total')" width="120" align="right" fixed>
               <template #default="{ row }">
                 <span class="amount-value">¥{{ row.total }}</span>
               </template>
@@ -132,11 +132,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import StatisticsLayout from './StatisticsLayout.vue'
+
+const { t } = useI18n()
 
 // 日期范围
 const dateRange = ref('custom')
@@ -153,23 +156,23 @@ const totalRevenue = computed(() => totalIncome.value - totalExpense.value)
 
 // 支付方式数据
 const paymentMethods = ref([
-  { name: '微信', amount: 12.0 },
+  { name: t('stage5.statistics.notes.wechat'), amount: 12.0 },
 ])
 
 // 收款分布数据
 const incomeDistribution = ref([
-  { name: '微信', value: 12.0 },
+  { name: t('stage5.statistics.notes.wechat'), value: 12.0 },
 ])
 
 // 支出分布数据
 const expenseDistribution = ref([
-  { name: '微信', value: 0.0 },
+  { name: t('stage5.statistics.notes.wechat'), value: 0.0 },
 ])
 
 // 流水明细数据
 const revenueDetails = ref([
   {
-    paymentMethod: '微信',
+    paymentMethod: t('stage5.statistics.notes.wechat'),
     total: '12.00',
     date_0922: '0.00',
     date_0923: '0.00',
@@ -200,7 +203,7 @@ const dateColumns = computed(() => {
     const day = d.getDate().toString()
     columns.push({
       prop: `date_${month.padStart(2, '0')}${day.padStart(2, '0')}`,
-      label: `${month}月${day}日`,
+      label: t('stage5.common.date.monthDay', { month, day }),
     })
   }
 
@@ -212,7 +215,7 @@ const formatDateRange = computed(() => {
   if (startDate.value === endDate.value) {
     return startDate.value
   }
-  return `${startDate.value} 至 ${endDate.value}`
+  return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
 })
 
 // 创建环形图配置
@@ -307,7 +310,7 @@ const initIncomeChart = () => {
 
   incomeChart = echarts.init(incomeChartRef.value)
   const total = incomeDistribution.value.reduce((sum, item) => sum + item.value, 0)
-  const option = createPieChartOption(incomeDistribution.value, '总收款', total)
+  const option = createPieChartOption(incomeDistribution.value, t('stage5.statistics.revenue.totalIncome'), total)
   incomeChart.setOption(option)
 }
 
@@ -317,7 +320,7 @@ const initExpenseChart = () => {
 
   expenseChart = echarts.init(expenseChartRef.value)
   const total = expenseDistribution.value.reduce((sum, item) => sum + item.value, 0)
-  const option = createPieChartOption(expenseDistribution.value, '总支出', total)
+  const option = createPieChartOption(expenseDistribution.value, t('stage5.statistics.revenue.totalExpense'), total)
   expenseChart.setOption(option)
 }
 
@@ -325,11 +328,11 @@ const initExpenseChart = () => {
 const updateCharts = () => {
   if (incomeChart) {
     const total = incomeDistribution.value.reduce((sum, item) => sum + item.value, 0)
-    incomeChart.setOption(createPieChartOption(incomeDistribution.value, '总收款', total))
+    incomeChart.setOption(createPieChartOption(incomeDistribution.value, t('stage5.statistics.revenue.totalIncome'), total))
   }
   if (expenseChart) {
     const total = expenseDistribution.value.reduce((sum, item) => sum + item.value, 0)
-    expenseChart.setOption(createPieChartOption(expenseDistribution.value, '总支出', total))
+    expenseChart.setOption(createPieChartOption(expenseDistribution.value, t('stage5.statistics.revenue.totalExpense'), total))
   }
 }
 
@@ -339,7 +342,7 @@ const getSummaries = (param: any) => {
   const sums: string[] = []
   columns.forEach((column: any, index: number) => {
     if (index === 0) {
-      sums[index] = '合计'
+      sums[index] = t('stage5.common.fields.total')
       return
     }
 
@@ -369,7 +372,7 @@ const getSummaries = (param: any) => {
 
 // 导出明细
 const handleExport = () => {
-  ElMessage.info('导出明细功能开发中...')
+  ElMessage.info(t('stage5.common.messages.exportComingSoon'))
 }
 
 // 加载数据
@@ -377,10 +380,10 @@ const loadData = async () => {
   try {
     // TODO: 调用 API 获取数据
     // const response = await getRevenueStatistics({ startDate: startDate.value, endDate: endDate.value })
-    ElMessage.success('数据加载成功')
+    ElMessage.success(t('stage5.common.messages.dataLoadSuccess'))
   } catch (error) {
-    console.error('加载数据失败:', error)
-    ElMessage.error('加载数据失败')
+    console.error(t('stage5.common.messages.dataLoadFailed'), error)
+    ElMessage.error(t('stage5.common.messages.dataLoadFailed'))
   }
 }
 

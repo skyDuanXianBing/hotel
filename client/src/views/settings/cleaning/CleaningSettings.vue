@@ -4,7 +4,7 @@
     <div v-if="!showConfigPage" class="stores-view">
       <!-- 顶部提示 -->
       <div class="notice-banner">
-        <span>在配置之前,请先去设置门店资料</span>
+        <span>{{ t('settingsStage4.cleaningSettings.notices.storeProfileFirst') }}</span>
       </div>
 
       <!-- 门店卡片网格 -->
@@ -24,11 +24,11 @@
               class="config-button"
               @click="handleConfig(store)"
             >
-              配置
+              {{ t('settingsStage4.cleaningSettings.actions.configure') }}
             </el-button>
             <div class="status-indicator">
               <span class="status-dot" :class="store.enabled ? 'enabled' : 'disabled'"></span>
-              <span class="status-text">{{ store.enabled ? '开启' : '禁用' }}</span>
+              <span class="status-text">{{ store.enabled ? t('settingsStage4.cleaningSettings.status.enabled') : t('settingsStage4.cleaningSettings.status.disabled') }}</span>
             </div>
           </div>
         </div>
@@ -51,7 +51,7 @@
           </div>
         </div>
         <div class="header-actions">
-          <span class="switch-label">开启</span>
+          <span class="switch-label">{{ t('settingsStage4.cleaningSettings.status.enabled') }}</span>
           <el-switch v-model="currentConfig.enabled" />
         </div>
       </div>
@@ -60,19 +60,19 @@
       <div v-if="activeTab === 'task-time'" class="tab-content">
         <!-- 顶部提示 -->
         <div class="info-notice">
-          <span>1.在配置之前,请先去设置门店详情资料。2.该配置系统自动生成保洁任务对任务有效时间。</span>
+          <span>{{ t('settingsStage4.cleaningSettings.notices.taskTime') }}</span>
         </div>
 
         <div class="action-bar">
-          <el-button type="primary" @click="handleEdit">编辑</el-button>
+          <el-button type="primary" @click="handleEdit">{{ t('settings.common.edit') }}</el-button>
         </div>
 
         <!-- 任务时间设置 -->
         <div class="settings-section">
-          <h3 class="section-title">任务时间设置</h3>
+          <h3 class="section-title">{{ t('settingsStage4.cleaningSettings.sections.taskTime') }}</h3>
 
           <div class="time-setting-item">
-            <label class="setting-label">续住房</label>
+            <label class="setting-label">{{ t('settingsStage4.cleaningSettings.fields.stayRoom') }}</label>
             <div class="time-range">
               <el-time-select
                 v-model="currentConfig.stayStartTime"
@@ -80,23 +80,23 @@
                 start="06:00"
                 step="00:30"
                 end="23:30"
-                placeholder="选择时间"
+                :placeholder="t('settingsStage4.cleaningSettings.placeholders.selectTime')"
               />
-              <span class="time-separator">至</span>
+              <span class="time-separator">{{ t('settingsStage4.cleaningSettings.to') }}</span>
               <el-time-select
                 v-model="currentConfig.stayEndTime"
                 :disabled="!isEditing"
                 start="06:00"
                 step="00:30"
                 end="23:30"
-                placeholder="选择时间"
+                :placeholder="t('settingsStage4.cleaningSettings.placeholders.selectTime')"
               />
             </div>
-            <p class="setting-desc">从客人入住的第二天起,直到退房前一天,每天生成续住任务</p>
+            <p class="setting-desc">{{ t('settingsStage4.cleaningSettings.descriptions.stayRoom') }}</p>
           </div>
 
           <div class="time-setting-item">
-            <label class="setting-label">退房</label>
+            <label class="setting-label">{{ t('settingsStage4.cleaningSettings.fields.checkout') }}</label>
             <div class="time-range">
               <el-time-select
                 v-model="currentConfig.checkoutStartTime"
@@ -104,38 +104,38 @@
                 start="06:00"
                 step="00:30"
                 end="23:30"
-                placeholder="选择时间"
+                :placeholder="t('settingsStage4.cleaningSettings.placeholders.selectTime')"
               />
-              <span class="time-separator">至</span>
+              <span class="time-separator">{{ t('settingsStage4.cleaningSettings.to') }}</span>
               <el-time-select
                 v-model="currentConfig.checkoutEndTime"
                 :disabled="!isEditing"
                 start="06:00"
                 step="00:30"
                 end="23:30"
-                placeholder="选择时间"
+                :placeholder="t('settingsStage4.cleaningSettings.placeholders.selectTime')"
               />
             </div>
-            <p class="setting-desc">在客人退房当天生成退房保洁任务</p>
+            <p class="setting-desc">{{ t('settingsStage4.cleaningSettings.descriptions.checkout') }}</p>
           </div>
         </div>
 
         <!-- 保洁任务生成设置 -->
         <div class="settings-section">
-          <h3 class="section-title">保洁任务生成设置</h3>
+          <h3 class="section-title">{{ t('settingsStage4.cleaningSettings.sections.taskGeneration') }}</h3>
 
           <div class="switch-setting-item">
             <div class="switch-content">
-              <label class="setting-label">续住</label>
-              <p class="setting-desc">当开关打开时,系统会自动创建续住保洁任务</p>
+              <label class="setting-label">{{ t('settingsStage4.cleaningSettings.fields.stay') }}</label>
+              <p class="setting-desc">{{ t('settingsStage4.cleaningSettings.descriptions.autoStay') }}</p>
             </div>
             <el-switch v-model="currentConfig.autoStayTask" :disabled="!isEditing" />
           </div>
 
           <div class="switch-setting-item">
             <div class="switch-content">
-              <label class="setting-label">转退房</label>
-              <p class="setting-desc">当开关打开时,系统会自动为转退房创建保洁任务</p>
+              <label class="setting-label">{{ t('settingsStage4.cleaningSettings.fields.turnover') }}</label>
+              <p class="setting-desc">{{ t('settingsStage4.cleaningSettings.descriptions.autoCheckout') }}</p>
             </div>
             <el-switch v-model="currentConfig.autoCheckoutTask" :disabled="!isEditing" />
           </div>
@@ -143,8 +143,8 @@
 
         <!-- 编辑模式下的保存按钮 -->
         <div v-if="isEditing" class="edit-actions">
-          <el-button @click="handleCancelEdit">取消</el-button>
-          <el-button type="primary" @click="handleSaveEdit">保存</el-button>
+          <el-button @click="handleCancelEdit">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleSaveEdit">{{ t('settings.common.save') }}</el-button>
         </div>
       </div>
 
@@ -153,11 +153,11 @@
         <div class="table-toolbar">
           <el-input
             v-model="cleanerSearchText"
-            placeholder="搜索姓名、邮箱"
+            :placeholder="t('settingsStage4.cleaningSettings.placeholders.searchCleaner')"
             class="search-input-wide"
             clearable
           />
-          <el-button type="primary" @click="handleAddCleaner">添加保洁员</el-button>
+          <el-button type="primary" @click="handleAddCleaner">{{ t('settingsStage4.cleaningSettings.actions.addCleaner') }}</el-button>
         </div>
 
         <el-table
@@ -166,11 +166,11 @@
           stripe
           class="data-table"
         >
-          <el-table-column prop="name" label="姓名" min-width="150" />
-          <el-table-column prop="email" label="邮箱" min-width="250" />
-          <el-table-column label="操作" width="120" align="center">
+          <el-table-column prop="name" :label="t('settingsStage4.cleaningSettings.fields.name')" min-width="150" />
+          <el-table-column prop="email" :label="t('settingsStage4.cleaningSettings.fields.email')" min-width="250" />
+          <el-table-column :label="t('settingsStage4.accountList.columns.actions')" width="120" align="center">
             <template #default="{ row }">
-              <el-button link type="danger" @click="handleDeleteCleaner(row)">删除</el-button>
+              <el-button link type="danger" @click="handleDeleteCleaner(row)">{{ t('settings.common.delete') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -180,8 +180,9 @@
       <div v-if="activeTab === 'supplies'" class="tab-content">
         <div class="table-toolbar">
           <div class="filter-group">
-            <span class="filter-label">房型:</span>
-            <el-select v-model="selectedRoomType" placeholder="请选择房型" style="width: 200px">
+            <span class="filter-label">{{ t('settingsStage4.cleaningSettings.fields.roomType') }}:</span>
+            <el-select v-model="selectedRoomType" :placeholder="t('settingsStage4.cleaningSettings.placeholders.selectRoomType')" style="width: 200px">
+              <el-option :label="t('settingsStage4.cleaningSettings.all')" :value="''" />
               <el-option
                 v-for="roomType in roomTypes"
                 :key="roomType"
@@ -193,12 +194,12 @@
         </div>
 
         <el-table :data="filteredSupplies" border stripe class="data-table">
-          <el-table-column prop="roomType" label="房型" min-width="150" />
-          <el-table-column prop="supplies" label="易耗品" min-width="200" />
-          <el-table-column label="操作" width="150" align="center">
+          <el-table-column prop="roomType" :label="t('settingsStage4.cleaningSettings.fields.roomType')" min-width="150" />
+          <el-table-column prop="supplies" :label="t('settingsStage4.cleaningSettings.fields.supplies')" min-width="200" />
+          <el-table-column :label="t('settingsStage4.accountList.columns.actions')" width="150" align="center">
             <template #default="{ row }">
-              <el-button link type="primary" @click="handleEditSupply(row)">编辑</el-button>
-              <el-button link type="danger" @click="handleClearSupply(row)">清空</el-button>
+              <el-button link type="primary" @click="handleEditSupply(row)">{{ t('settings.common.edit') }}</el-button>
+              <el-button link type="danger" @click="handleClearSupply(row)">{{ t('settingsStage4.cleaningSettings.actions.clear') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -208,22 +209,22 @@
     <!-- 添加保洁员对话框 -->
     <el-dialog
       v-model="showCleanerDialog"
-      title="添加保洁员"
+      :title="t('settingsStage4.cleaningSettings.actions.addCleaner')"
       width="500px"
       :close-on-click-modal="false"
     >
       <el-form :model="cleanerForm" label-width="80px">
-        <el-form-item label="姓名">
-          <el-input v-model="cleanerForm.name" placeholder="请输入姓名" />
+        <el-form-item :label="t('settingsStage4.cleaningSettings.fields.name')">
+          <el-input v-model="cleanerForm.name" :placeholder="t('settingsStage4.cleaningSettings.placeholders.name')" />
         </el-form-item>
-        <el-form-item label="邮箱">
-          <el-input v-model="cleanerForm.email" placeholder="请输入邮箱" />
+        <el-form-item :label="t('settingsStage4.cleaningSettings.fields.email')">
+          <el-input v-model="cleanerForm.email" :placeholder="t('settingsStage4.cleaningSettings.placeholders.email')" />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showCleanerDialog = false">取消</el-button>
-          <el-button type="primary" @click="handleSaveCleaner">保存</el-button>
+          <el-button @click="showCleanerDialog = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleSaveCleaner">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -231,27 +232,27 @@
     <!-- 编辑易耗品对话框 -->
     <el-dialog
       v-model="showSupplyDialog"
-      title="编辑易耗品"
+      :title="t('settingsStage4.cleaningSettings.dialog.editSupply')"
       width="500px"
       :close-on-click-modal="false"
     >
       <el-form v-if="currentSupply" :model="currentSupply" label-width="80px">
-        <el-form-item label="房型">
+        <el-form-item :label="t('settingsStage4.cleaningSettings.fields.roomType')">
           <el-input v-model="currentSupply.roomType" disabled />
         </el-form-item>
-        <el-form-item label="易耗品">
+        <el-form-item :label="t('settingsStage4.cleaningSettings.fields.supplies')">
           <el-input
             v-model="currentSupply.supplies"
             type="textarea"
             :rows="4"
-            placeholder="请输入易耗品信息,多个易耗品请用逗号分隔"
+            :placeholder="t('settingsStage4.cleaningSettings.placeholders.supplies')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showSupplyDialog = false">取消</el-button>
-          <el-button type="primary" @click="handleSaveSupply">保存</el-button>
+          <el-button @click="showSupplyDialog = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleSaveSupply">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -262,6 +263,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Minus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   getOrCreateCleaningConfig,
   updateCleaningConfig,
@@ -310,12 +312,13 @@ const showConfigPage = ref(false)
 const currentStore = ref<Store | null>(null)
 const activeTab = ref('task-time')
 const isEditing = ref(false)
+const { t } = useI18n()
 
-const tabs = [
-  { key: 'task-time', label: '任务时间' },
-  { key: 'cleaners', label: '保洁员' },
-  { key: 'supplies', label: '易耗品' },
-]
+const tabs = computed(() => [
+  { key: 'task-time', label: t('settingsStage4.cleaningSettings.tabs.taskTime') },
+  { key: 'cleaners', label: t('settingsStage4.cleaningSettings.tabs.cleaners') },
+  { key: 'supplies', label: t('settingsStage4.cleaningSettings.tabs.supplies') },
+])
 
 const stores = ref<Store[]>([])
 
@@ -343,8 +346,8 @@ const cleanerForm = reactive({
 })
 
 // 易耗品相关
-const selectedRoomType = ref('全部')
-const roomTypes = ref<string[]>(['全部'])
+const selectedRoomType = ref('')
+const roomTypes = ref<string[]>([])
 const supplies = ref<Supply[]>([])
 const showSupplyDialog = ref(false)
 const currentSupply = ref<Supply | null>(null)
@@ -362,11 +365,11 @@ const loadStores = async () => {
         enabled: true, // 默认为启用状态,后续可以根据保洁配置的 enabled 字段来设置
       }))
     } else {
-      ElMessage.error(response.message || '加载门店列表失败')
+      ElMessage.error(response.message || t('settingsStage4.cleaningSettings.messages.loadStoresFailed'))
     }
   } catch (error) {
     console.error('加载门店列表失败:', error)
-    ElMessage.error('加载门店列表失败')
+    ElMessage.error(t('settingsStage4.cleaningSettings.messages.loadStoresFailed'))
   } finally {
     loading.value = false
   }
@@ -379,13 +382,13 @@ const loadRoomTypes = async () => {
     const response = await getAllRoomTypes()
     if (response.success && response.data) {
       const roomTypeNames = response.data.map((rt: RoomTypeDTO) => rt.name)
-      roomTypes.value = ['全部', ...roomTypeNames]
+      roomTypes.value = roomTypeNames
     } else {
-      ElMessage.error(response.message || '加载房型列表失败')
+      ElMessage.error(response.message || t('settingsStage4.cleaningSettings.messages.loadRoomTypesFailed'))
     }
   } catch (error) {
     console.error('加载房型列表失败:', error)
-    ElMessage.error('加载房型列表失败')
+    ElMessage.error(t('settingsStage4.cleaningSettings.messages.loadRoomTypesFailed'))
   } finally {
     loading.value = false
   }
@@ -409,7 +412,7 @@ const loadCleaningConfig = async (storeId: number) => {
     }
   } catch (error) {
     console.error('加载保洁配置失败:', error)
-    ElMessage.error('加载保洁配置失败')
+    ElMessage.error(t('settingsStage4.cleaningSettings.messages.loadConfigFailed'))
   } finally {
     loading.value = false
   }
@@ -425,7 +428,7 @@ const loadCleaners = async (storeId: number) => {
     }
   } catch (error) {
     console.error('加载保洁员列表失败:', error)
-    ElMessage.error('加载保洁员列表失败')
+    ElMessage.error(t('settingsStage4.cleaningSettings.messages.loadCleanersFailed'))
   } finally {
     loading.value = false
   }
@@ -441,7 +444,7 @@ const loadSupplies = async () => {
     }
   } catch (error) {
     console.error('加载易耗品列表失败:', error)
-    ElMessage.error('加载易耗品列表失败')
+    ElMessage.error(t('settingsStage4.cleaningSettings.messages.loadSuppliesFailed'))
   } finally {
     loading.value = false
   }
@@ -478,7 +481,7 @@ const handleCancelEdit = () => {
 
 const handleSaveEdit = async () => {
   if (!currentConfig.id) {
-    ElMessage.error('配置ID不存在')
+    ElMessage.error(t('settingsStage4.cleaningSettings.messages.configIdMissing'))
     return
   }
 
@@ -495,15 +498,15 @@ const handleSaveEdit = async () => {
     })
 
     if (response.success) {
-      ElMessage.success('保存成功')
+      ElMessage.success(t('settingsStage4.storeBasic.messages.saveSuccess'))
       isEditing.value = false
       configBackup.value = null
     } else {
-      ElMessage.error(response.message || '保存失败')
+      ElMessage.error(response.message || t('settingsStage4.storeBasic.messages.saveFailed'))
     }
   } catch (error) {
     console.error('保存配置失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settingsStage4.storeBasic.messages.saveFailed'))
   } finally {
     loading.value = false
   }
@@ -530,9 +533,9 @@ const handleAddCleaner = () => {
 }
 
 const handleDeleteCleaner = (row: Cleaner) => {
-  ElMessageBox.confirm(`确定要删除保洁员 "${row.name}" 吗?`, '删除确认', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
+  ElMessageBox.confirm(t('settingsStage4.cleaningSettings.messages.deleteCleanerConfirm', { name: row.name }), t('settingsStage4.cleaningSettings.messages.deleteTitle'), {
+    confirmButtonText: t('settings.common.confirm'),
+    cancelButtonText: t('settings.common.cancel'),
     type: 'warning',
   })
     .then(async () => {
@@ -540,17 +543,17 @@ const handleDeleteCleaner = (row: Cleaner) => {
         loading.value = true
         const response = await deleteCleaner(row.id)
         if (response.success) {
-          ElMessage.success('删除成功')
+          ElMessage.success(t('settingsStage4.cleaningSettings.messages.deleteSuccess'))
           // 重新加载保洁员列表
           if (currentStore.value) {
             await loadCleaners(currentStore.value.id)
           }
         } else {
-          ElMessage.error(response.message || '删除失败')
+          ElMessage.error(response.message || t('settingsStage4.cleaningSettings.messages.deleteFailed'))
         }
       } catch (error) {
         console.error('删除保洁员失败:', error)
-        ElMessage.error((error as any)?.response?.data?.message || (error as any)?.message || '删除失败')
+        ElMessage.error((error as any)?.response?.data?.message || (error as any)?.message || t('settingsStage4.cleaningSettings.messages.deleteFailed'))
       } finally {
         loading.value = false
       }
@@ -562,23 +565,23 @@ const handleDeleteCleaner = (row: Cleaner) => {
 
 const handleSaveCleaner = async () => {
   if (!cleanerForm.name.trim()) {
-    ElMessage.warning('请输入姓名')
+    ElMessage.warning(t('settingsStage4.cleaningSettings.messages.nameRequired'))
     return
   }
   if (!cleanerForm.email.trim()) {
-    ElMessage.warning('请输入邮箱')
+    ElMessage.warning(t('settingsStage4.cleaningSettings.messages.emailRequired'))
     return
   }
 
   // 验证邮箱格式
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(cleanerForm.email.trim())) {
-    ElMessage.warning('请输入有效的邮箱地址')
+    ElMessage.warning(t('settingsStage4.cleaningSettings.messages.emailInvalid'))
     return
   }
 
   if (!currentStore.value) {
-    ElMessage.error('未选择门店')
+    ElMessage.error(t('settingsStage4.cleaningSettings.messages.storeNotSelected'))
     return
   }
 
@@ -594,16 +597,16 @@ const handleSaveCleaner = async () => {
     })
 
     if (response.success) {
-      ElMessage.success('邀请邮件已发送,保洁员注册后将出现在列表中')
+      ElMessage.success(t('settingsStage4.cleaningSettings.messages.invitationSent'))
       showCleanerDialog.value = false
       cleanerForm.name = ''
       cleanerForm.email = ''
     } else {
-      ElMessage.error(response.message || '发送邀请失败')
+      ElMessage.error(response.message || t('settingsStage4.cleaningSettings.messages.invitationFailed'))
     }
   } catch (error: any) {
     console.error('发送邀请失败:', error)
-    ElMessage.error(error.response?.data?.message || error.message || '发送邀请失败')
+    ElMessage.error(error.response?.data?.message || error.message || t('settingsStage4.cleaningSettings.messages.invitationFailed'))
   } finally {
     loading.value = false
   }
@@ -612,11 +615,8 @@ const handleSaveCleaner = async () => {
 // 易耗品相关函数
 // 组合房型和易耗品数据 - 以房型为主,显示每个房型的易耗品配置
 const roomTypeSupplies = computed(() => {
-  // 获取所有房型(排除"全部"选项)
-  const allRoomTypes = roomTypes.value.filter(rt => rt !== '全部')
-
   // 为每个房型创建一条记录,包含其易耗品配置
-  return allRoomTypes.map(roomTypeName => {
+  return roomTypes.value.map(roomTypeName => {
     // 查找该房型对应的易耗品配置
     const supply = supplies.value.find(s => s.roomType === roomTypeName)
     return {
@@ -628,7 +628,7 @@ const roomTypeSupplies = computed(() => {
 })
 
 const filteredSupplies = computed(() => {
-  if (selectedRoomType.value === '全部') {
+  if (!selectedRoomType.value) {
     return roomTypeSupplies.value
   }
   return roomTypeSupplies.value.filter((s) => s.roomType === selectedRoomType.value)
@@ -642,13 +642,13 @@ const handleEditSupply = (row: Supply) => {
 const handleClearSupply = (row: Supply) => {
   // 如果该房型没有易耗品配置,无需清空
   if (!row.id) {
-    ElMessage.warning('该房型尚未配置易耗品')
+    ElMessage.warning(t('settingsStage4.cleaningSettings.messages.supplyNotConfigured'))
     return
   }
 
-  ElMessageBox.confirm(`确定要清空 "${row.roomType}" 的易耗品设置吗?`, '清空确认', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
+  ElMessageBox.confirm(t('settingsStage4.cleaningSettings.messages.clearSupplyConfirm', { roomType: row.roomType }), t('settingsStage4.cleaningSettings.messages.clearTitle'), {
+    confirmButtonText: t('settings.common.confirm'),
+    cancelButtonText: t('settings.common.cancel'),
     type: 'warning',
   })
     .then(async () => {
@@ -656,15 +656,15 @@ const handleClearSupply = (row: Supply) => {
         loading.value = true
         const response = await clearCleaningSupply(row.id!)
         if (response.success) {
-          ElMessage.success('清空成功')
+          ElMessage.success(t('settingsStage4.cleaningSettings.messages.clearSuccess'))
           // 重新加载易耗品列表
           await loadSupplies()
         } else {
-          ElMessage.error(response.message || '清空失败')
+          ElMessage.error(response.message || t('settingsStage4.cleaningSettings.messages.clearFailed'))
         }
       } catch (error) {
         console.error('清空易耗品失败:', error)
-        ElMessage.error('清空失败')
+        ElMessage.error(t('settingsStage4.cleaningSettings.messages.clearFailed'))
       } finally {
         loading.value = false
       }
@@ -695,17 +695,17 @@ const handleSaveSupply = async () => {
     }
 
     if (response.success) {
-      ElMessage.success('保存成功')
+      ElMessage.success(t('settingsStage4.storeBasic.messages.saveSuccess'))
       showSupplyDialog.value = false
       currentSupply.value = null
       // 重新加载易耗品列表
       await loadSupplies()
     } else {
-      ElMessage.error(response.message || '保存失败')
+      ElMessage.error(response.message || t('settingsStage4.storeBasic.messages.saveFailed'))
     }
   } catch (error) {
     console.error('保存易耗品失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settingsStage4.storeBasic.messages.saveFailed'))
   } finally {
     loading.value = false
   }

@@ -3,32 +3,38 @@
     <el-alert type="info" :closable="false" class="info-alert">
       <template #default>
         <div class="info-content">
-          <p>1. 收款方式按门店维度持久化保存，房态日历收款会实时联动这里的配置。</p>
-          <p>2. 删除后会自动重排顺序，列表第一项会显示“默认”。</p>
+          <p>1. {{ t('settings.paymentMethods.tips.persistence') }}</p>
+          <p>2. {{ t('settings.paymentMethods.tips.default') }}</p>
         </div>
       </template>
     </el-alert>
 
     <div class="section-header">
-      <h3 class="section-title">财务设置 - 收款方式</h3>
+      <h3 class="section-title">{{ t('settings.paymentMethods.title') }}</h3>
       <div class="header-actions">
-        <el-checkbox v-model="selectAllMethods" @change="handleToggleSelectAll">全选</el-checkbox>
+        <el-checkbox v-model="selectAllMethods" @change="handleToggleSelectAll">
+          {{ t('settings.paymentMethods.selectAll') }}
+        </el-checkbox>
         <el-button type="danger" plain :disabled="selectedCount === 0" @click="handleDeleteSelected">
-          删除选中（{{ selectedCount }}）
+          {{ t('settings.paymentMethods.deleteSelected', { count: selectedCount }) }}
         </el-button>
-        <el-button type="primary" @click="handleAddPaymentMethod">新增收款方式</el-button>
+        <el-button type="primary" @click="handleAddPaymentMethod">
+          {{ t('settings.paymentMethods.add') }}
+        </el-button>
       </div>
     </div>
 
     <div class="payment-section">
       <h4 class="subsection-title">
-        可用收款方式
-        <span class="subtitle-desc">订单中收款/退款时可选项</span>
+        {{ t('settings.paymentMethods.available') }}
+        <span class="subtitle-desc">{{ t('settings.paymentMethods.availableDesc') }}</span>
       </h4>
 
       <div class="payment-grid">
         <div v-for="method in availablePaymentMethods" :key="method.id" class="payment-card">
-          <div v-if="method.isDefault && !method.isEditing" class="default-corner">默认</div>
+          <div v-if="method.isDefault && !method.isEditing" class="default-corner">
+            {{ t('settings.common.default') }}
+          </div>
 
           <div class="select-checkbox">
             <el-checkbox v-model="method.selected" @change="syncSelectAllState" />
@@ -42,7 +48,7 @@
             <el-input
               v-if="method.isEditing"
               v-model="method.name"
-              placeholder="请输入收款方式名称"
+              :placeholder="t('settings.paymentMethods.namePlaceholder')"
               size="small"
               maxlength="50"
               @keyup.enter="handleSaveMethod(method)"
@@ -76,6 +82,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Grid, Check, Close, Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -85,6 +92,8 @@ import {
   updatePaymentMethod,
   type PaymentMethodDTO,
 } from '@/api/paymentMethod'
+
+const { t } = useI18n()
 
 interface PaymentMethodItem {
   id: number
@@ -130,14 +139,14 @@ const loadPaymentMethods = async () => {
   try {
     const response = await getAllPaymentMethods()
     if (!response.success) {
-      ElMessage.error(response.message || '获取收款方式失败')
+      ElMessage.error(response.message || t('settings.paymentMethods.fetchFailed'))
       return
     }
     availablePaymentMethods.value = mapToViewModel(response.data || [])
     syncSelectAllState()
   } catch (error) {
     console.error('加载收款方式失败:', error)
-    ElMessage.error('加载收款方式失败')
+    ElMessage.error(t('settings.paymentMethods.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -172,7 +181,7 @@ const handleEditMethod = (method: PaymentMethodItem) => {
 const handleSaveMethod = async (method: PaymentMethodItem) => {
   const normalizedName = method.name.trim()
   if (!normalizedName) {
-    ElMessage.warning('请输入收款方式名称')
+    ElMessage.warning(t('settings.paymentMethods.nameRequired'))
     return
   }
 
@@ -183,10 +192,10 @@ const handleSaveMethod = async (method: PaymentMethodItem) => {
         enabled: method.enabled,
       })
       if (!response.success) {
-        ElMessage.error(response.message || '新增收款方式失败')
+        ElMessage.error(response.message || t('settings.paymentMethods.createFailed'))
         return
       }
-      ElMessage.success('新增收款方式成功')
+      ElMessage.success(t('settings.paymentMethods.createSuccess'))
       await loadPaymentMethods()
       return
     }
@@ -196,15 +205,15 @@ const handleSaveMethod = async (method: PaymentMethodItem) => {
       enabled: method.enabled,
     })
     if (!response.success) {
-      ElMessage.error(response.message || '更新收款方式失败')
+      ElMessage.error(response.message || t('settings.paymentMethods.updateFailed'))
       return
     }
 
-    ElMessage.success('更新收款方式成功')
+    ElMessage.success(t('settings.paymentMethods.updateSuccess'))
     await loadPaymentMethods()
   } catch (error) {
     console.error('保存收款方式失败:', error)
-    ElMessage.error('保存收款方式失败')
+    ElMessage.error(t('settings.paymentMethods.saveFailed'))
   }
 }
 
@@ -221,11 +230,15 @@ const handleCancelEdit = (method: PaymentMethodItem) => {
 
 const handleDeleteMethod = async (method: PaymentMethodItem) => {
   try {
-    await ElMessageBox.confirm(`确定要删除收款方式“${method.name}”吗？`, '删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('settings.paymentMethods.deleteConfirm', { name: method.name }),
+      t('settings.common.deleteConfirmTitle'),
+      {
+        confirmButtonText: t('settings.common.confirmButton'),
+        cancelButtonText: t('settings.common.cancelButton'),
+        type: 'warning',
+      },
+    )
 
     if (method.isNew) {
       availablePaymentMethods.value = availablePaymentMethods.value.filter((item) => item.id !== method.id)
@@ -235,16 +248,16 @@ const handleDeleteMethod = async (method: PaymentMethodItem) => {
 
     const response = await deletePaymentMethod(method.id)
     if (!response.success) {
-      ElMessage.error(response.message || '删除失败')
+      ElMessage.error(response.message || t('settings.common.deleteFailed'))
       return
     }
 
-    ElMessage.success('删除成功')
+    ElMessage.success(t('settings.common.deleteSuccess'))
     await loadPaymentMethods()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除收款方式失败:', error)
-      ElMessage.error('删除失败')
+      ElMessage.error(t('settings.common.deleteFailed'))
     }
   }
 }
@@ -255,11 +268,15 @@ const handleDeleteSelected = async () => {
   }
 
   try {
-    await ElMessageBox.confirm(`确定要删除选中的 ${selectedCount.value} 个收款方式吗？`, '批量删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('settings.paymentMethods.batchDeleteConfirm', { count: selectedCount.value }),
+      t('settings.common.batchDeleteConfirmTitle'),
+      {
+        confirmButtonText: t('settings.common.confirmButton'),
+        cancelButtonText: t('settings.common.cancelButton'),
+        type: 'warning',
+      },
+    )
 
     const selectedMethods = availablePaymentMethods.value.filter((method) => method.selected)
 
@@ -269,7 +286,10 @@ const handleDeleteSelected = async () => {
       }
       const response = await deletePaymentMethod(method.id)
       if (!response.success) {
-        throw new Error(response.message || `删除失败: ${method.name}`)
+        throw new Error(
+          response.message ||
+            t('settings.paymentMethods.batchDeleteItemFailed', { name: method.name }),
+        )
       }
     }
 
@@ -278,11 +298,11 @@ const handleDeleteSelected = async () => {
     )
 
     selectAllMethods.value = false
-    ElMessage.success('批量删除成功')
+    ElMessage.success(t('settings.common.batchDeleteSuccess'))
     await loadPaymentMethods()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error?.message || '批量删除失败')
+      ElMessage.error(error?.message || t('settings.common.batchDeleteFailed'))
     }
   }
 }

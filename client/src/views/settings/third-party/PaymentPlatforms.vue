@@ -13,9 +13,9 @@
             </svg>
           </div>
         </div>
-        <p class="description">Connect to Stripe for Booking Engine reservation payments</p>
+        <p class="description">{{ t('settings.paymentPlatforms.description') }}</p>
         <el-button type="primary" size="large" @click="handleConfigure">
-          配置
+          {{ t('settings.paymentPlatforms.configure') }}
         </el-button>
       </div>
     </div>
@@ -23,10 +23,13 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 
+const { t } = useI18n()
+
 const handleConfigure = () => {
-  ElMessage.info('Stripe配置功能开发中')
+  ElMessage.info(t('settings.paymentPlatforms.configurePending'))
   // TODO: 实现Stripe配置功能
   // 可能需要跳转到Stripe OAuth授权页面或显示API密钥配置对话框
 }

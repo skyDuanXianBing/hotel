@@ -2,10 +2,12 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { House, Message, Bell, User, EditPen, Headset, Wallet, Document, Phone, ArrowDown, HomeFilled } from '@element-plus/icons-vue'
+import { Message, User, EditPen, Headset, Wallet, Document, Phone, ArrowDown, HomeFilled } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import CustomerService from '@/components/CustomerService.vue'
 import RecordTransaction from '@/components/RecordTransaction.vue'
 import NotificationPopup from '@/components/NotificationPopup.vue'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import { PermissionAction, PermissionModule } from '@/api/role'
 import { useUserStore } from '@/stores/user'
 import { useMemoStore } from '@/stores/memo'
@@ -21,32 +23,28 @@ const memoStore = useMemoStore()
 const permissionStore = usePermissionStore()
 const storeStore = useStoreStore()
 const notificationCenterStore = useNotificationCenterStore()
+const { t } = useI18n()
 
 const showCustomerService = ref(false)
 const stores = ref<StoreDTO[]>([])
 const notificationPopupRef = ref<InstanceType<typeof NotificationPopup> | null>(null)
 
-// 当前选中的门店
 const currentStore = computed(() => storeStore.currentStore)
 
-// 加载门店列表
 const loadStores = async () => {
   try {
     stores.value = await storeStore.fetchUserStores()
   } catch (error) {
-    console.error('加载门店列表失败', error)
+    console.error('Failed to load store list', error)
   }
 }
 
-// 切换门店
 const handleStoreSelect = (store: StoreDTO) => {
   storeStore.setCurrentStore(store)
-  ElMessage.success(`已切换到门店: ${store.name}`)
-  // 刷新当前页面数据
+  ElMessage.success(t('layout.store.switched', { name: store.name }))
   router.go(0)
 }
 
-// 跳转到门店选择/创建页面
 const goToStoreSelection = () => {
   router.push('/store/selection')
 }
@@ -58,7 +56,7 @@ const currentUser = computed(() => userStore.currentUser)
 const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.email || '')
 
 interface NavItem {
-  label: string
+  labelKey: string
   path: string
 }
 
@@ -102,13 +100,25 @@ const canAccessWallet = computed(() =>
 
 const navItems = computed<NavItem[]>(() => {
   const items: Array<NavItem & { visible: boolean }> = [
-    { label: '首页', path: '/', visible: true },
-    { label: '房态', path: '/accommodation', visible: canAccessAccommodation.value },
-    { label: '渠道', path: '/channel', visible: canAccessChannel.value },
-    { label: '订单', path: '/order', visible: canAccessOrder.value },
-    { label: '统计', path: '/data-center/overview', visible: canAccessStatistics.value },
-    { label: '审查', path: '/data-center/registrations', visible: canAccessStatistics.value },
-    { label: '设置', path: '/settings', visible: canAccessSettings.value },
+    { labelKey: 'nav.home', path: '/', visible: true },
+    {
+      labelKey: 'nav.accommodation',
+      path: '/accommodation',
+      visible: canAccessAccommodation.value,
+    },
+    { labelKey: 'nav.channel', path: '/channel', visible: canAccessChannel.value },
+    { labelKey: 'nav.order', path: '/order', visible: canAccessOrder.value },
+    {
+      labelKey: 'nav.statistics',
+      path: '/data-center/overview',
+      visible: canAccessStatistics.value,
+    },
+    {
+      labelKey: 'nav.review',
+      path: '/data-center/registrations',
+      visible: canAccessStatistics.value,
+    },
+    { labelKey: 'nav.settings', path: '/settings', visible: canAccessSettings.value },
   ]
 
   return items.filter((item) => item.visible)
@@ -119,9 +129,7 @@ onMounted(() => {
     userStore.fetchCurrentUser().catch(() => {
       /* ignore init failure; auth interceptor handles expired tokens */
     })
-    // 加载备忘录
     memoStore.loadMemo()
-    // 加载门店列表
     loadStores()
   }
 })
@@ -230,16 +238,16 @@ const handleProfileClick = () => {
 }
 
 const handleHelpCenter = () => {
-  ElMessage.info('帮助中心功能开发中...')
+  ElMessage.info(t('layout.support.helpCenterPending'))
 }
 
 const handleLogout = async () => {
   try {
     await userStore.logout()
     permissionStore.clearPermissions()
-    ElMessage.success('已退出登录')
+    ElMessage.success(t('layout.logoutSuccess'))
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : '退出登录失败'
+    const message = error instanceof Error ? error.message : t('layout.logoutFailed')
     ElMessage.error(message)
   } finally {
     router.replace('/login')
@@ -254,7 +262,7 @@ const handleLogout = async () => {
         <el-dropdown trigger="click" placement="bottom-start" class="store-dropdown" @command="handleStoreSelect">
           <div class="logo">
             <el-icon size="24" color="#1890ff"><HomeFilled /></el-icon>
-            <span class="logo-text">{{ currentStore?.name || '房东智控中心' }}</span>
+            <span class="logo-text">{{ currentStore?.name || t('app.shortName') }}</span>
             <el-icon class="arrow-icon"><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
@@ -276,7 +284,7 @@ const handleLogout = async () => {
               <div class="dropdown-divider"></div>
               <el-dropdown-item divided @click.stop="goToStoreSelection">
                 <div class="create-store-item">
-                  <span>门店管理</span>
+                  <span>{{ t('layout.store.manage') }}</span>
                   <el-icon><ArrowDown style="transform: rotate(-90deg)" /></el-icon>
                 </div>
               </el-dropdown-item>
@@ -293,42 +301,43 @@ const handleLogout = async () => {
           class="nav-menu"
         >
           <el-menu-item v-for="item in navItems" :key="item.path" :index="item.path">
-            {{ item.label }}
+            {{ t(item.labelKey) }}
           </el-menu-item>
         </el-menu>
       </nav>
 
       <div class="header-right">
         <div class="user-actions">
+          <LanguageSwitcher />
           <el-dropdown trigger="hover" placement="bottom">
             <el-button text>
               <el-icon><Message /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <div class="inbox-header" @click="handleInboxClick">收件箱</div>
+                <div class="inbox-header" @click="handleInboxClick">{{ t('layout.inbox.title') }}</div>
                 <el-dropdown-item @click="handleSystemNotification">
                   <span class="inbox-item">
                     <span class="inbox-dot system"></span>
-                    系统通知
+                    {{ t('layout.inbox.system') }}
                   </span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canAccessOrder" @click="handleOrderNotification">
                   <span class="inbox-item">
                     <span class="inbox-dot order"></span>
-                    订单通知
+                    {{ t('layout.inbox.order') }}
                   </span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <el-tooltip content="备忘录" placement="bottom">
+          <el-tooltip :content="t('layout.memo.tooltip')" placement="bottom">
             <el-button text class="action-icon" @click="handleMemoClick">
               <el-icon><Document /></el-icon>
             </el-button>
           </el-tooltip>
 
-          <el-tooltip content="记一笔" placement="bottom">
+          <el-tooltip :content="t('layout.record.tooltip')" placement="bottom">
             <el-button text class="action-icon" @click="handleRecordClick">
               <el-icon><EditPen /></el-icon>
             </el-button>
@@ -340,18 +349,22 @@ const handleLogout = async () => {
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="handleServiceClick">
-                  客户服务
+                  {{ t('layout.support.customerService') }}
                 </el-dropdown-item>
                 <el-dropdown-item @click="handleHelpCenter">
-                  帮助中心
+                  {{ t('layout.support.helpCenter') }}
                 </el-dropdown-item>
                 <el-dropdown-item @click="handleChatTest">
-                  测试聊天
+                  {{ t('layout.support.testChat') }}
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <el-tooltip v-if="canAccessWallet" content="钱包" placement="bottom">
+          <el-tooltip
+            v-if="canAccessWallet"
+            :content="t('layout.wallet.tooltip')"
+            placement="bottom"
+          >
             <el-button text class="action-icon" @click="handleWalletClick">
               <el-icon><Wallet /></el-icon>
             </el-button>
@@ -363,8 +376,8 @@ const handleLogout = async () => {
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="handleProfileClick">个人中心</el-dropdown-item>
-                <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
+                <el-dropdown-item @click="handleProfileClick">{{ t('layout.profile') }}</el-dropdown-item>
+                <el-dropdown-item divided @click="handleLogout">{{ t('layout.logout') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -387,42 +400,46 @@ const handleLogout = async () => {
       @success="handleRecordTransactionSuccess"
     />
 
-    <!-- 备忘录弹窗 -->
+    <!-- Memo dialog -->
     <el-dialog
       v-model="showMemoDialog"
-      title="备忘录"
+      :title="t('layout.memo.title')"
       width="600px"
       :close-on-click-modal="false"
     >
       <div class="memo-dialog-content">
         <div v-if="memoStore.lastSavedAt" class="memo-save-time">
-          {{ memoStore.getFormattedSaveTime() }} 自动保存成功
+          {{ memoStore.getFormattedSaveTime() }} {{ t('layout.memo.saved') }}
         </div>
         <el-input
           :model-value="memoStore.memoContent"
           @update:model-value="handleMemoChange"
           type="textarea"
           :rows="12"
-          placeholder="请输入备忘录内容"
+          :placeholder="t('layout.memo.placeholder')"
           class="memo-textarea"
         />
       </div>
       <template #footer>
-        <el-button @click="showMemoDialog = false">关闭</el-button>
+        <el-button @click="showMemoDialog = false">{{ t('common.close') }}</el-button>
       </template>
     </el-dialog>
 
-    <!-- 联系客服弹窗 -->
+    <!-- Contact support dialog -->
     <el-dialog
       v-model="showContactDialog"
-      title="联系客服"
+      :title="t('layout.support.contactTitle')"
       width="600px"
       :close-on-click-modal="false"
       class="contact-dialog"
     >
       <div class="contact-content">
         <div class="contact-illustration">
-          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Ccircle cx='150' cy='150' r='100' fill='%23e8f4ff'/%3E%3Ccircle cx='250' cy='150' r='80' fill='%23ffe8f0'/%3E%3Ccircle cx='200' cy='80' r='60' fill='%23f0e8ff'/%3E%3C/svg%3E" alt="客服" class="illustration-bg" />
+          <img
+            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Ccircle cx='150' cy='150' r='100' fill='%23e8f4ff'/%3E%3Ccircle cx='250' cy='150' r='80' fill='%23ffe8f0'/%3E%3Ccircle cx='200' cy='80' r='60' fill='%23f0e8ff'/%3E%3C/svg%3E"
+            :alt="t('layout.support.illustrationAlt')"
+            class="illustration-bg"
+          />
           <div class="illustration-people">
             <div class="person person-left">
               <div class="person-head"></div>
@@ -437,7 +454,7 @@ const handleLogout = async () => {
         </div>
 
         <div class="contact-info">
-          <h3>如果您需要帮助，请通过以下方式联系我们</h3>
+          <h3>{{ t('layout.support.contactDescription') }}</h3>
 
           <div class="contact-item">
             <el-icon class="contact-icon" color="#409eff"><Message /></el-icon>
@@ -448,7 +465,7 @@ const handleLogout = async () => {
             <el-icon class="contact-icon" color="#409eff"><Phone /></el-icon>
             <div class="contact-phone">
               <span class="contact-text">+81 03-6459-4606</span>
-              <span class="contact-time">服务时间：周一至周五, 10:00-19:00(UTC+9)</span>
+              <span class="contact-time">{{ t('layout.support.serviceHours') }}</span>
             </div>
           </div>
         </div>
@@ -545,7 +562,7 @@ const handleLogout = async () => {
   flex-shrink: 0;
 }
 
-/* 强制隐藏溢出菜单的三个点 */
+/* Hide the overflow menu trigger. */
 .nav-menu :deep(.el-menu--horizontal .el-sub-menu__title) {
   display: none !important;
 }
@@ -554,7 +571,7 @@ const handleLogout = async () => {
   display: none !important;
 }
 
-/* 确保所有菜单项都显示 */
+/* Keep all menu items visible. */
 .nav-menu :deep(.el-menu--horizontal .el-menu-item) {
   display: inline-block !important;
   visibility: visible !important;
@@ -604,7 +621,7 @@ const handleLogout = async () => {
   overflow: auto;
 }
 
-/* 备忘录弹窗样式 */
+/* Memo dialog */
 .memo-dialog-content {
   padding: 0;
 }
@@ -625,7 +642,7 @@ const handleLogout = async () => {
   line-height: 1.6;
 }
 
-/* 收件箱下拉菜单样式 */
+/* Inbox dropdown */
 .inbox-header {
   padding: 8px 16px;
   font-size: 14px;
@@ -664,7 +681,7 @@ const handleLogout = async () => {
   background: #ff4d4f;
 }
 
-/* 联系客服弹窗样式 */
+/* Contact support dialog */
 .contact-content {
   display: flex;
   flex-direction: column;
@@ -789,7 +806,7 @@ const handleLogout = async () => {
   color: #999;
 }
 
-/* 门店下拉菜单样式 */
+/* Store dropdown */
 :deep(.store-dropdown-menu) {
   min-width: 280px;
   padding: 8px 0;

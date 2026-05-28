@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 defineProps<{
   modelValue: boolean
   history: any[]
@@ -7,23 +9,25 @@ defineProps<{
 defineEmits<{
   'update:modelValue': [value: boolean]
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="连接历史"
+    :title="t('channel.dialogs.connectionHistory.title')"
     width="1000px"
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <div class="history-dialog">
-      <el-table :data="history" border class="history-table" empty-text="暂无真实连接历史">
-        <el-table-column prop="hotelCode" label="酒店代码" min-width="120" align="center" />
-        <el-table-column prop="storeType" label="Agoda门店类型" min-width="150" align="center" />
-        <el-table-column prop="hotelName" label="酒店名称" min-width="200" align="center" />
-        <el-table-column prop="status" label="状态" min-width="100" align="center" />
-        <el-table-column prop="note" label="备注" min-width="150" align="center" />
-        <el-table-column prop="createTime" label="创建时间" min-width="180" align="center" />
+      <el-table :data="history" border class="history-table" :empty-text="t('channel.dialogs.connectionHistory.empty')">
+        <el-table-column prop="hotelCode" :label="t('channel.dialogs.connectionHistory.hotelCode')" min-width="120" align="center" />
+        <el-table-column prop="storeType" :label="t('channel.dialogs.connectionHistory.storeType')" min-width="150" align="center" />
+        <el-table-column prop="hotelName" :label="t('channel.dialogs.connectionHistory.hotelName')" min-width="200" align="center" />
+        <el-table-column prop="status" :label="t('channel.dialogs.connectionHistory.status')" min-width="100" align="center" />
+        <el-table-column prop="note" :label="t('channel.dialogs.connectionHistory.note')" min-width="150" align="center" />
+        <el-table-column prop="createTime" :label="t('channel.dialogs.connectionHistory.createdAt')" min-width="180" align="center" />
       </el-table>
 
       <!-- 空状态 -->
@@ -56,8 +60,8 @@ defineEmits<{
             />
           </svg>
         </div>
-        <p class="empty-text">暂无真实连接历史</p>
-        <p class="empty-tip">模拟连接流程请在独立 channel-simulator 中验证。</p>
+        <p class="empty-text">{{ t('channel.dialogs.connectionHistory.empty') }}</p>
+        <p class="empty-tip">{{ t('channel.dialogs.connectionHistory.tip') }}</p>
       </div>
     </div>
   </el-dialog>

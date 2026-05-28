@@ -9,14 +9,14 @@
             :class="activeTab === 'daily' ? 'active-tab' : 'inactive-tab'"
             @click="switchTab('daily')"
           >
-            单日房情表
+            {{ t('accommodation.roomTable.dailyTab') }}
           </el-button>
           <el-button 
             :type="activeTab === 'future' ? 'primary' : 'default'"
             :class="activeTab === 'future' ? 'active-tab' : 'inactive-tab'"
             @click="switchTab('future')"
           >
-            远期房情表
+            {{ t('accommodation.roomTable.futureTab') }}
           </el-button>
         </div>
       </div>
@@ -25,14 +25,14 @@
         <el-date-picker
           v-model="selectedDate"
           type="date"
-          placeholder="选择日期"
+          :placeholder="activeTab === 'daily' ? t('accommodation.roomTable.selectDate') : t('accommodation.roomTable.selectStartDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           @change="onDateChange"
           class="date-picker"
         />
         <el-button type="primary" :icon="Download" @click="exportData">
-          导出明细
+          {{ t('accommodation.common.exportDetails') }}
         </el-button>
       </div>
     </div>
@@ -46,13 +46,13 @@
         class="room-statistics-table"
         :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: '500' }"
       >
-        <el-table-column prop="roomTypeName" label="房型名称" width="120" align="center" />
-        <el-table-column prop="totalRooms" label="总房数" width="120" align="center" />
+        <el-table-column prop="roomTypeName" :label="t('accommodation.roomTable.columns.roomTypeName')" width="120" align="center" />
+        <el-table-column prop="totalRooms" :label="t('accommodation.roomTable.columns.totalRooms')" width="120" align="center" />
         
-        <el-table-column label="可售房" width="60" align="center">
+        <el-table-column :label="t('accommodation.roomTable.columns.availableForSale')" width="60" align="center">
           <template #header>
-            <span>可售房</span>
-            <el-tooltip content="总房数减去预抵在住不含预离关房" placement="top">
+            <span>{{ t('accommodation.roomTable.columns.availableForSale') }}</span>
+            <el-tooltip :content="t('accommodation.roomTable.tooltips.availableForSale')" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
             </el-tooltip>
           </template>
@@ -61,10 +61,10 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="可用房" width="60" align="center">
+        <el-table-column :label="t('accommodation.roomTable.columns.availableRooms')" width="60" align="center">
           <template #header>
-            <span>可用房</span>
-            <el-tooltip content="总房数减去预离在住不含预离关房" placement="top">
+            <span>{{ t('accommodation.roomTable.columns.availableRooms') }}</span>
+            <el-tooltip :content="t('accommodation.roomTable.tooltips.availableRooms')" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
             </el-tooltip>
           </template>
@@ -73,10 +73,10 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="在住" width="60" align="center">
+        <el-table-column :label="t('accommodation.roomTable.columns.occupiedRooms')" width="60" align="center">
           <template #header>
-            <span>在住</span>
-            <el-tooltip content="在住不含预离加上预离" placement="top">
+            <span>{{ t('accommodation.roomTable.columns.occupiedRooms') }}</span>
+            <el-tooltip :content="t('accommodation.roomTable.tooltips.occupiedRooms')" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
             </el-tooltip>
           </template>
@@ -85,10 +85,10 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="在住（不含预离）" width="120" align="center">
+        <el-table-column :label="t('accommodation.roomTable.columns.occupiedWithoutDeparture')" width="120" align="center">
           <template #header>
-            <span>在住（不含预离）</span>
-            <el-tooltip content="当前日已入住状态房间数 未来日对应日已入住已预订状态房间数不含预抵" placement="top">
+            <span>{{ t('accommodation.roomTable.columns.occupiedWithoutDeparture') }}</span>
+            <el-tooltip :content="t('accommodation.roomTable.tooltips.occupiedWithoutDeparture')" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
             </el-tooltip>
           </template>
@@ -97,10 +97,10 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="预离" width="60" align="center">
+        <el-table-column :label="t('accommodation.roomTable.columns.scheduledDeparture')" width="60" align="center">
           <template #header>
-            <span>预离</span>
-            <el-tooltip content="当前日离店日期为当前日且已入住状态的房间数 未来日离店日期为对应日的所有房间数" placement="top">
+            <span>{{ t('accommodation.roomTable.columns.scheduledDeparture') }}</span>
+            <el-tooltip :content="t('accommodation.roomTable.tooltips.scheduledDeparture')" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
             </el-tooltip>
           </template>
@@ -109,18 +109,18 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="scheduledArrival" label="预抵" width="60" align="center" />
-        <el-table-column prop="reservedRooms" label="保留房（关房）" width="120" align="center" />
-        <el-table-column prop="maintenanceRooms" label="维修房（关房）" width="120" align="center" />
-        <el-table-column prop="outOfOrderRooms" label="停用房（关房）" width="120" align="center" />
-        <el-table-column prop="linkedClosedRooms" label="链接关房（关房）" width="120" align="center" />
-        <el-table-column prop="cleanRooms" label="净房" width="60" align="center" />
-        <el-table-column prop="dirtyRooms" label="脏房" width="60" align="center" />
+        <el-table-column prop="scheduledArrival" :label="t('accommodation.roomTable.columns.scheduledArrival')" width="60" align="center" />
+        <el-table-column prop="reservedRooms" :label="t('accommodation.roomTable.columns.reservedRooms')" width="120" align="center" />
+        <el-table-column prop="maintenanceRooms" :label="t('accommodation.roomTable.columns.maintenanceRooms')" width="120" align="center" />
+        <el-table-column prop="outOfOrderRooms" :label="t('accommodation.roomTable.columns.outOfOrderRooms')" width="120" align="center" />
+        <el-table-column prop="linkedClosedRooms" :label="t('accommodation.roomTable.columns.linkedClosedRooms')" width="120" align="center" />
+        <el-table-column prop="cleanRooms" :label="t('accommodation.roomTable.columns.cleanRooms')" width="60" align="center" />
+        <el-table-column prop="dirtyRooms" :label="t('accommodation.roomTable.columns.dirtyRooms')" width="60" align="center" />
         
-        <el-table-column label="预计入住率" width="120" align="center">
+        <el-table-column :label="t('accommodation.roomTable.columns.expectedOccupancyRate')" width="120" align="center">
           <template #header>
-            <span>预计入住率</span>
-            <el-tooltip content="累计出售间夜数除以总可售房间数" placement="top">
+            <span>{{ t('accommodation.roomTable.columns.expectedOccupancyRate') }}</span>
+            <el-tooltip :content="t('accommodation.roomTable.tooltips.expectedOccupancyRate')" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
             </el-tooltip>
           </template>
@@ -129,10 +129,10 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="当日取消房" width="120" align="center">
+        <el-table-column :label="t('accommodation.roomTable.columns.dailyCancelledRooms')" width="120" align="center">
           <template #header>
-            <span>当日取消房</span>
-            <el-tooltip content="即取消的房间数量按订单的营业日统计" placement="top">
+            <span>{{ t('accommodation.roomTable.columns.dailyCancelledRooms') }}</span>
+            <el-tooltip :content="t('accommodation.roomTable.tooltips.dailyCancelledRooms')" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
             </el-tooltip>
           </template>
@@ -148,7 +148,7 @@
       <!-- 说明提示栏 -->
       <div class="info-banner">
         <el-alert
-          title="可售等于可售房间数 占用等于已营房间数 不可售等于保用加维修加链接关房房间数"
+          :title="t('accommodation.roomTable.infoBanner')"
           type="info"
           :closable="false"
           show-icon
@@ -162,7 +162,7 @@
           <el-date-picker
             v-model="selectedDate"
             type="date"
-            placeholder="选择开始日期"
+            :placeholder="t('accommodation.roomTable.selectStartDate')"
             format="YYYY-MM-DD"
             value-format="YYYY-MM-DD"
             @change="onFutureDateChange"
@@ -180,8 +180,8 @@
             <thead>
               <!-- 第一行：日期标题 -->
               <tr class="date-header-row">
-                <th rowspan="2" class="fixed-header room-type-col">房型</th>
-                <th rowspan="2" class="fixed-header total-rooms-col">总房数</th>
+                  <th rowspan="2" class="fixed-header room-type-col">{{ t('accommodation.roomTable.future.roomType') }}</th>
+                  <th rowspan="2" class="fixed-header total-rooms-col">{{ t('accommodation.roomTable.future.totalRooms') }}</th>
                 <th 
                   v-for="date in futureRoomTableData.total.dates" 
                   :key="date.date"
@@ -194,9 +194,9 @@
               <!-- 第二行：子列标题 -->
               <tr class="sub-header-row">
                 <template v-for="date in futureRoomTableData.total.dates" :key="`sub-${date.date}`">
-                  <th class="sub-header">可售</th>
-                  <th class="sub-header">占用</th>
-                  <th class="sub-header">不可售</th>
+                  <th class="sub-header">{{ t('accommodation.roomTable.future.available') }}</th>
+                  <th class="sub-header">{{ t('accommodation.roomTable.future.occupied') }}</th>
+                  <th class="sub-header">{{ t('accommodation.roomTable.future.unavailable') }}</th>
                 </template>
               </tr>
             </thead>
@@ -217,7 +217,7 @@
               </tr>
               <!-- 占总房数的比例行 -->
               <tr class="percentage-row">
-                <td class="fixed-cell room-type-cell">占总房数的比例</td>
+                <td class="fixed-cell room-type-cell">{{ t('accommodation.roomTable.future.percentageOfTotalRooms') }}</td>
                 <td class="fixed-cell total-rooms-cell">-</td>
                 <template v-for="date in futureRoomTableData.total.dates" :key="`percentage-${date.date}`">
                   <td class="data-cell percentage" :class="{ available: date.availableRate > 0 }">
@@ -233,7 +233,7 @@
               </tr>
               <!-- 合计行 -->
               <tr class="total-row">
-                <td class="fixed-cell room-type-cell">合计</td>
+                <td class="fixed-cell room-type-cell">{{ t('accommodation.roomTable.future.total') }}</td>
                 <td class="fixed-cell total-rooms-cell">{{ futureRoomTableData.total.totalRooms }}</td>
                 <template v-for="date in futureRoomTableData.total.dates" :key="`total-${date.date}`">
                   <td class="data-cell" :class="{ available: date.available > 0 }">{{ date.available }}</td>
@@ -263,8 +263,8 @@
         <div class="stats-row">
           <div class="stat-item">
             <span class="stat-label">
-              有效客房数
-              <el-tooltip content="可用于客人入住的房间总数" placement="top">
+              {{ t('accommodation.roomTable.stats.effectiveRooms') }}
+              <el-tooltip :content="t('accommodation.roomTable.tooltips.effectiveRooms')" placement="top">
                 <el-icon class="info-icon"><InfoFilled /></el-icon>
               </el-tooltip>
             </span>
@@ -281,8 +281,8 @@
         <div class="stats-row">
           <div class="stat-item">
             <span class="stat-label">
-              入住率（预期）
-              <el-tooltip content="预期的房间入住率" placement="top">
+              {{ t('accommodation.roomTable.stats.expectedOccupancy') }}
+              <el-tooltip :content="t('accommodation.roomTable.tooltips.expectedOccupancy')" placement="top">
                 <el-icon class="info-icon"><InfoFilled /></el-icon>
               </el-tooltip>
             </span>
@@ -299,8 +299,8 @@
         <div class="stats-row">
           <div class="stat-item">
             <span class="stat-label">
-              客房收入（预期）
-              <el-tooltip content="预期的客房收入" placement="top">
+              {{ t('accommodation.roomTable.stats.expectedRoomRevenue') }}
+              <el-tooltip :content="t('accommodation.roomTable.tooltips.expectedRoomRevenue')" placement="top">
                 <el-icon class="info-icon"><InfoFilled /></el-icon>
               </el-tooltip>
             </span>
@@ -317,8 +317,8 @@
         <div class="stats-row">
           <div class="stat-item">
             <span class="stat-label">
-              总房费（预期）
-              <el-tooltip content="预期的总房费收入" placement="top">
+              {{ t('accommodation.roomTable.stats.expectedTotalRoomFee') }}
+              <el-tooltip :content="t('accommodation.roomTable.tooltips.expectedTotalRoomFee')" placement="top">
                 <el-icon class="info-icon"><InfoFilled /></el-icon>
               </el-tooltip>
             </span>
@@ -335,8 +335,8 @@
         <div class="stats-row">
           <div class="stat-item">
             <span class="stat-label">
-              平均客房收益（预期）
-              <el-tooltip content="预期的平均每间房收益" placement="top">
+              {{ t('accommodation.roomTable.stats.averageRoomRevenue') }}
+              <el-tooltip :content="t('accommodation.roomTable.tooltips.averageRoomRevenue')" placement="top">
                 <el-icon class="info-icon"><InfoFilled /></el-icon>
               </el-tooltip>
             </span>
@@ -358,11 +358,15 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download, InfoFilled, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { request } from '@/utils/request'
 import type { RoomTableData, RoomStatistics, ApiResponse, FutureRoomTableData } from '@/types/room'
 import { getFutureRoomTableData } from '@/api/futureRoomTable'
+import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
 
 // 响应式数据
+const { t } = useI18n()
+const { weekdayFullMap } = useAccommodationI18n()
 const loading = ref(false)
 const activeTab = ref<'daily' | 'future'>('daily')
 const selectedDate = ref<string>(new Date().toISOString().split('T')[0])
@@ -377,7 +381,7 @@ const tableData = computed(() => {
   // 添加合计行
   data.push({
     ...roomTableData.value.total,
-    roomTypeName: '合计'
+    roomTypeName: t('accommodation.roomTable.future.total')
   })
   
   return data
@@ -395,18 +399,18 @@ const fetchRoomTableData = async (date: string) => {
     if (response.success) {
       roomTableData.value = response.data
     } else {
-      ElMessage.error(response.message || '获取房情表数据失败')
+    ElMessage.error(response.message || t('accommodation.roomTable.messages.loadDailyFailed'))
     }
   } catch (error) {
     console.error('获取房情表数据失败:', error)
-    ElMessage.error('获取房情表数据失败')
+    ElMessage.error(t('accommodation.roomTable.messages.loadDailyFailed'))
     
     // 添加模拟数据用于展示
     roomTableData.value = {
       date: date,
       statistics: [
         {
-          roomTypeName: '大床房',
+          roomTypeName: t('stage6.components.addRoomDialog.demoRoomTypes.queen'),
           totalRooms: 1,
           availableForSale: 1,
           availableRooms: 1,
@@ -425,7 +429,7 @@ const fetchRoomTableData = async (date: string) => {
         }
       ],
       total: {
-        roomTypeName: '合计',
+        roomTypeName: t('accommodation.roomTable.future.total'),
         totalRooms: 1,
         availableForSale: 1,
         availableRooms: 1,
@@ -475,11 +479,11 @@ const fetchFutureRoomTableData = async (startDate: string, days: number = 7) => 
     if (response.success) {
       futureRoomTableData.value = response.data
     } else {
-      ElMessage.error(response.message || '获取远期房情表数据失败')
+      ElMessage.error(response.message || t('accommodation.roomTable.messages.loadFutureFailed'))
     }
   } catch (error) {
     console.error('获取远期房情表数据失败:', error)
-    ElMessage.error('获取远期房情表数据失败')
+    ElMessage.error(t('accommodation.roomTable.messages.loadFutureFailed'))
   } finally {
     loading.value = false
   }
@@ -583,27 +587,27 @@ const downloadExcelFile = (fileName: string, sections: string[]) => {
 
 const exportDailyRoomTable = () => {
   if (!roomTableData.value || tableData.value.length === 0) {
-    ElMessage.warning('暂无可导出的单日房情数据')
+    ElMessage.warning(t('accommodation.roomTable.messages.noDailyExportData'))
     return
   }
 
   const headers = [
-    '房型名称',
-    '总房数',
-    '可售房',
-    '可用房',
-    '在住',
-    '在住（不含预离）',
-    '预离',
-    '预抵',
-    '保留房（关房）',
-    '维修房（关房）',
-    '停用房（关房）',
-    '链接关房（关房）',
-    '净房',
-    '脏房',
-    '预计入住率',
-    '当日取消房',
+    t('accommodation.roomTable.columns.roomTypeName'),
+    t('accommodation.roomTable.columns.totalRooms'),
+    t('accommodation.roomTable.columns.availableForSale'),
+    t('accommodation.roomTable.columns.availableRooms'),
+    t('accommodation.roomTable.columns.occupiedRooms'),
+    t('accommodation.roomTable.columns.occupiedWithoutDeparture'),
+    t('accommodation.roomTable.columns.scheduledDeparture'),
+    t('accommodation.roomTable.columns.scheduledArrival'),
+    t('accommodation.roomTable.columns.reservedRooms'),
+    t('accommodation.roomTable.columns.maintenanceRooms'),
+    t('accommodation.roomTable.columns.outOfOrderRooms'),
+    t('accommodation.roomTable.columns.linkedClosedRooms'),
+    t('accommodation.roomTable.columns.cleanRooms'),
+    t('accommodation.roomTable.columns.dirtyRooms'),
+    t('accommodation.roomTable.columns.expectedOccupancyRate'),
+    t('accommodation.roomTable.columns.dailyCancelledRooms'),
   ]
 
   const rows = tableData.value.map((item: RoomStatistics) => [
@@ -625,21 +629,21 @@ const exportDailyRoomTable = () => {
     item.dailyCancelledRooms,
   ])
 
-  const section = buildHtmlTable(`单日房情表（${selectedDate.value}）`, headers, rows)
-  downloadExcelFile(`单日房情表_${selectedDate.value}.xls`, [section])
-  ElMessage.success('单日房情表导出成功')
+  const section = buildHtmlTable(t('accommodation.roomTable.export.dailyTitle', { date: selectedDate.value }), headers, rows)
+  downloadExcelFile(t('accommodation.roomTable.export.dailyFileName', { date: selectedDate.value }), [section])
+  ElMessage.success(t('accommodation.roomTable.messages.dailyExportSuccess'))
 }
 
 const exportFutureRoomTable = () => {
   if (!futureRoomTableData.value) {
-    ElMessage.warning('暂无可导出的远期房情数据')
+    ElMessage.warning(t('accommodation.roomTable.messages.noFutureExportData'))
     return
   }
 
   const futureData = futureRoomTableData.value
-  const mainHeaders: Array<string | number> = ['房型', '总房数']
+  const mainHeaders: Array<string | number> = [t('accommodation.roomTable.future.roomType'), t('accommodation.roomTable.future.totalRooms')]
   futureData.total.dates.forEach((date) => {
-    mainHeaders.push(`${date.date} 可售`, `${date.date} 占用`, `${date.date} 不可售`)
+    mainHeaders.push(`${date.date} ${t('accommodation.roomTable.future.available')}`, `${date.date} ${t('accommodation.roomTable.future.occupied')}`, `${date.date} ${t('accommodation.roomTable.future.unavailable')}`)
   })
 
   const mainRows: Array<Array<string | number>> = futureData.roomTypes.map((roomType) => {
@@ -650,42 +654,42 @@ const exportFutureRoomTable = () => {
     return row
   })
 
-  const percentageRow: Array<string | number> = ['占总房数比例', '-']
+  const percentageRow: Array<string | number> = [t('accommodation.roomTable.future.percentageOfTotalRooms'), '-']
   futureData.total.dates.forEach((date) => {
     percentageRow.push(`${date.availableRate}%`, `${date.occupiedRate}%`, `${date.unavailableRate}%`)
   })
   mainRows.push(percentageRow)
 
-  const totalRow: Array<string | number> = ['合计', futureData.total.totalRooms]
+  const totalRow: Array<string | number> = [t('accommodation.roomTable.future.total'), futureData.total.totalRooms]
   futureData.total.dates.forEach((date) => {
     totalRow.push(date.available, date.occupied, date.unavailable)
   })
   mainRows.push(totalRow)
 
-  const statsHeaders: Array<string | number> = ['指标']
+  const statsHeaders: Array<string | number> = [t('accommodation.common.item')]
   futureData.statistics.forEach((stat) => {
     statsHeaders.push(stat.date)
   })
 
   const statsRows: Array<Array<string | number>> = [
-    ['有效客房数', ...futureData.statistics.map((stat) => stat.effectiveRooms)],
-    ['入住率（预期）', ...futureData.statistics.map((stat) => `${stat.expectedOccupancyRate}%`)],
-    ['客房收入（预期）', ...futureData.statistics.map((stat) => stat.expectedRoomRevenue)],
-    ['总房费（预期）', ...futureData.statistics.map((stat) => stat.expectedTotalRoomFee)],
-    ['平均客房收益（预期）', ...futureData.statistics.map((stat) => stat.averageRoomRevenue)],
+    [t('accommodation.roomTable.stats.effectiveRooms'), ...futureData.statistics.map((stat) => stat.effectiveRooms)],
+    [t('accommodation.roomTable.stats.expectedOccupancy'), ...futureData.statistics.map((stat) => `${stat.expectedOccupancyRate}%`)],
+    [t('accommodation.roomTable.stats.expectedRoomRevenue'), ...futureData.statistics.map((stat) => stat.expectedRoomRevenue)],
+    [t('accommodation.roomTable.stats.expectedTotalRoomFee'), ...futureData.statistics.map((stat) => stat.expectedTotalRoomFee)],
+    [t('accommodation.roomTable.stats.averageRoomRevenue'), ...futureData.statistics.map((stat) => stat.averageRoomRevenue)],
   ]
 
   const mainSection = buildHtmlTable(
-    `远期房情主表（${futureData.startDate} 至 ${futureData.endDate}）`,
+    t('accommodation.roomTable.export.futureMainTitle', { startDate: futureData.startDate, endDate: futureData.endDate }),
     mainHeaders,
     mainRows
   )
-  const statsSection = buildHtmlTable('远期房情统计', statsHeaders, statsRows)
-  downloadExcelFile(`远期房情表_${futureData.startDate}_${futureData.endDate}.xls`, [
+  const statsSection = buildHtmlTable(t('accommodation.roomTable.export.futureStatsTitle'), statsHeaders, statsRows)
+  downloadExcelFile(t('accommodation.roomTable.export.futureFileName', { startDate: futureData.startDate, endDate: futureData.endDate }), [
     mainSection,
     statsSection,
   ])
-  ElMessage.success('远期房情表导出成功')
+  ElMessage.success(t('accommodation.roomTable.messages.futureExportSuccess'))
 }
 
 // 获取格式化的日期和星期
@@ -701,8 +705,7 @@ const getFormattedDateWithWeekday = (value: Date | string): string => {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   
-  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-  const weekday = weekdays[date.getDay()]
+  const weekday = weekdayFullMap.value[date.getDay()]
   
   return `${year}-${month}-${day} ${weekday}`
 }
@@ -719,7 +722,7 @@ const formatDateHeader = (dateStr: string, dayOfWeek: string): string => {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   
-  return isToday ? `${month}-${day} 今天` : `${month}-${day} ${dayOfWeek}`
+  return isToday ? `${month}-${day} ${t('accommodation.common.today')}` : `${month}-${day} ${dayOfWeek}`
 }
 
 // 格式化统计区域的日期标题
@@ -735,10 +738,9 @@ const formatStatisticDateHeader = (dateStr: string): string => {
   const day = String(date.getDate()).padStart(2, '0')
   
   // 获取星期几
-  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-  const weekday = weekdays[date.getDay()]
-  
-  return isToday ? `${month}-${day} 今天` : `${month}-${day} ${weekday}`
+  const weekday = weekdayFullMap.value[date.getDay()]
+
+  return isToday ? `${month}-${day} ${t('accommodation.common.today')}` : `${month}-${day} ${weekday}`
 }
 
 // 组件挂载时获取数据

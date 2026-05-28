@@ -1,13 +1,17 @@
 <template>
   <div class="notification-settings-container">
-    <h2 class="page-title">通知功能</h2>
+    <h2 class="page-title">{{ t('settings.notificationSettings.title') }}</h2>
 
     <div class="notification-list">
       <!-- 订单消息弹框提醒 -->
       <div class="notification-item">
         <div class="notification-content">
-          <h3 class="notification-title">订单消息弹框提醒</h3>
-          <p class="notification-desc">非系统使用人员操作的订单增、删、变、取消时,有系统弹框提醒</p>
+          <h3 class="notification-title">
+            {{ t('settings.notificationSettings.items.orderPopup.title') }}
+          </h3>
+          <p class="notification-desc">
+            {{ t('settings.notificationSettings.items.orderPopup.description') }}
+          </p>
         </div>
         <el-switch v-model="settings.orderPopup" />
       </div>
@@ -15,13 +19,17 @@
       <!-- 订单消息声音提醒 -->
       <div class="notification-item">
         <div class="notification-content">
-          <h3 class="notification-title">订单消息声音提醒</h3>
-          <p class="notification-desc">非系统使用人员操作的订单增、删、变、取消时,有系统声音提醒</p>
+          <h3 class="notification-title">
+            {{ t('settings.notificationSettings.items.orderSound.title') }}
+          </h3>
+          <p class="notification-desc">
+            {{ t('settings.notificationSettings.items.orderSound.description') }}
+          </p>
         </div>
         <div class="notification-actions">
           <el-button link @click="testOrderSound">
             <el-icon><VideoPlay /></el-icon>
-            试听提示音
+            {{ t('settings.notificationSettings.testSound') }}
           </el-button>
           <el-switch v-model="settings.orderSound" />
         </div>
@@ -30,8 +38,12 @@
       <!-- 聊天信息弹框提醒 -->
       <div class="notification-item">
         <div class="notification-content">
-          <h3 class="notification-title">聊天信息弹框提醒</h3>
-          <p class="notification-desc">收到新的聊天消息时,有系统弹框提醒</p>
+          <h3 class="notification-title">
+            {{ t('settings.notificationSettings.items.chatPopup.title') }}
+          </h3>
+          <p class="notification-desc">
+            {{ t('settings.notificationSettings.items.chatPopup.description') }}
+          </p>
         </div>
         <el-switch v-model="settings.chatPopup" />
       </div>
@@ -39,13 +51,17 @@
       <!-- 聊天信息声音提醒 -->
       <div class="notification-item">
         <div class="notification-content">
-          <h3 class="notification-title">聊天信息声音提醒</h3>
-          <p class="notification-desc">收到新的聊天消息时,有系统声音提醒</p>
+          <h3 class="notification-title">
+            {{ t('settings.notificationSettings.items.chatSound.title') }}
+          </h3>
+          <p class="notification-desc">
+            {{ t('settings.notificationSettings.items.chatSound.description') }}
+          </p>
         </div>
         <div class="notification-actions">
           <el-button link @click="testChatSound">
             <el-icon><VideoPlay /></el-icon>
-            试听提示音
+            {{ t('settings.notificationSettings.testSound') }}
           </el-button>
           <el-switch v-model="settings.chatSound" />
         </div>
@@ -54,13 +70,16 @@
 
     <!-- 保存按钮 -->
     <div class="save-section">
-      <el-button type="primary" @click="handleSave">保存设置</el-button>
+      <el-button type="primary" @click="handleSave">
+        {{ t('settings.notificationSettings.save') }}
+      </el-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { VideoPlay } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
@@ -69,6 +88,8 @@ import {
   getNotificationSettings,
   updateNotificationSettings,
 } from '@/api/notification'
+
+const { t } = useI18n()
 
 interface NotificationSettings {
   orderPopup: boolean
@@ -97,7 +118,7 @@ const getCurrentUserId = () => userStore.currentUser?.id
 const loadSettings = async () => {
   const userId = getCurrentUserId()
   if (!userId) {
-    ElMessage.warning('未获取到用户信息，无法加载通知设置')
+    ElMessage.warning(t('settings.notificationSettings.messages.userMissingLoad'))
     return
   }
   try {
@@ -111,11 +132,11 @@ const loadSettings = async () => {
         chatSound: response.data.chatSound,
       }
     } else {
-      ElMessage.error(response.message || '加载通知设置失败')
+      ElMessage.error(response.message || t('settings.notificationSettings.messages.loadFailed'))
     }
   } catch (error) {
     console.error('加载通知设置失败:', error)
-    ElMessage.error('加载通知设置失败')
+    ElMessage.error(t('settings.notificationSettings.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -128,10 +149,10 @@ const testOrderSound = () => {
       orderAudio = new Audio('/sounds/order-notification.mp3')
     }
     orderAudio.play()
-    ElMessage.success('正在播放订单提示音')
+    ElMessage.success(t('settings.notificationSettings.messages.playingOrderSound'))
   } catch (error) {
     console.error('播放订单提示音失败:', error)
-    ElMessage.warning('音频文件未找到,请确保已将音频文件放置在 public/sounds/ 目录下')
+    ElMessage.warning(t('settings.notificationSettings.messages.audioMissing'))
   }
 }
 
@@ -142,10 +163,10 @@ const testChatSound = () => {
       chatAudio = new Audio('/sounds/chat-notification.mp3')
     }
     chatAudio.play()
-    ElMessage.success('正在播放聊天提示音')
+    ElMessage.success(t('settings.notificationSettings.messages.playingChatSound'))
   } catch (error) {
     console.error('播放聊天提示音失败:', error)
-    ElMessage.warning('音频文件未找到,请确保已将音频文件放置在 public/sounds/ 目录下')
+    ElMessage.warning(t('settings.notificationSettings.messages.audioMissing'))
   }
 }
 
@@ -153,7 +174,7 @@ const testChatSound = () => {
 const handleSave = async () => {
   const userId = getCurrentUserId()
   if (!userId) {
-    ElMessage.warning('未获取到用户信息，无法保存通知设置')
+    ElMessage.warning(t('settings.notificationSettings.messages.userMissingSave'))
     return
   }
   try {
@@ -168,13 +189,13 @@ const handleSave = async () => {
 
     if (response.success) {
       notificationCenterStore.applySettingsSnapshot(snapshot)
-      ElMessage.success('设置已保存')
+      ElMessage.success(t('settings.notificationSettings.messages.saveSuccess'))
     } else {
-      ElMessage.error(response.message || '保存设置失败')
+      ElMessage.error(response.message || t('settings.notificationSettings.messages.saveFailed'))
     }
   } catch (error) {
     console.error('保存设置失败:', error)
-    ElMessage.error('保存设置失败')
+    ElMessage.error(t('settings.notificationSettings.messages.saveFailed'))
   } finally {
     loading.value = false
   }

@@ -21,10 +21,10 @@
       <el-result
         icon="warning"
         :title="errorMessage"
-        sub-title="请检查链接是否正确或联系管理员"
+        :sub-title="t('pages.roomStatusShare.errorSubtitle')"
       >
         <template #extra>
-          <el-button type="primary" @click="retry">重试</el-button>
+          <el-button type="primary" @click="retry">{{ t('pages.roomStatusShare.retry') }}</el-button>
         </template>
       </el-result>
     </div>
@@ -34,7 +34,7 @@
       <!-- 统计数据 -->
       <div v-if="shouldShowStatistics" class="statistics-section">
         <div class="statistics-header">
-          <h2 class="section-title">房态统计</h2>
+          <h2 class="section-title">{{ t('pages.roomStatusShare.statisticsTitle') }}</h2>
         </div>
         <div class="statistics-grid">
           <div 
@@ -51,12 +51,12 @@
       <!-- 房态表格 -->
       <div class="room-status-section">
         <div class="section-header">
-          <h2 class="section-title">房态详情</h2>
+          <h2 class="section-title">{{ t('pages.roomStatusShare.detailsTitle') }}</h2>
           <div class="date-selector">
             <el-date-picker
               v-model="selectedDate"
               type="date"
-              placeholder="选择日期"
+              :placeholder="t('pages.roomStatusShare.datePlaceholder')"
               format="YYYY-MM-DD"
               value-format="YYYY-MM-DD"
               @change="onDateChange"
@@ -68,7 +68,7 @@
         <!-- 房态日历视图 -->
         <div class="room-status-calendar" v-loading="roomStatusLoading">
           <div class="calendar-header">
-            <div class="room-type-column">房型</div>
+            <div class="room-type-column">{{ t('pages.roomStatusShare.roomTypeColumn') }}</div>
             <div 
               v-for="date in dateRange" 
               :key="date"
@@ -173,7 +173,7 @@
     <!-- 房间详情弹窗 -->
     <el-dialog
       v-model="showDetailDialog"
-      title="住客信息"
+      :title="t('pages.roomStatusShare.dialogTitle')"
       width="600px"
       :before-close="closeRoomDetails"
       class="room-detail-dialog"
@@ -182,21 +182,21 @@
         <!-- 基本信息 -->
         <div class="basic-info-section">
           <div class="info-row">
-            <span class="info-label">预订人姓名</span>
+            <span class="info-label">{{ t('pages.roomStatusShare.fields.guestName') }}</span>
             <span class="info-value">{{ formatGuestName(selectedRoom.guestName || 'aa') }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">渠道</span>
-            <span class="info-value">{{ selectedRoom.channel || '自来客' }}</span>
+            <span class="info-label">{{ t('pages.roomStatusShare.fields.channel') }}</span>
+            <span class="info-value">{{ selectedRoom.channel || t('pages.roomStatusShare.fields.fallbackChannel') }}</span>
           </div>
         </div>
 
         <!-- 房费信息（蓝色背景区域） -->
         <div class="room-fee-section">
           <div class="fee-info">
-            <span class="fee-label">房费：</span>
+            <span class="fee-label">{{ t('pages.roomStatusShare.fields.roomFee') }}</span>
             <span class="fee-value">¥{{ selectedRoom.roomFee || '12.00' }}</span>
-            <span class="room-count">共1间房</span>
+            <span class="room-count">{{ t('pages.roomStatusShare.fields.roomCount', { count: 1 }) }}</span>
           </div>
         </div>
 
@@ -210,10 +210,10 @@
               </span>
             </div>
             <div class="room-dates">
-              {{ formatDateRange(selectedRoom.checkIn, selectedRoom.checkOut) }}，共 {{ calculateNights(selectedRoom.checkIn, selectedRoom.checkOut) }} 晚
+              {{ formatDateRange(selectedRoom.checkIn, selectedRoom.checkOut) }}{{ t('pages.roomStatusShare.dateRange.nights', { count: calculateNights(selectedRoom.checkIn, selectedRoom.checkOut) }) }}
             </div>
             <div class="room-fee">
-              房费：¥{{ selectedRoom.roomFee || '12.00' }}
+              {{ t('pages.roomStatusShare.fields.roomFee') }}¥{{ selectedRoom.roomFee || '12.00' }}
             </div>
           </div>
         </div>
@@ -221,15 +221,15 @@
         <!-- 订单信息 -->
         <div class="order-info-section">
           <div class="info-row">
-            <span class="info-label">订单金额</span>
+            <span class="info-label">{{ t('pages.roomStatusShare.fields.totalAmount') }}</span>
             <span class="info-value">¥{{ selectedRoom.totalAmount || '12.00' }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">订单备注</span>
+            <span class="info-label">{{ t('pages.roomStatusShare.fields.orderNotes') }}</span>
             <span class="info-value">{{ selectedRoom.orderNotes || '-' }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">图片备注</span>
+            <span class="info-label">{{ t('pages.roomStatusShare.fields.imageNotes') }}</span>
             <span class="info-value">{{ selectedRoom.imageNotes || '-' }}</span>
           </div>
         </div>
@@ -243,11 +243,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Calendar } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { getPublicRoomStatusShare, getSharedRoomStatusData, getSharedStatistics } from '@/api/roomStatusShare'
 import type { ApiResponse } from '@/types/room'
 
 // 路由参数
 const route = useRoute()
+const { t, locale } = useI18n()
 const shareToken = computed(() => route.params.token as string)
 
 // 响应式数据
@@ -291,51 +293,52 @@ const visibleStatistics = computed(() => {
   const stats = []
   const items = shareData.value.filterItems
   const data = statisticsData.value
+  const hasItem = (keys: string[]) => keys.some((key) => items.includes(key))
   
-  if (items.includes('arrivals') || items.includes('今日预抵') || items.includes('全部')) {
+  if (hasItem(['arrivals', '今日预抵', '今日預抵', '本日の到着予定', '全部', 'すべて'])) {
     stats.push({
       key: 'arrivals',
-      label: '今日预抵',
+      label: t('pages.roomStatusShare.statusStats.arrivals'),
       value: data.todayArrivals || 0
     })
   }
   
-  if (items.includes('departures') || items.includes('今日预离') || items.includes('全部')) {
+  if (hasItem(['departures', '今日预离', '今日預離', '本日の出発予定', '全部', 'すべて'])) {
     stats.push({
       key: 'departures', 
-      label: '今日预离',
+      label: t('pages.roomStatusShare.statusStats.departures'),
       value: data.todayDepartures || 0
     })
   }
   
-  if (items.includes('new_orders') || items.includes('今日新办') || items.includes('全部')) {
+  if (hasItem(['new_orders', '今日新办', '今日新辦', '本日の新規', '全部', 'すべて'])) {
     stats.push({
       key: 'new_orders',
-      label: '今日新办',
+      label: t('pages.roomStatusShare.statusStats.newOrders'),
       value: data.todayNewOrders || 0
     })
   }
   
-  if (items.includes('available') || items.includes('今日可售') || items.includes('全部')) {
+  if (hasItem(['available', '今日可售', '本日の販売可能数', '全部', 'すべて'])) {
     stats.push({
       key: 'available',
-      label: '今日可售',
+      label: t('pages.roomStatusShare.statusStats.available'),
       value: data.availableRooms || 0
     })
   }
   
-  if (items.includes('unassigned') || items.includes('未排房') || items.includes('全部')) {
+  if (hasItem(['unassigned', '未排房', '未割り当て', '全部', 'すべて'])) {
     stats.push({
       key: 'unassigned',
-      label: '未排房',
+      label: t('pages.roomStatusShare.statusStats.unassigned'),
       value: data.unassignedOrders || 0
     })
   }
   
-  if (items.includes('pending') || items.includes('待处理') || items.includes('全部')) {
+  if (hasItem(['pending', '待处理', '待處理', '対応待ち', '全部', 'すべて'])) {
     stats.push({
       key: 'pending',
-      label: '待处理',
+      label: t('pages.roomStatusShare.statusStats.pending'),
       value: data.pendingOrders || 0
     })
   }
@@ -416,12 +419,12 @@ const fetchShareData = async () => {
       ])
     } else {
       error.value = true
-      errorMessage.value = response.message || '获取分享信息失败'
+      errorMessage.value = response.message || t('pages.roomStatusShare.messages.fetchShareFailed')
     }
   } catch (err) {
     console.error('获取分享数据失败:', err)
     error.value = true
-    errorMessage.value = '分享链接无效或已过期'
+    errorMessage.value = t('pages.roomStatusShare.messages.invalidShare')
   } finally {
     loading.value = false
   }
@@ -445,11 +448,11 @@ const fetchRoomStatusData = async () => {
     if (response.success) {
       roomStatusData.value = response.data
     } else {
-      ElMessage.error('获取房态数据失败: ' + response.message)
+      ElMessage.error(t('pages.roomStatusShare.messages.fetchRoomStatusFailedWithReason', { message: response.message }))
     }
   } catch (err) {
     console.error('获取房态数据失败:', err)
-    ElMessage.error('获取房态数据失败')
+    ElMessage.error(t('pages.roomStatusShare.messages.fetchRoomStatusFailed'))
   } finally {
     roomStatusLoading.value = false
   }
@@ -481,7 +484,7 @@ const retry = () => {
 
 const formatCurrentDate = () => {
   const now = new Date()
-  return now.toLocaleDateString('zh-CN', {
+  return now.toLocaleDateString(resolveDateLocale(), {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -493,10 +496,9 @@ const formatDateHeader = (date: string) => {
   const d = new Date(date)
   const month = d.getMonth() + 1
   const day = d.getDate()
-  const weekdays = ['日', '一', '二', '三', '四', '五', '六']
-  const weekday = weekdays[d.getDay()]
+  const weekday = new Intl.DateTimeFormat(resolveDateLocale(), { weekday: 'short' }).format(d)
   
-  return `${month}-${day.toString().padStart(2, '0')} 周${weekday}`
+  return `${month}-${day.toString().padStart(2, '0')} ${weekday}`
 }
 
 const isToday = (date: string) => {
@@ -523,31 +525,31 @@ const getRoomStatusText = (room: any, date: string) => {
                    (status === 'OCCUPIED' || status === 'RESERVED')
   
   if (isBlurred) {
-    return '***'
+    return t('pages.roomStatusShare.roomStatus.masked')
   }
   
   switch (status) {
     case 'AVAILABLE':
-      return '空房'
+      return t('pages.roomStatusShare.roomStatus.available')
     case 'OCCUPIED':
-      return reservationInfo?.guestName || '在住'
+      return reservationInfo?.guestName || t('pages.roomStatusShare.roomStatus.occupied')
     case 'RESERVED':
-      return reservationInfo?.guestName || '已预订'
+      return reservationInfo?.guestName || t('pages.roomStatusShare.roomStatus.reserved')
     case 'MAINTENANCE':
-      return '维修'
+      return t('pages.roomStatusShare.roomStatus.maintenance')
     case 'OUT_OF_ORDER':
-      return '停用'
+      return t('pages.roomStatusShare.roomStatus.outOfOrder')
     default:
-      return '未知'
+      return t('pages.roomStatusShare.roomStatus.unknown')
   }
 }
 
 const getOrderStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
-    confirmed: '已确认',
-    checked_in: '已入住',
-    checked_out: '已退房',
-    cancelled: '已取消'
+    confirmed: t('pages.roomStatusShare.orderStatus.confirmed'),
+    checked_in: t('pages.roomStatusShare.orderStatus.checkedIn'),
+    checked_out: t('pages.roomStatusShare.orderStatus.checkedOut'),
+    cancelled: t('pages.roomStatusShare.orderStatus.cancelled')
   }
   return statusMap[status] || status
 }
@@ -562,14 +564,14 @@ const formatGuestName = (name: string) => {
 // 获取状态文本
 const getStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
-    'OCCUPIED': '已入住',
-    'RESERVED': '已预订',
-    'MAINTENANCE': '维修中',
-    'OUT_OF_ORDER': '停用',
-    'CLEANING': '清洁中',
-    'AVAILABLE': '空房'
+    'OCCUPIED': t('pages.roomStatusShare.orderStatus.checkedIn'),
+    'RESERVED': t('pages.roomStatusShare.roomStatus.reserved'),
+    'MAINTENANCE': t('pages.roomStatusShare.roomStatus.maintenance'),
+    'OUT_OF_ORDER': t('pages.roomStatusShare.roomStatus.outOfOrder'),
+    'CLEANING': t('pages.roomStatusShare.roomStatus.cleaning'),
+    'AVAILABLE': t('pages.roomStatusShare.roomStatus.available')
   }
-  return statusMap[status] || '未知'
+  return statusMap[status] || t('pages.roomStatusShare.roomStatus.unknown')
 }
 
 // 检查特定日期是否有预订信息
@@ -643,6 +645,19 @@ const closeRoomDetails = () => {
   selectedRoom.value = null
 }
 
+const resolveDateLocale = () => {
+  switch (locale.value) {
+    case 'zh-TW':
+      return 'zh-TW'
+    case 'en':
+      return 'en-US'
+    case 'ja':
+      return 'ja-JP'
+    default:
+      return 'zh-CN'
+  }
+}
+
 const formatDateRange = (checkIn: string, checkOut: string) => {
   if (!checkIn || !checkOut) return ''
   
@@ -656,7 +671,7 @@ const formatDateRange = (checkIn: string, checkOut: string) => {
     return `${year}-${month}-${day} ${hour}:${minute}`
   }
   
-  return `${formatDate(checkIn)} 至 ${formatDate(checkOut)}`
+  return `${formatDate(checkIn)}${t('pages.roomStatusShare.dateRange.separator')}${formatDate(checkOut)}`
 }
 
 const calculateNights = (checkIn: string, checkOut: string) => {

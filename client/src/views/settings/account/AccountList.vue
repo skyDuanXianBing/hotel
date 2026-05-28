@@ -3,10 +3,10 @@
     <div v-show="!isCollapsed" class="filter-section">
       <div class="filter-row">
         <div class="filter-item">
-          <span class="filter-label">搜索</span>
+          <span class="filter-label">{{ t('settingsStage4.accountList.filters.search') }}</span>
           <el-input
             v-model="searchKeyword"
-            placeholder="搜索账号、员工姓名"
+            :placeholder="t('settingsStage4.accountList.placeholders.searchAccount')"
             style="width: 300px"
             clearable
             @keyup.enter="loadAccounts"
@@ -21,15 +21,15 @@
         </div>
 
         <div class="filter-item">
-          <span class="filter-label">权限角色</span>
+          <span class="filter-label">{{ t('settingsStage4.accountList.filters.permissionRole') }}</span>
           <el-select
             v-model="selectedRole"
-            placeholder="全部"
+            :placeholder="t('settingsStage4.accountList.placeholders.all')"
             style="width: 200px"
             clearable
             @change="loadAccounts"
           >
-            <el-option label="全部" :value="''" />
+            <el-option :label="t('settingsStage4.accountList.placeholders.all')" :value="''" />
             <el-option
               v-for="role in roleOptions"
               :key="role.id"
@@ -40,17 +40,17 @@
         </div>
 
         <div class="filter-item">
-          <span class="filter-label">状态</span>
+          <span class="filter-label">{{ t('settingsStage4.accountList.filters.status') }}</span>
           <el-select
             v-model="selectedStatus"
-            placeholder="全部"
+            :placeholder="t('settingsStage4.accountList.placeholders.all')"
             style="width: 200px"
             clearable
             @change="loadAccounts"
           >
-            <el-option label="全部" :value="''" />
-            <el-option label="启用" :value="true" />
-            <el-option label="停用" :value="false" />
+            <el-option :label="t('settingsStage4.accountList.placeholders.all')" :value="''" />
+            <el-option :label="t('settingsStage4.accountList.status.enabled')" :value="true" />
+            <el-option :label="t('settingsStage4.accountList.status.disabled')" :value="false" />
           </el-select>
         </div>
       </div>
@@ -59,15 +59,15 @@
     <div class="action-section">
       <div class="action-left">
         <el-button link @click="toggleCollapse">
-          {{ isCollapsed ? '展开' : '收起' }}
+          {{ isCollapsed ? t('settingsStage4.accountList.actions.expand') : t('settingsStage4.accountList.actions.collapse') }}
           <el-icon>
             <ArrowUp v-if="!isCollapsed" />
             <ArrowDown v-else />
           </el-icon>
         </el-button>
-        <el-button @click="handleRoleManagement">角色管理</el-button>
+        <el-button @click="handleRoleManagement">{{ t('settingsStage4.accountList.actions.roleManagement') }}</el-button>
       </div>
-      <el-button type="primary" @click="handleAdd">添加账号</el-button>
+      <el-button type="primary" @click="handleAdd">{{ t('settingsStage4.accountList.actions.addAccount') }}</el-button>
     </div>
 
     <el-table
@@ -85,16 +85,16 @@
         :reserve-selection="true"
         :selectable="isBatchSelectable"
       />
-      <el-table-column prop="email" label="账号" min-width="220" />
-      <el-table-column prop="name" label="员工姓名" min-width="140" />
-      <el-table-column label="基础角色" min-width="110">
+      <el-table-column prop="email" :label="t('settingsStage4.accountList.columns.account')" min-width="220" />
+      <el-table-column prop="name" :label="t('settingsStage4.accountList.columns.employeeName')" min-width="140" />
+      <el-table-column :label="t('settingsStage4.accountList.columns.baseRole')" min-width="110">
         <template #default="{ row }">
-          <el-tag v-if="row.role === 'owner'" type="danger" size="small">门店负责人</el-tag>
-          <el-tag v-else-if="row.role === 'admin'" type="warning" size="small">管理员</el-tag>
-          <el-tag v-else type="info" size="small">成员</el-tag>
+          <el-tag v-if="row.role === 'owner'" type="danger" size="small">{{ t('settingsStage4.accountList.baseRoles.owner') }}</el-tag>
+          <el-tag v-else-if="row.role === 'admin'" type="warning" size="small">{{ t('settingsStage4.accountList.baseRoles.admin') }}</el-tag>
+          <el-tag v-else type="info" size="small">{{ t('settingsStage4.accountList.baseRoles.member') }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="权限角色" min-width="220">
+      <el-table-column :label="t('settingsStage4.accountList.columns.permissionRoles')" min-width="220">
         <template #default="{ row }">
           <el-tag
             v-for="role in row.roles"
@@ -104,30 +104,30 @@
           >
             {{ role.name }}
           </el-tag>
-          <span v-if="!row.roles.length" class="muted">无</span>
+          <span v-if="!row.roles.length" class="muted">{{ t('settingsStage4.accountList.none') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="额外权限" min-width="140">
+      <el-table-column :label="t('settingsStage4.accountList.columns.extraPermissions')" min-width="140">
         <template #default="{ row }">
           <span :class="row.extraPermissions.length ? 'primary-text' : 'muted'">
-            {{ row.extraPermissions.length ? `已配置 ${row.extraPermissions.length} 项` : '无' }}
+            {{ row.extraPermissions.length ? t('settingsStage4.accountList.extraConfigured', { count: row.extraPermissions.length }) : t('settingsStage4.accountList.none') }}
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="状态" min-width="110">
+      <el-table-column :label="t('settingsStage4.accountList.columns.status')" min-width="110">
         <template #default="{ row }">
-          <span v-if="isOwnerAccount(row)" class="status-text">启用</span>
+          <span v-if="isOwnerAccount(row)" class="status-text">{{ t('settingsStage4.accountList.status.enabled') }}</span>
           <el-switch
             v-else
             v-model="row.isActive"
-            :active-text="row.isActive ? '启用' : '停用'"
+            :active-text="row.isActive ? t('settingsStage4.accountList.status.enabled') : t('settingsStage4.accountList.status.disabled')"
             @change="handleStatusChange(row)"
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="200" fixed="right">
+      <el-table-column :label="t('settingsStage4.accountList.columns.actions')" min-width="200" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="handleDetail(row)">详情</el-button>
+          <el-button link type="primary" @click="handleDetail(row)">{{ t('settingsStage4.common.details') }}</el-button>
           <template v-if="isOwnerAccount(row)">
             <el-button
               v-if="canShowTransferOwner(row)"
@@ -135,12 +135,12 @@
               type="primary"
               @click="openTransferOwnerDialog(row)"
             >
-              更换负责人
+              {{ t('settingsStage4.accountList.actions.transferOwner') }}
             </el-button>
           </template>
           <template v-else>
-            <el-button link type="primary" @click="handleSetPermission(row)">设置权限</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="primary" @click="handleSetPermission(row)">{{ t('settingsStage4.accountList.actions.setPermissions') }}</el-button>
+            <el-button link type="danger" @click="handleDelete(row)">{{ t('settings.common.delete') }}</el-button>
           </template>
         </template>
       </el-table-column>
@@ -149,13 +149,13 @@
     <div class="batch-action-section">
       <div class="action-left">
         <el-checkbox :model-value="isCurrentPageAllSelected" @change="handleSelectAll">
-          全选（当前页）
+          {{ t('settingsStage4.accountList.actions.selectCurrentPage') }}
         </el-checkbox>
-        <span class="selected-text">已选中 {{ selectedAccounts.length }} 名员工</span>
-        <el-button size="small" @click="handleBatchEnable">启用</el-button>
-        <el-button size="small" @click="handleBatchDisable">停用</el-button>
-        <el-button size="small" @click="handleBatchChangeRole">调整角色</el-button>
-        <el-button size="small" type="danger" @click="handleBatchDelete">删除</el-button>
+        <span class="selected-text">{{ t('settingsStage4.accountList.batch.selected', { count: selectedAccounts.length }) }}</span>
+        <el-button size="small" @click="handleBatchEnable">{{ t('settingsStage4.accountList.status.enabled') }}</el-button>
+        <el-button size="small" @click="handleBatchDisable">{{ t('settingsStage4.accountList.status.disabled') }}</el-button>
+        <el-button size="small" @click="handleBatchChangeRole">{{ t('settingsStage4.accountList.actions.changeRole') }}</el-button>
+        <el-button size="small" type="danger" @click="handleBatchDelete">{{ t('settings.common.delete') }}</el-button>
       </div>
       <el-pagination
         v-model:current-page="currentPage"
@@ -168,9 +168,9 @@
       />
     </div>
 
-    <el-dialog v-model="roleDialogVisible" title="调整角色" width="600px">
+    <el-dialog v-model="roleDialogVisible" :title="t('settingsStage4.accountList.dialog.changeRole')" width="600px">
       <el-alert
-        title="批量调整角色会直接替换当前角色，额外权限会保留。"
+        :title="t('settingsStage4.accountList.dialog.changeRoleNotice')"
         type="info"
         :closable="false"
         show-icon
@@ -184,22 +184,22 @@
         </el-checkbox-group>
       </div>
       <template #footer>
-        <el-button @click="roleDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirmRoleChange">保存</el-button>
+        <el-button @click="roleDialogVisible = false">{{ t('settings.common.cancel') }}</el-button>
+        <el-button type="primary" @click="handleConfirmRoleChange">{{ t('settings.common.save') }}</el-button>
       </template>
     </el-dialog>
 
     <el-dialog
       v-model="transferOwnerDialogVisible"
-      title="更换负责人"
+      :title="t('settingsStage4.accountList.dialog.transferOwner')"
       width="520px"
       destroy-on-close
     >
       <div class="transfer-owner-body">
-        <div class="tip-text">请选择新的门店负责人。更换后，当前负责人会自动调整为管理员。</div>
+        <div class="tip-text">{{ t('settingsStage4.accountList.dialog.transferOwnerTip') }}</div>
         <el-select
           v-model="selectedNewOwnerId"
-          placeholder="请选择新的负责人"
+          :placeholder="t('settingsStage4.accountList.placeholders.newOwner')"
           style="width: 100%; margin-top: 16px"
         >
           <el-option
@@ -211,36 +211,36 @@
         </el-select>
       </div>
       <template #footer>
-        <el-button @click="closeTransferOwnerDialog">取消</el-button>
+        <el-button @click="closeTransferOwnerDialog">{{ t('settings.common.cancel') }}</el-button>
         <el-button type="primary" :loading="transferOwnerLoading" @click="submitTransferOwner">
-          确认更换
+          {{ t('settingsStage4.accountList.actions.confirmTransfer') }}
         </el-button>
       </template>
     </el-dialog>
 
     <el-drawer
       v-model="drawerVisible"
-      :title="accountForm.id ? '设置账号权限' : '添加账号'"
+      :title="accountForm.id ? t('settingsStage4.accountList.dialog.setAccountPermissions') : t('settingsStage4.accountList.dialog.addAccount')"
       size="80%"
       direction="rtl"
     >
       <div class="drawer-body">
         <div class="section">
-          <div class="section-title">基本信息</div>
+          <div class="section-title">{{ t('settingsStage4.accountList.sections.basicInfo') }}</div>
           <el-form :model="accountForm" label-width="100px">
-            <el-form-item label="邮箱" required>
+            <el-form-item :label="t('settingsStage4.accountList.fields.email')" required>
               <el-input
                 v-model="accountForm.email"
                 style="width: 420px"
-                placeholder="请输入邮箱地址"
+                :placeholder="t('settingsStage4.accountList.placeholders.email')"
                 :disabled="Boolean(accountForm.id)"
               />
             </el-form-item>
-            <el-form-item label="员工姓名">
+            <el-form-item :label="t('settingsStage4.accountList.fields.employeeName')">
               <el-input
                 v-model="accountForm.name"
                 style="width: 420px"
-                placeholder="用于识别当前账号"
+                :placeholder="t('settingsStage4.accountList.placeholders.employeeName')"
                 :disabled="Boolean(accountForm.id)"
               />
             </el-form-item>
@@ -248,8 +248,8 @@
         </div>
 
         <div class="section">
-          <div class="section-title">权限设置</div>
-          <div class="sub-title">角色权限</div>
+          <div class="section-title">{{ t('settingsStage4.accountList.sections.permissionSettings') }}</div>
+          <div class="sub-title">{{ t('settingsStage4.accountList.sections.rolePermissions') }}</div>
           <div class="role-checkboxes">
             <el-checkbox-group v-model="selectedAccountRoles">
               <el-checkbox v-for="role in roleOptions" :key="role.id" :label="role.id">
@@ -259,7 +259,7 @@
           </div>
 
           <el-alert
-            title="账号页只允许追加额外权限，不能在这里取消角色自带权限；如需调整角色默认权限，请前往角色管理。"
+            :title="t('settingsStage4.accountList.alerts.extraPermissionOnly')"
             type="info"
             :closable="false"
             show-icon
@@ -270,7 +270,7 @@
             <el-tab-pane
               v-for="tab in ACCOUNT_PERMISSION_TABS"
               :key="tab.name"
-              :label="tab.label"
+              :label="t(tab.label)"
               :name="tab.name"
             >
               <div
@@ -278,7 +278,7 @@
                 :key="`${tab.name}-${section.title}`"
                 class="permission-card"
               >
-                <div class="group-title">{{ section.title }}</div>
+                <div class="group-title">{{ t(section.title) }}</div>
                 <div class="checkbox-grid">
                   <el-checkbox
                     v-for="item in section.items"
@@ -287,14 +287,14 @@
                     :disabled="isPermissionDisabled(item)"
                     @change="handlePermissionToggle(item, !!$event)"
                   >
-                    {{ item.label }}
+                    {{ t(item.label) }}
                   </el-checkbox>
                 </div>
 
                 <div v-if="showRoomTypeScopeEditor(tab.name, section)" class="room-scope-box">
-                  <div class="sub-head">房型范围</div>
+                  <div class="sub-head">{{ t('settingsStage4.accountList.sections.roomTypeScope') }}</div>
                   <div class="permission-hint">
-                    勾选后表示该账号可查看对应房型房态；角色已拥有的房型会直接显示为已勾选。
+                    {{ t('settingsStage4.accountList.hints.roomTypeScope') }}
                   </div>
 
                   <el-checkbox
@@ -302,11 +302,11 @@
                     :disabled="roleRoomScope.allRoomTypes || !hasViewRoomStatusPermission"
                     @change="handleRoomTypeAllToggle(!!$event)"
                   >
-                    查看全部房型
+                    {{ t('settingsStage4.accountList.actions.viewAllRoomTypes') }}
                   </el-checkbox>
 
                   <div v-if="!roomTypes.length" class="tip-text" style="margin-top: 12px">
-                    当前门店暂无房型
+                    {{ t('settingsStage4.accountList.hints.noRoomTypes') }}
                   </div>
 
                   <div v-else class="checkbox-grid room-type-grid">
@@ -327,8 +327,8 @@
         </div>
 
         <div class="drawer-footer">
-          <el-button @click="closeDrawer">取消</el-button>
-          <el-button type="primary" @click="submitMember">完成</el-button>
+          <el-button @click="closeDrawer">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="submitMember">{{ t('settingsStage4.accountList.actions.finish') }}</el-button>
         </div>
       </div>
     </el-drawer>
@@ -340,6 +340,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowDown, ArrowUp, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   addStoreMember,
   getStoreMemberDetail,
@@ -398,6 +399,7 @@ type ExtraForm = Record<ExtraPermissionKey, boolean> & {
 const router = useRouter()
 const storeStore = useStoreStore()
 const userStore = useUserStore()
+const { t } = useI18n()
 const searchKeyword = ref('')
 const selectedRole = ref<number | ''>('')
 const selectedStatus = ref<boolean | ''>('')
@@ -824,7 +826,7 @@ function buildExtraPermissions(): PermissionDTO[] | null {
         availableRoomTypes.value.some((item) => item.id === id)
       )
       if (!roomTypeIds.length && !hasRoleRoomStatusPermission.value) {
-        ElMessage.warning('请至少选择一个房型，或直接授予全部房型权限')
+        ElMessage.warning(t('settingsStage4.accountList.messages.selectRoomTypeScope'))
         return null
       }
       roomTypeIds.forEach((roomTypeId) => {
@@ -860,7 +862,7 @@ function resetEditor() {
 async function loadAccounts(showWarning = true) {
   if (!currentStoreId.value) {
     if (showWarning) {
-      ElMessage.warning('请先选择门店')
+      ElMessage.warning(t('settingsStage4.accountList.messages.selectStore'))
     }
     accounts.value = []
     selectedAccounts.value = []
@@ -884,10 +886,10 @@ async function loadAccounts(showWarning = true) {
       selectedAccounts.value = []
       return
     }
-    ElMessage.error(response.message || '加载账号列表失败')
+    ElMessage.error(response.message || t('settingsStage4.accountList.messages.loadAccountsFailed'))
   } catch (error) {
     console.error('加载账号列表失败:', error)
-    ElMessage.error('加载账号列表失败')
+    ElMessage.error(t('settingsStage4.accountList.messages.loadAccountsFailed'))
   } finally {
     loading.value = false
   }
@@ -964,7 +966,7 @@ function closeDrawer() {
 
 function openTransferOwnerDialog(row: Account) {
   if (!transferableAccounts.value.length) {
-    ElMessage.warning('当前没有可接手负责人的成员')
+    ElMessage.warning(t('settingsStage4.accountList.messages.noTransferableMembers'))
     return
   }
   currentOwnerAccount.value = row
@@ -979,7 +981,7 @@ function closeTransferOwnerDialog() {
 }
 
 function handleDetail(row: Account) {
-  ElMessage.info(`查看账号详情：${row.name}`)
+  ElMessage.info(t('settingsStage4.accountList.messages.viewAccountDetail', { name: row.name }))
 }
 
 async function refreshCurrentStoreContext() {
@@ -994,17 +996,17 @@ async function refreshCurrentStoreContext() {
 
 async function submitTransferOwner() {
   if (!currentStoreId.value) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectStore'))
     return
   }
 
   if (!currentOwnerAccount.value) {
-    ElMessage.warning('未找到当前负责人')
+    ElMessage.warning(t('settingsStage4.accountList.messages.ownerNotFound'))
     return
   }
 
   if (!selectedNewOwnerId.value) {
-    ElMessage.warning('请选择新的负责人')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectNewOwner'))
     return
   }
 
@@ -1015,16 +1017,16 @@ async function submitTransferOwner() {
     })
 
     if (!response.success) {
-      ElMessage.error(response.message || '更换负责人失败')
+      ElMessage.error(response.message || t('settingsStage4.accountList.messages.transferOwnerFailed'))
       return
     }
 
-    ElMessage.success('更换负责人成功')
+    ElMessage.success(t('settingsStage4.accountList.messages.transferOwnerSuccess'))
     closeTransferOwnerDialog()
     await Promise.all([loadAccounts(false), refreshCurrentStoreContext()])
   } catch (error: any) {
     console.error('更换负责人失败:', error)
-    ElMessage.error(error?.response?.data?.message || '更换负责人失败')
+    ElMessage.error(error?.response?.data?.message || t('settingsStage4.accountList.messages.transferOwnerFailed'))
   } finally {
     transferOwnerLoading.value = false
   }
@@ -1032,12 +1034,12 @@ async function submitTransferOwner() {
 
 async function submitMember() {
   if (!accountForm.value.email) {
-    ElMessage.warning('请输入邮箱地址')
+    ElMessage.warning(t('settingsStage4.accountList.messages.emailRequired'))
     return
   }
 
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectStore'))
     return
   }
 
@@ -1057,10 +1059,10 @@ async function submitMember() {
         }
       )
       if (!response.success) {
-        ElMessage.error(response.message || '更新成员权限失败')
+        ElMessage.error(response.message || t('settingsStage4.accountList.messages.updateMemberPermissionsFailed'))
         return
       }
-      ElMessage.success('权限更新成功')
+      ElMessage.success(t('settingsStage4.accountList.messages.updatePermissionsSuccess'))
     } else {
       const request: AddStoreMemberRequest = {
         email: accountForm.value.email,
@@ -1070,23 +1072,23 @@ async function submitMember() {
       }
       const response = await addStoreMember(storeStore.currentStore.id, request)
       if (!response.success) {
-        ElMessage.error(response.message || '添加成员失败')
+        ElMessage.error(response.message || t('settingsStage4.accountList.messages.addMemberFailed'))
         return
       }
-      ElMessage.success('成员添加成功')
+      ElMessage.success(t('settingsStage4.accountList.messages.addMemberSuccess'))
     }
 
     closeDrawer()
     await loadAccounts()
   } catch (error: any) {
     console.error('操作失败:', error)
-    ElMessage.error(error?.response?.data?.message || '操作失败')
+    ElMessage.error(error?.response?.data?.message || t('settingsStage4.accountList.messages.operationFailed'))
   }
 }
 
 async function handleSetPermission(row: Account) {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectStore'))
     return
   }
 
@@ -1094,7 +1096,7 @@ async function handleSetPermission(row: Account) {
     accountForm.value = { id: row.id, email: row.email, name: row.name }
     const response = await getStoreMemberDetail(storeStore.currentStore.id, row.id)
     if (!response.success || !response.data) {
-      ElMessage.error(response.message || '加载成员信息失败')
+      ElMessage.error(response.message || t('settingsStage4.accountList.messages.loadMemberFailed'))
       return
     }
     selectedAccountRoles.value = response.data.roles.map((role) => role.id)
@@ -1102,33 +1104,33 @@ async function handleSetPermission(row: Account) {
     drawerVisible.value = true
   } catch (error) {
     console.error('加载成员信息失败:', error)
-    ElMessage.error('加载成员信息失败')
+    ElMessage.error(t('settingsStage4.accountList.messages.loadMemberFailed'))
   }
 }
 
 async function handleDelete(row: Account) {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectStore'))
     return
   }
 
   try {
-    await ElMessageBox.confirm(`确定要将“${row.name}”从门店中移除吗？`, '移除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('settingsStage4.accountList.messages.removeConfirm', { name: row.name }), t('settingsStage4.accountList.messages.removeTitle'), {
+      confirmButtonText: t('settings.common.confirm'),
+      cancelButtonText: t('settings.common.cancel'),
       type: 'warning',
     })
     const response = await removeStoreMember(storeStore.currentStore.id, row.id)
     if (!response.success) {
-      ElMessage.error(response.message || '移除失败')
+      ElMessage.error(response.message || t('settingsStage4.accountList.messages.removeFailed'))
       return
     }
-    ElMessage.success('移除成功')
+    ElMessage.success(t('settingsStage4.accountList.messages.removeSuccess'))
     await loadAccounts()
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('移除成员失败:', error)
-      ElMessage.error('移除成员失败')
+      ElMessage.error(t('settingsStage4.accountList.messages.removeMemberFailed'))
     }
   }
 }
@@ -1140,7 +1142,7 @@ async function handleStatusChange(row: Account) {
   }
 
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectStore'))
     return
   }
 
@@ -1149,14 +1151,19 @@ async function handleStatusChange(row: Account) {
       isActive: row.isActive,
     })
     if (!response.success) {
-      ElMessage.error(response.message || '更新状态失败')
+      ElMessage.error(response.message || t('settingsStage4.accountList.messages.updateStatusFailed'))
       row.isActive = !row.isActive
       return
     }
-    ElMessage.success(`已${row.isActive ? '启用' : '停用'}成员：${row.name}`)
+    ElMessage.success(
+      t('settingsStage4.accountList.messages.statusUpdated', {
+        action: t(row.isActive ? 'settingsStage4.accountList.status.enabled' : 'settingsStage4.accountList.status.disabled'),
+        name: row.name,
+      })
+    )
   } catch (error) {
     console.error('更新成员状态失败:', error)
-    ElMessage.error('更新成员状态失败')
+    ElMessage.error(t('settingsStage4.accountList.messages.updateStatusFailed'))
     row.isActive = !row.isActive
   }
 }
@@ -1181,7 +1188,7 @@ function handleBatchDisable() {
 
 function handleBatchChangeRole() {
   if (!selectedAccounts.value.length) {
-    ElMessage.warning('请先选择员工')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectEmployees'))
     return
   }
   batchSelectedRoleIds.value = []
@@ -1190,11 +1197,11 @@ function handleBatchChangeRole() {
 
 function handleConfirmRoleChange() {
   if (!selectedAccounts.value.length) {
-    ElMessage.warning('请先选择员工')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectEmployees'))
     return
   }
   if (!batchSelectedRoleIds.value.length) {
-    ElMessage.warning('请至少选择一个权限角色')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectPermissionRole'))
     return
   }
   handleBatchUpdateRoles(batchSelectedRoleIds.value)
@@ -1214,19 +1221,22 @@ function collectFailed(results: PromiseSettledResult<any>[]) {
 
 async function handleBatchUpdateStatus(isActive: boolean) {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectStore'))
     return
   }
   if (!selectedAccounts.value.length) {
-    ElMessage.warning('请先选择员工')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectEmployees'))
     return
   }
 
   try {
     await ElMessageBox.confirm(
-      `确定要批量${isActive ? '启用' : '停用'}选中的 ${selectedAccounts.value.length} 名员工吗？`,
-      '批量确认',
-      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+      t('settingsStage4.accountList.messages.batchStatusConfirm', {
+        action: t(isActive ? 'settingsStage4.accountList.status.enabled' : 'settingsStage4.accountList.status.disabled'),
+        count: selectedAccounts.value.length,
+      }),
+      t('settingsStage4.accountList.messages.batchConfirmTitle'),
+      { confirmButtonText: t('settings.common.confirm'), cancelButtonText: t('settings.common.cancel'), type: 'warning' }
     )
     loading.value = true
     const results = await Promise.allSettled(
@@ -1237,15 +1247,20 @@ async function handleBatchUpdateStatus(isActive: boolean) {
     const failed = collectFailed(results)
     const successCount = selectedAccounts.value.length - failed.length
     if (failed.length) {
-      ElMessage.warning(`部分处理失败：成功 ${successCount} 名，失败 ${failed.length} 名`)
+      ElMessage.warning(t('settingsStage4.accountList.messages.batchPartialFailed', { success: successCount, failed: failed.length }))
     } else {
-      ElMessage.success(`批量${isActive ? '启用' : '停用'}成功，共 ${successCount} 名`)
+      ElMessage.success(
+        t('settingsStage4.accountList.messages.batchStatusSuccess', {
+          action: t(isActive ? 'settingsStage4.accountList.status.enabled' : 'settingsStage4.accountList.status.disabled'),
+          count: successCount,
+        })
+      )
     }
     await loadAccounts()
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('批量更新状态失败:', error)
-      ElMessage.error('批量更新状态失败')
+      ElMessage.error(t('settingsStage4.accountList.messages.batchUpdateStatusFailed'))
     }
   } finally {
     loading.value = false
@@ -1254,19 +1269,19 @@ async function handleBatchUpdateStatus(isActive: boolean) {
 
 async function handleBatchUpdateRoles(roleIds: number[]) {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectStore'))
     return
   }
   if (!selectedAccounts.value.length) {
-    ElMessage.warning('请先选择员工')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectEmployees'))
     return
   }
 
   try {
     await ElMessageBox.confirm(
-      `确定要为选中的 ${selectedAccounts.value.length} 名员工批量调整角色吗？`,
-      '批量确认',
-      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+      t('settingsStage4.accountList.messages.batchRoleConfirm', { count: selectedAccounts.value.length }),
+      t('settingsStage4.accountList.messages.batchConfirmTitle'),
+      { confirmButtonText: t('settings.common.confirm'), cancelButtonText: t('settings.common.cancel'), type: 'warning' }
     )
     loading.value = true
     const results = await Promise.allSettled(
@@ -1277,9 +1292,9 @@ async function handleBatchUpdateRoles(roleIds: number[]) {
     const failed = collectFailed(results)
     const successCount = selectedAccounts.value.length - failed.length
     if (failed.length) {
-      ElMessage.warning(`部分调整失败：成功 ${successCount} 名，失败 ${failed.length} 名`)
+      ElMessage.warning(t('settingsStage4.accountList.messages.batchRolePartialFailed', { success: successCount, failed: failed.length }))
     } else {
-      ElMessage.success(`批量调整角色成功，共 ${successCount} 名`)
+      ElMessage.success(t('settingsStage4.accountList.messages.batchRoleSuccess', { count: successCount }))
     }
     roleDialogVisible.value = false
     batchSelectedRoleIds.value = []
@@ -1287,7 +1302,7 @@ async function handleBatchUpdateRoles(roleIds: number[]) {
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('批量调整角色失败:', error)
-      ElMessage.error('批量调整角色失败')
+      ElMessage.error(t('settingsStage4.accountList.messages.batchRoleFailed'))
     }
   } finally {
     loading.value = false
@@ -1296,19 +1311,19 @@ async function handleBatchUpdateRoles(roleIds: number[]) {
 
 async function handleBatchRemoveMembers() {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectStore'))
     return
   }
   if (!selectedAccounts.value.length) {
-    ElMessage.warning('请先选择员工')
+    ElMessage.warning(t('settingsStage4.accountList.messages.selectEmployees'))
     return
   }
 
   try {
     await ElMessageBox.confirm(
-      `确定要将选中的 ${selectedAccounts.value.length} 名员工从门店中移除吗？`,
-      '批量移除确认',
-      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+      t('settingsStage4.accountList.messages.batchRemoveConfirm', { count: selectedAccounts.value.length }),
+      t('settingsStage4.accountList.messages.batchRemoveTitle'),
+      { confirmButtonText: t('settings.common.confirm'), cancelButtonText: t('settings.common.cancel'), type: 'warning' }
     )
     loading.value = true
     const results = await Promise.allSettled(
@@ -1319,15 +1334,15 @@ async function handleBatchRemoveMembers() {
     const failed = collectFailed(results)
     const successCount = selectedAccounts.value.length - failed.length
     if (failed.length) {
-      ElMessage.warning(`部分移除失败：成功 ${successCount} 名，失败 ${failed.length} 名`)
+      ElMessage.warning(t('settingsStage4.accountList.messages.batchRemovePartialFailed', { success: successCount, failed: failed.length }))
     } else {
-      ElMessage.success(`批量移除成功，共 ${successCount} 名`)
+      ElMessage.success(t('settingsStage4.accountList.messages.batchRemoveSuccess', { count: successCount }))
     }
     await loadAccounts()
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('批量移除失败:', error)
-      ElMessage.error('批量移除失败')
+      ElMessage.error(t('settingsStage4.accountList.messages.batchRemoveFailed'))
     }
   } finally {
     loading.value = false

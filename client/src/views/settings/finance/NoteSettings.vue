@@ -3,8 +3,10 @@
     <!-- 收入项部分 -->
     <div class="section">
       <div class="section-header">
-        <h3 class="section-title">收入项</h3>
-        <el-button type="primary" @click="handleAddIncome">新增收入项</el-button>
+        <h3 class="section-title">{{ t('settings.noteSettings.incomeItems') }}</h3>
+        <el-button type="primary" @click="handleAddIncome">
+          {{ t('settings.noteSettings.addIncome') }}
+        </el-button>
       </div>
 
       <draggable
@@ -67,7 +69,7 @@
           <div v-if="showIncomeInput" class="grid-item editing">
             <el-input
               v-model="newIncomeName"
-              placeholder=""
+              :placeholder="t('settings.noteSettings.placeholders.incomeName')"
               maxlength="20"
               @keyup.enter="handleSaveNewIncome"
             />
@@ -93,8 +95,10 @@
     <!-- 支出项部分 -->
     <div class="section">
       <div class="section-header">
-        <h3 class="section-title">支出项</h3>
-        <el-button type="primary" @click="handleAddExpense">新增支出项</el-button>
+        <h3 class="section-title">{{ t('settings.noteSettings.expenseItems') }}</h3>
+        <el-button type="primary" @click="handleAddExpense">
+          {{ t('settings.noteSettings.addExpense') }}
+        </el-button>
       </div>
 
       <draggable
@@ -157,7 +161,7 @@
           <div v-if="showExpenseInput" class="grid-item editing">
             <el-input
               v-model="newExpenseName"
-              placeholder=""
+              :placeholder="t('settings.noteSettings.placeholders.expenseName')"
               maxlength="20"
               @keyup.enter="handleSaveNewExpense"
             />
@@ -184,6 +188,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Check, Close, Menu, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import draggable from 'vuedraggable'
@@ -196,6 +201,8 @@ import {
   type NoteCategoryDTO,
   type NoteCategoryType,
 } from '@/api/noteCategory'
+
+const { t } = useI18n()
 
 interface NoteItem {
   id: number
@@ -246,11 +253,11 @@ const loadCategories = async () => {
         .sort((a, b) => a.displayOrder - b.displayOrder)
         .map(mapCategoryToNoteItem)
     } else {
-      ElMessage.error(response.message || '加载分类失败')
+      ElMessage.error(response.message || t('settings.noteSettings.messages.loadFailed'))
     }
   } catch (error) {
     console.error('加载分类失败:', error)
-    ElMessage.error('加载分类失败')
+    ElMessage.error(t('settings.noteSettings.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -270,7 +277,7 @@ const handleAddIncome = () => {
 // 保存新的收入项
 const handleSaveNewIncome = async () => {
   if (!newIncomeName.value.trim()) {
-    ElMessage.warning('请输入收入项名称')
+    ElMessage.warning(t('settings.noteSettings.messages.incomeNameRequired'))
     return
   }
 
@@ -284,15 +291,15 @@ const handleSaveNewIncome = async () => {
     if (response.success) {
       // 重新加载分类数据
       await loadCategories()
-      ElMessage.success('添加成功')
+      ElMessage.success(t('settings.noteSettings.messages.addSuccess'))
       showIncomeInput.value = false
       newIncomeName.value = ''
     } else {
-      ElMessage.error(response.message || '添加失败')
+      ElMessage.error(response.message || t('settings.noteSettings.messages.addFailed'))
     }
   } catch (error) {
     console.error('添加收入项失败:', error)
-    ElMessage.error('添加失败')
+    ElMessage.error(t('settings.noteSettings.messages.addFailed'))
   }
 }
 
@@ -311,7 +318,7 @@ const handleAddExpense = () => {
 // 保存新的支出项
 const handleSaveNewExpense = async () => {
   if (!newExpenseName.value.trim()) {
-    ElMessage.warning('请输入支出项名称')
+    ElMessage.warning(t('settings.noteSettings.messages.expenseNameRequired'))
     return
   }
 
@@ -325,15 +332,15 @@ const handleSaveNewExpense = async () => {
     if (response.success) {
       // 重新加载分类数据
       await loadCategories()
-      ElMessage.success('添加成功')
+      ElMessage.success(t('settings.noteSettings.messages.addSuccess'))
       showExpenseInput.value = false
       newExpenseName.value = ''
     } else {
-      ElMessage.error(response.message || '添加失败')
+      ElMessage.error(response.message || t('settings.noteSettings.messages.addFailed'))
     }
   } catch (error) {
     console.error('添加支出项失败:', error)
-    ElMessage.error('添加失败')
+    ElMessage.error(t('settings.noteSettings.messages.addFailed'))
   }
 }
 
@@ -355,7 +362,7 @@ const handleEditItem = (item: NoteItem) => {
 // 保存编辑
 const handleSaveEdit = async (id: number) => {
   if (!editingName.value.trim()) {
-    ElMessage.warning('请输入分类名称')
+    ElMessage.warning(t('settings.noteSettings.messages.categoryNameRequired'))
     return
   }
 
@@ -367,15 +374,15 @@ const handleSaveEdit = async (id: number) => {
 
     if (response.success) {
       await loadCategories()
-      ElMessage.success('修改成功')
+      ElMessage.success(t('settings.noteSettings.messages.updateSuccess'))
       editingItemId.value = null
       editingName.value = ''
     } else {
-      ElMessage.error(response.message || '修改失败')
+      ElMessage.error(response.message || t('settings.noteSettings.messages.updateFailed'))
     }
   } catch (error) {
     console.error('修改分类失败:', error)
-    ElMessage.error('修改失败')
+    ElMessage.error(t('settings.noteSettings.messages.updateFailed'))
   }
 }
 
@@ -390,19 +397,23 @@ const handleCancelEdit = () => {
 // 删除分类
 const handleDeleteItem = async (item: NoteItem) => {
   try {
-    await ElMessageBox.confirm(`确定要删除"${item.name}"吗？`, '删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('settings.noteSettings.messages.deleteConfirm', { name: item.name }),
+      t('settings.common.deleteConfirmTitle'),
+      {
+        confirmButtonText: t('settings.common.confirmButton'),
+        cancelButtonText: t('settings.common.cancelButton'),
+        type: 'warning',
+      },
+    )
 
     const response = await deleteCategory(item.id)
 
     if (response.success) {
       await loadCategories()
-      ElMessage.success('删除成功')
+      ElMessage.success(t('settings.common.deleteSuccess'))
     } else {
-      ElMessage.error(response.message || '删除失败')
+      ElMessage.error(response.message || t('settings.noteSettings.messages.deleteFailed'))
     }
   } catch (error) {
     // 用户取消删除
@@ -410,7 +421,7 @@ const handleDeleteItem = async (item: NoteItem) => {
       return
     }
     console.error('删除分类失败:', error)
-    ElMessage.error('删除失败')
+    ElMessage.error(t('settings.noteSettings.messages.deleteFailed'))
   }
 }
 
@@ -438,14 +449,14 @@ const handleIncomeDragEnd = async (event: any) => {
 
     if (response.success) {
       await loadCategories()
-      ElMessage.success('排序已保存')
+      ElMessage.success(t('settings.noteSettings.messages.sortSaved'))
     } else {
-      ElMessage.error(response.message || '排序保存失败')
+      ElMessage.error(response.message || t('settings.noteSettings.messages.sortSaveFailed'))
       await loadCategories() // 恢复原顺序
     }
   } catch (error) {
     console.error('保存排序失败:', error)
-    ElMessage.error('排序保存失败')
+    ElMessage.error(t('settings.noteSettings.messages.sortSaveFailed'))
     await loadCategories() // 恢复原顺序
   }
 }
@@ -472,14 +483,14 @@ const handleExpenseDragEnd = async (event: any) => {
 
     if (response.success) {
       await loadCategories()
-      ElMessage.success('排序已保存')
+      ElMessage.success(t('settings.noteSettings.messages.sortSaved'))
     } else {
-      ElMessage.error(response.message || '排序保存失败')
+      ElMessage.error(response.message || t('settings.noteSettings.messages.sortSaveFailed'))
       await loadCategories() // 恢复原顺序
     }
   } catch (error) {
     console.error('保存排序失败:', error)
-    ElMessage.error('排序保存失败')
+    ElMessage.error(t('settings.noteSettings.messages.sortSaveFailed'))
     await loadCategories() // 恢复原顺序
   }
 }

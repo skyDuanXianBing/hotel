@@ -1,12 +1,15 @@
 <template>
   <StatisticsLayout>
     <div class="accommodation-report-container">
-      <h2 class="page-title">住宿报表</h2>
+      <h2 class="page-title">{{ t('stage5.statistics.reports.accommodationReport') }}</h2>
 
-      <!-- 报表列表网格 -->
       <div class="reports-grid">
-        <!-- 房源明细表 -->
-        <div class="report-item" @click="downloadReport('property')">
+        <div
+          v-for="report in reports"
+          :key="report.type"
+          class="report-item"
+          @click="downloadReport(report.type)"
+        >
           <div class="report-icon">
             <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
               <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
@@ -16,77 +19,7 @@
               <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
             </svg>
           </div>
-          <div class="report-name">房源明细表</div>
-        </div>
-
-        <!-- 客房其他房费明细表 -->
-        <div class="report-item" @click="downloadReport('room-fees')">
-          <div class="report-icon">
-            <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
-              <rect x="15" y="15" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="25" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="35" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-            </svg>
-          </div>
-          <div class="report-name">客房其他房费明细表</div>
-        </div>
-
-        <!-- 客房营业汇总表 -->
-        <div class="report-item" @click="downloadReport('business-summary')">
-          <div class="report-icon">
-            <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
-              <rect x="15" y="15" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="25" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="35" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-            </svg>
-          </div>
-          <div class="report-name">客房营业汇总表</div>
-        </div>
-
-        <!-- 客房法协办记录表 -->
-        <div class="report-item" @click="downloadReport('legal-records')">
-          <div class="report-icon">
-            <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
-              <rect x="15" y="15" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="25" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="35" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-            </svg>
-          </div>
-          <div class="report-name">客房法协办记录表</div>
-        </div>
-
-        <!-- 房间环补记录表 -->
-        <div class="report-item" @click="downloadReport('environment-records')">
-          <div class="report-icon">
-            <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
-              <rect x="15" y="15" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="25" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="35" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-            </svg>
-          </div>
-          <div class="report-name">房间环补记录表</div>
-        </div>
-
-        <!-- 借宿明细表 -->
-        <div class="report-item" @click="downloadReport('temporary-stay')">
-          <div class="report-icon">
-            <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="0" width="40" height="80" fill="#43A047" rx="2"/>
-              <rect x="15" y="15" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="25" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="35" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-              <rect x="15" y="45" width="30" height="4" fill="#ffffff" opacity="0.8"/>
-            </svg>
-          </div>
-          <div class="report-name">借宿明细表</div>
+          <div class="report-name">{{ t(report.labelKey) }}</div>
         </div>
       </div>
     </div>
@@ -94,21 +27,25 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import StatisticsLayout from './StatisticsLayout.vue'
 
-// 下载报表
-const downloadReport = (reportType: string) => {
-  const reportNames: Record<string, string> = {
-    property: '房源明细表',
-    'room-fees': '客房其他房费明细表',
-    'business-summary': '客房营业汇总表',
-    'legal-records': '客房法协办记录表',
-    'environment-records': '房间环补记录表',
-    'temporary-stay': '借宿明细表'
-  }
+const { t } = useI18n()
 
-  ElMessage.info(`正在生成${reportNames[reportType]}...`)
+const reports = [
+  { type: 'property', labelKey: 'stage5.statistics.reports.propertyDetail' },
+  { type: 'room-fees', labelKey: 'stage5.statistics.reports.otherRoomFeeDetail' },
+  { type: 'business-summary', labelKey: 'stage5.statistics.reports.roomBusinessSummary' },
+  { type: 'legal-records', labelKey: 'stage5.statistics.reports.legalRecord' },
+  { type: 'environment-records', labelKey: 'stage5.statistics.reports.environmentRecord' },
+  { type: 'temporary-stay', labelKey: 'stage5.statistics.reports.temporaryStay' },
+]
+
+const downloadReport = (reportType: string) => {
+  const report = reports.find((item) => item.type === reportType)
+  const name = report ? t(report.labelKey) : reportType
+  ElMessage.info(t('stage5.statistics.reports.generating', { name }))
 
   // TODO: 实现实际的报表下载逻辑
   // 这里可以调用后端API生成Excel报表并下载

@@ -8,18 +8,16 @@
   >
     <template #header>
       <div class="dialog-header">
-        <h2 class="dialog-title">{{ task?.type || '抹尘' }}</h2>
+        <h2 class="dialog-title">{{ getTaskType(task?.type) }}</h2>
       </div>
     </template>
 
     <div class="dialog-content">
-      <!-- 房间信息 -->
       <div class="room-info">
-        <p class="room-type">{{ task?.roomType || '大床房' }}</p>
-        <p class="room-number">{{ task?.roomNumber || 'a01' }}</p>
+        <p class="room-type">{{ getRoomType(task?.roomType) }}</p>
+        <p class="room-number">{{ task?.roomNumber || t('pages.housekeepingTaskDetail.fallback.roomNumber') }}</p>
       </div>
 
-      <!-- 状态圆环 -->
       <div class="status-circle">
         <div class="circle-outer" :class="task?.status">
           <div class="circle-inner">
@@ -27,46 +25,46 @@
               <p class="status-text" :class="task?.status">
                 {{ getStatusText(task?.status) }}
               </p>
-              <p class="duration-text">总时长：{{ formatDuration(task?.duration) }}</p>
+              <p class="duration-text">
+                {{ t('pages.housekeepingTaskDetail.duration', { duration: formatDuration(task?.duration) }) }}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 打扫时间 -->
       <div class="detail-item">
-        <span class="detail-label">打扫时间</span>
+        <span class="detail-label">{{ t('pages.housekeepingTaskDetail.cleanTime') }}</span>
         <span class="detail-value">{{ task?.cleanTime || '-' }}</span>
       </div>
 
-      <!-- 备注 -->
       <div class="detail-item">
-        <span class="detail-label">备注</span>
+        <span class="detail-label">{{ t('pages.housekeepingTaskDetail.notes') }}</span>
         <span class="detail-value">{{ task?.note || '-' }}</span>
       </div>
 
-      <!-- 操作按钮 -->
       <div class="action-buttons" v-if="task?.status === 'pending'">
         <el-button type="success" size="large" class="action-btn" @click="handleStartClean">
-          开始打扫
+          {{ t('pages.housekeepingTaskDetail.actions.start') }}
         </el-button>
       </div>
 
       <div class="action-buttons" v-if="task?.status === 'cleaning'">
         <el-button type="primary" size="large" class="action-btn" @click="handleFinishClean">
-          完成打扫
+          {{ t('pages.housekeepingTaskDetail.actions.finish') }}
         </el-button>
       </div>
     </div>
 
     <template #footer>
-      <el-button @click="handleClose">关闭</el-button>
+      <el-button @click="handleClose">{{ t('pages.housekeepingTaskDetail.actions.close') }}</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 
 interface Task {
@@ -92,27 +90,40 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+const { t } = useI18n()
 
 const dialogVisible = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
 })
 
-// 检测是否为移动端
 const isMobile = ref(window.innerWidth <= 768)
 
-// 获取状态文本
 const getStatusText = (status?: string) => {
   const statusMap: Record<string, string> = {
-    pending: '待打扫',
-    cleaning: '打扫中',
-    completed: '已打扫',
-    expired: '已过期',
+    pending: t('pages.housekeepingTaskDetail.statuses.pending'),
+    cleaning: t('pages.housekeepingTaskDetail.statuses.cleaning'),
+    completed: t('pages.housekeepingTaskDetail.statuses.completed'),
+    expired: t('pages.housekeepingTaskDetail.statuses.expired'),
   }
-  return statusMap[status || ''] || '待打扫'
+  return statusMap[status || ''] || t('pages.housekeepingTaskDetail.statuses.pending')
 }
 
-// 格式化时长
+const getTaskType = (type?: string) => {
+  const typeMap: Record<string, string> = {
+    checkoutRoom: t('pages.housekeepingDailyTask.taskTypes.checkoutRoom'),
+    dusting: t('pages.housekeepingTaskDetail.fallback.type'),
+  }
+  return typeMap[type || ''] || t('pages.housekeepingTaskDetail.fallback.type')
+}
+
+const getRoomType = (roomType?: string) => {
+  const roomTypeMap: Record<string, string> = {
+    deluxeDouble: t('pages.housekeepingDailyTask.roomTypes.deluxeDouble'),
+  }
+  return roomTypeMap[roomType || ''] || t('pages.housekeepingTaskDetail.fallback.roomType')
+}
+
 const formatDuration = (seconds?: number) => {
   if (!seconds) return '00:00:00'
 
@@ -123,33 +134,27 @@ const formatDuration = (seconds?: number) => {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
-// 开始打扫
 const handleStartClean = () => {
-  ElMessage.success('开始打扫')
-  // TODO: 调用API开始计时
+  ElMessage.success(t('pages.housekeepingTaskDetail.messages.startSuccess'))
   emit('refresh')
   handleClose()
 }
 
-// 完成打扫
 const handleFinishClean = () => {
-  ElMessage.success('打扫完成')
-  // TODO: 调用API完成任务
+  ElMessage.success(t('pages.housekeepingTaskDetail.messages.finishSuccess'))
   emit('refresh')
   handleClose()
 }
 
-// 关闭弹窗
 const handleClose = () => {
   dialogVisible.value = false
 }
 
-// 监听窗口大小变化
 watch(
   () => window.innerWidth,
   (width) => {
     isMobile.value = width <= 768
-  }
+  },
 )
 </script>
 
@@ -186,7 +191,6 @@ watch(
   gap: 24px;
 }
 
-/* 房间信息 */
 .room-info {
   text-align: center;
 }
@@ -204,7 +208,6 @@ watch(
   margin: 0;
 }
 
-/* 状态圆环 */
 .status-circle {
   width: 100%;
   max-width: 300px;
@@ -282,7 +285,6 @@ watch(
   margin: 0;
 }
 
-/* 详情项 */
 .detail-item {
   width: 100%;
   display: flex;
@@ -307,7 +309,6 @@ watch(
   color: #333;
 }
 
-/* 操作按钮 */
 .action-buttons {
   width: 100%;
   margin-top: 20px;
@@ -319,7 +320,6 @@ watch(
   font-size: 16px;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .dialog-title {
     font-size: 20px;

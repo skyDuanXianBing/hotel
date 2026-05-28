@@ -1,55 +1,52 @@
 <template>
   <div class="room-status-daily">
-    <!-- 主内容区 -->
     <div class="main-content">
-      <!-- 顶部工具栏 -->
       <div class="header-toolbar">
         <el-input
           v-model="searchKeyword"
-          placeholder="姓名、邮箱、手机号、订单号、备注"
+          :placeholder="t('pages.roomStatusDaily.searchPlaceholder')"
           :prefix-icon="Search"
           clearable
           class="search-input"
         />
         <div class="toolbar-actions">
-          <el-button>批量算脏/净</el-button>
-          <el-button>批量开/关房</el-button>
+          <el-button>{{ t('pages.roomStatusDaily.batchSettle') }}</el-button>
+          <el-button>{{ t('pages.roomStatusDaily.batchOpenClose') }}</el-button>
         </div>
       </div>
 
-      <!-- 统计卡片 -->
       <div class="stats-cards">
         <div class="stat-card">
-          <div class="stat-label">今日预抵</div>
+          <div class="stat-label">{{ t('pages.roomStatusDaily.stats.checkIn') }}</div>
           <div class="stat-value">{{ todayStats.checkIn }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">今日预离</div>
+          <div class="stat-label">{{ t('pages.roomStatusDaily.stats.checkOut') }}</div>
           <div class="stat-value">{{ todayStats.checkOut }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">今日在住</div>
+          <div class="stat-label">{{ t('pages.roomStatusDaily.stats.occupied') }}</div>
           <div class="stat-value">{{ todayStats.occupied }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">未排房</div>
+          <div class="stat-label">{{ t('pages.roomStatusDaily.stats.unassigned') }}</div>
           <div class="stat-value">{{ todayStats.unassigned }}</div>
         </div>
       </div>
 
-      <!-- 房型分组列表 -->
       <div class="room-types-list">
         <div
           v-for="roomType in filteredRoomTypes"
           :key="roomType.id"
           class="room-type-section"
         >
-          <!-- 房型标题 -->
           <div class="room-type-header">
-            <h3 class="room-type-title">{{ roomType.name }} (共{{ roomType.totalRooms }}间)</h3>
+            <h3 class="room-type-title">
+              {{ roomType.name }}
+              ({{ t('pages.roomStatusDaily.roomCount', { count: roomType.totalRooms }) }})
+            </h3>
           </div>
 
-          <!-- 房间卡片列表 -->
           <div class="rooms-grid">
             <div
               v-for="room in roomType.rooms"
@@ -58,7 +55,6 @@
               :class="getRoomStatusClass(room)"
               @click="handleRoomClick(room)"
             >
-              <!-- 房间号和数量 -->
               <div class="room-header">
                 <span class="room-number">{{ room.roomNumber }}</span>
                 <span v-if="room.quantity" class="room-quantity">{{ room.quantity }}</span>
@@ -67,10 +63,8 @@
                 </el-icon>
               </div>
 
-              <!-- 房型名称 -->
               <div class="room-type-name">{{ roomType.name }}</div>
 
-              <!-- 客人信息 -->
               <div v-if="room.status === 'occupied'" class="guest-info">
                 <div class="status-label">{{ room.statusLabel }}</div>
                 <div class="guest-name">{{ room.guestName }}</div>
@@ -81,15 +75,13 @@
       </div>
     </div>
 
-    <!-- 右侧筛选面板 -->
     <div class="sidebar-panel">
-      <!-- 日期选择 -->
       <div class="panel-section">
-        <h4 class="panel-title">日期选择</h4>
+        <h4 class="panel-title">{{ t('pages.roomStatusDaily.sidebar.dateSelection') }}</h4>
         <el-date-picker
           v-model="selectedDate"
           type="date"
-          placeholder="选择日期"
+          :placeholder="t('pages.roomStatusDaily.sidebar.datePlaceholder')"
           format="YYYY/MM/DD"
           value-format="YYYY-MM-DD"
           style="width: 100%"
@@ -97,40 +89,46 @@
         />
       </div>
 
-      <!-- 房间分组 -->
       <div class="panel-section">
         <div class="panel-header">
-          <h4 class="panel-title">房间分组</h4>
+          <h4 class="panel-title">{{ t('pages.roomStatusDaily.sidebar.roomGroup') }}</h4>
           <el-button link @click="toggleRoomGroupCollapse">
-            {{ roomGroupCollapsed ? '展开' : '收起' }}
+            {{
+              roomGroupCollapsed
+                ? t('pages.roomStatusDaily.sidebar.expand')
+                : t('pages.roomStatusDaily.sidebar.collapse')
+            }}
           </el-button>
         </div>
         <div v-show="!roomGroupCollapsed" class="panel-content">
           <div class="group-stats">
             <div class="stat-row">
-              <span>可售数/总房数:</span>
+              <span>{{ t('pages.roomStatusDaily.sidebar.availableTotal') }}</span>
               <span class="stat-number">{{ totalAvailable }}/{{ totalRooms }}</span>
             </div>
           </div>
           <div class="group-item">
-            <span>未分组房间</span>
+            <span>{{ t('pages.roomStatusDaily.sidebar.ungroupedRooms') }}</span>
             <span class="group-count">{{ unassignedCount }}/{{ totalRooms }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 房型筛选 -->
       <div class="panel-section">
         <div class="panel-header">
-          <h4 class="panel-title">房型筛选</h4>
+          <h4 class="panel-title">{{ t('pages.roomStatusDaily.sidebar.roomTypeFilter') }}</h4>
           <el-button link @click="toggleRoomTypeCollapse">
-            {{ roomTypeCollapsed ? '展开' : '收起' }}
+            {{
+              roomTypeCollapsed
+                ? t('pages.roomStatusDaily.sidebar.expand')
+                : t('pages.roomStatusDaily.sidebar.collapse')
+            }}
           </el-button>
         </div>
         <div v-show="!roomTypeCollapsed" class="panel-content">
           <div class="filter-stats">
             <div class="stat-row">
-              <span>可售数/总房数:</span>
+              <span>{{ t('pages.roomStatusDaily.sidebar.availableTotal') }}</span>
               <span class="stat-number">{{ totalAvailable }}/{{ totalRooms }}</span>
             </div>
           </div>
@@ -145,7 +143,6 @@
             <span class="filter-count">{{ roomType.availableRooms }}/{{ roomType.totalRooms }}</span>
           </div>
 
-          <!-- 添加按钮 -->
           <div class="add-section">
             <el-button class="add-button" @click="handleAddRoomType">
               <el-icon><Plus /></el-icon>
@@ -154,38 +151,39 @@
         </div>
       </div>
 
-      <!-- 重置筛选 -->
       <div class="panel-section">
-        <el-button style="width: 100%" @click="resetFilters">重置筛选</el-button>
+        <el-button style="width: 100%" @click="resetFilters">
+          {{ t('pages.roomStatusDaily.sidebar.resetFilters') }}
+        </el-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { Search, Plus, House } from '@element-plus/icons-vue'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { House, Plus, Search } from '@element-plus/icons-vue'
 
-// 响应式数据
+const { t } = useI18n()
+
 const searchKeyword = ref('')
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 const selectedRoomTypeId = ref<number | null>(null)
 const roomGroupCollapsed = ref(false)
 const roomTypeCollapsed = ref(false)
 
-// 统计数据
 const todayStats = ref({
   checkIn: 1,
   checkOut: 0,
   occupied: 0,
-  unassigned: 0
+  unassigned: 0,
 })
 
-// 房型数据
 const roomTypes = ref([
   {
     id: 1,
-    name: '大床房',
+    name: t('pages.roomStatusDaily.roomTypes.deluxeDouble'),
     totalRooms: 2,
     availableRooms: 1,
     rooms: [
@@ -195,8 +193,8 @@ const roomTypes = ref([
         quantity: 1,
         hasIcon: true,
         status: 'occupied',
-        statusLabel: '里',
-        guestName: '自来客'
+        statusLabel: t('pages.roomStatusDaily.guest.reserved'),
+        guestName: t('pages.roomStatusDaily.guest.directGuest'),
       },
       {
         id: 13,
@@ -205,13 +203,13 @@ const roomTypes = ref([
         hasIcon: false,
         status: 'available',
         statusLabel: '',
-        guestName: ''
-      }
-    ]
+        guestName: '',
+      },
+    ],
   },
   {
     id: 2,
-    name: '双人',
+    name: t('pages.roomStatusDaily.roomTypes.double'),
     totalRooms: 1,
     availableRooms: 1,
     rooms: [
@@ -222,46 +220,36 @@ const roomTypes = ref([
         hasIcon: false,
         status: 'available',
         statusLabel: '',
-        guestName: ''
-      }
-    ]
-  }
+        guestName: '',
+      },
+    ],
+  },
 ])
 
-// 计算属性
-const totalRooms = computed(() => {
-  return roomTypes.value.reduce((sum, rt) => sum + rt.totalRooms, 0)
-})
-
-const totalAvailable = computed(() => {
-  return roomTypes.value.reduce((sum, rt) => sum + rt.availableRooms, 0)
-})
-
-const unassignedCount = computed(() => {
-  return roomTypes.value.reduce((sum, rt) => sum + rt.totalRooms, 0)
-})
+const totalRooms = computed(() => roomTypes.value.reduce((sum, rt) => sum + rt.totalRooms, 0))
+const totalAvailable = computed(() =>
+  roomTypes.value.reduce((sum, rt) => sum + rt.availableRooms, 0),
+)
+const unassignedCount = computed(() => roomTypes.value.reduce((sum, rt) => sum + rt.totalRooms, 0))
 
 const filteredRoomTypes = computed(() => {
   if (selectedRoomTypeId.value) {
-    return roomTypes.value.filter(rt => rt.id === selectedRoomTypeId.value)
+    return roomTypes.value.filter((rt) => rt.id === selectedRoomTypeId.value)
   }
   return roomTypes.value
 })
 
-// 方法
-const getRoomStatusClass = (room: any) => {
+const getRoomStatusClass = (room: { status: string }) => {
   if (room.status === 'occupied') return 'status-occupied'
   return 'status-available'
 }
 
-const handleRoomClick = (room: any) => {
-  console.log('点击房间:', room)
-  // 这里可以打开房间详情弹窗
+const handleRoomClick = (room: unknown) => {
+  console.log('room clicked:', room)
 }
 
 const handleDateChange = (value: string) => {
-  console.log('日期改变:', value)
-  // 重新加载当天的数据
+  console.log('date changed:', value)
 }
 
 const toggleRoomGroupCollapse = () => {
@@ -273,15 +261,11 @@ const toggleRoomTypeCollapse = () => {
 }
 
 const selectRoomType = (id: number) => {
-  if (selectedRoomTypeId.value === id) {
-    selectedRoomTypeId.value = null
-  } else {
-    selectedRoomTypeId.value = id
-  }
+  selectedRoomTypeId.value = selectedRoomTypeId.value === id ? null : id
 }
 
 const handleAddRoomType = () => {
-  console.log('添加房型')
+  console.log('add room type')
 }
 
 const resetFilters = () => {
@@ -289,10 +273,8 @@ const resetFilters = () => {
   selectedRoomTypeId.value = null
 }
 
-// 生命周期
 onMounted(() => {
-  // 初始化数据
-  console.log('单日视图已加载')
+  console.log('room status daily mounted')
 })
 </script>
 

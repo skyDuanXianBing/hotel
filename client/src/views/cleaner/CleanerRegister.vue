@@ -4,11 +4,11 @@
       <!-- Logo -->
       <div class="logo-section">
         <div class="logo-icon">◆</div>
-        <h1 class="logo-text">保洁平台</h1>
+        <h1 class="logo-text">{{ t('stage5.cleaner.common.appName') }}</h1>
       </div>
 
       <!-- Title -->
-      <h2 class="register-title">创建您的账户</h2>
+      <h2 class="register-title">{{ t('stage5.cleaner.auth.registerTitle') }}</h2>
 
       <!-- Form -->
       <el-form
@@ -21,7 +21,7 @@
         <el-form-item prop="name">
           <el-input
             v-model="registerForm.name"
-            placeholder="请输入姓名"
+            :placeholder="t('stage5.cleaner.auth.namePlaceholder')"
             size="large"
             :prefix-icon="User"
             :disabled="loading || Boolean(invitationInfo)"
@@ -31,7 +31,7 @@
         <el-form-item prop="email">
           <el-input
             v-model="registerForm.email"
-            placeholder="请输入邮箱"
+            :placeholder="t('stage5.cleaner.auth.emailPlaceholder')"
             size="large"
             :prefix-icon="Message"
             :disabled="loading || Boolean(invitationInfo)"
@@ -42,7 +42,7 @@
           <el-input
             v-model="registerForm.password"
             type="password"
-            placeholder="请输入密码"
+            :placeholder="t('stage5.cleaner.auth.passwordPlaceholder')"
             size="large"
             :prefix-icon="Lock"
             show-password
@@ -58,23 +58,27 @@
             @click="handleRegister"
             class="register-button"
           >
-            注册
+            {{ t('stage5.cleaner.auth.register') }}
           </el-button>
         </el-form-item>
 
         <div class="login-link">
-          已有账户? <router-link to="/cleaner/login">登录</router-link>
+          {{ t('stage5.cleaner.auth.alreadyHaveAccount') }}
+          <router-link to="/cleaner/login">{{ t('stage5.cleaner.auth.login') }}</router-link>
         </div>
 
         <div class="terms-text">
-          点击 "注册" 即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>
+          {{ t('stage5.cleaner.auth.termsClickPrefix') }}
+          <a href="#">{{ t('stage5.cleaner.auth.terms') }}</a>
+          {{ t('stage5.cleaner.auth.and') }}
+          <a href="#">{{ t('stage5.cleaner.auth.privacy') }}</a>
         </div>
       </el-form>
 
       <!-- Footer Logo -->
       <div class="footer-logo">
         <svg viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
-          <text x="100" y="25" text-anchor="middle" fill="#999" font-size="16">房东智控中心（THE HOST HUB）</text>
+          <text x="100" y="25" text-anchor="middle" fill="#999" font-size="16">{{ t('app.name') }}</text>
         </svg>
       </div>
     </div>
@@ -84,6 +88,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Message, Lock } from '@element-plus/icons-vue'
 import {
@@ -94,6 +99,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 // 表单引用
 const formRef = ref<FormInstance>()
@@ -110,14 +116,14 @@ const registerForm = reactive({
 
 // 表单验证规则
 const rules: FormRules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+  name: [{ required: true, message: t('stage5.cleaner.auth.nameRequired'), trigger: 'blur' }],
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
+    { required: true, message: t('stage5.cleaner.auth.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('stage5.cleaner.auth.emailCorrect'), trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+    { required: true, message: t('stage5.cleaner.auth.passwordRequired'), trigger: 'blur' },
+    { min: 6, message: t('stage5.cleaner.auth.passwordMin'), trigger: 'blur' }
   ]
 }
 
@@ -129,7 +135,7 @@ const verifyToken = async () => {
   const token = route.query.token as string
 
   if (!token) {
-    ElMessage.error('邀请链接无效')
+    ElMessage.error(t('stage5.cleaner.auth.invalidInvitation'))
     router.push('/cleaner/login')
     return
   }
@@ -144,12 +150,12 @@ const verifyToken = async () => {
       registerForm.email = response.data.email
       registerForm.name = response.data.name
     } else {
-      ElMessage.error(response.message || '邀请验证失败')
+      ElMessage.error(response.message || t('stage5.cleaner.auth.invitationVerifyFailed'))
       router.push('/cleaner/login')
     }
   } catch (error: any) {
-    console.error('验证邀请失败:', error)
-    ElMessage.error(error.message || '邀请验证失败')
+    console.error('Cleaner invitation verification failed:', error)
+    ElMessage.error(error.message || t('stage5.cleaner.auth.invitationVerifyFailed'))
     router.push('/cleaner/login')
   } finally {
     loading.value = false
@@ -166,7 +172,7 @@ const handleRegister = async () => {
     const token = route.query.token as string
 
     if (!token) {
-      ElMessage.error('邀请链接无效')
+      ElMessage.error(t('stage5.cleaner.auth.invalidInvitation'))
       return
     }
 
@@ -180,20 +186,20 @@ const handleRegister = async () => {
     })
 
     if (response.success) {
-      ElMessage.success('注册成功!请登录')
+      ElMessage.success(t('stage5.cleaner.auth.registerSuccess'))
       setTimeout(() => {
         router.push('/cleaner/login')
       }, 1500)
     } else {
-      ElMessage.error(response.message || '注册失败')
+      ElMessage.error(response.message || t('stage5.cleaner.auth.registerFailed'))
     }
   } catch (error: any) {
     if (error.message) {
       // 验证错误
       return
     }
-    console.error('注册失败:', error)
-    ElMessage.error(error.message || '注册失败')
+    console.error('Cleaner registration failed:', error)
+    ElMessage.error(error.message || t('stage5.cleaner.auth.registerFailed'))
   } finally {
     loading.value = false
   }

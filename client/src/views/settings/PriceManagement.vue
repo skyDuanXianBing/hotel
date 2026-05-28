@@ -7,19 +7,19 @@
           :type="activeTab === 'price-setting' ? 'primary' : 'default'"
           @click="switchTab('price-setting')"
         >
-          按来源查看价格
+          {{ t('settings.priceManagement.tabs.bySource') }}
         </el-button>
         <el-button
           :type="activeTab === 'price-view' ? 'primary' : 'default'"
           @click="switchTab('price-view')"
         >
-          按渠道查看价格
+          {{ t('settings.priceManagement.tabs.byChannel') }}
         </el-button>
       </div>
 
       <div class="nav-actions">
-        <span class="system-label">系统</span>
-        <el-button type="primary">门市价</el-button>
+        <span class="system-label">{{ t('settings.priceManagement.system') }}</span>
+        <el-button type="primary">{{ t('settings.priceManagement.walkInRate') }}</el-button>
       </div>
     </div>
 
@@ -27,14 +27,14 @@
     <div class="control-panel">
       <!-- 日期选择 -->
       <div class="control-group">
-        <span class="control-label">日期</span>
+        <span class="control-label">{{ t('settings.priceManagement.date') }}</span>
         <div class="date-control">
           <el-button icon="ArrowLeft" @click="previousDate" :disabled="loading" />
           <el-date-picker
             v-model="selectedDate"
             type="date"
-            placeholder="选择日期"
-            format="YYYY-MM-DD 周一"
+            :placeholder="t('settings.priceManagement.selectDate')"
+            :format="t('settings.priceManagement.dateFormat')"
             value-format="YYYY-MM-DD"
             @change="onDateChange"
             :disabled="loading"
@@ -45,17 +45,17 @@
 
       <!-- 房型筛选 -->
       <div class="control-group">
-        <span class="control-label">房型筛选</span>
+        <span class="control-label">{{ t('settings.priceManagement.roomTypeFilter') }}</span>
         <el-select
           v-model="roomTypeFilter"
-          placeholder="本地房型"
+          :placeholder="t('settings.priceManagement.localRoomType')"
           @change="onRoomTypeChange"
           :disabled="loading"
           class="room-type-select"
         >
-          <el-option label="本地房型" value="local" />
-          <el-option label="普通房" value="normal" />
-          <el-option label="全部房型" value="all" />
+          <el-option :label="t('settings.priceManagement.localRoomType')" value="local" />
+          <el-option :label="t('settings.priceManagement.standardRoom')" value="normal" />
+          <el-option :label="t('settings.priceManagement.allRoomTypes')" value="all" />
         </el-select>
       </div>
 
@@ -63,7 +63,7 @@
       <div class="control-group">
         <el-switch
           v-model="showInventory"
-          active-text="显示库存"
+          :active-text="t('settings.priceManagement.showInventory')"
           @change="onShowInventoryChange"
           :disabled="loading"
         />
@@ -76,12 +76,12 @@
         :data="priceTableData"
         border
         v-loading="loading"
-        element-loading-text="加载中..."
+        :element-loading-text="t('settings.priceManagement.loading')"
         :header-cell-style="{ background: '#f5f7fa', color: '#606266', textAlign: 'center' }"
         :cell-style="{ textAlign: 'center' }"
       >
         <!-- 房型列 -->
-        <el-table-column prop="roomType" label="本地房型" width="120" fixed="left">
+        <el-table-column prop="roomType" :label="t('settings.priceManagement.localRoomType')" width="120" fixed="left">
           <template #default="scope">
             <span class="room-type-name">{{ scope.row.roomType }}</span>
           </template>
@@ -100,7 +100,7 @@
               <div class="date-label" :class="date.dayClass">{{ date.dayLabel }}</div>
               <div class="date-day">{{ date.weekday }}</div>
               <div v-if="showInventory" class="total-rooms">
-                共{{ dailyTotalRooms[date.prop] || 0 }}间
+                {{ t('settings.priceManagement.totalRooms', { count: dailyTotalRooms[date.prop] || 0 }) }}
               </div>
             </div>
           </template>
@@ -122,7 +122,7 @@
                 v-if="showInventory && scope.row[date.prop]?.availableRooms"
                 class="rooms-available"
               >
-                剩{{ scope.row[date.prop].availableRooms }}间
+                {{ t('settings.priceManagement.remainingRooms', { count: scope.row[date.prop].availableRooms }) }}
               </div>
             </div>
           </template>
@@ -133,7 +133,7 @@
     <!-- 价格编辑侧边栏 -->
     <el-drawer
       v-model="showPriceEditor"
-      title="修改价格"
+      :title="t('settings.priceManagement.editTitle')"
       direction="rtl"
       size="400px"
       :before-close="closePriceEditor"
@@ -141,27 +141,29 @@
       <div class="price-editor">
         <!-- 房型信息 -->
         <div class="room-info">
-          <el-tag type="info">全部房型</el-tag>
+          <el-tag type="info">{{ t('settings.priceManagement.allRoomTypesTag') }}</el-tag>
           <span class="room-name">{{ editingPrice.roomType }}</span>
         </div>
 
         <!-- 改价日期 -->
         <div class="form-item">
-          <label class="form-label"> <span class="required">*</span>改价日期 </label>
+          <label class="form-label">
+            <span class="required">*</span>{{ t('settings.priceManagement.changeDate') }}
+          </label>
           <div class="date-range">
             <el-date-picker
               v-model="editingPrice.startDate"
               type="date"
-              placeholder="开始日期"
+              :placeholder="t('settings.priceManagement.startDate')"
               format="YYYY-MM-DD"
               value-format="YYYY-MM-DD"
               style="width: 120px"
             />
-            <span class="date-separator">至</span>
+            <span class="date-separator">{{ t('settings.priceManagement.dateSeparator') }}</span>
             <el-date-picker
               v-model="editingPrice.endDate"
               type="date"
-              placeholder="结束日期"
+              :placeholder="t('settings.priceManagement.endDate')"
               format="YYYY-MM-DD"
               value-format="YYYY-MM-DD"
               style="width: 120px"
@@ -171,13 +173,15 @@
 
         <!-- 门市价 -->
         <div class="form-item">
-          <label class="form-label"> <span class="required">*</span>门市价 </label>
+          <label class="form-label">
+            <span class="required">*</span>{{ t('settings.priceManagement.price') }}
+          </label>
           <div class="price-input">
             <span class="currency">￥</span>
             <el-input
               v-model.number="editingPrice.newPrice"
               type="number"
-              placeholder="请输入价格"
+              :placeholder="t('settings.priceManagement.pricePlaceholder')"
               :min="0"
               :precision="2"
             />
@@ -186,8 +190,10 @@
 
         <!-- 操作按钮 -->
         <div class="action-buttons">
-          <el-button @click="closePriceEditor">取消</el-button>
-          <el-button type="primary" @click="savePriceChange" :loading="loading"> 保存 </el-button>
+          <el-button @click="closePriceEditor">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="savePriceChange" :loading="loading">
+            {{ t('settings.common.save') }}
+          </el-button>
         </div>
       </div>
     </el-drawer>
@@ -196,8 +202,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+
+const { t } = useI18n()
 
 // 响应式数据
 const activeTab = ref('price-setting')
@@ -240,7 +249,15 @@ const dateColumns = computed(() => {
     const dateStr = currentDate.toISOString().split('T')[0]
     const month = currentDate.getMonth() + 1
     const day = currentDate.getDate()
-    const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][currentDate.getDay()]
+    const weekday = [
+      t('settings.priceManagement.weekdays.sun'),
+      t('settings.priceManagement.weekdays.mon'),
+      t('settings.priceManagement.weekdays.tue'),
+      t('settings.priceManagement.weekdays.wed'),
+      t('settings.priceManagement.weekdays.thu'),
+      t('settings.priceManagement.weekdays.fri'),
+      t('settings.priceManagement.weekdays.sat'),
+    ][currentDate.getDay()]
 
     // 判断是否为今天
     const today = new Date()
@@ -253,7 +270,7 @@ const dateColumns = computed(() => {
     let dayClass = ''
 
     if (isToday) {
-      dayLabel = '今天'
+      dayLabel = t('settings.priceManagement.today')
       dayClass = 'today'
     } else if (isHoliday) {
       dayClass = 'holiday'
@@ -412,12 +429,12 @@ const savePriceChange = async () => {
     // 模拟API调用延迟
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    ElMessage.success('价格修改成功')
+    ElMessage.success(t('settings.priceManagement.messages.priceUpdateSuccess'))
     closePriceEditor()
     loadPriceData() // 重新加载数据
   } catch (error) {
     console.error('保存价格失败:', error)
-    ElMessage.error('保存价格失败')
+    ElMessage.error(t('settings.priceManagement.messages.savePriceFailed'))
   } finally {
     loading.value = false
   }
@@ -436,7 +453,7 @@ const loadPriceData = async () => {
     // })
   } catch (error) {
     console.error('加载房价数据失败:', error)
-    ElMessage.error('加载房价数据失败')
+    ElMessage.error(t('settings.priceManagement.messages.loadPriceDataFailed'))
   } finally {
     loading.value = false
   }

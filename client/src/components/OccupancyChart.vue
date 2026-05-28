@@ -6,6 +6,7 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
+import { useI18n } from 'vue-i18n'
 
 interface OccupancyData {
   date: string
@@ -17,6 +18,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 const chartRef = ref<HTMLElement>()
 let chartInstance: echarts.ECharts | null = null
@@ -24,10 +26,10 @@ let chartInstance: echarts.ECharts | null = null
 const initChart = () => {
   if (!chartRef.value) return
 
-  // 初始化图表实例
+  // Initialize the chart instance.
   chartInstance = echarts.init(chartRef.value)
 
-  // 配置图表选项
+  // Configure chart options.
   const option: EChartsOption = {
     grid: {
       left: '5%',
@@ -52,7 +54,7 @@ const initChart = () => {
     },
     yAxis: {
       type: 'value',
-      name: '入住率',
+      name: t('stage6.components.occupancyChart.occupancyRate'),
       nameTextStyle: {
         color: '#666',
         fontSize: 12,
@@ -81,7 +83,7 @@ const initChart = () => {
       },
       formatter: (params: any) => {
         const param = params[0]
-        return `${param.axisValue}<br/>入住率: ${param.value}%`
+        return `${param.axisValue}<br/>${t('stage6.components.occupancyChart.tooltip', { value: param.value })}`
       },
     },
     series: [
@@ -144,10 +146,20 @@ const updateChart = () => {
         data: props.data.map((item) => item.rate),
       },
     ],
+    yAxis: {
+      name: t('stage6.components.occupancyChart.occupancyRate'),
+    },
   })
 }
 
-// 监听数据变化
+// Watch chart data changes.
+watch(
+  () => t('stage6.components.occupancyChart.occupancyRate'),
+  () => {
+    updateChart()
+  }
+)
+
 watch(
   () => props.data,
   () => {
@@ -156,7 +168,7 @@ watch(
   { deep: true }
 )
 
-// 监听窗口大小变化
+// Watch window resize changes.
 const handleResize = () => {
   chartInstance?.resize()
 }

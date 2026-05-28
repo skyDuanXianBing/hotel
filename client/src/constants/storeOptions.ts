@@ -1,27 +1,40 @@
-﻿export interface StoreOption {
+export interface StoreOption {
   label: string
+  labelKey?: string
   value: string
 }
 
 export const PROPERTY_TYPE_OPTIONS: StoreOption[] = [
-  { label: 'Hotel（酒店）', value: '1' },
-  { label: 'Motel（汽车旅馆）', value: '2' },
-  { label: 'Vacation Rental（度假出租）', value: '3' },
+  { label: 'Hotel', labelKey: 'stage6.constants.storeOptions.propertyType.hotel', value: '1' },
+  { label: 'Motel', labelKey: 'stage6.constants.storeOptions.propertyType.motel', value: '2' },
+  {
+    label: 'Vacation Rental',
+    labelKey: 'stage6.constants.storeOptions.propertyType.vacationRental',
+    value: '3',
+  },
 ]
 
 export const LANGUAGE_OPTIONS: StoreOption[] = [
-  { label: 'English（en）', value: 'en' },
-  { label: '简体中文（zh）', value: 'zh' },
-  { label: '日本語（ja）', value: 'ja' },
-  { label: '한국어（ko）', value: 'ko' },
+  { label: 'English（en）', labelKey: 'stage6.constants.storeOptions.language.en', value: 'en' },
+  { label: 'Simplified Chinese (zh)', labelKey: 'stage6.constants.storeOptions.language.zh', value: 'zh' },
+  { label: 'Japanese (ja)', labelKey: 'stage6.constants.storeOptions.language.ja', value: 'ja' },
+  { label: '한국어（ko）', labelKey: 'stage6.constants.storeOptions.language.ko', value: 'ko' },
 ]
 
 export const COUNTRY_OPTIONS: StoreOption[] = [
-  { label: '中国', value: 'China' },
-  { label: '日本', value: 'Japan' },
-  { label: '韩国', value: 'South Korea' },
-  { label: '英国', value: 'United Kingdom' },
-  { label: '美国', value: 'USA' },
+  { label: 'China', labelKey: 'stage6.constants.storeOptions.country.china', value: 'China' },
+  { label: 'Japan', labelKey: 'stage6.constants.storeOptions.country.japan', value: 'Japan' },
+  {
+    label: 'South Korea',
+    labelKey: 'stage6.constants.storeOptions.country.southKorea',
+    value: 'South Korea',
+  },
+  {
+    label: 'United Kingdom',
+    labelKey: 'stage6.constants.storeOptions.country.unitedKingdom',
+    value: 'United Kingdom',
+  },
+  { label: 'United States', labelKey: 'stage6.constants.storeOptions.country.usa', value: 'USA' },
 ]
 
 export const PHONE_PREFIX_OPTIONS: StoreOption[] = [
@@ -41,16 +54,26 @@ export const TIMEZONE_OPTIONS: StoreOption[] = [
 ]
 
 export const CURRENCY_OPTIONS: StoreOption[] = [
-  { label: 'CNY - 人民币', value: 'CNY' },
-  { label: 'JPY - 日元', value: 'JPY' },
-  { label: 'KRW - 韩元', value: 'KRW' },
-  { label: 'USD - 美元', value: 'USD' },
-  { label: 'GBP - 英镑', value: 'GBP' },
+  { label: 'CNY - Chinese Yuan', labelKey: 'stage6.constants.storeOptions.currency.cny', value: 'CNY' },
+  { label: 'JPY - Japanese Yen', labelKey: 'stage6.constants.storeOptions.currency.jpy', value: 'JPY' },
+  { label: 'KRW - Korean Won', labelKey: 'stage6.constants.storeOptions.currency.krw', value: 'KRW' },
+  { label: 'USD - US Dollar', labelKey: 'stage6.constants.storeOptions.currency.usd', value: 'USD' },
+  { label: 'GBP - British Pound', labelKey: 'stage6.constants.storeOptions.currency.gbp', value: 'GBP' },
 ]
 
-export const getStoreOptionLabel = (options: StoreOption[], value?: string): string => {
+export const getStoreOptionLabel = (
+  options: StoreOption[],
+  value?: string,
+  translate?: (key: string) => string,
+): string => {
   if (!value) {
     return '-'
   }
-  return options.find((option) => option.value === value)?.label || value
+
+  const option = options.find((item) => item.value === value)
+  if (!option) {
+    return value
+  }
+
+  return option.labelKey && translate ? translate(option.labelKey) : option.label
 }

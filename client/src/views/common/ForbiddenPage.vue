@@ -2,11 +2,11 @@
   <div class="forbidden-page">
     <el-result
       icon="warning"
-      title="暂无权限查看"
-      sub-title="当前账号在所选门店下没有访问此页面的权限，请联系管理员调整角色权限。"
+      :title="t('pages.forbidden.title')"
+      :sub-title="t('pages.forbidden.subtitle')"
     >
       <template #extra>
-        <el-button type="primary" @click="goHome">返回首页</el-button>
+        <el-button type="primary" @click="goHome">{{ t('pages.forbidden.backHome') }}</el-button>
       </template>
     </el-result>
   </div>
@@ -14,8 +14,10 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const goHome = () => {
   router.push('/')

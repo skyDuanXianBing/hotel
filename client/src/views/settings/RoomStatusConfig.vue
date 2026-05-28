@@ -1,22 +1,30 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Setting } from '@element-plus/icons-vue'
 
+const { t } = useI18n()
 const loading = ref(false)
 </script>
 
 <template>
   <div class="room-status-config">
     <div class="page-header">
-      <h3>房间分组设置</h3>
-      <p class="page-description">配置房间的分组策略和规则</p>
+      <h3>{{ t('settings.placeholders.roomStatusConfig.title') }}</h3>
+      <p class="page-description">{{ t('settings.placeholders.roomStatusConfig.description') }}</p>
     </div>
 
     <div class="content-area">
       <el-card>
         <div class="placeholder-content">
           <el-icon size="48" color="#d9d9d9"><Setting /></el-icon>
-          <p>房间分组设置功能开发中...</p>
+          <p>
+            {{
+              t('settings.common.inDevelopment', {
+                name: t('settings.placeholders.roomStatusConfig.title'),
+              })
+            }}
+          </p>
         </div>
       </el-card>
     </div>

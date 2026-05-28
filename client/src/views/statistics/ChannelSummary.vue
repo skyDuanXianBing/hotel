@@ -4,26 +4,26 @@
 
     <!-- 日期选择器 -->
       <div class="date-selector">
-        <el-select v-model="dateRange" class="date-quick-select" placeholder="自定义">
-          <el-option label="今天" value="today" />
-          <el-option label="昨天" value="yesterday" />
-          <el-option label="本周" value="this-week" />
-          <el-option label="本月" value="this-month" />
-          <el-option label="自定义" value="custom" />
+        <el-select v-model="dateRange" class="date-quick-select" :placeholder="t('stage5.common.date.custom')">
+          <el-option :label="t('stage5.common.date.today')" value="today" />
+          <el-option :label="t('stage5.common.date.yesterday')" value="yesterday" />
+          <el-option :label="t('stage5.common.date.thisWeek')" value="this-week" />
+          <el-option :label="t('stage5.common.date.thisMonth')" value="this-month" />
+          <el-option :label="t('stage5.common.date.custom')" value="custom" />
         </el-select>
         <el-date-picker
           v-model="startDate"
           type="date"
-          placeholder="开始日期"
+          :placeholder="t('stage5.common.date.startDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           class="date-picker"
         />
-        <span class="date-separator">至</span>
+        <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
         <el-date-picker
           v-model="endDate"
           type="date"
-          placeholder="结束日期"
+          :placeholder="t('stage5.common.date.endDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           class="date-picker"
@@ -35,8 +35,8 @@
         <!-- 渠道消费分布 -->
         <div class="chart-container">
           <div class="chart-header">
-            <h3>渠道消费分布</h3>
-            <span class="chart-info">统计说明 <el-icon><QuestionFilled /></el-icon></span>
+            <h3>{{ t('stage5.statistics.channel.consumptionDistribution') }}</h3>
+            <span class="chart-info">{{ t('stage5.statistics.common.statsInfo') }} <el-icon><QuestionFilled /></el-icon></span>
           </div>
           <div class="chart-content">
             <div class="pie-chart" ref="pieChartRef"></div>
@@ -46,8 +46,8 @@
         <!-- 渠道消费趋势 -->
         <div class="chart-container">
           <div class="chart-header">
-            <h3>渠道消费趋势</h3>
-            <span class="chart-info">统计说明 <el-icon><QuestionFilled /></el-icon></span>
+            <h3>{{ t('stage5.statistics.channel.consumptionTrend') }}</h3>
+            <span class="chart-info">{{ t('stage5.statistics.common.statsInfo') }} <el-icon><QuestionFilled /></el-icon></span>
           </div>
           <div class="chart-content">
             <div class="line-chart" ref="lineChartRef"></div>
@@ -58,18 +58,18 @@
     <!-- 渠道明细 -->
       <div class="channel-details">
         <div class="details-header">
-          <h3>渠道明细</h3>
-          <span class="details-period">({{ formatDateRange }})</span>
+          <h3>{{ t('stage5.statistics.channel.details') }}</h3>
+          <span class="details-period">{{ t('stage5.statistics.common.detailsPeriod', { period: formatDateRange }) }}</span>
           <div class="details-actions">
-            <el-button type="primary" @click="exportDetails">导出明细</el-button>
+            <el-button type="primary" @click="exportDetails">{{ t('stage5.common.actions.exportDetails') }}</el-button>
           </div>
         </div>
 
         <!-- 明细表格切换 -->
         <div class="details-tabs">
           <el-tabs v-model="activeDetailTab">
-            <el-tab-pane label="消费明细" name="consumption"></el-tab-pane>
-            <el-tab-pane label="间夜明细" name="nights"></el-tab-pane>
+            <el-tab-pane :label="t('stage5.statistics.channel.consumptionDetails')" name="consumption"></el-tab-pane>
+            <el-tab-pane :label="t('stage5.statistics.channel.nightsDetails')" name="nights"></el-tab-pane>
           </el-tabs>
         </div>
 
@@ -82,13 +82,13 @@
             :summary-method="getSummaries"
             border
           >
-            <el-table-column prop="channel" label="项目" width="120" fixed>
+            <el-table-column prop="channel" :label="t('stage5.common.fields.project')" width="120" fixed>
               <template #default="scope">
                 <span class="channel-name">{{ scope.row.channel }}</span>
               </template>
             </el-table-column>
 
-            <el-table-column prop="total" label="合计" width="120" align="right" fixed>
+            <el-table-column prop="total" :label="t('stage5.common.fields.total')" width="120" align="right" fixed>
               <template #default="scope">
                 <span class="amount-value">¥{{ scope.row.total }}</span>
               </template>
@@ -114,8 +114,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   QuestionFilled,
 } from '@element-plus/icons-vue'
@@ -123,7 +123,7 @@ import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import StatisticsLayout from './StatisticsLayout.vue'
 
-const router = useRouter()
+const { t } = useI18n()
 
 // 响应式数据
 const dateRange = ref('custom')
@@ -140,7 +140,7 @@ let lineChart: echarts.ECharts | null = null
 // 渠道明细数据
 const channelDetails = ref([
   {
-    channel: '自来客',
+    channel: t('stage5.statistics.channel.direct'),
     total: '12.00',
     date_0922: '0.00',
     date_0923: '0.00',
@@ -165,7 +165,7 @@ const dateColumns = computed(() => {
     const day = d.getDate().toString()
     columns.push({
       prop: `date_${month.padStart(2, '0')}${day.padStart(2, '0')}`,
-      label: `${month}月${day}日`,
+      label: t('stage5.common.date.monthDay', { month, day }),
     })
   }
 
@@ -177,7 +177,7 @@ const formatDateRange = computed(() => {
   if (startDate.value === endDate.value) {
     return startDate.value
   }
-  return `${startDate.value} 至 ${endDate.value}`
+  return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
 })
 
 
@@ -192,7 +192,7 @@ const initPieChart = () => {
   const option = {
     title: [
       {
-        text: '消费总计(元)',
+        text: t('stage5.statistics.channel.totalConsumption'),
         left: '28%',
         top: '43%',
         textAlign: 'center',
@@ -244,7 +244,7 @@ const initPieChart = () => {
     },
     series: [
       {
-        name: '渠道消费',
+        name: t('stage5.statistics.channel.consumptionDetails'),
         type: 'pie',
         radius: ['45%', '65%'],
         center: ['28%', '50%'],
@@ -263,7 +263,7 @@ const initPieChart = () => {
           show: false
         },
         data: [
-          { value: 12.00, name: '自来客', itemStyle: { color: '#5470c6' } }
+          { value: 12.00, name: t('stage5.statistics.channel.direct'), itemStyle: { color: '#5470c6' } }
         ]
       }
     ]
@@ -289,7 +289,7 @@ const initLineChart = () => {
       }
     },
     legend: {
-      data: ['自来客'],
+      data: [t('stage5.statistics.channel.direct')],
       bottom: '5%',
       itemWidth: 12,
       itemHeight: 12,
@@ -309,7 +309,13 @@ const initLineChart = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: ['9月22日', '9月24日', '9月26日', '9月28日', '9月30日'],
+      data: [
+        t('stage5.common.date.monthDay', { month: 9, day: 22 }),
+        t('stage5.common.date.monthDay', { month: 9, day: 24 }),
+        t('stage5.common.date.monthDay', { month: 9, day: 26 }),
+        t('stage5.common.date.monthDay', { month: 9, day: 28 }),
+        t('stage5.common.date.monthDay', { month: 9, day: 30 }),
+      ],
       axisLabel: {
         fontSize: 12,
         color: '#666'
@@ -341,7 +347,7 @@ const initLineChart = () => {
     },
     series: [
       {
-        name: '自来客',
+        name: t('stage5.statistics.channel.direct'),
         type: 'line',
         smooth: true,
         symbol: 'circle',
@@ -389,7 +395,7 @@ const getSummaries = (param: any) => {
   const sums: string[] = []
   columns.forEach((column: any, index: number) => {
     if (index === 0) {
-      sums[index] = '合计'
+      sums[index] = t('stage5.common.fields.total')
       return
     }
 
@@ -419,7 +425,7 @@ const getSummaries = (param: any) => {
 
 // 导出明细
 const exportDetails = () => {
-  ElMessage.success('渠道明细导出成功')
+  ElMessage.success(t('stage5.statistics.channel.exportSuccess'))
 }
 
 // 监听日期变化
@@ -446,8 +452,6 @@ onMounted(() => {
   })
 })
 
-// 组件卸载时销毁图表
-import { onBeforeUnmount } from 'vue'
 onBeforeUnmount(() => {
   if (pieChart) {
     pieChart.dispose()

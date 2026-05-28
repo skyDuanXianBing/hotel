@@ -41,66 +41,66 @@ export interface PermissionTabConfig {
 export const ACCOUNT_PERMISSION_TABS: PermissionTabConfig[] = [
   {
     name: 'accommodation',
-    label: '住宿管理',
+    label: 'settingsStage4.accountPermission.tabs.accommodation',
     sections: [
       {
-        title: '房态管理',
+        title: 'settingsStage4.accountPermission.sections.roomStatus',
         items: [
           {
             key: 'viewRoomStatus',
-            label: '查看房态',
+            label: 'settingsStage4.accountPermission.items.viewRoomStatus',
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.VIEW_ROOM_STATUS,
           },
           {
             key: 'editRoomStatus',
-            label: '修改房态',
+            label: 'settingsStage4.accountPermission.items.editRoomStatus',
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.EDIT_ROOM_STATUS,
           },
           {
             key: 'viewRoomInfo',
-            label: '查看房情表',
+            label: 'settingsStage4.accountPermission.items.viewRoomInfo',
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.VIEW_ROOM_INFO,
           },
         ],
       },
       {
-        title: '房价管理',
+        title: 'settingsStage4.accountPermission.sections.roomPrice',
         items: [
           {
             key: 'viewRoomPrice',
-            label: '查看房价',
+            label: 'settingsStage4.accountPermission.items.viewRoomPrice',
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.VIEW_ROOM_PRICE,
           },
           {
             key: 'editRoomPrice',
-            label: '修改房价',
+            label: 'settingsStage4.accountPermission.items.editRoomPrice',
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.EDIT_ROOM_PRICE,
           },
           {
             key: 'viewPriceLog',
-            label: '查看改价记录',
+            label: 'settingsStage4.accountPermission.items.viewPriceLog',
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.VIEW_PRICE_LOG,
           },
           {
             key: 'batchChangePrice',
-            label: '批量改价',
+            label: 'settingsStage4.accountPermission.items.batchChangePrice',
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.BATCH_CHANGE_PRICE,
           },
         ],
       },
       {
-        title: '保洁管理',
+        title: 'settingsStage4.accountPermission.sections.cleaning',
         items: [
           {
             key: 'taskList',
-            label: '查看保洁任务',
+            label: 'settingsStage4.accountPermission.items.taskList',
             module: PermissionModule.ACCOMMODATION,
             action: PermissionAction.TASK_LIST,
           },
@@ -110,26 +110,26 @@ export const ACCOUNT_PERMISSION_TABS: PermissionTabConfig[] = [
   },
   {
     name: 'order',
-    label: '订单管理',
+    label: 'settingsStage4.accountPermission.tabs.order',
     sections: [
       {
-        title: '订单管理',
+        title: 'settingsStage4.accountPermission.sections.order',
         items: [
           {
             key: 'viewOrders',
-            label: '查看订单',
+            label: 'settingsStage4.accountPermission.items.viewOrders',
             module: PermissionModule.ORDER,
             action: PermissionAction.VIEW_ORDERS,
           },
           {
             key: 'modifyOrder',
-            label: '修改订单',
+            label: 'settingsStage4.accountPermission.items.modifyOrder',
             module: PermissionModule.ORDER,
             action: PermissionAction.MODIFY_ORDER,
           },
           {
             key: 'cancelOrder',
-            label: '取消订单',
+            label: 'settingsStage4.accountPermission.items.cancelOrder',
             module: PermissionModule.ORDER,
             action: PermissionAction.CANCEL_ORDER,
           },
@@ -139,20 +139,20 @@ export const ACCOUNT_PERMISSION_TABS: PermissionTabConfig[] = [
   },
   {
     name: 'channel',
-    label: '渠道',
+    label: 'settingsStage4.accountPermission.tabs.channel',
     sections: [
       {
-        title: '渠道权限',
+        title: 'settingsStage4.accountPermission.sections.channel',
         items: [
           {
             key: 'viewChannels',
-            label: '查看渠道',
+            label: 'settingsStage4.accountPermission.items.viewChannels',
             module: PermissionModule.CHANNEL,
             action: PermissionAction.VIEW_CHANNELS,
           },
           {
             key: 'manageChannels',
-            label: '管理渠道',
+            label: 'settingsStage4.accountPermission.items.manageChannels',
             module: PermissionModule.CHANNEL,
             action: PermissionAction.MANAGE_CHANNELS,
           },
@@ -162,14 +162,14 @@ export const ACCOUNT_PERMISSION_TABS: PermissionTabConfig[] = [
   },
   {
     name: 'statistics',
-    label: '统计分析',
+    label: 'settingsStage4.accountPermission.tabs.statistics',
     sections: [
       {
-        title: '统计分析',
+        title: 'settingsStage4.accountPermission.sections.statistics',
         items: [
           {
             key: 'viewStats',
-            label: '查看统计数据',
+            label: 'settingsStage4.accountPermission.items.viewStats',
             module: PermissionModule.STATISTICS,
             action: PermissionAction.VIEW_STATS,
           },
@@ -179,20 +179,20 @@ export const ACCOUNT_PERMISSION_TABS: PermissionTabConfig[] = [
   },
   {
     name: 'settings',
-    label: '设置',
+    label: 'settingsStage4.accountPermission.tabs.settings',
     sections: [
       {
-        title: '设置权限',
+        title: 'settingsStage4.accountPermission.sections.settings',
         items: [
           {
             key: 'modifyStoreSettings',
-            label: '修改门店设置',
+            label: 'settingsStage4.accountPermission.items.modifyStoreSettings',
             module: PermissionModule.SETTINGS,
             action: PermissionAction.MODIFY_STORE_SETTINGS,
           },
           {
             key: 'manageEmployeeAccounts',
-            label: '管理员工账号',
+            label: 'settingsStage4.accountPermission.items.manageEmployeeAccounts',
             module: PermissionModule.SETTINGS,
             action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS,
           },
@@ -202,20 +202,20 @@ export const ACCOUNT_PERMISSION_TABS: PermissionTabConfig[] = [
   },
   {
     name: 'sensitive',
-    label: '敏感权限',
+    label: 'settingsStage4.accountPermission.tabs.sensitive',
     sections: [
       {
-        title: '敏感权限',
+        title: 'settingsStage4.accountPermission.sections.sensitive',
         items: [
           {
             key: 'viewFinancialData',
-            label: '查看财务数据',
+            label: 'settingsStage4.accountPermission.items.viewFinancialData',
             module: PermissionModule.SENSITIVE,
             action: PermissionAction.VIEW_FINANCIAL_DATA,
           },
           {
             key: 'deleteImportantData',
-            label: '删除重要数据',
+            label: 'settingsStage4.accountPermission.items.deleteImportantData',
             module: PermissionModule.SENSITIVE,
             action: PermissionAction.DELETE_IMPORTANT_DATA,
           },

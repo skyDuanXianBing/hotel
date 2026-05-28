@@ -1,14 +1,14 @@
 <template>
   <div class="statistics-sidebar" :class="{ collapsed: isCollapsed }">
-    <!-- 收起导航按钮 -->
+    <!-- Collapse navigation button -->
     <div class="sidebar-header" @click="toggleSidebar">
       <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
-      <span v-if="!isCollapsed" class="sidebar-title">收起导航</span>
+      <span v-if="!isCollapsed" class="sidebar-title">{{ t('stage6.components.statisticsSidebar.collapse') }}</span>
       <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
       <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
     </div>
 
-    <!-- 侧边栏菜单 -->
+    <!-- Sidebar menu -->
     <el-menu
       class="sidebar-menu"
       :default-active="activeMenu"
@@ -16,15 +16,15 @@
       :collapse="isCollapsed"
       @select="handleMenuSelect"
     >
-      <!-- 数据中心 -->
+      <!-- Data center -->
       <el-sub-menu index="data-center">
         <template #title>
           <el-icon><TrendCharts /></el-icon>
-          <span>数据中心</span>
+          <span>{{ t('stage6.components.statisticsSidebar.dataCenter') }}</span>
         </template>
-        <el-menu-item index="data-overview">总览</el-menu-item>
-        <el-menu-item index="data-accommodation">住宿</el-menu-item>
-        <el-menu-item index="data-notes">记一笔</el-menu-item>
+        <el-menu-item index="data-overview">{{ t('stage6.components.statisticsSidebar.overview') }}</el-menu-item>
+        <el-menu-item index="data-accommodation">{{ t('stage6.components.statisticsSidebar.accommodation') }}</el-menu-item>
+        <el-menu-item index="data-notes">{{ t('stage6.components.statisticsSidebar.notes') }}</el-menu-item>
       </el-sub-menu>
     </el-menu>
   </div>
@@ -34,22 +34,24 @@
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, ArrowRight, TrendCharts, Menu as MenuIcon } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
-// 侧边栏折叠状态
+// Sidebar collapsed state
 const isCollapsed = ref(false)
 
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value
 }
 
-// 根据当前路由确定激活的菜单项
+// Determine the active menu item from the current route
 const activeMenu = computed(() => {
   const routeName = route.name as string
   switch (routeName) {
-    // 数据中心
+    // Data center
     case 'DataCenterOverview':
       return 'data-overview'
     case 'DataCenterAccommodation':
@@ -61,10 +63,10 @@ const activeMenu = computed(() => {
   }
 })
 
-// 菜单选择处理
+// Handle menu selection
 const handleMenuSelect = (index: string) => {
   switch (index) {
-    // 数据中心
+    // Data center
     case 'data-overview':
       router.push('/data-center/overview')
       break
@@ -93,7 +95,7 @@ const handleMenuSelect = (index: string) => {
   width: 64px;
 }
 
-/* 收起导航样式 */
+/* Collapse navigation styles */
 .sidebar-header {
   height: 56px;
   display: flex;
@@ -129,7 +131,7 @@ const handleMenuSelect = (index: string) => {
   color: #999;
 }
 
-/* 菜单样式 */
+/* Menu styles */
 .sidebar-menu {
   flex: 1;
   border-right: none;
@@ -137,7 +139,7 @@ const handleMenuSelect = (index: string) => {
   padding: 8px 0;
 }
 
-/* 分组标题样式 */
+/* Group title styles */
 .sidebar-menu :deep(.el-sub-menu__title) {
   height: 44px;
   line-height: 44px;
@@ -158,7 +160,7 @@ const handleMenuSelect = (index: string) => {
   color: #409eff;
 }
 
-/* 子菜单项样式 */
+/* Submenu item styles */
 .sidebar-menu :deep(.el-menu-item) {
   height: 36px;
   line-height: 36px;
@@ -181,14 +183,14 @@ const handleMenuSelect = (index: string) => {
   font-weight: 500;
 }
 
-/* 图标样式 */
+/* Icon styles */
 .sidebar-menu :deep(.el-icon) {
   width: 16px;
   height: 16px;
   margin-right: 8px;
 }
 
-/* 移除默认边框和阴影 */
+/* Remove default border and shadow */
 .sidebar-menu :deep(.el-menu) {
   border: none;
 }
@@ -198,7 +200,7 @@ const handleMenuSelect = (index: string) => {
   border: none !important;
 }
 
-/* 展开/收起图标 */
+/* Expand/collapse icon */
 .sidebar-menu :deep(.el-sub-menu__icon-arrow) {
   right: 20px;
   font-size: 12px;

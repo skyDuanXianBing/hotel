@@ -6,7 +6,7 @@
         <el-date-picker
           :model-value="startDate"
           type="date"
-          placeholder="选择日期"
+          :placeholder="t('channel.roomSettings.selectDate')"
           value-format="YYYY-MM-DD"
           style="width: 160px"
           @update:model-value="(val: string) => emit('update:startDate', val)"
@@ -17,13 +17,13 @@
     <!-- Room Settings Table -->
     <div class="table-section">
       <el-table :data="data" border style="width: 100%">
-        <el-table-column label="Airbnb Room Type" width="250" fixed="left">
+        <el-table-column :label="t('channel.roomSettings.airbnbRoomType')" width="250" fixed="left">
           <template #default="{ row }">
             {{ row.airbnbRoomType }}
           </template>
         </el-table-column>
 
-        <el-table-column label="PMS房型" width="180" fixed="left">
+        <el-table-column :label="t('channel.roomSettings.pmsRoomType')" width="180" fixed="left">
           <template #default="{ row }">
             {{ formatPmsRoomTypeDisplay(row.pmsRoomType) }}
           </template>
@@ -48,7 +48,7 @@
 
         <template #empty>
           <div class="empty-state">
-            <p class="empty-text">无数据</p>
+            <p class="empty-text">{{ t('channel.roomSettings.empty') }}</p>
           </div>
         </template>
       </el-table>
@@ -57,10 +57,12 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { RoomSettingsRow, CalendarDate } from '../../types'
 import { useChannelData } from '../../composables/useChannelData'
 
 const { formatPmsRoomTypeDisplay } = useChannelData()
+const { t } = useI18n()
 
 defineProps<{
   data: RoomSettingsRow[]
@@ -91,6 +93,7 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .table-section {

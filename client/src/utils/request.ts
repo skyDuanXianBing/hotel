@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
+import { i18n } from '@/locales'
 import { CLEANER_STORE_KEY, CLEANER_TOKEN_KEY, clearCleanerSession } from '@/utils/cleanerSession'
 
 declare module 'axios' {
@@ -35,6 +36,8 @@ const shouldSuppressErrorToast = (error: unknown) => {
   return Boolean((error as { config?: { suppressErrorToast?: boolean } }).config?.suppressErrorToast)
 }
 
+const translate = (key: string) => i18n.global.t(key)
+
 request.interceptors.request.use(
   (config) => {
     const isCleanerRoute =
@@ -52,7 +55,7 @@ request.interceptors.request.use(
           config.headers['X-Store-Id'] = store.id.toString()
         }
       } catch (error) {
-        console.error('解析 currentStore 失败:', error)
+        console.error('Failed to parse currentStore:', error)
       }
     }
 
@@ -77,17 +80,17 @@ request.interceptors.response.use(
         localStorage.removeItem('user')
         window.location.href = '/login'
       }
-      ElMessage.error('登录已过期，请重新登录')
+      ElMessage.error(translate('stage6.common.messages.loginExpired'))
     } else if (error.response?.status === 403) {
       const message = sanitizeUserFacingMessage(
-        error.response?.data?.message || '您没有权限执行此操作',
+        error.response?.data?.message || translate('stage6.common.messages.noPermission'),
       )
       if (!suppressErrorToast) {
         ElMessage.error(message)
       }
     } else {
       const message = sanitizeUserFacingMessage(
-        error.response?.data?.message || error.message || '请求失败',
+        error.response?.data?.message || error.message || translate('stage6.common.messages.requestFailed'),
       )
       if (!suppressErrorToast) {
         ElMessage.error(message)

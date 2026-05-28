@@ -1,11 +1,12 @@
 /**
- * Su Widget CORS 代理拦截器
+ * Su Widget CORS proxy interceptor.
  * 
- * 必须在应用最早期安装，以确保在任何第三方脚本（如 Su Widget）加载之前
- * 就已经替换了 XMLHttpRequest
+ * Install this as early as possible so XMLHttpRequest is replaced before
+ * any third-party scripts such as Su Widget load.
  * 
- * 原理：Su Widget 内部使用 axios，axios 会在模块加载时保存 XMLHttpRequest 引用。
- * 我们通过替换全局 XMLHttpRequest 构造函数本身来实现拦截。
+ * Su Widget uses axios internally, and axios stores the XMLHttpRequest
+ * reference when its module loads. Interception is implemented by replacing
+ * the global XMLHttpRequest constructor itself.
  */
 
 const SU_CONFIG_PROXY_BASE = `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/su/config`
@@ -76,7 +77,7 @@ export const clearGlobalSuConfigProxyContext = (): void => {
 }
 
 /**
- * 判断 URL 是否是 Su Config 请求，并返回代理后的 URL
+ * Return a proxied URL when the URL is a Su Config request.
  */
 const resolveSuConfigProxyUrl = (url: unknown): string | null => {
   if (typeof url !== 'string' || !url) {
@@ -105,12 +106,12 @@ const resolveSuConfigProxyUrl = (url: unknown): string | null => {
   return `${SU_CONFIG_PROXY_BASE}/${env}/${remaining}${parsed.search}`
 }
 
-// 保存原始的 XMLHttpRequest 构造函数
+// Preserve the original XMLHttpRequest constructor.
 const OriginalXMLHttpRequest = window.XMLHttpRequest
 const originalFetch = window.fetch?.bind(window)
 
 /**
- * 创建代理版本的 XMLHttpRequest
+ * Create a proxied XMLHttpRequest implementation.
  */
 class ProxiedXMLHttpRequest extends OriginalXMLHttpRequest {
   private _isSuConfig = false
@@ -146,7 +147,7 @@ class ProxiedXMLHttpRequest extends OriginalXMLHttpRequest {
     if (this._isSuConfig && typeof name === 'string') {
       const loweredName = name.toLowerCase()
       if (loweredName === SU_HEADER_AUTHORIZATION) {
-        // 保存 Su 的 Authorization，稍后转移到 X-Su-Authorization
+        // Preserve Su Authorization and move it to X-Su-Authorization later.
         this._suAuth = value
         return
       }
@@ -169,7 +170,7 @@ class ProxiedXMLHttpRequest extends OriginalXMLHttpRequest {
         // ignore
       }
 
-      // 如果 Su 请求本身需要 Authorization，搬运到 X-Su-Authorization
+      // Move Su Authorization to X-Su-Authorization when the Su request needs it.
       if (this._suAuth) {
         try {
           super.setRequestHeader(SU_PROXY_HEADER_AUTHORIZATION, this._suAuth)
@@ -200,7 +201,7 @@ class ProxiedXMLHttpRequest extends OriginalXMLHttpRequest {
         }
       }
 
-      // 注入本系统 JWT
+      // Inject the system JWT.
       const token = localStorage.getItem('token')
       if (token) {
         try {
@@ -224,13 +225,13 @@ class ProxiedXMLHttpRequest extends OriginalXMLHttpRequest {
 }
 
 /**
- * 安装全局 Su Config 代理拦截器
+ * Install the global Su Config proxy interceptor.
  */
 export const installGlobalSuConfigProxy = (): void => {
-  // 替换全局 XMLHttpRequest 构造函数
+  // Replace the global XMLHttpRequest constructor.
   (window as any).XMLHttpRequest = ProxiedXMLHttpRequest
 
-  // 拦截 fetch（如果 Widget 使用 fetch）
+  // Intercept fetch if the widget uses fetch.
   if (originalFetch) {
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : (input as any)?.url?.toString?.() || input.toString()
@@ -274,5 +275,5 @@ export const installGlobalSuConfigProxy = (): void => {
   console.log('[Su Proxy] Global Su Config proxy installed, VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
 }
 
-// 立即安装！这个模块被导入时就会执行
+// Install immediately when this module is imported.
 installGlobalSuConfigProxy()

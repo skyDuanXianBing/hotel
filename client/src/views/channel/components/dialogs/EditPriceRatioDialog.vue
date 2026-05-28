@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { PriceRatioEdit } from '../../types'
 
 const props = defineProps<{
@@ -11,6 +12,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   save: [data: PriceRatioEdit]
 }>()
+
+const { t } = useI18n()
 
 /** 本地编辑副本，避免直接修改 prop */
 const localData = ref<PriceRatioEdit | null>(null)
@@ -33,21 +36,21 @@ function handleSave() {
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="编辑价格比例"
+    :title="t('channel.dialogs.editPriceRatio.title')"
     width="500px"
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <div v-if="localData" class="edit-ratio-form">
       <div class="form-item">
-        <div class="form-label">OTA名称</div>
+        <div class="form-label">{{ t('channel.dialogs.editPriceRatio.otaName') }}</div>
         <div class="form-value">{{ localData.channel }}</div>
       </div>
       <div class="form-item">
-        <div class="form-label">价格调整</div>
+        <div class="form-label">{{ t('channel.dialogs.editPriceRatio.adjustment') }}</div>
         <div class="form-value adjustment-row">
           <el-select v-model="localData.adjustmentType" class="adjustment-type-select">
-            <el-option label="更便宜" value="cheaper" />
-            <el-option label="更贵" value="expensive" />
+            <el-option :label="t('channel.dialogs.editPriceRatio.cheaper')" value="cheaper" />
+            <el-option :label="t('channel.dialogs.editPriceRatio.expensive')" value="expensive" />
           </el-select>
           <el-input-number
             v-model="localData.adjustmentValue"
@@ -55,7 +58,7 @@ function handleSave() {
             :max="localData.adjustmentUnit === '%' ? 100 : 999999"
             :controls="false"
             class="adjustment-value-input"
-            placeholder="数值"
+            :placeholder="t('channel.dialogs.editPriceRatio.valuePlaceholder')"
           />
           <el-select v-model="localData.adjustmentUnit" class="adjustment-unit-select">
             <el-option label="%" value="%" />
@@ -65,8 +68,8 @@ function handleSave() {
       </div>
     </div>
     <template #footer>
-      <el-button @click="$emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" @click="handleSave">保存</el-button>
+      <el-button @click="$emit('update:modelValue', false)">{{ t('channel.dialogs.common.cancel') }}</el-button>
+      <el-button type="primary" @click="handleSave">{{ t('channel.dialogs.common.save') }}</el-button>
     </template>
   </el-dialog>
 </template>
@@ -98,11 +101,12 @@ function handleSave() {
 .edit-ratio-form .adjustment-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
 .edit-ratio-form .adjustment-type-select {
-  width: 120px;
+  width: 150px;
 }
 
 .edit-ratio-form .adjustment-value-input {

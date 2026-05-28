@@ -6,30 +6,30 @@
         <el-date-picker
           v-model="currentDate"
           type="date"
-          placeholder="选择日期"
+          :placeholder="t('accommodation.common.select')"
           format="YYYY/MM/DD"
           value-format="YYYY-MM-DD"
           @change="handleDateChange"
         />
-        <el-button :icon="Refresh" @click="handleRefresh">刷新</el-button>
+        <el-button :icon="Refresh" @click="handleRefresh">{{ t('accommodation.cleaning.refresh') }}</el-button>
         <el-dropdown @command="handleFilter">
           <el-button>
-            筛选 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            {{ t('accommodation.cleaning.filter') }} <el-icon class="el-icon--right"><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="all">全部任务</el-dropdown-item>
-              <el-dropdown-item command="pending">待分配</el-dropdown-item>
-              <el-dropdown-item command="assigned">待清洁</el-dropdown-item>
-              <el-dropdown-item command="in_progress">清洁中</el-dropdown-item>
-              <el-dropdown-item command="completed">已完成</el-dropdown-item>
-              <el-dropdown-item command="expired">已过期</el-dropdown-item>
+              <el-dropdown-item command="all">{{ t('accommodation.cleaning.allTasks') }}</el-dropdown-item>
+              <el-dropdown-item command="pending">{{ t('accommodation.cleaning.pending') }}</el-dropdown-item>
+              <el-dropdown-item command="assigned">{{ t('accommodation.cleaning.assigned') }}</el-dropdown-item>
+              <el-dropdown-item command="in_progress">{{ t('accommodation.cleaning.inProgress') }}</el-dropdown-item>
+              <el-dropdown-item command="completed">{{ t('accommodation.cleaning.completed') }}</el-dropdown-item>
+              <el-dropdown-item command="expired">{{ t('accommodation.cleaning.expired') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
       </div>
       <div class="right-section">
-        <el-button type="primary" @click="handleGenerateTask">生成任务</el-button>
+        <el-button type="primary" @click="handleGenerateTask">{{ t('accommodation.cleaning.generateTask') }}</el-button>
       </div>
     </div>
 
@@ -52,14 +52,14 @@
         v-loading="loading"
       >
         <!-- 房型列 -->
-        <el-table-column label="房型" width="100" fixed>
+        <el-table-column :label="t('accommodation.cleaning.roomType')" width="100" fixed>
           <template #default="{ row }">
             <span>{{ row.roomType }}</span>
           </template>
         </el-table-column>
 
         <!-- 房间号列 -->
-        <el-table-column label="房间" width="80" fixed>
+        <el-table-column :label="t('accommodation.cleaning.roomNumber')" width="80" fixed>
           <template #default="{ row }">
             <span>{{ row.roomNumber }}</span>
           </template>
@@ -95,11 +95,11 @@
                 class="task-item"
                 :class="getTaskClass(task)"
               >
-                <span v-if="task.status === 'expired'">已过期</span>
-                <span v-else-if="task.status === 'pending'">待分配</span>
-                <span v-else-if="task.status === 'assigned'">待接受</span>
-                <span v-else-if="task.status === 'in_progress'">待打扫</span>
-                <span v-else-if="task.status === 'completed'">已完成</span>
+                <span v-if="task.status === 'expired'">{{ t('accommodation.cleaning.expired') }}</span>
+                <span v-else-if="task.status === 'pending'">{{ t('accommodation.cleaning.pending') }}</span>
+                <span v-else-if="task.status === 'assigned'">{{ t('accommodation.cleaning.assigned') }}</span>
+                <span v-else-if="task.status === 'in_progress'">{{ t('accommodation.cleaning.inProgress') }}</span>
+                <span v-else-if="task.status === 'completed'">{{ t('accommodation.cleaning.completed') }}</span>
                 <span v-else>{{ task.label }}</span>
               </div>
             </div>
@@ -116,23 +116,23 @@
       @click.stop
     >
       <div class="context-menu-item" @click="handleCreateTask">
-        <span>新增任务</span>
+        <span>{{ t('accommodation.cleaning.createTask') }}</span>
       </div>
       <div class="context-menu-item" @click="handleCancelMenu">
-        <span>取消选择</span>
+        <span>{{ t('accommodation.common.cancel') }}</span>
       </div>
     </div>
 
     <!-- 分配任务抽屉 -->
-    <el-drawer v-model="assignDrawerVisible" title="分配任务" size="500px" direction="rtl">
+    <el-drawer v-model="assignDrawerVisible" :title="t('accommodation.cleaning.assignTask')" size="500px" direction="rtl">
       <div class="assign-drawer-content">
         <!-- 基本信息 -->
         <div class="section">
-          <h3 class="section-title">基本信息</h3>
+          <h3 class="section-title">{{ t('accommodation.cleaning.basicInfo') }}</h3>
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="房型">{{ assignForm.roomType }}</el-descriptions-item>
-            <el-descriptions-item label="房间">{{ assignForm.roomNumber }}</el-descriptions-item>
-            <el-descriptions-item label="日期" :span="2">{{
+            <el-descriptions-item :label="t('accommodation.cleaning.roomType')">{{ assignForm.roomType }}</el-descriptions-item>
+            <el-descriptions-item :label="t('accommodation.cleaning.roomNumber')">{{ assignForm.roomNumber }}</el-descriptions-item>
+            <el-descriptions-item :label="t('accommodation.common.date')" :span="2">{{
               assignForm.taskDate
             }}</el-descriptions-item>
           </el-descriptions>
@@ -140,15 +140,15 @@
 
         <!-- 任务详情 -->
         <div class="section">
-          <h3 class="section-title">任务详情</h3>
+          <h3 class="section-title">{{ t('accommodation.cleaning.taskDetails') }}</h3>
           <el-form :model="assignForm" label-width="100px">
-            <el-form-item label="任务类型">
-              <span>{{ assignForm.taskType }}</span>
+            <el-form-item :label="t('accommodation.common.taskType')">
+              <span>{{ getTaskTypeText(assignForm.taskType) }}</span>
             </el-form-item>
-            <el-form-item label="保洁员" required>
+            <el-form-item :label="t('accommodation.common.cleaner')" required>
               <el-select
                 v-model="assignForm.cleaner"
-                placeholder="请选择"
+                :placeholder="t('accommodation.common.select')"
                 style="width: 100%"
                 filterable
               >
@@ -160,15 +160,15 @@
                 />
               </el-select>
             </el-form-item>
-            <el-form-item label="任务时间">
+            <el-form-item :label="t('accommodation.common.taskTime')">
               <span>{{ assignForm.taskTime }}</span>
             </el-form-item>
-            <el-form-item label="任务通知">
+            <el-form-item :label="t('accommodation.cleaning.taskNotification')">
               <el-input
                 v-model="assignForm.remark"
                 type="textarea"
                 :rows="4"
-                placeholder="请输入"
+                :placeholder="t('accommodation.cleaning.inputRemark')"
                 maxlength="200"
                 show-word-limit
               />
@@ -178,24 +178,24 @@
 
         <!-- 底部按钮 -->
         <div class="drawer-footer">
-          <el-button @click="handleCancelAssign" size="large" style="flex: 1">取消任务</el-button>
+          <el-button @click="handleCancelAssign" size="large" style="flex: 1">{{ t('accommodation.cleaning.cancelTask') }}</el-button>
           <el-button type="primary" @click="handleConfirmAssign" size="large" style="flex: 1">
-            确定
+            {{ t('accommodation.common.confirm') }}
           </el-button>
         </div>
       </div>
     </el-drawer>
 
     <!-- 新增任务抽屉 -->
-    <el-drawer v-model="createDrawerVisible" title="新增任务" size="500px" direction="rtl">
+    <el-drawer v-model="createDrawerVisible" :title="t('accommodation.cleaning.createTask')" size="500px" direction="rtl">
       <div class="assign-drawer-content">
         <!-- 基本信息 -->
         <div class="section">
-          <h3 class="section-title">基本信息</h3>
+          <h3 class="section-title">{{ t('accommodation.cleaning.basicInfo') }}</h3>
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="房型">{{ createForm.roomType }}</el-descriptions-item>
-            <el-descriptions-item label="房间">{{ createForm.roomNumber }}</el-descriptions-item>
-            <el-descriptions-item label="日期" :span="2">{{
+            <el-descriptions-item :label="t('accommodation.cleaning.roomType')">{{ createForm.roomType }}</el-descriptions-item>
+            <el-descriptions-item :label="t('accommodation.cleaning.roomNumber')">{{ createForm.roomNumber }}</el-descriptions-item>
+            <el-descriptions-item :label="t('accommodation.common.date')" :span="2">{{
               createForm.taskDate
             }}</el-descriptions-item>
           </el-descriptions>
@@ -203,23 +203,23 @@
 
         <!-- 任务详情 -->
         <div class="section">
-          <h3 class="section-title">任务详情</h3>
+          <h3 class="section-title">{{ t('accommodation.cleaning.taskDetails') }}</h3>
           <el-form :model="createForm" label-width="80px">
-            <el-form-item label="任务类型" required>
+            <el-form-item :label="t('accommodation.common.taskType')" required>
               <el-select
                 v-model="createForm.taskType"
-                placeholder="请选择"
+                :placeholder="t('accommodation.common.select')"
                 style="width: 100%"
               >
-                <el-option label="退房" value="checkout" />
-                <el-option label="日常清洁" value="daily" />
-                <el-option label="深度清洁" value="deep" />
+                <el-option :label="t('accommodation.cleaning.checkout')" value="checkout" />
+                <el-option :label="t('accommodation.cleaning.daily')" value="daily" />
+                <el-option :label="t('accommodation.cleaning.deep')" value="deep" />
               </el-select>
             </el-form-item>
-            <el-form-item label="保洁员">
+            <el-form-item :label="t('accommodation.common.cleaner')">
               <el-select
                 v-model="createForm.cleaner"
-                placeholder="请选择"
+                :placeholder="t('accommodation.common.select')"
                 style="width: 100%"
                 filterable
                 clearable
@@ -232,20 +232,20 @@
                 />
               </el-select>
             </el-form-item>
-            <el-form-item label="任务时间" required>
+            <el-form-item :label="t('accommodation.common.taskTime')" required>
               <div style="display: flex; align-items: center; gap: 8px; width: 100%">
                 <el-time-select
                   v-model="createForm.startTime"
-                  placeholder="Start time"
+                  :placeholder="t('accommodation.common.select')"
                   start="06:00"
                   step="00:30"
                   end="22:00"
                   style="flex: 1"
                 />
-                <span>To</span>
+                <span>-</span>
                 <el-time-select
                   v-model="createForm.endTime"
-                  placeholder="End time"
+                  :placeholder="t('accommodation.common.select')"
                   start="06:00"
                   step="00:30"
                   end="22:00"
@@ -254,12 +254,12 @@
                 />
               </div>
             </el-form-item>
-            <el-form-item label="任务通知">
+            <el-form-item :label="t('accommodation.cleaning.taskNotification')">
               <el-input
                 v-model="createForm.remark"
                 type="textarea"
                 :rows="4"
-                placeholder="请输入"
+                :placeholder="t('accommodation.cleaning.inputRemark')"
                 maxlength="200"
                 show-word-limit
               />
@@ -269,9 +269,9 @@
 
         <!-- 底部按钮 -->
         <div class="drawer-footer">
-          <el-button @click="handleCancelCreate" size="large" style="flex: 1">取消</el-button>
+          <el-button @click="handleCancelCreate" size="large" style="flex: 1">{{ t('accommodation.common.cancel') }}</el-button>
           <el-button type="primary" @click="handleConfirmCreate" size="large" style="flex: 1">
-            确定
+            {{ t('accommodation.common.confirm') }}
           </el-button>
         </div>
       </div>
@@ -283,6 +283,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ArrowLeft, ArrowRight, ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   getCalendarViewData,
   getCleaners,
@@ -294,7 +295,11 @@ import {
   type CleaningTaskCreateDTO,
 } from '@/api/cleaning'
 import { getRooms, type RoomDTO } from '@/api/room'
+import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
 import { getStoreTodayYmd } from '@/utils/storeDateTime'
+
+const { t } = useI18n()
+const { formatMonthDay, weekdayShortMap } = useAccommodationI18n()
 
 const parseYmdDate = (value: string) => {
   const [year, month, day] = value.split('-').map((part) => Number(part))
@@ -315,7 +320,10 @@ const currentDate = ref(getStoreTodayYmd())
 const dateRangeText = computed(() => {
   const start = dateColumns.value[0]?.date || ''
   const end = dateColumns.value[dateColumns.value.length - 1]?.date || ''
-  return `${start.replace(/-/g, '/')} - ${end.replace(/-/g, '/')}`
+  return t('accommodation.cleaningOverview.dateRangeText', {
+    start: start.replace(/-/g, '/'),
+    end: end.replace(/-/g, '/'),
+  })
 })
 
 // 生成日期列(显示10天)
@@ -330,19 +338,16 @@ const dateColumns = computed(() => {
     const date = new Date(startDate)
     date.setDate(startDate.getDate() + i)
     const dateStr = formatYmdDate(date)
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    const weekDays = ['日', '一', '二', '三', '四', '五', '六']
-    const weekDay = weekDays[date.getDay()]
+    const dayLabel = formatMonthDay(date)
+    const weekDay = weekdayShortMap.value[date.getDay()]
     const isWeekend = date.getDay() === 0 || date.getDay() === 6
     const isToday = dateStr === realToday
 
-    // 如果是今天,显示"今天",否则显示日期
     let label = ''
     if (isToday) {
-      label = '今天'
+      label = t('accommodation.cleaningOverview.todayLabel')
     } else {
-      label = `${month}/${String(day).padStart(2, '0')}(周${weekDay})`
+      label = `${dayLabel} ${weekDay}`
     }
 
     columns.push({
@@ -395,7 +400,7 @@ const loadCleaners = async () => {
     }
   } catch (error: any) {
     console.error('获取保洁员列表失败:', error)
-    ElMessage.error(error.message || '获取保洁员列表失败')
+    ElMessage.error(error.message || t('accommodation.cleaningOverview.loadCleanersFailed'))
   }
 }
 
@@ -451,11 +456,11 @@ const loadTasks = async () => {
 
       tasks.value = taskList
     } else {
-      ElMessage.error(response.message || '获取任务数据失败')
+      ElMessage.error(response.message || t('accommodation.cleaningOverview.loadTasksFailed'))
     }
   } catch (error: any) {
     console.error('获取任务数据失败:', error)
-    ElMessage.error(error.message || '获取任务数据失败')
+    ElMessage.error(error.message || t('accommodation.cleaningOverview.loadTasksFailed'))
   } finally {
     loading.value = false
   }
@@ -464,11 +469,11 @@ const loadTasks = async () => {
 // 获取状态标签
 const getStatusLabel = (status: string) => {
   const labelMap: Record<string, string> = {
-    expired: '已过期',
-    pending: '待分配',
-    assigned: '待接受',
-    in_progress: '待打扫',
-    completed: '已完成',
+    expired: t('accommodation.cleaningOverview.statusLabels.expired'),
+    pending: t('accommodation.cleaningOverview.statusLabels.pending'),
+    assigned: t('accommodation.cleaningOverview.statusLabels.assigned'),
+    in_progress: t('accommodation.cleaningOverview.statusLabels.in_progress'),
+    completed: t('accommodation.cleaningOverview.statusLabels.completed'),
   }
   return labelMap[status] || status
 }
@@ -537,7 +542,7 @@ const handleCellClick = (row: any, date: any, event: MouseEvent) => {
 
   // 判断是否是历史日期
   if (clickDate < today && cellTasks.length === 0) {
-    ElMessage.warning('历史日期不支持添加保洁任务')
+    ElMessage.warning(t('accommodation.cleaningOverview.historyDateUnsupported'))
     contextMenuVisible.value = false
     return
   }
@@ -553,7 +558,7 @@ const handleCellClick = (row: any, date: any, event: MouseEvent) => {
         taskId: task.id,
         roomNumber: row.roomNumber,
         roomType: row.roomType,
-        taskType: getTaskTypeText(task.type),
+        taskType: task.type,
         taskDate: formatDateDisplay(date.date),
         taskTime: '10:00-16:00',
         cleaner: undefined,
@@ -561,9 +566,9 @@ const handleCellClick = (row: any, date: any, event: MouseEvent) => {
       }
       assignDrawerVisible.value = true
     } else if (task.status === 'expired') {
-      ElMessage.info('该任务已过期')
+      ElMessage.info(t('accommodation.cleaningOverview.taskExpired'))
     } else {
-      ElMessage.info('该任务已分配')
+      ElMessage.info(t('accommodation.cleaningOverview.taskAssigned'))
     }
   } else {
     // 空白格子,显示菜单
@@ -622,9 +627,9 @@ const handleCancelMenu = () => {
 // 获取任务类型文本
 const getTaskTypeText = (type: string) => {
   const typeMap: Record<string, string> = {
-    daily: '日常清洁',
-    checkout: '退房',
-    deep: '深度清洁',
+    daily: t('accommodation.cleaning.daily'),
+    checkout: t('accommodation.cleaning.checkout'),
+    deep: t('accommodation.cleaning.deep'),
   }
   return typeMap[type] || type
 }
@@ -659,7 +664,7 @@ const handleConfirmAssign = async () => {
   console.log('assignForm.value:', assignForm.value)
 
   if (!assignForm.value.cleaner) {
-    ElMessage.warning('请选择保洁员')
+    ElMessage.warning(t('accommodation.cleaning.selectCleaner'))
     return
   }
 
@@ -675,10 +680,10 @@ const handleConfirmAssign = async () => {
       const taskIndex = tasks.value.findIndex((t) => t.id === assignForm.value.taskId)
       if (taskIndex !== -1) {
         tasks.value[taskIndex].status = 'assigned'
-        tasks.value[taskIndex].label = '待接受'
+        tasks.value[taskIndex].label = t('accommodation.cleaningOverview.statusLabels.assigned')
       }
 
-      ElMessage.success('分配成功')
+      ElMessage.success(t('accommodation.cleaningOverview.assignSuccess'))
       assignDrawerVisible.value = false
 
       // 重新加载任务数据以确保与后端同步
@@ -686,11 +691,11 @@ const handleConfirmAssign = async () => {
       await loadTasks()
     } else {
       console.error('分配失败:', response.message)
-      ElMessage.error(response.message || '分配失败')
+      ElMessage.error(response.message || t('accommodation.cleaningOverview.assignFailed'))
     }
   } catch (error: any) {
     console.error('分配任务失败:', error)
-    ElMessage.error(error.message || '分配任务失败')
+    ElMessage.error(error.message || t('accommodation.cleaningOverview.assignFailed'))
   }
 }
 
@@ -716,12 +721,12 @@ const handleConfirmCreate = async () => {
   console.log('createForm.value:', createForm.value)
 
   if (!createForm.value.taskType) {
-    ElMessage.warning('请选择任务类型')
+    ElMessage.warning(t('accommodation.cleaningOverview.selectTaskType'))
     return
   }
 
   if (!createForm.value.startTime || !createForm.value.endTime) {
-    ElMessage.warning('请选择任务时间')
+    ElMessage.warning(t('accommodation.cleaningOverview.selectTaskTime'))
     return
   }
 
@@ -746,7 +751,7 @@ const handleConfirmCreate = async () => {
     console.log('API响应:', response)
 
     if (response.success) {
-      ElMessage.success('任务创建成功')
+      ElMessage.success(t('accommodation.cleaningOverview.createSuccess'))
       createDrawerVisible.value = false
 
       // 重置表单
@@ -767,11 +772,11 @@ const handleConfirmCreate = async () => {
       await loadTasks()
     } else {
       console.error('创建任务失败:', response.message)
-      ElMessage.error(response.message || '创建任务失败')
+      ElMessage.error(response.message || t('accommodation.cleaningOverview.createFailed'))
     }
   } catch (error: any) {
     console.error('创建任务失败:', error)
-    ElMessage.error(error.message || '创建任务失败')
+    ElMessage.error(error.message || t('accommodation.cleaningOverview.createFailed'))
   }
 }
 
@@ -784,7 +789,7 @@ const handleDateChange = () => {
 // 刷新
 const handleRefresh = () => {
   loadTasks()
-  ElMessage.success('刷新成功')
+  ElMessage.success(t('accommodation.cleaningOverview.refreshSuccess'))
 }
 
 // 筛选
@@ -799,7 +804,7 @@ const handleGenerateTask = async () => {
   const endDate = dateColumns.value[dateColumns.value.length - 1]?.date
 
   if (!startDate || !endDate) {
-    ElMessage.warning('日期范围无效')
+    ElMessage.warning(t('accommodation.cleaningOverview.invalidDateRange'))
     return
   }
 
@@ -807,15 +812,20 @@ const handleGenerateTask = async () => {
     const response = await generateCleaningTasks({ startDate, endDate })
     if (response.success && response.data) {
       ElMessage.success(
-        `已处理${response.data.processedReservations}条预订，新增${response.data.createdCount}，更新${response.data.updatedCount}，跳过${response.data.skippedCount}`
+        t('accommodation.cleaningOverview.generatedSummary', {
+          processedReservations: response.data.processedReservations,
+          createdCount: response.data.createdCount,
+          updatedCount: response.data.updatedCount,
+          skippedCount: response.data.skippedCount,
+        })
       )
       await loadTasks()
     } else {
-      ElMessage.error(response.message || '生成任务失败')
+      ElMessage.error(response.message || t('accommodation.cleaningOverview.generateFailed'))
     }
   } catch (error: any) {
     console.error('生成任务失败:', error)
-    ElMessage.error(error.message || '生成任务失败')
+    ElMessage.error(error.message || t('accommodation.cleaningOverview.generateFailed'))
   }
 }
 

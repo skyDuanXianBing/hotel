@@ -2,16 +2,16 @@
   <div class="cleaner-dashboard">
     <!-- 顶部导航栏 -->
     <div class="top-bar">
-      <div class="logo">保洁平台</div>
+      <div class="logo">{{ t('stage5.cleaner.common.appName') }}</div>
       <div class="user-info">
-        <span class="username">{{ cleanerUser?.nickname || cleanerUser?.email || '保洁员' }}</span>
+        <span class="username">{{ cleanerUser?.nickname || cleanerUser?.email || t('stage5.cleaner.common.cleaner') }}</span>
         <el-dropdown @command="handleCommand">
           <span class="el-dropdown-link">
             <el-icon><Setting /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="logout">退出</el-dropdown-item>
+              <el-dropdown-item command="logout">{{ t('stage5.cleaner.common.logout') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -24,7 +24,7 @@
         v-model="selectedMonth"
         type="month"
         format="YYYY-MM"
-        placeholder="选择月份"
+        :placeholder="t('stage5.cleaner.dashboard.monthPlaceholder')"
         @change="handleMonthChange"
       />
     </div>
@@ -74,7 +74,7 @@
         <el-tabs v-model="activeDayStatus" stretch class="day-tabs">
           <el-tab-pane name="assigned">
             <template #label>
-              <span>待接受</span>
+              <span>{{ t('stage5.cleaner.dashboard.tabs.assigned') }}</span>
               <span v-if="selectedDayStatusCount.assigned > 0" class="tab-count">
                 {{ selectedDayStatusCount.assigned }}
               </span>
@@ -82,7 +82,7 @@
           </el-tab-pane>
           <el-tab-pane name="in_progress">
             <template #label>
-              <span>待打扫</span>
+              <span>{{ t('stage5.cleaner.dashboard.tabs.inProgress') }}</span>
               <span v-if="selectedDayStatusCount.in_progress > 0" class="tab-count">
                 {{ selectedDayStatusCount.in_progress }}
               </span>
@@ -90,7 +90,7 @@
           </el-tab-pane>
           <el-tab-pane name="pending">
             <template #label>
-              <span>待分配</span>
+              <span>{{ t('stage5.cleaner.dashboard.tabs.pending') }}</span>
               <span v-if="selectedDayStatusCount.pending > 0" class="tab-count">
                 {{ selectedDayStatusCount.pending }}
               </span>
@@ -98,7 +98,7 @@
           </el-tab-pane>
           <el-tab-pane name="completed">
             <template #label>
-              <span>已完成</span>
+              <span>{{ t('stage5.cleaner.dashboard.tabs.completed') }}</span>
               <span v-if="selectedDayStatusCount.completed > 0" class="tab-count">
                 {{ selectedDayStatusCount.completed }}
               </span>
@@ -107,7 +107,7 @@
         </el-tabs>
 
         <div class="day-task-list">
-          <el-empty v-if="filteredSelectedDayTasks.length === 0" description="暂无任务" />
+          <el-empty v-if="filteredSelectedDayTasks.length === 0" :description="t('stage5.common.empty.noTasks')" />
           <div v-else class="task-items">
             <div
               v-for="task in filteredSelectedDayTasks"
@@ -116,10 +116,10 @@
               @click="openTask(task)"
             >
               <div class="task-main">
-                <div class="task-room">房间 {{ task.roomNumber || '-' }}</div>
+                <div class="task-room">{{ t('stage5.cleaner.common.room', { room: task.roomNumber || '-' }) }}</div>
                 <div class="task-meta">{{ getTaskTypeLabel(task.taskType) }}</div>
               </div>
-              <div class="task-action">查看</div>
+              <div class="task-action">{{ t('stage5.common.actions.view') }}</div>
             </div>
           </div>
         </div>
@@ -129,25 +129,25 @@
     <!-- 空状态 -->
     <div v-if="!loading && totalTasks === 0" class="empty-state-inline">
       <el-icon class="empty-icon"><Document /></el-icon>
-      <p class="empty-text">无任务</p>
+      <p class="empty-text">{{ t('stage5.common.empty.noTasks') }}</p>
     </div>
 
     <!-- 底部统计 -->
     <div class="status-bar">
       <div class="status-item">
-        <span class="label">待接受</span>
+        <span class="label">{{ t('stage5.cleaner.dashboard.tabs.assigned') }}</span>
         <span class="count">{{ statusCount.assigned || 0 }}</span>
       </div>
       <div class="status-item">
-        <span class="label">待打扫</span>
+        <span class="label">{{ t('stage5.cleaner.dashboard.tabs.inProgress') }}</span>
         <span class="count">{{ statusCount.in_progress || 0 }}</span>
       </div>
       <div class="status-item">
-        <span class="label">待分配</span>
+        <span class="label">{{ t('stage5.cleaner.dashboard.tabs.pending') }}</span>
         <span class="count">{{ statusCount.pending || 0 }}</span>
       </div>
       <div class="status-item">
-        <span class="label">已完成</span>
+        <span class="label">{{ t('stage5.cleaner.dashboard.tabs.completed') }}</span>
         <span class="count">{{ statusCount.completed || 0 }}</span>
       </div>
     </div>
@@ -156,38 +156,38 @@
     <div class="bottom-nav">
       <div class="nav-item active">
         <el-icon><Calendar /></el-icon>
-        <span>任务</span>
+        <span>{{ t('stage5.cleaner.dashboard.navTasks') }}</span>
       </div>
       <div class="nav-item">
         <el-icon><Document /></el-icon>
-        <span>登出</span>
+        <span>{{ t('stage5.cleaner.dashboard.navLogout') }}</span>
       </div>
     </div>
 
     <!-- 任务详情弹窗 -->
     <el-dialog
       v-model="taskDetailVisible"
-      title="任务详情"
+      :title="t('stage5.cleaner.dashboard.taskDetails')"
       width="90%"
       :close-on-click-modal="false"
     >
       <div v-if="selectedTask" class="task-detail">
         <!-- 基本信息 -->
         <div class="detail-section">
-          <h3>基本信息</h3>
+          <h3>{{ t('stage5.cleaner.dashboard.basicInfo') }}</h3>
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="房间号">{{ selectedTask.roomNumber }}</el-descriptions-item>
-            <el-descriptions-item label="任务日期">{{ selectedTask.taskDate }}</el-descriptions-item>
-            <el-descriptions-item label="任务类型">{{ getTaskTypeLabel(selectedTask.taskType) }}</el-descriptions-item>
-            <el-descriptions-item label="任务状态">
+            <el-descriptions-item :label="t('stage5.cleaner.dashboard.roomNumber')">{{ selectedTask.roomNumber }}</el-descriptions-item>
+            <el-descriptions-item :label="t('stage5.cleaner.dashboard.taskDate')">{{ selectedTask.taskDate }}</el-descriptions-item>
+            <el-descriptions-item :label="t('stage5.cleaner.dashboard.taskType')">{{ getTaskTypeLabel(selectedTask.taskType) }}</el-descriptions-item>
+            <el-descriptions-item :label="t('stage5.cleaner.dashboard.taskStatus')">
               <el-tag :type="getStatusTagType(selectedTask.status)">
                 {{ getStatusLabel(selectedTask.status) }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="保洁员" v-if="selectedTask.cleanerName">
+            <el-descriptions-item :label="t('stage5.cleaner.dashboard.cleaner')" v-if="selectedTask.cleanerName">
               {{ selectedTask.cleanerName }}
             </el-descriptions-item>
-            <el-descriptions-item label="备注" :span="2" v-if="selectedTask.notes">
+            <el-descriptions-item :label="t('stage5.cleaner.dashboard.notes')" :span="2" v-if="selectedTask.notes">
               {{ selectedTask.notes }}
             </el-descriptions-item>
           </el-descriptions>
@@ -198,23 +198,23 @@
           <!-- 待接受状态：显示接受和拒绝按钮 -->
           <template v-if="selectedTask.status === 'assigned'">
             <el-button type="danger" @click="handleReject" :loading="actionLoading">
-              拒绝任务
+              {{ t('stage5.cleaner.dashboard.rejectTask') }}
             </el-button>
             <el-button type="primary" @click="handleAccept" :loading="actionLoading">
-              接受任务
+              {{ t('stage5.cleaner.dashboard.acceptTask') }}
             </el-button>
           </template>
 
           <!-- 进行中状态：显示开始和完成按钮 -->
           <template v-else-if="selectedTask.status === 'in_progress'">
             <el-button type="success" @click="handleComplete" :loading="actionLoading">
-              完成打扫
+              {{ t('stage5.cleaner.dashboard.completeCleaning') }}
             </el-button>
           </template>
 
           <!-- 已完成状态：只显示关闭按钮 -->
           <template v-else-if="selectedTask.status === 'completed'">
-            <el-button @click="taskDetailVisible = false">关闭</el-button>
+            <el-button @click="taskDetailVisible = false">{{ t('stage5.common.actions.close') }}</el-button>
           </template>
         </div>
       </div>
@@ -225,6 +225,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Calendar, Document, Setting } from '@element-plus/icons-vue'
 import {
@@ -241,6 +242,7 @@ import {
 } from '@/utils/cleanerSession'
 
 const router = useRouter()
+const { t, tm } = useI18n()
 const cleanerUser = ref<CleanerSessionUser | null>(readCleanerUser())
 
 const loading = ref(false)
@@ -258,7 +260,7 @@ type DayStatusKey = 'assigned' | 'in_progress' | 'pending' | 'completed'
 const dayDrawerVisible = ref(false)
 const activeDayStatus = ref<DayStatusKey>('assigned')
 
-const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const weekdays = computed(() => tm('stage5.cleaner.dashboard.weekdays') as string[])
 
 interface CalendarDay {
   date: string
@@ -277,7 +279,9 @@ const statusCount = reactive<Record<string, number>>({
 })
 
 const dayDrawerTitle = computed(() => {
-  return selectedDate.value ? `${selectedDate.value} 任务` : '任务'
+  return selectedDate.value
+    ? t('stage5.cleaner.dashboard.dateTasksTitle', { date: selectedDate.value })
+    : t('stage5.cleaner.common.task')
 })
 
 const selectedDayTasks = computed<CleaningTaskDTO[]>(() => {
@@ -356,7 +360,7 @@ const generateCalendar = (year: number, month: number) => {
   }
 
   // 下个月的日期
-  const remainingDays = 42 - days.length // 6行 x 7列 = 42个格子
+  const remainingDays = 42 - days.length
   for (let i = 1; i <= remainingDays; i++) {
     const date = `${year}-${String(month + 2).padStart(2, '0')}-${String(i).padStart(2, '0')}`
     days.push({
@@ -413,8 +417,8 @@ const loadCalendarData = async () => {
       })
     }
   } catch (error) {
-    console.error('加载日历数据失败:', error)
-    ElMessage.error('加载任务数据失败')
+    console.error('Failed to load cleaner calendar data:', error)
+    ElMessage.error(t('stage5.cleaner.dashboard.loadTasksFailed'))
   } finally {
     loading.value = false
   }
@@ -450,9 +454,9 @@ const openTask = (task: CleaningTaskDTO) => {
 // 获取任务类型标签
 const getTaskTypeLabel = (type: string) => {
   const typeMap: Record<string, string> = {
-    daily: '日常清洁',
-    checkout: '退房清洁',
-    deep: '深度清洁',
+    daily: t('stage5.cleaner.dashboard.taskTypes.daily'),
+    checkout: t('stage5.cleaner.dashboard.taskTypes.checkout'),
+    deep: t('stage5.cleaner.dashboard.taskTypes.deep'),
   }
   return typeMap[type] || type
 }
@@ -460,11 +464,11 @@ const getTaskTypeLabel = (type: string) => {
 // 获取状态标签
 const getStatusLabel = (status: string) => {
   const statusMap: Record<string, string> = {
-    pending: '待分配',
-    assigned: '待接受',
-    in_progress: '待打扫',
-    completed: '已完成',
-    expired: '已过期',
+    pending: t('stage5.cleaner.dashboard.status.pending'),
+    assigned: t('stage5.cleaner.dashboard.status.assigned'),
+    in_progress: t('stage5.cleaner.dashboard.status.inProgress'),
+    completed: t('stage5.cleaner.dashboard.status.completed'),
+    expired: t('stage5.cleaner.dashboard.status.expired'),
   }
   return statusMap[status] || status
 }
@@ -490,16 +494,16 @@ const handleAccept = async () => {
     const response = await acceptCleaningTask(selectedTask.value.id)
 
     if (response.success) {
-      ElMessage.success('已接受任务')
+      ElMessage.success(t('stage5.cleaner.dashboard.acceptedTask'))
       taskDetailVisible.value = false
       // 重新加载数据
       await loadCalendarData()
     } else {
-      ElMessage.error(response.message || '接受任务失败')
+      ElMessage.error(response.message || t('stage5.cleaner.dashboard.actionFailed'))
     }
   } catch (error: any) {
-    console.error('接受任务失败:', error)
-    ElMessage.error(error.message || '接受任务失败')
+    console.error('Failed to accept cleaning task:', error)
+    ElMessage.error(error.message || t('stage5.cleaner.dashboard.actionFailed'))
   } finally {
     actionLoading.value = false
   }
@@ -510,9 +514,9 @@ const handleReject = async () => {
   if (!selectedTask.value) return
 
   try {
-    await ElMessageBox.confirm('确定要拒绝这个任务吗？', '确认拒绝', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('stage5.cleaner.dashboard.confirmRejectMessage'), t('stage5.cleaner.dashboard.confirmRejectTitle'), {
+      confirmButtonText: t('stage5.cleaner.dashboard.confirmButton'),
+      cancelButtonText: t('stage5.common.actions.cancel'),
       type: 'warning',
     })
 
@@ -520,17 +524,17 @@ const handleReject = async () => {
     const response = await rejectCleaningTask(selectedTask.value.id)
 
     if (response.success) {
-      ElMessage.success('已拒绝任务')
+      ElMessage.success(t('stage5.cleaner.dashboard.rejectedTask'))
       taskDetailVisible.value = false
       // 重新加载数据
       await loadCalendarData()
     } else {
-      ElMessage.error(response.message || '拒绝任务失败')
+      ElMessage.error(response.message || t('stage5.cleaner.dashboard.actionFailed'))
     }
   } catch (error: any) {
     if (error !== 'cancel') {
-      console.error('拒绝任务失败:', error)
-      ElMessage.error(error.message || '拒绝任务失败')
+      console.error('Failed to reject cleaning task:', error)
+      ElMessage.error(error.message || t('stage5.cleaner.dashboard.actionFailed'))
     }
   } finally {
     actionLoading.value = false
@@ -542,9 +546,9 @@ const handleComplete = async () => {
   if (!selectedTask.value) return
 
   try {
-    await ElMessageBox.confirm('确认已完成打扫吗？', '确认完成', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('stage5.cleaner.dashboard.confirmCompleteMessage'), t('stage5.cleaner.dashboard.confirmCompleteTitle'), {
+      confirmButtonText: t('stage5.cleaner.dashboard.confirmButton'),
+      cancelButtonText: t('stage5.common.actions.cancel'),
       type: 'success',
     })
 
@@ -552,17 +556,17 @@ const handleComplete = async () => {
     const response = await completeCleaningTask(selectedTask.value.id)
 
     if (response.success) {
-      ElMessage.success('任务已完成')
+      ElMessage.success(t('stage5.cleaner.dashboard.completeSuccess'))
       taskDetailVisible.value = false
       // 重新加载数据
       await loadCalendarData()
     } else {
-      ElMessage.error(response.message || '完成任务失败')
+      ElMessage.error(response.message || t('stage5.cleaner.dashboard.actionFailed'))
     }
   } catch (error: any) {
     if (error !== 'cancel') {
-      console.error('完成任务失败:', error)
-      ElMessage.error(error.message || '完成任务失败')
+      console.error('Failed to complete cleaning task:', error)
+      ElMessage.error(error.message || t('stage5.cleaner.dashboard.actionFailed'))
     }
   } finally {
     actionLoading.value = false
@@ -573,7 +577,7 @@ const handleCommand = (command: string) => {
   if (command === 'logout') {
     clearCleanerSession()
     router.push('/cleaner/login')
-    ElMessage.success('已退出登录')
+    ElMessage.success(t('stage5.cleaner.dashboard.loggedOut'))
   }
 }
 

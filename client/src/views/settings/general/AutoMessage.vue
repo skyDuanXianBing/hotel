@@ -1,37 +1,41 @@
 <template>
   <div class="auto-message-container">
     <div class="page-header">
-      <h2 class="page-title">自动化消息</h2>
-      <el-button type="primary" @click="handleCreate">创建</el-button>
+      <h2 class="page-title">{{ t('settings.autoMessage.title') }}</h2>
+      <el-button type="primary" @click="handleCreate">{{ t('settings.autoMessage.create') }}</el-button>
     </div>
 
     <el-table :data="messages" border stripe v-loading="loading">
-      <el-table-column prop="title" label="标题" min-width="120" />
-      <el-table-column prop="message" label="消息" min-width="200">
+      <el-table-column prop="title" :label="t('settings.autoMessage.columns.title')" min-width="120" />
+      <el-table-column prop="message" :label="t('settings.autoMessage.columns.message')" min-width="200">
         <template #default="{ row }">
           <span class="message-cell">{{ row.message }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="自动化规则" min-width="220">
+      <el-table-column :label="t('settings.autoMessage.columns.automationRule')" min-width="220">
         <template #default="{ row }">
           <div class="automation-rule-cell">
-            <div class="automation-rule-action">操作：{{ row.automationRuleAction }}</div>
-            <div class="automation-rule-timing">何时发送：{{ row.automationRuleTiming }}</div>
+            <div class="automation-rule-action">
+              {{ t('settings.autoMessage.ruleAction', { action: row.automationRuleAction }) }}
+            </div>
+            <div class="automation-rule-timing">
+              {{ t('settings.autoMessage.ruleTiming', { timing: row.automationRuleTiming }) }}
+            </div>
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="channel" label="渠道" min-width="120" />
-      <el-table-column prop="room" label="房间" min-width="120" />
-      <el-table-column label="允许" width="80" align="center">
+      <el-table-column prop="channel" :label="t('settings.autoMessage.columns.channel')" min-width="120" />
+      <el-table-column prop="room" :label="t('settings.autoMessage.columns.room')" min-width="120" />
+      <el-table-column :label="t('settings.autoMessage.columns.enabled')" width="80" align="center">
         <template #default="{ row }">
           <el-switch v-model="row.enabled" @change="handleToggle(row)" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" align="center" fixed="right">
+      <el-table-column :label="t('settings.common.actions')" width="180" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="handleCopy(row)">复制</el-button>
-          <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button link type="primary" @click="handleEdit(row)">{{ t('settings.common.edit') }}</el-button>
+          <el-button link type="primary" @click="handleCopy(row)">{{ t('settings.autoMessage.copy') }}</el-button>
+          <el-button link type="danger" @click="handleDelete(row)">{{ t('settings.common.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -45,25 +49,25 @@
     >
       <el-form :model="form" :rules="formRules" ref="formRef" label-position="top">
         <!-- 标题 -->
-        <el-form-item label="标题" prop="title" required>
-          <el-input v-model="form.title" placeholder="请输入标题" />
+        <el-form-item :label="t('settings.autoMessage.fields.title')" prop="title" required>
+          <el-input v-model="form.title" :placeholder="t('settings.autoMessage.placeholders.title')" />
         </el-form-item>
 
         <!-- 消息内容 -->
-        <el-form-item label="消息" prop="message" required>
+        <el-form-item :label="t('settings.autoMessage.fields.message')" prop="message" required>
           <el-input
             ref="messageInputRef"
             v-model="form.message"
             type="textarea"
             :rows="5"
-            placeholder="请输入消息内容"
+            :placeholder="t('settings.autoMessage.placeholders.message')"
           />
         </el-form-item>
 
         <!-- 插入变量 -->
         <div class="variable-section">
-          <div class="variable-title">插入变量</div>
-          <div class="variable-desc">选择一个短代码并将其添加到您的消息中。每次您使用该消息时，正确的详细信息都会自动填充。</div>
+          <div class="variable-title">{{ t('settings.autoMessage.fields.variables') }}</div>
+          <div class="variable-desc">{{ t('settings.autoMessage.variableDesc') }}</div>
           <div class="variable-tags">
             <el-tag
               v-for="variable in messageVariables"
@@ -72,17 +76,17 @@
               effect="plain"
               @click="insertVariable(variable.code)"
             >
-              {{ variable.label }}
+              {{ t(variable.label) }}
             </el-tag>
           </div>
         </div>
 
         <!-- 渠道（多选） -->
-        <el-form-item label="渠道" prop="selectedChannels" required>
+        <el-form-item :label="t('settings.autoMessage.fields.channel')" prop="selectedChannels" required>
           <el-select
             v-model="form.selectedChannels"
             multiple
-            placeholder="请选择渠道"
+            :placeholder="t('settings.autoMessage.placeholders.channel')"
             style="width: 100%"
           >
             <el-option
@@ -95,24 +99,24 @@
         </el-form-item>
 
         <!-- 过时补发 -->
-        <el-form-item label="过时补发">
+        <el-form-item :label="t('settings.autoMessage.fields.resendOnExpire')">
           <el-switch v-model="form.resendOnExpire" />
         </el-form-item>
 
         <!-- 房间选择 -->
-        <el-form-item label="房间" prop="roomSelectionType" required>
+        <el-form-item :label="t('settings.autoMessage.fields.room')" prop="roomSelectionType" required>
           <div class="room-selection">
             <el-radio-group v-model="form.roomSelectionType" class="room-radio-group">
-              <el-radio value="ALL_LOCAL">全部本地房型</el-radio>
-              <el-radio value="BY_ROOM_TYPE">根据房型</el-radio>
-              <el-radio value="BY_GROUP">根据分组</el-radio>
-              <el-radio value="BY_ROOM">按房间</el-radio>
+              <el-radio value="ALL_LOCAL">{{ t('settings.autoMessage.roomSelection.allLocal') }}</el-radio>
+              <el-radio value="BY_ROOM_TYPE">{{ t('settings.autoMessage.roomSelection.byRoomType') }}</el-radio>
+              <el-radio value="BY_GROUP">{{ t('settings.autoMessage.roomSelection.byGroup') }}</el-radio>
+              <el-radio value="BY_ROOM">{{ t('settings.autoMessage.roomSelection.byRoom') }}</el-radio>
             </el-radio-group>
             <el-select
               v-if="form.roomSelectionType !== 'ALL_LOCAL'"
               v-model="form.selectedRooms"
               multiple
-              placeholder="请选择"
+              :placeholder="t('settings.autoMessage.placeholders.select')"
               style="width: 100%; margin-top: 12px"
             >
               <!-- 根据房型 -->
@@ -148,22 +152,22 @@
 
         <!-- 自动化规则 -->
         <div class="automation-section">
-          <div class="automation-title">自动化规则</div>
-          <div class="automation-desc">选择将触发您的消息的操作以及在该操作之前或之后多久发送。</div>
+          <div class="automation-title">{{ t('settings.autoMessage.fields.automationRule') }}</div>
+          <div class="automation-desc">{{ t('settings.autoMessage.automationDesc') }}</div>
         </div>
 
-        <el-form-item label="操作" prop="action" required>
-          <el-select v-model="form.action" placeholder="请选择" style="width: 100%">
-            <el-option label="预订确认" value="BOOKING_CONFIRM" />
-            <el-option label="入住" value="CHECK_IN" />
-            <el-option label="离店" value="CHECK_OUT" />
+        <el-form-item :label="t('settings.autoMessage.fields.action')" prop="action" required>
+          <el-select v-model="form.action" :placeholder="t('settings.autoMessage.placeholders.select')" style="width: 100%">
+            <el-option :label="t('settings.autoMessage.actions.bookingConfirm')" value="BOOKING_CONFIRM" />
+            <el-option :label="t('settings.autoMessage.actions.checkIn')" value="CHECK_IN" />
+            <el-option :label="t('settings.autoMessage.actions.checkOut')" value="CHECK_OUT" />
           </el-select>
         </el-form-item>
 
         <!-- 入住/离店：按预订入住/离店日期 + 天数偏移 + 时间 -->
         <template v-if="form.action === 'CHECK_IN' || form.action === 'CHECK_OUT'">
-          <el-form-item label="天" prop="day" required>
-            <el-select v-model="form.day" placeholder="请选择" style="width: 100%">
+          <el-form-item :label="t('settings.autoMessage.fields.day')" prop="day" required>
+            <el-select v-model="form.day" :placeholder="t('settings.autoMessage.placeholders.select')" style="width: 100%">
               <el-option
                 v-for="option in dayOptions"
                 :key="option.value"
@@ -173,8 +177,8 @@
             </el-select>
           </el-form-item>
 
-          <el-form-item label="时间" prop="time" required>
-            <el-select v-model="form.time" placeholder="请选择" style="width: 100%">
+          <el-form-item :label="t('settings.autoMessage.fields.time')" prop="time" required>
+            <el-select v-model="form.time" :placeholder="t('settings.autoMessage.placeholders.select')" style="width: 100%">
               <el-option
                 v-for="option in timeOptions"
                 :key="option.value"
@@ -186,19 +190,14 @@
         </template>
 
         <!-- 预订确认：按预订创建时间 + 延迟 -->
-        <el-form-item v-else label="何时发送" prop="sendTiming" required>
-          <el-select v-model="form.sendTiming" placeholder="请选择" style="width: 100%">
-            <el-option label="立即发送" value="IMMEDIATELY" />
-            <el-option label="5分钟后" value="5_MIN" />
-            <el-option label="10分钟后" value="10_MIN" />
-            <el-option label="15分钟后" value="15_MIN" />
-            <el-option label="30分钟后" value="30_MIN" />
-            <el-option label="1小时后" value="1_HOUR" />
-            <el-option label="2小时后" value="2_HOUR" />
-            <el-option label="4小时后" value="4_HOUR" />
-            <el-option label="8小时后" value="8_HOUR" />
-            <el-option label="16小时后" value="16_HOUR" />
-            <el-option label="24小时后" value="24_HOUR" />
+        <el-form-item v-else :label="t('settings.autoMessage.fields.sendTiming')" prop="sendTiming" required>
+          <el-select v-model="form.sendTiming" :placeholder="t('settings.autoMessage.placeholders.select')" style="width: 100%">
+            <el-option
+              v-for="option in bookingTimingOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
           </el-select>
         </el-form-item>
 
@@ -211,15 +210,15 @@
           class="password-warning"
         >
           <template #title>
-            请注意：如果你增加了密码变量，请确保密码自动生成时间早于消息发送时间，否则消息将会发送失败。
+            {{ t('settings.autoMessage.passwordWarning') }}
           </template>
         </el-alert>
       </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSave">保存</el-button>
+          <el-button @click="dialogVisible = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleSave">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -228,6 +227,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   getAllAutoMessages,
@@ -246,6 +246,8 @@ import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { getAllRoomGroups, type RoomGroupDTO } from '@/api/roomGroup'
 import { useStoreStore } from '@/stores/store'
 
+const { t } = useI18n()
+
 /** 消息变量定义 */
 interface MessageVariable {
   label: string
@@ -254,26 +256,26 @@ interface MessageVariable {
 
 /** 消息变量列表 */
 const messageVariables: MessageVariable[] = [
-  { label: 'Property name', code: '{{property_name}}' },
-  { label: "Guest's name", code: '{{guest_name}}' },
-  { label: "Guest's phone number", code: '{{guest_phone}}' },
-  { label: 'Check-in date', code: '{{checkin_date}}' },
-  { label: 'Checkout date', code: '{{checkout_date}}' },
-  { label: 'Room type name', code: '{{room_type_name}}' },
-  { label: 'Room type address', code: '{{room_type_address}}' },
-  { label: 'Nearby station', code: '{{nearby_station}}' },
-  { label: 'Rate plan name', code: '{{rate_plan_name}}' },
-  { label: 'Property address', code: '{{property_address}}' },
-  { label: 'Property city', code: '{{property_city}}' },
-  { label: 'Property phone', code: '{{property_phone}}' },
-  { label: 'Property Email', code: '{{property_email}}' },
-  { label: 'Confirmation code', code: '{{confirmation_code}}' },
-  { label: 'Registration link', code: '{{registration_link}}' },
-  { label: 'Check-in form link', code: '{{checkin_form_link}}' },
-  { label: 'Number of nights', code: '{{number_of_nights}}' },
-  { label: 'Check-in code', code: '{{checkin_code}}' },
-  { label: 'SmartLock Passcode', code: '{{smartlock_passcode}}' },
-  { label: 'Room Number', code: '{{room_number}}' },
+  { label: 'settings.autoMessage.variables.propertyName', code: '{{property_name}}' },
+  { label: 'settings.autoMessage.variables.guestName', code: '{{guest_name}}' },
+  { label: 'settings.autoMessage.variables.guestPhone', code: '{{guest_phone}}' },
+  { label: 'settings.autoMessage.variables.checkInDate', code: '{{checkin_date}}' },
+  { label: 'settings.autoMessage.variables.checkoutDate', code: '{{checkout_date}}' },
+  { label: 'settings.autoMessage.variables.roomTypeName', code: '{{room_type_name}}' },
+  { label: 'settings.autoMessage.variables.roomTypeAddress', code: '{{room_type_address}}' },
+  { label: 'settings.autoMessage.variables.nearbyStation', code: '{{nearby_station}}' },
+  { label: 'settings.autoMessage.variables.ratePlanName', code: '{{rate_plan_name}}' },
+  { label: 'settings.autoMessage.variables.propertyAddress', code: '{{property_address}}' },
+  { label: 'settings.autoMessage.variables.propertyCity', code: '{{property_city}}' },
+  { label: 'settings.autoMessage.variables.propertyPhone', code: '{{property_phone}}' },
+  { label: 'settings.autoMessage.variables.propertyEmail', code: '{{property_email}}' },
+  { label: 'settings.autoMessage.variables.confirmationCode', code: '{{confirmation_code}}' },
+  { label: 'settings.autoMessage.variables.registrationLink', code: '{{registration_link}}' },
+  { label: 'settings.autoMessage.variables.checkInFormLink', code: '{{checkin_form_link}}' },
+  { label: 'settings.autoMessage.variables.numberOfNights', code: '{{number_of_nights}}' },
+  { label: 'settings.autoMessage.variables.checkInCode', code: '{{checkin_code}}' },
+  { label: 'settings.autoMessage.variables.smartLockPasscode', code: '{{smartlock_passcode}}' },
+  { label: 'settings.autoMessage.variables.roomNumber', code: '{{room_number}}' },
 ]
 
 interface AutoMessageForm {
@@ -353,16 +355,30 @@ const dayOptions = computed<SendTimingOption[]>(() => {
   for (let day = -14; day <= 14; day++) {
     let label = ''
     if (day < 0) {
-      label = `${Math.abs(day)}天前`
+      label = t('settings.autoMessage.timing.dayBefore', { count: Math.abs(day) })
     } else if (day === 0) {
-      label = '当天'
+      label = t('settings.autoMessage.timing.sameDay')
     } else {
-      label = `${day}天后`
+      label = t('settings.autoMessage.timing.dayAfter', { count: day })
     }
     options.push({ label, value: String(day) })
   }
   return options
 })
+
+const bookingTimingOptions = computed<SendTimingOption[]>(() => [
+  { label: t('settings.autoMessage.timing.immediately'), value: 'IMMEDIATELY' },
+  { label: t('settings.autoMessage.timing.minutesAfter', { count: 5 }), value: '5_MIN' },
+  { label: t('settings.autoMessage.timing.minutesAfter', { count: 10 }), value: '10_MIN' },
+  { label: t('settings.autoMessage.timing.minutesAfter', { count: 15 }), value: '15_MIN' },
+  { label: t('settings.autoMessage.timing.minutesAfter', { count: 30 }), value: '30_MIN' },
+  { label: t('settings.autoMessage.timing.hoursAfter', { count: 1 }), value: '1_HOUR' },
+  { label: t('settings.autoMessage.timing.hoursAfter', { count: 2 }), value: '2_HOUR' },
+  { label: t('settings.autoMessage.timing.hoursAfter', { count: 4 }), value: '4_HOUR' },
+  { label: t('settings.autoMessage.timing.hoursAfter', { count: 8 }), value: '8_HOUR' },
+  { label: t('settings.autoMessage.timing.hoursAfter', { count: 16 }), value: '16_HOUR' },
+  { label: t('settings.autoMessage.timing.hoursAfter', { count: 24 }), value: '24_HOUR' },
+])
 
 /** 时间选项（用于入住/离店） */
 const timeOptions = computed<SendTimingOption[]>(() => {
@@ -435,14 +451,26 @@ const parseDayAndTime = (sendTiming: string) => {
 }
 
 const formRules: FormRules = {
-  title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  message: [{ required: true, message: '请输入消息内容', trigger: 'blur' }],
-  selectedChannels: [{ required: true, message: '请选择渠道', trigger: 'change', type: 'array', min: 1 }],
-  roomSelectionType: [{ required: true, message: '请选择房间类型', trigger: 'change' }],
-  action: [{ required: true, message: '请选择操作', trigger: 'change' }],
-  sendTiming: [{ required: true, message: '请选择发送时机', trigger: 'change' }],
-  day: [{ required: true, message: '请选择天', trigger: 'change' }],
-  time: [{ required: true, message: '请选择时间', trigger: 'change' }],
+  title: [{ required: true, message: t('settings.autoMessage.validation.titleRequired'), trigger: 'blur' }],
+  message: [{ required: true, message: t('settings.autoMessage.validation.messageRequired'), trigger: 'blur' }],
+  selectedChannels: [
+    {
+      required: true,
+      message: t('settings.autoMessage.validation.channelRequired'),
+      trigger: 'change',
+      type: 'array',
+      min: 1,
+    },
+  ],
+  roomSelectionType: [
+    { required: true, message: t('settings.autoMessage.validation.roomTypeRequired'), trigger: 'change' },
+  ],
+  action: [{ required: true, message: t('settings.autoMessage.validation.actionRequired'), trigger: 'change' }],
+  sendTiming: [
+    { required: true, message: t('settings.autoMessage.validation.sendTimingRequired'), trigger: 'change' },
+  ],
+  day: [{ required: true, message: t('settings.autoMessage.validation.dayRequired'), trigger: 'change' }],
+  time: [{ required: true, message: t('settings.autoMessage.validation.timeRequired'), trigger: 'change' }],
 }
 
 /** 插入变量到消息内容 */
@@ -464,7 +492,9 @@ const insertVariable = (code: string) => {
 }
 
 const dialogTitle = computed(() => {
-  return editingId.value ? '编辑自动化消息' : '创建消息模板'
+  return editingId.value
+    ? t('settings.autoMessage.dialogTitle.edit')
+    : t('settings.autoMessage.dialogTitle.create')
 })
 
 // 加载渠道列表
@@ -474,11 +504,11 @@ const loadChannels = async () => {
     if (response.success && response.data) {
       channels.value = response.data
     } else {
-      ElMessage.error(response.message || '加载渠道列表失败')
+      ElMessage.error(response.message || t('settings.autoMessage.messages.loadChannelsFailed'))
     }
   } catch (error) {
     console.error('加载渠道列表失败:', error)
-    ElMessage.error('加载渠道列表失败')
+    ElMessage.error(t('settings.autoMessage.messages.loadChannelsFailed'))
   }
 }
 
@@ -489,11 +519,11 @@ const loadRooms = async () => {
     if (response.success && response.data) {
       rooms.value = response.data
     } else {
-      ElMessage.error(response.message || '加载房间列表失败')
+      ElMessage.error(response.message || t('settings.autoMessage.messages.loadRoomsFailed'))
     }
   } catch (error) {
     console.error('加载房间列表失败:', error)
-    ElMessage.error('加载房间列表失败')
+    ElMessage.error(t('settings.autoMessage.messages.loadRoomsFailed'))
   }
 }
 
@@ -504,11 +534,11 @@ const loadRoomTypes = async () => {
     if (response.success && response.data) {
       roomTypes.value = response.data
     } else {
-      ElMessage.error(response.message || '加载房型列表失败')
+      ElMessage.error(response.message || t('settings.autoMessage.messages.loadRoomTypesFailed'))
     }
   } catch (error) {
     console.error('加载房型列表失败:', error)
-    ElMessage.error('加载房型列表失败')
+    ElMessage.error(t('settings.autoMessage.messages.loadRoomTypesFailed'))
   }
 }
 
@@ -519,33 +549,33 @@ const loadRoomGroups = async () => {
     if (response.success && response.data) {
       roomGroups.value = response.data
     } else {
-      ElMessage.error(response.message || '加载房间分组列表失败')
+      ElMessage.error(response.message || t('settings.autoMessage.messages.loadRoomGroupsFailed'))
     }
   } catch (error) {
     console.error('加载房间分组列表失败:', error)
-    ElMessage.error('加载房间分组列表失败')
+    ElMessage.error(t('settings.autoMessage.messages.loadRoomGroupsFailed'))
   }
 }
 
 /** 操作类型显示映射 */
 const actionLabelMap: Record<string, string> = {
-  BOOKING_CONFIRM: '预订确认',
-  CHECK_IN: '入住',
-  CHECK_OUT: '离店',
+  BOOKING_CONFIRM: t('settings.autoMessage.actions.bookingConfirm'),
+  CHECK_IN: t('settings.autoMessage.actions.checkIn'),
+  CHECK_OUT: t('settings.autoMessage.actions.checkOut'),
 }
 
 const bookingTimingLabelMap: Record<string, string> = {
-  IMMEDIATELY: '立即发送',
-  '5_MIN': '5分钟后',
-  '10_MIN': '10分钟后',
-  '15_MIN': '15分钟后',
-  '30_MIN': '30分钟后',
-  '1_HOUR': '1小时后',
-  '2_HOUR': '2小时后',
-  '4_HOUR': '4小时后',
-  '8_HOUR': '8小时后',
-  '16_HOUR': '16小时后',
-  '24_HOUR': '24小时后',
+  IMMEDIATELY: t('settings.autoMessage.timing.immediately'),
+  '5_MIN': t('settings.autoMessage.timing.minutesAfter', { count: 5 }),
+  '10_MIN': t('settings.autoMessage.timing.minutesAfter', { count: 10 }),
+  '15_MIN': t('settings.autoMessage.timing.minutesAfter', { count: 15 }),
+  '30_MIN': t('settings.autoMessage.timing.minutesAfter', { count: 30 }),
+  '1_HOUR': t('settings.autoMessage.timing.hoursAfter', { count: 1 }),
+  '2_HOUR': t('settings.autoMessage.timing.hoursAfter', { count: 2 }),
+  '4_HOUR': t('settings.autoMessage.timing.hoursAfter', { count: 4 }),
+  '8_HOUR': t('settings.autoMessage.timing.hoursAfter', { count: 8 }),
+  '16_HOUR': t('settings.autoMessage.timing.hoursAfter', { count: 16 }),
+  '24_HOUR': t('settings.autoMessage.timing.hoursAfter', { count: 24 }),
 }
 
 const formatSendTimingLabel = (action: AutoMessageAction | '', sendTiming: string | undefined) => {
@@ -559,8 +589,16 @@ const formatSendTimingLabel = (action: AutoMessageAction | '', sendTiming: strin
       return sendTiming
     }
     const day = Number(parsed.day)
-    const dayText = day < 0 ? `${Math.abs(day)}天前` : day === 0 ? '当天' : `${day}天后`
-    const anchor = action === 'CHECK_IN' ? '入住' : '离店'
+    const dayText =
+      day < 0
+        ? t('settings.autoMessage.timing.dayBefore', { count: Math.abs(day) })
+        : day === 0
+          ? t('settings.autoMessage.timing.sameDay')
+          : t('settings.autoMessage.timing.dayAfter', { count: day })
+    const anchor =
+      action === 'CHECK_IN'
+        ? t('settings.autoMessage.timing.checkInAnchor')
+        : t('settings.autoMessage.timing.checkOutAnchor')
     return `${anchor}${dayText} ${parsed.time}`
   }
 
@@ -577,9 +615,9 @@ const convertToListItem = (dto: AutoMessageDTO): AutoMessageListItem => {
       const channelNames = channelIds
         .map((id) => channels.value.find((c) => c.id === id)?.name)
         .filter(Boolean)
-      channelDisplay = channelNames.join(', ') || '全部渠道'
+      channelDisplay = channelNames.join(', ') || t('settings.autoMessage.display.allChannels')
     } catch {
-      channelDisplay = dto.channel || '全部渠道'
+      channelDisplay = dto.channel || t('settings.autoMessage.display.allChannels')
     }
   }
 
@@ -588,7 +626,7 @@ const convertToListItem = (dto: AutoMessageDTO): AutoMessageListItem => {
   if (dto.roomSelectionType) {
     switch (dto.roomSelectionType) {
       case 'ALL_LOCAL':
-        roomDisplay = '全部本地房型'
+        roomDisplay = t('settings.autoMessage.roomSelection.allLocal')
         break
       case 'BY_ROOM_TYPE':
         if (dto.roomSelection) {
@@ -597,9 +635,9 @@ const convertToListItem = (dto: AutoMessageDTO): AutoMessageListItem => {
             const names = roomTypeIds
               .map((id) => roomTypes.value.find((rt) => rt.id === id)?.name)
               .filter(Boolean)
-            roomDisplay = names.join(', ') || '按房型'
+            roomDisplay = names.join(', ') || t('settings.autoMessage.display.byRoomType')
           } catch {
-            roomDisplay = '按房型'
+            roomDisplay = t('settings.autoMessage.display.byRoomType')
           }
         }
         break
@@ -610,9 +648,9 @@ const convertToListItem = (dto: AutoMessageDTO): AutoMessageListItem => {
             const names = groupIds
               .map((id) => roomGroups.value.find((g) => g.id === id)?.name)
               .filter(Boolean)
-            roomDisplay = names.join(', ') || '按分组'
+            roomDisplay = names.join(', ') || t('settings.autoMessage.display.byGroup')
           } catch {
-            roomDisplay = '按分组'
+            roomDisplay = t('settings.autoMessage.display.byGroup')
           }
         }
         break
@@ -623,9 +661,9 @@ const convertToListItem = (dto: AutoMessageDTO): AutoMessageListItem => {
             const names = roomIds
               .map((id) => rooms.value.find((r) => r.id === id)?.roomNumber)
               .filter(Boolean)
-            roomDisplay = names.join(', ') || '按房间'
+            roomDisplay = names.join(', ') || t('settings.autoMessage.display.byRoom')
           } catch {
-            roomDisplay = '按房间'
+            roomDisplay = t('settings.autoMessage.display.byRoom')
           }
         }
         break
@@ -651,7 +689,7 @@ const convertToListItem = (dto: AutoMessageDTO): AutoMessageListItem => {
 // 加载自动化消息列表
 const loadAutoMessages = async () => {
   if (!storeStore.currentStore?.id) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settings.autoMessage.messages.selectStore'))
     messages.value = []
     return
   }
@@ -662,11 +700,11 @@ const loadAutoMessages = async () => {
     if (response.success && response.data) {
       messages.value = response.data.map(convertToListItem)
     } else {
-      ElMessage.error(response.message || '加载自动化消息列表失败')
+      ElMessage.error(response.message || t('settings.autoMessage.messages.loadAutoMessagesFailed'))
     }
   } catch (error) {
     console.error('加载自动化消息列表失败:', error)
-    ElMessage.error('加载自动化消息列表失败')
+    ElMessage.error(t('settings.autoMessage.messages.loadAutoMessagesFailed'))
   } finally {
     loading.value = false
   }
@@ -770,31 +808,35 @@ const handleCopy = async (row: AutoMessageListItem) => {
   resetForm()
   await fillFormFromDTO(row.id)
   form.id = 0
-  form.title = form.title + ' (副本)'
+  form.title = form.title + t('settings.autoMessage.display.duplicateSuffix')
   editingId.value = null
   dialogVisible.value = true
 }
 
 const handleDelete = async (row: AutoMessageListItem) => {
   try {
-    await ElMessageBox.confirm(`确定要删除消息 "${row.title}" 吗?`, '删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('settings.autoMessage.messages.deleteConfirm', { title: row.title }),
+      t('settings.common.deleteConfirmTitle'),
+      {
+        confirmButtonText: t('settings.common.confirmButton'),
+        cancelButtonText: t('settings.common.cancelButton'),
+        type: 'warning',
+      },
+    )
 
     loading.value = true
     const response = await deleteAutoMessage(row.id)
     if (response.success) {
-      ElMessage.success('删除成功')
+      ElMessage.success(t('settings.common.deleteSuccess'))
       await loadAutoMessages()
     } else {
-      ElMessage.error(response.message || '删除失败')
+      ElMessage.error(response.message || t('settings.common.deleteFailed'))
     }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除失败:', error)
-      ElMessage.error('删除失败')
+      ElMessage.error(t('settings.common.deleteFailed'))
     }
   } finally {
     loading.value = false
@@ -806,16 +848,20 @@ const handleToggle = async (row: AutoMessageListItem) => {
     loading.value = true
     const response = await toggleAutoMessage(row.id)
     if (response.success) {
-      ElMessage.success(response.data.enabled ? '已启用' : '已禁用')
+      ElMessage.success(
+        response.data.enabled
+          ? t('settings.autoMessage.messages.enabled')
+          : t('settings.autoMessage.messages.disabled'),
+      )
       await loadAutoMessages()
     } else {
-      ElMessage.error(response.message || '切换状态失败')
+      ElMessage.error(response.message || t('settings.autoMessage.messages.toggleFailed'))
       // 恢复原状态
       row.enabled = !row.enabled
     }
   } catch (error) {
     console.error('切换状态失败:', error)
-    ElMessage.error('切换状态失败')
+    ElMessage.error(t('settings.autoMessage.messages.toggleFailed'))
     // 恢复原状态
     row.enabled = !row.enabled
   } finally {
@@ -848,14 +894,14 @@ const handleSave = async () => {
 
     if (valid && (form.action === 'CHECK_IN' || form.action === 'CHECK_OUT')) {
       if (!form.day) {
-        ElMessage.error('请选择天')
+        ElMessage.error(t('settings.autoMessage.validation.dayRequired'))
         valid = false
       } else {
         form.time = normalizeTimeValue(form.time)
       }
 
       if (!form.time || !/^([01]\d|2[0-3]):[0-5]\d$/.test(form.time)) {
-        ElMessage.error('请选择时间（例如 14:00）')
+        ElMessage.error(t('settings.autoMessage.validation.invalidTime'))
         valid = false
       }
     }
@@ -889,7 +935,7 @@ const handleSave = async () => {
           .map((id) => channels.value.find((c) => c.id === id)?.name)
           .filter(Boolean)
           .join(', '),
-        room: form.roomSelectionType === 'ALL_LOCAL' ? '全部本地房型' : '',
+        room: form.roomSelectionType === 'ALL_LOCAL' ? t('settings.autoMessage.roomSelection.allLocal') : '',
       }
 
       let response
@@ -900,16 +946,20 @@ const handleSave = async () => {
       }
 
       if (response.success) {
-        ElMessage.success(editingId.value ? '更新成功' : '创建成功')
+        ElMessage.success(
+          editingId.value
+            ? t('settings.autoMessage.messages.updateSuccess')
+            : t('settings.autoMessage.messages.createSuccess'),
+        )
         dialogVisible.value = false
         await loadAutoMessages()
       } else {
-        ElMessage.error(response.message || '保存失败')
+        ElMessage.error(response.message || t('settings.autoMessage.messages.saveFailed'))
       }
     }
   } catch (error) {
     console.error('保存失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settings.autoMessage.messages.saveFailed'))
   } finally {
     loading.value = false
   }

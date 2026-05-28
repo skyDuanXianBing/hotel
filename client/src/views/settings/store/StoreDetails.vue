@@ -2,15 +2,15 @@
   <div class="store-details-container">
     <div class="config-page">
       <div class="page-header">
-        <h2 class="page-title">门店详情</h2>
+        <h2 class="page-title">{{ t('settingsStage4.storeDetails.title') }}</h2>
       </div>
 
       <el-tabs v-model="activeTab" class="store-tabs">
-        <el-tab-pane label="详情" name="details">
+        <el-tab-pane :label="t('settingsStage4.storeDetails.tabs.details')" name="details">
           <div class="details-content">
             <div class="store-header">
               <h2 class="store-title">{{ storeDetails.name || '-' }}</h2>
-              <el-button type="primary" :loading="loading" @click="handleEdit">编辑</el-button>
+              <el-button type="primary" :loading="loading" @click="handleEdit">{{ t('settings.common.edit') }}</el-button>
             </div>
 
             <div class="main-content">
@@ -19,12 +19,12 @@
                   <img
                     v-if="storeDetails.logo"
                     :src="storeDetails.logo"
-                    alt="门店 Logo"
+                    :alt="t('settingsStage4.storeDetails.logoAlt')"
                     class="store-logo-image"
                   />
                   <template v-else>
                     <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                    <p class="upload-text">上传图片</p>
+                    <p class="upload-text">{{ t('settingsStage4.storeDetails.uploadImage') }}</p>
                   </template>
                 </div>
               </div>
@@ -32,55 +32,55 @@
               <div class="info-section">
                 <div class="info-grid">
                   <div class="info-item">
-                    <label class="info-label">联系电话</label>
+                    <label class="info-label">{{ t('settingsStage4.storeDetails.fields.phone') }}</label>
                     <span class="info-value">{{ storeDetails.phone || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">邮箱地址</label>
+                    <label class="info-label">{{ t('settingsStage4.storeDetails.fields.email') }}</label>
                     <span class="info-value">{{ storeDetails.email || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">房产类型</label>
+                    <label class="info-label">{{ t('settingsStage4.storeDetails.fields.propertyType') }}</label>
                     <span class="info-value">{{ formatPropertyType(storeDetails.type) }}</span>
                   </div>
                   <div class="info-item full-width">
-                    <label class="info-label">地址</label>
+                    <label class="info-label">{{ t('settingsStage4.storeDetails.fields.address') }}</label>
                     <span class="info-value">{{ storeDetails.address || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">城市</label>
+                    <label class="info-label">{{ t('settingsStage4.storeBasic.fields.city') }}</label>
                     <span class="info-value">{{ storeDetails.city || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">州/省</label>
+                    <label class="info-label">{{ t('settingsStage4.storeDetails.fields.state') }}</label>
                     <span class="info-value">{{ storeDetails.state || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">国家和地区</label>
+                    <label class="info-label">{{ t('settingsStage4.storeBasic.fields.country') }}</label>
                     <span class="info-value">{{ formatCountry(storeDetails.country) }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">语言</label>
+                    <label class="info-label">{{ t('settingsStage4.storeDetails.fields.language') }}</label>
                     <span class="info-value">{{ formatLanguage(storeDetails.language) }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">时区</label>
+                    <label class="info-label">{{ t('settingsStage4.storeBasic.fields.timezone') }}</label>
                     <span class="info-value">{{ storeDetails.timezone || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">货币</label>
+                    <label class="info-label">{{ t('settingsStage4.storeBasic.fields.currency') }}</label>
                     <span class="info-value">{{ storeDetails.currency || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">入住时间</label>
+                    <label class="info-label">{{ t('settingsStage4.storeDetails.fields.checkinTime') }}</label>
                     <span class="info-value">{{ storeDetails.checkinTime || '-' }}</span>
                   </div>
                   <div class="info-item">
-                    <label class="info-label">退房时间</label>
+                    <label class="info-label">{{ t('settingsStage4.storeDetails.fields.checkoutTime') }}</label>
                     <span class="info-value">{{ storeDetails.checkoutTime || '-' }}</span>
                   </div>
                   <div class="info-item full-width">
-                    <label class="info-label">门店描述</label>
+                    <label class="info-label">{{ t('settingsStage4.storeDetails.fields.description') }}</label>
                     <span class="info-value">{{ storeDetails.description || '-' }}</span>
                   </div>
                 </div>
@@ -90,24 +90,24 @@
             <div class="map-section">
               <div class="map-header">
                 <el-radio-group v-model="mapType" size="small">
-                  <el-radio-button label="map">Map</el-radio-button>
-                  <el-radio-button label="satellite">Satellite</el-radio-button>
+                  <el-radio-button label="map">{{ t('settingsStage4.storeDetails.mapTypes.map') }}</el-radio-button>
+                  <el-radio-button label="satellite">{{ t('settingsStage4.storeDetails.mapTypes.satellite') }}</el-radio-button>
                 </el-radio-group>
               </div>
               <div class="map-container">
                 <div class="map-placeholder">
-                  <p>地图区域</p>
+                  <p>{{ t('settingsStage4.storeDetails.mapPlaceholder') }}</p>
                 </div>
               </div>
             </div>
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="设施" name="facilities">
+        <el-tab-pane :label="t('settingsStage4.storeDetails.tabs.facilities')" name="facilities">
           <div class="facilities-content">
             <div class="facilities-header">
               <h2 class="facilities-title">{{ storeDetails.name || '-' }}</h2>
-              <el-button type="primary" :loading="loading" @click="handleEditFacilities">编辑</el-button>
+              <el-button type="primary" :loading="loading" @click="handleEditFacilities">{{ t('settings.common.edit') }}</el-button>
             </div>
 
             <div class="facilities-main">
@@ -116,12 +116,12 @@
                   <img
                     v-if="storeDetails.logo"
                     :src="storeDetails.logo"
-                    alt="门店 Logo"
+                    :alt="t('settingsStage4.storeDetails.logoAlt')"
                     class="store-logo-image"
                   />
                   <template v-else>
                     <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                    <p class="upload-text">上传图片</p>
+                    <p class="upload-text">{{ t('settingsStage4.storeDetails.uploadImage') }}</p>
                   </template>
                 </div>
               </div>
@@ -131,27 +131,27 @@
                   <div v-for="facility in selectedFacilitiesList" :key="facility" class="facility-tag">
                     {{ facility }}
                   </div>
-                  <div v-if="selectedFacilitiesList.length === 0" class="no-facilities">暂无设施</div>
+                  <div v-if="selectedFacilitiesList.length === 0" class="no-facilities">{{ t('settingsStage4.storeDetails.empty.facilities') }}</div>
                 </div>
               </div>
             </div>
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="照片" name="photos">
+        <el-tab-pane :label="t('settingsStage4.storeDetails.tabs.photos')" name="photos">
           <div class="photos-content">
             <div class="photos-header">
               <h2 class="photos-title">{{ storeDetails.name || '-' }}</h2>
-              <el-button type="primary" :loading="loading" @click="handleEditPhotos">编辑</el-button>
+              <el-button type="primary" :loading="loading" @click="handleEditPhotos">{{ t('settings.common.edit') }}</el-button>
             </div>
 
             <div class="photo-section">
-              <h3 class="photo-section-title">照片</h3>
+              <h3 class="photo-section-title">{{ t('settingsStage4.storeDetails.tabs.photos') }}</h3>
               <div class="photos-grid">
                 <div v-for="photo in photos" :key="photo.uid || photo.url" class="photo-item">
-                  <img v-if="photo.url" :src="photo.url" alt="门店照片" class="photo-img" />
+                  <img v-if="photo.url" :src="photo.url" :alt="t('settingsStage4.storeDetails.photoAlt')" class="photo-img" />
                 </div>
-                <div v-if="photos.length === 0" class="no-photos">暂无照片</div>
+                <div v-if="photos.length === 0" class="no-photos">{{ t('settingsStage4.storeDetails.empty.photos') }}</div>
               </div>
             </div>
           </div>
@@ -161,19 +161,19 @@
 
     <el-dialog
       v-model="editDialogVisible"
-      title="编辑"
+      :title="t('settings.common.edit')"
       width="800px"
       :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="editForm" :rules="formRules" label-width="100px">
-        <el-form-item label="门店名称" prop="name">
+        <el-form-item :label="t('settingsStage4.storeBasic.fields.name')" prop="name">
           <div style="width: 100%">
-            <div class="form-hint" style="margin-bottom: 8px">请填写展示给客人的门店名称</div>
-            <el-input v-model="editForm.name" placeholder="请填写门店名称" />
+            <div class="form-hint" style="margin-bottom: 8px">{{ t('settingsStage4.storeDetails.hints.guestFacingName') }}</div>
+            <el-input v-model="editForm.name" :placeholder="t('settingsStage4.storeDetails.placeholders.name')" />
           </div>
         </el-form-item>
 
-        <el-form-item label="酒店 Logo">
+        <el-form-item :label="t('settingsStage4.storeDetails.fields.logo')">
           <el-upload v-if="false"
             :show-file-list="false"
             :before-upload="beforeImageUpload"
@@ -183,7 +183,7 @@
               <img v-if="editForm.logo" :src="editForm.logo" alt="logo" class="store-logo-image" />
               <template v-else>
                 <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                <p class="upload-text">上传</p>
+                <p class="upload-text">{{ t('settingsStage4.storeDetails.upload') }}</p>
               </template>
             </div>
           </el-upload>
@@ -191,24 +191,24 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="联系电话" prop="phone">
-              <el-input v-model="editForm.phone" placeholder="请输入联系电话" />
+            <el-form-item :label="t('settingsStage4.storeDetails.fields.phone')" prop="phone">
+              <el-input v-model="editForm.phone" :placeholder="t('settingsStage4.storeDetails.placeholders.phone')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="邮箱地址" prop="email">
-              <el-input v-model="editForm.email" placeholder="请输入邮箱地址" />
+            <el-form-item :label="t('settingsStage4.storeDetails.fields.email')" prop="email">
+              <el-input v-model="editForm.email" :placeholder="t('settingsStage4.storeBasic.placeholders.ownerEmail')" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="房产类型" prop="type">
-              <el-select v-model="editForm.type" placeholder="请选择房产类型" style="width: 100%">
+            <el-form-item :label="t('settingsStage4.storeDetails.fields.propertyType')" prop="type">
+              <el-select v-model="editForm.type" :placeholder="t('settingsStage4.storeDetails.placeholders.propertyType')" style="width: 100%">
                 <el-option
                   v-for="option in PROPERTY_TYPE_OPTIONS"
                   :key="option.value"
-                  :label="option.label"
+                  :label="option.labelKey ? t(option.labelKey) : option.label"
                   :value="option.value"
                 />
               </el-select>
@@ -216,28 +216,28 @@
           </el-col>
         </el-row>
 
-        <el-form-item label="地址" prop="address">
-          <el-input v-model="editForm.address" placeholder="请输入详细地址" />
+        <el-form-item :label="t('settingsStage4.storeDetails.fields.address')" prop="address">
+          <el-input v-model="editForm.address" :placeholder="t('settingsStage4.storeDetails.placeholders.address')" />
         </el-form-item>
 
         <el-row :gutter="20">
           <el-col :span="8">
-            <el-form-item label="城市" prop="city">
-              <el-input v-model="editForm.city" placeholder="请输入城市" />
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.city')" prop="city">
+              <el-input v-model="editForm.city" :placeholder="t('settingsStage4.storeBasic.placeholders.city')" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="州/省">
-              <el-input v-model="editForm.state" placeholder="请输入州/省" />
+            <el-form-item :label="t('settingsStage4.storeDetails.fields.state')">
+              <el-input v-model="editForm.state" :placeholder="t('settingsStage4.storeDetails.placeholders.state')" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="国家和地区" prop="country">
-              <el-select v-model="editForm.country" placeholder="请选择国家" style="width: 100%">
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.country')" prop="country">
+              <el-select v-model="editForm.country" :placeholder="t('settingsStage4.storeBasic.placeholders.country')" style="width: 100%">
                 <el-option
                   v-for="option in COUNTRY_OPTIONS"
                   :key="option.value"
-                  :label="option.label"
+                  :label="option.labelKey ? t(option.labelKey) : option.label"
                   :value="option.value"
                 />
               </el-select>
@@ -246,8 +246,8 @@
         </el-row>
         <el-row :gutter="20">
           <el-col :span="8">
-            <el-form-item label="时区" prop="timezone">
-              <el-select v-model="editForm.timezone" placeholder="请选择时区" style="width: 100%">
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.timezone')" prop="timezone">
+              <el-select v-model="editForm.timezone" :placeholder="t('settingsStage4.storeBasic.placeholders.timezone')" style="width: 100%">
                 <el-option
                   v-for="option in TIMEZONE_OPTIONS"
                   :key="option.value"
@@ -258,24 +258,24 @@
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="货币" prop="currency">
-              <el-select v-model="editForm.currency" placeholder="请选择货币" style="width: 100%">
+            <el-form-item :label="t('settingsStage4.storeBasic.fields.currency')" prop="currency">
+              <el-select v-model="editForm.currency" :placeholder="t('settingsStage4.storeBasic.placeholders.currency')" style="width: 100%">
                 <el-option
                   v-for="option in CURRENCY_OPTIONS"
                   :key="option.value"
-                  :label="option.label"
+                  :label="option.labelKey ? t(option.labelKey) : option.label"
                   :value="option.value"
                 />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="语言" prop="language">
-              <el-select v-model="editForm.language" placeholder="请选择语言" style="width: 100%">
+            <el-form-item :label="t('settingsStage4.storeDetails.fields.language')" prop="language">
+              <el-select v-model="editForm.language" :placeholder="t('settingsStage4.storeDetails.placeholders.language')" style="width: 100%">
                 <el-option
                   v-for="option in LANGUAGE_OPTIONS"
                   :key="option.value"
-                  :label="option.label"
+                  :label="option.labelKey ? t(option.labelKey) : option.label"
                   :value="option.value"
                 />
               </el-select>
@@ -284,93 +284,95 @@
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="入住时间" prop="checkinTime">
+            <el-form-item :label="t('settingsStage4.storeDetails.fields.checkinTime')" prop="checkinTime">
               <el-time-select
                 v-model="editForm.checkinTime"
                 start="00:00"
                 step="00:30"
                 end="23:30"
-                placeholder="请选择入住时间"
+                :placeholder="t('settingsStage4.storeDetails.placeholders.checkinTime')"
                 style="width: 100%"
               />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="退房时间" prop="checkoutTime">
+            <el-form-item :label="t('settingsStage4.storeDetails.fields.checkoutTime')" prop="checkoutTime">
               <el-time-select
                 v-model="editForm.checkoutTime"
                 start="00:00"
                 step="00:30"
                 end="23:30"
-                placeholder="请选择退房时间"
+                :placeholder="t('settingsStage4.storeDetails.placeholders.checkoutTime')"
                 style="width: 100%"
               />
             </el-form-item>
           </el-col>
         </el-row>
 
-        <el-form-item label="门店描述">
+        <el-form-item :label="t('settingsStage4.storeDetails.fields.description')">
           <el-input
             v-model="editForm.description"
             type="textarea"
             :rows="4"
-            placeholder="请输入门店描述内容，它将会显示在网站首页"
+            :placeholder="t('settingsStage4.storeDetails.placeholders.description')"
           />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelEdit">取消</el-button>
-          <el-button type="primary" :loading="loading" @click="handleSaveEdit">保存</el-button>
+          <el-button @click="handleCancelEdit">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" :loading="loading" @click="handleSaveEdit">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
 
     <el-dialog
       v-model="editFacilitiesDialogVisible"
-      title="编辑"
+      :title="t('settings.common.edit')"
       width="900px"
       :close-on-click-modal="false"
     >
       <div class="facilities-edit-grid">
         <el-checkbox
           v-for="facility in STORE_FACILITY_OPTIONS"
-          :key="facility.label"
+          :key="facility.payload.name"
           v-model="selectedFacilities"
-          :label="facility.label"
-          :value="facility.label"
-        />
+          :label="facility.payload.name"
+          :value="facility.payload.name"
+        >
+          {{ t(facility.labelKey) }}
+        </el-checkbox>
       </div>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelEditFacilities">取消</el-button>
-          <el-button type="primary" :loading="loading" @click="handleSaveEditFacilities">保存</el-button>
+          <el-button @click="handleCancelEditFacilities">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" :loading="loading" @click="handleSaveEditFacilities">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
 
     <el-dialog
       v-model="editPhotosDialogVisible"
-      title="编辑"
+      :title="t('settings.common.edit')"
       width="900px"
       :close-on-click-modal="false"
     >
       <div class="photos-edit-container">
         <div class="upload-tip">
-          <h4 class="upload-tip-title">请上传门店照片</h4>
+          <h4 class="upload-tip-title">{{ t('settingsStage4.storeDetails.photos.uploadTitle') }}</h4>
           <p class="upload-tip-text">
-            保存后将同步当前门店图片到 Su。
+            {{ t('settingsStage4.storeDetails.photos.syncTip') }}
           </p>
         </div>
 
         <div class="upload-section">
-          <h4 class="upload-section-title">照片</h4>
+          <h4 class="upload-section-title">{{ t('settingsStage4.storeDetails.tabs.photos') }}</h4>
           <div class="upload-info">
-            <p>最大数量: 40</p>
-            <p>最大上传大小: 图片 5MB</p>
-            <p>推荐尺寸: 1200px 以上</p>
+            <p>{{ t('settingsStage4.storeDetails.photos.maxCount') }}</p>
+            <p>{{ t('settingsStage4.storeDetails.photos.maxSize') }}</p>
+            <p>{{ t('settingsStage4.storeDetails.photos.recommendedSize') }}</p>
           </div>
           <el-upload
             v-model:file-list="photos"
@@ -380,15 +382,15 @@
             :http-request="handlePhotoRequest"
           >
             <el-icon class="upload-icon-large"><UploadFilled /></el-icon>
-            <p class="upload-text-large">上传</p>
+            <p class="upload-text-large">{{ t('settingsStage4.storeDetails.upload') }}</p>
           </el-upload>
         </div>
       </div>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelEditPhotos">取消</el-button>
-          <el-button type="primary" :loading="loading" @click="handleSaveEditPhotos">保存</el-button>
+          <el-button @click="handleCancelEditPhotos">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" :loading="loading" @click="handleSaveEditPhotos">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -398,6 +400,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import {
   ElMessage,
   type FormInstance,
@@ -434,6 +437,7 @@ interface StoreDetailsForm extends StoreRequest {
 }
 
 const storeStore = useStoreStore()
+const { t } = useI18n()
 const currentStoreId = computed(() => storeStore.currentStore?.id)
 
 const activeTab = ref('details')
@@ -474,22 +478,27 @@ const createEmptyStore = (): StoreDetailsForm => ({
 const storeDetails = reactive<StoreDetailsForm>(createEmptyStore())
 const editForm = reactive<StoreDetailsForm>(createEmptyStore())
 
-const formRules: FormRules = {
-  name: [{ required: true, message: '请输入门店名称', trigger: 'blur' }],
-  phone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
-  address: [{ required: true, message: '请输入详细地址', trigger: 'blur' }],
-  city: [{ required: true, message: '请输入城市', trigger: 'blur' }],
-  country: [{ required: true, message: '请输入国家和地区', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择房产类型', trigger: 'change' }],
-  timezone: [{ required: true, message: '请选择时区', trigger: 'change' }],
-  currency: [{ required: true, message: '请选择货币', trigger: 'change' }],
-  language: [{ required: true, message: '请选择语言', trigger: 'change' }],
-}
+const formRules = computed<FormRules>(() => ({
+  name: [{ required: true, message: t('settingsStage4.storeBasic.validation.nameRequired'), trigger: 'blur' }],
+  phone: [{ required: true, message: t('settingsStage4.storeDetails.validation.phoneRequired'), trigger: 'blur' }],
+  address: [{ required: true, message: t('settingsStage4.storeDetails.validation.addressRequired'), trigger: 'blur' }],
+  city: [{ required: true, message: t('settingsStage4.storeBasic.validation.cityRequired'), trigger: 'blur' }],
+  country: [{ required: true, message: t('settingsStage4.storeDetails.validation.countryRequired'), trigger: 'blur' }],
+  type: [{ required: true, message: t('settingsStage4.storeDetails.validation.propertyTypeRequired'), trigger: 'change' }],
+  timezone: [{ required: true, message: t('settingsStage4.storeBasic.validation.timezoneRequired'), trigger: 'change' }],
+  currency: [{ required: true, message: t('settingsStage4.storeBasic.validation.currencyRequired'), trigger: 'change' }],
+  language: [{ required: true, message: t('settingsStage4.storeDetails.validation.languageRequired'), trigger: 'change' }],
+}))
 
-const selectedFacilitiesList = computed(() => selectedFacilities.value)
-const formatCountry = (value?: string) => getStoreOptionLabel(COUNTRY_OPTIONS, value)
-const formatPropertyType = (value?: string) => getStoreOptionLabel(PROPERTY_TYPE_OPTIONS, value)
-const formatLanguage = (value?: string) => getStoreOptionLabel(LANGUAGE_OPTIONS, value)
+const selectedFacilitiesList = computed(() =>
+  selectedFacilities.value.map((name) => {
+    const option = STORE_FACILITY_OPTIONS.find((item) => item.payload.name === name)
+    return option ? t(option.labelKey) : name
+  }),
+)
+const formatCountry = (value?: string) => getStoreOptionLabel(COUNTRY_OPTIONS, value, t)
+const formatPropertyType = (value?: string) => getStoreOptionLabel(PROPERTY_TYPE_OPTIONS, value, t)
+const formatLanguage = (value?: string) => getStoreOptionLabel(LANGUAGE_OPTIONS, value, t)
 
 const buildUploadAjaxError = (error: unknown): UploadErrorParam => {
   const normalizedError = error instanceof Error ? error : new Error(String(error))
@@ -520,7 +529,7 @@ const extractPhotoUrls = (files: UploadUserFile[]): string[] =>
 
 const buildFacilities = (): FacilityDTO[] =>
   selectedFacilities.value
-    .map((label) => STORE_FACILITY_OPTIONS.find((item) => item.label === label)?.payload)
+    .map((name) => STORE_FACILITY_OPTIONS.find((item) => item.payload.name === name)?.payload)
     .filter((facility): facility is FacilityDTO => Boolean(facility))
 
 const applyFacilities = (facilities: FacilityDTO[] = []) => {
@@ -530,7 +539,7 @@ const applyFacilities = (facilities: FacilityDTO[] = []) => {
         facility.name === option.payload.name &&
         (facility.group || 'Common') === (option.payload.group || 'Common')
     )
-  ).map((option) => option.label)
+  ).map((option) => option.payload.name)
 }
 
 const buildStorePayload = (source: StoreDetailsForm): StoreRequest => ({
@@ -560,7 +569,7 @@ const buildStorePayload = (source: StoreDetailsForm): StoreRequest => ({
 
 const loadStoreDetails = async () => {
   if (!currentStoreId.value) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.storeBasic.messages.selectStore'))
     return
   }
 
@@ -568,7 +577,7 @@ const loadStoreDetails = async () => {
     loading.value = true
     const response = await getStoreById(currentStoreId.value)
     if (!response.success || !response.data) {
-      ElMessage.error(response.message || '加载门店详情失败')
+      ElMessage.error(response.message || t('settingsStage4.storeDetails.messages.loadFailed'))
       return
     }
 
@@ -602,7 +611,7 @@ const loadStoreDetails = async () => {
     applyFacilities(data.facilities || [])
   } catch (error) {
     console.error('加载门店详情失败:', error)
-    ElMessage.error('加载门店详情失败')
+    ElMessage.error(t('settingsStage4.storeDetails.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -610,13 +619,13 @@ const loadStoreDetails = async () => {
 
 const saveStore = async (payload: StoreRequest, successMessage: string) => {
   if (!currentStoreId.value) {
-    ElMessage.warning('请先选择门店')
+    ElMessage.warning(t('settingsStage4.storeBasic.messages.selectStore'))
     return false
   }
 
   const response = await updateStore(currentStoreId.value, payload)
   if (!response.success) {
-    ElMessage.error(response.message || '保存失败')
+    ElMessage.error(response.message || t('settingsStage4.storeBasic.messages.saveFailed'))
     return false
   }
 
@@ -641,13 +650,16 @@ const handleSaveEdit = async () => {
       return
     }
     loading.value = true
-    const saved = await saveStore(buildStorePayload(editForm), '保存成功')
+    const saved = await saveStore(
+      buildStorePayload(editForm),
+      t('settingsStage4.storeBasic.messages.saveSuccess')
+    )
     if (saved) {
       editDialogVisible.value = false
     }
   } catch (error) {
     console.error('保存门店失败:', error)
-    ElMessage.error('保存门店失败')
+    ElMessage.error(t('settingsStage4.storeDetails.messages.saveStoreFailed'))
   } finally {
     loading.value = false
   }
@@ -664,13 +676,16 @@ const handleCancelEditFacilities = () => {
 const handleSaveEditFacilities = async () => {
   try {
     loading.value = true
-    const saved = await saveStore(buildStorePayload(storeDetails), '设施保存成功')
+    const saved = await saveStore(
+      buildStorePayload(storeDetails),
+      t('settingsStage4.storeDetails.messages.facilitiesSaveSuccess')
+    )
     if (saved) {
       editFacilitiesDialogVisible.value = false
     }
   } catch (error) {
     console.error('保存设施失败:', error)
-    ElMessage.error('保存设施失败')
+    ElMessage.error(t('settingsStage4.storeDetails.messages.facilitiesSaveFailed'))
   } finally {
     loading.value = false
   }
@@ -687,13 +702,16 @@ const handleCancelEditPhotos = () => {
 const handleSaveEditPhotos = async () => {
   try {
     loading.value = true
-    const saved = await saveStore(buildStorePayload(storeDetails), '照片保存成功')
+    const saved = await saveStore(
+      buildStorePayload(storeDetails),
+      t('settingsStage4.storeDetails.messages.photosSaveSuccess')
+    )
     if (saved) {
       editPhotosDialogVisible.value = false
     }
   } catch (error) {
     console.error('保存照片失败:', error)
-    ElMessage.error('保存照片失败')
+    ElMessage.error(t('settingsStage4.storeDetails.messages.photosSaveFailed'))
   } finally {
     loading.value = false
   }
@@ -704,12 +722,12 @@ const beforeImageUpload = (file: UploadRawFile) => {
   const isLt5M = file.size / 1024 / 1024 < 5
 
   if (!isImage) {
-    ElMessage.error('只能上传图片文件')
+    ElMessage.error(t('settingsStage4.storeDetails.messages.onlyImages'))
     return false
   }
 
   if (!isLt5M) {
-    ElMessage.error('图片大小不能超过 5MB')
+    ElMessage.error(t('settingsStage4.storeDetails.messages.imageTooLarge'))
     return false
   }
 
@@ -720,15 +738,15 @@ const handleLogoUpload = async (options: UploadRequestOptions) => {
   try {
     const response = await uploadMedia('store-logo', options.file as File)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '上传失败')
+      throw new Error(response.message || t('settingsStage4.storeDetails.messages.uploadFailed'))
     }
 
     editForm.logo = response.data.url
     options.onSuccess?.(response)
-    ElMessage.success('Logo 上传成功')
+    ElMessage.success(t('settingsStage4.storeDetails.messages.logoUploadSuccess'))
   } catch (error) {
     console.error('Logo 上传失败:', error)
-    ElMessage.error('Logo 上传失败')
+    ElMessage.error(t('settingsStage4.storeDetails.messages.logoUploadFailed'))
     options.onError?.(buildUploadAjaxError(error))
   }
 }
@@ -737,7 +755,7 @@ const handlePhotoUpload = async (options: UploadRequestOptions) => {
   try {
     const response = await uploadMedia('store-desktop', options.file as File)
     if (!response.success || !response.data) {
-      throw new Error(response.message || '上传失败')
+      throw new Error(response.message || t('settingsStage4.storeDetails.messages.uploadFailed'))
     }
 
     const matchedFile = photos.value.find((file) => file.uid === options.file.uid)
@@ -756,10 +774,10 @@ const handlePhotoUpload = async (options: UploadRequestOptions) => {
     }
 
     options.onSuccess?.(response)
-    ElMessage.success('上传成功')
+    ElMessage.success(t('settingsStage4.storeDetails.messages.uploadSuccess'))
   } catch (error) {
     console.error('上传失败:', error)
-    ElMessage.error('上传失败')
+    ElMessage.error(t('settingsStage4.storeDetails.messages.uploadFailed'))
     options.onError?.(buildUploadAjaxError(error))
   }
 }
@@ -1138,5 +1156,3 @@ onMounted(() => {
   font-family: inherit;
 }
 </style>
-
-

@@ -3,12 +3,16 @@
     <!-- Language Select -->
     <div v-if="!selectedLang" class="lang-select-container">
       <div class="lang-select-card">
-        <div class="lang-select-title">Select Language / 言語を選択 / 选择语言 / 언어 선택</div>
+        <div class="lang-select-title">{{ t('languageSelectTitle') }}</div>
         <div class="lang-options">
-          <button class="lang-btn" @click="selectLanguage('en')">English</button>
-          <button class="lang-btn" @click="selectLanguage('ja')">日本語</button>
-          <button class="lang-btn" @click="selectLanguage('zh')">中文</button>
-          <button class="lang-btn" @click="selectLanguage('ko')">한국어</button>
+          <button
+            v-for="option in languageOptions"
+            :key="option.value"
+            class="lang-btn"
+            @click="selectLanguage(option.value)"
+          >
+            {{ t(option.labelKey) }}
+          </button>
         </div>
       </div>
     </div>
@@ -24,17 +28,21 @@
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="en" :disabled="selectedLang === 'en'">English</el-dropdown-item>
-                <el-dropdown-item command="ja" :disabled="selectedLang === 'ja'">日本語</el-dropdown-item>
-                <el-dropdown-item command="zh" :disabled="selectedLang === 'zh'">中文</el-dropdown-item>
-                <el-dropdown-item command="ko" :disabled="selectedLang === 'ko'">한국어</el-dropdown-item>
+                <el-dropdown-item
+                  v-for="option in languageOptions"
+                  :key="option.value"
+                  :command="option.value"
+                  :disabled="selectedLang === option.value"
+                >
+                  {{ t(option.labelKey) }}
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </div>
         <div v-if="loading" class="sub">{{ t('loading') }}</div>
         <div v-else class="sub">
-          <div>Booking Number: {{ booking?.bookingKey }}</div>
+          <div>{{ t('bookingNumber') }}: {{ booking?.bookingKey }}</div>
           <div>{{ t('stay') }}: {{ booking?.checkInDate }} ~ {{ booking?.checkOutDate }}</div>
         </div>
       </div>
@@ -62,9 +70,9 @@
           <div class="room-header">
             <div class="room-title">
               <div class="room-title-main">
-                {{ room.roomTypeName || 'Room Type' }} / Room Number: {{ room.roomNumber || '-' }}
+                {{ room.roomTypeName || t('roomType') }} / {{ t('roomNumber') }}: {{ room.roomNumber || '-' }}
               </div>
-              <div class="room-title-sub">Booking Number: {{ booking?.bookingKey }}</div>
+              <div class="room-title-sub">{{ t('bookingNumber') }}: {{ booking?.bookingKey }}</div>
             </div>
 
             <div class="status-area">
@@ -113,16 +121,26 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
+import type { SupportedLocale } from '@/locales'
+import { useLanguageStore } from '@/stores/language'
 import {
   getPublicRegistrationBooking,
   setRoomGuestCountFromBooking,
   type PublicRegistrationBookingResponse,
   type RegistrationFormStatus,
 } from '@/api/publicRegistrationBooking'
+import {
+  getInitialRegistrationLocale,
+  normalizeRegistrationLocale,
+  persistRegistrationLocale,
+} from './registrationLocale'
 
 const route = useRoute()
+const languageStore = useLanguageStore()
+const { t: i18nT, locale } = useI18n()
 
 const bookingKey = computed(() => String(route.params.bookingKey || ''))
 const token = computed(() => String(route.query.t || ''))
@@ -134,7 +152,7 @@ const booking = ref<PublicRegistrationBookingResponse | null>(null)
 const savingOrder = ref<string | null>(null)
 const guestCountByOrder = reactive<Record<string, number>>({})
 
-// Initialize language from localStorage immediately to avoid showing language selection screen
+// Initialize language from localStorage immediately to avoid showing language selection screen.
 const getInitialLanguage = (): string => {
   const savedLang = localStorage.getItem('registrationLang')
   if (savedLang) {
@@ -148,7 +166,7 @@ const getInitialLanguage = (): string => {
   return 'en'
 }
 
-const selectedLang = ref<string>(getInitialLanguage())
+const selectedLang = computed(() => languageStore.locale)
 
 type LangCode = 'en' | 'ja' | 'zh' | 'ko'
 
@@ -156,11 +174,14 @@ const translations: Record<LangCode, Record<string, string>> = {
   en: {
     guestRegistration: 'Guest Registration',
     loading: 'Loading...',
+    bookingNumber: 'Booking Number',
     stay: 'Stay',
     importantNotice: 'Important Notice',
     noticeText: 'Under Japanese law, overseas travelers must submit all guests\' personal information and passports to the accommodation. Thank you for your cooperation.',
     bookingInfo: 'Booking Information',
     guest: 'Guest',
+    roomType: 'Room Type',
+    roomNumber: 'Room Number',
     rooms: 'Rooms',
     maxGuests: 'Max guests',
     numberOfGuests: 'Number of guests',
@@ -170,16 +191,23 @@ const translations: Record<LangCode, Record<string, string>> = {
     submitted: 'Submitted',
     approved: 'Approved',
     rejected: 'Rejected',
-    changeLanguage: 'Language'
+    changeLanguage: 'Language',
+    missingParams: 'Missing parameter: bookingKey or t',
+    loadFailed: 'Failed to load',
+    selectGuestCount: 'Select number of guests',
+    saveFailed: 'Save failed. Please try again.'
   },
   ja: {
     guestRegistration: '宿泊者名簿',
     loading: '読み込み中...',
+    bookingNumber: '予約番号',
     stay: '宿泊期間',
     importantNotice: '重要なお知らせ',
     noticeText: '日本の法律により、海外からの宿泊者は全員の個人情報およびパスポートの提出が必要です。ご協力お願いします。',
     bookingInfo: '予約情報',
     guest: '宿泊者',
+    roomType: '客室タイプ',
+    roomNumber: '客室番号',
     rooms: '部屋数',
     maxGuests: '最大人数',
     numberOfGuests: '宿泊人数',
@@ -189,16 +217,23 @@ const translations: Record<LangCode, Record<string, string>> = {
     submitted: '提出済み',
     approved: '承認済み',
     rejected: '要再提出',
-    changeLanguage: '言語'
+    changeLanguage: '言語',
+    missingParams: 'パラメータが不足しています: bookingKey または t',
+    loadFailed: '読み込みに失敗しました',
+    selectGuestCount: '宿泊人数を選択してください',
+    saveFailed: '保存に失敗しました。もう一度お試しください。'
   },
   zh: {
     guestRegistration: '入住登记',
     loading: '加载中...',
+    bookingNumber: '预订号',
     stay: '入住期间',
     importantNotice: '重要提示',
     noticeText: '根据日本法律，海外旅客需向住宿方提交所有入住者的个人信息及护照。感谢您的配合。',
     bookingInfo: '预订信息',
     guest: '客人',
+    roomType: '房型',
+    roomNumber: '房间号',
     rooms: '房间数',
     maxGuests: '最多人数',
     numberOfGuests: '入住人数',
@@ -208,16 +243,23 @@ const translations: Record<LangCode, Record<string, string>> = {
     submitted: '已提交',
     approved: '已通过',
     rejected: '需重填',
-    changeLanguage: '语言'
+    changeLanguage: '语言',
+    missingParams: '缺少参数：bookingKey 或 t',
+    loadFailed: '加载失败',
+    selectGuestCount: '请选择入住人数',
+    saveFailed: '保存失败，请重试'
   },
   ko: {
     guestRegistration: '투숙자 등록',
     loading: '로딩 중...',
+    bookingNumber: '예약 번호',
     stay: '숙박 기간',
     importantNotice: '중요 공지',
     noticeText: '일본 법에 따라 해외 투숙객은 모든 투숙객의 개인정보 및 여권 제출이 필요합니다. 협조 부탁드립니다.',
     bookingInfo: '예약 정보',
     guest: '투숙객',
+    roomType: '객실 타입',
+    roomNumber: '객실 번호',
     rooms: '객실 수',
     maxGuests: '최대 인원',
     numberOfGuests: '숙박 인원',
@@ -227,26 +269,83 @@ const translations: Record<LangCode, Record<string, string>> = {
     submitted: '제출됨',
     approved: '승인됨',
     rejected: '재작성 필요',
-    changeLanguage: '언어'
+    changeLanguage: '언어',
+    missingParams: '필수 매개변수가 없습니다: bookingKey 또는 t',
+    loadFailed: '불러오기에 실패했습니다',
+    selectGuestCount: '숙박 인원을 선택해 주세요',
+    saveFailed: '저장에 실패했습니다. 다시 시도해 주세요.'
   }
 }
 
-const t = (key: string): string => {
-  const lang = selectedLang.value as LangCode
-  return translations[lang]?.[key] || key
+const registrationTextKeys: Record<string, string> = {
+  languageSelectTitle: 'stage5.publicRegistration.language.selectTitle',
+  english: 'stage5.publicRegistration.language.english',
+  japanese: 'stage5.publicRegistration.language.japanese',
+  simplifiedChinese: 'stage5.publicRegistration.language.simplifiedChinese',
+  traditionalChinese: 'stage5.publicRegistration.language.traditionalChinese',
+  guestRegistration: 'stage5.publicRegistration.common.guestRegistration',
+  loading: 'stage5.publicRegistration.common.loading',
+  bookingNumber: 'stage5.publicRegistration.common.bookingNumber',
+  stay: 'stage5.publicRegistration.common.stay',
+  guest: 'stage5.publicRegistration.common.guest',
+  roomType: 'stage5.publicRegistration.common.roomType',
+  roomNumber: 'stage5.publicRegistration.common.roomNumber',
+  rooms: 'stage5.publicRegistration.common.rooms',
+  maxGuests: 'stage5.publicRegistration.common.maxGuests',
+  numberOfGuests: 'stage5.publicRegistration.common.numberOfGuests',
+  continue: 'stage5.publicRegistration.common.continue',
+  lastSaved: 'stage5.publicRegistration.common.lastSaved',
+  changeLanguage: 'stage5.publicRegistration.common.changeLanguage',
+  importantNotice: 'stage5.publicRegistration.booking.importantNotice',
+  noticeText: 'stage5.publicRegistration.booking.noticeText',
+  bookingInfo: 'stage5.publicRegistration.booking.bookingInfo',
+  missingParams: 'stage5.publicRegistration.booking.missingParams',
+  loadFailed: 'stage5.publicRegistration.booking.loadFailed',
+  selectGuestCount: 'stage5.publicRegistration.booking.selectGuestCount',
+  saveFailed: 'stage5.publicRegistration.booking.saveFailed',
+  draft: 'stage5.publicRegistration.status.draft',
+  submitted: 'stage5.publicRegistration.status.submitted',
+  approved: 'stage5.publicRegistration.status.approved',
+  rejected: 'stage5.publicRegistration.status.rejected',
 }
 
-const selectLanguage = (lang: string) => {
-  selectedLang.value = lang
-  localStorage.setItem('registrationLang', lang)
+const languageOptions: Array<{ value: SupportedLocale; labelKey: string }> = [
+  { value: 'en', labelKey: 'english' },
+  { value: 'ja', labelKey: 'japanese' },
+  { value: 'zh-CN', labelKey: 'simplifiedChinese' },
+  { value: 'zh-TW', labelKey: 'traditionalChinese' },
+]
+
+const getQueryLocale = (value: unknown): string | null => {
+  if (Array.isArray(value)) {
+    return typeof value[0] === 'string' ? value[0] : null
+  }
+  return typeof value === 'string' ? value : null
+}
+
+const applyRegistrationLocale = (value?: string | null): SupportedLocale => {
+  const nextLocale = normalizeRegistrationLocale(value)
+  locale.value = nextLocale
+  languageStore.setLocale(nextLocale)
+  persistRegistrationLocale(nextLocale)
+  return nextLocale
+}
+
+applyRegistrationLocale(getInitialRegistrationLocale(getQueryLocale(route.query.lang)))
+
+const t = (key: string, params: Record<string, string | number> = {}): string => {
+  return String(i18nT(registrationTextKeys[key] || key, params))
+}
+
+const selectLanguage = (lang: SupportedLocale) => {
+  applyRegistrationLocale(lang)
   if (!booking.value) {
     load()
   }
 }
 
 const changeLanguage = (lang: string) => {
-  selectedLang.value = lang
-  localStorage.setItem('registrationLang', lang)
+  applyRegistrationLocale(lang)
 }
 
 const guestCountOptions = (maxGuests: number) => {
@@ -255,7 +354,7 @@ const guestCountOptions = (maxGuests: number) => {
 }
 
 const buildRoomRegistrationLink = (roomLink: string): string => {
-  const lang = selectedLang.value || 'en'
+  const lang = selectedLang.value
   return roomLink + (roomLink.includes('?') ? '&' : '?') + 'lang=' + encodeURIComponent(lang)
 }
 
@@ -302,7 +401,7 @@ const statusType = (status: RegistrationFormStatus) => {
 const load = async () => {
   error.value = ''
   if (!bookingKey.value || !token.value) {
-    error.value = '缺少参数：bookingKey 或 t'
+    error.value = t('missingParams')
     return
   }
 
@@ -310,7 +409,7 @@ const load = async () => {
   try {
     const resp = await getPublicRegistrationBooking(bookingKey.value, token.value)
     if (!resp.success) {
-      error.value = resp.message || '加载失败'
+      error.value = resp.message || t('loadFailed')
       return
     }
 
@@ -331,7 +430,7 @@ const load = async () => {
     }
   } catch (e) {
     console.error(e)
-    error.value = '加载失败'
+    error.value = t('loadFailed')
   } finally {
     loading.value = false
   }
@@ -343,7 +442,7 @@ const handleContinue = async (orderNumber: string, roomLink: string) => {
   }
   const guestCount = guestCountByOrder[orderNumber]
   if (!guestCount || guestCount < 1) {
-    ElMessage.error('请选择入住人数')
+    ElMessage.error(t('selectGuestCount'))
     return
   }
 
@@ -354,17 +453,13 @@ const handleContinue = async (orderNumber: string, roomLink: string) => {
     window.location.assign(buildRoomRegistrationLink(roomLink))
   } catch (e) {
     console.error(e)
-    ElMessage.error('保存失败，请重试')
+    ElMessage.error(t('saveFailed'))
   } finally {
     savingOrder.value = null
   }
 }
 
 onMounted(() => {
-  // Ensure language is saved to localStorage
-  if (selectedLang.value && !localStorage.getItem('registrationLang')) {
-    localStorage.setItem('registrationLang', selectedLang.value)
-  }
   load()
 })
 </script>

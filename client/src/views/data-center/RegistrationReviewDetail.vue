@@ -2,147 +2,147 @@
   <StatisticsLayout>
     <div class="wrap">
       <div class="top">
-        <div class="title">登记详情</div>
+        <div class="title">{{ t('stage5.dataCenter.detail.title') }}</div>
         <div class="actions">
-          <el-button @click="back">返回</el-button>
-          <el-button :loading="loading" @click="load">刷新</el-button>
-          <el-button type="primary" :disabled="!detail" @click="downloadPdf">下载PDF</el-button>
+          <el-button @click="back">{{ t('stage5.common.actions.back') }}</el-button>
+          <el-button :loading="loading" @click="load">{{ t('stage5.common.actions.refresh') }}</el-button>
+          <el-button type="primary" :disabled="!detail" @click="downloadPdf">{{ t('stage5.common.actions.downloadPdf') }}</el-button>
         </div>
       </div>
 
-      <div v-if="!detail" class="empty">暂无数据</div>
+      <div v-if="!detail" class="empty">{{ t('stage5.common.empty.noData') }}</div>
 
       <div v-else class="card">
         <div class="meta">
-          <div><b>订单号：</b>{{ detail.channelOrderNumber || detail.orderNumber }}</div>
-          <div><b>客人：</b>{{ detail.guestName }}</div>
-          <div><b>日期：</b>{{ detail.checkInDate }} ~ {{ detail.checkOutDate }}</div>
-          <div><b>预订房型：</b>{{ detail.roomTypeName || '-' }}</div>
-          <div><b>房间号：</b>{{ detail.roomNumber || '-' }}</div>
-          <div><b>状态：</b>{{ detail.status }}</div>
-          <div v-if="detail.reviewNote"><b>备注：</b>{{ detail.reviewNote }}</div>
+          <div><b>{{ t('stage5.dataCenter.detail.metaOrderNumber') }}</b>{{ detail.channelOrderNumber || detail.orderNumber }}</div>
+          <div><b>{{ t('stage5.dataCenter.detail.metaGuest') }}</b>{{ detail.guestName }}</div>
+          <div><b>{{ t('stage5.dataCenter.detail.metaDate') }}</b>{{ detail.checkInDate }} ~ {{ detail.checkOutDate }}</div>
+          <div><b>{{ t('stage5.dataCenter.detail.metaReservedRoomType') }}</b>{{ detail.roomTypeName || '-' }}</div>
+          <div><b>{{ t('stage5.dataCenter.detail.metaRoomNumber') }}</b>{{ detail.roomNumber || '-' }}</div>
+          <div><b>{{ t('stage5.dataCenter.detail.metaStatus') }}</b>{{ detail.status }}</div>
+          <div v-if="detail.reviewNote"><b>{{ t('stage5.dataCenter.detail.metaNote') }}</b>{{ detail.reviewNote }}</div>
         </div>
 
         <div class="section">
-          <div class="section-title">人员信息</div>
+          <div class="section-title">{{ t('stage5.dataCenter.detail.guestInfo') }}</div>
           <el-table :data="detail.guests" border stripe style="width: 100%">
             <el-table-column prop="sortOrder" label="#" width="60" />
-            <el-table-column label="姓名" min-width="160">
+            <el-table-column :label="t('stage5.dataCenter.detail.name')" min-width="160">
               <template #default="{ row }">{{ row.lastName }} {{ row.firstName }}</template>
             </el-table-column>
-            <el-table-column prop="nationality" label="国籍" min-width="120" />
-            <el-table-column prop="residenceType" label="居住地" min-width="110" />
-            <el-table-column prop="passportNumber" label="Passport" min-width="150" />
-            <el-table-column prop="priorStay" label="前泊地" min-width="120" />
-            <el-table-column prop="nextDestination" label="行先" min-width="120" />
+            <el-table-column prop="nationality" :label="t('stage5.dataCenter.detail.nationality')" min-width="120" />
+            <el-table-column prop="residenceType" :label="t('stage5.dataCenter.detail.residence')" min-width="110" />
+            <el-table-column prop="passportNumber" :label="t('stage5.dataCenter.detail.passport')" min-width="150" />
+            <el-table-column prop="priorStay" :label="t('stage5.dataCenter.detail.priorStay')" min-width="120" />
+            <el-table-column prop="nextDestination" :label="t('stage5.dataCenter.detail.nextDestination')" min-width="120" />
           </el-table>
         </div>
 
         <div class="section" v-if="detail.attachments && detail.attachments.length">
-          <div class="section-title">附件</div>
+          <div class="section-title">{{ t('stage5.common.fields.attachments') }}</div>
           <el-table :data="detail.attachments" border stripe style="width: 100%">
-            <el-table-column prop="id" label="ID" width="90" />
-            <el-table-column label="Guest" min-width="120">
+            <el-table-column prop="id" :label="t('stage5.common.fields.id')" width="90" />
+            <el-table-column :label="t('stage5.common.fields.guest')" min-width="120">
               <template #default="{ row }">{{ guestLabel(row.guestId) }}</template>
             </el-table-column>
-            <el-table-column prop="type" label="类型" min-width="120" />
-            <el-table-column prop="originalName" label="文件名" min-width="220" />
-            <el-table-column label="操作" width="180">
+            <el-table-column prop="type" :label="t('stage5.common.fields.type')" min-width="120" />
+            <el-table-column prop="originalName" :label="t('stage5.common.fields.fileName')" min-width="220" />
+            <el-table-column :label="t('stage5.common.fields.actions')" width="180">
               <template #default="{ row }">
-                <el-button size="small" @click="previewAttachment(row)">预览</el-button>
-                <el-button size="small" type="primary" @click="downloadAttachment(row)">下载</el-button>
+                <el-button size="small" @click="previewAttachment(row)">{{ t('stage5.common.actions.preview') }}</el-button>
+                <el-button size="small" type="primary" @click="downloadAttachment(row)">{{ t('stage5.common.actions.download') }}</el-button>
               </template>
             </el-table-column>
           </el-table>
         </div>
 
         <div class="section">
-          <div class="section-title">审核操作</div>
-          <el-input v-model="note" type="textarea" :rows="3" placeholder="备注（可选）" />
+          <div class="section-title">{{ t('stage5.dataCenter.detail.reviewAction') }}</div>
+          <el-input v-model="note" type="textarea" :rows="3" :placeholder="t('stage5.dataCenter.detail.notePlaceholder')" />
           <div class="approve-message">
-            <div class="approve-message__label">{{ APPROVE_MESSAGE_LABEL }}</div>
+            <div class="approve-message__label">{{ t('stage5.dataCenter.detail.approveMessageLabel') }}</div>
             <el-input
               v-model="approveMessage"
               type="textarea"
               :rows="4"
-              :placeholder="APPROVE_MESSAGE_PLACEHOLDER"
+              :placeholder="t('stage5.dataCenter.detail.approveMessagePlaceholder')"
             />
           </div>
           <div class="btns">
-            <el-button type="danger" :loading="acting" @click="reject">驳回</el-button>
-            <el-button type="success" :loading="acting" @click="approve">通过</el-button>
+            <el-button type="danger" :loading="acting" @click="reject">{{ t('stage5.common.actions.reject') }}</el-button>
+            <el-button type="success" :loading="acting" @click="approve">{{ t('stage5.common.actions.approve') }}</el-button>
           </div>
         </div>
 
         <div class="section">
-          <div class="section-title">审核历史</div>
+          <div class="section-title">{{ t('stage5.dataCenter.detail.reviewHistory') }}</div>
           <el-table :data="detail.reviewLogs" border stripe style="width: 100%">
-            <el-table-column prop="createdAt" label="时间" min-width="170" />
-            <el-table-column prop="action" label="动作" min-width="110" />
-            <el-table-column prop="operatorUserId" label="用户ID" min-width="110" />
-            <el-table-column prop="note" label="备注" min-width="220" />
+            <el-table-column prop="createdAt" :label="t('stage5.common.fields.time')" min-width="170" />
+            <el-table-column prop="action" :label="t('stage5.common.fields.actions')" min-width="110" />
+            <el-table-column prop="operatorUserId" :label="t('stage5.common.fields.userId')" min-width="110" />
+            <el-table-column prop="note" :label="t('stage5.common.fields.note')" min-width="220" />
           </el-table>
         </div>
 
         <div class="section" v-if="false">
-          <div class="section-title">发送消息给客人</div>
+          <div class="section-title">{{ t('stage5.dataCenter.detail.sendMessageToGuest') }}</div>
           <div class="msg-grid">
             <div class="msg-row">
-              <div class="msg-label">消息类型</div>
-              <el-select v-model="sendType" placeholder="请选择" style="width: 240px">
-                <el-option label="通过后入住信息" value="APPROVED_INFO" />
-                <el-option label="驳回重新填写" value="REJECT_REQUEST" />
-                <el-option label="提醒填写" value="REMINDER" />
+              <div class="msg-label">{{ t('stage5.dataCenter.detail.messageType') }}</div>
+              <el-select v-model="sendType" :placeholder="t('stage5.dataCenter.detail.selectMessageType')" style="width: 240px">
+                <el-option :label="t('stage5.dataCenter.detail.messageTypes.approvedInfo')" value="APPROVED_INFO" />
+                <el-option :label="t('stage5.dataCenter.detail.messageTypes.rejectRequest')" value="REJECT_REQUEST" />
+                <el-option :label="t('stage5.dataCenter.detail.messageTypes.reminder')" value="REMINDER" />
               </el-select>
             </div>
 
             <div class="msg-row">
-              <div class="msg-label">快捷回复</div>
+              <div class="msg-label">{{ t('stage5.dataCenter.detail.quickReply') }}</div>
               <el-select
                 v-model="quickReplyId"
                 filterable
                 clearable
-                placeholder="选择一条快捷回复插入"
+                :placeholder="t('stage5.dataCenter.detail.selectQuickReply')"
                 style="width: 420px"
                 :loading="quickReplyLoading"
                 @change="applyQuickReply"
               >
                 <el-option v-for="q in quickReplies" :key="q.id" :label="q.title" :value="q.id" />
               </el-select>
-              <el-button @click="loadQuickReplies" :loading="quickReplyLoading">刷新</el-button>
+              <el-button @click="loadQuickReplies" :loading="quickReplyLoading">{{ t('stage5.common.actions.refresh') }}</el-button>
             </div>
 
             <div class="msg-row">
-              <div class="msg-label">消息内容</div>
-              <el-input v-model="sendContent" type="textarea" :rows="5" placeholder="可使用变量：{{guest_name}} {{order_number}} {{checkin_date}} {{checkout_date}} {{room_number}} {{registration_link}}" />
+              <div class="msg-label">{{ t('stage5.dataCenter.detail.messageContent') }}</div>
+              <el-input v-model="sendContent" type="textarea" :rows="5" :placeholder="t('stage5.dataCenter.detail.variablesPlaceholder')" />
             </div>
 
             <div class="msg-actions">
-              <el-button :disabled="!detail" @click="fillDefaultTemplate">填充默认模板</el-button>
-              <el-button type="primary" :loading="sending" :disabled="!detail" @click="sendMessage">发送</el-button>
+              <el-button :disabled="!detail" @click="fillDefaultTemplate">{{ t('stage5.dataCenter.detail.fillDefaultTemplate') }}</el-button>
+              <el-button type="primary" :loading="sending" :disabled="!detail" @click="sendMessage">{{ t('stage5.common.actions.send') }}</el-button>
             </div>
             <div class="msg-hint">
-              <div v-if="lastSendStatus" class="msg-status">最近一次发送结果：{{ lastSendStatus }}</div>
-              <div class="msg-status-sub">如显示 WAITING_*，表示缺 thread/listingId，需要等 Su webhook 入库后再点发送；可先复制内容用其它渠道发送。</div>
+              <div v-if="lastSendStatus" class="msg-status">{{ t('stage5.dataCenter.detail.lastSendResult', { status: lastSendStatus }) }}</div>
+              <div class="msg-status-sub">{{ t('stage5.dataCenter.detail.waitStatusHint') }}</div>
             </div>
           </div>
         </div>
 
         <div class="section" v-if="detail.messageLogs && detail.messageLogs.length">
-          <div class="section-title">消息历史</div>
+          <div class="section-title">{{ t('stage5.dataCenter.detail.messageHistory') }}</div>
           <el-table :data="detail.messageLogs" border stripe style="width: 100%">
-            <el-table-column prop="createdAt" label="时间" min-width="170" />
-            <el-table-column prop="type" label="类型" min-width="140" />
-            <el-table-column prop="sendStatus" label="状态" min-width="150" />
-            <el-table-column prop="errorMessage" label="错误/原因" min-width="260" />
-            <el-table-column label="内容" min-width="360">
+            <el-table-column prop="createdAt" :label="t('stage5.common.fields.time')" min-width="170" />
+            <el-table-column prop="type" :label="t('stage5.common.fields.type')" min-width="140" />
+            <el-table-column prop="sendStatus" :label="t('stage5.common.fields.status')" min-width="150" />
+            <el-table-column prop="errorMessage" :label="t('stage5.common.fields.errorReason')" min-width="260" />
+            <el-table-column :label="t('stage5.common.fields.content')" min-width="360">
               <template #default="{ row }">
                 <div class="msg-content">{{ row.content }}</div>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="120">
+            <el-table-column :label="t('stage5.common.fields.actions')" width="120">
               <template #default="{ row }">
-                <el-button size="small" @click="copyText(row.content)">复制</el-button>
+                <el-button size="small" @click="copyText(row.content)">{{ t('stage5.common.actions.copy') }}</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -155,6 +155,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
 import axios from 'axios'
@@ -195,12 +196,9 @@ type RegistrationMessageLogResponse = {
   }
 }
 
-const APPROVE_MESSAGE_LABEL = '\u901a\u8fc7\u540e\u53d1\u9001\u7ed9\u5ba2\u4eba\u7684\u6d88\u606f'
-const APPROVE_MESSAGE_PLACEHOLDER =
-  '\u53ef\u9009\u3002\u586b\u5199\u540e\u70b9\u51fb\u901a\u8fc7\u4f1a\u81ea\u52a8\u53d1\u9001\u5230\u5ba2\u4eba\u6536\u4ef6\u7bb1\uff1b\u7559\u7a7a\u5219\u4ec5\u5ba1\u6838\u901a\u8fc7\u3002'
-
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const detail = ref<Detail | null>(null)
 const loading = ref(false)
@@ -230,7 +228,7 @@ async function load() {
     // keep last status hint from newest message log
     lastSendStatus.value = detail.value?.messageLogs?.[0]?.sendStatus || ''
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '加载失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.dataLoadFailed'))
   } finally {
     loading.value = false
   }
@@ -242,7 +240,7 @@ async function loadQuickReplies() {
     const resp = await request.get('/quick-replies')
     quickReplies.value = (resp.data || []) as QuickReplyItem[]
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '加载快捷回复失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.dataLoadFailed'))
   } finally {
     quickReplyLoading.value = false
   }
@@ -261,22 +259,11 @@ function applyQuickReply(id: number | null) {
 function fillDefaultTemplate() {
   if (!detail.value) return
   if (sendType.value === 'APPROVED_INFO') {
-    sendContent.value =
-      '您好 {{guest_name}}，您的入住登记已通过。\n' +
-      '订单号：{{order_number}}\n' +
-      '入住：{{checkin_date}}，退房：{{checkout_date}}\n' +
-      '如需补充信息请回复本消息。\n\n' +
-      '登记链接：{{registration_link}}'
+    sendContent.value = t('stage5.dataCenter.detail.defaultApprovedInfo')
   } else if (sendType.value === 'REJECT_REQUEST') {
-    sendContent.value =
-      '您好 {{guest_name}}，您的入住登记信息需要补充/修正。\n' +
-      '请点击链接重新填写并提交：{{registration_link}}\n' +
-      '订单号：{{order_number}}'
+    sendContent.value = t('stage5.dataCenter.detail.defaultRejectRequest')
   } else {
-    sendContent.value =
-      '您好 {{guest_name}}，入住前请完成入住登记：{{registration_link}}\n' +
-      '订单号：{{order_number}}\n' +
-      '入住日期：{{checkin_date}}'
+    sendContent.value = t('stage5.dataCenter.detail.defaultReminder')
   }
 }
 
@@ -284,7 +271,7 @@ async function sendMessage() {
   if (!detail.value) return
   const content = sendContent.value?.trim()
   if (!content) {
-    ElMessage.warning('请填写消息内容')
+    ElMessage.warning(t('stage5.dataCenter.detail.contentRequired'))
     return
   }
   sending.value = true
@@ -292,14 +279,14 @@ async function sendMessage() {
     const resp = await request.post(`/registrations/${detail.value.formId}/messages/send`, {
       type: sendType.value,
       content,
-      senderName: '前台',
+      senderName: t('stage5.dataCenter.detail.frontDesk'),
     })
     const dto = resp.data
     lastSendStatus.value = dto?.sendStatus || ''
-    ElMessage.success(`已提交发送：${dto?.sendStatus || 'OK'}`)
+    ElMessage.success(t('stage5.dataCenter.detail.messageSubmitted', { status: dto?.sendStatus || 'OK' }))
     await load()
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '发送失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.dataCenter.detail.sendFailed'))
   } finally {
     sending.value = false
   }
@@ -308,7 +295,7 @@ async function sendMessage() {
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text || '')
-    ElMessage.success('已复制')
+    ElMessage.success(t('stage5.common.messages.copied'))
   } catch {
     // fallback
     const ta = document.createElement('textarea')
@@ -317,7 +304,7 @@ async function copyText(text: string) {
     ta.select()
     document.execCommand('copy')
     ta.remove()
-    ElMessage.success('已复制')
+    ElMessage.success(t('stage5.common.messages.copied'))
   }
 }
 
@@ -338,25 +325,29 @@ async function approve() {
         const resp = (await request.post(`/registrations/${detail.value.formId}/messages/send`, {
           type: 'APPROVED_INFO',
           content: messageContent,
-          senderName: '前台',
+          senderName: t('stage5.dataCenter.detail.frontDesk'),
         })) as RegistrationMessageLogResponse
         messageSendStatus = resp.data?.sendStatus || ''
         lastSendStatus.value = messageSendStatus
         approveMessage.value = ''
       } catch (sendError: any) {
         messageSendError =
-          sendError?.response?.data?.message || sendError?.message || '发送失败'
+          sendError?.response?.data?.message || sendError?.message || t('stage5.dataCenter.detail.sendFailed')
       }
     }
-    ElMessage.success(messageContent ? '已通过，消息已提交发送' : '已通过')
+    ElMessage.success(
+      messageContent
+        ? t('stage5.dataCenter.detail.approveWithMessageSuccess')
+        : t('stage5.dataCenter.detail.approveSuccess'),
+    )
     await load()
     if (messageContent && messageSendError) {
-      ElMessage.warning(`审核已通过，但消息发送失败：${messageSendError}`)
+      ElMessage.warning(t('stage5.dataCenter.detail.approveMessageFailed', { message: messageSendError }))
     } else if (messageContent && messageSendStatus && messageSendStatus !== 'SENT') {
-      ElMessage.warning(`已通过，消息发送状态：${messageSendStatus}`)
+      ElMessage.warning(t('stage5.dataCenter.detail.approveMessageStatus', { status: messageSendStatus }))
     }
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '审核通过失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.dataCenter.detail.approveFailed'))
   } finally {
     acting.value = false
   }
@@ -367,10 +358,10 @@ async function reject() {
   acting.value = true
   try {
     await request.post(`/registrations/${detail.value.formId}/reject`, { note: note.value })
-    ElMessage.success('已驳回')
+    ElMessage.success(t('stage5.dataCenter.detail.rejectSuccess'))
     await load()
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '操作失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.operationFailed'))
   } finally {
     acting.value = false
   }
@@ -412,7 +403,7 @@ function downloadPdf() {
       URL.revokeObjectURL(blobUrl)
     })
     .catch((e) => {
-      ElMessage.error(e?.response?.data?.message || e?.message || '下载失败')
+      ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.downloadFailed'))
     })
 }
 
@@ -459,7 +450,7 @@ function previewAttachment(att: { id: number; originalName?: string }) {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000)
     })
     .catch((e) => {
-      ElMessage.error(e?.response?.data?.message || e?.message || '预览失败')
+      ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.previewFailed'))
     })
 }
 
@@ -481,7 +472,7 @@ function downloadAttachment(att: { id: number; originalName?: string }) {
       URL.revokeObjectURL(blobUrl)
     })
     .catch((e) => {
-      ElMessage.error(e?.response?.data?.message || e?.message || '下载失败')
+      ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.downloadFailed'))
     })
 }
 

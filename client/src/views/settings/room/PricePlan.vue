@@ -2,8 +2,8 @@
   <div class="price-plan-container">
     <!-- 标签页 -->
     <el-tabs v-model="activeTab" class="price-tabs">
-      <el-tab-pane label="价格计划" name="plan"></el-tab-pane>
-      <el-tab-pane label="房费" name="rate"></el-tab-pane>
+      <el-tab-pane :label="t('settingsStage4.pricePlan.tabs.plan')" name="plan"></el-tab-pane>
+      <el-tab-pane :label="t('settingsStage4.pricePlan.tabs.rate')" name="rate"></el-tab-pane>
     </el-tabs>
 
     <!-- 价格计划页面 -->
@@ -12,40 +12,40 @@
       <div class="toolbar">
         <el-input
           v-model="searchQuery"
-          placeholder="搜索价格计划"
+          :placeholder="t('settingsStage4.pricePlan.placeholders.searchPlan')"
           :prefix-icon="Search"
           clearable
           style="width: 300px"
         />
-        <el-button type="primary" @click="handleAddPlan">增加价格计划</el-button>
+        <el-button type="primary" @click="handleAddPlan">{{ t('settingsStage4.pricePlan.actions.addPlan') }}</el-button>
       </div>
 
       <!-- 价格计划表格 -->
       <el-table :data="pricePlans" stripe border style="width: 100%">
-        <el-table-column prop="name" label="价格计划" min-width="150" />
-        <el-table-column prop="minNights" label="最少入住天数" width="120" align="center" />
-        <el-table-column prop="maxNights" label="最大入住天数" width="120" align="center" />
-        <el-table-column label="含餐" width="100" align="center">
+        <el-table-column prop="name" :label="t('settingsStage4.pricePlan.columns.pricePlan')" min-width="150" />
+        <el-table-column prop="minNights" :label="t('settingsStage4.pricePlan.columns.minNights')" width="120" align="center" />
+        <el-table-column prop="maxNights" :label="t('settingsStage4.pricePlan.columns.maxNights')" width="120" align="center" />
+        <el-table-column :label="t('settingsStage4.pricePlan.columns.includeMeal')" width="100" align="center">
           <template #default="{ row }">
             <el-icon v-if="row.includeMeal" color="#67C23A">
               <CircleCheck />
             </el-icon>
           </template>
         </el-table-column>
-        <el-table-column prop="rules" label="衍生规则" min-width="150" />
-        <el-table-column label="应用房型" min-width="200">
+        <el-table-column prop="rules" :label="t('settingsStage4.pricePlan.columns.derivationRules')" min-width="150" />
+        <el-table-column :label="t('settingsStage4.pricePlan.columns.appliedRoomTypes')" min-width="200">
           <template #default="{ row }">
             <el-link type="primary" :underline="false" @click="handleShowAppliedRoomTypes(row)">
               <el-icon><Link /></el-icon>
-              {{ row.roomTypesCount }} Room Types
+              {{ t('settingsStage4.pricePlan.roomTypesCount', { count: row.roomTypesCount }) }}
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" align="center" fixed="right">
+        <el-table-column :label="t('settingsStage4.accountList.columns.actions')" width="200" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="primary" @click="handleDetail(row)"></el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="primary" @click="handleEdit(row)">{{ t('settings.common.edit') }}</el-button>
+            <el-button link type="primary" @click="handleDetail(row)">{{ t('settingsStage4.common.details') }}</el-button>
+            <el-button link type="danger" @click="handleDelete(row)">{{ t('settings.common.delete') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -57,7 +57,7 @@
       <div class="toolbar">
         <el-input
           v-model="roomTypeSearchQuery"
-          placeholder="搜索房型"
+          :placeholder="t('settingsStage4.pricePlan.placeholders.searchRoomType')"
           :prefix-icon="Search"
           clearable
           style="width: 300px"
@@ -72,13 +72,13 @@
             <span class="room-type-name">{{ roomType.name }}</span>
           </div>
           <el-button type="primary" link @click="handleAssignPricePlan(roomType)">
-            + 分配价格计划
+            + {{ t('settingsStage4.pricePlan.actions.assignPricePlan') }}
           </el-button>
         </div>
 
         <!-- 价格表格 -->
         <el-table :data="roomType.pricePlans" border class="rate-table">
-          <el-table-column label="价格计划" width="150">
+          <el-table-column :label="t('settingsStage4.pricePlan.columns.pricePlan')" width="150">
             <template #default="{ row }">
               <div class="plan-name-cell">
                 <el-icon class="arrow-icon"><ArrowLeft /></el-icon>
@@ -86,43 +86,43 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="价格模式" width="120" align="center">
+          <el-table-column :label="t('settingsStage4.pricePlan.columns.priceMode')" width="120" align="center">
             <template #default>
               <el-tag type="primary" size="small">RBP</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="默认价格" align="center">
-            <el-table-column label="一" width="100" align="center">
+          <el-table-column :label="t('settingsStage4.pricePlan.columns.defaultPrice')" align="center">
+            <el-table-column :label="t('settingsStage4.weekdays.monShort')" width="100" align="center">
               <template #default="{ row }">{{ formatPrice(row.prices.mon) }}</template>
             </el-table-column>
-            <el-table-column label="二" width="100" align="center">
+            <el-table-column :label="t('settingsStage4.weekdays.tueShort')" width="100" align="center">
               <template #default="{ row }">{{ formatPrice(row.prices.tue) }}</template>
             </el-table-column>
-            <el-table-column label="三" width="100" align="center">
+            <el-table-column :label="t('settingsStage4.weekdays.wedShort')" width="100" align="center">
               <template #default="{ row }">{{ formatPrice(row.prices.wed) }}</template>
             </el-table-column>
-            <el-table-column label="四" width="100" align="center">
+            <el-table-column :label="t('settingsStage4.weekdays.thuShort')" width="100" align="center">
               <template #default="{ row }">{{ formatPrice(row.prices.thu) }}</template>
             </el-table-column>
-            <el-table-column label="五" width="100" align="center">
+            <el-table-column :label="t('settingsStage4.weekdays.friShort')" width="100" align="center">
               <template #default="{ row }">{{ formatPrice(row.prices.fri) }}</template>
             </el-table-column>
-            <el-table-column label="六" width="100" align="center">
+            <el-table-column :label="t('settingsStage4.weekdays.satShort')" width="100" align="center">
               <template #default="{ row }">{{ formatPrice(row.prices.sat) }}</template>
             </el-table-column>
-            <el-table-column label="日" width="100" align="center">
+            <el-table-column :label="t('settingsStage4.weekdays.sunShort')" width="100" align="center">
               <template #default="{ row }">{{ formatPrice(row.prices.sun) }}</template>
             </el-table-column>
           </el-table-column>
-          <el-table-column label="最大入住人数" width="120" align="center" prop="maxGuests" />
-          <el-table-column label="包含人数" width="100" align="center" prop="includedGuests" />
-          <el-table-column label="操作" width="150" align="center" fixed="right">
+          <el-table-column :label="t('settingsStage4.pricePlan.columns.maxGuests')" width="120" align="center" prop="maxGuests" />
+          <el-table-column :label="t('settingsStage4.pricePlan.columns.includedGuests')" width="100" align="center" prop="includedGuests" />
+          <el-table-column :label="t('settingsStage4.accountList.columns.actions')" width="150" align="center" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="handleEditRate(roomType, row)">
-                编辑
+                {{ t('settings.common.edit') }}
               </el-button>
               <el-button link type="danger" @click="handleDeleteRate(roomType, row)">
-                删除
+                {{ t('settings.common.delete') }}
               </el-button>
             </template>
           </el-table-column>
@@ -133,16 +133,16 @@
     <!-- 编辑价格计划对话框 -->
     <el-dialog
       v-model="editDialogVisible"
-      title="编辑价格计划"
+      :title="t('settingsStage4.pricePlan.dialog.editPlan')"
       width="600px"
       :close-on-click-modal="false"
     >
       <el-form :model="editForm" :rules="formRules" ref="editFormRef" label-width="140px">
-        <el-form-item label="价格计划" prop="name" required>
-          <el-input v-model="editForm.name" placeholder="请输入价格计划名称" />
+        <el-form-item :label="t('settingsStage4.pricePlan.columns.pricePlan')" prop="name" required>
+          <el-input v-model="editForm.name" :placeholder="t('settingsStage4.pricePlan.placeholders.planName')" />
         </el-form-item>
 
-        <el-form-item label="默认最少入住天数" prop="minNights" required>
+        <el-form-item :label="t('settingsStage4.pricePlan.fields.defaultMinNights')" prop="minNights" required>
           <el-input-number
             v-model="editForm.minNights"
             :min="1"
@@ -153,7 +153,7 @@
           />
         </el-form-item>
 
-        <el-form-item label="默认最大入住天数" prop="maxNights">
+        <el-form-item :label="t('settingsStage4.pricePlan.fields.defaultMaxNights')" prop="maxNights">
           <el-input-number
             v-model="editForm.maxNights"
             :min="1"
@@ -164,15 +164,15 @@
           />
         </el-form-item>
 
-        <el-form-item label="独立/衍生" prop="derivationType" required>
+        <el-form-item :label="t('settingsStage4.pricePlan.fields.derivationType')" prop="derivationType" required>
           <div class="form-item-hint">
-            提示: 价格计划创建后,无法更改独立或衍生类型
+            {{ t('settingsStage4.pricePlan.hints.derivationType') }}
           </div>
           <el-radio-group v-model="editForm.derivationType">
             <el-radio value="independent">
-              手动输入每日价的价格计划
+              {{ t('settingsStage4.pricePlan.fields.manualDailyRate') }}
               <el-tooltip
-                content="创建独立价格计划后，您需要到改价日历中手动输入价格"
+                :content="t('settingsStage4.pricePlan.hints.independentPlan')"
                 placement="top"
               >
                 <el-icon><QuestionFilled /></el-icon>
@@ -181,18 +181,18 @@
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="含餐" prop="includeMeal" required class="include-meal-item">
+        <el-form-item :label="t('settingsStage4.pricePlan.columns.includeMeal')" prop="includeMeal" required class="include-meal-item">
           <el-radio-group v-model="editForm.includeMeal" class="include-meal-group">
-            <el-radio :value="true">是</el-radio>
-            <el-radio :value="false">否</el-radio>
+            <el-radio :value="true">{{ t('settingsStage4.pricePlan.yes') }}</el-radio>
+            <el-radio :value="false">{{ t('settingsStage4.pricePlan.no') }}</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelEdit">取消</el-button>
-          <el-button type="primary" @click="handleConfirmEdit">确定</el-button>
+          <el-button @click="handleCancelEdit">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleConfirmEdit">{{ t('settings.common.confirm') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -200,26 +200,26 @@
     <!-- 价格计划详情对话框 -->
     <el-dialog
       v-model="detailDialogVisible"
-      title="详情 (营销系统)"
+      :title="t('settingsStage4.pricePlan.dialog.details')"
       width="700px"
       :close-on-click-modal="false"
     >
       <div class="detail-hint">
-        您可以在此设置该价格计划的详情,资料只支持营销系统的订单查看
+        {{ t('settingsStage4.pricePlan.hints.details') }}
       </div>
 
       <el-form :model="detailForm" ref="detailFormRef" label-width="120px" class="detail-form">
-        <el-form-item label="价格计划" required>
-          <div class="form-item-label">英文</div>
+        <el-form-item :label="t('settingsStage4.pricePlan.columns.pricePlan')" required>
+          <div class="form-item-label">{{ t('settingsStage4.pricePlan.fields.english') }}</div>
           <el-input v-model="detailForm.name" maxlength="64" show-word-limit />
           <el-button link type="primary" class="localize-btn">
             <el-icon><ArrowLeft /></el-icon>
-            本地化
+            {{ t('settingsStage4.pricePlan.actions.localize') }}
           </el-button>
         </el-form-item>
 
-        <el-form-item label="价格计划描述" required>
-          <div class="form-item-label">英文</div>
+        <el-form-item :label="t('settingsStage4.pricePlan.fields.planDescription')" required>
+          <div class="form-item-label">{{ t('settingsStage4.pricePlan.fields.english') }}</div>
           <el-input
             v-model="detailForm.description"
             type="textarea"
@@ -229,12 +229,12 @@
           />
           <el-button link type="primary" class="localize-btn">
             <el-icon><ArrowLeft /></el-icon>
-            本地化
+            {{ t('settingsStage4.pricePlan.actions.localize') }}
           </el-button>
         </el-form-item>
 
-        <el-form-item label="取消政策" required>
-          <div class="form-item-label">英文</div>
+        <el-form-item :label="t('settingsStage4.pricePlan.fields.cancellationPolicy')" required>
+          <div class="form-item-label">{{ t('settingsStage4.pricePlan.fields.english') }}</div>
           <el-input
             v-model="detailForm.cancellationPolicy"
             type="textarea"
@@ -244,36 +244,36 @@
           />
           <el-button link type="primary" class="localize-btn">
             <el-icon><ArrowLeft /></el-icon>
-            本地化
+            {{ t('settingsStage4.pricePlan.actions.localize') }}
           </el-button>
         </el-form-item>
 
-        <el-form-item label="早餐" required>
-          <div class="form-item-label">英文</div>
+        <el-form-item :label="t('settingsStage4.pricePlan.fields.breakfast')" required>
+          <div class="form-item-label">{{ t('settingsStage4.pricePlan.fields.english') }}</div>
           <el-radio-group v-model="detailForm.includeMeal">
-            <el-radio :value="true">包含</el-radio>
-            <el-radio :value="false">不包含</el-radio>
+            <el-radio :value="true">{{ t('settingsStage4.pricePlan.fields.included') }}</el-radio>
+            <el-radio :value="false">{{ t('settingsStage4.pricePlan.fields.notIncluded') }}</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelDetail">取消</el-button>
-          <el-button type="primary" @click="handleConfirmDetail">确定</el-button>
+          <el-button @click="handleCancelDetail">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleConfirmDetail">{{ t('settings.common.confirm') }}</el-button>
         </div>
       </template>
     </el-dialog>
 
     <!-- 编辑房价对话框 -->
-    <el-dialog v-model="editRateDialogVisible" title="编辑房价" width="900px" :close-on-click-modal="false">
+    <el-dialog v-model="editRateDialogVisible" :title="t('settingsStage4.pricePlan.dialog.editRate')" width="900px" :close-on-click-modal="false">
       <div class="edit-rate-content">
         <!-- 价格计划名称 -->
         <div class="rate-plan-name">{{ currentEditRate?.planName }}</div>
 
         <!-- 快速填充 -->
         <div class="quick-fill-section">
-          <span class="section-label">快速填充</span>
+          <span class="section-label">{{ t('settingsStage4.pricePlan.fields.quickFill') }}</span>
           <el-input-number
             v-model="quickFillPrice"
             :min="0"
@@ -304,7 +304,7 @@
 
         <!-- 价格选项 -->
         <div class="price-options-section">
-          <div class="section-label">价格选项</div>
+          <div class="section-label">{{ t('settingsStage4.pricePlan.fields.priceOptions') }}</div>
           <div class="price-option-buttons">
             <el-button
               :type="priceOption === 'unified' ? 'primary' : 'default'"
@@ -313,9 +313,9 @@
             >
               <div class="option-content">
                 <el-icon v-if="priceOption === 'unified'" class="check-icon"><Check /></el-icon>
-                <span>统一价</span>
+                <span>{{ t('settingsStage4.pricePlan.fields.unifiedPrice') }}</span>
               </div>
-              <el-tooltip content="所有人数使用相同价格" placement="top">
+              <el-tooltip :content="t('settingsStage4.pricePlan.hints.unifiedPrice')" placement="top">
                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
               </el-tooltip>
             </el-button>
@@ -326,9 +326,9 @@
             >
               <div class="option-content">
                 <el-icon v-if="priceOption === 'multiple'" class="check-icon"><Check /></el-icon>
-                <span>额外加价</span>
+                <span>{{ t('settingsStage4.pricePlan.fields.extraCharge') }}</span>
               </div>
-              <el-tooltip content="设置额外成人/儿童加价（超过包含人数后生效）" placement="top">
+              <el-tooltip :content="t('settingsStage4.pricePlan.hints.extraCharge')" placement="top">
                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
               </el-tooltip>
             </el-button>
@@ -337,12 +337,12 @@
 
         <!-- 包含人数 -->
         <div v-if="priceOption === 'multiple'" class="included-guests-section">
-          <div class="section-label">基础价包含人数</div>
+          <div class="section-label">{{ t('settingsStage4.pricePlan.fields.baseIncludedGuests') }}</div>
           <el-select v-model="includedGuestsCount" style="width: 300px">
             <el-option
               v-for="n in includedGuestsOptions"
               :key="n"
-              :label="`${n} 人`"
+              :label="t('settingsStage4.pricePlan.personCount', { count: n })"
               :value="String(n)"
             />
           </el-select>
@@ -350,11 +350,11 @@
 
         <!-- 额外成人/儿童加价 -->
         <div v-if="priceOption === 'multiple'" class="extra-guests-section">
-          <div class="section-label">额外成人/儿童加价（每晚 / 每人）</div>
+          <div class="section-label">{{ t('settingsStage4.pricePlan.fields.extraGuestRates') }}</div>
 
           <div class="extra-rate-row">
             <div class="extra-rate-item">
-              <div class="extra-rate-label">额外成人加价</div>
+              <div class="extra-rate-label">{{ t('settingsStage4.pricePlan.fields.extraAdultRate') }}</div>
               <el-input-number
                 v-model="extraAdultRate"
                 :min="0"
@@ -367,7 +367,7 @@
             </div>
 
             <div class="extra-rate-item">
-              <div class="extra-rate-label">额外儿童加价</div>
+              <div class="extra-rate-label">{{ t('settingsStage4.pricePlan.fields.extraChildRate') }}</div>
               <el-input-number
                 v-model="extraChildRate"
                 :min="0"
@@ -383,15 +383,15 @@
 
         <div class="clear-overrides-section">
           <el-checkbox v-model="clearFutureOverridesOnSave">
-            保存时清理从今天起的按日期覆盖价（让新周价格立即在房价日历生效）
+            {{ t('settingsStage4.pricePlan.fields.clearFutureOverrides') }}
           </el-checkbox>
         </div>
       </div>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelEditRate">取消</el-button>
-          <el-button type="primary" @click="handleConfirmEditRate">确定</el-button>
+          <el-button @click="handleCancelEditRate">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleConfirmEditRate">{{ t('settings.common.confirm') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -399,14 +399,14 @@
     <!-- 分配价格计划对话框 -->
     <el-dialog
       v-model="assignPricePlanDialogVisible"
-      title="关联价格计划"
+      :title="t('settingsStage4.pricePlan.dialog.linkPricePlan')"
       width="800px"
       :close-on-click-modal="false"
     >
       <div class="assign-price-plan-content">
         <div class="selection-row">
           <div class="selection-item">
-            <div class="selection-label">房型</div>
+            <div class="selection-label">{{ t('settingsStage4.cleaningSettings.fields.roomType') }}</div>
             <el-input
               :model-value="`${currentAssignRoomType?.storeName} ${currentAssignRoomType?.name}`"
               disabled
@@ -421,10 +421,10 @@
           <el-icon class="link-icon"><Link /></el-icon>
 
           <div class="selection-item">
-            <div class="selection-label">价格计划</div>
+            <div class="selection-label">{{ t('settingsStage4.pricePlan.columns.pricePlan') }}</div>
             <el-select
               v-model="selectedAssignPricePlanId"
-              placeholder="选择价格计划"
+              :placeholder="t('settingsStage4.pricePlan.placeholders.selectPricePlan')"
               class="selection-input"
               filterable
             >
@@ -446,8 +446,8 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelAssignPricePlan">取消</el-button>
-          <el-button type="primary" @click="handleConfirmAssignPricePlan">确定</el-button>
+          <el-button @click="handleCancelAssignPricePlan">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleConfirmAssignPricePlan">{{ t('settings.common.confirm') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -455,7 +455,7 @@
     <!-- 应用房型对话框 -->
     <el-dialog
       v-model="appliedRoomTypesDialogVisible"
-      title="应用房型"
+      :title="t('settingsStage4.pricePlan.dialog.appliedRoomTypes')"
       width="600px"
       :close-on-click-modal="false"
     >
@@ -478,8 +478,8 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="appliedRoomTypesDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleShowLinkRoomTypes">关联房型</el-button>
+          <el-button @click="appliedRoomTypesDialogVisible = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleShowLinkRoomTypes">{{ t('settingsStage4.pricePlan.actions.linkRoomTypes') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -487,14 +487,14 @@
     <!-- 关联房型对话框 -->
     <el-dialog
       v-model="linkRoomTypesDialogVisible"
-      title="关联房型"
+      :title="t('settingsStage4.pricePlan.actions.linkRoomTypes')"
       width="800px"
       :close-on-click-modal="false"
     >
       <div class="link-room-types-content">
         <div class="selection-row">
           <div class="selection-item">
-            <div class="selection-label">Rate Plan</div>
+            <div class="selection-label">{{ t('settingsStage4.pricePlan.columns.pricePlan') }}</div>
             <el-select v-model="selectedPricePlanId" disabled class="selection-input">
               <el-option
                 v-for="plan in pricePlans"
@@ -508,13 +508,13 @@
           <el-icon class="link-icon"><Link /></el-icon>
 
           <div class="selection-item">
-            <div class="selection-label">Room Type</div>
+            <div class="selection-label">{{ t('settingsStage4.cleaningSettings.fields.roomType') }}</div>
             <el-select
               v-model="selectedRoomTypeIds"
               multiple
               collapse-tags
               collapse-tags-tooltip
-              placeholder="Choose room type"
+              :placeholder="t('settingsStage4.pricePlan.placeholders.chooseRoomType')"
               class="selection-input"
               @visible-change="handleRoomTypeSelectVisible"
               @change="handleRoomTypeSelectionChange"
@@ -522,12 +522,12 @@
               <template #header>
                 <el-input
                   v-model="roomTypeFilterKeyword"
-                  placeholder="Filter keyword"
+                  :placeholder="t('settingsStage4.pricePlan.placeholders.filterKeyword')"
                   clearable
                   @input="handleFilterRoomTypes"
                 />
               </template>
-              <el-option label="全部" value="all" />
+              <el-option :label="t('settingsStage4.cleaningSettings.all')" value="all" />
               <el-option
                 v-for="roomType in filteredAvailableRoomTypes"
                 :key="roomType.id"
@@ -545,7 +545,7 @@
 
         <!-- 默认市价区域 -->
         <div v-if="selectedRoomTypeIdsForPrices.length > 0" class="default-prices-section">
-          <div class="section-title">默认市价</div>
+          <div class="section-title">{{ t('settingsStage4.pricePlan.fields.defaultMarketPrice') }}</div>
 
           <!-- 每个选中的房型显示价格输入区域 -->
           <div
@@ -560,7 +560,7 @@
             <div class="price-input-section">
               <!-- 快速填充 -->
               <div class="quick-fill-section">
-                <span class="section-label">快速填充</span>
+                <span class="section-label">{{ t('settingsStage4.pricePlan.fields.quickFill') }}</span>
                 <el-input-number
                   v-model="quickFillPrices[roomTypeId]"
                   :min="0"
@@ -576,7 +576,7 @@
               <!-- 每日价格 -->
               <div class="daily-prices-grid">
                 <div class="price-item">
-                  <span class="weekday-label">一</span>
+                  <span class="weekday-label">{{ t('settingsStage4.weekdays.monShort') }}</span>
                   <el-input-number
                     v-model="linkRoomTypePrices[roomTypeId].mon"
                     :min="0"
@@ -588,7 +588,7 @@
                 </div>
 
                 <div class="price-item">
-                  <span class="weekday-label">二</span>
+                  <span class="weekday-label">{{ t('settingsStage4.weekdays.tueShort') }}</span>
                   <el-input-number
                     v-model="linkRoomTypePrices[roomTypeId].tue"
                     :min="0"
@@ -600,7 +600,7 @@
                 </div>
 
                 <div class="price-item">
-                  <span class="weekday-label">三</span>
+                  <span class="weekday-label">{{ t('settingsStage4.weekdays.wedShort') }}</span>
                   <el-input-number
                     v-model="linkRoomTypePrices[roomTypeId].wed"
                     :min="0"
@@ -612,7 +612,7 @@
                 </div>
 
                 <div class="price-item">
-                  <span class="weekday-label">四</span>
+                  <span class="weekday-label">{{ t('settingsStage4.weekdays.thuShort') }}</span>
                   <el-input-number
                     v-model="linkRoomTypePrices[roomTypeId].thu"
                     :min="0"
@@ -624,7 +624,7 @@
                 </div>
 
                 <div class="price-item">
-                  <span class="weekday-label">五</span>
+                  <span class="weekday-label">{{ t('settingsStage4.weekdays.friShort') }}</span>
                   <el-input-number
                     v-model="linkRoomTypePrices[roomTypeId].fri"
                     :min="0"
@@ -636,7 +636,7 @@
                 </div>
 
                 <div class="price-item">
-                  <span class="weekday-label">六</span>
+                  <span class="weekday-label">{{ t('settingsStage4.weekdays.satShort') }}</span>
                   <el-input-number
                     v-model="linkRoomTypePrices[roomTypeId].sat"
                     :min="0"
@@ -648,7 +648,7 @@
                 </div>
 
                 <div class="price-item">
-                  <span class="weekday-label">日</span>
+                  <span class="weekday-label">{{ t('settingsStage4.weekdays.sunShort') }}</span>
                   <el-input-number
                     v-model="linkRoomTypePrices[roomTypeId].sun"
                     :min="0"
@@ -666,8 +666,8 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelLinkRoomTypes">取消</el-button>
-          <el-button type="primary" @click="handleConfirmLinkRoomTypes">确定</el-button>
+          <el-button @click="handleCancelLinkRoomTypes">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleConfirmLinkRoomTypes">{{ t('settings.common.confirm') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -676,6 +676,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   Search,
   CircleCheck,
@@ -707,6 +708,7 @@ import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { getUserStores, type StoreDTO } from '@/api/store'
 
 const userStore = useUserStore()
+const { t } = useI18n()
 
 interface PricePlan {
   id: number
@@ -856,15 +858,15 @@ const dailyPrices = reactive({
 
 // 额外人数快速填充价格
 // 星期配置
-const weekDays = [
-  { key: 'mon', label: '一' },
-  { key: 'tue', label: '二' },
-  { key: 'wed', label: '三' },
-  { key: 'thu', label: '四' },
-  { key: 'fri', label: '五' },
-  { key: 'sat', label: '六' },
-  { key: 'sun', label: '日' },
-]
+const weekDays = computed(() => [
+  { key: 'mon', label: t('settingsStage4.weekdays.monShort') },
+  { key: 'tue', label: t('settingsStage4.weekdays.tueShort') },
+  { key: 'wed', label: t('settingsStage4.weekdays.wedShort') },
+  { key: 'thu', label: t('settingsStage4.weekdays.thuShort') },
+  { key: 'fri', label: t('settingsStage4.weekdays.friShort') },
+  { key: 'sat', label: t('settingsStage4.weekdays.satShort') },
+  { key: 'sun', label: t('settingsStage4.weekdays.sunShort') },
+])
 
 // 编辑表单数据
 const editForm = reactive<EditForm>({
@@ -876,12 +878,12 @@ const editForm = reactive<EditForm>({
 })
 
 // 表单验证规则
-const formRules: FormRules = {
-  name: [{ required: true, message: '请输入价格计划名称', trigger: 'blur' }],
-  minNights: [{ required: true, message: '请输入最少入住天数', trigger: 'blur' }],
-  derivationType: [{ required: true, message: '请选择独立或衍生类型', trigger: 'change' }],
-  includeMeal: [{ required: true, message: '请选择是否含餐', trigger: 'change' }],
-}
+const formRules = computed<FormRules>(() => ({
+  name: [{ required: true, message: t('settingsStage4.pricePlan.validation.planNameRequired'), trigger: 'blur' }],
+  minNights: [{ required: true, message: t('settingsStage4.pricePlan.validation.minNightsRequired'), trigger: 'blur' }],
+  derivationType: [{ required: true, message: t('settingsStage4.pricePlan.validation.derivationTypeRequired'), trigger: 'change' }],
+  includeMeal: [{ required: true, message: t('settingsStage4.pricePlan.validation.includeMealRequired'), trigger: 'change' }],
+}))
 
 // 数据
 const pricePlans = ref<PricePlan[]>([])
@@ -946,7 +948,7 @@ const loadPricePlans = async () => {
     loading.value = true
     const response = (await getAllPricePlans(userStore.currentUser.id)) as any
     if (!response?.success) {
-      throw new Error(response?.message || '加载价格计划失败')
+      throw new Error(response?.message || t('settingsStage4.pricePlan.messages.loadPricePlansFailed'))
     }
     const plans = Array.isArray(response.data) ? response.data : []
 
@@ -972,7 +974,7 @@ const loadPricePlans = async () => {
 
     pricePlans.value = plansWithCount
   } catch (error) {
-    ElMessage.error('加载价格计划失败')
+    ElMessage.error(t('settingsStage4.pricePlan.messages.loadPricePlansFailed'))
     console.error('加载价格计划失败:', error)
   } finally {
     loading.value = false
@@ -987,7 +989,7 @@ const loadAllRoomTypes = async () => {
     const response = (await getAllRoomTypes()) as any
     allRoomTypes.value = response.data || []
   } catch (error) {
-    ElMessage.error('加载房型失败')
+    ElMessage.error(t('settingsStage4.pricePlan.messages.loadRoomTypesFailed'))
     console.error('加载房型失败:', error)
   }
 }
@@ -1059,7 +1061,7 @@ const loadRoomTypePrices = async () => {
 
     roomTypes.value = roomTypesWithPrices
   } catch (error) {
-    ElMessage.error('加载房型价格失败')
+    ElMessage.error(t('settingsStage4.pricePlan.messages.loadRoomPricesFailed'))
     console.error('加载房型价格失败:', error)
   } finally {
     loading.value = false
@@ -1117,53 +1119,53 @@ const handleDelete = async (row: PricePlan) => {
 
   try {
     await ElMessageBox.confirm(
-      `确定要删除价格计划"${row.name}"吗?删除后将无法恢复。`,
-      '确认删除',
+      t('settingsStage4.pricePlan.messages.deletePlanConfirm', { name: row.name }),
+      t('settingsStage4.pricePlan.messages.deletePlanTitle'),
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('settings.common.confirm'),
+        cancelButtonText: t('settings.common.cancel'),
         type: 'warning',
       }
     )
 
     const resp: any = await deletePricePlan(row.id, userStore.currentUser.id)
     if (!resp?.success) {
-      throw new Error(resp?.message || '删除价格计划失败')
+      throw new Error(resp?.message || t('settingsStage4.pricePlan.messages.deletePlanFailed'))
     }
-    ElMessage.success(resp?.message || '价格计划删除成功')
+    ElMessage.success(resp?.message || t('settingsStage4.pricePlan.messages.deletePlanSuccess'))
     await loadPricePlans()
   } catch (error: any) {
     if (error !== 'cancel') {
-      const msg = error?.message || '删除价格计划失败'
+      const msg = error?.message || t('settingsStage4.pricePlan.messages.deletePlanFailed')
 
       // 最小改动：仅在“渠道价格记录”阻塞时，引导用户走“彻底删除（只清理 channel_prices）”
       if (typeof msg === 'string' && msg.includes('渠道价格记录')) {
         try {
           await ElMessageBox.confirm(
-            `该价格计划存在渠道价格记录（channel_prices），会导致无法删除。\n\n是否执行“彻底删除”？（仅清理渠道价格记录后再尝试删除；若仍被其它数据引用，将继续提示原因）`,
-            '彻底删除确认',
+            t('settingsStage4.pricePlan.messages.forceDeleteConfirm'),
+            t('settingsStage4.pricePlan.messages.forceDeleteTitle'),
             {
-              confirmButtonText: '彻底删除',
-              cancelButtonText: '取消',
+              confirmButtonText: t('settingsStage4.pricePlan.actions.forceDelete'),
+              cancelButtonText: t('settings.common.cancel'),
               type: 'warning',
             }
           )
 
           const forceResp: any = await forceDeletePricePlan(row.id, userStore.currentUser.id)
           if (!forceResp?.success) {
-            throw new Error(forceResp?.message || '彻底删除失败')
+            throw new Error(forceResp?.message || t('settingsStage4.pricePlan.messages.forceDeleteFailed'))
           }
-          ElMessage.success(forceResp?.message || '彻底删除成功')
+          ElMessage.success(forceResp?.message || t('settingsStage4.pricePlan.messages.forceDeleteSuccess'))
           await loadPricePlans()
           return
         } catch (forceError: any) {
           if (forceError !== 'cancel') {
-            ElMessage.error(forceError?.message || '彻底删除失败')
+            ElMessage.error(forceError?.message || t('settingsStage4.pricePlan.messages.forceDeleteFailed'))
           }
           return
         }
       }
-      ElMessage.error(error?.message || '删除价格计划失败')
+      ElMessage.error(error?.message || t('settingsStage4.pricePlan.messages.deletePlanFailed'))
       console.error('删除价格计划失败:', error)
     }
   }
@@ -1190,9 +1192,9 @@ const handleConfirmEdit = async () => {
             derivationType: editForm.derivationType,
           })
           if (!resp?.success) {
-            throw new Error(resp?.message || '价格计划更新失败')
+            throw new Error(resp?.message || t('settingsStage4.pricePlan.messages.updatePlanFailed'))
           }
-          ElMessage.success('价格计划更新成功')
+          ElMessage.success(t('settingsStage4.pricePlan.messages.updatePlanSuccess'))
         } else {
           // 创建价格计划
           const resp: any = await createPricePlan(userStore.currentUser!.id, {
@@ -1203,9 +1205,9 @@ const handleConfirmEdit = async () => {
             derivationType: editForm.derivationType,
           })
           if (!resp?.success) {
-            throw new Error(resp?.message || '价格计划创建失败')
+            throw new Error(resp?.message || t('settingsStage4.pricePlan.messages.createPlanFailed'))
           }
-          ElMessage.success('价格计划创建成功')
+          ElMessage.success(t('settingsStage4.pricePlan.messages.createPlanSuccess'))
         }
 
         // 重新加载数据
@@ -1213,7 +1215,7 @@ const handleConfirmEdit = async () => {
         editDialogVisible.value = false
         editFormRef.value?.resetFields()
       } catch (error) {
-        ElMessage.error('保存失败')
+        ElMessage.error(t('settingsStage4.storeBasic.messages.saveFailed'))
         console.error('保存价格计划失败:', error)
       }
     }
@@ -1243,11 +1245,11 @@ const handleConfirmDetail = async () => {
           maxNights: 365,
         })
 
-        ElMessage.success('价格计划详情保存成功')
+        ElMessage.success(t('settingsStage4.pricePlan.messages.detailSaveSuccess'))
         await loadPricePlans()
         detailDialogVisible.value = false
       } catch (error) {
-        ElMessage.error('保存详情失败')
+        ElMessage.error(t('settingsStage4.pricePlan.messages.detailSaveFailed'))
         console.error('保存详情失败:', error)
       }
     }
@@ -1269,7 +1271,7 @@ const handleCancelAssignPricePlan = () => {
 
 const handleConfirmAssignPricePlan = async () => {
   if (!selectedAssignPricePlanId.value || !currentAssignRoomType.value || !userStore.currentUser?.id) {
-    ElMessage.warning('请选择价格计划')
+    ElMessage.warning(t('settingsStage4.pricePlan.messages.selectPricePlan'))
     return
   }
 
@@ -1285,13 +1287,13 @@ const handleConfirmAssignPricePlan = async () => {
       }
     )
 
-    ElMessage.success('分配价格计划成功')
+    ElMessage.success(t('settingsStage4.pricePlan.messages.assignPlanSuccess'))
     assignPricePlanDialogVisible.value = false
 
     // 重新加载房型价格数据
     await loadRoomTypePrices()
   } catch (error) {
-    ElMessage.error('分配价格计划失败')
+    ElMessage.error(t('settingsStage4.pricePlan.messages.assignPlanFailed'))
     console.error('分配价格计划失败:', error)
   }
 }
@@ -1316,7 +1318,7 @@ const handleShowAppliedRoomTypes = async (plan: PricePlan) => {
 
     appliedRoomTypesDialogVisible.value = true
   } catch (error) {
-    ElMessage.error('加载关联房型失败')
+    ElMessage.error(t('settingsStage4.pricePlan.messages.loadLinkedRoomTypesFailed'))
     console.error('加载关联房型失败:', error)
   }
 }
@@ -1324,14 +1326,11 @@ const handleShowAppliedRoomTypes = async (plan: PricePlan) => {
 const confirmRemoveRelationOptions = async (roomTypeName: string, planName: string) => {
   try {
     await ElMessageBox.confirm(
-      `即将移除房型“${roomTypeName}”与价格计划“${planName}”的关联。\n\n` +
-      '你可以选择：\n' +
-      '1) 解绑并清理按日期覆盖价（价格管理将回退到周价格）\n' +
-      '2) 仅解绑（保留按日期覆盖价）',
-      '移除关联',
+      t('settingsStage4.pricePlan.messages.removeRelationConfirm', { roomTypeName, planName }),
+      t('settingsStage4.pricePlan.messages.removeRelationTitle'),
       {
-        confirmButtonText: '解绑并清理覆盖价',
-        cancelButtonText: '仅解绑',
+        confirmButtonText: t('settingsStage4.pricePlan.actions.unlinkAndClear'),
+        cancelButtonText: t('settingsStage4.pricePlan.actions.unlinkOnly'),
         distinguishCancelAndClose: true,
         closeOnClickModal: false,
         closeOnPressEscape: false,
@@ -1350,7 +1349,7 @@ const confirmRemoveRelationOptions = async (roomTypeName: string, planName: stri
 const handleRemoveRoomType = async (roomType: RoomType) => {
   if (!userStore.currentUser?.id || !selectedPricePlanId.value) return
 
-  const planName = currentPricePlan.value?.name || '当前价格计划'
+  const planName = currentPricePlan.value?.name || t('settingsStage4.pricePlan.currentPlan')
   const clearOverrides = await confirmRemoveRelationOptions(roomType.name, planName)
   if (clearOverrides === null) {
     return
@@ -1370,7 +1369,7 @@ const handleRemoveRoomType = async (roomType: RoomType) => {
     }
 
     if (!relationId) {
-      ElMessage.error('移除失败：缺少房型与价格计划的关联ID')
+      ElMessage.error(t('settingsStage4.pricePlan.messages.relationIdMissing'))
       return
     }
 
@@ -1380,15 +1379,15 @@ const handleRemoveRoomType = async (roomType: RoomType) => {
       clearOverrides
     )
     if (!deleteResp?.success) {
-      throw new Error(deleteResp?.message || '删除房型价格计划关联失败')
+      throw new Error(deleteResp?.message || t('settingsStage4.pricePlan.messages.deleteRelationFailed'))
     }
 
     appliedRoomTypes.value = appliedRoomTypes.value.filter(rt => rt.id !== roomType.id)
     ElMessage.success(
       deleteResp?.message ||
         (clearOverrides
-          ? `已移除房型并清理按日期覆盖价：${roomType.name} ${roomType.code}`
-          : `已移除房型（保留按日期覆盖价）：${roomType.name} ${roomType.code}`)
+          ? t('settingsStage4.pricePlan.messages.removedRoomTypeAndCleared', { name: `${roomType.name} ${roomType.code}` })
+          : t('settingsStage4.pricePlan.messages.removedRoomTypeOnly', { name: `${roomType.name} ${roomType.code}` }))
     )
 
     await loadPricePlans()
@@ -1397,7 +1396,7 @@ const handleRemoveRoomType = async (roomType: RoomType) => {
       await handleShowAppliedRoomTypes(currentPricePlan.value)
     }
   } catch (error) {
-    ElMessage.error((error as any)?.message || '移除房型失败')
+    ElMessage.error((error as any)?.message || t('settingsStage4.pricePlan.messages.removeRoomTypeFailed'))
     console.error('移除房型失败:', error)
   }
 }
@@ -1467,7 +1466,7 @@ const handleCancelLinkRoomTypes = () => {
 
 const handleConfirmLinkRoomTypes = async () => {
   if (selectedRoomTypeIds.value.length === 0) {
-    ElMessage.warning('请选择要关联的房型')
+    ElMessage.warning(t('settingsStage4.pricePlan.messages.selectRoomTypesToLink'))
     return
   }
 
@@ -1478,13 +1477,13 @@ const handleConfirmLinkRoomTypes = async () => {
   for (const roomTypeId of numericIds) {
     const prices = linkRoomTypePrices.value[roomTypeId]
     if (!prices) {
-      ElMessage.warning('请为所有房型填写价格')
+      ElMessage.warning(t('settingsStage4.pricePlan.messages.fillAllRoomTypePrices'))
       return
     }
     // 检查是否至少有一个价格大于0
     const hasPrice = Object.values(prices).some(p => p > 0)
     if (!hasPrice) {
-      ElMessage.warning('请为所有房型填写至少一天的价格')
+      ElMessage.warning(t('settingsStage4.pricePlan.messages.fillAtLeastOneDayPrice'))
       return
     }
   }
@@ -1513,7 +1512,7 @@ const handleConfirmLinkRoomTypes = async () => {
       })
     )
 
-    ElMessage.success(`成功关联 ${numericIds.length} 个房型`)
+    ElMessage.success(t('settingsStage4.pricePlan.messages.linkRoomTypesSuccess', { count: numericIds.length }))
 
     // 重新加载应用的房型列表
     if (currentPricePlan.value) {
@@ -1528,7 +1527,7 @@ const handleConfirmLinkRoomTypes = async () => {
     // 重新加载价格计划统计
     await loadPricePlans()
   } catch (error) {
-    ElMessage.error('关联房型失败')
+    ElMessage.error(t('settingsStage4.pricePlan.messages.linkRoomTypesFailed'))
     console.error('关联房型失败:', error)
   }
 }
@@ -1576,18 +1575,18 @@ const handleDeleteRate = async (roomType: RoomType, plan: RoomTypePricePlan) => 
       clearOverrides
     )
     if (!deleteResp?.success) {
-      throw new Error(deleteResp?.message || '删除房型价格计划关联失败')
+      throw new Error(deleteResp?.message || t('settingsStage4.pricePlan.messages.deleteRelationFailed'))
     }
 
     ElMessage.success(
       deleteResp?.message ||
         (clearOverrides
-          ? `已删除 ${roomType.name} 的 ${plan.name} 并清理按日期覆盖价`
-          : `已删除 ${roomType.name} 的 ${plan.name}（保留按日期覆盖价）`)
+          ? t('settingsStage4.pricePlan.messages.deletedRateAndCleared', { roomType: roomType.name, plan: plan.name })
+          : t('settingsStage4.pricePlan.messages.deletedRateOnly', { roomType: roomType.name, plan: plan.name }))
     )
     await loadRoomTypePrices()
   } catch (error) {
-    ElMessage.error((error as any)?.message || '删除房价失败')
+    ElMessage.error((error as any)?.message || t('settingsStage4.pricePlan.messages.deleteRateFailed'))
     console.error('删除房价失败:', error)
   }
 }
@@ -1636,14 +1635,14 @@ const handleConfirmEditRate = async () => {
 
     ElMessage.success(
       clearFutureOverridesOnSave.value
-        ? '房价更新成功，已自动清理未来按日期覆盖价'
-        : '房价更新成功'
+        ? t('settingsStage4.pricePlan.messages.rateUpdateSuccessCleared')
+        : t('settingsStage4.pricePlan.messages.rateUpdateSuccess')
     )
     await loadRoomTypePrices()
     editRateDialogVisible.value = false
     currentEditRate.value = null
   } catch (error) {
-    ElMessage.error('更新房价失败')
+    ElMessage.error(t('settingsStage4.pricePlan.messages.updateRateFailed'))
     console.error('更新房价失败:', error)
   }
 }

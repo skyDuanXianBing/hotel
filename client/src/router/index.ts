@@ -7,8 +7,6 @@ import {
   type PermissionRequirement,
 } from '@/stores/permission'
 
-const APP_TITLE = '房东智控中心（THE HOST HUB）'
-
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -17,16 +15,16 @@ const router = createRouter({
       path: '/r/:orderNumber',
       name: 'PublicRegistration',
       component: () => import('@/views/public/RegistrationFormPublic.vue'),
-      meta: { title: '入住登记', requiresAuth: false },
+      meta: { title: 'Check-in Registration', requiresAuth: false },
     },
     // Public booking summary (no login)
     {
       path: '/rb/:bookingKey',
       name: 'PublicRegistrationBooking',
       component: () => import('@/views/public/RegistrationBookingPublic.vue'),
-      meta: { title: '入住登记', requiresAuth: false },
+      meta: { title: 'Check-in Registration', requiresAuth: false },
     },
-    // 主布局路由（包含导航栏）
+    // Main layout routes with navigation
     {
       path: '/',
       component: () => import('@/layouts/MainLayout.vue'),
@@ -36,7 +34,7 @@ const router = createRouter({
           path: '',
           name: 'Home',
           component: () => import('@/views/home/HomePage.vue'),
-          meta: { title: '首页', requiresAuth: true },
+          meta: { title: 'Home', requiresAuth: true },
         },
         {
           path: 'accommodation',
@@ -55,19 +53,19 @@ const router = createRouter({
                   path: 'calendar',
                   name: 'RoomStatusCalendar',
                   component: () => import('@/views/room-status/RoomStatusCalendar.vue'),
-                  meta: { title: '房态', requiresAuth: true },
+                  meta: { title: 'Room Status', requiresAuth: true },
                 },
                 {
                   path: 'daily',
                   name: 'RoomStatusDaily',
                   component: () => import('@/views/room-status/RoomStatusDaily.vue'),
-                  meta: { title: '房态-单日', requiresAuth: true },
+                  meta: { title: 'Daily Room Status', requiresAuth: true },
                 },
                 {
                   path: 'channel',
                   name: 'RoomStatusChannel',
                   component: () => import('@/views/room-status/RoomStatusChannel.vue'),
-                  meta: { title: '房态-渠道', requiresAuth: true },
+                  meta: { title: 'Channel Room Status', requiresAuth: true },
                 },
               ],
             },
@@ -75,67 +73,67 @@ const router = createRouter({
               path: 'room-price-management',
               name: 'RoomPriceManagement',
               component: () => import('@/views/accommodation/RoomPriceManagement.vue'),
-              meta: { title: '房价管理', requiresAuth: true },
+              meta: { title: 'Room Rate Management', requiresAuth: true },
             },
             {
               path: 'room-price-bulk-update',
               name: 'RoomPriceBulkUpdate',
               component: () => import('@/views/accommodation/RoomPriceBulkUpdate.vue'),
-              meta: { title: '批量更新', requiresAuth: true },
+              meta: { title: 'Bulk Update', requiresAuth: true },
             },
             {
               path: 'room-price/change-history',
               name: 'PriceChangeHistory',
               component: () => import('@/views/accommodation/PriceChangeHistory.vue'),
-              meta: { title: '改价记录', requiresAuth: true },
+              meta: { title: 'Rate Change History', requiresAuth: true },
             },
             {
               path: 'room-price/bulk-change',
               name: 'BulkPriceChange',
               component: () => import('@/views/accommodation/BulkPriceChange.vue'),
-              meta: { title: '批量改价', requiresAuth: true },
+              meta: { title: 'Bulk Rate Change', requiresAuth: true },
             },
             {
               path: 'room-table',
               name: 'RoomTable',
               component: () => import('@/views/accommodation/RoomTable.vue'),
-              meta: { title: '房情表', requiresAuth: true },
+              meta: { title: 'Room Overview', requiresAuth: true },
             },
             {
               path: 'meals-management',
               name: 'MealsManagement',
               component: () => import('@/views/accommodation/MealsManagement.vue'),
-              meta: { title: '餐食', requiresAuth: true },
+              meta: { title: 'Meals', requiresAuth: true },
             },
             {
               path: 'breakfast-package',
               name: 'BreakfastPackage',
               component: () => import('@/views/accommodation/BreakfastPackage.vue'),
-              meta: { title: '早餐套销', requiresAuth: true },
+              meta: { title: 'Breakfast Bundle', requiresAuth: true },
             },
             {
               path: 'housekeeping-list',
               name: 'HousekeepingList',
               component: () => import('@/views/accommodation/HousekeepingList.vue'),
-              meta: { title: '房务列表', requiresAuth: true },
+              meta: { title: 'Housekeeping List', requiresAuth: true },
             },
             {
               path: 'housekeeper-list',
               name: 'HousekeeperList',
               component: () => import('@/views/accommodation/HousekeeperList.vue'),
-              meta: { title: '保洁员列表', requiresAuth: true },
+              meta: { title: 'Cleaner List', requiresAuth: true },
             },
             {
               path: 'cleaning/overview',
               name: 'CleaningOverview',
               component: () => import('@/views/accommodation/cleaning/CleaningOverview.vue'),
-              meta: { title: '任务概览', requiresAuth: true },
+              meta: { title: 'Task Overview', requiresAuth: true },
             },
             {
               path: 'cleaning/task-list',
               name: 'CleaningTaskList',
               component: () => import('@/views/accommodation/cleaning/CleaningTaskList.vue'),
-              meta: { title: '任务列表', requiresAuth: true },
+              meta: { title: 'Task List', requiresAuth: true },
             },
           ],
         },
@@ -146,188 +144,188 @@ const router = createRouter({
           redirect: '/settings/room-type',
           meta: { requiresAuth: true },
           children: [
-            // 门店设置
+            // Store settings
             {
               path: 'store/basic-info',
               name: 'StoreBasicInfo',
               component: () => import('@/views/settings/store/StoreBasicInfo.vue'),
-              meta: { title: '基本信息', requiresAuth: true },
+              meta: { title: 'Basic Info', requiresAuth: true },
             },
             {
               path: 'store/details',
               name: 'StoreDetails',
               component: () => import('@/views/settings/store/StoreDetails.vue'),
-              meta: { title: '门店详情', requiresAuth: true },
+              meta: { title: 'Store Details', requiresAuth: true },
             },
-            // 通用设置
+            // General settings
             {
               path: 'general/notification',
               name: 'NotificationSettings',
               component: () => import('@/views/settings/general/NotificationSettings.vue'),
-              meta: { title: '通知设置', requiresAuth: true },
+              meta: { title: 'Notification Settings', requiresAuth: true },
             },
             {
               path: 'general/channel',
               name: 'GeneralChannelSettings',
               component: () => import('@/views/settings/general/ChannelSettings.vue'),
-              meta: { title: '渠道设置', requiresAuth: true },
+              meta: { title: 'Channel Settings', requiresAuth: true },
             },
             {
               path: 'general/quick-reply',
               name: 'QuickReply',
               component: () => import('@/views/settings/general/QuickReply.vue'),
-              meta: { title: '快捷回复', requiresAuth: true },
+              meta: { title: 'Quick Replies', requiresAuth: true },
             },
             {
               path: 'general/auto-message',
               name: 'AutoMessage',
               component: () => import('@/views/settings/general/AutoMessage.vue'),
-              meta: { title: '自动化消息', requiresAuth: true },
+              meta: { title: 'Automation Messages', requiresAuth: true },
             },
-            // 保洁设置
+            // Cleaning settings
             {
               path: 'cleaning/settings',
               name: 'CleaningSettings',
               component: () => import('@/views/settings/cleaning/CleaningSettings.vue'),
-              meta: { title: '设置', requiresAuth: true },
+              meta: { title: 'Settings', requiresAuth: true },
             },
             {
               path: 'cleaning/supplies',
               name: 'CleaningSupplies',
               component: () => import('@/views/settings/cleaning/CleaningSupplies.vue'),
-              meta: { title: '易耗品', requiresAuth: true },
+              meta: { title: 'Supplies', requiresAuth: true },
             },
-            // 自动入住
+            // Auto check-in
             {
               path: 'auto-checkin/settings',
               name: 'AutoCheckinSettings',
               component: () => import('@/views/settings/auto-checkin/AutoCheckinSettings.vue'),
-              meta: { title: '自动入住设置', requiresAuth: true },
+              meta: { title: 'Auto Check-in Settings', requiresAuth: true },
             },
-            // 第三方集成
+            // Third-party integrations
             {
               path: 'third-party/pricing-tools',
               name: 'PricingTools',
               component: () => import('@/views/settings/third-party/PricingTools.vue'),
-              meta: { title: '定价工具', requiresAuth: true },
+              meta: { title: 'Pricing Tools', requiresAuth: true },
             },
             {
               path: 'third-party/payment-platforms',
               name: 'PaymentPlatforms',
               component: () => import('@/views/settings/third-party/PaymentPlatforms.vue'),
-              meta: { title: '支付平台', requiresAuth: true },
+              meta: { title: 'Payment Platforms', requiresAuth: true },
             },
-            // 原有设置
+            // Legacy settings
             {
               path: 'room-type',
               name: 'RoomTypeManagement',
               component: () => import('@/views/settings/room/RoomSettings.vue'),
-              meta: { title: '房间设置', requiresAuth: true },
+              meta: { title: 'Room Settings', requiresAuth: true },
             },
             {
               path: 'room/ownership',
               name: 'RoomOwnership',
               component: () => import('@/views/settings/room/RoomOwnership.vue'),
-              meta: { title: '房间归属', requiresAuth: true },
+              meta: { title: 'Room Ownership', requiresAuth: true },
             },
             {
               path: 'room-type/:id/details',
               name: 'RoomTypeDetails',
               component: () => import('@/views/settings/room/RoomTypeDetails.vue'),
-              meta: { title: '房型详情', requiresAuth: true },
+              meta: { title: 'Room Type Details', requiresAuth: true },
             },
-            // 住宿设置 - 新增页面
+            // Accommodation settings
             {
               path: 'room/price-plan',
               name: 'PricePlan',
               component: () => import('@/views/settings/room/PricePlan.vue'),
-              meta: { title: '价格计划', requiresAuth: true },
+              meta: { title: 'Price Plan', requiresAuth: true },
             },
             {
               path: 'room/consumption-items',
               name: 'ConsumptionItems',
               component: () => import('@/views/settings/room/ConsumptionItems.vue'),
-              meta: { title: '消费项设置', requiresAuth: true },
+              meta: { title: 'Consumption Item Settings', requiresAuth: true },
             },
             {
               path: 'room/room-group',
               name: 'RoomGroup',
               component: () => import('@/views/settings/room/RoomGroup.vue'),
-              meta: { title: '房间分组设置', requiresAuth: true },
+              meta: { title: 'Room Group Settings', requiresAuth: true },
             },
             {
               path: 'room/room-sort',
               name: 'RoomSort',
               component: () => import('@/views/settings/room/RoomSort.vue'),
-              meta: { title: '排序设置', requiresAuth: true },
+              meta: { title: 'Sort Settings', requiresAuth: true },
             },
             {
               path: 'room-status-config',
               name: 'RoomStatusConfig',
               component: () => import('@/views/settings/RoomStatusConfig.vue'),
-              meta: { title: '房间分组设置', requiresAuth: true },
+              meta: { title: 'Room Group Settings', requiresAuth: true },
             },
             {
               path: 'room-management',
               name: 'RoomManagement',
               component: () => import('@/views/settings/RoomManagement.vue'),
-              meta: { title: '房间管理', requiresAuth: true },
+              meta: { title: 'Room Management', requiresAuth: true },
             },
             {
               path: 'channel-settings',
               name: 'ChannelSettings',
               component: () => import('@/views/settings/ChannelSettings.vue'),
-              meta: { title: '渠道设置', requiresAuth: true },
+              meta: { title: 'Channel Settings', requiresAuth: true },
             },
             {
               path: 'package-settings',
               name: 'PackageSettings',
               component: () => import('@/views/settings/PackageSettings.vue'),
-              meta: { title: '包栋设置', requiresAuth: true },
+              meta: { title: 'Package Settings', requiresAuth: true },
             },
             {
               path: 'queue-settings',
               name: 'QueueSettings',
               component: () => import('@/views/settings/QueueSettings.vue'),
-              meta: { title: '排序设置', requiresAuth: true },
+              meta: { title: 'Sort Settings', requiresAuth: true },
             },
             {
               path: 'booking-function',
               name: 'BookingFunction',
               component: () => import('@/views/settings/BookingFunction.vue'),
-              meta: { title: '订单功能设置', requiresAuth: true },
+              meta: { title: 'Booking Function Settings', requiresAuth: true },
             },
             {
               path: 'automation',
               name: 'Automation',
               component: () => import('@/views/settings/Automation.vue'),
-              meta: { title: '前台自动化', requiresAuth: true },
+              meta: { title: 'Front Desk Automation', requiresAuth: true },
             },
             {
               path: 'payment-methods',
               name: 'PaymentMethods',
               component: () => import('@/views/settings/PaymentMethods.vue'),
-              meta: { title: '收款方式', requiresAuth: true },
+              meta: { title: 'Payment Methods', requiresAuth: true },
             },
-            // 财务管理
+            // Finance management
             {
               path: 'finance/note-settings',
               name: 'NoteSettings',
               component: () => import('@/views/settings/finance/NoteSettings.vue'),
-              meta: { title: '记一笔设置', requiresAuth: true },
+              meta: { title: 'Record Settings', requiresAuth: true },
             },
-            // 账号管理
+            // Account management
             {
               path: 'account/account-list',
               name: 'AccountList',
               component: () => import('@/views/settings/account/AccountList.vue'),
-              meta: { title: '账号列表', requiresAuth: true },
+              meta: { title: 'Account List', requiresAuth: true },
             },
             {
               path: 'account/role-management',
               name: 'RoleManagement',
               component: () => import('@/views/settings/account/RoleManagement.vue'),
-              meta: { title: '角色管理', requiresAuth: true },
+              meta: { title: 'Role Management', requiresAuth: true },
             },
           ],
         },
@@ -335,86 +333,86 @@ const router = createRouter({
           path: 'channel',
           name: 'Channel',
           component: () => import('@/views/channel/ChannelManagement.vue'),
-          meta: { title: '渠道管理', requiresAuth: true },
+          meta: { title: 'Channel Management', requiresAuth: true },
         },
         {
           path: 'order',
           name: 'Order',
           component: () => import('@/views/order/OrderManagement.vue'),
-          meta: { title: '订单管理', requiresAuth: true },
+          meta: { title: 'Order Management', requiresAuth: true },
         },
-        // 数据中心
+        // Data center
         {
           path: 'data-center/overview',
           name: 'DataCenterOverview',
           component: () => import('@/views/data-center/DataCenterOverview.vue'),
-          meta: { title: '总览', requiresAuth: true },
+          meta: { title: 'Overview', requiresAuth: true },
         },
         {
           path: 'data-center/accommodation',
           name: 'DataCenterAccommodation',
           component: () => import('@/views/data-center/DataCenterAccommodation.vue'),
-          meta: { title: '住宿', requiresAuth: true },
+          meta: { title: 'Accommodation', requiresAuth: true },
         },
         {
           path: 'data-center/notes',
           name: 'DataCenterNotes',
           component: () => import('@/views/data-center/DataCenterNotes.vue'),
-          meta: { title: '记一笔', requiresAuth: true },
+          meta: { title: 'Record Transaction', requiresAuth: true },
         },
         {
           path: 'data-center/registrations',
           name: 'DataCenterRegistrations',
           component: () => import('@/views/data-center/RegistrationReviewList.vue'),
-          meta: { title: '人员信息审查', requiresAuth: true },
+          meta: { title: 'Guest Information Review', requiresAuth: true },
         },
         {
           path: 'data-center/registrations/:formId',
           name: 'DataCenterRegistrationDetail',
           component: () => import('@/views/data-center/RegistrationReviewDetail.vue'),
-          meta: { title: '登记详情', requiresAuth: true },
+          meta: { title: 'Registration Details', requiresAuth: true },
         },
         {
           path: 'statistics/business-summary',
           name: 'BusinessSummary',
           component: () => import('@/views/statistics/BusinessSummary.vue'),
-          meta: { title: '营业汇总', requiresAuth: true },
+          meta: { title: 'Business Summary', requiresAuth: true },
         },
         {
           path: 'statistics/channel-summary',
           name: 'ChannelSummary',
           component: () => import('@/views/statistics/ChannelSummary.vue'),
-          meta: { title: '渠道汇总', requiresAuth: true },
+          meta: { title: 'Channel Summary', requiresAuth: true },
         },
         {
           path: 'statistics/notes-summary',
           name: 'NotesSummary',
           component: () => import('@/views/statistics/NotesSummary.vue'),
-          meta: { title: '记一笔汇总', requiresAuth: true },
+          meta: { title: 'Record Summary', requiresAuth: true },
         },
         {
           path: 'statistics/revenue-summary',
           name: 'RevenueSummary',
           component: () => import('@/views/statistics/RevenueSummary.vue'),
-          meta: { title: '流水汇总', requiresAuth: true },
+          meta: { title: 'Revenue Summary', requiresAuth: true },
         },
         {
           path: 'statistics/operation-report',
           name: 'OperationReport',
           component: () => import('@/views/statistics/OperationReport.vue'),
-          meta: { title: '经营报表', requiresAuth: true },
+          meta: { title: 'Operation Report', requiresAuth: true },
         },
         {
           path: 'statistics/accommodation-report',
           name: 'AccommodationReport',
           component: () => import('@/views/statistics/AccommodationReport.vue'),
-          meta: { title: '住宿报表', requiresAuth: true },
+          meta: { title: 'Accommodation Report', requiresAuth: true },
         },
         {
           path: 'statistics/finance-report',
           name: 'FinanceReport',
           component: () => import('@/views/statistics/FinanceReport.vue'),
-          meta: { title: '财务报表', requiresAuth: true },
+          meta: { title: 'Finance Report', requiresAuth: true },
         },
         {
           path: 'statistics',
@@ -424,132 +422,132 @@ const router = createRouter({
           path: 'wallet',
           name: 'Wallet',
           component: () => import('@/views/wallet/WalletPage.vue'),
-          meta: { title: '订单钱包', requiresAuth: true },
+          meta: { title: 'Order Wallet', requiresAuth: true },
         },
         {
           path: 'profile',
           name: 'Profile',
           component: () => import('@/views/profile/ProfileCenter.vue'),
-          meta: { title: '个人中心', requiresAuth: true },
+          meta: { title: 'Profile', requiresAuth: true },
         },
         {
           path: 'messages',
           name: 'Messages',
           component: () => import('@/views/messages/MessagesPage.vue'),
-          meta: { title: '消息', requiresAuth: true },
+          meta: { title: 'Messages', requiresAuth: true },
         },
         {
           path: 'notifications/system',
           name: 'SystemNotifications',
           component: () => import('@/views/notifications/SystemNotifications.vue'),
-          meta: { title: '系统通知', requiresAuth: true },
+          meta: { title: 'System Notifications', requiresAuth: true },
         },
         {
           path: 'notifications/order',
           name: 'OrderNotifications',
           component: () => import('@/views/notifications/OrderNotifications.vue'),
-          meta: { title: '订单通知', requiresAuth: true },
+          meta: { title: 'Order Notifications', requiresAuth: true },
         },
         {
           path: 'forbidden',
           name: 'Forbidden',
           component: () => import('@/views/common/ForbiddenPage.vue'),
-          meta: { title: '暂无权限', requiresAuth: true },
+          meta: { title: 'Forbidden', requiresAuth: true },
         },
       ],
     },
-    // 空白布局路由（登录、注册等）
+    // Routes outside the main layout
     {
       path: '/housekeeping/task',
       name: 'HousekeepingTask',
       component: () => import('@/views/housekeeping/HousekeepingTask.vue'),
-      meta: { title: '房务任务', requiresAuth: true },
+      meta: { title: 'Housekeeping Task', requiresAuth: true },
     },
     {
       path: '/housekeeping/daily-task',
       name: 'DailyTask',
       component: () => import('@/views/housekeeping/DailyTask.vue'),
-      meta: { title: '每日任务', requiresAuth: true },
+      meta: { title: 'Daily Task', requiresAuth: true },
     },
     {
       path: '/housekeeping/statistics',
       name: 'TaskStatistics',
       component: () => import('@/views/housekeeping/TaskStatistics.vue'),
-      meta: { title: '任务统计', requiresAuth: true },
+      meta: { title: 'Task Statistics', requiresAuth: true },
     },
-    // 门店选择路由
+    // Store selection route
     {
       path: '/store/selection',
       name: 'StoreSelection',
       component: () => import('@/views/store/StoreSelection.vue'),
-      meta: { title: '选择门店', requiresAuth: true },
+      meta: { title: 'Select Store', requiresAuth: true },
     },
     {
       path: '/login',
       name: 'Login',
       component: () => import('@/views/auth/LoginPage.vue'),
-      meta: { title: '登录' },
+      meta: { title: 'Login' },
     },
     {
       path: '/register',
       alias: '/auth/register',
       name: 'Register',
       component: () => import('@/views/auth/RegisterPage.vue'),
-      meta: { title: APP_TITLE },
+      meta: { title: 'Register' },
     },
     {
       path: '/cleaner/register',
       name: 'CleanerRegister',
       component: () => import('@/views/cleaner/CleanerRegister.vue'),
-      meta: { title: '保洁员注册' },
+      meta: { title: 'Cleaner Register' },
     },
     {
       path: '/cleaner/login',
       name: 'CleanerLogin',
       component: () => import('@/views/cleaner/CleanerLogin.vue'),
-      meta: { title: '保洁员登录' },
+      meta: { title: 'Cleaner Login' },
     },
     {
       path: '/cleaner/dashboard',
       name: 'CleanerDashboard',
       component: () => import('@/views/cleaner/CleanerDashboard.vue'),
-      meta: { title: '保洁工作台', requiresAuth: true },
+      meta: { title: 'Cleaner Dashboard', requiresAuth: true },
     },
     {
       path: '/cleaner/task/:id',
       name: 'CleanerTaskDetail',
       component: () => import('@/views/cleaner/TaskDetail.vue'),
-      meta: { title: '任务详情', requiresAuth: true },
+      meta: { title: 'Task Details', requiresAuth: true },
     },
     {
       path: '/forgot-password',
       name: 'ForgotPassword',
       component: () => import('@/views/auth/ForgotPassword.vue'),
-      meta: { title: '忘记密码' },
+      meta: { title: 'Forgot Password' },
     },
     {
       path: '/legal/terms',
       name: 'TermsOfService',
       component: () => import('@/views/legal/TermsOfService.vue'),
-      meta: { title: '用户服务协议' },
+      meta: { title: 'Terms of Service' },
     },
     {
       path: '/legal/privacy',
       name: 'PrivacyPolicy',
       component: () => import('@/views/legal/PrivacyPolicy.vue'),
-      meta: { title: '隐私政策' },
+      meta: { title: 'Privacy Policy' },
     },
     {
       path: '/legal/support',
       name: 'TechnicalSupport',
       component: () => import('@/views/legal/TechnicalSupport.vue'),
-      meta: { title: '技术支持网站' },
+      meta: { title: 'Technical Support' },
     },
     {
       path: '/share/:token',
       name: 'RoomStatusShareView',
       component: () => import('@/views/share/RoomStatusShareView.vue'),
-      meta: { title: '房态分享' },
+      meta: { title: 'Room Status Share' },
     },
   ],
 })
@@ -620,6 +618,90 @@ const routePermissionConfig = new Map<
   ['RoleManagement', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS }] }],
 ])
 
+const routeTitleKeyByName = new Map<string, string>([
+  ['PublicRegistration', 'routeTitles.checkinRegistration'],
+  ['PublicRegistrationBooking', 'routeTitles.checkinRegistration'],
+  ['Home', 'routeTitles.home'],
+  ['RoomStatusCalendar', 'routeTitles.roomStatus'],
+  ['RoomStatusDaily', 'routeTitles.roomStatusDaily'],
+  ['RoomStatusChannel', 'routeTitles.roomStatusChannel'],
+  ['RoomPriceManagement', 'routeTitles.roomPriceManagement'],
+  ['RoomPriceBulkUpdate', 'routeTitles.bulkUpdate'],
+  ['PriceChangeHistory', 'routeTitles.priceChangeHistory'],
+  ['BulkPriceChange', 'routeTitles.bulkPriceChange'],
+  ['RoomTable', 'routeTitles.roomOverview'],
+  ['MealsManagement', 'routeTitles.meals'],
+  ['BreakfastPackage', 'routeTitles.breakfastBundle'],
+  ['HousekeepingList', 'routeTitles.housekeepingList'],
+  ['HousekeeperList', 'routeTitles.cleanerList'],
+  ['CleaningOverview', 'routeTitles.taskOverview'],
+  ['CleaningTaskList', 'routeTitles.taskList'],
+  ['StoreBasicInfo', 'routeTitles.basicInfo'],
+  ['StoreDetails', 'routeTitles.storeDetails'],
+  ['NotificationSettings', 'routeTitles.notificationSettings'],
+  ['GeneralChannelSettings', 'routeTitles.channelSettings'],
+  ['QuickReply', 'routeTitles.quickReply'],
+  ['AutoMessage', 'routeTitles.automationMessages'],
+  ['CleaningSettings', 'routeTitles.settings'],
+  ['CleaningSupplies', 'routeTitles.supplies'],
+  ['AutoCheckinSettings', 'routeTitles.autoCheckinSettings'],
+  ['PricingTools', 'routeTitles.pricingTools'],
+  ['PaymentPlatforms', 'routeTitles.paymentPlatforms'],
+  ['RoomTypeManagement', 'routeTitles.roomSettings'],
+  ['RoomOwnership', 'routeTitles.roomOwnership'],
+  ['RoomTypeDetails', 'routeTitles.roomTypeDetails'],
+  ['PricePlan', 'routeTitles.pricePlan'],
+  ['ConsumptionItems', 'routeTitles.consumptionItemSettings'],
+  ['RoomGroup', 'routeTitles.roomGroupSettings'],
+  ['RoomSort', 'routeTitles.sortSettings'],
+  ['RoomStatusConfig', 'routeTitles.roomGroupSettings'],
+  ['RoomManagement', 'routeTitles.roomManagement'],
+  ['ChannelSettings', 'routeTitles.channelSettings'],
+  ['PackageSettings', 'routeTitles.packageSettings'],
+  ['QueueSettings', 'routeTitles.sortSettings'],
+  ['BookingFunction', 'routeTitles.bookingFunctionSettings'],
+  ['Automation', 'routeTitles.frontDeskAutomation'],
+  ['PaymentMethods', 'routeTitles.paymentMethods'],
+  ['NoteSettings', 'routeTitles.recordSettings'],
+  ['AccountList', 'routeTitles.accountList'],
+  ['RoleManagement', 'routeTitles.roleManagement'],
+  ['Channel', 'routeTitles.channelManagement'],
+  ['Order', 'routeTitles.orderManagement'],
+  ['DataCenterOverview', 'routeTitles.overview'],
+  ['DataCenterAccommodation', 'routeTitles.accommodation'],
+  ['DataCenterNotes', 'routeTitles.recordTransaction'],
+  ['DataCenterRegistrations', 'routeTitles.guestInformationReview'],
+  ['DataCenterRegistrationDetail', 'routeTitles.registrationDetails'],
+  ['BusinessSummary', 'routeTitles.businessSummary'],
+  ['ChannelSummary', 'routeTitles.channelSummary'],
+  ['NotesSummary', 'routeTitles.recordSummary'],
+  ['RevenueSummary', 'routeTitles.revenueSummary'],
+  ['OperationReport', 'routeTitles.operationReport'],
+  ['AccommodationReport', 'routeTitles.accommodationReport'],
+  ['FinanceReport', 'routeTitles.financeReport'],
+  ['Wallet', 'routeTitles.orderWallet'],
+  ['Profile', 'routeTitles.profile'],
+  ['Messages', 'routeTitles.messages'],
+  ['SystemNotifications', 'routeTitles.systemNotifications'],
+  ['OrderNotifications', 'routeTitles.orderNotifications'],
+  ['Forbidden', 'routeTitles.forbidden'],
+  ['HousekeepingTask', 'routeTitles.housekeepingTask'],
+  ['DailyTask', 'routeTitles.dailyTask'],
+  ['TaskStatistics', 'routeTitles.taskStatistics'],
+  ['StoreSelection', 'routeTitles.storeSelection'],
+  ['Login', 'routeTitles.login'],
+  ['Register', 'routeTitles.register'],
+  ['CleanerRegister', 'routeTitles.cleanerRegister'],
+  ['CleanerLogin', 'routeTitles.cleanerLogin'],
+  ['CleanerDashboard', 'routeTitles.cleanerDashboard'],
+  ['CleanerTaskDetail', 'routeTitles.taskDetails'],
+  ['ForgotPassword', 'routeTitles.forgotPassword'],
+  ['TermsOfService', 'routeTitles.termsOfService'],
+  ['PrivacyPolicy', 'routeTitles.privacyPolicy'],
+  ['TechnicalSupport', 'routeTitles.technicalSupport'],
+  ['RoomStatusShareView', 'routeTitles.roomStatusShare'],
+])
+
 router.getRoutes().forEach((route) => {
   const routeName = typeof route.name === 'string' ? route.name : ''
   const config = routePermissionConfig.get(routeName)
@@ -631,7 +713,15 @@ router.getRoutes().forEach((route) => {
   route.meta.permissionMatchMode = config.matchMode ?? 'all'
 })
 
-// 路由守卫：检查登录状态
+router.getRoutes().forEach((route) => {
+  const routeName = typeof route.name === 'string' ? route.name : ''
+  const titleKey = routeTitleKeyByName.get(routeName)
+  if (titleKey) {
+    route.meta.titleKey = titleKey
+  }
+})
+
+// Route guard: validate session state
 router.beforeEach(async (to, from, next) => {
   const isCleanerRoute = to.path.startsWith('/cleaner')
   const pmsToken = localStorage.getItem('token')
@@ -646,23 +736,23 @@ router.beforeEach(async (to, from, next) => {
       const cleanerUser = JSON.parse(cleanerUserStr)
       hasCleanerSession = cleanerUser?.isCleaner === true
     } catch {
-      // 解析失败，忽略
+      // Ignore invalid cached session data
     }
   }
 
   const activeToken = isCleanerRoute ? cleanerToken : pmsToken
 
-  // 检查是否有当前选中的门店
+  // Check whether a store is selected
   if (currentStoreStr) {
     try {
       const store = JSON.parse(currentStoreStr)
       hasCurrentStore = !!store.id
     } catch {
-      // 解析失败,忽略
+      // Ignore invalid cached store data
     }
   }
 
-  // 如果路由需要认证但没有对应端的token，重定向到对应登录页
+  // Redirect authenticated routes without the matching token to login
   if (to.meta.requiresAuth && !activeToken) {
     next(isCleanerRoute ? '/cleaner/login' : '/login')
     return
@@ -673,20 +763,20 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // PMS已登录访问管理员登录/注册页，重定向到管理后台
+  // Redirect signed-in PMS users away from auth pages
   if ((to.path === '/login' || to.path === '/register') && pmsToken) {
     next('/')
     return
   }
 
-  // 保洁员已登录访问保洁员登录页，重定向到保洁员工作台
+  // Redirect signed-in cleaners away from cleaner login
   if (to.path === '/cleaner/login' && cleanerToken && hasCleanerSession) {
     next('/cleaner/dashboard')
     return
   }
 
-  // 门店检查 - 管理员访问主要功能时必须先选择门店
-  // 排除门店相关页面、登录注册页面和保洁员公开页面
+  // Store guard: PMS users must select a store before main features
+  // Exclude store selection, auth pages, and public cleaner pages
   const storeRelatedPaths = [
     '/store/selection',
     '/login',
@@ -700,8 +790,8 @@ router.beforeEach(async (to, from, next) => {
   )
 
   if (pmsToken && !isCleanerRoute && to.meta.requiresAuth && !isStoreRelatedPath && !hasCurrentStore) {
-    // 已登录且不是保洁员,访问需要认证的页面,但没有选择门店
-    // 重定向到门店选择页面
+    // Signed-in PMS user is accessing an authenticated page without a selected store
+    // Redirect to store selection
     next('/store/selection')
     return
   }
@@ -734,17 +824,6 @@ router.beforeEach(async (to, from, next) => {
   }
 
   next()
-})
-
-router.afterEach((to) => {
-  const routeTitle = typeof to.meta.title === 'string' ? to.meta.title : ''
-
-  if (!routeTitle || routeTitle === APP_TITLE) {
-    document.title = APP_TITLE
-    return
-  }
-
-  document.title = `${routeTitle} - ${APP_TITLE}`
 })
 
 export default router

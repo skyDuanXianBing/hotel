@@ -7,29 +7,29 @@
         <!-- 统计卡片区域 -->
         <div class="stats-cards">
           <div class="stat-card clickable" @click="goToOrdersByType('today-arrivals')">
-            <div class="stat-title">今日预抵</div>
+            <div class="stat-title">{{ t('pages.home.stats.checkin') }}</div>
             <div class="stat-value">{{ todayStats.checkin }}</div>
              
           </div>
           <div class="stat-card clickable" @click="goToOrdersByType('today-departures')">
-            <div class="stat-title">今日预离</div>
+            <div class="stat-title">{{ t('pages.home.stats.checkout') }}</div>
             <div class="stat-value">{{ todayStats.checkout }}</div>
           </div>
           <div class="stat-card clickable" @click="goToOrdersByType('today-new')">
-            <div class="stat-title">今日新办</div>
+            <div class="stat-title">{{ t('pages.home.stats.newOrders') }}</div>
             <div class="stat-value">{{ todayStats.newOrders }}</div>
             
           </div>
           <div class="stat-card clickable" @click="goToOrdersByType('unassigned')">
-            <div class="stat-title">未排房</div>
+            <div class="stat-title">{{ t('pages.home.stats.unassigned') }}</div>
             <div class="stat-value">{{ todayStats.unassigned }}</div>
           </div>
           <div class="stat-card available" @click="goToRoomStatus()">
-            <div class="stat-title">今日可售</div>
+            <div class="stat-title">{{ t('pages.home.stats.available') }}</div>
             <div class="stat-value">{{ todayStats.available }}</div>
           </div>
           <div class="stat-card clickable" @click="goToOrdersByType('pending')">
-            <div class="stat-title">待处理</div>
+            <div class="stat-title">{{ t('pages.home.stats.pending') }}</div>
             <div class="stat-value">{{ todayStats.pending }}</div>
           </div>
         </div>
@@ -37,7 +37,7 @@
         <!-- 近7天入住率图表 -->
         <div class="chart-section">
           <div class="chart-header">
-            <h3>近7天入住率</h3>
+            <h3>{{ t('pages.home.occupancyTitle') }}</h3>
           </div>
           <OccupancyChart :data="occupancyData" />
         </div>
@@ -46,12 +46,12 @@
       <!-- 右侧备忘录区域 -->
       <div class="right-content">
         <div class="memo-section">
-          <h3>备忘录</h3>
+          <h3>{{ t('pages.home.memoTitle') }}</h3>
           <el-input
             v-model="memo"
             type="textarea"
             :rows="10"
-            placeholder="请输入备忘录"
+            :placeholder="t('layout.memo.placeholder')"
             class="memo-input"
           />
         </div>
@@ -63,9 +63,9 @@
       <!-- 常用功能 -->
       <div class="common-functions">
         <div class="section-header">
-          <h3>常用功能</h3>
+          <h3>{{ t('pages.home.commonFunctionsTitle') }}</h3>
           <el-button link class="more-btn">
-            配置 <el-icon><ArrowRight /></el-icon>
+            {{ t('pages.home.configureAction') }} <el-icon><ArrowRight /></el-icon>
           </el-button>
         </div>
         <div class="function-grid">
@@ -73,7 +73,7 @@
             <div class="function-icon">
               <el-icon size="32" color="#ffd900"><Document /></el-icon>
             </div>
-            <div class="function-name">住宿订单</div>
+            <div class="function-name">{{ t('pages.home.orderCard') }}</div>
           </div>
           <!-- 可以添加更多功能卡片 -->
         </div>
@@ -82,27 +82,27 @@
       <!-- 帮助中心 -->
       <div class="help-center">
         <div class="section-header">
-          <h3>帮助中心</h3>
+          <h3>{{ t('pages.home.helpCenterTitle') }}</h3>
           <el-button link class="more-btn">
-            更多 <el-icon><ArrowRight /></el-icon>
+            {{ t('pages.home.moreAction') }} <el-icon><ArrowRight /></el-icon>
           </el-button>
         </div>
         <div class="help-grid">
           <div class="help-card">
-            <div class="help-title">营业统报表</div>
-            <div class="help-desc">如何生成营业统计报表数据？</div>
+            <div class="help-title">{{ t('pages.home.helpArticles.businessReport.title') }}</div>
+            <div class="help-desc">{{ t('pages.home.helpArticles.businessReport.description') }}</div>
           </div>
           <div class="help-card">
-            <div class="help-title">订单操作</div>
-            <div class="help-desc">如何修复在住订单营业？</div>
+            <div class="help-title">{{ t('pages.home.helpArticles.inHouseOrder.title') }}</div>
+            <div class="help-desc">{{ t('pages.home.helpArticles.inHouseOrder.description') }}</div>
           </div>
           <div class="help-card">
-            <div class="help-title">房态</div>
-            <div class="help-desc">如何房间单历房态设置的房型？</div>
+            <div class="help-title">{{ t('pages.home.helpArticles.roomStatus.title') }}</div>
+            <div class="help-desc">{{ t('pages.home.helpArticles.roomStatus.description') }}</div>
           </div>
           <div class="help-card">
-            <div class="help-title">订单操作</div>
-            <div class="help-desc">如何使用订单操作的功能？</div>
+            <div class="help-title">{{ t('pages.home.helpArticles.orderFeatures.title') }}</div>
+            <div class="help-desc">{{ t('pages.home.helpArticles.orderFeatures.description') }}</div>
           </div>
         </div>
       </div>
@@ -117,11 +117,13 @@ import { Document, ArrowRight } from '@element-plus/icons-vue'
 import { getRoomStatusStatistics, type RoomStatusStatisticsDTO } from '@/api/roomStatus'
 import { getDailyOccupancy } from '@/api/business'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import OccupancyChart from '@/components/OccupancyChart.vue'
 import { useMemoStore } from '@/stores/memo'
 
 const router = useRouter()
 const memoStore = useMemoStore()
+const { t } = useI18n()
 
 // 使用store中的备忘录内容
 const memo = computed({
@@ -213,11 +215,11 @@ const fetchRoomStatusStatistics = async () => {
         pending: stats.pendingOrders,
       }
     } else {
-      ElMessage.error(response.message || '获取统计数据失败')
+      ElMessage.error(response.message || t('pages.home.fetchStatisticsFailed'))
     }
   } catch (error) {
     console.error('获取统计数据错误:', error)
-    ElMessage.error('网络错误，获取统计数据失败')
+    ElMessage.error(t('pages.home.fetchStatisticsNetworkFailed'))
   } finally {
     loading.value = false
   }

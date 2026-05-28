@@ -5,10 +5,10 @@
       <div class="header">
         <div class="logo">
           <span class="logo-icon">◆</span>
-           房东智控中心（THE HOST HUB）
+          {{ t('app.name') }}
         </div>
-        <h1 class="title">保洁平台</h1>
-        <p class="subtitle">登录您的账户以继续操作</p>
+        <h1 class="title">{{ t('stage5.cleaner.common.appName') }}</h1>
+        <p class="subtitle">{{ t('stage5.cleaner.auth.subtitle') }}</p>
       </div>
 
       <!-- 登录表单 -->
@@ -22,7 +22,7 @@
         <el-form-item prop="email">
           <el-input
             v-model="loginForm.email"
-            placeholder="邮箱"
+            :placeholder="t('stage5.cleaner.auth.emailPlaceholder')"
             size="large"
             clearable
           >
@@ -36,7 +36,7 @@
           <el-input
             v-model="loginForm.password"
             type="password"
-            placeholder="密码"
+            :placeholder="t('stage5.cleaner.auth.passwordPlaceholder')"
             size="large"
             show-password
           >
@@ -54,7 +54,7 @@
             :loading="loading"
             @click="handleLogin"
           >
-            登录
+            {{ t('stage5.cleaner.auth.login') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -62,13 +62,14 @@
       <!-- 底部链接 -->
       <div class="footer">
         <p class="footer-text">
-          您确认或接受
-          <a href="#" class="link">服务条款</a>和
-          <a href="#" class="link">隐私政策</a>
+          {{ t('stage5.cleaner.auth.agreementPrefix') }}
+          <a href="#" class="link">{{ t('stage5.cleaner.auth.terms') }}</a>
+          {{ t('stage5.cleaner.auth.and') }}
+          <a href="#" class="link">{{ t('stage5.cleaner.auth.privacy') }}</a>
         </p>
         <div class="footer-logo">
           <el-icon><Pointer /></el-icon>
-         房东智控中心（THE HOST HUB）
+          {{ t('app.name') }}
         </div>
       </div>
     </div>
@@ -78,12 +79,14 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock, Pointer } from '@element-plus/icons-vue'
 import { cleanerLoginByPassword } from '@/api/cleanerAuth'
 import { saveCleanerSession, type CleanerSessionUser } from '@/utils/cleanerSession'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -95,12 +98,12 @@ const loginForm = reactive({
 
 const rules: FormRules = {
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' },
+    { required: true, message: t('stage5.cleaner.auth.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('stage5.cleaner.auth.emailInvalid'), trigger: 'blur' },
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少6位', trigger: 'blur' },
+    { required: true, message: t('stage5.cleaner.auth.passwordRequired'), trigger: 'blur' },
+    { min: 6, message: t('stage5.cleaner.auth.passwordMin'), trigger: 'blur' },
   ],
 }
 
@@ -119,12 +122,12 @@ const handleLogin = async () => {
     if (response.success && response.data) {
       // 保存保洁员独立会话，不覆盖PMS会话
       if (!response.data.token) {
-        ElMessage.error('登录失败,缺少认证信息')
+        ElMessage.error(t('stage5.cleaner.auth.missingToken'))
         return
       }
       const cleanerData = response.data.cleaner
       if (!cleanerData?.userId || !cleanerData?.id) {
-        ElMessage.error('登录失败，保洁员身份信息不完整')
+        ElMessage.error(t('stage5.cleaner.auth.incompleteIdentity'))
         return
       }
       const userInfo: CleanerSessionUser = {
@@ -136,20 +139,20 @@ const handleLogin = async () => {
         gender: 'private' as const,
         createdAt: cleanerData.createdAt,
         updatedAt: cleanerData.updatedAt,
-        isCleaner: true, // 标记为保洁员
+        isCleaner: true,
       }
       saveCleanerSession(response.data.token, userInfo, cleanerData.storeId)
 
-      ElMessage.success('登录成功')
+      ElMessage.success(t('stage5.cleaner.auth.success'))
 
       // 跳转到保洁员工作台
       router.push('/cleaner/dashboard')
     } else {
-      ElMessage.error(response.message || '登录失败')
+      ElMessage.error(response.message || t('stage5.cleaner.auth.failed'))
     }
   } catch (error) {
-    console.error('登录失败:', error)
-    ElMessage.error('登录失败,请检查您的账号和密码')
+    console.error('Cleaner login failed:', error)
+    ElMessage.error(t('stage5.cleaner.auth.failedWithHint'))
   } finally {
     loading.value = false
   }

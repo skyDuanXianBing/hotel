@@ -1,26 +1,35 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="记一笔"
+    :title="t('stage6.components.recordTransaction.title')"
     width="500px"
     :before-close="handleClose"
     class="record-transaction-dialog"
   >
-    <!-- 提示信息 -->
-    <el-alert title="记一笔账目不统计进订单消费" type="warning" :closable="false" class="mb-4" />
+    <!-- Tip -->
+    <el-alert
+      :title="t('stage6.components.recordTransaction.alert')"
+      type="warning"
+      :closable="false"
+      class="mb-4"
+    />
 
     <el-form ref="formRef" :model="form" :rules="rules" label-width="80px" class="record-form">
-      <!-- 类型选择 -->
-      <el-form-item label="类型" prop="type" required>
+      <!-- Type selection -->
+      <el-form-item :label="t('stage6.common.labels.type')" prop="type" required>
         <el-radio-group v-model="form.type">
-          <el-radio value="income">收入</el-radio>
-          <el-radio value="expense">支出</el-radio>
+          <el-radio value="income">{{ t('stage6.components.recordTransaction.income') }}</el-radio>
+          <el-radio value="expense">{{ t('stage6.components.recordTransaction.expense') }}</el-radio>
         </el-radio-group>
       </el-form-item>
 
-      <!-- 项目 -->
-      <el-form-item label="项目" prop="category" required>
-        <el-select v-model="form.category" placeholder="请选择" style="width: 100%">
+      <!-- Category -->
+      <el-form-item :label="t('stage6.common.labels.project')" prop="category" required>
+        <el-select
+          v-model="form.category"
+          :placeholder="t('stage6.components.recordTransaction.selectPlaceholder')"
+          style="width: 100%"
+        >
           <el-option
             v-for="item in categoryOptions"
             :key="item.value"
@@ -30,9 +39,13 @@
         </el-select>
       </el-form-item>
 
-      <!-- 收款方式 -->
-      <el-form-item label="收款方式" prop="paymentMethod" required>
-        <el-select v-model="form.paymentMethod" placeholder="请选择" style="width: 100%">
+      <!-- Payment method -->
+      <el-form-item :label="t('stage6.common.labels.paymentMethod')" prop="paymentMethod" required>
+        <el-select
+          v-model="form.paymentMethod"
+          :placeholder="t('stage6.components.recordTransaction.selectPlaceholder')"
+          style="width: 100%"
+        >
           <el-option
             v-for="item in paymentMethodOptions"
             :key="item.value"
@@ -42,18 +55,23 @@
         </el-select>
       </el-form-item>
 
-      <!-- 金额 -->
-      <el-form-item label="金额" prop="amount" required>
-        <el-input v-model="form.amount" placeholder="请输入金额" type="number" style="width: 100%">
+      <!-- Amount -->
+      <el-form-item :label="t('stage6.common.labels.amount')" prop="amount" required>
+        <el-input
+          v-model="form.amount"
+          :placeholder="t('stage6.components.recordTransaction.amountPlaceholder')"
+          type="number"
+          style="width: 100%"
+        >
           <template #prepend>¥</template>
         </el-input>
       </el-form-item>
 
-      <!-- 关联房间 -->
-      <el-form-item label="关联房间">
+      <!-- Related room -->
+      <el-form-item :label="t('stage6.common.labels.relatedRoom')">
         <el-input
           v-model="selectedRoomDisplay"
-          placeholder="去选择房间"
+          :placeholder="t('stage6.components.recordTransaction.selectRoomPlaceholder')"
           readonly
           @click="showRoomSelector = true"
           style="width: 100%; cursor: pointer"
@@ -64,20 +82,20 @@
         </el-input>
       </el-form-item>
 
-      <!-- 时间 -->
-      <el-form-item label="时间">
+      <!-- Time -->
+      <el-form-item :label="t('stage6.common.labels.time')">
         <el-date-picker
           v-model="form.datetime"
           type="datetime"
-          placeholder="选择日期时间"
+          :placeholder="t('stage6.components.recordTransaction.datetimePlaceholder')"
           format="YYYY-MM-DD HH:mm:ss"
           value-format="YYYY-MM-DD HH:mm:ss"
           style="width: 100%"
         />
       </el-form-item>
 
-      <!-- 凭证 -->
-      <el-form-item label="凭证">
+      <!-- Voucher -->
+      <el-form-item :label="t('stage6.common.labels.voucher')">
         <el-upload
           ref="uploadRef"
           :file-list="fileList"
@@ -91,20 +109,20 @@
         >
           <div class="upload-trigger">
             <el-icon><Plus /></el-icon>
-            <div class="upload-text">添加图片</div>
+            <div class="upload-text">{{ t('stage6.components.recordTransaction.addImage') }}</div>
           </div>
           <template #tip>
-            <div class="upload-tip">支持批量上传图片（最多9张），单张图片最大不超过13M</div>
+            <div class="upload-tip">{{ t('stage6.components.recordTransaction.uploadTip') }}</div>
           </template>
         </el-upload>
       </el-form-item>
 
-      <!-- 备注 -->
-      <el-form-item label="备注">
+      <!-- Notes -->
+      <el-form-item :label="t('stage6.common.labels.note')">
         <el-input
           v-model="form.notes"
           type="textarea"
-          placeholder="请输入内容"
+          :placeholder="t('stage6.components.recordTransaction.notesPlaceholder')"
           :rows="3"
           maxlength="200"
           show-word-limit
@@ -115,12 +133,14 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting"> 完成 </el-button>
+        <el-button @click="handleClose">{{ t('stage6.common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          {{ t('stage6.common.actions.done') }}
+        </el-button>
       </div>
     </template>
 
-    <!-- 房间选择器弹窗 -->
+    <!-- Room selector dialog -->
     <RoomSelectorDialog
       v-model="showRoomSelector"
       :rooms="allRooms"
@@ -135,6 +155,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import type { FormInstance, FormRules, UploadFile, UploadFiles } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { Plus, ArrowRight } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import RoomSelectorDialog from './RoomSelectorDialog.vue'
 import { getRooms } from '@/api/room'
 import type { RoomDTO } from '@/api/room'
@@ -151,6 +172,7 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+const { t } = useI18n()
 
 const visible = computed({
   get: () => props.modelValue,
@@ -164,7 +186,7 @@ const fileList = ref<UploadFile[]>([])
 const showRoomSelector = ref(false)
 const allRooms = ref<RoomDTO[]>([])
 
-// 表单数据接口
+// Form data interface
 interface FormData {
   type: NoteType
   category: string
@@ -176,7 +198,7 @@ interface FormData {
   notes: string
 }
 
-// 表单数据
+// Form data
 const form = reactive<FormData>({
   type: 'income',
   category: '',
@@ -188,17 +210,23 @@ const form = reactive<FormData>({
   notes: '',
 })
 
-// 表单验证规则
-const rules: FormRules = {
-  type: [{ required: true, message: '请选择类型', trigger: 'change' }],
-  category: [{ required: true, message: '请选择项目', trigger: 'change' }],
-  paymentMethod: [{ required: true, message: '请选择收款方式', trigger: 'change' }],
+// Form validation rules
+const rules = computed<FormRules>(() => ({
+  type: [{ required: true, message: t('stage6.components.recordTransaction.typeRequired'), trigger: 'change' }],
+  category: [{ required: true, message: t('stage6.components.recordTransaction.categoryRequired'), trigger: 'change' }],
+  paymentMethod: [
+    {
+      required: true,
+      message: t('stage6.components.recordTransaction.paymentMethodRequired'),
+      trigger: 'change',
+    },
+  ],
   amount: [
-    { required: true, message: '请输入金额', trigger: 'blur' },
+    { required: true, message: t('stage6.components.recordTransaction.amountRequired'), trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
         if (!value || isNaN(Number(value)) || Number(value) <= 0) {
-          callback(new Error('请输入有效的金额'))
+          callback(new Error(t('stage6.components.recordTransaction.amountInvalid')))
         } else {
           callback()
         }
@@ -206,39 +234,42 @@ const rules: FormRules = {
       trigger: 'blur',
     },
   ],
-}
+}))
 
-// 项目选项（根据类型动态显示）
+// Category options, shown based on type
 const categoryOptions = computed(() => {
   if (form.type === 'income') {
     return [
-      { label: '餐饮美食', value: 'catering' },
-      { label: '烟酒饮料', value: 'tobacco_alcohol' },
-      { label: '物品赔付', value: 'compensation' },
-      { label: '景点门票', value: 'ticket' },
-      { label: '特色纪念品', value: 'souvenir' },
-      { label: '其他杂项', value: 'other' },
+      { label: t('stage6.components.recordTransaction.categories.catering'), value: 'catering' },
+      { label: t('stage6.components.recordTransaction.categories.tobaccoAlcohol'), value: 'tobacco_alcohol' },
+      { label: t('stage6.components.recordTransaction.categories.compensation'), value: 'compensation' },
+      { label: t('stage6.components.recordTransaction.categories.ticket'), value: 'ticket' },
+      { label: t('stage6.components.recordTransaction.categories.souvenir'), value: 'souvenir' },
+      { label: t('stage6.components.recordTransaction.categories.other'), value: 'other' },
     ]
   } else {
     return [
-      { label: '水电燃气', value: 'utilities' },
-      { label: '房租物业费', value: 'rent_property' },
-      { label: '支付工资', value: 'salary' },
-      { label: '房间维修', value: 'maintenance' },
-      { label: '通讯交通', value: 'communication_transport' },
-      { label: '日常杂项', value: 'daily_misc' },
+      { label: t('stage6.components.recordTransaction.categories.utilities'), value: 'utilities' },
+      { label: t('stage6.components.recordTransaction.categories.rentProperty'), value: 'rent_property' },
+      { label: t('stage6.components.recordTransaction.categories.salary'), value: 'salary' },
+      { label: t('stage6.components.recordTransaction.categories.maintenance'), value: 'maintenance' },
+      {
+        label: t('stage6.components.recordTransaction.categories.communicationTransport'),
+        value: 'communication_transport',
+      },
+      { label: t('stage6.components.recordTransaction.categories.dailyMisc'), value: 'daily_misc' },
     ]
   }
 })
 
-// 收款方式选项
-const paymentMethodOptions = [
-  { label: '微信', value: 'wechat' },
-  { label: '支付宝', value: 'alipay' },
-  { label: '现金', value: 'cash' },
-]
+// Payment method options
+const paymentMethodOptions = computed(() => [
+  { label: t('stage6.components.recordTransaction.paymentMethods.wechat'), value: 'wechat' },
+  { label: t('stage6.components.recordTransaction.paymentMethods.alipay'), value: 'alipay' },
+  { label: t('stage6.components.recordTransaction.paymentMethods.cash'), value: 'cash' },
+])
 
-// 选中的房间显示文本
+// Selected room display text
 const selectedRoomDisplay = computed(() => {
   if (!form.roomId) return ''
 
@@ -246,36 +277,36 @@ const selectedRoomDisplay = computed(() => {
   return room ? `${room.roomNumber} - ${room.roomType.name}` : ''
 })
 
-// 加载房间数据
+// Load room data
 const loadRooms = async () => {
   try {
     const response = await getRooms()
     if (response.success) {
       allRooms.value = response.data
     } else {
-      ElMessage.error(response.message || '获取房间列表失败')
+      ElMessage.error(response.message || t('stage6.components.recordTransaction.loadRoomsFailed'))
     }
   } catch (error) {
-    console.error('加载房间数据失败:', error)
-    ElMessage.error('加载房间数据失败')
+    console.error('Failed to load room data:', error)
+    ElMessage.error(t('stage6.components.recordTransaction.loadRoomsFailed'))
   }
 }
 
-// 处理房间选择
+// Handle room selection
 const handleRoomSelect = (roomIds: number[]) => {
-  // 单选模式,只取第一个
+  // Single-select mode: use the first item only.
   form.roomId = roomIds.length > 0 ? roomIds[0] : null
 }
 
-// 文件上传处理
+// File upload handling
 const handleFileChange = (file: UploadFile, fileList: UploadFiles) => {
-  // 限制最多9张图片
+  // Limit to 9 images.
   if (fileList.length > 9) {
-    ElMessage.warning('最多只能上传9张图片')
+    ElMessage.warning(t('stage6.components.recordTransaction.maxImages'))
     return false
   }
 
-  // 更新文件列表
+  // Update the file list.
   form.vouchers = fileList.map((item) => item.raw!).filter(Boolean)
 }
 
@@ -288,17 +319,17 @@ const beforeUpload = (file: File) => {
   const isLt13M = file.size / 1024 / 1024 < 13
 
   if (!isImage) {
-    ElMessage.error('只能上传图片文件!')
+    ElMessage.error(t('stage6.common.messages.uploadImagesOnly'))
     return false
   }
   if (!isLt13M) {
-    ElMessage.error('图片大小不能超过 13MB!')
+    ElMessage.error(t('stage6.components.recordTransaction.imageTooLarge'))
     return false
   }
-  return false // 阻止自动上传，由组件控制
+  return false // Prevent automatic upload; this component controls it.
 }
 
-// 重置表单
+// Reset the form
 const resetForm = () => {
   form.type = 'income'
   form.category = ''
@@ -315,13 +346,13 @@ const resetForm = () => {
   }
 }
 
-// 关闭对话框
+// Close the dialog
 const handleClose = () => {
   resetForm()
   visible.value = false
 }
 
-// 提交表单
+// Submit the form
 const handleSubmit = async () => {
   if (!formRef.value) return
 
@@ -329,7 +360,7 @@ const handleSubmit = async () => {
     await formRef.value.validate()
     submitting.value = true
 
-    // 构建提交数据
+    // Build submit data.
     const submitData = {
       type: form.type,
       category: form.category,
@@ -341,26 +372,24 @@ const handleSubmit = async () => {
       vouchers: form.vouchers,
     }
 
-    console.log('提交记账数据:', submitData)
-
-    // 调用API提交数据
+    // Submit data through the API.
     const response = await createNote(submitData)
 
     if (response.success) {
-      ElMessage.success('记账成功')
+      ElMessage.success(t('stage6.components.recordTransaction.submitSuccess'))
       emit('success')
       handleClose()
     } else {
-      ElMessage.error(response.message || '记账失败')
+      ElMessage.error(response.message || t('stage6.components.recordTransaction.submitFailed'))
     }
   } catch (error) {
-    console.error('表单验证失败:', error)
+    console.error('Form validation failed:', error)
   } finally {
     submitting.value = false
   }
 }
 
-// 组件挂载时初始化
+// Initialize on component mount.
 onMounted(() => {
   loadRooms()
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Plus, Upload, Check, Delete, Search, Edit, Star } from '@element-plus/icons-vue'
 import type {
@@ -44,6 +45,26 @@ const emit = defineEmits<{
   save: [data: RoomTypeEditForm]
 }>()
 
+const { t, locale } = useI18n()
+
+const createDefaultAmenities = (): Amenity[] => [
+  {
+    id: '1',
+    name: t('settingsStage4.roomTypeManagement.editor.amenities.airConditioner'),
+    category: t('settingsStage4.roomTypeManagement.editor.amenityCategories.core'),
+  },
+  {
+    id: '2',
+    name: t('settingsStage4.roomTypeManagement.editor.amenities.wifi'),
+    category: t('settingsStage4.roomTypeManagement.editor.amenityCategories.core'),
+  },
+  {
+    id: '3',
+    name: t('settingsStage4.roomTypeManagement.editor.amenities.smartLock'),
+    category: t('settingsStage4.roomTypeManagement.editor.amenityCategories.core'),
+  },
+]
+
 // 表单数据
 const editForm = ref<RoomTypeEditForm>({
   id: props.roomType.id,
@@ -65,16 +86,12 @@ const editForm = ref<RoomTypeEditForm>({
   },
   bedInfo: [
     {
-      type: '大床',
-      size: '2×1.8米',
+      type: t('settingsStage4.roomTypeManagement.editor.bedTypes.queen'),
+      size: t('settingsStage4.roomTypeManagement.editor.defaultBedSize'),
       count: 1,
     },
   ],
-  amenities: [
-    { id: '1', name: '空调', category: '核心设施' },
-    { id: '2', name: '无线网络', category: '核心设施' },
-    { id: '3', name: '智能门锁', category: '核心设施' },
-  ],
+  amenities: createDefaultAmenities(),
   tags: [],
   saleSettings: {
     includeBreakfast: 'none' as BreakfastOption,
@@ -88,40 +105,58 @@ const editForm = ref<RoomTypeEditForm>({
 
 // 房型类型选项
 const roomTypeOptions = [
-  { label: '套房', value: 'suite' as RoomTypeCategory },
-  { label: '营位', value: 'standard' as RoomTypeCategory },
-  { label: '账篷', value: 'luxury' as RoomTypeCategory },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.roomTypeOptions.suite', value: 'suite' as RoomTypeCategory },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.roomTypeOptions.standard', value: 'standard' as RoomTypeCategory },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.roomTypeOptions.luxury', value: 'luxury' as RoomTypeCategory },
 ]
 
 // 包含早餐选项
 const breakfastOptions = [
-  { label: '无早', value: 'none' as BreakfastOption },
-  { label: '单早', value: 'single' as BreakfastOption },
-  { label: '双早', value: 'double' as BreakfastOption },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.breakfastOptions.none', value: 'none' as BreakfastOption },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.breakfastOptions.single', value: 'single' as BreakfastOption },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.breakfastOptions.double', value: 'double' as BreakfastOption },
 ]
 
 // 接单设置选项
 const acceptanceOptions = [
-  { label: '手动接单', value: 'manual' as AcceptanceSetting },
-  { label: '自动接单', value: 'auto' as AcceptanceSetting },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.acceptanceOptions.manual', value: 'manual' as AcceptanceSetting },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.acceptanceOptions.auto', value: 'auto' as AcceptanceSetting },
 ]
 
 // 取消政策选项
 const cancellationPolicyOptions = [
-  { label: '一经确认，不可取消修改', value: 'confirmed_no_cancel' as CancellationPolicy },
-  { label: '入住日前可免费取消', value: 'free_cancel_before_checkin' as CancellationPolicy },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.cancellationPolicyOptions.confirmedNoCancel', value: 'confirmed_no_cancel' as CancellationPolicy },
+  { labelKey: 'settingsStage4.roomTypeManagement.editor.cancellationPolicyOptions.freeCancelBeforeCheckin', value: 'free_cancel_before_checkin' as CancellationPolicy },
 ]
 
 // 可用设施列表（模拟数据）
 const availableAmenities = ref<Amenity[]>([
-  { id: '1', name: '空调', category: '核心设施' },
-  { id: '2', name: '无线网络', category: '核心设施' },
-  { id: '3', name: '智能门锁', category: '核心设施' },
-  { id: '4', name: '电视', category: '娱乐设施' },
-  { id: '5', name: '冰箱', category: '生活设施' },
-  { id: '6', name: '热水器', category: '生活设施' },
-  { id: '7', name: '洗衣机', category: '生活设施' },
-  { id: '8', name: '阳台', category: '空间设施' },
+  ...createDefaultAmenities(),
+  {
+    id: '4',
+    name: t('settingsStage4.roomTypeManagement.editor.amenities.tv'),
+    category: t('settingsStage4.roomTypeManagement.editor.amenityCategories.entertainment'),
+  },
+  {
+    id: '5',
+    name: t('settingsStage4.roomTypeManagement.editor.amenities.fridge'),
+    category: t('settingsStage4.roomTypeManagement.editor.amenityCategories.living'),
+  },
+  {
+    id: '6',
+    name: t('settingsStage4.roomTypeManagement.editor.amenities.waterHeater'),
+    category: t('settingsStage4.roomTypeManagement.editor.amenityCategories.living'),
+  },
+  {
+    id: '7',
+    name: t('settingsStage4.roomTypeManagement.editor.amenities.washer'),
+    category: t('settingsStage4.roomTypeManagement.editor.amenityCategories.living'),
+  },
+  {
+    id: '8',
+    name: t('settingsStage4.roomTypeManagement.editor.amenities.balcony'),
+    category: t('settingsStage4.roomTypeManagement.editor.amenityCategories.space'),
+  },
 ])
 
 // 设施搜索
@@ -134,22 +169,39 @@ const previewData = computed(() => {
   const today = new Date()
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
+  const dateFormatter = new Intl.DateTimeFormat(locale.value, {
+    month: 'short',
+    day: 'numeric',
+  })
 
   return {
-    name: editForm.value.name || '房型名称',
-    externalName: editForm.value.externalName || '房型名称',
-    checkInDate: `${today.getMonth() + 1}月${today.getDate()}日`,
-    checkOutDate: `${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日`,
+    name: editForm.value.name || t('settingsStage4.roomTypeManagement.fields.roomTypeName'),
+    externalName: editForm.value.externalName || t('settingsStage4.roomTypeManagement.fields.roomTypeName'),
+    checkInDate: dateFormatter.format(today),
+    checkOutDate: dateFormatter.format(tomorrow),
     price: editForm.value.defaultPrice || 0,
-    weekdayLabel: '周一到五',
-    weekendLabel: `${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日 周末`,
+    weekdayLabel: t('settingsStage4.roomTypeManagement.editor.preview.weekdays'),
+    weekendLabel: t('settingsStage4.roomTypeManagement.editor.preview.weekendDate', {
+      date: dateFormatter.format(tomorrow),
+    }),
     capacity: editForm.value.capacity,
     bedInfo:
       editForm.value.bedInfo.length > 0
-        ? `${editForm.value.bedInfo[0].count}张${editForm.value.bedInfo[0].type} (${editForm.value.bedInfo[0].size})`
-        : `1张大床 (${editForm.value.area || 30}平米)`,
+        ? t('settingsStage4.roomTypeManagement.editor.preview.bedInfo', {
+            count: editForm.value.bedInfo[0].count,
+            type: editForm.value.bedInfo[0].type,
+            size: editForm.value.bedInfo[0].size,
+          })
+        : t('settingsStage4.roomTypeManagement.editor.preview.defaultBedInfo', {
+            area: editForm.value.area || 30,
+            type: t('settingsStage4.roomTypeManagement.editor.bedTypes.queen'),
+          }),
     area: editForm.value.area,
-    roomType: roomTypeOptions.find((opt) => opt.value === editForm.value.category)?.label || '套房',
+    roomType:
+      t(
+        roomTypeOptions.find((opt) => opt.value === editForm.value.category)?.labelKey ||
+          'settingsStage4.roomTypeManagement.editor.roomTypeOptions.suite',
+      ),
     image: editForm.value.images[0] || '/room-images/sample.jpg',
   }
 })
@@ -157,7 +209,7 @@ const previewData = computed(() => {
 // 图片上传处理
 const handleImageUpload = () => {
   // 模拟图片上传
-  ElMessage.success('图片上传功能演示')
+  ElMessage.success(t('settingsStage4.roomTypeManagement.editor.messages.imageUploadDemo'))
 }
 
 const addImage = () => {
@@ -170,14 +222,14 @@ const removeImage = (index: number) => {
 
 // 设置房型图片首图
 const setAsMainImage = () => {
-  ElMessage.success('已设置为首图')
+  ElMessage.success(t('settingsStage4.roomTypeManagement.editor.messages.mainImageSet'))
 }
 
 // 床型管理
 const addBedInfo = () => {
   editForm.value.bedInfo.push({
-    type: '大床',
-    size: '2×1.8米',
+    type: t('settingsStage4.roomTypeManagement.editor.bedTypes.queen'),
+    size: t('settingsStage4.roomTypeManagement.editor.defaultBedSize'),
     count: 1,
   })
 }
@@ -229,7 +281,7 @@ const addTag = () => {
 
   editForm.value.tags.push(newTag)
   newTagName.value = ''
-  ElMessage.success('添加标签成功')
+  ElMessage.success(t('settingsStage4.roomTypeManagement.editor.messages.tagAdded'))
 }
 
 const removeTag = (tagId: string) => {
@@ -254,12 +306,12 @@ watch(
 // 保存
 const handleSave = () => {
   if (!editForm.value.externalName.trim()) {
-    ElMessage.warning('请输入对外名称')
+    ElMessage.warning(t('settingsStage4.roomTypeManagement.editor.messages.externalNameRequired'))
     return
   }
 
   emit('save', editForm.value)
-  ElMessage.success('保存成功')
+  ElMessage.success(t('settings.common.saveSuccess'))
 }
 
 // 返回
@@ -275,14 +327,16 @@ const handleBack = () => {
       <div class="header-nav">
         <el-button text @click="handleBack" class="back-btn">
           <el-icon><ArrowLeft /></el-icon>
-          返回
+          {{ t('settingsStage4.roomTypeManagement.editor.actions.back') }}
         </el-button>
         <div class="nav-tabs">
-          <span class="nav-tab">房型房间设置</span>
-          <span class="nav-tab active">编辑房型</span>
+          <span class="nav-tab">{{ t('settingsStage4.roomTypeManagement.editor.nav.roomSettings') }}</span>
+          <span class="nav-tab active">{{ t('settingsStage4.roomTypeManagement.actions.editRoomType') }}</span>
         </div>
       </div>
-      <h2 class="editor-title">房型名称：{{ previewData.name }}</h2>
+      <h2 class="editor-title">
+        {{ t('settingsStage4.roomTypeManagement.editor.titleWithName', { name: previewData.name }) }}
+      </h2>
     </div>
 
     <!-- 主要内容区域 -->
@@ -300,14 +354,14 @@ const handleBack = () => {
             <div class="date-section">
               <div class="date-group">
                 <div class="date-item">
-                  <span class="date-label">入住日期</span>
+                  <span class="date-label">{{ t('settingsStage4.roomTypeManagement.editor.preview.checkInDate') }}</span>
                   <span class="date-value">{{ previewData.checkInDate }}</span>
                 </div>
                 <div class="date-separator">
-                  <span class="separator-text">共1夜</span>
+                  <span class="separator-text">{{ t('settingsStage4.roomTypeManagement.editor.preview.oneNight') }}</span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">退房</span>
+                  <span class="date-label">{{ t('settingsStage4.roomTypeManagement.editor.preview.checkOut') }}</span>
                   <span class="date-value">{{ previewData.checkOutDate }}</span>
                 </div>
               </div>
@@ -316,26 +370,28 @@ const handleBack = () => {
             <div class="room-basic-info">
               <div class="info-grid">
                 <div class="info-item">
-                  <span class="info-label">可住</span>
-                  <span class="info-value">{{ previewData.capacity }}人</span>
+                  <span class="info-label">{{ t('settingsStage4.roomTypeManagement.editor.preview.capacity') }}</span>
+                  <span class="info-value">
+                    {{ t('settingsStage4.roomTypeManagement.editor.units.guests', { count: previewData.capacity }) }}
+                  </span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">面积</span>
+                  <span class="info-label">{{ t('settingsStage4.roomTypeManagement.editor.preview.area') }}</span>
                   <span class="info-value">{{ previewData.area }}m²</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">套餐</span>
-                  <span class="info-value">无套餐</span>
+                  <span class="info-label">{{ t('settingsStage4.roomTypeManagement.editor.preview.package') }}</span>
+                  <span class="info-value">{{ t('settingsStage4.roomTypeManagement.editor.preview.noPackage') }}</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">床型</span>
+                  <span class="info-label">{{ t('settingsStage4.roomTypeManagement.editor.preview.bedType') }}</span>
                   <span class="info-value">{{ previewData.bedInfo }}</span>
                 </div>
               </div>
             </div>
 
             <div class="amenities-section">
-              <h4>设施服务</h4>
+              <h4>{{ t('settingsStage4.roomTypeManagement.editor.sections.amenities') }}</h4>
               <div class="amenities-list">
                 <div
                   v-for="amenity in editForm.amenities.slice(0, 4)"
@@ -347,14 +403,14 @@ const handleBack = () => {
                 </div>
                 <div v-if="editForm.amenities.length > 4" class="amenity-item">
                   <el-icon class="amenity-icon"><Check /></el-icon>
-                  <span>更多设施</span>
+                  <span>{{ t('settingsStage4.roomTypeManagement.editor.preview.moreAmenities') }}</span>
                 </div>
               </div>
             </div>
 
             <!-- 退订政策 -->
             <div class="cancellation-policy">
-              <h4>退订政策</h4>
+              <h4>{{ t('settingsStage4.roomTypeManagement.editor.sections.cancellationPolicy') }}</h4>
               <div class="policy-tag">
                 <el-tag
                   :type="
@@ -367,8 +423,8 @@ const handleBack = () => {
                 >
                   {{
                     editForm.saleSettings.cancellationPolicy === 'free_cancel_before_checkin'
-                      ? '可变更'
-                      : '订单确认，不可变更'
+                      ? t('settingsStage4.roomTypeManagement.editor.policyChangeable')
+                      : t('settingsStage4.roomTypeManagement.editor.policyConfirmedNoCancel')
                   }}
                 </el-tag>
               </div>
@@ -376,7 +432,7 @@ const handleBack = () => {
 
             <!-- 相关说明 -->
             <div v-if="editForm.description_rich" class="description-section">
-              <h4>相关说明</h4>
+              <h4>{{ t('settingsStage4.roomTypeManagement.editor.sections.description') }}</h4>
             </div>
           </div>
 
@@ -384,11 +440,11 @@ const handleBack = () => {
             <div class="footer-actions">
               <el-button text class="note-btn">
                 <el-icon><Edit /></el-icon>
-                笔记
+                {{ t('settingsStage4.roomTypeManagement.editor.preview.note') }}
               </el-button>
               <el-button text class="subscribe-btn">
                 <el-icon><Star /></el-icon>
-                订阅
+                {{ t('settingsStage4.roomTypeManagement.editor.preview.subscribe') }}
               </el-button>
             </div>
             <div class="price-section">
@@ -396,7 +452,9 @@ const handleBack = () => {
                 <span class="currency">¥</span>
                 <span class="price">{{ previewData.price.toFixed(0) }}</span>
               </div>
-              <el-button type="primary" class="book-btn">预订</el-button>
+              <el-button type="primary" class="book-btn">
+                {{ t('settingsStage4.roomTypeManagement.editor.preview.book') }}
+              </el-button>
             </div>
           </div>
         </div>
@@ -406,99 +464,107 @@ const handleBack = () => {
       <div class="form-section">
         <el-form :model="editForm" label-width="100px" class="edit-form">
           <!-- 对外名称 -->
-          <el-form-item label="对外名称" required>
-            <el-input v-model="editForm.externalName" placeholder="请输入对外名称" />
-            <div class="form-help">对外名称用于在C端展示给客户</div>
+          <el-form-item :label="t('settingsStage4.roomTypeManagement.editor.fields.externalName')" required>
+            <el-input
+              v-model="editForm.externalName"
+              :placeholder="t('settingsStage4.roomTypeManagement.editor.placeholders.externalName')"
+            />
+            <div class="form-help">{{ t('settingsStage4.roomTypeManagement.editor.hints.externalName') }}</div>
           </el-form-item>
 
           <!-- 房型图片 -->
-          <el-form-item label="房型图片" required>
+          <el-form-item :label="t('settingsStage4.roomTypeManagement.editor.fields.roomImages')" required>
             <div class="image-upload-section">
               <div class="image-list">
                 <div v-for="(image, index) in editForm.images" :key="index" class="image-item">
-                  <img :src="image" :alt="`房型图片${index + 1}`" />
+                  <img
+                    :src="image"
+                    :alt="t('settingsStage4.roomTypeManagement.editor.imageAlt', { index: index + 1 })"
+                  />
                   <div class="image-overlay">
-                    <el-button text @click="removeImage(index)" class="remove-btn">删除</el-button>
+                    <el-button text @click="removeImage(index)" class="remove-btn">
+                      {{ t('settings.common.delete') }}
+                    </el-button>
                   </div>
                 </div>
                 <div class="image-upload-btn" @click="addImage">
                   <el-icon><Plus /></el-icon>
-                  <span>添加图片</span>
+                  <span>{{ t('settingsStage4.roomTypeManagement.editor.actions.addImage') }}</span>
                 </div>
               </div>
               <div class="upload-help">
-                请上传房型，至少1张，推荐宽高比5:3，支持JPG、JPEG、GIF格式，大小需不于5M，最多可上传20张
+                {{ t('settingsStage4.roomTypeManagement.editor.hints.uploadImages') }}
               </div>
               <el-button type="primary" link @click="setAsMainImage">
-                设置房型图片首图跳转
+                {{ t('settingsStage4.roomTypeManagement.editor.actions.setMainImage') }}
               </el-button>
             </div>
           </el-form-item>
 
           <!-- 房型房间基础信息 -->
-          <el-form-item label="房型房间基础信息" required>
+          <el-form-item :label="t('settingsStage4.roomTypeManagement.editor.fields.basicInfo')" required>
             <div class="basic-info-section">
               <div class="info-row-form">
-                <span class="info-label-form">房型类型</span>
+                <span class="info-label-form">{{ t('settingsStage4.roomTypeManagement.editor.fields.roomTypeCategory') }}</span>
                 <el-radio-group v-model="editForm.category" class="room-type-radios">
                   <el-radio
                     v-for="option in roomTypeOptions"
                     :key="option.value"
                     :label="option.value"
                   >
-                    {{ option.label }}
+                    {{ t(option.labelKey) }}
                   </el-radio>
                 </el-radio-group>
               </div>
 
               <div class="info-row-form">
-                <span class="info-label-form">面积</span>
+                <span class="info-label-form">{{ t('settingsStage4.roomTypeManagement.editor.fields.area') }}</span>
                 <el-input-number v-model="editForm.area" :min="1" class="area-input" />
                 <span class="unit">m²</span>
               </div>
 
               <div class="info-row-form">
-                <span class="info-label-form">可住</span>
+                <span class="info-label-form">{{ t('settingsStage4.roomTypeManagement.editor.fields.capacity') }}</span>
                 <el-input-number v-model="editForm.capacity" :min="1" class="capacity-input" />
-                <span class="unit">人</span>
+                <span class="unit">{{ t('settingsStage4.roomTypeManagement.editor.units.people') }}</span>
               </div>
 
               <!-- 户型设置 -->
               <div class="info-row-form">
-                <span class="info-label-form">户型</span>
+                <span class="info-label-form">{{ t('settingsStage4.roomTypeManagement.editor.fields.layout') }}</span>
                 <div class="room-layout-inputs">
                   <div class="layout-item">
-                    <span class="layout-label">卧室</span>
+                    <span class="layout-label">{{ t('settingsStage4.roomTypeManagement.editor.layout.bedroom') }}</span>
                     <el-select v-model="editForm.roomLayout.bedroom" class="layout-select">
                       <el-option v-for="n in 10" :key="n - 1" :label="n - 1" :value="n - 1" />
                     </el-select>
                   </div>
                   <div class="layout-item">
-                    <span class="layout-label">卫生间</span>
+                    <span class="layout-label">{{ t('settingsStage4.roomTypeManagement.editor.layout.bathroom') }}</span>
                     <el-select v-model="editForm.roomLayout.bathroom" class="layout-select">
                       <el-option v-for="n in 10" :key="n - 1" :label="n - 1" :value="n - 1" />
                     </el-select>
                   </div>
                   <div class="layout-item">
-                    <span class="layout-label">客厅</span>
+                    <span class="layout-label">{{ t('settingsStage4.roomTypeManagement.editor.layout.livingRoom') }}</span>
                     <el-select v-model="editForm.roomLayout.livingRoom" class="layout-select">
                       <el-option v-for="n in 10" :key="n - 1" :label="n - 1" :value="n - 1" />
                     </el-select>
                   </div>
                   <div class="layout-item">
-                    <span class="layout-label">厨房</span>
+                    <span class="layout-label">{{ t('settingsStage4.roomTypeManagement.editor.layout.kitchen') }}</span>
                     <el-select v-model="editForm.roomLayout.kitchen" class="layout-select">
                       <el-option v-for="n in 10" :key="n - 1" :label="n - 1" :value="n - 1" />
                     </el-select>
                   </div>
                   <div class="layout-item">
-                    <span class="layout-label">书房</span>
+                    <span class="layout-label">{{ t('settingsStage4.roomTypeManagement.editor.layout.study') }}</span>
                     <el-select v-model="editForm.roomLayout.study" class="layout-select">
                       <el-option v-for="n in 10" :key="n - 1" :label="n - 1" :value="n - 1" />
                     </el-select>
                   </div>
                   <div class="layout-item">
-                    <span class="layout-label">阳台</span>
+                    <span class="layout-label">{{ t('settingsStage4.roomTypeManagement.editor.layout.balcony') }}</span>
                     <el-select v-model="editForm.roomLayout.balcony" class="layout-select">
                       <el-option v-for="n in 10" :key="n - 1" :label="n - 1" :value="n - 1" />
                     </el-select>
@@ -508,13 +574,21 @@ const handleBack = () => {
 
               <!-- 床型设置 -->
               <div class="info-row-form">
-                <span class="info-label-form">床型</span>
+                <span class="info-label-form">{{ t('settingsStage4.roomTypeManagement.editor.fields.bedType') }}</span>
                 <div class="bed-info-list">
                   <div v-for="(bed, index) in editForm.bedInfo" :key="index" class="bed-info-item">
-                    <el-input v-model="bed.type" placeholder="床型" class="bed-type-input" />
-                    <el-input v-model="bed.size" placeholder="尺寸" class="bed-size-input" />
+                    <el-input
+                      v-model="bed.type"
+                      :placeholder="t('settingsStage4.roomTypeManagement.editor.placeholders.bedType')"
+                      class="bed-type-input"
+                    />
+                    <el-input
+                      v-model="bed.size"
+                      :placeholder="t('settingsStage4.roomTypeManagement.editor.placeholders.bedSize')"
+                      class="bed-size-input"
+                    />
                     <el-input-number v-model="bed.count" :min="1" class="bed-count-input" />
-                    <span class="unit">张</span>
+                    <span class="unit">{{ t('settingsStage4.roomTypeManagement.editor.units.beds') }}</span>
                     <el-button
                       text
                       @click="removeBedInfo(index)"
@@ -524,7 +598,7 @@ const handleBack = () => {
                     </el-button>
                   </div>
                   <el-button type="primary" link @click="addBedInfo" class="add-bed-btn">
-                    <el-icon><Plus /></el-icon> 添加规格
+                    <el-icon><Plus /></el-icon> {{ t('settingsStage4.roomTypeManagement.editor.actions.addSpec') }}
                   </el-button>
                 </div>
               </div>
@@ -532,11 +606,11 @@ const handleBack = () => {
           </el-form-item>
 
           <!-- 销售设置&取消政策 -->
-          <el-form-item label="销售设置&取消政策" required>
+          <el-form-item :label="t('settingsStage4.roomTypeManagement.editor.fields.salesAndPolicy')" required>
             <div class="sales-settings-section">
               <!-- 是否包含早餐 -->
               <div class="setting-row">
-                <span class="setting-label">是否包含早餐</span>
+                <span class="setting-label">{{ t('settingsStage4.roomTypeManagement.editor.fields.includeBreakfast') }}</span>
                 <el-radio-group
                   v-model="editForm.saleSettings.includeBreakfast"
                   class="breakfast-radios"
@@ -546,14 +620,14 @@ const handleBack = () => {
                     :key="option.value"
                     :label="option.value"
                   >
-                    {{ option.label }}
+                    {{ t(option.labelKey) }}
                   </el-radio>
                 </el-radio-group>
               </div>
 
               <!-- 当晚最晚预订时间 -->
               <div class="setting-row">
-                <span class="setting-label">当晚最晚预订时间</span>
+                <span class="setting-label">{{ t('settingsStage4.roomTypeManagement.editor.fields.latestBookingTime') }}</span>
                 <el-select v-model="editForm.saleSettings.latestCheckInTime" class="time-picker">
                   <el-option value="18:00" label="18:00" />
                   <el-option value="20:00" label="20:00" />
@@ -564,7 +638,7 @@ const handleBack = () => {
 
               <!-- 接单设置 -->
               <div class="setting-row">
-                <span class="setting-label">接单设置</span>
+                <span class="setting-label">{{ t('settingsStage4.roomTypeManagement.editor.fields.acceptanceSetting') }}</span>
                 <el-radio-group
                   v-model="editForm.saleSettings.acceptanceSetting"
                   class="acceptance-radios"
@@ -574,14 +648,14 @@ const handleBack = () => {
                     :key="option.value"
                     :label="option.value"
                   >
-                    {{ option.label }}
+                    {{ t(option.labelKey) }}
                   </el-radio>
                 </el-radio-group>
               </div>
 
               <!-- 取消政策 -->
               <div class="setting-row">
-                <span class="setting-label">取消政策</span>
+                <span class="setting-label">{{ t('settingsStage4.roomTypeManagement.editor.fields.cancellationPolicy') }}</span>
                 <el-radio-group
                   v-model="editForm.saleSettings.cancellationPolicy"
                   class="cancellation-radios"
@@ -591,7 +665,7 @@ const handleBack = () => {
                     :key="option.value"
                     :label="option.value"
                   >
-                    {{ option.label }}
+                    {{ t(option.labelKey) }}
                   </el-radio>
                 </el-radio-group>
               </div>
@@ -602,27 +676,27 @@ const handleBack = () => {
                 class="setting-row"
               >
                 <div class="cancel-days-setting">
-                  <span>入住日</span>
+                  <span>{{ t('settingsStage4.roomTypeManagement.editor.fields.checkInDate') }}</span>
                   <el-input-number
                     v-model="editForm.saleSettings.freeCancelDays"
                     :min="0"
                     class="cancel-days-input"
                   />
-                  <span>天</span>
-                  <span class="setting-note">前可免费取消</span>
+                  <span>{{ t('settingsStage4.roomTypeManagement.editor.units.days') }}</span>
+                  <span class="setting-note">{{ t('settingsStage4.roomTypeManagement.editor.hints.freeCancelBefore') }}</span>
                 </div>
               </div>
             </div>
           </el-form-item>
 
           <!-- 房间设施 -->
-          <el-form-item label="房间设施">
+          <el-form-item :label="t('settingsStage4.roomTypeManagement.editor.fields.roomAmenities')">
             <div class="amenities-management">
               <!-- 搜索添加设施 -->
               <div class="amenity-search">
                 <el-input
                   v-model="amenitySearchText"
-                  placeholder="搜索已添加的设施名称"
+                  :placeholder="t('settingsStage4.roomTypeManagement.editor.placeholders.searchAmenities')"
                   class="search-input"
                   @input="searchAmenities"
                 >
@@ -634,14 +708,16 @@ const handleBack = () => {
                 <!-- 搜索结果 -->
                 <div v-if="showSearchResults" class="search-results">
                   <div class="results-header">
-                    <span class="results-title">设施分类</span>
-                    <span class="results-title">设施名称</span>
-                    <span class="results-title">操作</span>
+                    <span class="results-title">{{ t('settingsStage4.roomTypeManagement.editor.columns.amenityCategory') }}</span>
+                    <span class="results-title">{{ t('settingsStage4.roomTypeManagement.editor.columns.amenityName') }}</span>
+                    <span class="results-title">{{ t('settings.common.actions') }}</span>
                   </div>
                   <div v-for="amenity in searchResults" :key="amenity.id" class="result-item">
                     <span class="result-category">{{ amenity.category }}</span>
                     <span class="result-name">{{ amenity.name }}</span>
-                    <el-button text type="danger" @click="addAmenity(amenity)">添加</el-button>
+                    <el-button text type="danger" @click="addAmenity(amenity)">
+                      {{ t('settings.common.add') }}
+                    </el-button>
                   </div>
                 </div>
               </div>
@@ -649,35 +725,39 @@ const handleBack = () => {
               <!-- 已选设施列表 -->
               <div v-if="editForm.amenities.length" class="selected-amenities">
                 <div class="amenities-header">
-                  <span class="amenities-title">设施分类</span>
-                  <span class="amenities-title">设施名称</span>
-                  <span class="amenities-title">操作</span>
+                  <span class="amenities-title">{{ t('settingsStage4.roomTypeManagement.editor.columns.amenityCategory') }}</span>
+                  <span class="amenities-title">{{ t('settingsStage4.roomTypeManagement.editor.columns.amenityName') }}</span>
+                  <span class="amenities-title">{{ t('settings.common.actions') }}</span>
                 </div>
                 <div v-for="amenity in editForm.amenities" :key="amenity.id" class="amenity-row">
                   <span class="amenity-category">{{ amenity.category }}</span>
                   <span class="amenity-name">{{ amenity.name }}</span>
-                  <el-button text type="danger" @click="removeAmenity(amenity.id)">删除</el-button>
+                  <el-button text type="danger" @click="removeAmenity(amenity.id)">
+                    {{ t('settings.common.delete') }}
+                  </el-button>
                 </div>
-                <div class="pagination-info">共 {{ editForm.amenities.length }} 条</div>
+                <div class="pagination-info">
+                  {{ t('settingsStage4.common.itemsTotal', { count: editForm.amenities.length }) }}
+                </div>
               </div>
             </div>
           </el-form-item>
 
           <!-- 房型标签 -->
-          <el-form-item label="房型标签">
+          <el-form-item :label="t('settingsStage4.roomTypeManagement.editor.fields.roomTags')">
             <div class="tags-management">
-              <div class="tag-note">房型标签可在日房型商品列表展示，消费者可通过此标签筛选房型</div>
+              <div class="tag-note">{{ t('settingsStage4.roomTypeManagement.editor.hints.roomTags') }}</div>
 
               <!-- 添加标签 -->
               <div class="add-tag-section">
                 <el-input
                   v-model="newTagName"
-                  placeholder="请输入标签名称"
+                  :placeholder="t('settingsStage4.roomTypeManagement.editor.placeholders.tagName')"
                   class="tag-input"
                   @keyup.enter="addTag"
                 />
                 <el-button type="primary" link @click="addTag">
-                  <el-icon><Plus /></el-icon> 添加标签
+                  <el-icon><Plus /></el-icon> {{ t('settingsStage4.roomTypeManagement.editor.actions.addTag') }}
                 </el-button>
               </div>
 
@@ -698,13 +778,13 @@ const handleBack = () => {
           </el-form-item>
 
           <!-- 相关说明 -->
-          <el-form-item label="相关说明">
+          <el-form-item :label="t('settingsStage4.roomTypeManagement.editor.sections.description')">
             <div class="description-section">
               <el-input
                 v-model="editForm.description_rich"
                 type="textarea"
                 :rows="6"
-                placeholder="请输入相关说明..."
+                :placeholder="t('settingsStage4.roomTypeManagement.editor.placeholders.description')"
                 maxlength="5000"
                 show-word-limit
                 class="description-textarea"
@@ -716,7 +796,9 @@ const handleBack = () => {
 
         <!-- 完成按钮 -->
         <div class="form-footer">
-          <el-button type="primary" @click="handleSave" class="save-btn"> 完成 </el-button>
+          <el-button type="primary" @click="handleSave" class="save-btn">
+            {{ t('settingsStage4.roomTypeManagement.editor.actions.done') }}
+          </el-button>
         </div>
       </div>
     </div>

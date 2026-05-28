@@ -4,11 +4,11 @@
     <div class="notice-section">
       <div class="notice-item">
         <span class="notice-number">1.</span>
-        <span class="notice-text">默认展示三个渠道：Airbnb、Booking.com、自来客。</span>
+        <span class="notice-text">{{ t('settings.generalChannel.notices.defaultChannels') }}</span>
       </div>
       <div class="notice-item">
         <span class="notice-number">2.</span>
-        <span class="notice-text">系统预设渠道不可删除；新增渠道可按需删除。</span>
+        <span class="notice-text">{{ t('settings.generalChannel.notices.presetProtected') }}</span>
       </div>
     </div>
 
@@ -16,17 +16,19 @@
     <div class="section">
       <div class="section-header">
         <div class="section-title-wrapper">
-          <h3 class="section-title">可用渠道</h3>
-          <span class="section-subtitle">即在新增订单、编辑订单、可选中的渠道。</span>
+          <h3 class="section-title">{{ t('settings.generalChannel.available') }}</h3>
+          <span class="section-subtitle">{{ t('settings.generalChannel.availableDesc') }}</span>
         </div>
         <div class="section-actions">
           <el-checkbox :model-value="selectAllChannels" @change="handleToggleSelectAll">
-            全选
+            {{ t('settings.generalChannel.selectAll') }}
           </el-checkbox>
           <el-button type="danger" plain :disabled="selectedCount === 0" @click="handleDeleteSelected">
-            删除选中（{{ selectedCount }}）
+            {{ t('settings.generalChannel.deleteSelected', { count: selectedCount }) }}
           </el-button>
-          <el-button type="primary" @click="handleAddChannel">新增渠道</el-button>
+          <el-button type="primary" @click="handleAddChannel">
+            {{ t('settings.generalChannel.add') }}
+          </el-button>
         </div>
       </div>
 
@@ -35,7 +37,7 @@
         <div v-if="showChannelInput" class="channel-item editing">
           <el-input
             v-model="newChannelName"
-            placeholder=""
+            :placeholder="t('settings.generalChannel.namePlaceholder')"
             maxlength="20"
             @keyup.enter="handleSaveNewChannel"
           />
@@ -88,6 +90,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Check, Close, Menu, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -97,6 +100,8 @@ import {
   type ChannelDTO,
   type CreateChannelRequest,
 } from '@/api/channel'
+
+const { t } = useI18n()
 
 interface Channel {
   id: number
@@ -182,7 +187,7 @@ const loadChannels = async () => {
     }
   } catch (error) {
     console.error('加载渠道数据失败:', error)
-    ElMessage.error('加载渠道数据失败')
+    ElMessage.error(t('settings.generalChannel.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -214,7 +219,7 @@ const handleAddChannel = () => {
 // 保存新增渠道
 const handleSaveNewChannel = async () => {
   if (!newChannelName.value.trim()) {
-    ElMessage.warning('请输入渠道名称')
+    ElMessage.warning(t('settings.generalChannel.messages.nameRequired'))
     return
   }
 
@@ -234,11 +239,11 @@ const handleSaveNewChannel = async () => {
       await loadChannels()
       showChannelInput.value = false
       newChannelName.value = ''
-      ElMessage.success('新增渠道成功')
+      ElMessage.success(t('settings.generalChannel.messages.addSuccess'))
     }
   } catch (error) {
     console.error('新增渠道失败:', error)
-    ElMessage.error('新增渠道失败')
+    ElMessage.error(t('settings.generalChannel.messages.addFailed'))
   }
 }
 
@@ -250,30 +255,34 @@ const handleCancelNewChannel = () => {
 
 const handleDeleteChannel = async (channel: Channel) => {
   if (isProtectedChannel(channel)) {
-    ElMessage.warning('默认渠道不可删除')
+    ElMessage.warning(t('settings.generalChannel.messages.protectedCannotDelete'))
     return
   }
 
   try {
-    await ElMessageBox.confirm(`确定删除渠道“${channel.name}”吗？`, '删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('settings.generalChannel.messages.deleteConfirm', { name: channel.name }),
+      t('settings.common.deleteConfirmTitle'),
+      {
+        confirmButtonText: t('settings.common.confirmButton'),
+        cancelButtonText: t('settings.common.cancelButton'),
+        type: 'warning',
+      },
+    )
 
     const response = await deleteChannelApi(channel.id)
     if (!response.success) {
-      ElMessage.error(response.message || '删除渠道失败')
+      ElMessage.error(response.message || t('settings.generalChannel.messages.deleteFailed'))
       return
     }
 
     selectedChannelIds.value = selectedChannelIds.value.filter((id) => id !== channel.id)
-    ElMessage.success('删除渠道成功')
+    ElMessage.success(t('settings.generalChannel.messages.deleteSuccess'))
     await loadChannels()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除渠道失败:', error)
-      ElMessage.error('删除渠道失败')
+      ElMessage.error(t('settings.generalChannel.messages.deleteFailed'))
     }
   }
 }
@@ -289,22 +298,29 @@ const handleDeleteSelected = async () => {
   const deletableChannels = selectedChannels.filter((channel) => !isProtectedChannel(channel))
 
   if (deletableChannels.length === 0) {
-    ElMessage.warning('选中的默认渠道不可删除')
+    ElMessage.warning(t('settings.generalChannel.messages.selectedProtectedCannotDelete'))
     return
   }
 
   try {
-    await ElMessageBox.confirm(`确定删除选中的 ${deletableChannels.length} 个渠道吗？`, '批量删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('settings.generalChannel.messages.batchDeleteConfirm', { count: deletableChannels.length }),
+      t('settings.common.batchDeleteConfirmTitle'),
+      {
+        confirmButtonText: t('settings.common.confirmButton'),
+        cancelButtonText: t('settings.common.cancelButton'),
+        type: 'warning',
+      },
+    )
 
     const results = await Promise.allSettled(
       deletableChannels.map(async (channel) => {
         const response = await deleteChannelApi(channel.id)
         if (!response.success) {
-          throw new Error(response.message || `删除失败: ${channel.name}`)
+          throw new Error(
+            response.message ||
+              t('settings.generalChannel.messages.batchDeleteItemFailed', { name: channel.name }),
+          )
         }
         return channel.name
       }),
@@ -316,14 +332,16 @@ const handleDeleteSelected = async () => {
     await loadChannels()
 
     if (failedCount === 0) {
-      ElMessage.success(`批量删除成功，共删除 ${successCount} 个渠道`)
+      ElMessage.success(t('settings.generalChannel.messages.batchDeleteSuccess', { count: successCount }))
     } else {
-      ElMessage.warning(`批量删除完成：成功 ${successCount} 个，失败 ${failedCount} 个`)
+      ElMessage.warning(
+        t('settings.generalChannel.messages.batchDeletePartial', { successCount, failedCount }),
+      )
     }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('批量删除渠道失败:', error)
-      ElMessage.error('批量删除渠道失败')
+      ElMessage.error(t('settings.generalChannel.messages.batchDeleteFailed'))
     }
   }
 }

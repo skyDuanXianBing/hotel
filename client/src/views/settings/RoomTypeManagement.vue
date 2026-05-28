@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, View, Upload } from '@element-plus/icons-vue'
 import RoomTypeEditor from './RoomTypeEditor.vue'
@@ -46,6 +47,9 @@ interface NewRoomTypeForm {
   roomNumbers: string[]
 }
 
+type RoomTypeTab = 'ownership' | 'import' | 'add'
+
+const { t } = useI18n()
 const roomTypes = ref<RoomType[]>([])
 
 const currentPage = ref(1)
@@ -53,8 +57,12 @@ const pageSize = ref(25)
 const total = computed(() => roomTypes.value.length)
 const loading = ref(false)
 
-const activeTab = ref('房间归属')
-const tabs = ['房间归属', '导入房型', '新增房型']
+const activeTab = ref<RoomTypeTab>('ownership')
+const tabs = [
+  { key: 'ownership', label: 'settingsStage4.roomTypeManagement.tabs.ownership' },
+  { key: 'import', label: 'settingsStage4.roomTypeManagement.tabs.importRoomTypes' },
+  { key: 'add', label: 'settingsStage4.roomTypeManagement.tabs.addRoomType' },
+] as const
 
 // 编辑房型状态
 const isEditing = ref(false)
@@ -134,11 +142,11 @@ const loadRoomTypes = async () => {
         channel: '-', // 临时默认值
       }))
     } else {
-      ElMessage.error(response.message || '获取房型列表失败')
+      ElMessage.error(response.message || t('settingsStage4.roomTypeManagement.messages.loadFailed'))
     }
   } catch (error) {
     console.error('获取房型列表失败:', error)
-    ElMessage.error('获取房型列表失败')
+    ElMessage.error(t('settingsStage4.roomTypeManagement.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -149,16 +157,16 @@ const createRoomTypeApi = async (roomTypeData: any) => {
   try {
     const response = (await request.post('/room-types', roomTypeData)) as any
     if (response.success) {
-      ElMessage.success(response.message || '房型创建成功')
+      ElMessage.success(response.message || t('settingsStage4.roomTypeManagement.messages.createSuccess'))
       await loadRoomTypes() // 重新加载数据
       return true
     } else {
-      ElMessage.error(response.message || '房型创建失败')
+      ElMessage.error(response.message || t('settingsStage4.roomTypeManagement.messages.createFailed'))
       return false
     }
   } catch (error) {
     console.error('创建房型失败:', error)
-    ElMessage.error('创建房型失败')
+    ElMessage.error(t('settingsStage4.roomTypeManagement.messages.createFailed'))
     return false
   } finally {
     loading.value = false
@@ -170,25 +178,25 @@ const deleteRoomTypeApi = async (id: number) => {
   try {
     const response = (await request.delete(`/room-types/${id}`)) as any
     if (response.success) {
-      ElMessage.success(response.message || '房型删除成功')
+      ElMessage.success(response.message || t('settingsStage4.roomTypeManagement.messages.deleteSuccess'))
       await loadRoomTypes() // 重新加载数据
       return true
     } else {
-      ElMessage.error(response.message || '房型删除失败')
+      ElMessage.error(response.message || t('settingsStage4.roomTypeManagement.messages.deleteFailed'))
       return false
     }
   } catch (error) {
     console.error('删除房型失败:', error)
-    ElMessage.error('删除房型失败')
+    ElMessage.error(t('settingsStage4.roomTypeManagement.messages.deleteFailed'))
     return false
   } finally {
     loading.value = false
   }
 }
 
-const handleTabClick = (tab: string) => {
+const handleTabClick = (tab: RoomTypeTab) => {
   activeTab.value = tab
-  if (tab === '新增房型') {
+  if (tab === 'add') {
     resetForm()
   }
 }
@@ -227,24 +235,24 @@ const removeRoom = (index: number) => {
 }
 
 const handleCancel = () => {
-  activeTab.value = '房间归属'
+  activeTab.value = 'ownership'
   resetForm()
 }
 
 const handleAddRoomType = async () => {
   if (!newRoomTypeForm.value.name.trim()) {
-    ElMessage.warning('请输入房型名称')
+    ElMessage.warning(t('settingsStage4.roomTypeManagement.messages.nameRequired'))
     return
   }
   if (!newRoomTypeForm.value.description.trim()) {
-    ElMessage.warning('请输入房型简称')
+    ElMessage.warning(t('settingsStage4.roomTypeManagement.messages.shortNameRequired'))
     return
   }
   if (
     newRoomTypeForm.value.roomCreationType === 'sync' &&
     newRoomTypeForm.value.roomNumbers.length === 0
   ) {
-    ElMessage.warning('请至少添加一个房间')
+    ElMessage.warning(t('settingsStage4.roomTypeManagement.messages.roomRequired'))
     return
   }
 
@@ -311,11 +319,11 @@ const handleSaveBasicInfo = async (data: any) => {
     const currentRoomType =
       editingBasicInfoRoomType.value ?? roomTypes.value.find((r) => r.id === data.id) ?? null
     if (!currentRoomType?.code) {
-      ElMessage.error('房型代码缺失，无法保存。请刷新页面后重试。')
+      ElMessage.error(t('settingsStage4.roomTypeManagement.messages.codeMissing'))
       return
     }
     if (currentRoomType.maxGuests == null) {
-      ElMessage.error('最大入住人数缺失，无法保存。请刷新页面后重试。')
+      ElMessage.error(t('settingsStage4.roomTypeManagement.messages.maxGuestsMissing'))
       return
     }
 
@@ -332,26 +340,26 @@ const handleSaveBasicInfo = async (data: any) => {
 
     const response = (await request.put(`/room-types/${data.id}`, roomTypeData)) as any
     if (response.success) {
-      ElMessage.success(response.message || '房型更新成功')
+      ElMessage.success(response.message || t('settingsStage4.roomTypeManagement.messages.updateSuccess'))
       // 重新加载数据以确保显示最新的后端数据
       await loadRoomTypes()
     } else {
-      ElMessage.error(response.message || '房型更新失败')
+      ElMessage.error(response.message || t('settingsStage4.roomTypeManagement.messages.updateFailed'))
     }
   } catch (error) {
     console.error('更新房型失败:', error)
-    ElMessage.error('房型更新失败')
+    ElMessage.error(t('settingsStage4.roomTypeManagement.messages.updateFailed'))
   }
   handleBackFromBasicEditor()
 }
 
 const handleDeleteRoomType = (roomType: RoomType) => {
   ElMessageBox.confirm(
-    `确定要删除房型"${roomType.name}"吗？删除后该房型下的所有房间也将被删除。`,
-    '确认删除',
+    t('settingsStage4.roomTypeManagement.messages.deleteConfirm', { name: roomType.name }),
+    t('settings.common.deleteConfirmTitle'),
     {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+      confirmButtonText: t('settings.common.confirmButton'),
+      cancelButtonText: t('settings.common.cancelButton'),
       type: 'warning',
     },
   )
@@ -369,7 +377,7 @@ const handleViewDetails = (roomType: RoomType) => {
 }
 
 const handleRoomSchedule = (roomType: RoomType) => {
-  ElMessage.info(`查看房间排序：${roomType.name}`)
+  ElMessage.info(t('settingsStage4.roomTypeManagement.messages.viewRoomSort', { name: roomType.name }))
 }
 
 // 字符计数
@@ -407,25 +415,25 @@ onMounted(() => {
         <div class="tabs-container">
           <button
             v-for="tab in tabs"
-            :key="tab"
-            :class="['tab-button', { active: activeTab === tab }]"
-            @click="handleTabClick(tab)"
+            :key="tab.key"
+            :class="['tab-button', { active: activeTab === tab.key }]"
+            @click="handleTabClick(tab.key)"
           >
-            {{ tab }}
+            {{ t(tab.label) }}
           </button>
         </div>
       </div>
 
       <!-- 房间归属表格 -->
-      <div v-if="activeTab === '房间归属'" class="table-container">
+      <div v-if="activeTab === 'ownership'" class="table-container">
         <el-table
           :data="roomTypes"
           style="width: 100%"
           class="room-type-table"
           v-loading="loading"
-          element-loading-text="加载房型数据中..."
+          :element-loading-text="t('settingsStage4.roomTypeManagement.messages.loading')"
         >
-          <el-table-column prop="name" label="房型名称" width="180">
+          <el-table-column prop="name" :label="t('settingsStage4.roomTypeManagement.columns.roomTypeName')" width="180">
             <template #default="{ row }">
               <div class="room-type-cell">
                 <div class="room-icon">
@@ -437,39 +445,43 @@ onMounted(() => {
             </template>
           </el-table-column>
 
-          <el-table-column prop="description" label="简称" width="180" />
+          <el-table-column prop="description" :label="t('settingsStage4.roomTypeManagement.columns.shortName')" width="180" />
 
-          <el-table-column prop="defaultPrice" label="默认门市价" width="120">
+          <el-table-column prop="defaultPrice" :label="t('settingsStage4.roomTypeManagement.columns.defaultWalkInRate')" width="120">
             <template #default="{ row }">
-              ¥ {{ row.defaultPrice ? row.defaultPrice.toFixed(2) : '未设置' }}
+              ¥ {{ row.defaultPrice ? row.defaultPrice.toFixed(2) : t('settings.common.none') }}
             </template>
           </el-table-column>
 
-          <el-table-column prop="roomCount" label="房间数" width="150">
+          <el-table-column prop="roomCount" :label="t('settingsStage4.roomTypeManagement.columns.roomCount')" width="150">
             <template #default="{ row }">
               {{ row.roomCount || row.totalRooms || 0 }}
             </template>
           </el-table-column>
 
-          <el-table-column prop="roomNumbers" label="房间号" width="150">
+          <el-table-column prop="roomNumbers" :label="t('settingsStage4.roomTypeManagement.columns.roomNumbers')" width="150">
             <template #default="{ row }">
               {{ (row.roomNumbers || []).join(', ') }}
             </template>
           </el-table-column>
 
-          <el-table-column prop="channel" label="上架渠道" width="150" />
+          <el-table-column prop="channel" :label="t('settingsStage4.roomTypeManagement.columns.listedChannels')" width="150" />
 
-          <el-table-column label="操作" width="350">
+          <el-table-column :label="t('settings.common.actions')" width="350">
             <template #default="{ row }">
               <div class="action-buttons">
                 <el-button link type="primary" @click="handleViewDetails(row)">
-                  基础信息
+                  {{ t('settingsStage4.roomTypeManagement.actions.basicInfo') }}
                 </el-button>
-                <el-button link type="primary" @click="handleEditRoomType(row)"> 详情 </el-button>
+                <el-button link type="primary" @click="handleEditRoomType(row)">
+                  {{ t('settingsStage4.common.details') }}
+                </el-button>
                 <el-button link type="primary" @click="handleRoomSchedule(row)">
-                  房间排序
+                  {{ t('settingsStage4.roomTypeManagement.actions.roomSort') }}
                 </el-button>
-                <el-button link type="danger" @click="handleDeleteRoomType(row)"> 删除 </el-button>
+                <el-button link type="danger" @click="handleDeleteRoomType(row)">
+                  {{ t('settings.common.delete') }}
+                </el-button>
               </div>
             </template>
           </el-table-column>
@@ -477,7 +489,9 @@ onMounted(() => {
 
         <!-- 分页 -->
         <div class="pagination-container">
-          <div class="pagination-info">共 {{ total }} 条</div>
+          <div class="pagination-info">
+            {{ t('settingsStage4.common.itemsTotal', { count: total }) }}
+          </div>
           <el-pagination
             v-model:current-page="currentPage"
             v-model:page-size="pageSize"
@@ -491,25 +505,25 @@ onMounted(() => {
       </div>
 
       <!-- 导入房型 -->
-      <div v-else-if="activeTab === '导入房型'" class="import-container">
+      <div v-else-if="activeTab === 'import'" class="import-container">
         <div class="placeholder-content">
           <el-icon size="48" color="#d9d9d9"><Upload /></el-icon>
-          <p>导入房型功能开发中...</p>
+          <p>{{ t('settingsStage4.roomTypeManagement.messages.importInDevelopment') }}</p>
         </div>
       </div>
 
       <!-- 新增房型表单 -->
-      <div v-else-if="activeTab === '新增房型'" class="form-container">
+      <div v-else-if="activeTab === 'add'" class="form-container">
         <div class="form-content">
-          <h3 class="form-title">新增房型</h3>
+          <h3 class="form-title">{{ t('settingsStage4.roomTypeManagement.tabs.addRoomType') }}</h3>
 
           <el-form :model="newRoomTypeForm" label-width="100px" class="room-type-form">
             <!-- 房型名称 -->
-            <el-form-item label="房型名称" required>
+            <el-form-item :label="t('settingsStage4.roomTypeManagement.fields.roomTypeName')" required>
               <div class="input-with-count">
                 <el-input
                   v-model="newRoomTypeForm.name"
-                  placeholder="请输入"
+                  :placeholder="t('settingsStage4.roomTypeManagement.placeholders.input')"
                   maxlength="30"
                   show-word-limit
                 />
@@ -518,11 +532,11 @@ onMounted(() => {
             </el-form-item>
 
             <!-- 房型简称 -->
-            <el-form-item label="房型简称" required>
+            <el-form-item :label="t('settingsStage4.roomTypeManagement.fields.shortName')" required>
               <div class="input-with-count">
                 <el-input
                   v-model="newRoomTypeForm.description"
-                  placeholder="请输入"
+                  :placeholder="t('settingsStage4.roomTypeManagement.placeholders.input')"
                   maxlength="20"
                   show-word-limit
                 />
@@ -531,11 +545,11 @@ onMounted(() => {
             </el-form-item>
 
             <!-- 房间定价 -->
-            <el-form-item label="房间定价">
+            <el-form-item :label="t('settingsStage4.roomTypeManagement.fields.roomPricing')">
               <div class="pricing-section">
                 <el-radio-group v-model="newRoomTypeForm.pricingType" class="pricing-options">
-                  <el-radio label="fixed">每日固定价</el-radio>
-                  <el-radio label="flexible">区分平日、周末价</el-radio>
+                  <el-radio label="fixed">{{ t('settingsStage4.roomTypeManagement.options.fixedDailyPrice') }}</el-radio>
+                  <el-radio label="flexible">{{ t('settingsStage4.roomTypeManagement.options.weekdayWeekendPrice') }}</el-radio>
                 </el-radio-group>
 
                 <div class="price-inputs">
@@ -553,7 +567,7 @@ onMounted(() => {
 
                   <div v-else class="flexible-prices">
                     <div class="price-group">
-                      <span class="price-label">平日价</span>
+                      <span class="price-label">{{ t('settingsStage4.roomTypeManagement.fields.weekdayPrice') }}</span>
                       <span class="currency">¥</span>
                       <el-input-number
                         v-model="newRoomTypeForm.weekdayPrice"
@@ -565,7 +579,7 @@ onMounted(() => {
                       />
                     </div>
                     <div class="price-group">
-                      <span class="price-label">周末价</span>
+                      <span class="price-label">{{ t('settingsStage4.roomTypeManagement.fields.weekendPrice') }}</span>
                       <span class="currency">¥</span>
                       <el-input-number
                         v-model="newRoomTypeForm.weekendPrice"
@@ -582,43 +596,43 @@ onMounted(() => {
             </el-form-item>
 
             <!-- 房间信息 -->
-            <el-form-item label="房间信息">
+            <el-form-item :label="t('settingsStage4.roomTypeManagement.fields.roomInfo')">
               <div class="room-info-section">
                 <el-radio-group
                   v-model="newRoomTypeForm.roomCreationType"
                   class="room-creation-options"
                 >
-                  <el-radio label="sync">同步创建房间</el-radio>
-                  <el-radio label="later">稍后统一创建</el-radio>
+                  <el-radio label="sync">{{ t('settingsStage4.roomTypeManagement.options.syncCreateRooms') }}</el-radio>
+                  <el-radio label="later">{{ t('settingsStage4.roomTypeManagement.options.createLater') }}</el-radio>
                 </el-radio-group>
 
                 <div v-if="newRoomTypeForm.roomCreationType === 'sync'" class="room-creation-form">
                   <div class="room-prefix-section">
-                    <span class="section-label">房间号前缀</span>
+                    <span class="section-label">{{ t('settingsStage4.roomTypeManagement.fields.roomNumberPrefix') }}</span>
                     <el-input
                       v-model="newRoomTypeForm.roomPrefix"
-                      placeholder="请输入内容"
+                      :placeholder="t('settingsStage4.roomTypeManagement.placeholders.inputContent')"
                       class="prefix-input"
                     />
                   </div>
 
                   <div class="room-count-section">
-                    <span class="section-label">房间数量</span>
+                    <span class="section-label">{{ t('settingsStage4.roomTypeManagement.fields.roomCount') }}</span>
                     <el-input-number
                       v-model="newRoomTypeForm.roomCount"
                       :min="1"
                       class="count-input"
                     />
-                    <span class="unit">间</span>
+                    <span class="unit">{{ t('settingsStage4.roomTypeManagement.units.rooms') }}</span>
                   </div>
 
                   <div class="room-numbers-section">
-                    <span class="section-label">房间号</span>
+                    <span class="section-label">{{ t('settingsStage4.roomTypeManagement.fields.roomNumbers') }}</span>
                     <div
                       v-if="newRoomTypeForm.roomNumbers.length === 0"
                       class="empty-room-hint"
                     >
-                      房间删除后,将不对关联的订单也将无法操作"撤销退房"和"恢复预订"。
+                      {{ t('settingsStage4.roomTypeManagement.hints.roomDeleteImpact') }}
                     </div>
                     <div class="room-numbers-list">
                       <div
@@ -628,7 +642,7 @@ onMounted(() => {
                       >
                         <el-input
                           v-model="newRoomTypeForm.roomNumbers[index]"
-                          placeholder="请输入房间号"
+                          :placeholder="t('settingsStage4.roomTypeManagement.placeholders.roomNumber')"
                           class="room-number-input"
                         />
                         <el-button
@@ -643,7 +657,7 @@ onMounted(() => {
                       </div>
                     </div>
                     <el-button type="primary" link @click="addNewRoom" class="add-room-btn">
-                      <el-icon><Plus /></el-icon> 新增
+                      <el-icon><Plus /></el-icon> {{ t('settings.common.add') }}
                     </el-button>
                   </div>
                 </div>
@@ -653,12 +667,12 @@ onMounted(() => {
 
           <!-- 底部操作按钮 -->
           <div class="form-footer">
-            <el-button @click="handleCancel" class="cancel-btn">取消</el-button>
+            <el-button @click="handleCancel" class="cancel-btn">{{ t('settings.common.cancel') }}</el-button>
             <el-button type="primary" @click="handleAddRoomType" class="add-btn"
-              >新增房型</el-button
+              >{{ t('settingsStage4.roomTypeManagement.actions.addRoomType') }}</el-button
             >
             <el-button type="primary" @click="handleAddRoomTypeWithDetails" class="add-detail-btn"
-              >新增房型并完善信息</el-button
+              >{{ t('settingsStage4.roomTypeManagement.actions.addAndComplete') }}</el-button
             >
           </div>
         </div>

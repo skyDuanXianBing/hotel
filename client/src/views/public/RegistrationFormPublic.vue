@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="header">
       <div class="header-top">
@@ -10,10 +10,14 @@
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="en" :disabled="selectedLang === 'en'">English</el-dropdown-item>
-              <el-dropdown-item command="ja" :disabled="selectedLang === 'ja'">日本語</el-dropdown-item>
-              <el-dropdown-item command="zh" :disabled="selectedLang === 'zh'">中文</el-dropdown-item>
-              <el-dropdown-item command="ko" :disabled="selectedLang === 'ko'">한국어</el-dropdown-item>
+              <el-dropdown-item
+                v-for="option in languageOptions"
+                :key="option.value"
+                :command="option.value"
+                :disabled="selectedLang === option.value"
+              >
+                {{ option.label }}
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -309,7 +313,13 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import type { UploadFile } from 'element-plus'
+import type { SupportedLocale } from '@/locales'
 import publicRequest from '@/utils/publicRequest'
+import {
+  getInitialRegistrationLocale,
+  normalizeRegistrationLocale,
+  persistRegistrationLocale,
+} from './registrationLocale'
 
 type ApiResponse<T> = {
   success: boolean
@@ -395,12 +405,17 @@ type PublicRegistrationResponse = {
 
 const route = useRoute()
 
-// Language support
-// Initialize from localStorage to avoid flicker, will be overridden by query param in onMounted if present
-const selectedLang = ref<string>(localStorage.getItem('registrationLang') || '')
+const selectedLang = ref<SupportedLocale>(getInitialRegistrationLocale())
 const checkInGuideLink = ref<string>('')
 
-type LangCode = 'en' | 'ja' | 'zh' | 'ko'
+type LangCode = SupportedLocale | 'ko'
+
+const languageOptions: Array<{ value: SupportedLocale; label: string }> = [
+  { value: 'en', label: 'English' },
+  { value: 'ja', label: '日本語' },
+  { value: 'zh-CN', label: '中文（简体）' },
+  { value: 'zh-TW', label: '中文（繁體）' },
+]
 
 const translations: Record<LangCode, Record<string, string>> = {
   en: {
@@ -453,7 +468,29 @@ const translations: Record<LangCode, Record<string, string>> = {
     submitted: 'Submitted',
     approved: 'Approved',
     rejected: 'Rejected',
-    changeLanguage: 'Language'
+    changeLanguage: 'Language',
+    passportUploaded: 'Passport uploaded',
+    saved: 'Saved',
+    invalidGuideLink: 'Invalid check-in guide link',
+    imageTooLarge: 'The image is too large for the server. Choose a smaller image and try again.',
+    selectGuestCount: 'Please select number of guests',
+    guestListNotReady: 'Guest list is not ready. Please wait.',
+    guestNotFound: 'Guest not found',
+    required: '{field} is required',
+    passportPhotoTitle: 'Passport Photo',
+    passportPhotoTitleWithName: 'Passport Photo - {name}',
+    readImageFailed: 'Read image failed',
+    loadImageFailed: 'Load image failed',
+    compressFailed: 'Compress failed',
+    missingGuestId: 'Missing guest ID',
+    loadFailed: 'Failed to load',
+    saveFailed: 'Save failed',
+    submitFailed: 'Submit failed',
+    uploadFailed: 'Upload failed',
+    changeGuestCountConfirm: 'Changing guest count from {current} to {next} will remove extra guest information. Continue?',
+    changeGuestCountTitle: 'Confirm Change',
+    proceed: 'Continue',
+    cancel: 'Cancel'
   },
   ja: {
     guestRegistration: '宿泊者名簿',
@@ -505,9 +542,31 @@ const translations: Record<LangCode, Record<string, string>> = {
     submitted: '提出済み',
     approved: '承認済み',
     rejected: '要再提出',
-    changeLanguage: '言語'
+    changeLanguage: '言語',
+    passportUploaded: '旅券写真をアップロードしました',
+    saved: '保存しました',
+    invalidGuideLink: 'チェックインガイドのリンクが無効です',
+    imageTooLarge: '画像サイズが大きすぎます。より小さい画像を選んでから再度お試しください。',
+    selectGuestCount: '宿泊人数を選択してください',
+    guestListNotReady: '宿泊者情報を準備中です。しばらくお待ちください。',
+    guestNotFound: '宿泊者が見つかりません',
+    required: '{field} は必須です',
+    passportPhotoTitle: '旅券写真',
+    passportPhotoTitleWithName: '旅券写真 - {name}',
+    readImageFailed: '画像の読み込みに失敗しました',
+    loadImageFailed: '画像の表示に失敗しました',
+    compressFailed: '圧縮に失敗しました',
+    missingGuestId: '宿泊者IDがありません',
+    loadFailed: '読み込みに失敗しました',
+    saveFailed: '保存に失敗しました',
+    submitFailed: '提出に失敗しました',
+    uploadFailed: 'アップロードに失敗しました',
+    changeGuestCountConfirm: '宿泊人数を {current} から {next} に変更すると、余分な宿泊者の入力情報が削除されます。続行しますか？',
+    changeGuestCountTitle: '変更の確認',
+    proceed: '続ける',
+    cancel: 'キャンセル'
   },
-  zh: {
+  'zh-CN': {
     guestRegistration: '入住登记',
     loading: '加载中...',
     bookingNumber: '预订号',
@@ -557,7 +616,103 @@ const translations: Record<LangCode, Record<string, string>> = {
     submitted: '已提交',
     approved: '已通过',
     rejected: '需重填',
-    changeLanguage: '语言'
+    changeLanguage: '语言',
+    passportUploaded: '护照已上传',
+    saved: '已保存',
+    invalidGuideLink: '入住指南链接无效',
+    imageTooLarge: '图片过大，已超出服务器限制。请更换更小的图片后重试。',
+    selectGuestCount: '请选择入住人数',
+    guestListNotReady: '入住者信息的准备中，请稍候',
+    guestNotFound: '未找到入住人',
+    required: '{field} 为必填项',
+    passportPhotoTitle: '护照照片',
+    passportPhotoTitleWithName: '护照照片 - {name}',
+    readImageFailed: '读取图片失败',
+    loadImageFailed: '加载图片失败',
+    compressFailed: '压缩失败',
+    missingGuestId: '缺少入住人ID',
+    loadFailed: '加载失败',
+    saveFailed: '保存失败',
+    submitFailed: '提交失败',
+    uploadFailed: '上传失败',
+    changeGuestCountConfirm: '将入住人数从 {current} 改为 {next}，将删除多余客人的已填信息，是否继续？',
+    changeGuestCountTitle: '确认修改',
+    proceed: '继续',
+    cancel: '取消'
+  },
+  'zh-TW': {
+    guestRegistration: '入住登記',
+    loading: '載入中...',
+    bookingNumber: '預訂號',
+    stay: '入住期間',
+    status: '狀態',
+    lastSaved: '最後保存',
+    guest: '入住人',
+    checkIn: '入住',
+    checkOut: '退房',
+    residence: '居住地',
+    japan: '日本',
+    otherThanJapan: '海外',
+    firstName: '名',
+    lastName: '姓',
+    birthday: '出生日期',
+    phone: '電話號碼',
+    address: '住址',
+    passportNumber: '護照號',
+    nationality: '國籍',
+    passportPhoto: '護照照片',
+    chooseImage: '選擇圖片',
+    uploaded: '已上傳',
+    notUploadedYet: '尚未上傳',
+    clickToView: '點擊檢視大圖',
+    address1: '地址1',
+    address2: '地址2',
+    address2Optional: '地址2（可選）',
+    city: '城市',
+    state: '州',
+    stateOptional: '州（可選）',
+    country: '國家',
+    priorStay: '前泊地',
+    nextDestination: '行先',
+    optional: '可選',
+    back: '返回',
+    next: '下一步',
+    confirmSend: '確認並發送',
+    preview: '預覽',
+    send: '發送',
+    reviewNotice: '審核通過後，我們會自動提供入住指南。',
+    submittedAwaitingReview: '已提交，等待審查。',
+    approvedTitle: '已通過審查',
+    checkInGuideLabel: '您的入住指南：',
+    checkInGuide: '入住指南',
+    checkInGuideMissing: '入住指南暫未配置，請聯絡飯店。',
+    draft: '未提交',
+    submitted: '已提交',
+    approved: '已通過',
+    rejected: '需重填',
+    changeLanguage: '語言',
+    passportUploaded: '護照已上傳',
+    saved: '已保存',
+    invalidGuideLink: '入住指南連結無效',
+    imageTooLarge: '圖片過大，已超出伺服器限制。請更換較小的圖片後重試。',
+    selectGuestCount: '請選擇入住人數',
+    guestListNotReady: '入住者資訊準備中，請稍候',
+    guestNotFound: '未找到入住人',
+    required: '{field} 為必填項',
+    passportPhotoTitle: '護照照片',
+    passportPhotoTitleWithName: '護照照片 - {name}',
+    readImageFailed: '讀取圖片失敗',
+    loadImageFailed: '載入圖片失敗',
+    compressFailed: '壓縮失敗',
+    missingGuestId: '缺少入住人 ID',
+    loadFailed: '載入失敗',
+    saveFailed: '保存失敗',
+    submitFailed: '提交失敗',
+    uploadFailed: '上傳失敗',
+    changeGuestCountConfirm: '將入住人數從 {current} 改為 {next}，將刪除多餘客人的已填資訊，是否繼續？',
+    changeGuestCountTitle: '確認修改',
+    proceed: '繼續',
+    cancel: '取消'
   },
   ko: {
     guestRegistration: '투숙자 등록',
@@ -609,13 +764,55 @@ const translations: Record<LangCode, Record<string, string>> = {
     submitted: '제출됨',
     approved: '승인됨',
     rejected: '재작성 필요',
-    changeLanguage: '언어'
+    changeLanguage: '언어',
+    passportUploaded: '여권 사진이 업로드되었습니다',
+    saved: '저장됨',
+    invalidGuideLink: '체크인 가이드 링크가 올바르지 않습니다',
+    imageTooLarge: '이미지가 서버 제한보다 큽니다. 더 작은 이미지를 선택한 뒤 다시 시도해 주세요.',
+    selectGuestCount: '숙박 인원을 선택해 주세요',
+    guestListNotReady: '투숙객 정보를 준비 중입니다. 잠시 기다려 주세요.',
+    guestNotFound: '투숙객을 찾을 수 없습니다',
+    required: '{field}은(는) 필수입니다',
+    passportPhotoTitle: '여권 사진',
+    passportPhotoTitleWithName: '여권 사진 - {name}',
+    readImageFailed: '이미지 읽기에 실패했습니다',
+    loadImageFailed: '이미지 불러오기에 실패했습니다',
+    compressFailed: '압축에 실패했습니다',
+    missingGuestId: '투숙객 ID가 없습니다',
+    loadFailed: '불러오기에 실패했습니다',
+    saveFailed: '저장에 실패했습니다',
+    submitFailed: '제출에 실패했습니다',
+    uploadFailed: '업로드에 실패했습니다',
+    changeGuestCountConfirm: '숙박 인원을 {current}명에서 {next}명으로 변경하면 초과 투숙객의 입력 정보가 삭제됩니다. 계속하시겠습니까?',
+    changeGuestCountTitle: '변경 확인',
+    proceed: '계속',
+    cancel: '취소'
   }
 }
 
-const t = (key: string): string => {
-  const lang = selectedLang.value as LangCode
-  return translations[lang]?.[key] || key
+const getTranslationLang = (locale: SupportedLocale): LangCode => locale
+
+const getQueryLocale = (value: unknown): string | null => {
+  if (Array.isArray(value)) {
+    return typeof value[0] === 'string' ? value[0] : null
+  }
+  return typeof value === 'string' ? value : null
+}
+
+const applyRegistrationLocale = (value?: string | null): SupportedLocale => {
+  const nextLocale = normalizeRegistrationLocale(value)
+  selectedLang.value = nextLocale
+  persistRegistrationLocale(nextLocale)
+  return nextLocale
+}
+
+const t = (key: string, params: Record<string, string | number> = {}): string => {
+  const lang = getTranslationLang(selectedLang.value)
+  const template = translations[lang]?.[key] || key
+  return Object.entries(params).reduce(
+    (text, [name, value]) => text.replace(new RegExp(`\\{${name}\\}`, 'g'), String(value)),
+    template,
+  )
 }
 
 const step = ref(0)
@@ -630,7 +827,7 @@ const guestCount = ref<number>(1)
 
 const passportPreviewVisible = ref(false)
 const passportPreviewUrl = ref('')
-const passportPreviewTitle = ref('Passport photo')
+const passportPreviewTitle = ref(t('passportPhotoTitle'))
 
 const previewDialogVisible = ref(false)
 const previewData = ref<Array<{
@@ -745,9 +942,8 @@ function previewForm() {
   previewDialogVisible.value = true
 }
 
-function changeLanguage(lang: string) {
-  selectedLang.value = lang
-  localStorage.setItem('registrationLang', lang)
+function changeLanguage(lang: SupportedLocale) {
+  applyRegistrationLocale(lang)
 }
 
 const isGuestStep_old = computed(() => step.value >= 0 && step.value <= model.guests.length)
@@ -759,10 +955,10 @@ function isBlank(v?: string): boolean {
 function validateReservationStep(): string[] {
   const errs: string[] = []
   if (!guestCount.value || guestCount.value < 1) {
-    errs.push('Please select number of guests / 宿泊人数を選択してください')
+    errs.push(t('selectGuestCount'))
   }
   if (!model.guests.length) {
-    errs.push('Guest list not ready, please wait / 宿泊者情報の準備中です')
+    errs.push(t('guestListNotReady'))
   }
   return errs
 }
@@ -771,20 +967,20 @@ function validateGuest(g: GuestModel): string[] {
   const errs: string[] = []
   const residence = g.residenceType || 'JAPAN'
 
-  if (isBlank(g.firstName)) errs.push(t('firstName') + ' is required / は必須です')
-  if (isBlank(g.lastName)) errs.push(t('lastName') + ' is required / は必須です')
-  if (isBlank(g.phone)) errs.push(t('phone') + ' is required / は必須です')
-  if (isBlank(g.birthday)) errs.push(t('birthday') + ' is required / は必須です')
+  if (isBlank(g.firstName)) errs.push(t('required', { field: t('firstName') }))
+  if (isBlank(g.lastName)) errs.push(t('required', { field: t('lastName') }))
+  if (isBlank(g.phone)) errs.push(t('required', { field: t('phone') }))
+  if (isBlank(g.birthday)) errs.push(t('required', { field: t('birthday') }))
 
   if (residence === 'JAPAN') {
-    if (isBlank(g.address)) errs.push(t('address') + ' is required / は必須です')
+    if (isBlank(g.address)) errs.push(t('required', { field: t('address') }))
   } else {
-    if (!g.passportUploaded) errs.push(t('passportPhoto') + ' is required / は必須です')
-    if (isBlank(g.passportNumber)) errs.push(t('passportNumber') + ' is required / は必須です')
-    if (isBlank(g.nationality)) errs.push(t('nationality') + ' is required / は必須です')
-    if (isBlank(g.address1)) errs.push(t('address1') + ' is required / は必須です')
-    if (isBlank(g.city)) errs.push(t('city') + ' is required / は必須です')
-    if (isBlank(g.country)) errs.push(t('country') + ' is required / は必須です')
+    if (!g.passportUploaded) errs.push(t('required', { field: t('passportPhoto') }))
+    if (isBlank(g.passportNumber)) errs.push(t('required', { field: t('passportNumber') }))
+    if (isBlank(g.nationality)) errs.push(t('required', { field: t('nationality') }))
+    if (isBlank(g.address1)) errs.push(t('required', { field: t('address1') }))
+    if (isBlank(g.city)) errs.push(t('required', { field: t('city') }))
+    if (isBlank(g.country)) errs.push(t('required', { field: t('country') }))
   }
 
   return errs
@@ -792,7 +988,7 @@ function validateGuest(g: GuestModel): string[] {
 
 function validateCurrentStep(): string[] {
   if (isGuestStep.value) {
-    if (!activeGuest.value) return [t('guestNotFound') || 'Guest not found']
+    if (!activeGuest.value) return [t('guestNotFound')]
     return validateGuest(activeGuest.value)
   }
   return []
@@ -832,7 +1028,9 @@ function buildPassportAttachmentUrl(attachmentId: number, inline: boolean): stri
 }
 
 function openPassportPreview(att: AttachmentDTO) {
-  passportPreviewTitle.value = att.originalName ? `Passport photo - ${att.originalName}` : 'Passport photo'
+  passportPreviewTitle.value = att.originalName
+    ? t('passportPhotoTitleWithName', { name: att.originalName })
+    : t('passportPhotoTitle')
   passportPreviewUrl.value = buildPassportAttachmentUrl(att.id, true)
   passportPreviewVisible.value = true
 }
@@ -893,14 +1091,14 @@ async function compressPassportImage(file: File): Promise<File> {
   const dataUrl: string = await new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('Read image failed'))
+    reader.onerror = () => reject(new Error(t('readImageFailed')))
     reader.readAsDataURL(file)
   })
 
   const img: HTMLImageElement = await new Promise((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Load image failed'))
+    image.onerror = () => reject(new Error(t('loadImageFailed')))
     image.src = dataUrl
   })
 
@@ -922,7 +1120,7 @@ async function compressPassportImage(file: File): Promise<File> {
     canvas.toBlob(
       (b) => {
         if (b) resolve(b)
-        else reject(new Error('Compress failed'))
+        else reject(new Error(t('compressFailed')))
       },
       'image/jpeg',
       0.85,
@@ -935,7 +1133,7 @@ async function compressPassportImage(file: File): Promise<File> {
 
 async function uploadPassport(guest: GuestModel, file: File) {
   if (!guest.id) {
-    throw new Error('Missing guestId')
+    throw new Error(t('missingGuestId'))
   }
   const safeFile = await compressPassportImage(file)
   const form = new FormData()
@@ -945,7 +1143,7 @@ async function uploadPassport(guest: GuestModel, file: File) {
     params: { t: token(), guestId: guest.id },
   })) as any
   if (!resp?.success) {
-    throw new Error(resp?.message || 'Upload failed')
+    throw new Error(resp?.message || t('uploadFailed'))
   }
   guest.passportUploaded = true
 
@@ -966,14 +1164,14 @@ async function onPassportFileChange(guest: GuestModel, raw?: File) {
   if (!raw) return
   try {
     await uploadPassport(guest, raw)
-    ElMessage.success('Passport uploaded')
+    ElMessage.success(t('passportUploaded'))
   } catch (e: any) {
     const status = e?.response?.status
     if (status === 413) {
-      ElMessage.error('图片过大，已超出服务器限制。请更换更小的图片后重试。')
+      ElMessage.error(t('imageTooLarge'))
       return
     }
-    ElMessage.error(e?.response?.data?.message || e?.message || 'Upload failed')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('uploadFailed'))
   }
 }
 
@@ -983,11 +1181,11 @@ async function load() {
   try {
     const resp = (await publicRequest.get(`/public/registration/${orderNumber()}`, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
     if (!resp?.success) {
-      throw new Error(resp?.message || 'Failed to load')
+      throw new Error(resp?.message || t('loadFailed'))
     }
     hydrate(resp.data as PublicRegistrationResponse)
   } catch (e: any) {
-    error.value = e?.response?.data?.message || e?.message || 'Failed to load'
+    error.value = e?.response?.data?.message || e?.message || t('loadFailed')
   } finally {
     loading.value = false
   }
@@ -1021,12 +1219,12 @@ async function saveDraft() {
     }
     const resp = (await publicRequest.put(`/public/registration/${orderNumber()}`, payload, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
     if (!resp?.success) {
-      throw new Error(resp?.message || 'Save failed')
+      throw new Error(resp?.message || t('saveFailed'))
     }
     hydrate(resp.data as PublicRegistrationResponse)
-    ElMessage.success('Saved')
+    ElMessage.success(t('saved'))
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || 'Save failed')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('saveFailed'))
   } finally {
     saving.value = false
   }
@@ -1047,12 +1245,12 @@ async function submit() {
     await saveDraft()
     const resp = (await publicRequest.post(`/public/registration/${orderNumber()}/submit`, null, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
     if (!resp?.success) {
-      throw new Error(resp?.message || 'Submit failed')
+      throw new Error(resp?.message || t('submitFailed'))
     }
     hydrate(resp.data as PublicRegistrationResponse)
-    ElMessage.success('Submitted')
+    ElMessage.success(t('submitted'))
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || 'Submit failed')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('submitFailed'))
   } finally {
     submitting.value = false
   }
@@ -1066,7 +1264,7 @@ function openCheckInGuide() {
   let finalLink = rawLink
   if (!/^https?:\/\//i.test(finalLink)) {
     if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(finalLink)) {
-      ElMessage.warning('Invalid check-in guide link')
+      ElMessage.warning(t('invalidGuideLink'))
       return
     }
     finalLink = `https://${finalLink}`
@@ -1081,9 +1279,9 @@ async function onGuestCountChange(next: number) {
   if (next < current) {
     try {
       await ElMessageBox.confirm(
-        `将宿泊人数从 ${current} 改为 ${next}，将删除多余 Guest 的已填信息，是否继续？`,
-        '确认修改',
-        { confirmButtonText: '继续', cancelButtonText: '取消', type: 'warning' },
+        t('changeGuestCountConfirm', { current, next }),
+        t('changeGuestCountTitle'),
+        { confirmButtonText: t('proceed'), cancelButtonText: t('cancel'), type: 'warning' },
       )
     } catch {
       guestCount.value = current
@@ -1115,32 +1313,7 @@ function goPrev() {
 }
 
 onMounted(() => {
-  // Get language from query or localStorage
-  const langFromQuery = route.query.lang as string
-  const langFromStorage = localStorage.getItem('registrationLang')
-  
-  if (langFromQuery) {
-    // Query parameter takes priority
-    selectedLang.value = langFromQuery
-    localStorage.setItem('registrationLang', langFromQuery)
-  } else if (langFromStorage) {
-    // Use saved language preference
-    selectedLang.value = langFromStorage
-  } else {
-    // First time visit: auto-detect browser language
-    const browserLang = navigator.language.toLowerCase()
-    if (browserLang.startsWith('ja')) {
-      selectedLang.value = 'ja'
-    } else if (browserLang.startsWith('zh')) {
-      selectedLang.value = 'zh'
-    } else if (browserLang.startsWith('ko')) {
-      selectedLang.value = 'ko'
-    } else {
-      selectedLang.value = 'en'
-    }
-    localStorage.setItem('registrationLang', selectedLang.value)
-  }
-  
+  applyRegistrationLocale(getInitialRegistrationLocale(getQueryLocale(route.query.lang)))
   load()
 })
 </script>
@@ -1165,7 +1338,7 @@ onMounted(() => {
   font-size: 13px;
 }
 
-/* 确保按钮内容在所有屏幕正确显示 */
+/* 纭繚鎸夐挳鍐呭鍦ㄦ墍鏈夊睆骞曟纭樉绀?*/
 :deep(.el-button) {
   display: inline-flex;
   align-items: center;
@@ -1505,3 +1678,5 @@ onMounted(() => {
   }
 }
 </style>
+
+

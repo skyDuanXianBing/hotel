@@ -24,20 +24,20 @@
 
           <div class="notification-body">
             <div v-if="notification.channel" class="notification-channel">
-              <span class="channel-label">来源:</span>
+              <span class="channel-label">{{ t('stage6.components.notification.source') }}</span>
               <span class="channel-value">{{ notification.channel }}</span>
             </div>
             <div class="notification-info">
               <div v-if="notification.guestName" class="info-row">
-                <span class="info-label">对象:</span>
+                <span class="info-label">{{ t('stage6.components.notification.target') }}</span>
                 <span class="info-value">{{ notification.guestName }}</span>
               </div>
               <div v-if="notification.orderNumber" class="info-row">
-                <span class="info-label">编号:</span>
+                <span class="info-label">{{ t('stage6.components.notification.number') }}</span>
                 <span class="info-value">{{ notification.orderNumber }}</span>
               </div>
               <div v-if="notification.content" class="info-row content-row">
-                <span class="info-label">内容:</span>
+                <span class="info-label">{{ t('stage6.components.notification.content') }}</span>
                 <span class="info-value">{{ notification.content }}</span>
               </div>
             </div>
@@ -55,6 +55,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { BellFilled, Close } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { formatStoreTime, resolveStoreTimeZoneFromStorage } from '@/utils/storeDateTime'
 
 export interface Notification {
@@ -70,18 +71,19 @@ export interface Notification {
 }
 
 const notifications = ref<Notification[]>([])
+const { t } = useI18n()
 
-// 添加通知
+// Add a notification.
 const addNotification = (notification: Notification) => {
   notifications.value.push(notification)
 
-  // 5秒后自动关闭
+  // Auto close after 5 seconds.
   setTimeout(() => {
     closeNotification(notification.id)
   }, 5000)
 }
 
-// 关闭通知
+// Close a notification.
 const closeNotification = (id: string) => {
   const index = notifications.value.findIndex((n) => n.id === id)
   if (index > -1) {
@@ -89,7 +91,7 @@ const closeNotification = (id: string) => {
   }
 }
 
-// 点击通知
+// Handle notification click.
 const handleNotificationClick = (notification: Notification) => {
   if (notification.onClick) {
     notification.onClick()
@@ -97,12 +99,12 @@ const handleNotificationClick = (notification: Notification) => {
   closeNotification(notification.id)
 }
 
-// 格式化时间
+// Format time.
 const formatTime = (time: Date) => {
   return formatStoreTime(time, resolveStoreTimeZoneFromStorage())
 }
 
-// 暴露方法供外部调用
+// Expose methods for external callers.
 defineExpose({
   addNotification,
   closeNotification,
@@ -229,7 +231,7 @@ defineExpose({
   color: #909399;
 }
 
-/* 动画效果 */
+/* Animation effects */
 .notification-enter-active {
   animation: slideIn 0.3s ease;
 }

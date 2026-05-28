@@ -6,7 +6,7 @@
         <div class="sidebar-header">
           <el-input
             v-model="roleSearchKeyword"
-            placeholder="搜索角色名称"
+            :placeholder="t('settingsStage4.roleManagement.placeholders.searchRoleName')"
             clearable
           >
             <template #suffix>
@@ -21,7 +21,7 @@
           style="width: 100%; margin: 12px 0"
           @click="handleAddRole"
         >
-          新增
+          {{ t('settingsStage4.roleManagement.actions.add') }}
         </el-button>
 
         <div class="roles-list">
@@ -55,20 +55,20 @@
       <main v-if="selectedRole" class="permissions-main">
         <div class="permissions-header">
           <h2 class="role-title">{{ selectedRole.name }}</h2>
-          <el-button v-if="!isEditing" type="primary" @click="handleEditMode">编辑</el-button>
-          <el-button v-else type="primary" @click="handleSavePermissions" :loading="saving">确定</el-button>
+          <el-button v-if="!isEditing" type="primary" @click="handleEditMode">{{ t('settings.common.edit') }}</el-button>
+          <el-button v-else type="primary" @click="handleSavePermissions" :loading="saving">{{ t('settings.common.confirm') }}</el-button>
         </div>
 
         <el-tabs v-model="activeTab">
-          <el-tab-pane label="住宿管理" name="accommodation">
+          <el-tab-pane :label="t('settingsStage4.accountPermission.tabs.accommodation')" name="accommodation">
             <div class="permission-section">
-              <h3 class="section-title">房型权限</h3>
+              <h3 class="section-title">{{ t('settingsStage4.accountPermission.sections.roomTypeScope') }}</h3>
               <div class="permission-toggle">
                 <el-switch
                   v-model="permissions.roomTypeAll"
                   :disabled="!isEditing || !permissions.viewRoomStatus"
                 />
-                <span class="toggle-label">给该员工所有房型权限</span>
+                <span class="toggle-label">{{ t('settingsStage4.roleManagement.roomTypeAll') }}</span>
                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
               </div>
               <div v-if="!permissions.roomTypeAll" class="permission-checkboxes">
@@ -83,76 +83,76 @@
             </div>
 
             <div class="permission-section">
-              <h3 class="section-title">房态管理</h3>
+              <h3 class="section-title">{{ t('settingsStage4.accountPermission.sections.roomStatus') }}</h3>
               <div class="permission-checkboxes">
-                <el-checkbox v-model="permissions.viewRoomStatus" label="查看房态" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.editRoomStatus" label="修改房态" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewRoomStatus" :label="t('settingsStage4.accountPermission.items.viewRoomStatus')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.editRoomStatus" :label="t('settingsStage4.accountPermission.items.editRoomStatus')" :disabled="!isEditing" />
                 <!-- <el-checkbox v-model="permissions.viewRoomOperationLog" label="查看房态操作日志（暂未接入）" :disabled="true" /> -->
-                <el-checkbox v-model="permissions.viewRoomInfo" label="查看房情表" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewRoomInfo" :label="t('settingsStage4.accountPermission.items.viewRoomInfo')" :disabled="!isEditing" />
               </div>
             </div>
 
             <div class="permission-section">
-              <h3 class="section-title">房价管理</h3>
+              <h3 class="section-title">{{ t('settingsStage4.accountPermission.sections.roomPrice') }}</h3>
               <div class="permission-checkboxes">
-                <el-checkbox v-model="permissions.viewRoomPrice" label="查看房价" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.editRoomPrice" label="修改房价" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.viewPriceLog" label="查看改价记录" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.batchChangePrice" label="批量改价" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewRoomPrice" :label="t('settingsStage4.accountPermission.items.viewRoomPrice')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.editRoomPrice" :label="t('settingsStage4.accountPermission.items.editRoomPrice')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewPriceLog" :label="t('settingsStage4.accountPermission.items.viewPriceLog')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.batchChangePrice" :label="t('settingsStage4.accountPermission.items.batchChangePrice')" :disabled="!isEditing" />
               </div>
             </div>
 
             <div class="permission-section">
-              <h3 class="section-title">保洁管理</h3>
+              <h3 class="section-title">{{ t('settingsStage4.accountPermission.sections.cleaning') }}</h3>
               <div class="permission-checkboxes">
-                <el-checkbox v-model="permissions.taskList" label="查看保洁任务" :disabled="!isEditing" />
-              </div>
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="订单管理" name="order">
-            <div class="permission-section">
-              <div class="permission-checkboxes">
-                <el-checkbox v-model="permissions.viewOrders" label="查看订单" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.modifyOrder" label="修改订单" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.cancelOrder" label="取消订单" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.taskList" :label="t('settingsStage4.accountPermission.items.taskList')" :disabled="!isEditing" />
               </div>
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="渠道" name="channel">
+          <el-tab-pane :label="t('settingsStage4.accountPermission.tabs.order')" name="order">
             <div class="permission-section">
               <div class="permission-checkboxes">
-                <el-checkbox v-model="permissions.viewChannels" label="查看渠道" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.manageChannels" label="管理渠道" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewOrders" :label="t('settingsStage4.accountPermission.items.viewOrders')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.modifyOrder" :label="t('settingsStage4.accountPermission.items.modifyOrder')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.cancelOrder" :label="t('settingsStage4.accountPermission.items.cancelOrder')" :disabled="!isEditing" />
               </div>
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="统计分析" name="statistics">
+          <el-tab-pane :label="t('settingsStage4.accountPermission.tabs.channel')" name="channel">
             <div class="permission-section">
               <div class="permission-checkboxes">
-                <el-checkbox v-model="permissions.viewStats" label="查看统计数据" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewChannels" :label="t('settingsStage4.accountPermission.items.viewChannels')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.manageChannels" :label="t('settingsStage4.accountPermission.items.manageChannels')" :disabled="!isEditing" />
+              </div>
+            </div>
+          </el-tab-pane>
+
+          <el-tab-pane :label="t('settingsStage4.accountPermission.tabs.statistics')" name="statistics">
+            <div class="permission-section">
+              <div class="permission-checkboxes">
+                <el-checkbox v-model="permissions.viewStats" :label="t('settingsStage4.accountPermission.items.viewStats')" :disabled="!isEditing" />
                 <!-- <el-checkbox v-model="permissions.exportStats" label="导出报表（暂未接入）" :disabled="true" /> -->
               </div>
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="设置" name="settings">
+          <el-tab-pane :label="t('settingsStage4.accountPermission.tabs.settings')" name="settings">
             <div class="permission-section">
               <div class="permission-checkboxes">
-                <el-checkbox v-model="permissions.modifyStoreSettings" label="修改门店设置" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.manageEmployeeAccounts" label="管理员工账号" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.modifyStoreSettings" :label="t('settingsStage4.accountPermission.items.modifyStoreSettings')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.manageEmployeeAccounts" :label="t('settingsStage4.accountPermission.items.manageEmployeeAccounts')" :disabled="!isEditing" />
                 <!-- <el-checkbox v-model="permissions.managePaymentMethods" label="管理支付方式（暂未接入）" :disabled="true" /> -->
               </div>
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="敏感权限" name="sensitive">
+          <el-tab-pane :label="t('settingsStage4.accountPermission.tabs.sensitive')" name="sensitive">
             <div class="permission-section">
               <div class="permission-checkboxes">
-                <el-checkbox v-model="permissions.viewFinancialData" label="查看财务数据" :disabled="!isEditing" />
-                <el-checkbox v-model="permissions.deleteImportantData" label="删除重要数据" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.viewFinancialData" :label="t('settingsStage4.accountPermission.items.viewFinancialData')" :disabled="!isEditing" />
+                <el-checkbox v-model="permissions.deleteImportantData" :label="t('settingsStage4.accountPermission.items.deleteImportantData')" :disabled="!isEditing" />
               </div>
             </div>
           </el-tab-pane>
@@ -160,7 +160,7 @@
       </main>
 
       <div v-else class="empty-state">
-        <el-empty description="请选择一个角色查看权限设置" />
+        <el-empty :description="t('settingsStage4.roleManagement.emptyDescription')" />
       </div>
     </div>
   </div>
@@ -176,6 +176,7 @@ import {
   QuestionFilled,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   getAllRoles,
   createRole,
@@ -234,6 +235,7 @@ const loading = ref(false)
 const isEditing = ref(false)
 const saving = ref(false)
 const storeStore = useStoreStore()
+const { t } = useI18n()
 const currentStoreId = computed(() => storeStore.currentStore?.id ?? null)
 
 const roles = ref<Role[]>([])
@@ -249,11 +251,11 @@ const loadRoles = async () => {
         name: dto.name,
       }))
     } else {
-      ElMessage.error(response.message || '加载角色列表失败')
+      ElMessage.error(response.message || t('settingsStage4.roleManagement.messages.loadRolesFailed'))
     }
   } catch (error) {
     console.error('加载角色列表失败:', error)
-    ElMessage.error('加载角色列表失败')
+    ElMessage.error(t('settingsStage4.roleManagement.messages.loadRolesFailed'))
   } finally {
     loading.value = false
   }
@@ -273,11 +275,11 @@ const loadRoomTypes = async () => {
         checked: false
       }))
     } else {
-      ElMessage.error(response.message || '加载房型列表失败')
+      ElMessage.error(response.message || t('settingsStage4.roleManagement.messages.loadRoomTypesFailed'))
     }
   } catch (error) {
     console.error('加载房型列表失败:', error)
-    ElMessage.error('加载房型列表失败')
+    ElMessage.error(t('settingsStage4.roleManagement.messages.loadRoomTypesFailed'))
   }
 }
 
@@ -335,25 +337,28 @@ const filteredRoles = computed(() => {
 
 const handleAddRole = async () => {
   try {
-    const { value } = await ElMessageBox.prompt('请输入角色名称', '新增角色', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    const { value } = await ElMessageBox.prompt(
+      t('settingsStage4.roleManagement.prompts.roleName'),
+      t('settingsStage4.roleManagement.dialog.addRole'),
+      {
+      confirmButtonText: t('settings.common.confirm'),
+      cancelButtonText: t('settings.common.cancel'),
     })
 
     if (value) {
       const request: CreateRoleRequest = { name: value }
       const response = await createRole(request)
       if (response.success) {
-        ElMessage.success('添加成功')
+        ElMessage.success(t('settingsStage4.roleManagement.messages.addSuccess'))
         loadRoles()
       } else {
-        ElMessage.error(response.message || '创建角色失败')
+        ElMessage.error(response.message || t('settingsStage4.roleManagement.messages.createRoleFailed'))
       }
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('创建角色失败:', error)
-      ElMessage.error('创建角色失败')
+      ElMessage.error(t('settingsStage4.roleManagement.messages.createRoleFailed'))
     }
   }
 }
@@ -476,11 +481,11 @@ const loadRolePermissions = async (roleId: number) => {
         }
       })
     } else {
-      ElMessage.error(response.message || '加载权限失败')
+      ElMessage.error(response.message || t('settingsStage4.roleManagement.messages.loadPermissionsFailed'))
     }
   } catch (error) {
     console.error('加载权限失败:', error)
-    ElMessage.error('加载权限失败')
+    ElMessage.error(t('settingsStage4.roleManagement.messages.loadPermissionsFailed'))
   } finally {
     loading.value = false
   }
@@ -495,9 +500,12 @@ const handleSelectRole = async (role: Role) => {
 
 const handleEditRole = async (role: Role) => {
   try {
-    const { value } = await ElMessageBox.prompt('请输入新的角色名称', '编辑角色', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    const { value } = await ElMessageBox.prompt(
+      t('settingsStage4.roleManagement.prompts.newRoleName'),
+      t('settingsStage4.roleManagement.dialog.editRole'),
+      {
+      confirmButtonText: t('settings.common.confirm'),
+      cancelButtonText: t('settings.common.cancel'),
       inputValue: role.name,
     })
 
@@ -505,20 +513,20 @@ const handleEditRole = async (role: Role) => {
       const request: UpdateRoleRequest = { name: value }
       const response = await updateRole(role.id, request)
       if (response.success) {
-        ElMessage.success('修改成功')
+        ElMessage.success(t('settingsStage4.roleManagement.messages.updateSuccess'))
         loadRoles()
         // 如果是当前选中的角色,更新显示
         if (selectedRole.value?.id === role.id) {
           selectedRole.value.name = value
         }
       } else {
-        ElMessage.error(response.message || '更新角色失败')
+        ElMessage.error(response.message || t('settingsStage4.roleManagement.messages.updateRoleFailed'))
       }
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('更新角色失败:', error)
-      ElMessage.error('更新角色失败')
+      ElMessage.error(t('settingsStage4.roleManagement.messages.updateRoleFailed'))
     }
   }
 }
@@ -526,28 +534,28 @@ const handleEditRole = async (role: Role) => {
 const handleDeleteRole = async (role: Role) => {
   try {
     await ElMessageBox.confirm(
-      '删除后，正在使用该角色的员工将同步删除该角色，员工权限将更新。',
-      '确定要删除该角色吗？',
+      t('settingsStage4.roleManagement.messages.deleteRoleWarning'),
+      t('settingsStage4.roleManagement.messages.deleteRoleTitle'),
       {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+      confirmButtonText: t('settings.common.delete'),
+      cancelButtonText: t('settings.common.cancel'),
       type: 'warning',
     })
 
     const response = await deleteRole(role.id)
     if (response.success) {
-      ElMessage.success('删除成功')
+      ElMessage.success(t('settingsStage4.roleManagement.messages.deleteSuccess'))
       if (selectedRole.value?.id === role.id) {
         selectedRole.value = null
       }
       loadRoles()
     } else {
-      ElMessage.error(response.message || '删除角色失败')
+      ElMessage.error(response.message || t('settingsStage4.roleManagement.messages.deleteRoleFailed'))
     }
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error('删除角色失败:', error)
-      ElMessage.error('删除角色失败')
+      ElMessage.error(t('settingsStage4.roleManagement.messages.deleteRoleFailed'))
     }
   }
 }
@@ -576,7 +584,7 @@ const handleSavePermissions = async () => {
       } else {
         const selectedRoomTypes = roomTypes.value.filter(rt => rt.checked)
         if (selectedRoomTypes.length === 0) {
-          ElMessage.warning('请至少选择一个房型，或开启“所有房型权限”')
+          ElMessage.warning(t('settingsStage4.roleManagement.messages.selectRoomTypeScope'))
           return
         }
         selectedRoomTypes.forEach(rt => {
@@ -659,16 +667,16 @@ const handleSavePermissions = async () => {
     // 调用 API 保存权限
     const response = await updateRolePermissions(selectedRole.value.id, permissionDTOs)
     if (response.success) {
-      ElMessage.success('权限保存成功')
+      ElMessage.success(t('settingsStage4.roleManagement.messages.savePermissionsSuccess'))
       isEditing.value = false
       // 重新加载权限以显示最新保存的数据
       await loadRolePermissions(selectedRole.value.id)
     } else {
-      ElMessage.error(response.message || '保存权限失败')
+      ElMessage.error(response.message || t('settingsStage4.roleManagement.messages.savePermissionsFailed'))
     }
   } catch (error) {
     console.error('保存权限失败:', error)
-    ElMessage.error('保存权限失败')
+    ElMessage.error(t('settingsStage4.roleManagement.messages.savePermissionsFailed'))
   } finally {
     saving.value = false
   }

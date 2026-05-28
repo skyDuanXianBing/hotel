@@ -3,18 +3,20 @@
     <div class="settings-content">
       <div class="price-ratio-table-container">
         <el-table :data="data" border stripe class="price-ratio-table" v-loading="loading">
-          <el-table-column prop="channel" label="渠道" min-width="150" align="center" />
-          <el-table-column prop="ratio" label="价格比例" min-width="200" align="center" />
-          <el-table-column label="操作" width="150" align="center">
+          <el-table-column prop="channel" :label="t('channel.priceRatio.channel')" min-width="150" align="center" />
+          <el-table-column prop="ratio" :label="t('channel.priceRatio.ratio')" min-width="200" align="center" />
+          <el-table-column :label="t('channel.priceRatio.actions')" width="150" align="center">
             <template #default="{ row }">
-              <el-button type="text" size="small" @click="$emit('edit', row)">编辑</el-button>
+              <el-button type="text" size="small" @click="$emit('edit', row)">
+                {{ t('channel.priceRatio.edit') }}
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
 
         <!-- 空状态 -->
         <div v-if="!loading && data.length === 0" class="empty-state">
-          <p class="empty-text">暂无渠道价格比例数据，请先在渠道管理中配置渠道</p>
+          <p class="empty-text">{{ t('channel.priceRatio.empty') }}</p>
         </div>
       </div>
     </div>
@@ -22,6 +24,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { PriceRatioItem } from '../types'
 
 defineProps<{
@@ -32,6 +35,8 @@ defineProps<{
 defineEmits<{
   edit: [row: PriceRatioItem]
 }>()
+
+const { t } = useI18n()
 </script>
 
 <style scoped>

@@ -3,19 +3,12 @@
     <!-- 左侧蓝色背景区域 -->
     <div class="left-section">
       <div class="left-content">
-        <h1 class="main-title">房东智控中心</h1>
-        <h1 class="sub-title">THE HOST HUB</h1>
+        <h1 class="main-title">{{ t('auth.hero.titlePrimary') }}</h1>
+        <h1 class="sub-title">{{ t('auth.hero.titleSecondary') }}</h1>
 
-        <p class="description">
-          Trusted by over 100,000 properties worldwide.<br />
-          Streamline your operations with our powerful order<br />
-          management system.
-        </p>
+        <p class="description">{{ t('auth.hero.description') }}</p>
 
-        <p class="trial-info">
-          Register now to get a 30-day free trial with full<br />
-          access to all features. No credit card required.
-        </p>
+        <p class="trial-info">{{ t('auth.hero.trialInfo') }}</p>
 
         <!-- 装饰性浏览器窗口 -->
         <div class="browser-window">
@@ -32,23 +25,13 @@
     <div class="right-section">
       <!-- 语言选择 -->
       <div class="language-selector">
-        <el-dropdown>
-          <span class="language-text">
-            简体中文 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>简体中文</el-dropdown-item>
-              <el-dropdown-item>English</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <LanguageSwitcher variant="auth" />
       </div>
 
       <div class="form-container">
         <!-- 标题 -->
-        <h2 class="form-title">忘记密码</h2>
-        <p class="form-subtitle">请输入您的邮箱并设置新密码，我们将发送验证码进行验证</p>
+        <h2 class="form-title">{{ t('pages.forgotPassword.title') }}</h2>
+        <p class="form-subtitle">{{ t('pages.forgotPassword.subtitle') }}</p>
 
         <!-- 表单 -->
         <el-form
@@ -59,11 +42,11 @@
         >
           <!-- 邮箱 -->
           <div class="form-item">
-            <label class="form-label">邮箱</label>
+            <label class="form-label">{{ t('common.email') }}</label>
             <el-form-item prop="email">
               <el-input
                 v-model="forgotForm.email"
-                placeholder="请输入您的邮箱"
+                :placeholder="t('auth.login.emailPlaceholder')"
                 size="large"
                 :prefix-icon="Message"
               />
@@ -72,17 +55,17 @@
 
           <!-- 验证码 -->
           <div class="form-item">
-            <label class="form-label">验证码</label>
+            <label class="form-label">{{ t('common.verificationCode') }}</label>
             <el-form-item prop="verificationCode">
               <el-input
                 v-model="forgotForm.verificationCode"
-                placeholder="请输入验证码"
+                :placeholder="t('auth.login.codePlaceholder')"
                 size="large"
                 :prefix-icon="Key"
               >
                 <template #append>
                   <el-button :disabled="countdown > 0" @click="sendVerificationCode">
-                    {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+                    {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
                   </el-button>
                 </template>
               </el-input>
@@ -91,12 +74,12 @@
 
           <!-- 设置新密码 -->
           <div class="form-item">
-            <label class="form-label">设置新密码</label>
+            <label class="form-label">{{ t('pages.forgotPassword.newPasswordLabel') }}</label>
             <el-form-item prop="newPassword">
               <el-input
                 v-model="forgotForm.newPassword"
                 type="password"
-                placeholder="请设置新密码（6-20位字符）"
+                :placeholder="t('pages.forgotPassword.newPasswordPlaceholder')"
                 size="large"
                 :prefix-icon="Lock"
                 show-password
@@ -106,12 +89,12 @@
 
           <!-- 确认新密码 -->
           <div class="form-item">
-            <label class="form-label">确认新密码</label>
+            <label class="form-label">{{ t('pages.forgotPassword.confirmPasswordLabel') }}</label>
             <el-form-item prop="confirmPassword">
               <el-input
                 v-model="forgotForm.confirmPassword"
                 type="password"
-                placeholder="请再次输入新密码"
+                :placeholder="t('pages.forgotPassword.confirmPasswordPlaceholder')"
                 size="large"
                 :prefix-icon="Lock"
                 show-password
@@ -127,14 +110,16 @@
             :loading="loading"
             @click="handleResetPassword"
           >
-            重置密码
+            {{ t('pages.forgotPassword.resetAction') }}
           </el-button>
         </el-form>
 
         <!-- 返回登录 -->
         <div class="back-link">
-          想起密码了？
-          <el-link type="primary" :underline="false" @click="goToLogin">返回登录</el-link>
+          {{ t('pages.forgotPassword.backToLoginPrefix') }}
+          <el-link type="primary" :underline="false" @click="goToLogin">
+            {{ t('pages.forgotPassword.backToLoginAction') }}
+          </el-link>
         </div>
       </div>
     </div>
@@ -142,16 +127,19 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Message, Lock, Key, ArrowDown } from '@element-plus/icons-vue'
+import { Message, Lock, Key } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   sendVerificationCode as sendVerificationCodeAPI,
   resetPassword as resetPasswordAPI,
 } from '@/api/auth'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 
 const router = useRouter()
+const { t } = useI18n()
 
 // 倒计时
 const countdown = ref(0)
@@ -173,33 +161,46 @@ const forgotForm = reactive({
 // 自定义验证：确认密码
 const validateConfirmPassword = (rule: any, value: any, callback: any) => {
   if (value === '') {
-    callback(new Error('请再次输入新密码'))
+    callback(new Error(t('pages.forgotPassword.validation.confirmPasswordRequired')))
   } else if (value !== forgotForm.newPassword) {
-    callback(new Error('两次输入的密码不一致'))
+    callback(new Error(t('pages.forgotPassword.validation.confirmPasswordMismatch')))
   } else {
     callback()
   }
 }
 
 // 表单验证规则
-const forgotRules: FormRules = {
+const forgotRules = computed<FormRules>(() => ({
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
+    { required: true, message: t('auth.login.validation.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('auth.login.validation.emailInvalid'), trigger: 'blur' },
   ],
   verificationCode: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { len: 6, message: '验证码为6位数字', trigger: 'blur' },
+    { required: true, message: t('auth.login.validation.codeRequired'), trigger: 'blur' },
+    { len: 6, message: t('auth.login.validation.codeLength'), trigger: 'blur' },
   ],
   newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度为6-20位字符', trigger: 'blur' },
+    {
+      required: true,
+      message: t('pages.forgotPassword.validation.newPasswordRequired'),
+      trigger: 'blur',
+    },
+    {
+      min: 6,
+      max: 20,
+      message: t('pages.forgotPassword.validation.newPasswordLength'),
+      trigger: 'blur',
+    },
   ],
   confirmPassword: [
-    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      required: true,
+      message: t('pages.forgotPassword.validation.confirmPasswordRequired'),
+      trigger: 'blur',
+    },
     { validator: validateConfirmPassword, trigger: 'blur' },
   ],
-}
+}))
 
 // 发送验证码
 const sendVerificationCode = async () => {
@@ -217,7 +218,7 @@ const sendVerificationCode = async () => {
       type: 'reset_password',
     })
 
-    ElMessage.success('验证码已发送，请查收邮箱')
+    ElMessage.success(t('auth.login.codeSent'))
 
     // 开始倒计时
     countdown.value = 60
@@ -228,7 +229,7 @@ const sendVerificationCode = async () => {
       }
     }, 1000)
   } catch (error: any) {
-    const message = error.response?.data?.message || error.message || '验证码发送失败'
+    const message = error.response?.data?.message || error.message || t('pages.forgotPassword.sendCodeFailed')
     ElMessage.error(message)
   }
 }
@@ -247,10 +248,10 @@ const handleResetPassword = async () => {
       newPassword: forgotForm.newPassword,
     })
 
-    ElMessage.success('密码重置成功，请使用新密码登录')
+    ElMessage.success(t('pages.forgotPassword.resetSuccess'))
     router.push('/login')
   } catch (error: any) {
-    const message = error.response?.data?.message || error.message || '密码重置失败'
+    const message = error.response?.data?.message || error.message || t('pages.forgotPassword.resetFailed')
     ElMessage.error(message)
   } finally {
     loading.value = false
@@ -381,15 +382,6 @@ const goToLogin = () => {
 .language-selector {
   text-align: right;
   margin-bottom: 40px;
-}
-
-.language-text {
-  cursor: pointer;
-  color: #666;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .form-container {

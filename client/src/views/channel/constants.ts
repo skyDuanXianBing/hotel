@@ -16,14 +16,17 @@ export const CHANNEL_LOGO_MAP: Record<string, string> = {
 /** 渠道分类（介绍页） */
 export const CHANNEL_CATEGORIES = [
   {
+    key: 'domesticOta',
     name: '国内OTA',
     items: ['携程', '去哪儿', '美团', '飞猪', '途牛', '同程', '艺龙'],
   },
   {
+    key: 'homestay',
     name: '民宿平台',
     items: ['途家', '小猪民宿', '木鸟民宿', '榛果民宿', 'Airbnb'],
   },
   {
+    key: 'internationalOta',
     name: '国际OTA',
     items: ['Booking.com', 'Expedia', 'Agoda', 'Hotels.com', 'Priceline'],
   },

@@ -1,22 +1,30 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Box } from '@element-plus/icons-vue'
 
+const { t } = useI18n()
 const loading = ref(false)
 </script>
 
 <template>
   <div class="package-settings">
     <div class="page-header">
-      <h3>包栋设置</h3>
-      <p class="page-description">配置包栋业务的相关设置</p>
+      <h3>{{ t('settings.placeholders.packageSettings.title') }}</h3>
+      <p class="page-description">{{ t('settings.placeholders.packageSettings.description') }}</p>
     </div>
 
     <div class="content-area">
       <el-card>
         <div class="placeholder-content">
           <el-icon size="48" color="#d9d9d9"><Box /></el-icon>
-          <p>包栋设置功能开发中...</p>
+          <p>
+            {{
+              t('settings.common.inDevelopment', {
+                name: t('settings.placeholders.packageSettings.title'),
+              })
+            }}
+          </p>
         </div>
       </el-card>
     </div>

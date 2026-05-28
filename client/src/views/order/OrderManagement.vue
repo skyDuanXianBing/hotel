@@ -5,7 +5,7 @@
       <!-- 收起导航按钮 -->
       <div class="sidebar-header" @click="toggleSidebar">
         <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
-        <span v-if="!isCollapsed" class="sidebar-title">收起导航</span>
+        <span v-if="!isCollapsed" class="sidebar-title">{{ t('order.sidebar.collapse') }}</span>
         <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
         <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
       </div>
@@ -13,7 +13,7 @@
       <el-menu class="sidebar-menu" :default-active="activeMenu" @select="handleMenuSelect" :collapse="isCollapsed">
         <el-menu-item index="order-management">
           <el-icon><Document /></el-icon>
-          <span>住宿订单</span>
+          <span>{{ t('order.sidebar.accommodationOrders') }}</span>
         </el-menu-item>
       </el-menu>
     </div>
@@ -23,15 +23,15 @@
       <!-- 订单状态标签页 -->
       <div class="order-tabs">
         <el-tabs v-model="activeOrderTab" @tab-change="handleOrderTabChange">
-          <el-tab-pane label="全部" name="all">
+          <el-tab-pane :label="t('order.tabs.all')" name="all">
             <template #label>
-              <span>全部</span>
+              <span>{{ t('order.tabs.all') }}</span>
             </template>
           </el-tab-pane>
           <el-tab-pane name="today-checkin">
             <template #label>
               <div class="tab-label-with-badge">
-                <span>今日预抵</span>
+                <span>{{ t('order.tabs.todayCheckin') }}</span>
                 <span v-if="todayCheckinCount > 0" class="custom-badge">{{
                   todayCheckinCount
                 }}</span>
@@ -41,7 +41,7 @@
           <el-tab-pane name="today-checkout">
             <template #label>
               <div class="tab-label-with-badge">
-                <span>今日预离</span>
+                <span>{{ t('order.tabs.todayCheckout') }}</span>
                 <span v-if="todayCheckoutCount > 0" class="custom-badge">{{
                   todayCheckoutCount
                 }}</span>
@@ -51,7 +51,7 @@
           <el-tab-pane name="today-new">
             <template #label>
               <div class="tab-label-with-badge">
-                <span>今日新单</span>
+                <span>{{ t('order.tabs.todayNew') }}</span>
                 <span v-if="todayNewCount > 0" class="custom-badge">{{ todayNewCount }}</span>
               </div>
             </template>
@@ -59,22 +59,22 @@
            <el-tab-pane name="unassigned">
              <template #label>
                <div class="tab-label-with-badge">
-                 <span>未排房/未映射</span>
+                 <span>{{ t('order.tabs.unassigned') }}</span>
                  <span v-if="unassignedCount > 0" class="custom-badge">{{ unassignedCount }}</span>
                </div>
              </template>
            </el-tab-pane>
-          <el-tab-pane label="已排房" name="assigned"></el-tab-pane>
+          <el-tab-pane :label="t('order.tabs.assigned')" name="assigned"></el-tab-pane>
           <el-tab-pane name="pending">
             <template #label>
               <div class="tab-label-with-badge">
-                <span>待处理</span>
+                <span>{{ t('order.tabs.pending') }}</span>
                 <span v-if="pendingCount > 0" class="custom-badge">{{ pendingCount }}</span>
               </div>
             </template>
           </el-tab-pane>
-          <el-tab-pane label="订单盒子" name="order-box"></el-tab-pane>
-          <el-tab-pane label="房型/房间已删除" name="deleted-rooms"></el-tab-pane>
+          <el-tab-pane :label="t('order.tabs.orderBox')" name="order-box"></el-tab-pane>
+          <el-tab-pane :label="t('order.tabs.deletedRooms')" name="deleted-rooms"></el-tab-pane>
         </el-tabs>
       </div>
 
@@ -85,7 +85,7 @@
           <!-- 搜索框 -->
           <el-input
             v-model="searchQuery"
-            placeholder="请输入订单号、渠道订单号、房间号、姓名、手机号查询"
+            :placeholder="t('order.filters.searchPlaceholder')"
             class="search-input"
             @keyup.enter="handleSearch"
           >
@@ -98,9 +98,9 @@
 
           <!-- 渠道筛选 -->
           <div class="filter-group">
-            <span class="filter-label">渠道</span>
-            <el-select v-model="filters.channel" placeholder="全部" @change="handleFilterChange">
-              <el-option label="全部" value=""></el-option>
+            <span class="filter-label">{{ t('order.filters.channel') }}</span>
+            <el-select v-model="filters.channel" :placeholder="t('order.options.all')" @change="handleFilterChange">
+              <el-option :label="t('order.options.all')" value=""></el-option>
               <el-option
                 v-for="channel in channelOptions"
                 :key="channel.value"
@@ -112,9 +112,9 @@
 
           <!-- 房型筛选 -->
           <div class="filter-group">
-            <span class="filter-label">房型</span>
-            <el-select v-model="filters.roomType" placeholder="全部" @change="handleFilterChange">
-              <el-option label="全部" value=""></el-option>
+            <span class="filter-label">{{ t('order.filters.roomType') }}</span>
+            <el-select v-model="filters.roomType" :placeholder="t('order.options.all')" @change="handleFilterChange">
+              <el-option :label="t('order.options.all')" value=""></el-option>
               <el-option
                 v-for="roomType in roomTypeOptions"
                 :key="roomType.value"
@@ -126,13 +126,13 @@
 
           <!-- 日期选择器（仅在全部标签页显示） -->
           <div v-if="activeOrderTab === 'all'" class="filter-group date-filter-group">
-            <span class="filter-label">创建时间</span>
+            <span class="filter-label">{{ t('order.filters.createdAt') }}</span>
             <el-date-picker
               v-model="dateRange"
               type="daterange"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
+              range-separator="-"
+              :start-placeholder="t('accommodation.common.startDate')"
+              :end-placeholder="t('accommodation.common.endDate')"
               format="YYYY-MM-DD"
               value-format="YYYY-MM-DD"
               @change="handleDateRangeChange"
@@ -143,45 +143,45 @@
         <!-- 第二行：详细筛选器 -->
         <div class="filter-row">
           <div class="filter-group">
-            <span class="filter-label">入住类型</span>
+            <span class="filter-label">{{ t('order.filters.checkinType') }}</span>
             <el-select
               v-model="filters.checkinType"
-              placeholder="全部"
+              :placeholder="t('order.options.all')"
               @change="handleFilterChange"
             >
-              <el-option label="全部" value=""></el-option>
-              <el-option label="正常入住" value="normal"></el-option>
-              <el-option label="提前入住" value="early"></el-option>
-              <el-option label="延迟入住" value="late"></el-option>
+              <el-option :label="t('order.options.all')" value=""></el-option>
+              <el-option :label="t('order.options.normalCheckin')" value="normal"></el-option>
+              <el-option :label="t('order.options.earlyCheckin')" value="early"></el-option>
+              <el-option :label="t('order.options.lateCheckin')" value="late"></el-option>
             </el-select>
           </div>
 
           <div class="filter-group">
-            <span class="filter-label">入住状态</span>
-            <el-select v-model="filters.status" placeholder="请选择" @change="handleFilterChange">
-              <el-option label="全部" value=""></el-option>
-              <el-option label="已入住" value="checked-in"></el-option>
-              <el-option label="未入住" value="not-checked-in"></el-option>
-              <el-option label="已退房" value="checked-out"></el-option>
+            <span class="filter-label">{{ t('order.filters.stayStatus') }}</span>
+            <el-select v-model="filters.status" :placeholder="t('order.options.select')" @change="handleFilterChange">
+              <el-option :label="t('order.options.all')" value=""></el-option>
+              <el-option :label="t('order.options.checkedIn')" value="checked-in"></el-option>
+              <el-option :label="t('order.options.notCheckedIn')" value="not-checked-in"></el-option>
+              <el-option :label="t('order.options.checkedOut')" value="checked-out"></el-option>
             </el-select>
           </div>
 
           <div class="filter-group">
-            <span class="filter-label">结账状态</span>
+            <span class="filter-label">{{ t('order.filters.paymentStatus') }}</span>
             <el-select
               v-model="filters.paymentStatus"
-              placeholder="全部"
+              :placeholder="t('order.options.all')"
               @change="handleFilterChange"
             >
-              <el-option label="全部" value=""></el-option>
-              <el-option label="已结账" value="paid"></el-option>
-              <el-option label="未结账" value="unpaid"></el-option>
+              <el-option :label="t('order.options.all')" value=""></el-option>
+              <el-option :label="t('order.options.paid')" value="paid"></el-option>
+              <el-option :label="t('order.options.unpaid')" value="unpaid"></el-option>
             </el-select>
           </div>
 
           <div class="filter-actions">
             <el-button @click="toggleFilters">
-              {{ showAdvancedFilters ? '收起筛选' : '展开筛选' }}
+              {{ showAdvancedFilters ? t('order.filters.collapse') : t('order.filters.expand') }}
               <el-icon>
               <component :is="showAdvancedFilters ? ArrowUp : ArrowDown" />
             </el-icon>
@@ -193,16 +193,16 @@
       <!-- 订单盒子提示信息 -->
       <div v-if="activeOrderTab === 'order-box'" class="order-box-notice">
         <el-alert
-          title="订单盒子说明"
+          :title="t('order.orderBoxNotice.title')"
           type="info"
           :closable="false"
           show-icon
         >
           <template #default>
             <div class="notice-content">
-              <p>1. 只有已预订房间可移入订单盒子</p>
-              <p>2. 订单盒子中的房间不实际排房，不占库存，营业数据不进行统计</p>
-              <p>3. 订单金额不计算移入订单盒子的房间，如房间已结账或挂账，移入后将被撤销</p>
+              <p>{{ t('order.orderBoxNotice.line1') }}</p>
+              <p>{{ t('order.orderBoxNotice.line2') }}</p>
+              <p>{{ t('order.orderBoxNotice.line3') }}</p>
             </div>
           </template>
         </el-alert>
@@ -215,41 +215,41 @@
           style="width: 100%"
           :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
           v-loading="loading"
-          element-loading-text="加载中..."
+          :element-loading-text="t('order.options.loading')"
         >
           <el-table-column
             prop="orderNumber"
-            label="订单号/渠道订单号"
+            :label="t('order.table.orderNumbers')"
             min-width="280"
             fixed="left"
           >
             <template #default="scope">
               <div class="order-number">
-                <el-button type="text" class="order-link" title="点击查看订单详情" @click="viewOrder(scope.row)">{{
+                <el-button type="text" class="order-link" :title="t('order.table.detailTitle')" @click="viewOrder(scope.row)">{{
                   scope.row.orderNumber
                 }}</el-button>
                 <el-button
                   type="text"
                   class="channel-order-link"
-                  title="点击查看订单详情"
+                  :title="t('order.table.detailTitle')"
                   @click="viewOrder(scope.row)"
                 >
                   {{ getDisplayChannelOrderNumber(scope.row) }}
                 </el-button>
-                <span class="order-detail-tip">点击订单号查看详情</span>
+                <span class="order-detail-tip">{{ t('order.table.detailTip') }}</span>
               </div>
             </template>
           </el-table-column>
 
-          <el-table-column prop="channelName" label="渠道" width="150">
+          <el-table-column prop="channelName" :label="t('order.table.channel')" width="150">
             <template #default="scope">
               <el-tag size="small" :type="getChannelTagType(scope.row.channelName)">
-                {{ scope.row.channelName }}
+                {{ getChannelDisplayName(scope.row.channelName) }}
               </el-tag>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab !== 'all'" prop="status" label="状态" width="100">
+          <el-table-column v-if="activeOrderTab !== 'all'" prop="status" :label="t('order.table.status')" width="100">
             <template #default="scope">
               <el-tag size="small" :type="getReservationStatusTagType(scope.row.status)">
                 {{ getReservationStatusText(scope.row.status) }}
@@ -257,35 +257,35 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="guestName" label="联系人" width="150"></el-table-column>
+          <el-table-column prop="guestName" :label="t('order.table.guestName')" width="150"></el-table-column>
 
-          <el-table-column prop="phone" label="手机号" width="130">
+          <el-table-column prop="phone" :label="t('order.table.phone')" width="130">
             <template #default="scope">
               <span>{{ scope.row.phone || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column label="入住类型" width="100">
+          <el-table-column :label="t('order.table.checkinType')" width="100">
             <template #default="scope">
               <span>{{ getCheckinTypeText(scope.row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="roomTypeName" label="房型" width="180"></el-table-column>
+          <el-table-column prop="roomTypeName" :label="t('order.table.roomType')" width="180"></el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="pricePlan" label="价格计划" width="140">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="pricePlan" :label="t('order.table.pricePlan')" width="140">
             <template #default="scope">
               <span>{{ scope.row.pricePlan || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'unassigned'" prop="otaRoomId" label="渠道房型ID" width="160">
+          <el-table-column v-if="activeOrderTab === 'unassigned'" prop="otaRoomId" :label="t('order.table.otaRoomId')" width="160">
             <template #default="scope">
               <span>{{ scope.row.otaRoomId || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'unassigned'" prop="otaRoomTypeId" label="PMS房型ID" width="110">
+          <el-table-column v-if="activeOrderTab === 'unassigned'" prop="otaRoomTypeId" :label="t('order.table.pmsRoomTypeId')" width="110">
             <template #default="scope">
               <span>{{ scope.row.otaRoomTypeId ?? '-' }}</span>
             </template>
@@ -302,15 +302,15 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="roomNumber" label="房间号" width="100"></el-table-column>
+          <el-table-column prop="roomNumber" :label="t('order.table.roomNumber')" width="100"></el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" label="房间数" width="90">
+          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.roomCount')" width="90">
             <template #default>
               <span>1</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned' || activeOrderTab === 'order-box'" label="排房状态" width="100">
+          <el-table-column v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned' || activeOrderTab === 'order-box'" :label="t('order.table.assignStatus')" width="100">
             <template #default="scope">
               <el-tag size="small" :type="getAssignStatusTagType(scope.row)">
                 {{ getAssignStatusText(scope.row) }}
@@ -318,85 +318,85 @@
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="checkInDate" label="入住时间" width="170">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="checkInDate" :label="t('order.table.checkInTime')" width="170">
             <template #default="scope">
               <span>{{ formatStayDateTime(scope.row.checkInDate, 'checkIn') }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="checkOutDate" label="离店时间" width="170">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="checkOutDate" :label="t('order.table.checkOutTime')" width="170">
             <template #default="scope">
               <span>{{ formatStayDateTime(scope.row.checkOutDate, 'checkOut') }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" label="间夜数" width="90">
+          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.nights')" width="90">
             <template #default="scope">
               <span>{{ getNights(scope.row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" label="入住人数" width="100">
+          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.totalGuests')" width="100">
             <template #default="scope">
               <span>{{ getTotalGuests(scope.row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" label="成人数" width="100">
+          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.adults')" width="100">
             <template #default="scope">
               <span>{{ scope.row.adults ?? '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" label="儿童数" width="100">
+          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.children')" width="100">
             <template #default="scope">
               <span>{{ scope.row.children ?? 0 }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" label="入住状态" width="120">
+          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.stayStatus')" width="120">
             <template #default="scope">
               <span>{{ getReservationStatusText(scope.row.status) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="currentRoomPrice" label="房费" width="120">
+          <el-table-column prop="currentRoomPrice" :label="t('order.table.roomFee')" width="120">
             <template #default="scope">
               <span>{{ formatAmount(scope.row.currentRoomPrice) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="totalAmount" label="住宿金额" width="140">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="totalAmount" :label="t('order.table.accommodationAmount')" width="140">
             <template #default="scope">
               <span>{{ formatAmount(scope.row.totalAmount) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="totalAmount" label="住宿小计" width="140">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="totalAmount" :label="t('order.table.accommodationSubtotal')" width="140">
             <template #default="scope">
               <span>{{ formatAmount(scope.row.totalAmount) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="commission" label="佣金" width="120">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="commission" :label="t('order.table.commission')" width="120">
             <template #default="scope">
               <span>{{ formatAmount(scope.row.commission) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="paymentMethod" label="支付方式" width="150">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="paymentMethod" :label="t('order.table.paymentMethod')" width="150">
             <template #default="scope">
               <span>{{ scope.row.paymentMethod || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" label="收银状态" width="120">
+          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.cashierStatus')" width="120">
             <template #default="scope">
               <span>{{ getCashierStatusTextV2(scope.row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column label="结账状态" width="100">
+          <el-table-column :label="t('order.table.settlementStatus')" width="100">
             <template #default="scope">
               <el-select
                 v-if="activeOrderTab === 'pending'"
@@ -406,8 +406,8 @@
                 :disabled="settlementUpdatingOrderId === scope.row.id"
                 @change="handleSettlementStatusChange(scope.row, $event)"
               >
-                <el-option label="已结账" value="paid" />
-                <el-option label="未结账" value="unpaid" />
+                <el-option :label="t('order.options.paid')" value="paid" />
+                <el-option :label="t('order.options.unpaid')" value="unpaid" />
               </el-select>
               <el-tag v-else size="small" :type="getSettlementTagTypeV2(scope.row)">
                 {{ getSettlementStatusTextV2(scope.row) }}
@@ -415,21 +415,21 @@
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab !== 'all'" prop="checkInDate" label="入住时间" width="150"></el-table-column>
+          <el-table-column v-if="activeOrderTab !== 'all'" prop="checkInDate" :label="t('order.table.checkInTime')" width="150"></el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="notes" label="备注" width="200">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="notes" :label="t('order.table.notes')" width="200">
             <template #default="scope">
               <span>{{ scope.row.notes || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="createdBy" label="创建人" width="120">
+          <el-table-column v-if="activeOrderTab === 'all'" prop="createdBy" :label="t('order.table.createdBy')" width="120">
             <template #default="scope">
               <span>{{ scope.row.createdBy || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column prop="createdAt" label="创建时间" width="180">
+          <el-table-column prop="createdAt" :label="t('order.table.createdAt')" width="180">
             <template #default="scope">
               <span>{{ formatDateTime(scope.row.createdAt) }}</span>
             </template>
@@ -437,7 +437,7 @@
 
           <el-table-column
             v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned' || activeOrderTab === 'order-box'"
-            label="操作"
+            :label="t('order.table.actions')"
             width="180"
             fixed="right"
           >
@@ -448,7 +448,7 @@
                 link
                 @click="viewOrder(scope.row)"
               >
-                已排房
+                {{ t('order.assignDialog.assigned') }}
               </el-button>
               <el-button
                 type="primary"
@@ -456,7 +456,7 @@
                 :disabled="!canAssignRoom(scope.row)"
                 @click="openAssignRoom(scope.row)"
               >
-                {{ scope.row.roomId ? '编辑排房' : '进行排房' }}
+                {{ scope.row.roomId ? t('order.assignDialog.edit') : t('order.assignDialog.start') }}
               </el-button>
             </template>
           </el-table-column>
@@ -465,7 +465,7 @@
         <!-- 分页 -->
         <div class="pagination-wrapper">
           <div class="pagination-info">
-            <span>总计 {{ totalOrders }} 个订单</span>
+            <span>{{ t('order.pagination.total', { count: totalOrders }) }}</span>
           </div>
           <el-pagination
             v-model:current-page="currentPage"
@@ -489,19 +489,19 @@
 
     <el-dialog
       v-model="showAssignRoomDialog"
-      title="进行排房"
+      :title="t('order.assignDialog.title')"
       width="860px"
       destroy-on-close
       @closed="handleAssignDialogClosed"
     >
       <div class="assign-room-panel">
-        <h4 class="panel-title">排房（按订单日期范围过滤可用房间）</h4>
+        <h4 class="panel-title">{{ t('order.assignDialog.panelTitle') }}</h4>
 
         <div class="assign-row">
-          <div class="assign-label">房型</div>
+          <div class="assign-label">{{ t('order.assignDialog.roomType') }}</div>
           <el-select
             v-model="assignRoomTypeId"
-            placeholder="请选择房型"
+            :placeholder="t('order.assignDialog.roomTypePlaceholder')"
             filterable
             :loading="assignableRoomsLoading"
             style="width: 100%"
@@ -510,17 +510,17 @@
             <el-option
               v-for="roomType in assignableRoomTypes"
               :key="roomType.id"
-              :label="`${roomType.name}（可用 ${roomType.availableRooms}）`"
+              :label="formatAssignableRoomTypeLabel(roomType)"
               :value="roomType.id"
             />
           </el-select>
         </div>
 
         <div class="assign-row">
-          <div class="assign-label">房间号</div>
+          <div class="assign-label">{{ t('order.assignDialog.room') }}</div>
           <el-select
             v-model="assignRoomId"
-            placeholder="请选择房间"
+            :placeholder="t('order.assignDialog.roomPlaceholder')"
             filterable
             :disabled="!assignRoomTypeId"
             :loading="assignableRoomsLoading"
@@ -537,7 +537,7 @@
 
         <div class="assign-actions">
           <el-button :loading="assignableRoomsLoading" @click="refreshAssignableRoomTypes">
-            刷新可用房间
+            {{ t('order.assignDialog.refresh') }}
           </el-button>
           <el-button
             type="primary"
@@ -545,7 +545,7 @@
             :loading="assignRoomSubmitting"
             @click="submitAssignRoom"
           >
-            确认排房
+            {{ t('order.assignDialog.confirm') }}
           </el-button>
         </div>
       </div>
@@ -556,6 +556,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   ArrowLeft,
   ArrowRight,
@@ -586,6 +587,7 @@ import {
 } from '@/api/orderBox'
 
 const route = useRoute()
+const { t } = useI18n()
 
 // Sidebar collapsed state
 const isCollapsed = ref(false)
@@ -698,7 +700,7 @@ const loadReservations = async () => {
     }
   } catch (error) {
     console.error('加载订单数据失败:', error)
-    ElMessage.error('加载订单数据失败')
+    ElMessage.error(t('order.messages.loadOrdersFailed'))
   } finally {
     loading.value = false
   }
@@ -714,7 +716,7 @@ const loadStatistics = async () => {
     }
   } catch (error) {
     console.error('加载统计数据失败:', error)
-    ElMessage.error('加载统计数据失败')
+    ElMessage.error(t('order.messages.loadStatisticsFailed'))
   }
 }
 
@@ -730,7 +732,7 @@ const loadOrderBox = async () => {
     }
   } catch (error) {
     console.error('加载订单盒子失败:', error)
-    ElMessage.error('加载订单盒子失败')
+    ElMessage.error(t('order.messages.loadOrderBoxFailed'))
   }
 }
 
@@ -745,11 +747,11 @@ const loadFilterOptions = async () => {
       channelOptions.value = channelResponse.data
         .filter((channel) => channel.name && channel.name.trim().length > 0)
         .map((channel) => ({
-          label: channel.name,
+          label: getChannelDisplayName(channel.name),
           value: channel.name,
         }))
     } else {
-      ElMessage.warning(channelResponse.message || '加载渠道筛选项失败')
+      ElMessage.warning(channelResponse.message || t('order.messages.loadChannelFiltersFailed'))
     }
 
     if (roomTypeResponse.success) {
@@ -760,11 +762,11 @@ const loadFilterOptions = async () => {
           value: roomType.name,
         }))
     } else {
-      ElMessage.warning(roomTypeResponse.message || '加载房型筛选项失败')
+      ElMessage.warning(roomTypeResponse.message || t('order.messages.loadRoomTypeFiltersFailed'))
     }
   } catch (error) {
     console.error('加载筛选项失败:', error)
-    ElMessage.warning('加载筛选项失败')
+    ElMessage.warning(t('order.messages.loadFiltersFailed'))
   }
 }
 
@@ -829,10 +831,13 @@ const toggleFilters = () => {
 const getChannelTagType = (channel: string) => {
   switch (channel) {
     case '直营客':
+    case 'Direct Guest':
       return 'primary'
     case '美团民宿':
+    case 'Meituan Homestay':
       return 'warning'
     case '途家':
+    case 'Tujia':
       return 'success'
     default:
       return 'info'
@@ -843,15 +848,15 @@ const getReservationStatusText = (status?: string) => {
   const normalized = (status || '').toUpperCase()
   switch (normalized) {
     case 'CONFIRMED':
-      return '已确认'
+      return t('order.status.confirmed')
     case 'REQUESTED':
-      return '待确认'
+      return t('order.status.requested')
     case 'CHECKED_IN':
-      return '已入住'
+      return t('order.status.checkedIn')
     case 'CHECKED_OUT':
-      return '已退房'
+      return t('order.status.checkedOut')
     case 'CANCELLED':
-      return '已取消'
+      return t('order.status.cancelled')
     default:
       return status || '-'
   }
@@ -878,9 +883,9 @@ const canAssignRoom = (order: ReservationDTO) => {
 
 const getAssignStatusText = (order: ReservationDTO) => {
   if (!order.roomId) {
-    return '未排房'
+    return t('order.assignStatus.unassigned')
   }
-  return canAssignRoom(order) ? '已排房' : '已排房(不占房)'
+  return canAssignRoom(order) ? t('order.assignStatus.assigned') : t('order.assignStatus.assignedNoInventory')
 }
 
 const getAssignStatusTagType = (order: ReservationDTO) => {
@@ -901,7 +906,7 @@ const formatAmount = (value?: number) => {
   })}`
 }
 
-const getCheckinTypeText = (_order: ReservationDTO) => '正常入住'
+const getCheckinTypeText = (_order: ReservationDTO) => t('order.options.normalCheckin')
 
 const getTotalGuests = (order: ReservationDTO) => {
   const adults = order.adults ?? 0
@@ -934,20 +939,20 @@ const getSettlementStatusText = (order: ReservationDTO) => {
   const paidAmount = Number(order.paidAmount ?? 0)
   const totalAmount = Number(order.totalAmount ?? 0)
   if (totalAmount > 0 && paidAmount >= totalAmount) {
-    return '已结账'
+    return t('order.settlement.settled')
   }
   if (paidAmount > 0 && paidAmount < totalAmount) {
-    return '部分结账'
+    return t('order.settlement.partiallySettled')
   }
-  return '未结账'
+  return t('order.settlement.unsettled')
 }
 
 const getSettlementTagType = (order: ReservationDTO) => {
   const settlementStatus = getSettlementStatusText(order)
-  if (settlementStatus === '已结账') {
+  if (settlementStatus === t('order.settlement.settled')) {
     return 'success'
   }
-  if (settlementStatus === '部分结账') {
+  if (settlementStatus === t('order.settlement.partiallySettled')) {
     return 'warning'
   }
   return 'danger'
@@ -957,12 +962,12 @@ const getCashierStatusText = (order: ReservationDTO) => {
   const paidAmount = Number(order.paidAmount ?? 0)
   const totalAmount = Number(order.totalAmount ?? 0)
   if (totalAmount > 0 && paidAmount >= totalAmount) {
-    return '账目已平'
+    return t('order.settlement.balanced')
   }
   if (paidAmount > 0) {
-    return '部分到账'
+    return t('order.settlement.partialPaid')
   }
-  return '待收款'
+  return t('order.settlement.pendingPayment')
 }
 
 const isOrderSettled = (order: ReservationDTO) => {
@@ -977,18 +982,18 @@ const isOrderSettled = (order: ReservationDTO) => {
 
 const getSettlementStatusTextV2 = (order: ReservationDTO) => {
   if (isOrderSettled(order)) {
-    return '已结账'
+    return t('order.settlement.settled')
   }
   const paidAmount = Number(order.paidAmount ?? 0)
-  return paidAmount > 0 ? '部分结账' : '未结账'
+  return paidAmount > 0 ? t('order.settlement.partiallySettled') : t('order.settlement.unsettled')
 }
 
 const getSettlementTagTypeV2 = (order: ReservationDTO) => {
   const settlementStatus = getSettlementStatusTextV2(order)
-  if (settlementStatus === '已结账') {
+  if (settlementStatus === t('order.settlement.settled')) {
     return 'success'
   }
-  if (settlementStatus === '部分结账') {
+  if (settlementStatus === t('order.settlement.partiallySettled')) {
     return 'warning'
   }
   return 'danger'
@@ -996,10 +1001,10 @@ const getSettlementTagTypeV2 = (order: ReservationDTO) => {
 
 const getCashierStatusTextV2 = (order: ReservationDTO) => {
   if (isOrderSettled(order)) {
-    return '账目已平'
+    return t('order.settlement.balanced')
   }
   const paidAmount = Number(order.paidAmount ?? 0)
-  return paidAmount > 0 ? '部分到账' : '待收款'
+  return paidAmount > 0 ? t('order.settlement.partialPaid') : t('order.settlement.pendingPayment')
 }
 
 const getSettlementSelectValue = (order: ReservationDTO) => {
@@ -1012,23 +1017,39 @@ const formatDateTime = (dateStr: string) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
 }
 
-const getChannelDisplayName = (value: string) => {
+const getChannelDisplayName = (value?: string) => {
+  const normalized = value?.trim().toLowerCase() || ''
   const channelMap: Record<string, string> = {
-    direct: '直营客',
-    meituan: '美团民宿',
-    tujia: '途家',
+    direct: t('pages.home.guest.directGuest'),
+    'direct guest': t('pages.home.guest.directGuest'),
+    '直营客': t('pages.home.guest.directGuest'),
+    '自来客': t('pages.home.guest.directGuest'),
+    '散客': t('pages.home.guest.directGuest'),
+    '直接来店客': t('pages.home.guest.directGuest'),
+    meituan: t('pages.home.roomStatusChannel.channels.meituan'),
+    'meituan homestay': t('pages.home.roomStatusChannel.channels.meituan'),
+    '美团民宿': t('pages.home.roomStatusChannel.channels.meituan'),
+    '美團民宿': t('pages.home.roomStatusChannel.channels.meituan'),
+    tujia: 'Tujia',
+    '途家': 'Tujia',
   }
-  return channelMap[value] || value
+  return channelMap[normalized] || value || '-'
 }
 
 const getCheckinTypeDisplayName = (value: string) => {
   const typeMap: Record<string, string> = {
-    normal: '正常入住',
-    early: '提前入住',
-    late: '延迟入住',
+    normal: t('order.options.normalCheckin'),
+    early: t('order.options.earlyCheckin'),
+    late: t('order.options.lateCheckin'),
   }
   return typeMap[value] || value
 }
+
+const formatAssignableRoomTypeLabel = (roomType: AssignableRoomTypeDTO) =>
+  t('order.assignDialog.roomTypeAvailable', {
+    name: roomType.name,
+    count: roomType.availableRooms,
+  })
 
 // 分页方法
 const handleSizeChange = (size: number) => {
@@ -1064,17 +1085,17 @@ const handleSettlementStatusChange = async (order: ReservationDTO, value: string
       settled: value === 'paid',
     })
     if (!response.success) {
-      ElMessage.error(response.message || '更新结账状态失败')
+      ElMessage.error(response.message || t('order.messages.updateSettlementFailed'))
       return
     }
     Object.assign(order, response.data)
-    ElMessage.success(value === 'paid' ? '已更新为已结账' : '已更新为未结账')
+    ElMessage.success(value === 'paid' ? t('order.settlement.updatedPaid') : t('order.settlement.updatedUnpaid'))
     if (filters.value.paymentStatus) {
       await loadReservations()
     }
   } catch (error) {
     console.error('更新结账状态失败:', error)
-    ElMessage.error('更新结账状态失败')
+    ElMessage.error(t('order.messages.updateSettlementFailed'))
   } finally {
     settlementUpdatingOrderId.value = null
   }
@@ -1104,7 +1125,7 @@ const refreshAssignableRoomTypes = async () => {
   try {
     const res = await getAssignableRooms(reservationId)
     if (!res.success) {
-      ElMessage.error(res.message || '加载可用房型失败')
+      ElMessage.error(res.message || t('order.messages.loadAssignableRoomTypesFailed'))
       return
     }
     assignableRoomTypes.value = res.data.roomTypes || []
@@ -1113,7 +1134,7 @@ const refreshAssignableRoomTypes = async () => {
     assignableRooms.value = []
   } catch (error) {
     console.error('加载可用房型失败:', error)
-    ElMessage.error('加载可用房型失败')
+    ElMessage.error(t('order.messages.loadAssignableRoomTypesFailed'))
   } finally {
     assignableRoomsLoading.value = false
   }
@@ -1127,13 +1148,13 @@ const handleAssignRoomTypeChange = async (roomTypeId: number) => {
   try {
     const res = await getAssignableRooms(reservationId, roomTypeId)
     if (!res.success) {
-      ElMessage.error(res.message || '加载可用房间失败')
+      ElMessage.error(res.message || t('order.messages.loadAssignableRoomsFailed'))
       return
     }
     assignableRooms.value = res.data.rooms || []
   } catch (error) {
     console.error('加载可用房间失败:', error)
-    ElMessage.error('加载可用房间失败')
+    ElMessage.error(t('order.messages.loadAssignableRoomsFailed'))
   } finally {
     assignableRoomsLoading.value = false
   }
@@ -1147,15 +1168,15 @@ const submitAssignRoom = async () => {
   try {
     const res = await assignReservationRoom(reservationId, roomId)
     if (!res.success) {
-      ElMessage.error(res.message || '排房失败')
+      ElMessage.error(res.message || t('order.messages.assignFailed'))
       return
     }
-    ElMessage.success('排房成功，房态日历刷新后可查看占房')
+    ElMessage.success(t('order.messages.assignSuccess'))
     showAssignRoomDialog.value = false
     await handleReservationUpdated()
   } catch (error) {
     console.error('排房失败:', error)
-    ElMessage.error('排房失败')
+    ElMessage.error(t('order.messages.assignFailed'))
   } finally {
     assignRoomSubmitting.value = false
   }
@@ -1163,7 +1184,7 @@ const submitAssignRoom = async () => {
 
 const openAssignRoom = async (order: ReservationDTO) => {
   if (!canAssignRoom(order)) {
-    ElMessage.warning('当前订单状态不支持排房（仅已确认/待确认/已入住可排房）')
+    ElMessage.warning(t('order.messages.unsupportedAssignStatus'))
     return
   }
   assignTargetReservationId.value = order.id

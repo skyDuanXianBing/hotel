@@ -5,19 +5,19 @@
       <div class="filter-left">
         <el-select
           :model-value="connectionStatus"
-          placeholder="连接状态"
+          :placeholder="t('channel.mapping.connectionStatus')"
           style="width: 140px"
           @update:model-value="(val: string) => emit('update:connectionStatus', val)"
         >
-          <el-option label="全部" value="all" />
-          <el-option label="已连接" value="connected" />
-          <el-option label="未连接" value="disconnected" />
+          <el-option :label="t('channel.mapping.statuses.all')" value="all" />
+          <el-option :label="t('channel.mapping.statuses.connected')" value="connected" />
+          <el-option :label="t('channel.mapping.statuses.disconnected')" value="disconnected" />
         </el-select>
       </div>
       <div class="filter-right">
         <el-select
           :model-value="selectedHotelId"
-          placeholder="选择酒店"
+          :placeholder="t('channel.mapping.selectHotel')"
           style="width: 200px"
           clearable
           @update:model-value="(val: number | null) => emit('update:selectedHotelId', val)"
@@ -29,9 +29,9 @@
             :value="hotel.id"
           />
         </el-select>
-        <el-button @click="emit('importOrders')">导入未来订单</el-button>
+        <el-button @click="emit('importOrders')">{{ t('channel.mapping.importFutureOrders') }}</el-button>
         <el-button type="primary" :icon="Refresh" @click="emit('refresh')">
-          刷新渠道信息
+          {{ t('channel.mapping.refreshChannelInfo') }}
         </el-button>
       </div>
     </div>
@@ -45,7 +45,7 @@
         style="width: 100%"
       >
         <!-- Channel Room Type -->
-        <el-table-column label="渠道房型" min-width="200">
+        <el-table-column :label="t('channel.mapping.channelRoomType')" min-width="200">
           <template #default="{ row }">
             <div>{{ row.channelRoomType }}</div>
             <div class="sub-text">{{ row.channelRoomId }}</div>
@@ -53,12 +53,12 @@
         </el-table-column>
 
         <!-- PMS Room Type -->
-        <el-table-column label="PMS房型" min-width="200">
+        <el-table-column :label="t('channel.mapping.pmsRoomType')" min-width="200">
           <template #default="{ row }">
             <template v-if="editingRoomId === row.roomGroupId && row.isFirstInGroup">
               <el-select
                 :model-value="row.selectedPmsRoom"
-                placeholder="选择PMS房型"
+                :placeholder="t('channel.mapping.selectPmsRoomType')"
                 style="width: 100%"
                 clearable
                 @update:model-value="(val: string | null) => (row.selectedPmsRoom = val)"
@@ -78,7 +78,7 @@
         </el-table-column>
 
         <!-- Channel Price Plan -->
-        <el-table-column label="渠道价格计划" min-width="200">
+        <el-table-column :label="t('channel.mapping.channelPricePlan')" min-width="200">
           <template #default="{ row }">
             <div>{{ row.channelPricePlan }}</div>
             <div class="sub-text">{{ row.channelPricePlanId }}</div>
@@ -86,12 +86,12 @@
         </el-table-column>
 
         <!-- PMS Price Plan -->
-        <el-table-column label="PMS价格计划" min-width="200">
+        <el-table-column :label="t('channel.mapping.pmsPricePlan')" min-width="200">
           <template #default="{ row }">
             <template v-if="editingRoomId === row.roomGroupId">
               <el-select
                 :model-value="row.selectedPmsPricePlan"
-                placeholder="选择价格计划"
+                :placeholder="t('channel.mapping.selectPricePlan')"
                 style="width: 100%"
                 clearable
                 @update:model-value="(val: string | null) => (row.selectedPmsPricePlan = val)"
@@ -111,7 +111,7 @@
         </el-table-column>
 
         <!-- Status -->
-        <el-table-column label="状态" min-width="100">
+        <el-table-column :label="t('channel.mapping.status')" min-width="100">
           <template #default="{ row }">
             <span :class="['status-tag', getMappingStatusClass(row.status)]">
               {{ getMappingStatusText(row.status) }}
@@ -120,25 +120,25 @@
         </el-table-column>
 
         <!-- Actions -->
-        <el-table-column label="操作" min-width="180" fixed="right">
+        <el-table-column :label="t('channel.mapping.actions')" min-width="180" fixed="right">
           <template #default="{ row }">
             <template v-if="editingRoomId === row.roomGroupId && row.isFirstInGroup">
               <el-button type="primary" link @click="emit('save', row.roomGroupId)">
-                保存
+                {{ t('channel.mapping.save') }}
               </el-button>
-              <el-button link @click="emit('cancelEdit')">取消</el-button>
+              <el-button link @click="emit('cancelEdit')">{{ t('channel.mapping.cancel') }}</el-button>
             </template>
             <template v-else-if="row.isFirstInGroup">
               <template v-if="isAirbnb">
-                <el-button type="primary" link @click="emit('edit', row)">编辑</el-button>
+                <el-button type="primary" link @click="emit('edit', row)">{{ t('channel.mapping.edit') }}</el-button>
                 <el-button type="danger" link @click="emit('disconnect', row)">
-                  断开连接
+                  {{ t('channel.mapping.disconnect') }}
                 </el-button>
               </template>
               <template v-else>
-                <el-button type="primary" link @click="emit('manage', row)">管理</el-button>
+                <el-button type="primary" link @click="emit('manage', row)">{{ t('channel.mapping.manage') }}</el-button>
                 <el-button type="danger" link @click="emit('disconnect', row)">
-                  断开连接
+                  {{ t('channel.mapping.disconnect') }}
                 </el-button>
               </template>
             </template>
@@ -147,7 +147,7 @@
 
         <template #empty>
           <div class="empty-state">
-            <p class="empty-text">无数据</p>
+            <p class="empty-text">{{ t('channel.mapping.empty') }}</p>
           </div>
         </template>
       </el-table>
@@ -156,11 +156,13 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { Refresh } from '@element-plus/icons-vue'
 import type { FlattenedMappingItem, HotelItem, SelectOption } from '../../types'
 import { useChannelData } from '../../composables/useChannelData'
 
 const { formatPmsRoomTypeDisplay } = useChannelData()
+const { t } = useI18n()
 
 const props = defineProps<{
   isAirbnb: boolean
@@ -213,9 +215,9 @@ const getMappingStatusClass = (status: string) => {
 }
 
 const getMappingStatusText = (status: string) => {
-  if (status === 'connected') return '已连接'
-  if (status === 'disconnected') return '未直连'
-  return '无效'
+  if (status === 'connected') return t('channel.mapping.statuses.connected')
+  if (status === 'disconnected') return t('channel.mapping.statuses.disconnected')
+  return t('channel.mapping.statuses.invalid')
 }
 </script>
 
@@ -237,12 +239,18 @@ const getMappingStatusText = (status: string) => {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .filter-right {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-bar .el-button {
+  white-space: normal;
 }
 
 .table-section {

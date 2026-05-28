@@ -4,33 +4,33 @@
       <!-- 顶部选项卡 -->
       <div class="tabs-section">
         <el-tabs v-model="activeTab" class="overview-tabs" @tab-change="handleTabChange">
-          <el-tab-pane label="营业概况" name="business" />
-          <el-tab-pane label="流水汇总" name="revenue" />
-          <el-tab-pane label="渠道汇总" name="channel" />
-          <el-tab-pane label="销售汇总" name="sales" />
+          <el-tab-pane :label="t('stage5.dataCenter.overview.tabs.business')" name="business" />
+          <el-tab-pane :label="t('stage5.dataCenter.overview.tabs.revenue')" name="revenue" />
+          <el-tab-pane :label="t('stage5.dataCenter.overview.tabs.channel')" name="channel" />
+          <el-tab-pane :label="t('stage5.dataCenter.overview.tabs.sales')" name="sales" />
         </el-tabs>
       </div>
 
       <!-- 日期筛选 -->
       <div class="filter-section">
         <el-select v-model="dateType" style="width: 100px">
-          <el-option label="今天" value="today" />
-          <el-option label="昨天" value="yesterday" />
-          <el-option label="本周" value="week" />
-          <el-option label="本月" value="month" />
+          <el-option :label="t('stage5.common.date.today')" value="today" />
+          <el-option :label="t('stage5.common.date.yesterday')" value="yesterday" />
+          <el-option :label="t('stage5.common.date.thisWeek')" value="week" />
+          <el-option :label="t('stage5.common.date.thisMonth')" value="month" />
         </el-select>
         <el-date-picker
           v-model="startDate"
           type="date"
-          placeholder="选择日期"
+          :placeholder="t('stage5.common.date.selectDate')"
           format="YYYY/MM/DD"
           value-format="YYYY-MM-DD"
         />
-        <span class="date-separator">至</span>
+        <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
         <el-date-picker
           v-model="endDate"
           type="date"
-          placeholder="选择日期"
+          :placeholder="t('stage5.common.date.selectDate')"
           format="YYYY/MM/DD"
           value-format="YYYY-MM-DD"
         />
@@ -45,35 +45,35 @@
               <el-icon size="48"><Money /></el-icon>
             </div>
             <div class="stat-content">
-              <div class="stat-label">住宿总营业额</div>
+              <div class="stat-label">{{ t('stage5.statistics.business.totalAccommodationRevenue') }}</div>
               <div class="stat-value">¥{{ totalRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
             </div>
           </div>
 
           <div class="stat-card">
             <div class="stat-content">
-              <div class="stat-label">房费</div>
+              <div class="stat-label">{{ t('stage5.statistics.common.roomFee') }}</div>
               <div class="stat-value">¥{{ roomFee.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
             </div>
           </div>
 
           <div class="stat-card">
             <div class="stat-content">
-              <div class="stat-label">押金</div>
+              <div class="stat-label">{{ t('stage5.statistics.common.deposit') }}</div>
               <div class="stat-value">¥{{ deposit.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
             </div>
           </div>
 
           <div class="stat-card">
             <div class="stat-content">
-              <div class="stat-label">退房金</div>
+              <div class="stat-label">{{ t('stage5.dataCenter.overview.checkoutRefund') }}</div>
               <div class="stat-value">¥{{ checkout.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
             </div>
           </div>
 
           <div class="stat-card">
             <div class="stat-content">
-              <div class="stat-label">餐食/客房消费</div>
+              <div class="stat-label">{{ t('stage5.dataCenter.overview.roomService') }}</div>
               <div class="stat-value">¥{{ roomService.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
             </div>
           </div>
@@ -82,12 +82,12 @@
         <!-- 消费分类分布和住宿消费趋势 -->
         <div class="charts-row">
           <div class="chart-card">
-            <h3 class="chart-title">消费分类分布</h3>
+            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.spendCategoryDistribution') }}</h3>
             <div ref="businessPieChart" class="chart-container"></div>
           </div>
 
           <div class="chart-card">
-            <h3 class="chart-title">住宿消费趋势</h3>
+            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.accommodationSpendTrend') }}</h3>
             <div ref="businessBarChart" class="chart-container"></div>
           </div>
         </div>
@@ -95,17 +95,17 @@
         <!-- 住宿消费明细表格 -->
         <div class="table-section">
           <div class="table-header">
-            <h3 class="table-title">住宿消费明细 ({{ startDate }} 至 {{ endDate }})</h3>
-            <el-button type="primary">导出明细</el-button>
+            <h3 class="table-title">{{ t('stage5.dataCenter.overview.accommodationSpendDetails') }} ({{ dateRangeLabel }})</h3>
+            <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
           </div>
           <el-table :data="businessDetailData" border stripe class="detail-table">
-            <el-table-column prop="category" label="项目" min-width="120" align="center" />
-            <el-table-column prop="total" label="合计" min-width="150" align="center">
+            <el-table-column prop="category" :label="t('stage5.common.fields.project')" min-width="120" align="center" />
+            <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
               <template #default="{ row }">
                 <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="nov8" label="11月8日" min-width="150" align="center">
+            <el-table-column prop="nov8" :label="t('stage5.common.date.monthDay', { month: 11, day: 8 })" min-width="150" align="center">
               <template #default="{ row }">
                 ¥{{ row.nov8.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
               </template>
@@ -122,13 +122,13 @@
             :type="revenueSubTab === 'payment' ? 'primary' : 'default'"
             @click="handleRevenueSubTabChange('payment')"
           >
-            支付方式
+            {{ t('stage5.statistics.revenue.paymentMethod') }}
           </el-button>
           <el-button
             :type="revenueSubTab === 'category' ? 'primary' : 'default'"
             @click="handleRevenueSubTabChange('category')"
           >
-            款项分类
+            {{ t('stage5.dataCenter.overview.paymentCategory') }}
           </el-button>
         </div>
 
@@ -137,21 +137,21 @@
           <!-- 流水统计卡片 -->
           <div class="revenue-stats">
             <div class="stat-card large">
-              <div class="stat-label">总流水</div>
+              <div class="stat-label">{{ t('stage5.dataCenter.overview.totalRevenue') }}</div>
               <div class="stat-value large">¥{{ revenueTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
               <div class="stat-details">
-                <span>分账款: ¥{{ splitAccount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-                <span>实收款: ¥{{ actualReceived.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                <span>{{ t('stage5.dataCenter.overview.splitAccount') }}: ¥{{ splitAccount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                <span>{{ t('stage5.dataCenter.overview.actualReceived') }}: ¥{{ actualReceived.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
               </div>
             </div>
 
             <div class="revenue-cards">
               <div class="revenue-card">
-                <div class="card-label">Booking代收</div>
+                <div class="card-label">{{ t('stage5.dataCenter.overview.bookingCollection') }}</div>
                 <div class="card-value">¥{{ bookingRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
               </div>
               <div class="revenue-card">
-                <div class="card-label">Airbnb代收</div>
+                <div class="card-label">{{ t('stage5.dataCenter.overview.airbnbCollection') }}</div>
                 <div class="card-value">¥{{ airbnbRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
               </div>
             </div>
@@ -160,11 +160,11 @@
           <!-- 收款分布和总支出饼图 -->
           <div class="charts-row">
             <div class="chart-card">
-              <h3 class="chart-title">收款分布</h3>
+              <h3 class="chart-title">{{ t('stage5.dataCenter.overview.collectionDistribution') }}</h3>
               <div ref="revenueDistChart" class="chart-container"></div>
             </div>
             <div class="chart-card">
-              <h3 class="chart-title">总支出</h3>
+              <h3 class="chart-title">{{ t('stage5.dataCenter.overview.totalExpense') }}</h3>
               <div ref="expenseChart" class="chart-container"></div>
             </div>
           </div>
@@ -172,8 +172,8 @@
           <!-- 流水明细表格 -->
           <div class="table-section">
             <div class="table-header">
-              <h3 class="table-title">流水明细 ({{ startDate }} 至 {{ endDate }})</h3>
-              <el-button type="primary">导出明细</el-button>
+              <h3 class="table-title">{{ t('stage5.dataCenter.overview.revenueDetails') }} ({{ dateRangeLabel }})</h3>
+              <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
             </div>
 
             <div class="table-tabs">
@@ -189,13 +189,13 @@
             </div>
 
             <el-table :data="revenueTableData" border stripe class="detail-table">
-              <el-table-column prop="paymentMethod" label="支付方式" min-width="120" align="center" />
-              <el-table-column prop="total" label="合计" min-width="150" align="center">
+              <el-table-column prop="paymentMethod" :label="t('stage5.statistics.revenue.paymentMethod')" min-width="120" align="center" />
+              <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
                 <template #default="{ row }">
                   <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="nov8" label="11月8日" min-width="150" align="center">
+              <el-table-column prop="nov8" :label="t('stage5.common.date.monthDay', { month: 11, day: 8 })" min-width="150" align="center">
                 <template #default="{ row }">
                   ¥{{ row.nov8.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
                 </template>
@@ -209,21 +209,21 @@
           <!-- 流水统计卡片 -->
           <div class="revenue-stats">
             <div class="stat-card large">
-              <div class="stat-label">总流水</div>
+              <div class="stat-label">{{ t('stage5.dataCenter.overview.totalRevenue') }}</div>
               <div class="stat-value large">¥{{ categoryRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
               <div class="stat-details">
-                <span>总收款: ¥{{ categoryIncome.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-                <span>总支出: ¥{{ Math.abs(categoryExpense).toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                <span>{{ t('stage5.dataCenter.overview.totalCollection') }}: ¥{{ categoryIncome.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                <span>{{ t('stage5.dataCenter.overview.totalExpense') }}: ¥{{ Math.abs(categoryExpense).toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
               </div>
             </div>
 
             <div class="revenue-cards">
               <div class="revenue-card">
-                <div class="card-label">常规流水</div>
+                <div class="card-label">{{ t('stage5.dataCenter.overview.regularRevenue') }}</div>
                 <div class="card-value">¥{{ normalRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
               </div>
               <div class="revenue-card">
-                <div class="card-label">记一笔流水</div>
+                <div class="card-label">{{ t('stage5.dataCenter.overview.notesRevenue') }}</div>
                 <div class="card-value">¥{{ notesRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
               </div>
             </div>
@@ -232,11 +232,11 @@
           <!-- 收款分布和总支出饼图 -->
           <div class="charts-row">
             <div class="chart-card">
-              <h3 class="chart-title">收款分布</h3>
+              <h3 class="chart-title">{{ t('stage5.dataCenter.overview.collectionDistribution') }}</h3>
               <div ref="categoryDistChart" class="chart-container"></div>
             </div>
             <div class="chart-card">
-              <h3 class="chart-title">总支出分布</h3>
+              <h3 class="chart-title">{{ t('stage5.dataCenter.overview.totalExpenseDistribution') }}</h3>
               <div ref="categoryExpenseChart" class="chart-container"></div>
             </div>
           </div>
@@ -244,18 +244,18 @@
           <!-- 流水明细表格 -->
           <div class="table-section">
             <div class="table-header">
-              <h3 class="table-title">流水明细 ({{ startDate }} 至 {{ endDate }})</h3>
-              <el-button type="primary">导出明细</el-button>
+              <h3 class="table-title">{{ t('stage5.dataCenter.overview.revenueDetails') }} ({{ dateRangeLabel }})</h3>
+              <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
             </div>
 
             <el-table :data="categoryTableData" border stripe class="detail-table">
-              <el-table-column prop="paymentMethod" label="支付方式" min-width="120" align="center" />
-              <el-table-column prop="total" label="合计" min-width="150" align="center">
+              <el-table-column prop="paymentMethod" :label="t('stage5.statistics.revenue.paymentMethod')" min-width="120" align="center" />
+              <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
                 <template #default="{ row }">
                   <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="nov8" label="11月14日" min-width="150" align="center">
+              <el-table-column prop="nov8" :label="t('stage5.common.date.monthDay', { month: 11, day: 14 })" min-width="150" align="center">
                 <template #default="{ row }">
                   ¥{{ row.nov8.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
                 </template>
@@ -270,11 +270,11 @@
         <!-- 渠道消费分布和间夜分布 -->
         <div class="charts-row">
           <div class="chart-card">
-            <h3 class="chart-title">渠道消费分布 <span class="chart-subtitle">统计消费</span></h3>
+            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.channelConsumptionDistribution') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
             <div ref="channelRevenueChart" class="chart-container"></div>
           </div>
           <div class="chart-card">
-            <h3 class="chart-title">渠道间夜分布 <span class="chart-subtitle">统计消费</span></h3>
+            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.channelNightsDistribution') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
             <div ref="channelNightsChart" class="chart-container"></div>
           </div>
         </div>
@@ -282,11 +282,11 @@
         <!-- 渠道消费趋势和间夜趋势 -->
         <div class="charts-row">
           <div class="chart-card wide">
-            <h3 class="chart-title">渠道消费趋势 <span class="chart-subtitle">统计消费</span></h3>
+            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.channelConsumptionTrend') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
             <div ref="channelRevenueTrendChart" class="chart-container-large"></div>
           </div>
           <div class="chart-card wide">
-            <h3 class="chart-title">渠道间夜趋势 <span class="chart-subtitle">统计消费</span></h3>
+            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.channelNightsTrend') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
             <div ref="channelNightsTrendChart" class="chart-container-large"></div>
           </div>
         </div>
@@ -294,8 +294,8 @@
         <!-- 渠道明细表格 -->
         <div class="table-section">
           <div class="table-header">
-            <h3 class="table-title">渠道明细 ({{ startDate }} 至 {{ endDate }})</h3>
-            <el-button type="primary">导出明细</el-button>
+            <h3 class="table-title">{{ t('stage5.dataCenter.overview.channelDetails') }} ({{ dateRangeLabel }})</h3>
+            <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
           </div>
 
           <div class="table-tabs">
@@ -311,13 +311,13 @@
           </div>
 
           <el-table :data="channelTableData" border stripe class="detail-table">
-            <el-table-column prop="channel" label="渠道" min-width="120" align="center" />
-            <el-table-column prop="total" label="合计" min-width="150" align="center">
+            <el-table-column prop="channel" :label="t('stage5.common.filters.channel')" min-width="120" align="center" />
+            <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
               <template #default="{ row }">
                 <span class="amount-bold">{{ row.total }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="nov14" label="11月14日" min-width="150" align="center">
+            <el-table-column prop="nov14" :label="t('stage5.common.date.monthDay', { month: 11, day: 14 })" min-width="150" align="center">
               <template #default="{ row }">
                 {{ row.nov14 }}
               </template>
@@ -331,28 +331,28 @@
         <!-- 销售额卡片 -->
         <div class="sales-stats">
           <div class="stat-card large">
-            <div class="stat-label">总销售额</div>
+            <div class="stat-label">{{ t('stage5.dataCenter.overview.salesTotal') }}</div>
             <div class="stat-value large">¥{{ salesTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
           </div>
         </div>
 
         <!-- 每日销售额趋势 -->
         <div class="chart-card full-width">
-          <h3 class="chart-title">每日销售额统计 <span class="chart-subtitle">统计消费</span></h3>
+          <h3 class="chart-title">{{ t('stage5.dataCenter.overview.dailySalesStats') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
           <div ref="salesTrendChart" class="chart-container-xlarge"></div>
         </div>
 
         <!-- 销售订单明细 -->
         <div class="table-section">
           <div class="table-header">
-            <h3 class="table-title">销售订单明细 ({{ startDate }} 至 {{ endDate }})</h3>
-            <el-button type="primary">导出明细</el-button>
+            <h3 class="table-title">{{ t('stage5.dataCenter.overview.salesOrderDetails') }} ({{ dateRangeLabel }})</h3>
+            <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
           </div>
 
           <div class="search-section">
             <el-input
               v-model="searchKeyword"
-              placeholder="搜索订单号、渠道号、客户名号、手机号"
+              :placeholder="t('stage5.dataCenter.overview.searchOrders')"
               clearable
               style="max-width: 400px"
             >
@@ -360,31 +360,31 @@
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
-            <el-select v-model="searchChannel" placeholder="全部" clearable style="width: 150px">
-              <el-option label="全部" value="" />
+            <el-select v-model="searchChannel" :placeholder="t('stage5.common.filters.all')" clearable style="width: 150px">
+              <el-option :label="t('stage5.common.filters.all')" value="" />
               <el-option label="Booking.com" value="booking" />
               <el-option label="Airbnb" value="airbnb" />
             </el-select>
-            <el-select v-model="searchGuest" placeholder="全部" clearable style="width: 150px">
-              <el-option label="全部" value="" />
+            <el-select v-model="searchGuest" :placeholder="t('stage5.common.filters.all')" clearable style="width: 150px">
+              <el-option :label="t('stage5.common.filters.all')" value="" />
             </el-select>
           </div>
 
-          <el-button type="default" size="small" style="margin-bottom: 16px">收起</el-button>
+          <el-button type="default" size="small" style="margin-bottom: 16px">{{ t('stage5.dataCenter.overview.collapse') }}</el-button>
 
           <el-table :data="salesTableData" border stripe class="detail-table">
-            <el-table-column prop="createdAt" label="创建时间" min-width="150" align="center" />
-            <el-table-column prop="guestName" label="姓名" min-width="100" align="center" />
-            <el-table-column prop="orderNumber" label="订单号/渠道号" min-width="200" align="center">
+            <el-table-column prop="createdAt" :label="t('stage5.dataCenter.overview.createdAt')" min-width="150" align="center" />
+            <el-table-column prop="guestName" :label="t('stage5.dataCenter.overview.name')" min-width="100" align="center" />
+            <el-table-column prop="orderNumber" :label="t('stage5.dataCenter.overview.orderChannelNumber')" min-width="200" align="center">
               <template #default="{ row }">
                 <div>{{ row.orderNumber }}</div>
                 <div style="color: #909399; font-size: 12px">{{ row.channelNumber }}</div>
               </template>
             </el-table-column>
-            <el-table-column prop="channel" label="渠道" min-width="120" align="center" />
-            <el-table-column prop="customerName" label="客户名" min-width="120" align="center" />
-            <el-table-column prop="phone" label="手机号" min-width="120" align="center" />
-            <el-table-column prop="amount" label="订单总金额" min-width="150" align="center">
+            <el-table-column prop="channel" :label="t('stage5.common.filters.channel')" min-width="120" align="center" />
+            <el-table-column prop="customerName" :label="t('stage5.dataCenter.overview.customerName')" min-width="120" align="center" />
+            <el-table-column prop="phone" :label="t('stage5.dataCenter.overview.phone')" min-width="120" align="center" />
+            <el-table-column prop="amount" :label="t('stage5.dataCenter.overview.orderTotalAmount')" min-width="150" align="center">
               <template #default="{ row }">
                 <span class="amount-bold">¥{{ row.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
               </template>
@@ -392,7 +392,7 @@
           </el-table>
 
           <div class="table-footer">
-            <span class="table-info">共 2 条</span>
+            <span class="table-info">{{ t('stage5.dataCenter.overview.recordsTotal', { count: 2 }) }}</span>
             <span class="total-amount">¥{{ salesTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
             <el-pagination
               small
@@ -409,7 +409,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Search, Money } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -426,11 +427,66 @@ import {
   type SalesSummaryDTO
 } from '@/api/statistics'
 
+const { t, locale } = useI18n()
+
+const BUSINESS_CATEGORY_KEYS = {
+  roomFee: 'roomFee',
+  checkoutRefund: 'checkoutRefund',
+  roomService: 'roomService',
+  deposit: 'deposit',
+} as const
+
+const PAYMENT_METHOD_KEYS = {
+  bookingCollection: 'bookingCollection',
+  airbnbCollection: 'airbnbCollection',
+} as const
+
+const REVENUE_CATEGORY_KEYS = {
+  regularRevenue: 'regularRevenue',
+  arMismatchRevenue: 'arMismatchRevenue',
+  notesRevenue: 'notesRevenue',
+} as const
 const activeTab = ref('business')
 const dateType = ref('today')
 const startDate = ref('2025-11-14')
 const endDate = ref('2025-11-14')
 const loading = ref(false)
+
+const dateRangeLabel = computed(() =>
+  t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value }),
+)
+
+const translateBusinessCategory = (category: string) => {
+  const normalized = category?.trim()
+  if (normalized === BUSINESS_CATEGORY_KEYS.roomFee || normalized === t('stage5.statistics.common.roomFee')) return t('stage5.statistics.common.roomFee')
+  if (normalized === BUSINESS_CATEGORY_KEYS.checkoutRefund || normalized === t('stage5.dataCenter.overview.checkoutRefund'))
+    return t('stage5.dataCenter.overview.checkoutRefund')
+  if (normalized === BUSINESS_CATEGORY_KEYS.roomService || normalized === t('stage5.dataCenter.overview.roomService'))
+    return t('stage5.dataCenter.overview.roomService')
+  if (normalized === BUSINESS_CATEGORY_KEYS.deposit || normalized === t('stage5.statistics.common.deposit'))
+    return t('stage5.statistics.common.deposit')
+  return category
+}
+
+const translatePaymentMethod = (method: string) => {
+  const normalized = method?.trim()
+  if (normalized === PAYMENT_METHOD_KEYS.bookingCollection || normalized === t('stage5.dataCenter.overview.bookingCollection'))
+    return t('stage5.dataCenter.overview.bookingCollection')
+  if (normalized === PAYMENT_METHOD_KEYS.airbnbCollection || normalized === t('stage5.dataCenter.overview.airbnbCollection'))
+    return t('stage5.dataCenter.overview.airbnbCollection')
+  return method
+}
+
+const translateRevenueCategory = (category: string) => {
+  const normalized = category?.trim()
+  if (normalized === REVENUE_CATEGORY_KEYS.regularRevenue || normalized === t('stage5.dataCenter.overview.regularRevenue'))
+    return t('stage5.dataCenter.overview.regularRevenue')
+  if (normalized === REVENUE_CATEGORY_KEYS.arMismatchRevenue || normalized === t('stage5.dataCenter.overview.arMismatchRevenue'))
+    return t('stage5.dataCenter.overview.arMismatchRevenue')
+  if (normalized === REVENUE_CATEGORY_KEYS.notesRevenue || normalized === t('stage5.dataCenter.overview.notesRevenue'))
+    return t('stage5.dataCenter.overview.notesRevenue')
+  return category
+}
 
 // 营业概况相关数据
 const totalRevenue = ref(181196.45)
@@ -446,10 +502,10 @@ interface BusinessDetailItem {
 }
 
 const businessDetailData = ref<BusinessDetailItem[]>([
-  { category: '房费', total: 154256.45, nov8: 154256.45 },
-  { category: '退房金', total: 0.00, nov8: 0.00 },
-  { category: '餐食/客房消费', total: 26940.00, nov8: 26940.00 },
-  { category: '押金', total: 0.00, nov8: 0.00 },
+  { category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.roomFee), total: 154256.45, nov8: 154256.45 },
+  { category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.checkoutRefund), total: 0.00, nov8: 0.00 },
+  { category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.roomService), total: 26940.00, nov8: 26940.00 },
+  { category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.deposit), total: 0.00, nov8: 0.00 },
 ])
 
 // 流水汇总相关数据
@@ -461,14 +517,14 @@ const actualReceived = ref(0.00)
 const bookingRevenue = ref(182126.14)
 const airbnbRevenue = ref(94667.00)
 
-const revenueTableTabs = [
-  { key: 'payment-method', label: '支付方式' },
-  { key: 'room-fee', label: '房费来源' }
-]
+const revenueTableTabs = computed(() => [
+  { key: 'payment-method', label: t('stage5.statistics.revenue.paymentMethod') },
+  { key: 'room-fee', label: t('stage5.dataCenter.overview.roomFeeSource') },
+])
 
 const revenueTableData = ref([
-  { paymentMethod: 'Booking代收', total: 182126.14, nov8: 182126.14 },
-  { paymentMethod: 'Airbnb代收', total: 94667.00, nov8: 94667.00 }
+  { paymentMethod: translatePaymentMethod(PAYMENT_METHOD_KEYS.bookingCollection), total: 182126.14, nov8: 182126.14 },
+  { paymentMethod: translatePaymentMethod(PAYMENT_METHOD_KEYS.airbnbCollection), total: 94667.00, nov8: 94667.00 }
 ])
 
 // 款项分类相关数据
@@ -480,17 +536,17 @@ const arRevenue = ref(0.00) // AR收错流水
 const notesRevenue = ref(0.00) // 记一笔流水
 
 const categoryTableData = ref([
-  { paymentMethod: '常规流水', total: 390396.66, nov8: 390396.66 },
-  { paymentMethod: 'AR收错流水', total: 0.00, nov8: 0.00 },
-  { paymentMethod: '记一笔流水', total: 0.00, nov8: 0.00 }
+  { paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.regularRevenue), total: 390396.66, nov8: 390396.66 },
+  { paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.arMismatchRevenue), total: 0.00, nov8: 0.00 },
+  { paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.notesRevenue), total: 0.00, nov8: 0.00 }
 ])
 
 // 渠道汇总相关数据
 const channelTableTab = ref('channel-fee')
-const channelTableTabs = [
-  { key: 'channel-fee', label: '渠道消费' },
-  { key: 'channel-nights', label: '间夜明细' }
-]
+const channelTableTabs = computed(() => [
+  { key: 'channel-fee', label: t('stage5.dataCenter.overview.channelConsumptionDistribution') },
+  { key: 'channel-nights', label: t('stage5.statistics.channel.nightsDetails') },
+])
 
 // 当前显示的表格数据(根据tab切换)
 const channelTableData = ref<any[]>([])
@@ -504,7 +560,7 @@ const searchGuest = ref('')
 const salesTableData = ref([
   {
     createdAt: '2025/11/08 14:37:33',
-    guestName: '系统',
+    guestName: '-',
     orderNumber: '1968094745265878529',
     channelNumber: '648615527',
     channel: 'Booking.com',
@@ -514,7 +570,7 @@ const salesTableData = ref([
   },
   {
     createdAt: '2025/11/08 07:16:40',
-    guestName: '系统',
+    guestName: '-',
     orderNumber: '1968094742920252902',
     channelNumber: 'HM4DRVABE3',
     channel: 'Airbnb',
@@ -557,7 +613,7 @@ let salesTrend: ECharts | null = null
 const loadBusinessOverview = async () => {
   // 检查日期参数是否有效
   if (!startDate.value || !endDate.value) {
-    console.warn('日期参数无效，跳过加载营业概况数据')
+    console.warn(t('stage5.dataCenter.overview.invalidDateRange'))
     return
   }
 
@@ -580,7 +636,7 @@ const loadBusinessOverview = async () => {
 
       // 更新表格数据
       businessDetailData.value = data.consumptionDetails.map(detail => ({
-        category: detail.category,
+        category: translateBusinessCategory(detail.category),
         total: detail.total,
         nov8: detail.dailyAmounts[0]?.amount || 0
       }))
@@ -590,11 +646,11 @@ const loadBusinessOverview = async () => {
       initBusinessPieChart(data)
       initBusinessBarChart(data)
     } else {
-      ElMessage.error(response.message || '获取营业概况数据失败')
+      ElMessage.error(response.message || t('stage5.dataCenter.overview.loadBusinessFailed'))
     }
   } catch (error) {
-    console.error('加载营业概况数据失败:', error)
-    ElMessage.error('加载营业概况数据失败')
+    console.error(t('stage5.dataCenter.overview.loadBusinessFailed'), error)
+    ElMessage.error(t('stage5.dataCenter.overview.loadBusinessFailed'))
   } finally {
     loading.value = false
   }
@@ -606,7 +662,7 @@ const loadBusinessOverview = async () => {
 const loadRevenueSummary = async () => {
   // 检查日期参数是否有效
   if (!startDate.value || !endDate.value) {
-    console.warn('日期参数无效，跳过加载流水汇总数据')
+    console.warn(t('stage5.dataCenter.overview.invalidDateRange'))
     return
   }
 
@@ -627,7 +683,7 @@ const loadRevenueSummary = async () => {
 
       // 更新表格数据 - 支付方式
       revenueTableData.value = data.paymentMethodStats.map(stat => ({
-        paymentMethod: stat.paymentMethod,
+        paymentMethod: translatePaymentMethod(stat.paymentMethod),
         total: stat.amount,
         nov8: stat.amount
       }))
@@ -640,7 +696,7 @@ const loadRevenueSummary = async () => {
       notesRevenue.value = 0
 
       categoryTableData.value = data.categoryStats.map(stat => ({
-        paymentMethod: stat.category,
+        paymentMethod: translateRevenueCategory(stat.category),
         total: stat.amount,
         nov8: stat.amount
       }))
@@ -655,11 +711,11 @@ const loadRevenueSummary = async () => {
         initCategoryExpenseChart()
       }
     } else {
-      ElMessage.error(response.message || '获取流水汇总数据失败')
+      ElMessage.error(response.message || t('stage5.dataCenter.overview.loadRevenueFailed'))
     }
   } catch (error) {
-    console.error('加载流水汇总数据失败:', error)
-    ElMessage.error('加载流水汇总数据失败')
+    console.error(t('stage5.dataCenter.overview.loadRevenueFailed'), error)
+    ElMessage.error(t('stage5.dataCenter.overview.loadRevenueFailed'))
   } finally {
     loading.value = false
   }
@@ -671,7 +727,7 @@ const loadRevenueSummary = async () => {
 const loadChannelSummary = async () => {
   // 检查日期参数是否有效
   if (!startDate.value || !endDate.value) {
-    console.warn('日期参数无效，跳过加载渠道汇总数据')
+    console.warn(t('stage5.dataCenter.overview.invalidDateRange'))
     return
   }
 
@@ -694,8 +750,8 @@ const loadChannelSummary = async () => {
 
       const channelNightsData = data.channelDetails.map(detail => ({
         channel: detail.channelName,
-        total: `${detail.roomNights || 0}间`,
-        nov14: `${detail.roomNights || 0}间`
+        total: detail.roomNights || 0,
+        nov14: detail.roomNights || 0
       }))
 
       if (channelTableTab.value === 'channel-fee') {
@@ -711,11 +767,11 @@ const loadChannelSummary = async () => {
       initChannelRevenueTrendChart(data)
       initChannelNightsTrendChart(data)
     } else {
-      ElMessage.error(response.message || '获取渠道汇总数据失败')
+      ElMessage.error(response.message || t('stage5.dataCenter.overview.loadChannelFailed'))
     }
   } catch (error) {
-    console.error('加载渠道汇总数据失败:', error)
-    ElMessage.error('加载渠道汇总数据失败')
+    console.error(t('stage5.dataCenter.overview.loadChannelFailed'), error)
+    ElMessage.error(t('stage5.dataCenter.overview.loadChannelFailed'))
   } finally {
     loading.value = false
   }
@@ -727,7 +783,7 @@ const loadChannelSummary = async () => {
 const loadSalesSummary = async () => {
   // 检查日期参数是否有效
   if (!startDate.value || !endDate.value) {
-    console.warn('日期参数无效，跳过加载销售汇总数据')
+    console.warn(t('stage5.dataCenter.overview.invalidDateRange'))
     return
   }
 
@@ -761,11 +817,11 @@ const loadSalesSummary = async () => {
       await nextTick()
       initSalesTrendChart(data)
     } else {
-      ElMessage.error(response.message || '获取销售汇总数据失败')
+      ElMessage.error(response.message || t('stage5.dataCenter.overview.loadSalesFailed'))
     }
   } catch (error) {
-    console.error('加载销售汇总数据失败:', error)
-    ElMessage.error('加载销售汇总数据失败')
+    console.error(t('stage5.dataCenter.overview.loadSalesFailed'), error)
+    ElMessage.error(t('stage5.dataCenter.overview.loadSalesFailed'))
   } finally {
     loading.value = false
   }
@@ -802,13 +858,13 @@ const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
   // 使用API数据或默认数据
   const pieChartData = data ? data.categoryDistribution.map(item => ({
     value: item.value,
-    name: item.category,
+    name: translateBusinessCategory(item.category),
     percentage: `${item.percentage.toFixed(2)}%`
   })) : [
-    { value: 0, name: '房费', percentage: '0%' },
-    { value: 0, name: '押金', percentage: '0%' },
-    { value: 0, name: '退房金', percentage: '0%' },
-    { value: 0, name: '餐食/客房消费', percentage: '0%' }
+    { value: 0, name: t('stage5.statistics.common.roomFee'), percentage: '0%' },
+    { value: 0, name: t('stage5.statistics.common.deposit'), percentage: '0%' },
+    { value: 0, name: t('stage5.dataCenter.overview.checkoutRefund'), percentage: '0%' },
+    { value: 0, name: t('stage5.dataCenter.overview.roomService'), percentage: '0%' }
   ]
 
   const option = {
@@ -827,7 +883,7 @@ const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
     },
     series: [
       {
-        name: '消费分类',
+        name: t('stage5.dataCenter.overview.spendCategoryDistribution'),
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['30%', '50%'],
@@ -962,12 +1018,17 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
           result += `${item.marker}${item.seriesName}: ¥${item.value.toFixed(2)}<br/>`
           total += item.value
         })
-        result += `合计: ¥${total.toFixed(2)}`
+        result += `${t('stage5.statistics.common.summary')}: ¥${total.toFixed(2)}`
         return result
       }
     },
     legend: {
-      data: ['房费', '退房金', '餐食/客房消费', '押金'],
+      data: [
+        t('stage5.statistics.common.roomFee'),
+        t('stage5.dataCenter.overview.checkoutRefund'),
+        t('stage5.dataCenter.overview.roomService'),
+        t('stage5.statistics.common.deposit'),
+      ],
       bottom: 0
     },
     grid: {
@@ -993,26 +1054,26 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
     },
     series: [
       {
-        name: '房费',
+        name: t('stage5.statistics.common.roomFee'),
         type: 'bar',
         stack: 'total',
         barMaxWidth: 36,
         data: roomFeeData
       },
       {
-        name: '退房金',
+        name: t('stage5.dataCenter.overview.checkoutRefund'),
         type: 'bar',
         stack: 'total',
         data: checkoutFeeData
       },
       {
-        name: '餐食/客房消费',
+        name: t('stage5.dataCenter.overview.roomService'),
         type: 'bar',
         stack: 'total',
         data: roomServiceData
       },
       {
-        name: '押金',
+        name: t('stage5.statistics.common.deposit'),
         type: 'bar',
         stack: 'total',
         data: depositData
@@ -1034,7 +1095,7 @@ const initRevenueDistChart = (data?: RevenueSummaryDTO) => {
   // 使用API数据或默认数据
   const chartData = data ? data.paymentMethodStats.map(stat => ({
     value: stat.amount,
-    name: stat.paymentMethod
+    name: translatePaymentMethod(stat.paymentMethod)
   })) : []
 
   const option = {
@@ -1048,15 +1109,15 @@ const initRevenueDistChart = (data?: RevenueSummaryDTO) => {
       top: 'center',
       formatter: (name: string) => {
         const percentages: Record<string, string> = {
-          'Booking代收': '65.8%',
-          'Airbnb代收': '34.2%'
+          [t('stage5.dataCenter.overview.bookingCollection')]: '65.8%',
+          [t('stage5.dataCenter.overview.airbnbCollection')]: '34.2%',
         }
         return `${name}  ${percentages[name] || ''}`
       }
     },
     series: [
       {
-        name: '收款分布',
+        name: t('stage5.dataCenter.overview.collectionDistribution'),
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['30%', '50%'],
@@ -1091,12 +1152,12 @@ const initExpenseChart = () => {
     },
     series: [
       {
-        name: '总支出',
+        name: t('stage5.dataCenter.overview.totalExpense'),
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['50%', '50%'],
         data: [
-          { value: 0, name: '总支出' }
+          { value: 0, name: t('stage5.dataCenter.overview.totalExpense') }
         ],
         itemStyle: {
           color: '#e5e5e5'
@@ -1104,7 +1165,7 @@ const initExpenseChart = () => {
         label: {
           show: true,
           position: 'center',
-          formatter: '总支出\n¥0.00',
+          formatter: `${t('stage5.dataCenter.overview.totalExpense')}\n¥0.00`,
           fontSize: 16
         }
       }
@@ -1132,19 +1193,19 @@ const initCategoryDistChart = () => {
       top: 'center',
       formatter: (name: string) => {
         const percentages: Record<string, string> = {
-          '常规流水': '100%'
+          [t('stage5.dataCenter.overview.regularRevenue')]: '100%',
         }
         return `${name}  ${percentages[name] || ''}`
       }
     },
     series: [
       {
-        name: '收款分布',
+        name: t('stage5.dataCenter.overview.collectionDistribution'),
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['30%', '50%'],
         data: [
-          { value: 481398.66, name: '常规流水' }
+          { value: 481398.66, name: t('stage5.dataCenter.overview.regularRevenue') }
         ],
         itemStyle: {
           borderRadius: 8,
@@ -1180,19 +1241,19 @@ const initCategoryExpenseChart = () => {
       top: 'center',
       formatter: (name: string) => {
         const percentages: Record<string, string> = {
-          '常规流水': '100%'
+          [t('stage5.dataCenter.overview.regularRevenue')]: '100%',
         }
         return `${name}  ${percentages[name] || ''}`
       }
     },
     series: [
       {
-        name: '总支出',
+        name: t('stage5.dataCenter.overview.totalExpense'),
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['30%', '50%'],
         data: [
-          { value: 91002.00, name: '常规流水' }
+          { value: 91002.00, name: t('stage5.dataCenter.overview.regularRevenue') }
         ],
         itemStyle: {
           borderRadius: 8,
@@ -1242,7 +1303,7 @@ const initChannelRevenueChart = (data?: ChannelSummaryDTO) => {
     },
     series: [
       {
-        name: '渠道消费',
+        name: t('stage5.dataCenter.overview.channelConsumptionDistribution'),
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['30%', '50%'],
@@ -1295,7 +1356,7 @@ const initChannelNightsChart = (data?: ChannelSummaryDTO) => {
     },
     series: [
       {
-        name: '间夜(数)',
+        name: t('stage5.dataCenter.overview.channelNightsDistribution'),
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['30%', '50%'],
@@ -1462,7 +1523,7 @@ const initSalesTrendChart = (data?: SalesSummaryDTO) => {
       trigger: 'axis',
       formatter: (params: any) => {
         const param = params[0]
-        return `${param.axisValue}<br/>销售额: ¥${param.value.toFixed(2)}`
+        return `${param.axisValue}<br/>${t('stage5.dataCenter.overview.salesAmount')}: ¥${param.value.toFixed(2)}`
       }
     },
     grid: {
@@ -1485,7 +1546,7 @@ const initSalesTrendChart = (data?: SalesSummaryDTO) => {
     },
     series: [
       {
-        name: '销售额',
+        name: t('stage5.dataCenter.overview.salesAmount'),
         type: 'line',
         smooth: true,
         data: salesData,
@@ -1630,6 +1691,11 @@ watch([startDate, endDate], () => {
 
 // 监听标签页切换
 watch(activeTab, () => {
+  loadCurrentTabData()
+})
+
+// 语言切换后刷新当前页数据和图表文案
+watch(locale, () => {
   loadCurrentTabData()
 })
 

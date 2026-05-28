@@ -2,16 +2,16 @@
   <StatisticsLayout>
     <div class="wrap">
       <div class="header">
-        <div class="title">人员信息审查</div>
+        <div class="title">{{ t('stage5.dataCenter.registrations.title') }}</div>
         <div class="actions">
-          <el-select v-model="status" placeholder="状态" clearable style="width: 160px" @change="load">
-            <el-option label="草稿" value="DRAFT" />
-            <el-option label="已提交" value="SUBMITTED" />
-            <el-option label="已通过" value="APPROVED" />
-            <el-option label="已驳回" value="REJECTED" />
+          <el-select v-model="status" :placeholder="t('stage5.common.filters.status')" clearable style="width: 160px" @change="load">
+            <el-option :label="t('stage5.common.status.draft')" value="DRAFT" />
+            <el-option :label="t('stage5.common.status.submitted')" value="SUBMITTED" />
+            <el-option :label="t('stage5.common.status.approved')" value="APPROVED" />
+            <el-option :label="t('stage5.common.status.rejected')" value="REJECTED" />
           </el-select>
-          <el-button @click="openLinkDrawer">链接列表</el-button>
-          <el-button :loading="loading" @click="load">刷新</el-button>
+          <el-button @click="openLinkDrawer">{{ t('stage5.dataCenter.registrations.linkList') }}</el-button>
+          <el-button :loading="loading" @click="load">{{ t('stage5.common.actions.refresh') }}</el-button>
         </div>
       </div>
 
@@ -20,7 +20,7 @@
           v-model="channelId"
           filterable
           clearable
-          placeholder="平台"
+          :placeholder="t('stage5.common.filters.platform')"
           style="width: 200px"
         >
           <el-option v-for="c in channels" :key="c.id" :label="c.name" :value="c.id" />
@@ -28,7 +28,7 @@
         <el-select
           v-model="reservationStatus"
           clearable
-          placeholder="订单状态"
+          :placeholder="t('stage5.common.filters.orderStatus')"
           style="width: 180px"
         >
           <el-option
@@ -43,7 +43,7 @@
           type="date"
           value-format="YYYY-MM-DD"
           clearable
-          placeholder="入住日期"
+          :placeholder="t('stage5.common.fields.checkInDate')"
           style="width: 160px"
         />
         <el-date-picker
@@ -51,31 +51,31 @@
           type="date"
           value-format="YYYY-MM-DD"
           clearable
-          placeholder="离店日期"
+          :placeholder="t('stage5.common.fields.checkOutDate')"
           style="width: 160px"
         />
-        <el-button type="primary" :loading="loading" @click="load">搜索</el-button>
-        <el-button :disabled="loading" @click="resetFilters">重置</el-button>
+        <el-button type="primary" :loading="loading" @click="load">{{ t('stage5.common.actions.query') }}</el-button>
+        <el-button :disabled="loading" @click="resetFilters">{{ t('stage5.common.actions.reset') }}</el-button>
       </div>
 
       <el-table :data="rows" border stripe style="width: 100%" @row-click="go">
-        <el-table-column prop="channelOrderNumber" label="渠道订单号" min-width="160" />
-        <el-table-column prop="channelName" label="渠道" min-width="140" />
-        <el-table-column prop="guestName" label="客人" min-width="120" />
-        <el-table-column prop="checkInDate" label="入住" min-width="110" />
-        <el-table-column prop="checkOutDate" label="离店" min-width="110" />
-        <el-table-column prop="status" label="状态" min-width="110" />
-        <el-table-column prop="submittedAt" label="提交时间" min-width="170" />
-        <el-table-column prop="updatedAt" label="更新时间" min-width="170" />
+        <el-table-column prop="channelOrderNumber" :label="t('stage5.dataCenter.registrations.channelOrderNumber')" min-width="160" />
+        <el-table-column prop="channelName" :label="t('stage5.common.filters.channel')" min-width="140" />
+        <el-table-column prop="guestName" :label="t('stage5.common.fields.guestName')" min-width="120" />
+        <el-table-column prop="checkInDate" :label="t('stage5.common.fields.checkIn')" min-width="110" />
+        <el-table-column prop="checkOutDate" :label="t('stage5.common.fields.checkOut')" min-width="110" />
+        <el-table-column prop="status" :label="t('stage5.common.fields.status')" min-width="110" />
+        <el-table-column prop="submittedAt" :label="t('stage5.common.fields.submittedAt')" min-width="170" />
+        <el-table-column prop="updatedAt" :label="t('stage5.common.fields.updatedAt')" min-width="170" />
       </el-table>
     </div>
 
-    <el-drawer v-model="linkDrawerVisible" title="链接列表" size="80%">
+    <el-drawer v-model="linkDrawerVisible" :title="t('stage5.dataCenter.registrations.linkList')" size="80%">
       <div class="drawer-actions">
         <el-select
           v-model="linkReservationStatus"
           clearable
-          placeholder="预订状态"
+          :placeholder="t('stage5.common.filters.reservationStatus')"
           style="width: 160px"
           @change="loadLinks"
         >
@@ -86,25 +86,25 @@
             :value="option.value"
           />
         </el-select>
-        <el-button :loading="linkLoading" @click="loadLinks">刷新</el-button>
+        <el-button :loading="linkLoading" @click="loadLinks">{{ t('stage5.common.actions.refresh') }}</el-button>
       </div>
 
       <el-table :data="linkRows" border stripe style="width: 100%" v-loading="linkLoading">
-        <el-table-column prop="createdAt" label="时间" min-width="170" />
-        <el-table-column prop="guestName" label="客人" min-width="110" />
-        <el-table-column prop="checkInDate" label="入住" min-width="110" />
-        <el-table-column prop="checkOutDate" label="离店" min-width="110" />
-        <el-table-column label="预订状态" min-width="120">
+        <el-table-column prop="createdAt" :label="t('stage5.common.fields.time')" min-width="170" />
+        <el-table-column prop="guestName" :label="t('stage5.common.fields.guestName')" min-width="110" />
+        <el-table-column prop="checkInDate" :label="t('stage5.common.fields.checkIn')" min-width="110" />
+        <el-table-column prop="checkOutDate" :label="t('stage5.common.fields.checkOut')" min-width="110" />
+        <el-table-column :label="t('stage5.common.filters.reservationStatus')" min-width="120">
           <template #default="{ row }">
             {{ getReservationStatusLabel(row.reservationStatus) }}
           </template>
         </el-table-column>
-        <el-table-column prop="roomCount" label="房间数" width="90" />
-        <el-table-column label="链接" min-width="240">
+        <el-table-column prop="roomCount" :label="t('stage5.common.fields.roomCount')" width="90" />
+        <el-table-column :label="t('stage5.dataCenter.registrations.link')" min-width="240">
           <template #default="{ row }">
             <div class="link-cell">
               <el-input :model-value="row.linkUrl" readonly size="small" />
-              <el-button size="small" @click="copy(row.linkUrl)">复制</el-button>
+              <el-button size="small" @click="copy(row.linkUrl)">{{ t('stage5.common.actions.copy') }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -116,6 +116,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
@@ -136,6 +137,7 @@ type Row = {
 }
 
 const router = useRouter()
+const { t } = useI18n()
 const rows = ref<Row[]>([])
 const loading = ref(false)
 const status = ref<string | null>(null)
@@ -150,17 +152,17 @@ const linkRows = ref<RegistrationLinkInboxItemDTO[]>([])
 const linkReservationStatus = ref<string | null>(null)
 
 const reservationStatusOptions = [
-  { label: '待确认', value: 'REQUESTED' },
-  { label: '已预订', value: 'CONFIRMED' },
-  { label: '已入住', value: 'CHECKED_IN' },
-  { label: '已退房', value: 'CHECKED_OUT' },
-  { label: '已取消', value: 'CANCELLED' },
-  { label: '未到店', value: 'NO_SHOW' },
+  { label: t('stage5.dataCenter.registrations.pendingConfirmation'), value: 'REQUESTED' },
+  { label: t('stage5.dataCenter.registrations.booked'), value: 'CONFIRMED' },
+  { label: t('stage5.dataCenter.registrations.checkedIn'), value: 'CHECKED_IN' },
+  { label: t('stage5.dataCenter.registrations.checkedOut'), value: 'CHECKED_OUT' },
+  { label: t('stage5.dataCenter.registrations.cancelled'), value: 'CANCELLED' },
+  { label: t('stage5.dataCenter.registrations.noShow'), value: 'NO_SHOW' },
 ]
 
 const linkReservationStatusOptions = [
-  { label: '已预订', value: 'CONFIRMED' },
-  { label: '已取消', value: 'CANCELLED' },
+  { label: t('stage5.dataCenter.registrations.booked'), value: 'CONFIRMED' },
+  { label: t('stage5.dataCenter.registrations.cancelled'), value: 'CANCELLED' },
 ]
 
 function toDayNumber(dateValue?: string | null) {
@@ -217,10 +219,10 @@ async function loadChannels() {
     const resp = await getAllChannels()
     channels.value = resp.success ? (resp.data || []) : []
     if (!resp.success) {
-      ElMessage.error(resp.message || '加载渠道失败')
+      ElMessage.error(resp.message || t('stage5.common.messages.loadChannelsFailed'))
     }
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '加载渠道失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.loadChannelsFailed'))
   }
 }
 
@@ -257,10 +259,10 @@ async function load() {
         .sort(compareRowsByCheckInPriority)
     } else {
       rows.value = []
-      ElMessage.error(resp.message || '加载失败')
+      ElMessage.error(resp.message || t('stage5.common.messages.dataLoadFailed'))
     }
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '加载失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.dataLoadFailed'))
   } finally {
     loading.value = false
   }
@@ -276,10 +278,10 @@ async function loadLinks() {
     const resp = await getRegistrationLinkInbox(linkReservationStatus.value)
     linkRows.value = resp.success ? (resp.data || []) : []
     if (!resp.success) {
-      ElMessage.error(resp.message || '加载失败')
+      ElMessage.error(resp.message || t('stage5.common.messages.dataLoadFailed'))
     }
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '加载失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.dataLoadFailed'))
   } finally {
     linkLoading.value = false
   }
@@ -293,17 +295,17 @@ function openLinkDrawer() {
 function getReservationStatusLabel(status?: string | null) {
   switch (status) {
     case 'CONFIRMED':
-      return '已预订'
+      return t('stage5.dataCenter.registrations.booked')
     case 'CANCELLED':
-      return '已取消'
+      return t('stage5.dataCenter.registrations.cancelled')
     case 'CHECKED_IN':
-      return '已入住'
+      return t('stage5.dataCenter.registrations.checkedIn')
     case 'CHECKED_OUT':
-      return '已退房'
+      return t('stage5.dataCenter.registrations.checkedOut')
     case 'REQUESTED':
-      return '待确认'
+      return t('stage5.dataCenter.registrations.pendingConfirmation')
     case 'NO_SHOW':
-      return '未到店'
+      return t('stage5.dataCenter.registrations.noShow')
     default:
       return '-'
   }
@@ -315,7 +317,7 @@ async function copy(text: string) {
   }
   try {
     await navigator.clipboard.writeText(text)
-    ElMessage.success('已复制')
+    ElMessage.success(t('stage5.common.messages.copied'))
   } catch {
     const textarea = document.createElement('textarea')
     textarea.value = text
@@ -325,7 +327,7 @@ async function copy(text: string) {
     textarea.select()
     document.execCommand('copy')
     document.body.removeChild(textarea)
-    ElMessage.success('已复制')
+    ElMessage.success(t('stage5.common.messages.copied'))
   }
 }
 

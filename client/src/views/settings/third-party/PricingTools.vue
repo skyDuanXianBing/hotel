@@ -14,9 +14,9 @@
               <span class="logo-text">PriceLabs</span>
             </div>
           </div>
-          <p class="description">连接PriceLabs，实现动态定价</p>
+          <p class="description">{{ t('settingsStage4.pricingTools.intro.description') }}</p>
           <el-button type="primary" size="large" @click="handleConfigure">
-            配置
+            {{ t('settingsStage4.pricingTools.actions.configure') }}
           </el-button>
         </div>
       </div>
@@ -28,7 +28,7 @@
       <div class="breadcrumb-section">
         <el-breadcrumb separator=">">
           <el-breadcrumb-item>
-            <el-button link @click="showConfigPage = false">三方集成</el-button>
+            <el-button link @click="showConfigPage = false">{{ t('settings.layout.groups.thirdParty') }}</el-button>
           </el-breadcrumb-item>
           <el-breadcrumb-item>PriceLabs</el-breadcrumb-item>
         </el-breadcrumb>
@@ -37,20 +37,20 @@
       <!-- 标签页 -->
       <el-tabs v-model="activeTab" class="config-tabs" @tab-change="handleTabChange">
         <!-- 房源连接标签页 -->
-        <el-tab-pane label="房源连接" name="connections">
+        <el-tab-pane :label="t('settingsStage4.pricingTools.tabs.connections')" name="connections">
           <!-- 说明区域 -->
           <div class="instructions-banner">
             <div class="instruction-item">
               <span class="instruction-number">1.</span>
-              <span class="instruction-text">在添加房源之前，请先去设置门店资料</span>
+              <span class="instruction-text">{{ t('settingsStage4.pricingTools.instructions.beforeStore') }}</span>
             </div>
             <div class="instruction-item">
               <span class="instruction-number">2.</span>
-              <span class="instruction-text">添加房源后，需要一些时间与PriceLabs建立连接，如果长时间未连接成功，可以点击"同步"按钮再次尝试</span>
+              <span class="instruction-text">{{ t('settingsStage4.pricingTools.instructions.connectionDelay') }}</span>
             </div>
             <div class="instruction-item">
               <span class="instruction-number">3.</span>
-              <span class="instruction-text">默认情况下，PriceLabs每24小时同步一次价格给PMS，如果你需要立即同步或调整同步频率，请去PriceLabs进行对应的操作</span>
+              <span class="instruction-text">{{ t('settingsStage4.pricingTools.instructions.defaultSync') }}</span>
             </div>
           </div>
 
@@ -58,13 +58,13 @@
           <div class="integration-config-section">
             <div class="section-row">
               <div class="section-label">
-                <h3 class="label-title">账户配置</h3>
-                <p class="label-desc">请输入您在 PriceLabs 注册的邮箱地址</p>
+                <h3 class="label-title">{{ t('settingsStage4.pricingTools.sections.accountConfig') }}</h3>
+                <p class="label-desc">{{ t('settingsStage4.pricingTools.sections.accountDesc') }}</p>
               </div>
               <div class="config-form">
                 <el-select
                   v-model="defaultAccountId"
-                  placeholder="璇烽€夋嫨榛樿璐﹀彿"
+                  :placeholder="t('settingsStage4.pricingTools.placeholders.selectDefaultAccount')"
                   style="width: 300px; margin-right: 12px"
                   :disabled="integration.isEnabled"
                 >
@@ -80,10 +80,10 @@
                   :disabled="!defaultAccountId || integration.isEnabled"
                   @click="handleSaveDefaultAccountConfig"
                 >
-                  保存配置
+                  {{ t('settingsStage4.pricingTools.actions.saveConfig') }}
                 </el-button>
                 <el-text v-if="integration.isEnabled" type="info" size="small">
-                  (需先禁用集成才能修改邮箱)
+                  {{ t('settingsStage4.pricingTools.hints.disableBeforeEditEmail') }}
                 </el-text>
               </div>
             </div>
@@ -93,12 +93,12 @@
           <div class="integration-status-section">
             <div class="section-row">
               <div class="section-label">
-                <h3 class="label-title">集成状态</h3>
-                <p class="label-desc">{{ integration.isEnabled ? '已启用 PriceLabs 集成' : '未启用 PriceLabs 集成' }}</p>
+                <h3 class="label-title">{{ t('settingsStage4.pricingTools.sections.integrationStatus') }}</h3>
+                <p class="label-desc">{{ integration.isEnabled ? t('settingsStage4.pricingTools.status.integrationEnabled') : t('settingsStage4.pricingTools.status.integrationDisabled') }}</p>
               </div>
               <div class="status-actions">
                 <el-tag :type="integration.isEnabled ? 'success' : 'info'" size="large">
-                  {{ integration.isEnabled ? '已启用' : '未启用' }}
+                  {{ integration.isEnabled ? t('settingsStage4.pricingTools.status.enabled') : t('settingsStage4.pricingTools.status.disabled') }}
                 </el-tag>
                 <el-switch
                   v-model="integration.isEnabled"
@@ -109,15 +109,15 @@
             </div>
             <div v-if="integration.isEnabled" class="sync-stats">
               <div class="stat-item">
-                <span class="stat-label">已连接房型</span>
+                <span class="stat-label">{{ t('settingsStage4.pricingTools.stats.connectedRoomTypes') }}</span>
                 <span class="stat-value">{{ integration.connectedRoomTypeCount || 0 }}</span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">最后价格同步</span>
+                <span class="stat-label">{{ t('settingsStage4.pricingTools.stats.lastPriceSync') }}</span>
                 <span class="stat-value">{{ formatDateTime(integration.lastPriceSyncAt) || '-' }}</span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">同步成功率</span>
+                <span class="stat-label">{{ t('settingsStage4.pricingTools.stats.syncSuccessRate') }}</span>
                 <span class="stat-value">{{ calculateSuccessRate() }}</span>
               </div>
             </div>
@@ -127,11 +127,11 @@
           <div class="integration-config-section">
             <div class="section-row">
               <div class="section-label">
-                <h3 class="label-title">多账号管理</h3>
-                <p class="label-desc">多个 PriceLabs 账号可以同时生效，房型连接会绑定到具体账号</p>
+                <h3 class="label-title">{{ t('settingsStage4.pricingTools.sections.multiAccount') }}</h3>
+                <p class="label-desc">{{ t('settingsStage4.pricingTools.sections.multiAccountDesc') }}</p>
               </div>
               <div class="config-form">
-                <el-button type="primary" @click="openCreateAccountDialog">添加账号</el-button>
+                <el-button type="primary" @click="openCreateAccountDialog">{{ t('settingsStage4.pricingTools.actions.addAccount') }}</el-button>
               </div>
             </div>
             <el-table
@@ -141,79 +141,79 @@
               class="config-table account-table"
               v-loading="accountsLoading"
             >
-              <el-table-column prop="accountName" label="账号名称" min-width="180" />
-              <el-table-column prop="priceLabsEmail" label="PriceLabs 邮箱" min-width="220" />
-              <el-table-column label="状态" width="120" align="center">
+              <el-table-column prop="accountName" :label="t('settingsStage4.pricingTools.columns.accountName')" min-width="180" />
+              <el-table-column prop="priceLabsEmail" :label="t('settingsStage4.pricingTools.columns.priceLabsEmail')" min-width="220" />
+              <el-table-column :label="t('settings.common.status')" width="120" align="center">
                 <template #default="{ row }">
                   <el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">
-                    {{ row.isEnabled ? '已启用' : '未启用' }}
+                    {{ row.isEnabled ? t('settingsStage4.pricingTools.status.enabled') : t('settingsStage4.pricingTools.status.disabled') }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="已绑房型" width="120" align="center">
+              <el-table-column :label="t('settingsStage4.pricingTools.columns.linkedRoomTypes')" width="120" align="center">
                 <template #default="{ row }">
                   {{ row.connectionCount ?? 0 }}
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="220" align="center">
+              <el-table-column :label="t('settings.common.actions')" width="220" align="center">
                 <template #default="{ row }">
-                  <el-button link type="primary" @click="selectAccount(row.id)">查看房型</el-button>
-                  <el-button link type="primary" @click="openEditAccountDialog(row)">编辑</el-button>
+                  <el-button link type="primary" @click="selectAccount(row.id)">{{ t('settingsStage4.pricingTools.actions.viewRoomTypes') }}</el-button>
+                  <el-button link type="primary" @click="openEditAccountDialog(row)">{{ t('settings.common.edit') }}</el-button>
                   <el-button
                     link
                     :type="row.isEnabled ? 'warning' : 'success'"
                     @click="handleToggleAccount(row)"
                   >
-                    {{ row.isEnabled ? '禁用' : '启用' }}
+                    {{ row.isEnabled ? t('settings.common.disable') : t('settings.common.enable') }}
                   </el-button>
-                  <el-button link type="danger" @click="handleDeleteAccount(row)">删除</el-button>
+                  <el-button link type="danger" @click="handleDeleteAccount(row)">{{ t('settings.common.delete') }}</el-button>
                 </template>
               </el-table-column>
             </el-table>
             <div v-if="selectedAccountName" class="account-filter-tip">
-              当前只展示账号“{{ selectedAccountName }}”绑定房型的同步状态
-              <el-button link type="primary" @click="clearSelectedAccount">查看全部</el-button>
+              {{ t('settingsStage4.pricingTools.accountFilterTip', { name: selectedAccountName }) }}
+              <el-button link type="primary" @click="clearSelectedAccount">{{ t('settingsStage4.pricingTools.actions.viewAll') }}</el-button>
             </div>
           </div>
 
           <div class="toolbar">
             <div class="toolbar-left">
-              <span class="filter-label">连接状态</span>
-              <el-select v-model="connectionFilter" placeholder="请选择" style="width: 120px">
-                <el-option label="全部" value="all" />
-                <el-option label="已连接" value="connected" />
-                <el-option label="未连接" value="disconnected" />
+              <span class="filter-label">{{ t('settingsStage4.pricingTools.filters.connectionStatus') }}</span>
+              <el-select v-model="connectionFilter" :placeholder="t('settingsStage4.pricingTools.placeholders.select')" style="width: 120px">
+                <el-option :label="t('settings.common.all')" value="all" />
+                <el-option :label="t('settingsStage4.pricingTools.status.connected')" value="connected" />
+                <el-option :label="t('settingsStage4.pricingTools.status.disconnected')" value="disconnected" />
               </el-select>
             </div>
-            <el-button type="primary" @click="handleAddConnection">添加连接</el-button>
+            <el-button type="primary" @click="handleAddConnection">{{ t('settingsStage4.pricingTools.actions.addConnection') }}</el-button>
           </div>
 
           <!-- 配置表格 -->
           <el-table :data="filteredConnections" border stripe class="config-table" v-loading="connectionsLoading">
-            <el-table-column prop="accountName" label="账号" min-width="160" />
-            <el-table-column prop="roomTypeName" label="房型" min-width="180" />
-            <el-table-column prop="pricePlanName" label="价格计划" min-width="150" />
-            <el-table-column prop="priceLabsListingId" label="Listing ID" min-width="200" />
-            <el-table-column label="状态" width="120" align="center">
+            <el-table-column prop="accountName" :label="t('settingsStage4.pricingTools.columns.account')" min-width="160" />
+            <el-table-column prop="roomTypeName" :label="t('settingsStage4.cleaningSettings.fields.roomType')" min-width="180" />
+            <el-table-column prop="pricePlanName" :label="t('settingsStage4.pricePlan.columns.pricePlan')" min-width="150" />
+            <el-table-column prop="priceLabsListingId" :label="t('settingsStage4.pricingTools.columns.listingId')" min-width="200" />
+            <el-table-column :label="t('settings.common.status')" width="120" align="center">
               <template #default="{ row }">
                 <el-tag :type="row.syncStatus === 'connected' ? 'success' : row.syncStatus === 'error' ? 'danger' : 'info'" size="small">
                   {{ getSyncStatusText(row.syncStatus) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="最近同步" width="180" align="center">
+            <el-table-column :label="t('settingsStage4.pricingTools.columns.recentSync')" width="180" align="center">
               <template #default="{ row }">
                 {{ formatDateTime(row.lastSyncAt) || '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="180" align="center" fixed="right">
+            <el-table-column :label="t('settings.common.actions')" width="180" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button
                   link
                   type="primary"
                   @click="handleOpenStatusDialog({ type: 'listing', id: row.priceLabsListingId })"
                 >
-                  状态查询
+                  {{ t('settingsStage4.pricingTools.actions.statusQuery') }}
                 </el-button>
                 <el-button
                   link
@@ -221,17 +221,17 @@
                   :loading="syncingRoomTypeIds.includes(row.roomTypeId)"
                   @click="handleSyncRoomType(row)"
                 >
-                  同步
+                  {{ t('settingsStage4.pricingTools.actions.sync') }}
                 </el-button>
                 <el-button
                   link
                   :type="row.isEnabled ? 'warning' : 'success'"
                   @click="handleToggleConnection(row)"
                 >
-                  {{ row.isEnabled ? '禁用' : '启用' }}
+                  {{ row.isEnabled ? t('settings.common.disable') : t('settings.common.enable') }}
                 </el-button>
                 <el-button link type="danger" @click="handleDeleteConnection(row)">
-                  删除
+                  {{ t('settings.common.delete') }}
                 </el-button>
               </template>
             </el-table-column>
@@ -239,41 +239,41 @@
         </el-tab-pane>
 
         <!-- 同步日志标签页 -->
-        <el-tab-pane label="同步日志" name="logs">
+        <el-tab-pane :label="t('settingsStage4.pricingTools.tabs.logs')" name="logs">
           <div class="toolbar">
             <div class="toolbar-left">
-              <span class="filter-label">诊断工具</span>
-              <el-text type="info" size="small">用于认证/排查：查询 /status，手动推送 /reservations</el-text>
+              <span class="filter-label">{{ t('settingsStage4.pricingTools.sections.diagnostics') }}</span>
+              <el-text type="info" size="small">{{ t('settingsStage4.pricingTools.hints.diagnostics') }}</el-text>
             </div>
             <div>
-              <el-button @click="handleOpenStatusDialog()">状态查询</el-button>
-              <el-button type="primary" @click="handleOpenPushReservationsDialog()">推送预订</el-button>
+              <el-button @click="handleOpenStatusDialog()">{{ t('settingsStage4.pricingTools.actions.statusQuery') }}</el-button>
+              <el-button type="primary" @click="handleOpenPushReservationsDialog()">{{ t('settingsStage4.pricingTools.actions.pushReservations') }}</el-button>
             </div>
           </div>
 
           <el-table :data="syncLogs" border stripe class="config-table" v-loading="logsLoading">
-            <el-table-column label="时间" width="180" align="center">
+            <el-table-column :label="t('settingsStage4.pricingTools.columns.time')" width="180" align="center">
               <template #default="{ row }">
                 {{ formatDateTime(row.createdAt) }}
               </template>
             </el-table-column>
-            <el-table-column prop="syncTypeDisplay" label="类型" width="120" align="center" />
-            <el-table-column prop="directionDisplay" label="方向" width="100" align="center">
+            <el-table-column prop="syncTypeDisplay" :label="t('settingsStage4.pricingTools.columns.type')" width="120" align="center" />
+            <el-table-column prop="directionDisplay" :label="t('settingsStage4.pricingTools.columns.direction')" width="100" align="center">
               <template #default="{ row }">
                 <el-tag :type="row.direction === 'INBOUND' ? 'success' : 'primary'" size="small">
                   {{ row.directionDisplay }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="statusDisplay" label="状态" width="100" align="center">
+            <el-table-column prop="statusDisplay" :label="t('settings.common.status')" width="100" align="center">
               <template #default="{ row }">
                 <el-tag :type="row.status === 'SUCCESS' ? 'success' : row.status === 'FAILURE' ? 'danger' : 'warning'" size="small">
                   {{ row.statusDisplay }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="affectedCount" label="影响记录" width="100" align="center" />
-            <el-table-column prop="errorMessage" label="错误信息" min-width="200">
+            <el-table-column prop="affectedCount" :label="t('settingsStage4.pricingTools.columns.affectedRecords')" width="100" align="center" />
+            <el-table-column prop="errorMessage" :label="t('settingsStage4.pricingTools.columns.errorMessage')" min-width="200">
               <template #default="{ row }">
                 <span class="error-message">{{ row.errorMessage || '-' }}</span>
               </template>
@@ -299,27 +299,27 @@
     <!-- 添加连接对话框 -->
     <el-dialog
       v-model="showConnectionDialog"
-      title="添加连接"
+      :title="t('settingsStage4.pricingTools.dialog.addConnection')"
       width="500px"
       :close-on-click-modal="false"
     >
       <el-alert
-        title="提示"
+        :title="t('settingsStage4.pricingTools.dialog.notice')"
         type="warning"
         :closable="false"
         show-icon
         style="margin-bottom: 12px"
       >
         <template #default>
-          <div>为保证推价稳定性，同一房型仅允许绑定一个启用的价格计划连接。</div>
-          <div>如需更换价格计划，请先禁用或删除该房型的原连接后再添加。</div>
+          <div>{{ t('settingsStage4.pricingTools.hints.singleActiveConnection') }}</div>
+          <div>{{ t('settingsStage4.pricingTools.hints.replaceConnection') }}</div>
         </template>
       </el-alert>
       <el-form :model="connectionForm" label-width="100px">
-        <el-form-item label="账号" required>
+        <el-form-item :label="t('settingsStage4.pricingTools.columns.account')" required>
           <el-select
             v-model="connectionForm.accountId"
-            placeholder="请选择账号"
+            :placeholder="t('settingsStage4.pricingTools.placeholders.selectAccount')"
             style="width: 100%"
           >
             <el-option
@@ -330,10 +330,10 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="房型" required>
+        <el-form-item :label="t('settingsStage4.cleaningSettings.fields.roomType')" required>
           <el-select
             v-model="connectionForm.roomTypeId"
-            placeholder="请选择房型"
+            :placeholder="t('settingsStage4.pricingTools.placeholders.selectRoomType')"
             style="width: 100%"
             @change="handleRoomTypeChange"
           >
@@ -345,10 +345,10 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="价格计划" required>
+        <el-form-item :label="t('settingsStage4.pricePlan.columns.pricePlan')" required>
           <el-select
             v-model="connectionForm.pricePlanId"
-            placeholder="请选择已绑定价格计划"
+            :placeholder="t('settingsStage4.pricingTools.placeholders.selectBoundPricePlan')"
             style="width: 100%"
             :disabled="!connectionForm.roomTypeId"
           >
@@ -363,8 +363,8 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showConnectionDialog = false">取消</el-button>
-          <el-button type="primary" :loading="saveConnectionLoading" @click="handleSaveConnection">保存</el-button>
+          <el-button @click="showConnectionDialog = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" :loading="saveConnectionLoading" @click="handleSaveConnection">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -372,23 +372,23 @@
     <!-- 编辑价格调整对话框 -->
     <el-dialog
       v-model="showAccountDialog"
-      :title="editingAccountId ? '编辑账号' : '添加账号'"
+      :title="editingAccountId ? t('settingsStage4.pricingTools.dialog.editAccount') : t('settingsStage4.pricingTools.dialog.addAccount')"
       width="500px"
       :close-on-click-modal="false"
     >
       <el-form :model="accountForm" label-width="110px">
-        <el-form-item label="账号名称" required>
-          <el-input v-model="accountForm.accountName" placeholder="例如：主账号 / Airbnb 账号 A" />
+        <el-form-item :label="t('settingsStage4.pricingTools.columns.accountName')" required>
+          <el-input v-model="accountForm.accountName" :placeholder="t('settingsStage4.pricingTools.placeholders.accountNameExample')" />
         </el-form-item>
-        <el-form-item label="PriceLabs 邮箱" required>
+        <el-form-item :label="t('settingsStage4.pricingTools.columns.priceLabsEmail')" required>
           <el-input v-model="accountForm.priceLabsEmail" placeholder="example@email.com" />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showAccountDialog = false">取消</el-button>
+          <el-button @click="showAccountDialog = false">{{ t('settings.common.cancel') }}</el-button>
           <el-button type="primary" :loading="saveAccountLoading" @click="handleSaveAccount">
-            保存
+            {{ t('settings.common.save') }}
           </el-button>
         </div>
       </template>
@@ -396,49 +396,49 @@
 
     <el-dialog
       v-model="showAdjustmentDialog"
-      title="编辑渠道价格调整"
+      :title="t('settingsStage4.pricingTools.dialog.editAdjustment')"
       width="500px"
       :close-on-click-modal="false"
     >
       <el-form :model="adjustmentForm" label-width="100px">
-        <el-form-item label="渠道">
+        <el-form-item :label="t('settingsStage4.pricingTools.columns.channel')">
           <el-input :model-value="adjustmentForm.channelName" disabled />
         </el-form-item>
-        <el-form-item label="调整方向">
+        <el-form-item :label="t('settingsStage4.pricingTools.fields.adjustmentDirection')">
           <el-radio-group v-model="adjustmentDirection">
-            <el-radio value="up">加价（更贵）</el-radio>
-            <el-radio value="down">减价（更便宜）</el-radio>
+            <el-radio value="up">{{ t('settingsStage4.pricingTools.adjustment.up') }}</el-radio>
+            <el-radio value="down">{{ t('settingsStage4.pricingTools.adjustment.down') }}</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="调整类型">
+        <el-form-item :label="t('settingsStage4.pricingTools.fields.adjustmentType')">
           <el-radio-group v-model="adjustmentForm.adjustmentType">
-            <el-radio value="PERCENTAGE">百分比</el-radio>
-            <el-radio value="FIXED">固定金额</el-radio>
+            <el-radio value="PERCENTAGE">{{ t('settingsStage4.pricingTools.adjustment.percentage') }}</el-radio>
+            <el-radio value="FIXED">{{ t('settingsStage4.pricingTools.adjustment.fixed') }}</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="调整值">
+        <el-form-item :label="t('settingsStage4.pricingTools.fields.adjustmentValue')">
           <el-input-number
             v-model="adjustmentFormValue"
             :min="0"
             :precision="adjustmentForm.adjustmentType === 'PERCENTAGE' ? 1 : 0"
             style="width: 200px"
           />
-          <span class="unit-label">{{ adjustmentForm.adjustmentType === 'PERCENTAGE' ? '%' : '¥' }}</span>
+          <span class="unit-label">{{ adjustmentForm.adjustmentType === 'PERCENTAGE' ? '%' : t('settingsStage4.pricingTools.units.currency') }}</span>
         </el-form-item>
-        <el-form-item label="自动同步">
+        <el-form-item :label="t('settingsStage4.pricingTools.fields.autoSync')">
           <el-switch v-model="adjustmentForm.autoSyncPrice" />
-          <span class="form-tip">开启后将自动同步价格到OTA</span>
+          <span class="form-tip">{{ t('settingsStage4.pricingTools.hints.autoSync') }}</span>
         </el-form-item>
-        <el-form-item label="示例计算">
+        <el-form-item :label="t('settingsStage4.pricingTools.fields.exampleCalculation')">
           <div class="example-preview">
-            <span>基础价格 ¥1000 → 渠道价格 ¥{{ calculatePreviewPrice() }}</span>
+            <span>{{ t('settingsStage4.pricingTools.examplePreview', { price: calculatePreviewPrice() }) }}</span>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showAdjustmentDialog = false">取消</el-button>
-          <el-button type="primary" :loading="saveAdjustmentLoading" @click="handleSaveAdjustment">保存</el-button>
+          <el-button @click="showAdjustmentDialog = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" :loading="saveAdjustmentLoading" @click="handleSaveAdjustment">{{ t('settings.common.save') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -446,25 +446,25 @@
     <!-- PriceLabs 状态查询（PMS -> PriceLabs /status） -->
     <el-dialog
       v-model="showStatusDialog"
-      title="PriceLabs 状态查询（/status）"
+      :title="t('settingsStage4.pricingTools.dialog.statusQuery')"
       width="760px"
       :close-on-click-modal="false"
     >
       <el-form :model="statusForm" label-width="110px">
-        <el-form-item label="类型" required>
+        <el-form-item :label="t('settingsStage4.pricingTools.columns.type')" required>
           <el-select v-model="statusForm.type" style="width: 220px">
-            <el-option label="listing" value="listing" />
-            <el-option label="reservation" value="reservation" />
-            <el-option label="calendar" value="calendar" />
+            <el-option :label="t('settingsStage4.pricingTools.statusTypes.listing')" value="listing" />
+            <el-option :label="t('settingsStage4.pricingTools.statusTypes.reservation')" value="reservation" />
+            <el-option :label="t('settingsStage4.pricingTools.statusTypes.calendar')" value="calendar" />
           </el-select>
         </el-form-item>
 
-        <el-form-item v-if="statusForm.type === 'listing'" label="Listing ID">
+        <el-form-item v-if="statusForm.type === 'listing'" :label="t('settingsStage4.pricingTools.columns.listingId')">
           <el-select
             v-model="statusListingId"
             filterable
             clearable
-            placeholder="从房源连接选择"
+            :placeholder="t('settingsStage4.pricingTools.placeholders.selectFromConnections')"
             style="width: 520px"
             @change="handleSelectStatusListingId"
           >
@@ -477,26 +477,26 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="ID" required>
+        <el-form-item :label="t('settingsStage4.pricingTools.fields.id')" required>
           <el-input
             v-model="statusForm.id"
-            placeholder="listing_id / reservation_id / calendar id"
+            :placeholder="t('settingsStage4.pricingTools.placeholders.statusId')"
             style="width: 520px"
           />
           <el-text type="info" size="small" style="margin-left: 10px">
-            reservation 通常用预订单号(orderNumber)
+            {{ t('settingsStage4.pricingTools.hints.reservationId') }}
           </el-text>
         </el-form-item>
       </el-form>
 
-      <el-divider content-position="left">结果</el-divider>
+      <el-divider content-position="left">{{ t('settingsStage4.pricingTools.result.title') }}</el-divider>
       <div v-if="statusResult" class="status-result-vertical">
         <!-- Success 区域 -->
         <div class="result-block">
           <div class="result-header">
-            <span class="result-title">Success</span>
+            <span class="result-title">{{ t('settingsStage4.pricingTools.result.success') }}</span>
             <el-tag v-if="statusResult.success?.length" type="success" size="small">
-              {{ statusResult.success.length }} 条
+              {{ t('settingsStage4.pricingTools.result.count', { count: statusResult.success.length }) }}
             </el-tag>
           </div>
           <el-scrollbar v-if="statusResult.success?.length" max-height="300">
@@ -514,7 +514,7 @@
                   >
                     <template v-if="typeof value === 'boolean'">
                       <el-tag :type="value ? 'success' : 'info'" size="small">
-                        {{ value ? '是' : '否' }}
+                        {{ value ? t('settings.common.yes') : t('settings.common.no') }}
                       </el-tag>
                     </template>
                     <template v-else-if="value === null || value === undefined">
@@ -531,15 +531,15 @@
               </template>
             </div>
           </el-scrollbar>
-          <el-empty v-else description="无成功记录" :image-size="50" />
+          <el-empty v-else :description="t('settingsStage4.pricingTools.result.noSuccess')" :image-size="50" />
         </div>
 
         <!-- Failure 区域 -->
         <div class="result-block">
           <div class="result-header">
-            <span class="result-title">Failure</span>
+            <span class="result-title">{{ t('settingsStage4.pricingTools.result.failure') }}</span>
             <el-tag v-if="statusResult.failure?.length" type="danger" size="small">
-              {{ statusResult.failure.length }} 条
+              {{ t('settingsStage4.pricingTools.result.count', { count: statusResult.failure.length }) }}
             </el-tag>
           </div>
           <el-scrollbar v-if="statusResult.failure?.length" max-height="200">
@@ -564,15 +564,15 @@
               </template>
             </div>
           </el-scrollbar>
-          <el-empty v-else description="无失败记录" :image-size="50" />
+          <el-empty v-else :description="t('settingsStage4.pricingTools.result.noFailure')" :image-size="50" />
         </div>
       </div>
-      <el-empty v-else description="点击查询后显示结果" :image-size="80" />
+      <el-empty v-else :description="t('settingsStage4.pricingTools.result.queryEmpty')" :image-size="80" />
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showStatusDialog = false">关闭</el-button>
-          <el-button type="primary" :loading="statusLoading" @click="handleQueryStatus">查询</el-button>
+          <el-button @click="showStatusDialog = false">{{ t('settings.common.close') }}</el-button>
+          <el-button type="primary" :loading="statusLoading" @click="handleQueryStatus">{{ t('settingsStage4.pricingTools.actions.query') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -580,48 +580,48 @@
     <!-- PriceLabs 预订推送（PMS -> PriceLabs /reservations） -->
     <el-dialog
       v-model="showPushReservationsDialog"
-      title="PriceLabs 预订推送（/reservations）"
+      :title="t('settingsStage4.pricingTools.dialog.pushReservations')"
       width="760px"
       :close-on-click-modal="false"
     >
       <el-form label-width="110px">
-        <el-form-item label="日期范围">
+        <el-form-item :label="t('settingsStage4.pricingTools.fields.dateRange')">
           <el-date-picker
             v-model="pushReservationsRange"
             type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
+            :range-separator="t('settingsStage4.pricingTools.fields.to')"
+            :start-placeholder="t('settingsStage4.pricingTools.placeholders.startDate')"
+            :end-placeholder="t('settingsStage4.pricingTools.placeholders.endDate')"
             value-format="YYYY-MM-DD"
           />
           <el-text type="info" size="small" style="margin-left: 10px">
-            默认：2020-01-01 ~ today+365
+            {{ t('settingsStage4.pricingTools.hints.defaultDateRange') }}
           </el-text>
         </el-form-item>
       </el-form>
 
-      <el-divider content-position="left">结果</el-divider>
+      <el-divider content-position="left">{{ t('settingsStage4.pricingTools.result.title') }}</el-divider>
       <div v-if="pushReservationsResult">
         <el-descriptions border :column="2" size="small">
-          <el-descriptions-item label="listingCount">{{ pushReservationsResult.listingCount }}</el-descriptions-item>
-          <el-descriptions-item label="reservationCount">{{ pushReservationsResult.reservationCount }}</el-descriptions-item>
-          <el-descriptions-item label="successCount">{{ pushReservationsResult.successCount }}</el-descriptions-item>
-          <el-descriptions-item label="failureCount">{{ pushReservationsResult.failureCount }}</el-descriptions-item>
+          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.listingCount')">{{ pushReservationsResult.listingCount }}</el-descriptions-item>
+          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.reservationCount')">{{ pushReservationsResult.reservationCount }}</el-descriptions-item>
+          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.successCount')">{{ pushReservationsResult.successCount }}</el-descriptions-item>
+          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.failureCount')">{{ pushReservationsResult.failureCount }}</el-descriptions-item>
         </el-descriptions>
         <div style="margin-top: 12px">
-          <div class="result-title">Failures</div>
+          <div class="result-title">{{ t('settingsStage4.pricingTools.result.failures') }}</div>
           <el-scrollbar height="220">
             <pre class="result-json">{{ JSON.stringify(pushReservationsResult.failures ?? [], null, 2) }}</pre>
           </el-scrollbar>
         </div>
       </div>
-      <el-empty v-else description="点击“推送”后显示结果" :image-size="80" />
+      <el-empty v-else :description="t('settingsStage4.pricingTools.result.pushEmpty')" :image-size="80" />
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showPushReservationsDialog = false">关闭</el-button>
+          <el-button @click="showPushReservationsDialog = false">{{ t('settings.common.close') }}</el-button>
           <el-button type="primary" :loading="pushReservationsLoading" @click="handlePushReservations">
-            推送
+            {{ t('settingsStage4.pricingTools.actions.push') }}
           </el-button>
         </div>
       </template>
@@ -631,8 +631,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Right } from '@element-plus/icons-vue'
 import * as priceLabsApi from '@/api/pricelabs'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import {
@@ -655,6 +655,8 @@ import type {
   PriceLabsStatusResult,
   PriceLabsPushReservationsResult,
 } from '@/api/pricelabs'
+
+const { t, locale } = useI18n()
 
 // 视图状态
 const showConfigPage = ref(false)
@@ -807,7 +809,7 @@ const getConnectionAccountLabel = (connection: PriceLabsConnectionDTO): string =
   if (accountName && accountEmail && accountName !== accountEmail) {
     return `${accountName} (${accountEmail})`
   }
-  return accountName || accountEmail || '未知账号'
+  return accountName || accountEmail || t('settingsStage4.pricingTools.status.unknownAccount')
 }
 
 const findDuplicateConnection = (roomTypeId: number, pricePlanId: number) =>
@@ -1024,7 +1026,7 @@ const openEditAccountDialog = (account: PriceLabsAccountDTO) => {
 
 const handleSaveAccount = async () => {
   if (!accountForm.accountName.trim() || !accountForm.priceLabsEmail.trim()) {
-    ElMessage.warning('请先填写账号名称和邮箱')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.fillAccountNameAndEmail'))
     return
   }
 
@@ -1051,22 +1053,26 @@ const handleSaveAccount = async () => {
           priceLabsEmail: payload.priceLabsEmail,
         })
         if (!updateRes.success) {
-          ElMessage.error(updateRes.message || '鏇存柊榛樿璐﹀彿澶辫触')
+          ElMessage.error(updateRes.message || t('settingsStage4.pricingTools.messages.updateDefaultAccountFailed'))
           return
         }
         integration.value = updateRes.data
         defaultAccountId.value = res.data.id
       }
-      ElMessage.success(editingAccountId.value ? '账号更新成功' : '账号创建成功')
+      ElMessage.success(
+        editingAccountId.value
+          ? t('settingsStage4.pricingTools.messages.accountUpdated')
+          : t('settingsStage4.pricingTools.messages.accountCreated')
+      )
       showAccountDialog.value = false
       await loadAccounts()
       await loadIntegration()
     } else {
-      ElMessage.error(res.message || '保存账号失败')
+      ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.saveAccountFailed'))
     }
   } catch (error) {
     console.error('保存 PriceLabs 账号失败:', error)
-    ElMessage.error('保存账号失败')
+    ElMessage.error(t('settingsStage4.pricingTools.messages.saveAccountFailed'))
   } finally {
     saveAccountLoading.value = false
   }
@@ -1079,23 +1085,27 @@ const handleToggleAccount = async (account: PriceLabsAccountDTO) => {
       if (!res.data.isEnabled && selectedAccountId.value === account.id) {
         selectedAccountId.value = account.id
       }
-      ElMessage.success(res.data.isEnabled ? '账号已启用' : '账号已禁用')
+      ElMessage.success(
+        res.data.isEnabled
+          ? t('settingsStage4.pricingTools.messages.accountEnabled')
+          : t('settingsStage4.pricingTools.messages.accountDisabled')
+      )
       await loadAccounts()
       await loadConnections()
     } else {
-      ElMessage.error(res.message || '更新账号状态失败')
+      ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.updateAccountStatusFailed'))
     }
   } catch (error) {
     console.error('更新 PriceLabs 账号状态失败:', error)
-    ElMessage.error('更新账号状态失败')
+    ElMessage.error(t('settingsStage4.pricingTools.messages.updateAccountStatusFailed'))
   }
 }
 
 const handleDeleteAccount = async (account: PriceLabsAccountDTO) => {
   try {
-    await ElMessageBox.confirm(`确定删除账号“${account.accountName}”吗？`, '删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('settingsStage4.pricingTools.messages.deleteAccountConfirm', { name: account.accountName }), t('settings.common.deleteConfirmTitle'), {
+      confirmButtonText: t('settings.common.confirm'),
+      cancelButtonText: t('settings.common.cancel'),
       type: 'warning',
     })
     const res = await priceLabsApi.deleteAccount(account.id)
@@ -1103,12 +1113,12 @@ const handleDeleteAccount = async (account: PriceLabsAccountDTO) => {
       if (selectedAccountId.value === account.id) {
         selectedAccountId.value = null
       }
-      ElMessage.success('账号删除成功')
+      ElMessage.success(t('settingsStage4.pricingTools.messages.accountDeleted'))
       await loadAccounts()
       await loadConnections()
       await loadIntegration()
     } else {
-      ElMessage.error(res.message || '删除账号失败')
+      ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.deleteAccountFailed'))
     }
   } catch (error) {
     if (error) {
@@ -1119,14 +1129,14 @@ const handleDeleteAccount = async (account: PriceLabsAccountDTO) => {
 
 const handleSaveDefaultAccountConfig = async () => {
   if (!defaultAccountId.value) {
-    ElMessage.warning('璇峰厛閫夋嫨榛樿 PriceLabs 璐﹀彿')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.selectDefaultAccount'))
     return
   }
 
   try {
     const account = accounts.value.find((item) => item.id === defaultAccountId.value)
     if (!account?.priceLabsEmail?.trim()) {
-      ElMessage.warning('褰撳墠榛樿璐﹀彿缂哄皯鍙敤閭')
+      ElMessage.warning(t('settingsStage4.pricingTools.messages.defaultAccountMissingEmail'))
       return
     }
 
@@ -1136,19 +1146,19 @@ const handleSaveDefaultAccountConfig = async () => {
     if (res.success) {
       integration.value = res.data
       defaultAccountId.value = account.id
-      ElMessage.success('閰嶇疆淇濆瓨鎴愬姛')
+      ElMessage.success(t('settings.common.saveSuccess'))
       return
     }
-    ElMessage.error(res.message || '淇濆瓨澶辫触')
+    ElMessage.error(res.message || t('settings.common.saveFailed'))
   } catch (error) {
     console.error('淇濆瓨閰嶇疆澶辫触:', error)
-    ElMessage.error('淇濆瓨澶辫触')
+    ElMessage.error(t('settings.common.saveFailed'))
   }
 }
 
 const handleSaveConfig = async () => {
   if (!integration.value.priceLabsEmail) {
-    ElMessage.warning('请输入 PriceLabs 邮箱地址')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.enterPriceLabsEmail'))
     return
   }
 
@@ -1168,13 +1178,13 @@ const handleSaveConfig = async () => {
     })
     if (res.success) {
       integration.value = res.data
-      ElMessage.success('配置保存成功')
+      ElMessage.success(t('settings.common.saveSuccess'))
     } else {
-      ElMessage.error(res.message || '保存失败')
+      ElMessage.error(res.message || t('settings.common.saveFailed'))
     }
   } catch (error) {
     console.error('保存配置失败:', error)
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settings.common.saveFailed'))
   }
 }
 
@@ -1198,7 +1208,7 @@ const ensureIntegrationEmailForAccount = async (accountId?: number | null) => {
     priceLabsEmail: nextEmail,
   })
   if (!res.success) {
-    ElMessage.error(res.message || '同步 PriceLabs 默认邮箱失败')
+    ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.syncDefaultEmailFailed'))
     return false
   }
 
@@ -1210,7 +1220,7 @@ const ensureIntegrationEmailForAccount = async (accountId?: number | null) => {
 // 切换集成状态
 const handleToggleIntegration = async (enabled: boolean) => {
   if (enabled && enabledAccounts.value.length === 0) {
-    ElMessage.warning('请先添加并启用至少一个 PriceLabs 账号')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.addAndEnableAccountFirst'))
     integration.value.isEnabled = false
     return
   }
@@ -1218,18 +1228,18 @@ const handleToggleIntegration = async (enabled: boolean) => {
   if (enabled) {
     const defaultAccount = accounts.value.find((item) => item.id === defaultAccountId.value)
     if (!defaultAccount) {
-      ElMessage.warning('璇峰厛淇濆瓨榛樿 PriceLabs 璐﹀彿閰嶇疆')
+      ElMessage.warning(t('settingsStage4.pricingTools.messages.saveDefaultAccountFirst'))
       integration.value.isEnabled = false
       return
     }
     if (!defaultAccount.isEnabled) {
-      ElMessage.warning('璇峰厛鍚敤褰撳墠榛樿 PriceLabs 璐﹀彿')
+      ElMessage.warning(t('settingsStage4.pricingTools.messages.enableDefaultAccountFirst'))
       integration.value.isEnabled = false
       return
     }
     const synced = await ensureIntegrationEmailForAccount(defaultAccount.id)
     if (!synced) {
-      ElMessage.warning('当前没有可用的 PriceLabs 账号邮箱，请先检查账号配置')
+      ElMessage.warning(t('settingsStage4.pricingTools.messages.noAvailableAccountEmail'))
       integration.value.isEnabled = false
       return
     }
@@ -1240,15 +1250,19 @@ const handleToggleIntegration = async (enabled: boolean) => {
     const res = await priceLabsApi.toggleIntegration(enabled)
     if (res.success) {
       integration.value = res.data
-      ElMessage.success(enabled ? '已启用 PriceLabs 集成' : '已禁用 PriceLabs 集成')
+      ElMessage.success(
+        enabled
+          ? t('settingsStage4.pricingTools.messages.integrationEnabled')
+          : t('settingsStage4.pricingTools.messages.integrationDisabled')
+      )
     } else {
       // 恢复状态
       integration.value.isEnabled = !enabled
-      ElMessage.error(res.message || '操作失败')
+      ElMessage.error(res.message || t('settings.common.operationFailed'))
     }
   } catch (error) {
     integration.value.isEnabled = !enabled
-    ElMessage.error('操作失败')
+    ElMessage.error(t('settings.common.operationFailed'))
   } finally {
     toggleLoading.value = false
   }
@@ -1257,7 +1271,7 @@ const handleToggleIntegration = async (enabled: boolean) => {
 // 添加连接
 const handleAddConnection = () => {
   if (enabledAccounts.value.length === 0) {
-    ElMessage.warning('请先添加并启用至少一个 PriceLabs 账号')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.addAndEnableAccountFirst'))
     return
   }
   connectionForm.accountId = selectedAccountId.value ?? enabledAccounts.value[0]?.id ?? null
@@ -1270,23 +1284,23 @@ const handleAddConnection = () => {
 // 保存连接
 const handleSaveConnection = async () => {
   if (!connectionForm.accountId) {
-    ElMessage.warning('请选择要绑定的账号')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.selectAccountToBind'))
     return
   }
   if (!connectionForm.roomTypeId) {
-    ElMessage.warning('请选择房型')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.selectRoomType'))
     return
   }
 
   const existing = enabledConnectionByRoomTypeId.value.get(connectionForm.roomTypeId)
   if (existing) {
-    const planName = existing.pricePlanName || '（未知）'
-    ElMessage.warning(`该房型已绑定价格计划：${planName}。如需更换，请先禁用或删除原连接后再添加。`)
+    const planName = existing.pricePlanName || t('settingsStage4.pricingTools.status.unknown')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.roomTypeAlreadyConnected', { planName }))
     return
   }
 
   if (!connectionForm.pricePlanId) {
-    ElMessage.warning('请选择价格计划')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.selectPricePlan'))
     return
   }
  
@@ -1296,14 +1310,16 @@ const handleSaveConnection = async () => {
   )
   if (duplicateConnection) {
     ElMessage.warning(
-      `该房型与价格计划已绑定到账号“${getConnectionAccountLabel(duplicateConnection)}”，请先查看现有连接并删除或调整后再重试。`,
+      t('settingsStage4.pricingTools.messages.duplicateConnection', {
+        account: getConnectionAccountLabel(duplicateConnection),
+      })
     )
     return
   }
 
   const isBoundPlan = roomTypeBoundPricePlans.value.some((plan) => plan.id === connectionForm.pricePlanId)
   if (!isBoundPlan) {
-    ElMessage.warning('请选择该房型在“价格计划-应用房型”中已绑定的价格计划')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.selectBoundPricePlan'))
     return
   }
 
@@ -1312,7 +1328,7 @@ const handleSaveConnection = async () => {
     if (!integration.value.isEnabled) {
       const synced = await ensureIntegrationEmailForAccount(connectionForm.accountId)
       if (!synced) {
-        ElMessage.warning('所选账号缺少可用邮箱，请先完善账号配置')
+        ElMessage.warning(t('settingsStage4.pricingTools.messages.selectedAccountMissingEmail'))
         return
       }
 
@@ -1323,9 +1339,9 @@ const handleSaveConnection = async () => {
         } else {
           await loadIntegration()
         }
-        ElMessage.success('已启用 PriceLabs 集成')
+        ElMessage.success(t('settingsStage4.pricingTools.messages.integrationEnabled'))
       } else {
-        ElMessage.error(toggleRes.message || '启用 PriceLabs 集成失败')
+        ElMessage.error(toggleRes.message || t('settingsStage4.pricingTools.messages.enableIntegrationFailed'))
         return
       }
     }
@@ -1336,7 +1352,7 @@ const handleSaveConnection = async () => {
       connectionForm.pricePlanId,
     )
     if (res.success) {
-      ElMessage.success('添加连接成功')
+      ElMessage.success(t('settingsStage4.pricingTools.messages.connectionAdded'))
       selectedAccountId.value = res.data.accountId ?? connectionForm.accountId
       showConnectionDialog.value = false
       await loadAccounts()
@@ -1345,7 +1361,7 @@ const handleSaveConnection = async () => {
       return
     }
     if (res.data) {
-      ElMessage.warning(res.message || '连接已保存，但同步失败')
+      ElMessage.warning(res.message || t('settingsStage4.pricingTools.messages.connectionSavedSyncFailed'))
       selectedAccountId.value = res.data.accountId ?? connectionForm.accountId
       showConnectionDialog.value = false
       await loadAccounts()
@@ -1353,10 +1369,10 @@ const handleSaveConnection = async () => {
       await loadIntegration()
       return
     } else {
-      ElMessage.error(res.message || '添加连接失败')
+      ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.addConnectionFailed'))
     }
   } catch (error) {
-    ElMessage.error('添加连接失败')
+    ElMessage.error(t('settingsStage4.pricingTools.messages.addConnectionFailed'))
   } finally {
     saveConnectionLoading.value = false
   }
@@ -1368,19 +1384,23 @@ const handleToggleConnection = async (row: PriceLabsConnectionDTO) => {
     const res = await priceLabsApi.updateConnectionStatus(row.id, !row.isEnabled)
     if (res.success) {
       row.isEnabled = !row.isEnabled
-      ElMessage.success(row.isEnabled ? '已启用连接' : '已禁用连接')
+      ElMessage.success(
+        row.isEnabled
+          ? t('settingsStage4.pricingTools.messages.connectionEnabled')
+          : t('settingsStage4.pricingTools.messages.connectionDisabled')
+      )
     } else {
-      ElMessage.error(res.message || '操作失败')
+      ElMessage.error(res.message || t('settings.common.operationFailed'))
     }
   } catch (error) {
-    ElMessage.error('操作失败')
+    ElMessage.error(t('settings.common.operationFailed'))
   }
 }
 
 // 单房型同步
 const handleSyncRoomType = async (row: PriceLabsConnectionDTO) => {
   if (!row.isEnabled) {
-    ElMessage.warning('请先启用连接')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.enableConnectionFirst'))
     return
   }
   if (syncingRoomTypeIds.value.includes(row.roomTypeId)) {
@@ -1391,14 +1411,14 @@ const handleSyncRoomType = async (row: PriceLabsConnectionDTO) => {
   try {
     const res = await priceLabsApi.syncRoomType(row.roomTypeId)
     if (res.success) {
-      ElMessage.success('同步已触发')
+      ElMessage.success(t('settingsStage4.pricingTools.messages.syncTriggered'))
       await loadConnections()
       await loadIntegration()
     } else {
-      ElMessage.error(res.message || '同步失败')
+      ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.syncFailed'))
     }
   } catch (error) {
-    ElMessage.error('同步失败')
+    ElMessage.error(t('settingsStage4.pricingTools.messages.syncFailed'))
   } finally {
     syncingRoomTypeIds.value = syncingRoomTypeIds.value.filter((id) => id !== row.roomTypeId)
   }
@@ -1408,19 +1428,22 @@ const handleSyncRoomType = async (row: PriceLabsConnectionDTO) => {
 const handleDeleteConnection = async (row: PriceLabsConnectionDTO) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除 "${row.roomTypeName} - ${row.pricePlanName}" 的连接配置吗?`,
-      '删除确认',
-      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+      t('settingsStage4.pricingTools.messages.deleteConnectionConfirm', {
+        roomType: row.roomTypeName,
+        plan: row.pricePlanName,
+      }),
+      t('settings.common.deleteConfirmTitle'),
+      { confirmButtonText: t('settings.common.confirm'), cancelButtonText: t('settings.common.cancel'), type: 'warning' }
     )
 
     const res = await priceLabsApi.deleteConnection(row.id)
     if (res.success) {
-      ElMessage.success('删除成功')
+      ElMessage.success(t('settings.common.deleteSuccess'))
       await loadAccounts()
       await loadConnections()
       await loadIntegration()
     } else {
-      ElMessage.error(res.message || '删除失败')
+      ElMessage.error(res.message || t('settings.common.deleteFailed'))
     }
   } catch {
     // 用户取消
@@ -1456,14 +1479,14 @@ const handleSaveAdjustment = async () => {
     })
 
     if (res.success) {
-      ElMessage.success('保存成功')
+      ElMessage.success(t('settings.common.saveSuccess'))
       showAdjustmentDialog.value = false
       await loadChannelAdjustments()
     } else {
-      ElMessage.error(res.message || '保存失败')
+      ElMessage.error(res.message || t('settings.common.saveFailed'))
     }
   } catch (error) {
-    ElMessage.error('保存失败')
+    ElMessage.error(t('settings.common.saveFailed'))
   } finally {
     saveAdjustmentLoading.value = false
   }
@@ -1477,10 +1500,14 @@ const handleAutoSyncChange = async (row: ChannelAdjustmentItem) => {
       priceAdjustmentValue: row.adjustmentValue ?? 0,
       autoSyncPrice: row.autoSyncPrice,
     })
-    ElMessage.success(row.autoSyncPrice ? '已开启自动同步' : '已关闭自动同步')
+    ElMessage.success(
+      row.autoSyncPrice
+        ? t('settingsStage4.pricingTools.messages.autoSyncEnabled')
+        : t('settingsStage4.pricingTools.messages.autoSyncDisabled')
+    )
   } catch (error) {
     row.autoSyncPrice = !row.autoSyncPrice
-    ElMessage.error('操作失败')
+    ElMessage.error(t('settings.common.operationFailed'))
   }
 }
 
@@ -1508,7 +1535,7 @@ const calculateSuccessRate = (): string => {
 const formatDateTime = (dateStr: string | undefined): string => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN', {
+  return date.toLocaleString(locale.value, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -1520,9 +1547,9 @@ const formatDateTime = (dateStr: string | undefined): string => {
 // 获取同步状态文本
 const getSyncStatusText = (status: string): string => {
   const statusMap: Record<string, string> = {
-    connected: '已连接',
-    disconnected: '未连接',
-    error: '错误',
+    connected: t('settingsStage4.pricingTools.status.connected'),
+    disconnected: t('settingsStage4.pricingTools.status.disconnected'),
+    error: t('settingsStage4.pricingTools.status.error'),
   }
   return statusMap[status] || status
 }
@@ -1540,9 +1567,9 @@ const getAdjustmentTypeTag = (type: PriceAdjustmentType): string => {
 // 获取调整类型文本
 const getAdjustmentTypeText = (type: PriceAdjustmentType): string => {
   const textMap: Record<string, string> = {
-    COMMISSION: '佣金',
-    PERCENTAGE: '百分比',
-    FIXED: '固定',
+    COMMISSION: t('settingsStage4.pricingTools.adjustment.commission'),
+    PERCENTAGE: t('settingsStage4.pricingTools.adjustment.percentage'),
+    FIXED: t('settingsStage4.pricingTools.adjustment.fixed'),
   }
   return textMap[type] || type
 }
@@ -1588,7 +1615,7 @@ const handleSelectStatusListingId = (id: string) => {
 const handleQueryStatus = async () => {
   const id = statusForm.id?.trim()
   if (!id) {
-    ElMessage.warning('请输入 ID')
+    ElMessage.warning(t('settingsStage4.pricingTools.messages.enterId'))
     return
   }
 
@@ -1599,10 +1626,10 @@ const handleQueryStatus = async () => {
     if (res.success) {
       statusResult.value = res.data
     } else {
-      ElMessage.error(res.message || 'status 查询失败')
+      ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.statusQueryFailed'))
     }
   } catch (error) {
-    ElMessage.error('status 查询失败')
+    ElMessage.error(t('settingsStage4.pricingTools.messages.statusQueryFailed'))
   } finally {
     statusLoading.value = false
   }
@@ -1626,13 +1653,13 @@ const handlePushReservations = async () => {
     })
     if (res.success) {
       pushReservationsResult.value = res.data
-      ElMessage.success('预订推送完成')
+      ElMessage.success(t('settingsStage4.pricingTools.messages.reservationsPushed'))
       loadSyncLogs()
     } else {
-      ElMessage.error(res.message || 'reservations 推送失败')
+      ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.reservationsPushFailed'))
     }
   } catch (error) {
-    ElMessage.error('reservations 推送失败')
+    ElMessage.error(t('settingsStage4.pricingTools.messages.reservationsPushFailed'))
   } finally {
     pushReservationsLoading.value = false
   }

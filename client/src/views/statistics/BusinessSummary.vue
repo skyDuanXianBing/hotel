@@ -7,24 +7,24 @@
         <el-date-picker
           v-model="startDate"
           type="date"
-          placeholder="开始日期"
+          :placeholder="t('stage5.common.date.startDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
         />
-        <span class="date-separator">至</span>
+        <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
         <el-date-picker
           v-model="endDate"
           type="date"
-          placeholder="结束日期"
+          :placeholder="t('stage5.common.date.endDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
         />
       </div>
 
-    <!-- 营业概况标题 -->
+      <!-- 营业概况标题 -->
       <div class="section-header">
-        <h2>营业概况</h2>
-        <span class="stats-period">统计时间段 {{ formatDateRange }}</span>
+        <h2>{{ t('stage5.statistics.business.title') }}</h2>
+        <span class="stats-period">{{ t('stage5.statistics.common.statsPeriod', { period: formatDateRange }) }}</span>
       </div>
 
     <!-- 营业指标卡片 -->
@@ -32,14 +32,14 @@
         <div class="metric-card primary">
           <div class="metric-content">
             <div class="metric-header">
-              <span class="metric-title">住宿总营业额</span>
+              <span class="metric-title">{{ t('stage5.statistics.business.totalAccommodationRevenue') }}</span>
               <div class="metric-trend">
                 <el-icon color="#ff4d4f"><ArrowUp /></el-icon>
               </div>
             </div>
             <div class="metric-value">¥{{ businessMetrics.totalRevenue }}</div>
             <div class="metric-change">
-              <span class="change-label">日环比</span>
+              <span class="change-label">{{ t('stage5.statistics.business.dailyComparison') }}</span>
               <span class="change-value positive">{{ businessMetrics.revenueChange }}%</span>
             </div>
           </div>
@@ -51,11 +51,11 @@
               <div class="metric-icon house">
                 <el-icon><House /></el-icon>
               </div>
-              <span class="metric-title">房费</span>
+              <span class="metric-title">{{ t('stage5.statistics.common.roomFee') }}</span>
             </div>
             <div class="metric-value">¥{{ businessMetrics.roomFee }}</div>
             <div class="metric-change">
-              <span class="change-label">占比</span>
+              <span class="change-label">{{ t('stage5.statistics.common.ratio') }}</span>
               <span class="change-value">{{ businessMetrics.roomFeeRatio }}%</span>
             </div>
           </div>
@@ -67,11 +67,11 @@
               <div class="metric-icon deposit">
                 <el-icon><Coin /></el-icon>
               </div>
-              <span class="metric-title">押金</span>
+              <span class="metric-title">{{ t('stage5.statistics.common.deposit') }}</span>
             </div>
             <div class="metric-value">¥{{ businessMetrics.deposit }}</div>
             <div class="metric-change">
-              <span class="change-label">占比</span>
+              <span class="change-label">{{ t('stage5.statistics.common.ratio') }}</span>
               <span class="change-value">{{ businessMetrics.depositRatio }}%</span>
             </div>
           </div>
@@ -83,11 +83,11 @@
               <div class="metric-icon consumption">
                 <el-icon><ShoppingCart /></el-icon>
               </div>
-              <span class="metric-title">客房消费</span>
+              <span class="metric-title">{{ t('stage5.statistics.common.roomConsumption') }}</span>
             </div>
             <div class="metric-value">¥{{ businessMetrics.roomConsumption }}</div>
             <div class="metric-change">
-              <span class="change-label">占比</span>
+              <span class="change-label">{{ t('stage5.statistics.common.ratio') }}</span>
               <span class="change-value">{{ businessMetrics.roomConsumptionRatio }}%</span>
             </div>
           </div>
@@ -98,7 +98,7 @@
       <div class="charts-section">
         <!-- 营业汇总统计 -->
         <div class="chart-container">
-          <h3>营业汇总统计</h3>
+          <h3>{{ t('stage5.statistics.business.summaryChart') }}</h3>
           <div class="chart-content">
             <div class="pie-chart" ref="pieChartRef"></div>
           </div>
@@ -106,13 +106,13 @@
 
         <!-- 每日营业统计 -->
         <div class="chart-container">
-          <h3>每日营业统计</h3>
+          <h3>{{ t('stage5.statistics.common.dailyBusinessStats') }}</h3>
           <div class="chart-tabs">
             <el-tabs v-model="activeChartTab" @tab-change="updateLineChart">
-              <el-tab-pane label="住宿总营业额" name="revenue"></el-tab-pane>
-              <el-tab-pane label="押金" name="deposit"></el-tab-pane>
-              <el-tab-pane label="客房消费" name="consumption"></el-tab-pane>
-              <el-tab-pane label="房费" name="roomfee"></el-tab-pane>
+              <el-tab-pane :label="t('stage5.statistics.business.totalAccommodationRevenue')" name="revenue"></el-tab-pane>
+              <el-tab-pane :label="t('stage5.statistics.common.deposit')" name="deposit"></el-tab-pane>
+              <el-tab-pane :label="t('stage5.statistics.common.roomConsumption')" name="consumption"></el-tab-pane>
+              <el-tab-pane :label="t('stage5.statistics.common.roomFee')" name="roomfee"></el-tab-pane>
             </el-tabs>
           </div>
           <div class="chart-content">
@@ -124,10 +124,10 @@
     <!-- 营业明细 -->
       <div class="business-details">
         <div class="details-header">
-          <h3>营业明细</h3>
-          <span class="details-period">({{ formatDateRange }})</span>
+          <h3>{{ t('stage5.statistics.business.details') }}</h3>
+          <span class="details-period">{{ t('stage5.statistics.common.detailsPeriod', { period: formatDateRange }) }}</span>
           <div class="details-actions">
-            <el-button type="primary" @click="exportDetails">导出明细</el-button>
+            <el-button type="primary" @click="exportDetails">{{ t('stage5.common.actions.exportDetails') }}</el-button>
           </div>
         </div>
 
@@ -139,19 +139,19 @@
             show-summary
             :summary-method="getSummaries"
           >
-            <el-table-column prop="category" label="项目" width="150">
+            <el-table-column prop="category" :label="t('stage5.common.fields.project')" width="150">
               <template #default="scope">
                 <span class="category-name">{{ scope.row.category }}</span>
               </template>
             </el-table-column>
 
-            <el-table-column prop="description" label="明细" min-width="200">
+            <el-table-column prop="description" :label="t('stage5.common.fields.details')" min-width="200">
               <template #default="scope">
                 <span class="detail-description">{{ scope.row.description }}</span>
               </template>
             </el-table-column>
 
-            <el-table-column prop="amount" label="合计" width="120" align="right">
+            <el-table-column prop="amount" :label="t('stage5.common.fields.total')" width="120" align="right">
               <template #default="scope">
                 <span class="amount-value">¥{{ scope.row.amount }}</span>
               </template>
@@ -171,7 +171,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   ArrowUp,
   House,
@@ -183,7 +183,7 @@ import { getBusinessSummary, type BusinessSummaryDTO } from '@/api/business'
 import StatisticsLayout from './StatisticsLayout.vue'
 import * as echarts from 'echarts'
 
-const router = useRouter()
+const { t } = useI18n()
 
 // 获取当前日期和一周前日期
 const getCurrentWeekDates = () => {
@@ -232,8 +232,8 @@ const businessMetrics = ref({
 // 营业明细数据
 const businessDetails = ref([
   {
-    category: '房费',
-    description: '全日房费',
+    category: t('stage5.statistics.common.roomFee'),
+    description: t('stage5.statistics.business.fullDayRoomFee'),
     amount: '24.00',
     dateAmount: '24.00',
   },
@@ -244,7 +244,7 @@ const formatDateRange = computed(() => {
   if (startDate.value === endDate.value) {
     return startDate.value
   }
-  return `${startDate.value} 至 ${endDate.value}`
+  return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
 })
 
 // 初始化饼图
@@ -264,7 +264,7 @@ const initPieChart = () => {
 
   const option = {
     title: {
-      text: '住宿总营业额',
+      text: t('stage5.statistics.business.totalAccommodationRevenue'),
       subtext: `¥ ${businessMetrics.value.totalRevenue}`,
       left: 'center',
       top: 'center',
@@ -294,7 +294,7 @@ const initPieChart = () => {
     },
     series: [
       {
-        name: '渠道收入',
+        name: t('stage5.statistics.common.channelRevenue'),
         type: 'pie',
         radius: ['50%', '80%'],
         center: ['50%', '50%'],
@@ -315,7 +315,7 @@ const initPieChart = () => {
         data: pieData.length > 0 ? pieData : [
           {
             value: 0,
-            name: '暂无数据',
+            name: t('stage5.common.empty.noData'),
             itemStyle: { color: '#e0e0e0' }
           }
         ]
@@ -344,7 +344,10 @@ const updateLineChart = () => {
   // 格式化日期和数据
   const dates = dailyRevenues.map(item => {
     const date = new Date(item.date)
-    return `${date.getMonth() + 1}月${date.getDate()}日`
+    return t('stage5.common.date.monthDay', {
+      month: date.getMonth() + 1,
+      day: date.getDate(),
+    })
   })
 
   let data: number[] = []
@@ -352,19 +355,19 @@ const updateLineChart = () => {
 
   switch (activeChartTab.value) {
     case 'revenue':
-      seriesName = '住宿总营业额'
+      seriesName = t('stage5.statistics.business.totalAccommodationRevenue')
       data = dailyRevenues.map(item => Number(item.revenue))
       break
     case 'deposit':
-      seriesName = '押金'
+      seriesName = t('stage5.statistics.common.deposit')
       data = dailyRevenues.map(() => 0) // 暂无押金数据
       break
     case 'consumption':
-      seriesName = '客房消费'
+      seriesName = t('stage5.statistics.common.roomConsumption')
       data = dailyRevenues.map(() => 0) // 暂无消费数据
       break
     case 'roomfee':
-      seriesName = '房费'
+      seriesName = t('stage5.statistics.common.roomFee')
       data = dailyRevenues.map(item => Number(item.revenue)) // 所有收入作为房费
       break
   }
@@ -386,7 +389,7 @@ const updateLineChart = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: dates.length > 0 ? dates : ['暂无数据'],
+      data: dates.length > 0 ? dates : [t('stage5.common.empty.noData')],
       axisLabel: {
         fontSize: 12,
         color: '#666'
@@ -496,7 +499,10 @@ const calculateBusinessMetrics = async () => {
     // 更新营业明细数据 - 按渠道分组
     const details = data.revenueByChannel.map(channel => ({
       category: channel.channelName,
-      description: `${channel.orderCount}个订单，${channel.roomNights}间夜`,
+      description: t('stage5.statistics.business.orderRoomNights', {
+        orders: channel.orderCount,
+        roomNights: channel.roomNights,
+      }),
       amount: Number(channel.revenue).toFixed(2),
       dateAmount: Number(channel.revenue).toFixed(2),
     }))
@@ -505,15 +511,15 @@ const calculateBusinessMetrics = async () => {
       ? details
       : [
           {
-            category: '暂无数据',
-            description: '选择的日期范围内暂无营业数据',
+            category: t('stage5.common.empty.noData'),
+            description: t('stage5.statistics.business.noBusinessData'),
             amount: '0.00',
             dateAmount: '0.00',
           },
         ]
   } catch (error) {
-    console.error('获取营业数据失败:', error)
-    ElMessage.error('获取营业数据失败，请稍后重试')
+    console.error(t('stage5.statistics.business.fetchFailed'), error)
+    ElMessage.error(t('stage5.statistics.business.fetchFailed'))
 
     // 显示错误状态的默认数据
     businessMetrics.value = {
@@ -528,8 +534,8 @@ const calculateBusinessMetrics = async () => {
     }
     businessDetails.value = [
       {
-        category: '错误',
-        description: '数据加载失败',
+        category: t('stage5.common.messages.dataLoadFailed'),
+        description: t('stage5.common.messages.dataLoadFailed'),
         amount: '0.00',
         dateAmount: '0.00',
       },
@@ -544,7 +550,7 @@ const getSummaries = (param: any) => {
   const sums: string[] = []
   columns.forEach((column: any, index: number) => {
     if (index === 0) {
-      sums[index] = '合计'
+      sums[index] = t('stage5.common.fields.total')
       return
     }
     if (index === 1) {
@@ -577,7 +583,7 @@ const getSummaries = (param: any) => {
 
 // 导出明细
 const exportDetails = () => {
-  ElMessage.success('营业明细导出成功')
+  ElMessage.success(t('stage5.statistics.business.exportSuccess'))
   // 这里可以添加实际的导出逻辑
 }
 

@@ -3,7 +3,7 @@
     <!-- 标签页导航 -->
     <div class="tab-navigation">
       <el-tabs :model-value="activeTab" @tab-change="handleTabChange" class="room-status-tabs">
-        <el-tab-pane label="日历" name="calendar" />
+        <el-tab-pane :label="t('roomStatus.layout.calendar')" name="calendar" />
         <!-- <el-tab-pane label="单日" name="daily" /> -->
         <!-- <el-tab-pane label="渠道" name="channel" /> -->
       </el-tabs>
@@ -19,11 +19,13 @@
 <script setup lang="ts">
 import { watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useRoomStatusStore } from '@/stores/roomStatus'
 
 const route = useRoute()
 const router = useRouter()
 const roomStatusStore = useRoomStatusStore()
+const { t } = useI18n()
 
 // 使用 store 中的状态
 const { activeTab, setActiveTab } = roomStatusStore
