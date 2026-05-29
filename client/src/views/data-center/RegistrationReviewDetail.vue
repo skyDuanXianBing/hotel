@@ -19,6 +19,7 @@
           <div><b>{{ t('stage5.dataCenter.detail.metaDate') }}</b>{{ detail.checkInDate }} ~ {{ detail.checkOutDate }}</div>
           <div><b>{{ t('stage5.dataCenter.detail.metaReservedRoomType') }}</b>{{ detail.roomTypeName || '-' }}</div>
           <div><b>{{ t('stage5.dataCenter.detail.metaRoomNumber') }}</b>{{ detail.roomNumber || '-' }}</div>
+          <div><b>{{ t('stage5.common.filters.orderStatus') }}:</b>{{ getReservationStatusLabel(detail.reservationStatus) }}</div>
           <div><b>{{ t('stage5.dataCenter.detail.metaStatus') }}</b>{{ detail.status }}</div>
           <div v-if="detail.reviewNote"><b>{{ t('stage5.dataCenter.detail.metaNote') }}</b>{{ detail.reviewNote }}</div>
         </div>
@@ -56,13 +57,38 @@
           </el-table>
         </div>
 
-        <div class="section">
+        <div v-if="!isCancelledReservation" class="section">
           <div class="section-title">{{ t('stage5.dataCenter.detail.reviewAction') }}</div>
           <el-input v-model="note" type="textarea" :rows="3" :placeholder="t('stage5.dataCenter.detail.notePlaceholder')" />
-          <div class="approve-message">
-            <div class="approve-message__label">{{ t('stage5.dataCenter.detail.approveMessageLabel') }}</div>
+          <div class="guest-message">
+            <div class="guest-message__header">
+              <div class="guest-message__label">{{ t('stage5.dataCenter.detail.approveMessageLabel') }}</div>
+              <div class="guest-message__tools">
+                <el-select
+                  v-model="reviewQuickReplyId"
+                  size="small"
+                  filterable
+                  clearable
+                  :placeholder="t('stage5.dataCenter.detail.selectQuickReply')"
+                  class="guest-message__quick-select"
+                  :loading="quickReplyLoading"
+                  @change="applyReviewQuickReply"
+                >
+                  <el-option v-for="q in quickReplies" :key="q.id" :label="q.title" :value="q.id" />
+                </el-select>
+                <el-tooltip :content="t('stage5.common.actions.refresh')" placement="top">
+                  <el-button
+                    size="small"
+                    circle
+                    :icon="Refresh"
+                    :loading="quickReplyLoading"
+                    @click="loadQuickReplies"
+                  />
+                </el-tooltip>
+              </div>
+            </div>
             <el-input
-              v-model="approveMessage"
+              v-model="guestMessage"
               type="textarea"
               :rows="4"
               :placeholder="t('stage5.dataCenter.detail.approveMessagePlaceholder')"
@@ -153,10 +179,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import axios from 'axios'
 
@@ -165,6 +192,7 @@ type Detail = {
   orderNumber: string
   channelOrderNumber?: string
   status: string
+  reservationStatus?: string | null
   guestName: string
   checkInDate: string
   checkOutDate: string
@@ -204,7 +232,7 @@ const detail = ref<Detail | null>(null)
 const loading = ref(false)
 const acting = ref(false)
 const note = ref('')
-const approveMessage = ref('')
+const guestMessage = ref('')
 
 const sending = ref(false)
 const sendType = ref<'APPROVED_INFO' | 'REJECT_REQUEST' | 'REMINDER'>('APPROVED_INFO')
@@ -214,6 +242,8 @@ const lastSendStatus = ref<string>('')
 const quickReplies = ref<QuickReplyItem[]>([])
 const quickReplyLoading = ref(false)
 const quickReplyId = ref<number | null>(null)
+const reviewQuickReplyId = ref<number | null>(null)
+const isCancelledReservation = computed(() => detail.value?.reservationStatus === 'CANCELLED')
 
 function formId(): string {
   return route.params.formId as string
@@ -246,14 +276,28 @@ async function loadQuickReplies() {
   }
 }
 
+function appendQuickReplyContent(currentContent: string, quickReplyContent: string) {
+  if (!quickReplyContent) {
+    return currentContent
+  }
+  const base = currentContent?.trim() ? currentContent.trim() + '\n\n' : ''
+  return base + quickReplyContent
+}
+
 function applyQuickReply(id: number | null) {
   if (!id) return
   const found = quickReplies.value.find((q) => q.id === id)
   if (!found) return
-  // append with a blank line separator
-  const base = sendContent.value?.trim() ? sendContent.value.trim() + '\n\n' : ''
-  sendContent.value = base + (found.message || '')
+  sendContent.value = appendQuickReplyContent(sendContent.value, found.message || '')
   quickReplyId.value = null
+}
+
+function applyReviewQuickReply(id: number | null) {
+  if (!id) return
+  const found = quickReplies.value.find((q) => q.id === id)
+  if (!found) return
+  guestMessage.value = appendQuickReplyContent(guestMessage.value, found.message || '')
+  reviewQuickReplyId.value = null
 }
 
 function fillDefaultTemplate() {
@@ -312,24 +356,37 @@ function back() {
   router.back()
 }
 
+async function sendReviewActionMessage(type: 'APPROVED_INFO' | 'REJECT_REQUEST', content: string) {
+  if (!detail.value) {
+    return ''
+  }
+
+  const resp = (await request.post(`/registrations/${detail.value.formId}/messages/send`, {
+    type,
+    content,
+    senderName: t('stage5.dataCenter.detail.frontDesk'),
+  })) as RegistrationMessageLogResponse
+  const messageSendStatus = resp.data?.sendStatus || ''
+  lastSendStatus.value = messageSendStatus
+  guestMessage.value = ''
+  return messageSendStatus
+}
+
 async function approve() {
   if (!detail.value) return
+  if (isCancelledReservation.value) {
+    ElMessage.warning(t('stage5.dataCenter.registrations.cancelled'))
+    return
+  }
   acting.value = true
-  const messageContent = approveMessage.value.trim()
+  const messageContent = guestMessage.value.trim()
   let messageSendError = ''
   let messageSendStatus = ''
   try {
     await request.post(`/registrations/${detail.value.formId}/approve`, { note: note.value })
     if (messageContent) {
       try {
-        const resp = (await request.post(`/registrations/${detail.value.formId}/messages/send`, {
-          type: 'APPROVED_INFO',
-          content: messageContent,
-          senderName: t('stage5.dataCenter.detail.frontDesk'),
-        })) as RegistrationMessageLogResponse
-        messageSendStatus = resp.data?.sendStatus || ''
-        lastSendStatus.value = messageSendStatus
-        approveMessage.value = ''
+        messageSendStatus = await sendReviewActionMessage('APPROVED_INFO', messageContent)
       } catch (sendError: any) {
         messageSendError =
           sendError?.response?.data?.message || sendError?.message || t('stage5.dataCenter.detail.sendFailed')
@@ -355,11 +412,35 @@ async function approve() {
 
 async function reject() {
   if (!detail.value) return
+  if (isCancelledReservation.value) {
+    ElMessage.warning(t('stage5.dataCenter.registrations.cancelled'))
+    return
+  }
   acting.value = true
+  const messageContent = guestMessage.value.trim()
+  let messageSendError = ''
+  let messageSendStatus = ''
   try {
     await request.post(`/registrations/${detail.value.formId}/reject`, { note: note.value })
-    ElMessage.success(t('stage5.dataCenter.detail.rejectSuccess'))
+    if (messageContent) {
+      try {
+        messageSendStatus = await sendReviewActionMessage('REJECT_REQUEST', messageContent)
+      } catch (sendError: any) {
+        messageSendError =
+          sendError?.response?.data?.message || sendError?.message || t('stage5.dataCenter.detail.sendFailed')
+      }
+    }
+    ElMessage.success(
+      messageContent
+        ? t('stage5.dataCenter.detail.rejectWithMessageSuccess')
+        : t('stage5.dataCenter.detail.rejectSuccess'),
+    )
     await load()
+    if (messageContent && messageSendError) {
+      ElMessage.warning(t('stage5.dataCenter.detail.rejectMessageFailed', { message: messageSendError }))
+    } else if (messageContent && messageSendStatus && messageSendStatus !== 'SENT') {
+      ElMessage.warning(t('stage5.dataCenter.detail.rejectMessageStatus', { status: messageSendStatus }))
+    }
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.operationFailed'))
   } finally {
@@ -476,6 +557,25 @@ function downloadAttachment(att: { id: number; originalName?: string }) {
     })
 }
 
+function getReservationStatusLabel(status?: string | null) {
+  switch (status) {
+    case 'CONFIRMED':
+      return t('stage5.dataCenter.registrations.booked')
+    case 'CANCELLED':
+      return t('stage5.dataCenter.registrations.cancelled')
+    case 'CHECKED_IN':
+      return t('stage5.dataCenter.registrations.checkedIn')
+    case 'CHECKED_OUT':
+      return t('stage5.dataCenter.registrations.checkedOut')
+    case 'REQUESTED':
+      return t('stage5.dataCenter.registrations.pendingConfirmation')
+    case 'NO_SHOW':
+      return t('stage5.dataCenter.registrations.noShow')
+    default:
+      return '-'
+  }
+}
+
 onMounted(load)
 onMounted(loadQuickReplies)
 </script>
@@ -522,14 +622,32 @@ onMounted(loadQuickReplies)
   gap: 10px;
   justify-content: flex-end;
 }
-.approve-message {
+.guest-message {
   margin-top: 12px;
 }
 
-.approve-message__label {
+.guest-message__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.guest-message__label {
   color: #333;
   font-weight: 600;
+}
+
+.guest-message__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guest-message__quick-select {
+  width: 260px;
 }
 .empty {
   padding: 20px;
@@ -576,5 +694,16 @@ onMounted(loadQuickReplies)
 
 .msg-content {
   white-space: pre-wrap;
+}
+
+@media (max-width: 640px) {
+  .guest-message__tools {
+    width: 100%;
+  }
+
+  .guest-message__quick-select {
+    flex: 1;
+    width: auto;
+  }
 }
 </style>

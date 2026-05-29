@@ -133,10 +133,14 @@ import {
   type RegistrationFormStatus,
 } from '@/api/publicRegistrationBooking'
 import {
-  getInitialRegistrationLocale,
   normalizeRegistrationLocale,
   persistRegistrationLocale,
+  resolvePublicRegistrationLocale,
   resolvePublicRegistrationErrorKey,
+  shouldApplyLoadedRegistrationLocale,
+  shouldPersistRegistrationLocale,
+  type PublicRegistrationLocaleResolution,
+  type PublicRegistrationLocaleSource,
   type PublicRegistrationErrorKey,
 } from './registrationLocale'
 
@@ -154,131 +158,10 @@ const booking = ref<PublicRegistrationBookingResponse | null>(null)
 
 const savingOrder = ref<string | null>(null)
 const guestCountByOrder = reactive<Record<string, number>>({})
-
-// Initialize language from localStorage immediately to avoid showing language selection screen.
-const getInitialLanguage = (): string => {
-  const savedLang = localStorage.getItem('registrationLang')
-  if (savedLang) {
-    return savedLang
-  }
-  // Auto-detect browser language
-  const browserLang = navigator.language.toLowerCase()
-  if (browserLang.startsWith('ja')) return 'ja'
-  if (browserLang.startsWith('zh')) return 'zh'
-  if (browserLang.startsWith('ko')) return 'ko'
-  return 'en'
-}
+const currentLocaleSource = ref<PublicRegistrationLocaleSource>('default')
+const userSelectedLocale = ref(false)
 
 const selectedLang = computed(() => languageStore.locale)
-
-type LangCode = 'en' | 'ja' | 'zh' | 'ko'
-
-const translations: Record<LangCode, Record<string, string>> = {
-  en: {
-    guestRegistration: 'Guest Registration',
-    loading: 'Loading...',
-    bookingNumber: 'Booking Number',
-    stay: 'Stay',
-    importantNotice: 'Important Notice',
-    noticeText: 'Under Japanese law, overseas travelers must submit all guests\' personal information and passports to the accommodation. Thank you for your cooperation.',
-    bookingInfo: 'Booking Information',
-    guest: 'Guest',
-    roomType: 'Room Type',
-    roomNumber: 'Room Number',
-    rooms: 'Rooms',
-    maxGuests: 'Max guests',
-    numberOfGuests: 'Number of guests',
-    continue: 'Continue',
-    lastSaved: 'Last saved',
-    draft: 'Draft',
-    submitted: 'Submitted',
-    approved: 'Approved',
-    rejected: 'Rejected',
-    changeLanguage: 'Language',
-    missingParams: 'Missing parameter: bookingKey or t',
-    loadFailed: 'Failed to load',
-    selectGuestCount: 'Select number of guests',
-    saveFailed: 'Save failed. Please try again.'
-  },
-  ja: {
-    guestRegistration: '宿泊者名簿',
-    loading: '読み込み中...',
-    bookingNumber: '予約番号',
-    stay: '宿泊期間',
-    importantNotice: '重要なお知らせ',
-    noticeText: '日本の法律により、海外からの宿泊者は全員の個人情報およびパスポートの提出が必要です。ご協力お願いします。',
-    bookingInfo: '予約情報',
-    guest: '宿泊者',
-    roomType: '客室タイプ',
-    roomNumber: '客室番号',
-    rooms: '部屋数',
-    maxGuests: '最大人数',
-    numberOfGuests: '宿泊人数',
-    continue: '続ける',
-    lastSaved: '最終保存',
-    draft: '未提出',
-    submitted: '提出済み',
-    approved: '承認済み',
-    rejected: '要再提出',
-    changeLanguage: '言語',
-    missingParams: 'パラメータが不足しています: bookingKey または t',
-    loadFailed: '読み込みに失敗しました',
-    selectGuestCount: '宿泊人数を選択してください',
-    saveFailed: '保存に失敗しました。もう一度お試しください。'
-  },
-  zh: {
-    guestRegistration: '入住登记',
-    loading: '加载中...',
-    bookingNumber: '预订号',
-    stay: '入住期间',
-    importantNotice: '重要提示',
-    noticeText: '根据日本法律，海外旅客需向住宿方提交所有入住者的个人信息及护照。感谢您的配合。',
-    bookingInfo: '预订信息',
-    guest: '客人',
-    roomType: '房型',
-    roomNumber: '房间号',
-    rooms: '房间数',
-    maxGuests: '最多人数',
-    numberOfGuests: '入住人数',
-    continue: '继续填写',
-    lastSaved: '最后保存',
-    draft: '未提交',
-    submitted: '已提交',
-    approved: '已通过',
-    rejected: '需重填',
-    changeLanguage: '语言',
-    missingParams: '缺少参数：bookingKey 或 t',
-    loadFailed: '加载失败',
-    selectGuestCount: '请选择入住人数',
-    saveFailed: '保存失败，请重试'
-  },
-  ko: {
-    guestRegistration: '투숙자 등록',
-    loading: '로딩 중...',
-    bookingNumber: '예약 번호',
-    stay: '숙박 기간',
-    importantNotice: '중요 공지',
-    noticeText: '일본 법에 따라 해외 투숙객은 모든 투숙객의 개인정보 및 여권 제출이 필요합니다. 협조 부탁드립니다.',
-    bookingInfo: '예약 정보',
-    guest: '투숙객',
-    roomType: '객실 타입',
-    roomNumber: '객실 번호',
-    rooms: '객실 수',
-    maxGuests: '최대 인원',
-    numberOfGuests: '숙박 인원',
-    continue: '계속하기',
-    lastSaved: '최종 저장',
-    draft: '미제출',
-    submitted: '제출됨',
-    approved: '승인됨',
-    rejected: '재작성 필요',
-    changeLanguage: '언어',
-    missingParams: '필수 매개변수가 없습니다: bookingKey 또는 t',
-    loadFailed: '불러오기에 실패했습니다',
-    selectGuestCount: '숙박 인원을 선택해 주세요',
-    saveFailed: '저장에 실패했습니다. 다시 시도해 주세요.'
-  }
-}
 
 const registrationTextKeys: Record<string, string> = {
   languageSelectTitle: 'stage5.publicRegistration.language.selectTitle',
@@ -326,15 +209,32 @@ const getQueryLocale = (value: unknown): string | null => {
   return typeof value === 'string' ? value : null
 }
 
-const applyRegistrationLocale = (value?: string | null): SupportedLocale => {
-  const nextLocale = normalizeRegistrationLocale(value)
-  locale.value = nextLocale
-  languageStore.setLocale(nextLocale)
-  persistRegistrationLocale(nextLocale)
-  return nextLocale
+const applyRegistrationLocaleResolution = (
+  resolution: PublicRegistrationLocaleResolution,
+  persist = shouldPersistRegistrationLocale(resolution),
+): SupportedLocale => {
+  locale.value = resolution.locale
+  languageStore.setLocale(resolution.locale)
+  currentLocaleSource.value = resolution.source
+  if (persist) {
+    persistRegistrationLocale(resolution.locale)
+  }
+  return resolution.locale
 }
 
-applyRegistrationLocale(getInitialRegistrationLocale(getQueryLocale(route.query.lang)))
+const applyRegistrationLocale = (value?: string | null): SupportedLocale => {
+  return applyRegistrationLocaleResolution(
+    {
+      locale: normalizeRegistrationLocale(value),
+      source: 'registrationCache',
+    },
+    true,
+  )
+}
+
+applyRegistrationLocaleResolution(
+  resolvePublicRegistrationLocale({ queryLocale: getQueryLocale(route.query.lang) }),
+)
 
 const t = (key: string, params: Record<string, string | number> = {}): string => {
   return String(i18nT(registrationTextKeys[key] || key, params))
@@ -365,6 +265,7 @@ const refreshPublicRegistrationError = () => {
 }
 
 const selectLanguage = (lang: SupportedLocale) => {
+  userSelectedLocale.value = true
   applyRegistrationLocale(lang)
   refreshPublicRegistrationError()
   if (!booking.value) {
@@ -373,6 +274,7 @@ const selectLanguage = (lang: SupportedLocale) => {
 }
 
 const changeLanguage = (lang: string) => {
+  userSelectedLocale.value = true
   applyRegistrationLocale(lang)
   refreshPublicRegistrationError()
 }
@@ -385,6 +287,34 @@ const guestCountOptions = (maxGuests: number) => {
 const buildRoomRegistrationLink = (roomLink: string): string => {
   const lang = selectedLang.value
   return roomLink + (roomLink.includes('?') ? '&' : '?') + 'lang=' + encodeURIComponent(lang)
+}
+
+const resolveLoadedRegistrationLocale = (
+  resp: PublicRegistrationBookingResponse,
+): PublicRegistrationLocaleResolution => {
+  return resolvePublicRegistrationLocale({
+    // The public booking API does not expose guest region fields yet.
+    // Add country/region/phoneCountryCode here when backend support is available.
+    backendHint: null,
+    guestName: resp.guestName,
+    storedRegistrationLocale: null,
+    storedAppLocale: null,
+    browserLocales: [],
+  })
+}
+
+const applyLoadedRegistrationLocale = (resp: PublicRegistrationBookingResponse) => {
+  if (userSelectedLocale.value) {
+    return
+  }
+
+  const resolution = resolveLoadedRegistrationLocale(resp)
+  if (!shouldApplyLoadedRegistrationLocale(currentLocaleSource.value, resolution)) {
+    return
+  }
+
+  applyRegistrationLocaleResolution(resolution)
+  refreshPublicRegistrationError()
 }
 
 const shouldAutoRedirectToRegistrationForm = (
@@ -443,6 +373,7 @@ const load = async () => {
     }
 
     booking.value = resp.data
+    applyLoadedRegistrationLocale(resp.data)
 
     if (shouldAutoRedirectToRegistrationForm(resp.data)) {
       const firstRoomLink = (resp.data.rooms || []).find((room) => !!room.roomRegistrationLink)

@@ -34,6 +34,11 @@
           format="YYYY/MM/DD"
           value-format="YYYY-MM-DD"
         />
+        <RoomGroupStatisticScopeFilter
+          v-model="selectedRoomGroupIds"
+          :room-groups="roomGroupOptions"
+          :loading="roomGroupsLoading"
+        />
       </div>
 
       <!-- 营业概况内容 -->
@@ -444,6 +449,7 @@ import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import StatisticsLayout from '../statistics/StatisticsLayout.vue'
+import RoomGroupStatisticScopeFilter from './components/RoomGroupStatisticScopeFilter.vue'
 import {
   getBusinessOverview,
   getRevenueSummary,
@@ -454,6 +460,7 @@ import {
   type ChannelSummaryDTO,
   type SalesSummaryDTO
 } from '@/api/statistics'
+import { getAllRoomGroups, type RoomGroupDTO } from '@/api/roomGroup'
 
 const { t, locale } = useI18n()
 
@@ -550,6 +557,9 @@ const dateType = ref('today')
 const startDate = ref('2025-11-14')
 const endDate = ref('2025-11-14')
 const loading = ref(false)
+const roomGroupsLoading = ref(false)
+const selectedRoomGroupIds = ref<number[]>([])
+const roomGroupOptions = ref<Array<RoomGroupDTO & { id: number }>>([])
 
 const dateRangeLabel = computed(() =>
   t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value }),
@@ -1056,6 +1066,28 @@ const loadCurrentTabData = () => {
     loadChannelSummary()
   } else if (activeTab.value === 'sales') {
     loadSalesSummary()
+  }
+}
+
+const loadRoomGroups = async () => {
+  try {
+    roomGroupsLoading.value = true
+    const response = await getAllRoomGroups()
+    if (response.success) {
+      roomGroupOptions.value = (response.data || []).filter(
+        (group): group is RoomGroupDTO & { id: number } => typeof group.id === 'number',
+      )
+      return
+    }
+
+    roomGroupOptions.value = []
+    ElMessage.error(response.message || t('stage5.dataCenter.overview.loadRoomGroupsFailed'))
+  } catch (error) {
+    console.error(t('stage5.dataCenter.overview.loadRoomGroupsFailed'), error)
+    roomGroupOptions.value = []
+    ElMessage.error(t('stage5.dataCenter.overview.loadRoomGroupsFailed'))
+  } finally {
+    roomGroupsLoading.value = false
   }
 }
 
@@ -1919,6 +1951,8 @@ watch(locale, () => {
 onMounted(() => {
   // 初始化日期为今天
   updateDateRange(dateType.value)
+
+  loadRoomGroups()
 
   // 加载初始数据
   loadCurrentTabData()

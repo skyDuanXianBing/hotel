@@ -195,6 +195,25 @@ const router = createRouter({
               component: () => import('@/views/settings/cleaning/CleaningSupplies.vue'),
               meta: { title: 'Supplies', requiresAuth: true },
             },
+            // Channel management
+            {
+              path: 'channel',
+              name: 'SettingsChannel',
+              redirect: '/settings/channel/list',
+              meta: { title: 'Channel Management', requiresAuth: true },
+            },
+            {
+              path: 'channel/list',
+              name: 'SettingsChannelList',
+              component: () => import('@/views/channel/ChannelManagement.vue'),
+              meta: { title: 'Channel List', requiresAuth: true },
+            },
+            {
+              path: 'channel/price-ratio',
+              name: 'SettingsChannelPriceRatio',
+              component: () => import('@/views/channel/ChannelManagement.vue'),
+              meta: { title: 'Rate Ratio', requiresAuth: true },
+            },
             // Auto check-in
             {
               path: 'auto-checkin/settings',
@@ -371,6 +390,12 @@ const router = createRouter({
           name: 'DataCenterRegistrationDetail',
           component: () => import('@/views/data-center/RegistrationReviewDetail.vue'),
           meta: { title: 'Registration Details', requiresAuth: true },
+        },
+        {
+          path: 'reviews',
+          name: 'Reviews',
+          component: () => import('@/views/reviews/ReviewList.vue'),
+          meta: { title: 'Guest Reviews', requiresAuth: true },
         },
         {
           path: 'statistics/business-summary',
@@ -579,6 +604,10 @@ const routePermissionConfig = new Map<
   ['DataCenterNotes', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['DataCenterRegistrations', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['DataCenterRegistrationDetail', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['Reviews', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
+  ['SettingsChannel', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
+  ['SettingsChannelList', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
+  ['SettingsChannelPriceRatio', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
   ['BusinessSummary', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['ChannelSummary', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['NotesSummary', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
@@ -665,6 +694,9 @@ const routeTitleKeyByName = new Map<string, string>([
   ['NoteSettings', 'routeTitles.recordSettings'],
   ['AccountList', 'routeTitles.accountList'],
   ['RoleManagement', 'routeTitles.roleManagement'],
+  ['SettingsChannel', 'routeTitles.channelManagement'],
+  ['SettingsChannelList', 'channel.sidebar.list'],
+  ['SettingsChannelPriceRatio', 'channel.sidebar.priceRatio'],
   ['Channel', 'routeTitles.channelManagement'],
   ['Order', 'routeTitles.orderManagement'],
   ['DataCenterOverview', 'routeTitles.overview'],
@@ -672,6 +704,7 @@ const routeTitleKeyByName = new Map<string, string>([
   ['DataCenterNotes', 'routeTitles.recordTransaction'],
   ['DataCenterRegistrations', 'routeTitles.guestInformationReview'],
   ['DataCenterRegistrationDetail', 'routeTitles.registrationDetails'],
+  ['Reviews', 'routeTitles.reviews'],
   ['BusinessSummary', 'routeTitles.businessSummary'],
   ['ChannelSummary', 'routeTitles.channelSummary'],
   ['NotesSummary', 'routeTitles.recordSummary'],

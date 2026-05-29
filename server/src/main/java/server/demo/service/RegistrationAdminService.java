@@ -43,16 +43,21 @@ public class RegistrationAdminService {
             Long channelId,
             ReservationStatus reservationStatus,
             LocalDate checkInDate,
-            LocalDate checkOutDate
+            LocalDate checkOutDate,
+            String roomNumber,
+            Long roomGroupId
     ) {
         Long storeId = StoreContextUtils.requireStoreId();
+        String normalizedRoomNumber = normalizeRoomNumber(roomNumber);
         List<RegistrationForm> forms = registrationFormRepository.searchForAdminList(
                 storeId,
                 status,
                 channelId,
                 reservationStatus,
                 checkInDate,
-                checkOutDate
+                checkOutDate,
+                normalizedRoomNumber,
+                roomGroupId
         );
 
         List<AdminRegistrationListItemDTO> out = new ArrayList<>();
@@ -71,6 +76,8 @@ public class RegistrationAdminService {
                 dto.setReservationStatus(reservation.getStatus());
                 dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
                 dto.setChannelName(reservation.getChannel() != null ? reservation.getChannel().getName() : null);
+                dto.setRoomNumber(resolveRoomNumber(reservation));
+                dto.setRoomTypeName(resolveRoomTypeName(reservation));
             }
             out.add(dto);
         }
@@ -94,6 +101,7 @@ public class RegistrationAdminService {
         dto.setOrderNumber(form.getOrderNumber());
         dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
         dto.setStatus(form.getStatus());
+        dto.setReservationStatus(reservation.getStatus());
         dto.setSubmittedAt(form.getSubmittedAt());
         dto.setApprovedAt(form.getApprovedAt());
         dto.setRejectedAt(form.getRejectedAt());
@@ -198,6 +206,20 @@ public class RegistrationAdminService {
         return reservation.getOtaRoomNumber() == null ? "" : reservation.getOtaRoomNumber();
     }
 
+    private static String normalizeRoomNumber(String roomNumber) {
+        if (roomNumber == null || roomNumber.isBlank()) {
+            return null;
+        }
+        return roomNumber.trim();
+    }
+
+    private static void ensureReviewable(RegistrationForm form) {
+        Reservation reservation = form == null ? null : form.getReservation();
+        if (reservation != null && ReservationStatus.CANCELLED.equals(reservation.getStatus())) {
+            throw new RuntimeException("已取消订单不可审查");
+        }
+    }
+
     @Transactional
     public void approve(Long formId, AdminRegistrationReviewRequest req) {
         Long storeId = StoreContextUtils.requireStoreId();
@@ -208,6 +230,7 @@ public class RegistrationAdminService {
         if (!storeId.equals(form.getStoreId())) {
             throw new RuntimeException("无权限");
         }
+        ensureReviewable(form);
 
         form.setStatus(RegistrationFormStatus.APPROVED);
         form.setApprovedAt(LocalDateTime.now());
@@ -232,6 +255,7 @@ public class RegistrationAdminService {
         if (!storeId.equals(form.getStoreId())) {
             throw new RuntimeException("无权限");
         }
+        ensureReviewable(form);
 
         form.setStatus(RegistrationFormStatus.REJECTED);
         form.setRejectedAt(LocalDateTime.now());

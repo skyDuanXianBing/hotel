@@ -26,12 +26,28 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
             SELECT f FROM RegistrationForm f
             JOIN FETCH f.reservation r
             JOIN FETCH r.channel c
+            LEFT JOIN FETCH r.room room
+            LEFT JOIN FETCH room.roomType
             WHERE f.storeId = :storeId
               AND (:status IS NULL OR f.status = :status)
               AND (:channelId IS NULL OR c.id = :channelId)
               AND (:reservationStatus IS NULL OR r.status = :reservationStatus)
-              AND (:checkInDate IS NULL OR r.checkInDate = :checkInDate)
-              AND (:checkOutDate IS NULL OR r.checkOutDate = :checkOutDate)
+              AND (:checkInDate IS NULL OR r.checkInDate >= :checkInDate)
+              AND (:checkOutDate IS NULL OR r.checkOutDate <= :checkOutDate)
+              AND (
+                    :roomNumber IS NULL
+                    OR LOWER(room.roomNumber) LIKE LOWER(CONCAT('%', :roomNumber, '%'))
+                    OR LOWER(r.otaRoomNumber) LIKE LOWER(CONCAT('%', :roomNumber, '%'))
+                  )
+              AND (
+                    :roomGroupId IS NULL
+                    OR EXISTS (
+                        SELECT 1 FROM RoomGroupMember m
+                        WHERE m.storeId = :storeId
+                          AND m.groupId = :roomGroupId
+                          AND m.roomId = room.id
+                    )
+                  )
             ORDER BY f.updatedAt DESC
             """)
     List<RegistrationForm> searchForAdminList(
@@ -40,6 +56,8 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
             @Param("channelId") Long channelId,
             @Param("reservationStatus") ReservationStatus reservationStatus,
             @Param("checkInDate") LocalDate checkInDate,
-            @Param("checkOutDate") LocalDate checkOutDate
+            @Param("checkOutDate") LocalDate checkOutDate,
+            @Param("roomNumber") String roomNumber,
+            @Param("roomGroupId") Long roomGroupId
     );
 }

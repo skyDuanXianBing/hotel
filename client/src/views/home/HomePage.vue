@@ -43,18 +43,9 @@
         </div>
       </div>
 
-      <!-- 右侧备忘录区域 -->
+      <!-- 右侧工作台 / 今日任务列表 -->
       <div class="right-content">
-        <div class="memo-section">
-          <h3>{{ t('pages.home.memoTitle') }}</h3>
-          <el-input
-            v-model="memo"
-            type="textarea"
-            :rows="10"
-            :placeholder="t('layout.memo.placeholder')"
-            class="memo-input"
-          />
-        </div>
+        <TaskWorkbench />
       </div>
     </div>
 
@@ -111,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Document, ArrowRight } from '@element-plus/icons-vue'
 import { getRoomStatusStatistics, type RoomStatusStatisticsDTO } from '@/api/roomStatus'
@@ -119,17 +110,10 @@ import { getDailyOccupancy } from '@/api/business'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import OccupancyChart from '@/components/OccupancyChart.vue'
-import { useMemoStore } from '@/stores/memo'
+import TaskWorkbench from '@/views/home/components/TaskWorkbench.vue'
 
 const router = useRouter()
-const memoStore = useMemoStore()
 const { t } = useI18n()
-
-// 使用store中的备忘录内容
-const memo = computed({
-  get: () => memoStore.memoContent,
-  set: (value: string) => memoStore.saveMemoDebounced(value),
-})
 
 // 今日统计数据
 const todayStats = ref({
@@ -226,7 +210,6 @@ const fetchRoomStatusStatistics = async () => {
 }
 
 onMounted(() => {
-  // 备忘录在MainLayout中已加载，这里无需重复加载
   fetchRoomStatusStatistics()
   loadOccupancyData()
 })
@@ -310,26 +293,6 @@ onMounted(() => {
 .right-content {
   display: flex;
   flex-direction: column;
-}
-
-/* 备忘录 */
-.memo-section {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  height: 550px;
-}
-
-.memo-section h3 {
-  margin: 0 0 16px 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-}
-
-.memo-input {
-  width: 100%;
 }
 
 /* 图表区域 */

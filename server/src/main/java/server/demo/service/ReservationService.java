@@ -1006,11 +1006,12 @@ public class ReservationService {
             int page, int size, String searchKeyword, String channel,
             String roomType, String checkinType, String status,
             String paymentStatus, String isPackage, LocalDate startDate,
-            LocalDate endDate, String orderType) {
+            LocalDate endDate, LocalDate operationDate, String orderType) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Long storeId = currentStoreId();
         LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate();
+        boolean hasOrderType = orderType != null && !orderType.trim().isEmpty();
 
         Specification<Reservation> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -1089,25 +1090,25 @@ public class ReservationService {
             }
             
             // 日期范围过滤
-            if (startDate != null && endDate != null) {
+            if (!hasOrderType && startDate != null && endDate != null) {
                 predicates.add(criteriaBuilder.between(root.get("checkInDate"), startDate, endDate));
             }
             
             // 订单类型过滤
-            if (orderType != null && !orderType.trim().isEmpty()) {
-                LocalDate today = LocalDate.now();
+            if (hasOrderType) {
+                LocalDate effectiveOperationDate = operationDate != null ? operationDate : LocalDate.now();
                 switch (orderType) {
                     case "today-checkin":
-                        predicates.add(criteriaBuilder.equal(root.get("checkInDate"), today));
+                        predicates.add(criteriaBuilder.equal(root.get("checkInDate"), effectiveOperationDate));
                         break;
                     case "today-checkout":
-                        predicates.add(criteriaBuilder.equal(root.get("checkOutDate"), today));
+                        predicates.add(criteriaBuilder.equal(root.get("checkOutDate"), effectiveOperationDate));
                         break;
                     case "today-new":
                         predicates.add(criteriaBuilder.between(
                             root.get("createdAt"), 
-                            today.atStartOfDay(), 
-                            today.plusDays(1).atStartOfDay()
+                            effectiveOperationDate.atStartOfDay(),
+                            effectiveOperationDate.plusDays(1).atStartOfDay()
                         ));
                         break;
                     case "unassigned":

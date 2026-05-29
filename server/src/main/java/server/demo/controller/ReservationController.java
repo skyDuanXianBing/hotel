@@ -205,11 +205,12 @@ public class ReservationController extends BaseStoreController {
             @RequestParam(required = false) String isPackage,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate operationDate,
             @RequestParam(required = false) String orderType) {
 
         PagedReservationResponse response = reservationService.getReservationsWithFilters(
                 page, size, searchKeyword, channel, roomType, checkinType,
-                status, paymentStatus, isPackage, startDate, endDate, orderType);
+                status, paymentStatus, isPackage, startDate, endDate, operationDate, orderType);
 
         return ResponseEntity.ok(ApiResponse.success("获取订单列表成功", response));
     }
@@ -300,7 +301,7 @@ public class ReservationController extends BaseStoreController {
             case "today-departures":
                 return "今日预离";
             case "today-new":
-                return "今日新办";
+                return "今日新单";
             case "unassigned":
                 return "未排房/未映射";
             case "assigned":

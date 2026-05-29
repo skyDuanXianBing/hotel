@@ -5,6 +5,7 @@ import {
   getNotificationSettings,
   type NotificationMessageDTO,
 } from '@/api/notification'
+import { getSuThreads, type SuMessagingThreadDTO } from '@/api/suMessaging'
 import { parseUtcDateTime } from '@/utils/storeDateTime'
 import { createSuMessagingSocket, type SuMessagingRealtimeEvent } from '@/utils/suMessagingSocket'
 import { i18n } from '@/locales'
@@ -102,6 +103,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   const popupController = ref<PopupController | null>(null)
   const settings = ref<NotificationSettingsSnapshot>({ ...DEFAULT_SETTINGS })
   const running = ref(false)
+  const chatUnreadCount = ref(0)
 
   let activeUserId: number | null = null
   let activeStoreId: number | null = null
@@ -202,6 +204,33 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     }
   }
 
+  const updateChatUnreadCountFromThreads = (threads: SuMessagingThreadDTO[]) => {
+    chatUnreadCount.value = threads.reduce((total, thread) => {
+      const count = Number(thread.unreadCount ?? 0)
+      return total + (Number.isFinite(count) && count > 0 ? count : 0)
+    }, 0)
+  }
+
+  const refreshChatUnreadCount = async () => {
+    if (!activeStoreId || !getCurrentToken()) {
+      chatUnreadCount.value = 0
+      return
+    }
+
+    try {
+      const response = (await getSuThreads()) as {
+        success?: boolean
+        data?: SuMessagingThreadDTO[]
+      }
+      if (response.success === false) {
+        return
+      }
+      updateChatUnreadCountFromThreads(response.data || [])
+    } catch (error) {
+      console.warn('Failed to refresh chat unread count:', error)
+    }
+  }
+
   const loadSettings = async () => {
     if (!activeUserId) {
       settings.value = { ...DEFAULT_SETTINGS }
@@ -276,6 +305,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     }
     seenChatMessageKeys.add(dedupeKey)
     emitChatNotification(event)
+    void refreshChatUnreadCount()
   }
 
   const clearChatReconnect = () => {
@@ -337,6 +367,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     seededOrderIds = new Set<number>()
     seenChatMessageKeys = new Set<string>()
     hasSeededOrderState = false
+    chatUnreadCount.value = 0
     activeUserId = null
     activeStoreId = null
     onOrderClick = undefined
@@ -358,6 +389,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     onChatClick = options.onChatClick
 
     await loadSettings()
+    await refreshChatUnreadCount()
     await pollOrderNotifications()
     orderPollTimer = window.setInterval(() => {
       void pollOrderNotifications()
@@ -368,10 +400,13 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   return {
     settings,
     running,
+    chatUnreadCount,
     start,
     stop,
     loadSettings,
     bindPopupController,
     applySettingsSnapshot,
+    refreshChatUnreadCount,
+    updateChatUnreadCountFromThreads,
   }
 })

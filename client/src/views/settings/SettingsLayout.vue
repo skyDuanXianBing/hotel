@@ -52,6 +52,10 @@ const accountSettingsPermission: PermissionRequirement[] = [
   { module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS },
 ]
 
+const channelPermission: PermissionRequirement[] = [
+  { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+]
+
 const menuItems: MenuItem[] = [
   {
     key: 'room',
@@ -110,6 +114,15 @@ const menuItems: MenuItem[] = [
     children: [
       { key: 'cleaning-settings', label: 'settings.layout.items.cleaningSettings', path: '/settings/cleaning/settings', requiredPermissions: storeSettingsPermission },
       { key: 'cleaning-supplies', label: 'settings.layout.items.cleaningSupplies', path: '/settings/cleaning/supplies', requiredPermissions: storeSettingsPermission },
+    ],
+  },
+  {
+    key: 'channel',
+    label: 'settings.layout.groups.channel',
+    icon: Connection,
+    children: [
+      { key: 'channel-list', label: 'channel.sidebar.list', path: '/settings/channel/list', requiredPermissions: channelPermission },
+      { key: 'channel-price-ratio', label: 'channel.sidebar.priceRatio', path: '/settings/channel/price-ratio', requiredPermissions: channelPermission },
     ],
   },
   {

@@ -1,7 +1,7 @@
 <template>
-  <div class="channel-management">
+  <div class="channel-management" :class="{ 'settings-embedded': isSettingsEmbedded }">
     <!-- 左侧导航菜单 -->
-    <div class="sidebar" :class="{ collapsed: isCollapsed }">
+    <div v-if="!isSettingsEmbedded" class="sidebar" :class="{ collapsed: isCollapsed }">
       <!-- 收起导航按钮 -->
       <div class="sidebar-header" @click="toggleSidebar">
         <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
@@ -134,6 +134,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Menu as MenuIcon, ArrowLeft, ArrowRight, List, Money } from '@element-plus/icons-vue'
@@ -188,6 +189,14 @@ const {
 } = useChannelData()
 
 const { t } = useI18n()
+const route = useRoute()
+
+type ChannelMenuKey = 'channel-list' | 'price-ratio'
+
+const resolveActiveMenuFromRoute = (): ChannelMenuKey =>
+  route.path.endsWith('/price-ratio') ? 'price-ratio' : 'channel-list'
+
+const isSettingsEmbedded = computed(() => route.path.startsWith('/settings/channel'))
 
 // Sidebar folding status
 const isCollapsed = ref(false)
@@ -196,7 +205,7 @@ const toggleSidebar = () => {
 }
 
 // Navigation & panels status
-const activeMenu = ref('channel-list')
+const activeMenu = ref<ChannelMenuKey>(resolveActiveMenuFromRoute())
 const showChannelSettings = ref(false)
 const selectedChannel = ref<ChannelItem | null>(null)
 
@@ -252,7 +261,7 @@ const selectedOtaName = ref<string>('')
 
 /** Menu selection routing */
 const handleMenuSelect = (index: string) => {
-  activeMenu.value = index
+  activeMenu.value = index as ChannelMenuKey
   if (index === 'price-ratio') {
     showChannelSettings.value = false
     loadPriceRatioData()
@@ -500,7 +509,26 @@ onMounted(() => {
   loadChannels()
   loadPmsRoomOptions()
   loadPmsPricePlanOptions()
+  if (activeMenu.value === 'price-ratio') {
+    loadPriceRatioData()
+  }
 })
+
+watch(
+  () => route.path,
+  () => {
+    if (!isSettingsEmbedded.value) {
+      return
+    }
+
+    const nextMenu = resolveActiveMenuFromRoute()
+    activeMenu.value = nextMenu
+    showChannelSettings.value = false
+    if (nextMenu === 'price-ratio') {
+      void loadPriceRatioData()
+    }
+  },
+)
 
 watch(
   () => t('channel.settings.directSettings'),
@@ -518,6 +546,11 @@ watch(
   height: 100vh;
   background: #f5f5f5;
   overflow: hidden;
+}
+
+.channel-management.settings-embedded {
+  height: 100%;
+  background: #fff;
 }
 
 /* 左侧导航 */
@@ -580,6 +613,10 @@ watch(
   flex: 1;
   overflow: hidden;
   background: #f5f5f5;
+}
+
+.settings-embedded .main-container {
+  background: #fff;
 }
 
 /* 移动端适配 */

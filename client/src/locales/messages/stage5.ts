@@ -286,6 +286,9 @@ const stage5BaseMessages = {
           dailySalesStats: 'Daily Sales Stats',
           salesOrderDetails: 'Sales Order Details',
           searchOrders: 'Search order number, channel number, customer name, phone',
+          roomGroupDimension: 'Room Group',
+          roomGroupPlaceholder: 'Select room groups',
+          roomGroupEmpty: 'No room groups',
           collapse: 'Collapse',
           recordsTotal: '{count} records total',
           statsConsumption: 'Spend stats',
@@ -300,6 +303,7 @@ const stage5BaseMessages = {
           loadRevenueFailed: 'Failed to load revenue summary data',
           loadChannelFailed: 'Failed to load channel summary data',
           loadSalesFailed: 'Failed to load sales summary data',
+          loadRoomGroupsFailed: 'Failed to load room groups',
           invalidDateRange: 'Invalid date range. Loading skipped.',
         },
         registrations: {
@@ -340,9 +344,9 @@ const stage5BaseMessages = {
           selectMessageType: 'Select',
           selectQuickReply: 'Select a quick reply to insert',
           fillDefaultTemplate: 'Fill Default Template',
-          approveMessageLabel: 'Message sent to the guest after approval',
+          approveMessageLabel: 'Message to the guest (optional)',
           approveMessagePlaceholder:
-            'Optional. If filled, clicking Approve will send it to the guest inbox automatically. If left empty, only the review is approved.',
+            'Optional. If filled, Approve sends an approval message and Reject sends a correction request.',
           notePlaceholder: 'Note (optional)',
           variablesPlaceholder:
             'Variables: {{guest_name}} {{order_number}} {{checkin_date}} {{checkout_date}} {{room_number}} {{registration_link}}',
@@ -359,6 +363,9 @@ const stage5BaseMessages = {
           approveMessageFailed: 'Review approved, but message sending failed: {message}',
           approveMessageStatus: 'Approved. Message status: {status}',
           rejectSuccess: 'Rejected',
+          rejectWithMessageSuccess: 'Rejected. Message submitted',
+          rejectMessageFailed: 'Review rejected, but message sending failed: {message}',
+          rejectMessageStatus: 'Rejected. Message status: {status}',
           defaultApprovedInfo:
             'Hello {{guest_name}}, your check-in registration has been approved.\nOrder number: {{order_number}}\nCheck-in: {{checkin_date}}, check-out: {{checkout_date}}\nReply to this message if you need to add information.\n\nRegistration link: {{registration_link}}',
           defaultRejectRequest:
@@ -1055,6 +1062,9 @@ const stage5BaseMessages = {
           dailySalesStats: '每日销售额统计',
           salesOrderDetails: '销售订单明细',
           searchOrders: '搜索订单号、渠道号、客户名、手机号',
+          roomGroupDimension: '房间分组',
+          roomGroupPlaceholder: '选择房间分组',
+          roomGroupEmpty: '暂无房间分组',
           collapse: '收起',
           recordsTotal: '共 {count} 条',
           statsConsumption: '统计消费',
@@ -1069,6 +1079,7 @@ const stage5BaseMessages = {
           loadRevenueFailed: '获取流水汇总数据失败',
           loadChannelFailed: '获取渠道汇总数据失败',
           loadSalesFailed: '获取销售汇总数据失败',
+          loadRoomGroupsFailed: '获取房间分组失败',
           invalidDateRange: '日期参数无效，跳过加载数据',
         },
         registrations: {
@@ -1109,9 +1120,9 @@ const stage5BaseMessages = {
           selectMessageType: '请选择',
           selectQuickReply: '选择一条快捷回复插入',
           fillDefaultTemplate: '填充默认模板',
-          approveMessageLabel: '通过后发送给客人的消息',
+          approveMessageLabel: '发送给客人的消息（可选）',
           approveMessagePlaceholder:
-            '可选。填写后点击通过会自动发送到客人收件箱；留空则仅审核通过。',
+            '可选。填写后，点击通过会发送通过消息，点击驳回会发送补充/修正请求。',
           notePlaceholder: '备注（可选）',
           variablesPlaceholder:
             '可使用变量：{{guest_name}} {{order_number}} {{checkin_date}} {{checkout_date}} {{room_number}} {{registration_link}}',
@@ -1128,6 +1139,9 @@ const stage5BaseMessages = {
           approveMessageFailed: '审核已通过，但消息发送失败：{message}',
           approveMessageStatus: '已通过，消息发送状态：{status}',
           rejectSuccess: '已驳回',
+          rejectWithMessageSuccess: '已驳回，消息已提交发送',
+          rejectMessageFailed: '审核已驳回，但消息发送失败：{message}',
+          rejectMessageStatus: '已驳回，消息发送状态：{status}',
           defaultApprovedInfo:
             '您好 {{guest_name}}，您的入住登记已通过。\n订单号：{{order_number}}\n入住：{{checkin_date}}，退房：{{checkout_date}}\n如需补充信息请回复本消息。\n\n登记链接：{{registration_link}}',
           defaultRejectRequest:
@@ -4095,6 +4109,9 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         salesTotal: '総売上',
         dailySalesStats: '日次売上統計',
         salesOrderDetails: '販売注文明細',
+        roomGroupDimension: '客室グループ',
+        roomGroupPlaceholder: '客室グループを選択',
+        roomGroupEmpty: '客室グループがありません',
         searchOrders: '注文番号、チャネル番号、顧客名、電話番号を検索',
         collapse: '折りたたむ',
         recordsTotal: '合計 {count} 件',
@@ -4110,6 +4127,7 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         loadRevenueFailed: '流水集計データの読み込みに失敗しました',
         loadChannelFailed: 'チャネル集計データの読み込みに失敗しました',
         loadSalesFailed: '販売集計データの読み込みに失敗しました',
+        loadRoomGroupsFailed: '客室グループの読み込みに失敗しました',
         invalidDateRange: '日付範囲が無効なため、読み込みをスキップしました',
       },
       registrations: {
@@ -4150,9 +4168,9 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         selectMessageType: '選択してください',
         selectQuickReply: '挿入するクイック返信を選択',
         fillDefaultTemplate: '標準テンプレートを挿入',
-        approveMessageLabel: '承認後に宿泊者へ送るメッセージ',
+        approveMessageLabel: '宿泊者へ送るメッセージ（任意）',
         approveMessagePlaceholder:
-          '任意。入力して承認すると宿泊者の受信箱へ自動送信します。空欄の場合は審査のみ承認します。',
+          '任意。入力した場合、承認では承認メッセージ、差し戻しでは修正依頼メッセージを送信します。',
         notePlaceholder: '備考（任意）',
         variablesPlaceholder:
           '変数：{{guest_name}} {{order_number}} {{checkin_date}} {{checkout_date}} {{room_number}} {{registration_link}}',
@@ -4169,6 +4187,9 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         approveMessageFailed: '審査は承認されましたが、メッセージ送信に失敗しました：{message}',
         approveMessageStatus: '承認しました。メッセージ状態：{status}',
         rejectSuccess: '差し戻しました',
+        rejectWithMessageSuccess: '差し戻しました。メッセージを送信登録しました',
+        rejectMessageFailed: '審査は差し戻されましたが、メッセージ送信に失敗しました：{message}',
+        rejectMessageStatus: '差し戻しました。メッセージ状態：{status}',
         defaultApprovedInfo:
           'こんにちは {{guest_name}} 様、チェックイン登録が承認されました。\n注文番号：{{order_number}}\nチェックイン：{{checkin_date}}、チェックアウト：{{checkout_date}}\n追加情報が必要な場合はこのメッセージに返信してください。\n\n登録リンク：{{registration_link}}',
         defaultRejectRequest:

@@ -26,7 +26,9 @@
       <div v-else class="sub">
         <div>{{ t('bookingNumber') }}: {{ data?.bookingKey }}</div>
         <div>{{ t('stay') }}: {{ data?.checkInDate }} ~ {{ data?.checkOutDate }}</div>
-        <div v-if="data?.lastSavedAt" class="last-saved">{{ t('lastSaved') }}: {{ formatLastSaved(data.lastSavedAt) }}</div>
+        <div v-if="data?.lastSavedAt" class="last-saved">
+          {{ t('lastSaved') }}: {{ formatLastSaved(data.lastSavedAt) }}
+        </div>
         <div>{{ t('status') }}: {{ statusLabel(data?.status || '') }}</div>
       </div>
     </div>
@@ -46,13 +48,17 @@
       <!-- Guest steps -->
 
       <div v-show="isGuestStep" class="card">
-        <div class="card-title">
-          {{ t('guest') }} {{ activeGuestIndex + 1 }}
-        </div>
+        <div class="card-title">{{ t('guest') }} {{ activeGuestIndex + 1 }}</div>
 
         <div class="grid small-grid">
-          <div class="kv"><div class="k">{{ t('checkIn') }}</div><div class="v">{{ data.checkInDate }}</div></div>
-          <div class="kv"><div class="k">{{ t('checkOut') }}</div><div class="v">{{ data.checkOutDate }}</div></div>
+          <div class="kv">
+            <div class="k">{{ t('checkIn') }}</div>
+            <div class="v">{{ data.checkInDate }}</div>
+          </div>
+          <div class="kv">
+            <div class="k">{{ t('checkOut') }}</div>
+            <div class="v">{{ data.checkOutDate }}</div>
+          </div>
         </div>
 
         <el-form label-position="top" class="form">
@@ -105,7 +111,12 @@
                 <template #label>
                   <div class="mlabel">{{ t('address') }} <span class="req">*</span></div>
                 </template>
-                <el-input v-model="activeGuest.address" type="textarea" :rows="3" :placeholder="t('address')" />
+                <el-input
+                  v-model="activeGuest.address"
+                  type="textarea"
+                  :rows="3"
+                  :placeholder="t('address')"
+                />
               </el-form-item>
             </template>
 
@@ -196,7 +207,10 @@
                   <template #label>
                     <div class="mlabel">{{ t('passportNumber') }} <span class="req">*</span></div>
                   </template>
-                  <el-input v-model="activeGuest.passportNumber" :placeholder="t('passportNumber')" />
+                  <el-input
+                    v-model="activeGuest.passportNumber"
+                    :placeholder="t('passportNumber')"
+                  />
                 </el-form-item>
                 <el-form-item>
                   <template #label>
@@ -219,7 +233,12 @@
                 </el-upload>
                 <div class="upload-hint">
                   <span v-if="activeGuest.passportUploaded" class="ok">
-                    {{ t('uploaded') }}{{ activeGuestPassportAttachment?.originalName ? `: ${activeGuestPassportAttachment.originalName}` : '' }}
+                    {{ t('uploaded')
+                    }}{{
+                      activeGuestPassportAttachment?.originalName
+                        ? `: ${activeGuestPassportAttachment.originalName}`
+                        : ''
+                    }}
                   </span>
                   <span v-else class="warn">{{ t('notUploadedYet') }}</span>
                 </div>
@@ -227,9 +246,9 @@
 
               <!-- Passport Image Preview (full width below) -->
               <div v-if="activeGuestPassportAttachment" class="passport-preview">
-                <img 
-                  :src="buildPassportAttachmentUrl(activeGuestPassportAttachment.id, true)" 
-                  alt="Passport" 
+                <img
+                  :src="buildPassportAttachmentUrl(activeGuestPassportAttachment.id, true)"
+                  alt="Passport"
                   class="passport-preview-image"
                 />
               </div>
@@ -252,7 +271,11 @@
         <div class="hint">
           {{ t('reviewNotice') }}
         </div>
-        <div v-if="data?.status === 'SUBMITTED'" class="hint" style="margin-top: 8px; color: #67c23a">
+        <div
+          v-if="data?.status === 'SUBMITTED'"
+          class="hint"
+          style="margin-top: 8px; color: #67c23a"
+        >
           {{ t('submittedAwaitingReview') }}
         </div>
         <div v-if="data?.status === 'APPROVED'" class="success-notice">
@@ -274,7 +297,12 @@
         </div>
         <div class="actions">
           <el-button v-if="canGoBack" @click="goPrev">{{ t('back') }}</el-button>
-          <el-button type="success" :loading="submitting" :disabled="data?.status === 'SUBMITTED' || data?.status === 'APPROVED'" @click="submit">
+          <el-button
+            type="success"
+            :loading="submitting"
+            :disabled="data?.status === 'SUBMITTED' || data?.status === 'APPROVED'"
+            @click="submit"
+          >
             {{ t('send') }}
           </el-button>
         </div>
@@ -282,13 +310,31 @@
     </div>
   </div>
 
-  <el-dialog v-model="passportPreviewVisible" :title="passportPreviewTitle" width="760px" append-to-body destroy-on-close>
+  <el-dialog
+    v-model="passportPreviewVisible"
+    :title="passportPreviewTitle"
+    width="760px"
+    append-to-body
+    destroy-on-close
+  >
     <div class="passport-dialog-body">
-      <img v-if="passportPreviewUrl" class="passport-preview-img" :src="passportPreviewUrl" alt="passport" />
+      <img
+        v-if="passportPreviewUrl"
+        class="passport-preview-img"
+        :src="passportPreviewUrl"
+        alt="passport"
+      />
     </div>
   </el-dialog>
 
-  <el-dialog v-model="previewDialogVisible" :title="t('preview')" width="90%" class="preview-dialog" append-to-body destroy-on-close>
+  <el-dialog
+    v-model="previewDialogVisible"
+    :title="t('preview')"
+    width="90%"
+    class="preview-dialog"
+    append-to-body
+    destroy-on-close
+  >
     <div class="preview-content">
       <div v-for="guest in previewData" :key="guest.guestIndex" class="preview-guest">
         <div class="preview-guest-title">{{ t('guest') }} {{ guest.guestIndex }}</div>
@@ -318,10 +364,14 @@ import type { SupportedLocale } from '@/locales'
 import { useLanguageStore } from '@/stores/language'
 import publicRequest from '@/utils/publicRequest'
 import {
-  getInitialRegistrationLocale,
   normalizeRegistrationLocale,
   persistRegistrationLocale,
+  resolvePublicRegistrationLocale,
   resolvePublicRegistrationErrorKey,
+  shouldApplyLoadedRegistrationLocale,
+  shouldPersistRegistrationLocale,
+  type PublicRegistrationLocaleResolution,
+  type PublicRegistrationLocaleSource,
   type PublicRegistrationErrorKey,
 } from './registrationLocale'
 
@@ -412,7 +462,9 @@ const router = useRouter()
 const languageStore = useLanguageStore()
 const { locale } = useI18n()
 
-const selectedLang = ref<SupportedLocale>(getInitialRegistrationLocale())
+const selectedLang = ref<SupportedLocale>('en')
+const currentLocaleSource = ref<PublicRegistrationLocaleSource>('default')
+const userSelectedLocale = ref(false)
 const checkInGuideLink = ref<string>('')
 
 type LangCode = SupportedLocale | 'ko'
@@ -498,10 +550,11 @@ const translations: Record<LangCode, Record<string, string>> = {
     saveFailed: 'Save failed',
     submitFailed: 'Submit failed',
     uploadFailed: 'Upload failed',
-    changeGuestCountConfirm: 'Changing guest count from {current} to {next} will remove extra guest information. Continue?',
+    changeGuestCountConfirm:
+      'Changing guest count from {current} to {next} will remove extra guest information. Continue?',
     changeGuestCountTitle: 'Confirm Change',
     proceed: 'Continue',
-    cancel: 'Cancel'
+    cancel: 'Cancel',
   },
   ja: {
     guestRegistration: '宿泊者名簿',
@@ -548,7 +601,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     approvedTitle: '承認済み',
     checkInGuideLabel: '以下はチェックインガイドです：',
     checkInGuide: 'チェックインガイド',
-    checkInGuideMissing: 'チェックインガイドはまだ設定されていません。ホテルへお問い合わせください。',
+    checkInGuideMissing:
+      'チェックインガイドはまだ設定されていません。ホテルへお問い合わせください。',
     draft: '未提出',
     submitted: '提出済み',
     approved: '承認済み',
@@ -572,14 +626,16 @@ const translations: Record<LangCode, Record<string, string>> = {
     missingToken: 'この登録リンクには認証情報がありません。',
     invalidToken: 'この登録リンクは無効です。リンクを確認してもう一度お試しください。',
     expiredLink: 'この登録リンクの有効期限が切れています。ホテルへお問い合わせください。',
-    invalidOrExpiredLink: 'この登録リンクは無効、または有効期限が切れています。ホテルへお問い合わせください。',
+    invalidOrExpiredLink:
+      'この登録リンクは無効、または有効期限が切れています。ホテルへお問い合わせください。',
     saveFailed: '保存に失敗しました',
     submitFailed: '提出に失敗しました',
     uploadFailed: 'アップロードに失敗しました',
-    changeGuestCountConfirm: '宿泊人数を {current} から {next} に変更すると、余分な宿泊者の入力情報が削除されます。続行しますか？',
+    changeGuestCountConfirm:
+      '宿泊人数を {current} から {next} に変更すると、余分な宿泊者の入力情報が削除されます。続行しますか？',
     changeGuestCountTitle: '変更の確認',
     proceed: '続ける',
-    cancel: 'キャンセル'
+    cancel: 'キャンセル',
   },
   'zh-CN': {
     guestRegistration: '入住登记',
@@ -654,10 +710,11 @@ const translations: Record<LangCode, Record<string, string>> = {
     saveFailed: '保存失败',
     submitFailed: '提交失败',
     uploadFailed: '上传失败',
-    changeGuestCountConfirm: '将入住人数从 {current} 改为 {next}，将删除多余客人的已填信息，是否继续？',
+    changeGuestCountConfirm:
+      '将入住人数从 {current} 改为 {next}，将删除多余客人的已填信息，是否继续？',
     changeGuestCountTitle: '确认修改',
     proceed: '继续',
-    cancel: '取消'
+    cancel: '取消',
   },
   'zh-TW': {
     guestRegistration: '入住登記',
@@ -732,10 +789,11 @@ const translations: Record<LangCode, Record<string, string>> = {
     saveFailed: '保存失敗',
     submitFailed: '提交失敗',
     uploadFailed: '上傳失敗',
-    changeGuestCountConfirm: '將入住人數從 {current} 改為 {next}，將刪除多餘客人的已填資訊，是否繼續？',
+    changeGuestCountConfirm:
+      '將入住人數從 {current} 改為 {next}，將刪除多餘客人的已填資訊，是否繼續？',
     changeGuestCountTitle: '確認修改',
     proceed: '繼續',
-    cancel: '取消'
+    cancel: '取消',
   },
   ko: {
     guestRegistration: '투숙자 등록',
@@ -810,11 +868,12 @@ const translations: Record<LangCode, Record<string, string>> = {
     saveFailed: '저장에 실패했습니다',
     submitFailed: '제출에 실패했습니다',
     uploadFailed: '업로드에 실패했습니다',
-    changeGuestCountConfirm: '숙박 인원을 {current}명에서 {next}명으로 변경하면 초과 투숙객의 입력 정보가 삭제됩니다. 계속하시겠습니까?',
+    changeGuestCountConfirm:
+      '숙박 인원을 {current}명에서 {next}명으로 변경하면 초과 투숙객의 입력 정보가 삭제됩니다. 계속하시겠습니까?',
     changeGuestCountTitle: '변경 확인',
     proceed: '계속',
-    cancel: '취소'
-  }
+    cancel: '취소',
+  },
 }
 
 const getTranslationLang = (locale: SupportedLocale): LangCode => locale
@@ -826,16 +885,33 @@ const getQueryLocale = (value: unknown): string | null => {
   return typeof value === 'string' ? value : null
 }
 
-const applyRegistrationLocale = (value?: string | null): SupportedLocale => {
-  const nextLocale = normalizeRegistrationLocale(value)
-  selectedLang.value = nextLocale
-  locale.value = nextLocale
-  languageStore.setLocale(nextLocale)
-  persistRegistrationLocale(nextLocale)
-  return nextLocale
+const applyRegistrationLocaleResolution = (
+  resolution: PublicRegistrationLocaleResolution,
+  persist = shouldPersistRegistrationLocale(resolution),
+): SupportedLocale => {
+  selectedLang.value = resolution.locale
+  locale.value = resolution.locale
+  languageStore.setLocale(resolution.locale)
+  currentLocaleSource.value = resolution.source
+  if (persist) {
+    persistRegistrationLocale(resolution.locale)
+  }
+  return resolution.locale
 }
 
-applyRegistrationLocale(getInitialRegistrationLocale(getQueryLocale(route.query.lang)))
+const applyRegistrationLocale = (value?: string | null): SupportedLocale => {
+  return applyRegistrationLocaleResolution(
+    {
+      locale: normalizeRegistrationLocale(value),
+      source: 'registrationCache',
+    },
+    true,
+  )
+}
+
+applyRegistrationLocaleResolution(
+  resolvePublicRegistrationLocale({ queryLocale: getQueryLocale(route.query.lang) }),
+)
 
 const t = (key: string, params: Record<string, string | number> = {}): string => {
   const lang = getTranslationLang(selectedLang.value)
@@ -866,6 +942,42 @@ const refreshPublicRegistrationError = () => {
   }
 }
 
+const resolveLoadedRegistrationLocale = (
+  resp: PublicRegistrationResponse,
+): PublicRegistrationLocaleResolution => {
+  const guestHint = (resp.guests || []).find((guest) =>
+    Boolean(guest.country || guest.nationality || guest.phone),
+  )
+
+  return resolvePublicRegistrationLocale({
+    // The public form response only has guest-filled country/phone data today.
+    // Add OTA/backend country or region fields here when the API exposes them.
+    backendHint: {
+      country: guestHint?.country,
+      nationality: guestHint?.nationality,
+      phone: guestHint?.phone,
+    },
+    guestName: resp.guestName,
+    storedRegistrationLocale: null,
+    storedAppLocale: null,
+    browserLocales: [],
+  })
+}
+
+const applyLoadedRegistrationLocale = (resp: PublicRegistrationResponse) => {
+  if (userSelectedLocale.value) {
+    return
+  }
+
+  const resolution = resolveLoadedRegistrationLocale(resp)
+  if (!shouldApplyLoadedRegistrationLocale(currentLocaleSource.value, resolution)) {
+    return
+  }
+
+  applyRegistrationLocaleResolution(resolution)
+  refreshPublicRegistrationError()
+}
+
 const step = ref(0)
 const loading = ref(true)
 const saving = ref(false)
@@ -882,11 +994,13 @@ const passportPreviewUrl = ref('')
 const passportPreviewTitle = ref(t('passportPhotoTitle'))
 
 const previewDialogVisible = ref(false)
-const previewData = ref<Array<{
-  guestIndex: number
-  fields: Array<{ label: string; value: string }>
-  passportUrl?: string
-}>>([])
+const previewData = ref<
+  Array<{
+    guestIndex: number
+    fields: Array<{ label: string; value: string }>
+    passportUrl?: string
+  }>
+>([])
 
 const stepsActive = computed(() => {
   const status = String(data.value?.status || '')
@@ -923,8 +1037,12 @@ const stepItems = computed(() => {
   return items
 })
 
-const isGuestStep = computed(() => step.value >= 1 && step.value && step.value <= model.guests.length)
-const isSendStep = computed(() => step.value === model.guests.length + 1 || step.value > model.guests.length)
+const isGuestStep = computed(
+  () => step.value >= 1 && step.value && step.value <= model.guests.length,
+)
+const isSendStep = computed(
+  () => step.value === model.guests.length + 1 || step.value > model.guests.length,
+)
 const activeGuestIndex = computed(() => Math.max(0, step.value - 1))
 const activeGuest = computed(() => model.guests[activeGuestIndex.value] || null)
 const canGoBack = computed(() => {
@@ -957,10 +1075,13 @@ function previewForm() {
     const fields: Array<{ label: string; value: string }> = []
     fields.push({ label: t('firstName'), value: g.firstName || '-' })
     fields.push({ label: t('lastName'), value: g.lastName || '-' })
-    fields.push({ label: t('residence'), value: g.residenceType === 'JAPAN' ? t('japan') : t('otherThanJapan') })
+    fields.push({
+      label: t('residence'),
+      value: g.residenceType === 'JAPAN' ? t('japan') : t('otherThanJapan'),
+    })
     fields.push({ label: t('birthday'), value: g.birthday || '-' })
     fields.push({ label: t('phone'), value: g.phone || '-' })
-    
+
     if (g.residenceType === 'JAPAN') {
       fields.push({ label: t('address'), value: g.address || '-' })
     } else {
@@ -974,12 +1095,12 @@ function previewForm() {
       fields.push({ label: t('priorStay'), value: g.priorStay || '-' })
       fields.push({ label: t('nextDestination'), value: g.nextDestination || '-' })
     }
-    
+
     const guestItem: any = {
       guestIndex: idx + 1,
-      fields
+      fields,
     }
-    
+
     // Add passport image URL if uploaded
     if (g.residenceType !== 'JAPAN' && g.passportUploaded) {
       const attachment = getPassportAttachment(g.id)
@@ -987,14 +1108,15 @@ function previewForm() {
         guestItem.passportUrl = buildPassportAttachmentUrl(attachment.id, true)
       }
     }
-    
+
     return guestItem
   })
-  
+
   previewDialogVisible.value = true
 }
 
 async function changeLanguage(lang: SupportedLocale) {
+  userSelectedLocale.value = true
   applyRegistrationLocale(lang)
   refreshPublicRegistrationError()
   try {
@@ -1129,6 +1251,7 @@ function hydrate(resp: PublicRegistrationResponse) {
     passportUploaded: attachments.some((a) => a.type === 'PASSPORT' && a.guestId === g.id),
   }))
   guestCount.value = resp.guestCount || model.guests.length || 1
+  applyLoadedRegistrationLocale(resp)
 
   // Set initial step to 1 (first guest) instead of 0
   if (step.value === 0) {
@@ -1202,16 +1325,22 @@ async function uploadPassport(guest: GuestModel, file: File) {
   const form = new FormData()
   form.append('file', safeFile)
 
-  const resp = (await publicRequest.post(`/public/registration/${orderNumber()}/attachments/passport`, form, {
-    params: { t: token(), guestId: guest.id },
-  })) as any
+  const resp = (await publicRequest.post(
+    `/public/registration/${orderNumber()}/attachments/passport`,
+    form,
+    {
+      params: { t: token(), guestId: guest.id },
+    },
+  )) as any
   if (!resp?.success) {
     throw new Error(resp?.message || t('uploadFailed'))
   }
   guest.passportUploaded = true
 
   if (data.value) {
-    const current = Array.isArray((data.value as any).attachments) ? ([...(data.value as any).attachments] as AttachmentDTO[]) : ([] as AttachmentDTO[])
+    const current = Array.isArray((data.value as any).attachments)
+      ? ([...(data.value as any).attachments] as AttachmentDTO[])
+      : ([] as AttachmentDTO[])
     const dto = resp.data as AttachmentDTO
     const next = current.filter((a) => !(a.type === 'PASSPORT' && a.guestId === guest.id))
     next.push(dto)
@@ -1242,7 +1371,9 @@ async function load() {
   loading.value = true
   clearPublicRegistrationError()
   try {
-    const resp = (await publicRequest.get(`/public/registration/${orderNumber()}`, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
+    const resp = (await publicRequest.get(`/public/registration/${orderNumber()}`, {
+      params: { t: token() },
+    })) as ApiResponse<PublicRegistrationResponse>
     if (!resp?.success) {
       setPublicRegistrationError(resp?.message)
       return
@@ -1281,7 +1412,9 @@ async function saveDraft() {
         nextDestination: g.nextDestination,
       })),
     }
-    const resp = (await publicRequest.put(`/public/registration/${orderNumber()}`, payload, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
+    const resp = (await publicRequest.put(`/public/registration/${orderNumber()}`, payload, {
+      params: { t: token() },
+    })) as ApiResponse<PublicRegistrationResponse>
     if (!resp?.success) {
       throw new Error(resp?.message || t('saveFailed'))
     }
@@ -1307,7 +1440,9 @@ async function submit() {
       }
     }
     await saveDraft()
-    const resp = (await publicRequest.post(`/public/registration/${orderNumber()}/submit`, null, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
+    const resp = (await publicRequest.post(`/public/registration/${orderNumber()}/submit`, null, {
+      params: { t: token() },
+    })) as ApiResponse<PublicRegistrationResponse>
     if (!resp?.success) {
       throw new Error(resp?.message || t('submitFailed'))
     }
@@ -1387,7 +1522,10 @@ watch(
     if (!queryLang) {
       return
     }
-    applyRegistrationLocale(queryLang)
+    applyRegistrationLocaleResolution({
+      locale: normalizeRegistrationLocale(queryLang),
+      source: 'query',
+    })
     refreshPublicRegistrationError()
   },
 )
