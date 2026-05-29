@@ -40,7 +40,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       error.value = null
 
       const response: ApiResponse<RoomStatusCalendar> = await request.get(
-        `/api/v1/room-status/calendar?startDate=${startDate}&endDate=${endDate}`,
+        `/room-status/calendar?startDate=${startDate}&endDate=${endDate}`,
       )
 
       if (response.success) {
@@ -62,7 +62,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       error.value = null
 
       const response: ApiResponse<DailyRoomStatusData> = await request.get(
-        `/api/v1/room-status/daily?date=${date}`,
+        `/room-status/daily?date=${date}`,
       )
 
       if (response.success) {
@@ -80,7 +80,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const fetchChannels = async () => {
     try {
-      const response: ApiResponse<Channel[]> = await request.get('/api/v1/channels')
+      error.value = null
+      const response: ApiResponse<Channel[]> = await request.get('/channels')
 
       if (response.success) {
         channels.value = response.data
@@ -95,7 +96,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const fetchRoomTypes = async () => {
     try {
-      const response: ApiResponse<RoomType[]> = await request.get('/api/v1/room-types')
+      error.value = null
+      const response: ApiResponse<RoomType[]> = await request.get('/room-types')
 
       if (response.success) {
         roomTypes.value = response.data
@@ -110,7 +112,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const fetchRooms = async (roomTypeId?: number, date?: string) => {
     try {
-      let url = '/api/v1/rooms'
+      error.value = null
+      let url = '/rooms'
       const params = new URLSearchParams()
 
       if (roomTypeId) params.append('roomTypeId', roomTypeId.toString())
@@ -143,7 +146,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
       loading.value = true
       error.value = null
 
-      const response: ApiResponse<any> = await request.put(`/api/v1/room-status/${roomId}`, {
+      const response: ApiResponse<any> = await request.put(`/room-status/${roomId}`, {
         date,
         status,
         reason,
@@ -173,8 +176,9 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const fetchStatusLogs = async (startDate: string, endDate: string) => {
     try {
+      error.value = null
       const response: ApiResponse<RoomStatusLog[]> = await request.get(
-        `/api/v1/room-status/logs?startDate=${startDate}&endDate=${endDate}`,
+        `/room-status/logs?startDate=${startDate}&endDate=${endDate}`,
       )
 
       if (response.success) {

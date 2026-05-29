@@ -279,11 +279,34 @@ export interface SuMappingStatusSummary {
   error: string | null
 }
 
+export interface SuMappingRatePlan {
+  RatePlanID?: string
+  MappingStatus?: string
+}
+
+export interface SuMappingEntry {
+  Status?: string
+  ChannelID?: string
+  RoomIDs?: string[]
+  Rateplans?: SuMappingRatePlan[]
+}
+
+export type SuMappingsResponse = Record<string, SuMappingEntry[] | string | unknown>
+
 export const getSuMappingStatus = async (
   id: number,
   channelId?: string,
 ): Promise<ApiResponse<SuMappingStatusSummary>> => {
   return await request.get(`/ota-integrations/${id}/su-mapping-status`, {
+    params: { channelId },
+  })
+}
+
+export const getSuMappings = async (
+  id: number,
+  channelId?: string,
+): Promise<ApiResponse<SuMappingsResponse>> => {
+  return await request.get(`/ota-integrations/${id}/su-mappings`, {
     params: { channelId },
   })
 }

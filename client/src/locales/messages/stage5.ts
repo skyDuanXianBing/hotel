@@ -507,6 +507,14 @@ const stage5BaseMessages = {
           selectGuestCount: 'Select number of guests',
           saveFailed: 'Save failed. Please try again.',
         },
+        errors: {
+          missingToken: 'This registration link is missing verification information.',
+          invalidToken: 'This registration link is invalid. Please check the link and try again.',
+          expiredLink: 'This registration link has expired. Please contact the hotel.',
+          invalidOrExpiredLink:
+            'This registration link is invalid or expired. Please contact the hotel.',
+          loadFailed: 'Failed to load the registration page. Please try again later.',
+        },
         form: {
           checkIn: 'Check-in',
           checkOut: 'Check-out',
@@ -1266,6 +1274,13 @@ const stage5BaseMessages = {
           loadFailed: '加载失败',
           selectGuestCount: '请选择入住人数',
           saveFailed: '保存失败，请重试',
+        },
+        errors: {
+          missingToken: '此登记链接缺少验证信息。',
+          invalidToken: '此登记链接无效，请检查链接后重试。',
+          expiredLink: '此登记链接已过期，请联系酒店。',
+          invalidOrExpiredLink: '此登记链接无效或已过期，请联系酒店。',
+          loadFailed: '登记页面加载失败，请稍后重试。',
         },
         form: {
           checkIn: '入住',
@@ -4301,6 +4316,14 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         loadFailed: '読み込みに失敗しました',
         selectGuestCount: '宿泊人数を選択してください',
         saveFailed: '保存に失敗しました。もう一度お試しください。',
+      },
+      errors: {
+        missingToken: 'この登録リンクには認証情報がありません。',
+        invalidToken: 'この登録リンクは無効です。リンクを確認してもう一度お試しください。',
+        expiredLink: 'この登録リンクの有効期限が切れています。ホテルへお問い合わせください。',
+        invalidOrExpiredLink:
+          'この登録リンクは無効、または有効期限が切れています。ホテルへお問い合わせください。',
+        loadFailed: '登録ページの読み込みに失敗しました。しばらくしてからもう一度お試しください。',
       },
       form: {
         checkIn: 'チェックイン',

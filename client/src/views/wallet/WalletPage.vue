@@ -535,16 +535,38 @@ const handleSubmitIdentity = () => {
   showIdentityForm.value = false
 }
 
+const formatDateTime = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+const getDefaultDateTimeRange = () => {
+  const now = new Date()
+  const oneMonthAgo = new Date(now)
+  oneMonthAgo.setMonth(now.getMonth() - 1)
+  return {
+    startDate: formatDateTime(oneMonthAgo),
+    endDate: formatDateTime(now),
+  }
+}
+
+const defaultDateTimeRange = getDefaultDateTimeRange()
+
 const clearingFilters = ref({
-  startDate: '2025/10/08 00:00:00',
-  endDate: '2025/11/08 23:59:59',
+  startDate: defaultDateTimeRange.startDate,
+  endDate: defaultDateTimeRange.endDate,
   category: '',
   searchText: '',
 })
 
 const fundsFilters = ref({
-  startDate: '2025/10/08 00:00:00',
-  endDate: '2025/11/08 23:59:59',
+  startDate: defaultDateTimeRange.startDate,
+  endDate: defaultDateTimeRange.endDate,
   category: '',
   searchText: '',
 })
@@ -557,29 +579,15 @@ const fundsPagination = ref({ current: 1, size: 20, total: 0 })
 const withdrawHistoryPagination = ref({ current: 1, size: 20, total: 0 })
 
 const resetClearingDates = () => {
-  const now = new Date()
-  const oneMonthAgo = new Date(now)
-  oneMonthAgo.setMonth(now.getMonth() - 1)
-  clearingFilters.value.startDate = formatDateTime(oneMonthAgo)
-  clearingFilters.value.endDate = formatDateTime(now)
+  const range = getDefaultDateTimeRange()
+  clearingFilters.value.startDate = range.startDate
+  clearingFilters.value.endDate = range.endDate
 }
 
 const resetFundsDates = () => {
-  const now = new Date()
-  const oneMonthAgo = new Date(now)
-  oneMonthAgo.setMonth(now.getMonth() - 1)
-  fundsFilters.value.startDate = formatDateTime(oneMonthAgo)
-  fundsFilters.value.endDate = formatDateTime(now)
-}
-
-const formatDateTime = (date: Date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const seconds = String(date.getSeconds()).padStart(2, '0')
-  return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`
+  const range = getDefaultDateTimeRange()
+  fundsFilters.value.startDate = range.startDate
+  fundsFilters.value.endDate = range.endDate
 }
 
 const formatAmount = (amount: number) => {

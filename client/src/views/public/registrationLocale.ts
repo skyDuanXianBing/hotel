@@ -2,6 +2,20 @@ import { LOCALE_STORAGE_KEY, resolveLocale, type SupportedLocale } from '@/local
 
 export const REGISTRATION_LOCALE_STORAGE_KEY = 'registrationLang'
 
+export type PublicRegistrationErrorKey =
+  | 'missingToken'
+  | 'invalidToken'
+  | 'expiredLink'
+  | 'invalidOrExpiredLink'
+  | 'loadFailed'
+
+const publicRegistrationErrorKeyByMessage: Record<string, PublicRegistrationErrorKey> = {
+  缺少token: 'missingToken',
+  token格式错误: 'invalidToken',
+  token无效: 'invalidOrExpiredLink',
+  链接已过期: 'expiredLink',
+}
+
 export const normalizeRegistrationLocale = (value?: string | null): SupportedLocale => {
   const raw = String(value || '').trim()
   if (!raw) {
@@ -45,4 +59,16 @@ export const getInitialRegistrationLocale = (queryLocale?: string | null): Suppo
 export const persistRegistrationLocale = (locale: SupportedLocale) => {
   window.localStorage.setItem(REGISTRATION_LOCALE_STORAGE_KEY, locale)
   window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+}
+
+export const resolvePublicRegistrationErrorKey = (
+  message?: string | null,
+  fallback: PublicRegistrationErrorKey = 'loadFailed',
+): PublicRegistrationErrorKey => {
+  const normalizedMessage = String(message || '').trim()
+  if (!normalizedMessage) {
+    return fallback
+  }
+
+  return publicRegistrationErrorKeyByMessage[normalizedMessage] || fallback
 }

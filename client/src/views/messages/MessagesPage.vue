@@ -39,7 +39,9 @@
                 conversation.guestName || conversation.listingName || conversation.channelName
               }}</span>
               <div class="conversation-meta">
-                <span class="message-time">{{ formatConversationTime(conversation.lastActivity) }}</span>
+                <span class="message-time">{{
+                  formatConversationTime(conversation.lastActivity)
+                }}</span>
                 <span v-if="conversation.unreadCount > 0" class="unread-badge">
                   {{ formatUnreadCount(conversation.unreadCount) }}
                 </span>
@@ -62,7 +64,7 @@
           </div>
         </div>
 
-        <div v-if="conversations.length === 0" class="empty-state">
+        <div v-if="filteredConversations.length === 0" class="empty-state">
           <el-icon :size="48" color="#ddd"><ChatDotRound /></el-icon>
           <p>{{ t('stage6.components.messagesPage.emptyConversations') }}</p>
         </div>
@@ -77,15 +79,26 @@
               <el-icon><User /></el-icon>
             </div>
             <div class="channel-details">
-              <div class="channel-name">{{
-                activeConversation.guestName || activeConversation.listingName || activeConversation.channelName
-              }}</div>
+              <div class="channel-name">
+                {{
+                  activeConversation.guestName ||
+                  activeConversation.listingName ||
+                  activeConversation.channelName
+                }}
+              </div>
               <div class="channel-status-text">
-                <span class="channel-badge" :class="`channel-${resolveChannelStyle(activeConversation)}`">
+                <span
+                  class="channel-badge"
+                  :class="`channel-${resolveChannelStyle(activeConversation)}`"
+                >
                   {{ resolveChannelLabel(activeConversation) }}
                 </span>
                 <span>
-                  {{ t('stage6.components.messagesPage.orderNumberWithValue', { value: activeConversation.bookingId || activeConversation.threadId || '-' }) }}
+                  {{
+                    t('stage6.components.messagesPage.orderNumberWithValue', {
+                      value: activeConversation.bookingId || activeConversation.threadId || '-',
+                    })
+                  }}
                 </span>
                 <span>{{ getConversationStayInfo(activeConversation) }}</span>
                 <span v-if="activeConversation.closed">
@@ -120,14 +133,20 @@
               }"
             >
               <span
-                v-if="message.senderType === SuMessagingSenderType.STAFF && message.deliveryStatus === 'SENDING'"
+                v-if="
+                  message.senderType === SuMessagingSenderType.STAFF &&
+                  message.deliveryStatus === 'SENDING'
+                "
                 class="message-delivery-indicator sending"
                 :aria-label="t('stage6.components.messagesPage.message.sending')"
               >
                 <el-icon class="spin"><Loading /></el-icon>
               </span>
               <span
-                v-else-if="message.senderType === SuMessagingSenderType.STAFF && message.deliveryStatus === 'FAILED'"
+                v-else-if="
+                  message.senderType === SuMessagingSenderType.STAFF &&
+                  message.deliveryStatus === 'FAILED'
+                "
                 class="message-delivery-indicator failed"
                 :title="t('stage6.components.messagesPage.message.sendFailed')"
               >
@@ -152,10 +171,7 @@
                     <span v-else>{{ segment.value }}</span>
                   </template>
                 </div>
-                <div
-                  v-if="shouldShowTranslatedMessage(message)"
-                  class="message-translation"
-                >
+                <div v-if="shouldShowTranslatedMessage(message)" class="message-translation">
                   {{ getTranslatedMessageText(message) }}
                 </div>
                 <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
@@ -220,15 +236,23 @@
       <div class="translation-dialog">
         <div class="translation-setting-row">
           <div>
-            <div class="translation-setting-title">{{ t('stage6.components.messagesPage.translation.enableTitle') }}</div>
-            <div class="translation-setting-desc">{{ t('stage6.components.messagesPage.translation.enableDescription') }}</div>
+            <div class="translation-setting-title">
+              {{ t('stage6.components.messagesPage.translation.enableTitle') }}
+            </div>
+            <div class="translation-setting-desc">
+              {{ t('stage6.components.messagesPage.translation.enableDescription') }}
+            </div>
           </div>
           <el-switch v-model="translationEnabled" />
         </div>
 
         <div class="translation-setting-block">
-          <div class="translation-setting-title">{{ t('stage6.components.messagesPage.translation.defaultLanguageTitle') }}</div>
-          <div class="translation-setting-desc">{{ t('stage6.components.messagesPage.translation.defaultLanguageDescription') }}</div>
+          <div class="translation-setting-title">
+            {{ t('stage6.components.messagesPage.translation.defaultLanguageTitle') }}
+          </div>
+          <div class="translation-setting-desc">
+            {{ t('stage6.components.messagesPage.translation.defaultLanguageDescription') }}
+          </div>
           <el-select v-model="translationTargetLanguage" style="width: 260px">
             <el-option
               v-for="option in translationLanguageOptions"
@@ -241,8 +265,14 @@
       </div>
 
       <template #footer>
-        <el-button @click="translationDialogVisible = false">{{ t('stage6.common.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="isApplyingTranslationSettings" @click="applyTranslationSettings">
+        <el-button @click="translationDialogVisible = false">{{
+          t('stage6.common.actions.cancel')
+        }}</el-button>
+        <el-button
+          type="primary"
+          :loading="isApplyingTranslationSettings"
+          @click="applyTranslationSettings"
+        >
           {{ t('stage6.common.actions.confirm') }}
         </el-button>
       </template>
@@ -256,15 +286,15 @@
       class="ai-draft-dialog"
     >
       <div class="ai-draft-section">
-        <div class="ai-draft-label">{{ t('stage6.components.messagesPage.aiDraft.contextSummary') }}</div>
-        <el-input
-          v-model="aiContextSummary"
-          type="textarea"
-          :rows="4"
-        />
+        <div class="ai-draft-label">
+          {{ t('stage6.components.messagesPage.aiDraft.contextSummary') }}
+        </div>
+        <el-input v-model="aiContextSummary" type="textarea" :rows="4" />
       </div>
       <div class="ai-draft-section">
-        <div class="ai-draft-label">{{ t('stage6.components.messagesPage.aiDraft.initialDraft') }}</div>
+        <div class="ai-draft-label">
+          {{ t('stage6.components.messagesPage.aiDraft.initialDraft') }}
+        </div>
         <el-input
           v-model="aiDraftReply"
           type="textarea"
@@ -274,25 +304,37 @@
       </div>
       <div class="ai-draft-section">
         <div class="ai-draft-label">
-          {{ t('stage6.components.messagesPage.aiDraft.systemLanguageVersionTitle', { language: currentSystemLanguageLabel }) }}
+          {{
+            t('stage6.components.messagesPage.aiDraft.systemLanguageVersionTitle', {
+              language: currentSystemLanguageLabel,
+            })
+          }}
         </div>
         <el-input
           v-model="aiDraftSystemLanguageVersion"
           type="textarea"
           :rows="5"
           readonly
-          :placeholder="t('stage6.components.messagesPage.aiDraft.systemLanguageVersionPlaceholder')"
+          :placeholder="
+            t('stage6.components.messagesPage.aiDraft.systemLanguageVersionPlaceholder')
+          "
         />
       </div>
       <div class="ai-draft-section ai-draft-section-divider">
-        <div class="ai-draft-label">{{ t('stage6.components.messagesPage.aiDraft.polishTitle') }}</div>
+        <div class="ai-draft-label">
+          {{ t('stage6.components.messagesPage.aiDraft.polishTitle') }}
+        </div>
         <div class="ai-polish-history">
           <div
             v-for="(item, index) in aiPolishHistory"
             :key="`${item.role}-${index}`"
             :class="['ai-polish-item', item.role]"
           >
-            <div class="role">{{ item.role === 'user' ? t('stage6.components.messagesPage.aiDraft.roleYou') : 'GPT' }}</div>
+            <div class="role">
+              {{
+                item.role === 'user' ? t('stage6.components.messagesPage.aiDraft.roleYou') : 'GPT'
+              }}
+            </div>
             <div class="content">{{ item.content }}</div>
           </div>
           <div v-if="!aiPolishHistory.length" class="ai-polish-empty">
@@ -316,7 +358,9 @@
         </div>
       </div>
       <template #footer>
-        <el-button @click="aiDraftDialogVisible = false">{{ t('stage6.common.actions.close') }}</el-button>
+        <el-button @click="aiDraftDialogVisible = false">{{
+          t('stage6.common.actions.close')
+        }}</el-button>
         <el-button
           type="primary"
           :disabled="!aiDraftReply.trim() || isSending"
@@ -351,8 +395,17 @@
         v-loading="quickReplyLoading"
         @row-click="handleQuickReplyPick"
       >
-        <el-table-column prop="title" :label="t('stage6.components.messagesPage.quickReplyDialog.titleColumn')" min-width="180" />
-        <el-table-column prop="message" :label="t('stage6.common.labels.content')" min-width="420" show-overflow-tooltip />
+        <el-table-column
+          prop="title"
+          :label="t('stage6.components.messagesPage.quickReplyDialog.titleColumn')"
+          min-width="180"
+        />
+        <el-table-column
+          prop="message"
+          :label="t('stage6.common.labels.content')"
+          min-width="420"
+          show-overflow-tooltip
+        />
         <el-table-column :label="t('stage6.common.labels.actions')" width="120" align="center">
           <template #default="{ row }">
             <el-button
@@ -373,7 +426,9 @@
       </div>
 
       <template #footer>
-        <el-button @click="quickReplyDialogVisible = false">{{ t('stage6.common.actions.close') }}</el-button>
+        <el-button @click="quickReplyDialogVisible = false">{{
+          t('stage6.common.actions.close')
+        }}</el-button>
       </template>
     </el-dialog>
 
@@ -409,7 +464,11 @@ import {
   type SuMessagingThreadDTO,
 } from '@/api/suMessaging'
 import { sendChatMessage } from '@/api/chat'
-import { getReservationById, getReservationsWithFilters, type ReservationDTO } from '@/api/reservation'
+import {
+  getReservationById,
+  getReservationsWithFilters,
+  type ReservationDTO,
+} from '@/api/reservation'
 import { getAllQuickReplies, type QuickReplyDTO } from '@/api/quickReply'
 import { createSuMessagingSocket, type SuMessagingRealtimeEvent } from '@/utils/suMessagingSocket'
 import ReservationDetailDrawer from '@/components/reservation/ReservationDetailDrawer.vue'
@@ -578,7 +637,10 @@ const GUEST_LANGUAGE_AI_LABEL_MAP: Record<string, string> = {
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
 const translationLanguageOptions = computed(() => [
-  { value: 'zh-CN' as const, label: t('stage6.components.messagesPage.translation.languages.zhCN') },
+  {
+    value: 'zh-CN' as const,
+    label: t('stage6.components.messagesPage.translation.languages.zhCN'),
+  },
   { value: 'en' as const, label: t('stage6.components.messagesPage.translation.languages.en') },
   { value: 'ja' as const, label: t('stage6.components.messagesPage.translation.languages.ja') },
   { value: 'ko' as const, label: t('stage6.components.messagesPage.translation.languages.ko') },
@@ -615,7 +677,10 @@ const currentSystemLanguageLabel = computed(() => {
   const raw =
     getStoreOptionLabel(LANGUAGE_OPTIONS, currentStoreLanguageCode.value, t) ||
     t('stage6.components.messagesPage.translation.languages.zhCN')
-  return raw.replace(/[（(].*?[）)]/g, '').trim() || t('stage6.components.messagesPage.translation.languages.zhCN')
+  return (
+    raw.replace(/[（(].*?[）)]/g, '').trim() ||
+    t('stage6.components.messagesPage.translation.languages.zhCN')
+  )
 })
 
 const currentStoreTimeZone = computed(() => {
@@ -760,7 +825,10 @@ const filteredQuickReplies = computed(() => {
   }
 
   return quickReplies.value.filter((item) => {
-    return (item.title || '').toLowerCase().includes(query) || (item.message || '').toLowerCase().includes(query)
+    return (
+      (item.title || '').toLowerCase().includes(query) ||
+      (item.message || '').toLowerCase().includes(query)
+    )
   })
 })
 
@@ -768,7 +836,10 @@ const activeConversation = computed(() => {
   if (!activeThreadId.value) {
     return null
   }
-  return conversations.value.find((conversation) => conversation.id === activeThreadId.value) || null
+  return (
+    filteredConversations.value.find((conversation) => conversation.id === activeThreadId.value) ||
+    null
+  )
 })
 
 const loadTranslationSettings = () => {
@@ -784,10 +855,7 @@ const loadTranslationSettings = () => {
     }
     translationEnabled.value = Boolean(parsed.enabled)
     clearTranslationCaches()
-    if (
-      parsed.targetLanguage &&
-      TRANSLATION_LANGUAGE_VALUES.includes(parsed.targetLanguage)
-    ) {
+    if (parsed.targetLanguage && TRANSLATION_LANGUAGE_VALUES.includes(parsed.targetLanguage)) {
       translationTargetLanguage.value = parsed.targetLanguage
     }
   } catch (error) {
@@ -816,6 +884,27 @@ const clearMessageTranslationCache = () => {
   translationPendingKeys.clear()
 }
 
+const clearActiveConversationDetails = () => {
+  activeThreadId.value = null
+  messages.value = []
+  selectedReservationId.value = null
+  showOrderDetailDrawer.value = false
+  clearMessageTranslationCache()
+}
+
+const syncActiveConversationWithFilteredList = () => {
+  if (!activeThreadId.value) {
+    return
+  }
+
+  const isVisible = filteredConversations.value.some(
+    (conversation) => conversation.id === activeThreadId.value,
+  )
+  if (!isVisible) {
+    clearActiveConversationDetails()
+  }
+}
+
 const requestAiTranslationToLanguage = async (sourceText: string, targetLanguageLabel: string) => {
   const trimmed = sourceText.trim()
   if (!trimmed) {
@@ -823,28 +912,34 @@ const requestAiTranslationToLanguage = async (sourceText: string, targetLanguage
   }
 
   const isolatedTranslationSessionId = `translation_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-  const response = (await sendChatMessage({
-    sessionId: isolatedTranslationSessionId,
-    taskType: 'TRANSLATION',
-    message: [
-      `Translate the following text into ${targetLanguageLabel}.`,
-      'Requirements:',
-      '1. Translate only the provided text. Do not use history, context, or invented content.',
-      '2. Return only the translated body without explanations, titles, quotes, or prefixes.',
-      '3. Preserve original links, order numbers, dates, room numbers, amounts, and other structured content.',
-      '4. If the original text is already in the target language, return a polished version in the same language.',
-      '',
-      '<<<TEXT>>>',
-      trimmed,
-      '<<<END>>>',
-    ].join('\n'),
-  }, {
-    timeoutMs: AI_TRANSLATION_TIMEOUT_MS,
-    suppressErrorToast: true,
-  })) as ApiResponse<{ reply: string }>
+  const response = (await sendChatMessage(
+    {
+      sessionId: isolatedTranslationSessionId,
+      taskType: 'TRANSLATION',
+      message: [
+        `Translate the following text into ${targetLanguageLabel}.`,
+        'Requirements:',
+        '1. Translate only the provided text. Do not use history, context, or invented content.',
+        '2. Return only the translated body without explanations, titles, quotes, or prefixes.',
+        '3. Preserve original links, order numbers, dates, room numbers, amounts, and other structured content.',
+        '4. If the original text is already in the target language, return a polished version in the same language.',
+        '',
+        '<<<TEXT>>>',
+        trimmed,
+        '<<<END>>>',
+      ].join('\n'),
+    },
+    {
+      timeoutMs: AI_TRANSLATION_TIMEOUT_MS,
+      suppressErrorToast: true,
+    },
+  )) as ApiResponse<{ reply: string }>
 
   if (response.success === false || !response.data?.reply) {
-    throw new Error(sanitizeUserFacingMessage(response.message) || t('stage6.components.messagesPage.errors.translationFailed'))
+    throw new Error(
+      sanitizeUserFacingMessage(response.message) ||
+        t('stage6.components.messagesPage.errors.translationFailed'),
+    )
   }
 
   return normalizeTranslatedText(response.data.reply)
@@ -861,7 +956,9 @@ const syncSystemLanguageDraftVersion = async (guestFacingDraft: string) => {
   }
 
   try {
-    aiDraftSystemLanguageVersion.value = t('stage6.components.messagesPage.aiDraft.generatingSystemVersion')
+    aiDraftSystemLanguageVersion.value = t(
+      'stage6.components.messagesPage.aiDraft.generatingSystemVersion',
+    )
     const translated = await requestAiTranslationToLanguage(trimmed, resolveSystemLanguageAiLabel())
     aiDraftSystemLanguageVersion.value = translated || trimmed
   } catch (error) {
@@ -928,7 +1025,9 @@ const translateCurrentConversation = async () => {
   if (!translationEnabled.value) {
     return
   }
-  const latestMessages = sortMessagesByTime(messages.value).slice(-INITIAL_MESSAGE_TRANSLATION_BATCH)
+  const latestMessages = sortMessagesByTime(messages.value).slice(
+    -INITIAL_MESSAGE_TRANSLATION_BATCH,
+  )
   await translateMessagesSequentially(latestMessages)
 }
 
@@ -1002,7 +1101,9 @@ const translateConversationPreviews = async () => {
   if (!translationEnabled.value) {
     return
   }
-  await Promise.all(conversations.value.map((conversation) => ensureConversationPreviewTranslation(conversation)))
+  await Promise.all(
+    conversations.value.map((conversation) => ensureConversationPreviewTranslation(conversation)),
+  )
 }
 
 const applyTranslationSettings = async () => {
@@ -1020,7 +1121,9 @@ const applyTranslationSettings = async () => {
     ElMessage.success(t('stage6.components.messagesPage.translation.applySuccess'))
   } catch (error) {
     console.error('Failed to apply translation settings:', error)
-    ElMessage.error(resolveAiErrorMessage(error, t('stage6.components.messagesPage.translation.saveFailed')))
+    ElMessage.error(
+      resolveAiErrorMessage(error, t('stage6.components.messagesPage.translation.saveFailed')),
+    )
   } finally {
     isApplyingTranslationSettings.value = false
   }
@@ -1073,11 +1176,12 @@ const resolveChannelLabel = (conversation: SuMessagingThreadDTO) => {
 const getConversationPreviewKey = (conversation: SuMessagingThreadDTO) =>
   `conversation:${conversation.id}:${conversation.lastMessage || ''}`
 
-const getMessageTranslationKey = (message: MessageItem) => `message:${message.id}:${message.content}`
+const getMessageTranslationKey = (message: MessageItem) =>
+  `message:${message.id}:${message.content}`
 
 const getTranslationLanguageLabel = () =>
-  translationLanguageOptions.value.find((item) => item.value === translationTargetLanguage.value)?.label ||
-  t('stage6.components.messagesPage.translation.languages.zhCN')
+  translationLanguageOptions.value.find((item) => item.value === translationTargetLanguage.value)
+    ?.label || t('stage6.components.messagesPage.translation.languages.zhCN')
 
 const normalizeTranslatedText = (text: string) =>
   text
@@ -1266,7 +1370,10 @@ const refreshThreads = async () => {
   try {
     const response = (await getSuThreads()) as ApiResponse<SuMessagingThreadDTO[]>
     if (response.success === false) {
-      throw new Error(sanitizeUserFacingMessage(response.message) || t('stage6.components.messagesPage.errors.refreshFailed'))
+      throw new Error(
+        sanitizeUserFacingMessage(response.message) ||
+          t('stage6.components.messagesPage.errors.refreshFailed'),
+      )
     }
 
     conversations.value = response.data || []
@@ -1282,7 +1389,10 @@ const loadThreadMessages = async (threadId: number) => {
   try {
     const response = (await getSuThreadMessages(threadId)) as ApiResponse<SuMessagingMessageDTO[]>
     if (response.success === false) {
-      throw new Error(sanitizeUserFacingMessage(response.message) || t('stage6.components.messagesPage.errors.loadMessagesFailed'))
+      throw new Error(
+        sanitizeUserFacingMessage(response.message) ||
+          t('stage6.components.messagesPage.errors.loadMessagesFailed'),
+      )
     }
 
     const incoming = (response.data || []).map(mapMessage)
@@ -1367,7 +1477,8 @@ const buildFallbackContextSummary = () => {
     latestGuestMessage?.content?.slice(0, 80) ||
     t('stage6.components.messagesPage.aiDraft.fallbackHeadline')
   return t('stage6.components.messagesPage.aiDraft.fallbackContextSummary', {
-    channel: conversation?.channelName || t('stage6.components.messagesPage.aiDraft.unknownChannel'),
+    channel:
+      conversation?.channelName || t('stage6.components.messagesPage.aiDraft.unknownChannel'),
     orderNumber: conversation?.bookingId || conversation?.threadId || '-',
     headline,
   })
@@ -1407,7 +1518,9 @@ const openAiReplyAssistant = async () => {
   aiPolishInstruction.value = ''
   aiContextSummary.value = t('stage6.components.messagesPage.aiDraft.analyzingContext')
   aiDraftReply.value = t('stage6.components.messagesPage.aiDraft.generatingInitialDraft')
-  aiDraftSystemLanguageVersion.value = t('stage6.components.messagesPage.aiDraft.generatingSystemVersion')
+  aiDraftSystemLanguageVersion.value = t(
+    'stage6.components.messagesPage.aiDraft.generatingSystemVersion',
+  )
 
   try {
     const context = buildConversationContextForAi()
@@ -1432,16 +1545,22 @@ const openAiReplyAssistant = async () => {
       context,
     ].join('\n')
 
-    const response = (await sendChatMessage({
-      sessionId: aiAssistantSessionId.value,
-      message: prompt,
-    }, {
-      timeoutMs: AI_ASSISTANT_TIMEOUT_MS,
-      suppressErrorToast: true,
-    })) as ApiResponse<{ reply: string; sessionId: string }>
+    const response = (await sendChatMessage(
+      {
+        sessionId: aiAssistantSessionId.value,
+        message: prompt,
+      },
+      {
+        timeoutMs: AI_ASSISTANT_TIMEOUT_MS,
+        suppressErrorToast: true,
+      },
+    )) as ApiResponse<{ reply: string; sessionId: string }>
 
     if (response.success === false || !response.data?.reply) {
-      throw new Error(sanitizeUserFacingMessage(response.message) || t('stage6.components.messagesPage.errors.generateFailed'))
+      throw new Error(
+        sanitizeUserFacingMessage(response.message) ||
+          t('stage6.components.messagesPage.errors.generateFailed'),
+      )
     }
 
     aiAssistantSessionId.value = response.data.sessionId || aiAssistantSessionId.value
@@ -1455,7 +1574,9 @@ const openAiReplyAssistant = async () => {
     aiContextSummary.value = buildFallbackContextSummary()
     aiDraftReply.value = ''
     aiDraftSystemLanguageVersion.value = ''
-    ElMessage.error(resolveAiErrorMessage(error, t('stage6.components.messagesPage.errors.aiDraftFailed')))
+    ElMessage.error(
+      resolveAiErrorMessage(error, t('stage6.components.messagesPage.errors.aiDraftFailed')),
+    )
   } finally {
     isAiGeneratingDraft.value = false
   }
@@ -1495,16 +1616,22 @@ const polishAiDraftReply = async () => {
       instruction,
     ].join('\n')
 
-    const response = (await sendChatMessage({
-      sessionId: aiAssistantSessionId.value,
-      message: prompt,
-    }, {
-      timeoutMs: AI_ASSISTANT_TIMEOUT_MS,
-      suppressErrorToast: true,
-    })) as ApiResponse<{ reply: string; sessionId: string }>
+    const response = (await sendChatMessage(
+      {
+        sessionId: aiAssistantSessionId.value,
+        message: prompt,
+      },
+      {
+        timeoutMs: AI_ASSISTANT_TIMEOUT_MS,
+        suppressErrorToast: true,
+      },
+    )) as ApiResponse<{ reply: string; sessionId: string }>
 
     if (response.success === false || !response.data?.reply) {
-      throw new Error(sanitizeUserFacingMessage(response.message) || t('stage6.components.messagesPage.errors.rewriteFailed'))
+      throw new Error(
+        sanitizeUserFacingMessage(response.message) ||
+          t('stage6.components.messagesPage.errors.rewriteFailed'),
+      )
     }
 
     aiAssistantSessionId.value = response.data.sessionId || aiAssistantSessionId.value
@@ -1518,7 +1645,9 @@ const polishAiDraftReply = async () => {
     aiPolishInstruction.value = ''
   } catch (error) {
     console.error('Failed to polish draft:', error)
-    ElMessage.error(resolveAiErrorMessage(error, t('stage6.components.messagesPage.errors.polishFailed')))
+    ElMessage.error(
+      resolveAiErrorMessage(error, t('stage6.components.messagesPage.errors.polishFailed')),
+    )
   } finally {
     isAiPolishing.value = false
   }
@@ -1543,7 +1672,12 @@ const replaceMessageById = (id: number, incoming: MessageItem) => {
 }
 
 const sendMessageContent = async (content: string) => {
-  if (!activeThreadId.value || !content.trim() || isSending.value || activeConversation.value?.closed) {
+  if (
+    !activeThreadId.value ||
+    !content.trim() ||
+    isSending.value ||
+    activeConversation.value?.closed
+  ) {
     return false
   }
 
@@ -1560,7 +1694,10 @@ const sendMessageContent = async (content: string) => {
     })) as ApiResponse<SuMessagingMessageDTO>
 
     if (response.success === false || !response.data) {
-      throw new Error(sanitizeUserFacingMessage(response.message) || t('stage6.components.messagesPage.message.sendFailed'))
+      throw new Error(
+        sanitizeUserFacingMessage(response.message) ||
+          t('stage6.components.messagesPage.message.sendFailed'),
+      )
     }
 
     replaceMessageById(optimistic.id, mapMessage(response.data))
@@ -1746,12 +1883,18 @@ const formatStayDate = (dateText?: string) => {
 
 const getConversationStayInfo = (conversation: SuMessagingThreadDTO) => {
   const parts = [
-    t('stage6.components.messagesPage.stay.checkIn', { date: formatStayDate(conversation.checkInDate) }),
-    t('stage6.components.messagesPage.stay.checkOut', { date: formatStayDate(conversation.checkOutDate) }),
+    t('stage6.components.messagesPage.stay.checkIn', {
+      date: formatStayDate(conversation.checkInDate),
+    }),
+    t('stage6.components.messagesPage.stay.checkOut', {
+      date: formatStayDate(conversation.checkOutDate),
+    }),
   ]
 
   if (conversation.roomTypeName) {
-    parts.push(t('stage6.components.messagesPage.stay.roomType', { roomType: conversation.roomTypeName }))
+    parts.push(
+      t('stage6.components.messagesPage.stay.roomType', { roomType: conversation.roomTypeName }),
+    )
   }
 
   return parts.join(' · ')
@@ -1822,7 +1965,11 @@ const findReservationIdForConversation = async (conversation: SuMessagingThreadD
   }
 
   try {
-    const response = await getReservationsWithFilters({ page: 0, size: 100, searchKeyword: keyword })
+    const response = await getReservationsWithFilters({
+      page: 0,
+      size: 100,
+      searchKeyword: keyword,
+    })
     if (!response.success) {
       reservationIdCache.set(lookupKey, null)
       return null
@@ -1972,7 +2119,10 @@ const loadQuickReplies = async () => {
     quickReplyLoading.value = true
     const response = (await getAllQuickReplies()) as ApiResponse<QuickReplyDTO[]>
     if (response.success === false) {
-      throw new Error(sanitizeUserFacingMessage(response.message) || t('stage6.components.messagesPage.quickReplyDialog.loadFailed'))
+      throw new Error(
+        sanitizeUserFacingMessage(response.message) ||
+          t('stage6.components.messagesPage.quickReplyDialog.loadFailed'),
+      )
     }
 
     quickReplies.value = response.data || []
@@ -2096,6 +2246,13 @@ watch(
   () => activeThreadId.value,
   () => {
     void preloadActiveReservationId()
+  },
+)
+
+watch(
+  () => filteredConversations.value,
+  () => {
+    syncActiveConversationWithFilteredList()
   },
 )
 

@@ -9,12 +9,14 @@
           :placeholder="t('channel.calendar.selectDate')"
           value-format="YYYY-MM-DD"
           style="width: 160px"
+          disabled
           @update:model-value="(val: string) => emit('update:startDate', val)"
         />
         <el-select
           :model-value="roomType"
           :placeholder="t('channel.calendar.roomType')"
           style="width: 160px"
+          disabled
           @update:model-value="(val: string) => emit('update:roomType', val)"
         >
           <el-option :label="t('channel.calendar.all')" value="" />
@@ -23,6 +25,7 @@
           :model-value="displayItem"
           :placeholder="t('channel.calendar.displayItem')"
           style="width: 140px"
+          disabled
           @update:model-value="(val: string) => emit('update:displayItem', val)"
         >
           <el-option :label="t('channel.calendar.all')" value="" />
@@ -37,7 +40,7 @@
           :model-value="selectedHotelId"
           :placeholder="t('channel.calendar.selectHotel')"
           style="width: 200px"
-          clearable
+          disabled
           @update:model-value="(val: number | null) => emit('update:selectedHotelId', val)"
         >
           <el-option
@@ -47,6 +50,7 @@
             :value="hotel.id"
           />
         </el-select>
+        <span class="filter-note">{{ t('channel.calendar.localPmsOnly') }}</span>
       </div>
     </div>
 
@@ -181,6 +185,13 @@ const calendarSpanMethod = ({
 
 .filter-bar .el-button {
   white-space: normal;
+}
+
+.filter-note {
+  color: #909399;
+  font-size: 12px;
+  line-height: 20px;
+  max-width: 240px;
 }
 
 .table-section {

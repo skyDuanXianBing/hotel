@@ -5,9 +5,13 @@
       <el-table-column prop="accountCode" :label="t('channel.account.accountCode')" min-width="280" />
       <el-table-column :label="t('channel.account.actions')" min-width="180" fixed="right">
         <template #default="{ row }">
-          <el-button type="danger" link @click="emit('disconnect', row)">
-            {{ t('channel.account.disconnect') }}
-          </el-button>
+          <el-tooltip :content="t('channel.messages.channelWriteNotReady')" placement="top">
+            <span class="disabled-action">
+              <el-button type="danger" link disabled @click="emit('disconnect', row)">
+                {{ t('channel.account.disconnect') }}
+              </el-button>
+            </span>
+          </el-tooltip>
         </template>
       </el-table-column>
       <template #empty>
@@ -40,5 +44,9 @@ const { t } = useI18n()
 .empty-text {
   color: #909399;
   font-size: 14px;
+}
+
+.disabled-action {
+  display: inline-block;
 }
 </style>

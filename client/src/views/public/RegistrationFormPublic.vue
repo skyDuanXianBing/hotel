@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page">
     <div class="header">
       <div class="header-top">
@@ -308,17 +308,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import type { UploadFile } from 'element-plus'
 import type { SupportedLocale } from '@/locales'
+import { useLanguageStore } from '@/stores/language'
 import publicRequest from '@/utils/publicRequest'
 import {
   getInitialRegistrationLocale,
   normalizeRegistrationLocale,
   persistRegistrationLocale,
+  resolvePublicRegistrationErrorKey,
+  type PublicRegistrationErrorKey,
 } from './registrationLocale'
 
 type ApiResponse<T> = {
@@ -404,6 +408,9 @@ type PublicRegistrationResponse = {
 }
 
 const route = useRoute()
+const router = useRouter()
+const languageStore = useLanguageStore()
+const { locale } = useI18n()
 
 const selectedLang = ref<SupportedLocale>(getInitialRegistrationLocale())
 const checkInGuideLink = ref<string>('')
@@ -484,6 +491,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     compressFailed: 'Compress failed',
     missingGuestId: 'Missing guest ID',
     loadFailed: 'Failed to load',
+    missingToken: 'This registration link is missing verification information.',
+    invalidToken: 'This registration link is invalid. Please check the link and try again.',
+    expiredLink: 'This registration link has expired. Please contact the hotel.',
+    invalidOrExpiredLink: 'This registration link is invalid or expired. Please contact the hotel.',
     saveFailed: 'Save failed',
     submitFailed: 'Submit failed',
     uploadFailed: 'Upload failed',
@@ -558,6 +569,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     compressFailed: '圧縮に失敗しました',
     missingGuestId: '宿泊者IDがありません',
     loadFailed: '読み込みに失敗しました',
+    missingToken: 'この登録リンクには認証情報がありません。',
+    invalidToken: 'この登録リンクは無効です。リンクを確認してもう一度お試しください。',
+    expiredLink: 'この登録リンクの有効期限が切れています。ホテルへお問い合わせください。',
+    invalidOrExpiredLink: 'この登録リンクは無効、または有効期限が切れています。ホテルへお問い合わせください。',
     saveFailed: '保存に失敗しました',
     submitFailed: '提出に失敗しました',
     uploadFailed: 'アップロードに失敗しました',
@@ -632,6 +647,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     compressFailed: '压缩失败',
     missingGuestId: '缺少入住人ID',
     loadFailed: '加载失败',
+    missingToken: '此登记链接缺少验证信息。',
+    invalidToken: '此登记链接无效，请检查链接后重试。',
+    expiredLink: '此登记链接已过期，请联系酒店。',
+    invalidOrExpiredLink: '此登记链接无效或已过期，请联系酒店。',
     saveFailed: '保存失败',
     submitFailed: '提交失败',
     uploadFailed: '上传失败',
@@ -706,6 +725,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     compressFailed: '壓縮失敗',
     missingGuestId: '缺少入住人 ID',
     loadFailed: '載入失敗',
+    missingToken: '此登記連結缺少驗證資訊。',
+    invalidToken: '此登記連結無效，請檢查連結後重試。',
+    expiredLink: '此登記連結已過期，請聯絡飯店。',
+    invalidOrExpiredLink: '此登記連結無效或已過期，請聯絡飯店。',
     saveFailed: '保存失敗',
     submitFailed: '提交失敗',
     uploadFailed: '上傳失敗',
@@ -780,6 +803,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     compressFailed: '압축에 실패했습니다',
     missingGuestId: '투숙객 ID가 없습니다',
     loadFailed: '불러오기에 실패했습니다',
+    missingToken: 'This registration link is missing verification information.',
+    invalidToken: 'This registration link is invalid. Please check the link and try again.',
+    expiredLink: 'This registration link has expired. Please contact the hotel.',
+    invalidOrExpiredLink: 'This registration link is invalid or expired. Please contact the hotel.',
     saveFailed: '저장에 실패했습니다',
     submitFailed: '제출에 실패했습니다',
     uploadFailed: '업로드에 실패했습니다',
@@ -802,9 +829,13 @@ const getQueryLocale = (value: unknown): string | null => {
 const applyRegistrationLocale = (value?: string | null): SupportedLocale => {
   const nextLocale = normalizeRegistrationLocale(value)
   selectedLang.value = nextLocale
+  locale.value = nextLocale
+  languageStore.setLocale(nextLocale)
   persistRegistrationLocale(nextLocale)
   return nextLocale
 }
+
+applyRegistrationLocale(getInitialRegistrationLocale(getQueryLocale(route.query.lang)))
 
 const t = (key: string, params: Record<string, string | number> = {}): string => {
   const lang = getTranslationLang(selectedLang.value)
@@ -815,11 +846,32 @@ const t = (key: string, params: Record<string, string | number> = {}): string =>
   )
 }
 
+const setPublicRegistrationError = (
+  message?: string | null,
+  fallback: PublicRegistrationErrorKey = 'loadFailed',
+) => {
+  const nextErrorKey = resolvePublicRegistrationErrorKey(message, fallback)
+  loadErrorKey.value = nextErrorKey
+  error.value = t(nextErrorKey)
+}
+
+const clearPublicRegistrationError = () => {
+  loadErrorKey.value = null
+  error.value = null
+}
+
+const refreshPublicRegistrationError = () => {
+  if (loadErrorKey.value) {
+    error.value = t(loadErrorKey.value)
+  }
+}
+
 const step = ref(0)
 const loading = ref(true)
 const saving = ref(false)
 const submitting = ref(false)
 const error = ref<string | null>(null)
+const loadErrorKey = ref<PublicRegistrationErrorKey | null>(null)
 const data = ref<PublicRegistrationResponse | null>(null)
 
 const model = reactive<{ guests: GuestModel[] }>({ guests: [] })
@@ -942,8 +994,19 @@ function previewForm() {
   previewDialogVisible.value = true
 }
 
-function changeLanguage(lang: SupportedLocale) {
+async function changeLanguage(lang: SupportedLocale) {
   applyRegistrationLocale(lang)
+  refreshPublicRegistrationError()
+  try {
+    await router.replace({
+      name: route.name || 'PublicRegistration',
+      params: route.params,
+      query: { ...route.query, lang },
+      hash: route.hash,
+    })
+  } catch {
+    // Ignore duplicate navigation while keeping the public page state intact.
+  }
 }
 
 const isGuestStep_old = computed(() => step.value >= 0 && step.value <= model.guests.length)
@@ -1177,15 +1240,16 @@ async function onPassportFileChange(guest: GuestModel, raw?: File) {
 
 async function load() {
   loading.value = true
-  error.value = null
+  clearPublicRegistrationError()
   try {
     const resp = (await publicRequest.get(`/public/registration/${orderNumber()}`, { params: { t: token() } })) as ApiResponse<PublicRegistrationResponse>
     if (!resp?.success) {
-      throw new Error(resp?.message || t('loadFailed'))
+      setPublicRegistrationError(resp?.message)
+      return
     }
     hydrate(resp.data as PublicRegistrationResponse)
   } catch (e: any) {
-    error.value = e?.response?.data?.message || e?.message || t('loadFailed')
+    setPublicRegistrationError(e?.response?.data?.message || e?.message)
   } finally {
     loading.value = false
   }
@@ -1313,9 +1377,20 @@ function goPrev() {
 }
 
 onMounted(() => {
-  applyRegistrationLocale(getInitialRegistrationLocale(getQueryLocale(route.query.lang)))
   load()
 })
+
+watch(
+  () => route.query.lang,
+  (nextLang) => {
+    const queryLang = getQueryLocale(nextLang)
+    if (!queryLang) {
+      return
+    }
+    applyRegistrationLocale(queryLang)
+    refreshPublicRegistrationError()
+  },
+)
 </script>
 
 <style scoped>
@@ -1678,5 +1753,3 @@ onMounted(() => {
   }
 }
 </style>
-
-

@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
+    "test:audit": "bun tests/audits/locale-keys.audit.ts && bun tests/audits/channel-management.audit.ts",
     "lint:oxlint": "oxlint . --fix -D correctness --ignore-path .gitignore",
     "lint:eslint": "eslint . --fix",
     "lint": "run-s lint:*",

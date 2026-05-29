@@ -98,18 +98,25 @@
             <h3 class="table-title">{{ t('stage5.dataCenter.overview.accommodationSpendDetails') }} ({{ dateRangeLabel }})</h3>
             <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
           </div>
-          <el-table :data="businessDetailData" border stripe class="detail-table">
-            <el-table-column prop="category" :label="t('stage5.common.fields.project')" min-width="120" align="center" />
-            <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
-              <template #default="{ row }">
-                <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="nov8" :label="t('stage5.common.date.monthDay', { month: 11, day: 8 })" min-width="150" align="center">
-              <template #default="{ row }">
-                ¥{{ row.nov8.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
-              </template>
-            </el-table-column>
+            <el-table :data="businessDetailData" border stripe class="detail-table">
+              <el-table-column prop="category" :label="t('stage5.common.fields.project')" min-width="120" align="center" />
+              <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
+                <template #default="{ row }">
+                  <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column
+                v-for="column in dateColumns"
+                :key="column.prop"
+                :prop="column.prop"
+                :label="column.label"
+                min-width="150"
+                align="center"
+              >
+                <template #default="{ row }">
+                  ¥{{ formatMoneyCell(row, column.prop) }}
+                </template>
+              </el-table-column>
           </el-table>
         </div>
       </div>
@@ -195,9 +202,16 @@
                   <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="nov8" :label="t('stage5.common.date.monthDay', { month: 11, day: 8 })" min-width="150" align="center">
+              <el-table-column
+                v-for="column in dateColumns"
+                :key="column.prop"
+                :prop="column.prop"
+                :label="column.label"
+                min-width="150"
+                align="center"
+              >
                 <template #default="{ row }">
-                  ¥{{ row.nov8.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
+                  ¥{{ formatMoneyCell(row, column.prop) }}
                 </template>
               </el-table-column>
             </el-table>
@@ -255,9 +269,16 @@
                   <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="nov8" :label="t('stage5.common.date.monthDay', { month: 11, day: 14 })" min-width="150" align="center">
+              <el-table-column
+                v-for="column in dateColumns"
+                :key="column.prop"
+                :prop="column.prop"
+                :label="column.label"
+                min-width="150"
+                align="center"
+              >
                 <template #default="{ row }">
-                  ¥{{ row.nov8.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
+                  ¥{{ formatMoneyCell(row, column.prop) }}
                 </template>
               </el-table-column>
             </el-table>
@@ -317,9 +338,16 @@
                 <span class="amount-bold">{{ row.total }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="nov14" :label="t('stage5.common.date.monthDay', { month: 11, day: 14 })" min-width="150" align="center">
+            <el-table-column
+              v-for="column in dateColumns"
+              :key="column.prop"
+              :prop="column.prop"
+              :label="column.label"
+              min-width="150"
+              align="center"
+            >
               <template #default="{ row }">
-                {{ row.nov14 }}
+                {{ row[column.prop] }}
               </template>
             </el-table-column>
           </el-table>
@@ -446,6 +474,77 @@ const REVENUE_CATEGORY_KEYS = {
   arMismatchRevenue: 'arMismatchRevenue',
   notesRevenue: 'notesRevenue',
 } as const
+
+type LocalizedKey = (typeof BUSINESS_CATEGORY_KEYS)[keyof typeof BUSINESS_CATEGORY_KEYS]
+  | (typeof PAYMENT_METHOD_KEYS)[keyof typeof PAYMENT_METHOD_KEYS]
+  | (typeof REVENUE_CATEGORY_KEYS)[keyof typeof REVENUE_CATEGORY_KEYS]
+
+const BUSINESS_CATEGORY_ALIASES: Record<string, (typeof BUSINESS_CATEGORY_KEYS)[keyof typeof BUSINESS_CATEGORY_KEYS]> = {
+  roomfee: BUSINESS_CATEGORY_KEYS.roomFee,
+  room_fee: BUSINESS_CATEGORY_KEYS.roomFee,
+  '房费': BUSINESS_CATEGORY_KEYS.roomFee,
+  '房費': BUSINESS_CATEGORY_KEYS.roomFee,
+  '宿泊費': BUSINESS_CATEGORY_KEYS.roomFee,
+  deposit: BUSINESS_CATEGORY_KEYS.deposit,
+  '押金': BUSINESS_CATEGORY_KEYS.deposit,
+  'デポジット': BUSINESS_CATEGORY_KEYS.deposit,
+  checkoutrefund: BUSINESS_CATEGORY_KEYS.checkoutRefund,
+  checkout_refund: BUSINESS_CATEGORY_KEYS.checkoutRefund,
+  checkoutfee: BUSINESS_CATEGORY_KEYS.checkoutRefund,
+  checkout_fee: BUSINESS_CATEGORY_KEYS.checkoutRefund,
+  '退房金': BUSINESS_CATEGORY_KEYS.checkoutRefund,
+  '退房費': BUSINESS_CATEGORY_KEYS.checkoutRefund,
+  'チェックアウト返金': BUSINESS_CATEGORY_KEYS.checkoutRefund,
+  roomservice: BUSINESS_CATEGORY_KEYS.roomService,
+  room_service: BUSINESS_CATEGORY_KEYS.roomService,
+  '餐食/客房消费': BUSINESS_CATEGORY_KEYS.roomService,
+  '餐食/客房消費': BUSINESS_CATEGORY_KEYS.roomService,
+  '客房消费': BUSINESS_CATEGORY_KEYS.roomService,
+  '客房消費': BUSINESS_CATEGORY_KEYS.roomService,
+  'ルームサービス': BUSINESS_CATEGORY_KEYS.roomService,
+}
+
+const PAYMENT_METHOD_ALIASES: Record<string, (typeof PAYMENT_METHOD_KEYS)[keyof typeof PAYMENT_METHOD_KEYS]> = {
+  bookingcollection: PAYMENT_METHOD_KEYS.bookingCollection,
+  booking_collection: PAYMENT_METHOD_KEYS.bookingCollection,
+  booking: PAYMENT_METHOD_KEYS.bookingCollection,
+  'booking.com': PAYMENT_METHOD_KEYS.bookingCollection,
+  'booking.com收款': PAYMENT_METHOD_KEYS.bookingCollection,
+  'booking收款': PAYMENT_METHOD_KEYS.bookingCollection,
+  'booking.com入金': PAYMENT_METHOD_KEYS.bookingCollection,
+  airbnbcollection: PAYMENT_METHOD_KEYS.airbnbCollection,
+  airbnb_collection: PAYMENT_METHOD_KEYS.airbnbCollection,
+  airbnb: PAYMENT_METHOD_KEYS.airbnbCollection,
+  'airbnb收款': PAYMENT_METHOD_KEYS.airbnbCollection,
+  'airbnb入金': PAYMENT_METHOD_KEYS.airbnbCollection,
+}
+
+const REVENUE_CATEGORY_ALIASES: Record<string, (typeof REVENUE_CATEGORY_KEYS)[keyof typeof REVENUE_CATEGORY_KEYS]> = {
+  regularrevenue: REVENUE_CATEGORY_KEYS.regularRevenue,
+  regular_revenue: REVENUE_CATEGORY_KEYS.regularRevenue,
+  normalrevenue: REVENUE_CATEGORY_KEYS.regularRevenue,
+  normal_revenue: REVENUE_CATEGORY_KEYS.regularRevenue,
+  '常规流水': REVENUE_CATEGORY_KEYS.regularRevenue,
+  '常規流水': REVENUE_CATEGORY_KEYS.regularRevenue,
+  '通常流水': REVENUE_CATEGORY_KEYS.regularRevenue,
+  armismatchrevenue: REVENUE_CATEGORY_KEYS.arMismatchRevenue,
+  ar_mismatch_revenue: REVENUE_CATEGORY_KEYS.arMismatchRevenue,
+  'ar收错流水': REVENUE_CATEGORY_KEYS.arMismatchRevenue,
+  'ar收錯流水': REVENUE_CATEGORY_KEYS.arMismatchRevenue,
+  notesrevenue: REVENUE_CATEGORY_KEYS.notesRevenue,
+  notes_revenue: REVENUE_CATEGORY_KEYS.notesRevenue,
+  '记一笔流水': REVENUE_CATEGORY_KEYS.notesRevenue,
+  '記一筆流水': REVENUE_CATEGORY_KEYS.notesRevenue,
+}
+
+interface DateColumn {
+  prop: string
+  label: string
+  date: string
+}
+
+type DynamicAmountRow = Record<string, string | number>
+
 const activeTab = ref('business')
 const dateType = ref('today')
 const startDate = ref('2025-11-14')
@@ -456,34 +555,114 @@ const dateRangeLabel = computed(() =>
   t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value }),
 )
 
+const normalizeLabel = (value: string) => value.trim().replace(/\s+/g, '').toLowerCase()
+
+const formatDateValue = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const parseDateValue = (value: string) => {
+  const parts = value.split('-').map(Number)
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+    return null
+  }
+  return new Date(parts[0], parts[1] - 1, parts[2])
+}
+
+const getDateColumnProp = (date: string) => `date_${date.replace(/-/g, '')}`
+
+const dateColumns = computed<DateColumn[]>(() => {
+  const start = parseDateValue(startDate.value)
+  const end = parseDateValue(endDate.value)
+  if (!start || !end || start.getTime() > end.getTime()) {
+    return []
+  }
+
+  const columns: DateColumn[] = []
+  const current = new Date(start)
+  while (current.getTime() <= end.getTime()) {
+    const date = formatDateValue(current)
+    const month = String(current.getMonth() + 1)
+    const day = String(current.getDate())
+    columns.push({
+      prop: getDateColumnProp(date),
+      label: t('stage5.common.date.monthDay', { month, day }),
+      date,
+    })
+    current.setDate(current.getDate() + 1)
+  }
+  return columns
+})
+
+const createEmptyDateAmounts = (): DynamicAmountRow => {
+  const row: DynamicAmountRow = {}
+  dateColumns.value.forEach((column) => {
+    row[column.prop] = 0
+  })
+  return row
+}
+
+const createDailyAmountCells = (dailyAmounts: { date: string; amount: number }[] = []) => {
+  const row = createEmptyDateAmounts()
+  dailyAmounts.forEach((dailyAmount) => {
+    const prop = getDateColumnProp(dailyAmount.date)
+    if (prop in row) {
+      row[prop] = dailyAmount.amount || 0
+    }
+  })
+  return row
+}
+
+const createSingleDateAmountCells = (amount: number | string) => {
+  const row = createEmptyDateAmounts()
+  const firstColumn = dateColumns.value[0]
+  if (firstColumn) {
+    row[firstColumn.prop] = amount
+  }
+  return row
+}
+
+const formatMoneyCell = (row: DynamicAmountRow, prop: string) => {
+  const value = Number(row[prop] || 0)
+  return value.toLocaleString('zh-CN', { minimumFractionDigits: 2 })
+}
+
+const resolveLabelKey = <T extends LocalizedKey>(value: string, aliases: Record<string, T>) => {
+  const normalized = normalizeLabel(value || '')
+  return aliases[normalized]
+}
+
 const translateBusinessCategory = (category: string) => {
-  const normalized = category?.trim()
-  if (normalized === BUSINESS_CATEGORY_KEYS.roomFee || normalized === t('stage5.statistics.common.roomFee')) return t('stage5.statistics.common.roomFee')
-  if (normalized === BUSINESS_CATEGORY_KEYS.checkoutRefund || normalized === t('stage5.dataCenter.overview.checkoutRefund'))
+  const key = resolveLabelKey(category, BUSINESS_CATEGORY_ALIASES)
+  if (key === BUSINESS_CATEGORY_KEYS.roomFee) return t('stage5.statistics.common.roomFee')
+  if (key === BUSINESS_CATEGORY_KEYS.checkoutRefund)
     return t('stage5.dataCenter.overview.checkoutRefund')
-  if (normalized === BUSINESS_CATEGORY_KEYS.roomService || normalized === t('stage5.dataCenter.overview.roomService'))
+  if (key === BUSINESS_CATEGORY_KEYS.roomService)
     return t('stage5.dataCenter.overview.roomService')
-  if (normalized === BUSINESS_CATEGORY_KEYS.deposit || normalized === t('stage5.statistics.common.deposit'))
+  if (key === BUSINESS_CATEGORY_KEYS.deposit)
     return t('stage5.statistics.common.deposit')
   return category
 }
 
 const translatePaymentMethod = (method: string) => {
-  const normalized = method?.trim()
-  if (normalized === PAYMENT_METHOD_KEYS.bookingCollection || normalized === t('stage5.dataCenter.overview.bookingCollection'))
+  const key = resolveLabelKey(method, PAYMENT_METHOD_ALIASES)
+  if (key === PAYMENT_METHOD_KEYS.bookingCollection)
     return t('stage5.dataCenter.overview.bookingCollection')
-  if (normalized === PAYMENT_METHOD_KEYS.airbnbCollection || normalized === t('stage5.dataCenter.overview.airbnbCollection'))
+  if (key === PAYMENT_METHOD_KEYS.airbnbCollection)
     return t('stage5.dataCenter.overview.airbnbCollection')
   return method
 }
 
 const translateRevenueCategory = (category: string) => {
-  const normalized = category?.trim()
-  if (normalized === REVENUE_CATEGORY_KEYS.regularRevenue || normalized === t('stage5.dataCenter.overview.regularRevenue'))
+  const key = resolveLabelKey(category, REVENUE_CATEGORY_ALIASES)
+  if (key === REVENUE_CATEGORY_KEYS.regularRevenue)
     return t('stage5.dataCenter.overview.regularRevenue')
-  if (normalized === REVENUE_CATEGORY_KEYS.arMismatchRevenue || normalized === t('stage5.dataCenter.overview.arMismatchRevenue'))
+  if (key === REVENUE_CATEGORY_KEYS.arMismatchRevenue)
     return t('stage5.dataCenter.overview.arMismatchRevenue')
-  if (normalized === REVENUE_CATEGORY_KEYS.notesRevenue || normalized === t('stage5.dataCenter.overview.notesRevenue'))
+  if (key === REVENUE_CATEGORY_KEYS.notesRevenue)
     return t('stage5.dataCenter.overview.notesRevenue')
   return category
 }
@@ -498,14 +677,30 @@ const roomService = ref(26940.00)
 interface BusinessDetailItem {
   category: string
   total: number
-  nov8: number
+  [key: string]: string | number
 }
 
 const businessDetailData = ref<BusinessDetailItem[]>([
-  { category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.roomFee), total: 154256.45, nov8: 154256.45 },
-  { category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.checkoutRefund), total: 0.00, nov8: 0.00 },
-  { category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.roomService), total: 26940.00, nov8: 26940.00 },
-  { category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.deposit), total: 0.00, nov8: 0.00 },
+  {
+    category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.roomFee),
+    total: 154256.45,
+    ...createSingleDateAmountCells(154256.45),
+  },
+  {
+    category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.checkoutRefund),
+    total: 0.00,
+    ...createSingleDateAmountCells(0.00),
+  },
+  {
+    category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.roomService),
+    total: 26940.00,
+    ...createSingleDateAmountCells(26940.00),
+  },
+  {
+    category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.deposit),
+    total: 0.00,
+    ...createSingleDateAmountCells(0.00),
+  },
 ])
 
 // 流水汇总相关数据
@@ -523,8 +718,16 @@ const revenueTableTabs = computed(() => [
 ])
 
 const revenueTableData = ref([
-  { paymentMethod: translatePaymentMethod(PAYMENT_METHOD_KEYS.bookingCollection), total: 182126.14, nov8: 182126.14 },
-  { paymentMethod: translatePaymentMethod(PAYMENT_METHOD_KEYS.airbnbCollection), total: 94667.00, nov8: 94667.00 }
+  {
+    paymentMethod: translatePaymentMethod(PAYMENT_METHOD_KEYS.bookingCollection),
+    total: 182126.14,
+    ...createSingleDateAmountCells(182126.14),
+  },
+  {
+    paymentMethod: translatePaymentMethod(PAYMENT_METHOD_KEYS.airbnbCollection),
+    total: 94667.00,
+    ...createSingleDateAmountCells(94667.00),
+  },
 ])
 
 // 款项分类相关数据
@@ -536,9 +739,21 @@ const arRevenue = ref(0.00) // AR收错流水
 const notesRevenue = ref(0.00) // 记一笔流水
 
 const categoryTableData = ref([
-  { paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.regularRevenue), total: 390396.66, nov8: 390396.66 },
-  { paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.arMismatchRevenue), total: 0.00, nov8: 0.00 },
-  { paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.notesRevenue), total: 0.00, nov8: 0.00 }
+  {
+    paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.regularRevenue),
+    total: 390396.66,
+    ...createSingleDateAmountCells(390396.66),
+  },
+  {
+    paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.arMismatchRevenue),
+    total: 0.00,
+    ...createSingleDateAmountCells(0.00),
+  },
+  {
+    paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.notesRevenue),
+    total: 0.00,
+    ...createSingleDateAmountCells(0.00),
+  },
 ])
 
 // 渠道汇总相关数据
@@ -638,7 +853,7 @@ const loadBusinessOverview = async () => {
       businessDetailData.value = data.consumptionDetails.map(detail => ({
         category: translateBusinessCategory(detail.category),
         total: detail.total,
-        nov8: detail.dailyAmounts[0]?.amount || 0
+        ...createDailyAmountCells(detail.dailyAmounts),
       }))
 
       // 重新初始化图表
@@ -685,7 +900,7 @@ const loadRevenueSummary = async () => {
       revenueTableData.value = data.paymentMethodStats.map(stat => ({
         paymentMethod: translatePaymentMethod(stat.paymentMethod),
         total: stat.amount,
-        nov8: stat.amount
+        ...createSingleDateAmountCells(stat.amount),
       }))
 
       // 更新表格数据 - 款项分类
@@ -698,7 +913,7 @@ const loadRevenueSummary = async () => {
       categoryTableData.value = data.categoryStats.map(stat => ({
         paymentMethod: translateRevenueCategory(stat.category),
         total: stat.amount,
-        nov8: stat.amount
+        ...createSingleDateAmountCells(stat.amount),
       }))
 
       // 重新初始化图表
@@ -745,13 +960,15 @@ const loadChannelSummary = async () => {
       const channelFeeData = data.channelDetails.map(detail => ({
         channel: detail.channelName,
         total: `¥${(detail.revenue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
-        nov14: `¥${(detail.revenue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
+        ...createSingleDateAmountCells(
+          `¥${(detail.revenue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
+        ),
       }))
 
       const channelNightsData = data.channelDetails.map(detail => ({
         channel: detail.channelName,
         total: detail.roomNights || 0,
-        nov14: detail.roomNights || 0
+        ...createSingleDateAmountCells(detail.roomNights || 0),
       }))
 
       if (channelTableTab.value === 'channel-fee') {

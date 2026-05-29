@@ -578,7 +578,7 @@ export const settingsMessages = {
         },
       },
       paymentPlatforms: {
-        description: 'Connect to Stripe for Booking Engine reservation payments',
+        description: '连接 Stripe，用于 Booking Engine 预订支付',
         configure: '配置',
         configurePending: 'Stripe配置功能开发中',
       },
@@ -1053,7 +1053,7 @@ export const settingsMessages = {
         },
       },
       paymentPlatforms: {
-        description: 'Connect to Stripe for Booking Engine reservation payments',
+        description: '連接 Stripe，用於 Booking Engine 預訂付款',
         configure: '配置',
         configurePending: 'Stripe配置功能開發中',
       },
@@ -1528,7 +1528,7 @@ export const settingsMessages = {
         },
       },
       paymentPlatforms: {
-        description: 'Connect to Stripe for Booking Engine reservation payments',
+        description: 'Booking Engine の予約決済に Stripe を接続します',
         configure: '設定',
         configurePending: 'Stripe設定機能は開発中です',
       },

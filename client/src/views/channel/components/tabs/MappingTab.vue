@@ -19,7 +19,7 @@
           :model-value="selectedHotelId"
           :placeholder="t('channel.mapping.selectHotel')"
           style="width: 200px"
-          clearable
+          disabled
           @update:model-value="(val: number | null) => emit('update:selectedHotelId', val)"
         >
           <el-option
@@ -29,6 +29,7 @@
             :value="hotel.id"
           />
         </el-select>
+        <span class="filter-note">{{ t('channel.mapping.localPmsOnly') }}</span>
         <el-button @click="emit('importOrders')">{{ t('channel.mapping.importFutureOrders') }}</el-button>
         <el-button type="primary" :icon="Refresh" @click="emit('refresh')">
           {{ t('channel.mapping.refreshChannelInfo') }}
@@ -123,23 +124,47 @@
         <el-table-column :label="t('channel.mapping.actions')" min-width="180" fixed="right">
           <template #default="{ row }">
             <template v-if="editingRoomId === row.roomGroupId && row.isFirstInGroup">
-              <el-button type="primary" link @click="emit('save', row.roomGroupId)">
-                {{ t('channel.mapping.save') }}
-              </el-button>
+              <el-tooltip :content="t('channel.messages.channelWriteNotReady')" placement="top">
+                <span class="disabled-action">
+                  <el-button type="primary" link disabled @click="emit('save', row.roomGroupId)">
+                    {{ t('channel.mapping.save') }}
+                  </el-button>
+                </span>
+              </el-tooltip>
               <el-button link @click="emit('cancelEdit')">{{ t('channel.mapping.cancel') }}</el-button>
             </template>
             <template v-else-if="row.isFirstInGroup">
               <template v-if="isAirbnb">
-                <el-button type="primary" link @click="emit('edit', row)">{{ t('channel.mapping.edit') }}</el-button>
-                <el-button type="danger" link @click="emit('disconnect', row)">
-                  {{ t('channel.mapping.disconnect') }}
-                </el-button>
+                <el-tooltip :content="t('channel.messages.channelWriteNotReady')" placement="top">
+                  <span class="disabled-action">
+                    <el-button type="primary" link disabled @click="emit('edit', row)">
+                      {{ t('channel.mapping.edit') }}
+                    </el-button>
+                  </span>
+                </el-tooltip>
+                <el-tooltip :content="t('channel.messages.channelWriteNotReady')" placement="top">
+                  <span class="disabled-action">
+                    <el-button type="danger" link disabled @click="emit('disconnect', row)">
+                      {{ t('channel.mapping.disconnect') }}
+                    </el-button>
+                  </span>
+                </el-tooltip>
               </template>
               <template v-else>
-                <el-button type="primary" link @click="emit('manage', row)">{{ t('channel.mapping.manage') }}</el-button>
-                <el-button type="danger" link @click="emit('disconnect', row)">
-                  {{ t('channel.mapping.disconnect') }}
-                </el-button>
+                <el-tooltip :content="t('channel.messages.channelWriteNotReady')" placement="top">
+                  <span class="disabled-action">
+                    <el-button type="primary" link disabled @click="emit('manage', row)">
+                      {{ t('channel.mapping.manage') }}
+                    </el-button>
+                  </span>
+                </el-tooltip>
+                <el-tooltip :content="t('channel.messages.channelWriteNotReady')" placement="top">
+                  <span class="disabled-action">
+                    <el-button type="danger" link disabled @click="emit('disconnect', row)">
+                      {{ t('channel.mapping.disconnect') }}
+                    </el-button>
+                  </span>
+                </el-tooltip>
               </template>
             </template>
           </template>
@@ -251,6 +276,22 @@ const getMappingStatusText = (status: string) => {
 
 .filter-bar .el-button {
   white-space: normal;
+}
+
+.filter-note {
+  color: #909399;
+  font-size: 12px;
+  line-height: 20px;
+  max-width: 220px;
+}
+
+.disabled-action {
+  display: inline-block;
+}
+
+.disabled-action + .disabled-action,
+.disabled-action + .el-button {
+  margin-left: 12px;
 }
 
 .table-section {

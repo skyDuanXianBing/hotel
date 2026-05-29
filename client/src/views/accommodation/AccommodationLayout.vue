@@ -18,10 +18,18 @@
         :unique-opened="true"
       >
         <!-- 房态 -->
-        <el-menu-item index="room-status-calendar">
-          <el-icon><House /></el-icon>
-          <span>{{ t('accommodation.layout.roomStatus') }}</span>
-        </el-menu-item>
+        <el-sub-menu index="room-status">
+          <template #title>
+            <el-icon><House /></el-icon>
+            <span>{{ t('accommodation.layout.roomStatus') }}</span>
+          </template>
+          <el-menu-item index="room-status-calendar">
+            <span>{{ t('roomStatus.layout.calendar') }}</span>
+          </el-menu-item>
+          <el-menu-item index="room-status-channel">
+            <span>{{ t('roomStatus.common.channel') }}</span>
+          </el-menu-item>
+        </el-sub-menu>
 
         <!-- 房情表 -->
         <el-menu-item index="room-table">
@@ -97,7 +105,7 @@ const updateActiveMenuItem = () => {
   const routeMap: Record<string, string> = {
     '/accommodation/room-status/calendar': 'room-status-calendar',
     '/accommodation/room-status/daily': 'room-status-calendar',
-    '/accommodation/room-status/channel': 'room-status-calendar',
+    '/accommodation/room-status/channel': 'room-status-channel',
     '/accommodation/room-price-management': 'room-price-management',
     '/accommodation/room-price-bulk-update': 'room-price-management',
     '/accommodation/room-price/change-history': 'price-change-history',
@@ -117,6 +125,7 @@ watch(() => route.path, updateActiveMenuItem, { immediate: true })
 const handleMenuSelect = (index: string) => {
   const routeMap: Record<string, string> = {
     'room-status-calendar': '/accommodation/room-status/calendar',
+    'room-status-channel': '/accommodation/room-status/channel',
     'room-price-management': '/accommodation/room-price-management',
     'price-change-history': '/accommodation/room-price/change-history',
     'room-table': '/accommodation/room-table',

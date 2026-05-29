@@ -141,10 +141,35 @@ import StatisticsLayout from './StatisticsLayout.vue'
 
 const { t } = useI18n()
 
+const formatDateValue = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getDefaultDateRange = () => {
+  const end = new Date()
+  const start = new Date(end)
+  start.setDate(end.getDate() - 6)
+  return {
+    start: formatDateValue(start),
+    end: formatDateValue(end),
+  }
+}
+
+const getDateColumnProp = (date: Date) => {
+  const year = String(date.getFullYear())
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `date_${year}${month}${day}`
+}
+
 // 日期范围
+const defaultDateRange = getDefaultDateRange()
 const dateRange = ref('custom')
-const startDate = ref('2025-09-22')
-const endDate = ref('2025-09-30')
+const startDate = ref(defaultDateRange.start)
+const endDate = ref(defaultDateRange.end)
 
 // Tab 切换
 const activeTab = ref('payment')
@@ -170,21 +195,18 @@ const expenseDistribution = ref([
 ])
 
 // 流水明细数据
-const revenueDetails = ref([
-  {
+const revenueDetails = computed(() => {
+  const row: Record<string, string> = {
     paymentMethod: t('stage5.statistics.notes.wechat'),
     total: '12.00',
-    date_0922: '0.00',
-    date_0923: '0.00',
-    date_0924: '0.00',
-    date_0925: '0.00',
-    date_0926: '0.00',
-    date_0927: '0.00',
-    date_0928: '0.00',
-    date_0929: '0.00',
-    date_0930: '12.00',
-  },
-])
+  }
+
+  dateColumns.value.forEach((column, index) => {
+    row[column.prop] = index === dateColumns.value.length - 1 ? '12.00' : '0.00'
+  })
+
+  return [row]
+})
 
 // 图表实例
 const incomeChartRef = ref<HTMLElement>()
@@ -202,7 +224,7 @@ const dateColumns = computed(() => {
     const month = (d.getMonth() + 1).toString()
     const day = d.getDate().toString()
     columns.push({
-      prop: `date_${month.padStart(2, '0')}${day.padStart(2, '0')}`,
+      prop: getDateColumnProp(d),
       label: t('stage5.common.date.monthDay', { month, day }),
     })
   }

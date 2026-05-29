@@ -1,6 +1,10 @@
 <template>
   <div class="cleaner-login-container">
     <div class="login-card">
+      <div class="language-switcher-row">
+        <LanguageSwitcher variant="auth" />
+      </div>
+
       <!-- Logo和标题 -->
       <div class="header">
         <div class="logo">
@@ -15,14 +19,20 @@
       <el-form
         ref="formRef"
         :model="loginForm"
+        :key="locale"
         :rules="rules"
         class="login-form"
         @submit.prevent="handleLogin"
       >
         <el-form-item prop="email">
+          <label class="form-label" :for="EMAIL_INPUT_ID">
+            {{ t('common.email') }}
+          </label>
           <el-input
+            :id="EMAIL_INPUT_ID"
             v-model="loginForm.email"
             :placeholder="t('stage5.cleaner.auth.emailPlaceholder')"
+            :aria-label="t('common.email')"
             size="large"
             clearable
           >
@@ -33,10 +43,15 @@
         </el-form-item>
 
         <el-form-item prop="password">
+          <label class="form-label" :for="PASSWORD_INPUT_ID">
+            {{ t('common.password') }}
+          </label>
           <el-input
+            :id="PASSWORD_INPUT_ID"
             v-model="loginForm.password"
             type="password"
             :placeholder="t('stage5.cleaner.auth.passwordPlaceholder')"
+            :aria-label="t('common.password')"
             size="large"
             show-password
           >
@@ -77,16 +92,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock, Pointer } from '@element-plus/icons-vue'
 import { cleanerLoginByPassword } from '@/api/cleanerAuth'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import { saveCleanerSession, type CleanerSessionUser } from '@/utils/cleanerSession'
 
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+const EMAIL_INPUT_ID = 'cleaner-login-email'
+const PASSWORD_INPUT_ID = 'cleaner-login-password'
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -96,7 +115,7 @@ const loginForm = reactive({
   password: '',
 })
 
-const rules: FormRules = {
+const rules = computed<FormRules>(() => ({
   email: [
     { required: true, message: t('stage5.cleaner.auth.emailRequired'), trigger: 'blur' },
     { type: 'email', message: t('stage5.cleaner.auth.emailInvalid'), trigger: 'blur' },
@@ -105,15 +124,20 @@ const rules: FormRules = {
     { required: true, message: t('stage5.cleaner.auth.passwordRequired'), trigger: 'blur' },
     { min: 6, message: t('stage5.cleaner.auth.passwordMin'), trigger: 'blur' },
   ],
-}
+}))
 
 const handleLogin = async () => {
   if (!formRef.value) return
 
   try {
     await formRef.value.validate()
-    loading.value = true
+  } catch {
+    return
+  }
 
+  loading.value = true
+
+  try {
     const response = await cleanerLoginByPassword({
       email: loginForm.email,
       password: loginForm.password,
@@ -178,6 +202,12 @@ const handleLogin = async () => {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
+.language-switcher-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+
 .header {
   text-align: center;
   margin-bottom: 40px;
@@ -225,6 +255,19 @@ const handleLogin = async () => {
 
 .login-form :deep(.el-form-item) {
   margin-bottom: 20px;
+}
+
+.login-form :deep(.el-form-item__content) {
+  display: block;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .login-form :deep(.el-input__wrapper) {

@@ -256,13 +256,15 @@ const shareToken = computed(() => route.params.token as string)
 const loading = ref(true)
 const roomStatusLoading = ref(false)
 const error = ref(false)
-const errorMessage = ref('')
+const rawErrorMessage = ref('')
 const shareData = ref<any>(null)
 const selectedDate = ref<string>(new Date().toISOString().split('T')[0])
 const roomStatusData = ref<any>(null)
 const statisticsData = ref<any>(null)
 const showDetailDialog = ref(false)
 const selectedRoom = ref<any>(null)
+
+const errorMessage = computed(() => resolveShareErrorMessage(rawErrorMessage.value))
 
 // 日期范围 (显示7天)
 const dateRange = computed(() => {
@@ -392,6 +394,7 @@ const filteredRoomTypes = computed(() => {
 const fetchShareData = async () => {
   try {
     loading.value = true
+    rawErrorMessage.value = ''
     
     console.log('获取分享数据，token:', shareToken.value)
     const response: any = await getPublicRoomStatusShare(shareToken.value)
@@ -419,12 +422,12 @@ const fetchShareData = async () => {
       ])
     } else {
       error.value = true
-      errorMessage.value = response.message || t('pages.roomStatusShare.messages.fetchShareFailed')
+      rawErrorMessage.value = response.message || ''
     }
   } catch (err) {
     console.error('获取分享数据失败:', err)
     error.value = true
-    errorMessage.value = t('pages.roomStatusShare.messages.invalidShare')
+    rawErrorMessage.value = ''
   } finally {
     loading.value = false
   }
@@ -479,7 +482,38 @@ const onDateChange = () => {
 
 const retry = () => {
   error.value = false
+  rawErrorMessage.value = ''
   fetchShareData()
+}
+
+const containsChineseText = (value: string) => /[\u3400-\u9fff]/.test(value)
+
+const isInvalidShareMessage = (message: string) => {
+  return (
+    message.includes('分享链接不存在') ||
+    message.includes('分享链接无效') ||
+    message.includes('分享链接已失效') ||
+    message.includes('不存在或已失效') ||
+    message.toLowerCase().includes('invalid') ||
+    message.toLowerCase().includes('expired')
+  )
+}
+
+const resolveShareErrorMessage = (message?: string | null) => {
+  const rawMessage = String(message || '').trim()
+  if (!rawMessage) {
+    return t('pages.roomStatusShare.messages.invalidShare')
+  }
+
+  if (isInvalidShareMessage(rawMessage)) {
+    return t('pages.roomStatusShare.messages.invalidShare')
+  }
+
+  if (containsChineseText(rawMessage) && locale.value !== 'zh-CN') {
+    return t('pages.roomStatusShare.messages.fetchShareFailed')
+  }
+
+  return rawMessage
 }
 
 const formatCurrentDate = () => {

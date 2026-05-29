@@ -136,6 +136,8 @@ import {
   getInitialRegistrationLocale,
   normalizeRegistrationLocale,
   persistRegistrationLocale,
+  resolvePublicRegistrationErrorKey,
+  type PublicRegistrationErrorKey,
 } from './registrationLocale'
 
 const route = useRoute()
@@ -147,6 +149,7 @@ const token = computed(() => String(route.query.t || ''))
 
 const loading = ref(false)
 const error = ref('')
+const loadErrorKey = ref<PublicRegistrationErrorKey | null>(null)
 const booking = ref<PublicRegistrationBookingResponse | null>(null)
 
 const savingOrder = ref<string | null>(null)
@@ -337,8 +340,33 @@ const t = (key: string, params: Record<string, string | number> = {}): string =>
   return String(i18nT(registrationTextKeys[key] || key, params))
 }
 
+const publicRegistrationErrorText = (key: PublicRegistrationErrorKey): string => {
+  return String(i18nT(`stage5.publicRegistration.errors.${key}`))
+}
+
+const setPublicRegistrationError = (
+  message?: string | null,
+  fallback: PublicRegistrationErrorKey = 'loadFailed',
+) => {
+  const nextErrorKey = resolvePublicRegistrationErrorKey(message, fallback)
+  loadErrorKey.value = nextErrorKey
+  error.value = publicRegistrationErrorText(nextErrorKey)
+}
+
+const clearPublicRegistrationError = () => {
+  loadErrorKey.value = null
+  error.value = ''
+}
+
+const refreshPublicRegistrationError = () => {
+  if (loadErrorKey.value) {
+    error.value = publicRegistrationErrorText(loadErrorKey.value)
+  }
+}
+
 const selectLanguage = (lang: SupportedLocale) => {
   applyRegistrationLocale(lang)
+  refreshPublicRegistrationError()
   if (!booking.value) {
     load()
   }
@@ -346,6 +374,7 @@ const selectLanguage = (lang: SupportedLocale) => {
 
 const changeLanguage = (lang: string) => {
   applyRegistrationLocale(lang)
+  refreshPublicRegistrationError()
 }
 
 const guestCountOptions = (maxGuests: number) => {
@@ -399,7 +428,7 @@ const statusType = (status: RegistrationFormStatus) => {
 }
 
 const load = async () => {
-  error.value = ''
+  clearPublicRegistrationError()
   if (!bookingKey.value || !token.value) {
     error.value = t('missingParams')
     return
@@ -409,7 +438,7 @@ const load = async () => {
   try {
     const resp = await getPublicRegistrationBooking(bookingKey.value, token.value)
     if (!resp.success) {
-      error.value = resp.message || t('loadFailed')
+      setPublicRegistrationError(resp.message)
       return
     }
 

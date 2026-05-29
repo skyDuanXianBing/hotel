@@ -141,7 +141,7 @@ export const remainingPageMessages = {
       },
       roomStatusChannel: {
         notice:
-          'The number above indicates the quantity of rooms available for sale on channels and will not exceed the total room inventory for the room type.',
+          'Real channel room-status data is not connected yet. This page will not display simulated channel inventory.',
         date: 'Date',
         datePlaceholder: 'Select a date',
         localRoomTypePlaceholder: 'Local room type',
@@ -150,7 +150,12 @@ export const remainingPageMessages = {
         bulkEdit: 'Bulk edit',
         localRoomType: 'Local Room Type',
         channelRoomType: 'Channel Room Type',
-        empty: 'No data',
+        empty: 'Real channel room status is not connected',
+        unavailableTitle: 'Real channel room status is not connected',
+        unavailableDescription:
+          'Channel availability, channel room type mappings, and channel-side status changes will appear here only after a real channel room-status API is connected.',
+        unavailableActionTip:
+          'Use the standalone channel-simulator for local demonstrations. Production pages do not show simulator/demo room-status data.',
         totalRooms: 'Total rooms: {count}',
         availableRooms: 'Available: {count}',
         edit: 'Edit',
@@ -552,7 +557,7 @@ export const remainingPageMessages = {
         },
       },
       roomStatusChannel: {
-        notice: '根据上方数字可查看渠道售卖的房间数量，最多不会超过该房型的总房量。',
+        notice: '真实渠道房态数据尚未接入；当前页面不会展示模拟渠道库存。',
         date: '日期',
         datePlaceholder: '选择日期',
         localRoomTypePlaceholder: '本地房型',
@@ -561,7 +566,11 @@ export const remainingPageMessages = {
         bulkEdit: '批量修改',
         localRoomType: '本地房型',
         channelRoomType: '渠道房型',
-        empty: '暂无数据',
+        empty: '真实渠道房态未接入',
+        unavailableTitle: '真实渠道房态未接入',
+        unavailableDescription:
+          '真实渠道房量、渠道房型映射和渠道侧房态变更接口接入后，才会在这里展示数据。',
+        unavailableActionTip: '本地演示请使用独立 channel-simulator；生产页面不会展示 simulator/demo 房态数据。',
         totalRooms: '总房间: {count}',
         availableRooms: '可用: {count}',
         edit: '编辑',
@@ -961,7 +970,7 @@ export const remainingPageMessages = {
         },
       },
       roomStatusChannel: {
-        notice: '根據上方數字可查看渠道販售的房間數量，最多不會超過該房型的總房量。',
+        notice: '真實渠道房態資料尚未接入；目前頁面不會展示模擬渠道庫存。',
         date: '日期',
         datePlaceholder: '選擇日期',
         localRoomTypePlaceholder: '本地房型',
@@ -970,7 +979,11 @@ export const remainingPageMessages = {
         bulkEdit: '批次修改',
         localRoomType: '本地房型',
         channelRoomType: '渠道房型',
-        empty: '暫無資料',
+        empty: '真實渠道房態未接入',
+        unavailableTitle: '真實渠道房態未接入',
+        unavailableDescription:
+          '真實渠道房量、渠道房型映射和渠道側房態變更接口接入後，才會在這裡展示資料。',
+        unavailableActionTip: '本地演示請使用獨立 channel-simulator；生產頁面不會展示 simulator/demo 房態資料。',
         totalRooms: '總房間: {count}',
         availableRooms: '可用: {count}',
         edit: '編輯',
@@ -1370,7 +1383,8 @@ export const remainingPageMessages = {
         },
       },
       roomStatusChannel: {
-        notice: '上部の数字はチャネルで販売中の部屋数を示し、部屋タイプの総在庫数を超えることはありません。',
+        notice:
+          '実際のチャネル客室状況データは未接続です。この画面では模擬チャネル在庫を表示しません。',
         date: '日付',
         datePlaceholder: '日付を選択',
         localRoomTypePlaceholder: 'ローカル部屋タイプ',
@@ -1379,7 +1393,12 @@ export const remainingPageMessages = {
         bulkEdit: '一括編集',
         localRoomType: 'ローカル部屋タイプ',
         channelRoomType: 'チャネル部屋タイプ',
-        empty: 'データがありません',
+        empty: '実際のチャネル客室状況は未接続です',
+        unavailableTitle: '実際のチャネル客室状況は未接続です',
+        unavailableDescription:
+          '実際のチャネル在庫、チャネル客室タイプマッピング、チャネル側の客室状況変更APIが接続された後に、ここへデータを表示します。',
+        unavailableActionTip:
+          'ローカルデモは standalone channel-simulator を使用してください。本番画面では simulator/demo の客室状況データを表示しません。',
         totalRooms: '総室数: {count}',
         availableRooms: '利用可能: {count}',
         edit: '編集',

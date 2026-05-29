@@ -4,8 +4,7 @@
     <div class="tab-navigation">
       <el-tabs :model-value="activeTab" @tab-change="handleTabChange" class="room-status-tabs">
         <el-tab-pane :label="t('roomStatus.layout.calendar')" name="calendar" />
-        <!-- <el-tab-pane label="单日" name="daily" /> -->
-        <!-- <el-tab-pane label="渠道" name="channel" /> -->
+        <el-tab-pane :label="t('roomStatus.common.channel')" name="channel" />
       </el-tabs>
     </div>
 
@@ -49,7 +48,7 @@ watch(() => route.path, updateActiveTabFromRoute, { immediate: true })
 const handleTabChange = (tabName: string) => {
   // 更新 store 中的状态
   setActiveTab(tabName as 'calendar' | 'daily' | 'channel')
-  
+
   const routeMap: Record<string, string> = {
     calendar: '/accommodation/room-status/calendar',
     daily: '/accommodation/room-status/daily',

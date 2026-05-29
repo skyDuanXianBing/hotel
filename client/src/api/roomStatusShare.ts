@@ -1,4 +1,5 @@
 import { request } from '@/utils/request'
+import { publicRequest } from '@/utils/publicRequest'
 import type { ApiResponse } from '@/types/room'
 
 // 房态分享相关接口
@@ -35,7 +36,7 @@ export const deleteRoomStatusShare = async (id: number): Promise<ApiResponse<any
  * 获取公开分享信息（用于分享页面）
  */
 export const getPublicRoomStatusShare = async (token: string) => {
-  return await request.get<any>(`/room-status-share/public/${token}`)
+  return await publicRequest.get<any>(`/v1/room-status-share/public/${token}`)
 }
 
 /**
@@ -46,7 +47,7 @@ export const getSharedRoomStatusData = async (token: string, startDate?: string,
   if (startDate) params.append('startDate', startDate)
   if (endDate) params.append('endDate', endDate)
   const queryString = params.toString()
-  return await request.get<any>(`/room-status-share/public/${token}/room-status${queryString ? '?' + queryString : ''}`)
+  return await publicRequest.get<any>(`/v1/room-status-share/public/${token}/room-status${queryString ? '?' + queryString : ''}`)
 }
 
 /**
@@ -54,5 +55,5 @@ export const getSharedRoomStatusData = async (token: string, startDate?: string,
  */
 export const getSharedStatistics = async (token: string, date?: string) => {
   const params = date ? `?date=${date}` : ''
-  return await request.get<any>(`/room-status-share/public/${token}/statistics${params}`)
+  return await publicRequest.get<any>(`/v1/room-status-share/public/${token}/statistics${params}`)
 }

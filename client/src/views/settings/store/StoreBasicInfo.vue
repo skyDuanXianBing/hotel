@@ -20,7 +20,7 @@
         </div>
         <div class="info-item">
           <span class="info-label">{{ t('settingsStage4.storeBasic.fields.type') }}</span>
-          <span class="info-value">{{ storeInfo.type }}</span>
+          <span class="info-value">{{ formatPropertyType(storeInfo.type) }}</span>
         </div>
         <div class="info-item">
           <span class="info-label">{{ t('settingsStage4.storeBasic.fields.timezone') }}</span>
@@ -56,7 +56,7 @@
         </div>
         <div class="info-item">
           <span class="info-label">{{ t('settingsStage4.storeBasic.fields.country') }}</span>
-          <span class="info-value">{{ storeInfo.country }}</span>
+          <span class="info-value">{{ formatCountry(storeInfo.country) }}</span>
         </div>
         <div class="info-item">
           <span class="info-label">{{ t('settingsStage4.storeBasic.fields.currency') }}</span>
@@ -166,6 +166,11 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { getStoreById, updateStore, type StoreDTO } from '@/api/store'
 import { useStoreStore } from '@/stores/store'
+import {
+  COUNTRY_OPTIONS,
+  PROPERTY_TYPE_OPTIONS,
+  getStoreOptionLabel,
+} from '@/constants/storeOptions'
 
 interface StoreInfo {
   id: string
@@ -205,6 +210,14 @@ const storeInfo = ref<StoreInfo>({
   country: '',
   currency: '',
 })
+
+const formatPropertyType = (value?: string) => {
+  return getStoreOptionLabel(PROPERTY_TYPE_OPTIONS, value, t)
+}
+
+const formatCountry = (value?: string) => {
+  return getStoreOptionLabel(COUNTRY_OPTIONS, value, t)
+}
 
 const editForm = reactive<StoreInfo>({
   id: '',

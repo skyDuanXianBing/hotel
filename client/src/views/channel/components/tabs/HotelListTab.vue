@@ -8,9 +8,13 @@
       <el-table-column :label="t('channel.hotel.actions')" min-width="180" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="emit('edit', row)">{{ t('channel.hotel.edit') }}</el-button>
-          <el-button type="danger" link @click="emit('disconnect', row)">
-            {{ t('channel.hotel.disconnect') }}
-          </el-button>
+          <el-tooltip :content="t('channel.messages.channelWriteNotReady')" placement="top">
+            <span class="disabled-action">
+              <el-button type="danger" link disabled @click="emit('disconnect', row)">
+                {{ t('channel.hotel.disconnect') }}
+              </el-button>
+            </span>
+          </el-tooltip>
         </template>
       </el-table-column>
       <template #empty>
@@ -80,5 +84,10 @@ const { t } = useI18n()
   margin-top: 16px;
   color: #909399;
   font-size: 14px;
+}
+
+.disabled-action {
+  display: inline-block;
+  margin-left: 12px;
 }
 </style>

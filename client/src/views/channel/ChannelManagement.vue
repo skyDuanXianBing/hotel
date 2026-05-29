@@ -133,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Menu as MenuIcon, ArrowLeft, ArrowRight, List, Money } from '@element-plus/icons-vue'
@@ -178,11 +178,13 @@ const {
   pmsRoomOptions,
   pmsPricePlanOptions,
   loadPmsRoomOptions,
+  loadPmsPricePlanOptions,
   priceRatioData,
   priceRatioLoading,
   loadPriceRatioData,
   savePriceRatio,
   flattenMappingData,
+  buildConnectedChannelManagementData,
 } = useChannelData()
 
 const { t } = useI18n()
@@ -231,7 +233,6 @@ const showBookingSettingsDrawer = ref(false)
 // Edit state properties
 const editingPriceRatio = ref<PriceRatioEdit | null>(null)
 const historyList = ref<any[]>([])
-const currentManagingRoom = ref<FlattenedMappingItem | null>(null)
 const bookingSettings = ref<BookingSettings>({
   advanceBookingHours: 2,
   requireApproval: true,
@@ -265,8 +266,8 @@ const updateFlattenedMappingData = () => {
   flattenedMappingData.value = flattenMappingData(roomMappingData.value)
 }
 
-/** Reset non-Airbnb real-flow data until backed by real APIs. */
-const resetNonAirbnbChannelData = () => {
+const resetChannelManagementData = () => {
+  airbnbAccountList.value = []
   hotelList.value = []
   selectedHotelId.value = null
   roomMappingData.value = []
@@ -277,55 +278,54 @@ const resetNonAirbnbChannelData = () => {
   roomSettingsDates.value = []
 }
 
+const loadChannelManagementData = async (
+  channel: ChannelItem,
+  startDate = roomSettingsStartDate.value,
+) => {
+  resetChannelManagementData()
+  try {
+    const data = await buildConnectedChannelManagementData(channel, startDate)
+    hotelList.value = data.hotels
+    airbnbAccountList.value = data.airbnbAccounts
+    selectedHotelId.value = data.selectedHotelId
+    roomMappingData.value = data.roomMappings
+    flattenedMappingData.value = flattenMappingData(data.roomMappings)
+    calendarDates.value = data.calendarDates
+    calendarData.value = data.calendarData
+    roomSettingsDates.value = data.roomSettingsDates
+    roomSettingsData.value = data.roomSettingsData
+  } catch (error) {
+    console.error('加载渠道管理数据失败:', error)
+    ElMessage.error(t('channel.messages.loadManagementDataFailed'))
+  }
+}
+
 /** Open channel settings details panel */
-const openSettings = (channel: ChannelItem) => {
+const openSettings = async (channel: ChannelItem) => {
   selectedChannel.value = channel
   showChannelSettings.value = true
   editingRoomId.value = null
-
-  if (channel.name === 'Airbnb') {
-    airbnbAccountList.value = []
-    hotelList.value = []
-    selectedHotelId.value = null
-    roomMappingData.value = []
-    flattenedMappingData.value = []
-    calendarDates.value = []
-    calendarData.value = []
-    roomSettingsData.value = []
-    roomSettingsDates.value = []
-  } else {
-    airbnbAccountList.value = []
-    resetNonAirbnbChannelData()
-  }
+  await loadChannelManagementData(channel)
 }
 
 /** Close channel settings details panel */
 const closeChannelSettings = () => {
   showChannelSettings.value = false
   selectedChannel.value = null
-  hotelList.value = []
-  airbnbAccountList.value = []
-  roomMappingData.value = []
-  flattenedMappingData.value = []
-  calendarData.value = []
-  roomSettingsData.value = []
-  roomSettingsDates.value = []
+  resetChannelManagementData()
 }
 
 /** Switch selected hotel */
 const handleUpdateSelectedHotelId = (val: number | null) => {
   selectedHotelId.value = val
-  roomMappingData.value = []
-  flattenedMappingData.value = []
-  calendarDates.value = []
-  calendarData.value = []
 }
 
 /** Handle date settings change on Airbnb settings */
 const handleRoomSettingsStartDateChange = (val: string) => {
   roomSettingsStartDate.value = val
-  roomSettingsDates.value = []
-  roomSettingsData.value = []
+  if (selectedChannel.value) {
+    loadChannelManagementData(selectedChannel.value, val)
+  }
 }
 
 // ──────────── Hotel Actions ────────────
@@ -334,54 +334,22 @@ const handleEditHotel = (row: HotelItem) => {
   ElMessage.info(t('channel.messages.editHotel', { name: row.hotelName }))
 }
 
-const handleDisconnectHotel = async (row: HotelItem) => {
-  try {
-    await ElMessageBox.confirm(
-      t('channel.messages.disconnectHotelConfirm', { name: row.hotelName }),
-      t('channel.dialogs.common.disconnectTitle'),
-      {
-        confirmButtonText: t('channel.dialogs.common.disconnectConfirm'),
-        cancelButtonText: t('channel.dialogs.common.cancel'),
-        type: 'warning',
-      },
-    )
-
-    const index = hotelList.value.findIndex((item) => item.id === row.id)
-    if (index > -1) {
-      hotelList.value.splice(index, 1)
-    }
-    ElMessage.success(t('channel.messages.hotelDisconnected', { name: row.hotelName }))
-  } catch {
-    // Cancelled
-  }
+const showChannelWriteNotReady = () => {
+  ElMessage.warning(t('channel.messages.channelWriteNotReady'))
 }
 
-const handleDisconnectAccount = async (row: AirbnbAccount) => {
-  try {
-    await ElMessageBox.confirm(
-      t('channel.messages.disconnectAccountConfirm', { name: row.account }),
-      t('channel.dialogs.common.disconnectTitle'),
-      {
-        confirmButtonText: t('channel.dialogs.common.disconnectConfirm'),
-        cancelButtonText: t('channel.dialogs.common.cancel'),
-        type: 'warning',
-      },
-    )
+const handleDisconnectHotel = (_row: HotelItem) => {
+  showChannelWriteNotReady()
+}
 
-    const index = airbnbAccountList.value.findIndex((item) => item.id === row.id)
-    if (index > -1) {
-      airbnbAccountList.value.splice(index, 1)
-    }
-    ElMessage.success(t('channel.messages.accountDisconnected', { name: row.account }))
-  } catch {
-    // Cancelled
-  }
+const handleDisconnectAccount = (_row: AirbnbAccount) => {
+  showChannelWriteNotReady()
 }
 
 // ──────────── Mapping Actions ────────────
 
-const handleEditMapping = (row: FlattenedMappingItem) => {
-  editingRoomId.value = row.roomGroupId
+const handleEditMapping = (_row: FlattenedMappingItem) => {
+  showChannelWriteNotReady()
 }
 
 const handleCancelEditMapping = () => {
@@ -389,61 +357,20 @@ const handleCancelEditMapping = () => {
   updateFlattenedMappingData()
 }
 
-const handleSaveMapping = (roomGroupId: string) => {
-  const group = roomMappingData.value.find((g) => g.roomGroupId === roomGroupId)
-  if (group) {
-    const flatItems = flattenedMappingData.value.filter((item) => item.roomGroupId === roomGroupId)
-    if (flatItems.length > 0) {
-      group.pmsRoomType = flatItems[0].selectedPmsRoom
-      group.selectedPmsRoom = flatItems[0].selectedPmsRoom
-      flatItems.forEach((flatItem) => {
-        const pricePlan = group.pricePlans.find((p) => p.id === flatItem.id)
-        if (pricePlan) {
-          pricePlan.pmsPricePlan = flatItem.selectedPmsPricePlan
-          pricePlan.selectedPmsPricePlan = flatItem.selectedPmsPricePlan
-          if (flatItem.selectedPmsPricePlan) {
-            pricePlan.status = 'connected'
-          }
-        }
-      })
-    }
-  }
-  editingRoomId.value = null
-  updateFlattenedMappingData()
-  ElMessage.success(t('channel.messages.saveSuccess'))
+const handleSaveMapping = (_roomGroupId: string) => {
+  showChannelWriteNotReady()
 }
 
-const handleDisconnectMapping = async (row: FlattenedMappingItem) => {
-  try {
-    await ElMessageBox.confirm(
-      t('channel.messages.disconnectMappingConfirm', { name: row.channelRoomType }),
-      t('channel.dialogs.common.disconnectTitle'),
-      {
-        confirmButtonText: t('channel.dialogs.common.disconnectConfirm'),
-        cancelButtonText: t('channel.dialogs.common.cancel'),
-        type: 'warning',
-      },
-    )
-    const groupIndex = roomMappingData.value.findIndex((g) => g.roomGroupId === row.roomGroupId)
-    if (groupIndex > -1) {
-      roomMappingData.value.splice(groupIndex, 1)
-      updateFlattenedMappingData()
-    }
-    ElMessage.success(t('channel.messages.mappingDisconnected'))
-  } catch {
-    // Cancelled
-  }
+const handleDisconnectMapping = (_row: FlattenedMappingItem) => {
+  showChannelWriteNotReady()
 }
 
-const handleManageMapping = (row: FlattenedMappingItem) => {
-  currentManagingRoom.value = row
-  showBookingSettingsDrawer.value = true
+const handleManageMapping = (_row: FlattenedMappingItem) => {
+  showChannelWriteNotReady()
 }
 
-const handleSaveBookingSettings = (newSettings: BookingSettings) => {
-  bookingSettings.value = newSettings
-  ElMessage.success(t('channel.messages.bookingSettingsSaved'))
-  showBookingSettingsDrawer.value = false
+const handleSaveBookingSettings = (_newSettings: BookingSettings) => {
+  showChannelWriteNotReady()
 }
 
 // ──────────── Dialog Triggers ────────────
@@ -572,7 +499,17 @@ const handleFullRefresh = () => {
 onMounted(() => {
   loadChannels()
   loadPmsRoomOptions()
+  loadPmsPricePlanOptions()
 })
+
+watch(
+  () => t('channel.settings.directSettings'),
+  () => {
+    if (showChannelSettings.value && selectedChannel.value) {
+      loadChannelManagementData(selectedChannel.value)
+    }
+  },
+)
 </script>
 
 <style scoped>

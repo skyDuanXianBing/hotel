@@ -121,6 +121,13 @@ export const getAllPricePlans = (userId: number) => {
   })
 }
 
+export const getCurrentStorePricePlans = () => {
+  return request<PricePlanDTO[]>({
+    url: '/price-plans',
+    method: 'GET',
+  })
+}
+
 /**
  * 根据ID获取价格计划
  */

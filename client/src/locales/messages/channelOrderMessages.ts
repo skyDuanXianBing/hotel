@@ -226,6 +226,7 @@ export const channelOrderMessages = {
         manage: 'Manage',
         disconnect: 'Disconnect',
         empty: 'No data',
+        localPmsOnly: 'Showing PMS local data only. Real channel hotel filtering is not connected yet.',
         statuses: {
           all: 'All',
           connected: 'Connected',
@@ -245,12 +246,29 @@ export const channelOrderMessages = {
         selectHotel: 'Select Hotel',
         date: 'Date',
         empty: 'No data',
+        localPmsOnly: 'This calendar is PMS local data. Real channel calendar filtering is not connected yet.',
       },
       roomSettings: {
         selectDate: 'Select Date',
         airbnbRoomType: 'Airbnb Room Type',
         pmsRoomType: 'PMS Room Type',
         empty: 'No data',
+      },
+      managementData: {
+        rateModePms: 'PMS managed rate',
+        statusActive: 'Active',
+        statusInactive: 'Inactive',
+        accountSuffix: 'channel account',
+        standardRate: 'Standard Rate',
+        localPmsData: 'PMS local data',
+        unmappedChannelRoom: 'Channel room {id}',
+        calendarRows: {
+          inventory: 'Inventory',
+          price: 'Rate',
+          minStay: 'Minimum stay',
+          maxStay: 'Maximum stay',
+          closeRoom: 'Closed',
+        },
       },
       dialogs: {
         common: {
@@ -390,13 +408,18 @@ export const channelOrderMessages = {
           'The production channel management page has not configured Airbnb OAuth authorization yet. It will not open placeholder authorization URLs, fake authorization success, or write simulated accounts. Use the standalone channel-simulator for full-flow verification.',
         channelAuthNotice:
           'The production channel management page will not run simulated authorization or write simulated hotels. Use the standalone channel-simulator for full-flow verification.',
+        channelWriteNotReady:
+          'This write operation is not connected to a real channel API yet. Use the standalone channel-simulator for simulated flows.',
         widgetConnected: '{name} connected successfully.',
         widgetError: 'Widget connection error:',
         refreshNotReady: 'The real channel refresh API is not connected yet. Use the standalone channel-simulator for simulated flows.',
+        refreshSuccess: 'Channel data refreshed',
         importNotReady: 'The real order import API is not connected yet. Use the standalone channel-simulator for simulated flows.',
         calendarSyncNotReady: 'The real calendar sync API is not connected yet. Use the standalone channel-simulator for simulated flows.',
+        calendarSyncSuccess: 'Calendar data refreshed',
         fullRefreshNotReady: 'The real full refresh API is not connected yet. Use the standalone channel-simulator for simulated flows.',
         loadOtaFailed: 'Failed to load OTA direct channels',
+        loadManagementDataFailed: 'Failed to load channel management data',
       },
       categories: {
         domesticOta: 'Domestic OTA',
@@ -632,6 +655,7 @@ export const channelOrderMessages = {
         manage: '管理',
         disconnect: '断开连接',
         empty: '无数据',
+        localPmsOnly: '仅展示 PMS 本地数据，真实渠道酒店筛选尚未接入。',
         statuses: {
           all: '全部',
           connected: '已连接',
@@ -651,12 +675,29 @@ export const channelOrderMessages = {
         selectHotel: '选择酒店',
         date: '日期',
         empty: '无数据',
+        localPmsOnly: '当前日历为 PMS 本地数据，真实渠道日历筛选尚未接入。',
       },
       roomSettings: {
         selectDate: '选择日期',
-        airbnbRoomType: 'Airbnb Room Type',
+        airbnbRoomType: 'Airbnb房型',
         pmsRoomType: 'PMS房型',
         empty: '无数据',
+      },
+      managementData: {
+        rateModePms: 'PMS托管价格',
+        statusActive: '已启用',
+        statusInactive: '未启用',
+        accountSuffix: '渠道账号',
+        standardRate: '标准价格',
+        localPmsData: 'PMS本地数据',
+        unmappedChannelRoom: '渠道房型 {id}',
+        calendarRows: {
+          inventory: '房量',
+          price: '价格',
+          minStay: '最小入住天数',
+          maxStay: '最大入住天数',
+          closeRoom: '关房',
+        },
       },
       dialogs: {
         common: {
@@ -784,13 +825,17 @@ export const channelOrderMessages = {
           '当前生产渠道管理页尚未配置 Airbnb 账号 OAuth 授权入口，因此不会跳转占位授权地址，也不会伪造授权成功或写入模拟账号。需要验证完整链路时，请在独立 channel-simulator 中执行全流程模拟。',
         channelAuthNotice:
           '当前生产渠道管理页不会执行模拟授权，也不会向真实酒店列表写入模拟酒店。需要验证完整链路时，请在独立 channel-simulator 中执行全流程模拟。',
+        channelWriteNotReady: '该写操作尚未接入真实渠道接口；模拟流程请在独立 channel-simulator 中验证。',
         widgetConnected: '{name}连接成功！',
         widgetError: 'Widget连接错误:',
         refreshNotReady: '真实渠道刷新接口尚未接入；模拟流程请在独立 channel-simulator 中验证。',
+        refreshSuccess: '渠道数据已刷新',
         importNotReady: '真实订单导入接口尚未接入；模拟流程请在独立 channel-simulator 中验证。',
         calendarSyncNotReady: '真实日历同步接口尚未接入；模拟流程请在独立 channel-simulator 中验证。',
+        calendarSyncSuccess: '日历数据已刷新',
         fullRefreshNotReady: '真实全量刷新接口尚未接入；模拟流程请在独立 channel-simulator 中验证。',
         loadOtaFailed: '加载OTA直连渠道数据失败',
+        loadManagementDataFailed: '加载渠道管理数据失败',
       },
       categories: {
         domesticOta: '国内OTA',
@@ -1026,6 +1071,7 @@ export const channelOrderMessages = {
         manage: '管理',
         disconnect: '斷開連接',
         empty: '無資料',
+        localPmsOnly: '僅展示 PMS 本地資料，真實渠道酒店篩選尚未接入。',
         statuses: {
           all: '全部',
           connected: '已連接',
@@ -1045,12 +1091,29 @@ export const channelOrderMessages = {
         selectHotel: '選擇酒店',
         date: '日期',
         empty: '無資料',
+        localPmsOnly: '目前日曆為 PMS 本地資料，真實渠道日曆篩選尚未接入。',
       },
       roomSettings: {
         selectDate: '選擇日期',
-        airbnbRoomType: 'Airbnb Room Type',
+        airbnbRoomType: 'Airbnb房型',
         pmsRoomType: 'PMS房型',
         empty: '無資料',
+      },
+      managementData: {
+        rateModePms: 'PMS託管價格',
+        statusActive: '已啟用',
+        statusInactive: '未啟用',
+        accountSuffix: '渠道帳號',
+        standardRate: '標準價格',
+        localPmsData: 'PMS本地資料',
+        unmappedChannelRoom: '渠道房型 {id}',
+        calendarRows: {
+          inventory: '房量',
+          price: '價格',
+          minStay: '最小入住天數',
+          maxStay: '最大入住天數',
+          closeRoom: '關房',
+        },
       },
       dialogs: {
         common: {
@@ -1177,13 +1240,17 @@ export const channelOrderMessages = {
           '目前生產渠道管理頁尚未配置 Airbnb 帳號 OAuth 授權入口，因此不會跳轉占位授權地址，也不會偽造授權成功或寫入模擬帳號。需要驗證完整鏈路時，請在獨立 channel-simulator 中執行全流程模擬。',
         channelAuthNotice:
           '目前生產渠道管理頁不會執行模擬授權，也不會向真實酒店列表寫入模擬酒店。需要驗證完整鏈路時，請在獨立 channel-simulator 中執行全流程模擬。',
+        channelWriteNotReady: '此寫入操作尚未接入真實渠道接口；模擬流程請在獨立 channel-simulator 中驗證。',
         widgetConnected: '{name}連接成功！',
         widgetError: 'Widget連接錯誤:',
         refreshNotReady: '真實渠道重新整理接口尚未接入；模擬流程請在獨立 channel-simulator 中驗證。',
+        refreshSuccess: '渠道資料已重新整理',
         importNotReady: '真實訂單匯入接口尚未接入；模擬流程請在獨立 channel-simulator 中驗證。',
         calendarSyncNotReady: '真實日曆同步接口尚未接入；模擬流程請在獨立 channel-simulator 中驗證。',
+        calendarSyncSuccess: '日曆資料已重新整理',
         fullRefreshNotReady: '真實全量重新整理接口尚未接入；模擬流程請在獨立 channel-simulator 中驗證。',
         loadOtaFailed: '載入OTA直連渠道資料失敗',
+        loadManagementDataFailed: '載入渠道管理資料失敗',
       },
       categories: {
         domesticOta: '國內OTA',
@@ -1355,7 +1422,7 @@ export const channelOrderMessages = {
         supportedTitle: '対応主要チャネル',
       },
       settings: {
-        directSettings: '直連設定',
+        directSettings: '直接接続設定',
         channelSettings: '{name}チャネル設定',
         description:
           'チャネル接続は在庫と料金を管理するための重要な設定です。接続とマッピングが完了すると、THE HOST HUB はチャネル注文を取得し、PMSで在庫を制御できます。詳細はヘルプセンターをご確認ください。',
@@ -1419,6 +1486,7 @@ export const channelOrderMessages = {
         manage: '管理',
         disconnect: '接続解除',
         empty: 'データなし',
+        localPmsOnly: 'PMSローカルデータのみ表示しています。実際のチャネルホテル絞り込みは未接続です。',
         statuses: {
           all: 'すべて',
           connected: '接続済み',
@@ -1438,12 +1506,30 @@ export const channelOrderMessages = {
         selectHotel: 'ホテルを選択',
         date: '日付',
         empty: 'データなし',
+        localPmsOnly:
+          'このカレンダーはPMSローカルデータです。実際のチャネルカレンダー絞り込みは未接続です。',
       },
       roomSettings: {
         selectDate: '日付を選択',
-        airbnbRoomType: 'Airbnb Room Type',
+        airbnbRoomType: 'Airbnb客室タイプ',
         pmsRoomType: 'PMS客室タイプ',
         empty: 'データなし',
+      },
+      managementData: {
+        rateModePms: 'PMS管理料金',
+        statusActive: '有効',
+        statusInactive: '無効',
+        accountSuffix: 'チャネルアカウント',
+        standardRate: '標準料金',
+        localPmsData: 'PMSローカルデータ',
+        unmappedChannelRoom: 'チャネル客室タイプ {id}',
+        calendarRows: {
+          inventory: '在庫',
+          price: '料金',
+          minStay: '最小宿泊数',
+          maxStay: '最大宿泊数',
+          closeRoom: '販売停止',
+        },
       },
       dialogs: {
         common: {
@@ -1455,15 +1541,15 @@ export const channelOrderMessages = {
           disconnectConfirm: '解除する',
         },
         addAccount: {
-          title: 'Airbnb 直連',
+          title: 'Airbnb 直接接続',
           descriptionPrefix: '',
           descriptionLink: '関連内容',
           descriptionSuffix: 'をクリックして詳細を確認してください。注意：所有者アカウントのみ認証できます。',
-          agreementTitle: 'Airbnb 直連',
+          agreementTitle: 'Airbnb 直接接続',
           paragraph1:
-            'Airbnb直連サービスは、THE HOST HUB と Airbnb システムを接続し、リスティング、料金、空室状況、注文をPMSで管理できるようにする機能です。',
+            'Airbnb直接接続サービスは、THE HOST HUB と Airbnb システムを接続し、リスティング、料金、空室状況、注文をPMSで管理できるようにする機能です。',
           paragraph2:
-            'Airbnb直連サービスを有効にする前に、免責、責任制限、紛争解決、適用法に関する条項を含む利用通知を確認してください。',
+            'Airbnb直接接続サービスを有効にする前に、免責、責任制限、紛争解決、適用法に関する条項を含む利用通知を確認してください。',
           featureTitle: '1 機能紹介',
           feature1: '1.1 接続後、THE HOST HUB PMS で Airbnb の料金、在庫、客室状況、注文を管理できます。',
           feature2: '1.2 1つの THE HOST HUB アカウントで複数の Airbnb アカウントを接続できます。認証前に正しいアカウントであることを確認してください。',
@@ -1474,13 +1560,13 @@ export const channelOrderMessages = {
           title: '{name}と接続',
           fallbackChannel: 'このチャネル',
           headerDescription:
-            '{name}直連を開始する前に、チャネルアカウント、ホテル情報、認証条件の確認が必要です。続行すると接続説明を理解したものとみなされます。',
+            '{name}の直接接続を開始する前に、チャネルアカウント、ホテル情報、認証条件の確認が必要です。続行すると接続説明を理解したものとみなされます。',
           registrationNotice: '注意：{name}の加盟店アカウントがない場合は、先に{name}で登録とホテル情報の設定を完了してください。',
-          agreementTitle: '{name}直連接続説明',
+          agreementTitle: '{name}直接接続説明',
           serviceDescription:
-            '{name}直連サービスは、チャネル承認とアカウント認証後に THE HOST HUB と{name}を接続し、ホテル、客室、料金、在庫、注文を同期する機能です。',
+            '{name}直接接続サービスは、チャネル承認とアカウント認証後に THE HOST HUB と{name}を接続し、ホテル、客室、料金、在庫、注文を同期する機能です。',
           enableNotice:
-            '{name}直連を有効にする前に、対象チャネルアカウントとホテルリソースを管理する権限があることを確認してください。',
+            '{name}直接接続を有効にする前に、対象チャネルアカウントとホテルリソースを管理する権限があることを確認してください。',
           functionScopeTitle: '1 機能範囲',
           functionScope:
             '実際の認証と情報照合が完了すると、チャネル対応範囲に応じてホテル、客室タイプ、料金プラン、在庫、料金、注文を同期できます。',
@@ -1529,10 +1615,10 @@ export const channelOrderMessages = {
           createdAt: '作成日時',
         },
         connectNotice: {
-          title: '{name}直連通知',
-          description: '{name}アカウントを認証すると直連を開始できます。続行すると通知を読み同意したものとみなされます。',
-          noticeTitle: '{name}直連通知',
-          paragraph1: '{name}直連は THE HOST HUB と{name}システムを直接接続し、運用作業を減らして効率を高める機能です。',
+          title: '{name}直接接続通知',
+          description: '{name}アカウントを認証すると直接接続を開始できます。続行すると通知を読み同意したものとみなされます。',
+          noticeTitle: '{name}直接接続通知',
+          paragraph1: '{name}直接接続は THE HOST HUB と{name}システムを接続し、運用作業を減らして効率を高める機能です。',
           paragraph2: 'サービスを有効にする前に本通知を確認してください。内容に同意できない場合は利用を停止してください。',
           featureTitle: '1 機能紹介',
           feature1: '1.1 接続後、THE HOST HUB PMS でチャネル料金、客室状況、チャネル注文を管理できます。',
@@ -1569,13 +1655,18 @@ export const channelOrderMessages = {
           '本番チャネル管理ページには Airbnb OAuth 認証入口が未設定です。仮の認証URLへ遷移したり、認証成功を偽装したり、模擬アカウントを書き込んだりしません。全フロー検証は standalone channel-simulator を使用してください。',
         channelAuthNotice:
           '本番チャネル管理ページでは模擬認証を実行せず、実際のホテル一覧へ模擬ホテルを書き込みません。全フロー検証は standalone channel-simulator を使用してください。',
+        channelWriteNotReady:
+          'この書き込み操作は実際のチャネルAPIに未接続です。模擬フローは standalone channel-simulator で確認してください。',
         widgetConnected: '{name}に接続しました。',
         widgetError: 'Widget接続エラー:',
         refreshNotReady: '実際のチャネル更新APIは未接続です。模擬フローは standalone channel-simulator で確認してください。',
+        refreshSuccess: 'チャネルデータを更新しました',
         importNotReady: '実際の注文取り込みAPIは未接続です。模擬フローは standalone channel-simulator で確認してください。',
         calendarSyncNotReady: '実際のカレンダー同期APIは未接続です。模擬フローは standalone channel-simulator で確認してください。',
+        calendarSyncSuccess: 'カレンダーデータを更新しました',
         fullRefreshNotReady: '実際の全量更新APIは未接続です。模擬フローは standalone channel-simulator で確認してください。',
-        loadOtaFailed: 'OTA直連チャネルデータの読み込みに失敗しました',
+        loadOtaFailed: 'OTA直接接続チャネルデータの読み込みに失敗しました',
+        loadManagementDataFailed: 'チャネル管理データの読み込みに失敗しました',
       },
       categories: {
         domesticOta: '国内OTA',
