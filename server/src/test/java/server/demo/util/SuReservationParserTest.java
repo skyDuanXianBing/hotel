@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -120,14 +121,48 @@ class SuReservationParserTest {
         JsonNode reservation = SuReservationParser.extractReservationNodes(root).get(0);
         JsonNode roomStay = SuReservationParser.extractRoomStays(reservation).get(0);
 
-        assertEquals(LocalDate.of(2026, 1, 30), SuReservationParser.extractBookedAt(reservation));
-        assertEquals(LocalDate.of(2026, 1, 30), SuReservationParser.extractModifiedAt(reservation));
+        assertEquals(LocalDateTime.of(2026, 1, 30, 0, 0), SuReservationParser.extractBookedAt(reservation));
+        assertEquals(LocalDateTime.of(2026, 1, 30, 0, 0), SuReservationParser.extractModifiedAt(reservation));
         assertEquals("JPY", SuReservationParser.extractCurrencyCode(reservation));
         assertEquals("Hotel Collect", SuReservationParser.extractPaymentType(reservation));
         assertEquals(new BigDecimal("0.19"), SuReservationParser.extractCommissionAmount(reservation));
 
         assertEquals("Approximate time of arrival: between 17:00 and 18:00", SuReservationParser.extractCustomerRemarks(reservation));
         assertEquals("No Smoking", SuReservationParser.extractRoomSpecialRequest(roomStay));
+    }
+
+    @Test
+    void extractBookedAtAndModifiedAt_preserveSuDateTimePrecision() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "booked_at": "2026-01-30 14:35:11",
+                    "modified_at": "2026-01-31 08:09:10"
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+
+        assertEquals(LocalDateTime.of(2026, 1, 30, 14, 35, 11), SuReservationParser.extractBookedAt(reservation));
+        assertEquals(LocalDateTime.of(2026, 1, 31, 8, 9, 10), SuReservationParser.extractModifiedAt(reservation));
+    }
+
+    @Test
+    void extractBookedAtAndModifiedAt_keepDateOnlyAndInvalidCompatibility() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "booked_at": "2026-01-30",
+                    "modified_at": "0000-00-00"
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+
+        assertEquals(LocalDateTime.of(2026, 1, 30, 0, 0), SuReservationParser.extractBookedAt(reservation));
+        assertNull(SuReservationParser.extractModifiedAt(reservation));
     }
 
     @Test

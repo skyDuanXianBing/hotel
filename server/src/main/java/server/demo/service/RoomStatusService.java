@@ -16,6 +16,7 @@ import server.demo.dto.UpsertRoomBlockoutRequest;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomBlockout;
+import server.demo.entity.Store;
 import server.demo.exception.PermissionDeniedException;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
@@ -25,10 +26,15 @@ import server.demo.enums.RoomStatus;
 import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.util.StoreContextUtils;
+import server.demo.util.StoreTimeZoneUtil;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -56,6 +62,12 @@ public class RoomStatusService {
     private RoomRepository roomRepository;
 
     @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private Clock clock;
+
+    @Autowired
     private ReservationRepository reservationRepository;
 
     @Autowired
@@ -79,6 +91,27 @@ public class RoomStatusService {
 
     private Long currentUserId() {
         return StoreContextUtils.requireUserId();
+    }
+
+    private LocalDate storeToday(Long storeId) {
+        ZoneId zoneId = resolveStoreZoneId(storeId);
+        return LocalDate.now(effectiveClock().withZone(zoneId));
+    }
+
+    private BusinessDayWindow storeDayWindow(Long storeId, LocalDate businessDate) {
+        ZoneId zoneId = resolveStoreZoneId(storeId);
+        LocalDateTime start = StoreTimeZoneUtil.toUtcLocalDateTime(businessDate, LocalTime.MIDNIGHT, zoneId);
+        LocalDateTime end = StoreTimeZoneUtil.toUtcLocalDateTime(businessDate.plusDays(1), LocalTime.MIDNIGHT, zoneId);
+        return new BusinessDayWindow(start, end);
+    }
+
+    private ZoneId resolveStoreZoneId(Long storeId) {
+        Store store = storeId == null || storeRepository == null ? null : storeRepository.findById(storeId).orElse(null);
+        return StoreTimeZoneUtil.resolveZoneId(store);
+    }
+
+    private Clock effectiveClock() {
+        return clock != null ? clock : Clock.systemUTC();
     }
 
     public RoomStatusCalendarDTO getRoomStatusCalendar(LocalDate startDate, LocalDate endDate) {
@@ -150,7 +183,7 @@ public class RoomStatusService {
             List<DailyRoomStatusDTO> dailyStatusList = new ArrayList<>();
             LocalDate currentDate = startDate;
             while (!currentDate.isAfter(endDate)) {
-                RoomStatus status = determineRoomStatus(room, currentDate, primaryReservationByKey);
+                RoomStatus status = determineRoomStatus(storeId, room, currentDate, primaryReservationByKey);
                 DailyRoomStatusDTO.ReservationInfoDTO reservationInfo = getReservationInfo(room, currentDate, primaryReservationByKey);
 
                 RoomBlockout blockout = room != null && room.getId() != null
@@ -427,7 +460,7 @@ public class RoomStatusService {
             throw new RuntimeException("该日期已有预订，无法修改为该状态");
         }
 
-        if (isDateToday(date)) {
+        if (isDateToday(storeId, date)) {
             room.setStatus(newStatus);
             roomRepository.save(room);
             if (suAriAutoSyncService != null) {
@@ -472,15 +505,14 @@ public class RoomStatusService {
     }
 
     public RoomStatusStatisticsDTO getRoomStatusStatisticsForStore(Long storeId, LocalDate date) {
-        LocalDate targetDate = date != null ? date : LocalDate.now();
+        LocalDate targetDate = date != null ? date : storeToday(storeId);
         List<Room> storeRooms = roomRepository.findByStoreId(storeId);
         List<Long> roomIds = storeRooms.stream().map(Room::getId).collect(Collectors.toList());
 
         long todayArrivals = reservationRepository.countTodayArrivalsByStoreId(storeId, targetDate);
         long todayDepartures = reservationRepository.countByStoreIdAndCheckOutDate(storeId, targetDate);
-        LocalDateTime startOfDay = targetDate.atStartOfDay();
-        LocalDateTime endOfDay = targetDate.plusDays(1).atStartOfDay();
-        long todayNewOrders = reservationRepository.countTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
+        BusinessDayWindow targetWindow = storeDayWindow(storeId, targetDate);
+        long todayNewOrders = reservationRepository.countTodayNewOrdersByStoreId(storeId, targetWindow.start(), targetWindow.end());
         long availableRooms = roomRepository.countAvailableRoomsForDateByStore(storeId, targetDate);
         long unassignedOrders = reservationRepository.countUnassignedOrUnmappedByStoreId(storeId, targetDate);
         long pendingOrders = reservationRepository.countPendingOrdersByStoreId(storeId);
@@ -549,7 +581,7 @@ public class RoomStatusService {
         return primaryReservationByKey;
     }
 
-    private RoomStatus determineRoomStatus(Room room, LocalDate date, Map<String, Reservation> primaryReservationByKey) {
+    private RoomStatus determineRoomStatus(Long storeId, Room room, LocalDate date, Map<String, Reservation> primaryReservationByKey) {
         Reservation reservation = room != null && room.getId() != null
                 ? primaryReservationByKey.get(blockoutKey(room.getId(), date))
                 : null;
@@ -565,7 +597,7 @@ public class RoomStatusService {
                 return RoomStatus.OCCUPIED;
             }
         }
-        if (isDateToday(date)) {
+        if (isDateToday(storeId, date)) {
             return room.getStatus();
         }
         return RoomStatus.AVAILABLE;
@@ -612,8 +644,8 @@ public class RoomStatusService {
         return 0;
     }
 
-    private boolean isDateToday(LocalDate date) {
-        return LocalDate.now().equals(date);
+    private boolean isDateToday(Long storeId, LocalDate date) {
+        return storeToday(storeId).equals(date);
     }
 
     private void requestPriceLabsCalendarSyncForRoomTypes(Long storeId, List<Room> rooms, LocalDate startDate, LocalDate endDate) {
@@ -690,5 +722,23 @@ public class RoomStatusService {
                 task.run();
             }
         });
+    }
+
+    private static class BusinessDayWindow {
+        private final LocalDateTime start;
+        private final LocalDateTime end;
+
+        private BusinessDayWindow(LocalDateTime start, LocalDateTime end) {
+            this.start = start;
+            this.end = end;
+        }
+
+        private LocalDateTime start() {
+            return start;
+        }
+
+        private LocalDateTime end() {
+            return end;
+        }
     }
 }

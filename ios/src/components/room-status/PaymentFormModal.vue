@@ -72,6 +72,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { ref, watch } from 'vue'
+import { getStoreTodayDate } from '@/utils/storeBusinessDate'
 
 export interface PaymentFormSubmitPayload {
   type: string
@@ -95,7 +96,7 @@ const form = ref<PaymentFormSubmitPayload>({
   type: '收款',
   paymentMethod: '微信',
   amount: 0,
-  date: new Date().toISOString().split('T')[0],
+  date: getStoreTodayDate(),
   remark: '',
 })
 
@@ -104,7 +105,7 @@ function resetForm() {
     type: '收款',
     paymentMethod: '微信',
     amount: 0,
-    date: new Date().toISOString().split('T')[0],
+    date: getStoreTodayDate(),
     remark: '',
   }
 }

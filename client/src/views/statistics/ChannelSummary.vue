@@ -122,30 +122,16 @@ import {
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import StatisticsLayout from './StatisticsLayout.vue'
+import { addDaysToYmd, getRecentStoreDateRange } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
 
-const formatDateValue = (date: Date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 const getDefaultDateRange = () => {
-  const end = new Date()
-  const start = new Date(end)
-  start.setDate(end.getDate() - 6)
-  return {
-    start: formatDateValue(start),
-    end: formatDateValue(end),
-  }
+  return getRecentStoreDateRange(7)
 }
 
-const getDateColumnProp = (date: Date) => {
-  const year = String(date.getFullYear())
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+const getDateColumnProp = (ymd: string) => {
+  const [year, month, day] = ymd.split('-')
   return `date_${year}${month}${day}`
 }
 
@@ -179,16 +165,17 @@ const channelDetails = computed(() => {
 // 动态生成日期列
 const dateColumns = computed(() => {
   const columns = []
-  const start = new Date(startDate.value)
-  const end = new Date(endDate.value)
+  let currentDate = startDate.value
 
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const month = (d.getMonth() + 1).toString()
-    const day = d.getDate().toString()
+  while (currentDate <= endDate.value) {
+    const [, monthText, dayText] = currentDate.split('-')
+    const month = String(Number(monthText))
+    const day = String(Number(dayText))
     columns.push({
-      prop: getDateColumnProp(d),
+      prop: getDateColumnProp(currentDate),
       label: t('stage5.common.date.monthDay', { month, day }),
     })
+    currentDate = addDaysToYmd(currentDate, 1)
   }
 
   return columns

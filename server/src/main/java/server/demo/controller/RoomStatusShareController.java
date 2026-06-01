@@ -8,11 +8,16 @@ import server.demo.dto.RoomStatusShareResponse;
 import server.demo.dto.RoomStatusCalendarDTO;
 import server.demo.dto.RoomStatusStatisticsDTO;
 import server.demo.entity.RoomStatusShare;
+import server.demo.entity.Store;
+import server.demo.repository.StoreRepository;
 import server.demo.service.RoomStatusShareService;
 import server.demo.service.RoomStatusService;
+import server.demo.util.StoreTimeZoneUtil;
 
 import jakarta.validation.Valid;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @RestController
@@ -24,6 +29,12 @@ public class RoomStatusShareController {
 
     @Autowired
     private RoomStatusService roomStatusService;
+
+    @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private Clock clock;
 
     /**
      * 获取分享列表
@@ -107,15 +118,6 @@ public class RoomStatusShareController {
             // 验证分享链接有效性
             RoomStatusShare share = roomStatusShareService.getShareByToken(shareToken);
 
-            // 设置默认日期范围（从今天开始7天）
-            if (startDate == null) {
-                startDate = LocalDate.now();
-            }
-            if (endDate == null) {
-                endDate = startDate.plusDays(6);
-            }
-
-            // 获取房态数据 - 使用分享链接关联的用户ID
             Long userId = share.getUserId();
             if (userId == null) {
                 return ApiResponse.error("无法获取分享用户信息");
@@ -124,6 +126,16 @@ public class RoomStatusShareController {
             if (storeId == null) {
                 return ApiResponse.error("无法获取分享门店信息");
             }
+
+            // 设置默认日期范围（从分享门店今天开始7天）
+            if (startDate == null) {
+                startDate = storeToday(storeId);
+            }
+            if (endDate == null) {
+                endDate = startDate.plusDays(6);
+            }
+
+            // 获取房态数据 - 使用分享链接关联的用户ID
             RoomStatusCalendarDTO roomStatusData = roomStatusService.getRoomStatusCalendarForStore(storeId, startDate, endDate);
             
             // 根据分享配置过滤房间数据
@@ -147,15 +159,15 @@ public class RoomStatusShareController {
             // 验证分享链接有效性
             RoomStatusShare share = roomStatusShareService.getShareByToken(shareToken);
 
-            // 设置默认日期为今天
-            if (date == null) {
-                date = LocalDate.now();
-            }
-
             // 获取分享用户的ID
             Long storeId = share.getStoreId();
             if (storeId == null) {
                 return ApiResponse.error("无法获取分享门店信息");
+            }
+
+            // 设置默认日期为分享门店今天
+            if (date == null) {
+                date = storeToday(storeId);
             }
 
             RoomStatusStatisticsDTO statistics = roomStatusService.getRoomStatusStatisticsForStore(storeId, date);
@@ -164,5 +176,19 @@ public class RoomStatusShareController {
         } catch (Exception e) {
             return ApiResponse.error("获取统计数据失败: " + e.getMessage());
         }
+    }
+
+    private LocalDate storeToday(Long storeId) {
+        ZoneId zoneId = resolveStoreZoneId(storeId);
+        return LocalDate.now(effectiveClock().withZone(zoneId));
+    }
+
+    private ZoneId resolveStoreZoneId(Long storeId) {
+        Store store = storeId == null || storeRepository == null ? null : storeRepository.findById(storeId).orElse(null);
+        return StoreTimeZoneUtil.resolveZoneId(store);
+    }
+
+    private Clock effectiveClock() {
+        return clock != null ? clock : Clock.systemUTC();
     }
 }

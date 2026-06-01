@@ -431,7 +431,9 @@
 
           <el-table-column prop="createdAt" :label="t('order.table.createdAt')" width="180">
             <template #default="scope">
-              <span>{{ formatDateTime(scope.row.createdAt) }}</span>
+              <span>{{
+                formatDateTime(scope.row.createdAt, scope.row.reservationTimestampStorageZone)
+              }}</span>
             </template>
           </el-table-column>
 
@@ -585,9 +587,13 @@ import {
   getOrderBoxList,
   type OrderBoxItem,
 } from '@/api/orderBox'
+import { useStoreStore } from '@/stores/store'
+import { formatReservationTimestamp, getStoreTodayYmd, resolveStoreTimeZone } from '@/utils/storeDateTime'
 
 const route = useRoute()
 const { t } = useI18n()
+const storeStore = useStoreStore()
+const currentStoreTimeZone = computed(() => resolveStoreTimeZone(storeStore.currentStore?.timezone))
 
 // Sidebar collapsed state
 const isCollapsed = ref(false)
@@ -772,9 +778,7 @@ const loadFilterOptions = async () => {
 
 // 工具函数：判断是否为今天
 const isToday = (dateStr: string) => {
-  const date = new Date(dateStr)
-  const today = new Date()
-  return date.toDateString() === today.toDateString()
+  return dateStr === getStoreTodayYmd(currentStoreTimeZone.value)
 }
 
 // 筛选由后端处理，这里直接返回数据
@@ -1011,10 +1015,9 @@ const getSettlementSelectValue = (order: ReservationDTO) => {
   return isOrderSettled(order) ? 'paid' : 'unpaid'
 }
 
-const formatDateTime = (dateStr: string) => {
+const formatDateTime = (dateStr: string, sourceTimeZone?: string) => {
   if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
+  return formatReservationTimestamp(dateStr, sourceTimeZone, currentStoreTimeZone.value, true)
 }
 
 const getChannelDisplayName = (value?: string) => {

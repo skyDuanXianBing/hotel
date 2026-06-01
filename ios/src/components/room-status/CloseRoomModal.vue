@@ -64,6 +64,7 @@ import {
 } from '@ionic/vue'
 import { computed, ref, watch } from 'vue'
 import type { RoomStatusRoomItem } from '@/stores/roomStatus'
+import { getStoreTodayDate } from '@/utils/storeBusinessDate'
 
 export interface CloseRoomSubmitPayload {
   startDate: string
@@ -98,9 +99,11 @@ const roomLabel = computed(() => {
 })
 
 function resetForm() {
+  const fallbackDate = getStoreTodayDate()
+  const focusedDate = props.room?.focusedDate || fallbackDate
   form.value = {
-    startDate: props.room?.focusedDate || new Date().toISOString().split('T')[0],
-    endDate: props.room?.focusedDate || new Date().toISOString().split('T')[0],
+    startDate: focusedDate,
+    endDate: focusedDate,
     type: 'stop',
     remark: props.room?.closeRemark || '',
   }

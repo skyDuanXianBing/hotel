@@ -33,7 +33,7 @@ const currentStore = computed(() => storeStore.currentStore)
 
 const loadStores = async () => {
   try {
-    stores.value = await storeStore.fetchUserStores()
+    stores.value = await storeStore.fetchUserStores(true)
   } catch (error) {
     console.error('Failed to load store list', error)
   }

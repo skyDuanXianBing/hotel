@@ -11,17 +11,22 @@ import server.demo.dto.CleaningTaskUpdateDTO;
 import server.demo.entity.Cleaner;
 import server.demo.entity.CleaningTask;
 import server.demo.entity.Room;
+import server.demo.entity.Store;
 import server.demo.entity.User;
 import server.demo.repository.CleanerRepository;
 import server.demo.repository.CleaningTaskRepository;
 import server.demo.repository.RoomRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
 import server.demo.service.CleaningTaskAutoService;
 import server.demo.service.CleanerIdentityService;
 import server.demo.service.CleaningTaskService;
+import server.demo.util.StoreTimeZoneUtil;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -42,6 +47,12 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private Clock clock;
 
     @Autowired
     private CleaningTaskAutoService cleaningTaskAutoService;
@@ -153,7 +164,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     ) {
         // 获取当前门店ID
         Long storeId = getCurrentStoreId();
-        cleaningTaskAutoService.markExpiredTasks(storeId, LocalDate.now());
+        cleaningTaskAutoService.markExpiredTasks(storeId, storeToday(storeId));
 
         Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
         Long effectiveCleanerId = cleanerId;
@@ -190,7 +201,7 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     ) {
         // 获取当前门店ID
         Long storeId = getCurrentStoreId();
-        cleaningTaskAutoService.markExpiredTasks(storeId, LocalDate.now());
+        cleaningTaskAutoService.markExpiredTasks(storeId, storeToday(storeId));
         Optional<Cleaner> currentCleaner = findCurrentCleaner(userId);
         Long effectiveCleanerId = cleanerId;
         if (currentCleaner.isPresent()) {
@@ -384,6 +395,20 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
     private Optional<Cleaner> findCurrentCleaner(Long userId) {
         Long storeId = getCurrentStoreId();
         return cleanerIdentityService.findCleanerByUserIdAndStoreId(userId, storeId);
+    }
+
+    private LocalDate storeToday(Long storeId) {
+        ZoneId zoneId = resolveStoreZoneId(storeId);
+        return LocalDate.now(effectiveClock().withZone(zoneId));
+    }
+
+    private ZoneId resolveStoreZoneId(Long storeId) {
+        Store store = storeId == null || storeRepository == null ? null : storeRepository.findById(storeId).orElse(null);
+        return StoreTimeZoneUtil.resolveZoneId(store);
+    }
+
+    private Clock effectiveClock() {
+        return clock != null ? clock : Clock.systemUTC();
     }
 
     private void ensureCleanerOwnsTask(CleaningTask task, Cleaner cleaner) {

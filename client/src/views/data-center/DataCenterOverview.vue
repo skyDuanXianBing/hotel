@@ -454,6 +454,14 @@ import {
   type ChannelSummaryDTO,
   type SalesSummaryDTO
 } from '@/api/statistics'
+import {
+  addDaysToYmd,
+  formatYmdMonthDay,
+  getStoreTodayYmd,
+  getYmdMonthStart,
+  getYmdWeekStart,
+  parseYmdAsUtcDate,
+} from '@/utils/storeDateTime'
 
 const { t, locale } = useI18n()
 
@@ -547,8 +555,9 @@ type DynamicAmountRow = Record<string, string | number>
 
 const activeTab = ref('business')
 const dateType = ref('today')
-const startDate = ref('2025-11-14')
-const endDate = ref('2025-11-14')
+const todayYmd = getStoreTodayYmd()
+const startDate = ref(todayYmd)
+const endDate = ref(todayYmd)
 const loading = ref(false)
 
 const dateRangeLabel = computed(() =>
@@ -557,19 +566,12 @@ const dateRangeLabel = computed(() =>
 
 const normalizeLabel = (value: string) => value.trim().replace(/\s+/g, '').toLowerCase()
 
-const formatDateValue = (date: Date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 const parseDateValue = (value: string) => {
   const parts = value.split('-').map(Number)
   if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
     return null
   }
-  return new Date(parts[0], parts[1] - 1, parts[2])
+  return parseYmdAsUtcDate(value)
 }
 
 const getDateColumnProp = (date: string) => `date_${date.replace(/-/g, '')}`
@@ -584,15 +586,14 @@ const dateColumns = computed<DateColumn[]>(() => {
   const columns: DateColumn[] = []
   const current = new Date(start)
   while (current.getTime() <= end.getTime()) {
-    const date = formatDateValue(current)
-    const month = String(current.getMonth() + 1)
-    const day = String(current.getDate())
+    const date = current.toISOString().slice(0, 10)
+    const { month, day } = formatYmdMonthDay(date)
     columns.push({
       prop: getDateColumnProp(date),
-      label: t('stage5.common.date.monthDay', { month, day }),
+      label: t('stage5.common.date.monthDay', { month: Number(month), day: Number(day) }),
       date,
     })
-    current.setDate(current.getDate() + 1)
+    current.setUTCDate(current.getUTCDate() + 1)
   }
   return columns
 })
@@ -1861,35 +1862,25 @@ const handleResize = () => {
  * 根据日期类型更新日期范围
  */
 const updateDateRange = (type: string) => {
-  const today = new Date()
-  const formatDate = (date: Date) => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
+  const today = getStoreTodayYmd()
 
   switch (type) {
     case 'today':
-      startDate.value = formatDate(today)
-      endDate.value = formatDate(today)
+      startDate.value = today
+      endDate.value = today
       break
     case 'yesterday':
-      const yesterday = new Date(today)
-      yesterday.setDate(yesterday.getDate() - 1)
-      startDate.value = formatDate(yesterday)
-      endDate.value = formatDate(yesterday)
+      const yesterday = addDaysToYmd(today, -1)
+      startDate.value = yesterday
+      endDate.value = yesterday
       break
     case 'week':
-      const weekStart = new Date(today)
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-      startDate.value = formatDate(weekStart)
-      endDate.value = formatDate(today)
+      startDate.value = getYmdWeekStart(today)
+      endDate.value = today
       break
     case 'month':
-      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-      startDate.value = formatDate(monthStart)
-      endDate.value = formatDate(today)
+      startDate.value = getYmdMonthStart(today)
+      endDate.value = today
       break
   }
 }

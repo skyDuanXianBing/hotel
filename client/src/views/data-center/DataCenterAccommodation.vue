@@ -233,6 +233,7 @@ import {
   type OperationalMetricsDTO,
   type OperationalRoomDetailDTO,
 } from '@/api/statistics'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
 const dateType = ref('today')
@@ -240,11 +241,7 @@ const loading = ref(false)
 
 // 自动获取今天的日期
 const getTodayDate = () => {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return getStoreTodayYmd()
 }
 
 const startDate = ref(getTodayDate())
@@ -265,10 +262,11 @@ const currentDateLabel = computed(() => {
   const [year, month, day] = current.split('-').map(item => Number(item))
 
   if (!year || !month || !day) {
-    const today = new Date()
+    const today = getTodayDate()
+    const [, todayMonth, todayDay] = today.split('-').map(item => Number(item))
     return t('stage5.common.date.monthDay', {
-      month: today.getMonth() + 1,
-      day: today.getDate(),
+      month: todayMonth,
+      day: todayDay,
     })
   }
 

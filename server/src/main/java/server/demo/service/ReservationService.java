@@ -28,6 +28,7 @@ import server.demo.entity.Channel;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
+import server.demo.entity.Store;
 import server.demo.entity.User;
 import server.demo.enums.RoomStatus;
 import server.demo.enums.OperationType;
@@ -37,15 +38,19 @@ import server.demo.repository.OrderBoxRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
 import server.demo.util.ReservationSettlementRules;
 import server.demo.util.StoreContextUtils;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -70,7 +75,7 @@ public class ReservationService {
     private static final String SU_ARI_SOURCE_RESERVATION_CHECK_OUT = "reservation_check_out";
     private static final String SU_ARI_SOURCE_RESERVATION_CANCEL = "reservation_cancel";
     private static final String SU_ARI_SOURCE_RESERVATION_UPDATE = "reservation_update";
-    private static final LocalTime UNASSIGNED_CHECK_OUT_CUTOFF_TIME = LocalTime.of(10, 0);
+    private static final LocalTime UNASSIGNED_CHECK_OUT_CUTOFF_TIME = LocalTime.NOON;
 
     @Autowired
     private ReservationRepository reservationRepository;
@@ -89,6 +94,12 @@ public class ReservationService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private Clock clock;
 
     @Autowired
     private AutoMessageTriggerService autoMessageTriggerService;
@@ -117,6 +128,40 @@ public class ReservationService {
 
     private Long currentUserId() {
         return StoreContextUtils.requireUserId();
+    }
+
+    private LocalDate storeToday(Long storeId) {
+        ZoneId zoneId = resolveStoreZoneId(storeId);
+        return LocalDate.now(effectiveClock().withZone(zoneId));
+    }
+
+    private LocalTime storeLocalTime(Long storeId) {
+        ZoneId zoneId = resolveStoreZoneId(storeId);
+        return LocalTime.now(effectiveClock().withZone(zoneId));
+    }
+
+    private BusinessDayWindow storeDayWindow(Long storeId, LocalDate businessDate) {
+        ZoneId zoneId = resolveStoreZoneId(storeId);
+        LocalDateTime start = StoreTimeZoneUtil.toReservationTimestampStorageLocalDateTime(
+                businessDate,
+                LocalTime.MIDNIGHT,
+                zoneId
+        );
+        LocalDateTime end = StoreTimeZoneUtil.toReservationTimestampStorageLocalDateTime(
+                businessDate.plusDays(1),
+                LocalTime.MIDNIGHT,
+                zoneId
+        );
+        return new BusinessDayWindow(start, end);
+    }
+
+    private ZoneId resolveStoreZoneId(Long storeId) {
+        Store store = storeId == null || storeRepository == null ? null : storeRepository.findById(storeId).orElse(null);
+        return StoreTimeZoneUtil.resolveZoneId(store);
+    }
+
+    private Clock effectiveClock() {
+        return clock != null ? clock : Clock.systemUTC();
     }
 
     /**
@@ -687,8 +732,9 @@ public class ReservationService {
      * 获取今日入住的预订
      */
     public List<ReservationDTO> getTodayCheckIns() {
-        LocalDate today = LocalDate.now();
-        List<Reservation> reservations = reservationRepository.findByStoreIdAndCheckInDateBetween(currentStoreId(), today, today);
+        Long storeId = currentStoreId();
+        LocalDate today = storeToday(storeId);
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndCheckInDateBetween(storeId, today, today);
         return reservations.stream()
                 .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED)
                 .map(this::convertToDTO)
@@ -699,8 +745,9 @@ public class ReservationService {
      * 获取今日退房的预订
      */
     public List<ReservationDTO> getTodayCheckOuts() {
-        LocalDate today = LocalDate.now();
-        List<Reservation> reservations = reservationRepository.findByStoreIdAndCheckOutDateBetween(currentStoreId(), today, today);
+        Long storeId = currentStoreId();
+        LocalDate today = storeToday(storeId);
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndCheckOutDateBetween(storeId, today, today);
         return reservations.stream()
                 .filter(r -> r.getStatus() == ReservationStatus.CHECKED_IN)
                 .map(this::convertToDTO)
@@ -1010,7 +1057,9 @@ public class ReservationService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Long storeId = currentStoreId();
-        LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate();
+        LocalDate today = storeToday(storeId);
+        BusinessDayWindow todayWindow = storeDayWindow(storeId, today);
+        LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate(storeId);
 
         Specification<Reservation> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -1095,7 +1144,6 @@ public class ReservationService {
             
             // 订单类型过滤
             if (orderType != null && !orderType.trim().isEmpty()) {
-                LocalDate today = LocalDate.now();
                 switch (orderType) {
                     case "today-checkin":
                         predicates.add(criteriaBuilder.equal(root.get("checkInDate"), today));
@@ -1104,11 +1152,8 @@ public class ReservationService {
                         predicates.add(criteriaBuilder.equal(root.get("checkOutDate"), today));
                         break;
                     case "today-new":
-                        predicates.add(criteriaBuilder.between(
-                            root.get("createdAt"), 
-                            today.atStartOfDay(), 
-                            today.plusDays(1).atStartOfDay()
-                        ));
+                        predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), todayWindow.start()));
+                        predicates.add(criteriaBuilder.lessThan(root.get("createdAt"), todayWindow.end()));
                         break;
                     case "unassigned":
                         // 未排房/未映射统一按“未分配具体房间”处理
@@ -1154,13 +1199,12 @@ public class ReservationService {
      */
     public ReservationStatistics getReservationStatistics() {
         Long storeId = currentStoreId();
-        LocalDate today = LocalDate.now();
-        LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate();
+        LocalDate today = storeToday(storeId);
+        LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate(storeId);
         long todayCheckinCount = reservationRepository.countTodayArrivalsByStoreId(storeId, today);
         long todayCheckoutCount = reservationRepository.countByStoreIdAndCheckOutDate(storeId, today);
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
-        long todayNewCount = reservationRepository.countTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
+        BusinessDayWindow todayWindow = storeDayWindow(storeId, today);
+        long todayNewCount = reservationRepository.countTodayNewOrdersByStoreId(storeId, todayWindow.start(), todayWindow.end());
         long unassignedCount = reservationRepository.countUnassignedOrUnmappedByStoreId(storeId, unassignedMinCheckOutDate);
         long pendingCount = reservationRepository.countPendingOrdersByStoreId(storeId);
 
@@ -1178,9 +1222,11 @@ public class ReservationService {
      * 获取今日新增预订
      */
     public List<ReservationDTO> getTodayNewReservations() {
-        LocalDate today = LocalDate.now();
+        Long storeId = currentStoreId();
+        LocalDate today = storeToday(storeId);
+        BusinessDayWindow todayWindow = storeDayWindow(storeId, today);
         List<Reservation> reservations = reservationRepository.findByStoreIdAndCreatedAtBetween(
-                currentStoreId(), today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+                storeId, todayWindow.start(), todayWindow.end());
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -1190,9 +1236,10 @@ public class ReservationService {
      * 获取未排房预订
      */
     public List<ReservationDTO> getUnassignedReservations() {
-        LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate();
+        Long storeId = currentStoreId();
+        LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate(storeId);
         List<Reservation> reservations = reservationRepository.findUnassignedOrUnmappedByStoreId(
-            currentStoreId(),
+            storeId,
             unassignedMinCheckOutDate
         );
         return reservations.stream()
@@ -1200,11 +1247,11 @@ public class ReservationService {
                 .collect(Collectors.toList());
     }
 
-        private LocalDate resolveUnassignedMinCheckOutDate() {
-        LocalDate today = LocalDate.now();
-        LocalTime now = LocalTime.now();
+    private LocalDate resolveUnassignedMinCheckOutDate(Long storeId) {
+        LocalDate today = storeToday(storeId);
+        LocalTime now = storeLocalTime(storeId);
         return now.isBefore(UNASSIGNED_CHECK_OUT_CUTOFF_TIME) ? today : today.plusDays(1);
-        }
+    }
 
     /**
      * 获取待处理预订
@@ -1356,6 +1403,7 @@ public class ReservationService {
         
         dto.setCreatedAt(reservation.getCreatedAt());
         dto.setUpdatedAt(reservation.getUpdatedAt());
+        dto.setReservationTimestampStorageZone(StoreTimeZoneUtil.getReservationTimestampStorageZoneId().getId());
         return dto;
     }
 
@@ -1376,9 +1424,8 @@ public class ReservationService {
      */
     public List<ReservationDTO> getReservationsByType(String type) {
         Long storeId = currentStoreId();
-        LocalDate today = LocalDate.now();
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
+        LocalDate today = storeToday(storeId);
+        BusinessDayWindow todayWindow = storeDayWindow(storeId, today);
 
         List<Reservation> reservations;
         switch (type) {
@@ -1389,10 +1436,10 @@ public class ReservationService {
                 reservations = reservationRepository.findTodayDeparturesByStoreId(storeId, today);
                 break;
             case "today-new":
-                reservations = reservationRepository.findTodayNewOrdersByStoreId(storeId, startOfDay, endOfDay);
+                reservations = reservationRepository.findTodayNewOrdersByStoreId(storeId, todayWindow.start(), todayWindow.end());
                 break;
             case "unassigned":
-                reservations = reservationRepository.findUnassignedOrUnmappedByStoreId(storeId, resolveUnassignedMinCheckOutDate());
+                reservations = reservationRepository.findUnassignedOrUnmappedByStoreId(storeId, resolveUnassignedMinCheckOutDate(storeId));
                 break;
             case "assigned":
                 reservations = reservationRepository.findAssignedByStoreId(storeId);
@@ -1548,5 +1595,23 @@ public class ReservationService {
             return roomTypeName + "-" + roomNumber;
         }
         return !roomNumber.isBlank() ? roomNumber : roomTypeName;
+    }
+
+    private static class BusinessDayWindow {
+        private final LocalDateTime start;
+        private final LocalDateTime end;
+
+        private BusinessDayWindow(LocalDateTime start, LocalDateTime end) {
+            this.start = start;
+            this.end = end;
+        }
+
+        private LocalDateTime start() {
+            return start;
+        }
+
+        private LocalDateTime end() {
+            return end;
+        }
     }
 }

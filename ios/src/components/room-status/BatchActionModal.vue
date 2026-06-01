@@ -87,6 +87,7 @@ import {
 } from '@ionic/vue'
 import { computed, ref, watch } from 'vue'
 import type { BatchWeekMode } from '@/stores/roomStatus'
+import { getStoreTodayDate } from '@/utils/storeBusinessDate'
 
 export type BatchActionMode = 'dirty' | 'clean' | 'open' | 'close'
 
@@ -120,8 +121,8 @@ const emit = defineEmits<{
 const searchKeyword = ref('')
 const selectedRoomIds = ref<number[]>([])
 const form = ref({
-  startDate: new Date().toISOString().split('T')[0],
-  endDate: new Date().toISOString().split('T')[0],
+  startDate: getStoreTodayDate(),
+  endDate: getStoreTodayDate(),
   weekMode: 'all' as BatchWeekMode,
   type: 'stop' as 'stop' | 'maintenance' | 'retain',
   remark: '',
@@ -161,11 +162,12 @@ const toggleAllText = computed(() => {
 })
 
 function resetForm() {
+  const today = getStoreTodayDate()
   searchKeyword.value = ''
   selectedRoomIds.value = []
   form.value = {
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+    startDate: today,
+    endDate: today,
     weekMode: 'all',
     type: 'stop',
     remark: '',

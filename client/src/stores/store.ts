@@ -52,9 +52,24 @@ export const useStoreStore = defineStore('store', () => {
     }
   }
 
+  const syncCurrentStoreFromList = (storeList: StoreDTO[]) => {
+    const currentStoreId = currentStore.value?.id
+    if (!currentStoreId) {
+      return
+    }
+
+    const latestStore = storeList.find((store) => store.id === currentStoreId)
+    if (!latestStore) {
+      return
+    }
+
+    setCurrentStore(latestStore)
+  }
+
   const setStores = (storeList: StoreDTO[]) => {
     stores.value = storeList
     localStorage.setItem('stores', JSON.stringify(storeList))
+    syncCurrentStoreFromList(storeList)
   }
 
   const fetchUserStores = async (force = false) => {

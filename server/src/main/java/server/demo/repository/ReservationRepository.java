@@ -327,9 +327,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     long countByStoreIdAndChannelId(Long storeId, Long channelId);
 
-    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.storeId = :storeId AND " +
-           "((r.createdAt >= :startOfDay AND r.createdAt < :endOfDay) OR " +
-           "(r.actualCheckIn >= :startOfDay AND r.actualCheckIn < :endOfDay))")
+    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.storeId = :storeId " +
+           "AND r.createdAt >= :startOfDay AND r.createdAt < :endOfDay")
     long countTodayNewOrdersByStoreId(@Param("storeId") Long storeId,
                                       @Param("startOfDay") LocalDateTime startOfDay,
                                       @Param("endOfDay") LocalDateTime endOfDay);
@@ -356,7 +355,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     @Query("SELECT COUNT(r) FROM Reservation r WHERE r.storeId = :storeId AND r.status = 'CONFIRMED' AND r.actualCheckIn IS NULL")
     long countPendingOrdersByStoreId(@Param("storeId") Long storeId);
 
-    List<Reservation> findByStoreIdAndCreatedAtBetween(Long storeId, LocalDateTime start, LocalDateTime end);
+    @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId " +
+           "AND r.createdAt >= :start AND r.createdAt < :end " +
+           "ORDER BY r.createdAt DESC")
+    List<Reservation> findByStoreIdAndCreatedAtBetween(@Param("storeId") Long storeId,
+                                                       @Param("start") LocalDateTime start,
+                                                       @Param("end") LocalDateTime end);
 
     List<Reservation> findByStoreIdAndRoomIsNull(Long storeId);
 
@@ -390,9 +394,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
            "AND r.status IN ('CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT') ORDER BY r.createdAt DESC")
     List<Reservation> findTodayDeparturesByStoreId(@Param("storeId") Long storeId, @Param("date") LocalDate date);
 
-    @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND " +
-           "((r.createdAt >= :startOfDay AND r.createdAt < :endOfDay) OR " +
-           "(r.actualCheckIn >= :startOfDay AND r.actualCheckIn < :endOfDay)) " +
+    @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId " +
+           "AND r.createdAt >= :startOfDay AND r.createdAt < :endOfDay " +
            "ORDER BY r.createdAt DESC")
     List<Reservation> findTodayNewOrdersByStoreId(@Param("storeId") Long storeId,
                                                   @Param("startOfDay") LocalDateTime startOfDay,

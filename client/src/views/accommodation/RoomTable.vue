@@ -363,13 +363,20 @@ import { request } from '@/utils/request'
 import type { RoomTableData, RoomStatistics, ApiResponse, FutureRoomTableData } from '@/types/room'
 import { getFutureRoomTableData } from '@/api/futureRoomTable'
 import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
+import {
+  addDaysToYmd,
+  formatYmdMonthDay,
+  getStoreTodayYmd,
+  getYmdWeekdayIndex,
+  parseYmdAsUtcDate,
+} from '@/utils/storeDateTime'
 
 // 响应式数据
 const { t } = useI18n()
 const { weekdayFullMap } = useAccommodationI18n()
 const loading = ref(false)
 const activeTab = ref<'daily' | 'future'>('daily')
-const selectedDate = ref<string>(new Date().toISOString().split('T')[0])
+const selectedDate = ref<string>(getStoreTodayYmd())
 const roomTableData = ref<RoomTableData | null>(null)
 const futureRoomTableData = ref<FutureRoomTableData | null>(null)
 
@@ -498,17 +505,13 @@ const onFutureDateChange = (date: string) => {
 
 // 上一个时间段
 const previousPeriod = () => {
-  const current = new Date(selectedDate.value)
-  current.setDate(current.getDate() - 7)
-  selectedDate.value = current.toISOString().split('T')[0]
+  selectedDate.value = addDaysToYmd(selectedDate.value, -7)
   fetchFutureRoomTableData(selectedDate.value, 7)
 }
 
 // 下一个时间段
 const nextPeriod = () => {
-  const current = new Date(selectedDate.value)
-  current.setDate(current.getDate() + 7)
-  selectedDate.value = current.toISOString().split('T')[0]
+  selectedDate.value = addDaysToYmd(selectedDate.value, 7)
   fetchFutureRoomTableData(selectedDate.value, 7)
 }
 
@@ -694,51 +697,40 @@ const exportFutureRoomTable = () => {
 
 // 获取格式化的日期和星期
 const getFormattedDateWithWeekday = (value: Date | string): string => {
-  let date: Date
+  let ymd: string
   if (typeof value === 'string') {
-    date = new Date(value)
+    ymd = value
   } else {
-    date = value
+    ymd = value.toISOString().slice(0, 10)
   }
   
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  const date = parseYmdAsUtcDate(ymd)
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
   
-  const weekday = weekdayFullMap.value[date.getDay()]
+  const weekday = weekdayFullMap.value[getYmdWeekdayIndex(ymd)]
   
   return `${year}-${month}-${day} ${weekday}`
 }
 
 // 格式化表格表头日期
 const formatDateHeader = (dateStr: string, dayOfWeek: string): string => {
-  const date = new Date(dateStr)
-  const today = new Date()
-  
-  // 检查是否是今天
-  const isToday = date.toDateString() === today.toDateString()
-  
-  // 格式化为 MM-DD 格式
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  const today = getStoreTodayYmd()
+  const isToday = dateStr === today
+  const { month, day } = formatYmdMonthDay(dateStr)
   
   return isToday ? `${month}-${day} ${t('accommodation.common.today')}` : `${month}-${day} ${dayOfWeek}`
 }
 
 // 格式化统计区域的日期标题
 const formatStatisticDateHeader = (dateStr: string): string => {
-  const date = new Date(dateStr)
-  const today = new Date()
-  
-  // 检查是否是今天
-  const isToday = date.toDateString() === today.toDateString()
-  
-  // 格式化为 MM-DD 格式
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  const today = getStoreTodayYmd()
+  const isToday = dateStr === today
+  const { month, day } = formatYmdMonthDay(dateStr)
   
   // 获取星期几
-  const weekday = weekdayFullMap.value[date.getDay()]
+  const weekday = weekdayFullMap.value[getYmdWeekdayIndex(dateStr)]
 
   return isToday ? `${month}-${day} ${t('accommodation.common.today')}` : `${month}-${day} ${weekday}`
 }
