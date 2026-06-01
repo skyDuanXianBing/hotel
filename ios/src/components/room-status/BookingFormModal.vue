@@ -163,6 +163,7 @@ import { computed, ref, watch } from 'vue'
 import { calculateTotalPriceByDates, getRoomTypeByRoomId, type RoomTypeDTO } from '@/api/roomType'
 import type { ChannelDTO, ReservationDTO } from '@/api/reservation'
 import { addDays, type RoomStatusRoomItem } from '@/stores/roomStatus'
+import { getStoreTodayDate } from '@/utils/storeBusinessDate'
 
 export type BookingModalMode = 'create' | 'check-in' | 'edit'
 
@@ -310,7 +311,7 @@ function updatePrice() {
 
 function buildDefaultForm() {
   const channelId = props.channels[0]?.id || 0
-  const baseDate = props.room?.focusedDate || props.reservation?.checkInDate || new Date().toISOString().split('T')[0]
+  const baseDate = props.room?.focusedDate || props.reservation?.checkInDate || getStoreTodayDate()
   return {
     guestName: props.reservation?.guestName || '',
     guestPhone: props.reservation?.phone || '',

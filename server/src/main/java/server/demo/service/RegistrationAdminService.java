@@ -15,7 +15,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class RegistrationAdminService {
@@ -44,27 +43,17 @@ public class RegistrationAdminService {
             Long channelId,
             ReservationStatus reservationStatus,
             LocalDate checkInDate,
-            LocalDate checkOutDate,
-            List<String> roomNumbers,
-            Long roomGroupId
+            LocalDate checkOutDate
     ) {
         Long storeId = StoreContextUtils.requireStoreId();
-        List<String> normalizedRoomNumbers = normalizeRoomNumbers(roomNumbers);
         List<RegistrationForm> forms = registrationFormRepository.searchForAdminList(
                 storeId,
                 status,
                 channelId,
                 reservationStatus,
                 checkInDate,
-                checkOutDate,
-                null,
-                roomGroupId
+                checkOutDate
         );
-        if (normalizedRoomNumbers != null) {
-            forms = forms.stream()
-                    .filter(form -> matchesAnyRoomNumber(form.getReservation(), normalizedRoomNumbers))
-                    .collect(Collectors.toList());
-        }
 
         List<AdminRegistrationListItemDTO> out = new ArrayList<>();
         for (RegistrationForm form : forms) {
@@ -82,8 +71,6 @@ public class RegistrationAdminService {
                 dto.setReservationStatus(reservation.getStatus());
                 dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
                 dto.setChannelName(reservation.getChannel() != null ? reservation.getChannel().getName() : null);
-                dto.setRoomNumber(resolveRoomNumber(reservation));
-                dto.setRoomTypeName(resolveRoomTypeName(reservation));
             }
             out.add(dto);
         }
@@ -107,7 +94,6 @@ public class RegistrationAdminService {
         dto.setOrderNumber(form.getOrderNumber());
         dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
         dto.setStatus(form.getStatus());
-        dto.setReservationStatus(reservation.getStatus());
         dto.setSubmittedAt(form.getSubmittedAt());
         dto.setApprovedAt(form.getApprovedAt());
         dto.setRejectedAt(form.getRejectedAt());
@@ -212,33 +198,6 @@ public class RegistrationAdminService {
         return reservation.getOtaRoomNumber() == null ? "" : reservation.getOtaRoomNumber();
     }
 
-    private static List<String> normalizeRoomNumbers(List<String> roomNumbers) {
-        if (roomNumbers == null || roomNumbers.isEmpty()) {
-            return null;
-        }
-        List<String> normalized = roomNumbers.stream()
-                .filter(roomNumber -> roomNumber != null && !roomNumber.isBlank())
-                .map(String::trim)
-                .distinct()
-                .collect(Collectors.toList());
-        return normalized.isEmpty() ? null : normalized;
-    }
-
-    private static boolean matchesAnyRoomNumber(Reservation reservation, List<String> roomNumbers) {
-        if (reservation == null || roomNumbers == null || roomNumbers.isEmpty()) {
-            return true;
-        }
-        String actualRoomNumber = resolveRoomNumber(reservation).toLowerCase();
-        return roomNumbers.stream().anyMatch(roomNumber -> actualRoomNumber.contains(roomNumber.toLowerCase()));
-    }
-
-    private static void ensureReviewable(RegistrationForm form) {
-        Reservation reservation = form == null ? null : form.getReservation();
-        if (reservation != null && ReservationStatus.CANCELLED.equals(reservation.getStatus())) {
-            throw new RuntimeException("已取消订单不可审查");
-        }
-    }
-
     @Transactional
     public void approve(Long formId, AdminRegistrationReviewRequest req) {
         Long storeId = StoreContextUtils.requireStoreId();
@@ -249,7 +208,6 @@ public class RegistrationAdminService {
         if (!storeId.equals(form.getStoreId())) {
             throw new RuntimeException("无权限");
         }
-        ensureReviewable(form);
 
         form.setStatus(RegistrationFormStatus.APPROVED);
         form.setApprovedAt(LocalDateTime.now());
@@ -274,7 +232,6 @@ public class RegistrationAdminService {
         if (!storeId.equals(form.getStoreId())) {
             throw new RuntimeException("无权限");
         }
-        ensureReviewable(form);
 
         form.setStatus(RegistrationFormStatus.REJECTED);
         form.setRejectedAt(LocalDateTime.now());

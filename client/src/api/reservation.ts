@@ -47,6 +47,7 @@ export interface ReservationDTO {
   currentRoomPrice?: number // 当前房型价格
   createdAt: string
   updatedAt: string
+  reservationTimestampStorageZone?: string
   reservationNotifId?: string
   suReservationId?: string
   otaRoomId?: string

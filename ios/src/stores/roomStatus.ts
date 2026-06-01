@@ -22,6 +22,12 @@ import { getSortOrderMap } from '@/api/sortConfig'
 import { useUserStore } from '@/stores/user'
 import type { RoomGroupDTO, RoomGroupMemberDTO } from '@/types/settings'
 import { showSuccessToast } from '@/utils/notify'
+import {
+  getBusinessDateWeekdayIndex,
+  getStoreTodayDate,
+  parseBusinessDateParts,
+  shiftBusinessDate,
+} from '@/utils/storeBusinessDate'
 
 export type BatchWeekMode = 'all' | 'weekday' | 'weekend'
 
@@ -105,19 +111,17 @@ const NATURAL_COMPARE_OPTIONS: Intl.CollatorOptions = {
   sensitivity: 'base',
 }
 
-const getTodayDateKey = () => formatDateKey(new Date())
+const getTodayDateKey = () => getStoreTodayDate()
 
 export const formatDateKey = (date: Date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
 
 export const addDays = (date: string, amount: number) => {
-  const nextDate = new Date(date)
-  nextDate.setDate(nextDate.getDate() + amount)
-  return formatDateKey(nextDate)
+  return shiftBusinessDate(date, amount)
 }
 
 export const getReservationStatusText = (status?: string) => {
@@ -305,14 +309,12 @@ function buildWeekModeRanges(startDate: string, endDate: string, weekMode: Batch
   }
 
   const ranges: Array<{ startDate: string; endDate: string }> = []
-  const start = new Date(startDate)
-  const end = new Date(endDate)
+  let currentDate = startDate
   let rangeStart = ''
 
-  while (start <= end) {
-    const day = start.getDay()
+  while (currentDate <= endDate) {
+    const day = getBusinessDateWeekdayIndex(currentDate)
     const matched = weekMode === 'weekday' ? day !== 0 && day !== 6 : day === 0 || day === 6
-    const currentDate = formatDateKey(start)
 
     if (matched && !rangeStart) {
       rangeStart = currentDate
@@ -326,7 +328,7 @@ function buildWeekModeRanges(startDate: string, endDate: string, weekMode: Batch
       rangeStart = ''
     }
 
-    start.setDate(start.getDate() + 1)
+    currentDate = addDays(currentDate, 1)
   }
 
   if (rangeStart) {
@@ -338,7 +340,7 @@ function buildWeekModeRanges(startDate: string, endDate: string, weekMode: Batch
 
   return ranges.map((item) => ({
     startDate: item.startDate,
-    endDate: typeof item.endDate === 'string' ? item.endDate : formatDateKey(item.endDate),
+    endDate: item.endDate,
   }))
 }
 
@@ -375,7 +377,10 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
     for (let index = 0; index < DATE_WINDOW_SIZE; index += 1) {
       const currentDate = addDays(windowStartDate.value, index)
-      const dateObject = new Date(currentDate)
+      const dateParts = parseBusinessDateParts(currentDate)
+      const month = dateParts ? dateParts.month : 1
+      const day = dateParts ? dateParts.day : 1
+      const weekdayIndex = getBusinessDateWeekdayIndex(currentDate)
       let availableRooms = 0
 
       for (const room of calendarRooms.value) {
@@ -387,8 +392,8 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
       items.push({
         date: currentDate,
-        label: `${String(dateObject.getMonth() + 1).padStart(2, '0')}-${String(dateObject.getDate()).padStart(2, '0')}`,
-        weekday: WEEKDAY_LABELS[dateObject.getDay()],
+        label: `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        weekday: WEEKDAY_LABELS[weekdayIndex],
         availableRooms,
         isToday: currentDate === currentToday,
         isSelected: currentDate === selectedDate.value,

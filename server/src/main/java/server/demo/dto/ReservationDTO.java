@@ -38,6 +38,7 @@ public class ReservationDTO {
     private java.math.BigDecimal currentRoomPrice; // 当前房型价格
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String reservationTimestampStorageZone;
     
     // Constructors
     public ReservationDTO() {}
@@ -273,6 +274,14 @@ public class ReservationDTO {
     
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getReservationTimestampStorageZone() {
+        return reservationTimestampStorageZone;
+    }
+
+    public void setReservationTimestampStorageZone(String reservationTimestampStorageZone) {
+        this.reservationTimestampStorageZone = reservationTimestampStorageZone;
     }
     
     public java.math.BigDecimal getTotalAmount() {

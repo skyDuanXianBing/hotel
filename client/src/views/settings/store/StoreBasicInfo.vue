@@ -164,7 +164,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { getStoreById, updateStore, type StoreDTO } from '@/api/store'
+import { getStoreById } from '@/api/store'
 import { useStoreStore } from '@/stores/store'
 import {
   COUNTRY_OPTIONS,
@@ -306,7 +306,7 @@ const handleSaveEdit = async () => {
     const valid = await formRef.value?.validate()
     if (valid) {
       loading.value = true
-      const response = await updateStore(currentStoreId.value, {
+      await storeStore.updateStore(currentStoreId.value, {
         name: editForm.name,
         phone: editForm.phone,
         type: editForm.type,
@@ -319,14 +319,10 @@ const handleSaveEdit = async () => {
         currency: editForm.currency,
       })
 
-      if (response.success) {
-        ElMessage.success(t('settingsStage4.storeBasic.messages.saveSuccess'))
-        editDialogVisible.value = false
-        // 重新加载数据
-        await loadStoreInfo()
-      } else {
-        ElMessage.error(response.message || t('settingsStage4.storeBasic.messages.saveFailed'))
-      }
+      ElMessage.success(t('settingsStage4.storeBasic.messages.saveSuccess'))
+      editDialogVisible.value = false
+      // 重新加载数据
+      await loadStoreInfo()
     }
   } catch (error) {
     console.error('保存失败:', error)

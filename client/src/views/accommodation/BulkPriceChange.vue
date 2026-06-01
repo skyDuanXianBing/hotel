@@ -400,6 +400,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { QuestionFilled, Edit, Loading } from '@element-plus/icons-vue'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { bulkPriceChange, type BulkPriceChangeRequest } from '@/api/roomPrice'
+import { parseYmdAsUtcDate } from '@/utils/storeDateTime'
 
 // 加载状态
 const submitting = ref(false)
@@ -505,8 +506,8 @@ const totalSelectedDays = computed(() => {
   let totalDays = 0
   dateRanges.value.forEach((range) => {
     if (range.start && range.end) {
-      const start = new Date(range.start)
-      const end = new Date(range.end)
+      const start = parseYmdAsUtcDate(range.start)
+      const end = parseYmdAsUtcDate(range.end)
       totalDays += Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
     }
   })

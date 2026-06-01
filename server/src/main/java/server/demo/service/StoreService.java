@@ -10,6 +10,7 @@ import server.demo.enums.PermissionModule;
 import server.demo.exception.SuPropertyDeleteFailedException;
 import server.demo.repository.*;
 import server.demo.util.SuHotelIdUtil;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -58,6 +59,7 @@ public class StoreService {
     public StoreDTO createStore(Long userId, CreateStoreRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        String normalizedTimezone = StoreTimeZoneUtil.normalizeOrNull(request.getTimezone());
 
         Store store = new Store();
         store.setUserId(userId);
@@ -65,7 +67,7 @@ public class StoreService {
         store.setPhone(request.getPhone());
         store.setPhoneTechType(request.getPhoneTechType());
         store.setType(request.getType());
-        store.setTimezone(request.getTimezone());
+        store.setTimezone(normalizedTimezone);
         store.setManager(request.getManager());
         store.setOwnerEmail(user.getEmail());
         store.setCountry(request.getCountry());
@@ -137,14 +139,15 @@ public class StoreService {
         }
 
         Store store = storeUser.getStore();
+        String normalizedTimezone = StoreTimeZoneUtil.normalizeOrNull(request.getTimezone());
 
-        boolean fallbackAddressChanged = hasStoreFallbackAddressChanged(store, request);
+        boolean fallbackAddressChanged = hasStoreFallbackAddressChanged(store, request, normalizedTimezone);
 
         store.setName(request.getName());
         store.setPhone(request.getPhone());
         store.setPhoneTechType(request.getPhoneTechType());
         store.setType(request.getType());
-        store.setTimezone(request.getTimezone());
+        store.setTimezone(normalizedTimezone);
         store.setManager(request.getManager());
         store.setCountry(request.getCountry());
         store.setCity(request.getCity());
@@ -181,12 +184,16 @@ public class StoreService {
         return convertToDTO(updatedStore, storeUser.getRole());
     }
 
-    private boolean hasStoreFallbackAddressChanged(Store store, CreateStoreRequest request) {
+    private boolean hasStoreFallbackAddressChanged(
+            Store store,
+            CreateStoreRequest request,
+            String normalizedRequestTimezone
+    ) {
         return !Objects.equals(normalizeOptionalText(store.getAddress()), normalizeOptionalText(request.getAddress()))
                 || !Objects.equals(normalizeOptionalText(store.getCity()), normalizeOptionalText(request.getCity()))
                 || !Objects.equals(normalizeOptionalText(store.getState()), normalizeOptionalText(request.getState()))
                 || !Objects.equals(normalizeOptionalText(store.getCountry()), normalizeOptionalText(request.getCountry()))
-                || !Objects.equals(normalizeOptionalText(store.getTimezone()), normalizeOptionalText(request.getTimezone()));
+                || !Objects.equals(normalizeOptionalText(store.getTimezone()), normalizedRequestTimezone);
     }
 
     private static String normalizeOptionalText(String value) {

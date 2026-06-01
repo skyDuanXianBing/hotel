@@ -8,12 +8,17 @@ import server.demo.dto.RoomTableStatisticsDTO;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
+import server.demo.entity.Store;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.repository.StoreRepository;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +34,9 @@ public class RoomTableService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired
+    private StoreRepository storeRepository;
 
     /**
      * 获取房情表统计数据
@@ -155,10 +163,9 @@ public class RoomTableService {
             System.out.println("在住(不含预离): " + occupiedWithoutDeparture.size());
 
             // 当日取消房：当天取消的预订数量
-            LocalDateTime startOfDay = date.atStartOfDay();
-            LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
+            BusinessDayWindow targetWindow = storeDayWindow(storeId, date);
             List<Reservation> todayCancelledReservations = reservationRepository.findCancelledByStoreAndRoomTypeAndDate(
-                storeId, roomType.getId(), startOfDay, endOfDay);
+                storeId, roomType.getId(), targetWindow.start(), targetWindow.end());
             statistics.setDailyCancelledRooms(todayCancelledReservations.size());
             System.out.println("当日取消: " + todayCancelledReservations.size());
         } catch (Exception e) {
@@ -183,5 +190,35 @@ public class RoomTableService {
         total.setCleanRooms(total.getCleanRooms() + (statistics.getCleanRooms() != null ? statistics.getCleanRooms() : 0));
         total.setDirtyRooms(total.getDirtyRooms() + (statistics.getDirtyRooms() != null ? statistics.getDirtyRooms() : 0));
         total.setDailyCancelledRooms(total.getDailyCancelledRooms() + (statistics.getDailyCancelledRooms() != null ? statistics.getDailyCancelledRooms() : 0));
+    }
+
+    private BusinessDayWindow storeDayWindow(Long storeId, LocalDate businessDate) {
+        ZoneId zoneId = resolveStoreZoneId(storeId);
+        LocalDateTime start = StoreTimeZoneUtil.toUtcLocalDateTime(businessDate, LocalTime.MIDNIGHT, zoneId);
+        LocalDateTime end = StoreTimeZoneUtil.toUtcLocalDateTime(businessDate.plusDays(1), LocalTime.MIDNIGHT, zoneId);
+        return new BusinessDayWindow(start, end);
+    }
+
+    private ZoneId resolveStoreZoneId(Long storeId) {
+        Store store = storeId == null || storeRepository == null ? null : storeRepository.findById(storeId).orElse(null);
+        return StoreTimeZoneUtil.resolveZoneId(store);
+    }
+
+    private static class BusinessDayWindow {
+        private final LocalDateTime start;
+        private final LocalDateTime end;
+
+        private BusinessDayWindow(LocalDateTime start, LocalDateTime end) {
+            this.start = start;
+            this.end = end;
+        }
+
+        private LocalDateTime start() {
+            return start;
+        }
+
+        private LocalDateTime end() {
+            return end;
+        }
     }
 }

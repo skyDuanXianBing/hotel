@@ -1,14 +1,18 @@
 package server.demo.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.PlatformTransactionManager;
 import server.demo.entity.Reservation;
 import server.demo.repository.ReservationRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -16,6 +20,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class OtaReservationSyncServiceUpsertLookupTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Test
     void resolveReservationTargetForUpsert_shouldUseUniqueChannelFallbackWhenRoomReservationIdChanges() {
@@ -191,6 +197,41 @@ class OtaReservationSyncServiceUpsertLookupTest {
                         "SU26-5526740549_W39FVCQYSN-1775048516093"
                 )
         );
+    }
+
+    @Test
+    void resolveReservationTimestamps_shouldKeepSuDateTimePrecision() throws Exception {
+        JsonNode reservation = OBJECT_MAPPER.readTree("""
+                {
+                  "booked_at": "2026-01-30 14:35:11",
+                  "modified_at": "2026-01-31 08:09:10"
+                }
+                """);
+
+        assertEquals(
+                LocalDateTime.of(2026, 1, 30, 14, 35, 11),
+                OtaReservationSyncService.resolveBookingDateTimestamp(reservation)
+        );
+        assertEquals(
+                LocalDateTime.of(2026, 1, 31, 8, 9, 10),
+                OtaReservationSyncService.resolveModifiedAtTimestamp(reservation)
+        );
+    }
+
+    @Test
+    void resolveReservationTimestamps_shouldKeepDateOnlyCompatibility() throws Exception {
+        JsonNode reservation = OBJECT_MAPPER.readTree("""
+                {
+                  "booked_at": "2026-01-30",
+                  "modified_at": "0000-00-00"
+                }
+                """);
+
+        assertEquals(
+                LocalDateTime.of(2026, 1, 30, 0, 0),
+                OtaReservationSyncService.resolveBookingDateTimestamp(reservation)
+        );
+        assertNull(OtaReservationSyncService.resolveModifiedAtTimestamp(reservation));
     }
 
     private static OtaReservationSyncService createService(ReservationRepository reservationRepository) {

@@ -182,26 +182,13 @@ import { ElMessage } from 'element-plus'
 import { getBusinessSummary, type BusinessSummaryDTO } from '@/api/business'
 import StatisticsLayout from './StatisticsLayout.vue'
 import * as echarts from 'echarts'
+import { formatYmdMonthDay, getRecentStoreDateRange } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
 
 // 获取当前日期和一周前日期
 const getCurrentWeekDates = () => {
-  const today = new Date()
-  const lastWeek = new Date(today)
-  lastWeek.setDate(today.getDate() - 6) // 最近7天（包含今天）
-
-  const formatDate = (date: Date) => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
-  return {
-    start: formatDate(lastWeek),
-    end: formatDate(today)
-  }
+  return getRecentStoreDateRange(7)
 }
 
 const weekDates = getCurrentWeekDates()
@@ -343,10 +330,10 @@ const updateLineChart = () => {
 
   // 格式化日期和数据
   const dates = dailyRevenues.map(item => {
-    const date = new Date(item.date)
+    const { month, day } = formatYmdMonthDay(item.date)
     return t('stage5.common.date.monthDay', {
-      month: date.getMonth() + 1,
-      day: date.getDate(),
+      month: Number(month),
+      day: Number(day),
     })
   })
 

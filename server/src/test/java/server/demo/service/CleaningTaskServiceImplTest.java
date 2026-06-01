@@ -4,6 +4,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
@@ -11,13 +13,19 @@ import server.demo.dto.CleaningTaskDTO;
 import server.demo.entity.Cleaner;
 import server.demo.entity.CleaningTask;
 import server.demo.entity.Room;
+import server.demo.entity.Store;
 import server.demo.entity.User;
 import server.demo.repository.CleanerRepository;
 import server.demo.repository.CleaningTaskRepository;
 import server.demo.repository.RoomRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
 import server.demo.service.impl.CleaningTaskServiceImpl;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,6 +39,8 @@ class CleaningTaskServiceImplTest {
     private CleaningTaskServiceImpl service;
     private CleaningTaskRepository cleaningTaskRepository;
     private UserRepository userRepository;
+    private StoreRepository storeRepository;
+    private CleaningTaskAutoService cleaningTaskAutoService;
     private CleanerIdentityService cleanerIdentityService;
 
     @BeforeEach
@@ -42,15 +52,22 @@ class CleaningTaskServiceImplTest {
         RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
         CleanerRepository cleanerRepository = Mockito.mock(CleanerRepository.class);
         userRepository = Mockito.mock(UserRepository.class);
-        CleaningTaskAutoService cleaningTaskAutoService = Mockito.mock(CleaningTaskAutoService.class);
+        storeRepository = Mockito.mock(StoreRepository.class);
+        cleaningTaskAutoService = Mockito.mock(CleaningTaskAutoService.class);
         cleanerIdentityService = Mockito.mock(CleanerIdentityService.class);
 
         ReflectionTestUtils.setField(service, "cleaningTaskRepository", cleaningTaskRepository);
         ReflectionTestUtils.setField(service, "roomRepository", roomRepository);
         ReflectionTestUtils.setField(service, "cleanerRepository", cleanerRepository);
         ReflectionTestUtils.setField(service, "userRepository", userRepository);
+        ReflectionTestUtils.setField(service, "storeRepository", storeRepository);
         ReflectionTestUtils.setField(service, "cleaningTaskAutoService", cleaningTaskAutoService);
         ReflectionTestUtils.setField(service, "cleanerIdentityService", cleanerIdentityService);
+        ReflectionTestUtils.setField(
+                service,
+                "clock",
+                Clock.fixed(Instant.parse("2026-04-07T15:30:00Z"), ZoneOffset.UTC)
+        );
     }
 
     @AfterEach
@@ -102,5 +119,31 @@ class CleaningTaskServiceImplTest {
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> service.getTaskById(USER_ID, 12L));
         assertEquals("只能查看或操作分配给自己的任务", exception.getMessage());
+    }
+
+    @Test
+    void getTasksWithFilters_shouldMarkExpiredUsingStoreBusinessToday() {
+        Store store = new Store();
+        store.setId(STORE_ID);
+        store.setTimezone("Asia/Tokyo");
+
+        Mockito.when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
+        Mockito.when(cleanerIdentityService.findCleanerByUserIdAndStoreId(USER_ID, STORE_ID))
+                .thenReturn(Optional.empty());
+        Mockito.when(cleaningTaskRepository.findWithFiltersByStore(
+                Mockito.eq(STORE_ID),
+                Mockito.isNull(),
+                Mockito.isNull(),
+                Mockito.isNull(),
+                Mockito.isNull(),
+                Mockito.isNull(),
+                Mockito.isNull(),
+                Mockito.isNull(),
+                Mockito.any(Pageable.class)
+        )).thenReturn(Page.empty());
+
+        service.getTasksWithFilters(USER_ID, null, null, null, null, null, null, null, null, Pageable.unpaged());
+
+        Mockito.verify(cleaningTaskAutoService).markExpiredTasks(STORE_ID, LocalDate.of(2026, 4, 8));
     }
 }

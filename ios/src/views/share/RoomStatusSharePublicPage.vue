@@ -128,6 +128,11 @@ import type {
   RoomStatusReservationInfo,
 } from '@/types/publicRoomStatusShare'
 import { formatPublicDate } from '@/utils/publicRegistration'
+import {
+  buildBusinessDateRange,
+  getBusinessDateWeekdayIndex,
+  parseBusinessDateParts,
+} from '@/utils/storeBusinessDate'
 
 const route = useRoute()
 
@@ -136,30 +141,27 @@ const errorMessage = ref('')
 const share = ref<PublicRoomStatusShare | null>(null)
 const calendar = ref<PublicRoomStatusCalendar | null>(null)
 const statistics = ref<PublicRoomStatusStatistics | null>(null)
-const selectedDate = ref(new Date().toISOString().split('T')[0])
+const selectedDate = ref('')
 const detailModalOpen = ref(false)
 const selectedReservation = ref<RoomStatusReservationInfo | null>(null)
 
 const shareToken = computed(() => String(route.params.token || ''))
 const todayText = computed(() => {
-  return new Date().toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  })
-})
-const dateRange = computed(() => {
-  const baseDate = new Date(selectedDate.value)
-  const dates: string[] = []
-
-  for (let offset = 0; offset < 7; offset += 1) {
-    const nextDate = new Date(baseDate)
-    nextDate.setDate(baseDate.getDate() + offset)
-    dates.push(nextDate.toISOString().split('T')[0])
+  const parts = parseBusinessDateParts(selectedDate.value)
+  if (!parts) {
+    return ''
   }
 
-  return dates
+  const weekdayList = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+  const weekday = weekdayList[getBusinessDateWeekdayIndex(selectedDate.value)]
+  return `${parts.year}年${parts.month}月${parts.day}日 ${weekday}`
+})
+const dateRange = computed(() => {
+  if (!isBusinessDateValue(selectedDate.value)) {
+    return []
+  }
+
+  return buildBusinessDateRange(selectedDate.value, 7)
 })
 const roomGroups = computed(() => {
   const rooms = calendar.value?.rooms || []
@@ -205,6 +207,18 @@ function parseItems(rawValue?: string | null) {
     .filter(Boolean)
 }
 
+function isBusinessDateValue(value?: string | null) {
+  return parseBusinessDateParts(String(value || '')) !== null
+}
+
+function applyBackendSelectedDate(value?: string | null) {
+  if (!isBusinessDateValue(value)) {
+    return
+  }
+
+  selectedDate.value = String(value)
+}
+
 function appendStatistic(
   target: Array<{ key: string; label: string; value: number }>,
   filterItems: string[],
@@ -230,11 +244,11 @@ function appendStatistic(
 }
 
 function formatDateHeader(dateValue: string) {
-  const currentDate = new Date(dateValue)
-  const month = currentDate.getMonth() + 1
-  const day = currentDate.getDate()
+  const currentDate = parseBusinessDateParts(dateValue)
+  const month = currentDate?.month || 1
+  const day = currentDate?.day || 1
   const weekList = ['日', '一', '二', '三', '四', '五', '六']
-  const weekday = weekList[currentDate.getDay()]
+  const weekday = weekList[getBusinessDateWeekdayIndex(dateValue)]
   return `${month}/${day} 周${weekday}`
 }
 
@@ -313,20 +327,29 @@ function handleCloseDetailModal() {
   selectedReservation.value = null
 }
 
-async function loadCalendarAndStatistics() {
-  const endDate = dateRange.value[dateRange.value.length - 1]
+async function loadCalendarAndStatistics(shouldSendSelectedDate = true) {
+  const requestStartDate =
+    shouldSendSelectedDate && isBusinessDateValue(selectedDate.value) ? selectedDate.value : undefined
+  const requestDateRange = requestStartDate ? buildBusinessDateRange(requestStartDate, 7) : []
+  const requestEndDate = requestDateRange[requestDateRange.length - 1]
 
   const [calendarResponse, statisticsResponse] = await Promise.all([
-    getPublicRoomStatusCalendar(shareToken.value, selectedDate.value, endDate),
-    getPublicRoomStatusStatistics(shareToken.value, selectedDate.value),
+    getPublicRoomStatusCalendar(shareToken.value, requestStartDate, requestEndDate),
+    getPublicRoomStatusStatistics(shareToken.value, requestStartDate),
   ])
 
   if (calendarResponse.success && calendarResponse.data) {
     calendar.value = calendarResponse.data
+    if (!requestStartDate) {
+      applyBackendSelectedDate(calendarResponse.data.dateRange?.startDate)
+    }
   }
 
   if (statisticsResponse.success && statisticsResponse.data) {
     statistics.value = statisticsResponse.data
+    if (!requestStartDate && !isBusinessDateValue(selectedDate.value)) {
+      applyBackendSelectedDate(statisticsResponse.data.date)
+    }
   }
 }
 
@@ -347,7 +370,7 @@ async function loadPage() {
     }
 
     share.value = shareResponse.data
-    await loadCalendarAndStatistics()
+    await loadCalendarAndStatistics(false)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '分享页加载失败'
   } finally {
@@ -356,7 +379,7 @@ async function loadPage() {
 }
 
 async function handleDateChange() {
-  if (!share.value) {
+  if (!share.value || !isBusinessDateValue(selectedDate.value)) {
     return
   }
 

@@ -12,8 +12,6 @@ public class AdminRegistrationListItemDTO {
     private String channelOrderNumber;
     private String channelName;
     private String guestName;
-    private String roomNumber;
-    private String roomTypeName;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private ReservationStatus reservationStatus;
@@ -59,22 +57,6 @@ public class AdminRegistrationListItemDTO {
 
     public void setGuestName(String guestName) {
         this.guestName = guestName;
-    }
-
-    public String getRoomNumber() {
-        return roomNumber;
-    }
-
-    public void setRoomNumber(String roomNumber) {
-        this.roomNumber = roomNumber;
-    }
-
-    public String getRoomTypeName() {
-        return roomTypeName;
-    }
-
-    public void setRoomTypeName(String roomTypeName) {
-        this.roomTypeName = roomTypeName;
     }
 
     public LocalDate getCheckInDate() {

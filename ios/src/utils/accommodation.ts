@@ -1,3 +1,10 @@
+import {
+  getBusinessDateWeekdayIndex,
+  getStoreTodayDate,
+  parseBusinessDateParts,
+  shiftBusinessDate,
+} from '@/utils/storeBusinessDate'
+
 const WEEKDAY_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 const CLEANING_TASK_STATUS_TEXT_MAP: Record<string, string> = {
@@ -33,56 +40,37 @@ export interface AccommodationDateItem {
   isWeekend: boolean
 }
 
-const normalizeDate = (value: Date) => {
-  const year = value.getFullYear()
-  const month = String(value.getMonth() + 1).padStart(2, '0')
-  const day = String(value.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 export const getTodayDate = () => {
-  return normalizeDate(new Date())
-}
-
-export const parseDate = (value: string) => {
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return new Date()
-  }
-  return parsed
+  return getStoreTodayDate()
 }
 
 export const shiftDate = (date: string, offsetDays: number) => {
-  const nextDate = parseDate(date)
-  nextDate.setDate(nextDate.getDate() + offsetDays)
-  return normalizeDate(nextDate)
+  return shiftBusinessDate(date, offsetDays)
 }
 
 export const formatDate = (date: string) => {
-  const parsed = parseDate(date)
-  const year = parsed.getFullYear()
-  const month = String(parsed.getMonth() + 1).padStart(2, '0')
-  const day = String(parsed.getDate()).padStart(2, '0')
+  const parsed = parseBusinessDateParts(date) || parseBusinessDateParts(getTodayDate())
+  const year = parsed?.year || 1970
+  const month = String(parsed?.month || 1).padStart(2, '0')
+  const day = String(parsed?.day || 1).padStart(2, '0')
   return `${year}/${month}/${day}`
 }
 
 export const formatDateWithWeekday = (date: string) => {
-  const parsed = parseDate(date)
-  return `${formatDate(date)} ${WEEKDAY_TEXT[parsed.getDay()]}`
+  return `${formatDate(date)} ${WEEKDAY_TEXT[getBusinessDateWeekdayIndex(date)]}`
 }
 
 export const buildDateWindow = (startDate: string, days: number) => {
   const items: AccommodationDateItem[] = []
   const today = getTodayDate()
-  const baseDate = parseDate(startDate)
 
   for (let index = 0; index < days; index += 1) {
-    const currentDate = new Date(baseDate)
-    currentDate.setDate(baseDate.getDate() + index)
-    const currentDateText = normalizeDate(currentDate)
-    const month = String(currentDate.getMonth() + 1).padStart(2, '0')
-    const day = String(currentDate.getDate()).padStart(2, '0')
-    const weekday = WEEKDAY_TEXT[currentDate.getDay()]
+    const currentDateText = shiftDate(startDate, index)
+    const currentDateParts = parseBusinessDateParts(currentDateText)
+    const month = String(currentDateParts?.month || 1).padStart(2, '0')
+    const day = String(currentDateParts?.day || 1).padStart(2, '0')
+    const weekdayIndex = getBusinessDateWeekdayIndex(currentDateText)
+    const weekday = WEEKDAY_TEXT[weekdayIndex]
 
     items.push({
       date: currentDateText,
@@ -90,7 +78,7 @@ export const buildDateWindow = (startDate: string, days: number) => {
       shortLabel: `${month}/${day}`,
       weekday,
       isToday: currentDateText === today,
-      isWeekend: currentDate.getDay() === 0 || currentDate.getDay() === 6,
+      isWeekend: weekdayIndex === 0 || weekdayIndex === 6,
     })
   }
 

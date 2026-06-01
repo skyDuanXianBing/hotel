@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,6 +37,8 @@ public final class SuReservationParser {
     private static final Pattern BOOKING_ID_WITH_SUFFIX_PATTERN = Pattern.compile("^(\\d{6,20})_[A-Za-z0-9_-]+$");
     private static final Pattern BOOKING_ID_FROM_ORDER_NUMBER_PATTERN =
             Pattern.compile("^SU\\d+-(\\d{6,20})(?:[_-].*)?$", Pattern.CASE_INSENSITIVE);
+    private static final DateTimeFormatter SU_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter SU_DATE_TIME_WITHOUT_SECONDS_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private SuReservationParser() {}
 
@@ -362,14 +366,14 @@ public final class SuReservationParser {
         return null;
     }
 
-    public static LocalDate extractBookedAt(JsonNode reservation) {
-        return parseDate(text(reservation, "booked_at")
+    public static LocalDateTime extractBookedAt(JsonNode reservation) {
+        return parseDateTime(text(reservation, "booked_at")
                 .or(() -> text(reservation, "bookedAt"))
                 .orElse(null));
     }
 
-    public static LocalDate extractModifiedAt(JsonNode reservation) {
-        return parseDate(text(reservation, "modified_at")
+    public static LocalDateTime extractModifiedAt(JsonNode reservation) {
+        return parseDateTime(text(reservation, "modified_at")
                 .or(() -> text(reservation, "modifiedAt"))
                 .orElse(null));
     }
@@ -749,6 +753,55 @@ public final class SuReservationParser {
         }
         try {
             return LocalDate.parse(trimmed);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private static LocalDateTime parseDateTime(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+
+        String trimmed = raw.trim();
+        LocalDate dateOnly = parseDateOnly(trimmed);
+        if (dateOnly != null && trimmed.length() == 10) {
+            return dateOnly.atStartOfDay();
+        }
+
+        LocalDateTime parsed = parseDateTimeWithFormatter(trimmed, SU_DATE_TIME_FORMATTER);
+        if (parsed != null) {
+            return parsed;
+        }
+
+        parsed = parseDateTimeWithFormatter(trimmed, SU_DATE_TIME_WITHOUT_SECONDS_FORMATTER);
+        if (parsed != null) {
+            return parsed;
+        }
+
+        String isoCandidate = trimmed.replace(' ', 'T');
+        parsed = parseDateTimeWithFormatter(isoCandidate, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        if (parsed != null) {
+            return parsed;
+        }
+
+        return dateOnly != null ? dateOnly.atStartOfDay() : null;
+    }
+
+    private static LocalDate parseDateOnly(String raw) {
+        if (raw == null || raw.isBlank() || raw.length() < 10) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(raw.substring(0, 10));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private static LocalDateTime parseDateTimeWithFormatter(String raw, DateTimeFormatter formatter) {
+        try {
+            return LocalDateTime.parse(raw, formatter);
         } catch (DateTimeParseException e) {
             return null;
         }

@@ -746,11 +746,9 @@ public class OtaReservationSyncService {
                     reservation.setCurrencyCode(SuReservationParser.extractCurrencyCode(reservationNode));
                     reservation.setCommission(SuReservationParser.extractCommissionAmount(reservationNode));
 
-                    LocalDate bookedAt = SuReservationParser.extractBookedAt(reservationNode);
-                    reservation.setBookingDate(bookedAt != null ? bookedAt.atStartOfDay() : null);
+                    reservation.setBookingDate(resolveBookingDateTimestamp(reservationNode));
 
-                    LocalDate modifiedAt = SuReservationParser.extractModifiedAt(reservationNode);
-                    reservation.setModifiedAt(modifiedAt != null ? modifiedAt.atStartOfDay() : null);
+                    reservation.setModifiedAt(resolveModifiedAtTimestamp(reservationNode));
 
                     String roomSpecialRequest = roomStay != null ? SuReservationParser.extractRoomSpecialRequest(roomStay) : null;
                     String customerRemarks = SuReservationParser.extractCustomerRemarks(reservationNode);
@@ -1454,6 +1452,14 @@ public class OtaReservationSyncService {
         }
 
         return normalizeLookupKey(suReservationId);
+    }
+
+    static LocalDateTime resolveBookingDateTimestamp(JsonNode reservationNode) {
+        return SuReservationParser.extractBookedAt(reservationNode);
+    }
+
+    static LocalDateTime resolveModifiedAtTimestamp(JsonNode reservationNode) {
+        return SuReservationParser.extractModifiedAt(reservationNode);
     }
 
     static String mergeChannelOrderNumber(

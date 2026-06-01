@@ -10,8 +10,6 @@ import server.demo.dto.registration.AdminRegistrationListItemDTO;
 import server.demo.entity.Channel;
 import server.demo.entity.RegistrationForm;
 import server.demo.entity.Reservation;
-import server.demo.entity.Room;
-import server.demo.entity.RoomType;
 import server.demo.enums.RegistrationFormStatus;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.RegistrationAttachmentRepository;
@@ -24,14 +22,11 @@ import server.demo.util.StoreContextUtils;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,7 +52,7 @@ class RegistrationAdminServiceTest {
     private ReservationRepository reservationRepository;
 
     @Test
-    void list_shouldForwardReservationStatusAndStayDateBoundaryFiltersAndMapReservationStatus() {
+    void list_shouldForwardReservationStatusFilterAndMapReservationStatus() {
         RegistrationAdminService service = new RegistrationAdminService();
         ReflectionTestUtils.setField(service, "registrationFormRepository", registrationFormRepository);
         ReflectionTestUtils.setField(service, "registrationGuestRepository", registrationGuestRepository);
@@ -65,8 +60,6 @@ class RegistrationAdminServiceTest {
         ReflectionTestUtils.setField(service, "registrationMessageLogRepository", registrationMessageLogRepository);
         ReflectionTestUtils.setField(service, "registrationAttachmentRepository", registrationAttachmentRepository);
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
-        LocalDate checkInDate = LocalDate.of(2026, 5, 1);
-        LocalDate checkOutDate = LocalDate.of(2026, 5, 3);
 
         RegistrationForm form = new RegistrationForm();
         form.setId(8L);
@@ -80,13 +73,6 @@ class RegistrationAdminServiceTest {
         reservation.setChannelOrderNumber("OTA-8");
         reservation.setStatus(ReservationStatus.CANCELLED);
 
-        RoomType roomType = new RoomType();
-        roomType.setName("Double");
-        Room room = new Room();
-        room.setRoomNumber("301");
-        room.setRoomType(roomType);
-        reservation.setRoom(room);
-
         Channel channel = new Channel();
         channel.setName("Booking.com");
         reservation.setChannel(channel);
@@ -97,10 +83,8 @@ class RegistrationAdminServiceTest {
                 isNull(),
                 isNull(),
                 eq(ReservationStatus.CANCELLED),
-                eq(checkInDate),
-                eq(checkOutDate),
                 isNull(),
-                eq(9L)
+                isNull()
         )).thenReturn(List.of(form));
 
         try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
@@ -110,18 +94,14 @@ class RegistrationAdminServiceTest {
                     null,
                     null,
                     ReservationStatus.CANCELLED,
-                    checkInDate,
-                    checkOutDate,
-                    List.of(" 301 "),
-                    9L
+                    null,
+                    null
             );
 
             assertEquals(1, result.size());
             assertEquals(ReservationStatus.CANCELLED, result.get(0).getReservationStatus());
             assertEquals("Booking.com", result.get(0).getChannelName());
             assertEquals("OTA-8", result.get(0).getChannelOrderNumber());
-            assertEquals("301", result.get(0).getRoomNumber());
-            assertEquals("Double", result.get(0).getRoomTypeName());
         }
 
         verify(registrationFormRepository).searchForAdminList(
@@ -129,37 +109,8 @@ class RegistrationAdminServiceTest {
                 null,
                 null,
                 ReservationStatus.CANCELLED,
-                checkInDate,
-                checkOutDate,
                 null,
-                9L
+                null
         );
-    }
-
-    @Test
-    void approve_shouldRejectCancelledReservation() {
-        RegistrationAdminService service = new RegistrationAdminService();
-        ReflectionTestUtils.setField(service, "registrationFormRepository", registrationFormRepository);
-        ReflectionTestUtils.setField(service, "registrationReviewLogRepository", registrationReviewLogRepository);
-
-        Reservation reservation = new Reservation();
-        reservation.setStoreId(26L);
-        reservation.setStatus(ReservationStatus.CANCELLED);
-
-        RegistrationForm form = new RegistrationForm();
-        form.setId(12L);
-        form.setReservation(reservation);
-
-        when(registrationFormRepository.findById(12L)).thenReturn(Optional.of(form));
-
-        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
-            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
-            storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
-
-            RuntimeException error = assertThrows(RuntimeException.class, () -> service.approve(12L, null));
-            assertEquals("已取消订单不可审查", error.getMessage());
-        }
-
-        verify(registrationFormRepository, never()).save(form);
     }
 }

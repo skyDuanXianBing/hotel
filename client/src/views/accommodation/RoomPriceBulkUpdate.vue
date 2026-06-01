@@ -224,6 +224,7 @@ import {
 } from '@/api/pricelabs'
 import { useUserStore } from '@/stores/user'
 import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
+import { getYmdWeekdayIndex } from '@/utils/storeDateTime'
 
 type TreeNode = {
   value: string
@@ -407,7 +408,7 @@ const channelRangePreviewByKey = computed<Record<string, string[]>>(() => {
 })
 
 const toWeekdayValue = (dateText: string): number => {
-  const day = new Date(`${dateText}T00:00:00`).getDay()
+  const day = getYmdWeekdayIndex(dateText)
   return day === 0 ? 7 : day
 }
 

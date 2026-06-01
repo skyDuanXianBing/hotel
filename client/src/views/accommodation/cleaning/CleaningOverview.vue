@@ -296,22 +296,10 @@ import {
 } from '@/api/cleaning'
 import { getRooms, type RoomDTO } from '@/api/room'
 import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
-import { getStoreTodayYmd } from '@/utils/storeDateTime'
+import { addDaysToYmd, formatYmdMonthDay, getStoreTodayYmd, getYmdWeekdayIndex } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
-const { formatMonthDay, weekdayShortMap } = useAccommodationI18n()
-
-const parseYmdDate = (value: string) => {
-  const [year, month, day] = value.split('-').map((part) => Number(part))
-  return new Date(year, (month || 1) - 1, day || 1)
-}
-
-const formatYmdDate = (date: Date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+const { weekdayShortMap } = useAccommodationI18n()
 
 // 当前日期
 const currentDate = ref(getStoreTodayYmd())
@@ -330,17 +318,15 @@ const dateRangeText = computed(() => {
 const dateColumns = computed(() => {
   const columns = []
   const realToday = getStoreTodayYmd() // 按门店时区计算今天
-  const viewDate = parseYmdDate(currentDate.value) // 视图中心日期
-  const startDate = new Date(viewDate)
-  startDate.setDate(viewDate.getDate() - 2) // 从视图中心日期前2天开始
+  const startDate = addDaysToYmd(currentDate.value, -2) // 从视图中心日期前2天开始
 
   for (let i = 0; i < 10; i++) {
-    const date = new Date(startDate)
-    date.setDate(startDate.getDate() + i)
-    const dateStr = formatYmdDate(date)
-    const dayLabel = formatMonthDay(date)
-    const weekDay = weekdayShortMap.value[date.getDay()]
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6
+    const dateStr = addDaysToYmd(startDate, i)
+    const { month, day } = formatYmdMonthDay(dateStr)
+    const weekdayIndex = getYmdWeekdayIndex(dateStr)
+    const dayLabel = `${month}/${day}`
+    const weekDay = weekdayShortMap.value[weekdayIndex]
+    const isWeekend = weekdayIndex === 0 || weekdayIndex === 6
     const isToday = dateStr === realToday
 
     let label = ''
@@ -636,10 +622,7 @@ const getTaskTypeText = (type: string) => {
 
 // 格式化日期显示
 const formatDateDisplay = (dateStr: string) => {
-  const date = parseYmdDate(dateStr)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  const [year, month, day] = dateStr.split('-')
   return `${year}/${month}/${day}`
 }
 
@@ -837,17 +820,13 @@ const handleSettings = () => {
 
 // 上一周
 const handlePreviousWeek = () => {
-  const date = parseYmdDate(currentDate.value)
-  date.setDate(date.getDate() - 7)
-  currentDate.value = formatYmdDate(date)
+  currentDate.value = addDaysToYmd(currentDate.value, -7)
   loadTasks()
 }
 
 // 下一周
 const handleNextWeek = () => {
-  const date = parseYmdDate(currentDate.value)
-  date.setDate(date.getDate() + 7)
-  currentDate.value = formatYmdDate(date)
+  currentDate.value = addDaysToYmd(currentDate.value, 7)
   loadTasks()
 }
 

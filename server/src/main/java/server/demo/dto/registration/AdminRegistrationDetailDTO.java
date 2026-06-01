@@ -1,7 +1,6 @@
 package server.demo.dto.registration;
 
 import server.demo.enums.RegistrationFormStatus;
-import server.demo.enums.ReservationStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,7 +11,6 @@ public class AdminRegistrationDetailDTO {
     private String orderNumber;
     private String channelOrderNumber;
     private RegistrationFormStatus status;
-    private ReservationStatus reservationStatus;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
     private String guestName;
@@ -60,14 +58,6 @@ public class AdminRegistrationDetailDTO {
 
     public void setStatus(RegistrationFormStatus status) {
         this.status = status;
-    }
-
-    public ReservationStatus getReservationStatus() {
-        return reservationStatus;
-    }
-
-    public void setReservationStatus(ReservationStatus reservationStatus) {
-        this.reservationStatus = reservationStatus;
     }
 
     public LocalDate getCheckInDate() {
