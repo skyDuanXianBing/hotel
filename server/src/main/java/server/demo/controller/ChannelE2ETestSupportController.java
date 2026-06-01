@@ -13,6 +13,8 @@ import server.demo.dto.ApiResponse;
 import server.demo.enums.SuWebhookEventStatus;
 import server.demo.enums.SuWebhookEventType;
 import server.demo.service.ChannelE2ETestSupportService;
+import server.demo.service.ChannelE2ETestSupportService.AutoMessageDispatchResponse;
+import server.demo.service.ChannelE2ETestSupportService.AutoMessageSendLogLookupResponse;
 import server.demo.service.ChannelE2ETestSupportService.ChannelE2EReadinessResponse;
 import server.demo.service.ChannelE2ETestSupportService.MessagingThreadLookupResponse;
 import server.demo.service.ChannelE2ETestSupportService.ReservationLookupResponse;
@@ -145,6 +147,44 @@ public class ChannelE2ETestSupportController extends BaseStoreController {
                     messageLimit
             );
             return ResponseEntity.ok(ApiResponse.success("查询本地渠道E2E messaging threads成功", response));
+        } catch (TestSupportAccessException e) {
+            return accessDenied(e);
+        }
+    }
+
+    @GetMapping("/auto-message-send-logs")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<AutoMessageSendLogLookupResponse>> lookupAutoMessageSendLogs(
+            @RequestHeader(value = TEST_SUPPORT_KEY_HEADER, required = false) String testSupportKey,
+            @RequestParam(required = false) Long targetId,
+            @RequestParam(required = false) Long autoMessageId,
+            @RequestParam(required = false) Boolean success,
+            @RequestParam(required = false) Integer limit
+    ) {
+        try {
+            testSupportService.validateTestSupportAccess(testSupportKey);
+            AutoMessageSendLogLookupResponse response = testSupportService.lookupAutoMessageSendLogs(
+                    currentStoreId(),
+                    targetId,
+                    autoMessageId,
+                    success,
+                    limit
+            );
+            return ResponseEntity.ok(ApiResponse.success("查询本地渠道E2E自动消息发送日志成功", response));
+        } catch (TestSupportAccessException e) {
+            return accessDenied(e);
+        }
+    }
+
+    @PostMapping("/auto-messages/dispatch")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<AutoMessageDispatchResponse>> dispatchAutoMessages(
+            @RequestHeader(value = TEST_SUPPORT_KEY_HEADER, required = false) String testSupportKey
+    ) {
+        try {
+            testSupportService.validateTestSupportAccess(testSupportKey);
+            AutoMessageDispatchResponse response = testSupportService.dispatchAutoMessages(currentStoreId());
+            return ResponseEntity.ok(ApiResponse.success("本地渠道E2E自动消息派发已触发", response));
         } catch (TestSupportAccessException e) {
             return accessDenied(e);
         }

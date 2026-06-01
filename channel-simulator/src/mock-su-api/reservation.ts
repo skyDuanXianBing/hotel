@@ -36,6 +36,17 @@ import tokenValidator from './tokenValidator'
 const { v4: uuidv4 } = require('uuid') as { v4: () => string }
 
 const router = express.Router()
+const DEFAULT_SIMULATOR_STORE_TIME_ZONE = 'Asia/Tokyo'
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+const DATE_TIME_PATTERN = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/
+const OFFSETLESS_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}(?:T|\s)\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/
+
+interface BusinessDate {
+  year: number
+  month: number
+  day: number
+}
 
 // ---------------------------------------------------------------------------
 // Fixture 加载
@@ -85,50 +96,134 @@ function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n)
 }
 
-function formatDate(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+function normalizeEnvText(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+  const text = String(value).trim()
+  return text ? text : null
 }
 
-function formatDateTime(d: Date): string {
-  return `${formatDate(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+function getSimulatorStoreTimeZone(): string {
+  const timeZone = normalizeEnvText(process.env.SIMULATOR_STORE_TIME_ZONE) || DEFAULT_SIMULATOR_STORE_TIME_ZONE
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone }).format(new Date(0))
+  } catch {
+    throw new Error(`Invalid SIMULATOR_STORE_TIME_ZONE: ${timeZone}`)
+  }
+  return timeZone
 }
 
-function addDays(date: Date | string, days: number): Date {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d
+function parseSimulatorNow(todayOverride?: Date): { now: Date; fixedNow: string | null } {
+  if (todayOverride) {
+    return { now: todayOverride, fixedNow: null }
+  }
+
+  const fixedNow = normalizeEnvText(process.env.SIMULATOR_FIXED_NOW)
+  if (!fixedNow) {
+    return { now: new Date(), fixedNow: null }
+  }
+
+  let normalized = fixedNow
+  if (DATE_ONLY_PATTERN.test(fixedNow)) {
+    normalized = `${fixedNow}T00:00:00.000Z`
+  } else if (OFFSETLESS_DATE_TIME_PATTERN.test(fixedNow)) {
+    normalized = `${fixedNow.replace(' ', 'T')}Z`
+  }
+
+  const now = new Date(normalized)
+  if (Number.isNaN(now.getTime())) {
+    throw new Error(`Invalid SIMULATOR_FIXED_NOW: ${fixedNow}`)
+  }
+  return { now, fixedNow }
+}
+
+function getBusinessDateForInstant(instant: Date, timeZone: string): BusinessDate {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const parts = formatter.formatToParts(instant)
+  const values: Record<string, number> = {}
+  for (const part of parts) {
+    if (part.type !== 'literal') {
+      values[part.type] = Number(part.value)
+    }
+  }
+  return {
+    year: values.year,
+    month: values.month,
+    day: values.day,
+  }
+}
+
+function getSimulatorBusinessDate(todayOverride?: Date): BusinessDate {
+  const timeZone = getSimulatorStoreTimeZone()
+  const parsed = parseSimulatorNow(todayOverride)
+  return getBusinessDateForInstant(parsed.now, timeZone)
+}
+
+function formatBusinessDate(date: BusinessDate): string {
+  return `${date.year}-${pad2(date.month)}-${pad2(date.day)}`
+}
+
+function parseBusinessDate(value: string): BusinessDate | null {
+  if (!DATE_ONLY_PATTERN.test(value)) {
+    return null
+  }
+  return {
+    year: Number(value.slice(0, 4)),
+    month: Number(value.slice(5, 7)),
+    day: Number(value.slice(8, 10)),
+  }
+}
+
+function businessDateToUtcTime(date: BusinessDate): number {
+  return Date.UTC(date.year, date.month - 1, date.day)
+}
+
+function addBusinessDays(date: BusinessDate, days: number): BusinessDate {
+  const next = new Date(businessDateToUtcTime(date) + days * MS_PER_DAY)
+  return {
+    year: next.getUTCFullYear(),
+    month: next.getUTCMonth() + 1,
+    day: next.getUTCDate(),
+  }
+}
+
+function businessDaysBetween(from: BusinessDate, to: BusinessDate): number {
+  return Math.round((businessDateToUtcTime(to) - businessDateToUtcTime(from)) / MS_PER_DAY)
 }
 
 /**
  * 计算 fixture 中第一间房的 arrival_date 与今天的差值，
  * 以此作为整体日期平移的基准，把所有日期推到 "今天 + N" 的未来。
  */
-function computeDateShift(reservation: JsonObject, today: Date): number {
+function computeDateShift(reservation: JsonObject, today: BusinessDate): number {
   const firstRoom = reservation.rooms && reservation.rooms[0]
   if (!firstRoom || !firstRoom.arrival_date) return 0
 
-  const arrival = new Date(firstRoom.arrival_date)
-  if (Number.isNaN(arrival.getTime())) return 0
+  const arrival = parseBusinessDate(String(firstRoom.arrival_date))
+  if (!arrival) return 0
 
   // 让到达日距今天 7 天
-  const desiredArrival = addDays(today, 7)
-  const diffMs = desiredArrival.getTime() - arrival.getTime()
-  return Math.round(diffMs / (24 * 60 * 60 * 1000))
+  const desiredArrival = addBusinessDays(today, 7)
+  return businessDaysBetween(arrival, desiredArrival)
 }
 
 function shiftDateString(value: unknown, shiftDays: number): unknown {
   if (!value || typeof value !== 'string') return value
   // 仅处理 YYYY-MM-DD 或 YYYY-MM-DD HH:mm:ss
-  const dateOnly = /^\d{4}-\d{2}-\d{2}$/
-  const dateTime = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/
-
-  if (dateOnly.test(value)) {
-    const d = addDays(new Date(value), shiftDays)
-    return formatDate(d)
+  if (DATE_ONLY_PATTERN.test(value)) {
+    const date = parseBusinessDate(value)
+    return date ? formatBusinessDate(addBusinessDays(date, shiftDays)) : value
   }
-  if (dateTime.test(value)) {
-    const d = addDays(new Date(value.replace(' ', 'T')), shiftDays)
-    return formatDateTime(d)
+  const dateTime = DATE_TIME_PATTERN.exec(value)
+  if (dateTime) {
+    const date = parseBusinessDate(dateTime[1])
+    return date ? `${formatBusinessDate(addBusinessDays(date, shiftDays))} ${dateTime[2]}` : value
   }
   return value
 }
@@ -230,7 +325,7 @@ export function buildReservationFromFixture(
     throw new Error(`fixture has no reservation: ${fixtureFile}`)
   }
 
-  const today = options.today || new Date()
+  const today = getSimulatorBusinessDate(options.today)
   const shiftDays = computeDateShift(reservation, today)
   shiftReservationDates(reservation, shiftDays)
 

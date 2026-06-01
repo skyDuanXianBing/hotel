@@ -5,8 +5,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
+import server.demo.repository.StoreRepository;
+import server.demo.util.StoreTimeZoneUtil;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -26,17 +30,23 @@ public class ChannelPriceWarmupService {
     private final ChannelPriceRepository channelPriceRepository;
     private final RoomTypePricePlanRepository roomTypePricePlanRepository;
     private final ChannelPriceFallbackService channelPriceFallbackService;
+    private final StoreRepository storeRepository;
+    private final Clock clock;
 
     private final Map<Long, LocalDate> warmedAtByStoreId = new ConcurrentHashMap<>();
 
     public ChannelPriceWarmupService(
             ChannelPriceRepository channelPriceRepository,
             RoomTypePricePlanRepository roomTypePricePlanRepository,
-            ChannelPriceFallbackService channelPriceFallbackService
+            ChannelPriceFallbackService channelPriceFallbackService,
+            StoreRepository storeRepository,
+            Clock clock
     ) {
         this.channelPriceRepository = channelPriceRepository;
         this.roomTypePricePlanRepository = roomTypePricePlanRepository;
         this.channelPriceFallbackService = channelPriceFallbackService;
+        this.storeRepository = storeRepository;
+        this.clock = clock;
     }
 
     public void warmupIfNeeded(Long storeId) {
@@ -44,7 +54,7 @@ public class ChannelPriceWarmupService {
             return;
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = currentStoreDate(storeId);
         LocalDate warmedAt = warmedAtByStoreId.get(storeId);
         if (today.equals(warmedAt)) {
             return;
@@ -74,5 +84,9 @@ public class ChannelPriceWarmupService {
             logger.warn("[ChannelPriceWarmup] warmup failed. storeId={}, message={}", storeId, ex.getMessage(), ex);
         }
     }
-}
 
+    private LocalDate currentStoreDate(Long storeId) {
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(storeRepository.findById(storeId).orElse(null));
+        return LocalDate.now(clock.withZone(zoneId));
+    }
+}

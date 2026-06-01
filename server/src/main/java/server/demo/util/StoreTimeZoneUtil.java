@@ -209,6 +209,18 @@ public final class StoreTimeZoneUtil {
                 .toLocalDateTime();
     }
 
+    /**
+     * Convert a reservation timestamp storage-local value to a UTC-based {@link LocalDateTime}.
+     */
+    public static LocalDateTime reservationTimestampStorageToUtcLocalDateTime(LocalDateTime storageLocalDateTime) {
+        if (storageLocalDateTime == null) {
+            return null;
+        }
+        return storageLocalDateTime.atZone(reservationTimestampStorageZoneId)
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime();
+    }
+
     private static ZoneId resolveZoneId(String timezone, Long storeId, ZoneId defaultZoneId) {
         ZoneId fallbackZoneId = normalizeDefaultZoneId(defaultZoneId);
         if (timezone == null || timezone.isBlank()) {

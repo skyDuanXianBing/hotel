@@ -10,6 +10,7 @@ import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
 import server.demo.entity.Store;
 import server.demo.enums.ReservationStatus;
+import server.demo.repository.PriceLabsConnectionRepository;
 import server.demo.repository.PriceLabsIntegrationRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomPriceRepository;
@@ -17,6 +18,9 @@ import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.StoreRepository;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,10 +42,12 @@ class PriceLabsSyncServiceCalendarPayloadTest {
         PriceLabsApiClient apiClient = mock(PriceLabsApiClient.class);
         StoreRepository storeRepository = mock(StoreRepository.class);
         PriceLabsIntegrationRepository integrationRepository = mock(PriceLabsIntegrationRepository.class);
+        PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
         RoomTypePricePlanRepository roomTypePricePlanRepository = mock(RoomTypePricePlanRepository.class);
         RoomPriceRepository roomPriceRepository = mock(RoomPriceRepository.class);
         RoomRepository roomRepository = mock(RoomRepository.class);
         ReservationRepository reservationRepository = mock(ReservationRepository.class);
+        GoogleGeocodingService googleGeocodingService = mock(GoogleGeocodingService.class);
 
         Store store = new Store();
         store.setId(7L);
@@ -49,6 +55,7 @@ class PriceLabsSyncServiceCalendarPayloadTest {
         store.setAddress("No.1 Test Road");
         store.setCountry("CHN");
         store.setCurrency("CNY");
+        store.setTimezone("Asia/Tokyo");
 
         PriceLabsIntegration integration = new PriceLabsIntegration(7L);
         integration.setIsEnabled(true);
@@ -85,12 +92,16 @@ class PriceLabsSyncServiceCalendarPayloadTest {
         when(storeRepository.findById(7L)).thenReturn(Optional.of(store));
         when(integrationRepository.findByStoreId(7L)).thenReturn(Optional.of(integration));
         when(integrationRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(connectionRepository.findByStoreIdAndRoomTypeIdAndPricePlanId(7L, 30L, 4L))
+                .thenReturn(Optional.empty());
         when(roomTypePricePlanRepository.findByRoomTypeId(30L)).thenReturn(List.of(mapping));
         when(roomRepository.findByStoreIdAndRoomTypeId(7L, 30L)).thenReturn(List.of(room1, room2));
         when(roomPriceRepository.findByStoreIdAndRoomTypeIdAndPriceDateBetween(anyLong(), anyLong(), any(), any()))
                 .thenReturn(List.of());
         when(reservationRepository.findOccupancyRowsByStoreIdAndDateRangeAndStatuses(anyLong(), any(), any(), any()))
                 .thenReturn(List.of());
+        when(googleGeocodingService.geocodeCoordinates(any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
 
         PriceLabsApiClient.PriceLabsResponse successResponse = new PriceLabsApiClient.PriceLabsResponse();
         successResponse.setSuccess(List.of("ok"));
@@ -107,10 +118,17 @@ class PriceLabsSyncServiceCalendarPayloadTest {
         ReflectionTestUtils.setField(service, "apiClient", apiClient);
         ReflectionTestUtils.setField(service, "storeRepo", storeRepository);
         ReflectionTestUtils.setField(service, "integrationRepo", integrationRepository);
+        ReflectionTestUtils.setField(service, "connectionRepo", connectionRepository);
         ReflectionTestUtils.setField(service, "rtppRepo", roomTypePricePlanRepository);
         ReflectionTestUtils.setField(service, "roomPriceRepo", roomPriceRepository);
         ReflectionTestUtils.setField(service, "roomRepo", roomRepository);
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "googleGeocodingService", googleGeocodingService);
+        ReflectionTestUtils.setField(
+                service,
+                "clock",
+                Clock.fixed(Instant.parse("2026-04-07T15:30:00Z"), ZoneOffset.UTC)
+        );
 
         service.syncListingRatePlanAndCalendar(7L, roomType, selectedPlan, null, PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS);
 
@@ -138,6 +156,7 @@ class PriceLabsSyncServiceCalendarPayloadTest {
         assertNotNull(calendarData.getMultiUnit());
         assertEquals(2, calendarData.getMultiUnit().getTotalUnits());
         assertEquals(2, calendarData.getMultiUnit().getUnitIds().size());
+        assertEquals("2026-04-08", calendarData.getCalendar().get(0).getDate());
         assertTrue(calendarData.getCalendar().size() >= PriceLabsSyncDefaults.INITIAL_SYNC_DAYS);
     }
 }

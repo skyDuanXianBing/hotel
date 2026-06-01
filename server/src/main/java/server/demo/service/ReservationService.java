@@ -220,7 +220,7 @@ public class ReservationService {
         if (Boolean.TRUE.equals(request.getDirectCheckIn())) {
             System.out.println("设置为已入住状态");
             reservation.setStatus(ReservationStatus.CHECKED_IN);
-            reservation.setActualCheckIn(LocalDateTime.now());
+            reservation.setActualCheckIn(StoreTimeZoneUtil.nowReservationTimestampLocalDateTime());
         } else {
             System.out.println("设置为预订状态");
             reservation.setStatus(ReservationStatus.CONFIRMED);
@@ -284,7 +284,7 @@ public class ReservationService {
         }
 
         reservation.setStatus(ReservationStatus.CHECKED_IN);
-        reservation.setActualCheckIn(LocalDateTime.now());
+        reservation.setActualCheckIn(StoreTimeZoneUtil.nowReservationTimestampLocalDateTime());
 
         Reservation savedReservation = reservationRepository.save(reservation);
         scheduleAutoMessageDispatchAfterCommit(reservation.getStoreId());
@@ -324,7 +324,7 @@ public class ReservationService {
         }
 
         reservation.setStatus(ReservationStatus.CHECKED_OUT);
-        reservation.setActualCheckOut(LocalDateTime.now());
+        reservation.setActualCheckOut(StoreTimeZoneUtil.nowReservationTimestampLocalDateTime());
 
         Reservation savedReservation = reservationRepository.save(reservation);
         cleaningTaskAutoService.ensureCheckoutTaskForReservation(savedReservation);
@@ -366,7 +366,7 @@ public class ReservationService {
         }
 
         reservation.setStatus(ReservationStatus.CANCELLED);
-        reservation.setActualCheckOut(LocalDateTime.now());
+        reservation.setActualCheckOut(StoreTimeZoneUtil.nowReservationTimestampLocalDateTime());
 
         Reservation savedReservation = reservationRepository.save(reservation);
         cleaningTaskAutoService.syncTaskForReservation(savedReservation);

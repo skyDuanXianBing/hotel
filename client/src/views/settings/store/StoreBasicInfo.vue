@@ -76,12 +76,18 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.name')" prop="name">
-              <el-input v-model="editForm.name" :placeholder="t('settingsStage4.storeBasic.placeholders.name')" />
+              <el-input
+                v-model="editForm.name"
+                :placeholder="t('settingsStage4.storeBasic.placeholders.name')"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.phone')" prop="phone">
-              <el-input v-model="editForm.phone" :placeholder="t('settingsStage4.storeBasic.placeholders.phone')" />
+              <el-input
+                v-model="editForm.phone"
+                :placeholder="t('settingsStage4.storeBasic.placeholders.phone')"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -89,16 +95,33 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.type')" prop="type">
-              <el-select v-model="editForm.type" :placeholder="t('settingsStage4.storeBasic.placeholders.type')" style="width: 100%">
-                <el-option :label="t('settingsStage4.storeBasic.typeOptions.ryokan')" value="RYOKAN" />
-                <el-option :label="t('settingsStage4.storeBasic.typeOptions.hotel')" value="HOTEL" />
-                <el-option :label="t('settingsStage4.storeBasic.typeOptions.homestay')" value="HOMESTAY" />
+              <el-select
+                v-model="editForm.type"
+                :placeholder="t('settingsStage4.storeBasic.placeholders.type')"
+                style="width: 100%"
+              >
+                <el-option
+                  :label="t('settingsStage4.storeBasic.typeOptions.ryokan')"
+                  value="RYOKAN"
+                />
+                <el-option
+                  :label="t('settingsStage4.storeBasic.typeOptions.hotel')"
+                  value="HOTEL"
+                />
+                <el-option
+                  :label="t('settingsStage4.storeBasic.typeOptions.homestay')"
+                  value="HOMESTAY"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.timezone')" prop="timezone">
-              <el-select v-model="editForm.timezone" :placeholder="t('settingsStage4.storeBasic.placeholders.timezone')" style="width: 100%">
+              <el-select
+                v-model="editForm.timezone"
+                :placeholder="t('settingsStage4.storeBasic.placeholders.timezone')"
+                style="width: 100%"
+              >
                 <el-option label="Asia/Tokyo" value="Asia/Tokyo" />
                 <el-option label="Asia/Shanghai" value="Asia/Shanghai" />
                 <el-option label="Asia/Hong_Kong" value="Asia/Hong_Kong" />
@@ -110,29 +133,48 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.manager')" prop="manager">
-              <el-input v-model="editForm.manager" :placeholder="t('settingsStage4.storeBasic.placeholders.manager')" />
+              <el-input
+                v-model="editForm.manager"
+                :placeholder="t('settingsStage4.storeBasic.placeholders.manager')"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item :label="t('settingsStage4.storeBasic.fields.ownerEmail')" prop="ownerEmail">
-              <el-input v-model="editForm.ownerEmail" :placeholder="t('settingsStage4.storeBasic.placeholders.ownerEmail')" />
+            <el-form-item
+              :label="t('settingsStage4.storeBasic.fields.ownerEmail')"
+              prop="ownerEmail"
+            >
+              <el-input
+                v-model="editForm.ownerEmail"
+                :placeholder="t('settingsStage4.storeBasic.placeholders.ownerEmail')"
+              />
             </el-form-item>
           </el-col>
         </el-row>
 
         <el-form-item :label="t('settingsStage4.storeBasic.fields.address')" prop="address">
-          <el-input v-model="editForm.address" :placeholder="t('settingsStage4.storeBasic.placeholders.address')" />
+          <el-input
+            v-model="editForm.address"
+            :placeholder="t('settingsStage4.storeBasic.placeholders.address')"
+          />
         </el-form-item>
 
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.city')" prop="city">
-              <el-input v-model="editForm.city" :placeholder="t('settingsStage4.storeBasic.placeholders.city')" />
+              <el-input
+                v-model="editForm.city"
+                :placeholder="t('settingsStage4.storeBasic.placeholders.city')"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.country')" prop="country">
-              <el-select v-model="editForm.country" :placeholder="t('settingsStage4.storeBasic.placeholders.country')" style="width: 100%">
+              <el-select
+                v-model="editForm.country"
+                :placeholder="t('settingsStage4.storeBasic.placeholders.country')"
+                style="width: 100%"
+              >
                 <el-option label="Japan" value="Japan" />
                 <el-option label="China" value="China" />
                 <el-option label="Korea" value="Korea" />
@@ -142,7 +184,11 @@
         </el-row>
 
         <el-form-item :label="t('settingsStage4.storeBasic.fields.currency')" prop="currency">
-          <el-select v-model="editForm.currency" :placeholder="t('settingsStage4.storeBasic.placeholders.currency')" style="width: 100%">
+          <el-select
+            v-model="editForm.currency"
+            :placeholder="t('settingsStage4.storeBasic.placeholders.currency')"
+            style="width: 100%"
+          >
             <el-option label="JPY" value="JPY" />
             <el-option label="CNY" value="CNY" />
             <el-option label="USD" value="USD" />
@@ -153,7 +199,9 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="handleCancelEdit">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" @click="handleSaveEdit">{{ t('settings.common.save') }}</el-button>
+          <el-button type="primary" @click="handleSaveEdit">{{
+            t('settings.common.save')
+          }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -166,6 +214,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { getStoreById } from '@/api/store'
 import { useStoreStore } from '@/stores/store'
+import { formatBackendDateTime } from '@/utils/storeDateTime'
 import {
   COUNTRY_OPTIONS,
   PROPERTY_TYPE_OPTIONS,
@@ -190,7 +239,7 @@ interface StoreInfo {
 const editDialogVisible = ref(false)
 const formRef = ref<FormInstance>()
 const loading = ref(false)
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 // 使用 Pinia store 获取当前门店
 const storeStore = useStoreStore()
@@ -235,19 +284,81 @@ const editForm = reactive<StoreInfo>({
 })
 
 const formRules = computed<FormRules>(() => ({
-  name: [{ required: true, message: t('settingsStage4.storeBasic.validation.nameRequired'), trigger: 'blur' }],
-  phone: [{ required: true, message: t('settingsStage4.storeBasic.validation.phoneRequired'), trigger: 'blur' }],
-  type: [{ required: true, message: t('settingsStage4.storeBasic.validation.typeRequired'), trigger: 'change' }],
-  timezone: [{ required: true, message: t('settingsStage4.storeBasic.validation.timezoneRequired'), trigger: 'change' }],
-  manager: [{ required: true, message: t('settingsStage4.storeBasic.validation.managerRequired'), trigger: 'blur' }],
-  ownerEmail: [
-    { required: true, message: t('settingsStage4.storeBasic.validation.emailRequired'), trigger: 'blur' },
-    { type: 'email', message: t('settingsStage4.storeBasic.validation.emailInvalid'), trigger: 'blur' },
+  name: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.nameRequired'),
+      trigger: 'blur',
+    },
   ],
-  address: [{ required: true, message: t('settingsStage4.storeBasic.validation.addressRequired'), trigger: 'blur' }],
-  city: [{ required: true, message: t('settingsStage4.storeBasic.validation.cityRequired'), trigger: 'blur' }],
-  country: [{ required: true, message: t('settingsStage4.storeBasic.validation.countryRequired'), trigger: 'change' }],
-  currency: [{ required: true, message: t('settingsStage4.storeBasic.validation.currencyRequired'), trigger: 'change' }],
+  phone: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.phoneRequired'),
+      trigger: 'blur',
+    },
+  ],
+  type: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.typeRequired'),
+      trigger: 'change',
+    },
+  ],
+  timezone: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.timezoneRequired'),
+      trigger: 'change',
+    },
+  ],
+  manager: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.managerRequired'),
+      trigger: 'blur',
+    },
+  ],
+  ownerEmail: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.emailRequired'),
+      trigger: 'blur',
+    },
+    {
+      type: 'email',
+      message: t('settingsStage4.storeBasic.validation.emailInvalid'),
+      trigger: 'blur',
+    },
+  ],
+  address: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.addressRequired'),
+      trigger: 'blur',
+    },
+  ],
+  city: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.cityRequired'),
+      trigger: 'blur',
+    },
+  ],
+  country: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.countryRequired'),
+      trigger: 'change',
+    },
+  ],
+  currency: [
+    {
+      required: true,
+      message: t('settingsStage4.storeBasic.validation.currencyRequired'),
+      trigger: 'change',
+    },
+  ],
 }))
 
 const handleEdit = () => {
@@ -279,7 +390,7 @@ const loadStoreInfo = async () => {
         timezone: data.timezone || '',
         manager: data.manager || '',
         ownerEmail: data.ownerEmail || '',
-        createdAt: data.createdAt ? new Date(data.createdAt).toLocaleDateString(locale.value) : '',
+        createdAt: data.createdAt ? formatBackendDateTime(data.createdAt, data.timezone) : '',
         address: data.address || '',
         city: data.city || '',
         country: data.country || '',

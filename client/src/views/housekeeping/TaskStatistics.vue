@@ -61,10 +61,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Calendar, House, Refresh } from '@element-plus/icons-vue'
+import { getStoreCurrentMonthYm } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
 
-const selectedMonth = ref(new Date().toISOString().substring(0, 7))
+const selectedMonth = ref(getStoreCurrentMonthYm())
 
 const recordList = ref([
   {

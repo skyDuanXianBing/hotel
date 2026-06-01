@@ -294,6 +294,40 @@ class ReservationServiceBusinessDateTest {
         verify(reservationRepository).findUnassignedOrUnmappedByStoreId(STORE_ID, LocalDate.of(2026, 4, 9));
     }
 
+    @Test
+    void checkIn_shouldWriteActualCheckInInReservationTimestampStorageZone() {
+        StoreTimeZoneUtil.setReservationTimestampStorageZoneId(ZoneId.of("UTC"));
+        StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "ADMIN"));
+        Reservation reservation = reservation(201L);
+        reservation.setStatus(server.demo.enums.ReservationStatus.CONFIRMED);
+        when(reservationRepository.findById(201L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        LocalDateTime beforeUtc = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(1);
+        reservationService.checkIn(201L);
+        LocalDateTime afterUtc = LocalDateTime.now(ZoneOffset.UTC).plusSeconds(1);
+
+        assertTrue(!reservation.getActualCheckIn().isBefore(beforeUtc));
+        assertTrue(!reservation.getActualCheckIn().isAfter(afterUtc));
+    }
+
+    @Test
+    void checkOut_shouldWriteActualCheckOutInReservationTimestampStorageZone() {
+        StoreTimeZoneUtil.setReservationTimestampStorageZoneId(ZoneId.of("UTC"));
+        StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "ADMIN"));
+        Reservation reservation = reservation(202L);
+        reservation.setStatus(server.demo.enums.ReservationStatus.CHECKED_IN);
+        when(reservationRepository.findById(202L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        LocalDateTime beforeUtc = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(1);
+        reservationService.checkOut(202L);
+        LocalDateTime afterUtc = LocalDateTime.now(ZoneOffset.UTC).plusSeconds(1);
+
+        assertTrue(!reservation.getActualCheckOut().isBefore(beforeUtc));
+        assertTrue(!reservation.getActualCheckOut().isAfter(afterUtc));
+    }
+
     private static Store store(String timezone) {
         Store store = new Store();
         store.setId(STORE_ID);

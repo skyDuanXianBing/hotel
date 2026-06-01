@@ -480,6 +480,13 @@ import {
 import { useStoreStore } from '@/stores/store'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { LANGUAGE_OPTIONS, getStoreOptionLabel } from '@/constants/storeOptions'
+import {
+  diffYmdDays,
+  getStoreDateKey as getStoreDateKeyByZone,
+  getYmdWeekdayIndex,
+  parseUtcDateTime,
+  parseYmdAsUtcDate,
+} from '@/utils/storeDateTime'
 
 interface MessageItem {
   id: number
@@ -634,8 +641,6 @@ const GUEST_LANGUAGE_AI_LABEL_MAP: Record<string, string> = {
   ja: 'Japanese',
   ko: 'Korean',
 }
-const ONE_DAY_MS = 24 * 60 * 60 * 1000
-
 const translationLanguageOptions = computed(() => [
   {
     value: 'zh-CN' as const,
@@ -721,85 +726,16 @@ const getStoreTimeFormatter = () =>
     hour12: false,
   })
 
-const getStoreDateKeyFormatter = () =>
-  buildDateTimeFormatter('en-CA', currentStoreTimeZone.value, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-
-const parseStoreDateTime = (rawValue: string | Date) => {
-  if (rawValue instanceof Date) {
-    return rawValue
-  }
-
-  const trimmed = (rawValue || '').trim()
-  if (!trimmed) {
-    return new Date(0)
-  }
-
-  const normalized = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T')
-  const hasTimezone = /([zZ]|[+\-]\d{2}:?\d{2})$/.test(normalized)
-  if (hasTimezone) {
-    const parsed = new Date(normalized)
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed
-    }
-  }
-
-  const matched = normalized.match(
-    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/,
-  )
-  if (matched) {
-    const [, yearText, monthText, dayText, hourText, minuteText, secondText] = matched
-    const utcTimestamp = Date.UTC(
-      Number(yearText),
-      Number(monthText) - 1,
-      Number(dayText),
-      Number(hourText),
-      Number(minuteText),
-      Number(secondText || '0'),
-    )
-    return new Date(utcTimestamp)
-  }
-
-  const fallback = new Date(trimmed)
-  if (!Number.isNaN(fallback.getTime())) {
-    return fallback
-  }
-
-  return new Date(0)
-}
-
-const getFormatterPart = (
-  formatter: Intl.DateTimeFormat,
-  date: Date,
-  partType: 'year' | 'month' | 'day',
-) => {
-  const part = formatter.formatToParts(date).find((item) => item.type === partType)
-  return part?.value || '00'
-}
-
 const getStoreDateKey = (date: Date) => {
-  const formatter = getStoreDateKeyFormatter()
-  const year = getFormatterPart(formatter, date, 'year')
-  const month = getFormatterPart(formatter, date, 'month')
-  const day = getFormatterPart(formatter, date, 'day')
-  return `${year}-${month}-${day}`
+  return getStoreDateKeyByZone(date, currentStoreTimeZone.value)
 }
 
 const parseDateKeyUtc = (dateKey: string) => {
-  const [yearText, monthText, dayText] = dateKey.split('-')
-  const year = Number(yearText)
-  const month = Number(monthText)
-  const day = Number(dayText)
-  return new Date(Date.UTC(year, month - 1, day))
+  return parseYmdAsUtcDate(dateKey)
 }
 
 const getDateDiffByStoreDay = (target: Date, base: Date) => {
-  const targetDay = parseDateKeyUtc(getStoreDateKey(target)).getTime()
-  const baseDay = parseDateKeyUtc(getStoreDateKey(base)).getTime()
-  return Math.floor((baseDay - targetDay) / ONE_DAY_MS)
+  return diffYmdDays(getStoreDateKey(target), getStoreDateKey(base))
 }
 
 const filteredConversations = computed(() => {
@@ -1229,7 +1165,7 @@ const mapMessage = (message: SuMessagingMessageDTO): MessageItem => ({
   id: message.id,
   senderType: message.senderType,
   content: message.content,
-  timestamp: parseStoreDateTime(message.timestamp),
+  timestamp: parseUtcDateTime(message.timestamp),
   senderName: normalizeSenderName(message.senderName),
   deliveryStatus: message.deliveryStatus,
 })
@@ -1238,7 +1174,7 @@ const mapRealtimeMessage = (message: RealtimeMessageItem): MessageItem => ({
   id: message.id,
   senderType: message.senderType as SuMessagingSenderType,
   content: message.content,
-  timestamp: parseStoreDateTime(message.timestamp),
+  timestamp: parseUtcDateTime(message.timestamp),
   senderName: normalizeSenderName(message.senderName),
   deliveryStatus: message.deliveryStatus,
 })
@@ -1331,8 +1267,8 @@ const formatDateDividerLabel = (dateKey: string) => {
   const year = Number(yearText)
   const month = Number(monthText)
   const day = Number(dayText)
-  const storeNowYear = Number(getFormatterPart(getStoreDateKeyFormatter(), new Date(), 'year'))
-  const weekday = weekdayLabels.value[parsed.getUTCDay()]
+  const storeNowYear = Number(getStoreDateKey(new Date()).slice(0, 4))
+  const weekday = weekdayLabels.value[getYmdWeekdayIndex(dateKey)]
   if (year === storeNowYear) {
     return t('stage6.components.messagesPage.date.monthDayWeekday', { month, day, weekday })
   }
@@ -1847,7 +1783,7 @@ const connectRealtimeSocket = () => {
 }
 
 const formatConversationTime = (dateString: string) => {
-  const date = parseStoreDateTime(dateString)
+  const date = parseUtcDateTime(dateString)
   if (Number.isNaN(date.getTime())) {
     return '-'
   }

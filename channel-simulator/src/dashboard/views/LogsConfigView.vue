@@ -35,7 +35,7 @@ const {
       <div class="panel-header">
         <div>
           <h3>请求日志</h3>
-          <p>包含 simulator API、webhook 发送和接收记录。</p>
+          <p>包含 simulator API、webhook 发送和接收记录；时间按 UTC 显示。</p>
         </div>
         <div class="actions">
           <button type="button" class="button secondary" :disabled="loading.logs" @click="loadLogs">

@@ -5,10 +5,11 @@ import {
   getPmsConfigDiagnostic,
   getPmsContext,
   getPmsReadiness,
+  lookupPmsAutoMessageSendLogs,
   setupPmsLocalChannelE2E,
 } from '../pms-client'
 import { lookupPmsMessagingThreads, lookupPmsReservations, lookupPmsWebhookEvents } from '../pms-client'
-import type { JsonObject, PmsReadinessData, PmsRequestContext } from '../pms-client'
+import type { JsonObject, PmsAutoMessageSummary, PmsReadinessData, PmsRequestContext } from '../pms-client'
 import { registerPendingReservation } from '../state/reservationPendingState'
 import {
   appendE2ERunStep,
@@ -38,6 +39,8 @@ const router = express.Router()
 
 const BOOKING_CHANNEL_ID = 19
 const AIRBNB_CHANNEL_ID = 244
+const LOCAL_AUTO_MESSAGE_ACTION = 'BOOKING_CONFIRM'
+const LOCAL_AUTO_MESSAGE_SEND_TIMING = 'IMMEDIATELY'
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -243,6 +246,34 @@ function registerPullReservation(run: E2ERunRecord): PendingRegistrationResult {
   }
 }
 
+function selectLocalBookingAutoMessage(data: PmsReadinessData | null | undefined): PmsAutoMessageSummary | null {
+  const autoMessages = data?.autoMessages
+  if (!Array.isArray(autoMessages)) {
+    return null
+  }
+
+  for (const autoMessage of autoMessages) {
+    if (autoMessage.markerPresent !== true) {
+      continue
+    }
+    if (autoMessage.bookingOnly !== true) {
+      continue
+    }
+    if (autoMessage.enabled !== true) {
+      continue
+    }
+    if (autoMessage.action !== LOCAL_AUTO_MESSAGE_ACTION) {
+      continue
+    }
+    if (autoMessage.sendTiming !== LOCAL_AUTO_MESSAGE_SEND_TIMING) {
+      continue
+    }
+    return autoMessage
+  }
+
+  return null
+}
+
 async function verifyRun(run: E2ERunRecord, context: PmsRequestContext) {
   const [reservationLookup, webhookEvents] = await Promise.all([
     lookupPmsReservations({
@@ -258,9 +289,41 @@ async function verifyRun(run: E2ERunRecord, context: PmsRequestContext) {
     }, context),
   ])
 
+  let autoMessageSendLogs = null
+  let autoMessageMessages = null
+  let autoMessageTemplate = null
+  if (run.ids.channel === 'BOOKING') {
+    const autoMessageReadiness = await getPmsContext(context)
+    autoMessageTemplate = selectLocalBookingAutoMessage(autoMessageReadiness.data)
+    const reservations = reservationLookup.data?.reservations
+    let reservationId = null
+    if (Array.isArray(reservations) && reservations.length > 0) {
+      reservationId = reservations[0]?.id || null
+    }
+
+    if (reservationId) {
+      autoMessageSendLogs = await lookupPmsAutoMessageSendLogs({
+        targetId: reservationId,
+        autoMessageId: autoMessageTemplate?.id,
+        success: true,
+        limit: 20,
+      }, context)
+    }
+
+    autoMessageMessages = await lookupPmsMessagingThreads({
+      channelId: String(BOOKING_CHANNEL_ID),
+      bookingId: run.ids.channelBookingId,
+      limit: 20,
+      messageLimit: 50,
+    }, context)
+  }
+
   return {
     reservationLookup,
     webhookEvents,
+    autoMessageSendLogs,
+    autoMessageMessages,
+    autoMessageTemplate,
   }
 }
 

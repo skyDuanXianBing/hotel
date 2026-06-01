@@ -391,6 +391,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { QuestionFilled, Edit } from '@element-plus/icons-vue'
+import { diffYmdDays, normalizeYmdInput } from '@/utils/storeDateTime'
 
 // 加载状态
 const submitting = ref(false)
@@ -500,9 +501,12 @@ const totalSelectedDays = computed(() => {
   let totalDays = 0
   dateRanges.value.forEach((range) => {
     if (range.start && range.end) {
-      const start = new Date(range.start)
-      const end = new Date(range.end)
-      totalDays += Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      const start = normalizeYmdInput(range.start, '')
+      const end = normalizeYmdInput(range.end, '')
+      const days = diffYmdDays(start, end)
+      if (days >= 0) {
+        totalDays += days + 1
+      }
     }
   })
   return totalDays

@@ -18,8 +18,11 @@ import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.StoreRepository;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +53,7 @@ class PriceLabsReservationSyncServiceTest {
         Store store = new Store();
         store.setId(5L);
         store.setCurrency("JPY");
+        store.setTimezone("Asia/Tokyo");
         when(storeRepo.findById(5L)).thenReturn(Optional.of(store));
 
         RoomType roomType = new RoomType();
@@ -78,7 +82,7 @@ class PriceLabsReservationSyncServiceTest {
         reservation.setCheckOutDate(LocalDate.of(2026, 1, 18));
         reservation.setTotalAmount(new BigDecimal("1234.00"));
         reservation.setOrderNumber("RSV-99");
-        reservation.setCreatedAt(LocalDateTime.of(2026, 1, 1, 10, 0));
+        reservation.setCreatedAt(LocalDateTime.of(2026, 1, 1, 23, 30));
         reservation.setUpdatedAt(LocalDateTime.of(2026, 1, 2, 10, 0));
         reservation.setStatus(ReservationStatus.CONFIRMED);
         when(reservationRepo.findByStoreIdAndIdWithRoomType(5L, 99L)).thenReturn(Optional.of(reservation));
@@ -94,6 +98,11 @@ class PriceLabsReservationSyncServiceTest {
         ReflectionTestUtils.setField(service, "integrationRepo", integrationRepo);
         ReflectionTestUtils.setField(service, "reservationRepo", reservationRepo);
         ReflectionTestUtils.setField(service, "storeRepo", storeRepo);
+        ReflectionTestUtils.setField(
+                service,
+                "clock",
+                Clock.fixed(Instant.parse("2026-01-01T15:30:00Z"), ZoneOffset.UTC)
+        );
 
         service.pushReservationById(5L, 99L);
 
@@ -111,6 +120,7 @@ class PriceLabsReservationSyncServiceTest {
         assertEquals("booked", sent.get(0).getData().get(0).getStatus());
         assertEquals("2026-01-15", sent.get(0).getData().get(0).getStartDate());
         assertEquals("2026-01-18", sent.get(0).getData().get(0).getEndDate());
+        assertEquals("2026-01-02", sent.get(0).getData().get(0).getBookedTime());
         assertEquals(3, sent.get(0).getData().get(0).getTotalDays());
 
         verify(integrationRepo, times(1)).save(any(PriceLabsIntegration.class));
@@ -132,6 +142,7 @@ class PriceLabsReservationSyncServiceTest {
         Store store = new Store();
         store.setId(5L);
         store.setCurrency("JPY");
+        store.setTimezone("Asia/Tokyo");
         when(storeRepo.findById(5L)).thenReturn(Optional.of(store));
 
         RoomType roomType = new RoomType();
@@ -150,7 +161,7 @@ class PriceLabsReservationSyncServiceTest {
         room.setId(97L);
 
         RoomBlockout blockout = new RoomBlockout(5L, room, LocalDate.of(2026, 3, 20), RoomBlockoutType.STOP, "x");
-        ReflectionTestUtils.setField(blockout, "createdAt", LocalDateTime.of(2026, 3, 10, 10, 0));
+        ReflectionTestUtils.setField(blockout, "createdAt", LocalDateTime.of(2026, 3, 10, 23, 30));
         ReflectionTestUtils.setField(blockout, "updatedAt", LocalDateTime.of(2026, 3, 12, 10, 0));
 
         PriceLabsApiClient.PriceLabsResponse ok = new PriceLabsApiClient.PriceLabsResponse();
@@ -165,6 +176,11 @@ class PriceLabsReservationSyncServiceTest {
         ReflectionTestUtils.setField(service, "reservationRepo", reservationRepo);
         ReflectionTestUtils.setField(service, "roomBlockoutRepo", roomBlockoutRepo);
         ReflectionTestUtils.setField(service, "storeRepo", storeRepo);
+        ReflectionTestUtils.setField(
+                service,
+                "clock",
+                Clock.fixed(Instant.parse("2026-03-10T15:30:00Z"), ZoneOffset.UTC)
+        );
 
         service.pushCancelledBlockouts(
                 5L,
@@ -187,7 +203,7 @@ class PriceLabsReservationSyncServiceTest {
         assertEquals("2026-03-17", sent.get(0).getData().get(0).getCancelTime());
         assertEquals("2026-03-20", sent.get(0).getData().get(0).getStartDate());
         assertEquals("2026-03-21", sent.get(0).getData().get(0).getEndDate());
-        assertEquals("2026-03-10", sent.get(0).getData().get(0).getBookedTime());
+        assertEquals("2026-03-11", sent.get(0).getData().get(0).getBookedTime());
 
         verify(integrationRepo, times(1)).save(any(PriceLabsIntegration.class));
     }

@@ -351,7 +351,7 @@ public class PriceLabsController {
             @RequestParam(required = false) Integer days) {
         try {
             Long storeId = StoreContextHolder.getContext().getStoreId();
-            ChannelPriceFallbackService.GenerateResult result = channelPriceFallbackService.generate(storeId, LocalDate.now(), days);
+            ChannelPriceFallbackService.GenerateResult result = channelPriceFallbackService.generate(storeId, null, days);
             Map<String, Object> payload = Map.of(
                     "storeId", result.storeId(),
                     "startDate", result.startDate(),

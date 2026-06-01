@@ -13,7 +13,6 @@ import server.demo.service.NoteService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -51,9 +50,9 @@ public class NoteController {
 
         try {
             LocalDateTime start = startDate.atStartOfDay();
-            LocalDateTime end = endDate.atTime(LocalTime.MAX);
+            LocalDateTime endExclusive = endDate.plusDays(1).atStartOfDay();
 
-            List<NoteDTO> notes = noteService.getNotesList(start, end, type, category, paymentMethod, roomId);
+            List<NoteDTO> notes = noteService.getNotesList(start, endExclusive, type, category, paymentMethod, roomId);
             return ApiResponse.success(notes);
         } catch (Exception e) {
             return ApiResponse.error("获取列表失败: " + e.getMessage());
@@ -70,9 +69,9 @@ public class NoteController {
 
         try {
             LocalDateTime start = startDate.atStartOfDay();
-            LocalDateTime end = endDate.atTime(LocalTime.MAX);
+            LocalDateTime endExclusive = endDate.plusDays(1).atStartOfDay();
 
-            NotesStatisticsDTO statistics = noteService.getNotesStatistics(start, end);
+            NotesStatisticsDTO statistics = noteService.getNotesStatistics(start, endExclusive);
             return ApiResponse.success(statistics);
         } catch (Exception e) {
             return ApiResponse.error("获取统计数据失败: " + e.getMessage());

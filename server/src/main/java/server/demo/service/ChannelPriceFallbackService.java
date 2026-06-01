@@ -16,10 +16,14 @@ import server.demo.repository.ChannelRepository;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.util.LocalBasePriceResolver;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -45,19 +49,25 @@ public class ChannelPriceFallbackService {
     private final RoomTypeRepository roomTypeRepository;
     private final RoomTypePricePlanRepository roomTypePricePlanRepository;
     private final RoomPriceRepository roomPriceRepository;
+    private final StoreRepository storeRepository;
+    private final Clock clock;
 
     public ChannelPriceFallbackService(
             ChannelRepository channelRepository,
             ChannelPriceRepository channelPriceRepository,
             RoomTypeRepository roomTypeRepository,
             RoomTypePricePlanRepository roomTypePricePlanRepository,
-            RoomPriceRepository roomPriceRepository
+            RoomPriceRepository roomPriceRepository,
+            StoreRepository storeRepository,
+            Clock clock
     ) {
         this.channelRepository = channelRepository;
         this.channelPriceRepository = channelPriceRepository;
         this.roomTypeRepository = roomTypeRepository;
         this.roomTypePricePlanRepository = roomTypePricePlanRepository;
         this.roomPriceRepository = roomPriceRepository;
+        this.storeRepository = storeRepository;
+        this.clock = clock;
     }
 
     public record GenerateResult(
@@ -82,7 +92,7 @@ public class ChannelPriceFallbackService {
             throw new IllegalArgumentException("storeId is required");
         }
 
-        LocalDate effectiveStartDate = startDate != null ? startDate : LocalDate.now();
+        LocalDate effectiveStartDate = startDate != null ? startDate : currentStoreDate(storeId);
         int effectiveDays = clampDays(days != null ? days : DEFAULT_DAYS);
         LocalDate effectiveEndDate = effectiveStartDate.plusDays(effectiveDays - 1L);
 
@@ -292,6 +302,11 @@ public class ChannelPriceFallbackService {
             return 1;
         }
         return Math.min(days, MAX_DAYS);
+    }
+
+    private LocalDate currentStoreDate(Long storeId) {
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(storeRepository.findById(storeId).orElse(null));
+        return LocalDate.now(clock.withZone(zoneId));
     }
 
     private static String roomPlanKey(Long roomTypeId, Long pricePlanId) {

@@ -1,5 +1,11 @@
 import request from '@/utils/request'
 import type { ApiResponse } from '@/types/api'
+import {
+  diffBusinessDates,
+  getBusinessDateWeekdayIndex,
+  parseBusinessDateParts,
+  shiftBusinessDate,
+} from '@/utils/storeBusinessDate'
 
 export interface LocalizedContentDTO {
   name?: string
@@ -221,12 +227,11 @@ export const deleteRoomType = async (id: number) => {
 }
 
 export const getRoomCurrentPrice = (roomType: RoomTypeDTO, date: string) => {
-  const currentDate = new Date(date)
-  if (Number.isNaN(currentDate.getTime())) {
+  if (!parseBusinessDateParts(date)) {
     return Number(roomType.defaultPrice ?? 0)
   }
 
-  const day = currentDate.getDay()
+  const day = getBusinessDateWeekdayIndex(date)
   if (day === 1 && roomType.mondayPrice !== undefined) {
     return Number(roomType.mondayPrice)
   }
@@ -257,19 +262,17 @@ export const calculateTotalPriceByDates = (
   checkInDate: string,
   checkOutDate: string,
 ) => {
-  const start = new Date(checkInDate)
-  const end = new Date(checkOutDate)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start >= end) {
+  const nights = diffBusinessDates(checkInDate, checkOutDate)
+  if (nights <= 0) {
     return 0
   }
 
-  const cursor = new Date(start)
   let totalAmount = 0
+  let currentDate = checkInDate
 
-  while (cursor < end) {
-    const currentDate = cursor.toISOString().split('T')[0]
+  for (let index = 0; index < nights; index += 1) {
     totalAmount += getRoomCurrentPrice(roomType, currentDate)
-    cursor.setDate(cursor.getDate() + 1)
+    currentDate = shiftBusinessDate(currentDate, 1)
   }
 
   return Number(totalAmount.toFixed(2))

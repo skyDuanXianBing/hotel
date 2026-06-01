@@ -59,14 +59,13 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Box } from '@element-plus/icons-vue'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
 
-const selectedDate = ref<string>(new Date().toISOString().split('T')[0])
+const selectedDate = ref<string>(getStoreTodayYmd())
 const selectedRoomType = ref<string>('')
-const emptyStateDescription = computed(
-  () => t('pages.roomStatusChannel.unavailableActionTip'),
-)
+const emptyStateDescription = computed(() => t('pages.roomStatusChannel.unavailableActionTip'))
 </script>
 
 <style scoped>

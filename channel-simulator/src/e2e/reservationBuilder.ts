@@ -32,6 +32,10 @@ const DEFAULT_ROOM_PRICE = 12000
 const DEFAULT_TAX_RATE = 0.1
 const MAX_SU_ROOM_ID_LENGTH = 20
 const DYNAMIC_STAY_TIME_BUCKET_MS = 1000
+const DEFAULT_SIMULATOR_STORE_TIME_ZONE = 'Asia/Tokyo'
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+const OFFSETLESS_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}(?:T|\s)\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/
 
 interface SelectedInventory {
   room: PmsRoomSummary
@@ -44,6 +48,25 @@ interface SelectedInventory {
 interface SelectedMultiRoomInventory {
   first: SelectedInventory
   secondRoom: PmsRoomSummary
+}
+
+interface BusinessDate {
+  year: number
+  month: number
+  day: number
+}
+
+interface StoreDateTimeParts extends BusinessDate {
+  hour: number
+  minute: number
+  second: number
+}
+
+interface SimulatorClock {
+  now: Date
+  timeZone: string
+  today: BusinessDate
+  fixedNow: string | null
 }
 
 export interface BuiltLifecycleReservation {
@@ -59,6 +82,80 @@ function normalizeText(value: unknown): string | null {
   }
   const text = String(value).trim()
   return text.length > 0 ? text : null
+}
+
+function getSimulatorStoreTimeZone(): string {
+  const timeZone = normalizeText(process.env.SIMULATOR_STORE_TIME_ZONE) || DEFAULT_SIMULATOR_STORE_TIME_ZONE
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone }).format(new Date(0))
+  } catch {
+    throw new Error(`Invalid SIMULATOR_STORE_TIME_ZONE: ${timeZone}`)
+  }
+  return timeZone
+}
+
+function parseSimulatorFixedNow(): { now: Date; fixedNow: string | null } {
+  const fixedNow = normalizeText(process.env.SIMULATOR_FIXED_NOW)
+  if (!fixedNow) {
+    return { now: new Date(), fixedNow: null }
+  }
+
+  let normalized = fixedNow
+  if (DATE_ONLY_PATTERN.test(fixedNow)) {
+    normalized = `${fixedNow}T00:00:00.000Z`
+  } else if (OFFSETLESS_DATE_TIME_PATTERN.test(fixedNow)) {
+    normalized = `${fixedNow.replace(' ', 'T')}Z`
+  }
+
+  const now = new Date(normalized)
+  if (Number.isNaN(now.getTime())) {
+    throw new Error(`Invalid SIMULATOR_FIXED_NOW: ${fixedNow}`)
+  }
+  return { now, fixedNow }
+}
+
+function getStoreDateTimeParts(instant: Date, timeZone: string): StoreDateTimeParts {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+  const parts = formatter.formatToParts(instant)
+  const values: Record<string, number> = {}
+  for (const part of parts) {
+    if (part.type !== 'literal') {
+      values[part.type] = Number(part.value)
+    }
+  }
+  return {
+    year: values.year,
+    month: values.month,
+    day: values.day,
+    hour: values.hour,
+    minute: values.minute,
+    second: values.second,
+  }
+}
+
+function getSimulatorClock(): SimulatorClock {
+  const timeZone = getSimulatorStoreTimeZone()
+  const parsed = parseSimulatorFixedNow()
+  const parts = getStoreDateTimeParts(parsed.now, timeZone)
+  return {
+    now: parsed.now,
+    timeZone,
+    today: {
+      year: parts.year,
+      month: parts.month,
+      day: parts.day,
+    },
+    fixedNow: parsed.fixedNow,
+  }
 }
 
 function normalizeNumber(value: unknown): number | null {
@@ -326,14 +423,23 @@ function pad2(value: number): string {
   return value < 10 ? `0${value}` : String(value)
 }
 
-function formatDate(date: Date): string {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+function formatBusinessDate(date: BusinessDate): string {
+  return `${date.year}-${pad2(date.month)}-${pad2(date.day)}`
 }
 
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
+function addBusinessDays(date: BusinessDate, days: number): BusinessDate {
+  const utcTime = Date.UTC(date.year, date.month - 1, date.day) + days * MS_PER_DAY
+  const next = new Date(utcTime)
+  return {
+    year: next.getUTCFullYear(),
+    month: next.getUTCMonth() + 1,
+    day: next.getUTCDate(),
+  }
+}
+
+function formatStoreDateTime(instant: Date, timeZone: string): string {
+  const parts = getStoreDateTimeParts(instant, timeZone)
+  return `${formatBusinessDate(parts)} ${pad2(parts.hour)}:${pad2(parts.minute)}:${pad2(parts.second)}`
 }
 
 function hashText(value: string): number {
@@ -344,12 +450,16 @@ function hashText(value: string): number {
   return hash
 }
 
-function resolveStayStartDays(runId: string, request: NormalizedCreateE2ERunRequest): number {
+function resolveStayStartDays(
+  runId: string,
+  request: NormalizedCreateE2ERunRequest,
+  now: Date,
+): number {
   if (request.stayStartDays !== null) {
     return request.stayStartDays
   }
 
-  const timeBucket = Math.floor(Date.now() / DYNAMIC_STAY_TIME_BUCKET_MS)
+  const timeBucket = Math.floor(now.getTime() / DYNAMIC_STAY_TIME_BUCKET_MS)
   const sequence = dynamicStaySequence
   dynamicStaySequence = (dynamicStaySequence + 1) % DYNAMIC_STAY_WINDOW_DAYS
 
@@ -361,17 +471,17 @@ function toMoney(value: number): string {
   return String(Math.round(value))
 }
 
-function buildBookingId(channel: E2EChannelCode): string {
+function buildBookingId(channel: E2EChannelCode, now: Date): string {
   if (channel === 'AIRBNB') {
     return uuidv4().replace(/-/g, '').slice(0, 10).toUpperCase()
   }
   const suffix = Math.floor(100000 + Math.random() * 900000)
-  return `90${suffix}${Date.now().toString().slice(-4)}`
+  return `90${suffix}${now.getTime().toString().slice(-4)}`
 }
 
-function buildRoomReservationId(): string {
+function buildRoomReservationId(now: Date): string {
   const suffix = Math.floor(100000 + Math.random() * 900000)
-  return `${Date.now()}${suffix}`
+  return `${now.getTime()}${suffix}`
 }
 
 function buildNotifId(runId: string): string {
@@ -398,7 +508,7 @@ function getRoomPrice(roomType: PmsRoomTypeSummary): number {
 }
 
 function buildPriceRows(
-  arrivalDate: Date,
+  arrivalDate: BusinessDate,
   nights: number,
   priceBeforeTax: number,
   tax: number,
@@ -411,7 +521,7 @@ function buildPriceRows(
 
   for (let index = 0; index < nights; index += 1) {
     rows.push({
-      date: formatDate(addDays(arrivalDate, index)),
+      date: formatBusinessDate(addBusinessDays(arrivalDate, index)),
       rate_id: rateId,
       mealplan_id: rateId,
       mealplan: mealPlan,
@@ -489,9 +599,10 @@ function buildAdditionalRoom(
   baseRoom: JsonObject,
   room: PmsRoomSummary,
   roomType: PmsRoomTypeSummary,
+  now: Date,
 ): { payload: JsonObject; roomPayloadId: string; roomReservationId: string } {
   const roomPayloadId = buildRoomPayloadId(room, roomType)
-  const roomReservationId = buildRoomReservationId()
+  const roomReservationId = buildRoomReservationId(now)
   const payload = cloneJson(baseRoom)
 
   payload.info = 'BOOKING local E2E multi-room booking - room 2'
@@ -515,6 +626,8 @@ function buildLifecycleRelatedReservation(
   runId: string,
   step: E2ELifecycleStepName,
 ): BuiltReservation {
+  const clock = getSimulatorClock()
+  const businessToday = formatBusinessDate(clock.today)
   const notifId = buildNotifId(runId)
   const reservation = cloneJson(base.reservation)
   const payload = cloneJson(base.payload)
@@ -522,7 +635,7 @@ function buildLifecycleRelatedReservation(
   payloadReservations[0] = reservation
   payload.reservations = payloadReservations
   reservation.reservation_notif_id = notifId
-  reservation.modified_at = formatDate(new Date())
+  reservation.modified_at = businessToday
 
   const rooms = getRooms(reservation)
   const roomStatus = step === 'cancellation' ? 'cancelled' : 'modified'
@@ -536,12 +649,12 @@ function buildLifecycleRelatedReservation(
 
   if (step === 'modification') {
     reservation.status = 'modified'
-    reservation.processed_at = `${formatDate(new Date())} 11:00:00`
+    reservation.processed_at = `${businessToday} 11:00:00`
     reservation.cancelreason = ''
     reservation.cancelamount = ''
   } else {
     reservation.status = 'cancelled'
-    reservation.processed_at = `${formatDate(new Date())} 12:00:00`
+    reservation.processed_at = `${businessToday} 12:00:00`
     reservation.cancelreason = 'Generated lifecycle cancellation'
     reservation.cancelamount = String(reservation.totalprice || '')
   }
@@ -561,6 +674,8 @@ function buildLifecycleRelatedReservation(
       reusedChannelBookingId: base.ids.channelBookingId,
       reusedRoomReservationIds: [...base.ids.roomReservationIds],
       previousNotifId: base.ids.notifId,
+      simulatorStoreTimeZone: clock.timeZone,
+      simulatorFixedNow: clock.fixedNow,
     },
   }
 }
@@ -570,6 +685,7 @@ export function buildDynamicReservation(
   request: NormalizedCreateE2ERunRequest,
   rawContext: PmsReadinessData | null,
 ): BuiltReservation {
+  const clock = getSimulatorClock()
   const context = requireReadinessData(rawContext)
   let inventory = selectInventory(context, request)
   let secondRoom: PmsRoomSummary | null = null
@@ -581,15 +697,16 @@ export function buildDynamicReservation(
 
   const hotelId = context.suHotelId
   const roomPayloadId = buildRoomPayloadId(inventory.room, inventory.roomType)
-  const channelBookingId = buildBookingId(request.channel)
-  const roomReservationId = buildRoomReservationId()
+  const channelBookingId = buildBookingId(request.channel, clock.now)
+  const roomReservationId = buildRoomReservationId(clock.now)
   const notifId = buildNotifId(runId)
   const reservationId = `${channelBookingId}_${hotelId}`
 
-  const stayStartDays = resolveStayStartDays(runId, request)
-  const arrival = addDays(new Date(), stayStartDays)
-  const departure = addDays(arrival, DEFAULT_STAY_NIGHTS)
-  const bookedAt = new Date()
+  const stayStartDays = resolveStayStartDays(runId, request, clock.now)
+  const arrival = addBusinessDays(clock.today, stayStartDays)
+  const departure = addBusinessDays(arrival, DEFAULT_STAY_NIGHTS)
+  const bookedAt = formatBusinessDate(clock.today)
+  const processedAt = formatStoreDateTime(clock.now, clock.timeZone)
   const priceBeforeTax = getRoomPrice(inventory.roomType)
   const tax = Math.round(priceBeforeTax * DEFAULT_TAX_RATE)
   const priceAfterTax = priceBeforeTax + tax
@@ -604,8 +721,8 @@ export function buildDynamicReservation(
       : { pos: 'Booking.com', source: 'booking.com', OTA_Code: String(request.otaCode), companyname: '' }
 
   const room: JsonObject = {
-    arrival_date: formatDate(arrival),
-    departure_date: formatDate(departure),
+    arrival_date: formatBusinessDate(arrival),
+    departure_date: formatBusinessDate(departure),
     info: `${request.channel} local E2E single-room booking`,
     facilities: '',
     taxes: [{ name: 'Consumption Tax', value: toMoney(totalTax) }],
@@ -651,14 +768,14 @@ export function buildDynamicReservation(
   const roomReservationIds = [roomReservationId]
   const roomPayloadIds = [roomPayloadId]
   if (secondRoom) {
-    const additionalRoom = buildAdditionalRoom(room, secondRoom, inventory.roomType)
+    const additionalRoom = buildAdditionalRoom(room, secondRoom, inventory.roomType, clock.now)
     rooms.push(additionalRoom.payload)
     roomReservationIds.push(additionalRoom.roomReservationId)
     roomPayloadIds.push(additionalRoom.roomPayloadId)
   }
 
   const reservation: JsonObject = {
-    booked_at: formatDate(bookedAt),
+    booked_at: bookedAt,
     commissionamount: request.channel === 'AIRBNB' ? '0' : toMoney(Math.round(totalPrice * 0.12)),
     currencycode: DEFAULT_CURRENCY,
     paymenttype: request.channel === 'AIRBNB' ? 'Channel Collect' : 'Hotel Collect',
@@ -686,7 +803,7 @@ export function buildDynamicReservation(
     numberofpets: '0',
     numberofinfants: '0',
     listingbaseprice: toMoney(totalBeforeTax),
-    processed_at: `${formatDate(bookedAt)} 10:00:00`,
+    processed_at: processedAt,
     bookingcharged: 'N',
     amountcharged: '',
     pgtransactionid: '',
@@ -700,7 +817,7 @@ export function buildDynamicReservation(
     vendor_booking_id: '',
     id: reservationId,
     reservation_notif_id: notifId,
-    modified_at: formatDate(bookedAt),
+    modified_at: bookedAt,
     status: 'new',
     totalprice: toMoney(totalPrice),
     totaltax: toMoney(totalTax),
@@ -747,8 +864,12 @@ export function buildDynamicReservation(
       scenario: request.scenario,
       stayStartDays,
       stayNights: DEFAULT_STAY_NIGHTS,
-      arrivalDate: formatDate(arrival),
-      departureDate: formatDate(departure),
+      arrivalDate: formatBusinessDate(arrival),
+      departureDate: formatBusinessDate(departure),
+      simulatorStoreTimeZone: clock.timeZone,
+      simulatorFixedNow: clock.fixedNow,
+      simulatorBusinessDate: bookedAt,
+      simulatorProcessedAt: processedAt,
       roomCount: rooms.length,
     },
   }

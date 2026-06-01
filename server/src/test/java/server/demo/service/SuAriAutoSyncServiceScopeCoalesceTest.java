@@ -11,7 +11,10 @@ import server.demo.enums.SuAriSyncEventStatus;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuAriSyncEventRepository;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -34,8 +37,10 @@ class SuAriAutoSyncServiceScopeCoalesceTest {
         eventRepository = Mockito.mock(SuAriSyncEventRepository.class);
         StoreRepository storeRepository = Mockito.mock(StoreRepository.class);
         SuAriSyncService suAriSyncService = Mockito.mock(SuAriSyncService.class);
+        when(storeRepository.findById(1L)).thenReturn(Optional.empty());
 
-        service = new SuAriAutoSyncService(eventRepository, storeRepository, suAriSyncService, new ObjectMapper());
+        Clock clock = Clock.fixed(Instant.parse("2026-02-27T15:30:00Z"), ZoneOffset.UTC);
+        service = new SuAriAutoSyncService(eventRepository, storeRepository, suAriSyncService, new ObjectMapper(), clock);
         ReflectionTestUtils.setField(service, "enabled", true);
         ReflectionTestUtils.setField(service, "debounceSeconds", 0);
     }
@@ -126,4 +131,3 @@ class SuAriAutoSyncServiceScopeCoalesceTest {
         assertEquals(0, saved.getCoalescedCount());
     }
 }
-

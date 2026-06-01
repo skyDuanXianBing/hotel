@@ -12,9 +12,13 @@ import server.demo.entity.OtaIntegration;
 import server.demo.entity.Store;
 import server.demo.repository.OtaIntegrationRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuHotelIdUtil;
 
+import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -36,6 +40,7 @@ public class OtaIntegrationService {
     private final SuApiConfig suApiConfig;
     private final StoreRepository storeRepository;
     private final SuAccessTokenService suAccessTokenService;
+    private final Clock clock;
 
     /**
      * 默认OTA渠道配置
@@ -55,7 +60,8 @@ public class OtaIntegrationService {
             SuAriSyncService suAriSyncService,
             SuApiConfig suApiConfig,
             StoreRepository storeRepository,
-            SuAccessTokenService suAccessTokenService
+            SuAccessTokenService suAccessTokenService,
+            Clock clock
     ) {
         this.otaIntegrationRepository = otaIntegrationRepository;
         this.suApiClient = suApiClient;
@@ -66,6 +72,7 @@ public class OtaIntegrationService {
         this.suApiConfig = suApiConfig;
         this.storeRepository = storeRepository;
         this.suAccessTokenService = suAccessTokenService;
+        this.clock = clock;
     }
 
     /**
@@ -401,8 +408,8 @@ public class OtaIntegrationService {
         if (d > 500) {
             d = 500;
         }
-        java.time.LocalDate startDate = java.time.LocalDate.now();
-        java.time.LocalDate endDate = startDate.plusDays(d - 1L);
+        LocalDate startDate = currentStoreDate(storeId);
+        LocalDate endDate = startDate.plusDays(d - 1L);
         return suAriSyncService.syncAriForDateRange(storeId, hotelId, startDate, endDate, null, null, true, true, true, false);
     }
 
@@ -440,8 +447,8 @@ public class OtaIntegrationService {
             d = 500;
         }
 
-        java.time.LocalDate startDate = java.time.LocalDate.now();
-        java.time.LocalDate endDate = startDate.plusDays(d - 1L);
+        LocalDate startDate = currentStoreDate(storeId);
+        LocalDate endDate = startDate.plusDays(d - 1L);
         SuAriSyncService.SuAriSyncSummary summary = suAriSyncService.syncAriForDateRange(
                 storeId,
                 hotelId,
@@ -674,6 +681,11 @@ public class OtaIntegrationService {
         integration.setSuPropertyId(storeHotelId);
         otaIntegrationRepository.save(integration);
         return storeHotelId;
+    }
+
+    private LocalDate currentStoreDate(Long storeId) {
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(storeRepository.findById(storeId).orElse(null));
+        return LocalDate.now(clock.withZone(zoneId));
     }
 
     private OtaIntegrationDTO convertToDTO(OtaIntegration entity) {

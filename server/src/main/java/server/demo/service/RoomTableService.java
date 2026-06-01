@@ -194,8 +194,16 @@ public class RoomTableService {
 
     private BusinessDayWindow storeDayWindow(Long storeId, LocalDate businessDate) {
         ZoneId zoneId = resolveStoreZoneId(storeId);
-        LocalDateTime start = StoreTimeZoneUtil.toUtcLocalDateTime(businessDate, LocalTime.MIDNIGHT, zoneId);
-        LocalDateTime end = StoreTimeZoneUtil.toUtcLocalDateTime(businessDate.plusDays(1), LocalTime.MIDNIGHT, zoneId);
+        LocalDateTime start = StoreTimeZoneUtil.toReservationTimestampStorageLocalDateTime(
+                businessDate,
+                LocalTime.MIDNIGHT,
+                zoneId
+        );
+        LocalDateTime end = StoreTimeZoneUtil.toReservationTimestampStorageLocalDateTime(
+                businessDate.plusDays(1),
+                LocalTime.MIDNIGHT,
+                zoneId
+        );
         return new BusinessDayWindow(start, end);
     }
 
