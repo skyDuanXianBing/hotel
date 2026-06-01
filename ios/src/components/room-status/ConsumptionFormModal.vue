@@ -56,6 +56,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { ref, watch } from 'vue'
+import { getStoreTodayDate } from '@/utils/storeBusinessDate'
 
 export interface ConsumptionFormSubmitPayload {
   item: string
@@ -79,7 +80,7 @@ const form = ref<ConsumptionFormSubmitPayload>({
   item: '',
   quantity: 1,
   amount: 0,
-  date: new Date().toISOString().split('T')[0],
+  date: getStoreTodayDate(),
   remark: '',
 })
 
@@ -88,7 +89,7 @@ function resetForm() {
     item: '',
     quantity: 1,
     amount: 0,
-    date: new Date().toISOString().split('T')[0],
+    date: getStoreTodayDate(),
     remark: '',
   }
 }

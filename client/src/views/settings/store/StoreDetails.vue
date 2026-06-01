@@ -411,7 +411,6 @@ import {
 } from 'element-plus'
 import {
   getStoreById,
-  updateStore,
   type FacilityDTO,
   type StoreRequest,
 } from '@/api/store'
@@ -623,11 +622,7 @@ const saveStore = async (payload: StoreRequest, successMessage: string) => {
     return false
   }
 
-  const response = await updateStore(currentStoreId.value, payload)
-  if (!response.success) {
-    ElMessage.error(response.message || t('settingsStage4.storeBasic.messages.saveFailed'))
-    return false
-  }
+  await storeStore.updateStore(currentStoreId.value, payload)
 
   ElMessage.success(successMessage)
   await loadStoreDetails()

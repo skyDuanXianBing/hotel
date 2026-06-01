@@ -90,6 +90,14 @@ class ChannelE2ETestSupportServiceTest {
     }
 
     @Test
+    void localSetupStoreTimezoneDefaultsToTokyo() {
+        assertEquals(
+                "Asia/Tokyo",
+                ReflectionTestUtils.getField(ChannelE2ETestSupportService.class, "LOCAL_SETUP_TIME_ZONE")
+        );
+    }
+
+    @Test
     void hasSupportedOtaIntegration_requiresSupportedEnabledAndConnectedIntegration() {
         ChannelE2ETestSupportService service = newService(true, VALID_KEY);
 

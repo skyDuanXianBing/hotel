@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import server.demo.entity.base.StoreScopedEntity;
 import server.demo.enums.ReservationStatus;
+import server.demo.util.StoreTimeZoneUtil;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -162,8 +163,11 @@ public class Reservation implements StoreScopedEntity {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        LocalDateTime now = StoreTimeZoneUtil.nowReservationTimestampLocalDateTime();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
         if (orderNumber == null) {
             orderNumber = generateOrderNumber();
         }
@@ -171,7 +175,7 @@ public class Reservation implements StoreScopedEntity {
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = StoreTimeZoneUtil.nowReservationTimestampLocalDateTime();
     }
 
     private String generateOrderNumber() {

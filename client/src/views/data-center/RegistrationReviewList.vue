@@ -184,6 +184,7 @@ import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRegistrationLinkInbox, type RegistrationLinkInboxItemDTO } from '@/api/registrationLinkInbox'
 import { getRooms, type RoomDTO } from '@/api/room'
 import { getAllRoomGroups, type RoomGroupDTO } from '@/api/roomGroup'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 
 type Row = {
   formId: number
@@ -253,8 +254,7 @@ function toDayNumber(dateValue?: string | null) {
 }
 
 function getTodayDayNumber() {
-  const now = new Date()
-  return Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000)
+  return toDayNumber(getStoreTodayYmd()) ?? 0
 }
 
 function compareRowsByCheckInPriority(left: Row, right: Row) {

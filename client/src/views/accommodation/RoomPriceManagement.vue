@@ -318,16 +318,24 @@ import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO, type RoomGroupMem
 import { getRooms, type RoomDTO } from '@/api/room'
 import { useUserStore } from '@/stores/user'
 import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
+import {
+  addCalendarMonthsToYmd,
+  addDaysToYmd,
+  formatYmdMonthDay,
+  getStoreTodayYmd,
+  getYmdWeekdayIndex,
+  parseYmdAsUtcDate,
+} from '@/utils/storeDateTime'
 
 const router = useRouter()
 const userStore = useUserStore()
 const { t } = useI18n()
-const { weekdayOptions, weekdayShortMap, onOffOptions, roomPriceSettingOptions, formatMonthDay } = useAccommodationI18n()
+const { weekdayOptions, weekdayShortMap, onOffOptions, roomPriceSettingOptions } = useAccommodationI18n()
 const PRICE_TABLE_MAX_HEIGHT = 'calc(100vh - 240px)'
 
 const loading = ref(false)
 const saving = ref(false)
-const selectedDate = ref(new Date().toISOString().split('T')[0])
+const selectedDate = ref(getStoreTodayYmd())
 const selectedRoomTypeId = ref<number | null>(null)
 const selectedRoomGroupId = ref<number | null>(null)
 const CALENDAR_MONTH_SPAN = 1
@@ -366,27 +374,21 @@ const editForm = ref({
   currentCtd: false
 })
 
-const getCalendarEndDate = (startDateYmd: string): Date => {
-  const endDate = new Date(startDateYmd)
-  endDate.setMonth(endDate.getMonth() + CALENDAR_MONTH_SPAN)
-  endDate.setDate(endDate.getDate() - 1)
-  return endDate
-}
-
 const getCalendarEndDateString = (startDateYmd: string): string => {
-  return getCalendarEndDate(startDateYmd).toISOString().split('T')[0]
+  const nextMonthDate = addCalendarMonthsToYmd(startDateYmd, CALENDAR_MONTH_SPAN)
+  return addDaysToYmd(nextMonthDate, -1)
 }
 
 const dateColumns = computed(() => {
   const columns = []
-  const startDate = new Date(selectedDate.value)
-  const endDate = getCalendarEndDate(selectedDate.value)
+  const endDate = getCalendarEndDateString(selectedDate.value)
+  let currentDate = selectedDate.value
 
-  const currentDate = new Date(startDate)
   while (currentDate <= endDate) {
-    const dateStr = currentDate.toISOString().split('T')[0]
-    const weekdayIndex = currentDate.getDay()
-    const dayLabel = formatMonthDay(currentDate)
+    const dateStr = currentDate
+    const weekdayIndex = getYmdWeekdayIndex(dateStr)
+    const { month, day } = formatYmdMonthDay(dateStr)
+    const dayLabel = `${month}/${day}`
 
     columns.push({
       dateStr,
@@ -395,7 +397,7 @@ const dateColumns = computed(() => {
       label: `${dayLabel} ${weekdayShortMap.value[weekdayIndex]}`
     })
 
-    currentDate.setDate(currentDate.getDate() + 1)
+    currentDate = addDaysToYmd(currentDate, 1)
   }
 
   return columns
@@ -629,27 +631,19 @@ const getCellClassName = ({
 }
 
 const previousDay = () => {
-  const current = new Date(selectedDate.value)
-  current.setDate(current.getDate() - 1)
-  selectedDate.value = current.toISOString().split('T')[0]
+  selectedDate.value = addDaysToYmd(selectedDate.value, -1)
 }
 
 const nextDay = () => {
-  const current = new Date(selectedDate.value)
-  current.setDate(current.getDate() + 1)
-  selectedDate.value = current.toISOString().split('T')[0]
+  selectedDate.value = addDaysToYmd(selectedDate.value, 1)
 }
 
 const previousWeek = () => {
-  const current = new Date(selectedDate.value)
-  current.setDate(current.getDate() - 7)
-  selectedDate.value = current.toISOString().split('T')[0]
+  selectedDate.value = addDaysToYmd(selectedDate.value, -7)
 }
 
 const nextWeek = () => {
-  const current = new Date(selectedDate.value)
-  current.setDate(current.getDate() + 7)
-  selectedDate.value = current.toISOString().split('T')[0]
+  selectedDate.value = addDaysToYmd(selectedDate.value, 7)
 }
 
 const onDateChange = () => {
@@ -918,12 +912,11 @@ const closePriceEditDialog = () => {
 }
 
 const parseYmdToLocalDate = (ymd: string): Date => {
-  const [year, month, day] = ymd.split('-').map(Number)
-  return new Date(year, (month || 1) - 1, day || 1)
+  return parseYmdAsUtcDate(ymd)
 }
 
 const getWeekdayValue = (ymd: string): number => {
-  const day = parseYmdToLocalDate(ymd).getDay()
+  const day = getYmdWeekdayIndex(ymd)
   return day === 0 ? 7 : day
 }
 
@@ -936,10 +929,10 @@ const hasMatchedWeekdayInRange = (startYmd: string, endYmd: string, weekdays: nu
   const cursor = new Date(start)
 
   while (cursor <= end) {
-    const day = cursor.getDay()
+    const day = cursor.getUTCDay()
     const weekdayValue = day === 0 ? 7 : day
     if (weekdaySet.has(weekdayValue)) return true
-    cursor.setDate(cursor.getDate() + 1)
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
   }
   return false
 }

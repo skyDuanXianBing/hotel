@@ -175,11 +175,12 @@ import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import StatisticsLayout from './StatisticsLayout.vue'
 import { getNotesStatistics, getNotesList } from '@/api/notes'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
 
 // 日期范围
-const today = new Date().toISOString().split('T')[0]
+const today = getStoreTodayYmd()
 const startDate = ref(today)
 const endDate = ref(today)
 

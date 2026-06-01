@@ -71,21 +71,11 @@ public class RegistrationAdminController {
             @RequestParam(name = "channelId", required = false) Long channelId,
             @RequestParam(name = "reservationStatus", required = false) ReservationStatus reservationStatus,
             @RequestParam(name = "checkInDate", required = false) LocalDate checkInDate,
-            @RequestParam(name = "checkOutDate", required = false) LocalDate checkOutDate,
-            @RequestParam(name = "roomNumber", required = false) String roomNumber,
-            @RequestParam(name = "roomGroupId", required = false) Long roomGroupId
+            @RequestParam(name = "checkOutDate", required = false) LocalDate checkOutDate
     ) {
         return ApiResponse.success(
                 "ok",
-                registrationAdminService.list(
-                        status,
-                        channelId,
-                        reservationStatus,
-                        checkInDate,
-                        checkOutDate,
-                        roomNumber,
-                        roomGroupId
-                )
+                registrationAdminService.list(status, channelId, reservationStatus, checkInDate, checkOutDate)
         );
     }
 

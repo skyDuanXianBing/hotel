@@ -111,6 +111,8 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import OccupancyChart from '@/components/OccupancyChart.vue'
 import TaskWorkbench from '@/views/home/components/TaskWorkbench.vue'
+import { useMemoStore } from '@/stores/memo'
+import { getRecentStoreDateRange } from '@/utils/storeDateTime'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -134,21 +136,11 @@ const occupancyData = ref<Array<{ date: string; rate: number }>>([])
 // 加载入住率数据
 const loadOccupancyData = async () => {
   try {
-    // 计算近7天日期范围
-    const today = new Date()
-    const sevenDaysAgo = new Date(today)
-    sevenDaysAgo.setDate(today.getDate() - 6) // 包含今天共7天
-
-    const formatDate = (date: Date) => {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
+    const dateRange = getRecentStoreDateRange(7)
 
     const response = await getDailyOccupancy({
-      startDate: formatDate(sevenDaysAgo),
-      endDate: formatDate(today),
+      startDate: dateRange.start,
+      endDate: dateRange.end,
     })
 
     if (response.success && response.data) {

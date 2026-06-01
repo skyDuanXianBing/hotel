@@ -214,6 +214,7 @@ import {
   type CleaningTaskDTO,
 } from '@/api/cleaning'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
+import { addDaysToYmd, getStoreTodayYmd } from '@/utils/storeDateTime'
 const { t, locale } = useI18n()
 
 // 是否收起筛选
@@ -222,17 +223,8 @@ const isCollapsed = ref(false)
 // 房型列表
 const roomTypeList = ref<RoomTypeDTO[]>([])
 
-const formatDate = (date: Date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 const getOffsetDate = (offsetDays: number) => {
-  const date = new Date()
-  date.setDate(date.getDate() + offsetDays)
-  return formatDate(date)
+  return addDaysToYmd(getStoreTodayYmd(), offsetDays)
 }
 
 // 筛选条件（默认显示最近 7 天到今天）

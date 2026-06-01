@@ -197,6 +197,7 @@ import type {
   RoomTimelineItem,
 } from '@/stores/roomStatus'
 import type { ReservationDTO } from '@/api/reservation'
+import { getStoreTodayDate } from '@/utils/storeBusinessDate'
 
 interface RoomStatusRoomGroup {
   roomType: string
@@ -262,11 +263,7 @@ const gridStyle = computed(() => ({
 const totalMinWidth = computed(() => ROOM_COLUMN_WIDTH + DAY_MIN_WIDTH * props.days.length)
 
 const todayDate = computed(() => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return getStoreTodayDate()
 })
 
 const selectedDay = computed(() => props.days.find((item) => item.isSelected) || props.days[0] || null)

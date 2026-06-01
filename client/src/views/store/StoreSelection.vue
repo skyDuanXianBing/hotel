@@ -296,6 +296,7 @@ import {
   type StoreOption,
   getStoreOptionLabel,
 } from '@/constants/storeOptions'
+import { DEFAULT_STORE_TIME_ZONE } from '@/utils/storeDateTime'
 
 const router = useRouter()
 const storeStore = useStoreStore()
@@ -318,7 +319,7 @@ const createDefaultForm = (): StoreRequest => ({
   phone: '',
   phoneTechType: '5',
   type: '1',
-  timezone: 'Asia/Shanghai',
+  timezone: DEFAULT_STORE_TIME_ZONE,
   manager: '',
   country: 'China',
   city: '',

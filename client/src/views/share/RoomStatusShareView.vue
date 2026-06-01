@@ -245,7 +245,13 @@ import { ElMessage } from 'element-plus'
 import { Calendar } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { getPublicRoomStatusShare, getSharedRoomStatusData, getSharedStatistics } from '@/api/roomStatusShare'
-import type { ApiResponse } from '@/types/room'
+import {
+  addDaysToYmd,
+  getStoreDateRange,
+  getYmdWeekdayIndex,
+  formatYmdMonthDay,
+  parseYmdAsUtcDate,
+} from '@/utils/storeDateTime'
 
 // 路由参数
 const route = useRoute()
@@ -258,26 +264,22 @@ const roomStatusLoading = ref(false)
 const error = ref(false)
 const rawErrorMessage = ref('')
 const shareData = ref<any>(null)
-const selectedDate = ref<string>(new Date().toISOString().split('T')[0])
+const selectedDate = ref<string>('')
+const serverTodayDate = ref<string>('')
 const roomStatusData = ref<any>(null)
 const statisticsData = ref<any>(null)
 const showDetailDialog = ref(false)
 const selectedRoom = ref<any>(null)
+const YMD_VALUE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 const errorMessage = computed(() => resolveShareErrorMessage(rawErrorMessage.value))
 
 // 日期范围 (显示7天)
 const dateRange = computed(() => {
-  const dates = []
-  const startDate = new Date(selectedDate.value)
-  
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(startDate)
-    date.setDate(startDate.getDate() + i)
-    dates.push(date.toISOString().split('T')[0])
+  if (!isValidYmd(selectedDate.value)) {
+    return []
   }
-  
-  return dates
+  return getStoreDateRange(selectedDate.value, 7)
 })
 
 // 计算属性
@@ -390,6 +392,23 @@ const filteredRoomTypes = computed(() => {
   return Array.from(roomTypeMap.values())
 })
 
+const isValidYmd = (value?: string | null) => {
+  return YMD_VALUE_PATTERN.test(String(value || ''))
+}
+
+const applyBackendDate = (value?: string | null, shouldSetServerToday = false) => {
+  if (!isValidYmd(value)) {
+    return
+  }
+
+  const backendDate = String(value)
+  selectedDate.value = backendDate
+
+  if (shouldSetServerToday || !serverTodayDate.value) {
+    serverTodayDate.value = backendDate
+  }
+}
+
 // 方法
 const fetchShareData = async () => {
   try {
@@ -436,11 +455,8 @@ const fetchShareData = async () => {
 const fetchRoomStatusData = async () => {
   try {
     roomStatusLoading.value = true
-    
-    const startDate = selectedDate.value
-    const endDate = new Date(selectedDate.value)
-    endDate.setDate(endDate.getDate() + 6)
-    const endDateStr = endDate.toISOString().split('T')[0]
+    const startDate = isValidYmd(selectedDate.value) ? selectedDate.value : undefined
+    const endDateStr = startDate ? addDaysToYmd(startDate, 6) : undefined
     
     const response: any = await getSharedRoomStatusData(
       shareToken.value, 
@@ -450,6 +466,7 @@ const fetchRoomStatusData = async () => {
     
     if (response.success) {
       roomStatusData.value = response.data
+      applyBackendDate(response.data?.dateRange?.startDate, !startDate)
     } else {
       ElMessage.error(t('pages.roomStatusShare.messages.fetchRoomStatusFailedWithReason', { message: response.message }))
     }
@@ -463,10 +480,14 @@ const fetchRoomStatusData = async () => {
 
 const fetchStatisticsData = async () => {
   try {
-    const response: any = await getSharedStatistics(shareToken.value, selectedDate.value)
+    const requestDate = isValidYmd(selectedDate.value) ? selectedDate.value : undefined
+    const response: any = await getSharedStatistics(shareToken.value, requestDate)
     
     if (response.success) {
       statisticsData.value = response.data
+      if (!selectedDate.value) {
+        applyBackendDate(response.data?.date, !requestDate)
+      }
     } else {
       console.error('获取统计数据失败:', response.message)
     }
@@ -476,6 +497,10 @@ const fetchStatisticsData = async () => {
 }
 
 const onDateChange = () => {
+  if (!isValidYmd(selectedDate.value)) {
+    return
+  }
+
   fetchRoomStatusData()
   fetchStatisticsData()
 }
@@ -517,8 +542,13 @@ const resolveShareErrorMessage = (message?: string | null) => {
 }
 
 const formatCurrentDate = () => {
-  const now = new Date()
-  return now.toLocaleDateString(resolveDateLocale(), {
+  if (!isValidYmd(selectedDate.value)) {
+    return ''
+  }
+
+  const currentDate = parseYmdAsUtcDate(selectedDate.value)
+  return currentDate.toLocaleDateString(resolveDateLocale(), {
+    timeZone: 'UTC',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -527,16 +557,18 @@ const formatCurrentDate = () => {
 }
 
 const formatDateHeader = (date: string) => {
-  const d = new Date(date)
-  const month = d.getMonth() + 1
-  const day = d.getDate()
-  const weekday = new Intl.DateTimeFormat(resolveDateLocale(), { weekday: 'short' }).format(d)
+  const { month, day } = formatYmdMonthDay(date)
+  const weekdayIndex = getYmdWeekdayIndex(date)
+  const weekday = new Intl.DateTimeFormat(resolveDateLocale(), {
+    timeZone: 'UTC',
+    weekday: 'short',
+  }).format(new Date(Date.UTC(2024, 0, 7 + weekdayIndex)))
   
-  return `${month}-${day.toString().padStart(2, '0')} ${weekday}`
+  return `${month}-${day} ${weekday}`
 }
 
 const isToday = (date: string) => {
-  return date === new Date().toISOString().split('T')[0]
+  return Boolean(serverTodayDate.value) && date === serverTodayDate.value
 }
 
 const getRoomStatusClass = (room: any, date: string) => {

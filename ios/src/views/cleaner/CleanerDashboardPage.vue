@@ -184,6 +184,14 @@ import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 import { clearCleanerSession, readCleanerUser } from '@/utils/cleanerSession'
 import { formatDate } from '@/utils/accommodation'
+import {
+  buildBusinessMonthCalendarDates,
+  buildBusinessMonthRange,
+  getStoreCurrentMonthValue,
+  getStoreTodayDate,
+  parseBusinessMonthParts,
+  shiftBusinessMonth,
+} from '@/utils/storeBusinessDate'
 import { useRouter } from 'vue-router'
 
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
@@ -205,7 +213,7 @@ interface CalendarDayItem {
 const router = useRouter()
 
 const cleanerUser = ref(readCleanerUser())
-const selectedMonth = ref(buildMonthValue(new Date()))
+const selectedMonth = ref(getStoreCurrentMonthValue())
 const selectedDate = ref('')
 const calendarDays = ref<CalendarDayItem[]>([])
 const totalCount = ref(0)
@@ -232,12 +240,14 @@ const cleanerDisplayName = computed(() => {
 })
 
 const selectedMonthLabel = computed(() => {
-  const parsedMonth = parseMonthValue(selectedMonth.value)
-  return `${parsedMonth.getFullYear()} 年 ${String(parsedMonth.getMonth() + 1).padStart(2, '0')} 月`
+  const parsedMonth = parseBusinessMonthParts(selectedMonth.value)
+  const year = parsedMonth?.year || 1970
+  const month = String(parsedMonth?.month || 1).padStart(2, '0')
+  return `${year} 年 ${month} 月`
 })
 
 const isViewingCurrentMonth = computed(() => {
-  return selectedMonth.value === buildMonthValue(new Date())
+  return selectedMonth.value === getStoreCurrentMonthValue()
 })
 
 const statusSummaryItems = computed(() => {
@@ -307,90 +317,19 @@ const dayStatusTabs = computed(() => {
   return CLEANER_STATUS_ORDER.filter((statusKey) => selectedDayStatusCount.value[statusKey] > 0)
 })
 
-function buildMonthValue(value: Date) {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`
-}
-
-function parseMonthValue(value: string) {
-  const parts = value.split('-')
-  const year = Number(parts[0])
-  const month = Number(parts[1])
-
-  if (!year || !month) {
-    return new Date()
-  }
-
-  return new Date(year, month - 1, 1)
-}
-
-function buildDateTextFromDate(value: Date) {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
-}
-
 function buildCalendarDays(taskMap: Record<string, CleaningTaskDTO[]>) {
-  const parsedMonth = parseMonthValue(selectedMonth.value)
-  const year = parsedMonth.getFullYear()
-  const monthIndex = parsedMonth.getMonth()
-  const firstDay = new Date(year, monthIndex, 1)
-  const firstWeekday = firstDay.getDay()
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
-  const previousMonthDays = new Date(year, monthIndex, 0).getDate()
-  const today = new Date()
-  const todayMonth = buildMonthValue(today)
-  const todayDate = buildDateTextFromDate(today)
-  const nextDays: CalendarDayItem[] = []
-
-  for (let index = firstWeekday - 1; index >= 0; index -= 1) {
-    const dayNumber = previousMonthDays - index
-    const dateValue = new Date(year, monthIndex - 1, dayNumber)
-    const date = buildDateTextFromDate(dateValue)
-    nextDays.push({
-      date,
-      dayNumber,
-      isCurrentMonth: false,
-      isToday: false,
-      tasks: taskMap[date] || [],
-    })
-  }
-
-  for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber += 1) {
-    const dateValue = new Date(year, monthIndex, dayNumber)
-    const date = buildDateTextFromDate(dateValue)
-    nextDays.push({
-      date,
-      dayNumber,
-      isCurrentMonth: true,
-      isToday: selectedMonth.value === todayMonth && date === todayDate,
-      tasks: taskMap[date] || [],
-    })
-  }
-
-  const remainingDays = 42 - nextDays.length
-  for (let dayNumber = 1; dayNumber <= remainingDays; dayNumber += 1) {
-    const dateValue = new Date(year, monthIndex + 1, dayNumber)
-    const date = buildDateTextFromDate(dateValue)
-    nextDays.push({
-      date,
-      dayNumber,
-      isCurrentMonth: false,
-      isToday: false,
-      tasks: taskMap[date] || [],
-    })
-  }
-
-  calendarDays.value = nextDays
+  const todayDate = getStoreTodayDate()
+  calendarDays.value = buildBusinessMonthCalendarDates(selectedMonth.value).map((item) => ({
+    date: item.date,
+    dayNumber: item.dayNumber,
+    isCurrentMonth: item.isCurrentMonth,
+    isToday: item.date === todayDate,
+    tasks: taskMap[item.date] || [],
+  }))
 }
 
 function getMonthRange() {
-  const parsedMonth = parseMonthValue(selectedMonth.value)
-  const year = parsedMonth.getFullYear()
-  const monthIndex = parsedMonth.getMonth()
-  const lastDate = new Date(year, monthIndex + 1, 0).getDate()
-
-  return {
-    startDate: buildDateTextFromDate(new Date(year, monthIndex, 1)),
-    endDate: buildDateTextFromDate(new Date(year, monthIndex, lastDate)),
-  }
+  return buildBusinessMonthRange(selectedMonth.value)
 }
 
 function getStatusLabel(status: string) {
@@ -463,9 +402,7 @@ async function loadCalendarData() {
 }
 
 function shiftMonth(offset: number) {
-  const parsedMonth = parseMonthValue(selectedMonth.value)
-  parsedMonth.setMonth(parsedMonth.getMonth() + offset)
-  selectedMonth.value = buildMonthValue(parsedMonth)
+  selectedMonth.value = shiftBusinessMonth(selectedMonth.value, offset)
 }
 
 async function handlePreviousMonth() {
@@ -476,7 +413,7 @@ async function handlePreviousMonth() {
 }
 
 async function handleCurrentMonth() {
-  selectedMonth.value = buildMonthValue(new Date())
+  selectedMonth.value = getStoreCurrentMonthValue()
   selectedDate.value = ''
   dayModalOpen.value = false
   await loadCalendarData()

@@ -183,6 +183,7 @@ import {
   type OrderOptionItem,
   type OrderTabValue,
 } from '@/components/order/orderUtils'
+import { getStoreTodayDate, shiftBusinessDate } from '@/utils/storeBusinessDate'
 
 type FilterPanelKey = 'date' | 'roomType' | 'channel' | 'status' | 'paymentStatus' | 'checkinType'
 type DateShortcutKey = 'yesterday' | 'today' | 'tomorrow' | 'recent7' | 'recent30'
@@ -273,33 +274,26 @@ function resetForm() {
   activePanel.value = props.initialPanel || 'date'
 }
 
-function formatDate(date: Date) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 function applyDateShortcut(type: DateShortcutKey) {
   isApplyingDateShortcut = true
-  const today = new Date()
-  const start = new Date(today)
-  const end = new Date(today)
+  const today = getStoreTodayDate()
+  let startDate = today
+  let endDate = today
 
   if (type === 'yesterday') {
-    start.setDate(today.getDate() - 1)
-    end.setDate(today.getDate() - 1)
+    startDate = shiftBusinessDate(today, -1)
+    endDate = startDate
   } else if (type === 'tomorrow') {
-    start.setDate(today.getDate() + 1)
-    end.setDate(today.getDate() + 1)
+    startDate = shiftBusinessDate(today, 1)
+    endDate = startDate
   } else if (type === 'recent7') {
-    start.setDate(today.getDate() - 6)
+    startDate = shiftBusinessDate(today, -6)
   } else if (type === 'recent30') {
-    start.setDate(today.getDate() - 29)
+    startDate = shiftBusinessDate(today, -29)
   }
 
-  form.value.startDate = formatDate(start)
-  form.value.endDate = formatDate(end)
+  form.value.startDate = startDate
+  form.value.endDate = endDate
   activeDateShortcut.value = type
   void nextTick(() => {
     isApplyingDateShortcut = false

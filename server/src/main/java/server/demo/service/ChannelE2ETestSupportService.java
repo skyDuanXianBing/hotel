@@ -65,6 +65,7 @@ public class ChannelE2ETestSupportService {
     private static final String LOCAL_SETUP_PASSWORD = "local-channel-e2e-password";
     private static final String LOCAL_SETUP_STORE_NAME = "Local Channel E2E Hotel";
     private static final String LOCAL_SETUP_SU_HOTEL_ID = "LOCALE2EHOTEL";
+    private static final String LOCAL_SETUP_TIME_ZONE = "Asia/Tokyo";
     private static final String LOCAL_SETUP_PRICE_PLAN_NAME = "Local E2E Standard Rate";
     private static final String LOCAL_SETUP_ROOM_TYPE_NAME = "Local E2E Standard Room";
     private static final String LOCAL_SETUP_ROOM_TYPE_CODE = "E2ELOCAL";
@@ -403,7 +404,7 @@ public class ChannelE2ETestSupportService {
         store.setPhone("0000000000");
         store.setPhoneTechType("mobile");
         store.setType("hotel");
-        store.setTimezone("Asia/Shanghai");
+        store.setTimezone(LOCAL_SETUP_TIME_ZONE);
         store.setManager("Local E2E");
         store.setOwnerEmail(user.getEmail());
         store.setCountry("CN");
