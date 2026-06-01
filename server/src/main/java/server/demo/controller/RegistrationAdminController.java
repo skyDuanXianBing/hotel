@@ -72,7 +72,7 @@ public class RegistrationAdminController {
             @RequestParam(name = "reservationStatus", required = false) ReservationStatus reservationStatus,
             @RequestParam(name = "checkInDate", required = false) LocalDate checkInDate,
             @RequestParam(name = "checkOutDate", required = false) LocalDate checkOutDate,
-            @RequestParam(name = "roomNumber", required = false) String roomNumber,
+            @RequestParam(name = "roomNumber", required = false) List<String> roomNumbers,
             @RequestParam(name = "roomGroupId", required = false) Long roomGroupId
     ) {
         return ApiResponse.success(
@@ -83,7 +83,7 @@ public class RegistrationAdminController {
                         reservationStatus,
                         checkInDate,
                         checkOutDate,
-                        roomNumber,
+                        roomNumbers,
                         roomGroupId
                 )
         );

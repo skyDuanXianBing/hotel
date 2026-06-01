@@ -85,8 +85,6 @@ export const pageMessages = {
           notConnectedShort: 'Pending',
           futureSourceEmpty: '{source} is reserved for the unified task API.',
           emptyToday: 'No tasks for today.',
-          realDataNotice:
-            'Cleaning tasks use live data. Other task categories are placeholders until a unified task API is available.',
           loadCleanersFailed: 'Failed to load employees',
           loadTasksFailed: 'Failed to load today tasks',
           selectEmployeeFirst: 'Select an employee first',
@@ -124,24 +122,29 @@ export const pageMessages = {
         commonFunctionsTitle: 'Common Functions',
         configureAction: 'Configure',
         orderCard: 'Accommodation Orders',
-        helpCenterTitle: 'Help Center',
+        bulletinBoardTitle: 'Bulletin Board',
         moreAction: 'More',
-        helpArticles: {
-          businessReport: {
-            title: 'Business Reports',
-            description: 'How do I generate business report data?',
+        bulletinItems: {
+          releaseDigest: {
+            badge: 'Update',
+            title: 'Homepage workbench layout refined for daily operations',
+            description:
+              'The homepage summary cards and task area were reorganized so front desk actions are easier to scan during shift changes.',
+            date: '2026-06-01',
           },
-          inHouseOrder: {
-            title: 'Order Operations',
-            description: 'How do I fix revenue on in-house orders?',
+          newFeature: {
+            badge: 'New Feature',
+            title: 'Registration follow-up flow is now easier to track',
+            description:
+              'Teams can review booking registration progress more directly and reduce back-and-forth between operational pages.',
+            date: '2026-05-29',
           },
-          roomStatus: {
-            title: 'Room Status',
-            description: 'How do I configure room types in the daily room status view?',
-          },
-          orderFeatures: {
-            title: 'Order Operations',
-            description: 'How do I use the order operation features?',
+          bugFix: {
+            badge: 'Fix',
+            title: 'Shortcut navigation and filters are more stable',
+            description:
+              'Resolved several homepage jump and list filter display issues so common entry points behave more consistently.',
+            date: '2026-05-26',
           },
         },
         fetchStatisticsFailed: 'Failed to load statistics',
@@ -417,7 +420,6 @@ export const pageMessages = {
           notConnectedShort: '待接入',
           futureSourceEmpty: '{source} 等待后端统一任务接口接入',
           emptyToday: '今天暂无任务',
-          realDataNotice: '当前仅保洁任务接入真实数据，其他类型为综合任务中心预留入口。',
           loadCleanersFailed: '保洁员加载失败',
           loadTasksFailed: '今日任务加载失败',
           selectEmployeeFirst: '请先选择员工',
@@ -455,24 +457,26 @@ export const pageMessages = {
         commonFunctionsTitle: '常用功能',
         configureAction: '配置',
         orderCard: '住宿订单',
-        helpCenterTitle: '帮助中心',
+        bulletinBoardTitle: '公告栏',
         moreAction: '更多',
-        helpArticles: {
-          businessReport: {
-            title: '营业统计报表',
-            description: '如何生成营业统计报表数据？',
+        bulletinItems: {
+          releaseDigest: {
+            badge: '最新更新',
+            title: '首页工作台布局已完成一轮整理',
+            description: '首页汇总卡片和任务区域的层级更清晰，班次交接时更容易快速浏览当天重点。',
+            date: '2026-06-01',
           },
-          inHouseOrder: {
-            title: '订单操作',
-            description: '如何修复在住订单营业？',
+          newFeature: {
+            badge: '新功能',
+            title: '登记跟进链路现在更容易查看',
+            description: '前台可更直接地跟进预订登记进度，减少在多个业务页面之间来回切换。',
+            date: '2026-05-29',
           },
-          roomStatus: {
-            title: '房态',
-            description: '如何设置单日房态中的房型？',
-          },
-          orderFeatures: {
-            title: '订单操作',
-            description: '如何使用订单操作的功能？',
+          bugFix: {
+            badge: '问题修复',
+            title: '首页快捷跳转与筛选稳定性提升',
+            description: '修复了部分首页入口跳转和列表筛选展示异常，常用操作响应更加一致。',
+            date: '2026-05-26',
           },
         },
         fetchStatisticsFailed: '获取统计数据失败',
@@ -746,7 +750,6 @@ export const pageMessages = {
           notConnectedShort: '待接入',
           futureSourceEmpty: '{source} 等待後端統一任務介面接入',
           emptyToday: '今天暫無任務',
-          realDataNotice: '目前僅保潔任務接入真實資料，其他類型為綜合任務中心預留入口。',
           loadCleanersFailed: '保潔員載入失敗',
           loadTasksFailed: '今日任務載入失敗',
           selectEmployeeFirst: '請先選擇員工',
@@ -784,24 +787,26 @@ export const pageMessages = {
         commonFunctionsTitle: '常用功能',
         configureAction: '設定',
         orderCard: '住宿訂單',
-        helpCenterTitle: '幫助中心',
+        bulletinBoardTitle: '公告欄',
         moreAction: '更多',
-        helpArticles: {
-          businessReport: {
-            title: '營業統計報表',
-            description: '如何生成營業統計報表資料？',
+        bulletinItems: {
+          releaseDigest: {
+            badge: '最新更新',
+            title: '首頁工作台版面已完成一輪整理',
+            description: '首頁彙總卡片與任務區域的層次更清楚，交班時更容易快速掌握當天重點。',
+            date: '2026-06-01',
           },
-          inHouseOrder: {
-            title: '訂單操作',
-            description: '如何修復在住房訂單營業？',
+          newFeature: {
+            badge: '新功能',
+            title: '登記跟進流程現在更容易查看',
+            description: '前台可更直接追蹤預訂登記進度，減少在多個作業頁面之間來回切換。',
+            date: '2026-05-29',
           },
-          roomStatus: {
-            title: '房態',
-            description: '如何設定單日房態中的房型？',
-          },
-          orderFeatures: {
-            title: '訂單操作',
-            description: '如何使用訂單操作功能？',
+          bugFix: {
+            badge: '問題修復',
+            title: '首頁快捷跳轉與篩選穩定性提升',
+            description: '修復部分首頁入口跳轉與列表篩選顯示異常，常用操作反應更加一致。',
+            date: '2026-05-26',
           },
         },
         fetchStatisticsFailed: '取得統計資料失敗',
@@ -1079,8 +1084,6 @@ export const pageMessages = {
           notConnectedShort: '未接続',
           futureSourceEmpty: '{source} は統一タスクAPI接続待ちです',
           emptyToday: '本日のタスクはありません',
-          realDataNotice:
-            '現在は清掃タスクのみ実データに接続しています。他の種別は総合タスクセンター用の予約枠です。',
           loadCleanersFailed: 'スタッフの読み込みに失敗しました',
           loadTasksFailed: '本日のタスクの読み込みに失敗しました',
           selectEmployeeFirst: '先にスタッフを選択してください',
@@ -1118,24 +1121,29 @@ export const pageMessages = {
         commonFunctionsTitle: 'よく使う機能',
         configureAction: '設定',
         orderCard: '宿泊予約',
-        helpCenterTitle: 'ヘルプセンター',
+        bulletinBoardTitle: 'お知らせ',
         moreAction: 'もっと見る',
-        helpArticles: {
-          businessReport: {
-            title: '営業レポート',
-            description: '営業レポートのデータはどのように作成しますか？',
+        bulletinItems: {
+          releaseDigest: {
+            badge: '更新',
+            title: 'ホーム画面のワークベンチ構成を見直しました',
+            description:
+              'サマリーカードとタスク領域の情報整理を行い、フロント業務の確認がしやすくなりました。',
+            date: '2026-06-01',
           },
-          inHouseOrder: {
-            title: '予約操作',
-            description: '宿泊中予約の売上データはどのように修正しますか？',
+          newFeature: {
+            badge: '新機能',
+            title: 'チェックイン登録の進捗を追いやすくしました',
+            description:
+              '予約ごとの登録状況をより直接的に確認できるようになり、複数画面の行き来を減らせます。',
+            date: '2026-05-29',
           },
-          roomStatus: {
-            title: '客室状況',
-            description: '日次客室状況ビューで客室タイプを設定するには？',
-          },
-          orderFeatures: {
-            title: '予約操作',
-            description: '予約操作機能の使い方は？',
+          bugFix: {
+            badge: '修正',
+            title: 'ホームのショートカット動作を安定化しました',
+            description:
+              '一部の画面遷移と一覧フィルター表示の不具合を修正し、日常操作の挙動をそろえました。',
+            date: '2026-05-26',
           },
         },
         fetchStatisticsFailed: '統計データの取得に失敗しました',

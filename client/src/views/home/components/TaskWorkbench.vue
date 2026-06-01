@@ -132,9 +132,6 @@
       </div>
     </div>
 
-    <div class="workbench-note">
-      {{ t('pages.home.workbench.realDataNotice') }}
-    </div>
   </section>
 </template>
 
@@ -522,18 +519,6 @@ onMounted(() => {
 .assign-select {
   min-width: 0;
   width: 100%;
-}
-
-.workbench-note {
-  background: var(--workbench-soft);
-  border: 1px dashed #cbd5e1;
-  border-radius: 8px;
-  color: var(--workbench-muted);
-  flex: 0 0 auto;
-  font-size: 12px;
-  line-height: 1.45;
-  margin-top: 12px;
-  padding: 10px 12px;
 }
 
 @media (max-width: 768px) {

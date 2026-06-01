@@ -14,6 +14,11 @@
 
       <div v-else class="card">
         <div class="meta">
+          <div class="meta-actions">
+            <el-button size="small" :disabled="!detail" @click="previewForm">
+              {{ t('stage5.common.actions.preview') }}
+            </el-button>
+          </div>
           <div><b>{{ t('stage5.dataCenter.detail.metaOrderNumber') }}</b>{{ detail.channelOrderNumber || detail.orderNumber }}</div>
           <div><b>{{ t('stage5.dataCenter.detail.metaGuest') }}</b>{{ detail.guestName }}</div>
           <div><b>{{ t('stage5.dataCenter.detail.metaDate') }}</b>{{ detail.checkInDate }} ~ {{ detail.checkOutDate }}</div>
@@ -176,6 +181,31 @@
       </div>
     </div>
   </StatisticsLayout>
+
+  <el-dialog
+    v-model="previewDialogVisible"
+    :title="t('stage5.common.actions.preview')"
+    width="90%"
+    class="preview-dialog"
+    append-to-body
+    destroy-on-close
+  >
+    <div class="preview-content">
+      <div v-for="guest in previewData" :key="guest.guestIndex" class="preview-guest">
+        <div class="preview-guest-title">{{ t('stage5.publicRegistration.common.guest') }} {{ guest.guestIndex }}</div>
+        <div class="preview-fields">
+          <div v-for="(field, idx) in guest.fields" :key="idx" class="preview-field">
+            <div class="preview-label">{{ field.label }}</div>
+            <div class="preview-value">{{ field.value }}</div>
+          </div>
+        </div>
+        <div v-if="guest.passportUrl" class="preview-passport">
+          <div class="preview-passport-title">{{ t('stage5.publicRegistration.form.passportPhoto') }}</div>
+          <img :src="guest.passportUrl" :alt="t('stage5.publicRegistration.form.passportPhoto')" class="preview-passport-img" />
+        </div>
+      </div>
+    </div>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -214,7 +244,27 @@ type Detail = {
   }>
 }
 
+type DetailGuest = {
+  id?: number
+  sortOrder?: number
+  firstName?: string
+  lastName?: string
+  birthday?: string
+  nationality?: string
+  residenceType?: string
+  address?: string
+  phone?: string
+  passportNumber?: string
+  priorStay?: string
+  nextDestination?: string
+}
+
 type QuickReplyItem = { id: number; title: string; message: string }
+type PreviewGuestItem = {
+  guestIndex: number
+  fields: Array<{ label: string; value: string }>
+  passportUrl?: string
+}
 type RegistrationMessageLogResponse = {
   success: boolean
   message?: string
@@ -244,6 +294,8 @@ const quickReplyLoading = ref(false)
 const quickReplyId = ref<number | null>(null)
 const reviewQuickReplyId = ref<number | null>(null)
 const isCancelledReservation = computed(() => detail.value?.reservationStatus === 'CANCELLED')
+const previewDialogVisible = ref(false)
+const previewData = ref<PreviewGuestItem[]>([])
 
 function formId(): string {
   return route.params.formId as string
@@ -517,6 +569,75 @@ function attachmentUrl(attId: number): string {
   return `${base}/registrations/${formId()}/attachments/${attId}`
 }
 
+function passportPreviewUrl(guestId?: number) {
+  if (!detail.value || !guestId) {
+    return ''
+  }
+  const attachment = detail.value.attachments?.find(
+    (att) => att.guestId === guestId && att.type?.toUpperCase().includes('PASSPORT'),
+  )
+  return attachment ? attachmentUrl(attachment.id) : ''
+}
+
+function displayPreviewValue(value?: string | null) {
+  const normalizedValue = typeof value === 'string' ? value.trim() : ''
+  return normalizedValue || '-'
+}
+
+function getResidenceTypeLabel(residenceType?: string | null) {
+  if (!residenceType) {
+    return '-'
+  }
+  return residenceType === 'JAPAN'
+    ? t('stage5.publicRegistration.form.japan')
+    : t('stage5.publicRegistration.form.otherThanJapan')
+}
+
+function previewForm() {
+  if (!detail.value) {
+    return
+  }
+
+  previewData.value = (detail.value.guests || []).map((guest: DetailGuest, idx) => {
+    const fields: Array<{ label: string; value: string }> = []
+    fields.push({ label: t('stage5.publicRegistration.form.firstName'), value: displayPreviewValue(guest.firstName) })
+    fields.push({ label: t('stage5.publicRegistration.form.lastName'), value: displayPreviewValue(guest.lastName) })
+    fields.push({
+      label: t('stage5.publicRegistration.form.residence'),
+      value: getResidenceTypeLabel(guest.residenceType),
+    })
+    fields.push({ label: t('stage5.publicRegistration.form.birthday'), value: displayPreviewValue(guest.birthday) })
+    fields.push({ label: t('stage5.publicRegistration.form.phone'), value: displayPreviewValue(guest.phone) })
+
+    if (guest.residenceType === 'JAPAN') {
+      fields.push({ label: t('stage5.publicRegistration.form.address'), value: displayPreviewValue(guest.address) })
+    } else {
+      fields.push({
+        label: t('stage5.publicRegistration.form.passportNumber'),
+        value: displayPreviewValue(guest.passportNumber),
+      })
+      fields.push({
+        label: t('stage5.publicRegistration.form.nationality'),
+        value: displayPreviewValue(guest.nationality),
+      })
+      fields.push({ label: t('stage5.publicRegistration.form.address'), value: displayPreviewValue(guest.address) })
+      fields.push({ label: t('stage5.publicRegistration.form.priorStay'), value: displayPreviewValue(guest.priorStay) })
+      fields.push({
+        label: t('stage5.publicRegistration.form.nextDestination'),
+        value: displayPreviewValue(guest.nextDestination),
+      })
+    }
+
+    return {
+      guestIndex: idx + 1,
+      fields,
+      passportUrl: passportPreviewUrl(guest.id) || undefined,
+    }
+  })
+
+  previewDialogVisible.value = true
+}
+
 function previewAttachment(att: { id: number; originalName?: string }) {
   if (!detail.value) return
   axios
@@ -604,10 +725,16 @@ onMounted(loadQuickReplies)
   padding: 16px;
 }
 .meta {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   gap: 6px;
   margin-bottom: 12px;
+}
+.meta-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 .section {
   margin-top: 14px;
@@ -696,7 +823,124 @@ onMounted(loadQuickReplies)
   white-space: pre-wrap;
 }
 
+/* Preview Dialog Styles */
+:deep(.preview-dialog) {
+  max-width: 800px;
+}
+
+:deep(.preview-dialog .el-dialog__body) {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.preview-guest {
+  background: #f6f7fb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.preview-guest-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #409eff;
+}
+
+.preview-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-field {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.preview-label {
+  font-weight: 600;
+  color: #606266;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.preview-value {
+  color: #303133;
+  flex: 1;
+  word-break: break-word;
+}
+
+.preview-passport {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #dcdfe6;
+}
+
+.preview-passport-title {
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.preview-passport-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  display: block;
+}
+
 @media (max-width: 640px) {
+  :deep(.preview-dialog) {
+    width: 95% !important;
+  }
+
+  :deep(.preview-dialog .el-dialog__body) {
+    padding: 12px;
+  }
+
+  .preview-guest {
+    padding: 12px;
+  }
+
+  .preview-guest-title {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .preview-field {
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 0;
+  }
+
+  .preview-label {
+    min-width: auto;
+    font-size: 13px;
+  }
+
+  .preview-value {
+    font-size: 14px;
+    padding-left: 0;
+  }
+
+  .preview-passport-img {
+    max-width: 100%;
+  }
+
   .guest-message__tools {
     width: 100%;
   }

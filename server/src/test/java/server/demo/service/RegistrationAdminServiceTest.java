@@ -99,7 +99,7 @@ class RegistrationAdminServiceTest {
                 eq(ReservationStatus.CANCELLED),
                 eq(checkInDate),
                 eq(checkOutDate),
-                eq("301"),
+                isNull(),
                 eq(9L)
         )).thenReturn(List.of(form));
 
@@ -112,7 +112,7 @@ class RegistrationAdminServiceTest {
                     ReservationStatus.CANCELLED,
                     checkInDate,
                     checkOutDate,
-                    " 301 ",
+                    List.of(" 301 "),
                     9L
             );
 
@@ -131,7 +131,7 @@ class RegistrationAdminServiceTest {
                 ReservationStatus.CANCELLED,
                 checkInDate,
                 checkOutDate,
-                "301",
+                null,
                 9L
         );
     }

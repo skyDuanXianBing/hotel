@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class RegistrationAdminService {
@@ -44,11 +45,11 @@ public class RegistrationAdminService {
             ReservationStatus reservationStatus,
             LocalDate checkInDate,
             LocalDate checkOutDate,
-            String roomNumber,
+            List<String> roomNumbers,
             Long roomGroupId
     ) {
         Long storeId = StoreContextUtils.requireStoreId();
-        String normalizedRoomNumber = normalizeRoomNumber(roomNumber);
+        List<String> normalizedRoomNumbers = normalizeRoomNumbers(roomNumbers);
         List<RegistrationForm> forms = registrationFormRepository.searchForAdminList(
                 storeId,
                 status,
@@ -56,9 +57,14 @@ public class RegistrationAdminService {
                 reservationStatus,
                 checkInDate,
                 checkOutDate,
-                normalizedRoomNumber,
+                null,
                 roomGroupId
         );
+        if (normalizedRoomNumbers != null) {
+            forms = forms.stream()
+                    .filter(form -> matchesAnyRoomNumber(form.getReservation(), normalizedRoomNumbers))
+                    .collect(Collectors.toList());
+        }
 
         List<AdminRegistrationListItemDTO> out = new ArrayList<>();
         for (RegistrationForm form : forms) {
@@ -206,11 +212,24 @@ public class RegistrationAdminService {
         return reservation.getOtaRoomNumber() == null ? "" : reservation.getOtaRoomNumber();
     }
 
-    private static String normalizeRoomNumber(String roomNumber) {
-        if (roomNumber == null || roomNumber.isBlank()) {
+    private static List<String> normalizeRoomNumbers(List<String> roomNumbers) {
+        if (roomNumbers == null || roomNumbers.isEmpty()) {
             return null;
         }
-        return roomNumber.trim();
+        List<String> normalized = roomNumbers.stream()
+                .filter(roomNumber -> roomNumber != null && !roomNumber.isBlank())
+                .map(String::trim)
+                .distinct()
+                .collect(Collectors.toList());
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private static boolean matchesAnyRoomNumber(Reservation reservation, List<String> roomNumbers) {
+        if (reservation == null || roomNumbers == null || roomNumbers.isEmpty()) {
+            return true;
+        }
+        String actualRoomNumber = resolveRoomNumber(reservation).toLowerCase();
+        return roomNumbers.stream().anyMatch(roomNumber -> actualRoomNumber.contains(roomNumber.toLowerCase()));
     }
 
     private static void ensureReviewable(RegistrationForm form) {

@@ -70,30 +70,29 @@
         </div>
       </div>
 
-      <!-- 帮助中心 -->
-      <div class="help-center">
+      <!-- 公告栏 -->
+      <div class="bulletin-board">
         <div class="section-header">
-          <h3>{{ t('pages.home.helpCenterTitle') }}</h3>
+          <h3>{{ t('pages.home.bulletinBoardTitle') }}</h3>
           <el-button link class="more-btn">
             {{ t('pages.home.moreAction') }} <el-icon><ArrowRight /></el-icon>
           </el-button>
         </div>
-        <div class="help-grid">
-          <div class="help-card">
-            <div class="help-title">{{ t('pages.home.helpArticles.businessReport.title') }}</div>
-            <div class="help-desc">{{ t('pages.home.helpArticles.businessReport.description') }}</div>
-          </div>
-          <div class="help-card">
-            <div class="help-title">{{ t('pages.home.helpArticles.inHouseOrder.title') }}</div>
-            <div class="help-desc">{{ t('pages.home.helpArticles.inHouseOrder.description') }}</div>
-          </div>
-          <div class="help-card">
-            <div class="help-title">{{ t('pages.home.helpArticles.roomStatus.title') }}</div>
-            <div class="help-desc">{{ t('pages.home.helpArticles.roomStatus.description') }}</div>
-          </div>
-          <div class="help-card">
-            <div class="help-title">{{ t('pages.home.helpArticles.orderFeatures.title') }}</div>
-            <div class="help-desc">{{ t('pages.home.helpArticles.orderFeatures.description') }}</div>
+        <div class="bulletin-list">
+          <div
+            v-for="item in bulletinItems"
+            :key="item.id"
+            class="bulletin-item"
+            :class="`tone-${item.tone}`"
+          >
+            <div class="bulletin-badge">{{ item.badge }}</div>
+            <div class="bulletin-content">
+              <div class="bulletin-heading">
+                <div class="bulletin-title">{{ item.title }}</div>
+                <div class="bulletin-date">{{ item.date }}</div>
+              </div>
+              <div class="bulletin-desc">{{ item.description }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -102,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Document, ArrowRight } from '@element-plus/icons-vue'
 import { getRoomStatusStatistics, type RoomStatusStatisticsDTO } from '@/api/roomStatus'
@@ -114,6 +113,33 @@ import TaskWorkbench from '@/views/home/components/TaskWorkbench.vue'
 
 const router = useRouter()
 const { t } = useI18n()
+
+const bulletinItems = computed(() => [
+  {
+    id: 'releaseDigest',
+    tone: 'update',
+    badge: t('pages.home.bulletinItems.releaseDigest.badge'),
+    title: t('pages.home.bulletinItems.releaseDigest.title'),
+    description: t('pages.home.bulletinItems.releaseDigest.description'),
+    date: t('pages.home.bulletinItems.releaseDigest.date'),
+  },
+  {
+    id: 'newFeature',
+    tone: 'feature',
+    badge: t('pages.home.bulletinItems.newFeature.badge'),
+    title: t('pages.home.bulletinItems.newFeature.title'),
+    description: t('pages.home.bulletinItems.newFeature.description'),
+    date: t('pages.home.bulletinItems.newFeature.date'),
+  },
+  {
+    id: 'bugFix',
+    tone: 'fix',
+    badge: t('pages.home.bulletinItems.bugFix.badge'),
+    title: t('pages.home.bulletinItems.bugFix.title'),
+    description: t('pages.home.bulletinItems.bugFix.description'),
+    date: t('pages.home.bulletinItems.bugFix.date'),
+  },
+])
 
 // 今日统计数据
 const todayStats = ref({
@@ -323,7 +349,7 @@ onMounted(() => {
 }
 
 .common-functions,
-.help-center {
+.bulletin-board {
   background: white;
   border-radius: 8px;
   padding: 24px;
@@ -387,36 +413,90 @@ onMounted(() => {
   text-align: center;
 }
 
-/* 帮助中心 */
-.help-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+/* 公告栏 */
+.bulletin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.help-card {
-  padding: 16px;
-  border-radius: 8px;
+.bulletin-item {
+  align-items: flex-start;
   background: #fafafa;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
+  border: 1px solid #edf0f3;
+  border-radius: 8px;
+  display: flex;
+  gap: 14px;
+  padding: 14px 16px;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
-.help-card:hover {
-  background: #f0f0f0;
+.bulletin-item:hover {
+  background: #f4f6f8;
+  border-color: #e0e5ea;
+  transform: translateY(-1px);
 }
 
-.help-title {
+.bulletin-badge {
+  border-radius: 999px;
+  flex: 0 0 auto;
   font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 7px 10px;
 }
 
-.help-desc {
+.bulletin-item.tone-update .bulletin-badge {
+  background: #e8f3ff;
+  color: #1d4ed8;
+}
+
+.bulletin-item.tone-feature .bulletin-badge {
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.bulletin-item.tone-fix .bulletin-badge {
+  background: #fff3e8;
+  color: #b45309;
+}
+
+.bulletin-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.bulletin-heading {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.bulletin-title {
+  color: #333;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.bulletin-date {
   font-size: 12px;
   color: #666;
+  flex: 0 0 auto;
+  white-space: nowrap;
   line-height: 1.4;
+}
+
+.bulletin-desc {
+  color: #666;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 /* 响应式设计 */
@@ -448,8 +528,15 @@ onMounted(() => {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .help-grid {
-    grid-template-columns: 1fr;
+  .bulletin-item {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bulletin-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .function-grid {

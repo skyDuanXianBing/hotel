@@ -10,6 +10,14 @@
             <el-option :label="t('stage5.common.status.approved')" value="APPROVED" />
             <el-option :label="t('stage5.common.status.rejected')" value="REJECTED" />
           </el-select>
+          <el-button
+            type="primary"
+            :disabled="selectedRows.length === 0"
+            :loading="downloadingPdfs"
+            @click="downloadSelectedPdfs"
+          >
+            {{ t('stage5.common.actions.downloadPdf') }}
+          </el-button>
           <el-button @click="openLinkDrawer">{{ t('stage5.dataCenter.registrations.linkList') }}</el-button>
           <el-button :loading="loading" @click="load">{{ t('stage5.common.actions.refresh') }}</el-button>
         </div>
@@ -39,18 +47,6 @@
           />
         </el-select>
         <el-select
-          v-model="roomNumber"
-          filterable
-          clearable
-          allow-create
-          default-first-option
-          :reserve-keyword="false"
-          :placeholder="t('stage5.common.fields.roomNumber')"
-          style="width: 160px"
-        >
-          <el-option v-for="room in rooms" :key="room.id" :label="room.roomNumber" :value="room.roomNumber" />
-        </el-select>
-        <el-select
           v-model="roomGroupId"
           filterable
           clearable
@@ -58,6 +54,23 @@
           style="width: 180px"
         >
           <el-option v-for="group in roomGroups" :key="group.id" :label="group.name" :value="group.id" />
+        </el-select>
+        <el-select
+          v-model="roomNumbers"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          filterable
+          clearable
+          :placeholder="t('stage5.common.fields.roomNumber')"
+          style="width: 240px"
+        >
+          <el-option
+            v-for="room in selectableRooms"
+            :key="room.id"
+            :label="room.roomNumber"
+            :value="room.roomNumber"
+          />
         </el-select>
         <el-date-picker
           v-model="checkInDate"
@@ -80,14 +93,17 @@
       </div>
 
       <el-table
+        ref="tableRef"
         :data="rows"
         border
         stripe
         class="review-table"
         style="width: 100%"
         :row-class-name="getRowClassName"
-        @row-click="go"
+        @selection-change="handleSelectionChange"
+        @row-click="handleRowClick"
       >
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="channelOrderNumber" :label="t('stage5.dataCenter.registrations.channelOrderNumber')" min-width="160" />
         <el-table-column prop="channelName" :label="t('stage5.common.filters.channel')" min-width="140" />
         <el-table-column prop="guestName" :label="t('stage5.common.fields.guestName')" min-width="120" />
@@ -175,7 +191,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import axios from 'axios'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -183,7 +200,7 @@ import request from '@/utils/request'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRegistrationLinkInbox, type RegistrationLinkInboxItemDTO } from '@/api/registrationLinkInbox'
 import { getRooms, type RoomDTO } from '@/api/room'
-import { getAllRoomGroups, type RoomGroupDTO } from '@/api/roomGroup'
+import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO } from '@/api/roomGroup'
 
 type Row = {
   formId: number
@@ -207,14 +224,18 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const rows = ref<Row[]>([])
+const selectedRows = ref<Row[]>([])
 const loading = ref(false)
+const downloadingPdfs = ref(false)
 const status = ref<string | null>(null)
 const channels = ref<ChannelDTO[]>([])
 const rooms = ref<RoomDTO[]>([])
 const roomGroups = ref<Array<RoomGroupDTO & { id: number }>>([])
+const roomIdsInSelectedGroup = ref<number[] | null>(null)
+const tableRef = ref<{ clearSelection: () => void } | null>(null)
 const channelId = ref<number | null>(null)
 const reservationStatus = ref<string | null>(null)
-const roomNumber = ref<string | null>(null)
+const roomNumbers = ref<string[]>([])
 const roomGroupId = ref<number | null>(null)
 const checkInDate = ref<string | null>(null)
 const checkOutDate = ref<string | null>(null)
@@ -237,6 +258,14 @@ const linkReservationStatusOptions = [
   { label: t('stage5.dataCenter.registrations.cancelled'), value: 'CANCELLED' },
 ]
 const reservationStatusFilterValues = reservationStatusOptions.map((option) => option.value)
+
+const selectableRooms = computed(() => {
+  if (roomGroupId.value == null || roomIdsInSelectedGroup.value == null) {
+    return rooms.value
+  }
+  const allowedIds = new Set(roomIdsInSelectedGroup.value)
+  return rooms.value.filter((room) => allowedIds.has(room.id))
+})
 
 function toDayNumber(dateValue?: string | null) {
   if (!dateValue) {
@@ -337,6 +366,17 @@ function getQueryString(value: unknown) {
   return queryValue ? queryValue : null
 }
 
+function getQueryStrings(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  const queryValue = getQueryString(value)
+  return queryValue ? [queryValue] : []
+}
+
 function getAllowedQueryString(value: unknown, allowedValues: string[]) {
   const queryValue = getQueryString(value)
   return queryValue && allowedValues.includes(queryValue) ? queryValue : null
@@ -355,7 +395,7 @@ function hydrateFiltersFromRouteQuery() {
   status.value = getAllowedQueryString(route.query.status, registrationStatusFilterValues)
   channelId.value = getQueryNumber(route.query.channelId)
   reservationStatus.value = getAllowedQueryString(route.query.reservationStatus, reservationStatusFilterValues)
-  roomNumber.value = getQueryString(route.query.roomNumber)
+  roomNumbers.value = getQueryStrings(route.query.roomNumber)
   roomGroupId.value = getQueryNumber(route.query.roomGroupId)
   checkInDate.value = getQueryString(route.query.checkInDate)
   checkOutDate.value = getQueryString(route.query.checkOutDate)
@@ -366,7 +406,7 @@ function buildFilterQuery(): LocationQueryRaw {
   if (status.value) query.status = status.value
   if (channelId.value != null) query.channelId = String(channelId.value)
   if (reservationStatus.value) query.reservationStatus = reservationStatus.value
-  if (roomNumber.value?.trim()) query.roomNumber = roomNumber.value.trim()
+  if (roomNumbers.value.length > 0) query.roomNumber = roomNumbers.value
   if (roomGroupId.value != null) query.roomGroupId = String(roomGroupId.value)
   if (checkInDate.value) query.checkInDate = checkInDate.value
   if (checkOutDate.value) query.checkOutDate = checkOutDate.value
@@ -393,7 +433,7 @@ async function syncFiltersToRouteQuery() {
 function resetFilters() {
   channelId.value = null
   reservationStatus.value = null
-  roomNumber.value = null
+  roomNumbers.value = []
   roomGroupId.value = null
   checkInDate.value = null
   checkOutDate.value = null
@@ -404,16 +444,21 @@ async function load() {
   loading.value = true
   try {
     await syncFiltersToRouteQuery()
-    const params: Record<string, string | number> = {}
+    const params: Record<string, string | number | string[]> = {}
     if (status.value) params.status = status.value
     if (channelId.value) params.channelId = channelId.value
     if (reservationStatus.value) params.reservationStatus = reservationStatus.value
-    if (roomNumber.value?.trim()) params.roomNumber = roomNumber.value.trim()
+    if (roomNumbers.value.length > 0) params.roomNumber = roomNumbers.value
     if (roomGroupId.value != null) params.roomGroupId = roomGroupId.value
     if (checkInDate.value) params.checkInDate = checkInDate.value
     if (checkOutDate.value) params.checkOutDate = checkOutDate.value
 
-    const resp = (await request.get('/registrations', { params })) as {
+    const resp = (await request.get('/registrations', {
+      params,
+      paramsSerializer: {
+        indexes: null,
+      },
+    })) as {
       success: boolean
       message?: string
       data?: Row[]
@@ -427,14 +472,40 @@ async function load() {
           roomNumber: r.roomNumber || '',
         }))
         .sort(compareRowsByCheckInPriority)
+      selectedRows.value = []
+      await nextTick()
+      tableRef.value?.clearSelection()
     } else {
       rows.value = []
+      selectedRows.value = []
       ElMessage.error(resp.message || t('stage5.common.messages.dataLoadFailed'))
     }
   } catch (e: any) {
+    selectedRows.value = []
     ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.dataLoadFailed'))
   } finally {
     loading.value = false
+  }
+}
+
+async function loadGroupMembers(groupId: number | null) {
+  if (groupId == null) {
+    roomIdsInSelectedGroup.value = null
+    return
+  }
+  try {
+    const resp = await getGroupMembers(groupId)
+    roomIdsInSelectedGroup.value = resp.success
+      ? (resp.data || [])
+          .map((member) => member.roomId)
+          .filter((roomId): roomId is number => typeof roomId === 'number')
+      : []
+    if (!resp.success) {
+      ElMessage.error(resp.message || t('stage5.common.messages.dataLoadFailed'))
+    }
+  } catch (e: any) {
+    roomIdsInSelectedGroup.value = []
+    ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.dataLoadFailed'))
   }
 }
 
@@ -444,6 +515,17 @@ function go(row: Row) {
     return
   }
   router.push({ name: 'DataCenterRegistrationDetail', params: { formId: row.formId } })
+}
+
+function handleSelectionChange(selection: Row[]) {
+  selectedRows.value = selection
+}
+
+function handleRowClick(row: Row, column?: { type?: string }) {
+  if (column?.type === 'selection') {
+    return
+  }
+  go(row)
 }
 
 function isCancelledReservation(row: Row) {
@@ -525,6 +607,74 @@ function getRegistrationStatusLabel(status?: string | null) {
   }
 }
 
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token')
+  const currentStore = localStorage.getItem('currentStore')
+  let storeId: string | undefined
+  if (currentStore) {
+    try {
+      const store = JSON.parse(currentStore)
+      if (store?.id) {
+        storeId = String(store.id)
+      }
+    } catch {
+      // ignore malformed local storage
+    }
+  }
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(storeId ? { 'X-Store-Id': storeId } : {}),
+  }
+}
+
+function registrationPdfUrl(formId: number) {
+  const base = (import.meta.env.VITE_API_BASE_URL as string) || '/api/v1'
+  return `${base}/registrations/${formId}/pdf`
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const blobUrl = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = blobUrl
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(blobUrl)
+}
+
+async function downloadRegistrationPdf(row: Row) {
+  const response = await axios.get(registrationPdfUrl(row.formId), {
+    responseType: 'blob',
+    headers: authHeaders(),
+  })
+  downloadBlob(response.data, `registration-${row.orderNumber || row.formId}.pdf`)
+}
+
+async function downloadSelectedPdfs() {
+  if (selectedRows.value.length === 0) {
+    return
+  }
+
+  downloadingPdfs.value = true
+  let failedCount = 0
+
+  try {
+    for (const row of selectedRows.value) {
+      try {
+        await downloadRegistrationPdf(row)
+      } catch {
+        failedCount += 1
+      }
+    }
+    if (failedCount > 0) {
+      ElMessage.error(t('stage5.common.messages.downloadFailed'))
+    }
+  } finally {
+    downloadingPdfs.value = false
+  }
+}
+
 async function copy(text: string) {
   if (!text) {
     return
@@ -545,12 +695,27 @@ async function copy(text: string) {
   }
 }
 
+watch(roomGroupId, async (groupId) => {
+  await loadGroupMembers(groupId)
+  if (roomNumbers.value.length === 0) {
+    return
+  }
+  const allowedRoomNumbers = new Set(selectableRooms.value.map((room) => room.roomNumber))
+  roomNumbers.value = roomNumbers.value.filter((roomNumber) => allowedRoomNumbers.has(roomNumber))
+})
+
 onMounted(() => {
   hydrateFiltersFromRouteQuery()
-  load()
   loadChannels()
   loadRooms()
   loadRoomGroups()
+  loadGroupMembers(roomGroupId.value).finally(() => {
+    if (roomNumbers.value.length > 0) {
+      const allowedRoomNumbers = new Set(selectableRooms.value.map((room) => room.roomNumber))
+      roomNumbers.value = roomNumbers.value.filter((roomNumber) => allowedRoomNumbers.has(roomNumber))
+    }
+    load()
+  })
 })
 </script>
 
