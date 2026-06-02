@@ -19,6 +19,7 @@ import { getRooms, type RoomDTO } from '@/api/room'
 import { getRoomPriceManagementData, type RoomPriceManagementDTO } from '@/api/roomPrice'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { getCurrentStorePricePlans, type PricePlanDTO } from '@/api/pricePlan'
+import { formatYmdMonthDay, getStoreDateRange, getStoreTodayYmd } from '@/utils/storeDateTime'
 
 import type {
   ChannelItem,
@@ -64,20 +65,10 @@ const resolveSuChannelId = (code: string): string | null => {
   return null
 }
 
-const addDays = (date: Date, days: number): Date => {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
-}
-
-const toDateString = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-const normalizeText = (value: unknown): string => String(value ?? '').trim().toLowerCase()
+const normalizeText = (value: unknown): string =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
 
 const readCurrentStore = (): StoreCache | null => {
   if (typeof window === 'undefined') return null
@@ -369,16 +360,18 @@ export function useChannelData() {
   }
 
   const buildCalendarDates = (startDate: string, days = 8): CalendarDate[] => {
-    const start = new Date(`${startDate}T00:00:00`)
-    const weekdayFormatter = new Intl.DateTimeFormat(locale.value, { weekday: 'short' })
+    const weekdayFormatter = new Intl.DateTimeFormat(locale.value, {
+      weekday: 'short',
+      timeZone: 'UTC',
+    })
 
-    return Array.from({ length: days }, (_, index) => {
-      const date = addDays(start, index)
-      const value = toDateString(date)
+    return getStoreDateRange(startDate, days).map((value) => {
+      const date = new Date(`${value}T00:00:00Z`)
+      const { month, day } = formatYmdMonthDay(value)
       return {
         value,
         label: value,
-        day: `${date.getMonth() + 1}/${date.getDate()}`,
+        day: `${Number(month)}/${Number(day)}`,
         weekday: weekdayFormatter.format(date),
       }
     })
@@ -454,7 +447,8 @@ export function useChannelData() {
             const pmsPlanName = pmsPlan?.name || pmsPlan?.nameEn || null
             const mappingActive =
               normalizeText(ratePlan.MappingStatus || mapping.Status) === 'active'
-            const status = mappingActive && pmsRoomType && pmsPlanName ? 'connected' : 'disconnected'
+            const status =
+              mappingActive && pmsRoomType && pmsPlanName ? 'connected' : 'disconnected'
             return {
               id: `${channelCode}-${channelRoomId}-${rateId || rateIndex}`,
               channelPricePlan: rateId || t('channel.managementData.standardRate'),
@@ -593,7 +587,7 @@ export function useChannelData() {
 
   const buildConnectedChannelManagementData = async (
     channel: ChannelItem,
-    startDate = toDateString(new Date()),
+    startDate = getStoreTodayYmd(),
   ): Promise<ChannelManagementData> => {
     const channelId = resolveSuChannelId(channel.code)
     const currentStore = readCurrentStore()
@@ -670,9 +664,7 @@ export function useChannelData() {
     if (rooms.length > 0) {
       const roomTypeNames = Array.from(
         new Set(
-          rooms
-            .map((room: RoomDTO) => room.roomType?.name || '')
-            .filter((name: string) => !!name),
+          rooms.map((room: RoomDTO) => room.roomType?.name || '').filter((name: string) => !!name),
         ),
       )
       if (roomTypeNames.length > 0) {

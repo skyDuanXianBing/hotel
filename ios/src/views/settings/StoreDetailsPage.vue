@@ -219,6 +219,7 @@ import type { StorePolicyDTO } from '@/types/settings'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 import { formatTextList, normalizeTextList } from '@/utils/settings'
+import { DEFAULT_BUSINESS_TIME_ZONE, resolveBusinessTimeZone } from '@/utils/storeBusinessDate'
 
 interface StoreDetailsFormState {
   email: string
@@ -268,7 +269,7 @@ function createEmptyForm(): StoreDetailsFormState {
     state: '',
     country: 'China',
     language: 'en',
-    timezone: 'Asia/Shanghai',
+    timezone: DEFAULT_BUSINESS_TIME_ZONE,
     currency: 'CNY',
     description: '',
     desktopPhotoUrlsText: '',
@@ -311,7 +312,7 @@ function fillStoreForm(store: StoreDTO) {
     state: store.state || '',
     country: store.country || 'China',
     language: store.language || 'en',
-    timezone: store.timezone || 'Asia/Shanghai',
+    timezone: resolveBusinessTimeZone(store.timezone),
     currency: store.currency || 'CNY',
     description: store.description || '',
     desktopPhotoUrlsText: formatTextList(store.desktopPhotoUrls),

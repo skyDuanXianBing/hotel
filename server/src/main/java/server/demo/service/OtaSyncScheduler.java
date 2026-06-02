@@ -6,13 +6,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.ChannelRepository;
+import server.demo.repository.StoreRepository;
+import server.demo.util.StoreTimeZoneUtil;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -29,6 +33,8 @@ public class OtaSyncScheduler {
     private final OtaSyncService otaSyncService;
     private final ChannelPriceRepository channelPriceRepository;
     private final ChannelRepository channelRepository;
+    private final StoreRepository storeRepository;
+    private final Clock clock;
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
@@ -44,10 +50,18 @@ public class OtaSyncScheduler {
     @Value("${ota.sync.days:365}")
     private int days;
 
-    public OtaSyncScheduler(OtaSyncService otaSyncService, ChannelPriceRepository channelPriceRepository, ChannelRepository channelRepository) {
+    public OtaSyncScheduler(
+            OtaSyncService otaSyncService,
+            ChannelPriceRepository channelPriceRepository,
+            ChannelRepository channelRepository,
+            StoreRepository storeRepository,
+            Clock clock
+    ) {
         this.otaSyncService = otaSyncService;
         this.channelPriceRepository = channelPriceRepository;
         this.channelRepository = channelRepository;
+        this.storeRepository = storeRepository;
+        this.clock = clock;
     }
 
     @PostConstruct
@@ -87,28 +101,19 @@ public class OtaSyncScheduler {
     }
 
     private void runOnce() {
-        LocalDate startDate = LocalDate.now();
-        LocalDate endDate = startDate.plusDays(Math.max(1, days) - 1L);
-
-        List<Long> storeIds = channelPriceRepository.findDistinctStoreIdsWithUnsyncedPricesInRange(
-                startDate,
-                endDate,
+        List<Long> storeIds = channelRepository.findDistinctStoreIdsByEnabledAutoSyncAndCodes(
                 otaSyncService.getDefaultOtaChannelCodes()
         );
-
         if (storeIds.isEmpty()) {
-            // 生产环境兜底：即使 channel_prices 为空，也应按本地房价生成并推送
-            storeIds = channelRepository.findDistinctStoreIdsByEnabledAutoSyncAndCodes(otaSyncService.getDefaultOtaChannelCodes());
-            if (storeIds.isEmpty()) {
-                logger.info("No OTA candidate stores found for scheduled sync ({} to {})", startDate, endDate);
-                return;
-            }
+            logger.info("No OTA candidate stores found for scheduled sync");
+            return;
         }
 
-        logger.info("Scheduled OTA sync start. stores={}, range={} to {}", storeIds.size(), startDate, endDate);
+        logger.info("Scheduled OTA sync start. stores={}", storeIds.size());
 
         for (Long storeId : storeIds) {
             try {
+                LocalDate startDate = currentStoreDate(storeId);
                 OtaSyncService.OtaSyncResult result = otaSyncService.syncStorePricesToSu(storeId, startDate, days);
                 logger.info("Scheduled OTA sync done. storeId={}, pushed={}, marked={}",
                         storeId, result.pushedCountByChannel(), result.markedSyncedCountByChannel());
@@ -116,5 +121,10 @@ public class OtaSyncScheduler {
                 logger.error("Scheduled OTA sync failed. storeId={}", storeId, e);
             }
         }
+    }
+
+    private LocalDate currentStoreDate(Long storeId) {
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(storeRepository.findById(storeId).orElse(null));
+        return LocalDate.now(clock.withZone(zoneId));
     }
 }

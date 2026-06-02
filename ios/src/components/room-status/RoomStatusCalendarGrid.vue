@@ -197,7 +197,7 @@ import type {
   RoomTimelineItem,
 } from '@/stores/roomStatus'
 import type { ReservationDTO } from '@/api/reservation'
-import { getStoreTodayDate } from '@/utils/storeBusinessDate'
+import { getStoreTodayDate, shiftBusinessDate } from '@/utils/storeBusinessDate'
 
 interface RoomStatusRoomGroup {
   roomType: string
@@ -474,12 +474,7 @@ function buildRowCells(timeline: RoomTimelineItem[]): RowCell[] {
 }
 
 function shiftDate(date: string, amount: number) {
-  const next = new Date(date)
-  next.setDate(next.getDate() + amount)
-  const year = next.getFullYear()
-  const month = String(next.getMonth() + 1).padStart(2, '0')
-  const day = String(next.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return shiftBusinessDate(date, amount)
 }
 
 function getDayDateLabel(day: RoomStatusDateItem) {

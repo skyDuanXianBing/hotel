@@ -1,4 +1,5 @@
 import type { StoreRequest } from '@/types/store'
+import { DEFAULT_BUSINESS_TIME_ZONE } from '@/utils/storeBusinessDate'
 
 export interface StoreOption {
   label: string
@@ -68,7 +69,7 @@ export const CREATE_STORE_DEFAULTS: Pick<
 > = {
   phoneTechType: '5',
   type: '1',
-  timezone: 'Asia/Shanghai',
+  timezone: DEFAULT_BUSINESS_TIME_ZONE,
   country: 'China',
   currency: 'CNY',
   language: 'en',

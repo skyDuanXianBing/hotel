@@ -368,6 +368,7 @@ import { useUserStore } from '@/stores/user'
 import type { StoreDTO, StoreRequest } from '@/types/store'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+import { DEFAULT_BUSINESS_TIME_ZONE } from '@/utils/storeBusinessDate'
 
 interface CreateStoreFormState {
   name: string
@@ -476,7 +477,7 @@ function createCreateStoreForm(): CreateStoreFormState {
     manager: '',
     phonePrefix: PHONE_PREFIX_OPTIONS[0]?.value ?? '+86',
     phone: '',
-    timezone: CREATE_STORE_DEFAULTS.timezone ?? 'Asia/Shanghai',
+    timezone: CREATE_STORE_DEFAULTS.timezone ?? DEFAULT_BUSINESS_TIME_ZONE,
     currency: CREATE_STORE_DEFAULTS.currency ?? 'CNY',
     language: CREATE_STORE_DEFAULTS.language ?? 'en',
     checkinTime: CREATE_STORE_DEFAULTS.checkinTime ?? '15:00',

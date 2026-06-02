@@ -11,11 +11,14 @@ import server.demo.entity.Store;
 import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuHotelIdUtil;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,6 +52,7 @@ public class OtaSyncService {
     private final StoreRepository storeRepository;
     private final ChannelPriceFallbackService channelPriceFallbackService;
     private final SuAccessTokenService suAccessTokenService;
+    private final Clock clock;
 
     public OtaSyncService(
             SuApiClient suApiClient,
@@ -56,7 +60,8 @@ public class OtaSyncService {
             ChannelPriceRepository channelPriceRepository,
             StoreRepository storeRepository,
             ChannelPriceFallbackService channelPriceFallbackService,
-            SuAccessTokenService suAccessTokenService
+            SuAccessTokenService suAccessTokenService,
+            Clock clock
     ) {
         this.suApiClient = suApiClient;
         this.channelRepository = channelRepository;
@@ -64,6 +69,7 @@ public class OtaSyncService {
         this.storeRepository = storeRepository;
         this.channelPriceFallbackService = channelPriceFallbackService;
         this.suAccessTokenService = suAccessTokenService;
+        this.clock = clock;
     }
 
     public List<String> getDefaultOtaChannelCodes() {
@@ -84,7 +90,7 @@ public class OtaSyncService {
             throw new IllegalArgumentException("storeId is required");
         }
 
-        LocalDate effectiveStartDate = startDate != null ? startDate : LocalDate.now();
+        LocalDate effectiveStartDate = startDate != null ? startDate : currentStoreDate(storeId);
         int effectiveDays = clampDays(days != null ? days : DEFAULT_SYNC_DAYS);
         LocalDate effectiveEndDate = effectiveStartDate.plusDays(effectiveDays - 1L);
 
@@ -170,6 +176,17 @@ public class OtaSyncService {
             storeRepository.save(store);
         }
         return hotelId;
+    }
+
+    private LocalDate currentStoreDate(Long storeId) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("门店不存在"));
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(store);
+        return LocalDate.now(effectiveClock().withZone(zoneId));
+    }
+
+    private Clock effectiveClock() {
+        return clock != null ? clock : Clock.systemUTC();
     }
 
     private static int clampDays(int days) {

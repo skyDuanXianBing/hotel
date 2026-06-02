@@ -13,11 +13,14 @@ import server.demo.entity.SuAriSyncEvent;
 import server.demo.enums.SuAriSyncEventStatus;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuAriSyncEventRepository;
+import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuHotelIdUtil;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -36,6 +39,7 @@ public class SuAriAutoSyncService {
     private final StoreRepository storeRepository;
     private final SuAriSyncService suAriSyncService;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
     @Value("${su.ari.autosync.enabled:true}")
     private boolean enabled;
@@ -53,12 +57,14 @@ public class SuAriAutoSyncService {
             SuAriSyncEventRepository eventRepository,
             StoreRepository storeRepository,
             SuAriSyncService suAriSyncService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            Clock clock
     ) {
         this.eventRepository = eventRepository;
         this.storeRepository = storeRepository;
         this.suAriSyncService = suAriSyncService;
         this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -143,7 +149,7 @@ public class SuAriAutoSyncService {
 
     @Transactional
     protected void enqueueForStoreAndHotel(Long storeId, String hotelId, String source) {
-        LocalDate startDate = LocalDate.now();
+        LocalDate startDate = currentStoreDate(storeId);
         LocalDate endDate = startDate.plusDays(Math.max(1, days) - 1L);
         enqueueForStoreAndHotelScope(
                 storeId,
@@ -172,7 +178,7 @@ public class SuAriAutoSyncService {
             boolean pushRestrictions,
             boolean deriveClosedFromBlockouts
     ) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = currentStoreDate(storeId);
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime notBefore = now.plusSeconds(Math.max(0, debounceSeconds));
 
@@ -329,11 +335,12 @@ public class SuAriAutoSyncService {
                 List<DateRange> parsedRanges = parseDateRanges(claimed.getDateRanges());
                 List<DateRange> ranges = parsedRanges;
                 if (ranges.isEmpty()) {
-                    LocalDate startDate = LocalDate.now();
+                    LocalDate startDate = currentStoreDate(claimed.getStoreId());
                     LocalDate endDate = startDate.plusDays(Math.max(1, days) - 1L);
                     ranges = List.of(new DateRange(startDate, endDate));
                 }
-                List<DateRange> effectiveRanges = trimPastRanges(mergeAndNormalizeRanges(ranges), LocalDate.now());
+                LocalDate today = currentStoreDate(claimed.getStoreId());
+                List<DateRange> effectiveRanges = trimPastRanges(mergeAndNormalizeRanges(ranges), today);
                 if (effectiveRanges.isEmpty()) {
                     logger.info(
                             "[SuAriAutoSync][RangeTrim] skip processing(all past). eventId={}, storeId={}, hotelId={}, source={}, parsedRanges={}, rawDateRanges={}",
@@ -509,6 +516,11 @@ public class SuAriAutoSyncService {
         return generated;
     }
 
+    private LocalDate currentStoreDate(Long storeId) {
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(storeRepository.findById(storeId).orElse(null));
+        return LocalDate.now(clock.withZone(zoneId));
+    }
+
     public record DateRange(LocalDate from, LocalDate to) {}
 
     private static boolean isValidRange(DateRange r) {
@@ -681,7 +693,7 @@ public class SuAriAutoSyncService {
         if (ranges == null || ranges.isEmpty()) {
             return List.of();
         }
-        LocalDate effectiveToday = today != null ? today : LocalDate.now();
+        LocalDate effectiveToday = today != null ? today : LocalDate.now(StoreTimeZoneUtil.getBusinessDefaultZoneId());
         List<DateRange> out = new ArrayList<>();
         for (DateRange r : ranges) {
             if (!isValidRange(r)) {
@@ -715,4 +727,3 @@ public class SuAriAutoSyncService {
         public String to;
     }
 }
-

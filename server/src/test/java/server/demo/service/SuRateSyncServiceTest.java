@@ -10,14 +10,20 @@ import server.demo.entity.Room;
 import server.demo.entity.RoomPrice;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
+import server.demo.entity.Store;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
+import server.demo.repository.StoreRepository;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -36,16 +42,25 @@ class SuRateSyncServiceTest {
         RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
         RoomTypePricePlanRepository rtppRepository = Mockito.mock(RoomTypePricePlanRepository.class);
         RoomPriceRepository roomPriceRepository = Mockito.mock(RoomPriceRepository.class);
+        StoreRepository storeRepository = Mockito.mock(StoreRepository.class);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
+        Clock clock = Clock.fixed(Instant.parse("2026-04-07T15:30:00Z"), ZoneOffset.UTC);
 
         SuRateSyncService service = new SuRateSyncService(
                 roomRepository,
                 rtppRepository,
                 roomPriceRepository,
                 suApiClient,
-                suAccessTokenService
+                suAccessTokenService,
+                storeRepository,
+                clock
         );
+
+        Store store = new Store();
+        store.setId(7L);
+        store.setTimezone("Asia/Tokyo");
+        when(storeRepository.findById(7L)).thenReturn(Optional.of(store));
 
         RoomType roomType = new RoomType();
         roomType.setId(1L);
@@ -68,7 +83,7 @@ class SuRateSyncServiceTest {
         when(roomRepository.findByStoreIdWithRoomType(7L)).thenReturn(List.of(room));
         when(rtppRepository.findByStoreIdWithRoomTypeAndPricePlan(7L)).thenReturn(List.of(rtpp));
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.of(2026, 4, 8);
         RoomPrice d0 = new RoomPrice(roomType, plan, today, new BigDecimal("100"));
         RoomPrice d1 = new RoomPrice(roomType, plan, today.plusDays(1), new BigDecimal("200"));
         RoomPrice d2 = new RoomPrice(roomType, plan, today.plusDays(2), new BigDecimal("200"));
@@ -140,16 +155,25 @@ class SuRateSyncServiceTest {
         RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
         RoomTypePricePlanRepository rtppRepository = Mockito.mock(RoomTypePricePlanRepository.class);
         RoomPriceRepository roomPriceRepository = Mockito.mock(RoomPriceRepository.class);
+        StoreRepository storeRepository = Mockito.mock(StoreRepository.class);
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
+        Clock clock = Clock.fixed(Instant.parse("2026-04-07T15:30:00Z"), ZoneOffset.UTC);
 
         SuRateSyncService service = new SuRateSyncService(
                 roomRepository,
                 rtppRepository,
                 roomPriceRepository,
                 suApiClient,
-                suAccessTokenService
+                suAccessTokenService,
+                storeRepository,
+                clock
         );
+
+        Store store = new Store();
+        store.setId(7L);
+        store.setTimezone("Asia/Tokyo");
+        when(storeRepository.findById(7L)).thenReturn(Optional.of(store));
 
         RoomType roomType = new RoomType();
         roomType.setId(1L);

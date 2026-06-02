@@ -61,6 +61,7 @@
 import { IonSkeletonText } from '@ionic/vue'
 import { computed } from 'vue'
 import type { DailyOccupancyDTO } from '@/api/home'
+import { formatBusinessDateLabel } from '@/utils/storeBusinessDate'
 
 interface Props {
   items: DailyOccupancyDTO[]
@@ -142,11 +143,12 @@ const formatRate = (rate: number) => {
 }
 
 const formatShortDate = (rawDate: string) => {
-  const date = new Date(rawDate)
-  if (Number.isNaN(date.getTime())) {
+  const fallbackDate = rawDate.trim()
+  const label = formatBusinessDateLabel(fallbackDate, 'month-day', fallbackDate)
+  if (label === fallbackDate) {
     return rawDate
   }
-  return `${date.getMonth() + 1}/${date.getDate()}`
+  return label.replace('-', '/')
 }
 
 const resolveBarHeight = (rate: number) => {

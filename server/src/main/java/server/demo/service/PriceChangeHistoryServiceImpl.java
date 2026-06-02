@@ -15,11 +15,15 @@ import server.demo.entity.User;
 import server.demo.repository.PriceChangeHistoryRepository;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +43,12 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private Clock clock;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
@@ -70,7 +80,7 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
 
         // 转换日期为时间范围
         LocalDateTime operateStartTime = operateDateStart != null ? operateDateStart.atStartOfDay() : null;
-        LocalDateTime operateEndTime = operateDateEnd != null ? operateDateEnd.atTime(23, 59, 59) : null;
+        LocalDateTime operateEndTime = operateDateEnd != null ? operateDateEnd.plusDays(1).atStartOfDay().minusNanos(1) : null;
 
         // 创建分页对象
         Pageable pageable = PageRequest.of(
@@ -137,9 +147,14 @@ public class PriceChangeHistoryServiceImpl implements PriceChangeHistoryService 
         history.setPreviousValue(previousValue);
         history.setOperator(operator);
         history.setStoreId(storeId);
-        history.setOperateTime(LocalDateTime.now());
+        history.setOperateTime(currentStoreDateTime(storeId));
 
         priceChangeHistoryRepository.save(history);
+    }
+
+    private LocalDateTime currentStoreDateTime(Long storeId) {
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(storeRepository.findById(storeId).orElse(null));
+        return LocalDateTime.now(clock.withZone(zoneId));
     }
 
     /**

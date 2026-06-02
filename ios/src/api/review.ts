@@ -9,6 +9,10 @@ import type {
 } from '@/constants/reviews'
 import type { ApiResponse } from '@/types/api'
 import request from '@/utils/request'
+import {
+  formatBusinessDateLabel,
+  formatStoreDateTime,
+} from '@/utils/storeBusinessDate'
 
 type RegistrationBackendStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
 
@@ -109,29 +113,11 @@ const unwrapApiResponse = <T>(response: ApiResponse<T>, fallbackMessage: string)
 }
 
 const formatDate = (value?: string | null) => {
-  if (!value) {
-    return '—'
-  }
-
-  if (value.includes('T')) {
-    return value.slice(0, 10)
-  }
-
-  return value
+  return formatBusinessDateLabel(value, 'date', '—')
 }
 
 const formatDateTime = (value?: string | null) => {
-  if (!value) {
-    return '—'
-  }
-
-  const normalizedValue = value.replace('T', ' ')
-
-  if (normalizedValue.length >= 16) {
-    return normalizedValue.slice(0, 16)
-  }
-
-  return normalizedValue
+  return formatStoreDateTime(value, 'date-time', '—')
 }
 
 const mapBackendStatus = (status?: RegistrationBackendStatus | null): ReviewStatus => {

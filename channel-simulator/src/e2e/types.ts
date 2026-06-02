@@ -1,4 +1,4 @@
-import type { JsonObject, PmsClientResult, PmsReadinessData } from '../pms-client'
+import type { JsonObject, PmsAutoMessageSummary, PmsClientResult, PmsReadinessData } from '../pms-client'
 
 export type E2ERunMode = 'PUSH' | 'PULL'
 export type E2EChannelCode = 'BOOKING' | 'AIRBNB'
@@ -85,6 +85,9 @@ export interface LifecycleStepResult {
 export interface E2ERunVerifierResult {
   reservationLookup: PmsClientResult<unknown>
   webhookEvents: PmsClientResult<unknown>
+  autoMessageSendLogs: PmsClientResult<unknown> | null
+  autoMessageMessages: PmsClientResult<unknown> | null
+  autoMessageTemplate: PmsAutoMessageSummary | null
 }
 
 export interface E2EReadinessResponse {

@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -260,12 +261,28 @@ public class AutoMessageTriggerService {
 
     private List<Reservation> findCandidates(Long storeId, String action, LocalDateTime start, LocalDateTime end) {
         String normalized = action.trim().toUpperCase();
+        LocalDateTime storageStart = toReservationTimestampStorageLocalDateTime(start);
+        LocalDateTime storageEnd = toReservationTimestampStorageLocalDateTime(end);
+        if (storageStart == null || storageEnd == null) {
+            return List.of();
+        }
         return switch (normalized) {
-            case "BOOKING_CONFIRM" -> reservationRepository.findByStoreIdAndCreatedAtBetween(storeId, start, end);
-            case "CHECK_IN" -> reservationRepository.findByStoreIdAndActualCheckInBetween(storeId, start, end);
-            case "CHECK_OUT" -> reservationRepository.findByStoreIdAndActualCheckOutBetween(storeId, start, end);
+            case "BOOKING_CONFIRM" -> reservationRepository.findByStoreIdAndCreatedAtBetween(storeId, storageStart, storageEnd);
+            case "CHECK_IN" -> reservationRepository.findByStoreIdAndActualCheckInBetween(storeId, storageStart, storageEnd);
+            case "CHECK_OUT" -> reservationRepository.findByStoreIdAndActualCheckOutBetween(storeId, storageStart, storageEnd);
             default -> List.of();
         };
+    }
+
+    private LocalDateTime toReservationTimestampStorageLocalDateTime(LocalDateTime utcTime) {
+        if (utcTime == null) {
+            return null;
+        }
+        return StoreTimeZoneUtil.toReservationTimestampStorageLocalDateTime(
+                utcTime.toLocalDate(),
+                utcTime.toLocalTime(),
+                ZoneOffset.UTC
+        );
     }
 
     private boolean shouldConsiderForAction(Reservation reservation, String action) {

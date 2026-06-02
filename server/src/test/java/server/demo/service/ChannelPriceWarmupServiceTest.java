@@ -1,14 +1,20 @@
 package server.demo.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import server.demo.entity.Store;
 import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
+import server.demo.repository.StoreRepository;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -30,8 +36,23 @@ class ChannelPriceWarmupServiceTest {
     @Mock
     private ChannelPriceFallbackService channelPriceFallbackService;
 
-    @InjectMocks
+    @Mock
+    private StoreRepository storeRepository;
+
     private ChannelPriceWarmupService channelPriceWarmupService;
+    private Clock clock;
+
+    @BeforeEach
+    void setUp() {
+        clock = Clock.fixed(Instant.parse("2026-04-07T15:30:00Z"), ZoneOffset.UTC);
+        channelPriceWarmupService = new ChannelPriceWarmupService(
+                channelPriceRepository,
+                roomTypePricePlanRepository,
+                channelPriceFallbackService,
+                storeRepository,
+                clock
+        );
+    }
 
     @Test
     void warmupIfNeeded_shouldNoop_whenStoreIdIsNull() {
@@ -44,6 +65,7 @@ class ChannelPriceWarmupServiceTest {
     @Test
     void warmupIfNeeded_shouldSkipAndCache_whenPricesAlreadyExistInRange() {
         Long storeId = 5L;
+        mockTokyoStore(storeId);
         when(channelPriceRepository.existsByStoreIdAndPriceDateBetween(eq(storeId), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(true);
 
@@ -58,6 +80,7 @@ class ChannelPriceWarmupServiceTest {
     @Test
     void warmupIfNeeded_shouldNotCache_whenNoRoomTypePricePlansExist() {
         Long storeId = 5L;
+        mockTokyoStore(storeId);
         when(channelPriceRepository.existsByStoreIdAndPriceDateBetween(eq(storeId), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(false);
         when(roomTypePricePlanRepository.existsByStoreId(storeId)).thenReturn(false);
@@ -73,7 +96,8 @@ class ChannelPriceWarmupServiceTest {
     @Test
     void warmupIfNeeded_shouldGenerateAndCache_whenNoPricesExist() {
         Long storeId = 5L;
-        LocalDate today = LocalDate.now();
+        mockTokyoStore(storeId);
+        LocalDate today = LocalDate.of(2026, 4, 8);
         LocalDate end = today.plusDays(364);
 
         when(channelPriceRepository.existsByStoreIdAndPriceDateBetween(eq(storeId), any(LocalDate.class), any(LocalDate.class)))
@@ -89,5 +113,11 @@ class ChannelPriceWarmupServiceTest {
         verify(roomTypePricePlanRepository, times(1)).existsByStoreId(storeId);
         verify(channelPriceFallbackService, times(1)).generate(storeId, today, 365);
     }
-}
 
+    private void mockTokyoStore(Long storeId) {
+        Store store = new Store();
+        store.setId(storeId);
+        store.setTimezone("Asia/Tokyo");
+        when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
+    }
+}

@@ -36,12 +36,15 @@ import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.PriceLabsCountryUtil;
 import server.demo.util.PriceLabsIdUtil;
+import server.demo.util.StoreTimeZoneUtil;
 import server.demo.constants.PriceLabsSyncDefaults;
 import server.demo.constants.PriceLabsSyncStatus;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -74,6 +77,7 @@ public class PriceLabsSyncService {
     @Autowired private ReservationRepository reservationRepository;
     @Autowired private RoomBlockoutRepository roomBlockoutRepo;
     @Autowired private GoogleGeocodingService googleGeocodingService;
+    @Autowired private Clock clock;
 
     @Transactional
     public void syncAll() {
@@ -96,7 +100,7 @@ public class PriceLabsSyncService {
             logger.info("Step 3: Sync rate plans");
             syncRatePlans(storeId);
 
-            LocalDate start = LocalDate.now();
+            LocalDate start = currentStoreDate(store);
             // PriceLabs 要求首次日历推送至少覆盖 1 年数据，否则会返回 "less than a year of data is not allowed"
             LocalDate end = start.plusYears(1).minusDays(1);
             logger.info("Step 4: Sync calendar {} to {}", start, end);
@@ -178,7 +182,7 @@ public class PriceLabsSyncService {
             return;
         }
 
-        LocalDate startDate = LocalDate.now();
+        LocalDate startDate = currentStoreDate(storeId);
         LocalDate endDate = startDate.plusDays(pullDays - 1L);
 
         PriceLabsApiClient.GetPricesResponse res = apiClient.getPrices(listingIds, startDate, endDate, false);
@@ -245,7 +249,7 @@ public class PriceLabsSyncService {
             return;
         }
 
-        LocalDate startDate = LocalDate.now();
+        LocalDate startDate = currentStoreDate(storeId);
         LocalDate endDate = startDate.plusDays(pullDays - 1L);
 
         List<String> failures = new ArrayList<>();
@@ -397,13 +401,12 @@ public class PriceLabsSyncService {
         }
 
         int pullDays = clampSyncDays(days);
-        LocalDate startDate = LocalDate.now();
-        LocalDate endDate = startDate.plusDays(pullDays - 1L);
-
         boolean anyApplied = false;
         List<String> failures = new ArrayList<>();
 
         for (Map.Entry<Long, List<PriceLabsConnection>> entry : connectionsByStore.entrySet()) {
+            LocalDate startDate = currentStoreDate(entry.getKey());
+            LocalDate endDate = startDate.plusDays(pullDays - 1L);
             List<PriceLabsWebhookRequest.ListingData> data =
                     buildPullSyncData(entry.getKey(), entry.getValue(), startDate, endDate, failures);
 
@@ -434,10 +437,23 @@ public class PriceLabsSyncService {
     @Transactional
     public void syncCalendarForListingIds(List<String> listingIds, Integer days) {
         int syncDays = clampSyncDays(days);
-        LocalDate startDate = LocalDate.now();
-        LocalDate endDate = startDate.plusDays(syncDays - 1L);
+        if (listingIds == null || listingIds.isEmpty()) {
+            logger.warn("[PriceLabsCalendar] listing_ids empty, skip calendar push");
+            return;
+        }
 
-        syncCalendarForListingIds(listingIds, startDate, endDate);
+        Map<Long, List<PriceLabsConnection>> connectionsByStore = resolveConnectionsForListingIds(listingIds);
+        if (connectionsByStore.isEmpty()) {
+            logger.warn("[PriceLabsCalendar] no enabled connections for listing_ids, skip calendar push. listingCount={}",
+                    listingIds.size());
+            return;
+        }
+
+        for (Map.Entry<Long, List<PriceLabsConnection>> entry : connectionsByStore.entrySet()) {
+            LocalDate startDate = currentStoreDate(entry.getKey());
+            LocalDate endDate = startDate.plusDays(syncDays - 1L);
+            syncCalendarForConnections(entry.getKey(), entry.getValue(), startDate, endDate);
+        }
     }
 
     @Transactional
@@ -454,21 +470,20 @@ public class PriceLabsSyncService {
             return;
         }
 
-        LocalDate resolvedStart = startDate != null ? startDate : LocalDate.now();
-        LocalDate resolvedEnd = endDate != null ? endDate : resolvedStart.plusDays(PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS - 1L);
-        if (resolvedEnd.isBefore(resolvedStart)) {
-            logger.warn("[PriceLabsCalendar] end_date before start_date, fallback to start_date. start={}, end={}",
-                    resolvedStart, resolvedEnd);
-            resolvedEnd = resolvedStart;
-        }
-        long requestedDays = ChronoUnit.DAYS.between(resolvedStart, resolvedEnd) + 1L;
-        if (requestedDays > PriceLabsSyncDefaults.MAX_SYNC_DAYS) {
-            resolvedEnd = resolvedStart.plusDays(PriceLabsSyncDefaults.MAX_SYNC_DAYS - 1L);
-            logger.warn("[PriceLabsCalendar] calendar range too large, clamped. requestedDays={}, maxDays={}, start={}, end={}",
-                    requestedDays, PriceLabsSyncDefaults.MAX_SYNC_DAYS, resolvedStart, resolvedEnd);
-        }
-
         for (Map.Entry<Long, List<PriceLabsConnection>> entry : connectionsByStore.entrySet()) {
+            LocalDate resolvedStart = startDate != null ? startDate : currentStoreDate(entry.getKey());
+            LocalDate resolvedEnd = endDate != null ? endDate : resolvedStart.plusDays(PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS - 1L);
+            if (resolvedEnd.isBefore(resolvedStart)) {
+                logger.warn("[PriceLabsCalendar] end_date before start_date, fallback to start_date. start={}, end={}",
+                        resolvedStart, resolvedEnd);
+                resolvedEnd = resolvedStart;
+            }
+            long requestedDays = ChronoUnit.DAYS.between(resolvedStart, resolvedEnd) + 1L;
+            if (requestedDays > PriceLabsSyncDefaults.MAX_SYNC_DAYS) {
+                resolvedEnd = resolvedStart.plusDays(PriceLabsSyncDefaults.MAX_SYNC_DAYS - 1L);
+                logger.warn("[PriceLabsCalendar] calendar range too large, clamped. requestedDays={}, maxDays={}, start={}, end={}",
+                        requestedDays, PriceLabsSyncDefaults.MAX_SYNC_DAYS, resolvedStart, resolvedEnd);
+            }
             syncCalendarForConnections(entry.getKey(), entry.getValue(), resolvedStart, resolvedEnd);
         }
     }
@@ -636,7 +651,7 @@ public class PriceLabsSyncService {
             }
         }
 
-        LocalDate start = LocalDate.now();
+        LocalDate start = currentStoreDate(store);
         // PriceLabs 要求首次日历推送至少覆盖 1 年数据，否则会返回 "less than a year of data is not allowed"
         LocalDate end = start.plusYears(1).minusDays(1);
         syncCalendar(sid, start, end);
@@ -826,7 +841,7 @@ public class PriceLabsSyncService {
         }
 
         int syncDays = Math.max(clampSyncDays(days), PriceLabsSyncDefaults.INITIAL_SYNC_DAYS);
-        LocalDate start = LocalDate.now();
+        LocalDate start = currentStoreDate(store);
         LocalDate end = start.plusDays(syncDays - 1L);
 
         PriceLabsConnection temp = new PriceLabsConnection(roomType, pricePlan);
@@ -1231,6 +1246,20 @@ public class PriceLabsSyncService {
     private int clampSyncDays(Integer days) {
         int result = (days != null && days > 0) ? days : PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS;
         return Math.min(result, PriceLabsSyncDefaults.MAX_SYNC_DAYS);
+    }
+
+    private LocalDate currentStoreDate(Long storeId) {
+        Store store = storeRepo.findById(storeId).orElse(null);
+        return currentStoreDate(store);
+    }
+
+    private LocalDate currentStoreDate(Store store) {
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(store);
+        return LocalDate.now(currentClock().withZone(zoneId));
+    }
+
+    private Clock currentClock() {
+        return clock != null ? clock : Clock.systemUTC();
     }
 
     private Map<Long, List<PriceLabsConnection>> resolveConnectionsForListingIds(List<String> listingIds) {

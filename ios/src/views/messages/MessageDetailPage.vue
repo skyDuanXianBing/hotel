@@ -267,6 +267,10 @@ import {
   requestAiMessageTranslation,
   type MessageTranslationLanguageValue,
 } from '@/utils/messageTranslation'
+import {
+  compareStoreDateTimes,
+  formatStoreDateTime,
+} from '@/utils/storeBusinessDate'
 
 const MESSAGE_POLL_INTERVAL = 8000
 const INITIAL_TRANSLATION_BATCH_SIZE = 20
@@ -421,7 +425,7 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
 function sortMessages(list: MessageDTO[]) {
   const nextItems = [...list]
   nextItems.sort((firstItem, secondItem) => {
-    return new Date(firstItem.timestamp).getTime() - new Date(secondItem.timestamp).getTime()
+    return compareStoreDateTimes(firstItem.timestamp, secondItem.timestamp)
   })
   return nextItems
 }
@@ -539,16 +543,7 @@ function resolveMessageAvatarLabel(message: MessageDTO) {
 }
 
 function formatDateTime(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return '时间未知'
-  }
-
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${month}-${day} ${hours}:${minutes}`
+  return formatStoreDateTime(value, 'month-day-time', '时间未知')
 }
 
 function normalizeExternalUrl(rawUrl: string) {

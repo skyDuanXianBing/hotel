@@ -2,9 +2,15 @@ package server.demo.service;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import server.demo.entity.AutoMessage;
+import server.demo.entity.Channel;
 import server.demo.entity.OtaIntegration;
+import server.demo.entity.Store;
+import server.demo.entity.User;
+import server.demo.repository.StoreRepository;
 import server.demo.service.ChannelE2ETestSupportService.TestSupportAccessException;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -12,6 +18,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ChannelE2ETestSupportServiceTest {
 
@@ -98,6 +107,71 @@ class ChannelE2ETestSupportServiceTest {
     }
 
     @Test
+    void ensureLocalSetupStore_reusedStoreNormalizesTimezoneToTokyo() {
+        StoreRepository storeRepository = mock(StoreRepository.class);
+        Store existingStore = new Store();
+        existingStore.setId(41L);
+        existingStore.setTimezone("Asia/Shanghai");
+        existingStore.setSuHotelId("LOCALE2EHOTEL");
+        when(storeRepository.findAllBySuHotelIdOrderByIdAsc("LOCALE2EHOTEL")).thenReturn(List.of(existingStore));
+        when(storeRepository.save(existingStore)).thenReturn(existingStore);
+        ChannelE2ETestSupportService service = newService(true, VALID_KEY, storeRepository);
+
+        User user = new User();
+        user.setId(7L);
+        user.setEmail("channel-e2e-local@thehosthub.test");
+        List<String> created = new ArrayList<>();
+        List<String> reused = new ArrayList<>();
+
+        Store result = ReflectionTestUtils.invokeMethod(
+                service,
+                "ensureLocalSetupStore",
+                user,
+                created,
+                reused
+        );
+
+        assertEquals(existingStore, result);
+        assertEquals("Asia/Tokyo", existingStore.getTimezone());
+        assertTrue(created.isEmpty());
+        assertTrue(reused.contains("storeTimezone:Asia/Tokyo"));
+        assertTrue(reused.contains("store:41"));
+        verify(storeRepository).save(existingStore);
+    }
+
+    @Test
+    void hasLocalSetupAutoMessageTemplate_requiresEnabledBookingConfirmMarkerAndBookingChannel() {
+        ChannelE2ETestSupportService service = newService(true, VALID_KEY);
+        Channel bookingChannel = new Channel();
+        bookingChannel.setId(19L);
+        bookingChannel.setCode("BOOKING");
+        AutoMessage template = new AutoMessage();
+        template.setEnabled(true);
+        template.setAction("BOOKING_CONFIRM");
+        template.setSendTiming("IMMEDIATELY");
+        template.setChannels("[19]");
+        template.setMessage("LOCAL_E2E_AUTO_BOOKING_CONFIRM hello");
+
+        Boolean matched = ReflectionTestUtils.invokeMethod(
+                service,
+                "hasLocalSetupAutoMessageTemplate",
+                template,
+                bookingChannel
+        );
+
+        assertTrue(Boolean.TRUE.equals(matched));
+
+        template.setChannels("[244]");
+        Boolean mismatched = ReflectionTestUtils.invokeMethod(
+                service,
+                "hasLocalSetupAutoMessageTemplate",
+                template,
+                bookingChannel
+        );
+        assertFalse(Boolean.TRUE.equals(mismatched));
+    }
+
+    @Test
     void hasSupportedOtaIntegration_requiresSupportedEnabledAndConnectedIntegration() {
         ChannelE2ETestSupportService service = newService(true, VALID_KEY);
 
@@ -143,7 +217,18 @@ class ChannelE2ETestSupportServiceTest {
     }
 
     private ChannelE2ETestSupportService newService(boolean localE2EEnabled, String testSupportKey) {
+        return newService(localE2EEnabled, testSupportKey, null);
+    }
+
+    private ChannelE2ETestSupportService newService(
+            boolean localE2EEnabled,
+            String testSupportKey,
+            StoreRepository storeRepository
+    ) {
         ChannelE2ETestSupportService service = new ChannelE2ETestSupportService(
+                null,
+                storeRepository,
+                null,
                 null,
                 null,
                 null,

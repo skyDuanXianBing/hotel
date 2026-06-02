@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { request } from '@/utils/request'
 import { i18n } from '@/locales'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 import type {
   RoomStatusCalendar,
   DailyRoomStatusData,
@@ -28,7 +29,7 @@ export const useRoomStatusStore = defineStore('roomStatus', () => {
 
   const activeTab = ref<'calendar' | 'daily' | 'channel'>('calendar')
 
-  const selectedDate = ref<string>(new Date().toISOString().split('T')[0])
+  const selectedDate = ref<string>(getStoreTodayYmd())
   const dateRange = computed(() => {
     if (!calendarData.value) return { startDate: '', endDate: '' }
     return calendarData.value.dateRange
