@@ -32,6 +32,7 @@ const zhTW = mergeLocaleMessages(
       home: '首頁',
       accommodation: '房態',
       channel: '渠道',
+      messages: '訊息',
       order: '訂單',
       statistics: '統計',
       review: '審查',
