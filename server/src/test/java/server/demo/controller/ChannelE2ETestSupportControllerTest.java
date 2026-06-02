@@ -2,6 +2,7 @@ package server.demo.controller;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -13,6 +14,9 @@ import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.ApiResponse;
 import server.demo.service.ChannelE2ETestSupportService;
+import server.demo.service.ChannelE2ETestSupportService.AutoMessageDispatchResponse;
+import server.demo.service.ChannelE2ETestSupportService.AutoMessageSendLogLookupQuery;
+import server.demo.service.ChannelE2ETestSupportService.AutoMessageSendLogLookupResponse;
 import server.demo.service.ChannelE2ETestSupportService.ChannelE2EReadinessResponse;
 import server.demo.service.ChannelE2ETestSupportService.MessagingThreadLookupQuery;
 import server.demo.service.ChannelE2ETestSupportService.MessagingThreadLookupResponse;
@@ -97,6 +101,45 @@ class ChannelE2ETestSupportControllerTest {
         verifyBusinessReadWasCalled(endpoint);
     }
 
+    @Test
+    void dispatchAutoMessages_missingTestSupportKeyReturnsBadRequestAndSkipsDispatch() {
+        whenMissingKeyIsRejected();
+
+        ResponseEntity<? extends ApiResponse<?>> response = controller.dispatchAutoMessages(null);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertFalse(response.getBody().isSuccess());
+        assertEquals("缺少 X-Test-Support-Key", response.getBody().getMessage());
+        verify(testSupportService).validateTestSupportAccess(null);
+        verify(testSupportService, never()).dispatchAutoMessages(anyLong());
+    }
+
+    @Test
+    void dispatchAutoMessages_wrongTestSupportKeyReturnsForbiddenAndSkipsDispatch() {
+        whenWrongKeyIsRejected();
+
+        ResponseEntity<? extends ApiResponse<?>> response = controller.dispatchAutoMessages("wrong-key");
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertFalse(response.getBody().isSuccess());
+        assertEquals("X-Test-Support-Key 不匹配", response.getBody().getMessage());
+        verify(testSupportService).validateTestSupportAccess("wrong-key");
+        verify(testSupportService, never()).dispatchAutoMessages(anyLong());
+    }
+
+    @Test
+    void dispatchAutoMessages_validTestSupportKeyRunsCurrentStoreDispatch() {
+        when(testSupportService.dispatchAutoMessages(STORE_ID))
+                .thenReturn(new AutoMessageDispatchResponse(STORE_ID, true));
+
+        ResponseEntity<? extends ApiResponse<?>> response = controller.dispatchAutoMessages(VALID_KEY);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().isSuccess());
+        verify(testSupportService).validateTestSupportAccess(VALID_KEY);
+        verify(testSupportService).dispatchAutoMessages(STORE_ID);
+    }
+
     private void whenMissingKeyIsRejected() {
         TestSupportAccessException exception = new TestSupportAccessException(400, "缺少 X-Test-Support-Key");
         org.mockito.Mockito.doThrow(exception).when(testSupportService).validateTestSupportAccess(null);
@@ -120,7 +163,10 @@ class ChannelE2ETestSupportControllerTest {
         if (endpoint == ReadEndpoint.WEBHOOK_EVENTS) {
             return controller.lookupWebhookEvents(testSupportKey, null, null, null, null, null);
         }
-        return controller.lookupMessagingThreads(testSupportKey, null, null, null, null, null, null, null);
+        if (endpoint == ReadEndpoint.MESSAGING_THREADS) {
+            return controller.lookupMessagingThreads(testSupportKey, null, null, null, null, null, null, null);
+        }
+        return controller.lookupAutoMessageSendLogs(testSupportKey, null, null, null, null);
     }
 
     private void stubBusinessRead(ReadEndpoint endpoint) {
@@ -138,8 +184,13 @@ class ChannelE2ETestSupportControllerTest {
                     .thenReturn(buildWebhookEventLookupResponse());
             return;
         }
-        when(testSupportService.lookupMessagingThreads(STORE_ID, null, null, null, null, null, null, null))
-                .thenReturn(buildMessagingThreadLookupResponse());
+        if (endpoint == ReadEndpoint.MESSAGING_THREADS) {
+            when(testSupportService.lookupMessagingThreads(STORE_ID, null, null, null, null, null, null, null))
+                    .thenReturn(buildMessagingThreadLookupResponse());
+            return;
+        }
+        when(testSupportService.lookupAutoMessageSendLogs(STORE_ID, null, null, null, null))
+                .thenReturn(buildAutoMessageSendLogLookupResponse());
     }
 
     private void verifyBusinessReadWasSkipped(ReadEndpoint endpoint) {
@@ -169,17 +220,27 @@ class ChannelE2ETestSupportControllerTest {
             );
             return;
         }
-        verify(testSupportService, never())
-                .lookupMessagingThreads(
-                        anyLong(),
-                        isNull(),
-                        isNull(),
-                        isNull(),
-                        isNull(),
-                        isNull(),
-                        isNull(),
-                        isNull()
-                );
+        if (endpoint == ReadEndpoint.MESSAGING_THREADS) {
+            verify(testSupportService, never())
+                    .lookupMessagingThreads(
+                            anyLong(),
+                            isNull(),
+                            isNull(),
+                            isNull(),
+                            isNull(),
+                            isNull(),
+                            isNull(),
+                            isNull()
+                    );
+            return;
+        }
+        verify(testSupportService, never()).lookupAutoMessageSendLogs(
+                anyLong(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull()
+        );
     }
 
     private void verifyBusinessReadWasCalled(ReadEndpoint endpoint) {
@@ -195,7 +256,11 @@ class ChannelE2ETestSupportControllerTest {
             verify(testSupportService).lookupWebhookEvents(STORE_ID, null, null, null, null, null);
             return;
         }
-        verify(testSupportService).lookupMessagingThreads(STORE_ID, null, null, null, null, null, null, null);
+        if (endpoint == ReadEndpoint.MESSAGING_THREADS) {
+            verify(testSupportService).lookupMessagingThreads(STORE_ID, null, null, null, null, null, null, null);
+            return;
+        }
+        verify(testSupportService).lookupAutoMessageSendLogs(STORE_ID, null, null, null, null);
     }
 
     private ChannelE2EReadinessResponse buildReadinessResponse() {
@@ -207,11 +272,13 @@ class ChannelE2ETestSupportControllerTest {
         return new ChannelE2EReadinessResponse(
                 STORE_ID,
                 "Local Channel E2E Hotel",
+                "Asia/Tokyo",
                 "TEST",
                 List.of("BOOKING", "AIRBNB"),
                 true,
                 List.of(),
                 webhookConfig,
+                List.of(),
                 List.of(),
                 List.of(),
                 List.of(),
@@ -235,11 +302,23 @@ class ChannelE2ETestSupportControllerTest {
         return new MessagingThreadLookupResponse(query, 0, List.of());
     }
 
+    private AutoMessageSendLogLookupResponse buildAutoMessageSendLogLookupResponse() {
+        AutoMessageSendLogLookupQuery query = new AutoMessageSendLogLookupQuery(
+                "RESERVATION",
+                null,
+                null,
+                null,
+                20
+        );
+        return new AutoMessageSendLogLookupResponse(query, 0, List.of());
+    }
+
     private enum ReadEndpoint {
         READINESS,
         CONTEXT,
         RESERVATIONS_LOOKUP,
         WEBHOOK_EVENTS,
-        MESSAGING_THREADS
+        MESSAGING_THREADS,
+        AUTO_MESSAGE_SEND_LOGS
     }
 }

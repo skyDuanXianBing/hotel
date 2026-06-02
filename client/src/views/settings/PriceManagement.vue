@@ -81,7 +81,12 @@
         :cell-style="{ textAlign: 'center' }"
       >
         <!-- 房型列 -->
-        <el-table-column prop="roomType" :label="t('settings.priceManagement.localRoomType')" width="120" fixed="left">
+        <el-table-column
+          prop="roomType"
+          :label="t('settings.priceManagement.localRoomType')"
+          width="120"
+          fixed="left"
+        >
           <template #default="scope">
             <span class="room-type-name">{{ scope.row.roomType }}</span>
           </template>
@@ -100,7 +105,11 @@
               <div class="date-label" :class="date.dayClass">{{ date.dayLabel }}</div>
               <div class="date-day">{{ date.weekday }}</div>
               <div v-if="showInventory" class="total-rooms">
-                {{ t('settings.priceManagement.totalRooms', { count: dailyTotalRooms[date.prop] || 0 }) }}
+                {{
+                  t('settings.priceManagement.totalRooms', {
+                    count: dailyTotalRooms[date.prop] || 0,
+                  })
+                }}
               </div>
             </div>
           </template>
@@ -122,7 +131,11 @@
                 v-if="showInventory && scope.row[date.prop]?.availableRooms"
                 class="rooms-available"
               >
-                {{ t('settings.priceManagement.remainingRooms', { count: scope.row[date.prop].availableRooms }) }}
+                {{
+                  t('settings.priceManagement.remainingRooms', {
+                    count: scope.row[date.prop].availableRooms,
+                  })
+                }}
               </div>
             </div>
           </template>
@@ -205,12 +218,19 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import {
+  addDaysToYmd,
+  formatYmdMonthDay,
+  getStoreDateRange,
+  getStoreTodayYmd,
+  getYmdWeekdayIndex,
+} from '@/utils/storeDateTime'
 
 const { t } = useI18n()
 
 // 响应式数据
 const activeTab = ref('price-setting')
-const selectedDate = ref('2025-09-26')
+const selectedDate = ref(getStoreTodayYmd())
 const roomTypeFilter = ref('local')
 const showInventory = ref(false)
 const loading = ref(false)
@@ -240,15 +260,11 @@ const roomTypes = [
 // 计算日期列
 const dateColumns = computed(() => {
   const columns = []
-  const startDate = new Date(selectedDate.value)
+  const dates = getStoreDateRange(selectedDate.value, 11)
 
-  for (let i = 0; i < 11; i++) {
-    const currentDate = new Date(startDate)
-    currentDate.setDate(startDate.getDate() + i)
-
-    const dateStr = currentDate.toISOString().split('T')[0]
-    const month = currentDate.getMonth() + 1
-    const day = currentDate.getDate()
+  for (const dateStr of dates) {
+    const { month, day } = formatYmdMonthDay(dateStr)
+    const weekdayIndex = getYmdWeekdayIndex(dateStr)
     const weekday = [
       t('settings.priceManagement.weekdays.sun'),
       t('settings.priceManagement.weekdays.mon'),
@@ -257,16 +273,15 @@ const dateColumns = computed(() => {
       t('settings.priceManagement.weekdays.thu'),
       t('settings.priceManagement.weekdays.fri'),
       t('settings.priceManagement.weekdays.sat'),
-    ][currentDate.getDay()]
+    ][weekdayIndex]
 
     // 判断是否为今天
-    const today = new Date()
-    const isToday = currentDate.toDateString() === today.toDateString()
+    const isToday = dateStr === getStoreTodayYmd()
 
     // 判断是否为节假日（这里简化处理，实际应该根据真实的节假日数据）
-    const isHoliday = currentDate.getDay() === 0 || currentDate.getDay() === 6
+    const isHoliday = weekdayIndex === 0 || weekdayIndex === 6
 
-    let dayLabel = `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+    let dayLabel = `${month}-${day}`
     let dayClass = ''
 
     if (isToday) {
@@ -363,15 +378,11 @@ const switchTab = (tab: string) => {
 }
 
 const previousDate = () => {
-  const current = new Date(selectedDate.value)
-  current.setDate(current.getDate() - 1)
-  selectedDate.value = current.toISOString().split('T')[0]
+  selectedDate.value = addDaysToYmd(selectedDate.value, -1)
 }
 
 const nextDate = () => {
-  const current = new Date(selectedDate.value)
-  current.setDate(current.getDate() + 1)
-  selectedDate.value = current.toISOString().split('T')[0]
+  selectedDate.value = addDaysToYmd(selectedDate.value, 1)
 }
 
 const onDateChange = (date: string) => {

@@ -17,23 +17,50 @@
           clearable
           style="width: 300px"
         />
-        <el-button type="primary" @click="handleAddPlan">{{ t('settingsStage4.pricePlan.actions.addPlan') }}</el-button>
+        <el-button type="primary" @click="handleAddPlan">{{
+          t('settingsStage4.pricePlan.actions.addPlan')
+        }}</el-button>
       </div>
 
       <!-- 价格计划表格 -->
       <el-table :data="pricePlans" stripe border style="width: 100%">
-        <el-table-column prop="name" :label="t('settingsStage4.pricePlan.columns.pricePlan')" min-width="150" />
-        <el-table-column prop="minNights" :label="t('settingsStage4.pricePlan.columns.minNights')" width="120" align="center" />
-        <el-table-column prop="maxNights" :label="t('settingsStage4.pricePlan.columns.maxNights')" width="120" align="center" />
-        <el-table-column :label="t('settingsStage4.pricePlan.columns.includeMeal')" width="100" align="center">
+        <el-table-column
+          prop="name"
+          :label="t('settingsStage4.pricePlan.columns.pricePlan')"
+          min-width="150"
+        />
+        <el-table-column
+          prop="minNights"
+          :label="t('settingsStage4.pricePlan.columns.minNights')"
+          width="120"
+          align="center"
+        />
+        <el-table-column
+          prop="maxNights"
+          :label="t('settingsStage4.pricePlan.columns.maxNights')"
+          width="120"
+          align="center"
+        />
+        <el-table-column
+          :label="t('settingsStage4.pricePlan.columns.includeMeal')"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
             <el-icon v-if="row.includeMeal" color="#67C23A">
               <CircleCheck />
             </el-icon>
           </template>
         </el-table-column>
-        <el-table-column prop="rules" :label="t('settingsStage4.pricePlan.columns.derivationRules')" min-width="150" />
-        <el-table-column :label="t('settingsStage4.pricePlan.columns.appliedRoomTypes')" min-width="200">
+        <el-table-column
+          prop="rules"
+          :label="t('settingsStage4.pricePlan.columns.derivationRules')"
+          min-width="150"
+        />
+        <el-table-column
+          :label="t('settingsStage4.pricePlan.columns.appliedRoomTypes')"
+          min-width="200"
+        >
           <template #default="{ row }">
             <el-link type="primary" :underline="false" @click="handleShowAppliedRoomTypes(row)">
               <el-icon><Link /></el-icon>
@@ -41,11 +68,22 @@
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column :label="t('settingsStage4.accountList.columns.actions')" width="200" align="center" fixed="right">
+        <el-table-column
+          :label="t('settingsStage4.accountList.columns.actions')"
+          width="200"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">{{ t('settings.common.edit') }}</el-button>
-            <el-button link type="primary" @click="handleDetail(row)">{{ t('settingsStage4.common.details') }}</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">{{ t('settings.common.delete') }}</el-button>
+            <el-button link type="primary" @click="handleEdit(row)">{{
+              t('settings.common.edit')
+            }}</el-button>
+            <el-button link type="primary" @click="handleDetail(row)">{{
+              t('settingsStage4.common.details')
+            }}</el-button>
+            <el-button link type="danger" @click="handleDelete(row)">{{
+              t('settings.common.delete')
+            }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -86,37 +124,87 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column :label="t('settingsStage4.pricePlan.columns.priceMode')" width="120" align="center">
+          <el-table-column
+            :label="t('settingsStage4.pricePlan.columns.priceMode')"
+            width="120"
+            align="center"
+          >
             <template #default>
               <el-tag type="primary" size="small">RBP</el-tag>
             </template>
           </el-table-column>
-          <el-table-column :label="t('settingsStage4.pricePlan.columns.defaultPrice')" align="center">
-            <el-table-column :label="t('settingsStage4.weekdays.monShort')" width="100" align="center">
+          <el-table-column
+            :label="t('settingsStage4.pricePlan.columns.defaultPrice')"
+            align="center"
+          >
+            <el-table-column
+              :label="t('settingsStage4.weekdays.monShort')"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">{{ formatPrice(row.prices.mon) }}</template>
             </el-table-column>
-            <el-table-column :label="t('settingsStage4.weekdays.tueShort')" width="100" align="center">
+            <el-table-column
+              :label="t('settingsStage4.weekdays.tueShort')"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">{{ formatPrice(row.prices.tue) }}</template>
             </el-table-column>
-            <el-table-column :label="t('settingsStage4.weekdays.wedShort')" width="100" align="center">
+            <el-table-column
+              :label="t('settingsStage4.weekdays.wedShort')"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">{{ formatPrice(row.prices.wed) }}</template>
             </el-table-column>
-            <el-table-column :label="t('settingsStage4.weekdays.thuShort')" width="100" align="center">
+            <el-table-column
+              :label="t('settingsStage4.weekdays.thuShort')"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">{{ formatPrice(row.prices.thu) }}</template>
             </el-table-column>
-            <el-table-column :label="t('settingsStage4.weekdays.friShort')" width="100" align="center">
+            <el-table-column
+              :label="t('settingsStage4.weekdays.friShort')"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">{{ formatPrice(row.prices.fri) }}</template>
             </el-table-column>
-            <el-table-column :label="t('settingsStage4.weekdays.satShort')" width="100" align="center">
+            <el-table-column
+              :label="t('settingsStage4.weekdays.satShort')"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">{{ formatPrice(row.prices.sat) }}</template>
             </el-table-column>
-            <el-table-column :label="t('settingsStage4.weekdays.sunShort')" width="100" align="center">
+            <el-table-column
+              :label="t('settingsStage4.weekdays.sunShort')"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">{{ formatPrice(row.prices.sun) }}</template>
             </el-table-column>
           </el-table-column>
-          <el-table-column :label="t('settingsStage4.pricePlan.columns.maxGuests')" width="120" align="center" prop="maxGuests" />
-          <el-table-column :label="t('settingsStage4.pricePlan.columns.includedGuests')" width="100" align="center" prop="includedGuests" />
-          <el-table-column :label="t('settingsStage4.accountList.columns.actions')" width="150" align="center" fixed="right">
+          <el-table-column
+            :label="t('settingsStage4.pricePlan.columns.maxGuests')"
+            width="120"
+            align="center"
+            prop="maxGuests"
+          />
+          <el-table-column
+            :label="t('settingsStage4.pricePlan.columns.includedGuests')"
+            width="100"
+            align="center"
+            prop="includedGuests"
+          />
+          <el-table-column
+            :label="t('settingsStage4.accountList.columns.actions')"
+            width="150"
+            align="center"
+            fixed="right"
+          >
             <template #default="{ row }">
               <el-button link type="primary" @click="handleEditRate(roomType, row)">
                 {{ t('settings.common.edit') }}
@@ -139,10 +227,17 @@
     >
       <el-form :model="editForm" :rules="formRules" ref="editFormRef" label-width="140px">
         <el-form-item :label="t('settingsStage4.pricePlan.columns.pricePlan')" prop="name" required>
-          <el-input v-model="editForm.name" :placeholder="t('settingsStage4.pricePlan.placeholders.planName')" />
+          <el-input
+            v-model="editForm.name"
+            :placeholder="t('settingsStage4.pricePlan.placeholders.planName')"
+          />
         </el-form-item>
 
-        <el-form-item :label="t('settingsStage4.pricePlan.fields.defaultMinNights')" prop="minNights" required>
+        <el-form-item
+          :label="t('settingsStage4.pricePlan.fields.defaultMinNights')"
+          prop="minNights"
+          required
+        >
           <el-input-number
             v-model="editForm.minNights"
             :min="1"
@@ -153,7 +248,10 @@
           />
         </el-form-item>
 
-        <el-form-item :label="t('settingsStage4.pricePlan.fields.defaultMaxNights')" prop="maxNights">
+        <el-form-item
+          :label="t('settingsStage4.pricePlan.fields.defaultMaxNights')"
+          prop="maxNights"
+        >
           <el-input-number
             v-model="editForm.maxNights"
             :min="1"
@@ -164,7 +262,11 @@
           />
         </el-form-item>
 
-        <el-form-item :label="t('settingsStage4.pricePlan.fields.derivationType')" prop="derivationType" required>
+        <el-form-item
+          :label="t('settingsStage4.pricePlan.fields.derivationType')"
+          prop="derivationType"
+          required
+        >
           <div class="form-item-hint">
             {{ t('settingsStage4.pricePlan.hints.derivationType') }}
           </div>
@@ -181,7 +283,12 @@
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item :label="t('settingsStage4.pricePlan.columns.includeMeal')" prop="includeMeal" required class="include-meal-item">
+        <el-form-item
+          :label="t('settingsStage4.pricePlan.columns.includeMeal')"
+          prop="includeMeal"
+          required
+          class="include-meal-item"
+        >
           <el-radio-group v-model="editForm.includeMeal" class="include-meal-group">
             <el-radio :value="true">{{ t('settingsStage4.pricePlan.yes') }}</el-radio>
             <el-radio :value="false">{{ t('settingsStage4.pricePlan.no') }}</el-radio>
@@ -192,7 +299,9 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="handleCancelEdit">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" @click="handleConfirmEdit">{{ t('settings.common.confirm') }}</el-button>
+          <el-button type="primary" @click="handleConfirmEdit">{{
+            t('settings.common.confirm')
+          }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -252,7 +361,9 @@
           <div class="form-item-label">{{ t('settingsStage4.pricePlan.fields.english') }}</div>
           <el-radio-group v-model="detailForm.includeMeal">
             <el-radio :value="true">{{ t('settingsStage4.pricePlan.fields.included') }}</el-radio>
-            <el-radio :value="false">{{ t('settingsStage4.pricePlan.fields.notIncluded') }}</el-radio>
+            <el-radio :value="false">{{
+              t('settingsStage4.pricePlan.fields.notIncluded')
+            }}</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
@@ -260,13 +371,20 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="handleCancelDetail">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" @click="handleConfirmDetail">{{ t('settings.common.confirm') }}</el-button>
+          <el-button type="primary" @click="handleConfirmDetail">{{
+            t('settings.common.confirm')
+          }}</el-button>
         </div>
       </template>
     </el-dialog>
 
     <!-- 编辑房价对话框 -->
-    <el-dialog v-model="editRateDialogVisible" :title="t('settingsStage4.pricePlan.dialog.editRate')" width="900px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="editRateDialogVisible"
+      :title="t('settingsStage4.pricePlan.dialog.editRate')"
+      width="900px"
+      :close-on-click-modal="false"
+    >
       <div class="edit-rate-content">
         <!-- 价格计划名称 -->
         <div class="rate-plan-name">{{ currentEditRate?.planName }}</div>
@@ -315,7 +433,10 @@
                 <el-icon v-if="priceOption === 'unified'" class="check-icon"><Check /></el-icon>
                 <span>{{ t('settingsStage4.pricePlan.fields.unifiedPrice') }}</span>
               </div>
-              <el-tooltip :content="t('settingsStage4.pricePlan.hints.unifiedPrice')" placement="top">
+              <el-tooltip
+                :content="t('settingsStage4.pricePlan.hints.unifiedPrice')"
+                placement="top"
+              >
                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
               </el-tooltip>
             </el-button>
@@ -328,7 +449,10 @@
                 <el-icon v-if="priceOption === 'multiple'" class="check-icon"><Check /></el-icon>
                 <span>{{ t('settingsStage4.pricePlan.fields.extraCharge') }}</span>
               </div>
-              <el-tooltip :content="t('settingsStage4.pricePlan.hints.extraCharge')" placement="top">
+              <el-tooltip
+                :content="t('settingsStage4.pricePlan.hints.extraCharge')"
+                placement="top"
+              >
                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
               </el-tooltip>
             </el-button>
@@ -337,7 +461,9 @@
 
         <!-- 包含人数 -->
         <div v-if="priceOption === 'multiple'" class="included-guests-section">
-          <div class="section-label">{{ t('settingsStage4.pricePlan.fields.baseIncludedGuests') }}</div>
+          <div class="section-label">
+            {{ t('settingsStage4.pricePlan.fields.baseIncludedGuests') }}
+          </div>
           <el-select v-model="includedGuestsCount" style="width: 300px">
             <el-option
               v-for="n in includedGuestsOptions"
@@ -350,11 +476,15 @@
 
         <!-- 额外成人/儿童加价 -->
         <div v-if="priceOption === 'multiple'" class="extra-guests-section">
-          <div class="section-label">{{ t('settingsStage4.pricePlan.fields.extraGuestRates') }}</div>
+          <div class="section-label">
+            {{ t('settingsStage4.pricePlan.fields.extraGuestRates') }}
+          </div>
 
           <div class="extra-rate-row">
             <div class="extra-rate-item">
-              <div class="extra-rate-label">{{ t('settingsStage4.pricePlan.fields.extraAdultRate') }}</div>
+              <div class="extra-rate-label">
+                {{ t('settingsStage4.pricePlan.fields.extraAdultRate') }}
+              </div>
               <el-input-number
                 v-model="extraAdultRate"
                 :min="0"
@@ -367,7 +497,9 @@
             </div>
 
             <div class="extra-rate-item">
-              <div class="extra-rate-label">{{ t('settingsStage4.pricePlan.fields.extraChildRate') }}</div>
+              <div class="extra-rate-label">
+                {{ t('settingsStage4.pricePlan.fields.extraChildRate') }}
+              </div>
               <el-input-number
                 v-model="extraChildRate"
                 :min="0"
@@ -391,7 +523,9 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="handleCancelEditRate">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" @click="handleConfirmEditRate">{{ t('settings.common.confirm') }}</el-button>
+          <el-button type="primary" @click="handleConfirmEditRate">{{
+            t('settings.common.confirm')
+          }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -406,7 +540,9 @@
       <div class="assign-price-plan-content">
         <div class="selection-row">
           <div class="selection-item">
-            <div class="selection-label">{{ t('settingsStage4.cleaningSettings.fields.roomType') }}</div>
+            <div class="selection-label">
+              {{ t('settingsStage4.cleaningSettings.fields.roomType') }}
+            </div>
             <el-input
               :model-value="`${currentAssignRoomType?.storeName} ${currentAssignRoomType?.name}`"
               disabled
@@ -446,8 +582,12 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelAssignPricePlan">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" @click="handleConfirmAssignPricePlan">{{ t('settings.common.confirm') }}</el-button>
+          <el-button @click="handleCancelAssignPricePlan">{{
+            t('settings.common.cancel')
+          }}</el-button>
+          <el-button type="primary" @click="handleConfirmAssignPricePlan">{{
+            t('settings.common.confirm')
+          }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -478,8 +618,12 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="appliedRoomTypesDialogVisible = false">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" @click="handleShowLinkRoomTypes">{{ t('settingsStage4.pricePlan.actions.linkRoomTypes') }}</el-button>
+          <el-button @click="appliedRoomTypesDialogVisible = false">{{
+            t('settings.common.cancel')
+          }}</el-button>
+          <el-button type="primary" @click="handleShowLinkRoomTypes">{{
+            t('settingsStage4.pricePlan.actions.linkRoomTypes')
+          }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -508,7 +652,9 @@
           <el-icon class="link-icon"><Link /></el-icon>
 
           <div class="selection-item">
-            <div class="selection-label">{{ t('settingsStage4.cleaningSettings.fields.roomType') }}</div>
+            <div class="selection-label">
+              {{ t('settingsStage4.cleaningSettings.fields.roomType') }}
+            </div>
             <el-select
               v-model="selectedRoomTypeIds"
               multiple
@@ -545,7 +691,9 @@
 
         <!-- 默认市价区域 -->
         <div v-if="selectedRoomTypeIdsForPrices.length > 0" class="default-prices-section">
-          <div class="section-title">{{ t('settingsStage4.pricePlan.fields.defaultMarketPrice') }}</div>
+          <div class="section-title">
+            {{ t('settingsStage4.pricePlan.fields.defaultMarketPrice') }}
+          </div>
 
           <!-- 每个选中的房型显示价格输入区域 -->
           <div
@@ -560,7 +708,9 @@
             <div class="price-input-section">
               <!-- 快速填充 -->
               <div class="quick-fill-section">
-                <span class="section-label">{{ t('settingsStage4.pricePlan.fields.quickFill') }}</span>
+                <span class="section-label">{{
+                  t('settingsStage4.pricePlan.fields.quickFill')
+                }}</span>
                 <el-input-number
                   v-model="quickFillPrices[roomTypeId]"
                   :min="0"
@@ -666,8 +816,12 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleCancelLinkRoomTypes">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" @click="handleConfirmLinkRoomTypes">{{ t('settings.common.confirm') }}</el-button>
+          <el-button @click="handleCancelLinkRoomTypes">{{
+            t('settings.common.cancel')
+          }}</el-button>
+          <el-button type="primary" @click="handleConfirmLinkRoomTypes">{{
+            t('settings.common.confirm')
+          }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -706,6 +860,7 @@ import {
 } from '@/api/pricePlan'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import { getUserStores, type StoreDTO } from '@/api/store'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 
 const userStore = useUserStore()
 const { t } = useI18n()
@@ -805,15 +960,20 @@ const roomTypeFilterKeyword = ref('')
 const filteredAvailableRoomTypes = ref<RoomType[]>([])
 
 // 关联房型时的价格数据
-const linkRoomTypePrices = ref<Record<number, {
-  mon: number
-  tue: number
-  wed: number
-  thu: number
-  fri: number
-  sat: number
-  sun: number
-}>>({})
+const linkRoomTypePrices = ref<
+  Record<
+    number,
+    {
+      mon: number
+      tue: number
+      wed: number
+      thu: number
+      fri: number
+      sat: number
+      sun: number
+    }
+  >
+>({})
 
 // 快速填充价格
 const quickFillPrices = ref<Record<number, number>>({})
@@ -826,9 +986,11 @@ const assignPricePlanFilterKeyword = ref('')
 
 // 编辑房价对话框
 const editRateDialogVisible = ref(false)
-const currentEditRate = ref<{ roomType: RoomType; plan: RoomTypePricePlan; planName: string } | null>(
-  null
-)
+const currentEditRate = ref<{
+  roomType: RoomType
+  plan: RoomTypePricePlan
+  planName: string
+} | null>(null)
 const quickFillPrice = ref(0)
 const priceOption = ref<'unified' | 'multiple'>('unified')
 const includedGuestsCount = ref('2')
@@ -879,10 +1041,34 @@ const editForm = reactive<EditForm>({
 
 // 表单验证规则
 const formRules = computed<FormRules>(() => ({
-  name: [{ required: true, message: t('settingsStage4.pricePlan.validation.planNameRequired'), trigger: 'blur' }],
-  minNights: [{ required: true, message: t('settingsStage4.pricePlan.validation.minNightsRequired'), trigger: 'blur' }],
-  derivationType: [{ required: true, message: t('settingsStage4.pricePlan.validation.derivationTypeRequired'), trigger: 'change' }],
-  includeMeal: [{ required: true, message: t('settingsStage4.pricePlan.validation.includeMealRequired'), trigger: 'change' }],
+  name: [
+    {
+      required: true,
+      message: t('settingsStage4.pricePlan.validation.planNameRequired'),
+      trigger: 'blur',
+    },
+  ],
+  minNights: [
+    {
+      required: true,
+      message: t('settingsStage4.pricePlan.validation.minNightsRequired'),
+      trigger: 'blur',
+    },
+  ],
+  derivationType: [
+    {
+      required: true,
+      message: t('settingsStage4.pricePlan.validation.derivationTypeRequired'),
+      trigger: 'change',
+    },
+  ],
+  includeMeal: [
+    {
+      required: true,
+      message: t('settingsStage4.pricePlan.validation.includeMealRequired'),
+      trigger: 'change',
+    },
+  ],
 }))
 
 // 数据
@@ -897,29 +1083,29 @@ const filteredAssignPricePlans = computed(() => {
   if (!currentAssignRoomType.value) return []
 
   // 获取当前房型已关联的价格计划ID
-  const assignedPlanIds = currentAssignRoomType.value.pricePlans.map(pp => pp.pricePlanId)
+  const assignedPlanIds = currentAssignRoomType.value.pricePlans.map((pp) => pp.pricePlanId)
 
-  return pricePlans.value.map(plan => ({
+  return pricePlans.value.map((plan) => ({
     ...plan,
-    isAssigned: assignedPlanIds.includes(plan.id)
+    isAssigned: assignedPlanIds.includes(plan.id),
   }))
 })
 
 // 计算属性:过滤出数字类型的房型ID(排除"all")
 const selectedRoomTypeIdsForPrices = computed(() => {
-  return selectedRoomTypeIds.value.filter(id => typeof id === 'number') as number[]
+  return selectedRoomTypeIds.value.filter((id) => typeof id === 'number') as number[]
 })
 
 // 计算属性:选中的价格计划名称
 const selectedPricePlanName = computed(() => {
-  const plan = pricePlans.value.find(p => p.id === selectedPricePlanId.value)
+  const plan = pricePlans.value.find((p) => p.id === selectedPricePlanId.value)
   return plan?.name || ''
 })
 
 // 计算属性:需要显示的额外人数（超出包含人数的部分）
 // 获取房型名称
 const getRoomTypeName = (roomTypeId: number) => {
-  const roomType = allRoomTypes.value.find(rt => rt.id === roomTypeId)
+  const roomType = allRoomTypes.value.find((rt) => rt.id === roomTypeId)
   return roomType ? `${roomType.name} <${roomType.code}>` : ''
 }
 
@@ -934,7 +1120,7 @@ const handleQuickFill = (roomTypeId: number) => {
       thu: fillPrice,
       fri: fillPrice,
       sat: fillPrice,
-      sun: fillPrice
+      sun: fillPrice,
     }
   }
 }
@@ -948,7 +1134,9 @@ const loadPricePlans = async () => {
     loading.value = true
     const response = (await getAllPricePlans(userStore.currentUser.id)) as any
     if (!response?.success) {
-      throw new Error(response?.message || t('settingsStage4.pricePlan.messages.loadPricePlansFailed'))
+      throw new Error(
+        response?.message || t('settingsStage4.pricePlan.messages.loadPricePlansFailed'),
+      )
     }
     const plans = Array.isArray(response.data) ? response.data : []
 
@@ -969,7 +1157,7 @@ const loadPricePlans = async () => {
           description: plan.description,
           cancellationPolicy: plan.cancellationPolicy,
         }
-      })
+      }),
     )
 
     pricePlans.value = plansWithCount
@@ -1056,7 +1244,7 @@ const loadRoomTypePrices = async () => {
           storeName: storeInfo.value?.name || '',
           pricePlans,
         }
-      })
+      }),
     )
 
     roomTypes.value = roomTypesWithPrices
@@ -1125,7 +1313,7 @@ const handleDelete = async (row: PricePlan) => {
         confirmButtonText: t('settings.common.confirm'),
         cancelButtonText: t('settings.common.cancel'),
         type: 'warning',
-      }
+      },
     )
 
     const resp: any = await deletePricePlan(row.id, userStore.currentUser.id)
@@ -1148,19 +1336,25 @@ const handleDelete = async (row: PricePlan) => {
               confirmButtonText: t('settingsStage4.pricePlan.actions.forceDelete'),
               cancelButtonText: t('settings.common.cancel'),
               type: 'warning',
-            }
+            },
           )
 
           const forceResp: any = await forceDeletePricePlan(row.id, userStore.currentUser.id)
           if (!forceResp?.success) {
-            throw new Error(forceResp?.message || t('settingsStage4.pricePlan.messages.forceDeleteFailed'))
+            throw new Error(
+              forceResp?.message || t('settingsStage4.pricePlan.messages.forceDeleteFailed'),
+            )
           }
-          ElMessage.success(forceResp?.message || t('settingsStage4.pricePlan.messages.forceDeleteSuccess'))
+          ElMessage.success(
+            forceResp?.message || t('settingsStage4.pricePlan.messages.forceDeleteSuccess'),
+          )
           await loadPricePlans()
           return
         } catch (forceError: any) {
           if (forceError !== 'cancel') {
-            ElMessage.error(forceError?.message || t('settingsStage4.pricePlan.messages.forceDeleteFailed'))
+            ElMessage.error(
+              forceError?.message || t('settingsStage4.pricePlan.messages.forceDeleteFailed'),
+            )
           }
           return
         }
@@ -1192,7 +1386,9 @@ const handleConfirmEdit = async () => {
             derivationType: editForm.derivationType,
           })
           if (!resp?.success) {
-            throw new Error(resp?.message || t('settingsStage4.pricePlan.messages.updatePlanFailed'))
+            throw new Error(
+              resp?.message || t('settingsStage4.pricePlan.messages.updatePlanFailed'),
+            )
           }
           ElMessage.success(t('settingsStage4.pricePlan.messages.updatePlanSuccess'))
         } else {
@@ -1205,7 +1401,9 @@ const handleConfirmEdit = async () => {
             derivationType: editForm.derivationType,
           })
           if (!resp?.success) {
-            throw new Error(resp?.message || t('settingsStage4.pricePlan.messages.createPlanFailed'))
+            throw new Error(
+              resp?.message || t('settingsStage4.pricePlan.messages.createPlanFailed'),
+            )
           }
           ElMessage.success(t('settingsStage4.pricePlan.messages.createPlanSuccess'))
         }
@@ -1233,17 +1431,21 @@ const handleConfirmDetail = async () => {
   detailFormRef.value?.validate(async (valid) => {
     if (valid) {
       try {
-        const resp: any = await updatePricePlan(currentDetailPlanId.value!, userStore.currentUser!.id, {
-          name: detailForm.name,
-          nameEn: detailForm.nameEn,
-          description: detailForm.description,
-          descriptionEn: detailForm.descriptionEn,
-          cancellationPolicy: detailForm.cancellationPolicy,
-          cancellationPolicyEn: detailForm.cancellationPolicyEn,
-          includeMeal: detailForm.includeMeal,
-          minNights: 1, // 使用默认值,因为详情表单中没有这些字段
-          maxNights: 365,
-        })
+        const resp: any = await updatePricePlan(
+          currentDetailPlanId.value!,
+          userStore.currentUser!.id,
+          {
+            name: detailForm.name,
+            nameEn: detailForm.nameEn,
+            description: detailForm.description,
+            descriptionEn: detailForm.descriptionEn,
+            cancellationPolicy: detailForm.cancellationPolicy,
+            cancellationPolicyEn: detailForm.cancellationPolicyEn,
+            includeMeal: detailForm.includeMeal,
+            minNights: 1, // 使用默认值,因为详情表单中没有这些字段
+            maxNights: 365,
+          },
+        )
 
         ElMessage.success(t('settingsStage4.pricePlan.messages.detailSaveSuccess'))
         await loadPricePlans()
@@ -1270,7 +1472,11 @@ const handleCancelAssignPricePlan = () => {
 }
 
 const handleConfirmAssignPricePlan = async () => {
-  if (!selectedAssignPricePlanId.value || !currentAssignRoomType.value || !userStore.currentUser?.id) {
+  if (
+    !selectedAssignPricePlanId.value ||
+    !currentAssignRoomType.value ||
+    !userStore.currentUser?.id
+  ) {
     ElMessage.warning(t('settingsStage4.pricePlan.messages.selectPricePlan'))
     return
   }
@@ -1284,7 +1490,7 @@ const handleConfirmAssignPricePlan = async () => {
       {
         maxGuests: 2, // 默认最大2人
         priceMode: 'unified', // 默认统一价
-      }
+      },
     )
 
     ElMessage.success(t('settingsStage4.pricePlan.messages.assignPlanSuccess'))
@@ -1335,7 +1541,7 @@ const confirmRemoveRelationOptions = async (roomTypeName: string, planName: stri
         closeOnClickModal: false,
         closeOnPressEscape: false,
         type: 'warning',
-      }
+      },
     )
     return true
   } catch (action: any) {
@@ -1363,7 +1569,7 @@ const handleRemoveRoomType = async (roomType: RoomType) => {
       const response = (await getRoomTypesByPricePlan(selectedPricePlanId.value)) as any
       const roomTypePricePlans: RoomTypePricePlanDTO[] = response.data || []
       const matched = roomTypePricePlans.find(
-        rtp => rtp.roomType?.id === roomType.id && typeof rtp.id === 'number'
+        (rtp) => rtp.roomType?.id === roomType.id && typeof rtp.id === 'number',
       )
       relationId = matched?.id
     }
@@ -1376,18 +1582,24 @@ const handleRemoveRoomType = async (roomType: RoomType) => {
     const deleteResp: any = await deleteRoomTypePricePlan(
       relationId,
       userStore.currentUser.id,
-      clearOverrides
+      clearOverrides,
     )
     if (!deleteResp?.success) {
-      throw new Error(deleteResp?.message || t('settingsStage4.pricePlan.messages.deleteRelationFailed'))
+      throw new Error(
+        deleteResp?.message || t('settingsStage4.pricePlan.messages.deleteRelationFailed'),
+      )
     }
 
-    appliedRoomTypes.value = appliedRoomTypes.value.filter(rt => rt.id !== roomType.id)
+    appliedRoomTypes.value = appliedRoomTypes.value.filter((rt) => rt.id !== roomType.id)
     ElMessage.success(
       deleteResp?.message ||
         (clearOverrides
-          ? t('settingsStage4.pricePlan.messages.removedRoomTypeAndCleared', { name: `${roomType.name} ${roomType.code}` })
-          : t('settingsStage4.pricePlan.messages.removedRoomTypeOnly', { name: `${roomType.name} ${roomType.code}` }))
+          ? t('settingsStage4.pricePlan.messages.removedRoomTypeAndCleared', {
+              name: `${roomType.name} ${roomType.code}`,
+            })
+          : t('settingsStage4.pricePlan.messages.removedRoomTypeOnly', {
+              name: `${roomType.name} ${roomType.code}`,
+            })),
     )
 
     await loadPricePlans()
@@ -1396,7 +1608,9 @@ const handleRemoveRoomType = async (roomType: RoomType) => {
       await handleShowAppliedRoomTypes(currentPricePlan.value)
     }
   } catch (error) {
-    ElMessage.error((error as any)?.message || t('settingsStage4.pricePlan.messages.removeRoomTypeFailed'))
+    ElMessage.error(
+      (error as any)?.message || t('settingsStage4.pricePlan.messages.removeRoomTypeFailed'),
+    )
     console.error('移除房型失败:', error)
   }
 }
@@ -1473,7 +1687,7 @@ const handleConfirmLinkRoomTypes = async () => {
   if (!userStore.currentUser?.id || !selectedPricePlanId.value) return
 
   // 验证所有房型都已填写价格
-  const numericIds = selectedRoomTypeIds.value.filter(id => typeof id === 'number') as number[]
+  const numericIds = selectedRoomTypeIds.value.filter((id) => typeof id === 'number') as number[]
   for (const roomTypeId of numericIds) {
     const prices = linkRoomTypePrices.value[roomTypeId]
     if (!prices) {
@@ -1481,7 +1695,7 @@ const handleConfirmLinkRoomTypes = async () => {
       return
     }
     // 检查是否至少有一个价格大于0
-    const hasPrice = Object.values(prices).some(p => p > 0)
+    const hasPrice = Object.values(prices).some((p) => p > 0)
     if (!hasPrice) {
       ElMessage.warning(t('settingsStage4.pricePlan.messages.fillAtLeastOneDayPrice'))
       return
@@ -1507,12 +1721,14 @@ const handleConfirmLinkRoomTypes = async () => {
             sundayPrice: prices.sun,
             maxGuests: 4,
             priceMode: 'unified',
-          }
+          },
         )
-      })
+      }),
     )
 
-    ElMessage.success(t('settingsStage4.pricePlan.messages.linkRoomTypesSuccess', { count: numericIds.length }))
+    ElMessage.success(
+      t('settingsStage4.pricePlan.messages.linkRoomTypesSuccess', { count: numericIds.length }),
+    )
 
     // 重新加载应用的房型列表
     if (currentPricePlan.value) {
@@ -1572,21 +1788,31 @@ const handleDeleteRate = async (roomType: RoomType, plan: RoomTypePricePlan) => 
     const deleteResp: any = await deleteRoomTypePricePlan(
       plan.id,
       userStore.currentUser!.id,
-      clearOverrides
+      clearOverrides,
     )
     if (!deleteResp?.success) {
-      throw new Error(deleteResp?.message || t('settingsStage4.pricePlan.messages.deleteRelationFailed'))
+      throw new Error(
+        deleteResp?.message || t('settingsStage4.pricePlan.messages.deleteRelationFailed'),
+      )
     }
 
     ElMessage.success(
       deleteResp?.message ||
         (clearOverrides
-          ? t('settingsStage4.pricePlan.messages.deletedRateAndCleared', { roomType: roomType.name, plan: plan.name })
-          : t('settingsStage4.pricePlan.messages.deletedRateOnly', { roomType: roomType.name, plan: plan.name }))
+          ? t('settingsStage4.pricePlan.messages.deletedRateAndCleared', {
+              roomType: roomType.name,
+              plan: plan.name,
+            })
+          : t('settingsStage4.pricePlan.messages.deletedRateOnly', {
+              roomType: roomType.name,
+              plan: plan.name,
+            })),
     )
     await loadRoomTypePrices()
   } catch (error) {
-    ElMessage.error((error as any)?.message || t('settingsStage4.pricePlan.messages.deleteRateFailed'))
+    ElMessage.error(
+      (error as any)?.message || t('settingsStage4.pricePlan.messages.deleteRateFailed'),
+    )
     console.error('删除房价失败:', error)
   }
 }
@@ -1617,7 +1843,7 @@ const handleConfirmEditRate = async () => {
     }
 
     if (clearFutureOverridesOnSave.value) {
-      updateData.clearFromDate = new Date().toISOString().slice(0, 10)
+      updateData.clearFromDate = getStoreTodayYmd()
     }
 
     if (priceOption.value === 'multiple') {
@@ -1636,7 +1862,7 @@ const handleConfirmEditRate = async () => {
     ElMessage.success(
       clearFutureOverridesOnSave.value
         ? t('settingsStage4.pricePlan.messages.rateUpdateSuccessCleared')
-        : t('settingsStage4.pricePlan.messages.rateUpdateSuccess')
+        : t('settingsStage4.pricePlan.messages.rateUpdateSuccess'),
     )
     await loadRoomTypePrices()
     editRateDialogVisible.value = false
@@ -1662,10 +1888,10 @@ watch(quickFillPrice, (newPrice) => {
 
 // 监听选中房型变化,初始化价格数据
 watch(selectedRoomTypeIds, (newIds) => {
-  const numericIds = newIds.filter(id => typeof id === 'number') as number[]
+  const numericIds = newIds.filter((id) => typeof id === 'number') as number[]
 
   // 为新增的房型初始化价格数据
-  numericIds.forEach(roomTypeId => {
+  numericIds.forEach((roomTypeId) => {
     if (!linkRoomTypePrices.value[roomTypeId]) {
       linkRoomTypePrices.value[roomTypeId] = {
         mon: 0,
@@ -1674,7 +1900,7 @@ watch(selectedRoomTypeIds, (newIds) => {
         thu: 0,
         fri: 0,
         sat: 0,
-        sun: 0
+        sun: 0,
       }
     }
     // 初始化快速填充价格
@@ -1684,7 +1910,7 @@ watch(selectedRoomTypeIds, (newIds) => {
   })
 
   // 移除取消选择的房型价格数据
-  Object.keys(linkRoomTypePrices.value).forEach(key => {
+  Object.keys(linkRoomTypePrices.value).forEach((key) => {
     const id = Number(key)
     if (!numericIds.includes(id)) {
       delete linkRoomTypePrices.value[id]

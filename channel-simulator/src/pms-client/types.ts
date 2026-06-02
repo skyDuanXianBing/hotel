@@ -90,9 +90,21 @@ export interface PmsOtaIntegrationSummary {
   hasWidgetToken: boolean
 }
 
+export interface PmsAutoMessageSummary {
+  id: number
+  title: string | null
+  action: string | null
+  sendTiming: string | null
+  enabled: boolean | null
+  channels: string | null
+  markerPresent: boolean
+  bookingOnly: boolean
+}
+
 export interface PmsReadinessData {
   storeId: number
   storeName: string | null
+  storeTimezone: string | null
   suHotelId: string
   supportedChannelCodes: string[]
   ready: boolean
@@ -103,6 +115,7 @@ export interface PmsReadinessData {
   rooms: PmsRoomSummary[]
   pricePlans: PmsPricePlanSummary[]
   otaIntegrations: PmsOtaIntegrationSummary[]
+  autoMessages: PmsAutoMessageSummary[]
 }
 
 export interface PmsReservationLookupQuery {
@@ -205,6 +218,7 @@ export interface PmsMessagingLookupQuery {
   externalMessageId?: string
   messageId?: string
   limit?: number
+  messageLimit?: number
 }
 
 export interface PmsMessagingMessageSummary {
@@ -241,4 +255,36 @@ export interface PmsMessagingLookupData {
   query: PmsMessagingLookupQuery
   totalMatches: number
   threads: PmsMessagingThreadSummary[]
+}
+
+export interface PmsAutoMessageSendLogLookupQuery {
+  targetType?: string
+  targetId?: number
+  autoMessageId?: number
+  success?: boolean
+  limit?: number
+}
+
+export interface PmsAutoMessageSendLogSummary {
+  id: number
+  storeId: number
+  action: string | null
+  targetType: string | null
+  targetId: number | null
+  autoMessageId: number | null
+  success: boolean | null
+  errorMessage: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export interface PmsAutoMessageSendLogLookupData {
+  query: PmsAutoMessageSendLogLookupQuery
+  totalMatches: number
+  logs: PmsAutoMessageSendLogSummary[]
+}
+
+export interface PmsAutoMessageDispatchData {
+  storeId: number
+  dispatched: boolean
 }

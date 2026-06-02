@@ -1,5 +1,6 @@
 import type { OrderBoxItem } from '@/api/orderBox'
 import type { ReservationDTO } from '@/api/reservation'
+import { formatBusinessDateLabel, formatStoreDateTime } from '@/utils/storeBusinessDate'
 
 export type OrderTabValue =
   | 'all'
@@ -323,26 +324,15 @@ export function formatAmount(value?: number) {
 }
 
 export function formatDateTime(value?: string) {
-  if (!value) {
-    return '-'
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}`
+  return formatStoreDateTime(value)
 }
 
 export function formatDateLabel(value?: string) {
   if (!value) {
     return '-'
   }
-  return value.includes('T') ? value.split('T')[0] : value
+  const dateText = value.includes('T') ? value.split('T')[0] : value.split(' ')[0]
+  return formatBusinessDateLabel(dateText, 'date', value)
 }
 
 function includesKeyword(fieldValue: string | undefined, keyword: string) {

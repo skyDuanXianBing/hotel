@@ -154,6 +154,7 @@ import type {
 } from './types'
 
 import { useChannelData } from './composables/useChannelData'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 
 // Dialogs & Drawers
 import ConnectNoticeDialog from './components/dialogs/ConnectNoticeDialog.vue'
@@ -222,12 +223,12 @@ const selectedHotelId = ref<number | null>(null)
 const editingRoomId = ref<string | null>(null)
 
 // Calendar state properties
-const calendarStartDate = ref(new Date().toISOString().split('T')[0])
+const calendarStartDate = ref(getStoreTodayYmd())
 const calendarDates = ref<CalendarDate[]>([])
 const calendarData = ref<CalendarRow[]>([])
 
 // Airbnb Room Settings properties
-const roomSettingsStartDate = ref(new Date().toISOString().split('T')[0])
+const roomSettingsStartDate = ref(getStoreTodayYmd())
 const roomSettingsDates = ref<CalendarDate[]>([])
 const roomSettingsData = ref<RoomSettingsRow[]>([])
 

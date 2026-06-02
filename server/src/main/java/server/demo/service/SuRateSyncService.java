@@ -11,12 +11,16 @@ import server.demo.entity.RoomTypePricePlan;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.util.LocalBasePriceResolver;
+import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuRoomIdUtil;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -52,19 +56,25 @@ public class SuRateSyncService {
     private final RoomPriceRepository roomPriceRepository;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
+    private final StoreRepository storeRepository;
+    private final Clock clock;
 
     public SuRateSyncService(
             RoomRepository roomRepository,
             RoomTypePricePlanRepository roomTypePricePlanRepository,
             RoomPriceRepository roomPriceRepository,
             SuApiClient suApiClient,
-            SuAccessTokenService suAccessTokenService
+            SuAccessTokenService suAccessTokenService,
+            StoreRepository storeRepository,
+            Clock clock
     ) {
         this.roomRepository = roomRepository;
         this.roomTypePricePlanRepository = roomTypePricePlanRepository;
         this.roomPriceRepository = roomPriceRepository;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
+        this.storeRepository = storeRepository;
+        this.clock = clock;
     }
 
     public record MissingRate(
@@ -103,7 +113,7 @@ public class SuRateSyncService {
         List<Integer> effectiveOtaCodes = normalizeOtaCodes(otaCodes);
 
         int effectiveDays = normalizeDays(days);
-        LocalDate startDate = LocalDate.now();
+        LocalDate startDate = currentStoreDate(storeId);
         LocalDate endDate = startDate.plusDays(effectiveDays - 1L);
 
         logger.info(
@@ -398,6 +408,11 @@ public class SuRateSyncService {
             d = 1;
         }
         return Math.min(d, MAX_DAYS);
+    }
+
+    private LocalDate currentStoreDate(Long storeId) {
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(storeRepository.findById(storeId).orElse(null));
+        return LocalDate.now(clock.withZone(zoneId));
     }
 
     private static String normalizePositivePrice(BigDecimal value) {

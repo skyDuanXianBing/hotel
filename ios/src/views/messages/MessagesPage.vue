@@ -263,6 +263,12 @@ import {
   saveMessageTranslationSettings,
   type MessageTranslationLanguageValue,
 } from '@/utils/messageTranslation'
+import {
+  formatBusinessDateLabel,
+  formatStoreDateTime,
+  getStoreBusinessDateFromDateTime,
+  getStoreTodayDate,
+} from '@/utils/storeBusinessDate'
 
 type MessageTabValue = 'all' | 'unread' | 'closed'
 
@@ -874,41 +880,18 @@ function resolveAvatarLabel(thread: MessageThreadDTO) {
   return firstCharacter
 }
 
-function formatTwoDigit(value: number) {
-  return String(value).padStart(2, '0')
-}
-
 function formatMonthDay(value?: string) {
-  if (!value) {
-    return '--'
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value.slice(5)
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return '--'
-  }
-
-  return `${formatTwoDigit(date.getMonth() + 1)}-${formatTwoDigit(date.getDate())}`
+  return formatBusinessDateLabel(value, 'month-day', '--')
 }
 
 function formatThreadDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
+  const messageDate = getStoreBusinessDateFromDateTime(value)
+  if (!messageDate) {
     return '--'
   }
 
-  const now = new Date()
-  const isSameDay =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-
-  if (isSameDay) {
-    return `${formatTwoDigit(date.getHours())}:${formatTwoDigit(date.getMinutes())}`
+  if (messageDate === getStoreTodayDate()) {
+    return formatStoreDateTime(value, 'time', '--')
   }
 
   return formatMonthDay(value)
@@ -946,8 +929,7 @@ function formatStayDateRange(thread: MessageThreadDTO) {
 }
 
 function getTodayDateKey() {
-  const today = new Date()
-  return `${today.getFullYear()}-${formatTwoDigit(today.getMonth() + 1)}-${formatTwoDigit(today.getDate())}`
+  return getStoreTodayDate()
 }
 
 function resolveStayStatus(thread: MessageThreadDTO): ThreadStatusView {

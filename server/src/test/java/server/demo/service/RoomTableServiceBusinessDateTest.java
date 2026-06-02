@@ -1,6 +1,7 @@
 package server.demo.service;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -14,9 +15,11 @@ import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,9 +28,17 @@ import static org.mockito.Mockito.when;
 
 class RoomTableServiceBusinessDateTest {
 
+    @BeforeEach
+    void setUp() {
+        StoreTimeZoneUtil.setReservationTimestampStorageZoneId(ZoneId.of("Asia/Shanghai"));
+    }
+
     @AfterEach
     void tearDown() {
         StoreContextHolder.clear();
+        StoreTimeZoneUtil.setReservationTimestampStorageZoneId(
+                ZoneId.of(StoreTimeZoneUtil.DEFAULT_RESERVATION_TIMESTAMP_STORAGE_ZONE)
+        );
     }
 
     @Test
@@ -71,8 +82,8 @@ class RoomTableServiceBusinessDateTest {
         when(reservationRepository.findCancelledByStoreAndRoomTypeAndDate(
                 storeId,
                 10L,
-                LocalDateTime.of(2026, 4, 7, 15, 0),
-                LocalDateTime.of(2026, 4, 8, 15, 0)
+                LocalDateTime.of(2026, 4, 7, 23, 0),
+                LocalDateTime.of(2026, 4, 8, 23, 0)
         )).thenReturn(List.of());
 
         service.getRoomTableStatistics(LocalDate.of(2026, 4, 8));
@@ -80,8 +91,8 @@ class RoomTableServiceBusinessDateTest {
         verify(reservationRepository).findCancelledByStoreAndRoomTypeAndDate(
                 storeId,
                 10L,
-                LocalDateTime.of(2026, 4, 7, 15, 0),
-                LocalDateTime.of(2026, 4, 8, 15, 0)
+                LocalDateTime.of(2026, 4, 7, 23, 0),
+                LocalDateTime.of(2026, 4, 8, 23, 0)
         );
     }
 }

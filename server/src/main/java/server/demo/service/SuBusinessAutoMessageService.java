@@ -32,6 +32,7 @@ import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 import server.demo.repository.SuReservationWebhookEventRepository;
 import server.demo.util.AutoMessageTemplateRenderer;
+import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuReservationParser;
 import server.demo.util.UtcTimeUtil;
 
@@ -783,7 +784,8 @@ public class SuBusinessAutoMessageService {
         if (createdAt == null) {
             return hardCap;
         }
-        return createdAt.isAfter(hardCap) ? createdAt : hardCap;
+        LocalDateTime createdAtUtc = StoreTimeZoneUtil.reservationTimestampStorageToUtcLocalDateTime(createdAt);
+        return createdAtUtc.isAfter(hardCap) ? createdAtUtc : hardCap;
     }
 
     public LocalDateTime resolveBaseTime(Reservation reservation, String action) {

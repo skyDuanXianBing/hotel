@@ -18,9 +18,13 @@ import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.PriceLabsIdUtil;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,6 +45,7 @@ public class PriceLabsReservationSyncService {
     @Autowired private ReservationRepository reservationRepo;
     @Autowired private RoomBlockoutRepository roomBlockoutRepo;
     @Autowired private StoreRepository storeRepo;
+    @Autowired private Clock clock;
 
     public record PushSummary(
             int listingCount,
@@ -55,12 +60,6 @@ public class PriceLabsReservationSyncService {
         if (storeId == null) {
             throw new IllegalArgumentException("storeId 不能为空");
         }
-        LocalDate from = startDate != null ? startDate : LocalDate.of(2020, 1, 1);
-        LocalDate to = endDate != null ? endDate : LocalDate.now().plusDays(365);
-        if (to.isBefore(from)) {
-            throw new IllegalArgumentException("endDate 不能早于 startDate");
-        }
-
         PriceLabsIntegration integration = integrationRepo.findByStoreId(storeId)
                 .orElseThrow(() -> new RuntimeException("PriceLabs integration not found for store: " + storeId));
         if (!Boolean.TRUE.equals(integration.getIsEnabled())) {
@@ -69,6 +68,11 @@ public class PriceLabsReservationSyncService {
 
         Store store = storeRepo.findById(storeId)
                 .orElseThrow(() -> new RuntimeException("Store not found: " + storeId));
+        LocalDate from = startDate != null ? startDate : LocalDate.of(2020, 1, 1);
+        LocalDate to = endDate != null ? endDate : currentStoreDate(store).plusDays(365);
+        if (to.isBefore(from)) {
+            throw new IllegalArgumentException("endDate 不能早于 startDate");
+        }
 
         Map<Long, String> listingIdByRoomTypeId = enabledListingIdByRoomTypeId(storeId);
         if (listingIdByRoomTypeId.isEmpty()) {
@@ -246,7 +250,7 @@ public class PriceLabsReservationSyncService {
             return;
         }
 
-        LocalDate effectiveCancelDate = cancelDate != null ? cancelDate : LocalDate.now();
+        LocalDate effectiveCancelDate = cancelDate != null ? cancelDate : currentStoreDate(store);
 
         Map<String, List<PriceLabsApiClient.ReservationData>> byListing = new HashMap<>();
         int reservationCount = 0;
@@ -390,7 +394,7 @@ public class PriceLabsReservationSyncService {
         };
     }
 
-    private static PriceLabsApiClient.ReservationData toReservationData(Reservation reservation, Store store, String listingId) {
+    private PriceLabsApiClient.ReservationData toReservationData(Reservation reservation, Store store, String listingId) {
         PriceLabsApiClient.ReservationData d = new PriceLabsApiClient.ReservationData();
 
         String reservationId = reservation.getOrderNumber();
@@ -400,7 +404,9 @@ public class PriceLabsReservationSyncService {
 
         LocalDate checkIn = reservation.getCheckInDate();
         LocalDate checkOut = reservation.getCheckOutDate();
-        LocalDate bookedTime = reservation.getCreatedAt() != null ? reservation.getCreatedAt().toLocalDate() : LocalDate.now();
+        LocalDate bookedTime = reservation.getCreatedAt() != null
+                ? toStoreBusinessDate(reservation.getCreatedAt(), store)
+                : currentStoreDate(store);
 
         int totalDays = 0;
         if (checkIn != null && checkOut != null && checkOut.isAfter(checkIn)) {
@@ -429,14 +435,16 @@ public class PriceLabsReservationSyncService {
         d.setStatus(mapStatus(reservation.getStatus()));
 
         if (ReservationStatus.CANCELLED.equals(reservation.getStatus()) || ReservationStatus.NO_SHOW.equals(reservation.getStatus())) {
-            LocalDate cancelTime = reservation.getUpdatedAt() != null ? reservation.getUpdatedAt().toLocalDate() : LocalDate.now();
+            LocalDate cancelTime = reservation.getUpdatedAt() != null
+                    ? toStoreBusinessDate(reservation.getUpdatedAt(), store)
+                    : currentStoreDate(store);
             d.setCancelTime(cancelTime.toString());
         }
 
         return d;
     }
 
-    private static PriceLabsApiClient.ReservationData toBlockedReservationData(Long storeId, Store store, RoomBlockout blockout) {
+    private PriceLabsApiClient.ReservationData toBlockedReservationData(Long storeId, Store store, RoomBlockout blockout) {
         PriceLabsApiClient.ReservationData d = new PriceLabsApiClient.ReservationData();
 
         LocalDate blockDate = blockout.getBlockDate();
@@ -445,7 +453,9 @@ public class PriceLabsReservationSyncService {
         Long roomId = blockout.getRoom() != null ? blockout.getRoom().getId() : null;
         String reservationId = "blk_" + storeId + "_" + roomId + "_" + blockDate + "_" + blockType;
 
-        LocalDate bookedTime = blockout.getCreatedAt() != null ? blockout.getCreatedAt().toLocalDate() : LocalDate.now();
+        LocalDate bookedTime = blockout.getCreatedAt() != null
+                ? toStoreBusinessDate(blockout.getCreatedAt(), store)
+                : currentStoreDate(store);
         BigDecimal zero = BigDecimal.ZERO;
 
         d.setReservationId(reservationId);
@@ -464,7 +474,7 @@ public class PriceLabsReservationSyncService {
         return d;
     }
 
-    private static PriceLabsApiClient.ReservationData toCancelledBlockedReservationData(
+    private PriceLabsApiClient.ReservationData toCancelledBlockedReservationData(
             Long storeId,
             Store store,
             RoomBlockout blockout,
@@ -478,7 +488,9 @@ public class PriceLabsReservationSyncService {
         Long roomId = blockout != null && blockout.getRoom() != null ? blockout.getRoom().getId() : null;
         String reservationId = "blk_" + storeId + "_" + roomId + "_" + blockDate + "_" + blockType;
 
-        LocalDate bookedTime = (blockout != null && blockout.getCreatedAt() != null) ? blockout.getCreatedAt().toLocalDate() : cancelDate;
+        LocalDate bookedTime = (blockout != null && blockout.getCreatedAt() != null)
+                ? toStoreBusinessDate(blockout.getCreatedAt(), store)
+                : cancelDate;
         BigDecimal zero = BigDecimal.ZERO;
 
         d.setReservationId(reservationId);
@@ -494,8 +506,23 @@ public class PriceLabsReservationSyncService {
         d.setRentalRevenue(zero);
         d.setCurrency(resolveCurrency(store));
         d.setStatus("canceled");
-        d.setCancelTime(cancelDate != null ? cancelDate.toString() : LocalDate.now().toString());
+        d.setCancelTime(cancelDate != null ? cancelDate.toString() : currentStoreDate(store).toString());
         return d;
+    }
+
+    private LocalDate currentStoreDate(Store store) {
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(store);
+        return LocalDate.now(currentClock().withZone(zoneId));
+    }
+
+    private LocalDate toStoreBusinessDate(LocalDateTime timestamp, Store store) {
+        ZoneId storeZoneId = StoreTimeZoneUtil.resolveZoneId(store);
+        ZoneId storageZoneId = StoreTimeZoneUtil.getReservationTimestampStorageZoneId();
+        return timestamp.atZone(storageZoneId).withZoneSameInstant(storeZoneId).toLocalDate();
+    }
+
+    private Clock currentClock() {
+        return clock != null ? clock : Clock.systemUTC();
     }
 
     private static BigDecimal nonNegative(BigDecimal value) {
@@ -512,4 +539,3 @@ public class PriceLabsReservationSyncService {
         return value.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : value;
     }
 }
-

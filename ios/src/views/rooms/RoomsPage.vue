@@ -328,6 +328,11 @@ import { ROOM_STATUS_VIEWPORT_DAYS, useRoomStatusStore } from '@/stores/roomStat
 import { useStoreStore } from '@/stores/store'
 import { isHandledRequestError } from '@/utils/request'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
+import {
+  formatBusinessDateLabel,
+  getBusinessDateWeekdayLabel,
+  getStoreTodayDate,
+} from '@/utils/storeBusinessDate'
 
 interface RoomsToolEntry {
   key: string
@@ -419,11 +424,7 @@ const selectedRoom = computed(() => {
 })
 
 const todayDateKey = computed(() => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return getStoreTodayDate()
 })
 
 const showTodayPill = computed(() => {
@@ -528,21 +529,23 @@ const pickerRoomCount = computed(() => {
   return roomStatusStore.groupedVisibleRooms.reduce((total, group) => total + group.rooms.length, 0)
 })
 
-const PICKER_WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-
 function formatPickerDateLabel(value: string) {
   if (!value) {
     return ''
   }
 
-  const [year, month, day] = value.split('-').map((item) => Number(item))
-  if (!year || !month || !day) {
+  const dateLabel = formatBusinessDateLabel(value, 'month-day-weekday', '')
+  if (!dateLabel) {
     return value
   }
 
-  const currentDate = new Date(year, month - 1, day)
-  const weekday = PICKER_WEEKDAY_LABELS[currentDate.getDay()] || ''
-  return `${month}月${day}日 ${weekday}`
+  const [monthDay] = dateLabel.split(' ')
+  const [month, day] = monthDay.split('-')
+  if (!month || !day) {
+    return dateLabel
+  }
+
+  return `${Number(month)}月${Number(day)}日 ${getBusinessDateWeekdayLabel(value, '周')}`
 }
 
 const pickerDateLabel = computed(() => formatPickerDateLabel(roomStatusStore.selectedDate))

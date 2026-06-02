@@ -35,11 +35,7 @@
       </div>
 
       <div class="room-types-list">
-        <div
-          v-for="roomType in filteredRoomTypes"
-          :key="roomType.id"
-          class="room-type-section"
-        >
+        <div v-for="roomType in filteredRoomTypes" :key="roomType.id" class="room-type-section">
           <div class="room-type-header">
             <h3 class="room-type-title">
               {{ roomType.name }}
@@ -140,7 +136,9 @@
             @click="selectRoomType(roomType.id)"
           >
             <span>{{ roomType.name }}</span>
-            <span class="filter-count">{{ roomType.availableRooms }}/{{ roomType.totalRooms }}</span>
+            <span class="filter-count"
+              >{{ roomType.availableRooms }}/{{ roomType.totalRooms }}</span
+            >
           </div>
 
           <div class="add-section">
@@ -164,11 +162,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { House, Plus, Search } from '@element-plus/icons-vue'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
 
 const searchKeyword = ref('')
-const selectedDate = ref(new Date().toISOString().split('T')[0])
+const selectedDate = ref(getStoreTodayYmd())
 const selectedRoomTypeId = ref<number | null>(null)
 const roomGroupCollapsed = ref(false)
 const roomTypeCollapsed = ref(false)

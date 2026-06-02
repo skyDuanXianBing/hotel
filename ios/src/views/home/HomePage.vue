@@ -100,6 +100,11 @@ import { useMemoStore } from '@/stores/memo'
 import { useStoreStore } from '@/stores/store'
 import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+import {
+  formatBusinessDateLabel,
+  getStoreTodayDate,
+  shiftBusinessDate,
+} from '@/utils/storeBusinessDate'
 
 const router = useRouter()
 const homeShortcutsStore = useHomeShortcutsStore()
@@ -242,10 +247,7 @@ const storeName = computed(() => {
 })
 
 const todayLabel = computed(() => {
-  const today = new Date()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  return `今日 ${month}-${day}`
+  return `今日 ${formatBusinessDateLabel(getStoreTodayDate(), 'month-day')}`
 })
 
 const businessHint = computed(() => {
@@ -334,13 +336,6 @@ function findStatCard(key: string) {
   return null
 }
 
-function formatDate(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 function resolveOrderQueryType(statKey: string) {
   if (statKey === 'arrivals') {
     return 'today-arrivals'
@@ -383,13 +378,12 @@ async function loadStatistics() {
 }
 
 async function loadOccupancy() {
-  const today = new Date()
-  const startDate = new Date(today)
-  startDate.setDate(today.getDate() - 6)
+  const today = getStoreTodayDate()
+  const startDate = shiftBusinessDate(today, -6)
 
   const response = await getDailyOccupancy({
-    startDate: formatDate(startDate),
-    endDate: formatDate(today),
+    startDate,
+    endDate: today,
   })
 
   if (!response.success || !response.data) {

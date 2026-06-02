@@ -10,7 +10,12 @@
         <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
       </div>
 
-      <el-menu class="sidebar-menu" :default-active="activeMenu" @select="handleMenuSelect" :collapse="isCollapsed">
+      <el-menu
+        class="sidebar-menu"
+        :default-active="activeMenu"
+        @select="handleMenuSelect"
+        :collapse="isCollapsed"
+      >
         <el-menu-item index="order-management">
           <el-icon><Document /></el-icon>
           <span>{{ t('order.sidebar.accommodationOrders') }}</span>
@@ -56,14 +61,14 @@
               </div>
             </template>
           </el-tab-pane>
-           <el-tab-pane name="unassigned">
-             <template #label>
-               <div class="tab-label-with-badge">
-                 <span>{{ t('order.tabs.unassigned') }}</span>
-                 <span v-if="unassignedCount > 0" class="custom-badge">{{ unassignedCount }}</span>
-               </div>
-             </template>
-           </el-tab-pane>
+          <el-tab-pane name="unassigned">
+            <template #label>
+              <div class="tab-label-with-badge">
+                <span>{{ t('order.tabs.unassigned') }}</span>
+                <span v-if="unassignedCount > 0" class="custom-badge">{{ unassignedCount }}</span>
+              </div>
+            </template>
+          </el-tab-pane>
           <el-tab-pane :label="t('order.tabs.assigned')" name="assigned"></el-tab-pane>
           <el-tab-pane name="pending">
             <template #label>
@@ -99,7 +104,11 @@
           <!-- 渠道筛选 -->
           <div class="filter-group">
             <span class="filter-label">{{ t('order.filters.channel') }}</span>
-            <el-select v-model="filters.channel" :placeholder="t('order.options.all')" @change="handleFilterChange">
+            <el-select
+              v-model="filters.channel"
+              :placeholder="t('order.options.all')"
+              @change="handleFilterChange"
+            >
               <el-option :label="t('order.options.all')" value=""></el-option>
               <el-option
                 v-for="channel in channelOptions"
@@ -113,7 +122,11 @@
           <!-- 房型筛选 -->
           <div class="filter-group">
             <span class="filter-label">{{ t('order.filters.roomType') }}</span>
-            <el-select v-model="filters.roomType" :placeholder="t('order.options.all')" @change="handleFilterChange">
+            <el-select
+              v-model="filters.roomType"
+              :placeholder="t('order.options.all')"
+              @change="handleFilterChange"
+            >
               <el-option :label="t('order.options.all')" value=""></el-option>
               <el-option
                 v-for="roomType in roomTypeOptions"
@@ -170,10 +183,17 @@
 
           <div class="filter-group">
             <span class="filter-label">{{ t('order.filters.stayStatus') }}</span>
-            <el-select v-model="filters.status" :placeholder="t('order.options.select')" @change="handleFilterChange">
+            <el-select
+              v-model="filters.status"
+              :placeholder="t('order.options.select')"
+              @change="handleFilterChange"
+            >
               <el-option :label="t('order.options.all')" value=""></el-option>
               <el-option :label="t('order.options.checkedIn')" value="checked-in"></el-option>
-              <el-option :label="t('order.options.notCheckedIn')" value="not-checked-in"></el-option>
+              <el-option
+                :label="t('order.options.notCheckedIn')"
+                value="not-checked-in"
+              ></el-option>
               <el-option :label="t('order.options.checkedOut')" value="checked-out"></el-option>
             </el-select>
           </div>
@@ -195,21 +215,16 @@
             <el-button @click="toggleFilters">
               {{ showAdvancedFilters ? t('order.filters.collapse') : t('order.filters.expand') }}
               <el-icon>
-              <component :is="showAdvancedFilters ? ArrowUp : ArrowDown" />
-            </el-icon>
-          </el-button>
+                <component :is="showAdvancedFilters ? ArrowUp : ArrowDown" />
+              </el-icon>
+            </el-button>
+          </div>
         </div>
-      </div>
       </div>
 
       <!-- 订单盒子提示信息 -->
       <div v-if="activeOrderTab === 'order-box'" class="order-box-notice">
-        <el-alert
-          :title="t('order.orderBoxNotice.title')"
-          type="info"
-          :closable="false"
-          show-icon
-        >
+        <el-alert :title="t('order.orderBoxNotice.title')" type="info" :closable="false" show-icon>
           <template #default>
             <div class="notice-content">
               <p>{{ t('order.orderBoxNotice.line1') }}</p>
@@ -237,9 +252,13 @@
           >
             <template #default="scope">
               <div class="order-number">
-                <el-button type="text" class="order-link" :title="t('order.table.detailTitle')" @click="viewOrder(scope.row)">{{
-                  scope.row.orderNumber
-                }}</el-button>
+                <el-button
+                  type="text"
+                  class="order-link"
+                  :title="t('order.table.detailTitle')"
+                  @click="viewOrder(scope.row)"
+                  >{{ scope.row.orderNumber }}</el-button
+                >
                 <el-button
                   type="text"
                   class="channel-order-link"
@@ -261,7 +280,12 @@
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab !== 'all'" prop="status" :label="t('order.table.status')" width="100">
+          <el-table-column
+            v-if="activeOrderTab !== 'all'"
+            prop="status"
+            :label="t('order.table.status')"
+            width="100"
+          >
             <template #default="scope">
               <el-tag size="small" :type="getReservationStatusTagType(scope.row.status)">
                 {{ getReservationStatusText(scope.row.status) }}
@@ -269,7 +293,11 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="guestName" :label="t('order.table.guestName')" width="150"></el-table-column>
+          <el-table-column
+            prop="guestName"
+            :label="t('order.table.guestName')"
+            width="150"
+          ></el-table-column>
 
           <el-table-column prop="phone" :label="t('order.table.phone')" width="130">
             <template #default="scope">
@@ -283,21 +311,40 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="roomTypeName" :label="t('order.table.roomType')" width="180"></el-table-column>
+          <el-table-column
+            prop="roomTypeName"
+            :label="t('order.table.roomType')"
+            width="180"
+          ></el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="pricePlan" :label="t('order.table.pricePlan')" width="140">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            prop="pricePlan"
+            :label="t('order.table.pricePlan')"
+            width="140"
+          >
             <template #default="scope">
               <span>{{ scope.row.pricePlan || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'unassigned'" prop="otaRoomId" :label="t('order.table.otaRoomId')" width="160">
+          <el-table-column
+            v-if="activeOrderTab === 'unassigned'"
+            prop="otaRoomId"
+            :label="t('order.table.otaRoomId')"
+            width="160"
+          >
             <template #default="scope">
               <span>{{ scope.row.otaRoomId || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'unassigned'" prop="otaRoomTypeId" :label="t('order.table.pmsRoomTypeId')" width="110">
+          <el-table-column
+            v-if="activeOrderTab === 'unassigned'"
+            prop="otaRoomTypeId"
+            :label="t('order.table.pmsRoomTypeId')"
+            width="110"
+          >
             <template #default="scope">
               <span>{{ scope.row.otaRoomTypeId ?? '-' }}</span>
             </template>
@@ -314,15 +361,31 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="roomNumber" :label="t('order.table.roomNumber')" width="100"></el-table-column>
+          <el-table-column
+            prop="roomNumber"
+            :label="t('order.table.roomNumber')"
+            width="100"
+          ></el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.roomCount')" width="90">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            :label="t('order.table.roomCount')"
+            width="90"
+          >
             <template #default>
               <span>1</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned' || activeOrderTab === 'order-box'" :label="t('order.table.assignStatus')" width="100">
+          <el-table-column
+            v-if="
+              activeOrderTab === 'unassigned' ||
+              activeOrderTab === 'assigned' ||
+              activeOrderTab === 'order-box'
+            "
+            :label="t('order.table.assignStatus')"
+            width="100"
+          >
             <template #default="scope">
               <el-tag size="small" :type="getAssignStatusTagType(scope.row)">
                 {{ getAssignStatusText(scope.row) }}
@@ -330,43 +393,73 @@
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="checkInDate" :label="t('order.table.checkInTime')" width="170">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            prop="checkInDate"
+            :label="t('order.table.checkInTime')"
+            width="170"
+          >
             <template #default="scope">
               <span>{{ formatStayDateTime(scope.row.checkInDate, 'checkIn') }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="checkOutDate" :label="t('order.table.checkOutTime')" width="170">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            prop="checkOutDate"
+            :label="t('order.table.checkOutTime')"
+            width="170"
+          >
             <template #default="scope">
               <span>{{ formatStayDateTime(scope.row.checkOutDate, 'checkOut') }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.nights')" width="90">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            :label="t('order.table.nights')"
+            width="90"
+          >
             <template #default="scope">
               <span>{{ getNights(scope.row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.totalGuests')" width="100">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            :label="t('order.table.totalGuests')"
+            width="100"
+          >
             <template #default="scope">
               <span>{{ getTotalGuests(scope.row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.adults')" width="100">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            :label="t('order.table.adults')"
+            width="100"
+          >
             <template #default="scope">
               <span>{{ scope.row.adults ?? '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.children')" width="100">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            :label="t('order.table.children')"
+            width="100"
+          >
             <template #default="scope">
               <span>{{ scope.row.children ?? 0 }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.stayStatus')" width="120">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            :label="t('order.table.stayStatus')"
+            width="120"
+          >
             <template #default="scope">
               <span>{{ getReservationStatusText(scope.row.status) }}</span>
             </template>
@@ -378,31 +471,55 @@
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="totalAmount" :label="t('order.table.accommodationAmount')" width="140">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            prop="totalAmount"
+            :label="t('order.table.accommodationAmount')"
+            width="140"
+          >
             <template #default="scope">
               <span>{{ formatAmount(scope.row.totalAmount) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="totalAmount" :label="t('order.table.accommodationSubtotal')" width="140">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            prop="totalAmount"
+            :label="t('order.table.accommodationSubtotal')"
+            width="140"
+          >
             <template #default="scope">
               <span>{{ formatAmount(scope.row.totalAmount) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="commission" :label="t('order.table.commission')" width="120">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            prop="commission"
+            :label="t('order.table.commission')"
+            width="120"
+          >
             <template #default="scope">
               <span>{{ formatAmount(scope.row.commission) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="paymentMethod" :label="t('order.table.paymentMethod')" width="150">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            prop="paymentMethod"
+            :label="t('order.table.paymentMethod')"
+            width="150"
+          >
             <template #default="scope">
               <span>{{ scope.row.paymentMethod || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" :label="t('order.table.cashierStatus')" width="120">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            :label="t('order.table.cashierStatus')"
+            width="120"
+          >
             <template #default="scope">
               <span>{{ getCashierStatusTextV2(scope.row) }}</span>
             </template>
@@ -427,15 +544,30 @@
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab !== 'all'" prop="checkInDate" :label="t('order.table.checkInTime')" width="150"></el-table-column>
+          <el-table-column
+            v-if="activeOrderTab !== 'all'"
+            prop="checkInDate"
+            :label="t('order.table.checkInTime')"
+            width="150"
+          ></el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="notes" :label="t('order.table.notes')" width="200">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            prop="notes"
+            :label="t('order.table.notes')"
+            width="200"
+          >
             <template #default="scope">
               <span>{{ scope.row.notes || '-' }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column v-if="activeOrderTab === 'all'" prop="createdBy" :label="t('order.table.createdBy')" width="120">
+          <el-table-column
+            v-if="activeOrderTab === 'all'"
+            prop="createdBy"
+            :label="t('order.table.createdBy')"
+            width="120"
+          >
             <template #default="scope">
               <span>{{ scope.row.createdBy || '-' }}</span>
             </template>
@@ -450,18 +582,17 @@
           </el-table-column>
 
           <el-table-column
-            v-if="activeOrderTab === 'unassigned' || activeOrderTab === 'assigned' || activeOrderTab === 'order-box'"
+            v-if="
+              activeOrderTab === 'unassigned' ||
+              activeOrderTab === 'assigned' ||
+              activeOrderTab === 'order-box'
+            "
             :label="t('order.table.actions')"
             width="180"
             fixed="right"
           >
             <template #default="scope">
-              <el-button
-                v-if="scope.row.roomId"
-                type="success"
-                link
-                @click="viewOrder(scope.row)"
-              >
+              <el-button v-if="scope.row.roomId" type="success" link @click="viewOrder(scope.row)">
                 {{ t('order.assignDialog.assigned') }}
               </el-button>
               <el-button
@@ -470,7 +601,9 @@
                 :disabled="!canAssignRoom(scope.row)"
                 @click="openAssignRoom(scope.row)"
               >
-                {{ scope.row.roomId ? t('order.assignDialog.edit') : t('order.assignDialog.start') }}
+                {{
+                  scope.row.roomId ? t('order.assignDialog.edit') : t('order.assignDialog.start')
+                }}
               </el-button>
             </template>
           </el-table-column>
@@ -595,12 +728,15 @@ import {
 } from '@/api/reservation'
 import { getAllRoomTypes } from '@/api/roomType'
 import ReservationDetailDrawer from '@/components/reservation/ReservationDetailDrawer.vue'
-import {
-  getOrderBoxList,
-  type OrderBoxItem,
-} from '@/api/orderBox'
+import { getOrderBoxList, type OrderBoxItem } from '@/api/orderBox'
 import { useStoreStore } from '@/stores/store'
-import { formatReservationTimestamp, getStoreTodayYmd, resolveStoreTimeZone } from '@/utils/storeDateTime'
+import {
+  diffYmdDays,
+  formatReservationTimestamp,
+  getStoreTodayYmd,
+  normalizeYmdInput,
+  resolveStoreTimeZone,
+} from '@/utils/storeDateTime'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -933,7 +1069,9 @@ const getAssignStatusText = (order: ReservationDTO) => {
   if (!order.roomId) {
     return t('order.assignStatus.unassigned')
   }
-  return canAssignRoom(order) ? t('order.assignStatus.assigned') : t('order.assignStatus.assignedNoInventory')
+  return canAssignRoom(order)
+    ? t('order.assignStatus.assigned')
+    : t('order.assignStatus.assignedNoInventory')
 }
 
 const getAssignStatusTagType = (order: ReservationDTO) => {
@@ -967,19 +1105,19 @@ const getNights = (order: ReservationDTO) => {
   if (!order.checkInDate || !order.checkOutDate) {
     return '-'
   }
-  const checkInDate = new Date(order.checkInDate)
-  const checkOutDate = new Date(order.checkOutDate)
-  const diffMs = checkOutDate.getTime() - checkInDate.getTime()
-  if (!Number.isFinite(diffMs) || diffMs <= 0) {
+  const checkInDate = normalizeYmdInput(order.checkInDate, '')
+  const checkOutDate = normalizeYmdInput(order.checkOutDate, '')
+  const nights = diffYmdDays(checkInDate, checkOutDate)
+  if (nights <= 0) {
     return '-'
   }
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  return nights
 }
 
 const formatStayDateTime = (dateStr?: string, type: 'checkIn' | 'checkOut' = 'checkIn') => {
   if (!dateStr) return '-'
   const defaultTime = type === 'checkIn' ? '16:00:00' : '10:00:00'
-  const normalizedDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+  const normalizedDate = normalizeYmdInput(dateStr, '')
   return `${normalizedDate} ${defaultTime}`
 }
 
@@ -1069,16 +1207,16 @@ const getChannelDisplayName = (value?: string) => {
   const channelMap: Record<string, string> = {
     direct: t('pages.home.guest.directGuest'),
     'direct guest': t('pages.home.guest.directGuest'),
-    '直营客': t('pages.home.guest.directGuest'),
-    '自来客': t('pages.home.guest.directGuest'),
-    '散客': t('pages.home.guest.directGuest'),
-    '直接来店客': t('pages.home.guest.directGuest'),
+    直营客: t('pages.home.guest.directGuest'),
+    自来客: t('pages.home.guest.directGuest'),
+    散客: t('pages.home.guest.directGuest'),
+    直接来店客: t('pages.home.guest.directGuest'),
     meituan: t('pages.home.roomStatusChannel.channels.meituan'),
     'meituan homestay': t('pages.home.roomStatusChannel.channels.meituan'),
-    '美团民宿': t('pages.home.roomStatusChannel.channels.meituan'),
-    '美團民宿': t('pages.home.roomStatusChannel.channels.meituan'),
+    美团民宿: t('pages.home.roomStatusChannel.channels.meituan'),
+    美團民宿: t('pages.home.roomStatusChannel.channels.meituan'),
     tujia: 'Tujia',
-    '途家': 'Tujia',
+    途家: 'Tujia',
   }
   return channelMap[normalized] || value || '-'
 }
@@ -1136,7 +1274,9 @@ const handleSettlementStatusChange = async (order: ReservationDTO, value: string
       return
     }
     Object.assign(order, response.data)
-    ElMessage.success(value === 'paid' ? t('order.settlement.updatedPaid') : t('order.settlement.updatedUnpaid'))
+    ElMessage.success(
+      value === 'paid' ? t('order.settlement.updatedPaid') : t('order.settlement.updatedUnpaid'),
+    )
     if (filters.value.paymentStatus) {
       await loadReservations()
     }

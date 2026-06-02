@@ -8,7 +8,14 @@
             <div class="pricelabs-logo">
               <div class="logo-icon">
                 <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="10" y="10" width="20" height="20" fill="#E53935" transform="rotate(45 20 20)" />
+                  <rect
+                    x="10"
+                    y="10"
+                    width="20"
+                    height="20"
+                    fill="#E53935"
+                    transform="rotate(45 20 20)"
+                  />
                 </svg>
               </div>
               <span class="logo-text">PriceLabs</span>
@@ -28,7 +35,9 @@
       <div class="breadcrumb-section">
         <el-breadcrumb separator=">">
           <el-breadcrumb-item>
-            <el-button link @click="showConfigPage = false">{{ t('settings.layout.groups.thirdParty') }}</el-button>
+            <el-button link @click="showConfigPage = false">{{
+              t('settings.layout.groups.thirdParty')
+            }}</el-button>
           </el-breadcrumb-item>
           <el-breadcrumb-item>PriceLabs</el-breadcrumb-item>
         </el-breadcrumb>
@@ -42,15 +51,21 @@
           <div class="instructions-banner">
             <div class="instruction-item">
               <span class="instruction-number">1.</span>
-              <span class="instruction-text">{{ t('settingsStage4.pricingTools.instructions.beforeStore') }}</span>
+              <span class="instruction-text">{{
+                t('settingsStage4.pricingTools.instructions.beforeStore')
+              }}</span>
             </div>
             <div class="instruction-item">
               <span class="instruction-number">2.</span>
-              <span class="instruction-text">{{ t('settingsStage4.pricingTools.instructions.connectionDelay') }}</span>
+              <span class="instruction-text">{{
+                t('settingsStage4.pricingTools.instructions.connectionDelay')
+              }}</span>
             </div>
             <div class="instruction-item">
               <span class="instruction-number">3.</span>
-              <span class="instruction-text">{{ t('settingsStage4.pricingTools.instructions.defaultSync') }}</span>
+              <span class="instruction-text">{{
+                t('settingsStage4.pricingTools.instructions.defaultSync')
+              }}</span>
             </div>
           </div>
 
@@ -58,8 +73,12 @@
           <div class="integration-config-section">
             <div class="section-row">
               <div class="section-label">
-                <h3 class="label-title">{{ t('settingsStage4.pricingTools.sections.accountConfig') }}</h3>
-                <p class="label-desc">{{ t('settingsStage4.pricingTools.sections.accountDesc') }}</p>
+                <h3 class="label-title">
+                  {{ t('settingsStage4.pricingTools.sections.accountConfig') }}
+                </h3>
+                <p class="label-desc">
+                  {{ t('settingsStage4.pricingTools.sections.accountDesc') }}
+                </p>
               </div>
               <div class="config-form">
                 <el-select
@@ -93,12 +112,24 @@
           <div class="integration-status-section">
             <div class="section-row">
               <div class="section-label">
-                <h3 class="label-title">{{ t('settingsStage4.pricingTools.sections.integrationStatus') }}</h3>
-                <p class="label-desc">{{ integration.isEnabled ? t('settingsStage4.pricingTools.status.integrationEnabled') : t('settingsStage4.pricingTools.status.integrationDisabled') }}</p>
+                <h3 class="label-title">
+                  {{ t('settingsStage4.pricingTools.sections.integrationStatus') }}
+                </h3>
+                <p class="label-desc">
+                  {{
+                    integration.isEnabled
+                      ? t('settingsStage4.pricingTools.status.integrationEnabled')
+                      : t('settingsStage4.pricingTools.status.integrationDisabled')
+                  }}
+                </p>
               </div>
               <div class="status-actions">
                 <el-tag :type="integration.isEnabled ? 'success' : 'info'" size="large">
-                  {{ integration.isEnabled ? t('settingsStage4.pricingTools.status.enabled') : t('settingsStage4.pricingTools.status.disabled') }}
+                  {{
+                    integration.isEnabled
+                      ? t('settingsStage4.pricingTools.status.enabled')
+                      : t('settingsStage4.pricingTools.status.disabled')
+                  }}
                 </el-tag>
                 <el-switch
                   v-model="integration.isEnabled"
@@ -109,15 +140,23 @@
             </div>
             <div v-if="integration.isEnabled" class="sync-stats">
               <div class="stat-item">
-                <span class="stat-label">{{ t('settingsStage4.pricingTools.stats.connectedRoomTypes') }}</span>
+                <span class="stat-label">{{
+                  t('settingsStage4.pricingTools.stats.connectedRoomTypes')
+                }}</span>
                 <span class="stat-value">{{ integration.connectedRoomTypeCount || 0 }}</span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">{{ t('settingsStage4.pricingTools.stats.lastPriceSync') }}</span>
-                <span class="stat-value">{{ formatDateTime(integration.lastPriceSyncAt) || '-' }}</span>
+                <span class="stat-label">{{
+                  t('settingsStage4.pricingTools.stats.lastPriceSync')
+                }}</span>
+                <span class="stat-value">{{
+                  formatDateTime(integration.lastPriceSyncAt) || '-'
+                }}</span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">{{ t('settingsStage4.pricingTools.stats.syncSuccessRate') }}</span>
+                <span class="stat-label">{{
+                  t('settingsStage4.pricingTools.stats.syncSuccessRate')
+                }}</span>
                 <span class="stat-value">{{ calculateSuccessRate() }}</span>
               </div>
             </div>
@@ -127,11 +166,17 @@
           <div class="integration-config-section">
             <div class="section-row">
               <div class="section-label">
-                <h3 class="label-title">{{ t('settingsStage4.pricingTools.sections.multiAccount') }}</h3>
-                <p class="label-desc">{{ t('settingsStage4.pricingTools.sections.multiAccountDesc') }}</p>
+                <h3 class="label-title">
+                  {{ t('settingsStage4.pricingTools.sections.multiAccount') }}
+                </h3>
+                <p class="label-desc">
+                  {{ t('settingsStage4.pricingTools.sections.multiAccountDesc') }}
+                </p>
               </div>
               <div class="config-form">
-                <el-button type="primary" @click="openCreateAccountDialog">{{ t('settingsStage4.pricingTools.actions.addAccount') }}</el-button>
+                <el-button type="primary" @click="openCreateAccountDialog">{{
+                  t('settingsStage4.pricingTools.actions.addAccount')
+                }}</el-button>
               </div>
             </div>
             <el-table
@@ -141,24 +186,44 @@
               class="config-table account-table"
               v-loading="accountsLoading"
             >
-              <el-table-column prop="accountName" :label="t('settingsStage4.pricingTools.columns.accountName')" min-width="180" />
-              <el-table-column prop="priceLabsEmail" :label="t('settingsStage4.pricingTools.columns.priceLabsEmail')" min-width="220" />
+              <el-table-column
+                prop="accountName"
+                :label="t('settingsStage4.pricingTools.columns.accountName')"
+                min-width="180"
+              />
+              <el-table-column
+                prop="priceLabsEmail"
+                :label="t('settingsStage4.pricingTools.columns.priceLabsEmail')"
+                min-width="220"
+              />
               <el-table-column :label="t('settings.common.status')" width="120" align="center">
                 <template #default="{ row }">
                   <el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">
-                    {{ row.isEnabled ? t('settingsStage4.pricingTools.status.enabled') : t('settingsStage4.pricingTools.status.disabled') }}
+                    {{
+                      row.isEnabled
+                        ? t('settingsStage4.pricingTools.status.enabled')
+                        : t('settingsStage4.pricingTools.status.disabled')
+                    }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column :label="t('settingsStage4.pricingTools.columns.linkedRoomTypes')" width="120" align="center">
+              <el-table-column
+                :label="t('settingsStage4.pricingTools.columns.linkedRoomTypes')"
+                width="120"
+                align="center"
+              >
                 <template #default="{ row }">
                   {{ row.connectionCount ?? 0 }}
                 </template>
               </el-table-column>
               <el-table-column :label="t('settings.common.actions')" width="220" align="center">
                 <template #default="{ row }">
-                  <el-button link type="primary" @click="selectAccount(row.id)">{{ t('settingsStage4.pricingTools.actions.viewRoomTypes') }}</el-button>
-                  <el-button link type="primary" @click="openEditAccountDialog(row)">{{ t('settings.common.edit') }}</el-button>
+                  <el-button link type="primary" @click="selectAccount(row.id)">{{
+                    t('settingsStage4.pricingTools.actions.viewRoomTypes')
+                  }}</el-button>
+                  <el-button link type="primary" @click="openEditAccountDialog(row)">{{
+                    t('settings.common.edit')
+                  }}</el-button>
                   <el-button
                     link
                     :type="row.isEnabled ? 'warning' : 'success'"
@@ -166,47 +231,105 @@
                   >
                     {{ row.isEnabled ? t('settings.common.disable') : t('settings.common.enable') }}
                   </el-button>
-                  <el-button link type="danger" @click="handleDeleteAccount(row)">{{ t('settings.common.delete') }}</el-button>
+                  <el-button link type="danger" @click="handleDeleteAccount(row)">{{
+                    t('settings.common.delete')
+                  }}</el-button>
                 </template>
               </el-table-column>
             </el-table>
             <div v-if="selectedAccountName" class="account-filter-tip">
               {{ t('settingsStage4.pricingTools.accountFilterTip', { name: selectedAccountName }) }}
-              <el-button link type="primary" @click="clearSelectedAccount">{{ t('settingsStage4.pricingTools.actions.viewAll') }}</el-button>
+              <el-button link type="primary" @click="clearSelectedAccount">{{
+                t('settingsStage4.pricingTools.actions.viewAll')
+              }}</el-button>
             </div>
           </div>
 
           <div class="toolbar">
             <div class="toolbar-left">
-              <span class="filter-label">{{ t('settingsStage4.pricingTools.filters.connectionStatus') }}</span>
-              <el-select v-model="connectionFilter" :placeholder="t('settingsStage4.pricingTools.placeholders.select')" style="width: 120px">
+              <span class="filter-label">{{
+                t('settingsStage4.pricingTools.filters.connectionStatus')
+              }}</span>
+              <el-select
+                v-model="connectionFilter"
+                :placeholder="t('settingsStage4.pricingTools.placeholders.select')"
+                style="width: 120px"
+              >
                 <el-option :label="t('settings.common.all')" value="all" />
-                <el-option :label="t('settingsStage4.pricingTools.status.connected')" value="connected" />
-                <el-option :label="t('settingsStage4.pricingTools.status.disconnected')" value="disconnected" />
+                <el-option
+                  :label="t('settingsStage4.pricingTools.status.connected')"
+                  value="connected"
+                />
+                <el-option
+                  :label="t('settingsStage4.pricingTools.status.disconnected')"
+                  value="disconnected"
+                />
               </el-select>
             </div>
-            <el-button type="primary" @click="handleAddConnection">{{ t('settingsStage4.pricingTools.actions.addConnection') }}</el-button>
+            <el-button type="primary" @click="handleAddConnection">{{
+              t('settingsStage4.pricingTools.actions.addConnection')
+            }}</el-button>
           </div>
 
           <!-- 配置表格 -->
-          <el-table :data="filteredConnections" border stripe class="config-table" v-loading="connectionsLoading">
-            <el-table-column prop="accountName" :label="t('settingsStage4.pricingTools.columns.account')" min-width="160" />
-            <el-table-column prop="roomTypeName" :label="t('settingsStage4.cleaningSettings.fields.roomType')" min-width="180" />
-            <el-table-column prop="pricePlanName" :label="t('settingsStage4.pricePlan.columns.pricePlan')" min-width="150" />
-            <el-table-column prop="priceLabsListingId" :label="t('settingsStage4.pricingTools.columns.listingId')" min-width="200" />
+          <el-table
+            :data="filteredConnections"
+            border
+            stripe
+            class="config-table"
+            v-loading="connectionsLoading"
+          >
+            <el-table-column
+              prop="accountName"
+              :label="t('settingsStage4.pricingTools.columns.account')"
+              min-width="160"
+            />
+            <el-table-column
+              prop="roomTypeName"
+              :label="t('settingsStage4.cleaningSettings.fields.roomType')"
+              min-width="180"
+            />
+            <el-table-column
+              prop="pricePlanName"
+              :label="t('settingsStage4.pricePlan.columns.pricePlan')"
+              min-width="150"
+            />
+            <el-table-column
+              prop="priceLabsListingId"
+              :label="t('settingsStage4.pricingTools.columns.listingId')"
+              min-width="200"
+            />
             <el-table-column :label="t('settings.common.status')" width="120" align="center">
               <template #default="{ row }">
-                <el-tag :type="row.syncStatus === 'connected' ? 'success' : row.syncStatus === 'error' ? 'danger' : 'info'" size="small">
+                <el-tag
+                  :type="
+                    row.syncStatus === 'connected'
+                      ? 'success'
+                      : row.syncStatus === 'error'
+                        ? 'danger'
+                        : 'info'
+                  "
+                  size="small"
+                >
                   {{ getSyncStatusText(row.syncStatus) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column :label="t('settingsStage4.pricingTools.columns.recentSync')" width="180" align="center">
+            <el-table-column
+              :label="t('settingsStage4.pricingTools.columns.recentSync')"
+              width="180"
+              align="center"
+            >
               <template #default="{ row }">
                 {{ formatDateTime(row.lastSyncAt) || '-' }}
               </template>
             </el-table-column>
-            <el-table-column :label="t('settings.common.actions')" width="180" align="center" fixed="right">
+            <el-table-column
+              :label="t('settings.common.actions')"
+              width="180"
+              align="center"
+              fixed="right"
+            >
               <template #default="{ row }">
                 <el-button
                   link
@@ -242,38 +365,83 @@
         <el-tab-pane :label="t('settingsStage4.pricingTools.tabs.logs')" name="logs">
           <div class="toolbar">
             <div class="toolbar-left">
-              <span class="filter-label">{{ t('settingsStage4.pricingTools.sections.diagnostics') }}</span>
-              <el-text type="info" size="small">{{ t('settingsStage4.pricingTools.hints.diagnostics') }}</el-text>
+              <span class="filter-label">{{
+                t('settingsStage4.pricingTools.sections.diagnostics')
+              }}</span>
+              <el-text type="info" size="small">{{
+                t('settingsStage4.pricingTools.hints.diagnostics')
+              }}</el-text>
             </div>
             <div>
-              <el-button @click="handleOpenStatusDialog()">{{ t('settingsStage4.pricingTools.actions.statusQuery') }}</el-button>
-              <el-button type="primary" @click="handleOpenPushReservationsDialog()">{{ t('settingsStage4.pricingTools.actions.pushReservations') }}</el-button>
+              <el-button @click="handleOpenStatusDialog()">{{
+                t('settingsStage4.pricingTools.actions.statusQuery')
+              }}</el-button>
+              <el-button type="primary" @click="handleOpenPushReservationsDialog()">{{
+                t('settingsStage4.pricingTools.actions.pushReservations')
+              }}</el-button>
             </div>
           </div>
 
           <el-table :data="syncLogs" border stripe class="config-table" v-loading="logsLoading">
-            <el-table-column :label="t('settingsStage4.pricingTools.columns.time')" width="180" align="center">
+            <el-table-column
+              :label="t('settingsStage4.pricingTools.columns.time')"
+              width="180"
+              align="center"
+            >
               <template #default="{ row }">
                 {{ formatDateTime(row.createdAt) }}
               </template>
             </el-table-column>
-            <el-table-column prop="syncTypeDisplay" :label="t('settingsStage4.pricingTools.columns.type')" width="120" align="center" />
-            <el-table-column prop="directionDisplay" :label="t('settingsStage4.pricingTools.columns.direction')" width="100" align="center">
+            <el-table-column
+              prop="syncTypeDisplay"
+              :label="t('settingsStage4.pricingTools.columns.type')"
+              width="120"
+              align="center"
+            />
+            <el-table-column
+              prop="directionDisplay"
+              :label="t('settingsStage4.pricingTools.columns.direction')"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">
                 <el-tag :type="row.direction === 'INBOUND' ? 'success' : 'primary'" size="small">
                   {{ row.directionDisplay }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="statusDisplay" :label="t('settings.common.status')" width="100" align="center">
+            <el-table-column
+              prop="statusDisplay"
+              :label="t('settings.common.status')"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.status === 'SUCCESS' ? 'success' : row.status === 'FAILURE' ? 'danger' : 'warning'" size="small">
+                <el-tag
+                  :type="
+                    row.status === 'SUCCESS'
+                      ? 'success'
+                      : row.status === 'FAILURE'
+                        ? 'danger'
+                        : 'warning'
+                  "
+                  size="small"
+                >
                   {{ row.statusDisplay }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="affectedCount" :label="t('settingsStage4.pricingTools.columns.affectedRecords')" width="100" align="center" />
-            <el-table-column prop="errorMessage" :label="t('settingsStage4.pricingTools.columns.errorMessage')" min-width="200">
+            <el-table-column
+              prop="affectedCount"
+              :label="t('settingsStage4.pricingTools.columns.affectedRecords')"
+              width="100"
+              align="center"
+            />
+            <el-table-column
+              prop="errorMessage"
+              :label="t('settingsStage4.pricingTools.columns.errorMessage')"
+              min-width="200"
+            >
               <template #default="{ row }">
                 <span class="error-message">{{ row.errorMessage || '-' }}</span>
               </template>
@@ -337,12 +505,7 @@
             style="width: 100%"
             @change="handleRoomTypeChange"
           >
-            <el-option
-              v-for="rt in roomTypes"
-              :key="rt.id"
-              :label="rt.name"
-              :value="rt.id"
-            />
+            <el-option v-for="rt in roomTypes" :key="rt.id" :label="rt.name" :value="rt.id" />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('settingsStage4.pricePlan.columns.pricePlan')" required>
@@ -363,8 +526,15 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showConnectionDialog = false">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" :loading="saveConnectionLoading" @click="handleSaveConnection">{{ t('settings.common.save') }}</el-button>
+          <el-button @click="showConnectionDialog = false">{{
+            t('settings.common.cancel')
+          }}</el-button>
+          <el-button
+            type="primary"
+            :loading="saveConnectionLoading"
+            @click="handleSaveConnection"
+            >{{ t('settings.common.save') }}</el-button
+          >
         </div>
       </template>
     </el-dialog>
@@ -372,13 +542,20 @@
     <!-- 编辑价格调整对话框 -->
     <el-dialog
       v-model="showAccountDialog"
-      :title="editingAccountId ? t('settingsStage4.pricingTools.dialog.editAccount') : t('settingsStage4.pricingTools.dialog.addAccount')"
+      :title="
+        editingAccountId
+          ? t('settingsStage4.pricingTools.dialog.editAccount')
+          : t('settingsStage4.pricingTools.dialog.addAccount')
+      "
       width="500px"
       :close-on-click-modal="false"
     >
       <el-form :model="accountForm" label-width="110px">
         <el-form-item :label="t('settingsStage4.pricingTools.columns.accountName')" required>
-          <el-input v-model="accountForm.accountName" :placeholder="t('settingsStage4.pricingTools.placeholders.accountNameExample')" />
+          <el-input
+            v-model="accountForm.accountName"
+            :placeholder="t('settingsStage4.pricingTools.placeholders.accountNameExample')"
+          />
         </el-form-item>
         <el-form-item :label="t('settingsStage4.pricingTools.columns.priceLabsEmail')" required>
           <el-input v-model="accountForm.priceLabsEmail" placeholder="example@email.com" />
@@ -386,7 +563,9 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showAccountDialog = false">{{ t('settings.common.cancel') }}</el-button>
+          <el-button @click="showAccountDialog = false">{{
+            t('settings.common.cancel')
+          }}</el-button>
           <el-button type="primary" :loading="saveAccountLoading" @click="handleSaveAccount">
             {{ t('settings.common.save') }}
           </el-button>
@@ -412,8 +591,12 @@
         </el-form-item>
         <el-form-item :label="t('settingsStage4.pricingTools.fields.adjustmentType')">
           <el-radio-group v-model="adjustmentForm.adjustmentType">
-            <el-radio value="PERCENTAGE">{{ t('settingsStage4.pricingTools.adjustment.percentage') }}</el-radio>
-            <el-radio value="FIXED">{{ t('settingsStage4.pricingTools.adjustment.fixed') }}</el-radio>
+            <el-radio value="PERCENTAGE">{{
+              t('settingsStage4.pricingTools.adjustment.percentage')
+            }}</el-radio>
+            <el-radio value="FIXED">{{
+              t('settingsStage4.pricingTools.adjustment.fixed')
+            }}</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item :label="t('settingsStage4.pricingTools.fields.adjustmentValue')">
@@ -423,7 +606,11 @@
             :precision="adjustmentForm.adjustmentType === 'PERCENTAGE' ? 1 : 0"
             style="width: 200px"
           />
-          <span class="unit-label">{{ adjustmentForm.adjustmentType === 'PERCENTAGE' ? '%' : t('settingsStage4.pricingTools.units.currency') }}</span>
+          <span class="unit-label">{{
+            adjustmentForm.adjustmentType === 'PERCENTAGE'
+              ? '%'
+              : t('settingsStage4.pricingTools.units.currency')
+          }}</span>
         </el-form-item>
         <el-form-item :label="t('settingsStage4.pricingTools.fields.autoSync')">
           <el-switch v-model="adjustmentForm.autoSyncPrice" />
@@ -431,14 +618,23 @@
         </el-form-item>
         <el-form-item :label="t('settingsStage4.pricingTools.fields.exampleCalculation')">
           <div class="example-preview">
-            <span>{{ t('settingsStage4.pricingTools.examplePreview', { price: calculatePreviewPrice() }) }}</span>
+            <span>{{
+              t('settingsStage4.pricingTools.examplePreview', { price: calculatePreviewPrice() })
+            }}</span>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showAdjustmentDialog = false">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" :loading="saveAdjustmentLoading" @click="handleSaveAdjustment">{{ t('settings.common.save') }}</el-button>
+          <el-button @click="showAdjustmentDialog = false">{{
+            t('settings.common.cancel')
+          }}</el-button>
+          <el-button
+            type="primary"
+            :loading="saveAdjustmentLoading"
+            @click="handleSaveAdjustment"
+            >{{ t('settings.common.save') }}</el-button
+          >
         </div>
       </template>
     </el-dialog>
@@ -453,13 +649,25 @@
       <el-form :model="statusForm" label-width="110px">
         <el-form-item :label="t('settingsStage4.pricingTools.columns.type')" required>
           <el-select v-model="statusForm.type" style="width: 220px">
-            <el-option :label="t('settingsStage4.pricingTools.statusTypes.listing')" value="listing" />
-            <el-option :label="t('settingsStage4.pricingTools.statusTypes.reservation')" value="reservation" />
-            <el-option :label="t('settingsStage4.pricingTools.statusTypes.calendar')" value="calendar" />
+            <el-option
+              :label="t('settingsStage4.pricingTools.statusTypes.listing')"
+              value="listing"
+            />
+            <el-option
+              :label="t('settingsStage4.pricingTools.statusTypes.reservation')"
+              value="reservation"
+            />
+            <el-option
+              :label="t('settingsStage4.pricingTools.statusTypes.calendar')"
+              value="calendar"
+            />
           </el-select>
         </el-form-item>
 
-        <el-form-item v-if="statusForm.type === 'listing'" :label="t('settingsStage4.pricingTools.columns.listingId')">
+        <el-form-item
+          v-if="statusForm.type === 'listing'"
+          :label="t('settingsStage4.pricingTools.columns.listingId')"
+        >
           <el-select
             v-model="statusListingId"
             filterable
@@ -489,22 +697,24 @@
         </el-form-item>
       </el-form>
 
-      <el-divider content-position="left">{{ t('settingsStage4.pricingTools.result.title') }}</el-divider>
+      <el-divider content-position="left">{{
+        t('settingsStage4.pricingTools.result.title')
+      }}</el-divider>
       <div v-if="statusResult" class="status-result-vertical">
         <!-- Success 区域 -->
         <div class="result-block">
           <div class="result-header">
             <span class="result-title">{{ t('settingsStage4.pricingTools.result.success') }}</span>
             <el-tag v-if="statusResult.success?.length" type="success" size="small">
-              {{ t('settingsStage4.pricingTools.result.count', { count: statusResult.success.length }) }}
+              {{
+                t('settingsStage4.pricingTools.result.count', {
+                  count: statusResult.success.length,
+                })
+              }}
             </el-tag>
           </div>
           <el-scrollbar v-if="statusResult.success?.length" max-height="300">
-            <div
-              v-for="(item, idx) in statusResult.success"
-              :key="idx"
-              class="status-item"
-            >
+            <div v-for="(item, idx) in statusResult.success" :key="idx" class="status-item">
               <template v-if="typeof item === 'object' && item !== null">
                 <el-descriptions :column="2" size="small" border>
                   <el-descriptions-item
@@ -531,7 +741,11 @@
               </template>
             </div>
           </el-scrollbar>
-          <el-empty v-else :description="t('settingsStage4.pricingTools.result.noSuccess')" :image-size="50" />
+          <el-empty
+            v-else
+            :description="t('settingsStage4.pricingTools.result.noSuccess')"
+            :image-size="50"
+          />
         </div>
 
         <!-- Failure 区域 -->
@@ -539,15 +753,15 @@
           <div class="result-header">
             <span class="result-title">{{ t('settingsStage4.pricingTools.result.failure') }}</span>
             <el-tag v-if="statusResult.failure?.length" type="danger" size="small">
-              {{ t('settingsStage4.pricingTools.result.count', { count: statusResult.failure.length }) }}
+              {{
+                t('settingsStage4.pricingTools.result.count', {
+                  count: statusResult.failure.length,
+                })
+              }}
             </el-tag>
           </div>
           <el-scrollbar v-if="statusResult.failure?.length" max-height="200">
-            <div
-              v-for="(item, idx) in statusResult.failure"
-              :key="idx"
-              class="status-item"
-            >
+            <div v-for="(item, idx) in statusResult.failure" :key="idx" class="status-item">
               <template v-if="typeof item === 'object' && item !== null">
                 <el-descriptions :column="2" size="small" border>
                   <el-descriptions-item
@@ -564,15 +778,25 @@
               </template>
             </div>
           </el-scrollbar>
-          <el-empty v-else :description="t('settingsStage4.pricingTools.result.noFailure')" :image-size="50" />
+          <el-empty
+            v-else
+            :description="t('settingsStage4.pricingTools.result.noFailure')"
+            :image-size="50"
+          />
         </div>
       </div>
-      <el-empty v-else :description="t('settingsStage4.pricingTools.result.queryEmpty')" :image-size="80" />
+      <el-empty
+        v-else
+        :description="t('settingsStage4.pricingTools.result.queryEmpty')"
+        :image-size="80"
+      />
 
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showStatusDialog = false">{{ t('settings.common.close') }}</el-button>
-          <el-button type="primary" :loading="statusLoading" @click="handleQueryStatus">{{ t('settingsStage4.pricingTools.actions.query') }}</el-button>
+          <el-button type="primary" :loading="statusLoading" @click="handleQueryStatus">{{
+            t('settingsStage4.pricingTools.actions.query')
+          }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -600,27 +824,49 @@
         </el-form-item>
       </el-form>
 
-      <el-divider content-position="left">{{ t('settingsStage4.pricingTools.result.title') }}</el-divider>
+      <el-divider content-position="left">{{
+        t('settingsStage4.pricingTools.result.title')
+      }}</el-divider>
       <div v-if="pushReservationsResult">
         <el-descriptions border :column="2" size="small">
-          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.listingCount')">{{ pushReservationsResult.listingCount }}</el-descriptions-item>
-          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.reservationCount')">{{ pushReservationsResult.reservationCount }}</el-descriptions-item>
-          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.successCount')">{{ pushReservationsResult.successCount }}</el-descriptions-item>
-          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.failureCount')">{{ pushReservationsResult.failureCount }}</el-descriptions-item>
+          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.listingCount')">{{
+            pushReservationsResult.listingCount
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.reservationCount')">{{
+            pushReservationsResult.reservationCount
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.successCount')">{{
+            pushReservationsResult.successCount
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('settingsStage4.pricingTools.result.failureCount')">{{
+            pushReservationsResult.failureCount
+          }}</el-descriptions-item>
         </el-descriptions>
         <div style="margin-top: 12px">
           <div class="result-title">{{ t('settingsStage4.pricingTools.result.failures') }}</div>
           <el-scrollbar height="220">
-            <pre class="result-json">{{ JSON.stringify(pushReservationsResult.failures ?? [], null, 2) }}</pre>
+            <pre class="result-json">{{
+              JSON.stringify(pushReservationsResult.failures ?? [], null, 2)
+            }}</pre>
           </el-scrollbar>
         </div>
       </div>
-      <el-empty v-else :description="t('settingsStage4.pricingTools.result.pushEmpty')" :image-size="80" />
+      <el-empty
+        v-else
+        :description="t('settingsStage4.pricingTools.result.pushEmpty')"
+        :image-size="80"
+      />
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showPushReservationsDialog = false">{{ t('settings.common.close') }}</el-button>
-          <el-button type="primary" :loading="pushReservationsLoading" @click="handlePushReservations">
+          <el-button @click="showPushReservationsDialog = false">{{
+            t('settings.common.close')
+          }}</el-button>
+          <el-button
+            type="primary"
+            :loading="pushReservationsLoading"
+            @click="handlePushReservations"
+          >
             {{ t('settingsStage4.pricingTools.actions.push') }}
           </el-button>
         </div>
@@ -646,6 +892,7 @@ import {
   type OtaIntegrationDTO,
   type PriceAdjustmentType,
 } from '@/api/otaIntegration'
+import { addDaysToYmd, formatBackendDateTime, getStoreTodayYmd } from '@/utils/storeDateTime'
 import type {
   PriceLabsAccountDTO,
   PriceLabsIntegrationDTO,
@@ -656,7 +903,7 @@ import type {
   PriceLabsPushReservationsResult,
 } from '@/api/pricelabs'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 // 视图状态
 const showConfigPage = ref(false)
@@ -765,7 +1012,7 @@ const filteredConnections = computed(() => {
   }
   const isConnected = connectionFilter.value === 'connected'
   return result.filter((conn) =>
-    isConnected ? conn.syncStatus === 'connected' : conn.syncStatus !== 'connected'
+    isConnected ? conn.syncStatus === 'connected' : conn.syncStatus !== 'connected',
   )
 })
 
@@ -788,8 +1035,8 @@ const syncDefaultAccountSelection = () => {
   }
 
   defaultAccountId.value =
-    accounts.value.find((account) => normalizeEmailValue(account.priceLabsEmail) === currentEmail)?.id ??
-    null
+    accounts.value.find((account) => normalizeEmailValue(account.priceLabsEmail) === currentEmail)
+      ?.id ?? null
 }
 
 const enabledConnectionByRoomTypeId = computed(() => {
@@ -814,26 +1061,13 @@ const getConnectionAccountLabel = (connection: PriceLabsConnectionDTO): string =
 
 const findDuplicateConnection = (roomTypeId: number, pricePlanId: number) =>
   connections.value.find(
-    (conn) => conn.roomTypeId === roomTypeId && conn.pricePlanId === pricePlanId
+    (conn) => conn.roomTypeId === roomTypeId && conn.pricePlanId === pricePlanId,
   )
 
 // 进入配置页面
 const handleConfigure = () => {
   showConfigPage.value = true
   loadAllData()
-}
-
-const formatDateYYYYMMDD = (date: Date): string => {
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
-}
-
-const addDays = (date: Date, days: number): Date => {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d
 }
 
 // 加载所有数据
@@ -1053,7 +1287,10 @@ const handleSaveAccount = async () => {
           priceLabsEmail: payload.priceLabsEmail,
         })
         if (!updateRes.success) {
-          ElMessage.error(updateRes.message || t('settingsStage4.pricingTools.messages.updateDefaultAccountFailed'))
+          ElMessage.error(
+            updateRes.message ||
+              t('settingsStage4.pricingTools.messages.updateDefaultAccountFailed'),
+          )
           return
         }
         integration.value = updateRes.data
@@ -1062,7 +1299,7 @@ const handleSaveAccount = async () => {
       ElMessage.success(
         editingAccountId.value
           ? t('settingsStage4.pricingTools.messages.accountUpdated')
-          : t('settingsStage4.pricingTools.messages.accountCreated')
+          : t('settingsStage4.pricingTools.messages.accountCreated'),
       )
       showAccountDialog.value = false
       await loadAccounts()
@@ -1088,12 +1325,14 @@ const handleToggleAccount = async (account: PriceLabsAccountDTO) => {
       ElMessage.success(
         res.data.isEnabled
           ? t('settingsStage4.pricingTools.messages.accountEnabled')
-          : t('settingsStage4.pricingTools.messages.accountDisabled')
+          : t('settingsStage4.pricingTools.messages.accountDisabled'),
       )
       await loadAccounts()
       await loadConnections()
     } else {
-      ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.updateAccountStatusFailed'))
+      ElMessage.error(
+        res.message || t('settingsStage4.pricingTools.messages.updateAccountStatusFailed'),
+      )
     }
   } catch (error) {
     console.error('更新 PriceLabs 账号状态失败:', error)
@@ -1103,11 +1342,15 @@ const handleToggleAccount = async (account: PriceLabsAccountDTO) => {
 
 const handleDeleteAccount = async (account: PriceLabsAccountDTO) => {
   try {
-    await ElMessageBox.confirm(t('settingsStage4.pricingTools.messages.deleteAccountConfirm', { name: account.accountName }), t('settings.common.deleteConfirmTitle'), {
-      confirmButtonText: t('settings.common.confirm'),
-      cancelButtonText: t('settings.common.cancel'),
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('settingsStage4.pricingTools.messages.deleteAccountConfirm', { name: account.accountName }),
+      t('settings.common.deleteConfirmTitle'),
+      {
+        confirmButtonText: t('settings.common.confirm'),
+        cancelButtonText: t('settings.common.cancel'),
+        type: 'warning',
+      },
+    )
     const res = await priceLabsApi.deleteAccount(account.id)
     if (res.success) {
       if (selectedAccountId.value === account.id) {
@@ -1164,7 +1407,9 @@ const handleSaveConfig = async () => {
 
   try {
     const normalizedEmail = integration.value.priceLabsEmail.trim()
-    const existingAccount = accounts.value.find((account) => account.priceLabsEmail === normalizedEmail)
+    const existingAccount = accounts.value.find(
+      (account) => account.priceLabsEmail === normalizedEmail,
+    )
     if (!existingAccount) {
       await priceLabsApi.createAccount({
         accountName: normalizedEmail,
@@ -1253,7 +1498,7 @@ const handleToggleIntegration = async (enabled: boolean) => {
       ElMessage.success(
         enabled
           ? t('settingsStage4.pricingTools.messages.integrationEnabled')
-          : t('settingsStage4.pricingTools.messages.integrationDisabled')
+          : t('settingsStage4.pricingTools.messages.integrationDisabled'),
       )
     } else {
       // 恢复状态
@@ -1295,7 +1540,9 @@ const handleSaveConnection = async () => {
   const existing = enabledConnectionByRoomTypeId.value.get(connectionForm.roomTypeId)
   if (existing) {
     const planName = existing.pricePlanName || t('settingsStage4.pricingTools.status.unknown')
-    ElMessage.warning(t('settingsStage4.pricingTools.messages.roomTypeAlreadyConnected', { planName }))
+    ElMessage.warning(
+      t('settingsStage4.pricingTools.messages.roomTypeAlreadyConnected', { planName }),
+    )
     return
   }
 
@@ -1303,7 +1550,7 @@ const handleSaveConnection = async () => {
     ElMessage.warning(t('settingsStage4.pricingTools.messages.selectPricePlan'))
     return
   }
- 
+
   const duplicateConnection = findDuplicateConnection(
     connectionForm.roomTypeId,
     connectionForm.pricePlanId,
@@ -1312,12 +1559,14 @@ const handleSaveConnection = async () => {
     ElMessage.warning(
       t('settingsStage4.pricingTools.messages.duplicateConnection', {
         account: getConnectionAccountLabel(duplicateConnection),
-      })
+      }),
     )
     return
   }
 
-  const isBoundPlan = roomTypeBoundPricePlans.value.some((plan) => plan.id === connectionForm.pricePlanId)
+  const isBoundPlan = roomTypeBoundPricePlans.value.some(
+    (plan) => plan.id === connectionForm.pricePlanId,
+  )
   if (!isBoundPlan) {
     ElMessage.warning(t('settingsStage4.pricingTools.messages.selectBoundPricePlan'))
     return
@@ -1341,7 +1590,9 @@ const handleSaveConnection = async () => {
         }
         ElMessage.success(t('settingsStage4.pricingTools.messages.integrationEnabled'))
       } else {
-        ElMessage.error(toggleRes.message || t('settingsStage4.pricingTools.messages.enableIntegrationFailed'))
+        ElMessage.error(
+          toggleRes.message || t('settingsStage4.pricingTools.messages.enableIntegrationFailed'),
+        )
         return
       }
     }
@@ -1361,7 +1612,9 @@ const handleSaveConnection = async () => {
       return
     }
     if (res.data) {
-      ElMessage.warning(res.message || t('settingsStage4.pricingTools.messages.connectionSavedSyncFailed'))
+      ElMessage.warning(
+        res.message || t('settingsStage4.pricingTools.messages.connectionSavedSyncFailed'),
+      )
       selectedAccountId.value = res.data.accountId ?? connectionForm.accountId
       showConnectionDialog.value = false
       await loadAccounts()
@@ -1387,7 +1640,7 @@ const handleToggleConnection = async (row: PriceLabsConnectionDTO) => {
       ElMessage.success(
         row.isEnabled
           ? t('settingsStage4.pricingTools.messages.connectionEnabled')
-          : t('settingsStage4.pricingTools.messages.connectionDisabled')
+          : t('settingsStage4.pricingTools.messages.connectionDisabled'),
       )
     } else {
       ElMessage.error(res.message || t('settings.common.operationFailed'))
@@ -1433,7 +1686,11 @@ const handleDeleteConnection = async (row: PriceLabsConnectionDTO) => {
         plan: row.pricePlanName,
       }),
       t('settings.common.deleteConfirmTitle'),
-      { confirmButtonText: t('settings.common.confirm'), cancelButtonText: t('settings.common.cancel'), type: 'warning' }
+      {
+        confirmButtonText: t('settings.common.confirm'),
+        cancelButtonText: t('settings.common.cancel'),
+        type: 'warning',
+      },
     )
 
     const res = await priceLabsApi.deleteConnection(row.id)
@@ -1470,7 +1727,8 @@ const handleSaveAdjustment = async () => {
   saveAdjustmentLoading.value = true
   try {
     // 根据方向计算最终值
-    const finalValue = adjustmentDirection.value === 'up' ? adjustmentFormValue.value : -adjustmentFormValue.value
+    const finalValue =
+      adjustmentDirection.value === 'up' ? adjustmentFormValue.value : -adjustmentFormValue.value
 
     const res = await updatePriceAdjustment(adjustmentForm.channelId, {
       priceAdjustmentType: adjustmentForm.adjustmentType,
@@ -1503,7 +1761,7 @@ const handleAutoSyncChange = async (row: ChannelAdjustmentItem) => {
     ElMessage.success(
       row.autoSyncPrice
         ? t('settingsStage4.pricingTools.messages.autoSyncEnabled')
-        : t('settingsStage4.pricingTools.messages.autoSyncDisabled')
+        : t('settingsStage4.pricingTools.messages.autoSyncDisabled'),
     )
   } catch (error) {
     row.autoSyncPrice = !row.autoSyncPrice
@@ -1514,7 +1772,8 @@ const handleAutoSyncChange = async (row: ChannelAdjustmentItem) => {
 // 计算预览价格
 const calculatePreviewPrice = (): string => {
   const basePrice = 1000
-  const value = adjustmentDirection.value === 'up' ? adjustmentFormValue.value : -adjustmentFormValue.value
+  const value =
+    adjustmentDirection.value === 'up' ? adjustmentFormValue.value : -adjustmentFormValue.value
 
   if (adjustmentForm.adjustmentType === 'PERCENTAGE') {
     return (basePrice * (1 + value / 100)).toFixed(0)
@@ -1534,14 +1793,7 @@ const calculateSuccessRate = (): string => {
 // 格式化日期时间
 const formatDateTime = (dateStr: string | undefined): string => {
   if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return date.toLocaleString(locale.value, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatBackendDateTime(dateStr)
 }
 
 // 获取同步状态文本
@@ -1636,7 +1888,7 @@ const handleQueryStatus = async () => {
 }
 
 const handleOpenPushReservationsDialog = () => {
-  pushReservationsRange.value = ['2020-01-01', formatDateYYYYMMDD(addDays(new Date(), 365))]
+  pushReservationsRange.value = ['2020-01-01', addDaysToYmd(getStoreTodayYmd(), 365)]
   pushReservationsResult.value = null
   showPushReservationsDialog.value = true
 }
@@ -1656,7 +1908,9 @@ const handlePushReservations = async () => {
       ElMessage.success(t('settingsStage4.pricingTools.messages.reservationsPushed'))
       loadSyncLogs()
     } else {
-      ElMessage.error(res.message || t('settingsStage4.pricingTools.messages.reservationsPushFailed'))
+      ElMessage.error(
+        res.message || t('settingsStage4.pricingTools.messages.reservationsPushFailed'),
+      )
     }
   } catch (error) {
     ElMessage.error(t('settingsStage4.pricingTools.messages.reservationsPushFailed'))

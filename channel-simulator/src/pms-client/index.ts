@@ -4,6 +4,9 @@ import config from '../config'
 import type {
   JsonObject,
   PmsApiEnvelope,
+  PmsAutoMessageDispatchData,
+  PmsAutoMessageSendLogLookupData,
+  PmsAutoMessageSendLogLookupQuery,
   PmsClientResult,
   PmsReadinessData,
   PmsRequestContext,
@@ -18,6 +21,11 @@ import type {
 
 export type {
   JsonObject,
+  PmsAutoMessageDispatchData,
+  PmsAutoMessageSendLogLookupData,
+  PmsAutoMessageSendLogLookupQuery,
+  PmsAutoMessageSendLogSummary,
+  PmsAutoMessageSummary,
   PmsChannelSummary,
   PmsClientResult,
   PmsOtaIntegrationSummary,
@@ -410,4 +418,25 @@ export function lookupPmsMessagingThreads(
   context?: PmsRequestContext,
 ): Promise<PmsClientResult<PmsMessagingLookupData>> {
   return getJson<PmsMessagingLookupData>(`${TEST_SUPPORT_BASE_PATH}/messaging/threads`, { ...query }, context)
+}
+
+export function lookupPmsAutoMessageSendLogs(
+  query: PmsAutoMessageSendLogLookupQuery,
+  context?: PmsRequestContext,
+): Promise<PmsClientResult<PmsAutoMessageSendLogLookupData>> {
+  return getJson<PmsAutoMessageSendLogLookupData>(
+    `${TEST_SUPPORT_BASE_PATH}/auto-message-send-logs`,
+    { ...query },
+    context,
+  )
+}
+
+export function dispatchPmsAutoMessages(
+  context?: PmsRequestContext,
+): Promise<PmsClientResult<PmsAutoMessageDispatchData>> {
+  return postJson<PmsAutoMessageDispatchData>(
+    `${TEST_SUPPORT_BASE_PATH}/auto-messages/dispatch`,
+    {},
+    context,
+  )
 }

@@ -33,4 +33,10 @@ public interface AutoMessageRepository extends JpaRepository<AutoMessage, Long> 
      * 根据门店ID查找启用的自动化消息
      */
     List<AutoMessage> findByStoreIdAndEnabledTrue(Long storeId);
+
+    List<AutoMessage> findByStoreIdAndActionAndSendTimingOrderByIdAsc(
+            Long storeId,
+            String action,
+            String sendTiming
+    );
 }

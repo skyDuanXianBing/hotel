@@ -6,6 +6,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.config.SuWebhookConfig;
+import server.demo.entity.AutoMessage;
+import server.demo.entity.AutoMessageSendLog;
 import server.demo.entity.Channel;
 import server.demo.entity.OtaIntegration;
 import server.demo.entity.PricePlan;
@@ -22,6 +24,8 @@ import server.demo.enums.PriceAdjustmentType;
 import server.demo.enums.RoomStatus;
 import server.demo.enums.SuWebhookEventStatus;
 import server.demo.enums.SuWebhookEventType;
+import server.demo.repository.AutoMessageRepository;
+import server.demo.repository.AutoMessageSendLogRepository;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.OtaIntegrationRepository;
 import server.demo.repository.PricePlanRepository;
@@ -48,9 +52,18 @@ import java.util.List;
 public class ChannelE2ETestSupportService {
 
     private static final int MAX_RESERVATION_LOOKUP_RESULTS = 50;
+    private static final int DEFAULT_SEND_LOG_LIMIT = 20;
+    private static final int MAX_SEND_LOG_LIMIT = 100;
     private static final String CHANNEL_CODE_DIRECT = "DIRECT";
     private static final String CHANNEL_CODE_AIRBNB = "AIRBNB";
     private static final String CHANNEL_CODE_BOOKING = "BOOKING";
+    private static final String AUTO_MESSAGE_ACTION_BOOKING_CONFIRM = "BOOKING_CONFIRM";
+    private static final String AUTO_MESSAGE_TIMING_IMMEDIATELY = "IMMEDIATELY";
+    private static final String AUTO_MESSAGE_TARGET_TYPE_RESERVATION = "RESERVATION";
+    private static final String LOCAL_SETUP_AUTO_MESSAGE_TITLE = "Local E2E Booking Confirm";
+    private static final String LOCAL_SETUP_AUTO_MESSAGE_MARKER = "LOCAL_E2E_AUTO_BOOKING_CONFIRM";
+    private static final String LOCAL_SETUP_AUTO_MESSAGE_BODY =
+            "LOCAL_E2E_AUTO_BOOKING_CONFIRM Booking confirmed for {{guest_name}} / {{reservation_number}}.";
     private static final List<String> LOCAL_SETUP_CHANNEL_CODES = List.of(
             CHANNEL_CODE_DIRECT,
             CHANNEL_CODE_AIRBNB,
@@ -85,11 +98,14 @@ public class ChannelE2ETestSupportService {
     private final RoomRepository roomRepository;
     private final PricePlanRepository pricePlanRepository;
     private final OtaIntegrationRepository otaIntegrationRepository;
+    private final AutoMessageRepository autoMessageRepository;
+    private final AutoMessageSendLogRepository autoMessageSendLogRepository;
     private final ReservationRepository reservationRepository;
     private final SuReservationWebhookEventRepository webhookEventRepository;
     private final SuMessageThreadRepository suMessageThreadRepository;
     private final SuWebhookConfig suWebhookConfig;
     private final ChannelBootstrapService channelBootstrapService;
+    private final AutoMessageTriggerService autoMessageTriggerService;
     private final ChannelE2ETestSupportResponseMapper responseMapper;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -109,11 +125,14 @@ public class ChannelE2ETestSupportService {
             RoomRepository roomRepository,
             PricePlanRepository pricePlanRepository,
             OtaIntegrationRepository otaIntegrationRepository,
+            AutoMessageRepository autoMessageRepository,
+            AutoMessageSendLogRepository autoMessageSendLogRepository,
             ReservationRepository reservationRepository,
             SuReservationWebhookEventRepository webhookEventRepository,
             SuMessageThreadRepository suMessageThreadRepository,
             SuWebhookConfig suWebhookConfig,
             ChannelBootstrapService channelBootstrapService,
+            AutoMessageTriggerService autoMessageTriggerService,
             ChannelE2ETestSupportResponseMapper responseMapper,
             JwtUtil jwtUtil
     ) {
@@ -125,11 +144,14 @@ public class ChannelE2ETestSupportService {
         this.roomRepository = roomRepository;
         this.pricePlanRepository = pricePlanRepository;
         this.otaIntegrationRepository = otaIntegrationRepository;
+        this.autoMessageRepository = autoMessageRepository;
+        this.autoMessageSendLogRepository = autoMessageSendLogRepository;
         this.reservationRepository = reservationRepository;
         this.webhookEventRepository = webhookEventRepository;
         this.suMessageThreadRepository = suMessageThreadRepository;
         this.suWebhookConfig = suWebhookConfig;
         this.channelBootstrapService = channelBootstrapService;
+        this.autoMessageTriggerService = autoMessageTriggerService;
         this.responseMapper = responseMapper;
         this.jwtUtil = jwtUtil;
     }
@@ -145,12 +167,14 @@ public class ChannelE2ETestSupportService {
         Store store = ensureLocalSetupStore(user, created, reused);
         ensureLocalSetupStoreUser(store, user, created, reused);
         ensureLocalSetupChannels(store.getId(), created, reused);
+        Channel bookingChannel = requireLocalSetupBookingChannel(store.getId());
         PricePlan pricePlan = ensureLocalSetupPricePlan(store.getId(), user, created, reused);
         RoomType roomType = ensureLocalSetupRoomType(store.getId(), user, created, reused);
         List<Room> rooms = ensureLocalSetupRooms(store.getId(), user, roomType, created, reused);
         Room primaryRoom = rooms.get(0);
         ensureLocalSetupOtaIntegration(store.getId(), CHANNEL_CODE_BOOKING, "Booking.com", pricePlan, created, reused);
         ensureLocalSetupOtaIntegration(store.getId(), CHANNEL_CODE_AIRBNB, "Airbnb", pricePlan, created, reused);
+        ensureLocalSetupAutoMessageTemplate(store.getId(), bookingChannel, created, reused);
 
         String token = jwtUtil.generateToken(user.getId(), user.getEmail());
         ChannelE2EReadinessResponse readiness = getReadiness(store.getId());
@@ -180,12 +204,15 @@ public class ChannelE2ETestSupportService {
         List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
         List<PricePlan> pricePlans = pricePlanRepository.findByStoreIdOrderByName(storeId);
         List<OtaIntegration> otaIntegrations = otaIntegrationRepository.findByStoreId(storeId);
-        if (isLocalSetupStore(store)) {
+        List<AutoMessage> autoMessages = autoMessageRepository.findByStoreId(storeId);
+        boolean localSetupStore = isLocalSetupStore(store);
+        if (localSetupStore) {
             roomTypes = selectLocalSetupRoomTypes(roomTypes);
             rooms = selectLocalSetupRooms(rooms, firstRoomType(roomTypes));
             pricePlans = selectLocalSetupPricePlans(pricePlans);
             channels = selectLocalSetupChannels(channels);
             otaIntegrations = selectLocalSetupOtaIntegrations(otaIntegrations);
+            autoMessages = selectLocalSetupAutoMessages(autoMessages);
         }
 
         WebhookConfigSummary webhookConfig = buildWebhookConfig(suHotelId);
@@ -196,6 +223,8 @@ public class ChannelE2ETestSupportService {
                 rooms,
                 pricePlans,
                 otaIntegrations,
+                autoMessages,
+                localSetupStore,
                 webhookConfig
         );
 
@@ -203,6 +232,7 @@ public class ChannelE2ETestSupportService {
         return new ChannelE2EReadinessResponse(
                 store.getId(),
                 store.getName(),
+                store.getTimezone(),
                 suHotelId,
                 List.of(CHANNEL_CODE_BOOKING, CHANNEL_CODE_AIRBNB),
                 ready,
@@ -212,7 +242,8 @@ public class ChannelE2ETestSupportService {
                 responseMapper.toRoomTypeSummaries(roomTypes),
                 responseMapper.toRoomSummaries(rooms),
                 responseMapper.toPricePlanSummaries(pricePlans),
-                responseMapper.toOtaIntegrationSummaries(otaIntegrations)
+                responseMapper.toOtaIntegrationSummaries(otaIntegrations),
+                toAutoMessageSummaries(autoMessages, channels)
         );
     }
 
@@ -331,6 +362,45 @@ public class ChannelE2ETestSupportService {
         return new MessagingThreadLookupResponse(query, items.size(), items);
     }
 
+    @Transactional(readOnly = true)
+    public AutoMessageSendLogLookupResponse lookupAutoMessageSendLogs(
+            Long storeId,
+            Long targetId,
+            Long autoMessageId,
+            Boolean success,
+            Integer limit
+    ) {
+        int pageSize = clampSendLogLimit(limit);
+        AutoMessageSendLogLookupQuery query = new AutoMessageSendLogLookupQuery(
+                AUTO_MESSAGE_TARGET_TYPE_RESERVATION,
+                targetId,
+                autoMessageId,
+                success,
+                pageSize
+        );
+        List<AutoMessageSendLog> logs = autoMessageSendLogRepository.findRecentByStoreIdAndFilters(
+                storeId,
+                query.targetType(),
+                query.targetId(),
+                query.autoMessageId(),
+                query.success(),
+                PageRequest.of(0, pageSize)
+        );
+
+        List<AutoMessageSendLogSummary> items = new ArrayList<>();
+        for (AutoMessageSendLog log : logs) {
+            items.add(toAutoMessageSendLogSummary(log));
+        }
+
+        return new AutoMessageSendLogLookupResponse(query, items.size(), items);
+    }
+
+    @Transactional
+    public AutoMessageDispatchResponse dispatchAutoMessages(Long storeId) {
+        autoMessageTriggerService.dispatchStoreOnce(storeId);
+        return new AutoMessageDispatchResponse(storeId, true);
+    }
+
     public void validateTestSupportAccess(String providedTestSupportKey) {
         if (!localE2EEnabled) {
             throw new TestSupportAccessException(403, "本地渠道E2E test-support 未启用");
@@ -394,6 +464,11 @@ public class ChannelE2ETestSupportService {
     private Store ensureLocalSetupStore(User user, List<String> created, List<String> reused) {
         Store existingStore = firstStore(storeRepository.findAllBySuHotelIdOrderByIdAsc(LOCAL_SETUP_SU_HOTEL_ID));
         if (existingStore != null) {
+            if (!LOCAL_SETUP_TIME_ZONE.equals(existingStore.getTimezone())) {
+                existingStore.setTimezone(LOCAL_SETUP_TIME_ZONE);
+                existingStore = storeRepository.save(existingStore);
+                reused.add("storeTimezone:" + LOCAL_SETUP_TIME_ZONE);
+            }
             reused.add("store:" + existingStore.getId());
             return existingStore;
         }
@@ -459,6 +534,11 @@ public class ChannelE2ETestSupportService {
             return;
         }
         reused.add("channels");
+    }
+
+    private Channel requireLocalSetupBookingChannel(Long storeId) {
+        return channelRepository.findByStoreIdAndCode(storeId, CHANNEL_CODE_BOOKING)
+                .orElseThrow(() -> new IllegalStateException("本地 E2E Booking 渠道不存在"));
     }
 
     private PricePlan ensureLocalSetupPricePlan(
@@ -680,6 +760,115 @@ public class ChannelE2ETestSupportService {
         created.add("otaIntegration:" + code);
     }
 
+    private AutoMessage ensureLocalSetupAutoMessageTemplate(
+            Long storeId,
+            Channel bookingChannel,
+            List<String> created,
+            List<String> reused
+    ) {
+        List<AutoMessage> candidates = autoMessageRepository.findByStoreIdAndActionAndSendTimingOrderByIdAsc(
+                storeId,
+                AUTO_MESSAGE_ACTION_BOOKING_CONFIRM,
+                AUTO_MESSAGE_TIMING_IMMEDIATELY
+        );
+        AutoMessage selected = firstLocalSetupAutoMessage(candidates, bookingChannel);
+        if (selected == null) {
+            selected = new AutoMessage();
+            selected.setStoreId(storeId);
+            selected.setTitle(LOCAL_SETUP_AUTO_MESSAGE_TITLE);
+            selected.setAction(AUTO_MESSAGE_ACTION_BOOKING_CONFIRM);
+            selected.setSendTiming(AUTO_MESSAGE_TIMING_IMMEDIATELY);
+            selected.setAutomationRule(AUTO_MESSAGE_ACTION_BOOKING_CONFIRM);
+            selected.setRoomSelectionType("ALL_LOCAL");
+            selected.setRoomSelection(null);
+            selected.setResendOnExpire(false);
+            selected.setEnabled(true);
+            selected.setMessage(LOCAL_SETUP_AUTO_MESSAGE_BODY);
+            selected.setChannels(buildSingleChannelJson(bookingChannel.getId()));
+            AutoMessage saved = autoMessageRepository.save(selected);
+            created.add("autoMessage:" + saved.getId());
+            return saved;
+        }
+
+        boolean changed = normalizeLocalSetupAutoMessageTemplate(selected, storeId, bookingChannel);
+        AutoMessage saved = selected;
+        if (changed) {
+            saved = autoMessageRepository.save(selected);
+        }
+        reused.add("autoMessage:" + saved.getId());
+        return saved;
+    }
+
+    private AutoMessage firstLocalSetupAutoMessage(List<AutoMessage> candidates, Channel bookingChannel) {
+        AutoMessage fallback = null;
+        for (AutoMessage candidate : candidates) {
+            if (candidate == null) {
+                continue;
+            }
+            if (hasLocalSetupAutoMessageTemplate(candidate, bookingChannel)) {
+                return candidate;
+            }
+            if (fallback == null || hasLowerId(candidate.getId(), fallback.getId())) {
+                fallback = candidate;
+            }
+        }
+        return fallback;
+    }
+
+    private boolean normalizeLocalSetupAutoMessageTemplate(
+            AutoMessage template,
+            Long storeId,
+            Channel bookingChannel
+    ) {
+        boolean changed = false;
+        if (!storeId.equals(template.getStoreId())) {
+            template.setStoreId(storeId);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_AUTO_MESSAGE_TITLE.equals(template.getTitle())) {
+            template.setTitle(LOCAL_SETUP_AUTO_MESSAGE_TITLE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_AUTO_MESSAGE_BODY.equals(template.getMessage())) {
+            template.setMessage(LOCAL_SETUP_AUTO_MESSAGE_BODY);
+            changed = true;
+        }
+        if (!AUTO_MESSAGE_ACTION_BOOKING_CONFIRM.equals(template.getAction())) {
+            template.setAction(AUTO_MESSAGE_ACTION_BOOKING_CONFIRM);
+            changed = true;
+        }
+        if (!AUTO_MESSAGE_TIMING_IMMEDIATELY.equals(template.getSendTiming())) {
+            template.setSendTiming(AUTO_MESSAGE_TIMING_IMMEDIATELY);
+            changed = true;
+        }
+        if (!AUTO_MESSAGE_ACTION_BOOKING_CONFIRM.equals(template.getAutomationRule())) {
+            template.setAutomationRule(AUTO_MESSAGE_ACTION_BOOKING_CONFIRM);
+            changed = true;
+        }
+        String expectedChannels = buildSingleChannelJson(bookingChannel.getId());
+        if (!expectedChannels.equals(template.getChannels())) {
+            template.setChannels(expectedChannels);
+            changed = true;
+        }
+        if (!"ALL_LOCAL".equals(template.getRoomSelectionType())) {
+            template.setRoomSelectionType("ALL_LOCAL");
+            changed = true;
+        }
+        if (template.getRoomSelection() != null) {
+            template.setRoomSelection(null);
+            changed = true;
+        }
+        if (!Boolean.FALSE.equals(template.getResendOnExpire())) {
+            template.setResendOnExpire(false);
+            changed = true;
+        }
+        if (!Boolean.TRUE.equals(template.getEnabled())) {
+            template.setEnabled(true);
+            changed = true;
+        }
+        return changed;
+    }
+
     private List<Channel> selectLocalSetupChannels(List<Channel> channels) {
         List<Channel> selected = new ArrayList<>();
         for (String code : LOCAL_SETUP_CHANNEL_CODES) {
@@ -728,6 +917,26 @@ public class ChannelE2ETestSupportService {
             if (integration != null) {
                 selected.add(integration);
             }
+        }
+        return selected;
+    }
+
+    private List<AutoMessage> selectLocalSetupAutoMessages(List<AutoMessage> autoMessages) {
+        List<AutoMessage> selected = new ArrayList<>();
+        for (AutoMessage autoMessage : autoMessages) {
+            if (autoMessage == null) {
+                continue;
+            }
+            if (!matchesText(autoMessage.getAction(), AUTO_MESSAGE_ACTION_BOOKING_CONFIRM)) {
+                continue;
+            }
+            if (!matchesText(autoMessage.getSendTiming(), AUTO_MESSAGE_TIMING_IMMEDIATELY)) {
+                continue;
+            }
+            if (!containsLocalSetupMarker(autoMessage.getMessage())) {
+                continue;
+            }
+            selected.add(autoMessage);
         }
         return selected;
     }
@@ -974,6 +1183,8 @@ public class ChannelE2ETestSupportService {
             List<Room> rooms,
             List<PricePlan> pricePlans,
             List<OtaIntegration> otaIntegrations,
+            List<AutoMessage> autoMessages,
+            boolean requireAutoMessage,
             WebhookConfigSummary webhookConfig
     ) {
         List<String> missing = new ArrayList<>();
@@ -995,6 +1206,9 @@ public class ChannelE2ETestSupportService {
         if (!hasSupportedOtaIntegration(otaIntegrations)) {
             missing.add("BOOKING_OR_AIRBNB_otaIntegration");
         }
+        if (requireAutoMessage && !hasLocalSetupReadyAutoMessage(autoMessages, channels)) {
+            missing.add("BOOKING_CONFIRM_autoMessageTemplate");
+        }
         if (!webhookConfig.configured()) {
             missing.add("suWebhookConfig");
         }
@@ -1011,6 +1225,117 @@ public class ChannelE2ETestSupportService {
             }
         }
         return false;
+    }
+
+    private boolean hasLocalSetupReadyAutoMessage(List<AutoMessage> autoMessages, List<Channel> channels) {
+        Channel bookingChannel = selectChannelByCode(channels, CHANNEL_CODE_BOOKING);
+        for (AutoMessage autoMessage : autoMessages) {
+            if (hasLocalSetupAutoMessageTemplate(autoMessage, bookingChannel)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<AutoMessageSummary> toAutoMessageSummaries(
+            List<AutoMessage> autoMessages,
+            List<Channel> selectedChannels
+    ) {
+        List<AutoMessageSummary> summaries = new ArrayList<>();
+        Channel bookingChannel = selectChannelByCode(selectedChannels, CHANNEL_CODE_BOOKING);
+        for (AutoMessage autoMessage : autoMessages) {
+            boolean bookingOnly = bookingChannel != null
+                    && channelsJsonMatchesSingleChannelId(autoMessage.getChannels(), bookingChannel.getId());
+            summaries.add(new AutoMessageSummary(
+                    autoMessage.getId(),
+                    autoMessage.getTitle(),
+                    autoMessage.getAction(),
+                    autoMessage.getSendTiming(),
+                    autoMessage.getEnabled(),
+                    autoMessage.getChannels(),
+                    containsLocalSetupMarker(autoMessage.getMessage()),
+                    bookingOnly
+            ));
+        }
+        return summaries;
+    }
+
+    private boolean hasLocalSetupAutoMessageTemplate(AutoMessage template, Channel bookingChannel) {
+        if (template == null || bookingChannel == null) {
+            return false;
+        }
+        boolean enabled = Boolean.TRUE.equals(template.getEnabled());
+        boolean actionMatched = matchesText(template.getAction(), AUTO_MESSAGE_ACTION_BOOKING_CONFIRM);
+        boolean timingMatched = matchesText(template.getSendTiming(), AUTO_MESSAGE_TIMING_IMMEDIATELY);
+        boolean markerPresent = containsLocalSetupMarker(template.getMessage());
+        boolean bookingChannelMatched = channelsJsonMatchesSingleChannelId(template.getChannels(), bookingChannel.getId());
+        return enabled && actionMatched && timingMatched && markerPresent && bookingChannelMatched;
+    }
+
+    private boolean channelsJsonMatchesSingleChannelId(String channelsJson, Long channelId) {
+        if (channelsJson == null || channelId == null) {
+            return false;
+        }
+        String normalized = channelsJson.trim();
+        if (!normalized.startsWith("[") || !normalized.endsWith("]")) {
+            return false;
+        }
+        String body = normalized.substring(1, normalized.length() - 1);
+        String[] parts = body.split(",");
+        int parsedCount = 0;
+        boolean matched = false;
+        for (String part : parts) {
+            String value = part.trim();
+            if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+                value = value.substring(1, value.length() - 1);
+            }
+            try {
+                Long parsed = Long.valueOf(value);
+                parsedCount++;
+                if (channelId.equals(parsed)) {
+                    matched = true;
+                }
+            } catch (NumberFormatException ignored) {
+                return false;
+            }
+        }
+        return parsedCount == 1 && matched;
+    }
+
+    private String buildSingleChannelJson(Long channelId) {
+        if (channelId == null) {
+            return "[]";
+        }
+        return "[" + channelId + "]";
+    }
+
+    private boolean containsLocalSetupMarker(String value) {
+        return value != null && value.contains(LOCAL_SETUP_AUTO_MESSAGE_MARKER);
+    }
+
+    private int clampSendLogLimit(Integer limit) {
+        if (limit == null) {
+            return DEFAULT_SEND_LOG_LIMIT;
+        }
+        if (limit < 1) {
+            return 1;
+        }
+        return Math.min(limit, MAX_SEND_LOG_LIMIT);
+    }
+
+    private AutoMessageSendLogSummary toAutoMessageSendLogSummary(AutoMessageSendLog log) {
+        return new AutoMessageSendLogSummary(
+                log.getId(),
+                log.getStoreId(),
+                log.getAction(),
+                log.getTargetType(),
+                log.getTargetId(),
+                log.getAutoMessageId(),
+                log.getSuccess(),
+                log.getErrorMessage(),
+                log.getCreatedAt(),
+                log.getUpdatedAt()
+        );
     }
 
     private boolean hasSupportedOtaIntegration(List<OtaIntegration> otaIntegrations) {
@@ -1073,6 +1398,7 @@ public class ChannelE2ETestSupportService {
     public record ChannelE2EReadinessResponse(
             Long storeId,
             String storeName,
+            String storeTimezone,
             String suHotelId,
             List<String> supportedChannelCodes,
             boolean ready,
@@ -1082,7 +1408,8 @@ public class ChannelE2ETestSupportService {
             List<RoomTypeSummary> roomTypes,
             List<RoomSummary> rooms,
             List<PricePlanSummary> pricePlans,
-            List<OtaIntegrationSummary> otaIntegrations
+            List<OtaIntegrationSummary> otaIntegrations,
+            List<AutoMessageSummary> autoMessages
     ) {
     }
 
@@ -1154,6 +1481,18 @@ public class ChannelE2ETestSupportService {
             boolean hasApiKey,
             boolean hasApiSecret,
             boolean hasWidgetToken
+    ) {
+    }
+
+    public record AutoMessageSummary(
+            Long id,
+            String title,
+            String action,
+            String sendTiming,
+            Boolean enabled,
+            String channels,
+            boolean markerPresent,
+            boolean bookingOnly
     ) {
     }
 
@@ -1291,6 +1630,42 @@ public class ChannelE2ETestSupportService {
             Boolean read,
             String deliveryStatus,
             String rawJson
+    ) {
+    }
+
+    public record AutoMessageSendLogLookupQuery(
+            String targetType,
+            Long targetId,
+            Long autoMessageId,
+            Boolean success,
+            int limit
+    ) {
+    }
+
+    public record AutoMessageSendLogLookupResponse(
+            AutoMessageSendLogLookupQuery query,
+            int totalMatches,
+            List<AutoMessageSendLogSummary> logs
+    ) {
+    }
+
+    public record AutoMessageSendLogSummary(
+            Long id,
+            Long storeId,
+            String action,
+            String targetType,
+            Long targetId,
+            Long autoMessageId,
+            Boolean success,
+            String errorMessage,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
+    ) {
+    }
+
+    public record AutoMessageDispatchResponse(
+            Long storeId,
+            boolean dispatched
     ) {
     }
 }

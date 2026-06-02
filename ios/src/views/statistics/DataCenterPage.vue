@@ -722,6 +722,12 @@ import { ROUTE_PATHS } from '@/router/guards'
 import { useStoreStore } from '@/stores/store'
 import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
+import {
+  compareBusinessDates,
+  formatBusinessDateLabel,
+  formatStoreDateTime,
+  getStoreDatePresetRange,
+} from '@/utils/storeBusinessDate'
 
 type DataCenterSection = 'overview' | 'accommodation' | 'notes'
 type OverviewTab = 'business' | 'revenue' | 'channel' | 'sales'
@@ -1031,26 +1037,8 @@ function createEmptyNotesStatistics(): NotesStatisticsDTO {
   }
 }
 
-function formatDate(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 function formatShortDate(value: string) {
-  if (!value) {
-    return '-'
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return value
-  }
-
-  const month = String(parsed.getMonth() + 1).padStart(2, '0')
-  const day = String(parsed.getDate()).padStart(2, '0')
-  return `${month}-${day}`
+  return formatBusinessDateLabel(value, 'month-day')
 }
 
 function formatDisplayDate(value: string) {
@@ -1074,20 +1062,7 @@ async function tuneSalesSearchbarInput(target: SearchbarElement | null) {
 }
 
 function formatDateTime(value: string) {
-  if (!value) {
-    return '-'
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return value
-  }
-
-  const month = String(parsed.getMonth() + 1).padStart(2, '0')
-  const day = String(parsed.getDate()).padStart(2, '0')
-  const hours = String(parsed.getHours()).padStart(2, '0')
-  const minutes = String(parsed.getMinutes()).padStart(2, '0')
-  return `${month}-${day} ${hours}:${minutes}`
+  return formatStoreDateTime(value, 'month-day-time')
 }
 
 function formatCurrency(value: number) {
@@ -1113,7 +1088,7 @@ function formatPercent(value: number) {
 function getSortedItems<T extends { date: string }>(items: T[]) {
   const nextItems = [...items]
   nextItems.sort((firstItem, secondItem) => {
-    return new Date(firstItem.date).getTime() - new Date(secondItem.date).getTime()
+    return compareBusinessDates(firstItem.date, secondItem.date)
   })
   return nextItems
 }
@@ -1287,27 +1262,9 @@ function validateDateRange() {
 }
 
 function applyDatePreset(preset: DatePreset, shouldLoad = true) {
-  const today = new Date()
-  let presetStart = new Date(today)
-  let presetEnd = new Date(today)
-
-  if (preset === 'yesterday') {
-    presetStart.setDate(today.getDate() - 1)
-    presetEnd = new Date(presetStart)
-  }
-
-  if (preset === 'week') {
-    const currentDay = today.getDay()
-    const offset = currentDay === 0 ? 6 : currentDay - 1
-    presetStart.setDate(today.getDate() - offset)
-  }
-
-  if (preset === 'month') {
-    presetStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  }
-
-  startDate.value = formatDate(presetStart)
-  endDate.value = formatDate(presetEnd)
+  const presetRange = getStoreDatePresetRange(preset)
+  startDate.value = presetRange.startDate
+  endDate.value = presetRange.endDate
   activeDatePreset.value = preset
 
   if (shouldLoad) {

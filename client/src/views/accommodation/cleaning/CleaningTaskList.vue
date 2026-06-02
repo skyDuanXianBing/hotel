@@ -16,7 +16,12 @@
           </el-input>
 
           <span class="filter-label">{{ t('accommodation.common.taskType') }}</span>
-          <el-select v-model="filters.taskType" :placeholder="t('accommodation.common.select')" clearable class="filter-select">
+          <el-select
+            v-model="filters.taskType"
+            :placeholder="t('accommodation.common.select')"
+            clearable
+            class="filter-select"
+          >
             <el-option :label="t('accommodation.common.all')" value="" />
             <el-option :label="t('accommodation.cleaning.checkout')" value="checkout" />
             <el-option :label="t('accommodation.cleaning.daily')" value="daily" />
@@ -24,13 +29,33 @@
           </el-select>
 
           <span class="filter-label">{{ t('accommodation.common.status') }}</span>
-          <el-select v-model="filters.status" :placeholder="t('accommodation.common.select')" clearable class="filter-select">
+          <el-select
+            v-model="filters.status"
+            :placeholder="t('accommodation.common.select')"
+            clearable
+            class="filter-select"
+          >
             <el-option :label="t('accommodation.common.all')" value="" />
-            <el-option :label="t('accommodation.cleaningTaskList.statusLabels.expired')" value="expired" />
-            <el-option :label="t('accommodation.cleaningTaskList.statusLabels.pending')" value="pending" />
-            <el-option :label="t('accommodation.cleaningTaskList.statusLabels.assigned')" value="assigned" />
-            <el-option :label="t('accommodation.cleaningTaskList.statusLabels.in_progress')" value="in_progress" />
-            <el-option :label="t('accommodation.cleaningTaskList.statusLabels.completed')" value="completed" />
+            <el-option
+              :label="t('accommodation.cleaningTaskList.statusLabels.expired')"
+              value="expired"
+            />
+            <el-option
+              :label="t('accommodation.cleaningTaskList.statusLabels.pending')"
+              value="pending"
+            />
+            <el-option
+              :label="t('accommodation.cleaningTaskList.statusLabels.assigned')"
+              value="assigned"
+            />
+            <el-option
+              :label="t('accommodation.cleaningTaskList.statusLabels.in_progress')"
+              value="in_progress"
+            />
+            <el-option
+              :label="t('accommodation.cleaningTaskList.statusLabels.completed')"
+              value="completed"
+            />
           </el-select>
 
           <span class="filter-label">{{ t('accommodation.common.roomType') }}</span>
@@ -72,9 +97,13 @@
 
           <div class="filter-actions">
             <el-button link type="primary" @click="handleCollapse">
-              {{ isCollapsed ? t('accommodation.common.expand') : t('accommodation.common.collapse') }}
+              {{
+                isCollapsed ? t('accommodation.common.expand') : t('accommodation.common.collapse')
+              }}
             </el-button>
-            <el-button type="primary" @click="handleExport">{{ t('accommodation.common.exportDetails') }}</el-button>
+            <el-button type="primary" @click="handleExport">{{
+              t('accommodation.common.exportDetails')
+            }}</el-button>
           </div>
         </div>
       </div>
@@ -83,9 +112,21 @@
     <!-- 任务列表表格 -->
     <el-card class="table-card">
       <el-table :data="taskList" border style="width: 100%" v-loading="loading">
-        <el-table-column prop="taskDate" :label="t('accommodation.cleaning.taskDate')" width="120" />
-        <el-table-column prop="roomType" :label="t('accommodation.cleaning.roomType')" width="120" />
-        <el-table-column prop="roomNumber" :label="t('accommodation.cleaning.roomNumber')" width="100" />
+        <el-table-column
+          prop="taskDate"
+          :label="t('accommodation.cleaning.taskDate')"
+          width="120"
+        />
+        <el-table-column
+          prop="roomType"
+          :label="t('accommodation.cleaning.roomType')"
+          width="120"
+        />
+        <el-table-column
+          prop="roomNumber"
+          :label="t('accommodation.cleaning.roomNumber')"
+          width="100"
+        />
         <el-table-column prop="taskStatus" :label="t('accommodation.common.status')" width="120">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.taskStatus)" size="small">
@@ -121,7 +162,9 @@
 
       <!-- 分页 -->
       <div class="pagination-container">
-        <div class="pagination-info">{{ t('accommodation.common.totalCount', { count: pagination.total }) }}</div>
+        <div class="pagination-info">
+          {{ t('accommodation.common.totalCount', { count: pagination.total }) }}
+        </div>
         <el-pagination
           v-model:current-page="pagination.current"
           v-model:page-size="pagination.size"
@@ -135,20 +178,38 @@
     </el-card>
 
     <!-- 任务详情对话框 -->
-    <el-dialog v-model="detailDialogVisible" :title="t('accommodation.cleaning.taskDetail')" width="600px">
+    <el-dialog
+      v-model="detailDialogVisible"
+      :title="t('accommodation.cleaning.taskDetail')"
+      width="600px"
+    >
       <el-descriptions v-if="taskDetail" :column="2" border>
-        <el-descriptions-item :label="t('accommodation.cleaning.taskDate')">{{ taskDetail.taskDate }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.cleaning.roomType')">{{ taskDetail.roomType }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.cleaning.roomNumber')">{{ taskDetail.roomNumber }}</el-descriptions-item>
+        <el-descriptions-item :label="t('accommodation.cleaning.taskDate')">{{
+          taskDetail.taskDate
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="t('accommodation.cleaning.roomType')">{{
+          taskDetail.roomType
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="t('accommodation.cleaning.roomNumber')">{{
+          taskDetail.roomNumber
+        }}</el-descriptions-item>
         <el-descriptions-item :label="t('accommodation.common.status')">
           <el-tag :type="getStatusType(taskDetail.taskStatus)" size="small">
             {{ getStatusText(taskDetail.taskStatus) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.taskType')">{{ getTaskTypeText(taskDetail.taskType) }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.taskTime')">{{ taskDetail.taskTime }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.cleaner')">{{ taskDetail.cleaner || '-' }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.approver')">{{ taskDetail.approver || '-' }}</el-descriptions-item>
+        <el-descriptions-item :label="t('accommodation.common.taskType')">{{
+          getTaskTypeText(taskDetail.taskType)
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="t('accommodation.common.taskTime')">{{
+          taskDetail.taskTime
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="t('accommodation.common.cleaner')">{{
+          taskDetail.cleaner || '-'
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="t('accommodation.common.approver')">{{
+          taskDetail.approver || '-'
+        }}</el-descriptions-item>
         <el-descriptions-item :label="t('accommodation.cleaning.createTime')" :span="2">{{
           taskDetail.createTime
         }}</el-descriptions-item>
@@ -165,7 +226,12 @@
         style="margin-top: 16px"
       >
         <el-form-item :label="t('accommodation.common.cleaner')" required>
-          <el-select v-model="assignCleanerId" :placeholder="t('accommodation.cleaningTaskList.assignCleanerPlaceholder')" style="width: 100%" filterable>
+          <el-select
+            v-model="assignCleanerId"
+            :placeholder="t('accommodation.cleaningTaskList.assignCleanerPlaceholder')"
+            style="width: 100%"
+            filterable
+          >
             <el-option
               v-for="cleaner in cleanerList"
               :key="cleaner.id"
@@ -176,7 +242,9 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="detailDialogVisible = false">{{ t('accommodation.common.close') }}</el-button>
+        <el-button @click="detailDialogVisible = false">{{
+          t('accommodation.common.close')
+        }}</el-button>
         <el-button
           v-if="taskDetail && taskDetail.taskStatus === 'pending'"
           type="primary"
@@ -214,8 +282,14 @@ import {
   type CleaningTaskDTO,
 } from '@/api/cleaning'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
-import { addDaysToYmd, getStoreTodayYmd } from '@/utils/storeDateTime'
-const { t, locale } = useI18n()
+import {
+  addDaysToYmd,
+  formatBackendDateTime,
+  formatStoreTime,
+  getStoreTodayYmd,
+  resolveStoreTimeZoneFromStorage,
+} from '@/utils/storeDateTime'
+const { t } = useI18n()
 
 // 是否收起筛选
 const isCollapsed = ref(false)
@@ -272,18 +346,7 @@ const taskDetail = ref<TaskListItem | null>(null)
 const cleanerList = ref<CleanerDTO[]>([])
 const assignCleanerId = ref<number | undefined>(undefined)
 
-const dateTimeLocale = () => {
-  switch (locale.value) {
-    case 'zh-TW':
-      return 'zh-TW'
-    case 'en':
-      return 'en-US'
-    case 'ja':
-      return 'ja-JP'
-    default:
-      return 'zh-CN'
-  }
-}
+const currentStoreTimeZone = () => resolveStoreTimeZoneFromStorage()
 
 // 获取状态类型
 const getStatusType = (status: string) => {
@@ -337,20 +400,11 @@ const getTaskTypeText = (taskType: string) => {
 // 格式化任务时间
 const formatTaskTime = (task: CleaningTaskDTO) => {
   if (task.startTime && task.completeTime) {
-    const start = new Date(task.startTime).toLocaleTimeString(dateTimeLocale(), {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    const end = new Date(task.completeTime).toLocaleTimeString(dateTimeLocale(), {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    const start = formatStoreTime(task.startTime, currentStoreTimeZone())
+    const end = formatStoreTime(task.completeTime, currentStoreTimeZone())
     return `${start}-${end}`
   } else if (task.estimatedTime) {
-    return new Date(task.estimatedTime).toLocaleTimeString(dateTimeLocale(), {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    return formatStoreTime(task.estimatedTime, currentStoreTimeZone())
   }
   return '-'
 }
@@ -358,7 +412,7 @@ const formatTaskTime = (task: CleaningTaskDTO) => {
 // 格式化日期时间
 const formatDateTime = (datetime?: string) => {
   if (!datetime) return '-'
-  return new Date(datetime).toLocaleString(dateTimeLocale())
+  return formatBackendDateTime(datetime, currentStoreTimeZone(), true)
 }
 
 // 转换API数据到列表项
@@ -480,7 +534,7 @@ const handleExport = () => {
       item.remark || '-',
     ]
       .map((cell) => escapeCsvCell(String(cell)))
-      .join(',')
+      .join(','),
   )
 
   const csvContent = [headers.join(','), ...rows].join('\n')
@@ -605,7 +659,7 @@ watch(
   () => {
     pagination.value.current = 1
     loadTasks()
-  }
+  },
 )
 
 // 页面加载时获取数据

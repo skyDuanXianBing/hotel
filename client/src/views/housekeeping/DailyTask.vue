@@ -51,12 +51,7 @@
     </div>
 
     <div class="task-list">
-      <div
-        v-for="task in taskList"
-        :key="task.id"
-        class="task-card"
-        @click="handleTaskClick(task)"
-      >
+      <div v-for="task in taskList" :key="task.id" class="task-card" @click="handleTaskClick(task)">
         <div class="task-status" :class="task.status">
           {{ getStatusText(task.status) }}
         </div>
@@ -70,7 +65,10 @@
         </div>
       </div>
 
-      <el-empty v-if="taskList.length === 0" :description="t('pages.housekeepingDailyTask.empty')" />
+      <el-empty
+        v-if="taskList.length === 0"
+        :description="t('pages.housekeepingDailyTask.empty')"
+      />
     </div>
 
     <footer class="task-footer">
@@ -90,10 +88,11 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Calendar, Filter, House, Refresh, Search } from '@element-plus/icons-vue'
 import TaskDetailDialog from './components/TaskDetailDialog.vue'
+import { getStoreTodayYmd } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
 
-const selectedDate = ref(new Date().toISOString().split('T')[0])
+const selectedDate = ref(getStoreTodayYmd())
 const searchKeyword = ref('')
 const showTaskDetail = ref(false)
 const selectedTask = ref<any>(null)
@@ -112,9 +111,15 @@ const taskList = ref([
 ])
 
 const totalTasks = computed(() => taskList.value.length)
-const completedTasks = computed(() => taskList.value.filter((item) => item.status === 'completed').length)
-const expiredTasks = computed(() => taskList.value.filter((item) => item.status === 'expired').length)
-const remainingTasks = computed(() => taskList.value.filter((item) => item.status === 'pending').length)
+const completedTasks = computed(
+  () => taskList.value.filter((item) => item.status === 'completed').length,
+)
+const expiredTasks = computed(
+  () => taskList.value.filter((item) => item.status === 'expired').length,
+)
+const remainingTasks = computed(
+  () => taskList.value.filter((item) => item.status === 'pending').length,
+)
 
 const getStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
