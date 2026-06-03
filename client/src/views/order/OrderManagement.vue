@@ -151,6 +151,17 @@
               @change="handleDateRangeChange"
             />
           </div>
+          <div v-else-if="isTodayOperationTab" class="filter-group date-filter-group single-date-filter">
+            <span class="filter-label">{{ todayOperationDateLabel }}</span>
+            <el-date-picker
+              v-model="operationDate"
+              type="date"
+              :placeholder="todayOperationDateLabel"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              @change="handleFilterChange"
+            />
+          </div>
         </div>
 
         <!-- 第二行：详细筛选器 -->
@@ -757,6 +768,8 @@ const mapTypeToTab = (type: string) => {
 
 const searchQuery = ref('')
 const dateRange = ref<[string, string] | null>(null)
+const getTodayDate = () => getStoreTodayYmd(currentStoreTimeZone.value)
+const operationDate = ref<string | null>(getTodayDate())
 const showAdvancedFilters = ref(true)
 const loading = ref(false)
 const channelOptions = ref<Array<{ label: string; value: string }>>([])
@@ -809,6 +822,23 @@ const pendingCount = computed(() => {
   return statistics.value.pendingCount
 })
 
+const isTodayOperationTab = computed(() =>
+  ['today-checkin', 'today-checkout', 'today-new'].includes(activeOrderTab.value),
+)
+
+const todayOperationDateLabel = computed(() => {
+  switch (activeOrderTab.value) {
+    case 'today-checkin':
+      return t('order.filters.todayCheckinDate')
+    case 'today-checkout':
+      return t('order.filters.todayCheckoutDate')
+    case 'today-new':
+      return t('order.filters.todayNewDate')
+    default:
+      return t('order.filters.operationDate')
+  }
+})
+
 // API方法
 const loadReservations = async () => {
   loading.value = true
@@ -828,9 +858,10 @@ const loadReservations = async () => {
       checkinType: filters.value.checkinType || undefined,
       status: filters.value.status || undefined,
       paymentStatus: filters.value.paymentStatus || undefined,
-      startDate: dateRange.value?.[0] || undefined,
-      endDate: dateRange.value?.[1] || undefined,
+      startDate: activeOrderTab.value === 'all' ? dateRange.value?.[0] || undefined : undefined,
+      endDate: activeOrderTab.value === 'all' ? dateRange.value?.[1] || undefined : undefined,
       orderType: activeOrderTab.value !== 'all' ? activeOrderTab.value : undefined,
+      operationDate: isTodayOperationTab.value ? operationDate.value || getTodayDate() : undefined,
     }
 
     const response = await getReservationsWithFilters(filterParams)
@@ -1535,6 +1566,10 @@ onMounted(() => {
 
 .date-filter-group .el-date-editor {
   width: 280px;
+}
+
+.single-date-filter .el-date-editor {
+  width: 160px;
 }
 
 .filter-actions {

@@ -107,6 +107,7 @@ const navItems = computed<NavItem[]>(() => {
       visible: canAccessAccommodation.value,
     },
     { labelKey: 'nav.channel', path: '/channel', visible: canAccessChannel.value },
+    { labelKey: 'nav.messages', path: '/messages', visible: true },
     { labelKey: 'nav.order', path: '/order', visible: canAccessOrder.value },
     {
       labelKey: 'nav.statistics',
@@ -123,6 +124,15 @@ const navItems = computed<NavItem[]>(() => {
 
   return items.filter((item) => item.visible)
 })
+
+const chatUnreadCount = computed(() => {
+  const count = Number(notificationCenterStore.chatUnreadCount || 0)
+  return Number.isFinite(count) && count > 0 ? count : 0
+})
+
+const formattedChatUnreadCount = computed(() =>
+  chatUnreadCount.value > 99 ? '99+' : String(chatUnreadCount.value)
+)
 
 onMounted(() => {
   if (localStorage.getItem('token')) {
@@ -301,7 +311,12 @@ const handleLogout = async () => {
           class="nav-menu"
         >
           <el-menu-item v-for="item in navItems" :key="item.path" :index="item.path">
-            {{ t(item.labelKey) }}
+            <span class="nav-item-content">
+              <span class="nav-item-label">{{ t(item.labelKey) }}</span>
+              <span v-if="item.path === '/messages' && chatUnreadCount > 0" class="nav-unread-badge">
+                {{ formattedChatUnreadCount }}
+              </span>
+            </span>
           </el-menu-item>
         </el-menu>
       </nav>
@@ -310,8 +325,11 @@ const handleLogout = async () => {
         <div class="user-actions">
           <LanguageSwitcher />
           <el-dropdown trigger="hover" placement="bottom">
-            <el-button text>
+            <el-button text class="inbox-trigger-button">
               <el-icon><Message /></el-icon>
+              <span v-if="chatUnreadCount > 0" class="icon-unread-badge">
+                {{ formattedChatUnreadCount }}
+              </span>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
@@ -581,6 +599,42 @@ const handleLogout = async () => {
   border-bottom: 2px solid transparent;
 }
 
+.nav-item-content {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.nav-item-label {
+  display: inline-block;
+}
+
+.nav-unread-badge,
+.icon-unread-badge {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ff2b35;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 1px #fff;
+  pointer-events: none;
+}
+
+.nav-unread-badge {
+  position: absolute;
+  top: -10px;
+  right: -11px;
+}
+
 .nav-menu .el-menu-item.is-active {
   color: #1890ff;
   border-bottom-color: #1890ff;
@@ -614,6 +668,18 @@ const handleLogout = async () => {
 
 .action-icon:hover {
   color: #1890ff;
+}
+
+.inbox-trigger-button {
+  position: relative;
+  overflow: visible;
+}
+
+.icon-unread-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  transform: translate(35%, -35%);
 }
 
 .layout-main {

@@ -14,6 +14,11 @@
 
       <div v-else class="card">
         <div class="meta">
+          <div class="meta-actions">
+            <el-button size="small" :disabled="!detail" @click="previewForm">
+              {{ t('stage5.common.actions.preview') }}
+            </el-button>
+          </div>
           <div><b>{{ t('stage5.dataCenter.detail.metaOrderNumber') }}</b>{{ detail.channelOrderNumber || detail.orderNumber }}</div>
           <div><b>{{ t('stage5.dataCenter.detail.metaGuest') }}</b>{{ detail.guestName }}</div>
           <div><b>{{ t('stage5.dataCenter.detail.metaDate') }}</b>{{ detail.checkInDate }} ~ {{ detail.checkOutDate }}</div>
@@ -60,7 +65,32 @@
           <div class="section-title">{{ t('stage5.dataCenter.detail.reviewAction') }}</div>
           <el-input v-model="note" type="textarea" :rows="3" :placeholder="t('stage5.dataCenter.detail.notePlaceholder')" />
           <div class="approve-message">
-            <div class="approve-message__label">{{ t('stage5.dataCenter.detail.approveMessageLabel') }}</div>
+            <div class="approve-message__header">
+              <div class="approve-message__label">{{ t('stage5.dataCenter.detail.approveMessageLabel') }}</div>
+              <div class="approve-message__tools">
+                <el-select
+                  v-model="reviewQuickReplyId"
+                  size="small"
+                  filterable
+                  clearable
+                  :placeholder="t('stage5.dataCenter.detail.selectQuickReply')"
+                  class="approve-message__quick-select"
+                  :loading="quickReplyLoading"
+                  @change="applyReviewQuickReply"
+                >
+                  <el-option v-for="q in quickReplies" :key="q.id" :label="q.title" :value="q.id" />
+                </el-select>
+                <el-tooltip :content="t('stage5.common.actions.refresh')" placement="top">
+                  <el-button
+                    size="small"
+                    circle
+                    :icon="Refresh"
+                    :loading="quickReplyLoading"
+                    @click="loadQuickReplies"
+                  />
+                </el-tooltip>
+              </div>
+            </div>
             <el-input
               v-model="approveMessage"
               type="textarea"
@@ -149,14 +179,40 @@
         </div>
       </div>
     </div>
+
+    <el-dialog
+      v-model="previewDialogVisible"
+      :title="t('stage5.common.actions.preview')"
+      width="90%"
+      class="preview-dialog"
+      append-to-body
+      destroy-on-close
+    >
+      <div class="preview-content">
+        <div v-for="guest in previewData" :key="guest.guestIndex" class="preview-guest">
+          <div class="preview-guest-title">{{ t('stage5.publicRegistration.common.guest') }} {{ guest.guestIndex }}</div>
+          <div class="preview-fields">
+            <div v-for="(field, idx) in guest.fields" :key="idx" class="preview-field">
+              <div class="preview-label">{{ field.label }}</div>
+              <div class="preview-value">{{ field.value }}</div>
+            </div>
+          </div>
+          <div v-if="guest.passportUrl" class="preview-passport">
+            <div class="preview-passport-title">{{ t('stage5.publicRegistration.form.passportPhoto') }}</div>
+            <img :src="guest.passportUrl" :alt="t('stage5.publicRegistration.form.passportPhoto')" class="preview-passport-img" />
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </StatisticsLayout>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import axios from 'axios'
 
@@ -165,6 +221,7 @@ type Detail = {
   orderNumber: string
   channelOrderNumber?: string
   status: string
+  reservationStatus?: string | null
   guestName: string
   checkInDate: string
   checkOutDate: string
@@ -186,7 +243,27 @@ type Detail = {
   }>
 }
 
+type DetailGuest = {
+  id?: number
+  sortOrder?: number
+  firstName?: string
+  lastName?: string
+  birthday?: string
+  nationality?: string
+  residenceType?: string
+  address?: string
+  phone?: string
+  passportNumber?: string
+  priorStay?: string
+  nextDestination?: string
+}
+
 type QuickReplyItem = { id: number; title: string; message: string }
+type PreviewGuestItem = {
+  guestIndex: number
+  fields: Array<{ label: string; value: string }>
+  passportUrl?: string
+}
 type RegistrationMessageLogResponse = {
   success: boolean
   message?: string
@@ -205,6 +282,10 @@ const loading = ref(false)
 const acting = ref(false)
 const note = ref('')
 const approveMessage = ref('')
+const reviewQuickReplyId = ref<number | null>(null)
+const isCancelledReservation = computed(() => detail.value?.reservationStatus === 'CANCELLED')
+const previewDialogVisible = ref(false)
+const previewData = ref<PreviewGuestItem[]>([])
 
 const sending = ref(false)
 const sendType = ref<'APPROVED_INFO' | 'REJECT_REQUEST' | 'REMINDER'>('APPROVED_INFO')
@@ -251,9 +332,24 @@ function applyQuickReply(id: number | null) {
   const found = quickReplies.value.find((q) => q.id === id)
   if (!found) return
   // append with a blank line separator
-  const base = sendContent.value?.trim() ? sendContent.value.trim() + '\n\n' : ''
-  sendContent.value = base + (found.message || '')
+  sendContent.value = appendQuickReplyContent(sendContent.value, found.message || '')
   quickReplyId.value = null
+}
+
+function appendQuickReplyContent(currentContent: string, quickReplyContent: string) {
+  if (!quickReplyContent) {
+    return currentContent
+  }
+  const base = currentContent?.trim() ? `${currentContent.trim()}\n\n` : ''
+  return base + quickReplyContent
+}
+
+function applyReviewQuickReply(id: number | null) {
+  if (!id) return
+  const found = quickReplies.value.find((q) => q.id === id)
+  if (!found) return
+  approveMessage.value = appendQuickReplyContent(approveMessage.value, found.message || '')
+  reviewQuickReplyId.value = null
 }
 
 function fillDefaultTemplate() {
@@ -312,8 +408,28 @@ function back() {
   router.back()
 }
 
+async function sendReviewActionMessage(type: 'APPROVED_INFO' | 'REJECT_REQUEST', content: string) {
+  if (!detail.value) {
+    return ''
+  }
+
+  const resp = (await request.post(`/registrations/${detail.value.formId}/messages/send`, {
+    type,
+    content,
+    senderName: t('stage5.dataCenter.detail.frontDesk'),
+  })) as RegistrationMessageLogResponse
+  const messageSendStatus = resp.data?.sendStatus || ''
+  lastSendStatus.value = messageSendStatus
+  approveMessage.value = ''
+  return messageSendStatus
+}
+
 async function approve() {
   if (!detail.value) return
+  if (isCancelledReservation.value) {
+    ElMessage.warning(t('stage5.dataCenter.registrations.cancelled'))
+    return
+  }
   acting.value = true
   const messageContent = approveMessage.value.trim()
   let messageSendError = ''
@@ -322,14 +438,7 @@ async function approve() {
     await request.post(`/registrations/${detail.value.formId}/approve`, { note: note.value })
     if (messageContent) {
       try {
-        const resp = (await request.post(`/registrations/${detail.value.formId}/messages/send`, {
-          type: 'APPROVED_INFO',
-          content: messageContent,
-          senderName: t('stage5.dataCenter.detail.frontDesk'),
-        })) as RegistrationMessageLogResponse
-        messageSendStatus = resp.data?.sendStatus || ''
-        lastSendStatus.value = messageSendStatus
-        approveMessage.value = ''
+        messageSendStatus = await sendReviewActionMessage('APPROVED_INFO', messageContent)
       } catch (sendError: any) {
         messageSendError =
           sendError?.response?.data?.message || sendError?.message || t('stage5.dataCenter.detail.sendFailed')
@@ -355,11 +464,35 @@ async function approve() {
 
 async function reject() {
   if (!detail.value) return
+  if (isCancelledReservation.value) {
+    ElMessage.warning(t('stage5.dataCenter.registrations.cancelled'))
+    return
+  }
   acting.value = true
+  const messageContent = approveMessage.value.trim()
+  let messageSendError = ''
+  let messageSendStatus = ''
   try {
     await request.post(`/registrations/${detail.value.formId}/reject`, { note: note.value })
-    ElMessage.success(t('stage5.dataCenter.detail.rejectSuccess'))
+    if (messageContent) {
+      try {
+        messageSendStatus = await sendReviewActionMessage('REJECT_REQUEST', messageContent)
+      } catch (sendError: any) {
+        messageSendError =
+          sendError?.response?.data?.message || sendError?.message || t('stage5.dataCenter.detail.sendFailed')
+      }
+    }
+    ElMessage.success(
+      messageContent
+        ? t('stage5.dataCenter.detail.rejectWithMessageSuccess')
+        : t('stage5.dataCenter.detail.rejectSuccess'),
+    )
     await load()
+    if (messageContent && messageSendError) {
+      ElMessage.warning(t('stage5.dataCenter.detail.rejectMessageFailed', { message: messageSendError }))
+    } else if (messageContent && messageSendStatus && messageSendStatus !== 'SENT') {
+      ElMessage.warning(t('stage5.dataCenter.detail.rejectMessageStatus', { status: messageSendStatus }))
+    }
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.operationFailed'))
   } finally {
@@ -436,6 +569,75 @@ function attachmentUrl(attId: number): string {
   return `${base}/registrations/${formId()}/attachments/${attId}`
 }
 
+function passportPreviewUrl(guestId?: number) {
+  if (!detail.value || !guestId) {
+    return ''
+  }
+  const attachment = detail.value.attachments?.find(
+    (att) => att.guestId === guestId && att.type?.toUpperCase().includes('PASSPORT'),
+  )
+  return attachment ? attachmentUrl(attachment.id) : ''
+}
+
+function displayPreviewValue(value?: string | null) {
+  const normalizedValue = typeof value === 'string' ? value.trim() : ''
+  return normalizedValue || '-'
+}
+
+function getResidenceTypeLabel(residenceType?: string | null) {
+  if (!residenceType) {
+    return '-'
+  }
+  return residenceType === 'JAPAN'
+    ? t('stage5.publicRegistration.form.japan')
+    : t('stage5.publicRegistration.form.otherThanJapan')
+}
+
+function previewForm() {
+  if (!detail.value) {
+    return
+  }
+
+  previewData.value = (detail.value.guests || []).map((guest: DetailGuest, idx) => {
+    const fields: Array<{ label: string; value: string }> = []
+    fields.push({ label: t('stage5.publicRegistration.form.firstName'), value: displayPreviewValue(guest.firstName) })
+    fields.push({ label: t('stage5.publicRegistration.form.lastName'), value: displayPreviewValue(guest.lastName) })
+    fields.push({
+      label: t('stage5.publicRegistration.form.residence'),
+      value: getResidenceTypeLabel(guest.residenceType),
+    })
+    fields.push({ label: t('stage5.publicRegistration.form.birthday'), value: displayPreviewValue(guest.birthday) })
+    fields.push({ label: t('stage5.publicRegistration.form.phone'), value: displayPreviewValue(guest.phone) })
+
+    if (guest.residenceType === 'JAPAN') {
+      fields.push({ label: t('stage5.publicRegistration.form.address'), value: displayPreviewValue(guest.address) })
+    } else {
+      fields.push({
+        label: t('stage5.publicRegistration.form.passportNumber'),
+        value: displayPreviewValue(guest.passportNumber),
+      })
+      fields.push({
+        label: t('stage5.publicRegistration.form.nationality'),
+        value: displayPreviewValue(guest.nationality),
+      })
+      fields.push({ label: t('stage5.publicRegistration.form.address'), value: displayPreviewValue(guest.address) })
+      fields.push({ label: t('stage5.publicRegistration.form.priorStay'), value: displayPreviewValue(guest.priorStay) })
+      fields.push({
+        label: t('stage5.publicRegistration.form.nextDestination'),
+        value: displayPreviewValue(guest.nextDestination),
+      })
+    }
+
+    return {
+      guestIndex: idx + 1,
+      fields,
+      passportUrl: passportPreviewUrl(guest.id) || undefined,
+    }
+  })
+
+  previewDialogVisible.value = true
+}
+
 function previewAttachment(att: { id: number; originalName?: string }) {
   if (!detail.value) return
   axios
@@ -504,10 +706,16 @@ onMounted(loadQuickReplies)
   padding: 16px;
 }
 .meta {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   gap: 6px;
   margin-bottom: 12px;
+}
+.meta-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 .section {
   margin-top: 14px;
@@ -526,10 +734,28 @@ onMounted(loadQuickReplies)
   margin-top: 12px;
 }
 
+.approve-message__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .approve-message__label {
   margin-bottom: 8px;
   color: #333;
   font-weight: 600;
+}
+
+.approve-message__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.approve-message__quick-select {
+  width: 260px;
 }
 .empty {
   padding: 20px;
@@ -576,5 +802,68 @@ onMounted(loadQuickReplies)
 
 .msg-content {
   white-space: pre-wrap;
+}
+
+:deep(.preview-dialog .el-dialog__body) {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.preview-content {
+  display: grid;
+  gap: 16px;
+}
+
+.preview-guest {
+  padding: 16px;
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.preview-guest-title {
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.preview-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.preview-field {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.preview-label {
+  color: #606266;
+  font-weight: 600;
+}
+
+.preview-value {
+  color: #303133;
+  word-break: break-word;
+}
+
+.preview-passport {
+  margin-top: 16px;
+}
+
+.preview-passport-title {
+  margin-bottom: 8px;
+  color: #606266;
+  font-weight: 600;
+}
+
+.preview-passport-img {
+  display: block;
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid #dcdfe6;
 }
 </style>

@@ -32,6 +32,7 @@ const zhCN = mergeLocaleMessages(
       home: '首页',
       accommodation: '房态',
       channel: '渠道',
+      messages: '消息',
       order: '订单',
       statistics: '统计',
       review: '审查',

@@ -261,6 +261,9 @@
               :value="option.value"
             />
           </el-select>
+          <div class="translation-setting-desc">
+            {{ t('stage6.components.messagesPage.translation.resultCacheDescription') }}
+          </div>
         </div>
       </div>
 
@@ -285,40 +288,56 @@
       :close-on-click-modal="false"
       class="ai-draft-dialog"
     >
-      <div class="ai-draft-section">
-        <div class="ai-draft-label">
-          {{ t('stage6.components.messagesPage.aiDraft.contextSummary') }}
+      <div class="ai-draft-section ai-draft-main-section">
+        <div class="ai-draft-toolbar">
+          <div class="ai-draft-label">
+            {{
+              aiDraftViewMode === 'system'
+                ? t('stage6.components.messagesPage.aiDraft.systemLanguageVersionTitle', {
+                    language: currentSystemLanguageLabel,
+                  })
+                : t('stage6.components.messagesPage.aiDraft.initialDraft')
+            }}
+          </div>
+          <el-radio-group
+            v-model="aiDraftViewMode"
+            size="small"
+            @change="handleAiDraftViewModeChange"
+          >
+            <el-radio-button label="draft">
+              {{ t('stage6.components.messagesPage.aiDraft.editDraft') }}
+            </el-radio-button>
+            <el-radio-button label="system" :disabled="isAiGeneratingDraft || !aiDraftReply.trim()">
+              {{ t('stage6.components.messagesPage.aiDraft.viewSystemLanguage') }}
+            </el-radio-button>
+          </el-radio-group>
         </div>
-        <el-input v-model="aiContextSummary" type="textarea" :rows="4" />
-      </div>
-      <div class="ai-draft-section">
-        <div class="ai-draft-label">
-          {{ t('stage6.components.messagesPage.aiDraft.initialDraft') }}
+        <div
+          class="ai-draft-input-shell"
+          v-loading="isAiGeneratingDraft || (aiDraftViewMode === 'system' && isAiTranslatingDraft)"
+        >
+          <el-input
+            v-if="aiDraftViewMode === 'draft'"
+            v-model="aiDraftReply"
+            type="textarea"
+            :rows="8"
+            :placeholder="t('stage6.components.messagesPage.aiDraft.initialDraftPlaceholder')"
+            @input="handleAiDraftReplyInput"
+          />
+          <el-input
+            v-else
+            v-model="aiDraftSystemLanguageVersion"
+            type="textarea"
+            :rows="8"
+            readonly
+            :placeholder="
+              t('stage6.components.messagesPage.aiDraft.systemLanguageVersionPlaceholder')
+            "
+          />
         </div>
-        <el-input
-          v-model="aiDraftReply"
-          type="textarea"
-          :rows="7"
-          :placeholder="t('stage6.components.messagesPage.aiDraft.initialDraftPlaceholder')"
-        />
-      </div>
-      <div class="ai-draft-section">
-        <div class="ai-draft-label">
-          {{
-            t('stage6.components.messagesPage.aiDraft.systemLanguageVersionTitle', {
-              language: currentSystemLanguageLabel,
-            })
-          }}
+        <div v-if="aiDraftViewMode === 'system'" class="ai-draft-reference-hint">
+          {{ t('stage6.components.messagesPage.aiDraft.systemLanguageReferenceHint') }}
         </div>
-        <el-input
-          v-model="aiDraftSystemLanguageVersion"
-          type="textarea"
-          :rows="5"
-          readonly
-          :placeholder="
-            t('stage6.components.messagesPage.aiDraft.systemLanguageVersionPlaceholder')
-          "
-        />
       </div>
       <div class="ai-draft-section ai-draft-section-divider">
         <div class="ai-draft-label">
@@ -363,7 +382,7 @@
         }}</el-button>
         <el-button
           type="primary"
-          :disabled="!aiDraftReply.trim() || isSending"
+          :disabled="!aiDraftReply.trim() || isSending || isAiGeneratingDraft"
           :loading="isSending"
           @click="sendAiDraftReply"
         >
@@ -477,6 +496,12 @@ import {
   renderQuickReplyTemplate,
   type QuickReplyTemplateContext,
 } from '@/utils/quickReplyTemplate'
+import {
+  clearExpiredTranslationCache,
+  getCachedTranslation,
+  setCachedTranslation,
+  type TranslationCacheScope,
+} from '@/utils/translationCache'
 import { useStoreStore } from '@/stores/store'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { LANGUAGE_OPTIONS, getStoreOptionLabel } from '@/constants/storeOptions'
@@ -524,6 +549,8 @@ interface AiPolishItem {
   content: string
 }
 
+type AiDraftViewMode = 'draft' | 'system'
+
 interface ApiResponse<T> {
   success?: boolean
   message?: string
@@ -552,6 +579,11 @@ const SCROLL_TRANSLATION_DEBOUNCE_MS = 220
 const TRANSLATION_SETTINGS_STORAGE_KEY = 'messages.translation.settings'
 const TRANSLATION_LANGUAGE_VALUES = ['zh-CN', 'en', 'ja', 'ko'] as const
 type TranslationLanguageValue = (typeof TRANSLATION_LANGUAGE_VALUES)[number]
+interface TranslationRunResult {
+  attempted: number
+  failed: number
+  errorMessage?: string
+}
 
 const truncateText = (content: string, maxChars: number) => {
   if (content.length <= maxChars) {
@@ -580,6 +612,23 @@ const resolveAiErrorMessage = (error: unknown, fallbackMessage: string) => {
   return fallbackMessage
 }
 
+const createTranslationRunResult = (): TranslationRunResult => ({
+  attempted: 0,
+  failed: 0,
+})
+
+const mergeTranslationRunResults = (
+  current: TranslationRunResult,
+  next: TranslationRunResult,
+): TranslationRunResult => ({
+  attempted: current.attempted + next.attempted,
+  failed: current.failed + next.failed,
+  errorMessage: current.errorMessage || next.errorMessage,
+})
+
+const resolveTranslationFailureMessage = () =>
+  t('stage6.components.messagesPage.errors.translationFailed')
+
 const searchQuery = ref('')
 const activeThreadId = ref<number | null>(null)
 const newMessage = ref('')
@@ -590,9 +639,12 @@ const isSending = ref(false)
 const isAiGeneratingDraft = ref(false)
 const isAiPolishing = ref(false)
 const aiDraftDialogVisible = ref(false)
+const aiDraftViewMode = ref<AiDraftViewMode>('draft')
 const aiContextSummary = ref('')
 const aiDraftReply = ref('')
 const aiDraftSystemLanguageVersion = ref('')
+const aiDraftSystemLanguageSource = ref('')
+const isAiTranslatingDraft = ref(false)
 const aiPolishInstruction = ref('')
 const aiPolishHistory = ref<AiPolishItem[]>([])
 const aiAssistantSessionId = ref<string>()
@@ -624,6 +676,7 @@ let isDestroyed = false
 let localMessageSeed = -1
 let chatIncomingAudio: HTMLAudioElement | null = null
 let messageScrollTranslateTimer: number | null = null
+let aiDraftSystemLanguageRequestId = 0
 const reservationIdCache = new Map<string, number | null>()
 const translationPendingKeys = new Set<string>()
 
@@ -888,19 +941,64 @@ const syncSystemLanguageDraftVersion = async (guestFacingDraft: string) => {
   const trimmed = guestFacingDraft.trim()
   if (!trimmed) {
     aiDraftSystemLanguageVersion.value = ''
+    aiDraftSystemLanguageSource.value = ''
     return
   }
 
+  const requestId = ++aiDraftSystemLanguageRequestId
+  isAiTranslatingDraft.value = true
   try {
-    aiDraftSystemLanguageVersion.value = t(
-      'stage6.components.messagesPage.aiDraft.generatingSystemVersion',
-    )
+    aiDraftSystemLanguageVersion.value = ''
     const translated = await requestAiTranslationToLanguage(trimmed, resolveSystemLanguageAiLabel())
+    if (requestId !== aiDraftSystemLanguageRequestId) {
+      return
+    }
     aiDraftSystemLanguageVersion.value = translated || trimmed
+    aiDraftSystemLanguageSource.value = trimmed
   } catch (error) {
+    if (requestId !== aiDraftSystemLanguageRequestId) {
+      return
+    }
     console.error('Failed to generate the system language version:', error)
     aiDraftSystemLanguageVersion.value = trimmed
+    aiDraftSystemLanguageSource.value = trimmed
+  } finally {
+    if (requestId === aiDraftSystemLanguageRequestId) {
+      isAiTranslatingDraft.value = false
+    }
   }
+}
+
+const ensureSystemLanguageDraftVersion = async () => {
+  const trimmed = aiDraftReply.value.trim()
+  if (!trimmed) {
+    aiDraftSystemLanguageVersion.value = ''
+    aiDraftSystemLanguageSource.value = ''
+    return
+  }
+
+  if (aiDraftSystemLanguageSource.value === trimmed && aiDraftSystemLanguageVersion.value.trim()) {
+    return
+  }
+
+  await syncSystemLanguageDraftVersion(trimmed)
+}
+
+const handleAiDraftViewModeChange = (value: string | number | boolean | undefined) => {
+  if (value === 'system') {
+    void ensureSystemLanguageDraftVersion()
+  }
+}
+
+const handleAiDraftReplyInput = () => {
+  if (aiDraftReply.value.trim() === aiDraftSystemLanguageSource.value) {
+    return
+  }
+
+  aiDraftSystemLanguageRequestId += 1
+  isAiTranslatingDraft.value = false
+  aiDraftSystemLanguageSource.value = ''
+  aiDraftSystemLanguageVersion.value = ''
 }
 
 const ensureConversationPreviewTranslation = async (conversation: SuMessagingThreadDTO) => {
@@ -913,13 +1011,25 @@ const ensureConversationPreviewTranslation = async (conversation: SuMessagingThr
     return
   }
 
+  const sourceText = conversation.lastMessage.trim()
+  const cacheScope = getTranslationCacheScope()
+  const cachedTranslation = getCachedTranslation(cacheScope, sourceText)
+  if (cachedTranslation) {
+    translatedConversationPreviewMap.value = {
+      ...translatedConversationPreviewMap.value,
+      [key]: cachedTranslation,
+    }
+    return
+  }
+
   translationPendingKeys.add(key)
   try {
-    const translated = await requestAiTranslation(conversation.lastMessage)
+    const translated = await requestAiTranslation(sourceText)
     translatedConversationPreviewMap.value = {
       ...translatedConversationPreviewMap.value,
       [key]: translated,
     }
+    setCachedTranslation(cacheScope, sourceText, translated)
   } catch (error) {
     console.error('Failed to translate conversation preview:', error)
   } finally {
@@ -927,44 +1037,72 @@ const ensureConversationPreviewTranslation = async (conversation: SuMessagingThr
   }
 }
 
-const ensureMessageTranslation = async (message: MessageItem) => {
+const ensureMessageTranslation = async (message: MessageItem): Promise<TranslationRunResult> => {
+  const skippedResult = createTranslationRunResult()
   if (!translationEnabled.value || !message.content.trim()) {
-    return
+    return skippedResult
   }
 
   const key = getMessageTranslationKey(message)
   if (translatedMessageMap.value[key] || translationPendingKeys.has(key)) {
-    return
+    return skippedResult
+  }
+
+  const sourceText = message.content.trim()
+  const cacheScope = getTranslationCacheScope()
+  const cachedTranslation = getCachedTranslation(cacheScope, sourceText)
+  if (cachedTranslation) {
+    translatedMessageMap.value = {
+      ...translatedMessageMap.value,
+      [key]: cachedTranslation,
+    }
+    return { attempted: 1, failed: 0 }
   }
 
   translationPendingKeys.add(key)
   try {
-    const translated = await requestAiTranslation(message.content)
+    const translated = await requestAiTranslation(sourceText)
     translatedMessageMap.value = {
       ...translatedMessageMap.value,
       [key]: translated,
     }
+    setCachedTranslation(cacheScope, sourceText, translated)
+    return { attempted: 1, failed: 0 }
   } catch (error) {
     console.error('Failed to translate message:', error)
+    return {
+      attempted: 1,
+      failed: 1,
+      errorMessage: resolveTranslationFailureMessage(),
+    }
   } finally {
     translationPendingKeys.delete(key)
   }
 }
 
-const translateMessagesSequentially = async (items: MessageItem[]) => {
+const translateMessagesSequentially = async (
+  items: MessageItem[],
+  options: { stopOnError?: boolean } = {},
+) => {
+  let result = createTranslationRunResult()
   for (const message of items) {
-    await ensureMessageTranslation(message)
+    const nextResult = await ensureMessageTranslation(message)
+    result = mergeTranslationRunResults(result, nextResult)
+    if (options.stopOnError && nextResult.failed > 0) {
+      break
+    }
   }
+  return result
 }
 
-const translateCurrentConversation = async () => {
+const translateCurrentConversation = async (options: { stopOnError?: boolean } = {}) => {
   if (!translationEnabled.value) {
-    return
+    return createTranslationRunResult()
   }
   const latestMessages = sortMessagesByTime(messages.value).slice(
     -INITIAL_MESSAGE_TRANSLATION_BATCH,
   )
-  await translateMessagesSequentially(latestMessages)
+  return translateMessagesSequentially(latestMessages, options)
 }
 
 const getVisibleMessagesInViewport = () => {
@@ -1005,15 +1143,15 @@ const getVisibleMessagesInViewport = () => {
   return sortMessagesByTime(visibleItems)
 }
 
-const translateVisibleMessages = async () => {
+const translateVisibleMessages = async (options: { stopOnError?: boolean } = {}) => {
   if (!translationEnabled.value) {
-    return
+    return createTranslationRunResult()
   }
   const visibleItems = getVisibleMessagesInViewport()
   if (!visibleItems.length) {
-    return
+    return createTranslationRunResult()
   }
-  await translateMessagesSequentially(visibleItems)
+  return translateMessagesSequentially(visibleItems, options)
 }
 
 const clearMessageScrollTranslateTimer = () => {
@@ -1045,15 +1183,25 @@ const translateConversationPreviews = async () => {
 const applyTranslationSettings = async () => {
   isApplyingTranslationSettings.value = true
   try {
-    persistTranslationSettings()
-    translationDialogVisible.value = false
     if (translationEnabled.value) {
       clearTranslationCaches()
-      void translateCurrentConversation()
+      let translationResult = await translateCurrentConversation({ stopOnError: true })
       await nextTick()
-      void translateVisibleMessages()
+      if (translationResult.failed === 0) {
+        translationResult = mergeTranslationRunResults(
+          translationResult,
+          await translateVisibleMessages({ stopOnError: true }),
+        )
+      }
+      if (translationResult.failed > 0) {
+        throw new Error(translationResult.errorMessage || resolveTranslationFailureMessage())
+      }
       void translateConversationPreviews()
+    } else {
+      clearTranslationCaches()
     }
+    persistTranslationSettings()
+    translationDialogVisible.value = false
     ElMessage.success(t('stage6.components.messagesPage.translation.applySuccess'))
   } catch (error) {
     console.error('Failed to apply translation settings:', error)
@@ -1257,6 +1405,28 @@ const getCurrentStoreId = () => {
   }
 }
 
+const getCurrentUserId = () => {
+  const raw = localStorage.getItem('user')
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const user = JSON.parse(raw)
+    const id = typeof user?.id === 'number' ? user.id : Number(user?.id)
+    return Number.isFinite(id) ? id : null
+  } catch (error) {
+    console.error('Failed to parse user:', error)
+    return null
+  }
+}
+
+const getTranslationCacheScope = (): TranslationCacheScope => ({
+  storeId: getCurrentStoreId(),
+  userId: getCurrentUserId(),
+  targetLanguage: translationTargetLanguage.value,
+})
+
 const formatDateDividerLabel = (dateKey: string) => {
   const parsed = parseDateKeyUtc(dateKey)
   if (Number.isNaN(parsed.getTime())) {
@@ -1277,6 +1447,15 @@ const formatDateDividerLabel = (dateKey: string) => {
 
 const sortMessagesByTime = (list: MessageItem[]) =>
   [...list].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+
+const mergeMessagesById = (list: MessageItem[]) => {
+  const messageById = new Map<number, MessageItem>()
+  for (const message of list) {
+    const existing = messageById.get(message.id)
+    messageById.set(message.id, existing ? { ...existing, ...message } : message)
+  }
+  return sortMessagesByTime([...messageById.values()])
+}
 
 const scrollToBottom = async () => {
   await nextTick()
@@ -1313,6 +1492,7 @@ const refreshThreads = async () => {
     }
 
     conversations.value = response.data || []
+    notificationCenterStore.updateChatUnreadCountFromThreads(conversations.value)
     await ensureActiveConversation()
     await applyRouteConversationTarget()
   } catch (error) {
@@ -1332,7 +1512,7 @@ const loadThreadMessages = async (threadId: number) => {
     }
 
     const incoming = (response.data || []).map(mapMessage)
-    messages.value = sortMessagesByTime(incoming)
+    messages.value = mergeMessagesById(incoming)
     if (translationEnabled.value) {
       clearMessageTranslationCache()
       void translateCurrentConversation()
@@ -1450,13 +1630,15 @@ const openAiReplyAssistant = async () => {
 
   isAiGeneratingDraft.value = true
   aiDraftDialogVisible.value = true
+  aiDraftViewMode.value = 'draft'
   aiPolishHistory.value = []
   aiPolishInstruction.value = ''
   aiContextSummary.value = t('stage6.components.messagesPage.aiDraft.analyzingContext')
-  aiDraftReply.value = t('stage6.components.messagesPage.aiDraft.generatingInitialDraft')
-  aiDraftSystemLanguageVersion.value = t(
-    'stage6.components.messagesPage.aiDraft.generatingSystemVersion',
-  )
+  aiDraftReply.value = ''
+  aiDraftSystemLanguageVersion.value = ''
+  aiDraftSystemLanguageSource.value = ''
+  aiDraftSystemLanguageRequestId += 1
+  isAiTranslatingDraft.value = false
 
   try {
     const context = buildConversationContextForAi()
@@ -1510,6 +1692,7 @@ const openAiReplyAssistant = async () => {
     aiContextSummary.value = buildFallbackContextSummary()
     aiDraftReply.value = ''
     aiDraftSystemLanguageVersion.value = ''
+    aiDraftSystemLanguageSource.value = ''
     ElMessage.error(
       resolveAiErrorMessage(error, t('stage6.components.messagesPage.errors.aiDraftFailed')),
     )
@@ -1573,7 +1756,11 @@ const polishAiDraftReply = async () => {
     aiAssistantSessionId.value = response.data.sessionId || aiAssistantSessionId.value
     const polished = response.data.reply.trim()
     aiDraftReply.value = polished
-    await syncSystemLanguageDraftVersion(polished)
+    aiDraftViewMode.value = 'draft'
+    aiDraftSystemLanguageRequestId += 1
+    isAiTranslatingDraft.value = false
+    aiDraftSystemLanguageSource.value = ''
+    aiDraftSystemLanguageVersion.value = ''
     aiPolishHistory.value.push({
       role: 'assistant',
       content: polished,
@@ -1598,13 +1785,26 @@ const createOptimisticMessage = (content: string): MessageItem => ({
 })
 
 const replaceMessageById = (id: number, incoming: MessageItem) => {
-  const index = messages.value.findIndex((message) => message.id === id)
-  if (index < 0) {
-    messages.value.push(incoming)
-  } else {
-    messages.value[index] = incoming
+  const nextMessages: MessageItem[] = []
+  let replaced = false
+
+  for (const message of messages.value) {
+    if (message.id === id || message.id === incoming.id) {
+      if (!replaced) {
+        nextMessages.push({ ...message, ...incoming })
+        replaced = true
+      }
+      continue
+    }
+
+    nextMessages.push(message)
   }
-  messages.value = sortMessagesByTime(messages.value)
+
+  if (!replaced) {
+    nextMessages.push(incoming)
+  }
+
+  messages.value = mergeMessagesById(nextMessages)
 }
 
 const sendMessageContent = async (content: string) => {
@@ -1620,8 +1820,7 @@ const sendMessageContent = async (content: string) => {
   isSending.value = true
 
   const optimistic = createOptimisticMessage(content)
-  messages.value.push(optimistic)
-  messages.value = sortMessagesByTime(messages.value)
+  messages.value = mergeMessagesById([...messages.value, optimistic])
   await scrollToBottom()
 
   try {
@@ -1683,13 +1882,12 @@ const sendAiDraftReply = async () => {
 }
 
 const upsertMessage = (incoming: MessageItem) => {
-  const index = messages.value.findIndex((item) => item.id === incoming.id)
-  if (index >= 0) {
-    messages.value[index] = { ...messages.value[index], ...incoming }
-  } else {
-    messages.value.push(incoming)
-  }
-  messages.value = sortMessagesByTime(messages.value)
+  const existing = messages.value.find((item) => item.id === incoming.id)
+  const merged = existing ? { ...existing, ...incoming } : incoming
+  messages.value = mergeMessagesById([
+    ...messages.value.filter((item) => item.id !== incoming.id),
+    merged,
+  ])
   if (translationEnabled.value) {
     void ensureMessageTranslation(incoming)
   }
@@ -2201,6 +2399,7 @@ watch(
 )
 
 onMounted(() => {
+  clearExpiredTranslationCache()
   loadTranslationSettings()
   void initialize()
 })
@@ -2564,6 +2763,29 @@ onUnmounted(() => {
 
 .ai-draft-section {
   margin-bottom: 16px;
+}
+
+.ai-draft-main-section {
+  margin-bottom: 18px;
+}
+
+.ai-draft-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.ai-draft-input-shell {
+  min-height: 218px;
+}
+
+.ai-draft-reference-hint {
+  margin-top: 8px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .ai-draft-section-divider {

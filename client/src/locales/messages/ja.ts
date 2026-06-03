@@ -32,6 +32,7 @@ const ja = mergeLocaleMessages(
       home: 'ホーム',
       accommodation: '客室状況',
       channel: 'チャネル',
+      messages: 'メッセージ',
       order: '予約',
       statistics: '統計',
       review: '審査',

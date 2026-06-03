@@ -32,6 +32,7 @@ const en = mergeLocaleMessages(
       home: 'Home',
       accommodation: 'Room Status',
       channel: 'Channels',
+      messages: 'Messages',
       order: 'Orders',
       statistics: 'Statistics',
       review: 'Review',
