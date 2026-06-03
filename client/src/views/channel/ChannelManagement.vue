@@ -1,7 +1,7 @@
 <template>
-  <div class="channel-management">
+  <div class="channel-management" :class="{ embedded: isEmbeddedInSettings }">
     <!-- 左侧导航菜单 -->
-    <div class="sidebar" :class="{ collapsed: isCollapsed }">
+    <div v-if="!isEmbeddedInSettings" class="sidebar" :class="{ collapsed: isCollapsed }">
       <!-- 收起导航按钮 -->
       <div class="sidebar-header" @click="toggleSidebar">
         <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
@@ -134,6 +134,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Menu as MenuIcon, ArrowLeft, ArrowRight, List, Money } from '@element-plus/icons-vue'
@@ -189,6 +190,8 @@ const {
 } = useChannelData()
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 
 // Sidebar folding status
 const isCollapsed = ref(false)
@@ -200,6 +203,7 @@ const toggleSidebar = () => {
 const activeMenu = ref('channel-list')
 const showChannelSettings = ref(false)
 const selectedChannel = ref<ChannelItem | null>(null)
+const isEmbeddedInSettings = computed(() => route.path.startsWith('/settings/channel'))
 
 const isAirbnbChannel = computed(() => {
   return selectedChannel.value?.name === 'Airbnb'
@@ -253,6 +257,11 @@ const selectedOtaName = ref<string>('')
 
 /** Menu selection routing */
 const handleMenuSelect = (index: string) => {
+  if (isEmbeddedInSettings.value) {
+    router.push(index === 'price-ratio' ? '/settings/channel/price-ratio' : '/settings/channel/list')
+    return
+  }
+
   activeMenu.value = index
   if (index === 'price-ratio') {
     showChannelSettings.value = false
@@ -501,6 +510,13 @@ onMounted(() => {
   loadChannels()
   loadPmsRoomOptions()
   loadPmsPricePlanOptions()
+
+  if (isEmbeddedInSettings.value) {
+    activeMenu.value = route.path.endsWith('/price-ratio') ? 'price-ratio' : 'channel-list'
+    if (activeMenu.value === 'price-ratio') {
+      loadPriceRatioData()
+    }
+  }
 })
 
 watch(
@@ -508,6 +524,25 @@ watch(
   () => {
     if (showChannelSettings.value && selectedChannel.value) {
       loadChannelManagementData(selectedChannel.value)
+    }
+  },
+)
+
+watch(
+  () => route.path,
+  (path) => {
+    if (!isEmbeddedInSettings.value) {
+      return
+    }
+
+    const nextMenu = path.endsWith('/price-ratio') ? 'price-ratio' : 'channel-list'
+    if (activeMenu.value !== nextMenu) {
+      activeMenu.value = nextMenu
+    }
+
+    if (nextMenu === 'price-ratio') {
+      showChannelSettings.value = false
+      loadPriceRatioData()
     }
   },
 )
@@ -519,6 +554,10 @@ watch(
   height: 100vh;
   background: #f5f5f5;
   overflow: hidden;
+}
+
+.channel-management.embedded {
+  height: 100%;
 }
 
 /* 左侧导航 */
