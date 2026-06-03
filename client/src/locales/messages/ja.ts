@@ -36,6 +36,7 @@ const ja = mergeLocaleMessages(
       order: '予約',
       statistics: '統計',
       review: '審査',
+      guestReviews: 'ゲストレビュー',
       settings: '設定',
     },
     common: {
@@ -223,6 +224,7 @@ const ja = mergeLocaleMessages(
       recordTransaction: '記帳',
       guestInformationReview: 'ゲスト情報審査',
       registrationDetails: '登録詳細',
+      reviews: 'ゲストレビュー',
       businessSummary: '売上サマリー',
       channelSummary: 'チャネルサマリー',
       recordSummary: '記帳サマリー',

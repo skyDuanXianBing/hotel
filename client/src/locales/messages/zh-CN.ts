@@ -36,6 +36,7 @@ const zhCN = mergeLocaleMessages(
       order: '订单',
       statistics: '统计',
       review: '审查',
+      guestReviews: '评价',
       settings: '设置',
     },
     common: {
@@ -221,6 +222,7 @@ const zhCN = mergeLocaleMessages(
       recordTransaction: '记一笔',
       guestInformationReview: '人员信息审查',
       registrationDetails: '登记详情',
+      reviews: '评价',
       businessSummary: '营业汇总',
       channelSummary: '渠道汇总',
       recordSummary: '记一笔汇总',

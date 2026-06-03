@@ -36,6 +36,7 @@ const zhTW = mergeLocaleMessages(
       order: '訂單',
       statistics: '統計',
       review: '審查',
+      guestReviews: '評價',
       settings: '設定',
     },
     common: {
@@ -221,6 +222,7 @@ const zhTW = mergeLocaleMessages(
       recordTransaction: '記一筆',
       guestInformationReview: '人員資訊審查',
       registrationDetails: '登記詳情',
+      reviews: '評價',
       businessSummary: '營業匯總',
       channelSummary: '渠道匯總',
       recordSummary: '記一筆匯總',

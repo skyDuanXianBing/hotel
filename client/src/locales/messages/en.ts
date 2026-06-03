@@ -36,6 +36,7 @@ const en = mergeLocaleMessages(
       order: 'Orders',
       statistics: 'Statistics',
       review: 'Review',
+      guestReviews: 'Guest Reviews',
       settings: 'Settings',
     },
     common: {
@@ -224,6 +225,7 @@ const en = mergeLocaleMessages(
       recordTransaction: 'Record Transaction',
       guestInformationReview: 'Guest Information Review',
       registrationDetails: 'Registration Details',
+      reviews: 'Guest Reviews',
       businessSummary: 'Business Summary',
       channelSummary: 'Channel Summary',
       recordSummary: 'Record Summary',

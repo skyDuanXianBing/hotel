@@ -76,6 +76,10 @@ const canAccessChannel = computed(() =>
   permissionStore.hasPermission(PermissionModule.CHANNEL, PermissionAction.VIEW_CHANNELS)
 )
 
+const canAccessReviews = computed(() =>
+  permissionStore.hasPermission(PermissionModule.CHANNEL, PermissionAction.VIEW_CHANNELS)
+)
+
 const canAccessOrder = computed(() =>
   permissionStore.hasPermission(PermissionModule.ORDER, PermissionAction.VIEW_ORDERS)
 )
@@ -119,6 +123,7 @@ const navItems = computed<NavItem[]>(() => {
       path: '/data-center/registrations',
       visible: canAccessStatistics.value,
     },
+    { labelKey: 'nav.guestReviews', path: '/reviews', visible: canAccessReviews.value },
     { labelKey: 'nav.settings', path: '/settings', visible: canAccessSettings.value },
   ]
 

@@ -373,6 +373,12 @@ const router = createRouter({
           meta: { title: 'Registration Details', requiresAuth: true },
         },
         {
+          path: 'reviews',
+          name: 'Reviews',
+          component: () => import('@/views/reviews/ReviewList.vue'),
+          meta: { title: 'Guest Reviews', requiresAuth: true },
+        },
+        {
           path: 'statistics/business-summary',
           name: 'BusinessSummary',
           component: () => import('@/views/statistics/BusinessSummary.vue'),
@@ -579,6 +585,7 @@ const routePermissionConfig = new Map<
   ['DataCenterNotes', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['DataCenterRegistrations', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['DataCenterRegistrationDetail', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
+  ['Reviews', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
   ['BusinessSummary', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['ChannelSummary', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
   ['NotesSummary', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
@@ -672,6 +679,7 @@ const routeTitleKeyByName = new Map<string, string>([
   ['DataCenterNotes', 'routeTitles.recordTransaction'],
   ['DataCenterRegistrations', 'routeTitles.guestInformationReview'],
   ['DataCenterRegistrationDetail', 'routeTitles.registrationDetails'],
+  ['Reviews', 'routeTitles.reviews'],
   ['BusinessSummary', 'routeTitles.businessSummary'],
   ['ChannelSummary', 'routeTitles.channelSummary'],
   ['NotesSummary', 'routeTitles.recordSummary'],
