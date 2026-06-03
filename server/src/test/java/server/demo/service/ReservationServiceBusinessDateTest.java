@@ -278,6 +278,147 @@ class ReservationServiceBusinessDateTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void getReservationsWithFiltersTodayCheckinOrderType_shouldUseOperationDate() {
+        StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "ADMIN"));
+        when(reservationRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenAnswer(invocation -> {
+                    Specification<Reservation> specification = invocation.getArgument(0);
+                    Root<Reservation> root = mock(Root.class);
+                    CriteriaQuery<?> query = mock(CriteriaQuery.class);
+                    CriteriaBuilder criteriaBuilder = mock(CriteriaBuilder.class);
+                    Path<Long> storeIdPath = mock(Path.class);
+                    Path<LocalDate> checkInDatePath = mock(Path.class);
+                    Predicate predicate = mock(Predicate.class);
+                    LocalDate operationDate = LocalDate.of(2026, 6, 1);
+
+                    when(root.<Long>get("storeId")).thenReturn(storeIdPath);
+                    when(root.<LocalDate>get("checkInDate")).thenReturn(checkInDatePath);
+                    when(criteriaBuilder.equal(storeIdPath, STORE_ID)).thenReturn(predicate);
+                    when(criteriaBuilder.equal(checkInDatePath, operationDate)).thenReturn(predicate);
+                    when(criteriaBuilder.and(any(Predicate[].class))).thenReturn(predicate);
+
+                    specification.toPredicate(root, query, criteriaBuilder);
+
+                    verify(criteriaBuilder).equal(checkInDatePath, operationDate);
+                    return new PageImpl<Reservation>(List.of());
+                });
+
+        reservationService.getReservationsWithFilters(
+                0,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "today-checkin",
+                LocalDate.of(2026, 6, 1)
+        );
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getReservationsWithFiltersTodayCheckoutOrderType_shouldUseOperationDate() {
+        StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "ADMIN"));
+        when(reservationRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenAnswer(invocation -> {
+                    Specification<Reservation> specification = invocation.getArgument(0);
+                    Root<Reservation> root = mock(Root.class);
+                    CriteriaQuery<?> query = mock(CriteriaQuery.class);
+                    CriteriaBuilder criteriaBuilder = mock(CriteriaBuilder.class);
+                    Path<Long> storeIdPath = mock(Path.class);
+                    Path<LocalDate> checkOutDatePath = mock(Path.class);
+                    Predicate predicate = mock(Predicate.class);
+                    LocalDate operationDate = LocalDate.of(2026, 6, 1);
+
+                    when(root.<Long>get("storeId")).thenReturn(storeIdPath);
+                    when(root.<LocalDate>get("checkOutDate")).thenReturn(checkOutDatePath);
+                    when(criteriaBuilder.equal(storeIdPath, STORE_ID)).thenReturn(predicate);
+                    when(criteriaBuilder.equal(checkOutDatePath, operationDate)).thenReturn(predicate);
+                    when(criteriaBuilder.and(any(Predicate[].class))).thenReturn(predicate);
+
+                    specification.toPredicate(root, query, criteriaBuilder);
+
+                    verify(criteriaBuilder).equal(checkOutDatePath, operationDate);
+                    return new PageImpl<Reservation>(List.of());
+                });
+
+        reservationService.getReservationsWithFilters(
+                0,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "today-checkout",
+                LocalDate.of(2026, 6, 1)
+        );
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getReservationsWithFiltersTodayNewOrderType_shouldUseOperationDateWindow() {
+        StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "ADMIN"));
+        ReflectionTestUtils.setField(
+                reservationService,
+                "clock",
+                Clock.fixed(Instant.parse("2026-06-05T02:00:00Z"), ZoneOffset.UTC)
+        );
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store("Asia/Tokyo")));
+        when(reservationRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenAnswer(invocation -> {
+                    Specification<Reservation> specification = invocation.getArgument(0);
+                    Root<Reservation> root = mock(Root.class);
+                    CriteriaQuery<?> query = mock(CriteriaQuery.class);
+                    CriteriaBuilder criteriaBuilder = mock(CriteriaBuilder.class);
+                    Path<Long> storeIdPath = mock(Path.class);
+                    Path<LocalDateTime> createdAtPath = mock(Path.class);
+                    Predicate predicate = mock(Predicate.class);
+                    LocalDateTime expectedStart = LocalDateTime.of(2026, 5, 31, 23, 0);
+                    LocalDateTime expectedEnd = LocalDateTime.of(2026, 6, 1, 23, 0);
+
+                    when(root.<Long>get("storeId")).thenReturn(storeIdPath);
+                    when(root.<LocalDateTime>get("createdAt")).thenReturn(createdAtPath);
+                    when(criteriaBuilder.equal(storeIdPath, STORE_ID)).thenReturn(predicate);
+                    when(criteriaBuilder.greaterThanOrEqualTo(createdAtPath, expectedStart)).thenReturn(predicate);
+                    when(criteriaBuilder.lessThan(createdAtPath, expectedEnd)).thenReturn(predicate);
+                    when(criteriaBuilder.and(any(Predicate[].class))).thenReturn(predicate);
+
+                    specification.toPredicate(root, query, criteriaBuilder);
+
+                    verify(criteriaBuilder).greaterThanOrEqualTo(createdAtPath, expectedStart);
+                    verify(criteriaBuilder).lessThan(createdAtPath, expectedEnd);
+                    return new PageImpl<Reservation>(List.of());
+                });
+
+        reservationService.getReservationsWithFilters(
+                0,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "today-new",
+                LocalDate.of(2026, 6, 1)
+        );
+    }
+
+    @Test
     void unassignedReservations_shouldUseStoreLocalNoonCutoff() {
         StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "ADMIN"));
         ReflectionTestUtils.setField(

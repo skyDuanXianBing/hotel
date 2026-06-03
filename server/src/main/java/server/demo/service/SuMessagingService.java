@@ -175,6 +175,7 @@ public class SuMessagingService {
                     Reservation reservation = resolveReservationForThread(storeId, thread);
                     SuMessagingThreadDTO dto = new SuMessagingThreadDTO();
                     dto.setId(thread.getId());
+                    dto.setReservationId(reservation != null ? reservation.getId() : null);
                     dto.setChannelId(thread.getChannelId());
                     dto.setChannelName(resolveChannelName(thread.getChannelId()));
                     dto.setGuestName(thread.getGuestName());
@@ -204,6 +205,14 @@ public class SuMessagingService {
         }
         String roomTypeName = reservation.getRoom().getRoomType().getName();
         return roomTypeName == null || roomTypeName.isBlank() ? null : roomTypeName;
+    }
+
+    @Transactional
+    public void markThreadAsRead(Long storeId, Long threadId) {
+        SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
+                .orElseThrow(() -> new IllegalArgumentException("Thread not found or no permission"));
+
+        messageRepository.markThreadMessagesAsRead(thread.getId(), SuMessagingSenderType.GUEST);
     }
 
     @Transactional

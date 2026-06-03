@@ -836,20 +836,7 @@ public class OtaReservationSyncService {
                             reservation.getStatus() != null ? reservation.getStatus().name() : null
                     );
 
-                    if (isNew) {
-                        String bookingKey = normalizeLookupKey(reservation.getChannelOrderNumber());
-                        if (bookingKey == null) {
-                            bookingKey = orderNumber;
-                        }
-                        registrationLinkInboxService.recordIfAbsent(
-                                store.getId(),
-                                bookingKey,
-                                reservation.getGuestName(),
-                                reservation.getCheckInDate(),
-                                reservation.getCheckOutDate(),
-                                roomStayCount
-                        );
-                    }
+                    recordRegistrationLinkInboxIfAbsent(store.getId(), reservation, roomStayCount);
 
                     // Ensure SuMessageThread exists so auto-messages (BOOKING_CONFIRM/IMMEDIATELY etc.) can send
                     // without waiting for inbound messaging webhook.
@@ -983,6 +970,13 @@ public class OtaReservationSyncService {
         Optional<Channel> global = channelRepository.findByCode(channelCode);
         global.ifPresent(c -> logger.warn("Using global Channel by code (store-scoped record not found). storeId={}, code={}", storeId, channelCode));
         return global;
+    }
+
+    void recordRegistrationLinkInboxIfAbsent(Long storeId, Reservation reservation, Integer roomCount) {
+        if (registrationLinkInboxService == null) {
+            return;
+        }
+        registrationLinkInboxService.recordIfAbsent(storeId, reservation, roomCount);
     }
 
     private String limitGuestPhone(String guestPhone) {

@@ -107,7 +107,7 @@ public class BusinessStatisticsController {
      * @return 流水汇总数据
      */
     @GetMapping("/revenue-summary")
-    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
+    @RequirePermission(module = PermissionModule.SENSITIVE, action = PermissionAction.VIEW_FINANCIAL_DATA)
     public ApiResponse<RevenueSummaryDTO> getRevenueSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {

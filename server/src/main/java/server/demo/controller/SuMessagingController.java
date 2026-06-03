@@ -3,6 +3,7 @@ package server.demo.controller;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.ApiResponse;
@@ -10,6 +11,9 @@ import server.demo.dto.SuMessagingAiSettingDTO;
 import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.dto.SuMessagingThreadDTO;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
+import server.demo.service.RegistrationLinkInboxService;
 import server.demo.service.SuMessagingAiSettingService;
 import server.demo.service.SuMessagingService;
 
@@ -26,13 +30,16 @@ public class SuMessagingController {
 
     private final SuMessagingService suMessagingService;
     private final SuMessagingAiSettingService suMessagingAiSettingService;
+    private final RegistrationLinkInboxService registrationLinkInboxService;
 
     public SuMessagingController(
             SuMessagingService suMessagingService,
-            SuMessagingAiSettingService suMessagingAiSettingService
+            SuMessagingAiSettingService suMessagingAiSettingService,
+            RegistrationLinkInboxService registrationLinkInboxService
     ) {
         this.suMessagingService = suMessagingService;
         this.suMessagingAiSettingService = suMessagingAiSettingService;
+        this.registrationLinkInboxService = registrationLinkInboxService;
     }
 
     @GetMapping("/threads")
@@ -89,6 +96,35 @@ public class SuMessagingController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(ApiResponse.error("发送消息失败: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/threads/{threadId}/read")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<Void>> markThreadAsRead(@PathVariable Long threadId) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            suMessagingService.markThreadAsRead(storeId, threadId);
+            return ResponseEntity.ok(ApiResponse.success("标记消息已读成功", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("标记消息已读失败: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/link-inbox/backfill")
+    @StoreScoped
+    @RequirePermission(module = PermissionModule.ORDER, action = PermissionAction.MODIFY_ORDER)
+    public ResponseEntity<ApiResponse<RegistrationLinkInboxService.BackfillResult>> backfillLinkInbox() {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            RegistrationLinkInboxService.BackfillResult result = registrationLinkInboxService.backfillMissingForStore(storeId);
+            return ResponseEntity.ok(ApiResponse.success("回填登记链接收件箱成功", result));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("回填登记链接收件箱失败: " + e.getMessage()));
         }
     }
 

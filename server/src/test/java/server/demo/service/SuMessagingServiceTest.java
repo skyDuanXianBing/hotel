@@ -84,6 +84,7 @@ class SuMessagingServiceTest {
         List<SuMessagingThreadDTO> result = service.listThreads(10L);
 
         assertEquals(1, result.size());
+        assertEquals(11L, result.get(0).getReservationId());
         assertEquals(LocalDate.of(2026, 4, 18), result.get(0).getCheckInDate());
         assertEquals(LocalDate.of(2026, 4, 22), result.get(0).getCheckOutDate());
         assertEquals("Deluxe Twin", result.get(0).getRoomTypeName());
@@ -139,9 +140,43 @@ class SuMessagingServiceTest {
         List<SuMessagingThreadDTO> result = service.listThreads(26L);
 
         assertEquals(1, result.size());
+        assertEquals(144L, result.get(0).getReservationId());
         assertEquals(LocalDate.of(2026, 4, 29), result.get(0).getCheckInDate());
         assertEquals(LocalDate.of(2026, 5, 3), result.get(0).getCheckOutDate());
         verify(reservationRepository).findByStoreIdAndOrderNumberContainingWithRoomType(26L, "HM855QW52K");
+    }
+
+    @Test
+    void markThreadAsRead_shouldClearGuestUnreadForStoreThread() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver = new ReservationBookingKeyResolver(reservationRepository);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        SuMessagingService service = new SuMessagingService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                reservationBookingKeyResolver,
+                suApiClient,
+                suAccessTokenService,
+                objectMapper,
+                realtimeGateway
+        );
+
+        SuMessageThread thread = new SuMessageThread();
+        thread.setId(5L);
+        thread.setStoreId(10L);
+
+        when(threadRepository.findByStoreIdAndId(10L, 5L)).thenReturn(Optional.of(thread));
+
+        service.markThreadAsRead(10L, 5L);
+
+        verify(messageRepository).markThreadMessagesAsRead(5L, SuMessagingSenderType.GUEST);
     }
 
     @Test

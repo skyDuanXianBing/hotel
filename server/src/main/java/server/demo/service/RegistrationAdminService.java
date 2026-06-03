@@ -18,6 +18,10 @@ import java.util.List;
 
 @Service
 public class RegistrationAdminService {
+    private static final String ROOM_NUMBER_FILTER_SENTINEL = "__REGISTRATION_ADMIN_EMPTY_ROOM_NUMBER_FILTER__";
+    private static final String REVIEW_CANCELLED_RESERVATION_MESSAGE = "已取消订单不能审核登记表";
+    private static final String REVIEW_SUBMITTED_ONLY_MESSAGE = "只有已提交的登记表可以审核";
+    private static final String REVIEW_STATE_CHANGED_MESSAGE = "登记表状态已变更，请刷新后重试";
 
     @Autowired
     private RegistrationFormRepository registrationFormRepository;
@@ -42,15 +46,25 @@ public class RegistrationAdminService {
             RegistrationFormStatus status,
             Long channelId,
             ReservationStatus reservationStatus,
+            List<String> roomNumbers,
+            Long roomGroupId,
             LocalDate checkInDate,
             LocalDate checkOutDate
     ) {
         Long storeId = StoreContextUtils.requireStoreId();
+        List<String> normalizedRoomNumbers = normalizeRoomNumbers(roomNumbers);
+        boolean roomNumberFilterEnabled = normalizedRoomNumbers != null;
+        List<String> queryRoomNumbers = roomNumberFilterEnabled
+                ? normalizedRoomNumbers
+                : List.of(ROOM_NUMBER_FILTER_SENTINEL);
         List<RegistrationForm> forms = registrationFormRepository.searchForAdminList(
                 storeId,
                 status,
                 channelId,
                 reservationStatus,
+                roomNumberFilterEnabled,
+                queryRoomNumbers,
+                roomGroupId,
                 checkInDate,
                 checkOutDate
         );
@@ -94,6 +108,7 @@ public class RegistrationAdminService {
         dto.setOrderNumber(form.getOrderNumber());
         dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
         dto.setStatus(form.getStatus());
+        dto.setReservationStatus(reservation.getStatus());
         dto.setSubmittedAt(form.getSubmittedAt());
         dto.setApprovedAt(form.getApprovedAt());
         dto.setRejectedAt(form.getRejectedAt());
@@ -198,6 +213,31 @@ public class RegistrationAdminService {
         return reservation.getOtaRoomNumber() == null ? "" : reservation.getOtaRoomNumber();
     }
 
+    private static List<String> normalizeRoomNumbers(List<String> roomNumbers) {
+        if (roomNumbers == null) {
+            return null;
+        }
+
+        List<String> normalized = new ArrayList<>();
+        for (String roomNumber : roomNumbers) {
+            if (roomNumber == null) {
+                continue;
+            }
+            String trimmed = roomNumber.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (!normalized.contains(trimmed)) {
+                normalized.add(trimmed);
+            }
+        }
+
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        return normalized;
+    }
+
     @Transactional
     public void approve(Long formId, AdminRegistrationReviewRequest req) {
         Long storeId = StoreContextUtils.requireStoreId();
@@ -209,16 +249,20 @@ public class RegistrationAdminService {
             throw new RuntimeException("无权限");
         }
 
-        form.setStatus(RegistrationFormStatus.APPROVED);
-        form.setApprovedAt(LocalDateTime.now());
-        form.setReviewNote(req != null ? req.getNote() : null);
-        registrationFormRepository.save(form);
+        Reservation reservation = requireReservation(form);
+        validateReviewAllowed(form, reservation);
+
+        String note = req != null ? req.getNote() : null;
+        int updated = registrationFormRepository.approveSubmitted(storeId, formId, note, LocalDateTime.now());
+        if (updated != 1) {
+            throw new RuntimeException(REVIEW_STATE_CHANGED_MESSAGE);
+        }
 
         RegistrationReviewLog log = new RegistrationReviewLog();
         log.setForm(form);
         log.setAction(RegistrationReviewAction.APPROVE);
         log.setOperatorUserId(userId);
-        log.setNote(req != null ? req.getNote() : null);
+        log.setNote(note);
         registrationReviewLogRepository.save(log);
     }
 
@@ -233,16 +277,37 @@ public class RegistrationAdminService {
             throw new RuntimeException("无权限");
         }
 
-        form.setStatus(RegistrationFormStatus.REJECTED);
-        form.setRejectedAt(LocalDateTime.now());
-        form.setReviewNote(req != null ? req.getNote() : null);
-        registrationFormRepository.save(form);
+        Reservation reservation = requireReservation(form);
+        validateReviewAllowed(form, reservation);
+
+        String note = req != null ? req.getNote() : null;
+        int updated = registrationFormRepository.rejectSubmitted(storeId, formId, note, LocalDateTime.now());
+        if (updated != 1) {
+            throw new RuntimeException(REVIEW_STATE_CHANGED_MESSAGE);
+        }
 
         RegistrationReviewLog log = new RegistrationReviewLog();
         log.setForm(form);
         log.setAction(RegistrationReviewAction.REJECT);
         log.setOperatorUserId(userId);
-        log.setNote(req != null ? req.getNote() : null);
+        log.setNote(note);
         registrationReviewLogRepository.save(log);
+    }
+
+    private Reservation requireReservation(RegistrationForm form) {
+        if (form.getReservation() == null || form.getReservation().getId() == null) {
+            throw new RuntimeException("订单不存在");
+        }
+        return reservationRepository.findById(form.getReservation().getId())
+                .orElseThrow(() -> new RuntimeException("订单不存在"));
+    }
+
+    private static void validateReviewAllowed(RegistrationForm form, Reservation reservation) {
+        if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+            throw new RuntimeException(REVIEW_CANCELLED_RESERVATION_MESSAGE);
+        }
+        if (form.getStatus() != RegistrationFormStatus.SUBMITTED) {
+            throw new RuntimeException(REVIEW_SUBMITTED_ONLY_MESSAGE);
+        }
     }
 }

@@ -4,11 +4,14 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.CreateNoteRequest;
 import server.demo.dto.NoteDTO;
 import server.demo.dto.NotesStatisticsDTO;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.service.NoteService;
 
 import java.time.LocalDate;
@@ -63,6 +66,7 @@ public class NoteController {
      * 获取记一笔统计数据
      */
     @GetMapping("/statistics")
+    @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
     public ApiResponse<NotesStatisticsDTO> getNotesStatistics(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {

@@ -1054,11 +1054,33 @@ public class ReservationService {
             String roomType, String checkinType, String status,
             String paymentStatus, String isPackage, LocalDate startDate,
             LocalDate endDate, String orderType) {
+        return getReservationsWithFilters(
+                page,
+                size,
+                searchKeyword,
+                channel,
+                roomType,
+                checkinType,
+                status,
+                paymentStatus,
+                isPackage,
+                startDate,
+                endDate,
+                orderType,
+                null
+        );
+    }
+
+    public PagedReservationResponse getReservationsWithFilters(
+            int page, int size, String searchKeyword, String channel,
+            String roomType, String checkinType, String status,
+            String paymentStatus, String isPackage, LocalDate startDate,
+            LocalDate endDate, String orderType, LocalDate operationDate) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Long storeId = currentStoreId();
-        LocalDate today = storeToday(storeId);
-        BusinessDayWindow todayWindow = storeDayWindow(storeId, today);
+        LocalDate targetTodayDate = operationDate != null ? operationDate : storeToday(storeId);
+        BusinessDayWindow todayWindow = storeDayWindow(storeId, targetTodayDate);
         LocalDate unassignedMinCheckOutDate = resolveUnassignedMinCheckOutDate(storeId);
 
         Specification<Reservation> spec = (root, query, criteriaBuilder) -> {
@@ -1146,10 +1168,10 @@ public class ReservationService {
             if (orderType != null && !orderType.trim().isEmpty()) {
                 switch (orderType) {
                     case "today-checkin":
-                        predicates.add(criteriaBuilder.equal(root.get("checkInDate"), today));
+                        predicates.add(criteriaBuilder.equal(root.get("checkInDate"), targetTodayDate));
                         break;
                     case "today-checkout":
-                        predicates.add(criteriaBuilder.equal(root.get("checkOutDate"), today));
+                        predicates.add(criteriaBuilder.equal(root.get("checkOutDate"), targetTodayDate));
                         break;
                     case "today-new":
                         predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), todayWindow.start()));

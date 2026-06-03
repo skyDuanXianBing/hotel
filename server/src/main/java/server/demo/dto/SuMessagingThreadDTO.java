@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 
 public class SuMessagingThreadDTO {
     private Long id;
+    private Long reservationId;
     private Integer channelId;
     private String channelName;
     private String guestName;
@@ -27,6 +28,14 @@ public class SuMessagingThreadDTO {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getReservationId() {
+        return reservationId;
+    }
+
+    public void setReservationId(Long reservationId) {
+        this.reservationId = reservationId;
     }
 
     public Integer getChannelId() {
@@ -149,4 +158,3 @@ public class SuMessagingThreadDTO {
         this.closed = closed;
     }
 }
-

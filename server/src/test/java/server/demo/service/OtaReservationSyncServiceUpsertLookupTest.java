@@ -234,7 +234,29 @@ class OtaReservationSyncServiceUpsertLookupTest {
         assertNull(OtaReservationSyncService.resolveModifiedAtTimestamp(reservation));
     }
 
+    @Test
+    void recordRegistrationLinkInboxIfAbsent_shouldDelegateForExistingReservationUpdate() {
+        ReservationRepository repository = mock(ReservationRepository.class);
+        RegistrationLinkInboxService registrationLinkInboxService = mock(RegistrationLinkInboxService.class);
+        OtaReservationSyncService service = createService(repository, registrationLinkInboxService);
+
+        Reservation reservation = new Reservation();
+        reservation.setId(99L);
+        reservation.setChannelOrderNumber("BOOK-UPDATE");
+
+        service.recordRegistrationLinkInboxIfAbsent(26L, reservation, 2);
+
+        verify(registrationLinkInboxService).recordIfAbsent(26L, reservation, 2);
+    }
+
     private static OtaReservationSyncService createService(ReservationRepository reservationRepository) {
+        return createService(reservationRepository, null);
+    }
+
+    private static OtaReservationSyncService createService(
+            ReservationRepository reservationRepository,
+            RegistrationLinkInboxService registrationLinkInboxService
+    ) {
         PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
         return new OtaReservationSyncService(
                 null,
@@ -250,7 +272,7 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 null,
                 null,
                 null,
-                null,
+                registrationLinkInboxService,
                 null,
                 null
         );

@@ -8,7 +8,9 @@ import server.demo.entity.RegistrationLinkInboxItem;
 import server.demo.entity.Reservation;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.RegistrationLinkInboxRepository;
+import server.demo.repository.ReservationRepository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -25,11 +27,13 @@ class RegistrationLinkInboxServiceTest {
         RegistrationLinkInboxRepository inboxRepository = Mockito.mock(RegistrationLinkInboxRepository.class);
         RegistrationLinkService registrationLinkService = Mockito.mock(RegistrationLinkService.class);
         ReservationBookingKeyResolver reservationBookingKeyResolver = Mockito.mock(ReservationBookingKeyResolver.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
 
         RegistrationLinkInboxService service = new RegistrationLinkInboxService(
                 inboxRepository,
                 registrationLinkService,
                 reservationBookingKeyResolver,
+                reservationRepository,
                 "https://example.com"
         );
 
@@ -82,11 +86,13 @@ class RegistrationLinkInboxServiceTest {
         RegistrationLinkInboxRepository inboxRepository = Mockito.mock(RegistrationLinkInboxRepository.class);
         RegistrationLinkService registrationLinkService = new RegistrationLinkService("test-secret", 90);
         ReservationBookingKeyResolver reservationBookingKeyResolver = Mockito.mock(ReservationBookingKeyResolver.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
 
         RegistrationLinkInboxService service = new RegistrationLinkInboxService(
                 inboxRepository,
                 registrationLinkService,
                 reservationBookingKeyResolver,
+                reservationRepository,
                 "http://localhost:8091"
         );
 
@@ -111,11 +117,13 @@ class RegistrationLinkInboxServiceTest {
         RegistrationLinkInboxRepository inboxRepository = Mockito.mock(RegistrationLinkInboxRepository.class);
         RegistrationLinkService registrationLinkService = Mockito.mock(RegistrationLinkService.class);
         ReservationBookingKeyResolver reservationBookingKeyResolver = Mockito.mock(ReservationBookingKeyResolver.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
 
         RegistrationLinkInboxService service = new RegistrationLinkInboxService(
                 inboxRepository,
                 registrationLinkService,
                 reservationBookingKeyResolver,
+                reservationRepository,
                 "http://localhost:8091/"
         );
 
@@ -134,6 +142,68 @@ class RegistrationLinkInboxServiceTest {
 
         assertEquals(1, result.size());
         assertEquals("http://localhost:8091/rb/BOOK-LOCAL?t=store-token&lang=zh", result.get(0).getLinkUrl());
+    }
+
+    @Test
+    void backfillMissingForStore_shouldCreateMissingInboxItemsAndAggregateRoomCount() {
+        RegistrationLinkInboxRepository inboxRepository = Mockito.mock(RegistrationLinkInboxRepository.class);
+        RegistrationLinkService registrationLinkService = new RegistrationLinkService("test-secret", 90);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver = new ReservationBookingKeyResolver(reservationRepository);
+
+        RegistrationLinkInboxService service = new RegistrationLinkInboxService(
+                inboxRepository,
+                registrationLinkService,
+                reservationBookingKeyResolver,
+                reservationRepository,
+                "https://example.com"
+        );
+
+        Reservation firstRoom = new Reservation();
+        firstRoom.setChannelOrderNumber("BOOK-1");
+        firstRoom.setGuestName("Alice");
+        firstRoom.setCheckInDate(LocalDate.of(2026, 6, 1));
+        firstRoom.setCheckOutDate(LocalDate.of(2026, 6, 3));
+
+        Reservation secondRoom = new Reservation();
+        secondRoom.setChannelOrderNumber("BOOK-1");
+        secondRoom.setCheckInDate(LocalDate.of(2026, 6, 2));
+        secondRoom.setCheckOutDate(LocalDate.of(2026, 6, 5));
+
+        Reservation manualOrder = new Reservation();
+        manualOrder.setOrderNumber("MANUAL-1");
+        manualOrder.setGuestName("Bob");
+
+        Reservation missingKey = new Reservation();
+
+        RegistrationLinkInboxItem existingManualItem = new RegistrationLinkInboxItem();
+        existingManualItem.setStoreId(26L);
+        existingManualItem.setBookingKey("MANUAL-1");
+
+        when(reservationRepository.findByStoreId(26L))
+                .thenReturn(List.of(firstRoom, secondRoom, manualOrder, missingKey));
+        when(inboxRepository.findByStoreIdAndBookingKey(26L, "BOOK-1"))
+                .thenReturn(Optional.empty());
+        when(inboxRepository.findByStoreIdAndBookingKey(26L, "MANUAL-1"))
+                .thenReturn(Optional.of(existingManualItem));
+
+        RegistrationLinkInboxService.BackfillResult result = service.backfillMissingForStore(26L);
+
+        assertEquals(4, result.scannedCount());
+        assertEquals(2, result.eligibleCount());
+        assertEquals(1, result.createdCount());
+        assertEquals(1, result.skippedMissingBookingKey());
+
+        ArgumentCaptor<RegistrationLinkInboxItem> captor = ArgumentCaptor.forClass(RegistrationLinkInboxItem.class);
+        verify(inboxRepository).save(captor.capture());
+
+        RegistrationLinkInboxItem saved = captor.getValue();
+        assertEquals(26L, saved.getStoreId());
+        assertEquals("BOOK-1", saved.getBookingKey());
+        assertEquals("Alice", saved.getGuestName());
+        assertEquals(LocalDate.of(2026, 6, 1), saved.getCheckInDate());
+        assertEquals(LocalDate.of(2026, 6, 5), saved.getCheckOutDate());
+        assertEquals(2, saved.getRoomCount());
     }
 
     private static void setCreatedAt(RegistrationLinkInboxItem item, LocalDateTime createdAt) {
