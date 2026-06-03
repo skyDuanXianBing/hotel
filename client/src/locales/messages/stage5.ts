@@ -287,6 +287,9 @@
           dailySalesStats: 'Daily Sales Stats',
           salesOrderDetails: 'Sales Order Details',
           searchOrders: 'Search order number, channel number, customer name, phone',
+          roomGroupDimension: 'Room Group',
+          roomGroupPlaceholder: 'Select room groups',
+          roomGroupEmpty: 'No room groups',
           collapse: 'Collapse',
           recordsTotal: '{count} records total',
           statsConsumption: 'Spend stats',
@@ -301,6 +304,7 @@
           loadRevenueFailed: 'Failed to load revenue summary data',
           loadChannelFailed: 'Failed to load channel summary data',
           loadSalesFailed: 'Failed to load sales summary data',
+          loadRoomGroupsFailed: 'Failed to load room groups',
           invalidDateRange: 'Invalid date range. Loading skipped.',
         },
         registrations: {
@@ -1060,6 +1064,9 @@
           dailySalesStats: '每日销售额统计',
           salesOrderDetails: '销售订单明细',
           searchOrders: '搜索订单号、渠道号、客户名、手机号',
+          roomGroupDimension: '房间分组',
+          roomGroupPlaceholder: '选择房间分组',
+          roomGroupEmpty: '暂无房间分组',
           collapse: '收起',
           recordsTotal: '共 {count} 条',
           statsConsumption: '统计消费',
@@ -1074,6 +1081,7 @@
           loadRevenueFailed: '获取流水汇总数据失败',
           loadChannelFailed: '获取渠道汇总数据失败',
           loadSalesFailed: '获取销售汇总数据失败',
+          loadRoomGroupsFailed: '获取房间分组失败',
           invalidDateRange: '日期参数无效，跳过加载数据',
         },
         registrations: {
@@ -4104,6 +4112,9 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         salesTotal: '総売上',
         dailySalesStats: '日次売上統計',
         salesOrderDetails: '販売注文明細',
+        roomGroupDimension: '客室グループ',
+        roomGroupPlaceholder: '客室グループを選択',
+        roomGroupEmpty: '客室グループがありません',
         searchOrders: '注文番号、チャネル番号、顧客名、電話番号を検索',
         collapse: '折りたたむ',
         recordsTotal: '合計 {count} 件',
@@ -4119,6 +4130,7 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         loadRevenueFailed: '流水集計データの読み込みに失敗しました',
         loadChannelFailed: 'チャネル集計データの読み込みに失敗しました',
         loadSalesFailed: '販売集計データの読み込みに失敗しました',
+        loadRoomGroupsFailed: '客室グループの読み込みに失敗しました',
         invalidDateRange: '日付範囲が無効なため、読み込みをスキップしました',
       },
       registrations: {
@@ -4597,4 +4609,3 @@ export const stage5Messages = {
   'zh-TW': stage5ZhTwMessages,
   ja: stage5JaMessages,
 } as const
-
