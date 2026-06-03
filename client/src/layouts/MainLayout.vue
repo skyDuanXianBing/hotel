@@ -106,7 +106,6 @@ const navItems = computed<NavItem[]>(() => {
       path: '/accommodation',
       visible: canAccessAccommodation.value,
     },
-    { labelKey: 'nav.channel', path: '/channel', visible: canAccessChannel.value },
     { labelKey: 'nav.messages', path: '/messages', visible: true },
     { labelKey: 'nav.order', path: '/order', visible: canAccessOrder.value },
     {

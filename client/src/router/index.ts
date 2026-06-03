@@ -349,12 +349,6 @@ const router = createRouter({
           ],
         },
         {
-          path: 'channel',
-          name: 'Channel',
-          component: () => import('@/views/channel/ChannelManagement.vue'),
-          meta: { title: 'Channel Management', requiresAuth: true },
-        },
-        {
           path: 'order',
           name: 'Order',
           component: () => import('@/views/order/OrderManagement.vue'),
@@ -590,7 +584,6 @@ const routePermissionConfig = new Map<
   ['HousekeepingTask', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
   ['DailyTask', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
   ['TaskStatistics', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
-  ['Channel', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
   ['Order', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
   ['OrderNotifications', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
   ['DataCenterOverview', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],
@@ -690,7 +683,6 @@ const routeTitleKeyByName = new Map<string, string>([
   ['NoteSettings', 'routeTitles.recordSettings'],
   ['AccountList', 'routeTitles.accountList'],
   ['RoleManagement', 'routeTitles.roleManagement'],
-  ['Channel', 'routeTitles.channelManagement'],
   ['Order', 'routeTitles.orderManagement'],
   ['DataCenterOverview', 'routeTitles.overview'],
   ['DataCenterAccommodation', 'routeTitles.accommodation'],
