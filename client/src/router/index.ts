@@ -195,6 +195,25 @@ const router = createRouter({
               component: () => import('@/views/settings/cleaning/CleaningSupplies.vue'),
               meta: { title: 'Supplies', requiresAuth: true },
             },
+            // Channel management
+            {
+              path: 'channel',
+              name: 'SettingsChannel',
+              redirect: '/settings/channel/list',
+              meta: { title: 'Channel Management', requiresAuth: true },
+            },
+            {
+              path: 'channel/list',
+              name: 'SettingsChannelList',
+              component: () => import('@/views/channel/ChannelManagement.vue'),
+              meta: { title: 'Channel List', requiresAuth: true },
+            },
+            {
+              path: 'channel/price-ratio',
+              name: 'SettingsChannelPriceRatio',
+              component: () => import('@/views/channel/ChannelManagement.vue'),
+              meta: { title: 'Rate Ratio', requiresAuth: true },
+            },
             // Auto check-in
             {
               path: 'auto-checkin/settings',
@@ -595,6 +614,9 @@ const routePermissionConfig = new Map<
   ['AutoMessage', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['CleaningSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['CleaningSupplies', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['SettingsChannel', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
+  ['SettingsChannelList', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
+  ['SettingsChannelPriceRatio', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
   ['AutoCheckinSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['PricingTools', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['PaymentPlatforms', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
@@ -644,6 +666,9 @@ const routeTitleKeyByName = new Map<string, string>([
   ['AutoMessage', 'routeTitles.automationMessages'],
   ['CleaningSettings', 'routeTitles.settings'],
   ['CleaningSupplies', 'routeTitles.supplies'],
+  ['SettingsChannel', 'routeTitles.channelManagement'],
+  ['SettingsChannelList', 'channel.sidebar.list'],
+  ['SettingsChannelPriceRatio', 'channel.sidebar.priceRatio'],
   ['AutoCheckinSettings', 'routeTitles.autoCheckinSettings'],
   ['PricingTools', 'routeTitles.pricingTools'],
   ['PaymentPlatforms', 'routeTitles.paymentPlatforms'],

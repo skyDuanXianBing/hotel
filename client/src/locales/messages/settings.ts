@@ -52,6 +52,7 @@ export const settingsMessages = {
           store: 'Store Settings',
           general: 'General Settings',
           cleaning: 'Cleaning Settings',
+          channel: 'Channels',
           thirdParty: 'Third-party Integrations',
         },
         items: {
@@ -72,6 +73,7 @@ export const settingsMessages = {
           autoMessage: 'Automation Messages',
           cleaningSettings: 'Settings',
           cleaningSupplies: 'Supplies',
+          channelManagement: 'Channel Management',
           pricingTools: 'Pricing Tools',
           paymentPlatforms: 'Payment Platforms',
         },
@@ -527,6 +529,7 @@ export const settingsMessages = {
           store: '门店设置',
           general: '通用设置',
           cleaning: '保洁设置',
+          channel: '渠道',
           thirdParty: '第三方集成',
         },
         items: {
@@ -547,6 +550,7 @@ export const settingsMessages = {
           autoMessage: '自动化消息',
           cleaningSettings: '设置',
           cleaningSupplies: '易耗品',
+          channelManagement: '渠道管理',
           pricingTools: '定价工具',
           paymentPlatforms: '支付平台',
         },
@@ -1002,6 +1006,7 @@ export const settingsMessages = {
           store: '門店設定',
           general: '通用設定',
           cleaning: '保潔設定',
+          channel: '渠道',
           thirdParty: '第三方整合',
         },
         items: {
@@ -1022,6 +1027,7 @@ export const settingsMessages = {
           autoMessage: '自動化訊息',
           cleaningSettings: '設定',
           cleaningSupplies: '易耗品',
+          channelManagement: '渠道管理',
           pricingTools: '定價工具',
           paymentPlatforms: '支付平台',
         },
@@ -1477,6 +1483,7 @@ export const settingsMessages = {
           store: '店舗設定',
           general: '共通設定',
           cleaning: '清掃設定',
+          channel: 'チャネル',
           thirdParty: '外部連携',
         },
         items: {
@@ -1497,6 +1504,7 @@ export const settingsMessages = {
           autoMessage: '自動メッセージ',
           cleaningSettings: '設定',
           cleaningSupplies: '消耗品',
+          channelManagement: 'チャネル管理',
           pricingTools: '料金ツール',
           paymentPlatforms: '決済プラットフォーム',
         },
