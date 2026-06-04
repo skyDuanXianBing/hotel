@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
   getNotificationMessagesByType,
   getNotificationSettings,
+  getSystemUnreadNotificationCount,
+  getUnreadNotificationCountByType,
   type NotificationMessageDTO,
 } from '@/api/notification'
 import { getSuThreads, type SuMessagingThreadDTO } from '@/api/suMessaging'
@@ -99,11 +101,22 @@ const normalizeMessageText = (value?: string, maxLength = 120) => {
   return `${trimmed.slice(0, maxLength)}...`
 }
 
+const normalizeUnreadCount = (value: unknown) => {
+  const count = Number(value ?? 0)
+  if (!Number.isFinite(count) || count <= 0) {
+    return 0
+  }
+  return count
+}
+
 export const useNotificationCenterStore = defineStore('notificationCenter', () => {
   const popupController = ref<PopupController | null>(null)
   const settings = ref<NotificationSettingsSnapshot>({ ...DEFAULT_SETTINGS })
   const running = ref(false)
   const chatUnreadCount = ref(0)
+  const systemUnreadCount = ref(0)
+  const orderUnreadCount = ref(0)
+  const inboxUnreadCount = computed(() => systemUnreadCount.value + orderUnreadCount.value)
 
   let activeUserId: number | null = null
   let activeStoreId: number | null = null
@@ -231,6 +244,42 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     }
   }
 
+  const refreshSystemUnreadCount = async () => {
+    if (!activeUserId) {
+      systemUnreadCount.value = 0
+      return
+    }
+
+    try {
+      const response = await getSystemUnreadNotificationCount(activeUserId)
+      if (response.success) {
+        systemUnreadCount.value = normalizeUnreadCount(response.data)
+      }
+    } catch (error) {
+      console.warn('Failed to refresh system unread count:', error)
+    }
+  }
+
+  const refreshOrderUnreadCount = async () => {
+    if (!activeUserId) {
+      orderUnreadCount.value = 0
+      return
+    }
+
+    try {
+      const response = await getUnreadNotificationCountByType(activeUserId, ORDER_NOTIFICATION_TYPE)
+      if (response.success) {
+        orderUnreadCount.value = normalizeUnreadCount(response.data)
+      }
+    } catch (error) {
+      console.warn('Failed to refresh order unread count:', error)
+    }
+  }
+
+  const refreshInboxUnreadCounts = async () => {
+    await Promise.all([refreshSystemUnreadCount(), refreshOrderUnreadCount()])
+  }
+
   const loadSettings = async () => {
     if (!activeUserId) {
       settings.value = { ...DEFAULT_SETTINGS }
@@ -265,6 +314,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
         return
       }
 
+      orderUnreadCount.value = normalizeUnreadCount(response.data.totalElements)
       const fetchedList = response.data.content
       if (!hasSeededOrderState) {
         fetchedList.forEach((item) => seededOrderIds.add(item.id))
@@ -368,6 +418,8 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     seenChatMessageKeys = new Set<string>()
     hasSeededOrderState = false
     chatUnreadCount.value = 0
+    systemUnreadCount.value = 0
+    orderUnreadCount.value = 0
     activeUserId = null
     activeStoreId = null
     onOrderClick = undefined
@@ -389,6 +441,7 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     onChatClick = options.onChatClick
 
     await loadSettings()
+    await refreshInboxUnreadCounts()
     await refreshChatUnreadCount()
     await pollOrderNotifications()
     orderPollTimer = window.setInterval(() => {
@@ -401,12 +454,18 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     settings,
     running,
     chatUnreadCount,
+    systemUnreadCount,
+    orderUnreadCount,
+    inboxUnreadCount,
     start,
     stop,
     loadSettings,
     bindPopupController,
     applySettingsSnapshot,
     refreshChatUnreadCount,
+    refreshSystemUnreadCount,
+    refreshOrderUnreadCount,
+    refreshInboxUnreadCounts,
     updateChatUnreadCountFromThreads,
   }
 })

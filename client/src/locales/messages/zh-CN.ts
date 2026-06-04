@@ -55,8 +55,8 @@ const zhCN = mergeLocaleMessages(
       },
       inbox: {
         title: '收件箱',
-        system: '系统通知',
-        order: '订单通知',
+        system: '系统消息',
+        order: '订单消息',
       },
       memo: {
         tooltip: '备忘录',

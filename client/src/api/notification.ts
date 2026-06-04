@@ -105,6 +105,28 @@ export const getNotificationMessagesByType = async (
 }
 
 /**
+ * 分页获取系统消息组通知
+ */
+export const getSystemNotificationMessages = async (
+  userId: number,
+  page: number = 0,
+  size: number = 25,
+  isRead?: boolean,
+  keyword?: string
+): Promise<ApiResponse<PageResponse<NotificationMessageDTO>>> => {
+  const params: Record<string, string | number | boolean> = { userId, page, size }
+  if (typeof isRead === 'boolean') {
+    params.isRead = isRead
+  }
+  if (keyword && keyword.trim()) {
+    params.keyword = keyword.trim()
+  }
+  return await request.get('/notifications/groups/system', {
+    params,
+  })
+}
+
+/**
  * 获取未读通知数量
  */
 export const getUnreadNotificationCount = async (userId: number): Promise<ApiResponse<number>> => {
@@ -121,6 +143,17 @@ export const getUnreadNotificationCountByType = async (
   type: string
 ): Promise<ApiResponse<number>> => {
   return await request.get(`/notifications/unread-count/${type}`, {
+    params: { userId },
+  })
+}
+
+/**
+ * 获取系统消息组未读通知数量
+ */
+export const getSystemUnreadNotificationCount = async (
+  userId: number
+): Promise<ApiResponse<number>> => {
+  return await request.get('/notifications/groups/system/unread-count', {
     params: { userId },
   })
 }
@@ -166,6 +199,17 @@ export const markAllNotificationsAsReadByType = async (
   type: string
 ): Promise<ApiResponse<number>> => {
   return await request.patch(`/notifications/read-all/${type}`, null, {
+    params: { userId },
+  })
+}
+
+/**
+ * 标记系统消息组所有通知为已读
+ */
+export const markAllSystemNotificationsAsRead = async (
+  userId: number
+): Promise<ApiResponse<number>> => {
+  return await request.patch('/notifications/groups/system/read-all', null, {
     params: { userId },
   })
 }

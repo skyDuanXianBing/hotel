@@ -121,6 +121,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import {
   getNotificationMessagesByType,
   getUnreadNotificationCountByType,
@@ -134,6 +135,7 @@ import { formatStoreDateTime, resolveStoreTimeZone } from '@/utils/storeDateTime
 
 const userStore = useUserStore()
 const storeStore = useStoreStore()
+const notificationCenterStore = useNotificationCenterStore()
 const { t, locale } = useI18n()
 const currentStoreTimeZone = computed(() => resolveStoreTimeZone(storeStore.currentStore?.timezone))
 
@@ -381,6 +383,14 @@ const loadUnreadCount = async () => {
   }
 }
 
+const refreshNotificationState = async () => {
+  await Promise.all([
+    loadNotifications(),
+    loadUnreadCount(),
+    notificationCenterStore.refreshOrderUnreadCount(),
+  ])
+}
+
 const handleTabChange = () => {
   currentPage.value = 1
   loadNotifications()
@@ -405,8 +415,7 @@ const handleMarkAsRead = async (id: number) => {
     const response = await markNotificationAsRead(id)
     if (response.success) {
       ElMessage.success(t('pages.notifications.system.markReadSuccess'))
-      await loadNotifications()
-      await loadUnreadCount()
+      await refreshNotificationState()
     }
   } catch (error) {
     console.error('标记已读失败:', error)
@@ -435,8 +444,7 @@ const handleMarkAllAsRead = async () => {
 
     if (response.success) {
       ElMessage.success(t('pages.notifications.common.markedCount', { count: response.data }))
-      await loadNotifications()
-      await loadUnreadCount()
+      await refreshNotificationState()
     }
   } catch (error) {
     if (error !== 'cancel') {
@@ -461,8 +469,7 @@ const handleDelete = async (id: number) => {
     const response = await deleteNotificationMessage(id)
     if (response.success) {
       ElMessage.success(t('pages.notifications.system.deleteSuccess'))
-      await loadNotifications()
-      await loadUnreadCount()
+      await refreshNotificationState()
     }
   } catch (error) {
     if (error !== 'cancel') {
@@ -473,8 +480,7 @@ const handleDelete = async (id: number) => {
 }
 
 onMounted(() => {
-  loadNotifications()
-  loadUnreadCount()
+  refreshNotificationState()
 })
 </script>
 

@@ -55,8 +55,8 @@ const zhTW = mergeLocaleMessages(
       },
       inbox: {
         title: '收件匣',
-        system: '系統通知',
-        order: '訂單通知',
+        system: '系統訊息',
+        order: '訂單訊息',
       },
       memo: {
         tooltip: '備忘錄',

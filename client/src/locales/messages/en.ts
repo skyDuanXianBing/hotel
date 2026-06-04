@@ -55,8 +55,8 @@ const en = mergeLocaleMessages(
       },
       inbox: {
         title: 'Inbox',
-        system: 'System Notifications',
-        order: 'Order Notifications',
+        system: 'System Messages',
+        order: 'Order Messages',
       },
       memo: {
         tooltip: 'Memo',

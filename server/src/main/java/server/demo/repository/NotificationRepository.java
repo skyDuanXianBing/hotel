@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import server.demo.entity.Notification;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
@@ -49,6 +50,29 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     );
 
     /**
+     * 分页查询用户指定通知类型组（支持已读状态/关键词筛选）
+     */
+    @Query("""
+            SELECT n FROM Notification n
+            WHERE n.userId = :userId
+              AND n.notificationType IN :notificationTypes
+              AND (:isRead IS NULL OR n.isRead = :isRead)
+              AND (
+                    :keyword IS NULL
+                    OR LOWER(n.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(n.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                  )
+            ORDER BY n.createdAt DESC
+            """)
+    Page<Notification> searchByUserIdAndTypesAndReadStatusAndKeyword(
+            @Param("userId") Long userId,
+            @Param("notificationTypes") Collection<String> notificationTypes,
+            @Param("isRead") Boolean isRead,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    /**
      * 查询用户未读通知数量
      */
     Long countByUserIdAndIsRead(Long userId, Boolean isRead);
@@ -57,6 +81,15 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * 查询用户指定类型的未读通知数量
      */
     Long countByUserIdAndNotificationTypeAndIsRead(Long userId, String notificationType, Boolean isRead);
+
+    /**
+     * 查询用户指定通知类型组的未读通知数量
+     */
+    Long countByUserIdAndNotificationTypeInAndIsRead(
+            Long userId,
+            Collection<String> notificationTypes,
+            Boolean isRead
+    );
 
     /**
      * 标记所有通知为已读
@@ -73,6 +106,23 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     int markAllAsReadByType(
             @Param("userId") Long userId,
             @Param("type") String type,
+            @Param("readAt") LocalDateTime readAt
+    );
+
+    /**
+     * 标记指定类型组的通知为已读
+     */
+    @Modifying
+    @Query("""
+            UPDATE Notification n
+            SET n.isRead = true, n.readAt = :readAt
+            WHERE n.userId = :userId
+              AND n.notificationType IN :types
+              AND n.isRead = false
+            """)
+    int markAllAsReadByTypes(
+            @Param("userId") Long userId,
+            @Param("types") Collection<String> types,
             @Param("readAt") LocalDateTime readAt
     );
 

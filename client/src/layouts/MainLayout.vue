@@ -28,6 +28,7 @@ const { t } = useI18n()
 const showCustomerService = ref(false)
 const stores = ref<StoreDTO[]>([])
 const notificationPopupRef = ref<InstanceType<typeof NotificationPopup> | null>(null)
+const MAX_UNREAD_BADGE_COUNT = 99
 
 const currentStore = computed(() => storeStore.currentStore)
 
@@ -130,8 +131,27 @@ const chatUnreadCount = computed(() => {
   return Number.isFinite(count) && count > 0 ? count : 0
 })
 
+const inboxUnreadCount = computed(() => {
+  const count = Number(notificationCenterStore.inboxUnreadCount || 0)
+  return Number.isFinite(count) && count > 0 ? count : 0
+})
+
+const hasSystemUnread = computed(() => notificationCenterStore.systemUnreadCount > 0)
+const hasOrderUnread = computed(() => notificationCenterStore.orderUnreadCount > 0)
+
+const formatUnreadBadge = (count: number) => {
+  if (count > MAX_UNREAD_BADGE_COUNT) {
+    return `${MAX_UNREAD_BADGE_COUNT}+`
+  }
+  return String(count)
+}
+
 const formattedChatUnreadCount = computed(() =>
-  chatUnreadCount.value > 99 ? '99+' : String(chatUnreadCount.value)
+  formatUnreadBadge(chatUnreadCount.value)
+)
+
+const formattedInboxUnreadCount = computed(() =>
+  formatUnreadBadge(inboxUnreadCount.value)
 )
 
 onMounted(() => {
@@ -240,7 +260,7 @@ const handleOrderNotification = () => {
 }
 
 const handleInboxClick = () => {
-  router.push('/messages')
+  router.push('/notifications/system')
 }
 
 const handleProfileClick = () => {
@@ -327,8 +347,8 @@ const handleLogout = async () => {
           <el-dropdown trigger="hover" placement="bottom">
             <el-button text class="inbox-trigger-button">
               <el-icon><Message /></el-icon>
-              <span v-if="chatUnreadCount > 0" class="icon-unread-badge">
-                {{ formattedChatUnreadCount }}
+              <span v-if="inboxUnreadCount > 0" class="icon-unread-badge">
+                {{ formattedInboxUnreadCount }}
               </span>
             </el-button>
             <template #dropdown>
@@ -336,13 +356,13 @@ const handleLogout = async () => {
                 <div class="inbox-header" @click="handleInboxClick">{{ t('layout.inbox.title') }}</div>
                 <el-dropdown-item @click="handleSystemNotification">
                   <span class="inbox-item">
-                    <span class="inbox-dot system"></span>
+                    <span v-if="hasSystemUnread" class="inbox-dot system"></span>
                     {{ t('layout.inbox.system') }}
                   </span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canAccessOrder" @click="handleOrderNotification">
                   <span class="inbox-item">
-                    <span class="inbox-dot order"></span>
+                    <span v-if="hasOrderUnread" class="inbox-dot order"></span>
                     {{ t('layout.inbox.order') }}
                   </span>
                 </el-dropdown-item>

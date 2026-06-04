@@ -55,8 +55,8 @@ const ja = mergeLocaleMessages(
       },
       inbox: {
         title: '受信箱',
-        system: 'システム通知',
-        order: '予約通知',
+        system: 'システムメッセージ',
+        order: '予約メッセージ',
       },
       memo: {
         tooltip: 'メモ',

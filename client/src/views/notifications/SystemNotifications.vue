@@ -136,12 +136,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import {
-  getNotificationMessages,
   getNotificationMessagesByType,
-  getUnreadNotificationCount,
+  getSystemNotificationMessages,
+  getSystemUnreadNotificationCount,
+  getUnreadNotificationCountByType,
   markNotificationAsRead,
-  markAllNotificationsAsRead,
+  markAllSystemNotificationsAsRead,
   markAllNotificationsAsReadByType,
   deleteNotificationMessage,
   type NotificationMessageDTO,
@@ -151,6 +153,7 @@ import { formatStoreDateTime, resolveStoreTimeZone } from '@/utils/storeDateTime
 
 const userStore = useUserStore()
 const storeStore = useStoreStore()
+const notificationCenterStore = useNotificationCenterStore()
 const { t, locale } = useI18n()
 const currentStoreTimeZone = computed(() => resolveStoreTimeZone(storeStore.currentStore?.timezone))
 
@@ -370,6 +373,16 @@ const formatDateTime = (dateStr: string): string => {
   return formatStoreDateTime(dateStr, currentStoreTimeZone.value)
 }
 
+const getTabReadFilter = (): boolean | undefined => {
+  if (activeTab.value === 'unread') {
+    return false
+  }
+  if (activeTab.value === 'read') {
+    return true
+  }
+  return undefined
+}
+
 /**
  * 加载通知列表
  */
@@ -387,31 +400,22 @@ const loadNotifications = async () => {
         selectedType.value,
         currentPage.value - 1,
         pageSize.value,
+        getTabReadFilter(),
+        searchQuery.value,
       )
     } else {
-      response = await getNotificationMessages(userId, currentPage.value - 1, pageSize.value)
+      response = await getSystemNotificationMessages(
+        userId,
+        currentPage.value - 1,
+        pageSize.value,
+        getTabReadFilter(),
+        searchQuery.value,
+      )
     }
 
     if (response.success) {
       const pageData = response.data as PageResponse<NotificationMessageDTO>
-
-      // 根据标签页过滤数据
-      let filteredData = pageData.content
-      if (activeTab.value === 'unread') {
-        filteredData = filteredData.filter((n) => !n.isRead)
-      } else if (activeTab.value === 'read') {
-        filteredData = filteredData.filter((n) => n.isRead)
-      }
-
-      // 根据搜索关键词过滤
-      if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase()
-        filteredData = filteredData.filter(
-          (n) => n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query),
-        )
-      }
-
-      notifications.value = filteredData
+      notifications.value = pageData.content
       total.value = pageData.totalElements
     }
   } catch (error) {
@@ -429,13 +433,26 @@ const loadUnreadCount = async () => {
   if (!userStore.currentUser?.id) return
 
   try {
-    const response = await getUnreadNotificationCount(userStore.currentUser.id)
+    let response
+    if (selectedType.value) {
+      response = await getUnreadNotificationCountByType(userStore.currentUser.id, selectedType.value)
+    } else {
+      response = await getSystemUnreadNotificationCount(userStore.currentUser.id)
+    }
     if (response.success) {
       unreadCount.value = response.data as number
     }
   } catch (error) {
     console.error('加载未读数量失败:', error)
   }
+}
+
+const refreshNotificationState = async () => {
+  await Promise.all([
+    loadNotifications(),
+    loadUnreadCount(),
+    notificationCenterStore.refreshSystemUnreadCount(),
+  ])
 }
 
 /**
@@ -460,6 +477,7 @@ const handleSearch = () => {
 const handleTypeChange = () => {
   currentPage.value = 1
   loadNotifications()
+  loadUnreadCount()
 }
 
 /**
@@ -485,8 +503,7 @@ const handleMarkAsRead = async (id: number) => {
     const response = await markNotificationAsRead(id)
     if (response.success) {
       ElMessage.success(t('pages.notifications.system.markReadSuccess'))
-      await loadNotifications()
-      await loadUnreadCount()
+      await refreshNotificationState()
     }
   } catch (error) {
     console.error('标记已读失败:', error)
@@ -518,13 +535,12 @@ const handleMarkAllAsRead = async () => {
         selectedType.value,
       )
     } else {
-      response = await markAllNotificationsAsRead(userStore.currentUser.id)
+      response = await markAllSystemNotificationsAsRead(userStore.currentUser.id)
     }
 
     if (response.success) {
       ElMessage.success(t('pages.notifications.common.markedCount', { count: response.data }))
-      await loadNotifications()
-      await loadUnreadCount()
+      await refreshNotificationState()
     }
   } catch (error) {
     if (error !== 'cancel') {
@@ -552,8 +568,7 @@ const handleDelete = async (id: number) => {
     const response = await deleteNotificationMessage(id)
     if (response.success) {
       ElMessage.success(t('pages.notifications.system.deleteSuccess'))
-      await loadNotifications()
-      await loadUnreadCount()
+      await refreshNotificationState()
     }
   } catch (error) {
     if (error !== 'cancel') {
@@ -564,8 +579,7 @@ const handleDelete = async (id: number) => {
 }
 
 onMounted(() => {
-  loadNotifications()
-  loadUnreadCount()
+  refreshNotificationState()
 })
 </script>
 

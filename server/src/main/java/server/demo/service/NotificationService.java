@@ -6,14 +6,22 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import server.demo.entity.Notification;
+import server.demo.enums.NotificationType;
 import server.demo.repository.NotificationRepository;
 import server.demo.util.StoreTimeZoneUtil;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class NotificationService {
+
+    private static final List<String> SYSTEM_MESSAGE_TYPES = List.of(
+            NotificationType.SYSTEM.name(),
+            NotificationType.CLEANING.name(),
+            NotificationType.TASK.name()
+    );
 
     private final NotificationRepository notificationRepository;
     private final Clock clock;
@@ -77,6 +85,27 @@ public class NotificationService {
     }
 
     /**
+     * 分页获取用户系统消息组通知（支持已读状态/关键词筛选）
+     */
+    public Page<Notification> getSystemGroupNotifications(
+            Long userId,
+            Boolean isRead,
+            String keyword,
+            int page,
+            int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        String normalizedKeyword = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+        return notificationRepository.searchByUserIdAndTypesAndReadStatusAndKeyword(
+                userId,
+                SYSTEM_MESSAGE_TYPES,
+                isRead,
+                normalizedKeyword,
+                pageable
+        );
+    }
+
+    /**
      * 获取未读通知数量
      */
     public Long getUnreadCount(Long userId) {
@@ -88,6 +117,17 @@ public class NotificationService {
      */
     public Long getUnreadCountByType(Long userId, String type) {
         return notificationRepository.countByUserIdAndNotificationTypeAndIsRead(userId, type, false);
+    }
+
+    /**
+     * 获取系统消息组未读通知数量
+     */
+    public Long getSystemGroupUnreadCount(Long userId) {
+        return notificationRepository.countByUserIdAndNotificationTypeInAndIsRead(
+                userId,
+                SYSTEM_MESSAGE_TYPES,
+                false
+        );
     }
 
     /**
@@ -116,6 +156,14 @@ public class NotificationService {
     @Transactional
     public int markAllAsReadByType(Long userId, String type) {
         return notificationRepository.markAllAsReadByType(userId, type, nowUtc());
+    }
+
+    /**
+     * 标记系统消息组通知为已读
+     */
+    @Transactional
+    public int markSystemGroupAsRead(Long userId) {
+        return notificationRepository.markAllAsReadByTypes(userId, SYSTEM_MESSAGE_TYPES, nowUtc());
     }
 
     /**

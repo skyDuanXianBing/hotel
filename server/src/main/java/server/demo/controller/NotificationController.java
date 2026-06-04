@@ -60,6 +60,30 @@ public class NotificationController {
     }
 
     /**
+     * 分页获取用户系统消息组通知
+     */
+    @GetMapping("/groups/system")
+    public ResponseEntity<ApiResponse<Page<Notification>>> getSystemGroupNotifications(
+            @RequestParam Long userId,
+            @RequestParam(required = false) Boolean isRead,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        try {
+            Page<Notification> notifications = notificationService.getSystemGroupNotifications(
+                    userId,
+                    isRead,
+                    keyword,
+                    page,
+                    size
+            );
+            return ResponseEntity.ok(ApiResponse.success("获取系统消息列表成功", notifications));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error("获取系统消息列表失败: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 获取未读通知数量
      */
     @GetMapping("/unread-count")
@@ -84,6 +108,19 @@ public class NotificationController {
             return ResponseEntity.ok(ApiResponse.success("获取未读数量成功", count));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error("获取未读数量失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 获取系统消息组未读通知数量
+     */
+    @GetMapping("/groups/system/unread-count")
+    public ResponseEntity<ApiResponse<Long>> getSystemGroupUnreadCount(@RequestParam Long userId) {
+        try {
+            Long count = notificationService.getSystemGroupUnreadCount(userId);
+            return ResponseEntity.ok(ApiResponse.success("获取系统消息未读数量成功", count));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error("获取系统消息未读数量失败: " + e.getMessage()));
         }
     }
 
@@ -142,6 +179,19 @@ public class NotificationController {
             return ResponseEntity.ok(ApiResponse.success("标记全部已读成功", count));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error("标记全部已读失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 标记系统消息组通知为已读
+     */
+    @PatchMapping("/groups/system/read-all")
+    public ResponseEntity<ApiResponse<Integer>> markSystemGroupAsRead(@RequestParam Long userId) {
+        try {
+            int count = notificationService.markSystemGroupAsRead(userId);
+            return ResponseEntity.ok(ApiResponse.success("标记系统消息全部已读成功", count));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error("标记系统消息全部已读失败: " + e.getMessage()));
         }
     }
 
