@@ -259,19 +259,27 @@ type DetailGuest = {
 }
 
 type QuickReplyItem = { id: number; title: string; message: string }
+type RegistrationReviewRequest = { note: string; guestMessage?: string; senderName?: string }
+type RegistrationReviewMessageLog = { sendStatus?: string; errorMessage?: string }
+type RegistrationReviewResponse = {
+  messageAttempted?: boolean
+  messageLog?: RegistrationReviewMessageLog | null
+  messageError?: string | null
+}
+type ReviewFeedbackOptions = {
+  successKey: string
+  successWithMessageKey: string
+  messageFailedKey: string
+  messageStatusKey: string
+}
 type PreviewGuestItem = {
   guestIndex: number
   fields: Array<{ label: string; value: string }>
   passportUrl?: string
 }
-type RegistrationMessageLogResponse = {
-  success: boolean
-  message?: string
-  data?: {
-    id: number
-    sendStatus?: string
-  }
-}
+
+const SENT_MESSAGE_STATUS = 'SENT'
+const UNKNOWN_MESSAGE_STATUS = 'UNKNOWN'
 
 const route = useRoute()
 const router = useRouter()
@@ -408,20 +416,67 @@ function back() {
   router.back()
 }
 
-async function sendReviewActionMessage(type: 'APPROVED_INFO' | 'REJECT_REQUEST', content: string) {
-  if (!detail.value) {
+function buildReviewRequestPayload(messageContent: string): RegistrationReviewRequest {
+  const payload: RegistrationReviewRequest = { note: note.value }
+  if (messageContent) {
+    payload.guestMessage = messageContent
+    payload.senderName = t('stage5.dataCenter.detail.frontDesk')
+  }
+  return payload
+}
+
+function normalizeReviewMessageStatus(status?: string | null): string {
+  if (!status) {
+    return ''
+  }
+  return status.trim()
+}
+
+function buildReviewMessageWarning(
+  response: RegistrationReviewResponse | undefined,
+  options: ReviewFeedbackOptions,
+): string {
+  if (!response?.messageAttempted) {
     return ''
   }
 
-  const resp = (await request.post(`/registrations/${detail.value.formId}/messages/send`, {
-    type,
-    content,
-    senderName: t('stage5.dataCenter.detail.frontDesk'),
-  })) as RegistrationMessageLogResponse
-  const messageSendStatus = resp.data?.sendStatus || ''
-  lastSendStatus.value = messageSendStatus
-  approveMessage.value = ''
-  return messageSendStatus
+  const messageError = response.messageError?.trim()
+  if (messageError) {
+    return t(options.messageFailedKey, { message: messageError })
+  }
+
+  const logError = response.messageLog?.errorMessage?.trim()
+  if (logError) {
+    return t(options.messageFailedKey, { message: logError })
+  }
+
+  const sendStatus = normalizeReviewMessageStatus(response.messageLog?.sendStatus)
+  if (!sendStatus) {
+    return t(options.messageStatusKey, { status: UNKNOWN_MESSAGE_STATUS })
+  }
+  if (sendStatus !== SENT_MESSAGE_STATUS) {
+    return t(options.messageStatusKey, { status: sendStatus })
+  }
+  return ''
+}
+
+function showReviewFeedback(
+  response: RegistrationReviewResponse | undefined,
+  messageContent: string,
+  options: ReviewFeedbackOptions,
+) {
+  if (!messageContent) {
+    ElMessage.success(t(options.successKey))
+    return
+  }
+
+  const warning = buildReviewMessageWarning(response, options)
+  if (warning) {
+    ElMessage.warning(warning)
+    return
+  }
+
+  ElMessage.success(t(options.successWithMessageKey))
 }
 
 async function approve() {
@@ -432,29 +487,22 @@ async function approve() {
   }
   acting.value = true
   const messageContent = approveMessage.value.trim()
-  let messageSendError = ''
-  let messageSendStatus = ''
   try {
-    await request.post(`/registrations/${detail.value.formId}/approve`, { note: note.value })
-    if (messageContent) {
-      try {
-        messageSendStatus = await sendReviewActionMessage('APPROVED_INFO', messageContent)
-      } catch (sendError: any) {
-        messageSendError =
-          sendError?.response?.data?.message || sendError?.message || t('stage5.dataCenter.detail.sendFailed')
-      }
-    }
-    ElMessage.success(
-      messageContent
-        ? t('stage5.dataCenter.detail.approveWithMessageSuccess')
-        : t('stage5.dataCenter.detail.approveSuccess'),
+    const resp = await request.post(
+      `/registrations/${detail.value.formId}/approve`,
+      buildReviewRequestPayload(messageContent),
     )
-    await load()
-    if (messageContent && messageSendError) {
-      ElMessage.warning(t('stage5.dataCenter.detail.approveMessageFailed', { message: messageSendError }))
-    } else if (messageContent && messageSendStatus && messageSendStatus !== 'SENT') {
-      ElMessage.warning(t('stage5.dataCenter.detail.approveMessageStatus', { status: messageSendStatus }))
+    const reviewResponse = resp.data as RegistrationReviewResponse | undefined
+    if (messageContent) {
+      approveMessage.value = ''
     }
+    showReviewFeedback(reviewResponse, messageContent, {
+      successKey: 'stage5.dataCenter.detail.approveSuccess',
+      successWithMessageKey: 'stage5.dataCenter.detail.approveWithMessageSuccess',
+      messageFailedKey: 'stage5.dataCenter.detail.approveMessageFailed',
+      messageStatusKey: 'stage5.dataCenter.detail.approveMessageStatus',
+    })
+    await load()
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.dataCenter.detail.approveFailed'))
   } finally {
@@ -470,29 +518,22 @@ async function reject() {
   }
   acting.value = true
   const messageContent = approveMessage.value.trim()
-  let messageSendError = ''
-  let messageSendStatus = ''
   try {
-    await request.post(`/registrations/${detail.value.formId}/reject`, { note: note.value })
-    if (messageContent) {
-      try {
-        messageSendStatus = await sendReviewActionMessage('REJECT_REQUEST', messageContent)
-      } catch (sendError: any) {
-        messageSendError =
-          sendError?.response?.data?.message || sendError?.message || t('stage5.dataCenter.detail.sendFailed')
-      }
-    }
-    ElMessage.success(
-      messageContent
-        ? t('stage5.dataCenter.detail.rejectWithMessageSuccess')
-        : t('stage5.dataCenter.detail.rejectSuccess'),
+    const resp = await request.post(
+      `/registrations/${detail.value.formId}/reject`,
+      buildReviewRequestPayload(messageContent),
     )
-    await load()
-    if (messageContent && messageSendError) {
-      ElMessage.warning(t('stage5.dataCenter.detail.rejectMessageFailed', { message: messageSendError }))
-    } else if (messageContent && messageSendStatus && messageSendStatus !== 'SENT') {
-      ElMessage.warning(t('stage5.dataCenter.detail.rejectMessageStatus', { status: messageSendStatus }))
+    const reviewResponse = resp.data as RegistrationReviewResponse | undefined
+    if (messageContent) {
+      approveMessage.value = ''
     }
+    showReviewFeedback(reviewResponse, messageContent, {
+      successKey: 'stage5.dataCenter.detail.rejectSuccess',
+      successWithMessageKey: 'stage5.dataCenter.detail.rejectWithMessageSuccess',
+      messageFailedKey: 'stage5.dataCenter.detail.rejectMessageFailed',
+      messageStatusKey: 'stage5.dataCenter.detail.rejectMessageStatus',
+    })
+    await load()
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('stage5.common.messages.operationFailed'))
   } finally {

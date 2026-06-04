@@ -343,7 +343,7 @@
           fillDefaultTemplate: 'Fill Default Template',
           approveMessageLabel: 'Message to the guest (optional)',
           approveMessagePlaceholder:
-            'Optional. If filled, Approve sends an approval message and Reject sends a correction request.',
+            'Optional. It is sent with Approve or Reject and automatically translated into the guest\'s language before delivery.',
           notePlaceholder: 'Note (optional)',
           variablesPlaceholder:
             'Variables: {{guest_name}} {{order_number}} {{checkin_date}} {{checkout_date}} {{room_number}} {{registration_link}}',
@@ -355,14 +355,16 @@
           sendFailed: 'Send failed',
           frontDesk: 'Front Desk',
           approveSuccess: 'Approved',
-          approveWithMessageSuccess: 'Approved. Message submitted',
+          approveWithMessageSuccess:
+            'Approved. The message will be translated into the guest\'s language and sent',
           approveFailed: 'Approval failed',
           approveMessageFailed: 'Review approved, but message sending failed: {message}',
-          approveMessageStatus: 'Approved. Message status: {status}',
+          approveMessageStatus: 'Review approved, but the message was not sent successfully. Status: {status}',
           rejectSuccess: 'Rejected',
-          rejectWithMessageSuccess: 'Rejected. Message submitted',
+          rejectWithMessageSuccess:
+            'Rejected. The message will be translated into the guest\'s language and sent',
           rejectMessageFailed: 'Review rejected, but message sending failed: {message}',
-          rejectMessageStatus: 'Rejected. Message status: {status}',
+          rejectMessageStatus: 'Review rejected, but the message was not sent successfully. Status: {status}',
           defaultApprovedInfo:
             'Hello {{guest_name}}, your check-in registration has been approved.\nOrder number: {{order_number}}\nCheck-in: {{checkin_date}}, check-out: {{checkout_date}}\nReply to this message if you need to add information.\n\nRegistration link: {{registration_link}}',
           defaultRejectRequest:
@@ -1116,7 +1118,7 @@
           fillDefaultTemplate: '填充默认模板',
           approveMessageLabel: '发送给客人的消息（可选）',
           approveMessagePlaceholder:
-            '可选。填写后，点击通过会发送通过消息，点击驳回会发送补充/修正请求。',
+            '可选。填写后会随通过/驳回请求提交，并自动翻译为客人语言后发送。',
           notePlaceholder: '备注（可选）',
           variablesPlaceholder:
             '可使用变量：{{guest_name}} {{order_number}} {{checkin_date}} {{checkout_date}} {{room_number}} {{registration_link}}',
@@ -1128,14 +1130,14 @@
           sendFailed: '发送失败',
           frontDesk: '前台',
           approveSuccess: '已通过',
-          approveWithMessageSuccess: '已通过，消息已提交发送',
+          approveWithMessageSuccess: '已通过，消息将自动翻译为客人语言后发送',
           approveFailed: '审核通过失败',
           approveMessageFailed: '审核已通过，但消息发送失败：{message}',
-          approveMessageStatus: '已通过，消息发送状态：{status}',
+          approveMessageStatus: '审核已通过，但消息尚未发送成功。状态：{status}',
           rejectSuccess: '已驳回',
-          rejectWithMessageSuccess: '已驳回，消息已提交发送',
+          rejectWithMessageSuccess: '已驳回，消息将自动翻译为客人语言后发送',
           rejectMessageFailed: '审核已驳回，但消息发送失败：{message}',
-          rejectMessageStatus: '已驳回，消息发送状态：{status}',
+          rejectMessageStatus: '审核已驳回，但消息尚未发送成功。状态：{status}',
           defaultApprovedInfo:
             '您好 {{guest_name}}，您的入住登记已通过。\n订单号：{{order_number}}\n入住：{{checkin_date}}，退房：{{checkout_date}}\n如需补充信息请回复本消息。\n\n登记链接：{{registration_link}}',
           defaultRejectRequest:
@@ -4161,7 +4163,7 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         fillDefaultTemplate: '標準テンプレートを挿入',
         approveMessageLabel: '宿泊者へ送るメッセージ（任意）',
         approveMessagePlaceholder:
-          '任意。入力した場合、承認では承認メッセージ、差し戻しでは修正依頼メッセージを送信します。',
+          '任意。入力すると承認/差し戻しのリクエストと一緒に送信され、宿泊者の言語に自動翻訳されてから配信されます。',
         notePlaceholder: '備考（任意）',
         variablesPlaceholder:
           '変数：{{guest_name}} {{order_number}} {{checkin_date}} {{checkout_date}} {{room_number}} {{registration_link}}',
@@ -4173,14 +4175,14 @@ const stage5JaMessages = mergeMessages(stage5BaseMessages.en, {
         sendFailed: '送信に失敗しました',
         frontDesk: 'フロント',
         approveSuccess: '承認しました',
-        approveWithMessageSuccess: '承認しました。メッセージを送信登録しました',
+        approveWithMessageSuccess: '承認しました。メッセージは宿泊者の言語に自動翻訳されて送信されます',
         approveFailed: '承認に失敗しました',
         approveMessageFailed: '審査は承認されましたが、メッセージ送信に失敗しました：{message}',
-        approveMessageStatus: '承認しました。メッセージ状態：{status}',
+        approveMessageStatus: '審査は承認されましたが、メッセージは正常に送信されていません。状態：{status}',
         rejectSuccess: '差し戻しました',
-        rejectWithMessageSuccess: '差し戻しました。メッセージを送信登録しました',
+        rejectWithMessageSuccess: '差し戻しました。メッセージは宿泊者の言語に自動翻訳されて送信されます',
         rejectMessageFailed: '審査は差し戻されましたが、メッセージ送信に失敗しました：{message}',
-        rejectMessageStatus: '差し戻しました。メッセージ状態：{status}',
+        rejectMessageStatus: '審査は差し戻されましたが、メッセージは正常に送信されていません。状態：{status}',
         defaultApprovedInfo:
           'こんにちは {{guest_name}} 様、チェックイン登録が承認されました。\n注文番号：{{order_number}}\nチェックイン：{{checkin_date}}、チェックアウト：{{checkout_date}}\n追加情報が必要な場合はこのメッセージに返信してください。\n\n登録リンク：{{registration_link}}',
         defaultRejectRequest:
@@ -4597,4 +4599,3 @@ export const stage5Messages = {
   'zh-TW': stage5ZhTwMessages,
   ja: stage5JaMessages,
 } as const
-

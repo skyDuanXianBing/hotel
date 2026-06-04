@@ -2,18 +2,23 @@ package server.demo.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import server.demo.dto.registration.AdminRegistrationReviewResponse;
 import server.demo.dto.registration.AdminRegistrationDetailDTO;
 import server.demo.dto.registration.AdminRegistrationListItemDTO;
 import server.demo.dto.registration.AdminRegistrationReviewRequest;
+import server.demo.dto.registration.RegistrationMessageLogDTO;
+import server.demo.dto.registration.RegistrationSendMessageRequest;
 import server.demo.entity.Channel;
 import server.demo.entity.RegistrationForm;
 import server.demo.entity.RegistrationReviewLog;
 import server.demo.entity.Reservation;
 import server.demo.enums.RegistrationFormStatus;
+import server.demo.enums.RegistrationMessageType;
 import server.demo.enums.RegistrationReviewAction;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.RegistrationAttachmentRepository;
@@ -30,7 +35,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -60,6 +67,9 @@ class RegistrationAdminServiceTest {
 
     @Mock
     private ReservationRepository reservationRepository;
+
+    @Mock
+    private RegistrationMessageService registrationMessageService;
 
     @Test
     void list_shouldForwardReservationAndRoomFiltersAndMapReservationStatus() {
@@ -258,6 +268,96 @@ class RegistrationAdminServiceTest {
         assertEquals("approved", logCaptor.getValue().getNote());
     }
 
+    @Test
+    void approve_shouldSendGuestMessageWithTranslationFlag() {
+        RegistrationAdminService service = createService();
+        RegistrationForm form = createForm(8L, RegistrationFormStatus.SUBMITTED, ReservationStatus.CONFIRMED);
+        AdminRegistrationReviewRequest req = new AdminRegistrationReviewRequest();
+        req.setNote("approved");
+        req.setGuestMessage(" Please send this to the guest ");
+        req.setSenderName("Front Desk");
+        RegistrationMessageLogDTO messageLog = new RegistrationMessageLogDTO();
+
+        when(registrationFormRepository.findById(8L)).thenReturn(Optional.of(form));
+        when(reservationRepository.findById(88L)).thenReturn(Optional.of(form.getReservation()));
+        when(registrationFormRepository.approveSubmitted(
+                eq(26L),
+                eq(8L),
+                eq("approved"),
+                any(LocalDateTime.class)
+        )).thenReturn(1);
+        when(registrationMessageService.sendMessage(
+                eq(26L),
+                eq(7L),
+                eq(8L),
+                any(RegistrationSendMessageRequest.class)
+        )).thenReturn(messageLog);
+
+        AdminRegistrationReviewResponse result;
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+            storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
+
+            result = service.approve(8L, req);
+        }
+
+        ArgumentCaptor<RegistrationSendMessageRequest> requestCaptor =
+                ArgumentCaptor.forClass(RegistrationSendMessageRequest.class);
+        verify(registrationMessageService).sendMessage(eq(26L), eq(7L), eq(8L), requestCaptor.capture());
+        RegistrationSendMessageRequest messageRequest = requestCaptor.getValue();
+        assertTrue(result.isMessageAttempted());
+        assertSame(messageLog, result.getMessageLog());
+        assertEquals(RegistrationMessageType.APPROVED_INFO, messageRequest.getType());
+        assertEquals("Please send this to the guest", messageRequest.getContent());
+        assertEquals("Front Desk", messageRequest.getSenderName());
+        assertTrue(messageRequest.isTranslateBeforeSend());
+    }
+
+    @Test
+    void reject_shouldSendGuestMessageAsRejectRequestWithTranslationFlag() {
+        RegistrationAdminService service = createService();
+        RegistrationForm form = createForm(8L, RegistrationFormStatus.SUBMITTED, ReservationStatus.CONFIRMED);
+        AdminRegistrationReviewRequest req = new AdminRegistrationReviewRequest();
+        req.setNote("missing passport");
+        req.setGuestMessage("Please upload passport again");
+        req.setSenderName("Review Team");
+        RegistrationMessageLogDTO messageLog = new RegistrationMessageLogDTO();
+
+        when(registrationFormRepository.findById(8L)).thenReturn(Optional.of(form));
+        when(reservationRepository.findById(88L)).thenReturn(Optional.of(form.getReservation()));
+        when(registrationFormRepository.rejectSubmitted(
+                eq(26L),
+                eq(8L),
+                eq("missing passport"),
+                any(LocalDateTime.class)
+        )).thenReturn(1);
+        when(registrationMessageService.sendMessage(
+                eq(26L),
+                eq(7L),
+                eq(8L),
+                any(RegistrationSendMessageRequest.class)
+        )).thenReturn(messageLog);
+
+        AdminRegistrationReviewResponse result;
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+            storeContextUtils.when(StoreContextUtils::requireUserId).thenReturn(7L);
+
+            result = service.reject(8L, req);
+        }
+
+        ArgumentCaptor<RegistrationSendMessageRequest> requestCaptor =
+                ArgumentCaptor.forClass(RegistrationSendMessageRequest.class);
+        verify(registrationMessageService).sendMessage(eq(26L), eq(7L), eq(8L), requestCaptor.capture());
+        RegistrationSendMessageRequest messageRequest = requestCaptor.getValue();
+        assertTrue(result.isMessageAttempted());
+        assertSame(messageLog, result.getMessageLog());
+        assertEquals(RegistrationMessageType.REJECT_REQUEST, messageRequest.getType());
+        assertEquals("Please upload passport again", messageRequest.getContent());
+        assertEquals("Review Team", messageRequest.getSenderName());
+        assertTrue(messageRequest.isTranslateBeforeSend());
+    }
+
     private RegistrationAdminService createService() {
         RegistrationAdminService service = new RegistrationAdminService();
         ReflectionTestUtils.setField(service, "registrationFormRepository", registrationFormRepository);
@@ -266,6 +366,7 @@ class RegistrationAdminServiceTest {
         ReflectionTestUtils.setField(service, "registrationMessageLogRepository", registrationMessageLogRepository);
         ReflectionTestUtils.setField(service, "registrationAttachmentRepository", registrationAttachmentRepository);
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "registrationMessageService", registrationMessageService);
         return service;
     }
 

@@ -111,16 +111,20 @@ public class RegistrationAdminController {
 
     @PostMapping("/{formId}/approve")
     @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
-    public ApiResponse<Void> approve(@PathVariable Long formId, @RequestBody(required = false) AdminRegistrationReviewRequest req) {
-        registrationAdminService.approve(formId, req);
-        return ApiResponse.success("ok", null);
+    public ApiResponse<AdminRegistrationReviewResponse> approve(
+            @PathVariable Long formId,
+            @RequestBody(required = false) AdminRegistrationReviewRequest req
+    ) {
+        return ApiResponse.success("ok", registrationAdminService.approve(formId, req));
     }
 
     @PostMapping("/{formId}/reject")
     @RequirePermission(module = PermissionModule.STATISTICS, action = PermissionAction.VIEW_STATS)
-    public ApiResponse<Void> reject(@PathVariable Long formId, @RequestBody(required = false) AdminRegistrationReviewRequest req) {
-        registrationAdminService.reject(formId, req);
-        return ApiResponse.success("ok", null);
+    public ApiResponse<AdminRegistrationReviewResponse> reject(
+            @PathVariable Long formId,
+            @RequestBody(required = false) AdminRegistrationReviewRequest req
+    ) {
+        return ApiResponse.success("ok", registrationAdminService.reject(formId, req));
     }
 
     @PostMapping("/{formId}/messages/send")

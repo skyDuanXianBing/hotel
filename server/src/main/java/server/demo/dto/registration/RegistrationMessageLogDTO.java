@@ -13,6 +13,11 @@ public class RegistrationMessageLogDTO {
     private String content;
     private RegistrationSendStatus sendStatus;
     private String errorMessage;
+    private String targetLanguageCode;
+    private String targetLanguageName;
+    private String targetLanguageFallbackReason;
+    private Boolean translated;
+    private String translationError;
     private LocalDateTime createdAt;
 
     public Long getId() {
@@ -69,6 +74,46 @@ public class RegistrationMessageLogDTO {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    public String getTargetLanguageCode() {
+        return targetLanguageCode;
+    }
+
+    public void setTargetLanguageCode(String targetLanguageCode) {
+        this.targetLanguageCode = targetLanguageCode;
+    }
+
+    public String getTargetLanguageName() {
+        return targetLanguageName;
+    }
+
+    public void setTargetLanguageName(String targetLanguageName) {
+        this.targetLanguageName = targetLanguageName;
+    }
+
+    public String getTargetLanguageFallbackReason() {
+        return targetLanguageFallbackReason;
+    }
+
+    public void setTargetLanguageFallbackReason(String targetLanguageFallbackReason) {
+        this.targetLanguageFallbackReason = targetLanguageFallbackReason;
+    }
+
+    public Boolean getTranslated() {
+        return translated;
+    }
+
+    public void setTranslated(Boolean translated) {
+        this.translated = translated;
+    }
+
+    public String getTranslationError() {
+        return translationError;
+    }
+
+    public void setTranslationError(String translationError) {
+        this.translationError = translationError;
     }
 
     public LocalDateTime getCreatedAt() {

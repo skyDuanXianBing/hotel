@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import server.demo.dto.registration.*;
 import server.demo.entity.*;
 import server.demo.enums.RegistrationFormStatus;
+import server.demo.enums.RegistrationMessageType;
 import server.demo.enums.RegistrationReviewAction;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.*;
@@ -40,6 +41,9 @@ public class RegistrationAdminService {
 
     @Autowired
     private ReservationRepository reservationRepository;
+
+    @Autowired
+    private RegistrationMessageService registrationMessageService;
 
     @Transactional(readOnly = true)
     public List<AdminRegistrationListItemDTO> list(
@@ -239,7 +243,7 @@ public class RegistrationAdminService {
     }
 
     @Transactional
-    public void approve(Long formId, AdminRegistrationReviewRequest req) {
+    public AdminRegistrationReviewResponse approve(Long formId, AdminRegistrationReviewRequest req) {
         Long storeId = StoreContextUtils.requireStoreId();
         Long userId = StoreContextUtils.requireUserId();
 
@@ -264,10 +268,18 @@ public class RegistrationAdminService {
         log.setOperatorUserId(userId);
         log.setNote(note);
         registrationReviewLogRepository.save(log);
+
+        return sendReviewMessageIfPresent(
+                storeId,
+                userId,
+                formId,
+                req,
+                RegistrationMessageType.APPROVED_INFO
+        );
     }
 
     @Transactional
-    public void reject(Long formId, AdminRegistrationReviewRequest req) {
+    public AdminRegistrationReviewResponse reject(Long formId, AdminRegistrationReviewRequest req) {
         Long storeId = StoreContextUtils.requireStoreId();
         Long userId = StoreContextUtils.requireUserId();
 
@@ -292,6 +304,48 @@ public class RegistrationAdminService {
         log.setOperatorUserId(userId);
         log.setNote(note);
         registrationReviewLogRepository.save(log);
+
+        return sendReviewMessageIfPresent(
+                storeId,
+                userId,
+                formId,
+                req,
+                RegistrationMessageType.REJECT_REQUEST
+        );
+    }
+
+    private AdminRegistrationReviewResponse sendReviewMessageIfPresent(
+            Long storeId,
+            Long userId,
+            Long formId,
+            AdminRegistrationReviewRequest req,
+            RegistrationMessageType type
+    ) {
+        AdminRegistrationReviewResponse response = new AdminRegistrationReviewResponse();
+        String guestMessage = req != null ? trimToNull(req.getGuestMessage()) : null;
+        if (guestMessage == null) {
+            return response;
+        }
+
+        response.setMessageAttempted(true);
+        if (registrationMessageService == null) {
+            response.setMessageError("消息服务不可用");
+            return response;
+        }
+
+        RegistrationSendMessageRequest messageRequest = new RegistrationSendMessageRequest();
+        messageRequest.setType(type);
+        messageRequest.setContent(guestMessage);
+        messageRequest.setSenderName(req.getSenderName());
+        messageRequest.setTranslateBeforeSend(true);
+
+        try {
+            response.setMessageLog(registrationMessageService.sendMessage(storeId, userId, formId, messageRequest));
+        } catch (Exception ex) {
+            String message = ex.getMessage() == null ? "消息发送失败" : ex.getMessage();
+            response.setMessageError(message);
+        }
+        return response;
     }
 
     private Reservation requireReservation(RegistrationForm form) {
@@ -309,5 +363,16 @@ public class RegistrationAdminService {
         if (form.getStatus() != RegistrationFormStatus.SUBMITTED) {
             throw new RuntimeException(REVIEW_SUBMITTED_ONLY_MESSAGE);
         }
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed;
     }
 }

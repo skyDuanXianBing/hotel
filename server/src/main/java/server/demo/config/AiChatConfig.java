@@ -10,6 +10,7 @@ import server.demo.service.impl.MockChatLanguageModel;
 
 @Configuration
 public class AiChatConfig {
+    private static final int DEFAULT_CHAT_MAX_TOKENS = 4096;
 
     @Value("${openai.api-key:#{environment.OPENAI_API_KEY}}")
     private String openAiApiKey;
@@ -20,7 +21,7 @@ public class AiChatConfig {
     @Value("${openai.model-name:gpt-4o-mini}")
     private String openAiModelName;
 
-    @Value("${openai.max-tokens:1000}")
+    @Value("${openai.max-tokens:" + DEFAULT_CHAT_MAX_TOKENS + "}")
     private Integer openAiMaxTokens;
 
     @Value("${openai.temperature:0.7}")
@@ -32,7 +33,7 @@ public class AiChatConfig {
     @Value("${dashscope.model-name:qwen-turbo}")
     private String dashScopeModelName;
 
-    @Value("${dashscope.max-tokens:1000}")
+    @Value("${dashscope.max-tokens:" + DEFAULT_CHAT_MAX_TOKENS + "}")
     private Integer dashScopeMaxTokens;
 
     @Value("${dashscope.temperature:0.7}")

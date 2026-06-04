@@ -1,5 +1,6 @@
 package server.demo.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriUtils;
@@ -41,7 +42,36 @@ public class RegistrationMessageService {
     private final RegistrationMessageLogRepository messageLogRepository;
     private final RegistrationLinkService registrationLinkService;
     private final ReservationBookingKeyResolver reservationBookingKeyResolver;
+    private final AiTranslationService aiTranslationService;
+    private final RegistrationLanguageResolver registrationLanguageResolver;
     private final String frontendBaseUrl;
+
+    @Autowired
+    public RegistrationMessageService(
+            RegistrationFormRepository formRepository,
+            ReservationRepository reservationRepository,
+            StoreRepository storeRepository,
+            SuMessageThreadRepository threadRepository,
+            SuMessagingService suMessagingService,
+            RegistrationMessageLogRepository messageLogRepository,
+            RegistrationLinkService registrationLinkService,
+            ReservationBookingKeyResolver reservationBookingKeyResolver,
+            AiTranslationService aiTranslationService,
+            RegistrationLanguageResolver registrationLanguageResolver,
+            @Value("${app.frontend.url}") String frontendBaseUrl
+    ) {
+        this.formRepository = formRepository;
+        this.reservationRepository = reservationRepository;
+        this.storeRepository = storeRepository;
+        this.threadRepository = threadRepository;
+        this.suMessagingService = suMessagingService;
+        this.messageLogRepository = messageLogRepository;
+        this.registrationLinkService = registrationLinkService;
+        this.reservationBookingKeyResolver = reservationBookingKeyResolver;
+        this.aiTranslationService = aiTranslationService;
+        this.registrationLanguageResolver = registrationLanguageResolver;
+        this.frontendBaseUrl = frontendBaseUrl;
+    }
 
     public RegistrationMessageService(
             RegistrationFormRepository formRepository,
@@ -54,15 +84,19 @@ public class RegistrationMessageService {
             ReservationBookingKeyResolver reservationBookingKeyResolver,
             @Value("${app.frontend.url}") String frontendBaseUrl
     ) {
-        this.formRepository = formRepository;
-        this.reservationRepository = reservationRepository;
-        this.storeRepository = storeRepository;
-        this.threadRepository = threadRepository;
-        this.suMessagingService = suMessagingService;
-        this.messageLogRepository = messageLogRepository;
-        this.registrationLinkService = registrationLinkService;
-        this.reservationBookingKeyResolver = reservationBookingKeyResolver;
-        this.frontendBaseUrl = frontendBaseUrl;
+        this(
+                formRepository,
+                reservationRepository,
+                storeRepository,
+                threadRepository,
+                suMessagingService,
+                messageLogRepository,
+                registrationLinkService,
+                reservationBookingKeyResolver,
+                null,
+                null,
+                frontendBaseUrl
+        );
     }
 
     @Transactional
@@ -111,19 +145,58 @@ public class RegistrationMessageService {
                     "会话缺少 listingid，暂不可发送；等待 webhook 补齐后重试");
         }
 
+        AiTranslationResult translationResult = translateIfRequested(form.getId(), rendered, req);
+        String finalContent = rendered;
+        if (translationResult != null && translationResult.getTranslatedText() != null && !translationResult.getTranslatedText().isBlank()) {
+            finalContent = translationResult.getTranslatedText();
+        }
+
         try {
             SuMessagingSendRequest send = new SuMessagingSendRequest();
-            send.setContent(rendered.trim());
+            send.setContent(finalContent.trim());
             send.setSenderName(req.getSenderName() != null && !req.getSenderName().isBlank() ? req.getSenderName().trim() : "前台");
             suMessagingService.sendMessage(storeId, thread.getId(), send);
-            return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered, RegistrationSendStatus.SENT, null);
+            return saveLog(form, req.getType(), "SU", thread.getThreadKey(), finalContent, RegistrationSendStatus.SENT, null, translationResult);
         } catch (Exception e) {
             String err = e.getMessage() != null ? e.getMessage() : "发送失败";
             if (isPropertyAccessError(err)) {
-                return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered,
-                        RegistrationSendStatus.WAITING_PROPERTY_ACCESS, err);
+                return saveLog(form, req.getType(), "SU", thread.getThreadKey(), finalContent,
+                        RegistrationSendStatus.WAITING_PROPERTY_ACCESS, err, translationResult);
             }
-            return saveLog(form, req.getType(), "SU", thread.getThreadKey(), rendered, RegistrationSendStatus.FAILED, err);
+            return saveLog(form, req.getType(), "SU", thread.getThreadKey(), finalContent, RegistrationSendStatus.FAILED, err, translationResult);
+        }
+    }
+
+    private AiTranslationResult translateIfRequested(Long formId, String rendered, RegistrationSendMessageRequest req) {
+        if (req == null || !req.isTranslateBeforeSend()) {
+            return null;
+        }
+
+        RegistrationTargetLanguage targetLanguage = resolveTargetLanguage(formId);
+        if (aiTranslationService == null) {
+            return AiTranslationResult.fallback(rendered, targetLanguage, "TRANSLATION_SERVICE_UNAVAILABLE");
+        }
+        try {
+            AiTranslationResult result = aiTranslationService.translate(rendered, targetLanguage);
+            if (result == null) {
+                return AiTranslationResult.fallback(rendered, targetLanguage, "TRANSLATION_EMPTY_RESULT");
+            }
+            return result;
+        } catch (Exception ex) {
+            String message = ex.getMessage() == null ? "TRANSLATION_FAILED" : ex.getMessage();
+            return AiTranslationResult.fallback(rendered, targetLanguage, message);
+        }
+    }
+
+    private RegistrationTargetLanguage resolveTargetLanguage(Long formId) {
+        if (registrationLanguageResolver == null) {
+            return RegistrationTargetLanguage.defaultEnglish("LANGUAGE_RESOLVER_UNAVAILABLE");
+        }
+        try {
+            return registrationLanguageResolver.resolveTargetLanguage(formId);
+        } catch (Exception ex) {
+            String message = ex.getMessage() == null ? "LANGUAGE_RESOLUTION_FAILED" : ex.getMessage();
+            return RegistrationTargetLanguage.defaultEnglish("LANGUAGE_RESOLUTION_FAILED: " + message);
         }
     }
 
@@ -146,6 +219,19 @@ public class RegistrationMessageService {
             RegistrationSendStatus status,
             String error
     ) {
+        return saveLog(form, type, channel, toIdentifier, content, status, error, null);
+    }
+
+    private RegistrationMessageLogDTO saveLog(
+            RegistrationForm form,
+            RegistrationMessageType type,
+            String channel,
+            String toIdentifier,
+            String content,
+            RegistrationSendStatus status,
+            String error,
+            AiTranslationResult translationResult
+    ) {
         RegistrationMessageLog log = new RegistrationMessageLog();
         log.setForm(form);
         log.setType(type);
@@ -165,7 +251,23 @@ public class RegistrationMessageService {
         dto.setSendStatus(log.getSendStatus());
         dto.setErrorMessage(log.getErrorMessage());
         dto.setCreatedAt(log.getCreatedAt());
+        applyTranslationMetadata(dto, translationResult);
         return dto;
+    }
+
+    private static void applyTranslationMetadata(RegistrationMessageLogDTO dto, AiTranslationResult translationResult) {
+        if (dto == null || translationResult == null) {
+            return;
+        }
+
+        RegistrationTargetLanguage targetLanguage = translationResult.getTargetLanguage();
+        if (targetLanguage != null) {
+            dto.setTargetLanguageCode(targetLanguage.getCode());
+            dto.setTargetLanguageName(targetLanguage.getName());
+            dto.setTargetLanguageFallbackReason(targetLanguage.getFallbackReason());
+        }
+        dto.setTranslated(translationResult.isTranslated());
+        dto.setTranslationError(trimToMax(translationResult.getErrorMessage(), 2000));
     }
 
     private SuMessageThread resolveThreadForReservation(Long storeId, Integer suChannelId, Reservation reservation) {
