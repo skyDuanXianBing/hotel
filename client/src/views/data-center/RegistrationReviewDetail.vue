@@ -186,6 +186,7 @@
       width="90%"
       class="preview-dialog"
       append-to-body
+      @closed="handlePreviewDialogClosed"
       destroy-on-close
     >
       <div class="preview-content">
@@ -197,9 +198,14 @@
               <div class="preview-value">{{ field.value }}</div>
             </div>
           </div>
-          <div v-if="guest.passportUrl" class="preview-passport">
+          <div v-if="guest.passportAttachmentId" class="preview-passport">
             <div class="preview-passport-title">{{ t('stage5.publicRegistration.form.passportPhoto') }}</div>
-            <img :src="guest.passportUrl" :alt="t('stage5.publicRegistration.form.passportPhoto')" class="preview-passport-img" />
+            <img
+              v-if="guest.passportUrl"
+              :src="guest.passportUrl"
+              :alt="t('stage5.publicRegistration.form.passportPhoto')"
+              class="preview-passport-img"
+            />
           </div>
         </div>
       </div>
@@ -208,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -262,6 +268,7 @@ type QuickReplyItem = { id: number; title: string; message: string }
 type PreviewGuestItem = {
   guestIndex: number
   fields: Array<{ label: string; value: string }>
+  passportAttachmentId?: number
   passportUrl?: string
 }
 type RegistrationMessageLogResponse = {
@@ -295,6 +302,7 @@ const lastSendStatus = ref<string>('')
 const quickReplies = ref<QuickReplyItem[]>([])
 const quickReplyLoading = ref(false)
 const quickReplyId = ref<number | null>(null)
+let previewRequestId = 0
 
 function formId(): string {
   return route.params.formId as string
@@ -569,14 +577,14 @@ function attachmentUrl(attId: number): string {
   return `${base}/registrations/${formId()}/attachments/${attId}`
 }
 
-function passportPreviewUrl(guestId?: number) {
+function passportAttachmentId(guestId?: number) {
   if (!detail.value || !guestId) {
-    return ''
+    return undefined
   }
   const attachment = detail.value.attachments?.find(
     (att) => att.guestId === guestId && att.type?.toUpperCase().includes('PASSPORT'),
   )
-  return attachment ? attachmentUrl(attachment.id) : ''
+  return attachment?.id
 }
 
 function displayPreviewValue(value?: string | null) {
@@ -593,12 +601,59 @@ function getResidenceTypeLabel(residenceType?: string | null) {
     : t('stage5.publicRegistration.form.otherThanJapan')
 }
 
-function previewForm() {
+function revokePreviewPassportUrls(items: PreviewGuestItem[] = previewData.value) {
+  items.forEach((guest) => {
+    if (guest.passportUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(guest.passportUrl)
+    }
+    guest.passportUrl = undefined
+  })
+}
+
+function handlePreviewDialogClosed() {
+  previewRequestId += 1
+  revokePreviewPassportUrls()
+  previewData.value = []
+}
+
+async function loadPreviewPassportImages(requestId: number) {
+  await Promise.all(
+    previewData.value.map(async (guest, index) => {
+      if (!guest.passportAttachmentId) {
+        return
+      }
+
+      try {
+        const res = await axios.get(attachmentUrl(guest.passportAttachmentId), {
+          responseType: 'blob',
+          headers: authHeaders(),
+        })
+
+        if (requestId !== previewRequestId || !previewDialogVisible.value) {
+          return
+        }
+
+        previewData.value[index].passportUrl = URL.createObjectURL(res.data)
+      } catch {
+        if (requestId !== previewRequestId) {
+          return
+        }
+        previewData.value[index].passportUrl = undefined
+      }
+    }),
+  )
+}
+
+async function previewForm() {
   if (!detail.value) {
     return
   }
 
-  previewData.value = (detail.value.guests || []).map((guest: DetailGuest, idx) => {
+  previewRequestId += 1
+  const requestId = previewRequestId
+  revokePreviewPassportUrls()
+
+  const items = (detail.value.guests || []).map((guest: DetailGuest, idx) => {
     const fields: Array<{ label: string; value: string }> = []
     fields.push({ label: t('stage5.publicRegistration.form.firstName'), value: displayPreviewValue(guest.firstName) })
     fields.push({ label: t('stage5.publicRegistration.form.lastName'), value: displayPreviewValue(guest.lastName) })
@@ -631,11 +686,14 @@ function previewForm() {
     return {
       guestIndex: idx + 1,
       fields,
-      passportUrl: passportPreviewUrl(guest.id) || undefined,
+      passportAttachmentId: passportAttachmentId(guest.id),
+      passportUrl: undefined,
     }
   })
 
+  previewData.value = items
   previewDialogVisible.value = true
+  await loadPreviewPassportImages(requestId)
 }
 
 function previewAttachment(att: { id: number; originalName?: string }) {
@@ -680,6 +738,7 @@ function downloadAttachment(att: { id: number; originalName?: string }) {
 
 onMounted(load)
 onMounted(loadQuickReplies)
+onBeforeUnmount(handlePreviewDialogClosed)
 </script>
 
 <style scoped>
