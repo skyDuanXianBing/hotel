@@ -28,7 +28,11 @@
           class="search-input"
           @input="handleSearch"
         />
-        <el-button v-if="unreadCount > 0" type="primary" @click="handleMarkAllAsRead">
+        <el-button
+          type="primary"
+          :disabled="!hasUnreadNotifications"
+          @click="handleMarkAllAsRead"
+        >
           {{ t('pages.notifications.order.markAllAsRead') }}
         </el-button>
       </div>
@@ -73,6 +77,26 @@
             {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
+        <el-table-column
+          :label="t('pages.notifications.system.columns.actions')"
+          width="150"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              v-if="!row.isRead"
+              type="primary"
+              link
+              size="small"
+              @click="handleMarkAsRead(row.id)"
+            >
+              {{ t('pages.notifications.system.actions.markAsRead') }}
+            </el-button>
+            <el-button type="danger" link size="small" @click="handleDelete(row.id)">
+              {{ t('pages.notifications.system.actions.delete') }}
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pagination-container">
@@ -100,7 +124,9 @@ import { useUserStore } from '@/stores/user'
 import {
   getNotificationMessagesByType,
   getUnreadNotificationCountByType,
+  markNotificationAsRead,
   markAllNotificationsAsReadByType,
+  deleteNotificationMessage,
   type NotificationMessageDTO,
   type PageResponse,
 } from '@/api/notification'
@@ -120,6 +146,12 @@ const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(25)
 const unreadCount = ref(0)
+const hasUnreadNotifications = computed(() => {
+  if (unreadCount.value > 0) {
+    return true
+  }
+  return notifications.value.some((notification) => !notification.isRead)
+})
 
 const ORDER_NOTIFICATION_TYPE = 'ORDER'
 const UNKNOWN_NOTIFICATION_TYPE_LABEL = '-'
@@ -368,6 +400,20 @@ const handlePageChange = () => {
   loadNotifications()
 }
 
+const handleMarkAsRead = async (id: number) => {
+  try {
+    const response = await markNotificationAsRead(id)
+    if (response.success) {
+      ElMessage.success(t('pages.notifications.system.markReadSuccess'))
+      await loadNotifications()
+      await loadUnreadCount()
+    }
+  } catch (error) {
+    console.error('标记已读失败:', error)
+    ElMessage.error(t('pages.notifications.system.markReadFailed'))
+  }
+}
+
 const handleMarkAllAsRead = async () => {
   if (!userStore.currentUser?.id) return
 
@@ -396,6 +442,32 @@ const handleMarkAllAsRead = async () => {
     if (error !== 'cancel') {
       console.error('一键已读失败:', error)
       ElMessage.error(t('pages.notifications.order.markAllFailed'))
+    }
+  }
+}
+
+const handleDelete = async (id: number) => {
+  try {
+    await ElMessageBox.confirm(
+      t('pages.notifications.system.deleteConfirm'),
+      t('pages.notifications.common.deleteConfirmTitle'),
+      {
+        confirmButtonText: t('stage6.common.actions.confirm'),
+        cancelButtonText: t('stage6.common.actions.cancel'),
+        type: 'warning',
+      },
+    )
+
+    const response = await deleteNotificationMessage(id)
+    if (response.success) {
+      ElMessage.success(t('pages.notifications.system.deleteSuccess'))
+      await loadNotifications()
+      await loadUnreadCount()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除失败:', error)
+      ElMessage.error(t('pages.notifications.system.deleteFailed'))
     }
   }
 }
