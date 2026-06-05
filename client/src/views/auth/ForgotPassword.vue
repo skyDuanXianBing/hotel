@@ -1,125 +1,118 @@
 <template>
   <div class="forgot-password-container">
-    <!-- 左侧蓝色背景区域 -->
-    <div class="left-section">
-      <div class="left-content">
-        <h1 class="main-title">{{ t('auth.hero.titlePrimary') }}</h1>
-        <h1 class="sub-title">{{ t('auth.hero.titleSecondary') }}</h1>
+    <div class="forgot-password-layout">
+      <div class="left-section">
+        <img
+          :src="forgotPasswordIllustration"
+          alt=""
+          aria-hidden="true"
+          class="left-illustration"
+        />
+      </div>
 
-        <p class="description">{{ t('auth.hero.description') }}</p>
-
-        <p class="trial-info">{{ t('auth.hero.trialInfo') }}</p>
-
-        <!-- 装饰性浏览器窗口 -->
-        <div class="browser-window">
-          <div class="browser-header">
-            <span class="dot red"></span>
-            <span class="dot yellow"></span>
-            <span class="dot green"></span>
-          </div>
+      <div class="right-section">
+        <div class="language-selector">
+          <LanguageSwitcher variant="auth" />
         </div>
-      </div>
-    </div>
 
-    <!-- 右侧表单区域 -->
-    <div class="right-section">
-      <!-- 语言选择 -->
-      <div class="language-selector">
-        <LanguageSwitcher variant="auth" />
-      </div>
+        <div class="form-shell">
+          <div class="form-container">
+            <h2 class="form-title">{{ t('pages.forgotPassword.title') }}</h2>
+            <p class="form-subtitle">{{ t('pages.forgotPassword.subtitle') }}</p>
 
-      <div class="form-container">
-        <!-- 标题 -->
-        <h2 class="form-title">{{ t('pages.forgotPassword.title') }}</h2>
-        <p class="form-subtitle">{{ t('pages.forgotPassword.subtitle') }}</p>
+            <el-form
+              ref="forgotFormRef"
+              :model="forgotForm"
+              :rules="forgotRules"
+              class="forgot-form"
+            >
+              <div class="form-item">
+                <label class="form-label">{{ t('common.email') }}</label>
+                <el-form-item prop="email">
+                  <el-input
+                    v-model="forgotForm.email"
+                    :placeholder="t('auth.login.emailPlaceholder')"
+                    size="large"
+                    :prefix-icon="Message"
+                  />
+                </el-form-item>
+              </div>
 
-        <!-- 表单 -->
-        <el-form
-          ref="forgotFormRef"
-          :model="forgotForm"
-          :rules="forgotRules"
-          class="forgot-form"
-        >
-          <!-- 邮箱 -->
-          <div class="form-item">
-            <label class="form-label">{{ t('common.email') }}</label>
-            <el-form-item prop="email">
-              <el-input
-                v-model="forgotForm.email"
-                :placeholder="t('auth.login.emailPlaceholder')"
+              <div class="form-item">
+                <label class="form-label">{{ t('common.verificationCode') }}</label>
+                <el-form-item prop="verificationCode">
+                  <div class="verification-code-field">
+                    <el-input
+                      v-model="forgotForm.verificationCode"
+                      class="verification-code-input"
+                      :placeholder="t('auth.login.codePlaceholder')"
+                      size="large"
+                      :prefix-icon="Key"
+                    />
+                    <el-button
+                      class="send-code-button"
+                      :disabled="countdown > 0"
+                      @click="sendVerificationCode"
+                    >
+                      {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
+                    </el-button>
+                  </div>
+                </el-form-item>
+              </div>
+
+              <div class="form-item">
+                <label class="form-label">{{ t('pages.forgotPassword.newPasswordLabel') }}</label>
+                <el-form-item prop="newPassword">
+                  <el-input
+                    v-model="forgotForm.newPassword"
+                    type="password"
+                    :placeholder="t('pages.forgotPassword.newPasswordPlaceholder')"
+                    size="large"
+                    :prefix-icon="Lock"
+                    show-password
+                  />
+                </el-form-item>
+              </div>
+
+              <div class="form-item">
+                <label class="form-label">{{ t('pages.forgotPassword.confirmPasswordLabel') }}</label>
+                <el-form-item prop="confirmPassword">
+                  <el-input
+                    v-model="forgotForm.confirmPassword"
+                    type="password"
+                    :placeholder="t('pages.forgotPassword.confirmPasswordPlaceholder')"
+                    size="large"
+                    :prefix-icon="Lock"
+                    show-password
+                  />
+                </el-form-item>
+              </div>
+
+              <el-button
+                type="primary"
                 size="large"
-                :prefix-icon="Message"
-              />
-            </el-form-item>
-          </div>
-
-          <!-- 验证码 -->
-          <div class="form-item">
-            <label class="form-label">{{ t('common.verificationCode') }}</label>
-            <el-form-item prop="verificationCode">
-              <el-input
-                v-model="forgotForm.verificationCode"
-                :placeholder="t('auth.login.codePlaceholder')"
-                size="large"
-                :prefix-icon="Key"
+                class="submit-button"
+                :loading="loading"
+                @click="handleResetPassword"
               >
-                <template #append>
-                  <el-button :disabled="countdown > 0" @click="sendVerificationCode">
-                    {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
-                  </el-button>
-                </template>
-              </el-input>
-            </el-form-item>
+                {{ t('pages.forgotPassword.resetAction') }}
+              </el-button>
+            </el-form>
+
+            <div class="form-footer">
+              <div class="back-link">
+                {{ t('pages.forgotPassword.backToLoginPrefix') }}
+                <el-link type="primary" :underline="false" @click="goToLogin">
+                  {{ t('pages.forgotPassword.backToLoginAction') }}
+                </el-link>
+              </div>
+              <div class="support-link-row">
+                <el-link type="primary" :underline="false" @click="goToTechnicalSupport">
+                  {{ t('common.supportSite') }}
+                </el-link>
+              </div>
+            </div>
           </div>
-
-          <!-- 设置新密码 -->
-          <div class="form-item">
-            <label class="form-label">{{ t('pages.forgotPassword.newPasswordLabel') }}</label>
-            <el-form-item prop="newPassword">
-              <el-input
-                v-model="forgotForm.newPassword"
-                type="password"
-                :placeholder="t('pages.forgotPassword.newPasswordPlaceholder')"
-                size="large"
-                :prefix-icon="Lock"
-                show-password
-              />
-            </el-form-item>
-          </div>
-
-          <!-- 确认新密码 -->
-          <div class="form-item">
-            <label class="form-label">{{ t('pages.forgotPassword.confirmPasswordLabel') }}</label>
-            <el-form-item prop="confirmPassword">
-              <el-input
-                v-model="forgotForm.confirmPassword"
-                type="password"
-                :placeholder="t('pages.forgotPassword.confirmPasswordPlaceholder')"
-                size="large"
-                :prefix-icon="Lock"
-                show-password
-              />
-            </el-form-item>
-          </div>
-
-          <!-- 重置密码按钮 -->
-          <el-button
-            type="primary"
-            size="large"
-            class="submit-button"
-            :loading="loading"
-            @click="handleResetPassword"
-          >
-            {{ t('pages.forgotPassword.resetAction') }}
-          </el-button>
-        </el-form>
-
-        <!-- 返回登录 -->
-        <div class="back-link">
-          {{ t('pages.forgotPassword.backToLoginPrefix') }}
-          <el-link type="primary" :underline="false" @click="goToLogin">
-            {{ t('pages.forgotPassword.backToLoginAction') }}
-          </el-link>
         </div>
       </div>
     </div>
@@ -137,20 +130,15 @@ import {
   resetPassword as resetPasswordAPI,
 } from '@/api/auth'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import forgotPasswordIllustration from '@/assets/auth/forgot-password-illustration.svg'
 
 const router = useRouter()
 const { t } = useI18n()
 
-// 倒计时
 const countdown = ref(0)
-
-// 加载状态
 const loading = ref(false)
-
-// 表单引用
 const forgotFormRef = ref<FormInstance>()
 
-// 表单数据
 const forgotForm = reactive({
   email: '',
   verificationCode: '',
@@ -158,7 +146,6 @@ const forgotForm = reactive({
   confirmPassword: '',
 })
 
-// 自定义验证：确认密码
 const validateConfirmPassword = (rule: any, value: any, callback: any) => {
   if (value === '') {
     callback(new Error(t('pages.forgotPassword.validation.confirmPasswordRequired')))
@@ -169,7 +156,6 @@ const validateConfirmPassword = (rule: any, value: any, callback: any) => {
   }
 }
 
-// 表单验证规则
 const forgotRules = computed<FormRules>(() => ({
   email: [
     { required: true, message: t('auth.login.validation.emailRequired'), trigger: 'blur' },
@@ -202,9 +188,7 @@ const forgotRules = computed<FormRules>(() => ({
   ],
 }))
 
-// 发送验证码
 const sendVerificationCode = async () => {
-  // 先验证邮箱
   try {
     await forgotFormRef.value?.validateField('email')
   } catch {
@@ -212,7 +196,6 @@ const sendVerificationCode = async () => {
   }
 
   try {
-    // 调用发送验证码API
     await sendVerificationCodeAPI({
       email: forgotForm.email,
       type: 'reset_password',
@@ -220,7 +203,6 @@ const sendVerificationCode = async () => {
 
     ElMessage.success(t('auth.login.codeSent'))
 
-    // 开始倒计时
     countdown.value = 60
     const timer = setInterval(() => {
       countdown.value--
@@ -229,19 +211,18 @@ const sendVerificationCode = async () => {
       }
     }, 1000)
   } catch (error: any) {
-    const message = error.response?.data?.message || error.message || t('pages.forgotPassword.sendCodeFailed')
+    const message =
+      error.response?.data?.message || error.message || t('pages.forgotPassword.sendCodeFailed')
     ElMessage.error(message)
   }
 }
 
-// 重置密码处理
 const handleResetPassword = async () => {
   try {
     await forgotFormRef.value?.validate()
 
     loading.value = true
 
-    // 调用重置密码API
     await resetPasswordAPI({
       email: forgotForm.email,
       verificationCode: forgotForm.verificationCode,
@@ -251,160 +232,118 @@ const handleResetPassword = async () => {
     ElMessage.success(t('pages.forgotPassword.resetSuccess'))
     router.push('/login')
   } catch (error: any) {
-    const message = error.response?.data?.message || error.message || t('pages.forgotPassword.resetFailed')
+    const message =
+      error.response?.data?.message || error.message || t('pages.forgotPassword.resetFailed')
     ElMessage.error(message)
   } finally {
     loading.value = false
   }
 }
 
-// 返回登录页面
 const goToLogin = () => {
   router.push('/login')
+}
+
+const goToTechnicalSupport = () => {
+  router.push('/legal/support')
 }
 </script>
 
 <style scoped>
 .forgot-password-container {
+  width: 100%;
+  min-height: 100vh;
   display: flex;
-  height: 100vh;
-  overflow: hidden;
+  background: #fff;
 }
 
-/* 左侧蓝色区域 */
+.forgot-password-layout {
+  width: 100%;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 55.8571428571%) minmax(0, 44.1428571429%);
+}
+
 .left-section {
-  flex: 1;
-  background: linear-gradient(135deg, #1e88e5 0%, #1976d2 100%);
-  padding: 60px 80px;
-  color: white;
-  position: relative;
+  background: #eef3ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(44px, 5vh, 72px) clamp(28px, 3.2vw, 48px) clamp(34px, 4vh, 56px);
   overflow: hidden;
 }
 
-.left-section::before {
-  content: '';
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  top: -200px;
-  right: -200px;
+.left-illustration {
+  width: clamp(620px, 46vw, 760px);
+  max-width: 100%;
+  height: auto;
+  display: block;
+  transform: translate(clamp(-12px, -0.8vw, 0px), clamp(0px, 0.6vh, 6px));
 }
 
-.left-section::after {
-  content: '';
-  position: absolute;
-  width: 400px;
-  height: 400px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-  bottom: -100px;
-  left: -100px;
-}
-
-.left-content {
-  position: relative;
-  z-index: 1;
-}
-
-.main-title {
-  font-size: 48px;
-  font-weight: bold;
-  margin: 0 0 10px 0;
-  line-height: 1.2;
-}
-
-.sub-title {
-  font-size: 48px;
-  font-weight: bold;
-  margin: 0 0 40px 0;
-  line-height: 1.2;
-}
-
-.description {
-  font-size: 16px;
-  line-height: 1.8;
-  margin-bottom: 30px;
-  opacity: 0.95;
-}
-
-.trial-info {
-  font-size: 16px;
-  line-height: 1.8;
-  margin-bottom: 60px;
-  opacity: 0.95;
-}
-
-.browser-window {
-  width: 600px;
-  height: 200px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  padding: 12px;
-}
-
-.browser-header {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.dot.red {
-  background: #ff5f57;
-}
-
-.dot.yellow {
-  background: #ffbd2e;
-}
-
-.dot.green {
-  background: #28ca42;
-}
-
-/* 右侧表单区域 */
 .right-section {
-  width: 520px;
-  background: white;
-  padding: 40px 60px;
+  background: #fff;
   display: flex;
   flex-direction: column;
+  padding:
+    clamp(18px, 2.5vh, 24px)
+    clamp(40px, 4.8vw, 96px)
+    clamp(24px, 3.8vh, 40px)
+    clamp(44px, 5vw, 104px);
   overflow-y: auto;
 }
 
 .language-selector {
-  text-align: right;
-  margin-bottom: 40px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.language-selector :deep(.language-trigger--auth) {
+  color: #7b7b7b;
+  font-size: 14px;
+  line-height: 22px;
+  gap: 8px;
+}
+
+.language-selector :deep(.language-trigger--auth .el-icon) {
+  font-size: 14px;
+}
+
+.form-shell {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  padding-top: clamp(12px, 2.2vh, 24px);
 }
 
 .form-container {
-  flex: 1;
+  width: 100%;
+  max-width: clamp(465px, 74%, 560px);
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .form-title {
-  font-size: 32px;
-  font-weight: bold;
-  color: #333;
-  margin: 0 0 12px 0;
+  margin: 0;
+  color: #597ef7;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.08;
 }
 
 .form-subtitle {
+  margin: 14px 0 0;
+  color: #ababab;
   font-size: 14px;
-  color: #999;
-  margin: 0 0 40px 0;
+  line-height: 1.5;
 }
 
 .forgot-form {
-  flex: 1;
+  margin-top: clamp(20px, 2.8vh, 30px);
+  display: flex;
+  flex-direction: column;
 }
 
 .form-item {
@@ -413,40 +352,208 @@ const goToLogin = () => {
 
 .form-label {
   display: block;
+  margin-bottom: 11px;
+  color: #111827;
   font-size: 14px;
-  color: #333;
-  margin-bottom: 8px;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .submit-button {
-  width: 100%;
-  height: 48px;
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 24px;
+  width: 314px;
+  max-width: 100%;
+  height: 32px;
+  margin: clamp(24px, 3vh, 34px) auto 0;
+  border-radius: 2px;
+  border-color: #597ef7;
+  background: #597ef7;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+.submit-button:hover,
+.submit-button:focus-visible,
+.submit-button:active {
+  border-color: #597ef7;
+  background: #597ef7;
+}
+
+.form-footer {
+  margin-top: auto;
+  padding-top: clamp(18px, 2.4vh, 24px);
+  padding-bottom: clamp(44px, 7vh, 96px);
 }
 
 .back-link {
+  color: #4b5563;
   text-align: center;
   font-size: 14px;
-  color: #666;
+  line-height: 1.6;
 }
 
-/* 表单样式调整 */
+.support-link-row {
+  margin-top: 14px;
+  text-align: center;
+}
+
 .forgot-form :deep(.el-form-item) {
   margin-bottom: 0;
 }
 
+.forgot-form :deep(.el-form-item__content) {
+  line-height: 1;
+}
+
 .forgot-form :deep(.el-input__wrapper) {
-  box-shadow: 0 0 0 1px #e0e0e0 inset;
+  min-height: 37px;
+  padding: 0 12px;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #d9dee8;
 }
 
 .forgot-form :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #409eff inset;
+  box-shadow: inset 0 0 0 1px #597ef7;
 }
 
 .forgot-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #409eff inset;
+  box-shadow: inset 0 0 0 1px #597ef7;
+}
+
+.forgot-form :deep(.el-input__inner) {
+  height: 100%;
+  font-size: 13px;
+  color: #111827;
+}
+
+.forgot-form :deep(.el-input__inner::placeholder) {
+  color: #b7bdc9;
+}
+
+.forgot-form :deep(.el-input__prefix-inner),
+.forgot-form :deep(.el-input__suffix-inner) {
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.forgot-form :deep(.el-input__prefix-inner) {
+  margin-right: 12px;
+}
+
+.forgot-form :deep(.el-input__suffix-inner) {
+  margin-left: 12px;
+}
+
+.verification-code-field {
+  position: relative;
+  width: 100%;
+}
+
+.verification-code-field :deep(.verification-code-input) {
+  width: 100%;
+}
+
+.verification-code-field :deep(.verification-code-input .el-input__wrapper) {
+  padding-right: 175px;
+}
+
+.verification-code-field :deep(.send-code-button) {
+  position: absolute;
+  top: 1px;
+  right: 35px;
+  z-index: 2;
+  width: auto;
+  min-width: 84px;
+  height: 35px;
+  min-height: 35px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 0;
+  background: #f1f1f1;
+  color: #b3b3b3;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 1;
+  box-shadow: none;
+}
+
+.verification-code-field :deep(.send-code-button:hover),
+.verification-code-field :deep(.send-code-button:focus-visible),
+.verification-code-field :deep(.send-code-button:active),
+.verification-code-field :deep(.send-code-button.is-disabled),
+.verification-code-field :deep(.send-code-button.is-disabled:hover),
+.verification-code-field :deep(.send-code-button.is-disabled:focus-visible),
+.verification-code-field :deep(.send-code-button.is-disabled:active) {
+  background: #f1f1f1;
+  color: #b3b3b3;
+  opacity: 1;
+}
+
+.forgot-form :deep(.el-link),
+.back-link :deep(.el-link),
+.support-link-row :deep(.el-link) {
+  color: #597ef7;
+}
+
+.back-link :deep(.el-link),
+.support-link-row :deep(.el-link) {
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .forgot-password-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .left-section {
+    display: none;
+  }
+
+  .right-section {
+    padding: 18px clamp(24px, 8vw, 72px) 34px;
+  }
+
+  .form-shell {
+    padding-top: 24px;
+  }
+
+  .form-container {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .right-section {
+    padding: 18px 20px 28px;
+  }
+
+  .form-shell {
+    padding-top: 20px;
+  }
+
+  .form-title {
+    font-size: 32px;
+  }
+
+  .forgot-form {
+    margin-top: 24px;
+  }
+
+  .submit-button {
+    width: 100%;
+    margin-top: 30px;
+  }
+
+  .form-footer {
+    padding-top: 20px;
+  }
 }
 </style>
