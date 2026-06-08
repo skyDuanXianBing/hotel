@@ -7,29 +7,86 @@
           <el-button text size="small" @click="translationDialogVisible = true">
             {{ t('stage6.components.messagesPage.translate') }}
           </el-button>
-          <el-button text size="small" @click="refreshThreads">
+          <el-button
+            text
+            size="small"
+            :loading="isRefreshingThreads"
+            :disabled="isThreadListBusy"
+            @click="refreshThreads"
+          >
             <el-icon><Refresh /></el-icon>
           </el-button>
         </div>
       </div>
 
-      <div class="search-bar">
+      <div class="filters-panel">
         <el-input
           v-model="searchQuery"
-          :placeholder="t('stage6.components.messagesPage.searchPlaceholder')"
+          :placeholder="uiText('searchPlaceholder')"
           :prefix-icon="Search"
           clearable
+          @keyup.enter="applyThreadFilters"
         />
+        <div class="filter-row">
+          <el-select
+            v-model="filterChannel"
+            :placeholder="uiText('channelFilterPlaceholder')"
+            clearable
+          >
+            <el-option
+              v-for="option in channelFilterOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+          <el-select
+            v-model="filterOrderKind"
+            :placeholder="uiText('orderKindFilterPlaceholder')"
+            clearable
+          >
+            <el-option
+              v-for="option in orderKindFilterOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </div>
+        <div class="filter-actions">
+          <el-checkbox v-model="filterUnreadOnly">
+            {{ uiText('unreadOnly') }}
+          </el-checkbox>
+          <el-button type="primary" :loading="isLoadingThreads" @click="applyThreadFilters">
+            {{ uiText('applyFilters') }}
+          </el-button>
+        </div>
       </div>
 
-      <div class="conversations-list">
+      <div v-if="selectedThreadIds.length > 0" class="selection-bar">
+        <span>{{ uiText('selectedThreads', { count: selectedThreadIds.length }) }}</span>
+        <el-button link type="primary" @click="clearSelectedThreads">
+          {{ uiText('clearSelection') }}
+        </el-button>
+      </div>
+
+      <div class="conversations-list" v-loading="isLoadingThreads">
         <div
           v-for="conversation in filteredConversations"
           :key="conversation.id"
           class="conversation-item"
-          :class="{ active: activeThreadId === conversation.id }"
+          :class="{
+            active: activeThreadId === conversation.id,
+            selected: isThreadSelected(conversation.id),
+          }"
           @click="selectConversation(conversation.id)"
         >
+          <el-checkbox
+            class="conversation-select"
+            :model-value="isThreadSelected(conversation.id)"
+            @click.stop
+            @change="handleThreadSelectionChange(conversation.id, Boolean($event))"
+          />
           <div class="conversation-avatar">
             <el-icon><User /></el-icon>
           </div>
@@ -54,6 +111,13 @@
               <span>{{ getConversationPreviewText(conversation) }}</span>
             </div>
             <div class="conversation-status">
+              <span
+                v-if="getConversationOrderKindLabel(conversation)"
+                class="order-kind-tag"
+                :class="`order-kind-${getConversationOrderKindStyle(conversation)}`"
+              >
+                {{ getConversationOrderKindLabel(conversation) }}
+              </span>
               <span class="conversation-stay-info">
                 {{ getConversationStayInfo(conversation) }}
               </span>
@@ -64,9 +128,31 @@
           </div>
         </div>
 
-        <div v-if="filteredConversations.length === 0" class="empty-state">
+        <div v-if="!isLoadingThreads && !hasThreadQueryStarted" class="empty-state">
           <el-icon :size="48" color="#ddd"><ChatDotRound /></el-icon>
-          <p>{{ t('stage6.components.messagesPage.emptyConversations') }}</p>
+          <p>{{ uiText('idleConversations') }}</p>
+          <el-button type="primary" @click="applyThreadFilters">
+            {{ uiText('loadConversations') }}
+          </el-button>
+        </div>
+
+        <div
+          v-else-if="!isLoadingThreads && hasThreadQueryStarted && filteredConversations.length === 0"
+          class="empty-state"
+        >
+          <el-icon :size="48" color="#ddd"><ChatDotRound /></el-icon>
+          <p>{{ uiText('emptyConversations') }}</p>
+        </div>
+
+        <div v-if="filteredConversations.length > 0" class="thread-pagination">
+          <el-button
+            v-if="threadPageHasNext"
+            :loading="isLoadingMoreThreads"
+            @click="loadNextThreadPage"
+          >
+            {{ uiText('loadMoreThreads') }}
+          </el-button>
+          <span v-else>{{ uiText('noMoreThreads') }}</span>
         </div>
       </div>
     </div>
@@ -100,6 +186,13 @@
                     })
                   }}
                 </span>
+                <span
+                  v-if="getConversationOrderKindLabel(activeConversation)"
+                  class="order-kind-tag"
+                  :class="`order-kind-${getConversationOrderKindStyle(activeConversation)}`"
+                >
+                  {{ getConversationOrderKindLabel(activeConversation) }}
+                </span>
                 <span>{{ getConversationStayInfo(activeConversation) }}</span>
                 <span v-if="activeConversation.closed">
                   {{ t('stage6.components.messagesPage.status.closed') }}
@@ -119,7 +212,23 @@
           </div>
         </div>
 
-        <div ref="messagesListRef" class="messages-list" @scroll="handleMessagesScroll">
+        <div
+          ref="messagesListRef"
+          class="messages-list"
+          v-loading="isLoadingMessages"
+          @scroll="handleMessagesScroll"
+        >
+          <div v-if="messages.length && hasMoreMessagesBefore" class="load-earlier-messages">
+            <el-button
+              text
+              type="primary"
+              :loading="isLoadingOlderMessages"
+              @click="loadOlderMessages"
+            >
+              {{ uiText('loadEarlierMessages') }}
+            </el-button>
+          </div>
+
           <template v-for="group in groupedMessages" :key="group.key">
             <div class="message-date-divider">{{ group.label }}</div>
             <div
@@ -178,6 +287,11 @@
               </div>
             </div>
           </template>
+
+          <div v-if="!isLoadingMessages && activeConversation && messages.length === 0" class="empty-state">
+            <el-icon :size="48" color="#ddd"><ChatDotRound /></el-icon>
+            <p>{{ uiText('emptyMessages') }}</p>
+          </div>
         </div>
 
         <div class="message-input-area">
@@ -475,12 +589,16 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
-  getSuThreadMessages,
-  getSuThreads,
+  getSuThreadMessagesPage,
+  getSuThreadsPage,
   sendSuThreadMessage,
   SuMessagingSenderType,
   type SuMessagingMessageDTO,
+  type SuMessagingMessagePageDTO,
+  type SuMessagingOrderKind,
+  type SuMessagingThreadPageDTO,
   type SuMessagingThreadDTO,
+  type SuMessagingChannelCode,
 } from '@/api/suMessaging'
 import { sendChatMessage } from '@/api/chat'
 import {
@@ -550,11 +668,16 @@ interface AiPolishItem {
 }
 
 type AiDraftViewMode = 'draft' | 'system'
+type UiTextLocale = 'zh' | 'en' | 'ja'
 
 interface ApiResponse<T> {
   success?: boolean
   message?: string
   data?: T
+}
+
+interface UiTextOptions {
+  count?: number
 }
 
 const sanitizeUserFacingMessage = (rawMessage?: string) => {
@@ -578,6 +701,10 @@ const INITIAL_MESSAGE_TRANSLATION_BATCH = 20
 const SCROLL_TRANSLATION_DEBOUNCE_MS = 220
 const TRANSLATION_SETTINGS_STORAGE_KEY = 'messages.translation.settings'
 const TRANSLATION_LANGUAGE_VALUES = ['zh-CN', 'en', 'ja', 'ko'] as const
+const THREAD_PAGE_SIZE = 30
+const MESSAGE_PAGE_LIMIT = 50
+const CHANNEL_AIRBNB_ID = 244
+const CHANNEL_BOOKING_ID = 19
 type TranslationLanguageValue = (typeof TRANSLATION_LANGUAGE_VALUES)[number]
 interface TranslationRunResult {
   attempted: number
@@ -630,11 +757,25 @@ const resolveTranslationFailureMessage = () =>
   t('stage6.components.messagesPage.errors.translationFailed')
 
 const searchQuery = ref('')
+const filterChannel = ref<SuMessagingChannelCode | ''>('')
+const filterOrderKind = ref<SuMessagingOrderKind | ''>('')
+const filterUnreadOnly = ref(true)
 const activeThreadId = ref<number | null>(null)
 const newMessage = ref('')
 const messagesListRef = ref<HTMLElement | null>(null)
 const conversations = ref<SuMessagingThreadDTO[]>([])
 const messages = ref<MessageItem[]>([])
+const hasThreadQueryStarted = ref(false)
+const isLoadingThreads = ref(false)
+const isLoadingMoreThreads = ref(false)
+const isRefreshingThreads = ref(false)
+const threadPageNumber = ref(0)
+const threadPageHasNext = ref(false)
+const selectedThreadIds = ref<number[]>([])
+const isLoadingMessages = ref(false)
+const isLoadingOlderMessages = ref(false)
+const hasMoreMessagesBefore = ref(false)
+const nextBeforeMessageId = ref<number | null>(null)
 const isSending = ref(false)
 const isAiGeneratingDraft = ref(false)
 const isAiPolishing = ref(false)
@@ -714,6 +855,126 @@ const weekdayLabels = computed(() => [
   t('stage6.components.messagesPage.date.weekdays.sat'),
 ])
 
+const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
+  en: {
+    searchPlaceholder: 'Search guest, order, listing, or message',
+    channelFilterPlaceholder: 'Channel',
+    orderKindFilterPlaceholder: 'Order status',
+    unreadOnly: 'Unread only',
+    applyFilters: 'Load conversations',
+    selectedThreads: '{count} selected',
+    clearSelection: 'Clear',
+    idleConversations: 'Click load conversations to fetch matching conversations.',
+    loadConversations: 'Load conversations',
+    emptyConversations: 'No conversations match the filters',
+    loadMoreThreads: 'Load more',
+    noMoreThreads: 'No more conversations',
+    loadEarlierMessages: 'Load earlier messages',
+    emptyMessages: 'No messages in this conversation',
+    inquiry: 'Inquiry',
+    requested: 'Pending confirmation',
+    confirmed: 'Confirmed',
+    cancelled: 'Cancelled',
+    completed: 'Completed',
+    unmatchedOrder: 'Unmatched order',
+    unknownOrder: 'Unknown',
+    airbnb: 'Airbnb',
+    booking: 'Booking.com',
+    allChannels: 'All channels',
+    routeTargetNotFound: 'No conversation matched this order. Try adjusting the filters.',
+  },
+  zh: {
+    searchPlaceholder: '搜索住客、订单、房源或消息',
+    channelFilterPlaceholder: '渠道',
+    orderKindFilterPlaceholder: '订单状态',
+    unreadOnly: '只看未读',
+    applyFilters: '加载会话',
+    selectedThreads: '已选择 {count} 个会话',
+    clearSelection: '清空',
+    idleConversations: '点击加载会话。',
+    loadConversations: '加载会话',
+    emptyConversations: '没有匹配的会话',
+    loadMoreThreads: '加载更多',
+    noMoreThreads: '没有更多会话',
+    loadEarlierMessages: '加载更早消息',
+    emptyMessages: '当前会话暂无消息',
+    inquiry: '咨询',
+    requested: '待确认',
+    confirmed: '已确定',
+    cancelled: '已取消',
+    completed: '已完成',
+    unmatchedOrder: '未匹配订单',
+    unknownOrder: '未知',
+    airbnb: 'Airbnb',
+    booking: 'Booking.com',
+    allChannels: '全部渠道',
+    routeTargetNotFound: '没有匹配到该订单的会话，可调整筛选条件后重试。',
+  },
+  ja: {
+    searchPlaceholder: 'ゲスト、予約、リスティング、メッセージを検索',
+    channelFilterPlaceholder: 'チャネル',
+    orderKindFilterPlaceholder: '予約ステータス',
+    unreadOnly: '未読のみ',
+    applyFilters: '会話を読み込む',
+    selectedThreads: '{count} 件選択中',
+    clearSelection: 'クリア',
+    idleConversations: '会話を読み込むにはボタンをクリックしてください。',
+    loadConversations: '会話を読み込む',
+    emptyConversations: '条件に一致する会話はありません',
+    loadMoreThreads: 'さらに読み込む',
+    noMoreThreads: 'これ以上会話はありません',
+    loadEarlierMessages: '以前のメッセージを読み込む',
+    emptyMessages: 'この会話にメッセージはありません',
+    inquiry: '問い合わせ',
+    requested: '確認待ち',
+    confirmed: '確定',
+    cancelled: 'キャンセル済み',
+    completed: '完了',
+    unmatchedOrder: '未照合予約',
+    unknownOrder: '不明',
+    airbnb: 'Airbnb',
+    booking: 'Booking.com',
+    allChannels: 'すべてのチャネル',
+    routeTargetNotFound: 'この予約に一致する会話が見つかりませんでした。',
+  },
+}
+
+const uiTextLocale = computed<UiTextLocale>(() => {
+  const code = String(locale.value || '').toLowerCase()
+  if (code.startsWith('zh')) {
+    return 'zh'
+  }
+  if (code.startsWith('ja')) {
+    return 'ja'
+  }
+  return 'en'
+})
+
+const uiText = (key: string, options: UiTextOptions = {}) => {
+  const text = UI_TEXT[uiTextLocale.value][key] || UI_TEXT.en[key] || key
+  if (typeof options.count === 'number') {
+    return text.replace('{count}', String(options.count))
+  }
+  return text
+}
+
+const channelFilterOptions = computed(() => [
+  { value: 'AIRBNB' as const, label: uiText('airbnb') },
+  { value: 'BOOKING' as const, label: uiText('booking') },
+])
+
+const orderKindFilterOptions = computed(() => [
+  { value: 'INQUIRY' as const, label: uiText('inquiry') },
+  { value: 'REQUESTED' as const, label: uiText('requested') },
+  { value: 'CONFIRMED' as const, label: uiText('confirmed') },
+  { value: 'CANCELLED' as const, label: uiText('cancelled') },
+  { value: 'COMPLETED' as const, label: uiText('completed') },
+])
+
+const isThreadListBusy = computed(() => {
+  return isLoadingThreads.value || isLoadingMoreThreads.value || isRefreshingThreads.value
+})
+
 const currentStoreLanguageCode = computed(() => {
   const rawCode = (storeStore.currentStore?.language || DEFAULT_STORE_LANGUAGE).trim().toLowerCase()
   if (rawCode.startsWith('zh')) {
@@ -792,19 +1053,7 @@ const getDateDiffByStoreDay = (target: Date, base: Date) => {
 }
 
 const filteredConversations = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-  if (!query) {
-    return conversations.value
-  }
-
-  return conversations.value.filter((conversation) => {
-    return (
-      (conversation.guestName || '').toLowerCase().includes(query) ||
-      (conversation.listingName || '').toLowerCase().includes(query) ||
-      (conversation.bookingId || '').toLowerCase().includes(query) ||
-      (conversation.threadId || '').toLowerCase().includes(query)
-    )
-  })
+  return conversations.value
 })
 
 const filteredQuickReplies = computed(() => {
@@ -1162,6 +1411,16 @@ const clearMessageScrollTranslateTimer = () => {
 }
 
 const handleMessagesScroll = () => {
+  const container = messagesListRef.value
+  if (
+    container &&
+    container.scrollTop <= 24 &&
+    hasMoreMessagesBefore.value &&
+    !isLoadingOlderMessages.value
+  ) {
+    void loadOlderMessages()
+  }
+
   if (!translationEnabled.value) {
     return
   }
@@ -1237,10 +1496,10 @@ const formatUnreadCount = (count: number) => (count > 99 ? '99+' : String(count)
 
 const resolveChannelStyle = (conversation: SuMessagingThreadDTO) => {
   const normalizedName = (conversation.channelName || '').trim().toLowerCase()
-  if (conversation.channelId === 19 || normalizedName.includes('booking')) {
+  if (conversation.channelId === CHANNEL_BOOKING_ID || normalizedName.includes('booking')) {
     return 'booking'
   }
-  if (conversation.channelId === 244 || normalizedName.includes('airbnb')) {
+  if (conversation.channelId === CHANNEL_AIRBNB_ID || normalizedName.includes('airbnb')) {
     return 'airbnb'
   }
   return 'default'
@@ -1255,6 +1514,39 @@ const resolveChannelLabel = (conversation: SuMessagingThreadDTO) => {
     return 'Airbnb'
   }
   return conversation.channelName || t('stage6.components.messagesPage.channelFallback')
+}
+
+const isAirbnbConversation = (conversation: SuMessagingThreadDTO) => {
+  const normalizedName = (conversation.channelName || '').trim().toLowerCase()
+  return (
+    conversation.channelCode === 'AIRBNB' ||
+    conversation.channelId === CHANNEL_AIRBNB_ID ||
+    normalizedName.includes('airbnb')
+  )
+}
+
+const getConversationOrderKindLabel = (conversation: SuMessagingThreadDTO) => {
+  if (!conversation.orderKind) {
+    return ''
+  }
+  if (conversation.orderKind === 'INQUIRY' && !isAirbnbConversation(conversation)) {
+    return ''
+  }
+
+  const labelMap: Partial<Record<SuMessagingOrderKind, string>> = {
+    INQUIRY: uiText('inquiry'),
+    REQUESTED: uiText('requested'),
+    CONFIRMED: uiText('confirmed'),
+    CANCELLED: uiText('cancelled'),
+    COMPLETED: uiText('completed'),
+    UNMATCHED_ORDER: uiText('unmatchedOrder'),
+    UNKNOWN: uiText('unknownOrder'),
+  }
+  return labelMap[conversation.orderKind] || ''
+}
+
+const getConversationOrderKindStyle = (conversation: SuMessagingThreadDTO) => {
+  return (conversation.orderKind || 'UNKNOWN').toLowerCase().replace(/_/g, '-')
 }
 
 const getConversationPreviewKey = (conversation: SuMessagingThreadDTO) =>
@@ -1464,26 +1756,64 @@ const scrollToBottom = async () => {
   }
 }
 
-const ensureActiveConversation = async () => {
-  if (conversations.value.length === 0) {
-    activeThreadId.value = null
-    messages.value = []
+const preserveScrollPositionAfterPrepend = async (previousScrollHeight: number) => {
+  await nextTick()
+  if (!messagesListRef.value) {
     return
   }
+  messagesListRef.value.scrollTop = messagesListRef.value.scrollHeight - previousScrollHeight
+}
 
-  const exists = activeThreadId.value
-    ? conversations.value.some((conversation) => conversation.id === activeThreadId.value)
-    : false
+const updateThreadSelectionAfterListChange = () => {
+  const visibleIds = new Set(conversations.value.map((conversation) => conversation.id))
+  selectedThreadIds.value = selectedThreadIds.value.filter((threadId) => visibleIds.has(threadId))
+}
 
-  if (!exists) {
-    activeThreadId.value = conversations.value[0].id
-    await loadThreadMessages(conversations.value[0].id)
+const isThreadSelected = (threadId: number) => selectedThreadIds.value.includes(threadId)
+
+const handleThreadSelectionChange = (threadId: number, checked: string | number | boolean) => {
+  const shouldSelect = Boolean(checked)
+  if (shouldSelect && !selectedThreadIds.value.includes(threadId)) {
+    selectedThreadIds.value = [...selectedThreadIds.value, threadId]
+    return
+  }
+  if (!shouldSelect) {
+    selectedThreadIds.value = selectedThreadIds.value.filter((selectedId) => selectedId !== threadId)
   }
 }
 
-const refreshThreads = async () => {
+const clearSelectedThreads = () => {
+  selectedThreadIds.value = []
+}
+
+const buildThreadPageParams = (page: number) => ({
+  page,
+  size: THREAD_PAGE_SIZE,
+  channel: filterChannel.value || undefined,
+  orderKind: filterOrderKind.value || undefined,
+  unread: filterUnreadOnly.value || undefined,
+  search: searchQuery.value.trim() || undefined,
+})
+
+const applyThreadPage = (pageData: SuMessagingThreadPageDTO, append: boolean) => {
+  const incoming = pageData.items || []
+  conversations.value = append ? mergeThreadSummaries([...conversations.value, ...incoming]) : incoming
+  threadPageNumber.value = pageData.page
+  threadPageHasNext.value = Boolean(pageData.hasNext)
+  hasThreadQueryStarted.value = true
+  updateThreadSelectionAfterListChange()
+  syncActiveConversationWithFilteredList()
+  void translateConversationPreviews()
+}
+
+const fetchThreadPage = async (page: number, append: boolean) => {
   try {
-    const response = (await getSuThreads()) as ApiResponse<SuMessagingThreadDTO[]>
+    if (append) {
+      isLoadingMoreThreads.value = true
+    } else {
+      isLoadingThreads.value = true
+    }
+    const response = (await getSuThreadsPage(buildThreadPageParams(page))) as ApiResponse<SuMessagingThreadPageDTO>
     if (response.success === false) {
       throw new Error(
         sanitizeUserFacingMessage(response.message) ||
@@ -1491,19 +1821,104 @@ const refreshThreads = async () => {
       )
     }
 
-    conversations.value = response.data || []
-    notificationCenterStore.updateChatUnreadCountFromThreads(conversations.value)
-    await ensureActiveConversation()
-    await applyRouteConversationTarget()
+    applyThreadPage(
+      response.data || {
+        items: [],
+        page,
+        size: THREAD_PAGE_SIZE,
+        totalElements: 0,
+        totalPages: 0,
+        hasNext: false,
+      },
+      append,
+    )
+    await notificationCenterStore.refreshChatUnreadCount()
   } catch (error) {
     console.error('Failed to refresh conversation list:', error)
     ElMessage.error(t('stage6.components.messagesPage.errors.refreshFailed'))
+  } finally {
+    isLoadingThreads.value = false
+    isLoadingMoreThreads.value = false
   }
 }
 
-const loadThreadMessages = async (threadId: number) => {
+const applyThreadFilters = async () => {
+  clearActiveConversationDetails()
+  clearSelectedThreads()
+  threadPageNumber.value = 0
+  threadPageHasNext.value = false
+  await fetchThreadPage(0, false)
+}
+
+const loadNextThreadPage = async () => {
+  if (!threadPageHasNext.value || isThreadListBusy.value) {
+    return
+  }
+  await fetchThreadPage(threadPageNumber.value + 1, true)
+}
+
+const refreshThreads = async () => {
+  if (!hasThreadQueryStarted.value) {
+    await applyThreadFilters()
+    return
+  }
+  isRefreshingThreads.value = true
   try {
-    const response = (await getSuThreadMessages(threadId)) as ApiResponse<SuMessagingMessageDTO[]>
+    await fetchThreadPage(0, false)
+  } finally {
+    isRefreshingThreads.value = false
+  }
+}
+
+const mergeThreadSummaries = (items: SuMessagingThreadDTO[]) => {
+  const threadById = new Map<number, SuMessagingThreadDTO>()
+  for (const item of items) {
+    const existing = threadById.get(item.id)
+    threadById.set(item.id, existing ? { ...existing, ...item } : item)
+  }
+  return [...threadById.values()].sort((a, b) => {
+    const left = parseUtcDateTime(a.lastActivity).getTime()
+    const right = parseUtcDateTime(b.lastActivity).getTime()
+    if (Number.isNaN(left) || Number.isNaN(right)) {
+      return b.id - a.id
+    }
+    if (left === right) {
+      return b.id - a.id
+    }
+    return right - left
+  })
+}
+
+const updateThreadSummary = (threadId: number, patch: Partial<SuMessagingThreadDTO>) => {
+  conversations.value = mergeThreadSummaries(
+    conversations.value.map((conversation) => {
+      if (conversation.id !== threadId) {
+        return conversation
+      }
+      return { ...conversation, ...patch }
+    }),
+  )
+}
+
+const loadThreadMessages = async (threadId: number, beforeMessageId?: number) => {
+  const isOlderPage = typeof beforeMessageId === 'number'
+  const previousScrollHeight = messagesListRef.value?.scrollHeight || 0
+  try {
+    if (isOlderPage) {
+      isLoadingOlderMessages.value = true
+    } else {
+      isLoadingMessages.value = true
+      messages.value = []
+      hasMoreMessagesBefore.value = false
+      nextBeforeMessageId.value = null
+      clearMessageTranslationCache()
+    }
+
+    const response = (await getSuThreadMessagesPage(threadId, {
+      limit: MESSAGE_PAGE_LIMIT,
+      beforeMessageId,
+      markRead: !isOlderPage,
+    })) as ApiResponse<SuMessagingMessagePageDTO>
     if (response.success === false) {
       throw new Error(
         sanitizeUserFacingMessage(response.message) ||
@@ -1511,13 +1926,28 @@ const loadThreadMessages = async (threadId: number) => {
       )
     }
 
-    const incoming = (response.data || []).map(mapMessage)
-    messages.value = mergeMessagesById(incoming)
+    const pageData =
+      response.data || {
+        items: [],
+        limit: MESSAGE_PAGE_LIMIT,
+        hasMoreBefore: false,
+      }
+    const incoming = (pageData.items || []).map(mapMessage)
+    messages.value = mergeMessagesById(isOlderPage ? [...incoming, ...messages.value] : incoming)
+    hasMoreMessagesBefore.value = Boolean(pageData.hasMoreBefore)
+    nextBeforeMessageId.value = pageData.nextBeforeMessageId || null
+    if (!isOlderPage) {
+      updateThreadSummary(threadId, { unreadCount: 0 })
+      await notificationCenterStore.refreshChatUnreadCount()
+    }
     if (translationEnabled.value) {
-      clearMessageTranslationCache()
       void translateCurrentConversation()
     }
-    await scrollToBottom()
+    if (isOlderPage) {
+      await preserveScrollPositionAfterPrepend(previousScrollHeight)
+    } else {
+      await scrollToBottom()
+    }
     if (translationEnabled.value) {
       await nextTick()
       void translateVisibleMessages()
@@ -1525,13 +1955,25 @@ const loadThreadMessages = async (threadId: number) => {
   } catch (error) {
     console.error('Failed to load conversation messages:', error)
     ElMessage.error(t('stage6.components.messagesPage.errors.loadMessagesFailed'))
+  } finally {
+    isLoadingMessages.value = false
+    isLoadingOlderMessages.value = false
   }
 }
 
+const loadOlderMessages = async () => {
+  if (!activeThreadId.value || !nextBeforeMessageId.value || isLoadingOlderMessages.value) {
+    return
+  }
+  await loadThreadMessages(activeThreadId.value, nextBeforeMessageId.value)
+}
+
 const selectConversation = async (threadId: number) => {
+  if (activeThreadId.value === threadId && messages.value.length > 0) {
+    return
+  }
   activeThreadId.value = threadId
   await loadThreadMessages(threadId)
-  await refreshThreads()
 }
 
 const buildConversationContextForAi = () => {
@@ -1835,9 +2277,15 @@ const sendMessageContent = async (content: string) => {
       )
     }
 
-    replaceMessageById(optimistic.id, mapMessage(response.data))
+    const sentMessage = mapMessage(response.data)
+    replaceMessageById(optimistic.id, sentMessage)
+    updateThreadSummary(activeThreadId.value, {
+      lastMessage: content,
+      lastActivity: response.data.timestamp,
+      unreadCount: 0,
+    })
     await scrollToBottom()
-    await refreshThreads()
+    await notificationCenterStore.refreshChatUnreadCount()
     return true
   } catch (error) {
     const index = messages.value.findIndex((message) => message.id === optimistic.id)
@@ -1921,11 +2369,29 @@ const handleRealtimeEvent = async (event: SuMessagingRealtimeEvent) => {
   }
 
   if (threadId === activeThreadId.value) {
-    upsertMessage(mapRealtimeMessage(message))
+    const mappedMessage = mapRealtimeMessage(message)
+    upsertMessage(mappedMessage)
+    updateThreadSummary(threadId, {
+      lastMessage: mappedMessage.content,
+      lastActivity: message.timestamp,
+      unreadCount: 0,
+    })
     await scrollToBottom()
+  } else {
+    const existing = conversations.value.find((conversation) => conversation.id === threadId)
+    if (existing) {
+      updateThreadSummary(threadId, {
+        lastMessage: message.content,
+        lastActivity: message.timestamp,
+        unreadCount:
+          String(message.senderType || '').toUpperCase() === 'GUEST'
+            ? Number(existing.unreadCount || 0) + 1
+            : existing.unreadCount,
+      })
+    }
   }
 
-  await refreshThreads()
+  await notificationCenterStore.refreshChatUnreadCount()
 }
 
 const clearReconnectTimer = () => {
@@ -2210,19 +2676,54 @@ const resolveConversationByRouteTarget = async () => {
   return null
 }
 
+const buildRouteTargetSearchText = async () => {
+  const target = routeTarget.value
+  const directCandidates = [target.channelOrderNumber, target.orderNumber, target.guestName]
+    .map((item) => item.trim())
+    .filter(Boolean)
+  if (directCandidates.length) {
+    return directCandidates[0]
+  }
+
+  if (!target.reservationId) {
+    return ''
+  }
+
+  try {
+    const response = await getReservationById(target.reservationId)
+    if (!response.success || !response.data) {
+      return ''
+    }
+    const reservation = response.data
+    return (
+      reservation.channelOrderNumber?.trim() ||
+      reservation.orderNumber?.trim() ||
+      reservation.guestName?.trim() ||
+      ''
+    )
+  } catch (error) {
+    console.error('Failed to load reservation for message route target:', error)
+    return ''
+  }
+}
+
 const applyRouteConversationTarget = async () => {
-  if (!hasRouteTarget.value || routeTargetHandled.value || !conversations.value.length) {
+  if (!hasRouteTarget.value || routeTargetHandled.value) {
     return
   }
 
-  const target = routeTarget.value
-  const preferredKeyword = target.channelOrderNumber || target.orderNumber || target.guestName
-  if (preferredKeyword && !searchQuery.value.trim()) {
+  const preferredKeyword = await buildRouteTargetSearchText()
+  if (preferredKeyword) {
     searchQuery.value = preferredKeyword
+    await fetchThreadPage(0, false)
   }
 
   const matchedConversation = await resolveConversationByRouteTarget()
   if (!matchedConversation) {
+    if (preferredKeyword) {
+      ElMessage.warning(uiText('routeTargetNotFound'))
+    }
+    routeTargetHandled.value = true
     return
   }
 
@@ -2372,7 +2873,8 @@ const openOrderDetail = async () => {
 }
 
 const initialize = async () => {
-  await refreshThreads()
+  await notificationCenterStore.refreshChatUnreadCount()
+  await applyRouteConversationTarget()
   connectRealtimeSocket()
 }
 
@@ -2447,9 +2949,38 @@ onUnmounted(() => {
   gap: 4px;
 }
 
-.search-bar {
+.filters-panel {
   padding: 16px;
   border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.selection-bar {
+  min-height: 36px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #f8fbff;
+  color: #606266;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .conversations-list {
@@ -2470,6 +3001,15 @@ onUnmounted(() => {
 .conversation-item:hover,
 .conversation-item.active {
   background: #f8fbff;
+}
+
+.conversation-item.selected {
+  background: #f4f9ff;
+}
+
+.conversation-select {
+  flex-shrink: 0;
+  margin-top: 9px;
 }
 
 .conversation-avatar,
@@ -2543,6 +3083,57 @@ onUnmounted(() => {
 .conversation-closed-text {
   color: #909399;
   font-size: 12px;
+}
+
+.order-kind-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+  background: #f4f4f5;
+  color: #606266;
+  border: 1px solid #e9e9eb;
+}
+
+.order-kind-inquiry {
+  background: #fff7e6;
+  color: #b26a00;
+  border-color: #ffd591;
+}
+
+.order-kind-requested {
+  background: #e6f4ff;
+  color: #0958d9;
+  border-color: #91caff;
+}
+
+.order-kind-confirmed {
+  background: #f0f9eb;
+  color: #3c8618;
+  border-color: #b7eb8f;
+}
+
+.order-kind-cancelled {
+  background: #fff1f0;
+  color: #cf1322;
+  border-color: #ffa39e;
+}
+
+.order-kind-completed {
+  background: #f5f5f5;
+  color: #595959;
+  border-color: #d9d9d9;
+}
+
+.thread-pagination,
+.load-earlier-messages {
+  padding: 12px 16px;
+  text-align: center;
+  color: #909399;
+  font-size: 13px;
 }
 
 .channel-badge {

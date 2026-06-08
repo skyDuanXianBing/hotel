@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -59,7 +60,11 @@ class RegistrationAdminControllerTest {
                 List.of("102", "103"),
                 9L,
                 checkInDate,
-                checkOutDate
+                checkOutDate,
+                null,
+                null,
+                null,
+                null
         );
 
         assertTrue(response.isSuccess());
@@ -71,9 +76,55 @@ class RegistrationAdminControllerTest {
                 roomNumbersCaptor.capture(),
                 eq(9L),
                 eq(checkInDate),
-                eq(checkOutDate)
+                eq(checkOutDate),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull()
         );
         assertEquals(List.of("101", "102", "103"), roomNumbersCaptor.getValue());
+    }
+
+    @Test
+    void list_shouldForwardDateRangeParams() {
+        RegistrationAdminService registrationAdminService = mock(RegistrationAdminService.class);
+        RegistrationAdminController controller = new RegistrationAdminController();
+        ReflectionTestUtils.setField(controller, "registrationAdminService", registrationAdminService);
+
+        LocalDate checkInStartDate = LocalDate.of(2026, 6, 1);
+        LocalDate checkInEndDate = LocalDate.of(2026, 6, 30);
+        LocalDate checkOutStartDate = LocalDate.of(2026, 5, 1);
+        LocalDate checkOutEndDate = LocalDate.of(2026, 5, 31);
+
+        ApiResponse<List<AdminRegistrationListItemDTO>> response = controller.list(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                checkInStartDate,
+                checkInEndDate,
+                checkOutStartDate,
+                checkOutEndDate
+        );
+
+        assertTrue(response.isSuccess());
+        verify(registrationAdminService).list(
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(checkInStartDate),
+                eq(checkInEndDate),
+                eq(checkOutStartDate),
+                eq(checkOutEndDate)
+        );
     }
 
     @Test
@@ -86,6 +137,10 @@ class RegistrationAdminControllerTest {
                 List.class,
                 List.class,
                 Long.class,
+                LocalDate.class,
+                LocalDate.class,
+                LocalDate.class,
+                LocalDate.class,
                 LocalDate.class,
                 LocalDate.class
         ));

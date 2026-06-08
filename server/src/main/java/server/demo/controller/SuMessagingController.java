@@ -9,8 +9,11 @@ import server.demo.context.StoreContextHolder;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.SuMessagingAiSettingDTO;
 import server.demo.dto.SuMessagingMessageDTO;
+import server.demo.dto.SuMessagingMessagePageResponse;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.dto.SuMessagingThreadDTO;
+import server.demo.dto.SuMessagingThreadPageResponse;
+import server.demo.dto.SuMessagingUnreadSummaryDTO;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
 import server.demo.service.RegistrationLinkInboxService;
@@ -53,6 +56,39 @@ public class SuMessagingController {
         }
     }
 
+    @GetMapping("/threads/page")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<SuMessagingThreadPageResponse>> listThreadPage(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String channel,
+            @RequestParam(required = false) String orderKind,
+            @RequestParam(required = false) String reservationStatus,
+            @RequestParam(required = false) Boolean unread,
+            @RequestParam(required = false) Boolean closed,
+            @RequestParam(required = false) String search
+    ) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            SuMessagingThreadPageResponse response = suMessagingService.listThreadPage(
+                    storeId,
+                    page,
+                    size,
+                    channel,
+                    orderKind,
+                    reservationStatus,
+                    unread,
+                    closed,
+                    search
+            );
+            return ResponseEntity.ok(ApiResponse.success(response));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("获取会话分页失败: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/threads/{threadId}/messages")
     @StoreScoped
     public ResponseEntity<ApiResponse<List<SuMessagingMessageDTO>>> getMessages(@PathVariable Long threadId) {
@@ -63,6 +99,44 @@ public class SuMessagingController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(ApiResponse.error("获取消息失败: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/threads/{threadId}/messages/page")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<SuMessagingMessagePageResponse>> getMessagePage(
+            @PathVariable Long threadId,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) Long beforeMessageId,
+            @RequestParam(required = false) Long afterMessageId,
+            @RequestParam(required = false) Boolean markRead
+    ) {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            SuMessagingMessagePageResponse response = suMessagingService.getThreadMessagePage(
+                    storeId,
+                    threadId,
+                    limit,
+                    beforeMessageId,
+                    afterMessageId,
+                    markRead
+            );
+            return ResponseEntity.ok(ApiResponse.success(response));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("获取消息分页失败: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/unread-summary")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<SuMessagingUnreadSummaryDTO>> getUnreadSummary() {
+        try {
+            Long storeId = StoreContextHolder.getContext().getStoreId();
+            return ResponseEntity.ok(ApiResponse.success(suMessagingService.getUnreadSummary(storeId)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("获取未读摘要失败: " + e.getMessage()));
         }
     }
 

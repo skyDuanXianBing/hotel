@@ -3,15 +3,21 @@ package server.demo.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import server.demo.dto.SuMessagingMessagePageResponse;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.dto.SuMessagingThreadDTO;
+import server.demo.dto.SuMessagingThreadPageResponse;
+import server.demo.dto.SuMessagingUnreadSummaryDTO;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
+import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.SuMessageRepository;
@@ -27,13 +33,256 @@ import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SuMessagingServiceTest {
+
+    @Test
+    void listThreadPage_shouldReturnClientFieldsAndClampSize() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+
+        SuMessageThread thread = newThread(1L, SuMessagingService.CHANNEL_AIRBNB, "T1", "B1", "B");
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 100))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 100), 101));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(1L, SuMessagingSenderType.GUEST))
+                .thenReturn(2L);
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                -3,
+                200,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals(1, result.getItems().size());
+        assertEquals(0, result.getPage());
+        assertEquals(100, result.getSize());
+        assertEquals(101, result.getTotalElements());
+        assertTrue(result.isHasNext());
+        assertEquals("UNMATCHED_ORDER", result.getItems().get(0).getOrderKind());
+
+        SuMessagingThreadPageResponse contractProbe = new SuMessagingThreadPageResponse(
+                List.of(new SuMessagingThreadDTO()),
+                result.getPage(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages(),
+                result.isHasNext()
+        );
+        JsonNode json = new ObjectMapper().valueToTree(contractProbe);
+        assertTrue(json.has("items"));
+        assertTrue(json.has("page"));
+        assertTrue(json.has("size"));
+        assertTrue(json.has("hasNext"));
+        assertFalse(json.has("content"));
+        assertFalse(json.has("currentPage"));
+        assertFalse(json.has("pageSize"));
+        assertFalse(json.has("last"));
+    }
+
+    @Test
+    void listThreadPage_shouldFilterAirbnbInquiryAndExcludeBookingFromInquiry() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+
+        SuMessageThread airbnbInquiry = newThread(1L, SuMessagingService.CHANNEL_AIRBNB, "T1", "T1", "T");
+        SuMessageThread airbnbBooking = newThread(2L, SuMessagingService.CHANNEL_AIRBNB, "T2", "B2", "B");
+        SuMessageThread bookingThread = newThread(3L, SuMessagingService.CHANNEL_BOOKING, "BK1", "BK1", "T");
+
+        when(threadRepository.findByStoreIdAndFilters(
+                eq(26L),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST)
+        )).thenReturn(List.of(airbnbInquiry, airbnbBooking, bookingThread));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(any(), eq(SuMessagingSenderType.GUEST)))
+                .thenReturn(0L);
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                null,
+                "INQUIRY",
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals(1, result.getItems().size());
+        assertEquals(1L, result.getItems().get(0).getId());
+        assertEquals("INQUIRY", result.getItems().get(0).getOrderKind());
+    }
+
+    @Test
+    void listThreadPage_shouldClassifyAirbnbReservationStatuses() {
+        Reservation requestedReservation = new Reservation();
+        requestedReservation.setStatus(ReservationStatus.REQUESTED);
+        Reservation confirmedReservation = new Reservation();
+        confirmedReservation.setStatus(ReservationStatus.CONFIRMED);
+        Reservation checkedInReservation = new Reservation();
+        checkedInReservation.setStatus(ReservationStatus.CHECKED_IN);
+        Reservation cancelledReservation = new Reservation();
+        cancelledReservation.setStatus(ReservationStatus.CANCELLED);
+        Reservation noShowReservation = new Reservation();
+        noShowReservation.setStatus(ReservationStatus.NO_SHOW);
+        Reservation checkedOutReservation = new Reservation();
+        checkedOutReservation.setStatus(ReservationStatus.CHECKED_OUT);
+
+        SuMessageThread airbnbThread = newThread(1L, SuMessagingService.CHANNEL_AIRBNB, "T1", "B1", "B");
+        SuMessageThread bookingThread = newThread(2L, SuMessagingService.CHANNEL_BOOKING, "BK1", "BK1", "T");
+
+        assertEquals("REQUESTED", SuMessagingService.resolveOrderKind(airbnbThread, requestedReservation));
+        assertEquals("CONFIRMED", SuMessagingService.resolveOrderKind(airbnbThread, confirmedReservation));
+        assertEquals("CONFIRMED", SuMessagingService.resolveOrderKind(airbnbThread, checkedInReservation));
+        assertEquals("CANCELLED", SuMessagingService.resolveOrderKind(airbnbThread, cancelledReservation));
+        assertEquals("CANCELLED", SuMessagingService.resolveOrderKind(airbnbThread, noShowReservation));
+        assertEquals("COMPLETED", SuMessagingService.resolveOrderKind(airbnbThread, checkedOutReservation));
+        assertEquals("UNMATCHED_ORDER", SuMessagingService.resolveOrderKind(bookingThread, null));
+    }
+
+    @Test
+    void getThreadMessagePage_shouldReturnItemsNextCursorAndMarkReadByDefault() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+        SuMessageThread thread = newThread(10L, SuMessagingService.CHANNEL_AIRBNB, "T1", "B1", "B");
+
+        SuMessage newest = newMessage(103L, thread, "Newest");
+        SuMessage middle = newMessage(102L, thread, "Middle");
+        SuMessage oldest = newMessage(101L, thread, "Oldest");
+        SuMessage overflow = newMessage(100L, thread, "Overflow");
+
+        when(threadRepository.findByStoreIdAndId(26L, 10L)).thenReturn(Optional.of(thread));
+        when(messageRepository.findMessagePageByCursorDesc(
+                eq(26L),
+                eq(10L),
+                isNull(),
+                isNull(),
+                eq(PageRequest.of(0, 4))
+        )).thenReturn(List.of(newest, middle, oldest, overflow));
+        when(messageRepository.existsByStoreIdAndThread_IdAndIdLessThan(26L, 10L, 101L)).thenReturn(true);
+        when(messageRepository.existsByStoreIdAndThread_IdAndIdGreaterThan(26L, 10L, 103L)).thenReturn(false);
+
+        SuMessagingMessagePageResponse result = service.getThreadMessagePage(
+                26L,
+                10L,
+                3,
+                null,
+                null,
+                null
+        );
+
+        assertEquals(3, result.getItems().size());
+        assertEquals(101L, result.getItems().get(0).getId());
+        assertEquals(103L, result.getItems().get(2).getId());
+        assertTrue(result.isHasMoreBefore());
+        assertEquals(101L, result.getNextBeforeMessageId());
+        assertFalse(result.isHasMoreAfter());
+        verify(messageRepository).markThreadMessagesAsRead(10L, SuMessagingSenderType.GUEST);
+
+        SuMessagingMessagePageResponse contractProbe = new SuMessagingMessagePageResponse(
+                List.of(),
+                result.getLimit(),
+                result.isHasMoreBefore(),
+                result.getNextBeforeMessageId(),
+                result.isHasMoreAfter()
+        );
+        JsonNode json = new ObjectMapper().valueToTree(contractProbe);
+        assertTrue(json.has("items"));
+        assertTrue(json.has("nextBeforeMessageId"));
+        assertFalse(json.has("content"));
+        assertFalse(json.has("beforeMessageId"));
+    }
+
+    @Test
+    void getThreadMessagePage_shouldClampLimitAndRespectMarkReadFalse() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+        SuMessageThread thread = newThread(10L, SuMessagingService.CHANNEL_AIRBNB, "T1", "B1", "B");
+
+        when(threadRepository.findByStoreIdAndId(26L, 10L)).thenReturn(Optional.of(thread));
+        when(messageRepository.findMessagePageByCursorDesc(
+                eq(26L),
+                eq(10L),
+                eq(99L),
+                isNull(),
+                eq(PageRequest.of(0, 101))
+        )).thenReturn(List.of());
+
+        SuMessagingMessagePageResponse result = service.getThreadMessagePage(
+                26L,
+                10L,
+                300,
+                99L,
+                null,
+                false
+        );
+
+        assertEquals(100, result.getLimit());
+        assertTrue(result.getItems().isEmpty());
+        Mockito.verify(messageRepository, Mockito.never())
+                .markThreadMessagesAsRead(any(), eq(SuMessagingSenderType.GUEST));
+    }
+
+    @Test
+    void getUnreadSummary_shouldReturnTotalUnreadClientField() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+
+        SuMessageRepository.ChannelUnreadSummaryRow channelRow = Mockito.mock(SuMessageRepository.ChannelUnreadSummaryRow.class);
+        when(channelRow.getChannelId()).thenReturn(SuMessagingService.CHANNEL_AIRBNB);
+        when(channelRow.getUnreadMessageCount()).thenReturn(7L);
+        when(channelRow.getUnreadThreadCount()).thenReturn(2L);
+        when(messageRepository.countUnreadMessagesByStoreId(26L, SuMessagingSenderType.GUEST)).thenReturn(9L);
+        when(messageRepository.countUnreadThreadsByStoreId(26L, SuMessagingSenderType.GUEST)).thenReturn(3L);
+        when(messageRepository.summarizeUnreadByChannel(26L, SuMessagingSenderType.GUEST))
+                .thenReturn(List.of(channelRow));
+
+        SuMessagingUnreadSummaryDTO result = service.getUnreadSummary(26L);
+
+        assertEquals(9L, result.getTotalUnread());
+        assertEquals(3L, result.getUnreadThreadCount());
+        assertEquals(1, result.getByChannel().size());
+        assertEquals(7L, result.getByChannel().get("AIRBNB"));
+
+        JsonNode json = new ObjectMapper().valueToTree(result);
+        assertTrue(json.has("totalUnread"));
+        assertTrue(json.has("byChannel"));
+        assertFalse(json.has("unreadMessageCount"));
+        assertFalse(json.has("channels"));
+    }
 
     @Test
     void listThreads_shouldResolveReservationByExternalBookingKeyFirst() {
@@ -399,5 +648,62 @@ class SuMessagingServiceTest {
         assertEquals(Boolean.TRUE, saved.getIsRead());
 
         verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
+    }
+
+    private static SuMessagingService newService(
+            SuMessageThreadRepository threadRepository,
+            SuMessageRepository messageRepository,
+            ReservationRepository reservationRepository
+    ) {
+        ReservationBookingKeyResolver reservationBookingKeyResolver =
+                new ReservationBookingKeyResolver(reservationRepository);
+        return new SuMessagingService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                reservationBookingKeyResolver,
+                Mockito.mock(SuApiClient.class),
+                Mockito.mock(SuAccessTokenService.class),
+                new ObjectMapper(),
+                Mockito.mock(SuMessagingRealtimeGateway.class)
+        );
+    }
+
+    private static SuMessageThread newThread(
+            Long id,
+            Integer channelId,
+            String threadId,
+            String bookingId,
+            String bookingFlag
+    ) {
+        SuMessageThread thread = new SuMessageThread();
+        thread.setId(id);
+        thread.setStoreId(26L);
+        thread.setSuHotelId("STORE26");
+        thread.setChannelId(channelId);
+        thread.setThreadKey(threadId);
+        thread.setThreadId(threadId);
+        thread.setBookingId(bookingId);
+        thread.setBookingFlag(bookingFlag);
+        thread.setGuestName("Guest " + id);
+        thread.setListingId("L" + id);
+        thread.setLastMessage("Last " + id);
+        thread.setLastActivity(LocalDateTime.of(2026, 6, 1, 12, 0).plusMinutes(id));
+        thread.setClosed(false);
+        return thread;
+    }
+
+    private static SuMessage newMessage(Long id, SuMessageThread thread, String content) {
+        SuMessage message = new SuMessage();
+        message.setId(id);
+        message.setStoreId(thread.getStoreId());
+        message.setThread(thread);
+        message.setSenderType(SuMessagingSenderType.GUEST);
+        message.setSenderName("Guest");
+        message.setContent(content);
+        message.setDeliveryStatus("SENT");
+        message.setSentAt(LocalDateTime.of(2026, 6, 1, 12, 0).plusMinutes(id));
+        message.setIsRead(false);
+        return message;
     }
 }

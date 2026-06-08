@@ -40,8 +40,10 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
                       AND rgm.groupId = :roomGroupId
                       AND rgm.roomId = room.id
               ))
-              AND (:checkInDate IS NULL OR r.checkInDate = :checkInDate)
-              AND (:checkOutDate IS NULL OR r.checkOutDate = :checkOutDate)
+              AND (:checkInStartDate IS NULL OR r.checkInDate >= :checkInStartDate)
+              AND (:checkInEndDate IS NULL OR r.checkInDate <= :checkInEndDate)
+              AND (:checkOutStartDate IS NULL OR r.checkOutDate >= :checkOutStartDate)
+              AND (:checkOutEndDate IS NULL OR r.checkOutDate <= :checkOutEndDate)
             ORDER BY f.updatedAt DESC
             """)
     List<RegistrationForm> searchForAdminList(
@@ -52,8 +54,10 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
             @Param("roomNumberFilterEnabled") boolean roomNumberFilterEnabled,
             @Param("roomNumbers") List<String> roomNumbers,
             @Param("roomGroupId") Long roomGroupId,
-            @Param("checkInDate") LocalDate checkInDate,
-            @Param("checkOutDate") LocalDate checkOutDate
+            @Param("checkInStartDate") LocalDate checkInStartDate,
+            @Param("checkInEndDate") LocalDate checkInEndDate,
+            @Param("checkOutStartDate") LocalDate checkOutStartDate,
+            @Param("checkOutEndDate") LocalDate checkOutEndDate
     );
 
     @Modifying(flushAutomatically = true)

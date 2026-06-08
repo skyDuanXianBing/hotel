@@ -79,7 +79,11 @@ public class RegistrationAdminController {
             @RequestParam(name = "roomNumber[]", required = false) List<String> roomNumberAliases,
             @RequestParam(name = "roomGroupId", required = false) Long roomGroupId,
             @RequestParam(name = "checkInDate", required = false) LocalDate checkInDate,
-            @RequestParam(name = "checkOutDate", required = false) LocalDate checkOutDate
+            @RequestParam(name = "checkOutDate", required = false) LocalDate checkOutDate,
+            @RequestParam(name = "checkInStartDate", required = false) LocalDate checkInStartDate,
+            @RequestParam(name = "checkInEndDate", required = false) LocalDate checkInEndDate,
+            @RequestParam(name = "checkOutStartDate", required = false) LocalDate checkOutStartDate,
+            @RequestParam(name = "checkOutEndDate", required = false) LocalDate checkOutEndDate
     ) {
         return ApiResponse.success(
                 "ok",
@@ -90,7 +94,11 @@ public class RegistrationAdminController {
                         mergeRoomNumberFilters(roomNumbers, roomNumberAliases),
                         roomGroupId,
                         checkInDate,
-                        checkOutDate
+                        checkOutDate,
+                        checkInStartDate,
+                        checkInEndDate,
+                        checkOutStartDate,
+                        checkOutEndDate
                 )
         );
     }

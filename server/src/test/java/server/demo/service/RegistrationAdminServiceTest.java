@@ -100,6 +100,8 @@ class RegistrationAdminServiceTest {
                 eq(List.of("101", "102")),
                 eq(7L),
                 isNull(),
+                isNull(),
+                isNull(),
                 isNull()
         )).thenReturn(List.of(form));
 
@@ -112,6 +114,10 @@ class RegistrationAdminServiceTest {
                     ReservationStatus.CANCELLED,
                     List.of(" 101 ", "", "102", "101"),
                     7L,
+                    null,
+                    null,
+                    null,
+                    null,
                     null,
                     null
             );
@@ -131,7 +137,170 @@ class RegistrationAdminServiceTest {
                 List.of("101", "102"),
                 7L,
                 null,
+                null,
+                null,
                 null
+        );
+    }
+
+    @Test
+    void list_shouldForwardDateRangesToRepository() {
+        RegistrationAdminService service = createService();
+        LocalDate checkInStartDate = LocalDate.of(2026, 6, 1);
+        LocalDate checkInEndDate = LocalDate.of(2026, 6, 30);
+        LocalDate checkOutStartDate = LocalDate.of(2026, 5, 1);
+        LocalDate checkOutEndDate = LocalDate.of(2026, 5, 31);
+
+        when(registrationFormRepository.searchForAdminList(
+                eq(26L),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(true),
+                eq(List.of("101")),
+                isNull(),
+                eq(checkInStartDate),
+                eq(checkInEndDate),
+                eq(checkOutStartDate),
+                eq(checkOutEndDate)
+        )).thenReturn(List.of());
+
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+
+            service.list(
+                    null,
+                    null,
+                    null,
+                    List.of("101"),
+                    null,
+                    null,
+                    null,
+                    checkInStartDate,
+                    checkInEndDate,
+                    checkOutStartDate,
+                    checkOutEndDate
+            );
+        }
+
+        verify(registrationFormRepository).searchForAdminList(
+                26L,
+                null,
+                null,
+                null,
+                true,
+                List.of("101"),
+                null,
+                checkInStartDate,
+                checkInEndDate,
+                checkOutStartDate,
+                checkOutEndDate
+        );
+    }
+
+    @Test
+    void list_shouldForwardSingleSidedDateRangesToRepository() {
+        RegistrationAdminService service = createService();
+        LocalDate checkInStartDate = LocalDate.of(2026, 6, 1);
+        LocalDate checkOutEndDate = LocalDate.of(2026, 5, 31);
+
+        when(registrationFormRepository.searchForAdminList(
+                eq(26L),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(true),
+                eq(List.of("101")),
+                isNull(),
+                eq(checkInStartDate),
+                isNull(),
+                isNull(),
+                eq(checkOutEndDate)
+        )).thenReturn(List.of());
+
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+
+            service.list(
+                    null,
+                    null,
+                    null,
+                    List.of("101"),
+                    null,
+                    null,
+                    null,
+                    checkInStartDate,
+                    null,
+                    null,
+                    checkOutEndDate
+            );
+        }
+
+        verify(registrationFormRepository).searchForAdminList(
+                26L,
+                null,
+                null,
+                null,
+                true,
+                List.of("101"),
+                null,
+                checkInStartDate,
+                null,
+                null,
+                checkOutEndDate
+        );
+    }
+
+    @Test
+    void list_shouldConvertLegacySingleDatesToSameDayRanges() {
+        RegistrationAdminService service = createService();
+        LocalDate checkInDate = LocalDate.of(2026, 6, 15);
+        LocalDate checkOutDate = LocalDate.of(2026, 5, 20);
+
+        when(registrationFormRepository.searchForAdminList(
+                eq(26L),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(true),
+                eq(List.of("101")),
+                isNull(),
+                eq(checkInDate),
+                eq(checkInDate),
+                eq(checkOutDate),
+                eq(checkOutDate)
+        )).thenReturn(List.of());
+
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+
+            service.list(
+                    null,
+                    null,
+                    null,
+                    List.of("101"),
+                    null,
+                    checkInDate,
+                    checkOutDate,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        verify(registrationFormRepository).searchForAdminList(
+                26L,
+                null,
+                null,
+                null,
+                true,
+                List.of("101"),
+                null,
+                checkInDate,
+                checkInDate,
+                checkOutDate,
+                checkOutDate
         );
     }
 

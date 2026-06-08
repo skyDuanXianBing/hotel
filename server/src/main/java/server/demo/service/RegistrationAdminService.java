@@ -53,7 +53,11 @@ public class RegistrationAdminService {
             List<String> roomNumbers,
             Long roomGroupId,
             LocalDate checkInDate,
-            LocalDate checkOutDate
+            LocalDate checkOutDate,
+            LocalDate checkInStartDate,
+            LocalDate checkInEndDate,
+            LocalDate checkOutStartDate,
+            LocalDate checkOutEndDate
     ) {
         Long storeId = StoreContextUtils.requireStoreId();
         List<String> normalizedRoomNumbers = normalizeRoomNumbers(roomNumbers);
@@ -61,6 +65,26 @@ public class RegistrationAdminService {
         List<String> queryRoomNumbers = roomNumberFilterEnabled
                 ? normalizedRoomNumbers
                 : List.of(ROOM_NUMBER_FILTER_SENTINEL);
+        LocalDate effectiveCheckInStartDate = resolveRangeStart(
+                checkInDate,
+                checkInStartDate,
+                checkInEndDate
+        );
+        LocalDate effectiveCheckInEndDate = resolveRangeEnd(
+                checkInDate,
+                checkInStartDate,
+                checkInEndDate
+        );
+        LocalDate effectiveCheckOutStartDate = resolveRangeStart(
+                checkOutDate,
+                checkOutStartDate,
+                checkOutEndDate
+        );
+        LocalDate effectiveCheckOutEndDate = resolveRangeEnd(
+                checkOutDate,
+                checkOutStartDate,
+                checkOutEndDate
+        );
         List<RegistrationForm> forms = registrationFormRepository.searchForAdminList(
                 storeId,
                 status,
@@ -69,8 +93,10 @@ public class RegistrationAdminService {
                 roomNumberFilterEnabled,
                 queryRoomNumbers,
                 roomGroupId,
-                checkInDate,
-                checkOutDate
+                effectiveCheckInStartDate,
+                effectiveCheckInEndDate,
+                effectiveCheckOutStartDate,
+                effectiveCheckOutEndDate
         );
 
         List<AdminRegistrationListItemDTO> out = new ArrayList<>();
@@ -240,6 +266,28 @@ public class RegistrationAdminService {
             return null;
         }
         return normalized;
+    }
+
+    private static LocalDate resolveRangeStart(
+            LocalDate exactDate,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        if (startDate != null || endDate != null) {
+            return startDate;
+        }
+        return exactDate;
+    }
+
+    private static LocalDate resolveRangeEnd(
+            LocalDate exactDate,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        if (startDate != null || endDate != null) {
+            return endDate;
+        }
+        return exactDate;
     }
 
     @Transactional

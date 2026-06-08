@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -82,6 +83,8 @@ class RegistrationFormRepositoryTest {
                 List.of("101"),
                 null,
                 null,
+                null,
+                null,
                 null
         );
 
@@ -102,6 +105,8 @@ class RegistrationFormRepositoryTest {
                 null,
                 true,
                 List.of("OTA-305"),
+                null,
+                null,
                 null,
                 null,
                 null
@@ -127,10 +132,160 @@ class RegistrationFormRepositoryTest {
                 List.of("101", "102", "OTA-305"),
                 ROOM_GROUP_ID,
                 null,
+                null,
+                null,
                 null
         );
 
         assertSingleOrderNumber(room101Form.getOrderNumber(), result);
+    }
+
+    @Test
+    void searchForAdminList_shouldFilterCheckInAndCheckOutRangesInclusively() {
+        TestFixture fixture = createFixture();
+        RegistrationForm startBoundaryForm = fixture.createForm(
+                "ORD-RANGE-START",
+                "Alice",
+                fixture.room101,
+                null,
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 6, 5)
+        );
+        RegistrationForm endBoundaryForm = fixture.createForm(
+                "ORD-RANGE-END",
+                "Bob",
+                fixture.room102,
+                null,
+                LocalDate.of(2026, 6, 30),
+                LocalDate.of(2026, 7, 2)
+        );
+        fixture.createForm(
+                "ORD-RANGE-CHECKIN-BEFORE",
+                "Carol",
+                fixture.room101,
+                null,
+                LocalDate.of(2026, 5, 31),
+                LocalDate.of(2026, 6, 5)
+        );
+        fixture.createForm(
+                "ORD-RANGE-CHECKIN-AFTER",
+                "Dave",
+                fixture.room102,
+                null,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 2)
+        );
+        fixture.createForm(
+                "ORD-RANGE-CHECKOUT-BEFORE",
+                "Erin",
+                fixture.room101,
+                null,
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 6, 4)
+        );
+        fixture.createForm(
+                "ORD-RANGE-CHECKOUT-AFTER",
+                "Frank",
+                fixture.room102,
+                null,
+                LocalDate.of(2026, 6, 10),
+                LocalDate.of(2026, 7, 3)
+        );
+        flushAndClear();
+
+        List<RegistrationForm> result = registrationFormRepository.searchForAdminList(
+                STORE_ID,
+                null,
+                null,
+                null,
+                false,
+                List.of("unused"),
+                null,
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 6, 30),
+                LocalDate.of(2026, 6, 5),
+                LocalDate.of(2026, 7, 2)
+        );
+
+        assertOrderNumbers(
+                List.of(startBoundaryForm.getOrderNumber(), endBoundaryForm.getOrderNumber()),
+                result
+        );
+    }
+
+    @Test
+    void searchForAdminList_shouldSupportSingleSidedDateRanges() {
+        TestFixture fixture = createFixture();
+        RegistrationForm checkInAfterStartForm = fixture.createForm(
+                "ORD-SINGLE-START-IN",
+                "Alice",
+                fixture.room101,
+                null,
+                LocalDate.of(2026, 6, 10),
+                LocalDate.of(2026, 6, 15)
+        );
+        RegistrationForm checkInBeforeStartForm = fixture.createForm(
+                "ORD-SINGLE-START-OUT",
+                "Bob",
+                fixture.room102,
+                null,
+                LocalDate.of(2026, 6, 9),
+                LocalDate.of(2026, 6, 15)
+        );
+        RegistrationForm checkOutBeforeEndForm = fixture.createForm(
+                "ORD-SINGLE-END-IN",
+                "Carol",
+                fixture.room101,
+                null,
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 6, 20)
+        );
+        fixture.createForm(
+                "ORD-SINGLE-END-OUT",
+                "Dave",
+                fixture.room102,
+                null,
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 6, 21)
+        );
+        flushAndClear();
+
+        List<RegistrationForm> checkInStartOnlyResult = registrationFormRepository.searchForAdminList(
+                STORE_ID,
+                null,
+                null,
+                null,
+                false,
+                List.of("unused"),
+                null,
+                LocalDate.of(2026, 6, 10),
+                null,
+                null,
+                null
+        );
+        List<RegistrationForm> checkOutEndOnlyResult = registrationFormRepository.searchForAdminList(
+                STORE_ID,
+                null,
+                null,
+                null,
+                false,
+                List.of("unused"),
+                null,
+                null,
+                null,
+                null,
+                LocalDate.of(2026, 6, 20)
+        );
+
+        assertOrderNumbers(List.of(checkInAfterStartForm.getOrderNumber()), checkInStartOnlyResult);
+        assertOrderNumbers(
+                List.of(
+                        checkInAfterStartForm.getOrderNumber(),
+                        checkInBeforeStartForm.getOrderNumber(),
+                        checkOutBeforeEndForm.getOrderNumber()
+                ),
+                checkOutEndOnlyResult
+        );
     }
 
     @Test
@@ -271,14 +426,42 @@ class RegistrationFormRepositoryTest {
             RegistrationFormStatus formStatus,
             ReservationStatus reservationStatus
     ) {
+        return createForm(
+                user,
+                channel,
+                storeId,
+                orderPrefix,
+                guestName,
+                room,
+                otaRoomNumber,
+                formStatus,
+                reservationStatus,
+                CHECK_IN_DATE,
+                CHECK_OUT_DATE
+        );
+    }
+
+    private RegistrationForm createForm(
+            User user,
+            Channel channel,
+            Long storeId,
+            String orderPrefix,
+            String guestName,
+            Room room,
+            String otaRoomNumber,
+            RegistrationFormStatus formStatus,
+            ReservationStatus reservationStatus,
+            LocalDate checkInDate,
+            LocalDate checkOutDate
+    ) {
         Reservation reservation = new Reservation();
         reservation.setUser(user);
         reservation.setChannel(channel);
         reservation.setStoreId(storeId);
         reservation.setRoom(room);
         reservation.setGuestName(guestName);
-        reservation.setCheckInDate(CHECK_IN_DATE);
-        reservation.setCheckOutDate(CHECK_OUT_DATE);
+        reservation.setCheckInDate(checkInDate);
+        reservation.setCheckOutDate(checkOutDate);
         reservation.setAdults(2);
         reservation.setTotalAmount(TOTAL_AMOUNT);
         reservation.setStatus(reservationStatus);
@@ -313,6 +496,14 @@ class RegistrationFormRepositoryTest {
         assertEquals(expectedOrderNumber, orderNumbers.get(0));
     }
 
+    private static void assertOrderNumbers(List<String> expectedOrderNumbers, List<RegistrationForm> result) {
+        List<String> expected = new ArrayList<>(expectedOrderNumbers);
+        List<String> actual = orderNumbersOf(result);
+        Collections.sort(expected);
+        Collections.sort(actual);
+        assertEquals(expected, actual);
+    }
+
     private static List<String> orderNumbersOf(List<RegistrationForm> forms) {
         List<String> orderNumbers = new ArrayList<>();
         for (RegistrationForm form : forms) {
@@ -340,6 +531,29 @@ class RegistrationFormRepositoryTest {
                     otaRoomNumber,
                     RegistrationFormStatus.SUBMITTED,
                     ReservationStatus.CONFIRMED
+            );
+        }
+
+        private RegistrationForm createForm(
+                String orderPrefix,
+                String guestName,
+                Room room,
+                String otaRoomNumber,
+                LocalDate checkInDate,
+                LocalDate checkOutDate
+        ) {
+            return RegistrationFormRepositoryTest.this.createForm(
+                    user,
+                    channel,
+                    STORE_ID,
+                    orderPrefix,
+                    guestName,
+                    room,
+                    otaRoomNumber,
+                    RegistrationFormStatus.SUBMITTED,
+                    ReservationStatus.CONFIRMED,
+                    checkInDate,
+                    checkOutDate
             );
         }
 

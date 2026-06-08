@@ -11,11 +11,14 @@ public class SuMessagingThreadDTO {
     private String guestName;
     private String guestRoomNumber;
     private String bookingId;
+    private String bookingFlag;
     private String threadId;
     private String listingId;
     private String listingName;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
+    private String reservationStatus;
+    private String orderKind;
     private String roomTypeName;
     private String lastMessage;
     private OffsetDateTime lastActivity;
@@ -78,6 +81,14 @@ public class SuMessagingThreadDTO {
         this.bookingId = bookingId;
     }
 
+    public String getBookingFlag() {
+        return bookingFlag;
+    }
+
+    public void setBookingFlag(String bookingFlag) {
+        this.bookingFlag = bookingFlag;
+    }
+
     public String getThreadId() {
         return threadId;
     }
@@ -116,6 +127,22 @@ public class SuMessagingThreadDTO {
 
     public void setCheckOutDate(LocalDate checkOutDate) {
         this.checkOutDate = checkOutDate;
+    }
+
+    public String getReservationStatus() {
+        return reservationStatus;
+    }
+
+    public void setReservationStatus(String reservationStatus) {
+        this.reservationStatus = reservationStatus;
+    }
+
+    public String getOrderKind() {
+        return orderKind;
+    }
+
+    public void setOrderKind(String orderKind) {
+        this.orderKind = orderKind;
     }
 
     public String getRoomTypeName() {

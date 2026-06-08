@@ -3,17 +3,23 @@ package server.demo.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.stereotype.Service;
+import server.demo.dto.SuMessagingMessagePageResponse;
 import server.demo.dto.SuMessagingMessageDTO;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.dto.SuMessagingThreadDTO;
+import server.demo.dto.SuMessagingThreadPageResponse;
+import server.demo.dto.SuMessagingUnreadSummaryDTO;
 import server.demo.entity.Reservation;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
+import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.SuMessageRepository;
@@ -22,12 +28,18 @@ import server.demo.util.SuReservationParser;
 import server.demo.util.UtcTimeUtil;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class SuMessagingService {
@@ -36,6 +48,16 @@ public class SuMessagingService {
 
     public static final int CHANNEL_BOOKING = 19;
     public static final int CHANNEL_AIRBNB = 244;
+    private static final int DEFAULT_THREAD_PAGE_SIZE = 20;
+    private static final int MAX_THREAD_PAGE_SIZE = 100;
+    private static final int DEFAULT_MESSAGE_PAGE_LIMIT = 50;
+    private static final int MAX_MESSAGE_PAGE_LIMIT = 100;
+    private static final String ORDER_KIND_INQUIRY = "INQUIRY";
+    private static final String ORDER_KIND_REQUESTED = "REQUESTED";
+    private static final String ORDER_KIND_CONFIRMED = "CONFIRMED";
+    private static final String ORDER_KIND_CANCELLED = "CANCELLED";
+    private static final String ORDER_KIND_COMPLETED = "COMPLETED";
+    private static final String ORDER_KIND_UNMATCHED_ORDER = "UNMATCHED_ORDER";
 
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
@@ -171,28 +193,158 @@ public class SuMessagingService {
 
     public List<SuMessagingThreadDTO> listThreads(Long storeId) {
         return threadRepository.findByStoreIdOrderByLastActivityDesc(storeId).stream()
-                .map(thread -> {
-                    Reservation reservation = resolveReservationForThread(storeId, thread);
-                    SuMessagingThreadDTO dto = new SuMessagingThreadDTO();
-                    dto.setId(thread.getId());
-                    dto.setReservationId(reservation != null ? reservation.getId() : null);
-                    dto.setChannelId(thread.getChannelId());
-                    dto.setChannelName(resolveChannelName(thread.getChannelId()));
-                    dto.setGuestName(thread.getGuestName());
-                    dto.setBookingId(thread.getBookingId());
-                    dto.setThreadId(thread.getThreadId());
-                    dto.setListingId(thread.getListingId());
-                    dto.setListingName(thread.getListingName());
-                    dto.setCheckInDate(reservation != null ? reservation.getCheckInDate() : null);
-                    dto.setCheckOutDate(reservation != null ? reservation.getCheckOutDate() : null);
-                    dto.setRoomTypeName(resolveRoomTypeName(reservation));
-                    dto.setLastMessage(thread.getLastMessage());
-                    dto.setLastActivity(toUtcOffset(thread.getLastActivity()));
-                    dto.setClosed(Boolean.TRUE.equals(thread.getClosed()));
-                    dto.setUnreadCount(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(thread.getId(), SuMessagingSenderType.GUEST));
-                    return dto;
-                })
+                .map(thread -> toThreadDTO(storeId, thread))
                 .toList();
+    }
+
+    public SuMessagingThreadPageResponse listThreadPage(
+            Long storeId,
+            Integer page,
+            Integer size,
+            String channel,
+            String orderKind,
+            String reservationStatus,
+            Boolean unread,
+            Boolean closed,
+            String search
+    ) {
+        int currentPage = normalizePage(page);
+        int pageSize = normalizeThreadPageSize(size);
+        Set<Integer> channelIds = parseChannelIds(channel);
+        Set<String> orderKinds = parseUppercaseCsv(orderKind);
+        Set<String> reservationStatuses = parseUppercaseCsv(reservationStatus);
+        String normalizedSearch = normalizeBlankToNull(search);
+
+        boolean requiresDynamicFilter = channelIds.size() > 1
+                || !orderKinds.isEmpty()
+                || !reservationStatuses.isEmpty();
+
+        if (!requiresDynamicFilter) {
+            Integer channelId = channelIds.isEmpty() ? null : channelIds.iterator().next();
+            Page<SuMessageThread> threadPage = threadRepository.findPageByStoreIdAndFilters(
+                    storeId,
+                    channelId,
+                    closed,
+                    unread,
+                    normalizedSearch,
+                    SuMessagingSenderType.GUEST,
+                    PageRequest.of(currentPage, pageSize)
+            );
+            List<SuMessagingThreadDTO> items = threadPage.getContent().stream()
+                    .map(thread -> toThreadDTO(storeId, thread))
+                    .toList();
+            return new SuMessagingThreadPageResponse(
+                    items,
+                    currentPage,
+                    pageSize,
+                    threadPage.getTotalElements(),
+                    threadPage.getTotalPages(),
+                    threadPage.hasNext()
+            );
+        }
+
+        Integer databaseChannelId = channelIds.size() == 1 ? channelIds.iterator().next() : null;
+        List<SuMessagingThreadDTO> filtered = threadRepository.findByStoreIdAndFilters(
+                        storeId,
+                        databaseChannelId,
+                        closed,
+                        unread,
+                        normalizedSearch,
+                        SuMessagingSenderType.GUEST
+                ).stream()
+                .filter(thread -> channelIds.isEmpty() || channelIds.contains(thread.getChannelId()))
+                .map(thread -> toThreadDTO(storeId, thread))
+                .filter(dto -> matchesUppercaseFilter(orderKinds, dto.getOrderKind()))
+                .filter(dto -> matchesUppercaseFilter(reservationStatuses, dto.getReservationStatus()))
+                .toList();
+
+        long totalElements = filtered.size();
+        int fromIndex = currentPage * pageSize;
+        List<SuMessagingThreadDTO> items;
+        if (fromIndex >= filtered.size()) {
+            items = List.of();
+        } else {
+            int toIndex = Math.min(fromIndex + pageSize, filtered.size());
+            items = filtered.subList(fromIndex, toIndex);
+        }
+
+        int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / pageSize);
+        return new SuMessagingThreadPageResponse(
+                items,
+                currentPage,
+                pageSize,
+                totalElements,
+                totalPages,
+                fromIndex + pageSize < totalElements
+        );
+    }
+
+    private SuMessagingThreadDTO toThreadDTO(Long storeId, SuMessageThread thread) {
+        Reservation reservation = resolveReservationForThread(storeId, thread);
+        SuMessagingThreadDTO dto = new SuMessagingThreadDTO();
+        dto.setId(thread.getId());
+        dto.setReservationId(reservation != null ? reservation.getId() : null);
+        dto.setChannelId(thread.getChannelId());
+        dto.setChannelName(resolveChannelName(thread.getChannelId()));
+        dto.setGuestName(thread.getGuestName());
+        dto.setBookingId(thread.getBookingId());
+        dto.setBookingFlag(thread.getBookingFlag());
+        dto.setThreadId(thread.getThreadId());
+        dto.setListingId(thread.getListingId());
+        dto.setListingName(thread.getListingName());
+        dto.setCheckInDate(reservation != null ? reservation.getCheckInDate() : null);
+        dto.setCheckOutDate(reservation != null ? reservation.getCheckOutDate() : null);
+        dto.setReservationStatus(reservation != null && reservation.getStatus() != null ? reservation.getStatus().name() : null);
+        dto.setOrderKind(resolveOrderKind(thread, reservation));
+        dto.setRoomTypeName(resolveRoomTypeName(reservation));
+        dto.setLastMessage(thread.getLastMessage());
+        dto.setLastActivity(toUtcOffset(thread.getLastActivity()));
+        dto.setClosed(Boolean.TRUE.equals(thread.getClosed()));
+        dto.setUnreadCount(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(thread.getId(), SuMessagingSenderType.GUEST));
+        return dto;
+    }
+
+    static String resolveOrderKind(SuMessageThread thread, Reservation reservation) {
+        if (reservation != null) {
+            return resolveOrderKindFromReservation(reservation);
+        }
+        if (thread == null || thread.getChannelId() == null) {
+            return null;
+        }
+        if (thread.getChannelId() == CHANNEL_AIRBNB) {
+            String bookingFlag = thread.getBookingFlag();
+            if (bookingFlag != null && "T".equalsIgnoreCase(bookingFlag.trim())) {
+                return ORDER_KIND_INQUIRY;
+            }
+            return ORDER_KIND_UNMATCHED_ORDER;
+        }
+        if (thread.getChannelId() == CHANNEL_BOOKING) {
+            return ORDER_KIND_UNMATCHED_ORDER;
+        }
+        return null;
+    }
+
+    private static String resolveOrderKindFromReservation(Reservation reservation) {
+        if (reservation.getActualCheckOut() != null) {
+            return ORDER_KIND_COMPLETED;
+        }
+        ReservationStatus status = reservation.getStatus();
+        if (status == null) {
+            return ORDER_KIND_UNMATCHED_ORDER;
+        }
+        if (status == ReservationStatus.REQUESTED) {
+            return ORDER_KIND_REQUESTED;
+        }
+        if (status == ReservationStatus.CONFIRMED || status == ReservationStatus.CHECKED_IN) {
+            return ORDER_KIND_CONFIRMED;
+        }
+        if (status == ReservationStatus.CANCELLED || status == ReservationStatus.NO_SHOW) {
+            return ORDER_KIND_CANCELLED;
+        }
+        if (status == ReservationStatus.CHECKED_OUT) {
+            return ORDER_KIND_COMPLETED;
+        }
+        return ORDER_KIND_UNMATCHED_ORDER;
     }
 
     private Reservation resolveReservationForThread(Long storeId, SuMessageThread thread) {
@@ -226,6 +378,86 @@ public class SuMessagingService {
 
         messageRepository.markThreadMessagesAsRead(thread.getId(), SuMessagingSenderType.GUEST);
         return dtos;
+    }
+
+    @Transactional
+    public SuMessagingMessagePageResponse getThreadMessagePage(
+            Long storeId,
+            Long threadId,
+            Integer limit,
+            Long beforeMessageId,
+            Long afterMessageId,
+            Boolean markRead
+    ) {
+        SuMessageThread thread = threadRepository.findByStoreIdAndId(storeId, threadId)
+                .orElseThrow(() -> new IllegalArgumentException("Thread not found or no permission"));
+
+        int pageLimit = normalizeMessagePageLimit(limit);
+        List<SuMessage> rows = messageRepository.findMessagePageByCursorDesc(
+                storeId,
+                thread.getId(),
+                beforeMessageId,
+                afterMessageId,
+                PageRequest.of(0, pageLimit + 1)
+        );
+
+        List<SuMessage> selectedRows = rows;
+        if (rows.size() > pageLimit) {
+            selectedRows = rows.subList(0, pageLimit);
+        }
+
+        List<SuMessage> orderedRows = new ArrayList<>(selectedRows);
+        Collections.reverse(orderedRows);
+        List<SuMessagingMessageDTO> items = orderedRows.stream()
+                .map(SuMessagingService::toMessageDTO)
+                .toList();
+
+        Long nextBeforeMessageId = null;
+        boolean hasMoreBefore = false;
+        boolean hasMoreAfter = false;
+        if (!orderedRows.isEmpty()) {
+            Long oldestMessageId = orderedRows.get(0).getId();
+            Long newestMessageId = orderedRows.get(orderedRows.size() - 1).getId();
+            hasMoreBefore = messageRepository.existsByStoreIdAndThread_IdAndIdLessThan(
+                    storeId,
+                    thread.getId(),
+                    oldestMessageId
+            );
+            hasMoreAfter = messageRepository.existsByStoreIdAndThread_IdAndIdGreaterThan(
+                    storeId,
+                    thread.getId(),
+                    newestMessageId
+            );
+            if (hasMoreBefore) {
+                nextBeforeMessageId = oldestMessageId;
+            }
+        }
+
+        if (markRead == null || Boolean.TRUE.equals(markRead)) {
+            messageRepository.markThreadMessagesAsRead(thread.getId(), SuMessagingSenderType.GUEST);
+        }
+
+        return new SuMessagingMessagePageResponse(
+                items,
+                pageLimit,
+                hasMoreBefore,
+                nextBeforeMessageId,
+                hasMoreAfter
+        );
+    }
+
+    public SuMessagingUnreadSummaryDTO getUnreadSummary(Long storeId) {
+        long totalUnread = messageRepository.countUnreadMessagesByStoreId(storeId, SuMessagingSenderType.GUEST);
+        long unreadThreadCount = messageRepository.countUnreadThreadsByStoreId(storeId, SuMessagingSenderType.GUEST);
+        Map<String, Long> byChannel = new HashMap<>();
+        for (SuMessageRepository.ChannelUnreadSummaryRow row :
+                messageRepository.summarizeUnreadByChannel(storeId, SuMessagingSenderType.GUEST)) {
+            byChannel.put(
+                    resolveChannelCode(row.getChannelId()),
+                    row.getUnreadMessageCount() == null ? 0L : row.getUnreadMessageCount()
+            );
+        }
+        return new SuMessagingUnreadSummaryDTO(totalUnread, unreadThreadCount, byChannel);
     }
 
     @Transactional
@@ -411,6 +643,91 @@ public class SuMessagingService {
         }
         return "CHANNEL_" + channelId;
     }
+
+    private static String resolveChannelCode(Integer channelId) {
+        if (channelId != null && channelId == CHANNEL_AIRBNB) {
+            return "AIRBNB";
+        }
+        if (channelId != null && channelId == CHANNEL_BOOKING) {
+            return "BOOKING";
+        }
+        return channelId == null ? "UNKNOWN" : String.valueOf(channelId);
+    }
+
+    private static int normalizePage(Integer page) {
+        if (page == null || page < 0) {
+            return 0;
+        }
+        return page;
+    }
+
+    private static int normalizeThreadPageSize(Integer size) {
+        if (size == null || size < 1) {
+            return DEFAULT_THREAD_PAGE_SIZE;
+        }
+        return Math.min(size, MAX_THREAD_PAGE_SIZE);
+    }
+
+    private static int normalizeMessagePageLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return DEFAULT_MESSAGE_PAGE_LIMIT;
+        }
+        return Math.min(limit, MAX_MESSAGE_PAGE_LIMIT);
+    }
+
+    private static Set<Integer> parseChannelIds(String channel) {
+        Set<String> values = parseUppercaseCsv(channel);
+        Set<Integer> channelIds = new HashSet<>();
+        for (String value : values) {
+            if ("AIRBNB".equals(value)) {
+                channelIds.add(CHANNEL_AIRBNB);
+            } else if ("BOOKING".equals(value) || "BOOKING_COM".equals(value) || "BOOKING.COM".equals(value)) {
+                channelIds.add(CHANNEL_BOOKING);
+            } else {
+                try {
+                    channelIds.add(Integer.parseInt(value));
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Unsupported channel filter: " + value);
+                }
+            }
+        }
+        return channelIds;
+    }
+
+    private static Set<String> parseUppercaseCsv(String value) {
+        Set<String> values = new HashSet<>();
+        if (value == null || value.isBlank()) {
+            return values;
+        }
+
+        String[] parts = value.split(",");
+        for (String part : parts) {
+            String normalized = part == null ? null : part.trim();
+            if (normalized != null && !normalized.isBlank()) {
+                values.add(normalized.toUpperCase(Locale.ROOT));
+            }
+        }
+        return values;
+    }
+
+    private static boolean matchesUppercaseFilter(Set<String> allowedValues, String value) {
+        if (allowedValues == null || allowedValues.isEmpty()) {
+            return true;
+        }
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        return allowedValues.contains(value.trim().toUpperCase(Locale.ROOT));
+    }
+
+    private static String normalizeBlankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+
     private static Integer readInt(JsonNode root, String field) {
         String raw = readText(root, field);
         if (raw == null) {

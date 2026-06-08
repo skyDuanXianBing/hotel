@@ -13,6 +13,14 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SuMessageRepository extends JpaRepository<SuMessage, Long> {
+    interface ChannelUnreadSummaryRow {
+        Integer getChannelId();
+
+        Long getUnreadMessageCount();
+
+        Long getUnreadThreadCount();
+    }
+
     Optional<SuMessage> findByStoreIdAndExternalMessageId(Long storeId, String externalMessageId);
 
     List<SuMessage> findByThread_IdOrderBySentAtAsc(Long threadId);
@@ -32,9 +40,69 @@ public interface SuMessageRepository extends JpaRepository<SuMessage, Long> {
             Pageable pageable
     );
 
+    @Query("""
+            SELECT m
+            FROM SuMessage m
+            WHERE m.storeId = :storeId
+              AND m.thread.id = :threadId
+              AND (:beforeMessageId IS NULL OR m.id < :beforeMessageId)
+              AND (:afterMessageId IS NULL OR m.id > :afterMessageId)
+            ORDER BY m.id DESC
+            """)
+    List<SuMessage> findMessagePageByCursorDesc(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("beforeMessageId") Long beforeMessageId,
+            @Param("afterMessageId") Long afterMessageId,
+            Pageable pageable
+    );
+
+    boolean existsByStoreIdAndThread_IdAndIdLessThan(Long storeId, Long threadId, Long id);
+
+    boolean existsByStoreIdAndThread_IdAndIdGreaterThan(Long storeId, Long threadId, Long id);
+
     long countByThread_IdAndSenderTypeAndIsReadFalse(Long threadId, SuMessagingSenderType senderType);
 
     boolean existsByThread_IdAndSenderType(Long threadId, SuMessagingSenderType senderType);
+
+    @Query("""
+            SELECT COUNT(m)
+            FROM SuMessage m
+            WHERE m.storeId = :storeId
+              AND m.senderType = :senderType
+              AND m.isRead = false
+            """)
+    long countUnreadMessagesByStoreId(
+            @Param("storeId") Long storeId,
+            @Param("senderType") SuMessagingSenderType senderType
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT m.thread.id)
+            FROM SuMessage m
+            WHERE m.storeId = :storeId
+              AND m.senderType = :senderType
+              AND m.isRead = false
+            """)
+    long countUnreadThreadsByStoreId(
+            @Param("storeId") Long storeId,
+            @Param("senderType") SuMessagingSenderType senderType
+    );
+
+    @Query("""
+            SELECT m.thread.channelId AS channelId,
+                   COUNT(m) AS unreadMessageCount,
+                   COUNT(DISTINCT m.thread.id) AS unreadThreadCount
+            FROM SuMessage m
+            WHERE m.storeId = :storeId
+              AND m.senderType = :senderType
+              AND m.isRead = false
+            GROUP BY m.thread.channelId
+            """)
+    List<ChannelUnreadSummaryRow> summarizeUnreadByChannel(
+            @Param("storeId") Long storeId,
+            @Param("senderType") SuMessagingSenderType senderType
+    );
 
     @Modifying
     @Query("UPDATE SuMessage m SET m.isRead = true WHERE m.thread.id = :threadId AND m.senderType = :senderType AND m.isRead = false")

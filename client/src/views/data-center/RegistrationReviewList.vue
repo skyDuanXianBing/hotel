@@ -77,22 +77,34 @@
             :value="room.roomNumber"
           />
         </el-select>
-        <el-date-picker
-          v-model="checkInDate"
-          type="date"
-          value-format="YYYY-MM-DD"
-          clearable
-          :placeholder="t('stage5.common.fields.checkInDate')"
-          style="width: 160px"
-        />
-        <el-date-picker
-          v-model="checkOutDate"
-          type="date"
-          value-format="YYYY-MM-DD"
-          clearable
-          :placeholder="t('stage5.common.fields.checkOutDate')"
-          style="width: 160px"
-        />
+        <div class="date-range-filter">
+          <span class="date-range-label">{{ t('stage5.common.fields.checkInDate') }}</span>
+          <el-date-picker
+            v-model="checkInDateRange"
+            type="daterange"
+            range-separator="-"
+            :start-placeholder="t('stage5.common.date.startDate')"
+            :end-placeholder="t('stage5.common.date.endDate')"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            clearable
+            style="width: 280px"
+          />
+        </div>
+        <div class="date-range-filter">
+          <span class="date-range-label">{{ t('stage5.common.fields.checkOutDate') }}</span>
+          <el-date-picker
+            v-model="checkOutDateRange"
+            type="daterange"
+            range-separator="-"
+            :start-placeholder="t('stage5.common.date.startDate')"
+            :end-placeholder="t('stage5.common.date.endDate')"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            clearable
+            style="width: 280px"
+          />
+        </div>
         <el-button type="primary" :loading="loading" @click="load">{{ t('stage5.common.actions.query') }}</el-button>
         <el-button :disabled="loading" @click="resetFilters">{{ t('stage5.common.actions.reset') }}</el-button>
       </div>
@@ -218,6 +230,7 @@ type Row = {
   updatedAt?: string
 }
 type ReservationStatusTagType = 'success' | 'warning' | 'info' | 'danger'
+type DateRange = [string, string]
 
 const registrationReviewStatusFilterValues = ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']
 const router = useRouter()
@@ -237,8 +250,8 @@ const channelId = ref<number | null>(null)
 const reservationStatus = ref<string | null>(null)
 const roomNumbers = ref<string[]>([])
 const roomGroupId = ref<number | null>(null)
-const checkInDate = ref<string | null>(null)
-const checkOutDate = ref<string | null>(null)
+const checkInDateRange = ref<DateRange | null>(null)
+const checkOutDateRange = ref<DateRange | null>(null)
 const linkDrawerVisible = ref(false)
 const linkLoading = ref(false)
 const linkRows = ref<RegistrationLinkInboxItemDTO[]>([])
@@ -394,6 +407,65 @@ function getQueryNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function getDateRangeFromQuery(startValue: unknown, endValue: unknown, legacyValue: unknown) {
+  const startDate = getQueryString(startValue)
+  const endDate = getQueryString(endValue)
+  if (startDate && endDate) {
+    return [startDate, endDate] as DateRange
+  }
+
+  const legacyDate = getQueryString(legacyValue)
+  if (legacyDate) {
+    return [legacyDate, legacyDate] as DateRange
+  }
+
+  return null
+}
+
+function getCompleteDateRange(dateRange: DateRange | null) {
+  if (!dateRange) {
+    return null
+  }
+
+  const startDate = dateRange[0]?.trim()
+  const endDate = dateRange[1]?.trim()
+  if (!startDate || !endDate) {
+    return null
+  }
+
+  return [startDate, endDate] as DateRange
+}
+
+function addDateRangeToQuery(
+  query: LocationQueryRaw,
+  dateRange: DateRange | null,
+  startKey: string,
+  endKey: string,
+) {
+  const completeRange = getCompleteDateRange(dateRange)
+  if (!completeRange) {
+    return
+  }
+
+  query[startKey] = completeRange[0]
+  query[endKey] = completeRange[1]
+}
+
+function addDateRangeToParams(
+  params: Record<string, string | number | string[]>,
+  dateRange: DateRange | null,
+  startKey: string,
+  endKey: string,
+) {
+  const completeRange = getCompleteDateRange(dateRange)
+  if (!completeRange) {
+    return
+  }
+
+  params[startKey] = completeRange[0]
+  params[endKey] = completeRange[1]
+}
+
 function hydrateFiltersFromRouteQuery() {
   status.value = getAllowedQueryString(route.query.status, registrationReviewStatusFilterValues)
   channelId.value = getQueryNumber(route.query.channelId)
@@ -403,8 +475,16 @@ function hydrateFiltersFromRouteQuery() {
   )
   roomNumbers.value = getQueryStrings(route.query.roomNumber)
   roomGroupId.value = getQueryNumber(route.query.roomGroupId)
-  checkInDate.value = getQueryString(route.query.checkInDate)
-  checkOutDate.value = getQueryString(route.query.checkOutDate)
+  checkInDateRange.value = getDateRangeFromQuery(
+    route.query.checkInStartDate,
+    route.query.checkInEndDate,
+    route.query.checkInDate,
+  )
+  checkOutDateRange.value = getDateRangeFromQuery(
+    route.query.checkOutStartDate,
+    route.query.checkOutEndDate,
+    route.query.checkOutDate,
+  )
 }
 
 function buildFilterQuery(): LocationQueryRaw {
@@ -414,8 +494,8 @@ function buildFilterQuery(): LocationQueryRaw {
   if (reservationStatus.value) query.reservationStatus = reservationStatus.value
   if (roomNumbers.value.length > 0) query.roomNumber = roomNumbers.value
   if (roomGroupId.value != null) query.roomGroupId = String(roomGroupId.value)
-  if (checkInDate.value) query.checkInDate = checkInDate.value
-  if (checkOutDate.value) query.checkOutDate = checkOutDate.value
+  addDateRangeToQuery(query, checkInDateRange.value, 'checkInStartDate', 'checkInEndDate')
+  addDateRangeToQuery(query, checkOutDateRange.value, 'checkOutStartDate', 'checkOutEndDate')
   return query
 }
 
@@ -455,8 +535,8 @@ function resetFilters() {
   reservationStatus.value = null
   roomNumbers.value = []
   roomGroupId.value = null
-  checkInDate.value = null
-  checkOutDate.value = null
+  checkInDateRange.value = null
+  checkOutDateRange.value = null
   load()
 }
 
@@ -470,8 +550,8 @@ async function load() {
     if (reservationStatus.value) params.reservationStatus = reservationStatus.value
     if (roomNumbers.value.length > 0) params.roomNumber = roomNumbers.value
     if (roomGroupId.value != null) params.roomGroupId = roomGroupId.value
-    if (checkInDate.value) params.checkInDate = checkInDate.value
-    if (checkOutDate.value) params.checkOutDate = checkOutDate.value
+    addDateRangeToParams(params, checkInDateRange.value, 'checkInStartDate', 'checkInEndDate')
+    addDateRangeToParams(params, checkOutDateRange.value, 'checkOutStartDate', 'checkOutEndDate')
 
     const resp = (await request.get('/registrations', {
       params,
@@ -759,6 +839,16 @@ onMounted(() => {
   align-items: center;
   flex-wrap: wrap;
   margin-bottom: 12px;
+}
+.date-range-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.date-range-label {
+  color: #606266;
+  font-size: 13px;
+  white-space: nowrap;
 }
 .title {
   font-size: 16px;

@@ -7,7 +7,7 @@ import {
   getUnreadNotificationCountByType,
   type NotificationMessageDTO,
 } from '@/api/notification'
-import { getSuThreads, type SuMessagingThreadDTO } from '@/api/suMessaging'
+import { getSuUnreadSummary, type SuMessagingThreadDTO } from '@/api/suMessaging'
 import { parseUtcDateTime } from '@/utils/storeDateTime'
 import { createSuMessagingSocket, type SuMessagingRealtimeEvent } from '@/utils/suMessagingSocket'
 import { i18n } from '@/locales'
@@ -231,14 +231,14 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
     }
 
     try {
-      const response = (await getSuThreads()) as {
+      const response = (await getSuUnreadSummary()) as {
         success?: boolean
-        data?: SuMessagingThreadDTO[]
+        data?: { totalUnread?: number }
       }
       if (response.success === false) {
         return
       }
-      updateChatUnreadCountFromThreads(response.data || [])
+      chatUnreadCount.value = normalizeUnreadCount(response.data?.totalUnread)
     } catch (error) {
       console.warn('Failed to refresh chat unread count:', error)
     }
