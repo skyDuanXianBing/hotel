@@ -83,22 +83,18 @@
                 <div class="form-item">
                   <label class="form-label">{{ t('common.verificationCode') }}</label>
                   <el-form-item prop="verificationCode">
-                    <div class="verification-code-field">
-                      <el-input
-                        v-model="loginForm.verificationCode"
-                        class="verification-code-input"
-                        :placeholder="t('auth.login.codePlaceholder')"
-                        size="large"
-                        :prefix-icon="Key"
-                      />
-                      <el-button
-                        class="send-code-button"
-                        :disabled="countdown > 0"
-                        @click="sendVerificationCode"
-                      >
-                        {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
-                      </el-button>
-                    </div>
+                    <el-input
+                      v-model="loginForm.verificationCode"
+                      :placeholder="t('auth.login.codePlaceholder')"
+                      size="large"
+                      :prefix-icon="Key"
+                    >
+                      <template #append>
+                        <el-button :disabled="countdown > 0" @click="sendVerificationCode">
+                          {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
+                        </el-button>
+                      </template>
+                    </el-input>
                   </el-form-item>
                 </div>
 
@@ -394,7 +390,7 @@ const goToTechnicalSupport = () => {
 
 .form-title {
   margin: 0;
-  color: #597ef7;
+  color: #5e7cf6;
   font-size: 36px;
   font-weight: 600;
   line-height: 1.08;
@@ -433,14 +429,9 @@ const goToTechnicalSupport = () => {
   margin-bottom: 11px;
 }
 
-.label-row .form-label {
-  margin-bottom: 0;
-}
-
 .forgot-link {
   font-size: 14px;
   font-weight: 600;
-  line-height: 1;
 }
 
 .options-row {
@@ -469,8 +460,8 @@ const goToTechnicalSupport = () => {
   height: 32px;
   margin: clamp(32px, 5vh, 64px) auto 0;
   border-radius: 2px;
-  border-color: #597ef7;
-  background: #597ef7;
+  border-color: #5e7cf6;
+  background: #5e7cf6;
   font-size: 14px;
   font-weight: 600;
   line-height: 1;
@@ -480,19 +471,18 @@ const goToTechnicalSupport = () => {
 
 .login-button:hover,
 .login-button:focus-visible {
-  border-color: #597ef7;
-  background: #597ef7;
+  border-color: #5572ea;
+  background: #5572ea;
 }
 
 .login-button:active {
-  border-color: #597ef7;
-  background: #597ef7;
+  border-color: #4d68d7;
+  background: #4d68d7;
 }
 
 .form-footer {
   margin-top: auto;
   padding-top: clamp(28px, 4vh, 60px);
-  padding-bottom: clamp(44px, 7vh, 96px);
 }
 
 .register-link {
@@ -524,11 +514,11 @@ const goToTechnicalSupport = () => {
 }
 
 .login-form :deep(.el-input__wrapper:hover) {
-  box-shadow: inset 0 0 0 1px #597ef7;
+  box-shadow: inset 0 0 0 1px #5e7cf6;
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: inset 0 0 0 1px #597ef7;
+  box-shadow: inset 0 0 0 1px #5e7cf6;
 }
 
 .login-form :deep(.el-input__inner) {
@@ -555,58 +545,20 @@ const goToTechnicalSupport = () => {
   margin-left: 12px;
 }
 
-.verification-code-field {
-  position: relative;
-  width: 100%;
+.login-form :deep(.el-input-group__append) {
+  padding: 0 12px;
+  border-radius: 0 3px 3px 0;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #d9dee8, inset 1px 0 0 #d9dee8;
 }
 
-.verification-code-field :deep(.verification-code-input) {
-  width: 100%;
-}
-
-.verification-code-field :deep(.verification-code-input .el-input__wrapper) {
-  padding-right: 175px;
-}
-
-.verification-code-field :deep(.send-code-button) {
-  position: absolute;
-  top: 1px;
-  right: 35px;
-  z-index: 2;
-  width: auto;
-  min-width: 84px;
-  height: 35px;
-  min-height: 35px;
-  padding: 0 5px;
+.login-form :deep(.el-input-group__append .el-button) {
+  min-height: 37px;
+  padding: 0;
   border: 0;
-  border-radius: 0;
-  background: #f1f1f1;
-  color: #b3b3b3;
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
+  color: #5e7cf6;
   font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  opacity: 1;
-  box-shadow: none;
-}
-
-.verification-code-field :deep(.send-code-button:hover),
-.verification-code-field :deep(.send-code-button:focus-visible),
-.verification-code-field :deep(.send-code-button:active) {
-  background: #f1f1f1;
-  color: #b3b3b3;
-}
-
-.verification-code-field :deep(.send-code-button.is-disabled),
-.verification-code-field :deep(.send-code-button.is-disabled:hover),
-.verification-code-field :deep(.send-code-button.is-disabled:focus-visible),
-.verification-code-field :deep(.send-code-button.is-disabled:active) {
-  background: #f1f1f1;
-  color: #b3b3b3;
-  opacity: 1;
+  font-weight: 600;
 }
 
 .login-form :deep(.el-checkbox) {
@@ -627,8 +579,8 @@ const goToTechnicalSupport = () => {
 
 .login-form :deep(.el-checkbox__input.is-checked .el-checkbox__inner),
 .login-form :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
-  border-color: #597ef7;
-  background: #597ef7;
+  border-color: #5e7cf6;
+  background: #5e7cf6;
 }
 
 .login-form :deep(.el-checkbox__label) {
@@ -642,7 +594,7 @@ const goToTechnicalSupport = () => {
 .login-form :deep(.el-link),
 .register-link :deep(.el-link),
 .support-link-row :deep(.el-link) {
-  color: #597ef7;
+  color: #5e7cf6;
 }
 
 .register-link :deep(.el-link),
