@@ -19,7 +19,6 @@ const languageStore = useLanguageStore()
 const options = SUPPORTED_LOCALES.map((locale) => ({
   value: locale,
   labelKey: `language.option.${locale}`,
-  shortLabelKey: `language.short.${locale}`,
 }))
 
 const currentLabel = computed(() =>
@@ -28,13 +27,20 @@ const currentLabel = computed(() =>
     : t(`language.short.${languageStore.locale}`)
 )
 
+const dropdownPopperClass = computed(() =>
+  props.variant === 'auth' ? 'language-dropdown language-dropdown--auth' : ''
+)
+
 const handleCommand = (locale: SupportedLocale) => {
   languageStore.setLocale(locale)
 }
 </script>
 
 <template>
-  <el-dropdown @command="handleCommand">
+  <el-dropdown
+    :popper-class="dropdownPopperClass"
+    @command="handleCommand"
+  >
     <button
       :class="['language-trigger', `language-trigger--${variant}`]"
       type="button"
@@ -85,5 +91,22 @@ const handleCommand = (locale: SupportedLocale) => {
 .language-trigger--auth {
   color: #666;
   font-size: 14px;
+}
+
+:global(.language-dropdown--auth .el-dropdown-menu__item) {
+  color: #4b5563;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+:global(.language-dropdown--auth .el-dropdown-menu__item:hover),
+:global(.language-dropdown--auth .el-dropdown-menu__item:focus) {
+  background: rgba(89, 126, 247, 0.08);
+  color: #597ef7;
+}
+
+:global(.language-dropdown--auth .el-dropdown-menu__item.is-active) {
+  background: rgba(89, 126, 247, 0.08);
+  color: #597ef7;
+  font-weight: 600;
 }
 </style>

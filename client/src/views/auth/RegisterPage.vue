@@ -1,148 +1,143 @@
 <template>
   <div class="register-container">
-    <!-- 左侧蓝色背景区域 -->
-    <div class="left-section">
-      <div class="left-content">
-        <h1 class="main-title">{{ t('auth.hero.titlePrimary') }}</h1>
-        <h1 class="sub-title">{{ t('auth.hero.titleSecondary') }}</h1>
+    <div class="register-layout">
+      <div class="left-section">
+        <img
+          :src="registerIllustration"
+          alt=""
+          aria-hidden="true"
+          class="left-illustration"
+        />
+      </div>
 
-        <p class="description">{{ t('auth.hero.description') }}</p>
-
-        <p class="trial-info">{{ t('auth.hero.trialInfo') }}</p>
-
-        <!-- 装饰性浏览器窗口 -->
-        <div class="browser-window">
-          <div class="browser-header">
-            <span class="dot red"></span>
-            <span class="dot yellow"></span>
-            <span class="dot green"></span>
-          </div>
+      <div class="right-section">
+        <div class="language-selector">
+          <LanguageSwitcher variant="auth" />
         </div>
-      </div>
-    </div>
 
-    <!-- 右侧表单区域 -->
-    <div class="right-section">
-      <!-- 语言选择 -->
-      <div class="language-selector">
-        <LanguageSwitcher variant="auth" />
-      </div>
+        <div class="form-shell">
+          <div class="form-container">
+            <h2 class="form-title">{{ t('auth.register.title') }}</h2>
+            <p class="form-subtitle">{{ t('auth.register.subtitle') }}</p>
 
-      <div class="form-container">
-        <!-- 标题 -->
-        <h2 class="form-title">{{ t('auth.register.title') }}</h2>
-        <p class="form-subtitle">{{ t('auth.register.subtitle') }}</p>
+            <el-form
+              ref="registerFormRef"
+              :model="registerForm"
+              :rules="registerRules"
+              class="register-form"
+            >
+              <div class="form-item">
+                <label class="form-label">{{ t('common.email') }}</label>
+                <el-form-item prop="email">
+                  <el-input
+                    v-model="registerForm.email"
+                    :placeholder="t('auth.register.emailPlaceholder')"
+                    size="large"
+                    :prefix-icon="Message"
+                  />
+                </el-form-item>
+              </div>
 
-        <!-- 注册表单 -->
-        <el-form
-          ref="registerFormRef"
-          :model="registerForm"
-          :rules="registerRules"
-          class="register-form"
-        >
-          <!-- 邮箱 -->
-          <div class="form-item">
-            <label class="form-label">{{ t('common.email') }}</label>
-            <el-form-item prop="email">
-              <el-input
-                v-model="registerForm.email"
-                :placeholder="t('auth.register.emailPlaceholder')"
-                size="large"
-                :prefix-icon="Message"
-              />
-            </el-form-item>
-          </div>
+              <div class="form-item">
+                <label class="form-label">{{ t('common.verificationCode') }}</label>
+                <el-form-item prop="verificationCode">
+                  <div class="verification-code-field">
+                    <el-input
+                      v-model="registerForm.verificationCode"
+                      class="verification-code-input"
+                      :placeholder="t('auth.register.codePlaceholder')"
+                      size="large"
+                      :prefix-icon="Key"
+                    />
+                    <el-button
+                      class="send-code-button"
+                      :disabled="countdown > 0"
+                      @click="sendVerificationCode"
+                    >
+                      {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
+                    </el-button>
+                  </div>
+                </el-form-item>
+              </div>
 
-          <!-- 验证码 -->
-          <div class="form-item">
-            <label class="form-label">{{ t('common.verificationCode') }}</label>
-            <el-form-item prop="verificationCode">
-              <el-input
-                v-model="registerForm.verificationCode"
-                :placeholder="t('auth.register.codePlaceholder')"
-                size="large"
-                :prefix-icon="Key"
-              >
-                <template #append>
-                  <el-button :disabled="countdown > 0" @click="sendVerificationCode">
-                    {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
-                  </el-button>
-                </template>
-              </el-input>
-            </el-form-item>
-          </div>
+              <div class="form-item">
+                <label class="form-label">{{ t('auth.register.passwordLabel') }}</label>
+                <el-form-item prop="password">
+                  <el-input
+                    v-model="registerForm.password"
+                    type="password"
+                    :placeholder="t('auth.register.passwordPlaceholder')"
+                    size="large"
+                    :prefix-icon="Lock"
+                    show-password
+                  />
+                </el-form-item>
+              </div>
 
-          <!-- 设置密码 -->
-          <div class="form-item">
-            <label class="form-label">{{ t('auth.register.passwordLabel') }}</label>
-            <el-form-item prop="password">
-              <el-input
-                v-model="registerForm.password"
-                type="password"
-                :placeholder="t('auth.register.passwordPlaceholder')"
-                size="large"
-                :prefix-icon="Lock"
-                show-password
-              />
-            </el-form-item>
-          </div>
+              <div class="form-item">
+                <label class="form-label">{{ t('auth.register.confirmPasswordLabel') }}</label>
+                <el-form-item prop="confirmPassword">
+                  <el-input
+                    v-model="registerForm.confirmPassword"
+                    type="password"
+                    :placeholder="t('auth.register.confirmPasswordPlaceholder')"
+                    size="large"
+                    :prefix-icon="Lock"
+                    show-password
+                  />
+                </el-form-item>
+              </div>
 
-          <!-- 确认密码 -->
-          <div class="form-item">
-            <label class="form-label">{{ t('auth.register.confirmPasswordLabel') }}</label>
-            <el-form-item prop="confirmPassword">
-              <el-input
-                v-model="registerForm.confirmPassword"
-                type="password"
-                :placeholder="t('auth.register.confirmPasswordPlaceholder')"
-                size="large"
-                :prefix-icon="Lock"
-                show-password
-              />
-            </el-form-item>
-          </div>
+              <div class="agreement-row">
+                <el-checkbox v-model="registerForm.agreeToTerms">
+                  {{ t('auth.register.agreementPrefix') }}
+                  <el-link
+                    type="primary"
+                    :underline="false"
+                    @click.stop.prevent="goToTermsOfService"
+                  >
+                    {{ t('common.termsOfService') }}
+                  </el-link>
+                  {{ t('auth.register.agreementComma') }}
+                  <el-link
+                    type="primary"
+                    :underline="false"
+                    @click.stop.prevent="goToPrivacyPolicy"
+                  >
+                    {{ t('common.privacyPolicy') }}
+                  </el-link>
+                  {{ t('auth.register.agreementJoiner') }}
+                  <el-link type="primary" :underline="false" @click.stop.prevent>
+                    {{ t('common.memberTerms') }}
+                  </el-link>
+                </el-checkbox>
+              </div>
 
-          <!-- 同意协议 -->
-          <div class="agreement-row">
-            <el-checkbox v-model="registerForm.agreeToTerms">
-              {{ t('auth.register.agreementPrefix') }}
-              <el-link
+              <el-button
                 type="primary"
-                :underline="false"
-                @click.stop.prevent="goToTermsOfService"
+                size="large"
+                class="register-button"
+                :loading="loading"
+                @click="handleRegister"
               >
-                {{ t('common.termsOfService') }}
-              </el-link>
-              {{ t('auth.register.agreementComma') }}
-              <el-link type="primary" :underline="false" @click.stop.prevent="goToPrivacyPolicy">
-                {{ t('common.privacyPolicy') }}
-              </el-link>
-              {{ t('auth.register.agreementJoiner') }}
-              <el-link type="primary" :underline="false">{{ t('common.memberTerms') }}</el-link>
-            </el-checkbox>
+                {{ t('auth.register.submit') }}
+              </el-button>
+            </el-form>
+
+            <div class="form-footer">
+              <div class="login-link">
+                {{ t('auth.register.loginPrefix') }}
+                <el-link type="primary" :underline="false" @click="goToLogin">
+                  {{ t('auth.register.loginAction') }}
+                </el-link>
+              </div>
+              <div class="support-link-row">
+                <el-link type="primary" :underline="false" @click="goToTechnicalSupport">
+                  {{ t('common.supportSite') }}
+                </el-link>
+              </div>
+            </div>
           </div>
-
-          <!-- 注册按钮 -->
-          <el-button
-            type="primary"
-            size="large"
-            class="register-button"
-            :loading="loading"
-            @click="handleRegister"
-          >
-            {{ t('auth.register.submit') }}
-          </el-button>
-        </el-form>
-
-        <!-- 登录链接 -->
-        <div class="login-link">
-          {{ t('auth.register.loginPrefix') }}
-          <el-link type="primary" :underline="false" @click="goToLogin">{{ t('auth.register.loginAction') }}</el-link>
-        </div>
-        <div class="support-link-row">
-          <el-link type="primary" :underline="false" @click="goToTechnicalSupport">
-            {{ t('common.supportSite') }}
-          </el-link>
         </div>
       </div>
     </div>
@@ -156,6 +151,7 @@ import { Message, Lock, Key } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import registerIllustration from '@/assets/auth/register-illustration.svg'
 import {
   sendVerificationCode as sendVerificationCodeAPI,
   register as registerAPI,
@@ -164,16 +160,10 @@ import {
 const router = useRouter()
 const { t } = useI18n()
 
-// 倒计时
 const countdown = ref(0)
-
-// 加载状态
 const loading = ref(false)
-
-// 表单引用
 const registerFormRef = ref<FormInstance>()
 
-// 表单数据
 const registerForm = reactive({
   email: '',
   verificationCode: '',
@@ -182,7 +172,6 @@ const registerForm = reactive({
   agreeToTerms: false,
 })
 
-// 自定义验证：确认密码
 const validateConfirmPassword = (rule: any, value: any, callback: any) => {
   if (value === '') {
     callback(new Error(t('auth.register.validation.confirmPasswordRequired')))
@@ -193,7 +182,6 @@ const validateConfirmPassword = (rule: any, value: any, callback: any) => {
   }
 }
 
-// 表单验证规则
 const registerRules = computed<FormRules>(() => ({
   email: [
     { required: true, message: t('auth.register.validation.emailRequired'), trigger: 'blur' },
@@ -208,14 +196,16 @@ const registerRules = computed<FormRules>(() => ({
     { min: 6, max: 20, message: t('auth.register.validation.passwordLength'), trigger: 'blur' },
   ],
   confirmPassword: [
-    { required: true, message: t('auth.register.validation.confirmPasswordRequired'), trigger: 'blur' },
+    {
+      required: true,
+      message: t('auth.register.validation.confirmPasswordRequired'),
+      trigger: 'blur',
+    },
     { validator: validateConfirmPassword, trigger: 'blur' },
   ],
 }))
 
-// 发送验证码
 const sendVerificationCode = async () => {
-  // 先验证邮箱
   try {
     await registerFormRef.value?.validateField('email')
   } catch {
@@ -223,7 +213,6 @@ const sendVerificationCode = async () => {
   }
 
   try {
-    // 调用发送验证码API
     await sendVerificationCodeAPI({
       email: registerForm.email,
       type: 'register',
@@ -231,7 +220,6 @@ const sendVerificationCode = async () => {
 
     ElMessage.success(t('auth.register.codeSent'))
 
-    // 开始倒计时
     countdown.value = 60
     const timer = setInterval(() => {
       countdown.value--
@@ -240,11 +228,11 @@ const sendVerificationCode = async () => {
       }
     }, 1000)
   } catch (error: any) {
-    ElMessage.error(error.message || t('auth.register.failed'))
+    const message = error.response?.data?.message || error.message || t('auth.register.failed')
+    ElMessage.error(message)
   }
 }
 
-// 注册处理
 const handleRegister = async () => {
   if (!registerForm.agreeToTerms) {
     ElMessage.warning(t('auth.register.agreementRequired'))
@@ -256,7 +244,6 @@ const handleRegister = async () => {
 
     loading.value = true
 
-    // 调用注册API
     await registerAPI({
       email: registerForm.email,
       verificationCode: registerForm.verificationCode,
@@ -273,21 +260,18 @@ const handleRegister = async () => {
   }
 }
 
-// 跳转到登录页面
 const goToLogin = () => {
   router.push('/login')
 }
 
-// 跳转到用户服务协议
 const goToTermsOfService = () => {
   router.push('/legal/terms')
 }
 
-// 跳转到隐私政策
 const goToPrivacyPolicy = () => {
   router.push('/legal/privacy')
 }
-// 跳转到技术支持网站
+
 const goToTechnicalSupport = () => {
   router.push('/legal/support')
 }
@@ -295,156 +279,99 @@ const goToTechnicalSupport = () => {
 
 <style scoped>
 .register-container {
+  width: 100%;
+  min-height: 100vh;
   display: flex;
-  height: 100vh;
-  overflow: hidden;
+  background: #fff;
 }
 
-/* 左侧蓝色区域 */
+.register-layout {
+  width: 100%;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 55.8571428571%) minmax(0, 44.1428571429%);
+}
+
 .left-section {
-  flex: 1;
-  background: linear-gradient(135deg, #1e88e5 0%, #1976d2 100%);
-  padding: 60px 80px;
-  color: white;
-  position: relative;
+  background: #eef3ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(44px, 5vh, 72px) clamp(32px, 3.6vw, 52px) clamp(34px, 4vh, 56px);
   overflow: hidden;
 }
 
-.left-section::before {
-  content: '';
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  top: -200px;
-  right: -200px;
+.left-illustration {
+  width: clamp(560px, 42vw, 660px);
+  max-width: 100%;
+  height: auto;
+  display: block;
+  transform: translate(clamp(-6px, 0.5vw, 8px), clamp(0px, 0.6vh, 6px));
 }
 
-.left-section::after {
-  content: '';
-  position: absolute;
-  width: 400px;
-  height: 400px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-  bottom: -100px;
-  left: -100px;
-}
-
-.left-content {
-  position: relative;
-  z-index: 1;
-}
-
-.main-title {
-  font-size: 48px;
-  font-weight: bold;
-  margin: 0 0 10px 0;
-  line-height: 1.2;
-}
-
-.sub-title {
-  font-size: 48px;
-  font-weight: bold;
-  margin: 0 0 40px 0;
-  line-height: 1.2;
-}
-
-.description {
-  font-size: 16px;
-  line-height: 1.8;
-  margin-bottom: 30px;
-  opacity: 0.95;
-  white-space: pre-line;
-}
-
-.trial-info {
-  font-size: 16px;
-  line-height: 1.8;
-  margin-bottom: 60px;
-  opacity: 0.95;
-  white-space: pre-line;
-}
-
-.browser-window {
-  width: 600px;
-  height: 200px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  padding: 12px;
-}
-
-.browser-header {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.dot.red {
-  background: #ff5f57;
-}
-
-.dot.yellow {
-  background: #ffbd2e;
-}
-
-.dot.green {
-  background: #28ca42;
-}
-
-/* 右侧表单区域 */
 .right-section {
-  width: 520px;
-  background: white;
-  padding: 40px 60px;
+  background: #fff;
   display: flex;
   flex-direction: column;
+  padding:
+    clamp(18px, 2.5vh, 24px)
+    clamp(40px, 4.8vw, 96px)
+    clamp(28px, 4vh, 44px)
+    clamp(44px, 5vw, 104px);
   overflow-y: auto;
 }
 
 .language-selector {
-  text-align: right;
-  margin-bottom: 40px;
+  display: flex;
+  justify-content: flex-end;
 }
 
-.language-text {
-  cursor: pointer;
-  color: #666;
+.language-selector :deep(.language-trigger--auth) {
+  color: #7b7b7b;
   font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  line-height: 22px;
+  gap: 8px;
+}
+
+.language-selector :deep(.language-trigger--auth .el-icon) {
+  font-size: 14px;
+}
+
+.form-shell {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  padding-top: clamp(18px, 3.4vh, 36px);
 }
 
 .form-container {
-  flex: 1;
+  width: 100%;
+  max-width: clamp(465px, 74%, 560px);
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .form-title {
-  font-size: 32px;
-  font-weight: bold;
-  color: #333;
-  margin: 0 0 12px 0;
+  margin: 0;
+  color: #597ef7;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.08;
 }
 
 .form-subtitle {
+  margin: 14px 0 0;
+  color: #ababab;
   font-size: 14px;
-  color: #999;
-  margin: 0 0 40px 0;
+  line-height: 1.5;
 }
 
 .register-form {
-  flex: 1;
+  margin-top: clamp(22px, 3vh, 34px);
+  display: flex;
+  flex-direction: column;
 }
 
 .form-item {
@@ -453,56 +380,245 @@ const goToTechnicalSupport = () => {
 
 .form-label {
   display: block;
+  margin-bottom: 11px;
+  color: #111827;
   font-size: 14px;
-  color: #333;
-  margin-bottom: 8px;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .agreement-row {
-  margin-bottom: 24px;
-  font-size: 14px;
-  color: #666;
+  margin-top: 14px;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 .register-button {
-  width: 100%;
-  height: 48px;
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 24px;
+  width: 314px;
+  max-width: 100%;
+  height: 32px;
+  margin: clamp(28px, 3.8vh, 40px) auto 0;
+  border-radius: 2px;
+  border-color: #597ef7;
+  background: #597ef7;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+.register-button:hover,
+.register-button:focus-visible,
+.register-button:active {
+  border-color: #597ef7;
+  background: #597ef7;
+}
+
+.form-footer {
+  margin-top: auto;
+  padding-top: clamp(18px, 2.4vh, 26px);
+  padding-bottom: clamp(44px, 7vh, 96px);
 }
 
 .login-link {
+  color: #4b5563;
   text-align: center;
   font-size: 14px;
-  color: #666;
+  line-height: 1.6;
 }
 
 .support-link-row {
-  margin-top: 12px;
+  margin-top: 14px;
   text-align: center;
 }
 
-/* 表单样式调整 */
 .register-form :deep(.el-form-item) {
   margin-bottom: 0;
 }
 
+.register-form :deep(.el-form-item__content) {
+  line-height: 1;
+}
+
 .register-form :deep(.el-input__wrapper) {
-  box-shadow: 0 0 0 1px #e0e0e0 inset;
+  min-height: 37px;
+  padding: 0 12px;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #d9dee8;
 }
 
 .register-form :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #409eff inset;
+  box-shadow: inset 0 0 0 1px #597ef7;
 }
 
 .register-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #409eff inset;
+  box-shadow: inset 0 0 0 1px #597ef7;
+}
+
+.register-form :deep(.el-input__inner) {
+  height: 100%;
+  font-size: 13px;
+  color: #111827;
+}
+
+.register-form :deep(.el-input__inner::placeholder) {
+  color: #b7bdc9;
+}
+
+.register-form :deep(.el-input__prefix-inner),
+.register-form :deep(.el-input__suffix-inner) {
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.register-form :deep(.el-input__prefix-inner) {
+  margin-right: 12px;
+}
+
+.register-form :deep(.el-input__suffix-inner) {
+  margin-left: 12px;
+}
+
+.verification-code-field {
+  position: relative;
+  width: 100%;
+}
+
+.verification-code-field :deep(.verification-code-input) {
+  width: 100%;
+}
+
+.verification-code-field :deep(.verification-code-input .el-input__wrapper) {
+  padding-right: 175px;
+}
+
+.verification-code-field :deep(.send-code-button) {
+  position: absolute;
+  top: 1px;
+  right: 35px;
+  z-index: 2;
+  width: auto;
+  min-width: 84px;
+  height: 35px;
+  min-height: 35px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 0;
+  background: #f1f1f1;
+  color: #b3b3b3;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 1;
+  box-shadow: none;
+}
+
+.verification-code-field :deep(.send-code-button:hover),
+.verification-code-field :deep(.send-code-button:focus-visible),
+.verification-code-field :deep(.send-code-button:active),
+.verification-code-field :deep(.send-code-button.is-disabled),
+.verification-code-field :deep(.send-code-button.is-disabled:hover),
+.verification-code-field :deep(.send-code-button.is-disabled:focus-visible),
+.verification-code-field :deep(.send-code-button.is-disabled:active) {
+  background: #f1f1f1;
+  color: #b3b3b3;
+  opacity: 1;
+}
+
+.register-form :deep(.el-checkbox) {
+  align-items: flex-start;
+  height: auto;
+}
+
+.register-form :deep(.el-checkbox__input) {
+  margin-top: 2px;
+}
+
+.register-form :deep(.el-checkbox__inner) {
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+  border-color: #d7dce8;
+}
+
+.register-form :deep(.el-checkbox__input.is-checked .el-checkbox__inner),
+.register-form :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
+  border-color: #597ef7;
+  background: #597ef7;
 }
 
 .register-form :deep(.el-checkbox__label) {
-  font-size: 14px;
-  color: #666;
+  padding-left: 8px;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: normal;
+}
+
+.register-form :deep(.el-link),
+.login-link :deep(.el-link),
+.support-link-row :deep(.el-link) {
+  color: #597ef7;
+}
+
+.login-link :deep(.el-link),
+.support-link-row :deep(.el-link) {
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .register-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .left-section {
+    display: none;
+  }
+
+  .right-section {
+    padding: 18px clamp(24px, 8vw, 72px) 36px;
+  }
+
+  .form-shell {
+    padding-top: 28px;
+  }
+
+  .form-container {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .right-section {
+    padding: 18px 20px 28px;
+  }
+
+  .form-shell {
+    padding-top: 22px;
+  }
+
+  .form-title {
+    font-size: 32px;
+  }
+
+  .register-form {
+    margin-top: 26px;
+  }
+
+  .register-button {
+    width: 100%;
+    margin-top: 32px;
+  }
+
+  .form-footer {
+    padding-top: 22px;
+  }
 }
 </style>

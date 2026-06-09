@@ -1,174 +1,162 @@
 <template>
   <div class="login-container">
-    <!-- 左侧蓝色背景区域 -->
-    <div class="left-section">
-      <div class="left-content">
-        <h1 class="main-title">{{ t('auth.hero.titlePrimary') }}</h1>
-        <h1 class="sub-title">{{ t('auth.hero.titleSecondary') }}</h1>
+    <div class="login-layout">
+      <div class="left-section">
+        <img
+          :src="loginIllustration"
+          alt=""
+          aria-hidden="true"
+          class="left-illustration"
+        />
+      </div>
 
-        <p class="description">{{ t('auth.hero.description') }}</p>
-
-        <p class="trial-info">{{ t('auth.hero.trialInfo') }}</p>
-
-        <!-- 装饰性浏览器窗口 -->
-        <div class="browser-window">
-          <div class="browser-header">
-            <span class="dot red"></span>
-            <span class="dot yellow"></span>
-            <span class="dot green"></span>
-          </div>
+      <div class="right-section">
+        <div class="language-selector">
+          <LanguageSwitcher variant="auth" />
         </div>
-      </div>
-    </div>
 
-    <!-- 右侧登录表单区域 -->
-    <div class="right-section">
-      <!-- 语言选择 -->
-      <div class="language-selector">
-        <LanguageSwitcher variant="auth" />
-      </div>
+        <div class="form-shell">
+          <div class="form-container">
+            <h2 class="form-title">
+              {{ loginMode === 'password' ? t('auth.login.title.password') : t('auth.login.title.code') }}
+            </h2>
+            <p class="form-subtitle">
+              {{
+                loginMode === 'password'
+                  ? t('auth.login.subtitle.password')
+                  : t('auth.login.subtitle.code')
+              }}
+            </p>
 
-      <div class="form-container">
-        <!-- 标题 -->
-        <h2 class="form-title">
-          {{ loginMode === 'password' ? t('auth.login.title.password') : t('auth.login.title.code') }}
-        </h2>
-        <p class="form-subtitle">
-          {{
-            loginMode === 'password'
-              ? t('auth.login.subtitle.password')
-              : t('auth.login.subtitle.code')
-          }}
-        </p>
+            <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
+              <div class="form-item">
+                <label class="form-label">{{ t('common.email') }}</label>
+                <el-form-item prop="email">
+                  <el-input
+                    v-model="loginForm.email"
+                    :placeholder="t('auth.login.emailPlaceholder')"
+                    size="large"
+                    :prefix-icon="Message"
+                  />
+                </el-form-item>
+              </div>
 
-        <!-- 登录表单 -->
-        <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" class="login-form">
-          <!-- 邮箱 -->
-          <div class="form-item">
-            <label class="form-label">{{ t('common.email') }}</label>
-            <el-form-item prop="email">
-              <el-input
-                v-model="loginForm.email"
-                :placeholder="t('auth.login.emailPlaceholder')"
+              <template v-if="loginMode === 'password'">
+                <div class="form-item">
+                  <div class="label-row">
+                    <label class="form-label">{{ t('common.password') }}</label>
+                    <el-link
+                      type="primary"
+                      :underline="false"
+                      @click="goToForgotPassword"
+                      class="forgot-link"
+                    >
+                      {{ t('auth.login.forgotPassword') }}
+                    </el-link>
+                  </div>
+                  <el-form-item prop="password">
+                    <el-input
+                      v-model="loginForm.password"
+                      type="password"
+                      :placeholder="t('auth.login.passwordPlaceholder')"
+                      size="large"
+                      :prefix-icon="Lock"
+                      show-password
+                    />
+                  </el-form-item>
+                </div>
+
+                <div class="options-row">
+                  <el-checkbox v-model="loginForm.rememberMe">{{ t('auth.login.rememberPassword') }}</el-checkbox>
+                  <el-link
+                    type="primary"
+                    :underline="false"
+                    @click="switchLoginMode"
+                    class="switch-mode-link"
+                  >
+                    {{ t('auth.login.switchToCode') }}
+                  </el-link>
+                </div>
+              </template>
+
+              <template v-else>
+                <div class="form-item">
+                  <label class="form-label">{{ t('common.verificationCode') }}</label>
+                  <el-form-item prop="verificationCode">
+                    <div class="verification-code-field">
+                      <el-input
+                        v-model="loginForm.verificationCode"
+                        class="verification-code-input"
+                        :placeholder="t('auth.login.codePlaceholder')"
+                        size="large"
+                        :prefix-icon="Key"
+                      />
+                      <el-button
+                        class="send-code-button"
+                        :disabled="countdown > 0"
+                        @click="sendVerificationCode"
+                      >
+                        {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
+                      </el-button>
+                    </div>
+                  </el-form-item>
+                </div>
+
+                <div class="options-row">
+                  <el-checkbox v-model="loginForm.rememberMe">{{ t('auth.login.rememberSession') }}</el-checkbox>
+                  <el-link
+                    type="primary"
+                    :underline="false"
+                    @click="switchLoginMode"
+                    class="switch-mode-link"
+                  >
+                    {{ t('auth.login.switchToPassword') }}
+                  </el-link>
+                </div>
+              </template>
+
+              <div class="agreement-row">
+                <el-checkbox v-model="loginForm.agreeToTerms">
+                  {{ t('auth.login.agreementPrefix') }}
+                  <el-link
+                    type="primary"
+                    :underline="false"
+                    @click.stop.prevent="goToTermsOfService"
+                  >
+                    {{ t('common.termsOfService') }}
+                  </el-link>
+                  {{ t('auth.login.agreementJoiner') }}
+                  <el-link type="primary" :underline="false" @click.stop.prevent="goToPrivacyPolicy">
+                    {{ t('common.privacyPolicy') }}
+                  </el-link>
+                </el-checkbox>
+              </div>
+
+              <el-button
+                type="primary"
                 size="large"
-                :prefix-icon="Message"
-              />
-            </el-form-item>
-          </div>
+                class="login-button"
+                :loading="loading"
+                @click="handleLogin"
+              >
+                {{ t('auth.login.submit') }}
+              </el-button>
+            </el-form>
 
-          <!-- 密码登录模式 -->
-          <template v-if="loginMode === 'password'">
-            <div class="form-item">
-              <div class="label-row">
-                <label class="form-label">{{ t('common.password') }}</label>
-                <el-link
-                  type="primary"
-                  :underline="false"
-                  @click="goToForgotPassword"
-                  class="forgot-link"
-                >
-                  {{ t('auth.login.forgotPassword') }}
+            <div class="form-footer">
+              <div class="register-link">
+                {{ t('auth.login.registerPrefix') }}
+                <el-link type="primary" :underline="false" @click="goToRegister">
+                  {{ t('auth.login.registerAction') }}
                 </el-link>
               </div>
-              <el-form-item prop="password">
-                <el-input
-                  v-model="loginForm.password"
-                  type="password"
-                  :placeholder="t('auth.login.passwordPlaceholder')"
-                  size="large"
-                  :prefix-icon="Lock"
-                  show-password
-                />
-              </el-form-item>
+              <div class="support-link-row">
+                <el-link type="primary" :underline="false" @click="goToTechnicalSupport">
+                  {{ t('common.supportSite') }}
+                </el-link>
+              </div>
             </div>
-
-            <!-- 记住密码 -->
-            <div class="options-row">
-              <el-checkbox v-model="loginForm.rememberMe">{{ t('auth.login.rememberPassword') }}</el-checkbox>
-              <el-link
-                type="primary"
-                :underline="false"
-                @click="switchLoginMode"
-                class="switch-mode-link"
-              >
-                {{ t('auth.login.switchToCode') }}
-              </el-link>
-            </div>
-          </template>
-
-          <!-- 验证码登录模式 -->
-          <template v-else>
-            <div class="form-item">
-              <label class="form-label">{{ t('common.verificationCode') }}</label>
-              <el-form-item prop="verificationCode">
-                <el-input
-                  v-model="loginForm.verificationCode"
-                  :placeholder="t('auth.login.codePlaceholder')"
-                  size="large"
-                  :prefix-icon="Key"
-                >
-                  <template #append>
-                    <el-button :disabled="countdown > 0" @click="sendVerificationCode">
-                      {{ countdown > 0 ? `${countdown}s` : t('auth.actions.sendCode') }}
-                    </el-button>
-                  </template>
-                </el-input>
-              </el-form-item>
-            </div>
-
-            <!-- 记住登录状态 -->
-            <div class="options-row">
-              <el-checkbox v-model="loginForm.rememberMe">{{ t('auth.login.rememberSession') }}</el-checkbox>
-              <el-link
-                type="primary"
-                :underline="false"
-                @click="switchLoginMode"
-                class="switch-mode-link"
-              >
-                {{ t('auth.login.switchToPassword') }}
-              </el-link>
-            </div>
-          </template>
-
-          <!-- 同意协议 -->
-          <div class="agreement-row">
-            <el-checkbox v-model="loginForm.agreeToTerms">
-              {{ t('auth.login.agreementPrefix') }}
-              <el-link
-                type="primary"
-                :underline="false"
-                @click.stop.prevent="goToTermsOfService"
-              >
-                {{ t('common.termsOfService') }}
-              </el-link>
-              {{ t('auth.login.agreementJoiner') }}
-              <el-link type="primary" :underline="false" @click.stop.prevent="goToPrivacyPolicy">
-                {{ t('common.privacyPolicy') }}
-              </el-link>
-            </el-checkbox>
           </div>
-
-          <!-- 登录按钮 -->
-          <el-button
-            type="primary"
-            size="large"
-            class="login-button"
-            :loading="loading"
-            @click="handleLogin"
-          >
-            {{ t('auth.login.submit') }}
-          </el-button>
-        </el-form>
-
-        <!-- 注册链接 -->
-        <div class="register-link">
-          {{ t('auth.login.registerPrefix') }}
-          <el-link type="primary" :underline="false" @click="goToRegister">{{ t('auth.login.registerAction') }}</el-link>
-        </div>
-        <div class="support-link-row">
-          <el-link type="primary" :underline="false" @click="goToTechnicalSupport">
-            {{ t('common.supportSite') }}
-          </el-link>
         </div>
       </div>
     </div>
@@ -182,6 +170,7 @@ import { Message, Lock, Key } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import loginIllustration from '@/assets/auth/login-illustration.svg'
 import { useUserStore } from '@/stores/user'
 import { useStoreStore } from '@/stores/store'
 import {
@@ -195,19 +184,11 @@ const userStore = useUserStore()
 const storeStore = useStoreStore()
 const { t } = useI18n()
 
-// 登录模式：password（密码登录）或 code（验证码登录）
 const loginMode = ref<'password' | 'code'>('password')
-
-// 倒计时
 const countdown = ref(0)
-
-// 加载状态
 const loading = ref(false)
-
-// 表单引用
 const loginFormRef = ref<FormInstance>()
 
-// 登录表单数据
 const loginForm = reactive({
   email: '',
   password: '',
@@ -216,7 +197,6 @@ const loginForm = reactive({
   agreeToTerms: false,
 })
 
-// 表单验证规则
 const loginRules = computed<FormRules>(() => ({
   email: [
     { required: true, message: t('auth.login.validation.emailRequired'), trigger: 'blur' },
@@ -232,16 +212,12 @@ const loginRules = computed<FormRules>(() => ({
   ],
 }))
 
-// 切换登录模式
 const switchLoginMode = () => {
   loginMode.value = loginMode.value === 'password' ? 'code' : 'password'
-  // 清空表单验证
   loginFormRef.value?.clearValidate()
 }
 
-// 发送验证码
 const sendVerificationCode = async () => {
-  // 先验证邮箱
   try {
     await loginFormRef.value?.validateField('email')
   } catch {
@@ -249,7 +225,6 @@ const sendVerificationCode = async () => {
   }
 
   try {
-    // 调用发送验证码API
     await sendVerificationCodeAPI({
       email: loginForm.email,
       type: 'login',
@@ -257,7 +232,6 @@ const sendVerificationCode = async () => {
 
     ElMessage.success(t('auth.login.codeSent'))
 
-    // 开始倒计时
     countdown.value = 60
     const timer = setInterval(() => {
       countdown.value--
@@ -271,7 +245,6 @@ const sendVerificationCode = async () => {
   }
 }
 
-// 登录处理
 const handleLogin = async () => {
   if (!loginForm.agreeToTerms) {
     ElMessage.warning(t('auth.login.agreementRequired'))
@@ -283,7 +256,6 @@ const handleLogin = async () => {
 
     loading.value = true
 
-    // 调用登录API
     let response: any
     if (loginMode.value === 'password') {
       response = await loginByPasswordAPI({
@@ -299,29 +271,23 @@ const handleLogin = async () => {
       })
     }
 
-    // 检查响应是否成功
     if (!response.success || !response.data) {
       ElMessage.error(response.message || t('auth.login.failed'))
       loading.value = false
       return
     }
 
-    // 保存token和用户信息
     const { token, user, stores } = response.data
     localStorage.setItem('token', token)
     localStorage.setItem('user', JSON.stringify(user))
     userStore.setUser(user)
 
-    // 保存门店列表
     if (stores && stores.length > 0) {
       storeStore.setStores(stores)
     }
 
     ElMessage.success(t('auth.login.success'))
-
-    // 登录成功后始终跳转到门店选择页面,让用户自己选择门店
     router.push('/store/selection')
-
     loading.value = false
   } catch (error: any) {
     loading.value = false
@@ -330,26 +296,22 @@ const handleLogin = async () => {
   }
 }
 
-// 跳转到忘记密码页面
 const goToForgotPassword = () => {
   router.push('/forgot-password')
 }
 
-// 跳转到注册页面
 const goToRegister = () => {
   router.push('/register')
 }
 
-// 跳转到用户服务协议
 const goToTermsOfService = () => {
   router.push('/legal/terms')
 }
 
-// 跳转到隐私政策
 const goToPrivacyPolicy = () => {
   router.push('/legal/privacy')
 }
-// 跳转到技术支持网站
+
 const goToTechnicalSupport = () => {
   router.push('/legal/support')
 }
@@ -357,236 +319,383 @@ const goToTechnicalSupport = () => {
 
 <style scoped>
 .login-container {
+  width: 100%;
+  min-height: 100vh;
   display: flex;
-  height: 100vh;
-  overflow: hidden;
+  background: #fff;
 }
 
-/* 左侧蓝色区域 */
+.login-layout {
+  width: 100%;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 55.8571428571%) minmax(0, 44.1428571429%);
+}
+
 .left-section {
-  flex: 1;
-  background: linear-gradient(135deg, #1e88e5 0%, #1976d2 100%);
-  padding: 60px 80px;
-  color: white;
-  position: relative;
+  background: #eef3ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(44px, 5vh, 72px) clamp(32px, 3.6vw, 52px) clamp(34px, 4vh, 56px);
   overflow: hidden;
 }
 
-.left-section::before {
-  content: '';
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  top: -200px;
-  right: -200px;
+.left-illustration {
+  width: clamp(590px, 44vw, 690px);
+  max-width: 100%;
+  height: auto;
+  display: block;
+  transform: translate(clamp(0px, 1vw, 14px), clamp(0px, 0.8vh, 8px));
 }
 
-.left-section::after {
-  content: '';
-  position: absolute;
-  width: 400px;
-  height: 400px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-  bottom: -100px;
-  left: -100px;
-}
-
-.left-content {
-  position: relative;
-  z-index: 1;
-}
-
-.main-title {
-  font-size: 48px;
-  font-weight: bold;
-  margin: 0 0 10px 0;
-  line-height: 1.2;
-}
-
-.sub-title {
-  font-size: 48px;
-  font-weight: bold;
-  margin: 0 0 40px 0;
-  line-height: 1.2;
-}
-
-.description {
-  font-size: 16px;
-  line-height: 1.8;
-  margin-bottom: 30px;
-  opacity: 0.95;
-  white-space: pre-line;
-}
-
-.trial-info {
-  font-size: 16px;
-  line-height: 1.8;
-  margin-bottom: 60px;
-  opacity: 0.95;
-  white-space: pre-line;
-}
-
-.browser-window {
-  width: 600px;
-  height: 200px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  padding: 12px;
-}
-
-.browser-header {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.dot.red {
-  background: #ff5f57;
-}
-
-.dot.yellow {
-  background: #ffbd2e;
-}
-
-.dot.green {
-  background: #28ca42;
-}
-
-/* 右侧表单区域 */
 .right-section {
-  width: 520px;
-  background: white;
-  padding: 40px 60px;
+  background: #fff;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  padding:
+    clamp(18px, 2.5vh, 24px)
+    clamp(40px, 4.8vw, 96px)
+    clamp(32px, 4.5vh, 48px)
+    clamp(44px, 5vw, 104px);
 }
 
 .language-selector {
-  text-align: right;
-  margin-bottom: 40px;
+  display: flex;
+  justify-content: flex-end;
 }
 
-.language-text {
-  cursor: pointer;
-  color: #666;
+.language-selector :deep(.language-trigger--auth) {
+  color: #7b7b7b;
   font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  line-height: 22px;
+  gap: 8px;
+}
+
+.language-selector :deep(.language-trigger--auth .el-icon) {
+  font-size: 14px;
+}
+
+.form-shell {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  padding-top: clamp(24px, 5vh, 56px);
 }
 
 .form-container {
-  flex: 1;
+  width: 100%;
+  max-width: clamp(465px, 74%, 560px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.form-title {
+  margin: 0;
+  color: #597ef7;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.08;
+}
+
+.form-subtitle {
+  margin: 14px 0 0;
+  color: #ababab;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.login-form {
+  margin-top: clamp(28px, 4vh, 52px);
   display: flex;
   flex-direction: column;
 }
 
-.form-title {
-  font-size: 32px;
-  font-weight: bold;
-  color: #333;
-  margin: 0 0 12px 0;
-}
-
-.form-subtitle {
-  font-size: 14px;
-  color: #999;
-  margin: 0 0 40px 0;
-}
-
-.login-form {
-  flex: 1;
-}
-
 .form-item {
-  margin-bottom: 24px;
+  margin-bottom: 37px;
 }
 
 .form-label {
   display: block;
+  margin-bottom: 11px;
+  color: #111827;
   font-size: 14px;
-  color: #333;
-  margin-bottom: 8px;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .label-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 11px;
+}
+
+.label-row .form-label {
+  margin-bottom: 0;
 }
 
 .forgot-link {
   font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .options-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin: -2px 0 12px;
+  gap: 16px;
 }
 
 .switch-mode-link {
   font-size: 14px;
+  font-weight: 600;
 }
 
 .agreement-row {
-  margin-bottom: 24px;
-  font-size: 14px;
-  color: #666;
+  margin-top: 4px;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 .login-button {
-  width: 100%;
-  height: 48px;
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 24px;
+  width: 314px;
+  max-width: 100%;
+  height: 32px;
+  margin: clamp(32px, 5vh, 64px) auto 0;
+  border-radius: 2px;
+  border-color: #597ef7;
+  background: #597ef7;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+.login-button:hover,
+.login-button:focus-visible {
+  border-color: #597ef7;
+  background: #597ef7;
+}
+
+.login-button:active {
+  border-color: #597ef7;
+  background: #597ef7;
+}
+
+.form-footer {
+  margin-top: auto;
+  padding-top: clamp(28px, 4vh, 60px);
+  padding-bottom: clamp(44px, 7vh, 96px);
 }
 
 .register-link {
+  color: #4b5563;
   text-align: center;
   font-size: 14px;
-  color: #666;
+  line-height: 1.6;
 }
 
 .support-link-row {
-  margin-top: 12px;
+  margin-top: 14px;
   text-align: center;
 }
 
-/* 表单样式调整 */
 .login-form :deep(.el-form-item) {
   margin-bottom: 0;
 }
 
+.login-form :deep(.el-form-item__content) {
+  line-height: 1;
+}
+
 .login-form :deep(.el-input__wrapper) {
-  box-shadow: 0 0 0 1px #e0e0e0 inset;
+  min-height: 37px;
+  padding: 0 12px;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #d9dee8;
 }
 
 .login-form :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #409eff inset;
+  box-shadow: inset 0 0 0 1px #597ef7;
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #409eff inset;
+  box-shadow: inset 0 0 0 1px #597ef7;
+}
+
+.login-form :deep(.el-input__inner) {
+  height: 100%;
+  font-size: 13px;
+  color: #111827;
+}
+
+.login-form :deep(.el-input__inner::placeholder) {
+  color: #b7bdc9;
+}
+
+.login-form :deep(.el-input__prefix-inner),
+.login-form :deep(.el-input__suffix-inner) {
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.login-form :deep(.el-input__prefix-inner) {
+  margin-right: 12px;
+}
+
+.login-form :deep(.el-input__suffix-inner) {
+  margin-left: 12px;
+}
+
+.verification-code-field {
+  position: relative;
+  width: 100%;
+}
+
+.verification-code-field :deep(.verification-code-input) {
+  width: 100%;
+}
+
+.verification-code-field :deep(.verification-code-input .el-input__wrapper) {
+  padding-right: 175px;
+}
+
+.verification-code-field :deep(.send-code-button) {
+  position: absolute;
+  top: 1px;
+  right: 35px;
+  z-index: 2;
+  width: auto;
+  min-width: 84px;
+  height: 35px;
+  min-height: 35px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 0;
+  background: #f1f1f1;
+  color: #b3b3b3;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 1;
+  box-shadow: none;
+}
+
+.verification-code-field :deep(.send-code-button:hover),
+.verification-code-field :deep(.send-code-button:focus-visible),
+.verification-code-field :deep(.send-code-button:active) {
+  background: #f1f1f1;
+  color: #b3b3b3;
+}
+
+.verification-code-field :deep(.send-code-button.is-disabled),
+.verification-code-field :deep(.send-code-button.is-disabled:hover),
+.verification-code-field :deep(.send-code-button.is-disabled:focus-visible),
+.verification-code-field :deep(.send-code-button.is-disabled:active) {
+  background: #f1f1f1;
+  color: #b3b3b3;
+  opacity: 1;
+}
+
+.login-form :deep(.el-checkbox) {
+  align-items: flex-start;
+  height: auto;
+}
+
+.login-form :deep(.el-checkbox__input) {
+  margin-top: 2px;
+}
+
+.login-form :deep(.el-checkbox__inner) {
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+  border-color: #d7dce8;
+}
+
+.login-form :deep(.el-checkbox__input.is-checked .el-checkbox__inner),
+.login-form :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
+  border-color: #597ef7;
+  background: #597ef7;
 }
 
 .login-form :deep(.el-checkbox__label) {
-  font-size: 14px;
-  color: #666;
+  padding-left: 8px;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: normal;
+}
+
+.login-form :deep(.el-link),
+.register-link :deep(.el-link),
+.support-link-row :deep(.el-link) {
+  color: #597ef7;
+}
+
+.register-link :deep(.el-link),
+.support-link-row :deep(.el-link) {
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .login-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .left-section {
+    display: none;
+  }
+
+  .right-section {
+    padding: 18px clamp(24px, 8vw, 72px) 42px;
+  }
+
+  .form-shell {
+    padding-top: 32px;
+  }
+
+  .form-container {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .right-section {
+    padding: 18px 20px 32px;
+  }
+
+  .form-shell {
+    padding-top: 24px;
+  }
+
+  .form-title {
+    font-size: 32px;
+  }
+
+  .login-form {
+    margin-top: 32px;
+  }
+
+  .login-button {
+    width: 100%;
+    margin-top: 40px;
+  }
+
+  .form-footer {
+    padding-top: 28px;
+  }
 }
 </style>
