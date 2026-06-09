@@ -541,6 +541,17 @@ const goToTechnicalSupport = () => {
   color: #b7bdc9;
 }
 
+.login-form :deep(.el-input__inner:-webkit-autofill),
+.login-form :deep(.el-input__inner:-webkit-autofill:hover),
+.login-form :deep(.el-input__inner:-webkit-autofill:focus),
+.login-form :deep(.el-input__inner:-webkit-autofill:active) {
+  -webkit-text-fill-color: #111827;
+  caret-color: #111827;
+  background-color: transparent;
+  -webkit-background-clip: text;
+  transition: background-color 9999s ease-out 0s;
+}
+
 .login-form :deep(.el-input__prefix-inner),
 .login-form :deep(.el-input__suffix-inner) {
   color: #4b5563;

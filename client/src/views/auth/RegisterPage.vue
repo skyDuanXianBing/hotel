@@ -468,6 +468,17 @@ const goToTechnicalSupport = () => {
   color: #b7bdc9;
 }
 
+.register-form :deep(.el-input__inner:-webkit-autofill),
+.register-form :deep(.el-input__inner:-webkit-autofill:hover),
+.register-form :deep(.el-input__inner:-webkit-autofill:focus),
+.register-form :deep(.el-input__inner:-webkit-autofill:active) {
+  -webkit-text-fill-color: #111827;
+  caret-color: #111827;
+  background-color: transparent;
+  -webkit-background-clip: text;
+  transition: background-color 9999s ease-out 0s;
+}
+
 .register-form :deep(.el-input__prefix-inner),
 .register-form :deep(.el-input__suffix-inner) {
   color: #4b5563;
