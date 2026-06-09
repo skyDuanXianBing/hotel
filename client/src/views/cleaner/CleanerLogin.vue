@@ -275,6 +275,17 @@ const handleLogin = async () => {
   padding: 12px 16px;
 }
 
+.login-form :deep(.el-input__inner:-webkit-autofill),
+.login-form :deep(.el-input__inner:-webkit-autofill:hover),
+.login-form :deep(.el-input__inner:-webkit-autofill:focus),
+.login-form :deep(.el-input__inner:-webkit-autofill:active) {
+  -webkit-text-fill-color: #333;
+  caret-color: #333;
+  background-color: transparent;
+  -webkit-background-clip: text;
+  transition: background-color 9999s ease-out 0s;
+}
+
 .login-button {
   width: 100%;
   border-radius: 8px;
