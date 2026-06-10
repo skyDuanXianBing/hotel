@@ -1,97 +1,90 @@
 <template>
   <div class="home-page">
-    <!-- 主要内容区域：左边两格右边一格 -->
-    <div class="main-layout">
-      <!-- 左侧内容区域 -->
-      <div class="left-content">
-        <!-- 统计卡片区域 -->
-        <div class="stats-cards">
-          <div class="stat-card clickable" @click="goToOrdersByType('today-arrivals')">
-            <div class="stat-title">{{ t('pages.home.stats.checkin') }}</div>
-            <div class="stat-value">{{ todayStats.checkin }}</div>
-             
-          </div>
-          <div class="stat-card clickable" @click="goToOrdersByType('today-departures')">
-            <div class="stat-title">{{ t('pages.home.stats.checkout') }}</div>
-            <div class="stat-value">{{ todayStats.checkout }}</div>
-          </div>
-          <div class="stat-card clickable" @click="goToOrdersByType('today-new')">
-            <div class="stat-title">{{ t('pages.home.stats.newOrders') }}</div>
-            <div class="stat-value">{{ todayStats.newOrders }}</div>
-            
-          </div>
-          <div class="stat-card clickable" @click="goToOrdersByType('unassigned')">
-            <div class="stat-title">{{ t('pages.home.stats.unassigned') }}</div>
-            <div class="stat-value">{{ todayStats.unassigned }}</div>
-          </div>
-          <div class="stat-card available" @click="goToRoomStatus()">
-            <div class="stat-title">{{ t('pages.home.stats.available') }}</div>
-            <div class="stat-value">{{ todayStats.available }}</div>
-          </div>
-          <div class="stat-card clickable" @click="goToOrdersByType('pending')">
-            <div class="stat-title">{{ t('pages.home.stats.pending') }}</div>
-            <div class="stat-value">{{ todayStats.pending }}</div>
-          </div>
-        </div>
-
-        <!-- 近7天入住率图表 -->
-        <div class="chart-section">
-          <div class="chart-header">
-            <h3>{{ t('pages.home.occupancyTitle') }}</h3>
-          </div>
-          <OccupancyChart :data="occupancyData" />
-        </div>
-      </div>
-
-      <!-- 右侧工作台 / 今日任务列表 -->
-      <div class="right-content">
-        <TaskWorkbench />
-      </div>
-    </div>
-
-    <!-- 底部功能区域 -->
-    <div class="bottom-section">
-      <!-- 常用功能 -->
-      <div class="common-functions">
-        <div class="section-header">
-          <h3>{{ t('pages.home.commonFunctionsTitle') }}</h3>
-          <el-button link class="more-btn">
-            {{ t('pages.home.configureAction') }} <el-icon><ArrowRight /></el-icon>
-          </el-button>
-        </div>
-        <div class="function-grid">
-          <div class="function-card" @click="goToOrders">
-            <div class="function-icon">
-              <el-icon size="32" color="#ffd900"><Document /></el-icon>
+    <div class="home-shell">
+      <div class="main-layout">
+        <div ref="leftContentRef" class="left-content">
+          <div class="stats-cards card-surface">
+            <div class="stat-card clickable" @click="goToOrdersByType('today-arrivals')">
+              <div class="stat-title">{{ t('pages.home.stats.checkin') }}</div>
+              <div class="stat-value">{{ todayStats.checkin }}</div>
             </div>
-            <div class="function-name">{{ t('pages.home.orderCard') }}</div>
+            <div class="stat-card clickable" @click="goToOrdersByType('today-departures')">
+              <div class="stat-title">{{ t('pages.home.stats.checkout') }}</div>
+              <div class="stat-value">{{ todayStats.checkout }}</div>
+            </div>
+            <div class="stat-card clickable" @click="goToOrdersByType('today-new')">
+              <div class="stat-title">{{ t('pages.home.stats.newOrders') }}</div>
+              <div class="stat-value">{{ todayStats.newOrders }}</div>
+            </div>
+            <div class="stat-card clickable" @click="goToOrdersByType('unassigned')">
+              <div class="stat-title">{{ t('pages.home.stats.unassigned') }}</div>
+              <div class="stat-value">{{ todayStats.unassigned }}</div>
+            </div>
+            <div class="stat-card clickable available" @click="goToRoomStatus()">
+              <div class="stat-title">{{ t('pages.home.stats.available') }}</div>
+              <div class="stat-value">{{ todayStats.available }}</div>
+            </div>
+            <div class="stat-card clickable" @click="goToOrdersByType('pending')">
+              <div class="stat-title">{{ t('pages.home.stats.pending') }}</div>
+              <div class="stat-value">{{ todayStats.pending }}</div>
+            </div>
           </div>
-          <!-- 可以添加更多功能卡片 -->
+
+          <div class="chart-section card-surface">
+            <div class="chart-header">
+              <h3>{{ t('pages.home.occupancyTitle') }}</h3>
+            </div>
+            <OccupancyChart :data="occupancyData" />
+          </div>
+        </div>
+
+        <div class="right-content" :style="rightContentStyle">
+          <TaskWorkbench />
         </div>
       </div>
 
-      <!-- 公告栏 -->
-      <div class="bulletin-board">
-        <div class="section-header">
-          <h3>{{ t('pages.home.bulletinBoardTitle') }}</h3>
-          <el-button link class="more-btn">
-            {{ t('pages.home.moreAction') }} <el-icon><ArrowRight /></el-icon>
-          </el-button>
-        </div>
-        <div class="bulletin-list">
-          <div
-            v-for="item in bulletinItems"
-            :key="item.id"
-            class="bulletin-item"
-            :class="`tone-${item.tone}`"
-          >
-            <div class="bulletin-badge">{{ item.badge }}</div>
-            <div class="bulletin-content">
-              <div class="bulletin-heading">
-                <div class="bulletin-title">{{ item.title }}</div>
-                <div class="bulletin-date">{{ item.date }}</div>
+      <div class="bottom-section">
+        <div class="common-functions card-surface">
+          <div class="section-header">
+            <h3>{{ t('pages.home.commonFunctionsTitle') }}</h3>
+            <el-button link class="more-btn">
+              {{ t('pages.home.configureAction') }}
+              <el-icon><ArrowRight /></el-icon>
+            </el-button>
+          </div>
+
+          <div class="function-grid">
+            <div class="function-card" @click="goToOrders">
+              <div class="function-icon">
+                <el-icon size="30" color="#ffc100"><Document /></el-icon>
               </div>
-              <div class="bulletin-desc">{{ item.description }}</div>
+              <div class="function-name">{{ t('pages.home.orderCard') }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bulletin-board card-surface">
+          <div class="section-header">
+            <h3>{{ t('pages.home.bulletinBoardTitle') }}</h3>
+            <el-button link class="more-btn">
+              {{ t('pages.home.moreAction') }}
+              <el-icon><ArrowRight /></el-icon>
+            </el-button>
+          </div>
+
+          <div class="bulletin-list">
+            <div
+              v-for="item in bulletinItems"
+              :key="item.id"
+              class="bulletin-item"
+              :class="`tone-${item.tone}`"
+            >
+              <div class="bulletin-badge">{{ item.badge }}</div>
+              <div class="bulletin-content">
+                <div class="bulletin-title">{{ item.title }}</div>
+                <div class="bulletin-desc">{{ item.description }}</div>
+              </div>
+              <div class="bulletin-date">{{ item.date }}</div>
             </div>
           </div>
         </div>
@@ -101,20 +94,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Document, ArrowRight } from '@element-plus/icons-vue'
-import { getRoomStatusStatistics, type RoomStatusStatisticsDTO } from '@/api/roomStatus'
-import { getDailyOccupancy } from '@/api/business'
+import { ArrowRight, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { getDailyOccupancy } from '@/api/business'
+import { getRoomStatusStatistics } from '@/api/roomStatus'
 import OccupancyChart from '@/components/OccupancyChart.vue'
 import TaskWorkbench from '@/views/home/components/TaskWorkbench.vue'
-import { useMemoStore } from '@/stores/memo'
 import { getRecentStoreDateRange } from '@/utils/storeDateTime'
 
 const router = useRouter()
 const { t } = useI18n()
+const leftContentRef = ref<HTMLElement>()
+const workbenchHeight = ref('auto')
+let leftContentResizeObserver: ResizeObserver | null = null
 
 const bulletinItems = computed(() => [
   {
@@ -143,27 +138,37 @@ const bulletinItems = computed(() => [
   },
 ])
 
-// 今日统计数据
 const todayStats = ref({
-  checkin: 0, // 今日预抵
-  checkout: 0, // 今日预离
-  newOrders: 0, // 今日新办
-  unassigned: 0, // 未排房
-  available: 0, // 今日可售
-  pending: 0, // 待处理
+  checkin: 0,
+  checkout: 0,
+  newOrders: 0,
+  unassigned: 0,
+  available: 0,
+  pending: 0,
 })
 
-// 加载状态
 const loading = ref(false)
-
-// 近7天入住率数据
 const occupancyData = ref<Array<{ date: string; rate: number }>>([])
+const rightContentStyle = computed(() => ({
+  height: workbenchHeight.value,
+}))
 
-// 加载入住率数据
+const syncWorkbenchHeight = () => {
+  if (!leftContentRef.value || typeof window === 'undefined') {
+    return
+  }
+
+  if (window.innerWidth <= 1280) {
+    workbenchHeight.value = 'auto'
+    return
+  }
+
+  workbenchHeight.value = `${leftContentRef.value.scrollHeight}px`
+}
+
 const loadOccupancyData = async () => {
   try {
     const dateRange = getRecentStoreDateRange(7)
-
     const response = await getDailyOccupancy({
       startDate: dateRange.start,
       endDate: dateRange.end,
@@ -176,32 +181,26 @@ const loadOccupancyData = async () => {
       }))
     }
   } catch (error) {
-    console.error('加载入住率数据失败:', error)
-    // 失败时使用空数据
+    console.error('Failed to load occupancy data:', error)
     occupancyData.value = []
   }
 }
 
-// 方法
 const goToOrders = () => {
   router.push('/order')
 }
 
-// 根据类型跳转到订单页面
 const goToOrdersByType = (type: string) => {
-  // 跳转到订单页面，并传递过滤类型参数
   router.push({
     path: '/order',
     query: { type },
   })
 }
 
-// 跳转到房态管理页面
 const goToRoomStatus = () => {
   router.push('/room-status')
 }
 
-// 获取房态统计数据
 const fetchRoomStatusStatistics = async () => {
   loading.value = true
   try {
@@ -220,63 +219,115 @@ const fetchRoomStatusStatistics = async () => {
       ElMessage.error(response.message || t('pages.home.fetchStatisticsFailed'))
     }
   } catch (error) {
-    console.error('获取统计数据错误:', error)
+    console.error('Failed to load room status statistics:', error)
     ElMessage.error(t('pages.home.fetchStatisticsNetworkFailed'))
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await nextTick()
   fetchRoomStatusStatistics()
   loadOccupancyData()
+
+  syncWorkbenchHeight()
+  leftContentResizeObserver = new ResizeObserver(() => {
+    syncWorkbenchHeight()
+  })
+
+  if (leftContentRef.value) {
+    leftContentResizeObserver.observe(leftContentRef.value)
+  }
+
+  window.addEventListener('resize', syncWorkbenchHeight)
+})
+
+onBeforeUnmount(() => {
+  leftContentResizeObserver?.disconnect()
+  window.removeEventListener('resize', syncWorkbenchHeight)
 })
 </script>
 
 <style scoped>
 .home-page {
-  padding: 20px;
-  background: #f5f5f5;
+  --home-card-border: rgba(15, 23, 42, 0.06);
+  --home-card-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.04),
+    0 4px 10px rgba(15, 23, 42, 0.03);
+  --home-card-radius: 20px;
+  padding: 24px 16px 32px;
   min-height: calc(100vh - 60px);
+  background:
+    radial-gradient(circle at top left, rgba(60, 195, 223, 0.08), transparent 24%),
+    linear-gradient(180deg, #f8f8f9 0%, #f5f6f9 100%);
 }
 
-/* 主布局 */
+.home-shell {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.card-surface {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--home-card-border);
+  border-radius: var(--home-card-radius);
+  box-shadow: var(--home-card-shadow);
+}
+
 .main-layout {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
   gap: 20px;
-  margin-bottom: 24px;
+  align-items: start;
 }
 
-/* 左侧内容区域 */
+.left-content,
+.right-content {
+  min-width: 0;
+}
+
 .left-content {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
+.right-content {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.right-content > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
 .stats-cards {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 16px;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px 16px;
 }
 
 .stat-card {
-  background: transparent;
-  border-radius: 8px;
-  padding: 20px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 112px;
+  padding: 18px 14px;
   text-align: center;
+  border-radius: 16px;
   transition:
-    transform 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
+    transform 0.22s ease,
+    background-color 0.22s ease,
+    box-shadow 0.22s ease;
 }
 
 .stat-card.clickable {
@@ -284,128 +335,122 @@ onMounted(() => {
 }
 
 .stat-card.clickable:hover {
-  background: rgba(64, 133, 244, 0.05);
-}
-
-.stat-card.available {
-  cursor: pointer;
+  transform: translateY(-2px);
+  background: rgba(96, 165, 250, 0.06);
 }
 
 .stat-card.available:hover {
-  background: rgba(76, 175, 80, 0.05);
+  background: rgba(34, 197, 94, 0.06);
 }
 
 .stat-title {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.46);
+  letter-spacing: 0.02em;
 }
 
 .stat-value {
-  font-size: 32px;
-  font-weight: bold;
-  color: #333;
+  font-size: clamp(36px, 2.2vw, 42px);
+  font-weight: 700;
+  line-height: 1;
+  color: #111111;
 }
 
-/* 右侧内容区域 */
-.right-content {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 图表区域 */
 .chart-section {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 24px 26px 18px;
 }
 
 .chart-header {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
-.chart-header h3 {
+.chart-header h3,
+.section-header h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 500;
-  color: #333;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #111111;
 }
 
-/* 底部功能区域 */
 .bottom-section {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+  gap: 20px;
+  margin-top: 20px;
+  align-items: stretch;
 }
 
 .common-functions,
 .bulletin-board {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 0;
+  min-height: 316px;
+  padding: 22px 22px 24px;
 }
 
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.section-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 .more-btn {
-  color: #666;
+  color: rgba(0, 0, 0, 0.42);
   font-size: 14px;
+  font-weight: 500;
 }
 
-/* 常用功能 */
+.more-btn :deep(.el-icon) {
+  margin-left: 2px;
+}
+
 .function-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(128px, 140px));
   gap: 16px;
+  justify-content: start;
+  align-content: start;
 }
 
 .function-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 20px;
-  border-radius: 8px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 8px 10px 10px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .function-card:hover {
-  background: #f8f9fa;
+  transform: translateY(-2px);
+  background: rgba(255, 193, 7, 0.06);
 }
 
 .function-icon {
-  width: 60px;
-  height: 60px;
-  background: #fff3e0;
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff8dc 0%, #fff2bf 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 .function-name {
-  font-size: 14px;
-  color: #333;
-  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+  color: #151515;
+  text-align: left;
 }
 
-/* 公告栏 */
 .bulletin-list {
   display: flex;
   flex-direction: column;
@@ -413,95 +458,115 @@ onMounted(() => {
 }
 
 .bulletin-item {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
   align-items: flex-start;
-  background: #fafafa;
-  border: 1px solid #edf0f3;
-  border-radius: 8px;
-  display: flex;
-  gap: 14px;
-  padding: 14px 16px;
+  column-gap: 12px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  background: linear-gradient(180deg, #ffffff 0%, #fcfcfe 100%);
   transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease;
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .bulletin-item:hover {
-  background: #f4f6f8;
-  border-color: #e0e5ea;
   transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.14);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
 }
 
 .bulletin-badge {
-  border-radius: 999px;
   flex: 0 0 auto;
-  font-size: 14px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1;
-  padding: 7px 10px;
+  align-self: center;
+  justify-self: start;
 }
 
 .bulletin-item.tone-update .bulletin-badge {
-  background: #e8f3ff;
-  color: #1d4ed8;
+  color: #4c6fff;
+  background: #eef2ff;
 }
 
 .bulletin-item.tone-feature .bulletin-badge {
-  background: #ecfdf3;
-  color: #047857;
+  color: #24b36b;
+  background: #ecfbf3;
 }
 
 .bulletin-item.tone-fix .bulletin-badge {
-  background: #fff3e8;
-  color: #b45309;
+  color: #d79a2b;
+  background: #fff6e6;
 }
 
 .bulletin-content {
   flex: 1;
   min-width: 0;
-}
-
-.bulletin-heading {
-  align-items: baseline;
   display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  margin-bottom: 6px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
 }
 
 .bulletin-title {
-  color: #333;
-  flex: 1;
+  min-width: 0;
+  color: #18181b;
   font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .bulletin-date {
-  font-size: 12px;
-  color: #666;
   flex: 0 0 auto;
   white-space: nowrap;
-  line-height: 1.4;
+  align-self: start;
+  padding-top: 1px;
+  color: rgba(0, 0, 0, 0.38);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .bulletin-desc {
-  color: #666;
+  color: rgba(0, 0, 0, 0.42);
   font-size: 12px;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
-/* 响应式设计 */
-@media (max-width: 1200px) {
+@media (max-width: 1280px) {
   .main-layout {
     grid-template-columns: 1fr;
-    gap: 16px;
+  }
+
+  .right-content {
+    height: auto !important;
+    overflow: visible;
   }
 
   .stats-cards {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .stat-card::after {
+    display: none;
+  }
+}
+
+@media (min-width: 1281px) and (max-width: 1520px) {
+  .stats-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stat-card::after {
+    display: none;
+  }
+}
+
+@media (max-width: 1080px) {
   .bottom-section {
     grid-template-columns: 1fr;
   }
@@ -509,35 +574,34 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .home-page {
-    padding: 16px;
-  }
-
-  .main-layout {
-    gap: 12px;
+    padding: 16px 12px 24px;
   }
 
   .stats-cards {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px;
+  }
+
+  .chart-section,
+  .common-functions,
+  .bulletin-board {
+    padding: 18px 18px 20px;
   }
 
   .bulletin-item {
-    flex-direction: column;
-    gap: 10px;
+    grid-template-columns: 1fr;
+    row-gap: 10px;
   }
 
-  .bulletin-heading {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .function-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .bulletin-badge,
+  .bulletin-date {
+    align-self: start;
   }
 }
 
 @media (max-width: 480px) {
-  .stats-cards {
+  .stats-cards,
+  .function-grid {
     grid-template-columns: 1fr;
   }
 }

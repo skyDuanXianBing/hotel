@@ -2,11 +2,11 @@
   <section class="task-workbench">
     <div class="workbench-header">
       <div class="title-block">
-        <span class="eyebrow">{{ t('pages.home.workbench.eyebrow') }}</span>
         <h3>{{ t('pages.home.workbench.title') }}</h3>
       </div>
       <el-button
         circle
+        class="refresh-btn"
         :icon="Refresh"
         :loading="loading"
         :aria-label="t('pages.home.workbench.refresh')"
@@ -16,7 +16,7 @@
 
     <div class="date-line">
       <span>{{ t('pages.home.workbench.todayLabel', { date: todayYmd }) }}</span>
-      <el-button link type="primary" @click="goToTaskList">
+      <el-button link type="primary" class="view-all-btn" @click="goToTaskList">
         {{ t('pages.home.workbench.viewAll') }}
         <el-icon><ArrowRight /></el-icon>
       </el-button>
@@ -27,14 +27,14 @@
         v-for="summary in taskTypeSummaries"
         :key="summary.type"
         class="type-chip"
-        :class="[`type-${summary.type}`, { active: activeType === summary.type }]"
+        :class="{ active: activeType === summary.type }"
         type="button"
         role="tab"
         :aria-selected="activeType === summary.type"
         @click="handleTypeChange(summary.type)"
       >
         <span class="chip-icon">
-          <el-icon><component :is="getTypeIcon(summary.type)" /></el-icon>
+          <img :src="getTypeIcon(summary.type)" :alt="summary.label" />
         </span>
         <span class="chip-copy">
           <span class="chip-label">{{ summary.label }}</span>
@@ -86,52 +86,52 @@
         :class="[`priority-${task.priority}`]"
       >
         <div class="task-marker">
-          <el-icon><EditPen /></el-icon>
+          <img :src="getTaskIcon(task.type)" :alt="task.title" />
         </div>
+
         <div class="task-main">
-          <div class="task-title-row">
-            <div class="task-copy">
-              <h4>{{ task.title }}</h4>
-              <p>{{ task.subtitle }}</p>
-            </div>
-            <el-tag :type="getStatusTagType(task.status)" size="small">
-              {{ getStatusLabel(task.status) }}
-            </el-tag>
+          <div class="task-copy">
+            <h4>{{ task.title }}</h4>
+            <p>{{ task.subtitle }}</p>
           </div>
 
           <div class="task-meta">
             <span v-for="item in task.metaItems" :key="item">{{ item }}</span>
           </div>
 
-          <div v-if="task.status === 'pending'" class="assign-row">
-            <el-select
-              v-model="assignSelections[task.sourceTaskId]"
-              :placeholder="t('pages.home.workbench.selectEmployee')"
-              :loading="cleanersLoading"
-              size="small"
-              filterable
-              class="assign-select"
-            >
-              <el-option
-                v-for="cleaner in cleanerList"
-                :key="cleaner.id"
-                :label="cleaner.name"
-                :value="cleaner.id"
-              />
-            </el-select>
-            <el-button
-              type="primary"
-              size="small"
-              :loading="assigningTaskId === task.sourceTaskId"
-              @click="assignTask(task)"
-            >
-              {{ t('pages.home.workbench.assign') }}
-            </el-button>
-          </div>
+          <span class="task-status" :class="`status-${task.status}`">
+            {{ getStatusLabel(task.status) }}
+          </span>
+
+          <el-select
+            v-if="task.status === 'pending'"
+            v-model="assignSelections[task.sourceTaskId]"
+            :placeholder="t('pages.home.workbench.selectEmployee')"
+            :loading="cleanersLoading"
+            size="small"
+            filterable
+            class="assign-select"
+          >
+            <el-option
+              v-for="cleaner in cleanerList"
+              :key="cleaner.id"
+              :label="cleaner.name"
+              :value="cleaner.id"
+            />
+          </el-select>
+          <el-button
+            v-if="task.status === 'pending'"
+            type="primary"
+            size="small"
+            class="assign-btn"
+            :loading="assigningTaskId === task.sourceTaskId"
+            @click="assignTask(task)"
+          >
+            {{ t('pages.home.workbench.assign') }}
+          </el-button>
         </div>
       </div>
     </div>
-
   </section>
 </template>
 
@@ -139,17 +139,17 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import {
-  ArrowRight,
-  Document,
-  EditPen,
-  Message,
-  Refresh,
-  User,
-} from '@element-plus/icons-vue'
+import { ArrowRight, Refresh } from '@element-plus/icons-vue'
+import workbenchAllIcon from '@/assets/home/workbench-all.svg'
+import workbenchCleanIcon from '@/assets/home/workbench-clean.svg'
+import workbenchMessageIcon from '@/assets/home/workbench-message.svg'
+import workbenchOrderIcon from '@/assets/home/workbench-order.svg'
+import workbenchOtherIcon from '@/assets/home/workbench-other.svg'
+import workbenchReviewIcon from '@/assets/home/workbench-review.svg'
 import {
   useHomeTaskWorkbench,
   type WorkbenchStatusFilter,
+  type WorkbenchTaskType,
   type WorkbenchTaskTypeFilter,
 } from '@/views/home/composables/useHomeTaskWorkbench'
 
@@ -174,17 +174,18 @@ const {
   assignTask,
 } = useHomeTaskWorkbench()
 
-const getTypeIcon = (type: WorkbenchTaskTypeFilter) => {
-  const iconMap = {
-    all: Document,
-    cleaning: EditPen,
-    review: Document,
-    order: Document,
-    message: Message,
-    other: User,
-  }
-  return iconMap[type]
+const typeIconMap: Record<WorkbenchTaskTypeFilter, string> = {
+  all: workbenchAllIcon,
+  cleaning: workbenchCleanIcon,
+  review: workbenchReviewIcon,
+  order: workbenchOrderIcon,
+  message: workbenchMessageIcon,
+  other: workbenchOtherIcon,
 }
+
+const getTypeIcon = (type: WorkbenchTaskTypeFilter) => typeIconMap[type]
+
+const getTaskIcon = (type: WorkbenchTaskType) => typeIconMap[type]
 
 const getStatusLabel = (status: string) => {
   const statusMap: Record<string, string> = {
@@ -195,17 +196,6 @@ const getStatusLabel = (status: string) => {
     completed: t('pages.home.workbench.statuses.completed'),
   }
   return statusMap[status] || status
-}
-
-const getStatusTagType = (status: string) => {
-  const typeMap: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'danger'> = {
-    expired: 'info',
-    pending: 'warning',
-    assigned: 'primary',
-    in_progress: 'primary',
-    completed: 'success',
-  }
-  return typeMap[status] || 'info'
 }
 
 const handleTypeChange = (type: WorkbenchTaskTypeFilter) => {
@@ -224,23 +214,29 @@ onMounted(() => {
 
 <style scoped>
 .task-workbench {
-  --workbench-border: #e5e7eb;
-  --workbench-muted: #6b7280;
-  --workbench-ink: #1f2937;
-  --workbench-soft: #f8fafc;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --workbench-border: rgba(15, 23, 42, 0.06);
+  --workbench-ink: #111111;
+  --workbench-muted: rgba(0, 0, 0, 0.42);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--workbench-border);
+  border-radius: 20px;
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.04),
+    0 4px 10px rgba(15, 23, 42, 0.03);
   display: flex;
   flex-direction: column;
-  height: 550px;
+  box-sizing: border-box;
   min-width: 0;
-  padding: 18px;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  padding: 16px 16px 14px;
+  overflow: hidden;
 }
 
 .workbench-header {
-  align-items: flex-start;
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
@@ -249,228 +245,261 @@ onMounted(() => {
   min-width: 0;
 }
 
-.eyebrow {
-  color: #0f766e;
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
+.title-block h3 {
+  margin: 0;
+  color: var(--workbench-ink);
+  font-size: 19px;
+  font-weight: 800;
   line-height: 1.2;
-  margin-bottom: 5px;
 }
 
-.title-block h3 {
-  color: var(--workbench-ink);
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.25;
-  margin: 0;
+.refresh-btn {
+  --el-fill-color-blank: #ffffff;
+  --el-border-color: rgba(15, 23, 42, 0.08);
+  --el-text-color-regular: rgba(0, 0, 0, 0.34);
+  width: 28px;
+  height: 28px;
+  box-shadow: none;
+}
+
+.refresh-btn:hover {
+  --el-border-color: rgba(76, 111, 255, 0.28);
+  --el-text-color-regular: #4c6fff;
 }
 
 .date-line {
-  align-items: center;
-  color: var(--workbench-muted);
   display: flex;
-  font-size: 13px;
+  align-items: center;
   justify-content: space-between;
-  margin-top: 12px;
+  gap: 12px;
+  margin-top: 10px;
+  color: rgba(0, 0, 0, 0.38);
+  font-size: 14px;
+  line-height: 1.4;
 }
 
-.date-line :deep(.el-button) {
-  align-items: center;
-  display: inline-flex;
-  gap: 2px;
+.view-all-btn {
   padding-right: 0;
+  color: rgba(0, 0, 0, 0.42);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.view-all-btn:hover {
+  color: #4c6fff;
 }
 
 .type-strip {
   display: grid;
-  gap: 8px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
   margin-top: 16px;
 }
 
 .type-chip {
-  align-items: center;
-  background: #f8fafc;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--workbench-ink);
-  cursor: pointer;
   display: flex;
-  gap: 8px;
-  min-height: 52px;
-  min-width: 0;
-  padding: 9px;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: #f7f8fb;
+  border: 1px solid transparent;
+  border-radius: 10px;
   text-align: left;
+  cursor: pointer;
   transition:
-    background-color 0.2s ease,
+    transform 0.2s ease,
     border-color 0.2s ease,
-    transform 0.2s ease;
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .type-chip:hover {
-  background: #f1f5f9;
   transform: translateY(-1px);
+  background: #f3f6ff;
 }
 
 .type-chip.active {
-  background: #eefdf8;
-  border-color: #5eead4;
+  background: rgba(76, 111, 255, 0.12);
+  border-color: rgba(76, 111, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(76, 111, 255, 0.08);
 }
 
 .chip-icon {
-  align-items: center;
-  border-radius: 8px;
-  color: #0f766e;
+  flex: 0 0 24px;
+  width: 26px;
+  height: 26px;
   display: flex;
-  flex: 0 0 28px;
-  height: 28px;
+  align-items: center;
   justify-content: center;
+  overflow: visible;
 }
 
-.type-order .chip-icon {
-  color: #b45309;
-}
-
-.type-message .chip-icon {
-  color: #2563eb;
-}
-
-.type-review .chip-icon {
-  color: #7c3aed;
-}
-
-.type-other .chip-icon {
-  color: #64748b;
+.chip-icon img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  display: block;
 }
 
 .chip-copy {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
 }
 
 .chip-label,
 .chip-count {
-  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chip-label {
-  font-size: 13px;
-  font-weight: 600;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .chip-count {
-  color: var(--workbench-muted);
+  color: rgba(0, 0, 0, 0.42);
   font-size: 12px;
+  line-height: 1.2;
 }
 
 .status-strip {
   display: flex;
-  gap: 6px;
-  margin-top: 14px;
-  overflow-x: auto;
+  gap: 8px;
+  margin-top: 16px;
   padding-bottom: 2px;
+  overflow-x: auto;
+}
+
+.status-strip::-webkit-scrollbar {
+  display: none;
 }
 
 .status-chip {
-  align-items: center;
-  background: transparent;
-  border: 1px solid var(--workbench-border);
-  border-radius: 999px;
-  color: #4b5563;
-  cursor: pointer;
   display: inline-flex;
+  align-items: center;
+  gap: 4px;
   flex: 0 0 auto;
-  font-size: 12px;
-  gap: 6px;
   height: 30px;
-  padding: 0 10px;
+  padding: 0 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+  background: #ffffff;
+  color: rgba(0, 0, 0, 0.48);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.status-chip span,
+.status-chip strong {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .status-chip strong {
-  color: var(--workbench-ink);
-  font-size: 12px;
+  color: #111111;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .status-chip.active {
-  background: #111827;
-  border-color: #111827;
-  color: #fff;
+  color: #ffffff;
+  background: #597ef7;
+  border-color: #597ef7;
+  box-shadow: none;
 }
 
 .status-chip.active strong {
-  color: #fff;
+  color: #ffffff;
 }
 
 .task-list-shell {
-  border-top: 1px solid var(--workbench-border);
   flex: 1;
-  margin-top: 14px;
   min-height: 0;
+  margin-top: 14px;
+  padding-top: 2px;
   overflow-y: auto;
-  padding-top: 12px;
+  overflow-x: hidden;
 }
 
 .task-list-shell :deep(.el-empty) {
-  padding: 36px 0;
+  padding: 44px 0;
+}
+
+.task-list-shell :deep(.el-empty__description p) {
+  color: rgba(0, 0, 0, 0.38);
 }
 
 .task-row {
-  border: 1px solid var(--workbench-border);
-  border-radius: 8px;
+  position: relative;
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  padding: 8px 12px 12px 0;
   margin-bottom: 10px;
-  min-width: 0;
-  padding: 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  overflow: hidden;
 }
 
-.task-row.priority-warning {
-  border-left: 4px solid #f59e0b;
-}
-
-.task-row.priority-danger {
-  border-left: 4px solid #94a3b8;
-}
-
-.task-row.priority-normal {
-  border-left: 4px solid #3b82f6;
-}
-
-.task-row.priority-success {
-  border-left: 4px solid #22c55e;
+.task-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  border-radius: 0 999px 999px 0;
+  background: #4973fe;
 }
 
 .task-marker {
-  align-items: center;
-  background: #ecfeff;
-  border-radius: 8px;
-  color: #0f766e;
+  flex: 0 0 40px;
+  width: 40px;
   display: flex;
-  flex: 0 0 34px;
-  height: 34px;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 12px;
+  overflow: visible;
+}
+
+.task-marker img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
 }
 
 .task-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px;
+  grid-template-areas:
+    'copy copy'
+    'meta status'
+    'select button';
+  align-items: start;
+  column-gap: 8px;
+  row-gap: 8px;
   flex: 1;
   min-width: 0;
-}
-
-.task-title-row {
-  align-items: flex-start;
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
+  padding-top: 8px;
+  padding-right: 12px;
 }
 
 .task-copy {
+  grid-area: copy;
   min-width: 0;
 }
 
@@ -482,49 +511,111 @@ onMounted(() => {
 }
 
 .task-copy h4 {
-  color: var(--workbench-ink);
-  font-size: 14px;
+  margin: 0;
+  color: #111111;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.35;
-  margin: 0;
 }
 
 .task-copy p {
-  color: var(--workbench-muted);
-  font-size: 12px;
-  line-height: 1.35;
-  margin: 3px 0 0;
+  margin: 2px 0 0;
+  color: rgba(0, 0, 0, 0.42);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.task-status {
+  grid-area: status;
+  justify-self: center;
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  max-width: 100%;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.task-status.status-pending {
+  color: #f80e0e;
+  background: rgba(248, 14, 14, 0.05);
+}
+
+.task-status.status-assigned {
+  color: #57b78d;
+  background: rgba(236, 255, 247, 0.9);
+}
+
+.task-status.status-in_progress {
+  color: #b99a3b;
+  background: rgba(185, 154, 59, 0.12);
+}
+
+.task-status.status-completed {
+  color: #959292;
+  background: #e9e9e9;
+}
+
+.task-status.status-expired {
+  color: #111111;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .task-meta {
-  color: var(--workbench-muted);
+  grid-area: meta;
   display: flex;
   flex-wrap: wrap;
-  font-size: 12px;
-  gap: 6px 10px;
-  margin-top: 8px;
-}
-
-.task-meta span {
+  gap: 8px 14px;
+  color: rgba(0, 0, 0, 0.42);
+  font-size: 13px;
+  line-height: 1.5;
   min-width: 0;
-}
-
-.assign-row {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  margin-top: 10px;
 }
 
 .assign-select {
-  min-width: 0;
+  grid-area: select;
   width: 100%;
+}
+
+.assign-select :deep(.el-select__wrapper) {
+  min-height: 32px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08) inset;
+}
+
+.assign-select :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px rgba(94, 127, 255, 0.44) inset;
+}
+
+.assign-select :deep(.el-select__placeholder) {
+  color: rgba(0, 0, 0, 0.28);
+}
+
+.assign-btn {
+  grid-area: button;
+  width: 100%;
+  min-width: 56px;
+  border-radius: 8px;
+  border: 0;
+  background: #597ef7;
+  box-shadow: none;
+}
+
+.assign-btn:hover,
+.assign-btn:focus-visible {
+  background: #4f73eb;
 }
 
 @media (max-width: 768px) {
   .task-workbench {
-    height: auto;
-    min-height: 520px;
+    padding: 16px 14px 14px;
   }
 
   .type-strip {
@@ -537,8 +628,25 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .assign-row {
+  .task-main {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'copy'
+      'meta'
+      'status'
+      'select'
+      'button';
+  }
+
+  .date-line {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .task-status,
+  .assign-btn {
+    justify-self: start;
+    width: auto;
   }
 }
 </style>

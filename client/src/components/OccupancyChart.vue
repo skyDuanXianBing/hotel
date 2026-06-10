@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import { useI18n } from 'vue-i18n'
@@ -23,82 +23,131 @@ const { t } = useI18n()
 const chartRef = ref<HTMLElement>()
 let chartInstance: echarts.ECharts | null = null
 
-const initChart = () => {
-  if (!chartRef.value) return
+const getRates = () => props.data.map((item) => Number(item.rate) || 0)
+const getDates = () => props.data.map((item) => item.date)
 
-  // Initialize the chart instance.
-  chartInstance = echarts.init(chartRef.value)
+const getYAxisMax = (rates: number[]) => {
+  const maxRate = Math.max(...rates, 0)
 
-  // Configure chart options.
-  const option: EChartsOption = {
+  if (maxRate <= 1) {
+    return 1
+  }
+
+  if (maxRate <= 10) {
+    return 10
+  }
+
+  const steppedMax = Math.ceil(maxRate / 10) * 10
+  return Math.min(100, steppedMax)
+}
+
+const formatAxisPercent = (value: number) => {
+  if (value <= 1) {
+    return value === 0 ? '0' : `${value}`
+  }
+
+  return `${Math.round(value)}%`
+}
+
+const buildOption = (): EChartsOption => {
+  const rates = getRates()
+
+  return {
+    animationDuration: 500,
     grid: {
-      left: '5%',
-      right: '5%',
-      top: '15%',
-      bottom: '15%',
+      left: 6,
+      right: 4,
+      top: 36,
+      bottom: 18,
       containLabel: true,
+    },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.98)',
+      borderColor: 'rgba(17, 24, 39, 0.06)',
+      borderWidth: 1,
+      padding: [10, 12],
+      textStyle: {
+        color: '#111111',
+        fontSize: 12,
+      },
+      extraCssText: 'box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08); border-radius: 12px;',
+      formatter: (params: any) => {
+        const param = params[0]
+        return `${param.axisValue}<br/>${t('stage6.components.occupancyChart.tooltip', { value: param.value })}`
+      },
     },
     xAxis: {
       type: 'category',
-      data: props.data.map((item) => item.date),
-      axisLabel: {
-        fontSize: 12,
-        color: '#666',
-        rotate: 0,
+      data: getDates(),
+      boundaryGap: true,
+      axisTick: {
+        show: false,
+        alignWithLabel: false,
       },
       axisLine: {
         lineStyle: {
-          color: '#e0e0e0',
+          color: 'rgba(0, 0, 0, 0.08)',
+        },
+      },
+      axisLabel: {
+        color: 'rgba(0, 0, 0, 0.46)',
+        fontSize: 12,
+        margin: 10,
+      },
+      splitLine: {
+        show: true,
+        lineStyle: {
+          color: 'rgba(76, 111, 255, 0.12)',
+          type: 'dashed',
         },
       },
     },
     yAxis: {
       type: 'value',
       name: t('stage6.components.occupancyChart.occupancyRate'),
+      min: 0,
+      max: getYAxisMax(rates),
+      splitNumber: 5,
       nameTextStyle: {
-        color: '#666',
+        color: 'rgba(0, 0, 0, 0.56)',
         fontSize: 12,
+        padding: [0, 0, 6, 0],
       },
       axisLabel: {
-        formatter: '{value}%',
+        color: 'rgba(0, 0, 0, 0.5)',
         fontSize: 12,
-        color: '#666',
+        formatter: (value: number) => formatAxisPercent(value),
       },
       axisLine: {
         show: false,
       },
+      axisTick: {
+        show: false,
+      },
       splitLine: {
         lineStyle: {
-          color: '#f0f0f0',
+          color: 'rgba(60, 195, 223, 0.18)',
+          type: 'dashed',
         },
-      },
-    },
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderColor: '#e0e0e0',
-      borderWidth: 1,
-      textStyle: {
-        color: '#333',
-      },
-      formatter: (params: any) => {
-        const param = params[0]
-        return `${param.axisValue}<br/>${t('stage6.components.occupancyChart.tooltip', { value: param.value })}`
       },
     },
     series: [
       {
         type: 'line',
-        data: props.data.map((item) => item.rate),
-        smooth: true,
+        data: rates,
+        smooth: false,
         symbol: 'circle',
-        symbolSize: 6,
+        symbolSize: 7,
+        showSymbol: true,
         lineStyle: {
-          color: '#4285f4',
-          width: 3,
+          color: '#3cc3df',
+          width: 2,
         },
         itemStyle: {
-          color: '#4285f4',
+          color: '#ffffff',
+          borderColor: '#3cc3df',
+          borderWidth: 1.5,
         },
         areaStyle: {
           color: {
@@ -110,11 +159,11 @@ const initChart = () => {
             colorStops: [
               {
                 offset: 0,
-                color: 'rgba(66, 133, 244, 0.3)',
+                color: 'rgba(60, 195, 223, 0.34)',
               },
               {
                 offset: 1,
-                color: 'rgba(66, 133, 244, 0.05)',
+                color: 'rgba(228, 247, 252, 0.7)',
               },
             ],
           },
@@ -122,37 +171,32 @@ const initChart = () => {
         emphasis: {
           focus: 'series',
           itemStyle: {
-            color: '#4285f4',
-            borderColor: '#fff',
+            color: '#ffffff',
+            borderColor: '#3cc3df',
             borderWidth: 2,
           },
         },
       },
     ],
   }
+}
 
-  chartInstance.setOption(option)
+const initChart = () => {
+  if (!chartRef.value) return
+
+  chartInstance = echarts.init(chartRef.value)
+  chartInstance.setOption(buildOption())
 }
 
 const updateChart = () => {
   if (!chartInstance) return
-
-  chartInstance.setOption({
-    xAxis: {
-      data: props.data.map((item) => item.date),
-    },
-    series: [
-      {
-        data: props.data.map((item) => item.rate),
-      },
-    ],
-    yAxis: {
-      name: t('stage6.components.occupancyChart.occupancyRate'),
-    },
-  })
+  chartInstance.setOption(buildOption(), true)
 }
 
-// Watch chart data changes.
+const handleResize = () => {
+  chartInstance?.resize()
+}
+
 watch(
   () => t('stage6.components.occupancyChart.occupancyRate'),
   () => {
@@ -168,11 +212,6 @@ watch(
   { deep: true }
 )
 
-// Watch window resize changes.
-const handleResize = () => {
-  chartInstance?.resize()
-}
-
 onMounted(() => {
   initChart()
   window.addEventListener('resize', handleResize)
@@ -187,6 +226,6 @@ onBeforeUnmount(() => {
 <style scoped>
 .occupancy-chart {
   width: 100%;
-  height: 300px;
+  height: 258px;
 }
 </style>
