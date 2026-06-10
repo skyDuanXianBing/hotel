@@ -6,6 +6,17 @@
         <div class="actions">
           <el-button @click="back">{{ t('stage5.common.actions.back') }}</el-button>
           <el-button :loading="loading" @click="load">{{ t('stage5.common.actions.refresh') }}</el-button>
+          <el-tooltip :content="messageButtonTooltip" :disabled="canOpenMessages" placement="bottom">
+            <span class="action-tooltip-wrap">
+              <el-button
+                :icon="ChatDotRound"
+                :disabled="!canOpenMessages"
+                @click="goToMessages"
+              >
+                {{ t('stage5.dataCenter.detail.goToMessages') }}
+              </el-button>
+            </span>
+          </el-tooltip>
           <el-button type="primary" :disabled="!detail" @click="downloadPdf">{{ t('stage5.common.actions.downloadPdf') }}</el-button>
         </div>
       </div>
@@ -218,12 +229,13 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { ChatDotRound, Refresh } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import axios from 'axios'
 
 type Detail = {
   formId: number
+  reservationId?: number | null
   orderNumber: string
   channelOrderNumber?: string
   status: string
@@ -287,6 +299,7 @@ type PreviewGuestItem = {
 
 const SENT_MESSAGE_STATUS = 'SENT'
 const UNKNOWN_MESSAGE_STATUS = 'UNKNOWN'
+const MESSAGE_QUERY_PLACEHOLDER = '-'
 
 const route = useRoute()
 const router = useRouter()
@@ -299,6 +312,13 @@ const note = ref('')
 const approveMessage = ref('')
 const reviewQuickReplyId = ref<number | null>(null)
 const isCancelledReservation = computed(() => detail.value?.reservationStatus === 'CANCELLED')
+const canOpenMessages = computed(() => Object.keys(buildMessagesQuery()).length > 0)
+const messageButtonTooltip = computed(() => {
+  if (detail.value) {
+    return t('stage5.dataCenter.detail.messageLinkUnavailable')
+  }
+  return t('stage5.common.empty.noData')
+})
 const previewDialogVisible = ref(false)
 const previewData = ref<PreviewGuestItem[]>([])
 
@@ -422,6 +442,66 @@ async function copyText(text: string) {
 
 function back() {
   router.back()
+}
+
+function normalizeMessagesQueryValue(value?: string | number | null): string {
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  const normalizedValue = String(value).trim()
+  if (!normalizedValue || normalizedValue === MESSAGE_QUERY_PLACEHOLDER) {
+    return ''
+  }
+  return normalizedValue
+}
+
+function buildMessagesQuery(): Record<string, string> {
+  const currentDetail = detail.value
+  const query: Record<string, string> = {}
+  if (!currentDetail) {
+    return query
+  }
+
+  const reservationId = normalizeMessagesQueryValue(currentDetail.reservationId)
+  if (reservationId) {
+    query.reservationId = reservationId
+  }
+
+  const channelOrderNumber = normalizeMessagesQueryValue(currentDetail.channelOrderNumber)
+  if (channelOrderNumber) {
+    query.channelOrderNumber = channelOrderNumber
+  }
+
+  const orderNumber = normalizeMessagesQueryValue(currentDetail.orderNumber)
+  if (orderNumber) {
+    query.orderNumber = orderNumber
+  }
+
+  const guestName = normalizeMessagesQueryValue(currentDetail.guestName)
+  if (guestName) {
+    query.guestName = guestName
+  }
+
+  return query
+}
+
+async function goToMessages() {
+  const query = buildMessagesQuery()
+  if (Object.keys(query).length === 0) {
+    ElMessage.warning(t('stage5.dataCenter.detail.messageLinkUnavailable'))
+    return
+  }
+
+  try {
+    await router.push({
+      name: 'Messages',
+      query,
+    })
+  } catch (error) {
+    console.error('Failed to open registration message thread:', error)
+    ElMessage.error(t('stage5.dataCenter.detail.openMessagesFailed'))
+  }
 }
 
 function buildReviewRequestPayload(messageContent: string): RegistrationReviewRequest {
@@ -799,6 +879,9 @@ onBeforeUnmount(handlePreviewDialogClosed)
 .actions {
   display: flex;
   gap: 10px;
+}
+.action-tooltip-wrap {
+  display: inline-flex;
 }
 .card {
   background: #fff;

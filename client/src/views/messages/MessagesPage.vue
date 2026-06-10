@@ -816,6 +816,7 @@ let messageScrollTranslateTimer: number | null = null
 let threadSearchTimer: number | null = null
 let threadRequestId = 0
 let shouldSkipNextSearchQueryWatch = false
+let shouldSkipNextThreadFilterWatch = false
 let aiDraftSystemLanguageRequestId = 0
 const reservationIdCache = new Map<string, number | null>()
 const translationPendingKeys = new Set<string>()
@@ -2777,15 +2778,28 @@ const buildRouteTargetSearchText = async () => {
   }
 }
 
+const disableUnreadFilterForRouteTarget = () => {
+  if (!filterUnreadOnly.value) {
+    return false
+  }
+
+  shouldSkipNextThreadFilterWatch = true
+  filterUnreadOnly.value = false
+  return true
+}
+
 const applyRouteConversationTarget = async () => {
   if (!hasRouteTarget.value || routeTargetHandled.value) {
     return
   }
 
   const preferredKeyword = await buildRouteTargetSearchText()
+  const didDisableUnreadFilter = disableUnreadFilterForRouteTarget()
   if (preferredKeyword) {
     shouldSkipNextSearchQueryWatch = true
     searchQuery.value = preferredKeyword
+    await fetchThreadPage(0, false)
+  } else if (didDisableUnreadFilter) {
     await fetchThreadPage(0, false)
   }
 
@@ -3005,6 +3019,10 @@ watch(
 watch(
   () => [filterChannel.value, filterOrderStatus.value, filterUnreadOnly.value],
   () => {
+    if (shouldSkipNextThreadFilterWatch) {
+      shouldSkipNextThreadFilterWatch = false
+      return
+    }
     clearThreadSearchTimer()
     void applyThreadFilters()
   },

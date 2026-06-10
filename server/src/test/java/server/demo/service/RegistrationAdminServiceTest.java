@@ -326,6 +326,7 @@ class RegistrationAdminServiceTest {
 
             AdminRegistrationDetailDTO result = service.detail(8L);
 
+            assertEquals(88L, result.getReservationId());
             assertEquals(ReservationStatus.CANCELLED, result.getReservationStatus());
         }
     }

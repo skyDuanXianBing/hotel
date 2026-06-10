@@ -135,6 +135,7 @@ public class RegistrationAdminService {
 
         AdminRegistrationDetailDTO dto = new AdminRegistrationDetailDTO();
         dto.setFormId(form.getId());
+        dto.setReservationId(reservation.getId());
         dto.setOrderNumber(form.getOrderNumber());
         dto.setChannelOrderNumber(reservation.getChannelOrderNumber());
         dto.setStatus(form.getStatus());

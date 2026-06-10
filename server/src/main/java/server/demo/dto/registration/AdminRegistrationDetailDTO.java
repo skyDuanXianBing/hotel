@@ -9,6 +9,7 @@ import java.util.List;
 
 public class AdminRegistrationDetailDTO {
     private Long formId;
+    private Long reservationId;
     private String orderNumber;
     private String channelOrderNumber;
     private RegistrationFormStatus status;
@@ -36,6 +37,14 @@ public class AdminRegistrationDetailDTO {
 
     public void setFormId(Long formId) {
         this.formId = formId;
+    }
+
+    public Long getReservationId() {
+        return reservationId;
+    }
+
+    public void setReservationId(Long reservationId) {
+        this.reservationId = reservationId;
     }
 
     public String getOrderNumber() {
