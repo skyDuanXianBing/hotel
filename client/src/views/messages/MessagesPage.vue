@@ -32,9 +32,12 @@
             />
           </el-select>
           <el-select
-            v-model="filterOrderStatus"
+            v-model="filterOrderStatuses"
             :placeholder="uiText('orderKindFilterPlaceholder')"
             clearable
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
           >
             <el-option
               v-for="option in orderStatusFilterOptions"
@@ -585,6 +588,7 @@ import {
   getSuThreadsPage,
   sendSuThreadMessage,
   SuMessagingSenderType,
+  type SuMessagingMessageOrderStatus,
   type SuMessagingMessageDTO,
   type SuMessagingMessagePageDTO,
   type SuMessagingOrderKind,
@@ -662,7 +666,7 @@ interface AiPolishItem {
 
 type AiDraftViewMode = 'draft' | 'system'
 type UiTextLocale = 'zh' | 'en' | 'ja'
-type ThreadOrderStatusFilter = 'INQUIRY' | 'CONFIRMED' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED'
+type ThreadOrderStatusFilter = SuMessagingMessageOrderStatus
 
 interface ApiResponse<T> {
   success?: boolean
@@ -754,7 +758,7 @@ const resolveTranslationFailureMessage = () =>
 
 const searchQuery = ref('')
 const filterChannel = ref<SuMessagingChannelCode | ''>('')
-const filterOrderStatus = ref<ThreadOrderStatusFilter | ''>('')
+const filterOrderStatuses = ref<ThreadOrderStatusFilter[]>([])
 const filterUnreadOnly = ref(true)
 const activeThreadId = ref<number | null>(null)
 const newMessage = ref('')
@@ -1084,7 +1088,7 @@ const hasActiveThreadFilters = computed(() => {
   return Boolean(
     searchQuery.value.trim() ||
       filterChannel.value ||
-      filterOrderStatus.value ||
+      filterOrderStatuses.value.length > 0 ||
       !filterUnreadOnly.value,
   )
 })
@@ -1824,33 +1828,19 @@ const clearSelectedThreads = () => {
   selectedThreadIds.value = []
 }
 
-const resolveThreadOrderStatusParams = () => {
-  const status = filterOrderStatus.value
-  const params: {
-    orderKind?: SuMessagingOrderKind
-    reservationStatus?: SuMessagingReservationStatus
-  } = {}
-
-  if (status === 'INQUIRY') {
-    params.orderKind = 'INQUIRY'
-    return params
+const resolveThreadOrderStatusesParam = () => {
+  if (filterOrderStatuses.value.length === 0) {
+    return undefined
   }
-
-  if (status) {
-    params.reservationStatus = status
-  }
-
-  return params
+  return filterOrderStatuses.value.join(',')
 }
 
 const buildThreadPageParams = (page: number) => {
-  const statusParams = resolveThreadOrderStatusParams()
   return {
     page,
     size: THREAD_PAGE_SIZE,
     channel: filterChannel.value || undefined,
-    orderKind: statusParams.orderKind,
-    reservationStatus: statusParams.reservationStatus,
+    orderStatuses: resolveThreadOrderStatusesParam(),
     unread: filterUnreadOnly.value || undefined,
     search: searchQuery.value.trim() || undefined,
   }
@@ -3017,7 +3007,7 @@ watch(
 )
 
 watch(
-  () => [filterChannel.value, filterOrderStatus.value, filterUnreadOnly.value],
+  () => [filterChannel.value, filterOrderStatuses.value.join(','), filterUnreadOnly.value],
   () => {
     if (shouldSkipNextThreadFilterWatch) {
       shouldSkipNextThreadFilterWatch = false

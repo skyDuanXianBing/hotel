@@ -64,6 +64,7 @@ public class SuMessagingController {
             @RequestParam(required = false) String channel,
             @RequestParam(required = false) String orderKind,
             @RequestParam(required = false) String reservationStatus,
+            @RequestParam(required = false) String orderStatuses,
             @RequestParam(required = false) Boolean unread,
             @RequestParam(required = false) Boolean closed,
             @RequestParam(required = false) String search
@@ -77,6 +78,7 @@ public class SuMessagingController {
                     channel,
                     orderKind,
                     reservationStatus,
+                    orderStatuses,
                     unread,
                     closed,
                     search

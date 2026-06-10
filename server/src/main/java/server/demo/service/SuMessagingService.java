@@ -58,6 +58,11 @@ public class SuMessagingService {
     private static final String ORDER_KIND_CANCELLED = "CANCELLED";
     private static final String ORDER_KIND_COMPLETED = "COMPLETED";
     private static final String ORDER_KIND_UNMATCHED_ORDER = "UNMATCHED_ORDER";
+    private static final String STATUS_INQUIRY = "INQUIRY";
+    private static final String STATUS_CONFIRMED = "CONFIRMED";
+    private static final String STATUS_CHECKED_IN = "CHECKED_IN";
+    private static final String STATUS_CHECKED_OUT = "CHECKED_OUT";
+    private static final String STATUS_CANCELLED = "CANCELLED";
 
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
@@ -192,8 +197,9 @@ public class SuMessagingService {
     }
 
     public List<SuMessagingThreadDTO> listThreads(Long storeId) {
+        LocalDate today = LocalDate.now();
         return threadRepository.findByStoreIdOrderByLastActivityDesc(storeId).stream()
-                .map(thread -> toThreadDTO(storeId, thread))
+                .map(thread -> toThreadDTO(storeId, thread, today))
                 .toList();
     }
 
@@ -204,6 +210,7 @@ public class SuMessagingService {
             String channel,
             String orderKind,
             String reservationStatus,
+            String orderStatuses,
             Boolean unread,
             Boolean closed,
             String search
@@ -213,11 +220,14 @@ public class SuMessagingService {
         Set<Integer> channelIds = parseChannelIds(channel);
         Set<String> orderKinds = parseUppercaseCsv(orderKind);
         Set<String> reservationStatuses = parseUppercaseCsv(reservationStatus);
+        Set<String> messageOrderStatuses = parseUppercaseCsv(orderStatuses);
         String normalizedSearch = normalizeBlankToNull(search);
+        LocalDate today = LocalDate.now();
 
         boolean requiresDynamicFilter = channelIds.size() > 1
                 || !orderKinds.isEmpty()
-                || !reservationStatuses.isEmpty();
+                || !reservationStatuses.isEmpty()
+                || !messageOrderStatuses.isEmpty();
 
         if (!requiresDynamicFilter) {
             Integer channelId = channelIds.isEmpty() ? null : channelIds.iterator().next();
@@ -231,7 +241,7 @@ public class SuMessagingService {
                     PageRequest.of(currentPage, pageSize)
             );
             List<SuMessagingThreadDTO> items = threadPage.getContent().stream()
-                    .map(thread -> toThreadDTO(storeId, thread))
+                    .map(thread -> toThreadDTO(storeId, thread, today))
                     .toList();
             return new SuMessagingThreadPageResponse(
                     items,
@@ -253,9 +263,10 @@ public class SuMessagingService {
                         SuMessagingSenderType.GUEST
                 ).stream()
                 .filter(thread -> channelIds.isEmpty() || channelIds.contains(thread.getChannelId()))
-                .map(thread -> toThreadDTO(storeId, thread))
+                .map(thread -> toThreadDTO(storeId, thread, today))
                 .filter(dto -> matchesUppercaseFilter(orderKinds, dto.getOrderKind()))
                 .filter(dto -> matchesUppercaseFilter(reservationStatuses, dto.getReservationStatus()))
+                .filter(dto -> matchesMessageOrderStatusFilter(messageOrderStatuses, dto))
                 .toList();
 
         long totalElements = filtered.size();
@@ -280,7 +291,12 @@ public class SuMessagingService {
     }
 
     private SuMessagingThreadDTO toThreadDTO(Long storeId, SuMessageThread thread) {
+        return toThreadDTO(storeId, thread, LocalDate.now());
+    }
+
+    private SuMessagingThreadDTO toThreadDTO(Long storeId, SuMessageThread thread, LocalDate today) {
         Reservation reservation = resolveReservationForThread(storeId, thread);
+        String effectiveReservationStatus = resolveEffectiveReservationStatus(reservation, today);
         SuMessagingThreadDTO dto = new SuMessagingThreadDTO();
         dto.setId(thread.getId());
         dto.setReservationId(reservation != null ? reservation.getId() : null);
@@ -294,8 +310,8 @@ public class SuMessagingService {
         dto.setListingName(thread.getListingName());
         dto.setCheckInDate(reservation != null ? reservation.getCheckInDate() : null);
         dto.setCheckOutDate(reservation != null ? reservation.getCheckOutDate() : null);
-        dto.setReservationStatus(reservation != null && reservation.getStatus() != null ? reservation.getStatus().name() : null);
-        dto.setOrderKind(resolveOrderKind(thread, reservation));
+        dto.setReservationStatus(effectiveReservationStatus);
+        dto.setOrderKind(resolveOrderKind(thread, reservation, today));
         dto.setRoomTypeName(resolveRoomTypeName(reservation));
         dto.setLastMessage(thread.getLastMessage());
         dto.setLastActivity(toUtcOffset(thread.getLastActivity()));
@@ -305,8 +321,12 @@ public class SuMessagingService {
     }
 
     static String resolveOrderKind(SuMessageThread thread, Reservation reservation) {
+        return resolveOrderKind(thread, reservation, LocalDate.now());
+    }
+
+    private static String resolveOrderKind(SuMessageThread thread, Reservation reservation, LocalDate today) {
         if (reservation != null) {
-            return resolveOrderKindFromReservation(reservation);
+            return resolveOrderKindFromReservation(reservation, today);
         }
         if (thread == null || thread.getChannelId() == null) {
             return null;
@@ -324,27 +344,61 @@ public class SuMessagingService {
         return null;
     }
 
-    private static String resolveOrderKindFromReservation(Reservation reservation) {
-        if (reservation.getActualCheckOut() != null) {
-            return ORDER_KIND_COMPLETED;
-        }
-        ReservationStatus status = reservation.getStatus();
-        if (status == null) {
+    private static String resolveOrderKindFromReservation(Reservation reservation, LocalDate today) {
+        String effectiveStatus = resolveEffectiveReservationStatus(reservation, today);
+        if (effectiveStatus == null) {
             return ORDER_KIND_UNMATCHED_ORDER;
         }
-        if (status == ReservationStatus.REQUESTED) {
+        if (ReservationStatus.REQUESTED.name().equals(effectiveStatus)) {
             return ORDER_KIND_REQUESTED;
         }
-        if (status == ReservationStatus.CONFIRMED || status == ReservationStatus.CHECKED_IN) {
+        if (STATUS_CONFIRMED.equals(effectiveStatus) || STATUS_CHECKED_IN.equals(effectiveStatus)) {
             return ORDER_KIND_CONFIRMED;
         }
-        if (status == ReservationStatus.CANCELLED || status == ReservationStatus.NO_SHOW) {
+        if (STATUS_CANCELLED.equals(effectiveStatus)) {
             return ORDER_KIND_CANCELLED;
         }
-        if (status == ReservationStatus.CHECKED_OUT) {
+        if (STATUS_CHECKED_OUT.equals(effectiveStatus)) {
             return ORDER_KIND_COMPLETED;
         }
         return ORDER_KIND_UNMATCHED_ORDER;
+    }
+
+    static String resolveEffectiveReservationStatus(Reservation reservation, LocalDate today) {
+        if (reservation == null) {
+            return null;
+        }
+
+        ReservationStatus originalStatus = reservation.getStatus();
+        if (originalStatus == ReservationStatus.CANCELLED || originalStatus == ReservationStatus.NO_SHOW) {
+            return STATUS_CANCELLED;
+        }
+        if (originalStatus == ReservationStatus.REQUESTED) {
+            return originalStatus.name();
+        }
+        if (reservation.getActualCheckOut() != null || originalStatus == ReservationStatus.CHECKED_OUT) {
+            return STATUS_CHECKED_OUT;
+        }
+
+        LocalDate businessDate = today != null ? today : LocalDate.now();
+        LocalDate checkOutDate = reservation.getCheckOutDate();
+        if (checkOutDate != null && !checkOutDate.isAfter(businessDate)) {
+            return STATUS_CHECKED_OUT;
+        }
+
+        LocalDate checkInDate = reservation.getCheckInDate();
+        if (checkInDate != null && !checkInDate.isAfter(businessDate)) {
+            if (checkOutDate == null || checkOutDate.isAfter(businessDate)) {
+                return STATUS_CHECKED_IN;
+            }
+        }
+        if (checkInDate != null && checkInDate.isAfter(businessDate)) {
+            return STATUS_CONFIRMED;
+        }
+        if (originalStatus != null) {
+            return originalStatus.name();
+        }
+        return null;
     }
 
     private Reservation resolveReservationForThread(Long storeId, SuMessageThread thread) {
@@ -718,6 +772,27 @@ public class SuMessagingService {
             return false;
         }
         return allowedValues.contains(value.trim().toUpperCase(Locale.ROOT));
+    }
+
+    private static boolean matchesMessageOrderStatusFilter(
+            Set<String> allowedStatuses,
+            SuMessagingThreadDTO dto
+    ) {
+        if (allowedStatuses == null || allowedStatuses.isEmpty()) {
+            return true;
+        }
+        if (dto == null) {
+            return false;
+        }
+        if (allowedStatuses.contains(STATUS_INQUIRY)
+                && ORDER_KIND_INQUIRY.equalsIgnoreCase(dto.getOrderKind())) {
+            return true;
+        }
+        String reservationStatus = dto.getReservationStatus();
+        if (reservationStatus == null || reservationStatus.isBlank()) {
+            return false;
+        }
+        return allowedStatuses.contains(reservationStatus.trim().toUpperCase(Locale.ROOT));
     }
 
     private static String normalizeBlankToNull(String value) {

@@ -26,6 +26,13 @@ export type SuMessagingReservationStatus =
   | 'CANCELLED'
   | 'NO_SHOW'
 
+export type SuMessagingMessageOrderStatus =
+  | 'INQUIRY'
+  | 'CONFIRMED'
+  | 'CHECKED_IN'
+  | 'CHECKED_OUT'
+  | 'CANCELLED'
+
 export interface SuMessagingThreadDTO {
   id: number
   channelId: number
@@ -56,6 +63,7 @@ export interface SuMessagingThreadPageRequest {
   channel?: SuMessagingChannelCode
   orderKind?: SuMessagingOrderKind
   reservationStatus?: SuMessagingReservationStatus
+  orderStatuses?: string
   unread?: boolean
   closed?: boolean
   search?: string

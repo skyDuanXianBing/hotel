@@ -72,6 +72,7 @@ class SuMessagingServiceTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
 
@@ -132,12 +133,150 @@ class SuMessagingServiceTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
 
         assertEquals(1, result.getItems().size());
         assertEquals(1L, result.getItems().get(0).getId());
         assertEquals("INQUIRY", result.getItems().get(0).getOrderKind());
+    }
+
+    @Test
+    void resolveEffectiveReservationStatus_shouldUseStayDatesWithoutWritingReservationStatus() {
+        LocalDate today = LocalDate.now();
+
+        Reservation checkedOutBeforeToday = newReservation(
+                11L,
+                ReservationStatus.CHECKED_IN,
+                today.minusDays(8),
+                today.minusDays(4)
+        );
+        Reservation checkedOutToday = newReservation(
+                12L,
+                ReservationStatus.CONFIRMED,
+                today.minusDays(1),
+                today
+        );
+        Reservation currentStay = newReservation(
+                13L,
+                ReservationStatus.CONFIRMED,
+                today.minusDays(1),
+                today.plusDays(1)
+        );
+        Reservation futureStay = newReservation(
+                14L,
+                ReservationStatus.CHECKED_IN,
+                today.plusDays(1),
+                today.plusDays(3)
+        );
+        Reservation noShow = newReservation(
+                15L,
+                ReservationStatus.NO_SHOW,
+                today.minusDays(1),
+                today.plusDays(1)
+        );
+        Reservation requestedFutureStay = newReservation(
+                16L,
+                ReservationStatus.REQUESTED,
+                today.plusDays(1),
+                today.plusDays(3)
+        );
+        Reservation requestedCurrentStay = newReservation(
+                17L,
+                ReservationStatus.REQUESTED,
+                today.minusDays(1),
+                today.plusDays(1)
+        );
+        Reservation requestedPastStay = newReservation(
+                18L,
+                ReservationStatus.REQUESTED,
+                today.minusDays(8),
+                today.minusDays(4)
+        );
+
+        assertEquals("CHECKED_OUT", SuMessagingService.resolveEffectiveReservationStatus(checkedOutBeforeToday, today));
+        assertEquals("CHECKED_OUT", SuMessagingService.resolveEffectiveReservationStatus(checkedOutToday, today));
+        assertEquals("CHECKED_IN", SuMessagingService.resolveEffectiveReservationStatus(currentStay, today));
+        assertEquals("CONFIRMED", SuMessagingService.resolveEffectiveReservationStatus(futureStay, today));
+        assertEquals("CANCELLED", SuMessagingService.resolveEffectiveReservationStatus(noShow, today));
+        assertEquals("REQUESTED", SuMessagingService.resolveEffectiveReservationStatus(requestedFutureStay, today));
+        assertEquals("REQUESTED", SuMessagingService.resolveEffectiveReservationStatus(requestedCurrentStay, today));
+        assertEquals("REQUESTED", SuMessagingService.resolveEffectiveReservationStatus(requestedPastStay, today));
+        assertEquals("REQUESTED", SuMessagingService.resolveOrderKind(null, requestedFutureStay));
+        assertEquals("REQUESTED", SuMessagingService.resolveOrderKind(null, requestedCurrentStay));
+        assertEquals("REQUESTED", SuMessagingService.resolveOrderKind(null, requestedPastStay));
+        assertEquals(ReservationStatus.CONFIRMED, checkedOutToday.getStatus());
+    }
+
+    @Test
+    void listThreadPage_shouldFilterOrderStatusesByInquiryOrEffectiveReservationStatus() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+        LocalDate today = LocalDate.now();
+
+        SuMessageThread inquiryThread = newThread(1L, SuMessagingService.CHANNEL_AIRBNB, "T1", "T1", "T");
+        SuMessageThread checkedOutThread = newThread(2L, SuMessagingService.CHANNEL_AIRBNB, "T2", "B2", "B");
+        SuMessageThread checkedInThread = newThread(3L, SuMessagingService.CHANNEL_AIRBNB, "T3", "B3", "B");
+        SuMessageThread confirmedThread = newThread(4L, SuMessagingService.CHANNEL_AIRBNB, "T4", "B4", "B");
+
+        Reservation checkedOutReservation = newReservation(
+                22L,
+                ReservationStatus.CHECKED_IN,
+                today.minusDays(1),
+                today
+        );
+        Reservation checkedInReservation = newReservation(
+                23L,
+                ReservationStatus.CONFIRMED,
+                today.minusDays(1),
+                today.plusDays(1)
+        );
+        Reservation confirmedReservation = newReservation(
+                24L,
+                ReservationStatus.CHECKED_IN,
+                today.plusDays(1),
+                today.plusDays(3)
+        );
+
+        when(threadRepository.findByStoreIdAndFilters(
+                eq(26L),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST)
+        )).thenReturn(List.of(inquiryThread, checkedOutThread, checkedInThread, confirmedThread));
+        when(reservationRepository.findByStoreIdAndExternalBookingKeyWithRoomType(26L, "B2"))
+                .thenReturn(List.of(checkedOutReservation));
+        when(reservationRepository.findByStoreIdAndExternalBookingKeyWithRoomType(26L, "B3"))
+                .thenReturn(List.of(checkedInReservation));
+        when(reservationRepository.findByStoreIdAndExternalBookingKeyWithRoomType(26L, "B4"))
+                .thenReturn(List.of(confirmedReservation));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(any(), eq(SuMessagingSenderType.GUEST)))
+                .thenReturn(0L);
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                null,
+                null,
+                null,
+                "INQUIRY,CHECKED_OUT",
+                null,
+                null,
+                null
+        );
+
+        assertEquals(2, result.getItems().size());
+        assertEquals(1L, result.getItems().get(0).getId());
+        assertEquals("INQUIRY", result.getItems().get(0).getOrderKind());
+        assertEquals(2L, result.getItems().get(1).getId());
+        assertEquals("CHECKED_OUT", result.getItems().get(1).getReservationStatus());
+        assertEquals("COMPLETED", result.getItems().get(1).getOrderKind());
     }
 
     @Test
@@ -691,6 +830,20 @@ class SuMessagingServiceTest {
         thread.setLastActivity(LocalDateTime.of(2026, 6, 1, 12, 0).plusMinutes(id));
         thread.setClosed(false);
         return thread;
+    }
+
+    private static Reservation newReservation(
+            Long id,
+            ReservationStatus status,
+            LocalDate checkInDate,
+            LocalDate checkOutDate
+    ) {
+        Reservation reservation = new Reservation();
+        reservation.setId(id);
+        reservation.setStatus(status);
+        reservation.setCheckInDate(checkInDate);
+        reservation.setCheckOutDate(checkOutDate);
+        return reservation;
     }
 
     private static SuMessage newMessage(Long id, SuMessageThread thread, String content) {

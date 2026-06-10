@@ -56,6 +56,7 @@ class SuMessagingControllerTest {
                 "AIRBNB",
                 "INQUIRY",
                 null,
+                "INQUIRY,CHECKED_OUT",
                 true,
                 false,
                 "Alice"
@@ -69,6 +70,7 @@ class SuMessagingControllerTest {
                     "AIRBNB",
                     "INQUIRY",
                     null,
+                    "INQUIRY,CHECKED_OUT",
                     true,
                     false,
                     "Alice"
@@ -88,6 +90,7 @@ class SuMessagingControllerTest {
                     "AIRBNB",
                     "INQUIRY",
                     null,
+                    "INQUIRY,CHECKED_OUT",
                     true,
                     false,
                     "Alice"
@@ -100,6 +103,7 @@ class SuMessagingControllerTest {
                 "listThreadPage",
                 Integer.class,
                 Integer.class,
+                String.class,
                 String.class,
                 String.class,
                 String.class,
