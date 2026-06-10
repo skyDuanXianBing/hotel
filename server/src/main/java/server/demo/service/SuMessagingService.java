@@ -17,20 +17,25 @@ import server.demo.dto.SuMessagingThreadDTO;
 import server.demo.dto.SuMessagingThreadPageResponse;
 import server.demo.dto.SuMessagingUnreadSummaryDTO;
 import server.demo.entity.Reservation;
+import server.demo.entity.Store;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
+import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuReservationParser;
 import server.demo.util.UtcTimeUtil;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -67,7 +72,9 @@ public class SuMessagingService {
     private final SuMessageThreadRepository threadRepository;
     private final SuMessageRepository messageRepository;
     private final ReservationRepository reservationRepository;
+    private final StoreRepository storeRepository;
     private final ReservationBookingKeyResolver reservationBookingKeyResolver;
+    private final Clock clock;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
     private final ObjectMapper objectMapper;
@@ -78,6 +85,8 @@ public class SuMessagingService {
             SuMessageRepository messageRepository,
             ReservationRepository reservationRepository,
             ReservationBookingKeyResolver reservationBookingKeyResolver,
+            StoreRepository storeRepository,
+            Clock clock,
             SuApiClient suApiClient,
             SuAccessTokenService suAccessTokenService,
             ObjectMapper objectMapper,
@@ -86,7 +95,9 @@ public class SuMessagingService {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
         this.reservationRepository = reservationRepository;
+        this.storeRepository = storeRepository;
         this.reservationBookingKeyResolver = reservationBookingKeyResolver;
+        this.clock = clock;
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
         this.objectMapper = objectMapper;
@@ -197,7 +208,7 @@ public class SuMessagingService {
     }
 
     public List<SuMessagingThreadDTO> listThreads(Long storeId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = currentStoreDate(storeId);
         return threadRepository.findByStoreIdOrderByLastActivityDesc(storeId).stream()
                 .map(thread -> toThreadDTO(storeId, thread, today))
                 .toList();
@@ -222,7 +233,7 @@ public class SuMessagingService {
         Set<String> reservationStatuses = parseUppercaseCsv(reservationStatus);
         Set<String> messageOrderStatuses = parseUppercaseCsv(orderStatuses);
         String normalizedSearch = normalizeBlankToNull(search);
-        LocalDate today = LocalDate.now();
+        LocalDate today = currentStoreDate(storeId);
 
         boolean requiresDynamicFilter = channelIds.size() > 1
                 || !orderKinds.isEmpty()
@@ -291,7 +302,7 @@ public class SuMessagingService {
     }
 
     private SuMessagingThreadDTO toThreadDTO(Long storeId, SuMessageThread thread) {
-        return toThreadDTO(storeId, thread, LocalDate.now());
+        return toThreadDTO(storeId, thread, currentStoreDate(storeId));
     }
 
     private SuMessagingThreadDTO toThreadDTO(Long storeId, SuMessageThread thread, LocalDate today) {
@@ -321,7 +332,7 @@ public class SuMessagingService {
     }
 
     static String resolveOrderKind(SuMessageThread thread, Reservation reservation) {
-        return resolveOrderKind(thread, reservation, LocalDate.now());
+        return resolveOrderKind(thread, reservation, defaultBusinessDate());
     }
 
     private static String resolveOrderKind(SuMessageThread thread, Reservation reservation, LocalDate today) {
@@ -380,7 +391,7 @@ public class SuMessagingService {
             return STATUS_CHECKED_OUT;
         }
 
-        LocalDate businessDate = today != null ? today : LocalDate.now();
+        LocalDate businessDate = today != null ? today : defaultBusinessDate();
         LocalDate checkOutDate = reservation.getCheckOutDate();
         if (checkOutDate != null && !checkOutDate.isAfter(businessDate)) {
             return STATUS_CHECKED_OUT;
@@ -399,6 +410,23 @@ public class SuMessagingService {
             return originalStatus.name();
         }
         return null;
+    }
+
+    private LocalDate currentStoreDate(Long storeId) {
+        Store store = null;
+        if (storeId != null) {
+            store = storeRepository.findById(storeId).orElse(null);
+        }
+        ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId(store);
+        return LocalDate.now(effectiveClock().withZone(zoneId));
+    }
+
+    private Clock effectiveClock() {
+        return clock != null ? clock : Clock.systemUTC();
+    }
+
+    private static LocalDate defaultBusinessDate() {
+        return LocalDate.now(StoreTimeZoneUtil.getBusinessDefaultZoneId());
     }
 
     private Reservation resolveReservationForThread(Long storeId, SuMessageThread thread) {

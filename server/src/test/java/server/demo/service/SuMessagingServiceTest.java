@@ -15,16 +15,22 @@ import server.demo.dto.SuMessagingUnreadSummaryDTO;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
+import server.demo.entity.Store;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -280,6 +286,76 @@ class SuMessagingServiceTest {
     }
 
     @Test
+    void listThreadPage_shouldResolveReservationStatusByStoreTimezone() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        StoreRepository storeRepository = Mockito.mock(StoreRepository.class);
+        Clock fixedClock = Clock.fixed(Instant.parse("2026-07-24T15:30:00Z"), ZoneOffset.UTC);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                storeRepository,
+                fixedClock
+        );
+
+        SuMessageThread thread = newThread(31L, SuMessagingService.CHANNEL_AIRBNB, "T31", "B31", "B");
+        Reservation reservation = newReservation(
+                31L,
+                ReservationStatus.CONFIRMED,
+                LocalDate.of(2026, 7, 25),
+                LocalDate.of(2026, 7, 30)
+        );
+
+        when(storeRepository.findById(26L)).thenReturn(
+                Optional.of(newStore(26L, "Asia/Tokyo")),
+                Optional.of(newStore(26L, "Asia/Shanghai"))
+        );
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(reservationRepository.findByStoreIdAndExternalBookingKeyWithRoomType(26L, "B31"))
+                .thenReturn(List.of(reservation));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(31L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+
+        SuMessagingThreadPageResponse tokyoResult = service.listThreadPage(
+                26L,
+                0,
+                20,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+        SuMessagingThreadPageResponse shanghaiResult = service.listThreadPage(
+                26L,
+                0,
+                20,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals("CHECKED_IN", tokyoResult.getItems().get(0).getReservationStatus());
+        assertEquals("CONFIRMED", shanghaiResult.getItems().get(0).getReservationStatus());
+    }
+
+    @Test
     void listThreadPage_shouldClassifyAirbnbReservationStatuses() {
         Reservation requestedReservation = new Reservation();
         requestedReservation.setStatus(ReservationStatus.REQUESTED);
@@ -439,6 +515,8 @@ class SuMessagingServiceTest {
                 messageRepository,
                 reservationRepository,
                 reservationBookingKeyResolver,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -495,6 +573,8 @@ class SuMessagingServiceTest {
                 messageRepository,
                 reservationRepository,
                 reservationBookingKeyResolver,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -550,6 +630,8 @@ class SuMessagingServiceTest {
                 messageRepository,
                 reservationRepository,
                 reservationBookingKeyResolver,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -583,6 +665,8 @@ class SuMessagingServiceTest {
                 messageRepository,
                 reservationRepository,
                 reservationBookingKeyResolver,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -669,6 +753,8 @@ class SuMessagingServiceTest {
                 messageRepository,
                 reservationRepository,
                 reservationBookingKeyResolver,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -727,6 +813,8 @@ class SuMessagingServiceTest {
                 messageRepository,
                 reservationRepository,
                 reservationBookingKeyResolver,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
@@ -794,6 +882,22 @@ class SuMessagingServiceTest {
             SuMessageRepository messageRepository,
             ReservationRepository reservationRepository
     ) {
+        return newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone()
+        );
+    }
+
+    private static SuMessagingService newService(
+            SuMessageThreadRepository threadRepository,
+            SuMessageRepository messageRepository,
+            ReservationRepository reservationRepository,
+            StoreRepository storeRepository,
+            Clock clock
+    ) {
         ReservationBookingKeyResolver reservationBookingKeyResolver =
                 new ReservationBookingKeyResolver(reservationRepository);
         return new SuMessagingService(
@@ -801,11 +905,33 @@ class SuMessagingServiceTest {
                 messageRepository,
                 reservationRepository,
                 reservationBookingKeyResolver,
+                storeRepository,
+                clock,
                 Mockito.mock(SuApiClient.class),
                 Mockito.mock(SuAccessTokenService.class),
                 new ObjectMapper(),
                 Mockito.mock(SuMessagingRealtimeGateway.class)
         );
+    }
+
+    private static StoreRepository newStoreRepository() {
+        return newStoreRepository(ZoneId.systemDefault().getId());
+    }
+
+    private static StoreRepository newStoreRepository(String timezone) {
+        StoreRepository storeRepository = Mockito.mock(StoreRepository.class);
+        when(storeRepository.findById(any())).thenAnswer(invocation -> {
+            Long storeId = invocation.getArgument(0);
+            return Optional.of(newStore(storeId, timezone));
+        });
+        return storeRepository;
+    }
+
+    private static Store newStore(Long storeId, String timezone) {
+        Store store = new Store();
+        store.setId(storeId);
+        store.setTimezone(timezone);
+        return store;
     }
 
     private static SuMessageThread newThread(
