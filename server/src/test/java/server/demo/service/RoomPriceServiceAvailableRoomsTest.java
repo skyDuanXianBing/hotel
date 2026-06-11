@@ -16,6 +16,7 @@ import server.demo.entity.RoomTypePricePlan;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
@@ -49,6 +50,7 @@ class RoomPriceServiceAvailableRoomsTest {
         PricePlanRepository pricePlanRepository = Mockito.mock(PricePlanRepository.class);
         RoomTypePricePlanRepository roomTypePricePlanRepository = Mockito.mock(RoomTypePricePlanRepository.class);
         ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ChannelPriceRepository channelPriceRepository = Mockito.mock(ChannelPriceRepository.class);
         RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
         RoomBlockoutRepository roomBlockoutRepository = Mockito.mock(RoomBlockoutRepository.class);
 
@@ -58,6 +60,7 @@ class RoomPriceServiceAvailableRoomsTest {
         ReflectionTestUtils.setField(service, "pricePlanRepository", pricePlanRepository);
         ReflectionTestUtils.setField(service, "roomTypePricePlanRepository", roomTypePricePlanRepository);
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "channelPriceRepository", channelPriceRepository);
         ReflectionTestUtils.setField(service, "roomRepository", roomRepository);
         ReflectionTestUtils.setField(service, "roomBlockoutRepository", roomBlockoutRepository);
         ReflectionTestUtils.setField(service, "priceLabsCalendarSyncDebouncer", null);
@@ -108,6 +111,7 @@ class RoomPriceServiceAvailableRoomsTest {
         when(roomTypeRepository.findByStoreIdAndId(1L, 59L)).thenReturn(Optional.of(roomType));
         when(roomTypePricePlanRepository.findByStoreIdWithRoomTypeAndPricePlan(1L)).thenReturn(List.of(roomTypePricePlan));
         when(roomPriceRepository.findByStoreIdAndPriceDateBetweenWithRoomTypeAndPricePlan(1L, date, date)).thenReturn(List.of(roomPrice));
+        when(channelPriceRepository.findByStoreIdAndDateRange(1L, date, date)).thenReturn(List.of());
         when(reservationRepository.findByStoreIdAndDateRange(1L, date, date)).thenReturn(List.of(reservation));
         when(roomRepository.findByStoreIdWithRoomType(1L)).thenReturn(List.of(room));
         when(roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(1L, List.of(118L), date, date))
@@ -128,6 +132,7 @@ class RoomPriceServiceAvailableRoomsTest {
         PricePlanRepository pricePlanRepository = Mockito.mock(PricePlanRepository.class);
         RoomTypePricePlanRepository roomTypePricePlanRepository = Mockito.mock(RoomTypePricePlanRepository.class);
         ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ChannelPriceRepository channelPriceRepository = Mockito.mock(ChannelPriceRepository.class);
         RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
         RoomBlockoutRepository roomBlockoutRepository = Mockito.mock(RoomBlockoutRepository.class);
 
@@ -137,6 +142,7 @@ class RoomPriceServiceAvailableRoomsTest {
         ReflectionTestUtils.setField(service, "pricePlanRepository", pricePlanRepository);
         ReflectionTestUtils.setField(service, "roomTypePricePlanRepository", roomTypePricePlanRepository);
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "channelPriceRepository", channelPriceRepository);
         ReflectionTestUtils.setField(service, "roomRepository", roomRepository);
         ReflectionTestUtils.setField(service, "roomBlockoutRepository", roomBlockoutRepository);
 

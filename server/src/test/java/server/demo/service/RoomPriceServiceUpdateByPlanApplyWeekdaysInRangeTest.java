@@ -14,7 +14,10 @@ import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.ChannelPriceRepository;
+import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.RoomPriceRepository;
+import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.service.impl.RoomPriceServiceImpl;
@@ -52,6 +55,9 @@ class RoomPriceServiceUpdateByPlanApplyWeekdaysInRangeTest {
         RoomTypePricePlanRepository roomTypePricePlanRepository = Mockito.mock(RoomTypePricePlanRepository.class);
         server.demo.service.PriceChangeHistoryService priceChangeHistoryService = Mockito.mock(server.demo.service.PriceChangeHistoryService.class);
         ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ChannelPriceRepository channelPriceRepository = Mockito.mock(ChannelPriceRepository.class);
+        RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
+        RoomBlockoutRepository roomBlockoutRepository = Mockito.mock(RoomBlockoutRepository.class);
 
         RoomPriceServiceImpl service = new RoomPriceServiceImpl();
         ReflectionTestUtils.setField(service, "roomPriceRepository", roomPriceRepository);
@@ -60,6 +66,9 @@ class RoomPriceServiceUpdateByPlanApplyWeekdaysInRangeTest {
         ReflectionTestUtils.setField(service, "roomTypePricePlanRepository", roomTypePricePlanRepository);
         ReflectionTestUtils.setField(service, "priceChangeHistoryService", priceChangeHistoryService);
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "channelPriceRepository", channelPriceRepository);
+        ReflectionTestUtils.setField(service, "roomRepository", roomRepository);
+        ReflectionTestUtils.setField(service, "roomBlockoutRepository", roomBlockoutRepository);
         ReflectionTestUtils.setField(service, "priceLabsCalendarSyncDebouncer", null);
 
         RoomType roomType = new RoomType();
@@ -104,7 +113,9 @@ class RoomPriceServiceUpdateByPlanApplyWeekdaysInRangeTest {
 
         when(roomTypePricePlanRepository.findByStoreIdWithRoomTypeAndPricePlan(1L)).thenReturn(List.of(rtpp));
         when(roomPriceRepository.findByStoreIdAndPriceDateBetweenWithRoomTypeAndPricePlan(eq(1L), eq(start), eq(end))).thenReturn(List.of());
+        when(channelPriceRepository.findByStoreIdAndDateRange(eq(1L), eq(start), eq(end))).thenReturn(List.of());
         when(reservationRepository.findByStoreIdAndDateRange(eq(1L), eq(start), eq(end))).thenReturn(List.of());
+        when(roomRepository.findByStoreIdWithRoomType(1L)).thenReturn(List.of());
 
         UpdatePriceByPlanRequest req = new UpdatePriceByPlanRequest();
         req.setRoomTypeId(11L);
@@ -140,6 +151,9 @@ class RoomPriceServiceUpdateByPlanApplyWeekdaysInRangeTest {
         RoomTypePricePlanRepository roomTypePricePlanRepository = Mockito.mock(RoomTypePricePlanRepository.class);
         server.demo.service.PriceChangeHistoryService priceChangeHistoryService = Mockito.mock(server.demo.service.PriceChangeHistoryService.class);
         ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ChannelPriceRepository channelPriceRepository = Mockito.mock(ChannelPriceRepository.class);
+        RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
+        RoomBlockoutRepository roomBlockoutRepository = Mockito.mock(RoomBlockoutRepository.class);
 
         RoomPriceServiceImpl service = new RoomPriceServiceImpl();
         ReflectionTestUtils.setField(service, "roomPriceRepository", roomPriceRepository);
@@ -148,6 +162,9 @@ class RoomPriceServiceUpdateByPlanApplyWeekdaysInRangeTest {
         ReflectionTestUtils.setField(service, "roomTypePricePlanRepository", roomTypePricePlanRepository);
         ReflectionTestUtils.setField(service, "priceChangeHistoryService", priceChangeHistoryService);
         ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "channelPriceRepository", channelPriceRepository);
+        ReflectionTestUtils.setField(service, "roomRepository", roomRepository);
+        ReflectionTestUtils.setField(service, "roomBlockoutRepository", roomBlockoutRepository);
         ReflectionTestUtils.setField(service, "priceLabsCalendarSyncDebouncer", null);
 
         RoomType roomType = new RoomType();
@@ -173,10 +190,12 @@ class RoomPriceServiceUpdateByPlanApplyWeekdaysInRangeTest {
         when(roomTypePricePlanRepository.findByRoomTypeIdAndPricePlanId(11L, 22L)).thenReturn(Optional.of(rtpp));
 
         LocalDate start = LocalDate.of(2026, 2, 1);
-        LocalDate end = start.plusDays(6);
+        LocalDate end = start;
         when(roomTypePricePlanRepository.findByStoreIdWithRoomTypeAndPricePlan(1L)).thenReturn(List.of(rtpp));
         when(roomPriceRepository.findByStoreIdAndPriceDateBetweenWithRoomTypeAndPricePlan(eq(1L), eq(start), eq(end))).thenReturn(List.of());
+        when(channelPriceRepository.findByStoreIdAndDateRange(eq(1L), eq(start), eq(end))).thenReturn(List.of());
         when(reservationRepository.findByStoreIdAndDateRange(eq(1L), eq(start), eq(end))).thenReturn(List.of());
+        when(roomRepository.findByStoreIdWithRoomType(1L)).thenReturn(List.of());
 
         UpdatePriceByPlanRequest req = new UpdatePriceByPlanRequest();
         req.setRoomTypeId(11L);
@@ -185,7 +204,7 @@ class RoomPriceServiceUpdateByPlanApplyWeekdaysInRangeTest {
         req.setEndDate(end);
         req.setWeekdays(List.of(1, 3));
         req.setPrice(new BigDecimal("200.00"));
-        // applyWeekdaysInRange is null => legacy behavior
+        // Single-day weekday updates keep the legacy weekly-template behavior.
 
         service.updatePriceByPlan(req, "tester");
 
@@ -193,4 +212,3 @@ class RoomPriceServiceUpdateByPlanApplyWeekdaysInRangeTest {
         verify(roomPriceRepository, never()).save(any(RoomPrice.class));
     }
 }
-

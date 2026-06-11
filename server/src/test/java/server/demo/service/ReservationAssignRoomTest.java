@@ -18,6 +18,7 @@ import server.demo.enums.OperationType;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.RoomStatus;
 import server.demo.repository.ChannelRepository;
+import server.demo.repository.OrderBoxRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
@@ -55,6 +56,9 @@ class ReservationAssignRoomTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private OrderBoxRepository orderBoxRepository;
 
     @Mock
     private AutoMessageTriggerService autoMessageTriggerService;

@@ -90,7 +90,7 @@ class ReservationServicePriceLabsCalendarSyncTest {
         req.setTotalAmount(new BigDecimal("100.00"));
 
         when(userRepository.findById(7L)).thenReturn(Optional.of(user));
-        when(roomRepository.findByStoreIdAndId(25L, 100L)).thenReturn(Optional.of(room));
+        when(roomRepository.findByStoreIdAndIdForUpdate(25L, 100L)).thenReturn(Optional.of(room));
         when(channelRepository.findById(1L)).thenReturn(Optional.of(channel));
         when(roomTypeRepository.findById(45L)).thenReturn(Optional.of(roomType));
         when(reservationRepository.findByStoreIdAndRoomIdAndDateRange(25L, 100L, checkIn, checkOut)).thenReturn(List.of());

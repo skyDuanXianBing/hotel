@@ -26,6 +26,7 @@ class StoreServiceUpdateStoreSyncTest {
         StorePolicyRepository storePolicyRepository = Mockito.mock(StorePolicyRepository.class);
         SuPropertyService suPropertyService = Mockito.mock(SuPropertyService.class);
         SuImageSyncService suImageSyncService = Mockito.mock(SuImageSyncService.class);
+        PriceLabsSyncService priceLabsSyncService = Mockito.mock(PriceLabsSyncService.class);
 
         StoreService service = new StoreService();
         ReflectionTestUtils.setField(service, "storeRepository", storeRepository);
@@ -33,6 +34,7 @@ class StoreServiceUpdateStoreSyncTest {
         ReflectionTestUtils.setField(service, "storePolicyRepository", storePolicyRepository);
         ReflectionTestUtils.setField(service, "suPropertyService", suPropertyService);
         ReflectionTestUtils.setField(service, "suImageSyncService", suImageSyncService);
+        ReflectionTestUtils.setField(service, "priceLabsSyncService", priceLabsSyncService);
 
         Store store = new Store();
         store.setId(9L);
@@ -75,6 +77,7 @@ class StoreServiceUpdateStoreSyncTest {
         assertEquals("5", store.getPhoneTechType());
         verify(storeRepository).save(store);
         verify(storePolicyRepository).save(Mockito.any(StorePolicy.class));
+        verify(priceLabsSyncService).syncListingsUsingStoreAddressAsync(9L);
         verify(suPropertyService).updateStoreProperty(9L);
         verify(suImageSyncService).syncStoreImagesStrict(9L);
     }

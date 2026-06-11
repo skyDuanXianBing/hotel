@@ -9,12 +9,18 @@ import server.demo.dto.PriceLabsWebhookRequest;
 import server.demo.entity.PriceLabsConnection;
 import server.demo.entity.PricePlan;
 import server.demo.entity.RoomType;
+import server.demo.entity.Store;
 import server.demo.constants.PriceLabsSyncDefaults;
 import server.demo.repository.PriceLabsConnectionRepository;
+import server.demo.repository.StoreRepository;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -36,6 +42,12 @@ class PriceLabsSyncServiceGetPricesTest {
         PriceLabsApiClient apiClient = mock(PriceLabsApiClient.class);
         PriceLabsService priceLabsService = mock(PriceLabsService.class);
         PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
+        StoreRepository storeRepository = mock(StoreRepository.class);
+
+        Store store = new Store();
+        store.setId(5L);
+        store.setTimezone("Asia/Tokyo");
+        when(storeRepository.findById(5L)).thenReturn(Optional.of(store));
 
         RoomType roomType = new RoomType();
         roomType.setId(35L);
@@ -55,8 +67,9 @@ class PriceLabsSyncServiceGetPricesTest {
 
         when(connectionRepository.findByStoreId(5L)).thenReturn(List.of(conn));
 
+        LocalDate storeToday = LocalDate.of(2026, 3, 17);
         PriceLabsApiClient.PullSyncPriceEntry entry = new PriceLabsApiClient.PullSyncPriceEntry();
-        entry.setDate(LocalDate.now().plusDays(1).toString());
+        entry.setDate(storeToday.plusDays(1).toString());
         entry.setPrice(new BigDecimal("12345"));
         entry.setMinStay(2);
         entry.setCheckIn(true);
@@ -72,6 +85,12 @@ class PriceLabsSyncServiceGetPricesTest {
         ReflectionTestUtils.setField(service, "apiClient", apiClient);
         ReflectionTestUtils.setField(service, "priceLabsService", priceLabsService);
         ReflectionTestUtils.setField(service, "connectionRepo", connectionRepository);
+        ReflectionTestUtils.setField(service, "storeRepo", storeRepository);
+        ReflectionTestUtils.setField(
+                service,
+                "clock",
+                Clock.fixed(Instant.parse("2026-03-17T00:00:00Z"), ZoneOffset.UTC)
+        );
 
         service.pullPricesForNextDaysPullSync(365);
 
@@ -83,6 +102,12 @@ class PriceLabsSyncServiceGetPricesTest {
         PriceLabsApiClient apiClient = mock(PriceLabsApiClient.class);
         PriceLabsService priceLabsService = mock(PriceLabsService.class);
         PriceLabsConnectionRepository connectionRepository = mock(PriceLabsConnectionRepository.class);
+        StoreRepository storeRepository = mock(StoreRepository.class);
+
+        Store store = new Store();
+        store.setId(5L);
+        store.setTimezone("Asia/Tokyo");
+        when(storeRepository.findById(5L)).thenReturn(Optional.of(store));
 
         RoomType roomType = new RoomType();
         roomType.setId(35L);
@@ -102,8 +127,9 @@ class PriceLabsSyncServiceGetPricesTest {
 
         when(connectionRepository.findByPriceLabsListingId("store_5_room_type_35")).thenReturn(List.of(conn));
 
+        LocalDate storeToday = LocalDate.of(2026, 3, 17);
         PriceLabsApiClient.PullSyncPriceEntry entry = new PriceLabsApiClient.PullSyncPriceEntry();
-        entry.setDate(LocalDate.now().plusDays(1).toString());
+        entry.setDate(storeToday.plusDays(1).toString());
         entry.setPrice(new BigDecimal("12345"));
         entry.setMinStay(2);
         entry.setCheckIn(true);
@@ -119,6 +145,12 @@ class PriceLabsSyncServiceGetPricesTest {
         ReflectionTestUtils.setField(service, "apiClient", apiClient);
         ReflectionTestUtils.setField(service, "priceLabsService", priceLabsService);
         ReflectionTestUtils.setField(service, "connectionRepo", connectionRepository);
+        ReflectionTestUtils.setField(service, "storeRepo", storeRepository);
+        ReflectionTestUtils.setField(
+                service,
+                "clock",
+                Clock.fixed(Instant.parse("2026-03-17T00:00:00Z"), ZoneOffset.UTC)
+        );
 
         service.pullPricesForListingIds(List.of("store_5_room_type_35"), PriceLabsSyncDefaults.DEFAULT_SYNC_DAYS);
 

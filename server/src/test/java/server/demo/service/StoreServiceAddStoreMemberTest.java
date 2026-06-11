@@ -20,11 +20,13 @@ import server.demo.repository.StoreUserPermissionRepository;
 import server.demo.repository.StoreUserRepository;
 import server.demo.repository.UserRepository;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -88,19 +90,28 @@ class StoreServiceAddStoreMemberTest {
         permissionDTO.setAction(PermissionAction.VIEW_ORDERS);
         request.setExtraPermissions(List.of(permissionDTO));
 
-        StoreUserPermission persistedPermission = new StoreUserPermission();
-        persistedPermission.setStoreUser(inactiveMember);
-        persistedPermission.setModule(PermissionModule.ORDER);
-        persistedPermission.setAction(PermissionAction.VIEW_ORDERS);
-        persistedPermission.setRoomTypeId(0L);
-        persistedPermission.setAllRoomTypes(false);
+        StoreUserPermission existingPermission = new StoreUserPermission();
+        existingPermission.setStoreUser(inactiveMember);
+        existingPermission.setModule(PermissionModule.ORDER);
+        existingPermission.setAction(PermissionAction.CREATE_ORDER);
+        existingPermission.setRoomTypeId(0L);
+        existingPermission.setAllRoomTypes(false);
+
+        StoreUserPermission savedPermission = new StoreUserPermission();
+        savedPermission.setStoreUser(inactiveMember);
+        savedPermission.setModule(PermissionModule.ORDER);
+        savedPermission.setAction(PermissionAction.VIEW_ORDERS);
+        savedPermission.setRoomTypeId(0L);
+        savedPermission.setAllRoomTypes(false);
 
         when(storeUserRepository.findByStoreIdAndUserId(26L, 6L)).thenReturn(Optional.of(operator));
         when(userRepository.findByEmail("284033031@qq.com")).thenReturn(Optional.of(invitedUser));
         when(storeUserRepository.findByStoreIdAndUserId(26L, 5L)).thenReturn(Optional.of(inactiveMember));
         when(roleRepository.findById(101L)).thenReturn(Optional.of(newRole));
         when(storeUserRepository.save(any(StoreUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(storeUserPermissionRepository.findByStoreUser_Id(44L)).thenReturn(List.of(persistedPermission));
+        when(storeUserPermissionRepository.findByStoreUser_Id(44L))
+                .thenReturn(List.of(existingPermission))
+                .thenReturn(List.of(savedPermission));
 
         StoreUserDTO result = service.addStoreMember(26L, 6L, request);
 
@@ -122,8 +133,19 @@ class StoreServiceAddStoreMemberTest {
         assertEquals(1, restored.getRoles().size());
         assertTrue(restored.getRoles().stream().anyMatch(role -> Long.valueOf(101L).equals(role.getId())));
 
-        verify(storeUserPermissionRepository).deleteByStoreUser_Id(44L);
-        verify(storeUserPermissionRepository).saveAll(any());
+        verify(storeUserPermissionRepository, never()).deleteByStoreUser_Id(44L);
+        verify(storeUserPermissionRepository).deleteAll(List.of(existingPermission));
+        ArgumentCaptor<Iterable<StoreUserPermission>> permissionCaptor = createPermissionIterableCaptor();
+        verify(storeUserPermissionRepository).saveAll(permissionCaptor.capture());
+        Iterator<StoreUserPermission> savedIterator = permissionCaptor.getValue().iterator();
+        assertTrue(savedIterator.hasNext());
+        StoreUserPermission permissionToSave = savedIterator.next();
+        assertEquals(inactiveMember, permissionToSave.getStoreUser());
+        assertEquals(PermissionModule.ORDER, permissionToSave.getModule());
+        assertEquals(PermissionAction.VIEW_ORDERS, permissionToSave.getAction());
+        assertEquals(0L, permissionToSave.getRoomTypeId());
+        assertFalse(Boolean.TRUE.equals(permissionToSave.getAllRoomTypes()));
+        assertFalse(savedIterator.hasNext());
         verify(storeUserRepository, never()).existsByStoreIdAndUserId(26L, 5L);
     }
 
@@ -188,5 +210,10 @@ class StoreServiceAddStoreMemberTest {
         role.setName(name);
         role.setIsSystem(false);
         return role;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static ArgumentCaptor<Iterable<StoreUserPermission>> createPermissionIterableCaptor() {
+        return ArgumentCaptor.forClass((Class) Iterable.class);
     }
 }

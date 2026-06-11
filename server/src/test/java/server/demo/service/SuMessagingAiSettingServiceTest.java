@@ -9,7 +9,6 @@ import server.demo.repository.SuMessagingAiSettingRepository;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -18,14 +17,14 @@ import static org.mockito.Mockito.when;
 class SuMessagingAiSettingServiceTest {
 
     @Test
-    void getOrCreate_shouldDefaultToEnabled() {
+    void getOrCreate_shouldDefaultToDisabled() {
         SuMessagingAiSettingRepository repository = Mockito.mock(SuMessagingAiSettingRepository.class);
         when(repository.findByStoreId(10L)).thenReturn(Optional.empty());
 
         SuMessagingAiSettingService service = new SuMessagingAiSettingService(repository);
         SuMessagingAiSettingDTO setting = service.getOrCreate(10L);
 
-        assertTrue(setting.getAutoReplyEnabled());
+        assertFalse(setting.getAutoReplyEnabled());
         verify(repository, never()).save(any(SuMessagingAiSetting.class));
     }
 

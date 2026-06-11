@@ -17,7 +17,6 @@ import server.demo.repository.RoomRepository;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -43,6 +42,7 @@ class RoomStatusServiceTest {
 
         Room room = new Room();
         room.setId(10L);
+        room.setStoreId(5L);
         room.setRoomNumber("101");
         room.setRoomType(roomType);
         room.setStatus(RoomStatus.AVAILABLE);
@@ -54,6 +54,7 @@ class RoomStatusServiceTest {
 
         Reservation reservation = new Reservation();
         reservation.setId(99L);
+        reservation.setRoom(room);
         reservation.setStatus(ReservationStatus.REQUESTED);
         reservation.setGuestName("GuestA");
         reservation.setChannel(channel);
@@ -61,8 +62,13 @@ class RoomStatusServiceTest {
         reservation.setCheckOutDate(LocalDate.of(2025, 1, 2));
         reservation.setOrderNumber("SU5-1");
 
-        when(reservationRepository.findByStoreIdAndRoomIdAndDate(eq(5L), eq(10L), any(LocalDate.class)))
-                .thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByStoreIdAndRoomIdInAndDateRangeAndStatusesWithChannel(
+                eq(5L),
+                eq(List.of(10L)),
+                eq(LocalDate.of(2025, 1, 1)),
+                eq(LocalDate.of(2025, 1, 1)),
+                anySet()
+        )).thenReturn(List.of(reservation));
 
         when(roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(eq(5L), anyList(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
@@ -98,13 +104,19 @@ class RoomStatusServiceTest {
 
         Room room = new Room();
         room.setId(10L);
+        room.setStoreId(5L);
         room.setRoomNumber("101");
         room.setRoomType(roomType);
         room.setStatus(RoomStatus.AVAILABLE);
 
         when(roomRepository.findByStoreIdWithRoomType(5L)).thenReturn(List.of(room));
-        when(reservationRepository.findByStoreIdAndRoomIdAndDate(eq(5L), eq(10L), any(LocalDate.class)))
-                .thenReturn(Optional.empty());
+        when(reservationRepository.findByStoreIdAndRoomIdInAndDateRangeAndStatusesWithChannel(
+                eq(5L),
+                eq(List.of(10L)),
+                eq(LocalDate.of(2025, 1, 1)),
+                eq(LocalDate.of(2025, 1, 1)),
+                anySet()
+        )).thenReturn(List.of());
 
         RoomBlockout blockout = new RoomBlockout(5L, room, LocalDate.of(2025, 1, 1), RoomBlockoutType.STOP, "x");
         when(roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(eq(5L), anyList(), any(LocalDate.class), any(LocalDate.class)))
