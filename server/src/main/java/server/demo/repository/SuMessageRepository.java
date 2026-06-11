@@ -23,9 +23,79 @@ public interface SuMessageRepository extends JpaRepository<SuMessage, Long> {
 
     Optional<SuMessage> findByStoreIdAndExternalMessageId(Long storeId, String externalMessageId);
 
+    Optional<SuMessage> findByStoreIdAndId(Long storeId, Long id);
+
+    @Query("""
+            SELECT m
+            FROM SuMessage m
+            JOIN FETCH m.thread
+            WHERE m.storeId = :storeId
+              AND m.thread.id = :threadId
+              AND m.id = :messageId
+            """)
+    Optional<SuMessage> findByStoreIdAndThreadIdAndId(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("messageId") Long messageId
+    );
+
     List<SuMessage> findByThread_IdOrderBySentAtAsc(Long threadId);
 
     List<SuMessage> findByThread_IdAndSentAtAfterOrderBySentAtAsc(Long threadId, LocalDateTime since);
+
+    @Query("""
+            SELECT m
+            FROM SuMessage m
+            JOIN FETCH m.thread
+            WHERE m.storeId = :storeId
+              AND m.sentAt >= :since
+            ORDER BY m.sentAt DESC, m.id DESC
+            """)
+    List<SuMessage> findRecentMessagesForKnowledgeIndex(
+            @Param("storeId") Long storeId,
+            @Param("since") LocalDateTime since,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT DISTINCT m.storeId
+            FROM SuMessage m
+            WHERE m.storeId IS NOT NULL
+              AND m.sentAt >= :since
+            ORDER BY m.storeId ASC
+            """)
+    List<Long> findDistinctStoreIdsWithMessagesSince(
+            @Param("since") LocalDateTime since,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT m
+            FROM SuMessage m
+            WHERE m.storeId = :storeId
+              AND m.thread.id = :threadId
+            ORDER BY m.sentAt DESC, m.id DESC
+            """)
+    List<SuMessage> findRecentByStoreIdAndThreadIdDesc(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT m
+            FROM SuMessage m
+            WHERE m.storeId = :storeId
+              AND m.thread.id = :threadId
+              AND m.senderType = :senderType
+            ORDER BY m.sentAt DESC, m.id DESC
+            """)
+    List<SuMessage> findRecentByStoreIdAndThreadIdAndSenderTypeDesc(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("senderType") SuMessagingSenderType senderType,
+            Pageable pageable
+    );
 
     @Query("""
             SELECT m

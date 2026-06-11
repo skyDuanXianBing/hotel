@@ -584,10 +584,14 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
+  generateSuMessagingAiReplyDraft,
   getSuThreadMessagesPage,
   getSuThreadsPage,
   sendSuThreadMessage,
   SuMessagingSenderType,
+  translateSuThreadMessage,
+  type SuMessagingAiReplyDraftRecentMessage,
+  type SuMessagingAiReplyDraftResponse,
   type SuMessagingMessageOrderStatus,
   type SuMessagingMessageDTO,
   type SuMessagingMessagePageDTO,
@@ -596,6 +600,7 @@ import {
   type SuMessagingThreadPageDTO,
   type SuMessagingThreadDTO,
   type SuMessagingChannelCode,
+  type SuMessageTranslationResponse,
 } from '@/api/suMessaging'
 import { sendChatMessage } from '@/api/chat'
 import {
@@ -630,6 +635,7 @@ import {
 
 interface MessageItem {
   id: number
+  threadId?: number
   senderType: SuMessagingSenderType
   content: string
   timestamp: Date
@@ -689,10 +695,9 @@ const sanitizeUserFacingMessage = (rawMessage?: string) => {
 }
 
 const AI_CONTEXT_LIMITS = {
-  maxMessages: 2,
   maxSingleMessageChars: 1200,
-  maxTotalChars: 7000,
 } as const
+const AI_DRAFT_RECENT_MESSAGE_LIMIT = 8
 const AI_TRANSLATION_TIMEOUT_MS = 45_000
 const AI_ASSISTANT_TIMEOUT_MS = 60_000
 const INITIAL_MESSAGE_TRANSLATION_BATCH = 20
@@ -710,6 +715,10 @@ interface TranslationRunResult {
   attempted: number
   failed: number
   errorMessage?: string
+}
+
+interface MessageTranslationOptions {
+  notifyOnError?: boolean
 }
 
 const truncateText = (content: string, maxChars: number) => {
@@ -753,8 +762,8 @@ const mergeTranslationRunResults = (
   errorMessage: current.errorMessage || next.errorMessage,
 })
 
-const resolveTranslationFailureMessage = () =>
-  t('stage6.components.messagesPage.errors.translationFailed')
+const resolveTranslationFailureMessage = (error?: unknown) =>
+  resolveAiErrorMessage(error, t('stage6.components.messagesPage.errors.translationFailed'))
 
 const searchQuery = ref('')
 const filterChannel = ref<SuMessagingChannelCode | ''>('')
@@ -809,7 +818,6 @@ const isApplyingTranslationSettings = ref(false)
 const translationEnabled = ref(false)
 const translationTargetLanguage = ref<TranslationLanguageValue>('zh-CN')
 const translatedMessageMap = ref<Record<string, string>>({})
-const translatedConversationPreviewMap = ref<Record<string, string>>({})
 
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
@@ -822,6 +830,8 @@ let threadRequestId = 0
 let shouldSkipNextSearchQueryWatch = false
 let shouldSkipNextThreadFilterWatch = false
 let aiDraftSystemLanguageRequestId = 0
+let hasShownPersistentTranslationFallbackNotice = false
+let hasShownBackgroundTranslationFailureNotice = false
 const reservationIdCache = new Map<string, number | null>()
 const translationPendingKeys = new Set<string>()
 
@@ -1133,13 +1143,16 @@ const persistTranslationSettings = () => {
 
 const clearTranslationCaches = () => {
   translatedMessageMap.value = {}
-  translatedConversationPreviewMap.value = {}
   translationPendingKeys.clear()
+  hasShownPersistentTranslationFallbackNotice = false
+  hasShownBackgroundTranslationFailureNotice = false
 }
 
 const clearMessageTranslationCache = () => {
   translatedMessageMap.value = {}
   translationPendingKeys.clear()
+  hasShownPersistentTranslationFallbackNotice = false
+  hasShownBackgroundTranslationFailureNotice = false
 }
 
 const clearActiveConversationDetails = () => {
@@ -1206,6 +1219,67 @@ const requestAiTranslationToLanguage = async (sourceText: string, targetLanguage
 const requestAiTranslation = async (sourceText: string) =>
   requestAiTranslationToLanguage(sourceText, getTranslationLanguageLabel())
 
+const notifyPersistentTranslationFallback = (error: unknown) => {
+  console.warn('Persistent message translation failed, using fallback translation:', error)
+  if (hasShownPersistentTranslationFallbackNotice) {
+    return
+  }
+  hasShownPersistentTranslationFallbackNotice = true
+  const fallbackWarning = t('stage6.components.messagesPage.translation.backendFallbackWarning')
+  const failureDetail = resolveAiErrorMessage(error, '')
+  ElMessage.warning(failureDetail ? `${fallbackWarning} ${failureDetail}` : fallbackWarning)
+}
+
+const notifyBackgroundTranslationFailure = (errorMessage: string) => {
+  if (hasShownBackgroundTranslationFailureNotice) {
+    return
+  }
+  hasShownBackgroundTranslationFailureNotice = true
+  ElMessage.error(errorMessage)
+}
+
+const resolveMessageTranslationThreadId = (message: MessageItem) => {
+  if (message.threadId && message.threadId > 0) {
+    return message.threadId
+  }
+  if (activeThreadId.value && activeThreadId.value > 0) {
+    return activeThreadId.value
+  }
+  return null
+}
+
+const canRequestPersistentMessageTranslation = (message: MessageItem) => {
+  return Boolean(resolveMessageTranslationThreadId(message) && message.id > 0)
+}
+
+const requestPersistentMessageTranslation = async (message: MessageItem) => {
+  const threadId = resolveMessageTranslationThreadId(message)
+  if (!threadId || message.id <= 0) {
+    throw new Error(resolveTranslationFailureMessage())
+  }
+
+  const response = (await translateSuThreadMessage(
+    threadId,
+    message.id,
+    {
+      targetLanguage: translationTargetLanguage.value,
+    },
+    {
+      timeoutMs: AI_TRANSLATION_TIMEOUT_MS,
+      suppressErrorToast: true,
+    },
+  )) as ApiResponse<SuMessageTranslationResponse>
+
+  const translatedContent = normalizeTranslatedText(response.data?.translatedContent || '')
+  if (response.success === false || !translatedContent) {
+    throw new Error(
+      sanitizeUserFacingMessage(response.message) || resolveTranslationFailureMessage(),
+    )
+  }
+
+  return translatedContent
+}
+
 const syncSystemLanguageDraftVersion = async (guestFacingDraft: string) => {
   const trimmed = guestFacingDraft.trim()
   if (!trimmed) {
@@ -1270,43 +1344,35 @@ const handleAiDraftReplyInput = () => {
   aiDraftSystemLanguageVersion.value = ''
 }
 
-const ensureConversationPreviewTranslation = async (conversation: SuMessagingThreadDTO) => {
-  if (!translationEnabled.value || !conversation.lastMessage?.trim()) {
-    return
+const setMessageTranslatedText = (message: MessageItem, sourceText: string, translated: string) => {
+  const normalizedTranslation = normalizeTranslatedText(translated)
+  if (!normalizedTranslation) {
+    return ''
   }
 
-  const key = getConversationPreviewKey(conversation)
-  if (translatedConversationPreviewMap.value[key] || translationPendingKeys.has(key)) {
-    return
+  const key = getMessageTranslationKey(message)
+  translatedMessageMap.value = {
+    ...translatedMessageMap.value,
+    [key]: normalizedTranslation,
   }
-
-  const sourceText = conversation.lastMessage.trim()
-  const cacheScope = getTranslationCacheScope()
-  const cachedTranslation = getCachedTranslation(cacheScope, sourceText)
-  if (cachedTranslation) {
-    translatedConversationPreviewMap.value = {
-      ...translatedConversationPreviewMap.value,
-      [key]: cachedTranslation,
-    }
-    return
-  }
-
-  translationPendingKeys.add(key)
-  try {
-    const translated = await requestAiTranslation(sourceText)
-    translatedConversationPreviewMap.value = {
-      ...translatedConversationPreviewMap.value,
-      [key]: translated,
-    }
-    setCachedTranslation(cacheScope, sourceText, translated)
-  } catch (error) {
-    console.error('Failed to translate conversation preview:', error)
-  } finally {
-    translationPendingKeys.delete(key)
-  }
+  setCachedTranslation(getTranslationCacheScope(), sourceText, normalizedTranslation)
+  return normalizedTranslation
 }
 
-const ensureMessageTranslation = async (message: MessageItem): Promise<TranslationRunResult> => {
+const requestFallbackMessageTranslation = async (message: MessageItem, sourceText: string) => {
+  const cachedTranslation = getCachedTranslation(getTranslationCacheScope(), sourceText)
+  if (cachedTranslation) {
+    return setMessageTranslatedText(message, sourceText, cachedTranslation)
+  }
+
+  const translated = await requestAiTranslation(sourceText)
+  return setMessageTranslatedText(message, sourceText, translated)
+}
+
+const ensureMessageTranslation = async (
+  message: MessageItem,
+  options: MessageTranslationOptions = {},
+): Promise<TranslationRunResult> => {
   const skippedResult = createTranslationRunResult()
   if (!translationEnabled.value || !message.content.trim()) {
     return skippedResult
@@ -1318,31 +1384,35 @@ const ensureMessageTranslation = async (message: MessageItem): Promise<Translati
   }
 
   const sourceText = message.content.trim()
-  const cacheScope = getTranslationCacheScope()
-  const cachedTranslation = getCachedTranslation(cacheScope, sourceText)
-  if (cachedTranslation) {
-    translatedMessageMap.value = {
-      ...translatedMessageMap.value,
-      [key]: cachedTranslation,
-    }
-    return { attempted: 1, failed: 0 }
-  }
 
   translationPendingKeys.add(key)
   try {
-    const translated = await requestAiTranslation(sourceText)
-    translatedMessageMap.value = {
-      ...translatedMessageMap.value,
-      [key]: translated,
+    let translated = ''
+    if (canRequestPersistentMessageTranslation(message)) {
+      try {
+        translated = await requestPersistentMessageTranslation(message)
+        setMessageTranslatedText(message, sourceText, translated)
+      } catch (error) {
+        notifyPersistentTranslationFallback(error)
+        translated = await requestFallbackMessageTranslation(message, sourceText)
+      }
+    } else {
+      translated = await requestFallbackMessageTranslation(message, sourceText)
     }
-    setCachedTranslation(cacheScope, sourceText, translated)
+    if (!translated) {
+      throw new Error(resolveTranslationFailureMessage())
+    }
     return { attempted: 1, failed: 0 }
   } catch (error) {
     console.error('Failed to translate message:', error)
+    const errorMessage = resolveTranslationFailureMessage(error)
+    if (options.notifyOnError !== false) {
+      notifyBackgroundTranslationFailure(errorMessage)
+    }
     return {
       attempted: 1,
       failed: 1,
-      errorMessage: resolveTranslationFailureMessage(),
+      errorMessage,
     }
   } finally {
     translationPendingKeys.delete(key)
@@ -1355,7 +1425,9 @@ const translateMessagesSequentially = async (
 ) => {
   let result = createTranslationRunResult()
   for (const message of items) {
-    const nextResult = await ensureMessageTranslation(message)
+    const nextResult = await ensureMessageTranslation(message, {
+      notifyOnError: options.stopOnError !== true,
+    })
     result = mergeTranslationRunResults(result, nextResult)
     if (options.stopOnError && nextResult.failed > 0) {
       break
@@ -1450,15 +1522,6 @@ const handleMessagesScroll = () => {
   }, SCROLL_TRANSLATION_DEBOUNCE_MS)
 }
 
-const translateConversationPreviews = async () => {
-  if (!translationEnabled.value) {
-    return
-  }
-  await Promise.all(
-    conversations.value.map((conversation) => ensureConversationPreviewTranslation(conversation)),
-  )
-}
-
 const applyTranslationSettings = async () => {
   isApplyingTranslationSettings.value = true
   try {
@@ -1475,7 +1538,6 @@ const applyTranslationSettings = async () => {
       if (translationResult.failed > 0) {
         throw new Error(translationResult.errorMessage || resolveTranslationFailureMessage())
       }
-      void translateConversationPreviews()
     } else {
       clearTranslationCaches()
     }
@@ -1591,9 +1653,6 @@ const getConversationOrderKindStyle = (conversation: SuMessagingThreadDTO) => {
   return (conversation.orderKind || 'UNKNOWN').toLowerCase().replace(/_/g, '-')
 }
 
-const getConversationPreviewKey = (conversation: SuMessagingThreadDTO) =>
-  `conversation:${conversation.id}:${conversation.lastMessage || ''}`
-
 const getMessageTranslationKey = (message: MessageItem) =>
   `message:${message.id}:${message.content}`
 
@@ -1645,6 +1704,7 @@ const normalizeSenderName = (senderName?: string) => {
 
 const mapMessage = (message: SuMessagingMessageDTO): MessageItem => ({
   id: message.id,
+  threadId: message.threadId,
   senderType: message.senderType,
   content: message.content,
   timestamp: parseUtcDateTime(message.timestamp),
@@ -1654,6 +1714,7 @@ const mapMessage = (message: SuMessagingMessageDTO): MessageItem => ({
 
 const mapRealtimeMessage = (message: RealtimeMessageItem): MessageItem => ({
   id: message.id,
+  threadId: message.threadId,
   senderType: message.senderType as SuMessagingSenderType,
   content: message.content,
   timestamp: parseUtcDateTime(message.timestamp),
@@ -1854,7 +1915,6 @@ const applyThreadPage = (pageData: SuMessagingThreadPageDTO, append: boolean) =>
   hasThreadQueryStarted.value = true
   updateThreadSelectionAfterListChange()
   syncActiveConversationWithFilteredList()
-  void translateConversationPreviews()
 }
 
 const fetchThreadPage = async (page: number, append: boolean) => {
@@ -2037,46 +2097,6 @@ const selectConversation = async (threadId: number) => {
   await loadThreadMessages(threadId)
 }
 
-const buildConversationContextForAi = () => {
-  const conversation = activeConversation.value
-  const conversationHeader = [
-    `Channel: ${conversation?.channelName || '-'}`,
-    `Order number: ${conversation?.bookingId || conversation?.threadId || '-'}`,
-    `Conversation status: ${conversation?.closed ? 'Closed' : 'Active'}`,
-  ].join('; ')
-
-  const historyLines = sortMessagesByTime(messages.value)
-    .slice(-AI_CONTEXT_LIMITS.maxMessages)
-    .map((item) => {
-      const role = item.senderType === SuMessagingSenderType.GUEST ? 'Guest' : 'Staff'
-      const content = truncateText(item.content || '', AI_CONTEXT_LIMITS.maxSingleMessageChars)
-      return `[${role}] ${content}`
-    })
-
-  const contextPrefix = `${conversationHeader}\n\nRecent conversation:\n`
-  const fallbackHistory = 'No message history'
-  const boundedHistoryLines = [...historyLines]
-
-  const composeContext = () => {
-    const historyText = boundedHistoryLines.join('\n') || fallbackHistory
-    return `${contextPrefix}${historyText}`
-  }
-
-  let context = composeContext()
-  while (context.length > AI_CONTEXT_LIMITS.maxTotalChars && boundedHistoryLines.length > 1) {
-    boundedHistoryLines.shift()
-    context = composeContext()
-  }
-
-  if (context.length > AI_CONTEXT_LIMITS.maxTotalChars) {
-    const availableChars = Math.max(AI_CONTEXT_LIMITS.maxTotalChars - contextPrefix.length, 0)
-    const compressedHistory = boundedHistoryLines.join('\n').slice(0, availableChars)
-    return `${contextPrefix}${compressedHistory || fallbackHistory}`
-  }
-
-  return context
-}
-
 const getLatestGuestMessage = () =>
   [...sortMessagesByTime(messages.value)]
     .reverse()
@@ -2103,19 +2123,57 @@ const buildFallbackContextSummary = () => {
   })
 }
 
-const parseAiDraftResponse = (rawReply: string) => {
-  const extractBlock = (tagName: 'CONTEXT' | 'DRAFT') => {
-    const pattern = new RegExp(`\\[${tagName}\\]([\\s\\S]*?)\\[\\/${tagName}\\]`, 'i')
-    const matched = rawReply.match(pattern)
-    return matched?.[1]?.trim() || ''
+const resolveAiDraftLanguage = () => {
+  const languageCode = detectTextLanguageCode(getLatestGuestMessage()?.content)
+  if (languageCode === 'zh') {
+    return 'zh-CN'
   }
+  return languageCode
+}
 
-  const contextSummary = extractBlock('CONTEXT')
-  const draftReply = extractBlock('DRAFT')
-  return {
-    contextSummary,
-    draftReply,
+const resolveAiDraftChannel = (conversation: SuMessagingThreadDTO): SuMessagingChannelCode | undefined => {
+  if (conversation.channelCode) {
+    return conversation.channelCode
   }
+  const style = resolveChannelStyle(conversation)
+  if (style === 'airbnb') {
+    return 'AIRBNB'
+  }
+  if (style === 'booking') {
+    return 'BOOKING'
+  }
+  return undefined
+}
+
+const toAiDraftSentAt = (timestamp: Date) => {
+  if (Number.isNaN(timestamp.getTime())) {
+    return undefined
+  }
+  return timestamp.toISOString()
+}
+
+const buildAiDraftRecentMessages = (): SuMessagingAiReplyDraftRecentMessage[] => {
+  const recentMessages: SuMessagingAiReplyDraftRecentMessage[] = []
+  for (const item of sortMessagesByTime(messages.value).slice(-AI_DRAFT_RECENT_MESSAGE_LIMIT)) {
+    const content = truncateText(item.content || '', AI_CONTEXT_LIMITS.maxSingleMessageChars).trim()
+    if (!content) {
+      continue
+    }
+    recentMessages.push({
+      direction: item.senderType === SuMessagingSenderType.GUEST ? 'GUEST' : 'STAFF',
+      content,
+      sentAt: toAiDraftSentAt(item.timestamp),
+    })
+  }
+  return recentMessages
+}
+
+const getLatestGuestMessageId = () => {
+  const latestGuestMessage = getLatestGuestMessage()
+  if (!latestGuestMessage || latestGuestMessage.id <= 0) {
+    return undefined
+  }
+  return latestGuestMessage.id
 }
 
 const openAiReplyAssistant = async () => {
@@ -2144,52 +2202,49 @@ const openAiReplyAssistant = async () => {
   isAiTranslatingDraft.value = false
 
   try {
-    const context = buildConversationContextForAi()
-    const guestLanguageLabel = resolveLatestGuestLanguageLabel()
-    const prompt = [
-      'You are a hotel guest messaging assistant.',
-      'Please complete two tasks based on the conversation context.',
-      `1) Write [CONTEXT] in ${resolveSystemLanguageAiLabel()} so the staff can understand the situation quickly.`,
-      `2) Write [DRAFT] in ${guestLanguageLabel} so it can be sent directly to the guest.`,
-      'Keep the draft professional, concise, warm, and factual.',
-      'Do not invent any unconfirmed facts.',
-      'The [DRAFT] language must match the latest guest message language exactly.',
-      'Output format must be exactly:',
-      '[CONTEXT]',
-      '...staff-readable summary...',
-      '[/CONTEXT]',
-      '[DRAFT]',
-      '...guest-facing reply...',
-      '[/DRAFT]',
-      '',
-      'Conversation context:',
-      context,
-    ].join('\n')
+    const conversation = activeConversation.value
+    if (!conversation || !activeThreadId.value) {
+      throw new Error(t('stage6.components.messagesPage.errors.selectConversationFirst'))
+    }
 
-    const response = (await sendChatMessage(
+    const reservation = await loadReservationForAiDraft(conversation)
+    const reservationId =
+      normalizePositiveId(conversation.reservationId) ||
+      normalizePositiveId(selectedReservationId.value) ||
+      normalizePositiveId(reservation?.id)
+
+    const response = (await generateSuMessagingAiReplyDraft(
+      activeThreadId.value,
       {
-        sessionId: aiAssistantSessionId.value,
-        message: prompt,
+        reservationId: reservationId || undefined,
+        bookingId: conversation.bookingId?.trim() || undefined,
+        externalThreadId: conversation.threadId?.trim() || undefined,
+        channel: resolveAiDraftChannel(conversation),
+        guestName: reservation?.guestName || conversation.guestName || undefined,
+        roomId: normalizePositiveId(reservation?.roomId) || undefined,
+        roomNumber: reservation?.roomNumber?.trim() || undefined,
+        roomTypeName: reservation?.roomTypeName || conversation.roomTypeName || undefined,
+        latestGuestMessageId: getLatestGuestMessageId(),
+        recentMessages: buildAiDraftRecentMessages(),
+        language: resolveAiDraftLanguage(),
       },
       {
         timeoutMs: AI_ASSISTANT_TIMEOUT_MS,
         suppressErrorToast: true,
       },
-    )) as ApiResponse<{ reply: string; sessionId: string }>
+    )) as ApiResponse<SuMessagingAiReplyDraftResponse>
 
-    if (response.success === false || !response.data?.reply) {
+    const draftReply = response.data?.draftReply?.trim()
+    if (response.success === false || !draftReply) {
       throw new Error(
         sanitizeUserFacingMessage(response.message) ||
           t('stage6.components.messagesPage.errors.generateFailed'),
       )
     }
 
-    aiAssistantSessionId.value = response.data.sessionId || aiAssistantSessionId.value
-    const parsed = parseAiDraftResponse(response.data.reply)
-    aiContextSummary.value = parsed.contextSummary || buildFallbackContextSummary()
-    const guestFacingDraft = parsed.draftReply || response.data.reply.trim()
-    aiDraftReply.value = guestFacingDraft
-    await syncSystemLanguageDraftVersion(guestFacingDraft)
+    aiContextSummary.value = buildFallbackContextSummary()
+    aiDraftReply.value = draftReply
+    await syncSystemLanguageDraftVersion(draftReply)
   } catch (error) {
     console.error('Failed to generate AI draft:', error)
     aiContextSummary.value = buildFallbackContextSummary()
@@ -2281,6 +2336,7 @@ const polishAiDraftReply = async () => {
 
 const createOptimisticMessage = (content: string): MessageItem => ({
   id: localMessageSeed--,
+  threadId: activeThreadId.value || undefined,
   senderType: SuMessagingSenderType.STAFF,
   content,
   timestamp: new Date(),
@@ -2604,12 +2660,29 @@ const routeTargetKey = computed(() => {
   ].join('|')
 })
 
+const normalizePositiveId = (value?: number | null) => {
+  const normalized = Number(value)
+  if (Number.isInteger(normalized) && normalized > 0) {
+    return normalized
+  }
+  return null
+}
+
 const resolveConversationLookupKey = (conversation: SuMessagingThreadDTO) => {
   const key = (conversation.bookingId || conversation.threadId || '').trim()
   return key ? `${conversation.channelId}:${key}` : ''
 }
 
 const findReservationIdForConversation = async (conversation: SuMessagingThreadDTO) => {
+  const directReservationId = normalizePositiveId(conversation.reservationId)
+  if (directReservationId) {
+    const lookupKey = resolveConversationLookupKey(conversation)
+    if (lookupKey) {
+      reservationIdCache.set(lookupKey, directReservationId)
+    }
+    return directReservationId
+  }
+
   const lookupKey = resolveConversationLookupKey(conversation)
   if (!lookupKey) {
     return null
@@ -2661,6 +2734,29 @@ const findReservationIdForConversation = async (conversation: SuMessagingThreadD
     reservationIdCache.set(lookupKey, null)
     return null
   }
+}
+
+const loadReservationForAiDraft = async (
+  conversation: SuMessagingThreadDTO,
+): Promise<ReservationDTO | null> => {
+  let reservationId = normalizePositiveId(conversation.reservationId) || selectedReservationId.value
+  if (!reservationId) {
+    await preloadActiveReservationId()
+    reservationId = selectedReservationId.value
+  }
+  if (!reservationId) {
+    return null
+  }
+
+  try {
+    const response = await getReservationById(reservationId)
+    if (response.success && response.data) {
+      return response.data
+    }
+  } catch (error) {
+    console.error('Failed to load reservation for AI draft:', error)
+  }
+  return null
 }
 
 const matchesConversationKeyword = (conversation: SuMessagingThreadDTO, keyword: string) => {

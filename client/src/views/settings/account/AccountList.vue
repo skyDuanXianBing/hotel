@@ -236,12 +236,17 @@
                 :disabled="Boolean(accountForm.id)"
               />
             </el-form-item>
-            <el-form-item :label="t('settingsStage4.accountList.fields.employeeName')">
+            <el-form-item
+              v-if="accountForm.id"
+              :label="t('settingsStage4.accountList.fields.employeeName')"
+              :error="accountNameError"
+              required
+            >
               <el-input
                 v-model="accountForm.name"
                 style="width: 420px"
                 :placeholder="t('settingsStage4.accountList.placeholders.employeeName')"
-                :disabled="Boolean(accountForm.id)"
+                @input="clearAccountNameError"
               />
             </el-form-item>
           </el-form>
@@ -327,8 +332,10 @@
         </div>
 
         <div class="drawer-footer">
-          <el-button @click="closeDrawer">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" @click="submitMember">{{ t('settingsStage4.accountList.actions.finish') }}</el-button>
+          <el-button :disabled="memberSubmitting" @click="closeDrawer">{{ t('settings.common.cancel') }}</el-button>
+          <el-button type="primary" :loading="memberSubmitting" @click="submitMember">
+            {{ t('settingsStage4.accountList.actions.finish') }}
+          </el-button>
         </div>
       </div>
     </el-drawer>
@@ -368,6 +375,10 @@ import {
   type ExtraPermissionKey,
   type PermissionItemConfig,
 } from './accountPermissionSchema'
+import {
+  buildMemberUpdatePayload,
+  type AccountEditSnapshot,
+} from './accountMemberUpdatePayload'
 
 interface Account {
   id: number
@@ -407,6 +418,7 @@ const isCollapsed = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(25)
 const loading = ref(false)
+const memberSubmitting = ref(false)
 const drawerVisible = ref(false)
 const roleDialogVisible = ref(false)
 const transferOwnerDialogVisible = ref(false)
@@ -424,6 +436,8 @@ const selectedNewOwnerId = ref<number | null>(null)
 const rolePermissionsMap = ref<Map<number, PermissionDTO[]>>(new Map())
 const requestToken = ref(0)
 const accountForm = ref<AccountForm>({ email: '', name: '' })
+const accountEditSnapshot = ref<AccountEditSnapshot | null>(null)
+const accountNameError = ref('')
 const currentStoreId = computed(() => storeStore.currentStore?.id ?? null)
 const currentUserRole = computed(() => storeStore.currentStore?.userRole ?? '')
 const currentUserEmail = computed(() => userStore.currentUser?.email?.trim().toLowerCase() ?? '')
@@ -606,6 +620,22 @@ function canShowTransferOwner(account: Account) {
 function formatTransferOwnerOption(account: Account) {
   const displayName = account.name || account.email
   return `${displayName}（${account.email}）`
+}
+
+function normalizeDisplayText(value?: string | null) {
+  if (!value) {
+    return ''
+  }
+
+  return value.trim()
+}
+
+function resolveMemberDisplayName(member: StoreMember) {
+  return (
+    normalizeDisplayText(member.user.name) ||
+    normalizeDisplayText(member.user.nickname) ||
+    member.user.email
+  )
 }
 
 function createExtraForm(): ExtraForm {
@@ -854,9 +884,15 @@ function buildExtraPermissions(): PermissionDTO[] | null {
 
 function resetEditor() {
   accountForm.value = { email: '', name: '' }
+  accountEditSnapshot.value = null
+  accountNameError.value = ''
   selectedAccountRoles.value = []
   resetExtraForm()
   activePermissionTab.value = 'accommodation'
+}
+
+function clearAccountNameError() {
+  accountNameError.value = ''
 }
 
 async function loadAccounts(showWarning = true) {
@@ -877,7 +913,7 @@ async function loadAccounts(showWarning = true) {
         id: member.user.id,
         storeUserId: member.id,
         email: member.user.email,
-        name: member.user.nickname || member.user.email,
+        name: resolveMemberDisplayName(member),
         role: member.role,
         isActive: member.isActive,
         roles: member.roles || [],
@@ -1033,6 +1069,10 @@ async function submitTransferOwner() {
 }
 
 async function submitMember() {
+  if (memberSubmitting.value) {
+    return
+  }
+
   if (!accountForm.value.email) {
     ElMessage.warning(t('settingsStage4.accountList.messages.emailRequired'))
     return
@@ -1049,14 +1089,27 @@ async function submitMember() {
   }
 
   try {
+    memberSubmitting.value = true
+
     if (accountForm.value.id) {
+      const name = accountForm.value.name.trim()
+      if (!name) {
+        accountNameError.value = `${t('settingsStage4.accountList.fields.employeeName')} ${t(
+          'settingsStage4.autoCheckin.status.required'
+        )}`
+        ElMessage.warning(accountNameError.value)
+        return
+      }
+
       const response = await updateStoreMemberPermission(
         storeStore.currentStore.id,
         accountForm.value.id,
-        {
-          roleIds: selectedAccountRoles.value,
-          extraPermissions,
-        }
+        buildMemberUpdatePayload(
+          accountEditSnapshot.value,
+          name,
+          selectedAccountRoles.value,
+          extraPermissions
+        )
       )
       if (!response.success) {
         ElMessage.error(response.message || t('settingsStage4.accountList.messages.updateMemberPermissionsFailed'))
@@ -1083,6 +1136,8 @@ async function submitMember() {
   } catch (error: any) {
     console.error('操作失败:', error)
     ElMessage.error(error?.response?.data?.message || t('settingsStage4.accountList.messages.operationFailed'))
+  } finally {
+    memberSubmitting.value = false
   }
 }
 
@@ -1093,14 +1148,24 @@ async function handleSetPermission(row: Account) {
   }
 
   try {
-    accountForm.value = { id: row.id, email: row.email, name: row.name }
+    accountNameError.value = ''
     const response = await getStoreMemberDetail(storeStore.currentStore.id, row.id)
     if (!response.success || !response.data) {
       ElMessage.error(response.message || t('settingsStage4.accountList.messages.loadMemberFailed'))
       return
     }
+    accountForm.value = {
+      id: response.data.user.id,
+      email: response.data.user.email,
+      name: resolveMemberDisplayName(response.data),
+    }
     selectedAccountRoles.value = response.data.roles.map((role) => role.id)
     applyExtraPermissions(response.data.extraPermissions || [])
+    accountEditSnapshot.value = {
+      name: accountForm.value.name.trim(),
+      roleIds: selectedAccountRoles.value.slice(),
+      extraPermissions: response.data.extraPermissions || [],
+    }
     drawerVisible.value = true
   } catch (error) {
     console.error('加载成员信息失败:', error)

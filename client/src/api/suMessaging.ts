@@ -1,6 +1,8 @@
 import request from '@/utils/request'
 
 const SU_MESSAGING_TIMEOUT_MS = 30_000
+const SU_MESSAGING_AI_DRAFT_TIMEOUT_MS = 60_000
+const SU_MESSAGING_TRANSLATION_TIMEOUT_MS = 60_000
 
 export enum SuMessagingSenderType {
   GUEST = 'GUEST',
@@ -120,6 +122,63 @@ export interface SuMessagingAiSetting {
   autoReplyEnabled: boolean
 }
 
+export interface SuMessageTranslationRequest {
+  targetLanguage: string
+}
+
+export interface SuMessageTranslationResponse {
+  messageId: number
+  targetLanguage: string
+  translatedContent: string
+  sourceContentHash: string
+  status: string
+  cached: boolean
+  translatedAt?: string | null
+}
+
+export interface SuMessageTranslationOptions {
+  timeoutMs?: number
+  suppressErrorToast?: boolean
+}
+
+export type SuMessagingAiReplyDraftRetrievalStatus =
+  | 'MATCHED'
+  | 'NO_MATCH'
+  | 'PARTIAL'
+  | 'FAILED'
+
+export interface SuMessagingAiReplyDraftRecentMessage {
+  direction: 'GUEST' | 'STAFF'
+  content: string
+  sentAt?: string
+}
+
+export interface SuMessagingAiReplyDraftRequest {
+  reservationId?: number
+  bookingId?: string
+  externalThreadId?: string
+  channel?: SuMessagingChannelCode
+  guestName?: string
+  roomId?: number
+  roomNumber?: string
+  roomTypeId?: number
+  roomTypeName?: string
+  latestGuestMessageId?: number
+  recentMessages?: SuMessagingAiReplyDraftRecentMessage[]
+  language?: string
+}
+
+export interface SuMessagingAiReplyDraftResponse {
+  draftReply?: string
+  retrievalStatus?: SuMessagingAiReplyDraftRetrievalStatus
+  warnings?: string[]
+}
+
+export interface SuMessagingAiReplyDraftOptions {
+  timeoutMs?: number
+  suppressErrorToast?: boolean
+}
+
 const buildParams = (source: Record<string, unknown>) => {
   const params: Record<string, unknown> = {}
   for (const key of Object.keys(source)) {
@@ -192,6 +251,35 @@ export const sendSuThreadMessage = (threadId: number, data: SuMessagingSendReque
     method: 'post',
     data,
     timeout: SU_MESSAGING_TIMEOUT_MS,
+  })
+}
+
+export const translateSuThreadMessage = (
+  threadId: number,
+  messageId: number,
+  data: SuMessageTranslationRequest,
+  options: SuMessageTranslationOptions = {},
+) => {
+  return request<SuMessageTranslationResponse>({
+    url: `/su-messaging/threads/${threadId}/messages/${messageId}/translation`,
+    method: 'post',
+    data,
+    timeout: options.timeoutMs || SU_MESSAGING_TRANSLATION_TIMEOUT_MS,
+    suppressErrorToast: options.suppressErrorToast,
+  })
+}
+
+export const generateSuMessagingAiReplyDraft = (
+  threadId: number,
+  data: SuMessagingAiReplyDraftRequest,
+  options: SuMessagingAiReplyDraftOptions = {},
+) => {
+  return request<SuMessagingAiReplyDraftResponse>({
+    url: `/su-messaging/threads/${threadId}/ai-reply-draft`,
+    method: 'post',
+    data,
+    timeout: options.timeoutMs || SU_MESSAGING_AI_DRAFT_TIMEOUT_MS,
+    suppressErrorToast: options.suppressErrorToast,
   })
 }
 

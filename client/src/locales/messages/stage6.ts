@@ -354,12 +354,14 @@ export const stage6Messages = {
           translation: {
             title: 'Message Translation',
             enableTitle: 'Translate Messages',
-            enableDescription: 'Enable automatic translation for the inbox list and conversation messages.',
+            enableDescription: 'Enable automatic translation for conversation messages.',
             defaultLanguageTitle: 'Default Language',
             defaultLanguageDescription: 'Messages will be translated into the language you select.',
             resultCacheDescription:
-              'Translated results are cached only in this browser and are not synced across devices.',
+              'Translations are saved on the server. This browser keeps a secondary cache for faster repeat display.',
             applySuccess: 'Translation settings updated',
+            backendFallbackWarning:
+              'Server translation cache is unavailable. Using local fallback translation for now.',
             saveFailed: 'Failed to save translation settings',
             languages: {
               zhCN: 'Simplified Chinese',
@@ -392,6 +394,18 @@ export const stage6Messages = {
             fallbackContextSummary:
               'Guest from {channel}, order number {orderNumber}. Latest question: {headline}',
             unknownChannel: 'Unknown channel',
+            retrievalNoMatch:
+              'No similar historical reply was found. A draft was generated from the current conversation.',
+            retrievalPartial:
+              'Only part of the historical context was available. Please review the draft before sending.',
+            retrievalFailed:
+              'Historical reply lookup failed. A draft was generated from the current conversation.',
+            retrievalContextLimited:
+              'Some conversation or booking context was unavailable. Please review the draft before sending.',
+            retrievalGenerationFallback:
+              'The draft was generated with a fallback path. Please review it before sending.',
+            retrievalWarningGeneric:
+              'The draft was generated with limited historical context. Please review it before sending.',
           },
           quickReplyDialog: {
             title: 'Quick Replies',
@@ -972,11 +986,12 @@ export const stage6Messages = {
           translation: {
             title: '消息翻译',
             enableTitle: '翻译消息',
-            enableDescription: '为当前收件箱列表和会话消息启用自动翻译',
+            enableDescription: '为会话消息启用自动翻译',
             defaultLanguageTitle: '选择默认语言',
             defaultLanguageDescription: '我们会把消息翻译成你选择的语言',
-            resultCacheDescription: '翻译结果仅缓存在当前浏览器本地，不会同步到其他设备',
+            resultCacheDescription: '译文会优先保存到后端，浏览器缓存仅用于加速重复显示。',
             applySuccess: '翻译设置已更新',
+            backendFallbackWarning: '后端翻译缓存暂时不可用，已改用本地降级翻译。',
             saveFailed: '翻译设置保存失败',
             languages: {
               zhCN: '中文(简体)',
@@ -1007,6 +1022,12 @@ export const stage6Messages = {
             fallbackHeadline: '住客咨询了入住相关问题',
             fallbackContextSummary: '住客来自 {channel}，订单号 {orderNumber}。最新问题：{headline}',
             unknownChannel: '未知渠道',
+            retrievalNoMatch: '未命中历史相似回复，已基于当前会话生成草稿。',
+            retrievalPartial: '仅获取到部分历史上下文，请发送前再检查草稿。',
+            retrievalFailed: '历史回复检索失败，已基于当前会话生成草稿。',
+            retrievalContextLimited: '部分会话或订单上下文暂时不可用，请发送前再检查草稿。',
+            retrievalGenerationFallback: 'AI 已使用降级方式生成草稿，请发送前再检查内容。',
+            retrievalWarningGeneric: '草稿生成时可用的历史上下文有限，请发送前再检查内容。',
           },
           quickReplyDialog: {
             title: '快捷回复',
@@ -1586,11 +1607,12 @@ export const stage6Messages = {
           translation: {
             title: '訊息翻譯',
             enableTitle: '翻譯訊息',
-            enableDescription: '為目前收件箱列表和會話訊息啟用自動翻譯',
+            enableDescription: '為會話訊息啟用自動翻譯',
             defaultLanguageTitle: '選擇預設語言',
             defaultLanguageDescription: '我們會把訊息翻譯成你選擇的語言',
-            resultCacheDescription: '翻譯結果僅快取在目前瀏覽器本機，不會同步到其他裝置',
+            resultCacheDescription: '譯文會優先儲存到後端，瀏覽器快取僅用於加速重複顯示。',
             applySuccess: '翻譯設定已更新',
+            backendFallbackWarning: '後端翻譯快取暫時不可用，已改用本機降級翻譯。',
             saveFailed: '翻譯設定儲存失敗',
             languages: {
               zhCN: '中文(簡體)',
@@ -1621,6 +1643,12 @@ export const stage6Messages = {
             fallbackHeadline: '住客諮詢了入住相關問題',
             fallbackContextSummary: '住客來自 {channel}，訂單號 {orderNumber}。最新問題：{headline}',
             unknownChannel: '未知渠道',
+            retrievalNoMatch: '未命中歷史相似回覆，已基於目前會話產生草稿。',
+            retrievalPartial: '僅取得部分歷史上下文，請傳送前再檢查草稿。',
+            retrievalFailed: '歷史回覆檢索失敗，已基於目前會話產生草稿。',
+            retrievalContextLimited: '部分會話或訂單上下文暫時不可用，請傳送前再檢查草稿。',
+            retrievalGenerationFallback: 'AI 已使用降級方式產生草稿，請傳送前再檢查內容。',
+            retrievalWarningGeneric: '草稿產生時可用的歷史上下文有限，請傳送前再檢查內容。',
           },
           quickReplyDialog: {
             title: '快捷回覆',
@@ -2200,12 +2228,14 @@ export const stage6Messages = {
           translation: {
             title: 'メッセージ翻訳',
             enableTitle: 'メッセージを翻訳',
-            enableDescription: '受信箱一覧と会話メッセージの自動翻訳を有効にします',
+            enableDescription: '会話メッセージの自動翻訳を有効にします',
             defaultLanguageTitle: '既定の言語を選択',
             defaultLanguageDescription: '選択した言語にメッセージを翻訳します',
             resultCacheDescription:
-              '翻訳結果はこのブラウザ内にのみ保存され、他の端末には同期されません。',
+              '翻訳結果はサーバーに保存されます。このブラウザのキャッシュは再表示を速くするためだけに使われます。',
             applySuccess: '翻訳設定を更新しました',
+            backendFallbackWarning:
+              'サーバー翻訳キャッシュを利用できません。一時的にローカルの代替翻訳を使用します。',
             saveFailed: '翻訳設定の保存に失敗しました',
             languages: {
               zhCN: '簡体中国語',
@@ -2238,6 +2268,18 @@ export const stage6Messages = {
             fallbackContextSummary:
               'ゲストのチャネル: {channel}、予約番号: {orderNumber}。最新の質問: {headline}',
             unknownChannel: '不明なチャネル',
+            retrievalNoMatch:
+              '類似する過去の返信は見つかりませんでした。現在の会話をもとにドラフトを生成しました。',
+            retrievalPartial:
+              '一部の履歴コンテキストのみ利用できました。送信前にドラフトを確認してください。',
+            retrievalFailed:
+              '過去返信の検索に失敗しました。現在の会話をもとにドラフトを生成しました。',
+            retrievalContextLimited:
+              '一部の会話または予約コンテキストを利用できませんでした。送信前にドラフトを確認してください。',
+            retrievalGenerationFallback:
+              'フォールバック方式でドラフトを生成しました。送信前に内容を確認してください。',
+            retrievalWarningGeneric:
+              '利用できる履歴コンテキストが限られた状態でドラフトを生成しました。送信前に内容を確認してください。',
           },
           quickReplyDialog: {
             title: 'クイック返信',

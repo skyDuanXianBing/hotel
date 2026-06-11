@@ -376,6 +376,15 @@ public class StoreService {
             throw new RuntimeException("Store owner must remain active");
         }
 
+        if (request.getName() != null) {
+            String normalizedName = request.getName().trim();
+            if (normalizedName.isEmpty()) {
+                throw new RuntimeException("员工姓名不能为空");
+            }
+            target.getUser().setName(normalizedName);
+            userRepository.save(target.getUser());
+        }
+
         if (request.getRole() != null) {
             target.setRole(request.getRole());
         }
@@ -670,6 +679,7 @@ public class StoreService {
         StoreUserDTO.UserSimpleDTO userDTO = new StoreUserDTO.UserSimpleDTO();
         userDTO.setId(user.getId());
         userDTO.setUsername(user.getUsername());
+        userDTO.setName(user.getName());
         userDTO.setEmail(user.getEmail());
         userDTO.setNickname(user.getNickname());
         userDTO.setAvatar(user.getAvatar());
@@ -899,16 +909,67 @@ public class StoreService {
         if (storeUser == null || storeUser.getId() == null) {
             return;
         }
-        storeUserPermissionRepository.deleteByStoreUser_Id(storeUser.getId());
-        if (extraPermissionDTOs == null || extraPermissionDTOs.isEmpty()) {
+
+        List<StoreUserPermission> existingPermissions = loadStoreUserExtraPermissions(storeUser.getId());
+        List<StoreUserPermission> normalizedPermissions = extraPermissionDTOs == null
+                ? Collections.emptyList()
+                : normalizeExtraPermissions(storeUser, extraPermissionDTOs);
+        Map<String, StoreUserPermission> existingByKey = new LinkedHashMap<>();
+        for (StoreUserPermission permission : existingPermissions) {
+            String key = buildStoreUserPermissionKey(permission);
+            if (key != null) {
+                existingByKey.putIfAbsent(key, permission);
+            }
+        }
+
+        Map<String, StoreUserPermission> requestedByKey = new LinkedHashMap<>();
+        for (StoreUserPermission permission : normalizedPermissions) {
+            String key = buildStoreUserPermissionKey(permission);
+            if (key != null) {
+                requestedByKey.putIfAbsent(key, permission);
+            }
+        }
+
+        List<StoreUserPermission> permissionsToDelete = new ArrayList<>();
+        for (Map.Entry<String, StoreUserPermission> entry : existingByKey.entrySet()) {
+            if (!requestedByKey.containsKey(entry.getKey())) {
+                permissionsToDelete.add(entry.getValue());
+            }
+        }
+        if (!permissionsToDelete.isEmpty()) {
+            storeUserPermissionRepository.deleteAll(permissionsToDelete);
+        }
+
+        List<StoreUserPermission> permissionsToSave = new ArrayList<>();
+        for (Map.Entry<String, StoreUserPermission> entry : requestedByKey.entrySet()) {
+            StoreUserPermission existing = existingByKey.get(entry.getKey());
+            StoreUserPermission requested = entry.getValue();
+            if (existing == null) {
+                permissionsToSave.add(requested);
+                continue;
+            }
+
+            if (!Objects.equals(existing.getAllRoomTypes(), requested.getAllRoomTypes())) {
+                existing.setAllRoomTypes(requested.getAllRoomTypes());
+                permissionsToSave.add(existing);
+            }
+        }
+
+        if (permissionsToSave.isEmpty()) {
             return;
         }
 
-        List<StoreUserPermission> normalized = normalizeExtraPermissions(storeUser, extraPermissionDTOs);
-        if (normalized.isEmpty()) {
-            return;
+        storeUserPermissionRepository.saveAll(permissionsToSave);
+    }
+
+    private static String buildStoreUserPermissionKey(StoreUserPermission permission) {
+        if (permission == null || permission.getModule() == null || permission.getAction() == null) {
+            return null;
         }
-        storeUserPermissionRepository.saveAll(normalized);
+
+        Long roomTypeId = permission.getRoomTypeId();
+        long normalizedRoomTypeId = roomTypeId == null ? 0L : roomTypeId;
+        return permission.getModule() + "|" + permission.getAction() + "|" + normalizedRoomTypeId;
     }
 
     private static List<StoreUserPermission> normalizeExtraPermissions(StoreUser storeUser, List<PermissionDTO> extraPermissionDTOs) {

@@ -85,14 +85,23 @@ public class ChatGptTranslationService implements AiTranslationService {
             throw new RuntimeException("TRANSLATION_REPLY_EMPTY");
         }
 
-        String json = extractJsonObject(reply.trim());
+        String trimmedReply = reply.trim();
+        String json = extractJsonObject(trimmedReply);
+        if (json == null) {
+            String plainText = normalizePlainTextTranslation(trimmedReply);
+            if (plainText.isBlank()) {
+                throw new RuntimeException("TRANSLATION_BLANK_RESULT");
+            }
+            return plainText;
+        }
+
         try {
             JsonNode root = OBJECT_MAPPER.readTree(json);
             JsonNode translationNode = root.get("translation");
             if (translationNode == null || translationNode.isNull()) {
                 throw new RuntimeException("TRANSLATION_FIELD_MISSING");
             }
-            return translationNode.asText();
+            return normalizePlainTextTranslation(translationNode.asText());
         } catch (Exception ex) {
             String message = ex.getMessage() == null ? "TRANSLATION_JSON_PARSE_FAILED" : ex.getMessage();
             throw new RuntimeException(message, ex);
@@ -100,12 +109,59 @@ public class ChatGptTranslationService implements AiTranslationService {
     }
 
     private static String extractJsonObject(String value) {
+        if (!looksLikeTranslationJson(value)) {
+            return null;
+        }
         int start = value.indexOf('{');
         int end = value.lastIndexOf('}');
         if (start < 0 || end < start) {
-            throw new RuntimeException("TRANSLATION_JSON_NOT_FOUND");
+            return null;
         }
         return value.substring(start, end + 1);
+    }
+
+    private static boolean looksLikeTranslationJson(String value) {
+        return value.contains("\"translation\"") || value.contains("'translation'");
+    }
+
+    private static String normalizePlainTextTranslation(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String normalized = stripCodeFence(value.trim());
+        normalized = normalized.replaceFirst(
+                "(?i)^(translation|translated text|result|\\u8bd1\\u6587|\\u7ffb\\u8bd1)\\s*[:\\uFF1A]\\s*",
+                ""
+        );
+        normalized = stripWrappingQuotes(normalized.trim());
+        return normalized.trim();
+    }
+
+    private static String stripCodeFence(String value) {
+        if (!value.startsWith("```")) {
+            return value;
+        }
+        String withoutOpeningFence = value.replaceFirst("^```[a-zA-Z]*\\s*", "");
+        int closingFenceIndex = withoutOpeningFence.lastIndexOf("```");
+        if (closingFenceIndex >= 0) {
+            return withoutOpeningFence.substring(0, closingFenceIndex).trim();
+        }
+        return withoutOpeningFence.trim();
+    }
+
+    private static String stripWrappingQuotes(String value) {
+        if (value.length() < 2) {
+            return value;
+        }
+        char first = value.charAt(0);
+        char last = value.charAt(value.length() - 1);
+        if (first == '"' && last == '"') {
+            return value.substring(1, value.length() - 1);
+        }
+        if (first == '\'' && last == '\'') {
+            return value.substring(1, value.length() - 1);
+        }
+        return value;
     }
 
     private static RegistrationTargetLanguage normalizeTargetLanguage(RegistrationTargetLanguage targetLanguage) {

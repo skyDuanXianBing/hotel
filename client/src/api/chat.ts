@@ -84,26 +84,69 @@ const buildTranslationPrompt = (payload: TranslationPayload, strictMode = false)
 const createTranslationSessionId = () =>
   `translation_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 
+const stripTranslationCodeFence = (value: string) => {
+  if (!value.startsWith('```')) {
+    return value
+  }
+
+  const withoutOpeningFence = value.replace(/^```[a-zA-Z]*\s*/, '')
+  const closingFenceIndex = withoutOpeningFence.lastIndexOf('```')
+  if (closingFenceIndex >= 0) {
+    return withoutOpeningFence.slice(0, closingFenceIndex).trim()
+  }
+  return withoutOpeningFence.trim()
+}
+
+const stripWrappingQuotes = (value: string) => {
+  if (value.length < 2) {
+    return value
+  }
+
+  const firstChar = value[0]
+  const lastChar = value[value.length - 1]
+  if (firstChar === '"' && lastChar === '"') {
+    return value.slice(1, -1)
+  }
+  if (firstChar === "'" && lastChar === "'") {
+    return value.slice(1, -1)
+  }
+  return value
+}
+
+const normalizeTranslationText = (value?: string) => {
+  const trimmedValue = (value || '').trim()
+  if (!trimmedValue) {
+    return ''
+  }
+
+  const withoutCodeFence = stripTranslationCodeFence(trimmedValue)
+  const withoutLabel = withoutCodeFence
+    .replace(/^(translation|translated text|result|\u8bd1\u6587|\u7ffb\u8bd1)\s*[:：]\s*/i, '')
+    .trim()
+  return stripWrappingQuotes(withoutLabel).trim()
+}
+
 const extractTranslationFromReply = (replyText?: string) => {
-  const trimmedReply = (replyText || '').trim()
+  const trimmedReply = normalizeTranslationText(replyText)
   if (!trimmedReply) {
     return ''
   }
 
   const jsonBlockMatch = trimmedReply.match(/\{[\s\S]*\}/)
-  if (!jsonBlockMatch) {
-    return ''
+  if (jsonBlockMatch) {
+    try {
+      const parsed = JSON.parse(jsonBlockMatch[0]) as { translation?: unknown }
+      if (typeof parsed.translation === 'string') {
+        return normalizeTranslationText(parsed.translation)
+      }
+    } catch {
+      if (trimmedReply.startsWith('{') && trimmedReply.endsWith('}')) {
+        return ''
+      }
+    }
   }
 
-  try {
-    const parsed = JSON.parse(jsonBlockMatch[0]) as { translation?: unknown }
-    if (typeof parsed.translation === 'string') {
-      return parsed.translation.trim()
-    }
-    return ''
-  } catch {
-    return ''
-  }
+  return trimmedReply
 }
 
 const postChatMessage = (data: ChatMessageRequest, options?: ChatMessageRequestOptions) => {

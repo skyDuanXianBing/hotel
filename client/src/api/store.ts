@@ -104,6 +104,7 @@ export interface UpdateStoreMemberPermissionRequest {
   roleIds?: number[]
   isActive?: boolean
   extraPermissions?: PermissionDTO[]
+  name?: string
 }
 
 export interface TransferStoreOwnerRequest {
@@ -120,6 +121,7 @@ export interface RoleDTO {
 export interface UserSimpleDTO {
   id: number
   username: string
+  name?: string
   email: string
   nickname?: string
   avatar?: string

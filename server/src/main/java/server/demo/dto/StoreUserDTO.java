@@ -88,6 +88,7 @@ public class StoreUserDTO {
     public static class UserSimpleDTO {
         private Long id;
         private String username;
+        private String name;
         private String email;
         private String nickname;
         private String avatar;
@@ -109,6 +110,14 @@ public class StoreUserDTO {
 
         public void setUsername(String username) {
             this.username = username;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
         }
 
         public String getEmail() {
@@ -144,4 +153,3 @@ public class StoreUserDTO {
         }
     }
 }
-
