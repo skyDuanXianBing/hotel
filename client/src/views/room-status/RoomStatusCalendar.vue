@@ -5,29 +5,29 @@
       <!-- 头部工具栏 -->
       <div class="header-toolbar">
         <div class="date-navigation">
-          <el-button @click="previousWeek" :icon="ArrowLeft" circle />
+          <el-button class="nav-arrow-button" @click="previousWeek" :icon="ArrowLeft" circle />
+          <el-button class="today-button" @click="goToToday">{{
+            t('accommodation.common.backToToday')
+          }}</el-button>
           <el-date-picker
             v-model="visibleDateRange"
+            class="date-range-picker"
             type="daterange"
-            range-separator="-"
+            :range-separator="t('accommodation.common.rangeTo')"
             :start-placeholder="t('accommodation.common.startDate')"
             :end-placeholder="t('accommodation.common.endDate')"
-            format="YYYY-MM-DD"
+            format="YYYY/MM/DD"
             value-format="YYYY-MM-DD"
             :clearable="false"
           />
-          <el-button @click="goToToday">{{ t('roomStatus.common.today') }}</el-button>
-          <el-button @click="nextWeek" :icon="ArrowRight" circle />
-        </div>
-
-        <div class="toolbar-actions">
+          <el-button class="nav-arrow-button" @click="nextWeek" :icon="ArrowRight" circle />
           <el-autocomplete
             v-model="searchKeyword"
+            class="toolbar-search"
             :fetch-suggestions="querySearchAsync"
             :placeholder="t('roomStatus.common.searchPlaceholder')"
             :prefix-icon="Search"
             clearable
-            style="width: 400px; margin-right: 10px"
             @select="handleSearchSelect"
             @input="handleSearchInput"
             :trigger-on-focus="false"
@@ -57,10 +57,12 @@
               </div>
             </template>
           </el-autocomplete>
+        </div>
 
+        <div class="toolbar-actions">
           <!-- 批量置脏/净下拉菜单 -->
           <el-dropdown @command="handleBatchCleanCommand">
-            <el-button type="primary">
+            <el-button class="toolbar-primary-button toolbar-clean-button" type="primary">
               {{ t('roomStatus.batchClean.dropdown') }} <el-icon><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
@@ -77,7 +79,7 @@
 
           <!-- 批量开/关房下拉菜单 -->
           <el-dropdown @command="handleBatchRoomCommand">
-            <el-button type="primary">
+            <el-button class="toolbar-primary-button toolbar-room-button" type="primary">
               {{ t('roomStatus.batchRoom.dropdown') }} <el-icon><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
@@ -93,6 +95,7 @@
           </el-dropdown>
 
           <el-button
+            class="price-toggle-button"
             :type="showCellDefaultPrice ? 'primary' : 'default'"
             @click="showCellDefaultPrice = !showCellDefaultPrice"
           >
@@ -128,16 +131,17 @@
           <div class="date-header">
             <div class="header-cell sticky-left-primary">
               <div class="header-cell-content clickable-header" @click="toggleFilterSidebar">
-                {{ t('roomStatus.common.filter') }} <el-icon><ArrowDown /></el-icon>
+                <span class="header-cell-label">{{ t('roomStatus.common.filter') }}</span>
+                <el-icon><ArrowDown /></el-icon>
               </div>
             </div>
             <div class="header-cell sticky-left-secondary">
               <div class="header-cell-content clickable-header" @click="toggleRoomCollapse">
-                {{
+                <span class="header-cell-label">{{
                   isRoomCollapsed
                     ? t('accommodation.common.expand')
                     : t('accommodation.common.collapse')
-                }}
+                }}</span>
                 <el-icon><component :is="isRoomCollapsed ? ArrowDown : ArrowUp" /></el-icon>
               </div>
             </div>
@@ -310,7 +314,13 @@
                   v-if="shouldDisplayCellDefaultPrice(roomData, dailyStatus)"
                   class="cell-default-price"
                 >
-                  ¥{{ getCellDisplayPriceText(roomData, dailyStatus) }}
+                  <div class="cell-default-price-main">
+                    ¥{{ getCellDisplayPriceText(roomData, dailyStatus) }}
+                  </div>
+                  <div class="cell-default-price-meta">
+                    <el-icon><Moon /></el-icon>
+                    <span>{{ getCellDisplayMinStay(roomData, dailyStatus) }}</span>
+                  </div>
                 </div>
 
                 <div
@@ -320,6 +330,7 @@
                   <div
                     class="reservation-ribbon"
                     :class="{ 'reservation-draggable': canDragReservationAtCell(dailyStatus) }"
+                    :style="getReservationRibbonStyle(dailyStatus)"
                     :draggable="canDragReservationAtCell(dailyStatus)"
                     @mousedown.stop
                     @dragstart="onReservationDragStart($event, roomData, dailyStatus)"
@@ -331,11 +342,7 @@
                       </div>
                       <div
                         class="reservation-channel-badge"
-                        :style="{
-                          backgroundColor:
-                            getChannelByName(dailyStatus.reservation.channel)?.color || '#409EFF',
-                          color: 'white',
-                        }"
+                        :style="getReservationChannelBadgeStyle(dailyStatus)"
                       >
                         {{ dailyStatus.reservation.channel }}
                       </div>
@@ -2428,6 +2435,7 @@ import {
   User,
   Calendar,
   Shop,
+  Moon,
   Tools,
   Remove,
   Delete,
@@ -3208,6 +3216,8 @@ const loadedCalendarManagementPriceRangeSignature = ref('')
 const loadedCalendarDefaultPriceRangeSignature = ref('')
 const calendarManagementPriceMap = ref<Map<string, number>>(new Map())
 const calendarDefaultManagementPriceMap = ref<Map<string, number>>(new Map())
+const calendarManagementMinStayMap = ref<Map<string, number>>(new Map())
+const calendarDefaultManagementMinStayMap = ref<Map<string, number>>(new Map())
 const DEFAULT_SORT_ORDER = 999999
 const roomTypeIdMap = ref<Map<string, number>>(new Map())
 const roomTypeSortOrderMap = ref<Record<number, number>>({})
@@ -3397,11 +3407,13 @@ const buildCalendarDefaultPriceKey = (roomTypeId: number, date: string) => {
 
 const resetCalendarManagementPriceCache = () => {
   calendarManagementPriceMap.value = new Map()
+  calendarManagementMinStayMap.value = new Map()
   loadedCalendarManagementPriceRangeSignature.value = ''
 }
 
 const resetCalendarDefaultManagementPriceCache = () => {
   calendarDefaultManagementPriceMap.value = new Map()
+  calendarDefaultManagementMinStayMap.value = new Map()
   loadedCalendarDefaultPriceRangeSignature.value = ''
 }
 
@@ -3442,11 +3454,13 @@ const loadCalendarDefaultManagementPrices = async (force = false) => {
 
     const roomTypeIdSet = new Set(roomTypeIds)
     const nextPriceMap = new Map<string, number>()
+    const nextMinStayMap = new Map<string, number>()
     managementRows.forEach((item) => {
       const roomTypeId = Number(item.roomTypeId || 0)
       const planId = Number(item.pricePlanId || 0)
       const priceDate = String(item.priceDate || '')
       const price = Number(item.price || 0)
+      const minStay = Number(item.minStay || 0)
 
       if (!roomTypeIdSet.has(roomTypeId) || !priceDate) {
         return
@@ -3458,10 +3472,15 @@ const loadCalendarDefaultManagementPrices = async (force = false) => {
         return
       }
 
-      nextPriceMap.set(buildCalendarDefaultPriceKey(roomTypeId, priceDate), price)
+      const key = buildCalendarDefaultPriceKey(roomTypeId, priceDate)
+      nextPriceMap.set(key, price)
+      if (Number.isFinite(minStay) && minStay > 0) {
+        nextMinStayMap.set(key, minStay)
+      }
     })
 
     calendarDefaultManagementPriceMap.value = nextPriceMap
+    calendarDefaultManagementMinStayMap.value = nextMinStayMap
     loadedCalendarDefaultPriceRangeSignature.value = rangeSignature
   } catch (error) {
     console.error('加载房价管理默认价格失败:', error)
@@ -3509,11 +3528,13 @@ const loadCalendarManagementPrices = async (force = false) => {
 
     const roomTypeIdSet = new Set(roomTypeIds)
     const nextPriceMap = new Map<string, number>()
+    const nextMinStayMap = new Map<string, number>()
     managementRows.forEach((item) => {
       const roomTypeId = Number(item.roomTypeId || 0)
       const planId = Number(item.pricePlanId || 0)
       const priceDate = String(item.priceDate || '')
       const price = Number(item.price || 0)
+      const minStay = Number(item.minStay || 0)
 
       if (!roomTypeIdSet.has(roomTypeId) || !planId || !priceDate) {
         return
@@ -3525,10 +3546,15 @@ const loadCalendarManagementPrices = async (force = false) => {
         return
       }
 
-      nextPriceMap.set(buildCalendarManagementPriceKey(roomTypeId, planId, priceDate), price)
+      const key = buildCalendarManagementPriceKey(roomTypeId, planId, priceDate)
+      nextPriceMap.set(key, price)
+      if (Number.isFinite(minStay) && minStay > 0) {
+        nextMinStayMap.set(key, minStay)
+      }
     })
 
     calendarManagementPriceMap.value = nextPriceMap
+    calendarManagementMinStayMap.value = nextMinStayMap
     loadedCalendarManagementPriceRangeSignature.value = rangeSignature
   } catch (error) {
     console.error('加载房价管理价格失败:', error)
@@ -3659,6 +3685,32 @@ const getCellDisplayPriceText = (roomData: CalendarRoomData, dailyStatus: DailyR
     return ''
   }
   return Number(priceValue).toFixed(2)
+}
+
+const getCellDisplayMinStay = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
+  const roomTypeId = roomTypeIdMap.value.get(roomData.roomType)
+  if (!roomTypeId) {
+    return 1
+  }
+
+  if (cellPriceDisplaySource.value === 'default') {
+    return (
+      calendarDefaultManagementMinStayMap.value.get(
+        buildCalendarDefaultPriceKey(roomTypeId, dailyStatus.date),
+      ) ?? 1
+    )
+  }
+
+  const selectedPlanId = getSelectedCellPricePlanId()
+  if (!selectedPlanId) {
+    return 1
+  }
+
+  return (
+    calendarManagementMinStayMap.value.get(
+      buildCalendarManagementPriceKey(roomTypeId, selectedPlanId, dailyStatus.date),
+    ) ?? 1
+  )
 }
 
 const shouldDisplayCellDefaultPrice = (
@@ -4023,11 +4075,12 @@ const formatMonthDay = (date: string) => {
   }
 
   const { month, day } = formatYmdMonthDay(date)
-  return `${month}/${day}`
+  return `${month}-${day}`
 }
 
 const getWeekday = (date: string) => {
-  return weekdayShortMap.value[getYmdWeekdayIndex(date)]
+  const weekdayText = weekdayShortMap.value[getYmdWeekdayIndex(date)] || ''
+  return weekdayText.replace(/^周/, '')
 }
 
 const getDayOfWeek = (date: string) => {
@@ -4148,6 +4201,125 @@ const isNoShowStatus = (status: string) => {
   return status === 'NO_SHOW' || status === 'no_show'
 }
 
+const normalizeHexColor = (color: string | undefined | null) => {
+  const value = String(color || '').trim()
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)) {
+    return '#409eff'
+  }
+
+  if (value.length === 4) {
+    return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`
+  }
+
+  return value
+}
+
+const mixHexColor = (color: string, target: string, ratio: number) => {
+  const source = normalizeHexColor(color).slice(1)
+  const destination = normalizeHexColor(target).slice(1)
+  const clampedRatio = Math.max(0, Math.min(1, ratio))
+
+  const mixed = [0, 2, 4]
+    .map((offset) => {
+      const sourceValue = parseInt(source.slice(offset, offset + 2), 16)
+      const destinationValue = parseInt(destination.slice(offset, offset + 2), 16)
+      const value = Math.round(
+        sourceValue + (destinationValue - sourceValue) * clampedRatio,
+      )
+      return value.toString(16).padStart(2, '0')
+    })
+    .join('')
+
+  return `#${mixed}`
+}
+
+const getReservationBaseChannelColor = (reservation: Record<string, any> | null | undefined) => {
+  const channelName = String(
+    reservation?.channel || reservation?.channelName || t('roomStatus.common.defaultChannel'),
+  )
+  return normalizeHexColor(getChannelByName(channelName)?.color || '#409eff')
+}
+
+const getReservationDisplayStatus = (dailyStatus: DailyRoomStatus) => {
+  const reservationStatus = String(
+    dailyStatus.reservation?.status || (dailyStatus.reservation as any)?.reservationStatus || '',
+  )
+    .trim()
+    .toUpperCase()
+
+  if (reservationStatus) {
+    return reservationStatus
+  }
+
+  const roomStatus = String(dailyStatus.status || '')
+    .trim()
+    .toUpperCase()
+
+  if (roomStatus === 'OCCUPIED') {
+    return ReservationStatus.CHECKED_IN
+  }
+
+  if (roomStatus === 'RESERVED') {
+    return ReservationStatus.CONFIRMED
+  }
+
+  return ReservationStatus.CONFIRMED
+}
+
+const getReservationRibbonPalette = (dailyStatus: DailyRoomStatus) => {
+  const status = getReservationDisplayStatus(dailyStatus)
+  const channelColor = getReservationBaseChannelColor(dailyStatus.reservation)
+
+  if (
+    isCheckedOutStatus(status) ||
+    isCancelledStatus(status) ||
+    isNoShowStatus(status)
+  ) {
+    return {
+      background: 'linear-gradient(180deg, #ececec 0%, #dddddd 100%)',
+      borderColor: '#cfcfcf',
+      textColor: '#6f6f6f',
+      badgeColor: '#8f8f8f',
+      badgeTextColor: '#ffffff',
+    }
+  }
+
+  if (isCheckedInStatus(status)) {
+    return {
+      background: `linear-gradient(180deg, ${mixHexColor(channelColor, '#ffffff', 0.18)} 0%, ${mixHexColor(channelColor, '#0f172a', 0.12)} 100%)`,
+      borderColor: mixHexColor(channelColor, '#0f172a', 0.18),
+      textColor: '#ffffff',
+      badgeColor: mixHexColor(channelColor, '#0f172a', 0.28),
+      badgeTextColor: '#ffffff',
+    }
+  }
+
+  return {
+    background: `linear-gradient(180deg, ${mixHexColor(channelColor, '#ffffff', 0.72)} 0%, ${mixHexColor(channelColor, '#ffffff', 0.58)} 100%)`,
+    borderColor: mixHexColor(channelColor, '#ffffff', 0.42),
+    textColor: mixHexColor(channelColor, '#111827', 0.46),
+    badgeColor: channelColor,
+    badgeTextColor: '#ffffff',
+  }
+}
+
+const getReservationRibbonStyle = (dailyStatus: DailyRoomStatus) => {
+  const palette = getReservationRibbonPalette(dailyStatus)
+  return {
+    background: palette.background,
+    boxShadow: `inset 0 0 0 1px ${palette.borderColor}`,
+    color: palette.textColor,
+  }
+}
+
+const getReservationChannelBadgeStyle = (dailyStatus: DailyRoomStatus) => {
+  const palette = getReservationRibbonPalette(dailyStatus)
+  return {
+    backgroundColor: palette.badgeColor,
+    color: palette.badgeTextColor,
+  }
+}
+
 const loadCalendarData = async () => {
   await loadSortOrderMaps()
 
@@ -4200,7 +4372,10 @@ const loadRoomStatusCalendarData = async () => {
                   adults: 1,
                   children: 0,
                   totalAmount: 0,
-                  status: ReservationStatus.CONFIRMED,
+                  status:
+                    daily.reservation.status ||
+                    (daily.reservation as any).reservationStatus ||
+                    undefined,
                 }
               : null,
           })),
@@ -7357,7 +7532,8 @@ onActivated(async () => {
 
 /* 视图容器样式 */
 .calendar-view {
-  padding: 20px;
+  padding: 20px 24px 28px;
+  background: #f5f5f5;
 }
 
 .daily-content,
@@ -7370,40 +7546,70 @@ onActivated(async () => {
 
 .header-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 15px;
+  justify-content: space-between;
+  min-width: 1200px;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #efebe4;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(33, 37, 41, 0.06);
+  box-sizing: border-box;
 }
 
 .date-navigation {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .cell-price-source-select {
-  width: 180px;
+  width: 128px;
+  flex: 0 0 128px;
 }
 
 .calendar-content {
-  --calendar-primary-column-width: 120px;
-  --calendar-secondary-column-width: 120px;
-  --calendar-date-column-width: 120px;
-  background: white;
-  border-radius: 8px;
+  --calendar-scale: 0.69;
+  --calendar-primary-column-width: calc(144px * var(--calendar-scale));
+  --calendar-secondary-column-width: calc(144px * var(--calendar-scale));
+  --calendar-date-column-width: calc(144px * var(--calendar-scale));
+  --calendar-header-height: calc(72px * var(--calendar-scale));
+  --calendar-row-height: calc(96px * var(--calendar-scale));
+  --calendar-date-padding-top: calc(8px * var(--calendar-scale));
+  --calendar-date-padding-x: calc(10px * var(--calendar-scale));
+  --calendar-date-padding-bottom: calc(10px * var(--calendar-scale));
+  --calendar-room-padding-y: calc(18px * var(--calendar-scale));
+  --calendar-room-padding-x: calc(14px * var(--calendar-scale));
+  --calendar-header-font-size: calc(15px * var(--calendar-scale));
+  --calendar-date-font-size: calc(15px * var(--calendar-scale));
+  --calendar-weekday-font-size: calc(12px * var(--calendar-scale));
+  --calendar-meta-font-size: calc(11px * var(--calendar-scale));
+  --calendar-room-type-font-size: calc(12px * var(--calendar-scale));
+  --calendar-room-number-font-size: calc(15px * var(--calendar-scale));
+  --calendar-reservation-name-font-size: calc(14px * var(--calendar-scale));
+  --calendar-channel-badge-font-size: calc(11px * var(--calendar-scale));
+  --calendar-price-font-size: calc(12px * var(--calendar-scale));
+  --calendar-price-meta-font-size: calc(11px * var(--calendar-scale));
+  background: #fafafa;
+  border: 1px solid #eee6da;
+  border-radius: 6px;
   overflow: auto;
   max-height: calc(100vh - 220px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 32px rgba(28, 32, 36, 0.08);
   position: relative;
   isolation: isolate;
 }
@@ -7417,8 +7623,8 @@ onActivated(async () => {
 
 .date-header {
   display: flex;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+  background: #fff;
+  border-bottom: 1px solid #eee6da;
   width: fit-content;
   min-width: 100%;
   position: sticky;
@@ -7436,8 +7642,8 @@ onActivated(async () => {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  background: #f8f9fa;
-  box-shadow: inset -1px 0 0 #e9ecef;
+  background: #fbfbfb;
+  box-shadow: inset -1px 0 0 #eee6da;
 }
 
 .header-cell.sticky-left-secondary {
@@ -7465,7 +7671,7 @@ onActivated(async () => {
 .date-header .sticky-left-primary,
 .date-header .sticky-left-secondary {
   z-index: 34;
-  background: #f8f9fa;
+  background: #fbfbfb;
 }
 
 .room-row .sticky-left-primary,
@@ -7476,38 +7682,47 @@ onActivated(async () => {
 
 .header-cell-content {
   width: 100%;
-  min-height: 60px;
-  padding: 15px 10px;
+  min-height: var(--calendar-header-height);
+  padding: calc(12px * var(--calendar-scale)) calc(16px * var(--calendar-scale));
   text-align: center;
-  font-weight: bold;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 8px;
   box-sizing: border-box;
+  white-space: normal;
 }
 
 .clickable-header {
   cursor: pointer;
-  transition: all 0.2s ease;
-  background: white;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   position: relative;
-  min-height: 60px;
+  min-height: var(--calendar-header-height);
+  color: #272a30;
+  font-size: var(--calendar-header-font-size);
+  font-weight: 600;
+  text-align: center;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1.35;
 }
 
 .clickable-header:hover {
-  background-color: #f0f7ff;
-  border-color: #91d5ff;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
-  transform: translateY(-1px);
+  background-color: #edf5ff;
+  color: #1f78f0;
 }
 
 .clickable-header:active {
-  background-color: #e6f7ff;
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(24, 144, 255, 0.2);
+  background-color: #f2f2f2;
 }
 
 .date-column {
@@ -7515,39 +7730,64 @@ onActivated(async () => {
   min-width: var(--calendar-date-column-width);
   max-width: var(--calendar-date-column-width);
   flex: 0 0 var(--calendar-date-column-width);
-  padding: 10px;
-  border-right: 1px solid #e9ecef;
+  min-height: var(--calendar-header-height);
+  padding: var(--calendar-date-padding-top) var(--calendar-date-padding-x)
+    var(--calendar-date-padding-bottom);
+  border-right: 1px solid #eee6da;
   text-align: center;
-  background: inherit;
+  background: #fff;
   box-sizing: border-box;
 }
 
 .date-column.weekend {
-  background: #fff7e6;
+  background: #fff;
 }
 
 .date-column.today {
-  background: #e6f7ff;
-  font-weight: bold;
+  background: linear-gradient(180deg, #4ca3ff 0%, #3793f6 100%);
+  font-weight: 700;
 }
 
 .date-info {
-  font-weight: bold;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4px * var(--calendar-scale));
+  font-weight: 700;
 }
 
 .month-day {
-  font-size: 14px;
+  font-size: var(--calendar-date-font-size);
+  line-height: 1.2;
+  color: #23262b;
 }
 
 .weekday {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--calendar-weekday-font-size);
+  line-height: 1.1;
+  color: #3f4650;
 }
 
 .date-time {
-  font-size: 10px;
-  color: #999;
-  margin-top: 5px;
+  font-size: var(--calendar-meta-font-size);
+  color: #a4a09a;
+  margin-top: calc(8px * var(--calendar-scale));
+  line-height: 1.1;
+}
+
+.date-column.today .month-day,
+.date-column.today .weekday,
+.date-column.today .date-time {
+  color: #fff;
+}
+
+.date-column.weekend:not(.today) .month-day,
+.date-column.weekend:not(.today) .weekday {
+  color: #f25555;
+}
+
+.date-column.weekend:not(.today) .date-time {
+  color: #a4a09a;
 }
 
 /* 空状态样式 */
@@ -7582,7 +7822,7 @@ onActivated(async () => {
 
 .room-row {
   display: flex;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #eee6da;
   width: fit-content;
   min-width: 100%;
 }
@@ -7599,7 +7839,7 @@ onActivated(async () => {
   justify-content: center;
   box-sizing: border-box;
   background: #fff;
-  box-shadow: inset -1px 0 0 #e9ecef;
+  box-shadow: inset -1px 0 0 #eee6da;
 }
 
 .room-number-cell {
@@ -7611,8 +7851,8 @@ onActivated(async () => {
 
 .room-cell-content {
   width: 100%;
-  min-height: 76px;
-  padding: 20px 10px;
+  min-height: var(--calendar-row-height);
+  padding: var(--calendar-room-padding-y) var(--calendar-room-padding-x);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7621,37 +7861,37 @@ onActivated(async () => {
 
 .clickable-cell {
   cursor: pointer;
-  transition: all 0.2s ease;
-  background: white;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  min-height: 76px;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  min-height: var(--calendar-row-height);
   position: relative;
   width: 100%;
   box-sizing: border-box;
 }
 
 .clickable-cell:hover {
-  background-color: #f0f7ff;
-  border-color: #91d5ff;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
-  transform: translateY(-1px);
+  background-color: #edf5ff;
 }
 
 .clickable-cell:active {
-  background-color: #e6f7ff;
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(24, 144, 255, 0.2);
+  background-color: #dfefff;
 }
 
 .room-type {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--calendar-room-type-font-size);
+  line-height: 1.45;
+  color: #6b717b;
 }
 
 .room-number {
-  font-weight: bold;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: var(--calendar-room-number-font-size);
+  line-height: 1.2;
+  color: #17191d;
   position: relative;
 }
 
@@ -7664,9 +7904,10 @@ onActivated(async () => {
   min-width: var(--calendar-date-column-width);
   max-width: var(--calendar-date-column-width);
   flex: 0 0 var(--calendar-date-column-width);
-  min-height: 80px;
-  border-right: 1px solid #e9ecef;
-  padding: 4px;
+  min-height: var(--calendar-row-height);
+  border-right: 1px solid #cce9ac;
+  border-bottom: 1px solid #cce9ac;
+  padding: 0;
   cursor: pointer;
   position: relative;
   display: flex;
@@ -7677,7 +7918,7 @@ onActivated(async () => {
 }
 
 .status-cell:hover {
-  background: #f0f0f0;
+  background: #f7faef;
 }
 
 .status-cell.room-change-drop-target {
@@ -7687,23 +7928,27 @@ onActivated(async () => {
 }
 
 .status-available {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
+  background: #effadb;
+  border-top: 1px solid #d7efbc;
+  border-left: 1px solid #d7efbc;
 }
 
 .status-occupied {
-  background: #fff2e8;
-  border: 1px solid #ffbb96;
+  background: #fff3ea;
+  border-top: 1px solid #f4d1b7;
+  border-left: 1px solid #f4d1b7;
 }
 
 .status-reserved {
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
+  background: #edf7ff;
+  border-top: 1px solid #c7e1f8;
+  border-left: 1px solid #c7e1f8;
 }
 
 .status-cell.has-reservation {
-  background: #f7e1cc;
-  border-color: #e6b78b;
+  background: transparent;
+  border-top-color: transparent;
+  border-left-color: transparent;
   padding: 0;
   overflow: hidden;
 }
@@ -7735,13 +7980,15 @@ onActivated(async () => {
 }
 
 .status-maintenance {
-  background: #fff1f0;
-  border: 1px solid #ffa39e;
+  background: #fff3f2;
+  border-top: 1px solid #f0c1bb;
+  border-left: 1px solid #f0c1bb;
 }
 
 .status-out_of_order {
-  background: #f6f6f6;
-  border: 1px solid #d9d9d9;
+  background: #f4f4f4;
+  border-top: 1px solid #d7d7d7;
+  border-left: 1px solid #d7d7d7;
 }
 
 .reservation-cell-info {
@@ -7757,11 +8004,12 @@ onActivated(async () => {
   min-height: 100%;
   height: 100%;
   border-radius: 0;
-  background: transparent;
+  background: linear-gradient(180deg, rgba(252, 208, 180, 0.95) 0%, rgba(248, 200, 171, 0.95) 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 6px 8px;
+  padding: calc(10px * var(--calendar-scale)) calc(14px * var(--calendar-scale));
+  box-shadow: inset 0 0 0 1px rgba(230, 177, 135, 0.7);
 }
 
 .reservation-ribbon.reservation-draggable {
@@ -7774,13 +8022,13 @@ onActivated(async () => {
 }
 
 .status-cell.reservation-start-cell .reservation-ribbon {
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
 }
 
 .status-cell.reservation-end-cell .reservation-ribbon {
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 .reservation-note-indicator {
@@ -7811,11 +8059,11 @@ onActivated(async () => {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 28px;
+  min-height: var(--calendar-row-height);
 }
 
 .collapsed-status-text {
-  font-size: 20px;
+  font-size: calc(20px * var(--calendar-scale));
   font-weight: 500;
   color: #1f2937;
 }
@@ -7825,22 +8073,23 @@ onActivated(async () => {
 }
 
 .reservation-guest-name {
-  font-weight: bold;
-  font-size: 12px;
-  margin-bottom: 4px;
-  color: #6a3b12;
+  font-weight: 600;
+  font-size: var(--calendar-reservation-name-font-size);
+  margin-bottom: calc(8px * var(--calendar-scale));
+  color: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .reservation-channel-badge {
-  background: #52c41a;
+  background: #1e5bb8;
   color: white;
-  padding: 2px 6px;
-  border-radius: 2px;
-  font-size: 10px;
-  margin-bottom: 2px;
+  padding: calc(4px * var(--calendar-scale)) calc(10px * var(--calendar-scale));
+  border-radius: calc(6px * var(--calendar-scale));
+  font-size: var(--calendar-channel-badge-font-size);
+  font-weight: 500;
+  margin-bottom: calc(2px * var(--calendar-scale));
   width: fit-content;
   max-width: 100%;
   white-space: nowrap;
@@ -7849,7 +8098,7 @@ onActivated(async () => {
 }
 
 .order-number {
-  font-size: 10px;
+  font-size: calc(10px * var(--calendar-scale));
   color: #666;
 }
 
@@ -8664,13 +8913,13 @@ onActivated(async () => {
 
 /* 批量选择效果样式 */
 .status-cell.batch-selected {
-  background: #b7c8f4 !important;
-  border-color: #8ca8eb !important;
+  background: #dbe9ff !important;
+  border-color: #8db9f0 !important;
   z-index: 5;
 }
 
 .status-cell.batch-selected:hover {
-  background: #a9bef3 !important;
+  background: #cfe1fb !important;
 }
 
 .status-cell.multi-selection-middle-cell,
@@ -8693,11 +8942,16 @@ onActivated(async () => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
   color: #fff;
-  font-size: 18px;
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #3d98f4;
+  border-radius: 50%;
+  box-shadow: 0 6px 16px rgba(61, 152, 244, 0.3);
   z-index: 8;
   pointer-events: none;
 }
@@ -8854,34 +9108,35 @@ onActivated(async () => {
 /* 脏房清理图标样式 */
 .dirty-room-icon {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  background: #faad14;
+  top: 8px;
+  left: 8px;
+  background: #f5b83d;
   color: white;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
+  border-radius: 999px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
+  box-shadow: 0 4px 10px rgba(245, 184, 61, 0.28);
 }
 
 /* 房间号脏房图标样式 */
 .room-dirty-icon {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  background: #faad14;
+  top: 10px;
+  right: 10px;
+  background: #f5b83d;
   color: white;
-  border-radius: 50%;
+  border-radius: 999px;
   width: 20px;
   height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  box-shadow: 0 2px 4px rgba(250, 173, 20, 0.3);
+  box-shadow: 0 4px 10px rgba(245, 184, 61, 0.28);
   z-index: 10;
 }
 
@@ -8891,23 +9146,51 @@ onActivated(async () => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: #ff4d4f;
+  background: rgba(255, 102, 99, 0.92);
   color: white;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
+  box-shadow: 0 8px 20px rgba(255, 102, 99, 0.28);
   z-index: 10;
 }
 
 .cell-default-price {
-  font-size: 12px;
-  color: #fa8c16;
-  font-weight: 600;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding-top: 2px;
+  color: #58a827;
   line-height: 1;
+  z-index: 3;
+  text-align: center;
+  pointer-events: none;
+}
+
+.cell-default-price-main {
+  font-size: calc(var(--calendar-price-font-size) + 1.5px);
+  font-weight: 500;
+}
+
+.cell-default-price-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(3px * var(--calendar-scale));
+  font-size: calc(var(--calendar-price-meta-font-size) + 1.5px);
+  font-weight: 500;
+}
+
+.cell-default-price-meta .el-icon {
+  font-size: calc(var(--calendar-price-meta-font-size) + 2px);
 }
 
 /* 关房弹窗样式 */
@@ -8992,7 +9275,8 @@ onActivated(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid #f0f0f0;
   transition: background-color 0.2s;
 }
@@ -9017,6 +9301,182 @@ onActivated(async () => {
   gap: 6px;
   align-items: center;
 }
+
+.toolbar-search {
+  width: 400px;
+  min-width: 390px;
+  max-width: 440px;
+  flex: 0 0 400px;
+  margin-left: 0;
+  margin-right: 12px;
+}
+
+.nav-arrow-button,
+.today-button,
+.toolbar-primary-button,
+.price-toggle-button {
+  flex: 0 0 auto;
+}
+
+.room-status-calendar :deep(.header-toolbar .el-button) {
+  height: 34px;
+  border-radius: 6px;
+  font-weight: 400;
+  border-color: #e3ddd3;
+  box-shadow: none;
+}
+
+.room-status-calendar :deep(.header-toolbar .nav-arrow-button.el-button) {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  color: #3d98f4;
+  border-color: #8ec2fb;
+  background: #fff;
+  border-radius: 50%;
+  font-size: 14px;
+}
+
+.room-status-calendar :deep(.header-toolbar .today-button.el-button) {
+  padding: 0 8px;
+  color: #6a717a;
+  border-color: #d9d9d9;
+  background: #fff;
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+.room-status-calendar :deep(.header-toolbar .toolbar-primary-button.el-button) {
+  padding: 0 18px;
+  color: #fff;
+  font-weight: 500;
+}
+
+.room-status-calendar :deep(.header-toolbar .toolbar-clean-button.el-button) {
+  border-color: #1890ff;
+  background: #1890ff;
+}
+
+.room-status-calendar :deep(.header-toolbar .toolbar-room-button.el-button) {
+  border-color: #0254ac;
+  background: #0254ac;
+}
+
+.room-status-calendar :deep(.header-toolbar .price-toggle-button.el-button) {
+  padding: 0 16px;
+  color: #6d7680;
+  border-color: #e5e0d8;
+  background: #fff;
+}
+
+.room-status-calendar :deep(.header-toolbar .price-toggle-button.el-button--primary) {
+  color: #5f6d79;
+  border-color: #e5e0d8;
+  background: #fff;
+}
+
+.room-status-calendar :deep(.header-toolbar .el-input__wrapper),
+.room-status-calendar :deep(.header-toolbar .el-textarea__wrapper) {
+  min-height: 34px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px #d9d9d9 inset;
+}
+
+.room-status-calendar :deep(.header-toolbar .el-input__wrapper:hover),
+.room-status-calendar :deep(.header-toolbar .el-input__wrapper.is-focus),
+.room-status-calendar :deep(.header-toolbar .el-textarea__wrapper:hover),
+.room-status-calendar :deep(.header-toolbar .el-textarea__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #87bdf6 inset;
+}
+
+.room-status-calendar :deep(.header-toolbar .el-input__inner) {
+  color: #31353a;
+}
+
+.room-status-calendar :deep(.header-toolbar .toolbar-search .el-input__wrapper) {
+  background: #fff;
+}
+.room-status-calendar :deep(.header-toolbar .toolbar-search.el-autocomplete) {
+  width: 400px;
+  min-width: 390px;
+  max-width: 440px;
+  flex: 0 0 400px;
+  margin-left: 40px;
+}
+
+.room-status-calendar :deep(.header-toolbar .toolbar-search .el-input) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.room-status-calendar :deep(.header-toolbar .date-range-picker) {
+  width: 256px;
+  flex: 0 0 256px;
+  max-width: 100%;
+  margin-right: 2px;
+}
+
+.room-status-calendar :deep(.header-toolbar .date-range-picker.el-range-editor.el-input__wrapper) {
+  padding: 1px 1px 1px 6px;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.room-status-calendar :deep(.header-toolbar .date-range-picker .el-range__icon) {
+  color: #b9b9b9;
+  margin: 0 8px 0 2px;
+  font-size: 16px;
+}
+
+.room-status-calendar :deep(.header-toolbar .date-range-picker .el-range-input) {
+  font-weight: 500;
+  color: #39414a;
+  background: #fafafa;
+  height: 30px;
+  line-height: 30px;
+  padding: 0 4px;
+  border-radius: 0;
+}
+
+.room-status-calendar :deep(.header-toolbar .cell-price-source-select .el-select__wrapper) {
+  min-height: 34px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #eee4d6 inset;
+  background: #fffaf2;
+}
+
+.room-status-calendar :deep(.header-toolbar .date-range-picker .el-range-separator) {
+  width: 26px;
+  padding: 0;
+  color: #909399;
+  line-height: 34px;
+  text-align: center;
+}
+
+.room-status-calendar :deep(.header-toolbar .date-range-picker .el-range-input:first-child),
+.room-status-calendar :deep(.header-toolbar .date-range-picker .el-range-input:last-child) {
+  background: #fafafa;
+  height: 30px;
+  line-height: 30px;
+}
+
+.room-status-calendar :deep(.header-toolbar .date-range-picker .el-range-input:first-child) {
+  margin-left: 2px;
+}
+
+.room-status-calendar :deep(.header-toolbar .date-range-picker .el-range-input:last-child) {
+  margin-right: 0;
+}
+
+.room-status-calendar :deep(.header-toolbar .date-range-picker .el-range__close-icon) {
+  width: 0;
+  min-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+}
+
 
 /* 操作日志样式 */
 .operation-logs {

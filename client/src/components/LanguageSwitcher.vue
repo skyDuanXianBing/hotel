@@ -2,15 +2,18 @@
 import { computed } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import languageIcon from '@/assets/icons/language.png'
 import { SUPPORTED_LOCALES, type SupportedLocale } from '@/locales'
 import { useLanguageStore } from '@/stores/language'
 
 interface Props {
   variant?: 'header' | 'auth'
+  display?: 'text' | 'icon'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   variant: 'header',
+  display: 'text',
 })
 
 const { t } = useI18n()
@@ -21,9 +24,11 @@ const options = SUPPORTED_LOCALES.map((locale) => ({
   labelKey: `language.option.${locale}`,
 }))
 
+const currentFullLabel = computed(() => t(`language.option.${languageStore.locale}`))
+
 const currentLabel = computed(() =>
   props.variant === 'auth'
-    ? t(`language.option.${languageStore.locale}`)
+    ? currentFullLabel.value
     : t(`language.short.${languageStore.locale}`)
 )
 
@@ -42,11 +47,22 @@ const handleCommand = (locale: SupportedLocale) => {
     @command="handleCommand"
   >
     <button
-      :class="['language-trigger', `language-trigger--${variant}`]"
+      :class="[
+        'language-trigger',
+        `language-trigger--${variant}`,
+        { 'language-trigger--icon': display === 'icon' },
+      ]"
+      :aria-label="currentFullLabel"
+      :title="currentFullLabel"
       type="button"
     >
-      <span>{{ currentLabel }}</span>
-      <el-icon><ArrowDown /></el-icon>
+      <template v-if="display === 'icon'">
+        <img :src="languageIcon" alt="" class="language-trigger-icon" />
+      </template>
+      <template v-else>
+        <span>{{ currentLabel }}</span>
+        <el-icon><ArrowDown /></el-icon>
+      </template>
     </button>
     <template #dropdown>
       <el-dropdown-menu>
@@ -67,6 +83,7 @@ const handleCommand = (locale: SupportedLocale) => {
 .language-trigger {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   border: none;
   background: transparent;
@@ -88,9 +105,40 @@ const handleCommand = (locale: SupportedLocale) => {
   color: #409eff;
 }
 
+.language-trigger--header.language-trigger--icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #ededeb;
+  border-radius: 999px;
+  background: #ffffff;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.language-trigger--header.language-trigger--icon:hover {
+  border-color: #121212;
+  color: inherit;
+}
+
+.language-trigger--header.language-trigger--icon:focus-visible,
+.language-trigger--header.language-trigger--icon[aria-expanded='true'] {
+  border-color: #121212;
+  outline: none;
+}
+
 .language-trigger--auth {
   color: #666;
   font-size: 14px;
+}
+
+.language-trigger-icon {
+  width: 31px;
+  height: 31px;
+  display: block;
+  flex: 0 0 auto;
 }
 
 :global(.language-dropdown--auth .el-dropdown-menu__item) {

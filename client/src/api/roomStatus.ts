@@ -16,11 +16,18 @@ export interface ReservationInfoDTO {
   id: number
   guestName: string
   channel: string
+  channelId?: number
+  channelOrderNumber?: string
   checkIn: string
   checkOut: string
+  checkInDate?: string
+  checkOutDate?: string
   orderNumber: string
   groupOrderNo?: string
+  status?: string
+  reservationStatus?: string
   notes?: string
+  remark?: string
   specialRequests?: string
 }
 
