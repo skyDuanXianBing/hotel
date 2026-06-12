@@ -165,6 +165,12 @@ const router = createRouter({
               meta: { title: 'Notification Settings', requiresAuth: true },
             },
             {
+              path: 'general/announcements',
+              name: 'AnnouncementSettings',
+              component: () => import('@/views/settings/general/AnnouncementSettings.vue'),
+              meta: { title: 'Announcement Management', requiresAuth: true },
+            },
+            {
               path: 'general/channel',
               name: 'GeneralChannelSettings',
               component: () => import('@/views/settings/general/ChannelSettings.vue'),
@@ -590,6 +596,7 @@ const routePermissionConfig = new Map<
   ['StoreBasicInfo', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['StoreDetails', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['NotificationSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['AnnouncementSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['GeneralChannelSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['QuickReply', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['AutoMessage', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
@@ -639,6 +646,7 @@ const routeTitleKeyByName = new Map<string, string>([
   ['StoreBasicInfo', 'routeTitles.basicInfo'],
   ['StoreDetails', 'routeTitles.storeDetails'],
   ['NotificationSettings', 'routeTitles.notificationSettings'],
+  ['AnnouncementSettings', 'routeTitles.announcementSettings'],
   ['GeneralChannelSettings', 'routeTitles.channelSettings'],
   ['QuickReply', 'routeTitles.quickReply'],
   ['AutoMessage', 'routeTitles.automationMessages'],

@@ -30,6 +30,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -38,6 +39,7 @@ public class HomeWorkbenchService {
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 100;
 
+    private static final String TYPE_ALL = "all";
     private static final String TYPE_CLEANING = "cleaning";
     private static final String TYPE_REVIEW = "review";
     private static final String TYPE_ORDER = "order";
@@ -76,23 +78,31 @@ public class HomeWorkbenchService {
     }
 
     public HomeWorkbenchResponse getWorkbench(LocalDate requestedDate, Integer requestedLimit) {
+        return getWorkbench(requestedDate, requestedLimit, TYPE_ALL);
+    }
+
+    public HomeWorkbenchResponse getWorkbench(
+            LocalDate requestedDate,
+            Integer requestedLimit,
+            String requestedType
+    ) {
         Long storeId = StoreContextUtils.requireStoreId();
         Long userId = StoreContextUtils.requireUserId();
         LocalDate businessDate = resolveBusinessDate(storeId, requestedDate);
         int limit = normalizeLimit(requestedLimit);
+        String selectedType = normalizeTypeFilter(requestedType);
 
         List<HomeWorkbenchItemDTO> allItems = new ArrayList<>();
         Map<String, Long> typeCounts = new LinkedHashMap<>();
-        Map<String, Long> statusCounts = new LinkedHashMap<>();
 
         List<HomeWorkbenchItemDTO> cleaningItems = buildCleaningItems(userId, businessDate);
-        appendItems(TYPE_CLEANING, cleaningItems, typeCounts, statusCounts, allItems);
+        appendItems(TYPE_CLEANING, cleaningItems, typeCounts, allItems);
 
         List<HomeWorkbenchItemDTO> reviewItems = buildReviewItems();
-        appendItems(TYPE_REVIEW, reviewItems, typeCounts, statusCounts, allItems);
+        appendItems(TYPE_REVIEW, reviewItems, typeCounts, allItems);
 
         List<HomeWorkbenchItemDTO> orderItems = buildOrderItems(storeId, businessDate);
-        appendItems(TYPE_ORDER, orderItems, typeCounts, statusCounts, allItems);
+        appendItems(TYPE_ORDER, orderItems, typeCounts, allItems);
 
         SuMessagingThreadPageResponse messagePage = suMessagingService.listThreadPage(
                 storeId,
@@ -108,19 +118,26 @@ public class HomeWorkbenchService {
         );
         List<HomeWorkbenchItemDTO> messageItems = buildMessageItems(messagePage);
         typeCounts.put(TYPE_MESSAGE, messagePage.getTotalElements());
-        mergeCount(statusCounts, STATUS_PENDING, messagePage.getTotalElements());
         allItems.addAll(messageItems);
 
         typeCounts.put(TYPE_OTHER, 0L);
 
-        allItems.sort(this::compareItems);
+        List<HomeWorkbenchItemDTO> selectedItems = selectItems(
+                selectedType,
+                limit,
+                allItems,
+                cleaningItems,
+                reviewItems,
+                orderItems,
+                messageItems
+        );
 
         HomeWorkbenchResponse response = new HomeWorkbenchResponse();
         response.setBusinessDate(businessDate);
         response.setGeneratedAt(LocalDateTime.now(effectiveClock()));
         response.setTypeSummaries(buildTypeSummaries(typeCounts));
-        response.setStatusSummaries(buildStatusSummaries(statusCounts));
-        response.setItems(allItems.stream().limit(limit).toList());
+        response.setStatusSummaries(buildStatusSummaries(countStatuses(selectedItems)));
+        response.setItems(selectedItems);
         return response;
     }
 
@@ -314,14 +331,51 @@ public class HomeWorkbenchService {
             String type,
             List<HomeWorkbenchItemDTO> sourceItems,
             Map<String, Long> typeCounts,
-            Map<String, Long> statusCounts,
             List<HomeWorkbenchItemDTO> allItems
     ) {
         typeCounts.put(type, (long) sourceItems.size());
-        for (HomeWorkbenchItemDTO item : sourceItems) {
+        allItems.addAll(sourceItems);
+    }
+
+    private List<HomeWorkbenchItemDTO> selectItems(
+            String selectedType,
+            int limit,
+            List<HomeWorkbenchItemDTO> allItems,
+            List<HomeWorkbenchItemDTO> cleaningItems,
+            List<HomeWorkbenchItemDTO> reviewItems,
+            List<HomeWorkbenchItemDTO> orderItems,
+            List<HomeWorkbenchItemDTO> messageItems
+    ) {
+        if (TYPE_CLEANING.equals(selectedType)) {
+            return sortAndLimit(cleaningItems, limit);
+        }
+        if (TYPE_REVIEW.equals(selectedType)) {
+            return sortAndLimit(reviewItems, limit);
+        }
+        if (TYPE_ORDER.equals(selectedType)) {
+            return sortAndLimit(orderItems, limit);
+        }
+        if (TYPE_MESSAGE.equals(selectedType)) {
+            return sortAndLimit(messageItems, limit);
+        }
+        if (TYPE_OTHER.equals(selectedType)) {
+            return List.of();
+        }
+        return sortAndLimit(allItems, limit);
+    }
+
+    private List<HomeWorkbenchItemDTO> sortAndLimit(List<HomeWorkbenchItemDTO> sourceItems, int limit) {
+        List<HomeWorkbenchItemDTO> sortedItems = new ArrayList<>(sourceItems);
+        sortedItems.sort(this::compareItems);
+        return sortedItems.stream().limit(limit).toList();
+    }
+
+    private static Map<String, Long> countStatuses(List<HomeWorkbenchItemDTO> items) {
+        Map<String, Long> statusCounts = new LinkedHashMap<>();
+        for (HomeWorkbenchItemDTO item : items) {
             mergeCount(statusCounts, item.getStatusGroup(), 1L);
         }
-        allItems.addAll(sourceItems);
+        return statusCounts;
     }
 
     private List<HomeWorkbenchTypeSummaryDTO> buildTypeSummaries(Map<String, Long> typeCounts) {
@@ -484,6 +538,34 @@ public class HomeWorkbenchService {
             return DEFAULT_LIMIT;
         }
         return Math.min(limit, MAX_LIMIT);
+    }
+
+    private static String normalizeTypeFilter(String type) {
+        String normalizedType = blankToNull(type);
+        if (normalizedType == null) {
+            return TYPE_ALL;
+        }
+
+        String lowerCaseType = normalizedType.toLowerCase(Locale.ROOT);
+        if (TYPE_ALL.equals(lowerCaseType)) {
+            return TYPE_ALL;
+        }
+        if (TYPE_CLEANING.equals(lowerCaseType)) {
+            return TYPE_CLEANING;
+        }
+        if (TYPE_REVIEW.equals(lowerCaseType)) {
+            return TYPE_REVIEW;
+        }
+        if (TYPE_ORDER.equals(lowerCaseType)) {
+            return TYPE_ORDER;
+        }
+        if (TYPE_MESSAGE.equals(lowerCaseType)) {
+            return TYPE_MESSAGE;
+        }
+        if (TYPE_OTHER.equals(lowerCaseType)) {
+            return TYPE_OTHER;
+        }
+        return TYPE_ALL;
     }
 
     private static int priorityRank(String priority) {

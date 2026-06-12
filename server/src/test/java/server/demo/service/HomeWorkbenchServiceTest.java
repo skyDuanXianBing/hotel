@@ -181,7 +181,45 @@ class HomeWorkbenchServiceTest {
         assertFalse(response.getItems().get(0).getTarget().getQuery().containsKey("threadId"));
         assertEquals(7L, response.getTypeSummaries().get(3).getCount());
         assertEquals("pending", response.getStatusSummaries().get(0).getStatusGroup());
-        assertEquals(7L, response.getStatusSummaries().get(0).getCount());
+        assertEquals(1L, response.getStatusSummaries().get(0).getCount());
+    }
+
+    @Test
+    void getWorkbench_withMessageTypeReturnsMessageItemsOutsideGlobalLimit() {
+        LocalDate businessDate = LocalDate.of(2026, 6, 12);
+        Reservation reservation = buildReservation(10L, "RSV-10", businessDate);
+
+        when(reservationRepository.findUnassignedOrUnmappedWithDetailsByStoreId(STORE_ID, businessDate))
+                .thenReturn(List.of(reservation));
+        when(reservationRepository.findPendingOrdersWithDetailsByStoreId(STORE_ID))
+                .thenReturn(List.of());
+
+        SuMessagingThreadDTO thread = buildMessageThread(31L, "Yamada", "BK-31");
+        when(suMessagingService.listThreadPage(
+                eq(STORE_ID),
+                eq(0),
+                anyInt(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(true),
+                isNull(),
+                isNull()
+        )).thenReturn(new SuMessagingThreadPageResponse(List.of(thread), 0, 1, 16, 16, true));
+
+        HomeWorkbenchResponse allResponse = service.getWorkbench(businessDate, 1);
+        assertEquals(1, allResponse.getItems().size());
+        assertEquals("order", allResponse.getItems().get(0).getType());
+        assertEquals(16L, allResponse.getTypeSummaries().get(3).getCount());
+
+        HomeWorkbenchResponse messageResponse = service.getWorkbench(businessDate, 1, "message");
+        assertEquals(1, messageResponse.getItems().size());
+        assertEquals("message", messageResponse.getItems().get(0).getType());
+        assertEquals("31", messageResponse.getItems().get(0).getTarget().getQuery().get("suThreadId"));
+        assertEquals(16L, messageResponse.getTypeSummaries().get(3).getCount());
+        assertEquals("pending", messageResponse.getStatusSummaries().get(0).getStatusGroup());
+        assertEquals(1L, messageResponse.getStatusSummaries().get(0).getCount());
     }
 
     @Test
@@ -238,5 +276,17 @@ class HomeWorkbenchServiceTest {
         reservation.setCheckOutDate(checkInDate.plusDays(1));
         reservation.setChannel(channel);
         return reservation;
+    }
+
+    private static SuMessagingThreadDTO buildMessageThread(Long id, String guestName, String bookingId) {
+        SuMessagingThreadDTO thread = new SuMessagingThreadDTO();
+        thread.setId(id);
+        thread.setGuestName(guestName);
+        thread.setChannelName("Booking.com");
+        thread.setBookingId(bookingId);
+        thread.setLastMessage("Arrival time?");
+        thread.setLastActivity(OffsetDateTime.parse("2026-06-12T01:00:00Z"));
+        thread.setUnreadCount(3L);
+        return thread;
     }
 }

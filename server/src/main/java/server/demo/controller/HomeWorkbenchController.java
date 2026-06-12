@@ -26,10 +26,11 @@ public class HomeWorkbenchController {
     @GetMapping("/workbench")
     public ResponseEntity<ApiResponse<HomeWorkbenchResponse>> getWorkbench(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam(required = false) Integer limit
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String type
     ) {
         try {
-            HomeWorkbenchResponse response = homeWorkbenchService.getWorkbench(date, limit);
+            HomeWorkbenchResponse response = homeWorkbenchService.getWorkbench(date, limit, type);
             return ResponseEntity.ok(ApiResponse.success("获取首页工作台成功", response));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(ApiResponse.error("获取首页工作台失败: " + e.getMessage()));

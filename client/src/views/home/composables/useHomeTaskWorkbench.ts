@@ -8,6 +8,7 @@ import {
   type HomeWorkbenchDTO,
   type HomeWorkbenchItemDTO,
   type HomeWorkbenchMetaItemDTO,
+  type HomeWorkbenchRequest,
   type HomeWorkbenchTargetDTO,
   type HomeWorkbenchTaskType,
 } from '@/api/homeWorkbench'
@@ -188,6 +189,8 @@ export const useHomeTaskWorkbench = () => {
   const workbenchData = ref<HomeWorkbenchDTO | null>(null)
   const cleanerList = ref<CleanerDTO[]>([])
   const assignSelections = ref<Record<number, number | undefined>>({})
+  let workbenchRequestSeq = 0
+  let loadingSeq = 0
 
   const getTypeLabel = (type: WorkbenchTaskTypeFilter) => {
     if (type === 'all') {
@@ -480,12 +483,25 @@ export const useHomeTaskWorkbench = () => {
   }
 
   const loadWorkbenchData = async () => {
-    todayYmd.value = getStoreTodayYmd()
+    const requestSeq = workbenchRequestSeq + 1
+    workbenchRequestSeq = requestSeq
+    const requestDate = getStoreTodayYmd()
+    const requestType = activeType.value
+    todayYmd.value = requestDate
+
+    const requestParams: HomeWorkbenchRequest = {
+      date: requestDate,
+      limit: WORKBENCH_LIMIT,
+    }
+    if (requestType !== 'all') {
+      requestParams.type = requestType
+    }
+
     try {
-      const response = await getHomeWorkbench({
-        date: todayYmd.value,
-        limit: WORKBENCH_LIMIT,
-      })
+      const response = await getHomeWorkbench(requestParams)
+      if (requestSeq !== workbenchRequestSeq) {
+        return
+      }
 
       if (response.success && response.data) {
         workbenchData.value = response.data
@@ -496,6 +512,9 @@ export const useHomeTaskWorkbench = () => {
         ElMessage.error(response.message || t('pages.home.workbench.loadTasksFailed'))
       }
     } catch (error) {
+      if (requestSeq !== workbenchRequestSeq) {
+        return
+      }
       console.error('Failed to load home workbench tasks:', error)
       workbenchData.value = null
       assignSelections.value = {}
@@ -503,13 +522,36 @@ export const useHomeTaskWorkbench = () => {
     }
   }
 
+  const reloadWorkbenchData = async () => {
+    const currentLoadingSeq = loadingSeq + 1
+    loadingSeq = currentLoadingSeq
+    loading.value = true
+    try {
+      await loadWorkbenchData()
+    } finally {
+      if (currentLoadingSeq === loadingSeq) {
+        loading.value = false
+      }
+    }
+  }
+
   const loadWorkbench = async () => {
+    const currentLoadingSeq = loadingSeq + 1
+    loadingSeq = currentLoadingSeq
     loading.value = true
     try {
       await Promise.all([loadCleaners(), loadWorkbenchData()])
     } finally {
-      loading.value = false
+      if (currentLoadingSeq === loadingSeq) {
+        loading.value = false
+      }
     }
+  }
+
+  const changeWorkbenchType = async (type: WorkbenchTaskTypeFilter) => {
+    activeType.value = type
+    activeStatus.value = 'all'
+    await reloadWorkbenchData()
   }
 
   const assignTask = async (task: WorkbenchTask) => {
@@ -557,5 +599,6 @@ export const useHomeTaskWorkbench = () => {
     taskTypeSummaries,
     todayYmd,
     assignTask,
+    changeWorkbenchType,
   }
 }

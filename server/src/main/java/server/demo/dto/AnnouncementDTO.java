@@ -11,9 +11,12 @@ public class AnnouncementDTO {
     private String content;
     private String type;
     private String severity;
+    private Boolean active;
     private Integer sortOrder;
     private LocalDateTime startsAt;
     private LocalDateTime endsAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public Long getId() {
         return id;
@@ -79,6 +82,14 @@ public class AnnouncementDTO {
         this.severity = severity;
     }
 
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
     public Integer getSortOrder() {
         return sortOrder;
     }
@@ -101,5 +112,21 @@ public class AnnouncementDTO {
 
     public void setEndsAt(LocalDateTime endsAt) {
         this.endsAt = endsAt;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

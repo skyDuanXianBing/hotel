@@ -8,6 +8,7 @@ import server.demo.entity.Announcement;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface AnnouncementRepository extends JpaRepository<Announcement, Long> {
 
@@ -36,4 +37,22 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
             @Param("storeScope") String storeScope,
             Pageable pageable
     );
+
+    @Query("""
+            SELECT a
+            FROM Announcement a
+            WHERE a.scope = :storeScope
+              AND a.storeId = :storeId
+            ORDER BY
+              CASE WHEN a.active = true THEN 0 ELSE 1 END,
+              a.sortOrder ASC,
+              a.updatedAt DESC,
+              a.id DESC
+            """)
+    List<Announcement> findStoreManagementAnnouncements(
+            @Param("storeId") Long storeId,
+            @Param("storeScope") String storeScope
+    );
+
+    Optional<Announcement> findByIdAndScopeAndStoreId(Long id, String scope, Long storeId);
 }

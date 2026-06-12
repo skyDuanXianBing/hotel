@@ -191,6 +191,7 @@ const zhCN = mergeLocaleMessages(
       basicInfo: '基本信息',
       storeDetails: '门店详情',
       notificationSettings: '通知设置',
+      announcementSettings: '公告管理',
       channelSettings: '渠道设置',
       quickReply: '快捷回复',
       automationMessages: '自动化消息',

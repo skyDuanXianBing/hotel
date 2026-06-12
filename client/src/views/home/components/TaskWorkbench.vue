@@ -74,7 +74,7 @@
         "
       />
       <el-empty
-        v-else-if="filteredTasks.length === 0"
+        v-else-if="!loading && filteredTasks.length === 0"
         :description="t('pages.home.workbench.emptyToday')"
       />
 
@@ -154,7 +154,6 @@ import workbenchOtherIcon from '@/assets/home/workbench-other.svg'
 import workbenchReviewIcon from '@/assets/home/workbench-review.svg'
 import {
   useHomeTaskWorkbench,
-  type WorkbenchStatusFilter,
   type WorkbenchTask,
   type WorkbenchTaskTarget,
   type WorkbenchTaskType,
@@ -180,6 +179,7 @@ const {
   taskTypeSummaries,
   todayYmd,
   assignTask,
+  changeWorkbenchType,
 } = useHomeTaskWorkbench()
 
 const typeIconMap: Record<WorkbenchTaskTypeFilter, string> = {
@@ -393,8 +393,7 @@ const getStatusClass = (status: string) => {
 }
 
 const handleTypeChange = (type: WorkbenchTaskTypeFilter) => {
-  activeType.value = type
-  activeStatus.value = 'all' as WorkbenchStatusFilter
+  void changeWorkbenchType(type)
 }
 
 const navigateToRoute = (route: RouteLocationRaw) => {

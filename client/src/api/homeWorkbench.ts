@@ -7,10 +7,12 @@ export interface ApiResponse<T> {
 }
 
 export type HomeWorkbenchTaskType = 'cleaning' | 'review' | 'order' | 'message' | 'other'
+export type HomeWorkbenchTaskTypeFilter = 'all' | HomeWorkbenchTaskType
 
 export interface HomeWorkbenchRequest {
   date: string
   limit?: number
+  type?: HomeWorkbenchTaskTypeFilter
 }
 
 export interface HomeWorkbenchTypeSummaryDTO {

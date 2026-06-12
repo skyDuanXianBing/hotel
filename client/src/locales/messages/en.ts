@@ -194,6 +194,7 @@ const en = mergeLocaleMessages(
       basicInfo: 'Basic Information',
       storeDetails: 'Store Details',
       notificationSettings: 'Notification Settings',
+      announcementSettings: 'Announcement Management',
       channelSettings: 'Channel Settings',
       quickReply: 'Quick Replies',
       automationMessages: 'Automation Messages',
