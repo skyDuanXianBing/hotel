@@ -97,6 +97,10 @@ export const channelOrderMessages = {
         assigned: 'Assigned',
         assignedNoInventory: 'Assigned (No Inventory)',
       },
+      mapping: {
+        channelRoomType: 'Channel Room Type',
+        pmsRoomType: 'PMS Room Type',
+      },
       settlement: {
         settled: 'Settled',
         partiallySettled: 'Partially Settled',
@@ -530,6 +534,10 @@ export const channelOrderMessages = {
         assigned: '已排房',
         assignedNoInventory: '已排房(不占房)',
       },
+      mapping: {
+        channelRoomType: '渠道房型',
+        pmsRoomType: 'PMS房型',
+      },
       settlement: {
         settled: '已结账',
         partiallySettled: '部分结账',
@@ -950,6 +958,10 @@ export const channelOrderMessages = {
         assigned: '已排房',
         assignedNoInventory: '已排房(不占房)',
       },
+      mapping: {
+        channelRoomType: '渠道房型',
+        pmsRoomType: 'PMS房型',
+      },
       settlement: {
         settled: '已結帳',
         partiallySettled: '部分結帳',
@@ -1368,6 +1380,10 @@ export const channelOrderMessages = {
         unassigned: '未割当',
         assigned: '割当済み',
         assignedNoInventory: '割当済み(在庫なし)',
+      },
+      mapping: {
+        channelRoomType: 'チャネル客室タイプ',
+        pmsRoomType: 'PMS客室タイプ',
       },
       settlement: {
         settled: '精算済み',

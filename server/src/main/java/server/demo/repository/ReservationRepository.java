@@ -405,6 +405,35 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
            "ORDER BY r.createdAt DESC")
     List<Reservation> findPendingOrdersByStoreId(@Param("storeId") Long storeId);
 
+    @Query("""
+            SELECT DISTINCT r
+            FROM Reservation r
+            LEFT JOIN FETCH r.room room
+            LEFT JOIN FETCH room.roomType
+            LEFT JOIN FETCH r.channel
+            WHERE r.storeId = :storeId
+              AND r.status = server.demo.enums.ReservationStatus.CONFIRMED
+              AND r.actualCheckIn IS NULL
+            ORDER BY r.checkInDate ASC, r.createdAt DESC
+            """)
+    List<Reservation> findPendingOrdersWithDetailsByStoreId(@Param("storeId") Long storeId);
+
+    @Query("""
+            SELECT DISTINCT r
+            FROM Reservation r
+            LEFT JOIN FETCH r.room room
+            LEFT JOIN FETCH room.roomType
+            LEFT JOIN FETCH r.channel
+            WHERE r.storeId = :storeId
+              AND r.room IS NULL
+              AND r.checkOutDate >= :minCheckOutDate
+            ORDER BY r.checkInDate ASC, r.createdAt DESC
+            """)
+    List<Reservation> findUnassignedOrUnmappedWithDetailsByStoreId(
+            @Param("storeId") Long storeId,
+            @Param("minCheckOutDate") LocalDate minCheckOutDate
+    );
+
     @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND (r.checkInDate <= :endDate AND r.checkOutDate > :startDate)")
     List<Reservation> findByStoreIdAndDateRange(@Param("storeId") Long storeId,
                                                 @Param("startDate") LocalDate startDate,

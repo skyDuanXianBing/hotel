@@ -94,24 +94,40 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { getHomeAnnouncements, type HomeAnnouncementDTO } from '@/api/announcements'
 import { getDailyOccupancy } from '@/api/business'
 import { getRoomStatusStatistics } from '@/api/roomStatus'
 import OccupancyChart from '@/components/OccupancyChart.vue'
 import TaskWorkbench from '@/views/home/components/TaskWorkbench.vue'
 import { getRecentStoreDateRange } from '@/utils/storeDateTime'
 
+const ANNOUNCEMENT_LIMIT = 3
+
+type BulletinTone = 'update' | 'feature' | 'fix'
+
+interface BulletinItem {
+  id: string
+  tone: BulletinTone
+  badge: string
+  title: string
+  description: string
+  date: string
+}
+
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const leftContentRef = ref<HTMLElement>()
 const workbenchHeight = ref('auto')
 let leftContentResizeObserver: ResizeObserver | null = null
 
-const bulletinItems = computed(() => [
+const backendBulletinItems = ref<BulletinItem[]>([])
+
+const staticBulletinItems = computed<BulletinItem[]>(() => [
   {
     id: 'releaseDigest',
     tone: 'update',
@@ -138,6 +154,13 @@ const bulletinItems = computed(() => [
   },
 ])
 
+const bulletinItems = computed(() => {
+  if (backendBulletinItems.value.length > 0) {
+    return backendBulletinItems.value
+  }
+  return staticBulletinItems.value
+})
+
 const todayStats = ref({
   checkin: 0,
   checkout: 0,
@@ -153,6 +176,59 @@ const rightContentStyle = computed(() => ({
   height: workbenchHeight.value,
 }))
 
+const resolveAnnouncementTone = (announcement: HomeAnnouncementDTO): BulletinTone => {
+  const normalizedType = (announcement.type || '').trim().toLowerCase()
+  const normalizedSeverity = (announcement.severity || '').trim().toLowerCase()
+
+  if (normalizedType.includes('feature') || normalizedSeverity === 'success') {
+    return 'feature'
+  }
+  if (
+    normalizedType.includes('fix') ||
+    normalizedType.includes('bug') ||
+    normalizedSeverity === 'warning' ||
+    normalizedSeverity === 'error'
+  ) {
+    return 'fix'
+  }
+  return 'update'
+}
+
+const getAnnouncementBadge = (tone: BulletinTone) => {
+  if (tone === 'feature') {
+    return t('pages.home.bulletinItems.newFeature.badge')
+  }
+  if (tone === 'fix') {
+    return t('pages.home.bulletinItems.bugFix.badge')
+  }
+  return t('pages.home.bulletinItems.releaseDigest.badge')
+}
+
+const formatAnnouncementDate = (announcement: HomeAnnouncementDTO) => {
+  const dateSource = announcement.startsAt || announcement.updatedAt || announcement.createdAt || ''
+  if (!dateSource) {
+    return ''
+  }
+  return dateSource.slice(0, 10)
+}
+
+const mapAnnouncementToBulletin = (announcement: HomeAnnouncementDTO): BulletinItem | null => {
+  const title = (announcement.title || '').trim()
+  if (!title) {
+    return null
+  }
+
+  const tone = resolveAnnouncementTone(announcement)
+  return {
+    id: String(announcement.id),
+    tone,
+    badge: getAnnouncementBadge(tone),
+    title,
+    description: (announcement.content || '').trim(),
+    date: formatAnnouncementDate(announcement),
+  }
+}
+
 const syncWorkbenchHeight = () => {
   if (!leftContentRef.value || typeof window === 'undefined') {
     return
@@ -164,6 +240,32 @@ const syncWorkbenchHeight = () => {
   }
 
   workbenchHeight.value = `${leftContentRef.value.scrollHeight}px`
+}
+
+const loadHomeAnnouncements = async () => {
+  try {
+    const response = await getHomeAnnouncements({
+      locale: String(locale.value),
+      limit: ANNOUNCEMENT_LIMIT,
+    })
+
+    if (!response.success || !Array.isArray(response.data)) {
+      backendBulletinItems.value = []
+      return
+    }
+
+    const mappedItems: BulletinItem[] = []
+    for (const announcement of response.data) {
+      const mappedItem = mapAnnouncementToBulletin(announcement)
+      if (mappedItem) {
+        mappedItems.push(mappedItem)
+      }
+    }
+    backendBulletinItems.value = mappedItems
+  } catch (error) {
+    console.error('Failed to load home announcements:', error)
+    backendBulletinItems.value = []
+  }
 }
 
 const loadOccupancyData = async () => {
@@ -230,6 +332,7 @@ onMounted(async () => {
   await nextTick()
   fetchRoomStatusStatistics()
   loadOccupancyData()
+  loadHomeAnnouncements()
 
   syncWorkbenchHeight()
   leftContentResizeObserver = new ResizeObserver(() => {
@@ -242,6 +345,13 @@ onMounted(async () => {
 
   window.addEventListener('resize', syncWorkbenchHeight)
 })
+
+watch(
+  () => locale.value,
+  () => {
+    loadHomeAnnouncements()
+  },
+)
 
 onBeforeUnmount(() => {
   leftContentResizeObserver?.disconnect()

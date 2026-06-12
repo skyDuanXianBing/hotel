@@ -95,6 +95,7 @@ export const pageMessages = {
           assignedTo: 'Assigned to {name}',
           unassignedEmployee: 'Unassigned',
           taskTime: 'Time {time}',
+          unreadMessages: '{count} unread',
           cleaningTaskTitle: 'Room {room} cleaning',
           types: {
             all: 'All',
@@ -107,6 +108,7 @@ export const pageMessages = {
           statuses: {
             all: 'All',
             pending: 'Pending',
+            unassigned: 'Unassigned',
             assigned: 'Assigned',
             inProgress: 'In progress',
             completed: 'Done',
@@ -358,6 +360,7 @@ export const pageMessages = {
           assignedTo: '已指派给{name}',
           unassignedEmployee: '未指派',
           taskTime: '时间 {time}',
+          unreadMessages: '{count} 条未读',
           cleaningTaskTitle: '{room} 房保洁',
           types: {
             all: '全部',
@@ -370,6 +373,7 @@ export const pageMessages = {
           statuses: {
             all: '全部',
             pending: '待分配',
+            unassigned: '未排房',
             assigned: '已指派',
             inProgress: '进行中',
             completed: '已完成',
@@ -618,6 +622,7 @@ export const pageMessages = {
           assignedTo: '已指派給{name}',
           unassignedEmployee: '未指派',
           taskTime: '時間 {time}',
+          unreadMessages: '{count} 則未讀',
           cleaningTaskTitle: '{room} 房保潔',
           types: {
             all: '全部',
@@ -630,6 +635,7 @@ export const pageMessages = {
           statuses: {
             all: '全部',
             pending: '待分配',
+            unassigned: '未排房',
             assigned: '已指派',
             inProgress: '進行中',
             completed: '已完成',
@@ -882,6 +888,7 @@ export const pageMessages = {
           assignedTo: '{name}に割り当て済み',
           unassignedEmployee: '未割り当て',
           taskTime: '時間 {time}',
+          unreadMessages: '未読 {count} 件',
           cleaningTaskTitle: '{room}号室の清掃',
           types: {
             all: 'すべて',
@@ -894,6 +901,7 @@ export const pageMessages = {
           statuses: {
             all: 'すべて',
             pending: '未割り当て',
+            unassigned: '未割り当て',
             assigned: '割り当て済み',
             inProgress: '進行中',
             completed: '完了',

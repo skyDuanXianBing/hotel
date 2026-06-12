@@ -2,6 +2,9 @@ package server.demo.service;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -20,6 +23,7 @@ import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.entity.Channel;
 import server.demo.entity.Reservation;
+import server.demo.entity.Room;
 import server.demo.entity.Store;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.OrderBoxRepository;
@@ -362,6 +366,85 @@ class ReservationServiceBusinessDateTest {
                 null,
                 "today-checkout",
                 LocalDate.of(2026, 6, 1)
+        );
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getReservationsWithFiltersUnassignedSearch_shouldUseLeftRoomJoinAndKeepUnassignedFilter() {
+        StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "ADMIN"));
+        ReflectionTestUtils.setField(
+                reservationService,
+                "clock",
+                Clock.fixed(Instant.parse("2026-06-12T01:00:00Z"), ZoneOffset.UTC)
+        );
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store("Asia/Shanghai")));
+        when(reservationRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenAnswer(invocation -> {
+                    Specification<Reservation> specification = invocation.getArgument(0);
+                    Root<Reservation> root = mock(Root.class);
+                    CriteriaQuery<?> query = mock(CriteriaQuery.class);
+                    CriteriaBuilder criteriaBuilder = mock(CriteriaBuilder.class);
+                    Join<Reservation, Room> roomJoin = mock(Join.class);
+                    Path<Long> storeIdPath = mock(Path.class);
+                    Path<String> orderNumberPath = mock(Path.class);
+                    Path<String> channelOrderNumberPath = mock(Path.class);
+                    Path<String> guestNamePath = mock(Path.class);
+                    Path<String> guestPhonePath = mock(Path.class);
+                    Path<String> roomNumberPath = mock(Path.class);
+                    Path<String> otaRoomNumberPath = mock(Path.class);
+                    Path<String> otaRoomIdPath = mock(Path.class);
+                    Path<Room> roomPath = mock(Path.class);
+                    Path<LocalDate> checkOutDatePath = mock(Path.class);
+                    Expression<String> loweredText = mock(Expression.class);
+                    Predicate predicate = mock(Predicate.class);
+
+                    when(root.<Long>get("storeId")).thenReturn(storeIdPath);
+                    when(root.<Reservation, Room>join("room", JoinType.LEFT)).thenReturn(roomJoin);
+                    when(root.<String>get("orderNumber")).thenReturn(orderNumberPath);
+                    when(root.<String>get("channelOrderNumber")).thenReturn(channelOrderNumberPath);
+                    when(root.<String>get("guestName")).thenReturn(guestNamePath);
+                    when(root.<String>get("guestPhone")).thenReturn(guestPhonePath);
+                    when(roomJoin.<String>get("roomNumber")).thenReturn(roomNumberPath);
+                    when(root.<String>get("otaRoomNumber")).thenReturn(otaRoomNumberPath);
+                    when(root.<String>get("otaRoomId")).thenReturn(otaRoomIdPath);
+                    when(root.<Room>get("room")).thenReturn(roomPath);
+                    when(root.<LocalDate>get("checkOutDate")).thenReturn(checkOutDatePath);
+                    when(criteriaBuilder.equal(storeIdPath, STORE_ID)).thenReturn(predicate);
+                    when(criteriaBuilder.lower(any(Expression.class))).thenReturn(loweredText);
+                    when(criteriaBuilder.like(loweredText, "%ba-wb-order%")).thenReturn(predicate);
+                    when(criteriaBuilder.or(any(Predicate[].class))).thenReturn(predicate);
+                    when(criteriaBuilder.isNull(roomPath)).thenReturn(predicate);
+                    when(criteriaBuilder.greaterThanOrEqualTo(
+                            checkOutDatePath,
+                            LocalDate.of(2026, 6, 12)
+                    )).thenReturn(predicate);
+                    when(criteriaBuilder.and(any(Predicate[].class))).thenReturn(predicate);
+
+                    specification.toPredicate(root, query, criteriaBuilder);
+
+                    verify(root).<Reservation, Room>join("room", JoinType.LEFT);
+                    verify(criteriaBuilder).isNull(roomPath);
+                    verify(criteriaBuilder).greaterThanOrEqualTo(
+                            checkOutDatePath,
+                            LocalDate.of(2026, 6, 12)
+                    );
+                    return new PageImpl<Reservation>(List.of());
+                });
+
+        reservationService.getReservationsWithFilters(
+                0,
+                10,
+                " BA-WB-ORDER ",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "unassigned"
         );
     }
 

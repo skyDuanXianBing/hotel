@@ -2632,10 +2632,16 @@ const getRouteQueryText = (value: unknown) => {
 const routeTarget = computed(() => {
   const reservationIdText = getRouteQueryText(route.query.reservationId)
   const reservationIdNumber = Number(reservationIdText)
+  const suThreadIdText = getRouteQueryText(route.query.suThreadId)
+  const suThreadIdNumber = Number(suThreadIdText)
   return {
     reservationId:
       reservationIdText && Number.isInteger(reservationIdNumber) && reservationIdNumber > 0
         ? reservationIdNumber
+        : null,
+    suThreadId:
+      suThreadIdText && Number.isInteger(suThreadIdNumber) && suThreadIdNumber > 0
+        ? suThreadIdNumber
         : null,
     orderNumber: getRouteQueryText(route.query.orderNumber),
     channelOrderNumber: getRouteQueryText(route.query.channelOrderNumber),
@@ -2646,7 +2652,11 @@ const routeTarget = computed(() => {
 const hasRouteTarget = computed(() => {
   const target = routeTarget.value
   return Boolean(
-    target.reservationId || target.orderNumber || target.channelOrderNumber || target.guestName,
+    target.reservationId ||
+      target.suThreadId ||
+      target.orderNumber ||
+      target.channelOrderNumber ||
+      target.guestName,
   )
 })
 
@@ -2654,6 +2664,7 @@ const routeTargetKey = computed(() => {
   const target = routeTarget.value
   return [
     target.reservationId ? String(target.reservationId) : '',
+    target.suThreadId ? String(target.suThreadId) : '',
     target.orderNumber,
     target.channelOrderNumber,
     target.guestName,
@@ -2795,6 +2806,15 @@ const resolveConversationByRouteTarget = async () => {
   }
 
   const target = routeTarget.value
+  if (target.suThreadId) {
+    const directThreadMatch = conversations.value.find((conversation) => {
+      return conversation.id === target.suThreadId
+    })
+    if (directThreadMatch) {
+      return directThreadMatch
+    }
+  }
+
   const bookingCandidates = [target.channelOrderNumber, target.orderNumber]
     .map((item) => item.trim())
     .filter(Boolean)

@@ -83,7 +83,12 @@
         v-else
         :key="task.id"
         class="task-row"
-        :class="[`priority-${task.priority}`]"
+        :class="[`priority-${task.priority}`, { clickable: canNavigateTask(task) }]"
+        :role="canNavigateTask(task) ? 'button' : undefined"
+        :tabindex="canNavigateTask(task) ? 0 : undefined"
+        @click="goToTask(task)"
+        @keydown.enter.prevent="goToTask(task)"
+        @keydown.space.prevent="goToTask(task)"
       >
         <div class="task-marker">
           <img :src="getTaskIcon(task.type)" :alt="task.title" />
@@ -92,25 +97,26 @@
         <div class="task-main">
           <div class="task-copy">
             <h4>{{ task.title }}</h4>
-            <p>{{ task.subtitle }}</p>
+            <p v-if="task.subtitle">{{ task.subtitle }}</p>
           </div>
 
           <div class="task-meta">
             <span v-for="item in task.metaItems" :key="item">{{ item }}</span>
           </div>
 
-          <span class="task-status" :class="`status-${task.status}`">
-            {{ getStatusLabel(task.status) }}
+          <span class="task-status" :class="getStatusClass(task.statusGroup)">
+            {{ getStatusLabel(task.statusGroup) }}
           </span>
 
           <el-select
-            v-if="task.status === 'pending'"
+            v-if="task.canAssignCleaner"
             v-model="assignSelections[task.sourceTaskId]"
             :placeholder="t('pages.home.workbench.selectEmployee')"
             :loading="cleanersLoading"
             size="small"
             filterable
             class="assign-select"
+            @click.stop
           >
             <el-option
               v-for="cleaner in cleanerList"
@@ -120,12 +126,12 @@
             />
           </el-select>
           <el-button
-            v-if="task.status === 'pending'"
+            v-if="task.canAssignCleaner"
             type="primary"
             size="small"
             class="assign-btn"
             :loading="assigningTaskId === task.sourceTaskId"
-            @click="assignTask(task)"
+            @click.stop="assignTask(task)"
           >
             {{ t('pages.home.workbench.assign') }}
           </el-button>
@@ -137,7 +143,7 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ArrowRight, Refresh } from '@element-plus/icons-vue'
 import workbenchAllIcon from '@/assets/home/workbench-all.svg'
@@ -149,6 +155,8 @@ import workbenchReviewIcon from '@/assets/home/workbench-review.svg'
 import {
   useHomeTaskWorkbench,
   type WorkbenchStatusFilter,
+  type WorkbenchTask,
+  type WorkbenchTaskTarget,
   type WorkbenchTaskType,
   type WorkbenchTaskTypeFilter,
 } from '@/views/home/composables/useHomeTaskWorkbench'
@@ -191,6 +199,7 @@ const getStatusLabel = (status: string) => {
   const statusMap: Record<string, string> = {
     expired: t('pages.home.workbench.statuses.expired'),
     pending: t('pages.home.workbench.statuses.pending'),
+    unassigned: t('pages.home.workbench.statuses.unassigned'),
     assigned: t('pages.home.workbench.statuses.assigned'),
     in_progress: t('pages.home.workbench.statuses.inProgress'),
     completed: t('pages.home.workbench.statuses.completed'),
@@ -198,13 +207,224 @@ const getStatusLabel = (status: string) => {
   return statusMap[status] || status
 }
 
+const allowedRouteNames = new Set([
+  'CleaningTaskList',
+  'DataCenterRegistrations',
+  'DataCenterRegistrationDetail',
+  'Order',
+  'Messages',
+])
+
+const normalizeRouteRecord = (
+  source?: Record<string, string | number | boolean | null | undefined>,
+) => {
+  const normalized: Record<string, string> = {}
+  if (!source) {
+    return normalized
+  }
+
+  for (const key of Object.keys(source)) {
+    const value = source[key]
+    if (value === undefined || value === null || value === '') {
+      continue
+    }
+    normalized[key] = String(value)
+  }
+  return normalized
+}
+
+const getTargetShortcutQuery = (
+  target: Exclude<WorkbenchTaskTarget, string | null | undefined>,
+) => {
+  const query: Record<string, string> = {}
+  if (target.reservationId) {
+    query.reservationId = String(target.reservationId)
+  }
+  if (target.orderNumber) {
+    query.orderNumber = String(target.orderNumber)
+  }
+  if (target.channelOrderNumber) {
+    query.channelOrderNumber = String(target.channelOrderNumber)
+  }
+  if (target.guestName) {
+    query.guestName = String(target.guestName)
+  }
+  if (target.suThreadId) {
+    query.suThreadId = String(target.suThreadId)
+  }
+  return query
+}
+
+const isAllowedTargetPath = (path: string) => {
+  if (path === '/accommodation/cleaning/task-list') {
+    return true
+  }
+  if (path === '/data-center/registrations') {
+    return true
+  }
+  if (path.startsWith('/data-center/registrations/')) {
+    return true
+  }
+  if (path === '/order') {
+    return true
+  }
+  if (path === '/messages') {
+    return true
+  }
+  return false
+}
+
+const resolveStringTargetRoute = (target: string): RouteLocationRaw | null => {
+  const normalized = target.trim()
+  if (!normalized) {
+    return null
+  }
+  if (normalized.startsWith('/') && isAllowedTargetPath(normalized)) {
+    return { path: normalized }
+  }
+  if (allowedRouteNames.has(normalized)) {
+    return { name: normalized }
+  }
+  return null
+}
+
+const resolveObjectTargetRoute = (
+  target: Exclude<WorkbenchTaskTarget, string | null | undefined>,
+): RouteLocationRaw | null => {
+  const routeName = target.routeName || target.name || ''
+  const query = {
+    ...normalizeRouteRecord(target.query),
+    ...getTargetShortcutQuery(target),
+  }
+
+  if (routeName && allowedRouteNames.has(routeName)) {
+    return {
+      name: routeName,
+      params: normalizeRouteRecord(target.params),
+      query,
+    }
+  }
+
+  const routePath = target.routePath || target.path || ''
+  if (routePath && isAllowedTargetPath(routePath)) {
+    return {
+      path: routePath,
+      query,
+    }
+  }
+
+  return null
+}
+
+const resolveTargetRoute = (target: WorkbenchTaskTarget): RouteLocationRaw | null => {
+  if (!target) {
+    return null
+  }
+  if (typeof target === 'string') {
+    return resolveStringTargetRoute(target)
+  }
+  return resolveObjectTargetRoute(target)
+}
+
+const resolveOrderListRoute = (statusGroup?: string): RouteLocationRaw => {
+  if (statusGroup === 'unassigned') {
+    return {
+      name: 'Order',
+      query: { type: 'unassigned' },
+    }
+  }
+  if (statusGroup === 'pending') {
+    return {
+      name: 'Order',
+      query: { type: 'pending' },
+    }
+  }
+  return { name: 'Order' }
+}
+
+const resolveTaskRoute = (task: WorkbenchTask): RouteLocationRaw | null => {
+  const targetRoute = resolveTargetRoute(task.target)
+  if (targetRoute) {
+    return targetRoute
+  }
+
+  if (task.type === 'cleaning') {
+    return {
+      name: 'CleaningTaskList',
+      query: {
+        date: todayYmd.value,
+        status: task.statusGroup,
+      },
+    }
+  }
+
+  if (task.type === 'review') {
+    if (task.sourceTaskId) {
+      return {
+        name: 'DataCenterRegistrationDetail',
+        params: { formId: String(task.sourceTaskId) },
+      }
+    }
+    return { name: 'DataCenterRegistrations' }
+  }
+
+  if (task.type === 'order') {
+    return resolveOrderListRoute(task.statusGroup)
+  }
+
+  if (task.type === 'message') {
+    const query: Record<string, string> = {}
+    if (task.sourceId) {
+      query.suThreadId = String(task.sourceId)
+    }
+    return {
+      name: 'Messages',
+      query,
+    }
+  }
+
+  return null
+}
+
+const canNavigateTask = (task: WorkbenchTask) => Boolean(resolveTaskRoute(task))
+
+const getStatusClass = (status: string) => {
+  return `status-${status.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+}
+
 const handleTypeChange = (type: WorkbenchTaskTypeFilter) => {
   activeType.value = type
   activeStatus.value = 'all' as WorkbenchStatusFilter
 }
 
+const navigateToRoute = (route: RouteLocationRaw) => {
+  router.push(route).catch((error) => {
+    console.error('Failed to navigate from home workbench:', error)
+  })
+}
+
+const goToTask = (task: WorkbenchTask) => {
+  const route = resolveTaskRoute(task)
+  if (!route) {
+    return
+  }
+  navigateToRoute(route)
+}
+
 const goToTaskList = () => {
-  router.push('/accommodation/cleaning/task-list')
+  if (activeType.value === 'review') {
+    navigateToRoute({ name: 'DataCenterRegistrations' })
+    return
+  }
+  if (activeType.value === 'order') {
+    navigateToRoute(resolveOrderListRoute(activeStatus.value))
+    return
+  }
+  if (activeType.value === 'message') {
+    navigateToRoute({ name: 'Messages' })
+    return
+  }
+  navigateToRoute({ name: 'CleaningTaskList' })
 }
 
 onMounted(() => {
@@ -454,6 +674,15 @@ onMounted(() => {
   overflow: hidden;
 }
 
+.task-row.clickable {
+  cursor: pointer;
+}
+
+.task-row.clickable:focus-visible {
+  outline: 2px solid rgba(76, 111, 255, 0.72);
+  outline-offset: 2px;
+}
+
 .task-row::before {
   content: '';
   position: absolute;
@@ -546,6 +775,11 @@ onMounted(() => {
 .task-status.status-pending {
   color: #f80e0e;
   background: rgba(248, 14, 14, 0.05);
+}
+
+.task-status.status-unassigned {
+  color: #c26a00;
+  background: rgba(255, 167, 38, 0.12);
 }
 
 .task-status.status-assigned {
