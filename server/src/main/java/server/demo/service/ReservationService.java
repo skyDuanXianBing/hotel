@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import server.demo.dto.AssignableRoomDTO;
 import server.demo.dto.AssignableRoomTypeDTO;
@@ -1090,7 +1092,8 @@ public class ReservationService {
             
             // 搜索关键词过滤
             if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
-                String keyword = "%" + searchKeyword.toLowerCase() + "%";
+                Join<Reservation, Room> roomJoin = root.join("room", JoinType.LEFT);
+                String keyword = "%" + searchKeyword.trim().toLowerCase() + "%";
                 Predicate orderNumberPredicate = criteriaBuilder.like(
                     criteriaBuilder.lower(root.get("orderNumber")), keyword);
                 Predicate channelOrderPredicate = criteriaBuilder.like(
@@ -1100,25 +1103,33 @@ public class ReservationService {
                 Predicate phonePredicate = criteriaBuilder.like(
                     criteriaBuilder.lower(root.get("guestPhone")), keyword);
                 Predicate roomNumberPredicate = criteriaBuilder.like(
-                    criteriaBuilder.lower(root.get("room").get("roomNumber")), keyword);
+                    criteriaBuilder.lower(roomJoin.get("roomNumber")), keyword);
+                Predicate otaRoomNumberPredicate = criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("otaRoomNumber")), keyword);
+                Predicate otaRoomIdPredicate = criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("otaRoomId")), keyword);
                 
                 predicates.add(criteriaBuilder.or(
                     orderNumberPredicate, channelOrderPredicate, 
-                    guestNamePredicate, phonePredicate, roomNumberPredicate
+                    guestNamePredicate, phonePredicate, roomNumberPredicate,
+                    otaRoomNumberPredicate, otaRoomIdPredicate
                 ));
             }
             
             // 渠道过滤
             if (channel != null && !channel.trim().isEmpty()) {
+                Join<Reservation, Channel> channelJoin = root.join("channel", JoinType.LEFT);
                 predicates.add(criteriaBuilder.equal(
-                    root.get("channel").get("name"), getChannelDisplayName(channel)
+                    channelJoin.get("name"), getChannelDisplayName(channel)
                 ));
             }
             
             // 房型过滤
             if (roomType != null && !roomType.trim().isEmpty()) {
+                Join<Reservation, Room> roomJoin = root.join("room", JoinType.LEFT);
+                Join<Room, RoomType> roomTypeJoin = roomJoin.join("roomType", JoinType.LEFT);
                 predicates.add(criteriaBuilder.equal(
-                    root.get("room").get("roomType").get("name"), roomType
+                    roomTypeJoin.get("name"), roomType
                 ));
             }
             

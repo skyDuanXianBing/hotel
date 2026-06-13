@@ -193,6 +193,7 @@ const ja = mergeLocaleMessages(
       basicInfo: '基本情報',
       storeDetails: '店舗詳細',
       notificationSettings: '通知設定',
+      announcementSettings: 'お知らせ管理',
       channelSettings: 'チャネル設定',
       quickReply: 'クイック返信',
       automationMessages: '自動メッセージ',

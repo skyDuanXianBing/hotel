@@ -99,6 +99,7 @@ const menuItems: MenuItem[] = [
     icon: Setting,
     children: [
       { key: 'notification-settings', label: 'settings.layout.items.notificationSettings', path: '/settings/general/notification', requiredPermissions: storeSettingsPermission },
+      { key: 'announcement-settings', label: 'settings.layout.items.announcementSettings', path: '/settings/general/announcements', requiredPermissions: storeSettingsPermission },
       { key: 'channel-settings', label: 'settings.layout.items.channelSettings', path: '/settings/general/channel', requiredPermissions: storeSettingsPermission },
       { key: 'quick-reply', label: 'settings.layout.items.quickReply', path: '/settings/general/quick-reply', requiredPermissions: storeSettingsPermission },
       { key: 'auto-message', label: 'settings.layout.items.autoMessage', path: '/settings/general/auto-message', requiredPermissions: storeSettingsPermission },

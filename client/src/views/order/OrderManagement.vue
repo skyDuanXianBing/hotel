@@ -314,7 +314,11 @@
             prop="roomTypeName"
             :label="t('order.table.roomType')"
             width="180"
-          ></el-table-column>
+          >
+            <template #default="scope">
+              <span>{{ getRoomTypeDisplay(scope.row) }}</span>
+            </template>
+          </el-table-column>
 
           <el-table-column
             v-if="activeOrderTab === 'all'"
@@ -329,34 +333,23 @@
 
           <el-table-column
             v-if="activeOrderTab === 'unassigned'"
-            prop="otaRoomId"
-            :label="t('order.table.otaRoomId')"
-            width="160"
+            :label="t('order.mapping.channelRoomType')"
+            min-width="220"
           >
             <template #default="scope">
-              <span>{{ scope.row.otaRoomId || '-' }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column
-            v-if="activeOrderTab === 'unassigned'"
-            prop="otaRoomTypeId"
-            :label="t('order.table.pmsRoomTypeId')"
-            width="110"
-          >
-            <template #default="scope">
-              <span>{{ scope.row.otaRoomTypeId ?? '-' }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column
-            v-if="activeOrderTab === 'unassigned'"
-            prop="reservationNotifId"
-            label="reservation_notif_id"
-            width="210"
-          >
-            <template #default="scope">
-              <span>{{ scope.row.reservationNotifId || '-' }}</span>
+              <div class="room-mapping-cell">
+                <div
+                  v-for="item in getChannelRoomDisplayItems(scope.row)"
+                  :key="item.label"
+                  class="room-mapping-line"
+                >
+                  <span class="room-mapping-label">{{ item.label }}</span>
+                  <span class="room-mapping-value">{{ item.value }}</span>
+                </div>
+                <el-tag size="small" :type="getAssignStatusTagType(scope.row)">
+                  {{ getAssignStatusText(scope.row) }}
+                </el-tag>
+              </div>
             </template>
           </el-table-column>
 
@@ -849,10 +842,11 @@ const loadReservations = async () => {
       loading.value = false
       return
     }
+    const normalizedSearchQuery = searchQuery.value.trim()
     const filterParams = {
       page: currentPage.value - 1, // 后端从0开始计数
       size: pageSize.value,
-      searchKeyword: searchQuery.value || undefined,
+      searchKeyword: normalizedSearchQuery || undefined,
       channel: filters.value.channel || undefined,
       roomType: filters.value.roomType || undefined,
       checkinType: filters.value.checkinType || undefined,
@@ -1066,6 +1060,75 @@ const getAssignStatusTagType = (order: ReservationDTO) => {
     return 'warning'
   }
   return canAssignRoom(order) ? 'success' : 'info'
+}
+
+const getTrimmedValue = (value?: string | null) => {
+  return value?.trim() || ''
+}
+
+const getParsedOtaRoomNumber = (order: ReservationDTO) => {
+  const otaRoomId = getTrimmedValue(order.otaRoomId)
+  if (!otaRoomId) {
+    return ''
+  }
+
+  const separatorIndex = otaRoomId.indexOf('-')
+  if (separatorIndex < 0 || separatorIndex === otaRoomId.length - 1) {
+    return ''
+  }
+
+  return otaRoomId.slice(separatorIndex + 1).trim()
+}
+
+const hasChannelRoomReference = (order: ReservationDTO) => {
+  return Boolean(getTrimmedValue(order.otaRoomId) || order.otaRoomTypeId)
+}
+
+const getRoomTypeDisplay = (order: ReservationDTO) => {
+  const roomTypeName = getTrimmedValue(order.roomTypeName)
+  if (roomTypeName) {
+    return roomTypeName
+  }
+
+  if (hasChannelRoomReference(order)) {
+    return t('order.tabs.unassigned')
+  }
+
+  return '-'
+}
+
+const getChannelRoomDisplayItems = (order: ReservationDTO) => {
+  const displayItems: Array<{ label: string; value: string }> = []
+
+  if (hasChannelRoomReference(order)) {
+    displayItems.push({
+      label: t('order.mapping.channelRoomType'),
+      value: t('order.tabs.unassigned'),
+    })
+  } else {
+    displayItems.push({
+      label: t('order.mapping.channelRoomType'),
+      value: '-',
+    })
+  }
+
+  const parsedRoomNumber = getParsedOtaRoomNumber(order)
+  if (parsedRoomNumber) {
+    displayItems.push({
+      label: t('order.table.roomNumber'),
+      value: parsedRoomNumber,
+    })
+  }
+
+  const roomTypeName = getTrimmedValue(order.roomTypeName)
+  if (roomTypeName) {
+    displayItems.push({
+      label: t('order.mapping.pmsRoomType'),
+      value: roomTypeName,
+    })
+  }
+
+  return displayItems
 }
 
 const formatAmount = (value?: number) => {
@@ -1664,6 +1727,31 @@ onMounted(() => {
   margin-top: 2px;
   font-size: 11px;
   color: #8c8c8c;
+}
+
+.room-mapping-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+.room-mapping-line {
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+  font-size: 12px;
+}
+
+.room-mapping-label {
+  color: #909399;
+  white-space: nowrap;
+}
+
+.room-mapping-value {
+  color: #303133;
+  overflow-wrap: anywhere;
 }
 
 /* 分页 */

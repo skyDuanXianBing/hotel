@@ -191,6 +191,7 @@ const zhTW = mergeLocaleMessages(
       basicInfo: '基本資訊',
       storeDetails: '門店詳情',
       notificationSettings: '通知設定',
+      announcementSettings: '公告管理',
       channelSettings: '渠道設定',
       quickReply: '快捷回覆',
       automationMessages: '自動化訊息',
