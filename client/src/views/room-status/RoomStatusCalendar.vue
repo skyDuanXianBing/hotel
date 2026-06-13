@@ -620,7 +620,7 @@
             })
           }}</span>
           <span class="received">{{
-            t('roomStatus.hoverCard.paidAmount', { amount: totalPayment.toFixed(2) })
+            t('roomStatus.hoverCard.paidAmount', { amount: hoverPaidAmountText })
           }}</span>
         </div>
 
@@ -3186,6 +3186,9 @@ const showDirtyHover = ref(false)
 const hoverCardPosition = ref({ x: 0, y: 0 })
 const hoverReservation = ref<any>(null)
 const hoverDirtyRoomId = ref<number | null>(null)
+const hoverReservationRequestId = ref(0)
+const hoverTotalPayment = ref(0)
+const hoverPaidAmountText = computed(() => hoverTotalPayment.value.toFixed(2))
 const hoverCardRef = ref<HTMLElement | null>(null)
 const hoverCardAnchorRect = ref<DOMRect | null>(null)
 
@@ -5489,6 +5492,11 @@ const onCellHover = (
 
   // 显示预订信息卡片（悬停展示）
   if (dailyStatus.reservation) {
+    const reservationId = Number(dailyStatus.reservation.id || 0)
+    const requestId = hoverReservationRequestId.value + 1
+    hoverReservationRequestId.value = requestId
+    hoverTotalPayment.value = 0
+
     // 先显示基本信息
     hoverReservation.value = dailyStatus.reservation
     showHoverCard.value = true
@@ -5498,11 +5506,13 @@ const onCellHover = (
 
     // 异步获取完整的预订详情（如果有ID）
     if (dailyStatus.reservation.id) {
-      loadReservationDetails(dailyStatus.reservation.id)
+      void loadHoverReservationDetails(reservationId, requestId)
     } else {
       console.log('预订信息缺少ID，使用基本信息:', dailyStatus.reservation)
     }
   } else {
+    hoverReservationRequestId.value += 1
+    hoverTotalPayment.value = 0
     hoverReservation.value = null
     showHoverCard.value = false
   }
@@ -5510,11 +5520,64 @@ const onCellHover = (
 
 // 隐藏悬停卡片
 const hideHoverCard = () => {
+  hoverReservationRequestId.value += 1
   showHoverCard.value = false
   showDirtyHover.value = false
   hoverReservation.value = null
   hoverDirtyRoomId.value = null
+  hoverTotalPayment.value = 0
   hoverCardAnchorRect.value = null
+}
+
+const normalizeReservationDetail = (reservation: ReservationDTO) => ({
+  ...reservation,
+  status: reservation.status,
+  guestName: reservation.guestName,
+  phone: reservation.phone,
+  totalAmount: reservation.totalAmount,
+  currentRoomPrice: reservation.currentRoomPrice,
+  checkInDate: reservation.checkInDate,
+  checkOutDate: reservation.checkOutDate,
+  channelName: reservation.channelName,
+  roomNumber: reservation.roomNumber,
+  roomTypeName: reservation.roomTypeName,
+  notes: reservation.notes,
+})
+
+const loadHoverReservationDetails = async (reservationId: number, requestId: number) => {
+  if (!reservationId) return
+
+  try {
+    const response = await getReservationById(reservationId)
+    if (
+      requestId !== hoverReservationRequestId.value ||
+      Number(hoverReservation.value?.id || 0) !== reservationId
+    ) {
+      return
+    }
+
+    if (response.success && response.data) {
+      const reservationData = normalizeReservationDetail(response.data)
+      hoverReservation.value = { ...hoverReservation.value, ...reservationData }
+
+      void nextTick(() => {
+        adjustHoverCardPosition()
+      })
+
+      const paymentResponse = await getTotalPayment(reservationId)
+      if (
+        requestId === hoverReservationRequestId.value &&
+        Number(hoverReservation.value?.id || 0) === reservationId &&
+        paymentResponse.success
+      ) {
+        hoverTotalPayment.value = Number(paymentResponse.data || 0)
+      }
+    } else {
+      console.error('加载悬停预订详情失败:', response.message)
+    }
+  } catch (error: any) {
+    console.error('加载悬停预订详情异常:', error)
+  }
 }
 
 // 加载预订详情
@@ -5525,29 +5588,10 @@ const loadReservationDetails = async (reservationId: number) => {
 
     if (response.success && response.data) {
       // 更新预订信息
-      const reservationData = {
-        ...response.data,
-        // 确保关键字段存在
-        status: response.data.status,
-        guestName: response.data.guestName,
-        phone: response.data.phone,
-        totalAmount: response.data.totalAmount,
-        currentRoomPrice: response.data.currentRoomPrice, // 当前房价
-        checkInDate: response.data.checkInDate,
-        checkOutDate: response.data.checkOutDate,
-        channelName: response.data.channelName,
-        roomNumber: response.data.roomNumber,
-        roomTypeName: response.data.roomTypeName,
-        notes: response.data.notes,
-      }
+      const reservationData = normalizeReservationDetail(response.data)
 
-      // 同时更新悬停卡片和选中的预订信息
-      hoverReservation.value = { ...hoverReservation.value, ...reservationData }
       selectedReservation.value = reservationData
       syncDetailNotesDraft(reservationData)
-      void nextTick(() => {
-        adjustHoverCardPosition()
-      })
 
       console.log('预订详情加载成功:', reservationData)
 
@@ -6047,16 +6091,21 @@ const loadConsumptionAndPaymentData = async () => {
     return
   }
 
-  console.log('loadConsumptionAndPaymentData: 开始加载预订ID:', selectedReservation.value.id)
+  const reservationId = selectedReservation.value.id
+  console.log('loadConsumptionAndPaymentData: 开始加载预订ID:', reservationId)
 
   try {
     // 并发加载消费和收款数据
     const [consumptionRes, paymentRes, totalConsumptionRes, totalPaymentRes] = await Promise.all([
-      getConsumptionsByReservationId(selectedReservation.value.id),
-      getPaymentsByReservationId(selectedReservation.value.id),
-      getTotalConsumption(selectedReservation.value.id),
-      getTotalPayment(selectedReservation.value.id),
+      getConsumptionsByReservationId(reservationId),
+      getPaymentsByReservationId(reservationId),
+      getTotalConsumption(reservationId),
+      getTotalPayment(reservationId),
     ])
+
+    if (selectedReservation.value?.id !== reservationId) {
+      return
+    }
 
     console.log('消费记录响应:', consumptionRes)
     console.log('收款记录响应:', paymentRes)
@@ -7694,6 +7743,15 @@ onActivated(async () => {
   white-space: normal;
 }
 
+.header-cell-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.35;
+  white-space: normal;
+}
+
 .clickable-header {
   cursor: pointer;
   transition:
@@ -7885,6 +7943,10 @@ onActivated(async () => {
   font-size: var(--calendar-room-type-font-size);
   line-height: 1.45;
   color: #6b717b;
+  width: 100%;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .room-number {

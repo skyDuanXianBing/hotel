@@ -1,5 +1,5 @@
 <template>
-  <div class="accommodation-shell" :style="shellStyle">
+  <div class="accommodation-shell" :class="{ 'is-sidebar-collapsed': isCollapsed }" :style="shellStyle">
     <aside class="accommodation-sidebar" :class="{ 'is-collapsed': isCollapsed }">
       <button type="button" class="sidebar-toggle" @click="toggleSidebar">
         <span class="sidebar-toggle-mark">
@@ -68,6 +68,9 @@
         class="panel-header"
         :class="{
           'panel-header--room-status': activeSectionId === 'room-status',
+          'panel-header--room-table': activeSectionId === 'room-table',
+          'panel-header--room-price': activeSectionId === 'room-price',
+          'panel-header--cleaning': activeSectionId === 'cleaning',
           'panel-header--sidebar-collapsed': isCollapsed,
         }"
       >
@@ -173,36 +176,12 @@ const sidebarItems: SidebarItem[] = [
     labelKey: 'accommodation.layout.roomPriceInventory',
     path: '/accommodation/room-price-management',
     icon: Money,
-    children: [
-      {
-        id: 'room-price-management',
-        labelKey: 'accommodation.layout.roomPriceManagement',
-        path: '/accommodation/room-price-management',
-      },
-      {
-        id: 'room-price-history',
-        labelKey: 'accommodation.layout.priceChangeHistory',
-        path: '/accommodation/room-price/change-history',
-      },
-    ],
   },
   {
     id: 'cleaning',
     labelKey: 'accommodation.layout.cleaning',
     path: '/accommodation/cleaning/overview',
     icon: BrushFilled,
-    children: [
-      {
-        id: 'cleaning-overview',
-        labelKey: 'accommodation.layout.taskOverview',
-        path: '/accommodation/cleaning/overview',
-      },
-      {
-        id: 'cleaning-task-list',
-        labelKey: 'accommodation.layout.taskList',
-        path: '/accommodation/cleaning/task-list',
-      },
-    ],
   },
 ]
 
@@ -307,7 +286,10 @@ watch(
     const targetSection = sidebarItems.find((item) => item.id === sectionId)
     if (targetSection?.children?.length) {
       expandedSectionId.value = sectionId
+      return
     }
+
+    expandedSectionId.value = ''
   },
   { immediate: true },
 )
@@ -339,6 +321,7 @@ watch(
 }
 
 .accommodation-sidebar {
+  width: var(--sidebar-width);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -553,12 +536,18 @@ watch(
   --nav-center-shift: calc(var(--sidebar-width) / -2);
 }
 
-.panel-header--room-status :deep(.top-nav) {
+.panel-header--room-status :deep(.top-nav),
+.panel-header--room-table :deep(.top-nav),
+.panel-header--room-price :deep(.top-nav),
+.panel-header--cleaning :deep(.top-nav) {
   --nav-center-shift: calc(-56px + ((var(--sidebar-width) - 84px) / 6));
   --nav-right-shift: -28px;
 }
 
-.panel-header--room-status {
+.panel-header--room-status,
+.panel-header--room-table,
+.panel-header--room-price,
+.panel-header--cleaning {
   background: #f5f5f5;
 }
 

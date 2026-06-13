@@ -275,6 +275,7 @@ const getStoreRoleBadge = (role?: string) => {
   max-width: 100%;
   overflow: hidden;
   transform: translateX(var(--nav-center-shift));
+  transition: transform 0.24s ease;
 }
 
 .nav-left {
@@ -287,6 +288,7 @@ const getStoreRoleBadge = (role?: string) => {
   justify-content: flex-end;
   min-width: var(--nav-right-min-width);
   transform: translateX(var(--nav-right-shift));
+  transition: transform 0.24s ease;
 }
 
 .store-dropdown {
