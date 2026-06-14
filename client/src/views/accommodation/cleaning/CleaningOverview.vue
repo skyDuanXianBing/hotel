@@ -1,20 +1,35 @@
 <template>
   <div class="cleaning-overview">
+    <CleaningTabs />
     <!-- 顶部操作栏 -->
     <div class="header-toolbar">
       <div class="left-section">
-        <el-date-picker
-          v-model="currentDate"
-          type="date"
-          :placeholder="t('accommodation.common.select')"
-          format="YYYY/MM/DD"
-          value-format="YYYY-MM-DD"
-          @change="handleDateChange"
-        />
-        <el-button :icon="Refresh" @click="handleRefresh">{{ t('accommodation.cleaning.refresh') }}</el-button>
+        <button type="button" class="date-nav-button" @click="handlePreviousWeek">
+          <el-icon><ArrowLeft /></el-icon>
+        </button>
+        <div class="cleaning-date-picker-shell">
+          <el-date-picker
+            v-model="currentDate"
+            type="date"
+            :placeholder="t('accommodation.common.select')"
+            format="YYYY/MM/DD"
+            value-format="YYYY-MM-DD"
+            class="cleaning-date-picker cleaning-date-picker--primary"
+            @change="handleDateChange"
+          />
+          <span v-if="currentDateDisplayText" class="cleaning-date-picker-display">
+            {{ currentDateDisplayText }}
+          </span>
+        </div>
+        <button type="button" class="date-nav-button date-nav-button--next" @click="handleNextWeek">
+          <el-icon><ArrowRight /></el-icon>
+        </button>
+        <el-button class="toolbar-button refresh-button" :icon="Refresh" @click="handleRefresh">
+          {{ t('accommodation.cleaning.refresh') }}
+        </el-button>
         <el-dropdown @command="handleFilter">
-          <el-button>
-            {{ t('accommodation.cleaning.filter') }} <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          <el-button class="toolbar-button filter-button">
+            {{ currentFilterLabel }} <el-icon class="el-icon--right"><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -29,17 +44,10 @@
         </el-dropdown>
       </div>
       <div class="right-section">
-        <el-button type="primary" @click="handleGenerateTask">{{ t('accommodation.cleaning.generateTask') }}</el-button>
+        <el-button class="toolbar-button generate-button" type="primary" @click="handleGenerateTask">
+          {{ t('accommodation.cleaning.generateTask') }}
+        </el-button>
       </div>
-    </div>
-
-    <!-- 日期导航 -->
-    <div class="date-navigation">
-      <el-button :icon="ArrowLeft" circle size="small" @click="handlePreviousWeek" />
-      <div class="date-range">
-        <span>{{ dateRangeText }}</span>
-      </div>
-      <el-button :icon="ArrowRight" circle size="small" @click="handleNextWeek" />
     </div>
 
     <!-- 房态日历表格 -->
@@ -124,7 +132,13 @@
     </div>
 
     <!-- 分配任务抽屉 -->
-    <el-drawer v-model="assignDrawerVisible" :title="t('accommodation.cleaning.assignTask')" size="500px" direction="rtl">
+    <el-drawer
+      v-model="assignDrawerVisible"
+      :title="t('accommodation.cleaning.assignTask')"
+      size="430px"
+      direction="rtl"
+      class="cleaning-task-drawer"
+    >
       <div class="assign-drawer-content">
         <!-- 基本信息 -->
         <div class="section">
@@ -149,6 +163,7 @@
               <el-select
                 v-model="assignForm.cleaner"
                 :placeholder="t('accommodation.common.select')"
+                class="drawer-centered-select"
                 style="width: 100%"
                 filterable
               >
@@ -187,7 +202,13 @@
     </el-drawer>
 
     <!-- 新增任务抽屉 -->
-    <el-drawer v-model="createDrawerVisible" :title="t('accommodation.cleaning.createTask')" size="500px" direction="rtl">
+    <el-drawer
+      v-model="createDrawerVisible"
+      :title="t('accommodation.cleaning.createTask')"
+      size="430px"
+      direction="rtl"
+      class="cleaning-task-drawer"
+    >
       <div class="assign-drawer-content">
         <!-- 基本信息 -->
         <div class="section">
@@ -297,21 +318,21 @@ import {
 import { getRooms, type RoomDTO } from '@/api/room'
 import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
 import { addDaysToYmd, formatYmdMonthDay, getStoreTodayYmd, getYmdWeekdayIndex } from '@/utils/storeDateTime'
+import CleaningTabs from './components/CleaningTabs.vue'
 
 const { t } = useI18n()
-const { weekdayShortMap } = useAccommodationI18n()
+const { weekdayFullMap, weekdayShortMap } = useAccommodationI18n()
 
 // 当前日期
 const currentDate = ref(getStoreTodayYmd())
 
-// 日期范围文本
-const dateRangeText = computed(() => {
-  const start = dateColumns.value[0]?.date || ''
-  const end = dateColumns.value[dateColumns.value.length - 1]?.date || ''
-  return t('accommodation.cleaningOverview.dateRangeText', {
-    start: start.replace(/-/g, '/'),
-    end: end.replace(/-/g, '/'),
-  })
+// 当前日期展示文本
+const currentDateDisplayText = computed(() => {
+  if (!currentDate.value) {
+    return ''
+  }
+
+  return `${currentDate.value.replace(/-/g, '/')} ${weekdayFullMap.value[getYmdWeekdayIndex(currentDate.value)]}`
 })
 
 // 生成日期列(显示10天)
@@ -324,17 +345,12 @@ const dateColumns = computed(() => {
     const dateStr = addDaysToYmd(startDate, i)
     const { month, day } = formatYmdMonthDay(dateStr)
     const weekdayIndex = getYmdWeekdayIndex(dateStr)
-    const dayLabel = `${month}/${day}`
+    const dayLabel = `${month}-${day}`
     const weekDay = weekdayShortMap.value[weekdayIndex]
     const isWeekend = weekdayIndex === 0 || weekdayIndex === 6
     const isToday = dateStr === realToday
 
-    let label = ''
-    if (isToday) {
-      label = t('accommodation.cleaningOverview.todayLabel')
-    } else {
-      label = `${dayLabel} ${weekDay}`
-    }
+    const label = `${dayLabel} ${weekDay}`
 
     columns.push({
       date: dateStr,
@@ -403,6 +419,19 @@ interface TaskItem {
 const tasks = ref<TaskItem[]>([])
 const loading = ref(false)
 const currentFilter = ref('all')
+
+const currentFilterLabel = computed(() => {
+  const labelMap: Record<string, string> = {
+    all: t('accommodation.cleaning.allTasks'),
+    pending: t('accommodation.cleaning.pending'),
+    assigned: t('accommodation.cleaning.assigned'),
+    in_progress: t('accommodation.cleaning.inProgress'),
+    completed: t('accommodation.cleaning.completed'),
+    expired: t('accommodation.cleaning.expired'),
+  }
+
+  return labelMap[currentFilter.value] || t('accommodation.cleaning.filter')
+})
 
 // 加载任务数据
 const loadTasks = async () => {
@@ -884,25 +913,6 @@ onUnmounted(() => {
 }
 
 /* 日期导航 */
-.date-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #fff;
-  border-radius: 4px;
-}
-
-.date-range {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  min-width: 200px;
-  text-align: center;
-}
-
 /* 日历容器 */
 .calendar-container {
   background: #fff;
@@ -1095,6 +1105,531 @@ onUnmounted(() => {
   .left-section,
   .right-section {
     flex-wrap: wrap;
+  }
+}
+
+.cleaning-overview {
+  --cleaning-blue: #1d94f3;
+  --cleaning-header-blue: #cfe7fb;
+  --cleaning-border: #e2e2e2;
+  --cleaning-row-alt: #f7f7f7;
+  padding: 4px 24px 24px;
+  min-height: 100vh;
+}
+
+.header-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid var(--cleaning-border);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.left-section,
+.right-section {
+  gap: 8px;
+}
+
+.left-section {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.right-section {
+  margin-left: auto;
+}
+
+.date-nav-button {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #d8ebf4;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #9aa8ad;
+  cursor: pointer;
+  font-size: 13px;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.date-nav-button :deep(svg) {
+  width: 30px;
+  height: 30px;
+}
+
+.date-nav-button:hover {
+  border-color: #67b6d9;
+  color: #55add4;
+  background: #f6fcff;
+}
+
+.date-nav-button--next {
+  border-color: #8cc7df;
+  color: #5baed1;
+}
+
+.cleaning-date-picker-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 190px;
+  height: 32px;
+}
+
+.cleaning-date-picker-shell :deep(.cleaning-date-picker) {
+  width: 190px !important;
+}
+
+.cleaning-date-picker-display {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  left: 53px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  padding: 0 10px 0 12px;
+  border-radius: 0 3px 3px 0;
+  background: #f3f3f3;
+  color: #2f2f2f;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.1px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.cleaning-date-picker-shell :deep(.cleaning-date-picker--primary .el-input__wrapper) {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 2px 0 0;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px #d8d8d8 inset,
+    0 1px 2px rgba(20, 20, 20, 0.04);
+}
+
+.cleaning-date-picker-shell :deep(.cleaning-date-picker--primary .el-input__wrapper:hover),
+.cleaning-date-picker-shell :deep(.cleaning-date-picker--primary .el-input__wrapper.is-focus) {
+  box-shadow:
+    0 0 0 1px #cdd4da inset,
+    0 1px 2px rgba(20, 20, 20, 0.05);
+}
+
+.cleaning-date-picker-shell :deep(.cleaning-date-picker--primary .el-input__prefix) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  margin-right: 0;
+  color: #a8afb7;
+}
+
+.cleaning-date-picker-shell :deep(.cleaning-date-picker--primary .el-input__prefix-inner) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.cleaning-date-picker-shell :deep(.cleaning-date-picker--primary .el-input__icon) {
+  font-size: 16px;
+}
+
+.cleaning-date-picker-shell :deep(.cleaning-date-picker--primary .el-input__suffix) {
+  display: none;
+}
+
+.cleaning-date-picker-shell :deep(.cleaning-date-picker--primary .el-input__inner) {
+  height: 28px;
+  margin: 2px 0;
+  padding: 0 12px 0 52px;
+  border-radius: 0;
+  background: transparent;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: transparent;
+  opacity: 0 !important;
+  text-shadow: none;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+}
+
+.cleaning-date-picker-shell
+  :deep(.cleaning-date-picker--primary .el-input__inner::placeholder) {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-align: right;
+}
+
+.header-toolbar :deep(.toolbar-button.el-button) {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 4px;
+  border-color: #dcdcdc;
+  background: #ffffff;
+  color: #343434;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.header-toolbar :deep(.toolbar-button.el-button:hover) {
+  border-color: #b9dff7;
+  color: var(--cleaning-blue);
+}
+
+.right-section :deep(.generate-button.el-button--primary) {
+  min-width: 88px;
+  border-color: var(--cleaning-blue);
+  background: var(--cleaning-blue);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.calendar-container {
+  border: 1px solid var(--cleaning-border);
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.calendar-table {
+  color: #252525;
+  font-size: 13px;
+}
+
+.date-header {
+  justify-content: center;
+  min-height: 30px;
+  gap: 0;
+}
+
+.date-label,
+.date-label.today-label {
+  color: #2d8fcc;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.calendar-table :deep(.today-column) {
+  background-color: transparent;
+}
+
+.task-cell {
+  min-height: 52px;
+  padding: 6px 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.task-cell:hover {
+  background-color: transparent;
+}
+
+.task-item {
+  min-width: 86px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.task-item.task-expired {
+  background-color: #8e9298;
+}
+
+.task-item.task-pending {
+  background-color: var(--cleaning-blue);
+}
+
+.task-item.task-assigned {
+  background-color: #ff4d4f;
+}
+
+.task-item.task-in-progress {
+  background-color: #e8a23b;
+}
+
+.task-item.task-completed {
+  background-color: #37b26c;
+}
+
+.calendar-table :deep(.even-row td.el-table__cell) {
+  background-color: #ffffff;
+}
+
+.calendar-table :deep(.odd-row td.el-table__cell) {
+  background-color: var(--cleaning-row-alt);
+}
+
+.calendar-table :deep(.el-table__inner-wrapper::before),
+.calendar-table :deep(.el-table__border-left-patch),
+.calendar-table :deep(.el-table__body-wrapper::before) {
+  display: none;
+}
+
+.calendar-table :deep(.el-table__header th.el-table__cell) {
+  height: 32px;
+  padding: 0;
+  border-color: #d9d9d9;
+  border-bottom: none;
+  background: var(--cleaning-header-blue);
+  color: #2d8fcc;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.calendar-table :deep(.el-table__header th .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  line-height: 1.2;
+  color: #2d8fcc;
+}
+
+.calendar-table :deep(.el-table__body td.el-table__cell) {
+  height: 52px;
+  padding: 0;
+  border-color: #e3e3e3;
+}
+
+.calendar-table :deep(.el-table__body tr:first-child td.el-table__cell) {
+  border-top: none;
+}
+
+.calendar-table :deep(.el-table__fixed-header-wrapper th) {
+  background: var(--cleaning-header-blue);
+}
+
+.calendar-table :deep(.el-table__body td .cell) {
+  padding: 0;
+  color: #303030;
+  text-align: center;
+  line-height: 1.28;
+  white-space: normal;
+}
+
+.calendar-table :deep(.el-table__row:hover > td.el-table__cell) {
+  background: inherit;
+}
+
+.context-menu {
+  background: #ffffff;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+
+.context-menu-item {
+  color: #252525;
+  font-size: 13px;
+}
+
+.context-menu-item:hover {
+  background-color: #f5f5f5;
+}
+
+.assign-drawer-content {
+  padding: 124px 64px 44px;
+}
+
+.section {
+  margin-bottom: 42px;
+}
+
+.section-title {
+  margin: 0 0 18px;
+  color: #252525;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.drawer-footer {
+  justify-content: space-between;
+  gap: 72px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.assign-drawer-content :deep(.el-descriptions__table) {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.assign-drawer-content :deep(.el-descriptions__cell) {
+  height: 34px;
+  padding: 0 10px;
+  border-color: #e4e4e4;
+  font-size: 14px;
+}
+
+.assign-drawer-content :deep(.el-descriptions__label) {
+  width: 52px;
+  background: #ffffff;
+  color: #252525;
+  font-weight: 700;
+}
+
+.assign-drawer-content :deep(.el-descriptions__content) {
+  color: #6d6d6d;
+  font-weight: 500;
+}
+
+.assign-drawer-content :deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+
+.assign-drawer-content :deep(.el-form-item__label) {
+  height: 30px;
+  align-items: center;
+  justify-content: flex-start;
+  color: #3f3f3f;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.assign-drawer-content :deep(.el-form-item__content) {
+  min-height: 30px;
+  align-items: center;
+  color: #252525;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.assign-drawer-content :deep(.el-select),
+.assign-drawer-content :deep(.el-input),
+.assign-drawer-content :deep(.el-textarea) {
+  width: 100%;
+}
+
+.assign-drawer-content :deep(.el-input__wrapper) {
+  height: 28px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #e2e2e2 inset;
+}
+
+.assign-drawer-content :deep(.drawer-centered-select .el-select__wrapper) {
+  min-height: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #e2e2e2 inset;
+}
+
+.assign-drawer-content :deep(.drawer-centered-select .el-select__selection) {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: calc(100% - 28px);
+  margin-left: auto;
+}
+
+.assign-drawer-content :deep(.drawer-centered-select .el-select__placeholder) {
+  position: static;
+  transform: none;
+  color: #b3b3b3;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.assign-drawer-content :deep(.drawer-centered-select .el-select__suffix) {
+  position: static;
+  flex: 0 0 auto;
+  margin-right: auto;
+  color: #9b9b9b;
+}
+
+.assign-drawer-content :deep(.el-textarea__inner) {
+  min-height: 72px !important;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #e2e2e2 inset;
+  resize: none;
+}
+
+.drawer-footer :deep(.el-button) {
+  flex: 1;
+  height: 38px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.drawer-footer :deep(.el-button--primary) {
+  border-color: var(--cleaning-blue);
+  background: var(--cleaning-blue);
+}
+
+.cleaning-overview :deep(.el-drawer) {
+  box-shadow: none;
+}
+
+.cleaning-overview :deep(.el-drawer__header) {
+  margin: 0;
+  padding: 30px 34px 0;
+  color: #252525;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.cleaning-overview :deep(.el-drawer__title) {
+  color: #252525;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.cleaning-overview :deep(.el-drawer__close-btn) {
+  color: #8b8b8b;
+  font-size: 18px;
+}
+
+.cleaning-overview :deep(.el-drawer__body) {
+  padding: 0;
+}
+
+.assign-drawer-content :deep(.el-form-item .el-time-select) {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .left-section,
+  .right-section {
+    flex-wrap: wrap;
+  }
+
+  .assign-drawer-content {
+    padding: 48px 24px 28px;
+  }
+
+  .drawer-footer {
+    gap: 12px;
   }
 }
 </style>

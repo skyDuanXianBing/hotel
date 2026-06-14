@@ -1,7 +1,8 @@
 <template>
   <div class="cleaning-task-list">
+    <CleaningTabs />
     <!-- 筛选条件 -->
-    <el-card class="filter-card">
+    <el-card class="filter-card" shadow="never">
       <div class="filter-section">
         <div class="filter-row">
           <el-input
@@ -28,7 +29,7 @@
             <el-option :label="t('accommodation.cleaning.deep')" value="deep" />
           </el-select>
 
-          <span class="filter-label">{{ t('accommodation.common.status') }}</span>
+          <span class="filter-label">{{ t('stage5.cleaner.dashboard.taskStatus') }}</span>
           <el-select
             v-model="filters.status"
             :placeholder="t('accommodation.common.select')"
@@ -76,32 +77,23 @@
         </div>
 
         <div class="filter-row">
-          <span class="filter-label">{{ t('accommodation.common.date') }}</span>
+          <span class="filter-label filter-label--date">{{
+            t('accommodation.cleaningTaskList.dateFilter')
+          }}</span>
           <el-date-picker
-            v-model="filters.startDate"
-            type="date"
-            :placeholder="t('accommodation.common.startDate')"
+            v-model="filterDateRange"
+            type="daterange"
+            :range-separator="t('accommodation.common.rangeTo')"
+            :start-placeholder="t('accommodation.common.startDate')"
+            :end-placeholder="t('accommodation.common.endDate')"
             format="YYYY/MM/DD"
             value-format="YYYY-MM-DD"
-            class="date-picker"
-          />
-          <span class="filter-separator">-</span>
-          <el-date-picker
-            v-model="filters.endDate"
-            type="date"
-            :placeholder="t('accommodation.common.endDate')"
-            format="YYYY/MM/DD"
-            value-format="YYYY-MM-DD"
-            class="date-picker"
+            :clearable="false"
+            class="date-range-picker"
           />
 
           <div class="filter-actions">
-            <el-button link type="primary" @click="handleCollapse">
-              {{
-                isCollapsed ? t('accommodation.common.expand') : t('accommodation.common.collapse')
-              }}
-            </el-button>
-            <el-button type="primary" @click="handleExport">{{
+            <el-button class="export-button" type="primary" @click="handleExport">{{
               t('accommodation.common.exportDetails')
             }}</el-button>
           </div>
@@ -110,48 +102,54 @@
     </el-card>
 
     <!-- 任务列表表格 -->
-    <el-card class="table-card">
-      <el-table :data="taskList" border style="width: 100%" v-loading="loading">
+    <el-card class="table-card" shadow="never">
+      <el-table
+        :data="taskList"
+        border
+        class="task-list-table"
+        style="width: 100%"
+        :row-class-name="getRowClassName"
+        v-loading="loading"
+      >
         <el-table-column
           prop="taskDate"
           :label="t('accommodation.cleaning.taskDate')"
-          width="120"
+          min-width="130"
         />
         <el-table-column
           prop="roomType"
           :label="t('accommodation.cleaning.roomType')"
-          width="120"
+          min-width="132"
         />
         <el-table-column
           prop="roomNumber"
           :label="t('accommodation.cleaning.roomNumber')"
-          width="100"
+          min-width="110"
         />
-        <el-table-column prop="taskStatus" :label="t('accommodation.common.status')" width="120">
+        <el-table-column prop="taskStatus" :label="t('accommodation.common.status')" min-width="130">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.taskStatus)" size="small">
-              <span class="status-dot" :class="getStatusDotClass(row.taskStatus)"></span>
+            <span class="task-status-text" :class="getStatusTextClass(row.taskStatus)">
               {{ getStatusText(row.taskStatus) }}
-            </el-tag>
+            </span>
           </template>
         </el-table-column>
-        <el-table-column prop="taskType" :label="t('accommodation.common.taskType')" width="120">
+        <el-table-column prop="taskType" :label="t('accommodation.common.taskType')" min-width="130">
           <template #default="{ row }">
             {{ getTaskTypeText(row.taskType) }}
           </template>
         </el-table-column>
-        <el-table-column prop="taskTime" :label="t('accommodation.common.taskTime')" width="180" />
-        <el-table-column prop="cleaner" :label="t('accommodation.common.cleaner')" width="120">
+        <el-table-column prop="taskTime" :label="t('accommodation.common.taskTime')" min-width="180" />
+        <el-table-column prop="cleaner" :label="t('accommodation.common.cleaner')" min-width="130">
           <template #default="{ row }">
             <span>{{ row.cleaner || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="approver" :label="t('accommodation.common.approver')" width="120">
+        <el-table-column prop="approver" :label="t('accommodation.common.approver')" min-width="130">
           <template #default="{ row }">
             <span>{{ row.approver || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('accommodation.common.actions')" width="100" fixed="right">
+        <el-table-column :label="t('accommodation.common.actions')" min-width="110">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleViewDetail(row)">
               {{ t('accommodation.cleaning.detail') }}
@@ -181,55 +179,57 @@
     <el-dialog
       v-model="detailDialogVisible"
       :title="t('accommodation.cleaning.taskDetail')"
-      width="600px"
+      width="760px"
+      class="task-detail-dialog"
     >
-      <el-descriptions v-if="taskDetail" :column="2" border>
-        <el-descriptions-item :label="t('accommodation.cleaning.taskDate')">{{
-          taskDetail.taskDate
-        }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.cleaning.roomType')">{{
-          taskDetail.roomType
-        }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.cleaning.roomNumber')">{{
-          taskDetail.roomNumber
-        }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.status')">
-          <el-tag :type="getStatusType(taskDetail.taskStatus)" size="small">
-            {{ getStatusText(taskDetail.taskStatus) }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.taskType')">{{
-          getTaskTypeText(taskDetail.taskType)
-        }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.taskTime')">{{
-          taskDetail.taskTime
-        }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.cleaner')">{{
-          taskDetail.cleaner || '-'
-        }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.approver')">{{
-          taskDetail.approver || '-'
-        }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.cleaning.createTime')" :span="2">{{
-          taskDetail.createTime
-        }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.cleaning.completeTime')" :span="2">{{
-          taskDetail.completeTime || '-'
-        }}</el-descriptions-item>
-        <el-descriptions-item :label="t('accommodation.common.notes')" :span="2">{{
-          taskDetail.remark || '-'
-        }}</el-descriptions-item>
-      </el-descriptions>
+      <div v-if="taskDetail" class="task-detail-content">
+        <div class="task-detail-grid">
+          <div class="detail-label">{{ t('accommodation.cleaning.taskDate') }}</div>
+          <div class="detail-value">{{ taskDetail.taskDate }}</div>
+          <div class="detail-label">{{ t('accommodation.cleaning.roomType') }}</div>
+          <div class="detail-value">{{ taskDetail.roomType }}</div>
+
+          <div class="detail-label">{{ t('accommodation.cleaning.roomNumber') }}</div>
+          <div class="detail-value">{{ taskDetail.roomNumber }}</div>
+          <div class="detail-label">{{ t('accommodation.common.status') }}</div>
+          <div class="detail-value">
+            <span class="task-status-text" :class="getStatusTextClass(taskDetail.taskStatus)">
+              {{ getStatusText(taskDetail.taskStatus) }}
+            </span>
+          </div>
+
+          <div class="detail-label">{{ t('accommodation.common.taskType') }}</div>
+          <div class="detail-value">{{ getTaskTypeText(taskDetail.taskType) }}</div>
+          <div class="detail-label">{{ t('accommodation.common.taskTime') }}</div>
+          <div class="detail-value">{{ taskDetail.taskTime }}</div>
+
+          <div class="detail-label">{{ t('accommodation.common.cleaner') }}</div>
+          <div class="detail-value">{{ taskDetail.cleaner || '' }}</div>
+          <div class="detail-label">{{ t('accommodation.common.approver') }}</div>
+          <div class="detail-value">{{ taskDetail.approver || '' }}</div>
+
+          <div class="detail-label">{{ t('accommodation.cleaning.createTime') }}</div>
+          <div class="detail-value detail-value--wide">{{ taskDetail.createTime }}</div>
+
+          <div class="detail-label">{{ t('accommodation.cleaning.completeTime') }}</div>
+          <div class="detail-value detail-value--wide">{{ taskDetail.completeTime || '-' }}</div>
+
+          <div class="detail-label">{{ t('accommodation.common.notes') }}</div>
+          <div class="detail-value detail-value--wide detail-value--notes">
+            {{ taskDetail.remark || '' }}
+          </div>
+        </div>
+      </div>
       <el-form
         v-if="taskDetail && taskDetail.taskStatus === 'pending'"
+        class="assign-form"
         label-width="90px"
-        style="margin-top: 16px"
       >
         <el-form-item :label="t('accommodation.common.cleaner')" required>
           <el-select
             v-model="assignCleanerId"
-            :placeholder="t('accommodation.cleaningTaskList.assignCleanerPlaceholder')"
-            style="width: 100%"
+            :placeholder="t('accommodation.common.select')"
+            class="detail-cleaner-select"
             filterable
           >
             <el-option
@@ -242,11 +242,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="detailDialogVisible = false">{{
+        <el-button class="dialog-close-button" @click="detailDialogVisible = false">{{
           t('accommodation.common.close')
         }}</el-button>
         <el-button
           v-if="taskDetail && taskDetail.taskStatus === 'pending'"
+          class="dialog-primary-button"
           type="primary"
           @click="handleAssignTask"
         >
@@ -257,6 +258,7 @@
             taskDetail &&
             (taskDetail.taskStatus === 'assigned' || taskDetail.taskStatus === 'in_progress')
           "
+          class="dialog-primary-button"
           type="success"
           @click="handleCompleteTask"
         >
@@ -268,7 +270,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -289,6 +291,7 @@ import {
   getStoreTodayYmd,
   resolveStoreTimeZoneFromStorage,
 } from '@/utils/storeDateTime'
+import CleaningTabs from './components/CleaningTabs.vue'
 const { t } = useI18n()
 
 // 是否收起筛选
@@ -313,6 +316,17 @@ const filters = ref({
 })
 
 // 任务列表数据
+const filterDateRange = computed<string[]>({
+  get: () => [filters.value.startDate, filters.value.endDate],
+  set: (range: string[]) => {
+    if (!range || range.length !== 2) {
+      return
+    }
+    filters.value.startDate = range[0]
+    filters.value.endDate = range[1]
+  },
+})
+
 interface TaskListItem {
   id: number
   taskDate: string
@@ -373,13 +387,13 @@ const getStatusText = (status: string) => {
 }
 
 // 获取状态点样式
-const getStatusDotClass = (status: string) => {
+const getStatusTextClass = (status: string) => {
   return {
-    'status-expired': status === 'expired',
-    'status-pending': status === 'pending',
-    'status-assigned': status === 'assigned',
-    'status-in-progress': status === 'in_progress',
-    'status-completed': status === 'completed',
+    'task-status-text--expired': status === 'expired',
+    'task-status-text--pending': status === 'pending',
+    'task-status-text--assigned': status === 'assigned',
+    'task-status-text--in-progress': status === 'in_progress',
+    'task-status-text--completed': status === 'completed',
   }
 }
 
@@ -498,6 +512,10 @@ const handleCollapse = () => {
 }
 
 // 导出明细
+const getRowClassName = ({ rowIndex }: { rowIndex: number }) => {
+  return rowIndex % 2 === 0 ? 'even-row' : 'odd-row'
+}
+
 const handleExport = () => {
   if (taskList.value.length === 0) {
     ElMessage.warning(t('accommodation.cleaningTaskList.noExportData'))
@@ -798,6 +816,542 @@ onMounted(() => {
   .filter-actions {
     margin-left: 0;
     justify-content: flex-end;
+  }
+}
+
+.cleaning-task-list {
+  --cleaning-blue: #1d94f3;
+  --cleaning-header-blue: #cfe7fb;
+  --cleaning-border: #e2e2e2;
+  --cleaning-row-alt: #f7f7f7;
+  padding: 4px 24px 24px;
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.filter-card {
+  margin-bottom: 12px;
+  border: none;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.filter-card :deep(.el-card__body) {
+  padding: 14px 24px 16px;
+}
+
+.filter-section {
+  gap: 10px;
+}
+
+.filter-row {
+  min-height: 34px;
+  gap: 12px;
+}
+
+.filter-label {
+  min-width: auto;
+  color: #2f2f2f;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 34px;
+}
+
+.search-input {
+  width: 324px;
+}
+
+.filter-select {
+  width: 150px;
+}
+
+.filter-card :deep(.el-input__wrapper),
+.filter-card :deep(.el-select__wrapper),
+.filter-card :deep(.date-range-picker.el-range-editor.el-input__wrapper) {
+  min-height: 34px;
+  height: 34px;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+}
+
+.filter-card :deep(.el-input__wrapper:hover),
+.filter-card :deep(.el-input__wrapper.is-focus),
+.filter-card :deep(.el-select__wrapper:hover),
+.filter-card :deep(.el-select__wrapper.is-focused),
+.filter-card :deep(.date-range-picker.el-range-editor.el-input__wrapper:hover),
+.filter-card :deep(.date-range-picker.el-range-editor.el-input__wrapper.is-active) {
+  box-shadow: 0 0 0 1px #cdd4da inset;
+}
+
+.filter-card :deep(.el-input__inner),
+.filter-card :deep(.el-select__placeholder),
+.filter-card :deep(.el-select__selected-item) {
+  color: #31353a;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.filter-card :deep(.el-input__inner::placeholder),
+.filter-card :deep(.el-select__placeholder.is-transparent) {
+  color: #b7b7b7;
+}
+
+.filter-card :deep(.el-input__prefix) {
+  color: #9da5ad;
+}
+
+.date-range-picker {
+  width: 286px !important;
+  flex: 0 0 286px;
+  max-width: 286px;
+}
+
+.filter-card :deep(.date-range-picker.el-date-editor.el-range-editor) {
+  width: 286px !important;
+  flex: 0 0 286px !important;
+  max-width: 286px !important;
+}
+
+.filter-card :deep(.date-range-picker.el-range-editor.el-input__wrapper) {
+  padding: 1px 1px 1px 6px;
+  overflow: hidden;
+}
+
+.filter-card :deep(.date-range-picker .el-range__icon) {
+  margin: 0 8px 0 2px;
+  color: #b9b9b9;
+  font-size: 16px;
+}
+
+.filter-card :deep(.date-range-picker .el-range-input) {
+  height: 30px;
+  padding: 0 4px;
+  border-radius: 0;
+  background: #fafafa;
+  color: #39414a;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 30px;
+}
+
+.filter-card :deep(.date-range-picker .el-range-input:first-child) {
+  margin-left: 2px;
+}
+
+.filter-card :deep(.date-range-picker .el-range-separator) {
+  width: 26px;
+  padding: 0;
+  color: #909399;
+  font-size: 13px;
+  line-height: 34px;
+  text-align: center;
+}
+
+.filter-card :deep(.date-range-picker .el-range__close-icon) {
+  width: 0;
+  min-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+}
+
+.filter-actions {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.export-button {
+  min-width: 96px;
+}
+
+.filter-actions :deep(.el-button) {
+  height: 34px;
+  padding: 0 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.filter-actions :deep(.el-button--primary) {
+  border-color: var(--cleaning-blue);
+  background: var(--cleaning-blue);
+  color: #ffffff;
+}
+
+.table-card {
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.table-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.task-list-table {
+  border: 1px solid var(--cleaning-border);
+  color: #252525;
+  font-size: 13px;
+}
+
+.task-list-table :deep(.el-table__inner-wrapper::before),
+.task-list-table :deep(.el-table__border-left-patch),
+.task-list-table :deep(.el-table__body-wrapper::before) {
+  display: none;
+}
+
+.task-list-table :deep(.el-table__header th.el-table__cell) {
+  height: 34px;
+  padding: 0;
+  border-color: #d9d9d9;
+  border-bottom: none;
+  background: var(--cleaning-header-blue);
+  color: #2d8fcc;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.task-list-table :deep(.el-table__header th .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  color: #2d8fcc;
+  line-height: 1.2;
+}
+
+.task-list-table :deep(.el-table__body td.el-table__cell) {
+  height: 54px;
+  padding: 0;
+  border-color: #e3e3e3;
+}
+
+.task-list-table :deep(.el-table__body tr:last-child td.el-table__cell) {
+  border-bottom: none;
+}
+
+.task-list-table :deep(.el-table__body tr:first-child td.el-table__cell) {
+  border-top: none;
+}
+
+.task-list-table :deep(.even-row td.el-table__cell) {
+  background-color: #ffffff;
+}
+
+.task-list-table :deep(.odd-row td.el-table__cell) {
+  background-color: var(--cleaning-row-alt);
+}
+
+.task-list-table :deep(.el-table__body td .cell) {
+  padding: 0 12px;
+  color: #303030;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.32;
+  text-align: center;
+  white-space: normal;
+}
+
+.task-list-table :deep(.el-table__row:hover > td.el-table__cell) {
+  background: inherit;
+}
+
+.task-list-table :deep(.el-button.is-link) {
+  height: auto;
+  padding: 0;
+  color: #2d8fcc;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.task-status-text {
+  min-width: 54px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 7px;
+  background: #f4f4f4;
+  color: #707070;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.task-status-text--expired {
+  background: #f0f0f0;
+  color: #8d8d8d;
+}
+
+.task-status-text--pending,
+.task-status-text--assigned,
+.task-status-text--in-progress {
+  background: #fff1f1;
+  color: #ef2f35;
+}
+
+.task-status-text--completed {
+  background: #edf9f1;
+  color: #37a969;
+}
+
+.pagination-container {
+  min-height: 58px;
+  margin-top: -1px;
+  padding: 10px 18px;
+  border: 1px solid var(--cleaning-border);
+  border-top: 1px solid #ececec;
+  background: #ffffff;
+}
+
+.pagination-info {
+  color: #666;
+  font-size: 13px;
+}
+
+.pagination-container :deep(.el-pagination) {
+  --el-pagination-button-width: 30px;
+  --el-pagination-button-height: 30px;
+  --el-pagination-font-size: 14px;
+}
+
+.pagination-container :deep(.el-pagination .el-select) {
+  width: 112px;
+}
+
+.pagination-container :deep(.el-pagination .el-select .el-select__wrapper) {
+  min-height: 32px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #e3e3e3 inset;
+}
+
+.pagination-container :deep(.el-pager) {
+  gap: 4px;
+}
+
+.pagination-container :deep(.el-pager li),
+.pagination-container :deep(.btn-prev),
+.pagination-container :deep(.btn-next) {
+  min-width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #7a7a7a;
+  font-weight: 500;
+}
+
+.pagination-container :deep(.el-pager li.is-active) {
+  color: var(--cleaning-blue);
+  font-weight: 700;
+}
+
+:deep(.task-detail-dialog.el-dialog) {
+  width: 760px;
+  border-radius: 0;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+}
+
+:deep(.task-detail-dialog .el-dialog__header) {
+  display: flex;
+  align-items: center;
+  min-height: 72px;
+  margin: 0;
+  padding: 24px 34px 10px;
+}
+
+:deep(.task-detail-dialog .el-dialog__title) {
+  color: #111111;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+:deep(.task-detail-dialog .el-dialog__headerbtn) {
+  top: 24px;
+  right: 34px;
+  width: 26px;
+  height: 26px;
+}
+
+:deep(.task-detail-dialog .el-dialog__close) {
+  color: #8b8b8b;
+  font-size: 24px;
+}
+
+:deep(.task-detail-dialog .el-dialog__body) {
+  padding: 18px 76px 0;
+}
+
+.task-detail-grid {
+  display: grid;
+  grid-template-columns: 120px 1fr 120px 1fr;
+  border-top: 1px solid #e4e4e4;
+  border-left: 1px solid #e4e4e4;
+}
+
+.detail-label,
+.detail-value {
+  min-height: 41px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-right: 1px solid #e4e4e4;
+  border-bottom: 1px solid #e4e4e4;
+  color: #262626;
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.detail-label {
+  background: #f8f8f8;
+  font-weight: 700;
+}
+
+.detail-value {
+  color: #5c5c5c;
+  font-weight: 500;
+}
+
+.detail-value--wide {
+  grid-column: span 3;
+  justify-content: flex-start;
+  padding-left: 16px;
+}
+
+.detail-value--notes {
+  min-height: 43px;
+}
+
+.assign-form {
+  margin-top: 26px;
+}
+
+.assign-form :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+.assign-form :deep(.el-form-item__label) {
+  height: 42px;
+  justify-content: flex-start;
+  color: #303030;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.assign-form :deep(.el-form-item.is-required .el-form-item__label::before) {
+  display: none;
+}
+
+.assign-form :deep(.el-form-item.is-required .el-form-item__label::after) {
+  content: '*';
+  margin-right: 0;
+  margin-left: 1px;
+  color: #ef2f35;
+  font-size: 18px;
+}
+
+.assign-form :deep(.el-form-item__content) {
+  min-height: 42px;
+}
+
+.detail-cleaner-select {
+  width: 100%;
+}
+
+.detail-cleaner-select :deep(.el-select__wrapper) {
+  min-height: 42px;
+  height: 42px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #e2e2e2 inset;
+}
+
+.detail-cleaner-select :deep(.el-select__placeholder),
+.detail-cleaner-select :deep(.el-select__selected-item) {
+  color: #b3b3b3;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.detail-cleaner-select :deep(.el-select__suffix) {
+  color: #9d9d9d;
+  font-size: 18px;
+}
+
+:deep(.task-detail-dialog .el-dialog__footer) {
+  padding: 32px 0 34px;
+  text-align: center;
+}
+
+:deep(.task-detail-dialog .el-dialog__footer .el-button) {
+  width: 130px;
+  height: 42px;
+  margin: 0 14px;
+  border-radius: 5px;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+:deep(.task-detail-dialog .dialog-close-button) {
+  border-color: #e2e2e2;
+  background: #ffffff;
+  color: #8c8c8c;
+}
+
+:deep(.task-detail-dialog .dialog-primary-button) {
+  border-color: var(--cleaning-blue);
+  background: var(--cleaning-blue);
+  color: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .cleaning-task-list {
+    padding: 4px 12px 16px;
+  }
+
+  .filter-card :deep(.el-card__body) {
+    padding: 12px;
+  }
+
+  .filter-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .search-input,
+  .filter-select,
+  .date-range-picker {
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .filter-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .export-button {
+    width: 100%;
+  }
+
+  :deep(.task-detail-dialog.el-dialog) {
+    width: calc(100vw - 24px);
+  }
+
+  :deep(.task-detail-dialog .el-dialog__body) {
+    padding: 12px 18px 0;
+  }
+
+  .task-detail-grid {
+    grid-template-columns: 88px 1fr;
+  }
+
+  .detail-value--wide {
+    grid-column: span 1;
   }
 }
 </style>

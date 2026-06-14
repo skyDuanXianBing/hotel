@@ -10,6 +10,7 @@ import {
   BrushFilled,
   Connection,
   Coin,
+  Tools,
   ArrowLeft,
   ArrowRight,
   Menu as MenuIcon,
@@ -102,6 +103,14 @@ const menuItems: MenuItem[] = [
       { key: 'channel-settings', label: 'settings.layout.items.channelSettings', path: '/settings/general/channel', requiredPermissions: storeSettingsPermission },
       { key: 'quick-reply', label: 'settings.layout.items.quickReply', path: '/settings/general/quick-reply', requiredPermissions: storeSettingsPermission },
       { key: 'auto-message', label: 'settings.layout.items.autoMessage', path: '/settings/general/auto-message', requiredPermissions: storeSettingsPermission },
+    ],
+  },
+  {
+    key: 'tools',
+    label: 'settings.layout.groups.tools',
+    icon: Tools,
+    children: [
+      { key: 'quick-tools', label: 'settings.layout.items.quickTools', path: '/settings/tools', requiredPermissions: storeSettingsPermission },
     ],
   },
   {

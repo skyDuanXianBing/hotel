@@ -1,168 +1,162 @@
 <template>
-  <div class="price-management">
-    <div class="top-controls">
-      <div class="control-left">
-        <div class="date-navigation">
-          <span class="control-label">{{ t('accommodation.roomPrice.selectDate') }}</span>
-          <el-button-group>
-            <el-button size="small" @click="previousWeek">
-              <el-icon><ArrowLeft /></el-icon>
-              <span>{{ t('accommodation.roomPrice.previousWeek') }}</span>
-            </el-button>
-            <el-button size="small" @click="previousDay">
-              <el-icon><ArrowLeft /></el-icon>
-              <span>{{ t('accommodation.roomPrice.previousDay') }}</span>
-            </el-button>
-          </el-button-group>
-          <el-date-picker
-            v-model="selectedDate"
-            type="date"
-            :placeholder="t('accommodation.roomPrice.selectDate')"
-            format="YYYY/MM/DD"
-            value-format="YYYY-MM-DD"
-            @change="onDateChange"
-            size="small"
-            class="date-picker"
-          />
-          <el-button-group>
-            <el-button size="small" @click="nextDay">
-              <span>{{ t('accommodation.roomPrice.nextDay') }}</span>
-              <el-icon><ArrowRight /></el-icon>
-            </el-button>
-            <el-button size="small" @click="nextWeek">
-              <span>{{ t('accommodation.roomPrice.nextWeek') }}</span>
-              <el-icon><ArrowRight /></el-icon>
-            </el-button>
-          </el-button-group>
+  <div class="price-management-page">
+    <RoomPriceTabs />
+
+    <section class="price-management-surface">
+      <div class="top-controls">
+        <div class="toolbar-left">
+          <div class="date-navigation">
+            <div class="date-nav-group">
+              <el-button class="nav-button nav-button--wide" size="small" @click="previousWeek">
+                <el-icon><ArrowLeft /></el-icon>
+                <span>{{ t('accommodation.roomPrice.previousWeek') }}</span>
+              </el-button>
+              <el-button class="nav-button nav-button--compact" size="small" @click="previousDay">
+                <el-icon><ArrowLeft /></el-icon>
+                <span>{{ t('accommodation.common.dayUnit') }}</span>
+              </el-button>
+            </div>
+            <el-date-picker
+              v-model="selectedDate"
+              type="date"
+              :placeholder="t('accommodation.roomPrice.selectDate')"
+              format="YYYY/MM/DD"
+              value-format="YYYY-MM-DD"
+              size="small"
+              class="date-picker"
+            />
+            <div class="date-nav-group date-nav-group--right">
+              <el-button class="nav-button nav-button--compact" size="small" @click="nextDay">
+                <span>{{ t('accommodation.common.dayUnit') }}</span>
+                <el-icon><ArrowRight /></el-icon>
+              </el-button>
+              <el-button class="nav-button nav-button--wide" size="small" @click="nextWeek">
+                <span>{{ t('accommodation.roomPrice.nextWeek') }}</span>
+                <el-icon><ArrowRight /></el-icon>
+              </el-button>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <label class="filter-field">
+            <span class="filter-label">{{ t('accommodation.roomPrice.roomTypeFilter') }}</span>
+            <el-select
+              v-model="selectedRoomTypeId"
+              :placeholder="t('accommodation.common.all')"
+              size="small"
+              clearable
+              class="filter-select"
+            >
+              <el-option :label="t('accommodation.common.all')" :value="null" />
+              <el-option
+                v-for="roomType in roomTypes"
+                :key="roomType.id"
+                :label="roomType.name"
+                :value="roomType.id"
+              />
+            </el-select>
+          </label>
+
+          <label class="filter-field">
+            <span class="filter-label">{{ t('accommodation.roomPrice.groupFilter') }}</span>
+            <el-select
+              v-model="selectedRoomGroupId"
+              :placeholder="t('accommodation.common.all')"
+              size="small"
+              clearable
+              class="filter-select"
+            >
+              <el-option :label="t('accommodation.common.all')" :value="null" />
+              <el-option
+                v-for="group in roomGroupOptions"
+                :key="group.id"
+                :label="group.name"
+                :value="group.id"
+              />
+            </el-select>
+          </label>
+
+          <el-button class="bulk-update-button" type="primary" size="small" @click="goToBulkUpdate">
+            {{ t('accommodation.roomPrice.bulkUpdate') }}
+          </el-button>
         </div>
       </div>
 
-      <div class="control-right">
-        <div class="room-type-filter">
-          <span class="control-label">{{ t('accommodation.roomPrice.roomTypeFilter') }}</span>
-          <el-select
-            v-model="selectedRoomTypeId"
-            :placeholder="t('accommodation.common.all')"
-            @change="handleFilterChange"
-            size="small"
-            clearable
-            class="filter-select"
-          >
-            <el-option :label="t('accommodation.common.all')" :value="null" />
-            <el-option
-              v-for="roomType in roomTypes"
-              :key="roomType.id"
-              :label="roomType.name"
-              :value="roomType.id"
-            />
-          </el-select>
-        </div>
-
-        <div class="room-type-filter">
-          <span class="control-label">{{ t('accommodation.roomPrice.groupFilter') }}</span>
-          <el-select
-            v-model="selectedRoomGroupId"
-            :placeholder="t('accommodation.common.all')"
-            size="small"
-            clearable
-            class="filter-select"
-          >
-            <el-option :label="t('accommodation.common.all')" :value="null" />
-            <el-option
-              v-for="group in roomGroupOptions"
-              :key="group.id"
-              :label="group.name"
-              :value="group.id"
-            />
-          </el-select>
-        </div>
-
-        <el-button type="primary" @click="goToBulkUpdate" size="small">
-          {{ t('accommodation.roomPrice.bulkUpdate') }}
-        </el-button>
-      </div>
-    </div>
-
-    <div class="price-table-container">
-      <el-table
-        :data="priceTableData"
-        border
-        v-loading="loading"
-        class="price-table"
-        :max-height="PRICE_TABLE_MAX_HEIGHT"
-        :header-cell-style="headerCellStyle"
-        :cell-style="cellStyle"
-        :cell-class-name="getCellClassName"
-        :row-class-name="getRowClassName"
-      >
-        <el-table-column :label="t('accommodation.common.date')" width="180" fixed="left">
-          <template #default="{ row }">
-            <div class="room-info-cell">
-              <div v-if="row.isRoomHeader" class="room-type-header-cell">
+      <div class="price-table-container">
+        <el-table
+          :data="priceTableData"
+          border
+          v-loading="loading"
+          class="price-table"
+          :height="PRICE_TABLE_HEIGHT"
+          :header-cell-style="headerCellStyle"
+          :cell-style="cellStyle"
+          :cell-class-name="getCellClassName"
+          :row-class-name="getRowClassName"
+        >
+          <el-table-column :label="t('accommodation.common.date')" width="132" fixed="left">
+            <template #default="{ row }">
+              <div v-if="row.isRoomHeader" class="room-name-cell">
                 <div class="room-type-name">{{ row.roomTypeName }}</div>
               </div>
-              <div v-else class="price-plan-cell">
-                <div class="price-plan-info">
-                  <div class="plan-name">{{ row.pricePlanName }}</div>
-                  <div v-if="row.channelCount" class="channel-info">
-                    <el-link type="primary" :underline="false" @click="showChannels(row)">
-                      <el-icon><Link /></el-icon>
-                      {{ row.channelCount }}
-                    </el-link>
-                  </div>
-                </div>
+              <div v-else class="plan-name-cell">
+                <div class="plan-name">{{ row.pricePlanName }}</div>
+                <el-link
+                  v-if="row.channelCount"
+                  type="primary"
+                  :underline="false"
+                  class="channel-link"
+                  @click="showChannels(row)"
+                >
+                  <el-icon><Link /></el-icon>
+                  {{ row.channelCount }}
+                </el-link>
               </div>
-            </div>
-          </template>
-        </el-table-column>
+            </template>
+          </el-table-column>
 
-        <el-table-column
-          v-for="date in dateColumns"
-          :key="date.dateStr"
-          :label="date.label"
-          width="90"
-          align="center"
-        >
-          <template #header>
-            <div class="date-header">
-              <div class="date-day">{{ date.dayLabel }}</div>
-              <div class="date-weekday">{{ date.weekday }}</div>
-            </div>
-          </template>
+          <el-table-column
+            v-for="date in dateColumns"
+            :key="date.dateStr"
+            :label="date.label"
+            width="88"
+            align="center"
+          >
+            <template #header>
+              <div class="date-header">
+                <div class="date-day">{{ date.dayLabel }}</div>
+                <div class="date-weekday">{{ date.weekday }}</div>
+              </div>
+            </template>
 
-          <template #default="{ row }">
-            <div
-              v-if="row.isRoomHeader"
-              class="empty-cell"
-            >
-              <span
-                class="room-count-value"
+            <template #default="{ row }">
+              <div v-if="row.isRoomHeader" class="room-count-cell">
+                <span class="room-count-value">{{ getRoomsCount(row, date.dateStr) }}</span>
+              </div>
+              <button
+                v-else
+                type="button"
+                class="price-cell"
+                :class="{ 'sold-out-cell': isRoomsSoldOut(row, date.dateStr) }"
+                @click="openPriceEditDialog(row, date)"
               >
-                {{ getRoomsCount(row, date.dateStr) }}
-              </span>
-            </div>
-            <div
-              v-else
-              class="price-cell clickable"
-              :class="{ 'sold-out-cell': isRoomsSoldOut(row, date.dateStr) }"
-              @click="openPriceEditDialog(row, date)"
-            >
                 <div class="price-content">
                   <div class="price-value">
-                  {{ formatPrice(getDisplayPrice(row, date.dateStr)) }}
+                    {{ formatDisplayPrice(getDisplayPrice(row, date.dateStr)) }}
                   </div>
                   <div class="rooms-count">
                     <el-icon><Moon /></el-icon>
                     {{ row.dates[date.dateStr]?.minStay ?? 1 }}
                   </div>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+                </div>
+              </button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </section>
 
-    <!-- 价格编辑侧边栏 -->
     <el-drawer
       v-model="showPriceEditDialog"
       :title="t('accommodation.roomPrice.editTitle')"
@@ -198,12 +192,22 @@
 
           <el-form-item :label="t('accommodation.common.weekdays')" required>
             <div class="weekday-selector">
-              <el-checkbox-group v-model="editForm.weekdays" class="weekday-group" @change="handleWeekdayChange">
-                <el-checkbox v-for="weekday in weekdayOptions" :key="weekday.value" :label="weekday.value">
+              <el-checkbox-group
+                v-model="editForm.weekdays"
+                class="weekday-group"
+                @change="handleWeekdayChange"
+              >
+                <el-checkbox
+                  v-for="weekday in weekdayOptions"
+                  :key="weekday.value"
+                  :label="weekday.value"
+                >
                   {{ weekday.label }}
                 </el-checkbox>
               </el-checkbox-group>
-              <el-button text type="primary" @click="invertEditWeekdays">{{ t('accommodation.roomPrice.invertSelection') }}</el-button>
+              <el-button text type="primary" @click="invertEditWeekdays">
+                {{ t('accommodation.roomPrice.invertSelection') }}
+              </el-button>
             </div>
           </el-form-item>
 
@@ -214,7 +218,11 @@
           </el-form-item>
 
           <el-form-item :label="t('accommodation.roomPrice.setting')" required>
-            <el-select v-model="editForm.settingType" :placeholder="t('accommodation.common.select')" style="width: 100%">
+            <el-select
+              v-model="editForm.settingType"
+              :placeholder="t('accommodation.common.select')"
+              style="width: 100%"
+            >
               <el-option
                 v-for="option in roomPriceSettingOptions"
                 :key="option.value"
@@ -232,8 +240,11 @@
               <span class="room-code">{{ editForm.roomCode }}</span>
             </div>
 
-            <!-- 价格输入 -->
-            <el-form-item v-if="editForm.settingType === 'price'" :label="editForm.pricePlanName" required>
+            <el-form-item
+              v-if="editForm.settingType === 'price'"
+              :label="editForm.pricePlanName"
+              required
+            >
               <el-input
                 v-model="editForm.price"
                 :placeholder="t('accommodation.roomPrice.inputPrice')"
@@ -243,8 +254,11 @@
               </el-input>
             </el-form-item>
 
-            <!-- 最小入住天数输入 -->
-            <el-form-item v-if="editForm.settingType === 'minStay'" :label="t('accommodation.roomPrice.settingType.minStay')" required>
+            <el-form-item
+              v-if="editForm.settingType === 'minStay'"
+              :label="t('accommodation.roomPrice.settingType.minStay')"
+              required
+            >
               <el-input
                 v-model="editForm.minStay"
                 :placeholder="t('accommodation.roomPrice.inputMinStay')"
@@ -256,8 +270,11 @@
               </el-input>
             </el-form-item>
 
-            <!-- 最大入住天数输入 -->
-            <el-form-item v-if="editForm.settingType === 'maxStay'" :label="t('accommodation.roomPrice.settingType.maxStay')" required>
+            <el-form-item
+              v-if="editForm.settingType === 'maxStay'"
+              :label="t('accommodation.roomPrice.settingType.maxStay')"
+              required
+            >
               <el-input
                 v-model="editForm.maxStay"
                 :placeholder="t('accommodation.roomPrice.inputMaxStay')"
@@ -269,24 +286,60 @@
               </el-input>
             </el-form-item>
 
-            <!-- 关房状态选择 -->
-            <el-form-item v-if="editForm.settingType === 'closeRoom'" :label="t('accommodation.roomPrice.closeRoom')" required>
-              <el-select v-model="editForm.closeRoomStatus" :placeholder="t('accommodation.common.select')" style="width: 100%">
-                <el-option v-for="option in onOffOptions" :key="option.value" :label="option.label" :value="option.value" />
+            <el-form-item
+              v-if="editForm.settingType === 'closeRoom'"
+              :label="t('accommodation.roomPrice.closeRoom')"
+              required
+            >
+              <el-select
+                v-model="editForm.closeRoomStatus"
+                :placeholder="t('accommodation.common.select')"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="option in onOffOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
             </el-form-item>
 
-            <!-- CTA -->
-            <el-form-item v-if="editForm.settingType === 'cta'" :label="t('accommodation.roomPrice.settingType.cta')" required>
-              <el-select v-model="editForm.closeRoomStatus" :placeholder="t('accommodation.common.select')" style="width: 100%">
-                <el-option v-for="option in onOffOptions" :key="option.value" :label="option.label" :value="option.value" />
+            <el-form-item
+              v-if="editForm.settingType === 'cta'"
+              :label="t('accommodation.roomPrice.settingType.cta')"
+              required
+            >
+              <el-select
+                v-model="editForm.closeRoomStatus"
+                :placeholder="t('accommodation.common.select')"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="option in onOffOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
             </el-form-item>
 
-            <!-- CTD -->
-            <el-form-item v-if="editForm.settingType === 'ctd'" :label="t('accommodation.roomPrice.settingType.ctd')" required>
-              <el-select v-model="editForm.closeRoomStatus" :placeholder="t('accommodation.common.select')" style="width: 100%">
-                <el-option v-for="option in onOffOptions" :key="option.value" :label="option.label" :value="option.value" />
+            <el-form-item
+              v-if="editForm.settingType === 'ctd'"
+              :label="t('accommodation.roomPrice.settingType.ctd')"
+              required
+            >
+              <el-select
+                v-model="editForm.closeRoomStatus"
+                :placeholder="t('accommodation.common.select')"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="option in onOffOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
             </el-form-item>
           </div>
@@ -295,7 +348,9 @@
 
       <template #footer>
         <div class="drawer-footer">
-          <el-button @click="closePriceEditDialog" size="large">{{ t('accommodation.common.cancel') }}</el-button>
+          <el-button @click="closePriceEditDialog" size="large">
+            {{ t('accommodation.common.cancel') }}
+          </el-button>
           <el-button type="primary" @click="savePriceEdit" :loading="saving" size="large">
             {{ t('accommodation.common.confirm') }}
           </el-button>
@@ -306,18 +361,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, Moon, Link } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Link, Moon } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getAllRoomTypes } from '@/api/roomType'
 import { getAllPricePlans } from '@/api/pricePlan'
-import { getRoomPriceManagementData, updatePriceByPlan, type RoomPriceManagementDTO } from '@/api/roomPrice'
-import { getAllRoomGroups, getGroupMembers, type RoomGroupDTO, type RoomGroupMemberDTO } from '@/api/roomGroup'
+import {
+  getRoomPriceManagementData,
+  updatePriceByPlan,
+  type RoomPriceManagementDTO,
+} from '@/api/roomPrice'
+import {
+  getAllRoomGroups,
+  getGroupMembers,
+  type RoomGroupDTO,
+  type RoomGroupMemberDTO,
+} from '@/api/roomGroup'
 import { getRooms, type RoomDTO } from '@/api/room'
-import { useUserStore } from '@/stores/user'
+import { getAllRoomTypes } from '@/api/roomType'
 import { useAccommodationI18n } from '@/composables/useAccommodationI18n'
+import { useUserStore } from '@/stores/user'
 import {
   addCalendarMonthsToYmd,
   addDaysToYmd,
@@ -326,30 +390,59 @@ import {
   getYmdWeekdayIndex,
   parseYmdAsUtcDate,
 } from '@/utils/storeDateTime'
+import RoomPriceTabs from './components/RoomPriceTabs.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
 const { t } = useI18n()
-const { weekdayOptions, weekdayShortMap, onOffOptions, roomPriceSettingOptions } = useAccommodationI18n()
-const PRICE_TABLE_MAX_HEIGHT = 'calc(100vh - 240px)'
+const { weekdayOptions, weekdayShortMap, onOffOptions, roomPriceSettingOptions } =
+  useAccommodationI18n()
+
+const PRICE_TABLE_HEIGHT = 'calc(100vh - 250px)'
+const CALENDAR_MONTH_SPAN = 1
+const DEFAULT_STANDARD_PLAN_ID = -1
+const DEFAULT_STANDARD_PLAN_NAME = '标准定价'
+
+type RoomGroupOption = RoomGroupDTO & { id: number }
+
+interface PriceTableRow {
+  id: string
+  roomTypeId: number
+  roomTypeName: string
+  planKey?: string
+  pricePlanId?: number
+  pricePlanName?: string
+  channelCount?: number
+  isRoomHeader: boolean
+  isFallbackPricePlan?: boolean
+  dates: Record<
+    string,
+    {
+      price?: number
+      rooms?: number
+      minStay?: number
+      priceSource?: string
+      priceLabsBasePrice?: number
+      priceLabsUpdatedAt?: string
+      manualOverride?: boolean
+      manualOverrideUntil?: string
+    }
+  >
+}
 
 const loading = ref(false)
 const saving = ref(false)
 const selectedDate = ref(getStoreTodayYmd())
 const selectedRoomTypeId = ref<number | null>(null)
 const selectedRoomGroupId = ref<number | null>(null)
-const CALENDAR_MONTH_SPAN = 1
-type RoomGroupOption = RoomGroupDTO & { id: number }
 
 const roomTypes = ref<any[]>([])
 const pricePlans = ref<any[]>([])
 const priceData = ref<RoomPriceManagementDTO[]>([])
 const roomGroupOptions = ref<RoomGroupOption[]>([])
 const roomGroupRoomTypeIdsMap = ref<Record<number, number[]>>({})
-
 const showPriceEditDialog = ref(false)
 
-// 保存上一次的星期几选择值
 let previousEditFormWeekdays: number[] = []
 
 const editForm = ref({
@@ -368,10 +461,10 @@ const editForm = ref({
   availableRooms: 0,
   minStay: '',
   maxStay: '',
-  closeRoomStatus: 'off', // On/Off 选择器的当前值（用于 closeRoom/cta/ctd）
+  closeRoomStatus: 'off',
   currentCloseRoom: false,
   currentCta: false,
-  currentCtd: false
+  currentCtd: false,
 })
 
 const getCalendarEndDateString = (startDateYmd: string): string => {
@@ -380,21 +473,26 @@ const getCalendarEndDateString = (startDateYmd: string): string => {
 }
 
 const dateColumns = computed(() => {
-  const columns = []
+  const columns: Array<{
+    dateStr: string
+    dayLabel: string
+    weekday: string
+    label: string
+  }> = []
+
   const endDate = getCalendarEndDateString(selectedDate.value)
   let currentDate = selectedDate.value
 
   while (currentDate <= endDate) {
-    const dateStr = currentDate
-    const weekdayIndex = getYmdWeekdayIndex(dateStr)
-    const { month, day } = formatYmdMonthDay(dateStr)
+    const weekdayIndex = getYmdWeekdayIndex(currentDate)
+    const { month, day } = formatYmdMonthDay(currentDate)
     const dayLabel = `${month}/${day}`
 
     columns.push({
-      dateStr,
+      dateStr: currentDate,
       dayLabel,
       weekday: weekdayShortMap.value[weekdayIndex],
-      label: `${dayLabel} ${weekdayShortMap.value[weekdayIndex]}`
+      label: `${dayLabel} ${weekdayShortMap.value[weekdayIndex]}`,
     })
 
     currentDate = addDaysToYmd(currentDate, 1)
@@ -403,33 +501,12 @@ const dateColumns = computed(() => {
   return columns
 })
 
-interface PriceTableRow {
-  id: string
-  roomTypeId: number
-  roomTypeName: string
-  pricePlanId?: number
-  pricePlanName?: string
-  channelCount?: number
-  isRoomHeader: boolean
-  dates: {
-    [dateStr: string]: {
-      price?: number
-      rooms?: number
-      minStay?: number
-      priceSource?: string
-      priceLabsBasePrice?: number
-      priceLabsUpdatedAt?: string
-      manualOverride?: boolean
-      manualOverrideUntil?: string
-    }
-  }
-}
-
 const getDisplayPrice = (row: PriceTableRow, priceDate: string): number | undefined => {
   const cellData = row.dates[priceDate]
   if (cellData?.price !== undefined && cellData?.price !== null) {
     return cellData.price
   }
+
   return undefined
 }
 
@@ -446,6 +523,7 @@ const selectedGroupRoomTypeIds = computed<number[]>(() => {
   if (selectedRoomGroupId.value === null) {
     return []
   }
+
   return roomGroupRoomTypeIdsMap.value[selectedRoomGroupId.value] || []
 })
 
@@ -453,7 +531,9 @@ const getFilteredDisplayRoomTypes = () => {
   let displayRoomTypes = [...roomTypes.value]
 
   if (selectedRoomTypeId.value !== null) {
-    displayRoomTypes = displayRoomTypes.filter((roomType) => roomType.id === selectedRoomTypeId.value)
+    displayRoomTypes = displayRoomTypes.filter(
+      (roomType) => roomType.id === selectedRoomTypeId.value,
+    )
   }
 
   if (selectedRoomGroupId.value !== null) {
@@ -466,35 +546,33 @@ const getFilteredDisplayRoomTypes = () => {
 
 const priceTableData = computed<PriceTableRow[]>(() => {
   const rows: PriceTableRow[] = []
-
-  console.log('🔄 计算表格数据:', {
-    房型数量: roomTypes.value.length,
-    价格计划数量: pricePlans.value.length,
-    价格数据记录数: priceData.value.length,
-    日期列数: dateColumns.value.length
-  })
-
   const displayRoomTypes = getFilteredDisplayRoomTypes()
-
-  // 按房型展示
-  displayRoomTypes.forEach(roomType => {
-    // 为每个房型创建一个头部行，包含每个日期的剩余房间数
-    const headerDates: { [dateStr: string]: { rooms: number } } = {}
-
-    dateColumns.value.forEach(dateCol => {
-      // 统计该房型在该日期的剩余房间数
-      // 从priceData中获取availableRooms，如果没有则使用房型的totalRooms
-      const priceRecords = priceData.value.filter(
-        p => p.roomTypeId === roomType.id && p.priceDate === dateCol.dateStr
+  const firstAvailablePlan = pricePlans.value.find((plan) => typeof plan?.id === 'number')
+  const pricePlanNameById = new Map<number, string>(
+    pricePlans.value
+      .filter(
+        (plan): plan is {
+          id: number
+          name?: string
+        } => typeof plan?.id === 'number',
       )
+      .map((plan) => [plan.id, plan.name || DEFAULT_STANDARD_PLAN_NAME]),
+  )
+
+  displayRoomTypes.forEach((roomType) => {
+    const roomTypeRecords = priceData.value.filter((record) => record.roomTypeId === roomType.id)
+    const headerDates: Record<string, { rooms: number }> = {}
+
+    dateColumns.value.forEach((dateCol) => {
+      const priceRecords = roomTypeRecords.filter((record) => record.priceDate === dateCol.dateStr)
 
       let availableRooms = roomType.totalRooms || 0
       if (priceRecords.length > 0) {
-        // 使用第一条记录的availableRooms（所有价格计划共享同一个房型的剩余房间数）
-        // 注意: availableRooms 可能为 0,不能用 || 运算符
-        availableRooms = priceRecords[0].availableRooms !== undefined && priceRecords[0].availableRooms !== null
-          ? priceRecords[0].availableRooms
-          : (roomType.totalRooms || 0)
+        availableRooms =
+          priceRecords[0].availableRooms !== undefined &&
+          priceRecords[0].availableRooms !== null
+            ? priceRecords[0].availableRooms
+            : roomType.totalRooms || 0
       }
 
       headerDates[dateCol.dateStr] = { rooms: availableRooms }
@@ -505,45 +583,68 @@ const priceTableData = computed<PriceTableRow[]>(() => {
       roomTypeId: roomType.id,
       roomTypeName: roomType.name,
       isRoomHeader: true,
-      dates: headerDates
+      dates: headerDates,
     })
 
-    // 只为该房型实际关联的价格计划创建一行
-    // 获取该房型在当前日期范围内有数据的价格计划
-    const roomTypePricePlans = new Set(
-      priceData.value
-        .filter(p => p.roomTypeId === roomType.id)
-        .map(p => p.pricePlanId)
-        .filter(id => id !== null && id !== undefined)
-    )
+    const roomTypePlanRows = new Map<
+      string,
+      {
+        key: string
+        id?: number
+        name: string
+        isFallback: boolean
+      }
+    >()
 
-    console.log(`📋 房型 [${roomType.name}] 关联的价格计划:`, Array.from(roomTypePricePlans))
-
-    pricePlans.value.forEach(plan => {
-      // 只显示该房型已关联的价格计划
-      if (!roomTypePricePlans.has(plan.id)) {
+    roomTypeRecords.forEach((record) => {
+      if (typeof record.pricePlanId === 'number') {
+        const key = `plan-${record.pricePlanId}`
+        if (!roomTypePlanRows.has(key)) {
+          roomTypePlanRows.set(key, {
+            key,
+            id: record.pricePlanId,
+            name:
+              record.pricePlanName ||
+              pricePlanNameById.get(record.pricePlanId) ||
+              DEFAULT_STANDARD_PLAN_NAME,
+            isFallback: false,
+          })
+        }
         return
       }
 
-      const dates: {
-        [dateStr: string]: {
-          price: number
-          rooms: number
-          minStay: number
-          priceSource?: string
-          priceLabsBasePrice?: number
-          priceLabsUpdatedAt?: string
-          manualOverride?: boolean
-          manualOverrideUntil?: string
-        }
-      } = {}
+      const fallbackPlanId =
+        typeof firstAvailablePlan?.id === 'number' ? firstAvailablePlan.id : undefined
+      const key =
+        typeof fallbackPlanId === 'number'
+          ? `fallback-${fallbackPlanId}`
+          : `fallback-${roomType.id}`
 
-      dateColumns.value.forEach(dateCol => {
-        const priceRecord = priceData.value.find(
-          p => p.roomTypeId === roomType.id &&
-               p.pricePlanId === plan.id &&
-               p.priceDate === dateCol.dateStr
-        )
+      if (!roomTypePlanRows.has(key)) {
+        roomTypePlanRows.set(key, {
+          key,
+          id: fallbackPlanId,
+          name: '标准定价',
+          isFallback: true,
+        })
+      }
+    })
+
+    roomTypePlanRows.forEach((plan) => {
+      const dates: PriceTableRow['dates'] = {}
+
+      dateColumns.value.forEach((dateCol) => {
+        const priceRecord = roomTypeRecords.find((record) => {
+          if (record.priceDate !== dateCol.dateStr) {
+            return false
+          }
+
+          if (plan.isFallback) {
+            return typeof record.pricePlanId !== 'number'
+          }
+
+          return record.pricePlanId === plan.id
+        })
 
         dates[dateCol.dateStr] = {
           price: priceRecord?.price || 0,
@@ -555,21 +656,19 @@ const priceTableData = computed<PriceTableRow[]>(() => {
           manualOverride: priceRecord?.manualOverride,
           manualOverrideUntil: priceRecord?.manualOverrideUntil,
         }
-
-        if (priceRecord) {
-          console.log(`  📌 ${dateCol.dateStr}: 价格=${priceRecord.price}, 可售房量=${priceRecord.availableRooms}`)
-        }
       })
 
       rows.push({
-        id: `roomtype-plan-${roomType.id}-${plan.id}`,
+        id: `roomtype-plan-${roomType.id}-${plan.key}`,
         roomTypeId: roomType.id,
         roomTypeName: roomType.name,
+        planKey: plan.key,
         pricePlanId: plan.id,
         pricePlanName: plan.name,
-        channelCount: 0, // TODO: 从后端获取关联渠道数
+        channelCount: 0,
         isRoomHeader: false,
-        dates
+        isFallbackPricePlan: plan.isFallback,
+        dates,
       })
     })
   })
@@ -577,28 +676,61 @@ const priceTableData = computed<PriceTableRow[]>(() => {
   return rows
 })
 
-const showChannels = (row: PriceTableRow) => {
-  ElMessage.info(t('accommodation.roomPrice.messages.channelInfoPending', { name: row.pricePlanName }))
-}
-
-const formatPrice = (price: number | undefined): string => {
-  if (price === undefined || price === null) return '¥0'
+const formatDisplayPrice = (price: number | undefined): string => {
+  if (price === undefined || price === null) return '¥-'
   return `¥${price.toLocaleString()}`
 }
 
-const headerCellStyle = {
-  background: '#f5f7fa',
-  color: '#606266',
-  textAlign: 'center' as const,
-  fontSize: '12px',
-  fontWeight: '500',
-  padding: '8px 0'
+const showChannels = (row: PriceTableRow) => {
+  ElMessage.info(
+    t('accommodation.roomPrice.messages.channelInfoPending', { name: row.pricePlanName }),
+  )
 }
 
-const cellStyle = {
+const formatPrice = (price: number | undefined): string => {
+  if (price === undefined || price === null) return '濠?'
+  return `濠?{price.toLocaleString()}`
+}
+
+const headerCellStyle = {
+  background: '#eeeeee',
+  color: '#252525',
   textAlign: 'center' as const,
+  fontSize: '12px',
+  fontWeight: '600',
   padding: '0',
-  fontSize: '12px'
+}
+
+const cellStyle = ({
+  row,
+  columnIndex,
+}: {
+  row: PriceTableRow
+  columnIndex: number
+}) => {
+  const baseStyle = {
+    textAlign: 'center' as const,
+    padding: '0',
+    fontSize: '12px',
+  }
+
+  if (row.isRoomHeader) {
+    return baseStyle
+  }
+
+  if (columnIndex === 0) {
+    return {
+      ...baseStyle,
+      backgroundColor: '#f7f7f7',
+    }
+  }
+
+  const dateStr = dateColumns.value[columnIndex - 1]?.dateStr
+
+  return {
+    ...baseStyle,
+    backgroundColor: dateStr && isRoomsSoldOut(row, dateStr) ? '#ffe9e9' : '#f7f7f7',
+  }
 }
 
 const getRowClassName = ({ row }: { row: PriceTableRow }): string => {
@@ -607,7 +739,7 @@ const getRowClassName = ({ row }: { row: PriceTableRow }): string => {
 
 const getCellClassName = ({
   row,
-  columnIndex
+  columnIndex,
 }: {
   row: PriceTableRow
   columnIndex: number
@@ -616,7 +748,10 @@ const getCellClassName = ({
     return ''
   }
 
-  // 第一列是房型/价格计划名称列，从第二列开始是日期列
+  if (columnIndex === 0) {
+    return 'price-plan-label-td'
+  }
+
   const dateIndex = columnIndex - 1
   if (dateIndex < 0 || dateIndex >= dateColumns.value.length) {
     return ''
@@ -627,7 +762,7 @@ const getCellClassName = ({
     return ''
   }
 
-  return isRoomsSoldOut(row, dateStr) ? 'sold-out-td' : ''
+  return isRoomsSoldOut(row, dateStr) ? 'price-plan-cell-td sold-out-td' : 'price-plan-cell-td'
 }
 
 const previousDay = () => {
@@ -646,28 +781,14 @@ const nextWeek = () => {
   selectedDate.value = addDaysToYmd(selectedDate.value, 7)
 }
 
-const onDateChange = () => {
-  loadPriceData()
-}
-
-const handleFilterChange = () => {
-  loadPriceData()
-}
-
-// 加载房型列表
 const loadRoomTypes = async () => {
   try {
-    console.log('🏠 开始加载房型列表...')
     const response = await getAllRoomTypes()
-    console.log('🏠 房型API响应:', response)
     if (response.success && response.data) {
       roomTypes.value = response.data
-      console.log('✅ 房型列表已加载:', response.data)
-    } else {
-      console.warn('⚠️ 房型API返回失败:', response.message)
     }
   } catch (error) {
-    console.error('❌ 加载房型列表失败:', error)
+    console.error('Failed to load room types:', error)
     ElMessage.error(t('accommodation.roomPrice.messages.loadRoomTypesFailed'))
   }
 }
@@ -702,12 +823,13 @@ const loadRoomGroups = async () => {
           const membersResponse = await getGroupMembers(group.id)
           return {
             groupId: group.id,
-            members: membersResponse.success && Array.isArray(membersResponse.data)
-              ? membersResponse.data
-              : [],
+            members:
+              membersResponse.success && Array.isArray(membersResponse.data)
+                ? membersResponse.data
+                : ([] as RoomGroupMemberDTO[]),
           }
         } catch (error) {
-          console.error(`加载房间分组成员失败, groupId=${group.id}:`, error)
+          console.error(`Failed to load group members for ${group.id}:`, error)
           return {
             groupId: group.id,
             members: [] as RoomGroupMemberDTO[],
@@ -729,33 +851,23 @@ const loadRoomGroups = async () => {
 
     roomGroupRoomTypeIdsMap.value = nextMap
   } catch (error) {
-    console.error('加载房间分组失败:', error)
+    console.error('Failed to load room groups:', error)
     roomGroupOptions.value = []
     roomGroupRoomTypeIdsMap.value = {}
   }
 }
 
-// 加载价格计划列表
 const loadPricePlans = async () => {
   try {
-    console.log('💰 开始加载价格计划列表...')
     const userId = userStore.currentUser?.id
-    if (!userId) {
-      console.warn('⚠️ 用户ID不存在,无法加载价格计划')
-      return
-    }
+    if (!userId) return
 
-    console.log('💰 请求价格计划, userId:', userId)
     const response = await getAllPricePlans(userId)
-    console.log('💰 价格计划API响应:', response)
     if (response && response.data) {
       pricePlans.value = response.data
-      console.log('✅ 价格计划已加载:', response.data)
-    } else {
-      console.warn('⚠️ 价格计划API返回失败')
     }
   } catch (error) {
-    console.error('❌ 加载价格计划列表失败:', error)
+    console.error('Failed to load price plans:', error)
     ElMessage.error(t('accommodation.roomPrice.messages.loadPricePlansFailed'))
   }
 }
@@ -764,54 +876,36 @@ const loadPriceData = async () => {
   try {
     loading.value = true
 
-    // 计算日期范围
     const startDate = selectedDate.value
     const endDateStr = getCalendarEndDateString(startDate)
-
-    console.log('📅 加载价格数据:', {
-      startDate,
-      endDate: endDateStr,
-      roomTypeId: selectedRoomTypeId.value
-    })
-
     const response = await getRoomPriceManagementData(
       startDate,
       endDateStr,
-      selectedRoomTypeId.value || undefined
+      selectedRoomTypeId.value || undefined,
     )
-
-    console.log('📦 API响应:', response)
 
     if (response.success && response.data) {
       priceData.value = response.data
-      console.log('✅ 价格数据已加载:', {
-        记录数: response.data.length,
-        数据示例: response.data.slice(0, 2)
-      })
-    } else {
-      console.warn('⚠️ API返回失败:', response.message)
     }
   } catch (error) {
-    console.error('❌ 加载价格数据失败:', error)
+    console.error('Failed to load room price data:', error)
     ElMessage.error(t('accommodation.roomPrice.messages.loadPriceDataFailed'))
   } finally {
     loading.value = false
   }
 }
 
-const openPriceEditDialog = (row: PriceTableRow, date: any) => {
+const openPriceEditDialog = (row: PriceTableRow, date: { dateStr: string; label: string }) => {
   if (row.isRoomHeader) return
 
   const cellData = row.dates[date.dateStr]
-
   const record = priceData.value.find(
-    p => p.roomTypeId === row.roomTypeId &&
-      p.pricePlanId === row.pricePlanId &&
-      p.priceDate === date.dateStr
+    (priceRecord) =>
+      priceRecord.roomTypeId === row.roomTypeId &&
+      priceRecord.pricePlanId === row.pricePlanId &&
+      priceRecord.priceDate === date.dateStr,
   )
-
-  // 获取房型代码
-  const roomType = roomTypes.value.find(rt => rt.id === row.roomTypeId)
+  const roomType = roomTypes.value.find((item) => item.id === row.roomTypeId)
 
   editForm.value = {
     roomTypeId: row.roomTypeId,
@@ -832,7 +926,7 @@ const openPriceEditDialog = (row: PriceTableRow, date: any) => {
     closeRoomStatus: 'off',
     currentCloseRoom: record?.closeRoom ?? false,
     currentCta: record?.cta ?? false,
-    currentCtd: record?.ctd ?? false
+    currentCtd: record?.ctd ?? false,
   }
 
   showPriceEditDialog.value = true
@@ -848,13 +942,13 @@ watch(
     } else if (type === 'ctd') {
       editForm.value.closeRoomStatus = editForm.value.currentCtd ? 'on' : 'off'
     }
-  }
+  },
 )
 
 watch(
   () => editForm.value.closeRoomStatus,
-  (val) => {
-    const on = val === 'on'
+  (value) => {
+    const on = value === 'on'
     if (editForm.value.settingType === 'closeRoom') {
       editForm.value.currentCloseRoom = on
     } else if (editForm.value.settingType === 'cta') {
@@ -862,37 +956,32 @@ watch(
     } else if (editForm.value.settingType === 'ctd') {
       editForm.value.currentCtd = on
     }
-  }
+  },
 )
 
 const addMoreSegments = () => {
   ElMessage.info(t('accommodation.roomPrice.addMoreSegmentsPending'))
 }
 
-// 处理星期几选择变化
 const handleWeekdayChange = (values: number[]) => {
-  // 如果新选中了"全部"
   if (values.includes(0) && !previousEditFormWeekdays.includes(0)) {
-    // 选中全部,同时选中周一到周日
     editForm.value.weekdays = [0, 1, 2, 3, 4, 5, 6, 7]
-  }
-  // 如果取消了"全部"
-  else if (!values.includes(0) && previousEditFormWeekdays.includes(0)) {
-    // 取消全部,同时取消所有
+  } else if (!values.includes(0) && previousEditFormWeekdays.includes(0)) {
     editForm.value.weekdays = []
-  }
-  // 如果已经选中了全部,但取消了某个具体的星期
-  else if (values.includes(0) && previousEditFormWeekdays.includes(0) && values.length < previousEditFormWeekdays.length) {
-    // 取消全部,只保留剩余的具体星期
-    editForm.value.weekdays = values.filter(v => v !== 0)
-  }
-  // 如果选中了周一到周日所有具体的星期(不包括全部)
-  else if (!values.includes(0) && values.length === 7 && [1, 2, 3, 4, 5, 6, 7].every(v => values.includes(v))) {
-    // 自动选中全部
+  } else if (
+    values.includes(0) &&
+    previousEditFormWeekdays.includes(0) &&
+    values.length < previousEditFormWeekdays.length
+  ) {
+    editForm.value.weekdays = values.filter((value) => value !== 0)
+  } else if (
+    !values.includes(0) &&
+    values.length === 7 &&
+    [1, 2, 3, 4, 5, 6, 7].every((value) => values.includes(value))
+  ) {
     editForm.value.weekdays = [0, 1, 2, 3, 4, 5, 6, 7]
   }
 
-  // 更新上一次的值
   setTimeout(() => {
     previousEditFormWeekdays = [...editForm.value.weekdays]
   }, 0)
@@ -901,26 +990,28 @@ const handleWeekdayChange = (values: number[]) => {
 const invertEditWeekdays = () => {
   const explicitSelected = editForm.value.weekdays.filter((value) => value !== 0)
   const inverted = [1, 2, 3, 4, 5, 6, 7].filter((value) => !explicitSelected.includes(value))
-  editForm.value.weekdays = inverted.length === 7 ? [0, 1, 2, 3, 4, 5, 6, 7] : inverted
+  editForm.value.weekdays =
+    inverted.length === 7 ? [0, 1, 2, 3, 4, 5, 6, 7] : inverted
   previousEditFormWeekdays = [...editForm.value.weekdays]
 }
 
 const closePriceEditDialog = () => {
   showPriceEditDialog.value = false
-  // 重置上一次的星期几选择值
   previousEditFormWeekdays = []
 }
 
-const parseYmdToLocalDate = (ymd: string): Date => {
-  return parseYmdAsUtcDate(ymd)
-}
+const parseYmdToLocalDate = (ymd: string): Date => parseYmdAsUtcDate(ymd)
 
 const getWeekdayValue = (ymd: string): number => {
   const day = getYmdWeekdayIndex(ymd)
   return day === 0 ? 7 : day
 }
 
-const hasMatchedWeekdayInRange = (startYmd: string, endYmd: string, weekdays: number[]): boolean => {
+const hasMatchedWeekdayInRange = (
+  startYmd: string,
+  endYmd: string,
+  weekdays: number[],
+): boolean => {
   if (!weekdays.length || weekdays.includes(0)) return true
 
   const weekdaySet = new Set(weekdays)
@@ -934,6 +1025,7 @@ const hasMatchedWeekdayInRange = (startYmd: string, endYmd: string, weekdays: nu
     if (weekdaySet.has(weekdayValue)) return true
     cursor.setUTCDate(cursor.getUTCDate() + 1)
   }
+
   return false
 }
 
@@ -943,31 +1035,35 @@ const savePriceEdit = async () => {
     const operator =
       userStore.currentUser?.nickname ||
       userStore.currentUser?.email ||
-      '系统'
-
+      t('accommodation.priceHistory.operatorOptions.system')
     if (!editForm.value.startDate || !editForm.value.endDate) {
       ElMessage.warning(t('accommodation.roomPrice.messages.incompleteDateRange'))
       return
     }
+
     if (!editForm.value.roomTypeId || !editForm.value.pricePlanId) {
       ElMessage.warning(t('accommodation.roomPrice.messages.noPricePlanBound'))
       return
     }
 
     const normalizedStartDate =
-      editForm.value.startDate <= editForm.value.endDate ? editForm.value.startDate : editForm.value.endDate
+      editForm.value.startDate <= editForm.value.endDate
+        ? editForm.value.startDate
+        : editForm.value.endDate
     const normalizedEndDate =
-      editForm.value.startDate <= editForm.value.endDate ? editForm.value.endDate : editForm.value.startDate
-    const normalizedWeekdays = editForm.value.weekdays.length > 0 ? [...editForm.value.weekdays] : undefined
+      editForm.value.startDate <= editForm.value.endDate
+        ? editForm.value.endDate
+        : editForm.value.startDate
+    const normalizedWeekdays =
+      editForm.value.weekdays.length > 0 ? [...editForm.value.weekdays] : undefined
     const isSingleDayRange = normalizedStartDate === normalizedEndDate
     const isMultiDayRange = !isSingleDayRange
     const weekdaysContainAll = Boolean(normalizedWeekdays?.includes(0))
-    const payloadWeekdays = isMultiDayRange && weekdaysContainAll ? undefined : normalizedWeekdays
-    const hasExplicitWeekdaySelection = Boolean(normalizedWeekdays && normalizedWeekdays.length > 0)
-
-    // 兼容两种场景：
-    // 1) 多天范围：按日期范围 + 星期几过滤更新
-    // 2) 单天范围：沿用“按周模板”更新，避免出现勾选星期几但无命中日期
+    const payloadWeekdays =
+      isMultiDayRange && weekdaysContainAll ? undefined : normalizedWeekdays
+    const hasExplicitWeekdaySelection = Boolean(
+      normalizedWeekdays && normalizedWeekdays.length > 0,
+    )
     const applyWeekdaysInRange = hasExplicitWeekdaySelection ? !isSingleDayRange : true
 
     if (
@@ -992,7 +1088,6 @@ const savePriceEdit = async () => {
       }
     }
 
-    // 准备请求数据
     const requestData: any = {
       roomTypeId: editForm.value.roomTypeId,
       pricePlanId: editForm.value.pricePlanId,
@@ -1002,7 +1097,6 @@ const savePriceEdit = async () => {
       applyWeekdaysInRange,
     }
 
-    // 根据设置类型添加对应的字段
     if (editForm.value.settingType === 'price') {
       const normalizedPrice = Number(editForm.value.price)
       if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
@@ -1013,42 +1107,41 @@ const savePriceEdit = async () => {
       requestData.availableRooms = editForm.value.availableRooms ?? undefined
     } else if (editForm.value.settingType === 'minStay') {
       requestData.minStay = Number(editForm.value.minStay)
-      console.log('💾 准备保存最小入住天数:', requestData.minStay)
     } else if (editForm.value.settingType === 'maxStay') {
       requestData.maxStay = Number(editForm.value.maxStay)
-      console.log('💾 准备保存最大入住天数:', requestData.maxStay)
     } else if (editForm.value.settingType === 'closeRoom') {
       requestData.closeRoom = editForm.value.closeRoomStatus === 'on'
-      console.log('💾 准备保存关房状态:', requestData.closeRoom)
     } else if (editForm.value.settingType === 'cta') {
       requestData.cta = editForm.value.closeRoomStatus === 'on'
-      console.log('💾 准备保存CTA状态:', requestData.cta)
     } else if (editForm.value.settingType === 'ctd') {
       requestData.ctd = editForm.value.closeRoomStatus === 'on'
-      console.log('💾 准备保存CTD状态:', requestData.ctd)
     }
 
-    console.log('💾 发送更新请求:', requestData)
     const response = await updatePriceByPlan(requestData, operator)
-    console.log('💾 更新响应:', response)
-
     if (response.success) {
-      const successMsg = editForm.value.settingType === 'price' ? t('accommodation.roomPrice.messages.saveSuccess.price') :
-                         editForm.value.settingType === 'minStay' ? t('accommodation.roomPrice.messages.saveSuccess.minStay') :
-                         editForm.value.settingType === 'maxStay' ? t('accommodation.roomPrice.messages.saveSuccess.maxStay') :
-                         editForm.value.settingType === 'closeRoom' ? t('accommodation.roomPrice.messages.saveSuccess.closeRoom') :
-                         editForm.value.settingType === 'cta' ? t('accommodation.roomPrice.messages.saveSuccess.cta') :
-                         editForm.value.settingType === 'ctd' ? t('accommodation.roomPrice.messages.saveSuccess.ctd') :
-                         t('accommodation.roomPrice.messages.saveSuccess.default')
+      const successMsg =
+        editForm.value.settingType === 'price'
+          ? t('accommodation.roomPrice.messages.saveSuccess.price')
+          : editForm.value.settingType === 'minStay'
+            ? t('accommodation.roomPrice.messages.saveSuccess.minStay')
+            : editForm.value.settingType === 'maxStay'
+              ? t('accommodation.roomPrice.messages.saveSuccess.maxStay')
+              : editForm.value.settingType === 'closeRoom'
+                ? t('accommodation.roomPrice.messages.saveSuccess.closeRoom')
+                : editForm.value.settingType === 'cta'
+                  ? t('accommodation.roomPrice.messages.saveSuccess.cta')
+                  : editForm.value.settingType === 'ctd'
+                    ? t('accommodation.roomPrice.messages.saveSuccess.ctd')
+                    : t('accommodation.roomPrice.messages.saveSuccess.default')
+
       ElMessage.success(successMsg)
       closePriceEditDialog()
-      // 重新加载数据
       await loadPriceData()
     } else {
       ElMessage.error(response.message || t('accommodation.roomPrice.messages.saveFailed'))
     }
   } catch (error) {
-    console.error('保存价格失败:', error)
+    console.error('Failed to save room price:', error)
     ElMessage.error(t('accommodation.roomPrice.messages.savePriceFailed'))
   } finally {
     saving.value = false
@@ -1059,17 +1152,14 @@ const goToBulkUpdate = () => {
   router.push('/accommodation/room-price-bulk-update')
 }
 
-// 监听日期变化
 watch(selectedDate, () => {
   loadPriceData()
 })
 
-// 监听房型筛选变化
 watch(selectedRoomTypeId, () => {
   loadPriceData()
 })
 
-// 初始化
 onMounted(() => {
   loadRoomTypes()
   loadRoomGroups()
@@ -1079,113 +1169,233 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.price-management {
-  height: 100%;
+.price-management-page {
+  min-height: 100%;
+  padding: 4px 0 16px;
+  background: #f5f5f5;
+}
+
+.price-management-surface {
   display: flex;
+  min-height: calc(100vh - 154px);
   flex-direction: column;
-  background: #fff;
+  margin: 0 24px;
+  background: #ffffff;
+  border: 1px solid #e3e3e3;
+  overflow: hidden;
 }
 
 .top-controls {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px 24px;
-  padding: 16px 24px;
-  border-bottom: 1px solid #e4e7ed;
-  background: #fff;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 20px;
+  row-gap: 12px;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid #e2e2e2;
+  background: #ffffff;
 }
 
-.control-left {
+.toolbar-left {
   display: flex;
   align-items: center;
-  flex: 1 1 660px;
   min-width: 0;
 }
 
-.control-right {
+.toolbar-right {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex: 1 1 560px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 12px 16px;
   min-width: 0;
+  white-space: nowrap;
 }
 
 .date-navigation {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
+  flex-wrap: nowrap;
   min-width: 0;
 }
 
-.date-navigation > .control-label {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-.date-navigation :deep(.el-button-group) {
-  display: flex;
-  flex: 0 0 auto;
-}
-
-.date-navigation :deep(.el-button) {
-  min-width: 86px;
-  padding-left: 10px;
-  padding-right: 10px;
-}
-
-.date-navigation :deep(.el-button > span) {
+.date-nav-group {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  white-space: nowrap;
 }
 
-.control-label {
-  font-size: 14px;
-  color: #606266;
-  font-weight: 500;
-  line-height: 1.25;
+.date-nav-group .nav-button + .nav-button {
+  margin-left: -1px;
+}
+
+.date-nav-group .nav-button {
+  position: relative;
+}
+
+.date-nav-group .nav-button:hover,
+.date-nav-group .nav-button:focus-visible {
+  z-index: 1;
+}
+
+.nav-button {
+  --el-button-size: 34px;
+  --el-component-size: 34px;
+  --el-button-horizontal-padding: 8px;
+  height: 36px;
+  min-height: 36px;
+  min-width: 56px;
+  padding: 0 8px !important;
+  border-radius: 4px;
+  border-color: #dddddd;
+  background: #ffffff;
+  color: #3b3b3b;
+}
+
+.nav-button :deep(.el-icon) {
+  font-size: 13px;
+}
+
+.nav-button:hover {
+  border-color: #bfbfbf;
+  color: #111111;
+}
+
+.nav-button--wide {
+  min-width: 64px;
+}
+
+.date-nav-group:not(.date-nav-group--right) .nav-button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.date-nav-group:not(.date-nav-group--right) .nav-button:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.date-nav-group--right .nav-button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.date-nav-group--right .nav-button:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.nav-button--compact {
+  --el-button-horizontal-padding: 6px;
+  min-width: 44px;
+  padding: 0 6px !important;
+}
+
+.nav-button :deep(span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .date-picker {
-  flex: 0 0 auto;
-  width: clamp(142px, 10vw, 170px);
+  flex: 0 0 242px;
+  width: 242px;
+  --el-component-size: 36px;
+  height: 36px;
 }
 
-.room-type-filter {
+:deep(.date-picker.el-date-editor),
+:deep(.date-picker.el-date-editor.el-input),
+:deep(.date-picker.el-input) {
+  height: 36px;
+  min-height: 36px;
+  width: 242px;
+  flex: 0 0 242px;
+}
+
+.date-picker :deep(.el-input__wrapper) {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 9px;
+  border-radius: 4px;
+  box-sizing: border-box;
+  box-shadow: 0 0 0 1px #dddddd inset;
+}
+
+.date-picker :deep(.el-input__inner) {
+  height: 34px;
+  line-height: 34px;
+}
+
+.date-picker :deep(.el-input__wrapper:hover),
+.date-picker :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #bdbdbd inset;
+}
+
+.filter-field {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1 1 260px;
-  min-width: 240px;
-  max-width: 360px;
+  min-width: 0;
 }
 
-.room-type-filter .control-label {
-  flex: 0 0 112px;
-  overflow-wrap: anywhere;
+.filter-label {
+  flex: 0 0 auto;
+  color: #5a5a5a;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .filter-select {
-  flex: 1 1 160px;
-  min-width: 0;
-  width: auto;
+  width: 160px;
+  flex: 0 0 160px;
+}
+
+.filter-select :deep(.el-select__wrapper) {
+  min-height: 36px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #dddddd inset;
+}
+
+.filter-select :deep(.el-select__wrapper:hover),
+.filter-select :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #bdbdbd inset;
+}
+
+.bulk-update-button {
+  height: 36px;
+  padding: 0 18px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  border-color: #2196f3;
+  background: #2196f3;
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .price-table-container {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
-  background: #fff;
+  background: #ffffff;
 }
 
 .price-table {
   width: 100%;
+  --el-table-border-color: #dfdfdf;
+  --el-table-header-bg-color: #eeeeee;
+  --el-table-row-hover-bg-color: #fafafa;
+  color: #303030;
+  font-size: 14px;
+}
+
+:deep(.price-table .el-table__inner-wrapper::before),
+:deep(.price-table .el-table__border-left-patch) {
+  display: none;
 }
 
 :deep(.price-table .el-table__header-wrapper) {
@@ -1196,179 +1406,201 @@ onMounted(() => {
   z-index: 8;
 }
 
+:deep(.price-table .el-table__header th.el-table__cell) {
+  height: 66px;
+  border-color: #d4d4d4;
+  border-top: 2px solid #d4d4d4;
+  border-bottom: 2px solid #d4d4d4;
+  border-right: 2px solid #d4d4d4;
+}
+
+:deep(.price-table .el-table__header tr th.el-table__cell:first-child) {
+  border-left: 2px solid #d4d4d4;
+}
+
+:deep(.price-table .el-table__fixed-left th.el-table__cell:last-child) {
+  box-shadow: inset -2px 0 0 #d4d4d4;
+}
+
+:deep(.price-table .el-table__header th.el-table__cell .cell) {
+  padding: 0 6px;
+}
+
 :deep(.price-table .el-table__body td > .cell) {
   padding: 0 !important;
 }
 
-:deep(.room-type-header-row) {
-  background-color: #f5f7fa;
+:deep(.price-table .el-table__body td.el-table__cell) {
+  height: 54px;
+  border-color: #e5e5e5;
+  background: #ffffff;
 }
 
-:deep(.price-plan-row) {
-  background-color: #fff;
+:deep(.price-table .el-table__fixed-left td.el-table__cell:last-child) {
+  box-shadow: inset -1px 0 0 #e5e5e5;
 }
 
-:deep(.price-plan-row:hover) {
-  background-color: #fafafa;
+:deep(.price-table tr.price-plan-row td.el-table__cell) {
+  background: #f7f7f7 !important;
 }
 
-.room-info-cell {
-  padding: 10px 12px;
-  text-align: left;
-  min-height: 45px;
+:deep(.price-table tr.price-plan-row td.el-table__cell > .cell) {
+  background: #f7f7f7 !important;
+}
+
+:deep(.price-table tr.price-plan-row td.price-plan-label-td .plan-name-cell),
+:deep(.price-table tr.price-plan-row td.price-plan-cell-td .price-cell) {
+  background: #f7f7f7;
+}
+
+.room-name-cell,
+.plan-name-cell {
+  min-height: 54px;
   display: flex;
   align-items: center;
-}
-
-.room-type-header-cell {
-  display: flex;
-  align-items: center;
-  width: 100%;
+  justify-content: center;
+  padding: 8px 10px;
+  text-align: center;
 }
 
 .room-type-name {
-  font-weight: 600;
-  color: #303133;
   font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #2b2b2b;
+  white-space: normal;
+  word-break: break-word;
 }
 
-.price-plan-cell {
-  width: 100%;
-}
-
-.price-plan-info {
-  display: flex;
+.plan-name-cell {
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .plan-name {
+  color: #303030;
   font-size: 12px;
-  color: #303133;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
-.channel-info {
-  font-size: 11px;
-}
-
-.channel-info :deep(.el-link) {
-  font-size: 11px;
-  font-weight: 400;
+.channel-link {
   display: flex;
   align-items: center;
   gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .date-header {
   text-align: center;
-  line-height: 1.5;
-  padding: 4px 0;
+  line-height: 1.28;
 }
 
 .date-day {
-  font-weight: 600;
   font-size: 12px;
-  color: #303133;
+  font-weight: 600;
+  color: #252525;
 }
 
 .date-weekday {
-  font-size: 11px;
-  color: #909399;
   margin-top: 2px;
+  font-size: 11px;
+  color: #545454;
 }
 
+.room-count-cell,
 .price-cell {
-  padding: 10px 8px;
-  min-height: 45px;
+  width: 100%;
+  min-height: 54px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
+  padding: 8px 6px;
 }
 
-.price-cell.clickable {
+.price-cell {
+  border: none;
+  background: transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
-.price-cell.clickable:hover {
-  background-color: #ecf5ff;
+:deep(.price-table tr.price-plan-row td.price-plan-cell-td .price-cell:hover) {
+  background-color: #f1f1f1;
 }
 
-:deep(.price-table .el-table__body td.sold-out-td > .cell) {
-  background-color: #fdecec !important;
+:deep(.price-table tr.price-plan-row:hover > td.el-table__cell) {
+  background: #f7f7f7 !important;
 }
 
-:deep(.price-table .el-table__body tr.price-plan-row td.sold-out-td:hover > .cell) {
-  background-color: #f9dcdc !important;
+:deep(.price-table tr.price-plan-row:hover > td.el-table__cell > .cell) {
+  background: #f7f7f7 !important;
+}
+
+:deep(.price-table tr.price-plan-row:hover td.price-plan-label-td .plan-name-cell) {
+  background: #f7f7f7;
+}
+
+:deep(.price-table td.sold-out-td),
+:deep(.price-table td.sold-out-td > .cell),
+:deep(.price-table td.sold-out-td .price-cell) {
+  background-color: #ffe9e9 !important;
+}
+
+:deep(.price-table tr.price-plan-row td.sold-out-td:hover),
+:deep(.price-table tr.price-plan-row td.sold-out-td:hover > .cell),
+:deep(.price-table tr.price-plan-row td.sold-out-td .price-cell:hover) {
+  background-color: #ffdede !important;
 }
 
 .sold-out-cell {
-  background-color: #fdecec;
+  background-color: #ffe9e9 !important;
 }
 
-.price-cell.clickable.sold-out-cell:hover {
-  background-color: #f9dcdc;
+.price-cell.sold-out-cell:hover {
+  background-color: #ffdede !important;
 }
 
 .price-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .price-value {
-  font-weight: 600;
-  color: #303133;
   font-size: 13px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: #333333;
 }
 
 .rooms-count {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
-  color: #67c23a;
+  font-size: 11px;
   font-weight: 500;
+  line-height: 1;
+  color: #7fca53;
 }
 
 .rooms-count .el-icon {
-  font-size: 14px;
-}
-
-.empty-cell {
-  min-height: 45px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
+  font-size: 12px;
 }
 
 .room-count-value {
-  color: #303133;
   font-size: 13px;
   font-weight: 600;
+  color: #303030;
 }
 
-.price-cell.sold-out-cell .price-value,
-.price-cell.sold-out-cell .rooms-count {
-  color: #d03050;
+.sold-out-cell .price-value,
+.sold-out-cell .rooms-count {
+  color: #de5f5f;
 }
 
-.date-range-input {
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-:deep(.el-dialog) {
-  border-radius: 8px;
-}
-
-/* Drawer 样式 */
 .drawer-content {
   padding: 24px;
 }
@@ -1389,9 +1621,9 @@ onMounted(() => {
 }
 
 .date-separator {
+  flex-shrink: 0;
   color: #606266;
   font-size: 14px;
-  flex-shrink: 0;
 }
 
 .weekday-group {
@@ -1428,7 +1660,7 @@ onMounted(() => {
 .room-code {
   color: #909399;
   font-size: 12px;
-  font-weight: normal;
+  font-weight: 400;
 }
 
 :deep(.el-form-item__label) {
@@ -1457,63 +1689,68 @@ onMounted(() => {
 }
 
 @media (max-width: 1200px) {
+  .price-management-surface {
+    margin: 0 20px;
+  }
+
   .top-controls {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr;
     gap: 12px;
   }
 
-  .control-left,
-  .control-right {
+  .toolbar-left,
+  .toolbar-right {
     width: 100%;
     flex-basis: auto;
   }
 
-  .control-right {
+  .toolbar-right {
     justify-content: flex-start;
+    flex-wrap: wrap;
+    white-space: normal;
   }
 
   .date-navigation {
     justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 
 @media (max-width: 768px) {
+  .price-management-page {
+    padding-bottom: 20px;
+  }
+
+  .price-management-surface {
+    margin: 0 12px;
+  }
+
   .date-navigation,
-  .control-right {
+  .toolbar-right {
     align-items: stretch;
   }
 
-  .date-navigation :deep(.el-button-group) {
+  .date-nav-group {
     width: 100%;
   }
 
-  .date-navigation :deep(.el-button) {
+  .date-nav-group .nav-button {
     flex: 1 1 0;
-    min-width: 0;
   }
 
   .date-picker {
     width: 100%;
-    flex-basis: 100%;
   }
 
-  .room-type-filter {
-    align-items: flex-start;
-    flex-direction: column;
-    flex-basis: 100%;
-    max-width: none;
-    min-width: 0;
-  }
-
-  .room-type-filter .control-label {
-    flex-basis: auto;
+  .filter-field {
     width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
   }
 
   .filter-select {
     width: 100%;
-    flex-basis: auto;
   }
 }
 </style>

@@ -82,6 +82,11 @@ body {
   margin-right: 5px;
 }
 
+/* Room status calendar: keep the first sticky header label aligned with the second column color. */
+.room-status-calendar .date-header .sticky-left-primary .header-cell-label {
+  color: #272a30 !important;
+}
+
 /* Responsive layout */
 @media (max-width: 768px) {
   .el-aside {
