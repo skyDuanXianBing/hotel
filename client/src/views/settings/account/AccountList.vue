@@ -895,6 +895,31 @@ function clearAccountNameError() {
   accountNameError.value = ''
 }
 
+function clearRoleFilterIfMemberNoLongerMatches(roleIds: number[]) {
+  const roleId = selectedRole.value
+  if (roleId === '') {
+    return false
+  }
+
+  if (roleIds.includes(roleId)) {
+    return false
+  }
+
+  selectedRole.value = ''
+  return true
+}
+
+function getUpdatePermissionsSuccessMessage(roleFilterCleared: boolean) {
+  const message = t('settingsStage4.accountList.messages.updatePermissionsSuccess')
+  if (!roleFilterCleared) {
+    return message
+  }
+
+  const roleFilterLabel = t('settingsStage4.accountList.filters.permissionRole')
+  const allRolesLabel = t('settingsStage4.accountList.placeholders.all')
+  return `${message} (${roleFilterLabel}: ${allRolesLabel})`
+}
+
 async function loadAccounts(showWarning = true) {
   if (!currentStoreId.value) {
     if (showWarning) {
@@ -1115,7 +1140,8 @@ async function submitMember() {
         ElMessage.error(response.message || t('settingsStage4.accountList.messages.updateMemberPermissionsFailed'))
         return
       }
-      ElMessage.success(t('settingsStage4.accountList.messages.updatePermissionsSuccess'))
+      const roleFilterCleared = clearRoleFilterIfMemberNoLongerMatches(selectedAccountRoles.value)
+      ElMessage.success(getUpdatePermissionsSuccessMessage(roleFilterCleared))
     } else {
       const request: AddStoreMemberRequest = {
         email: accountForm.value.email,

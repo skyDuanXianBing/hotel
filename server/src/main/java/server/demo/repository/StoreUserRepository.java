@@ -56,6 +56,12 @@ public interface StoreUserRepository extends JpaRepository<StoreUser, Long> {
     List<StoreUser> findActiveUsersByStoreId(@Param("storeId") Long storeId);
 
     /**
+     * 查询门店的所有成员关联，包括停用成员。
+     */
+    @Query("SELECT su FROM StoreUser su JOIN FETCH su.user WHERE su.store.id = :storeId")
+    List<StoreUser> findAllUsersByStoreId(@Param("storeId") Long storeId);
+
+    /**
      * 查询用户拥有的门店(作为owner)
      */
     @Query("SELECT su FROM StoreUser su WHERE su.user.id = :userId AND su.role = 'owner'")

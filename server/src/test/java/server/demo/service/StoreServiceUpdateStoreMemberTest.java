@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -239,7 +240,7 @@ class StoreServiceUpdateStoreMemberTest {
         memberUser.setName("Member Name");
         StoreUser member = createStoreUser(44L, store, memberUser, "member");
 
-        when(storeUserRepository.findActiveUsersByStoreId(26L)).thenReturn(List.of(member));
+        when(storeUserRepository.findAllUsersByStoreId(26L)).thenReturn(List.of(member));
         when(storeUserPermissionRepository.findByStoreUser_IdIn(List.of(44L))).thenReturn(List.of());
 
         List<StoreUserDTO> result = service.getStoreMembersDTO(26L);
@@ -247,6 +248,49 @@ class StoreServiceUpdateStoreMemberTest {
         assertEquals(1, result.size());
         assertEquals("Member Name", result.get(0).getUser().getName());
         assertEquals("member@example.com", result.get(0).getUser().getEmail());
+        verify(storeUserRepository, never()).findActiveUsersByStoreId(26L);
+    }
+
+    @Test
+    void getStoreMembersDTO_shouldIncludeInactiveMembers() {
+        Store store = createStore(26L);
+        User activeUser = createUser(5L, "active@example.com");
+        activeUser.setName("Active Member");
+        StoreUser activeMember = createStoreUser(44L, store, activeUser, "member");
+        activeMember.setIsActive(true);
+
+        User inactiveUser = createUser(7L, "inactive@example.com");
+        inactiveUser.setName("Inactive Member");
+        StoreUser inactiveMember = createStoreUser(45L, store, inactiveUser, "member");
+        inactiveMember.setIsActive(false);
+
+        when(storeUserRepository.findAllUsersByStoreId(26L)).thenReturn(List.of(activeMember, inactiveMember));
+        when(storeUserPermissionRepository.findByStoreUser_IdIn(List.of(44L, 45L))).thenReturn(List.of());
+
+        List<StoreUserDTO> result = service.getStoreMembersDTO(26L);
+
+        assertEquals(2, result.size());
+        assertEquals("Active Member", result.get(0).getUser().getName());
+        assertTrue(Boolean.TRUE.equals(result.get(0).getIsActive()));
+        assertEquals("Inactive Member", result.get(1).getUser().getName());
+        assertFalse(Boolean.TRUE.equals(result.get(1).getIsActive()));
+        verify(storeUserRepository).findAllUsersByStoreId(26L);
+        verify(storeUserRepository, never()).findActiveUsersByStoreId(26L);
+    }
+
+    @Test
+    void getStoreMembers_shouldKeepUsingActiveOnlyRepositoryMethod() {
+        Store store = createStore(26L);
+        StoreUser activeMember = createStoreUser(44L, store, createUser(5L, "active@example.com"), "member");
+
+        when(storeUserRepository.findActiveUsersByStoreId(26L)).thenReturn(List.of(activeMember));
+
+        List<StoreUser> result = service.getStoreMembers(26L);
+
+        assertEquals(1, result.size());
+        assertEquals(44L, result.get(0).getId());
+        verify(storeUserRepository).findActiveUsersByStoreId(26L);
+        verify(storeUserRepository, never()).findAllUsersByStoreId(26L);
     }
 
     @Test

@@ -474,7 +474,7 @@ public class StoreService {
      * 获取门店成员列表（返回DTO）
      */
     public List<StoreUserDTO> getStoreMembersDTO(Long storeId) {
-        List<StoreUser> storeUsers = storeUserRepository.findActiveUsersByStoreId(storeId);
+        List<StoreUser> storeUsers = storeUserRepository.findAllUsersByStoreId(storeId);
         if (storeUsers == null || storeUsers.isEmpty()) {
             return new ArrayList<>();
         }
