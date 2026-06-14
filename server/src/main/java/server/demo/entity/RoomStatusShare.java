@@ -3,10 +3,11 @@ package server.demo.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
-import java.util.List;
 import server.demo.entity.base.StoreScopedEntity;
+import server.demo.entity.listener.StoreScopedEntityListener;
 
 @Entity
+@EntityListeners(StoreScopedEntityListener.class)
 @Table(name = "room_status_shares")
 public class RoomStatusShare implements StoreScopedEntity {
     

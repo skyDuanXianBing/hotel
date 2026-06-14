@@ -102,8 +102,11 @@
               </div>
               <div v-else class="plan-name-cell">
                 <div class="plan-name">{{ row.pricePlanName }}</div>
+                <div v-if="!isEditablePriceRow(row)" class="plan-uneditable-reason">
+                  {{ getRowUneditableReason(row) }}
+                </div>
                 <el-link
-                  v-if="row.channelCount"
+                  v-if="hasChannelSummary(row)"
                   type="primary"
                   :underline="false"
                   class="channel-link"
@@ -138,7 +141,12 @@
                 v-else
                 type="button"
                 class="price-cell"
-                :class="{ 'sold-out-cell': isRoomsSoldOut(row, date.dateStr) }"
+                :class="{
+                  'sold-out-cell': isRoomsSoldOut(row, date.dateStr),
+                  'uneditable-cell': !isEditablePriceRow(row),
+                }"
+                :aria-disabled="!isEditablePriceRow(row)"
+                :title="!isEditablePriceRow(row) ? getRowUneditableReason(row) : undefined"
                 @click="openPriceEditDialog(row, date)"
               >
                 <div class="price-content">
@@ -365,11 +373,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, ArrowRight, Link, Moon } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { getAllPricePlans } from '@/api/pricePlan'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getRoomPriceManagementData,
   updatePriceByPlan,
+  type ChannelRefDTO,
   type RoomPriceManagementDTO,
 } from '@/api/roomPrice'
 import {
@@ -400,8 +408,8 @@ const { weekdayOptions, weekdayShortMap, onOffOptions, roomPriceSettingOptions }
 
 const PRICE_TABLE_HEIGHT = 'calc(100vh - 250px)'
 const CALENDAR_MONTH_SPAN = 1
-const DEFAULT_STANDARD_PLAN_ID = -1
-const DEFAULT_STANDARD_PLAN_NAME = '标准定价'
+const BINDING_STATE_BOUND = 'BOUND'
+const BINDING_STATE_UNBOUND = 'UNBOUND'
 
 type RoomGroupOption = RoomGroupDTO & { id: number }
 
@@ -412,9 +420,12 @@ interface PriceTableRow {
   planKey?: string
   pricePlanId?: number
   pricePlanName?: string
+  bindingState?: string
+  editable: boolean
+  uneditableReason?: string
   channelCount?: number
+  channelRefs: ChannelRefDTO[]
   isRoomHeader: boolean
-  isFallbackPricePlan?: boolean
   dates: Record<
     string,
     {
@@ -437,7 +448,6 @@ const selectedRoomTypeId = ref<number | null>(null)
 const selectedRoomGroupId = ref<number | null>(null)
 
 const roomTypes = ref<any[]>([])
-const pricePlans = ref<any[]>([])
 const priceData = ref<RoomPriceManagementDTO[]>([])
 const roomGroupOptions = ref<RoomGroupOption[]>([])
 const roomGroupRoomTypeIdsMap = ref<Record<number, number[]>>({})
@@ -544,20 +554,52 @@ const getFilteredDisplayRoomTypes = () => {
   return displayRoomTypes
 }
 
+const normalizeChannelRefs = (channelRefs?: ChannelRefDTO[]): ChannelRefDTO[] => {
+  if (!Array.isArray(channelRefs)) {
+    return []
+  }
+
+  return channelRefs.filter((channelRef) => typeof channelRef.channelId === 'number')
+}
+
+const getChannelCount = (record: RoomPriceManagementDTO): number => {
+  if (typeof record.channelCount === 'number' && Number.isFinite(record.channelCount)) {
+    return record.channelCount
+  }
+
+  return normalizeChannelRefs(record.channelRefs).length
+}
+
+const mergeChannelRefs = (target: ChannelRefDTO[], source: ChannelRefDTO[]) => {
+  const existingIds = new Set(target.map((channelRef) => channelRef.channelId))
+  source.forEach((channelRef) => {
+    if (!existingIds.has(channelRef.channelId)) {
+      target.push(channelRef)
+      existingIds.add(channelRef.channelId)
+    }
+  })
+}
+
+const isEditablePriceRow = (row: PriceTableRow): boolean => {
+  return (
+    !row.isRoomHeader &&
+    row.bindingState === BINDING_STATE_BOUND &&
+    row.editable === true &&
+    typeof row.pricePlanId === 'number'
+  )
+}
+
+const getRowUneditableReason = (row: PriceTableRow): string => {
+  return row.uneditableReason || t('accommodation.roomPrice.messages.noPricePlanBound')
+}
+
+const hasChannelSummary = (row: PriceTableRow): boolean => {
+  return Boolean(row.channelCount && row.channelCount > 0 && row.channelRefs.length > 0)
+}
+
 const priceTableData = computed<PriceTableRow[]>(() => {
   const rows: PriceTableRow[] = []
   const displayRoomTypes = getFilteredDisplayRoomTypes()
-  const firstAvailablePlan = pricePlans.value.find((plan) => typeof plan?.id === 'number')
-  const pricePlanNameById = new Map<number, string>(
-    pricePlans.value
-      .filter(
-        (plan): plan is {
-          id: number
-          name?: string
-        } => typeof plan?.id === 'number',
-      )
-      .map((plan) => [plan.id, plan.name || DEFAULT_STANDARD_PLAN_NAME]),
-  )
 
   displayRoomTypes.forEach((roomType) => {
     const roomTypeRecords = priceData.value.filter((record) => record.roomTypeId === roomType.id)
@@ -582,6 +624,8 @@ const priceTableData = computed<PriceTableRow[]>(() => {
       id: `roomtype-header-${roomType.id}`,
       roomTypeId: roomType.id,
       roomTypeName: roomType.name,
+      editable: false,
+      channelRefs: [],
       isRoomHeader: true,
       dates: headerDates,
     })
@@ -592,40 +636,57 @@ const priceTableData = computed<PriceTableRow[]>(() => {
         key: string
         id?: number
         name: string
-        isFallback: boolean
+        bindingState: string
+        editable: boolean
+        uneditableReason?: string
+        channelCount: number
+        channelRefs: ChannelRefDTO[]
       }
     >()
 
     roomTypeRecords.forEach((record) => {
       if (typeof record.pricePlanId === 'number') {
         const key = `plan-${record.pricePlanId}`
+        const channelRefs = normalizeChannelRefs(record.channelRefs)
         if (!roomTypePlanRows.has(key)) {
+          let planName = record.pricePlanName
+          if (!planName) {
+            planName = t('accommodation.roomPrice.unnamedPricePlan')
+          }
+
           roomTypePlanRows.set(key, {
             key,
             id: record.pricePlanId,
-            name:
-              record.pricePlanName ||
-              pricePlanNameById.get(record.pricePlanId) ||
-              DEFAULT_STANDARD_PLAN_NAME,
-            isFallback: false,
+            name: planName,
+            bindingState: record.bindingState || BINDING_STATE_BOUND,
+            editable: record.editable !== false,
+            uneditableReason: record.uneditableReason,
+            channelCount: getChannelCount(record),
+            channelRefs,
           })
+        } else {
+          const existingPlan = roomTypePlanRows.get(key)
+          if (existingPlan) {
+            existingPlan.channelCount = Math.max(existingPlan.channelCount, getChannelCount(record))
+            mergeChannelRefs(existingPlan.channelRefs, channelRefs)
+          }
         }
         return
       }
 
-      const fallbackPlanId =
-        typeof firstAvailablePlan?.id === 'number' ? firstAvailablePlan.id : undefined
-      const key =
-        typeof fallbackPlanId === 'number'
-          ? `fallback-${fallbackPlanId}`
-          : `fallback-${roomType.id}`
+      const key = `unbound-${roomType.id}`
 
       if (!roomTypePlanRows.has(key)) {
         roomTypePlanRows.set(key, {
           key,
-          id: fallbackPlanId,
-          name: '标准定价',
-          isFallback: true,
+          id: undefined,
+          name: t('accommodation.roomPrice.unboundPricePlanName'),
+          bindingState: record.bindingState || BINDING_STATE_UNBOUND,
+          editable: false,
+          uneditableReason:
+            record.uneditableReason || t('accommodation.roomPrice.messages.noPricePlanBound'),
+          channelCount: 0,
+          channelRefs: [],
         })
       }
     })
@@ -639,7 +700,7 @@ const priceTableData = computed<PriceTableRow[]>(() => {
             return false
           }
 
-          if (plan.isFallback) {
+          if (plan.bindingState === BINDING_STATE_UNBOUND) {
             return typeof record.pricePlanId !== 'number'
           }
 
@@ -647,7 +708,7 @@ const priceTableData = computed<PriceTableRow[]>(() => {
         })
 
         dates[dateCol.dateStr] = {
-          price: priceRecord?.price || 0,
+          price: priceRecord?.price ?? 0,
           rooms: priceRecord?.availableRooms ?? 0,
           minStay: priceRecord?.minStay ?? 1,
           priceSource: priceRecord?.priceSource,
@@ -665,9 +726,12 @@ const priceTableData = computed<PriceTableRow[]>(() => {
         planKey: plan.key,
         pricePlanId: plan.id,
         pricePlanName: plan.name,
-        channelCount: 0,
+        bindingState: plan.bindingState,
+        editable: plan.editable,
+        uneditableReason: plan.uneditableReason,
+        channelCount: plan.channelCount,
+        channelRefs: plan.channelRefs,
         isRoomHeader: false,
-        isFallbackPricePlan: plan.isFallback,
         dates,
       })
     })
@@ -682,8 +746,32 @@ const formatDisplayPrice = (price: number | undefined): string => {
 }
 
 const showChannels = (row: PriceTableRow) => {
-  ElMessage.info(
-    t('accommodation.roomPrice.messages.channelInfoPending', { name: row.pricePlanName }),
+  if (!hasChannelSummary(row)) {
+    ElMessage.info(t('accommodation.roomPrice.messages.noChannelSummary'))
+    return
+  }
+
+  const channelNames = row.channelRefs
+    .map((channelRef) => {
+      if (channelRef.channelName) {
+        return channelRef.channelName
+      }
+      if (channelRef.channelCode) {
+        return channelRef.channelCode
+      }
+      return t('accommodation.roomPrice.unnamedChannel')
+    })
+    .join(', ')
+
+  ElMessageBox.alert(
+    t('accommodation.roomPrice.messages.channelSummary', {
+      name: row.pricePlanName,
+      channels: channelNames,
+    }),
+    t('accommodation.roomPrice.channelSummaryTitle'),
+    {
+      confirmButtonText: t('accommodation.common.confirm'),
+    },
   )
 }
 
@@ -762,7 +850,15 @@ const getCellClassName = ({
     return ''
   }
 
-  return isRoomsSoldOut(row, dateStr) ? 'price-plan-cell-td sold-out-td' : 'price-plan-cell-td'
+  const classNames = ['price-plan-cell-td']
+  if (isRoomsSoldOut(row, dateStr)) {
+    classNames.push('sold-out-td')
+  }
+  if (!isEditablePriceRow(row)) {
+    classNames.push('uneditable-td')
+  }
+
+  return classNames.join(' ')
 }
 
 const previousDay = () => {
@@ -857,21 +953,6 @@ const loadRoomGroups = async () => {
   }
 }
 
-const loadPricePlans = async () => {
-  try {
-    const userId = userStore.currentUser?.id
-    if (!userId) return
-
-    const response = await getAllPricePlans(userId)
-    if (response && response.data) {
-      pricePlans.value = response.data
-    }
-  } catch (error) {
-    console.error('Failed to load price plans:', error)
-    ElMessage.error(t('accommodation.roomPrice.messages.loadPricePlansFailed'))
-  }
-}
-
 const loadPriceData = async () => {
   try {
     loading.value = true
@@ -897,6 +978,10 @@ const loadPriceData = async () => {
 
 const openPriceEditDialog = (row: PriceTableRow, date: { dateStr: string; label: string }) => {
   if (row.isRoomHeader) return
+  if (!isEditablePriceRow(row)) {
+    ElMessage.warning(getRowUneditableReason(row))
+    return
+  }
 
   const cellData = row.dates[date.dateStr]
   const record = priceData.value.find(
@@ -1163,7 +1248,6 @@ watch(selectedRoomTypeId, () => {
 onMounted(() => {
   loadRoomTypes()
   loadRoomGroups()
-  loadPricePlans()
   loadPriceData()
 })
 </script>
@@ -1484,6 +1568,15 @@ onMounted(() => {
   line-height: 1.25;
 }
 
+.plan-uneditable-reason {
+  max-width: 112px;
+  color: #8a5a00;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
 .channel-link {
   display: flex;
   align-items: center;
@@ -1526,8 +1619,22 @@ onMounted(() => {
   transition: background-color 0.15s ease;
 }
 
+.price-cell.uneditable-cell {
+  cursor: not-allowed;
+}
+
 :deep(.price-table tr.price-plan-row td.price-plan-cell-td .price-cell:hover) {
   background-color: #f1f1f1;
+}
+
+:deep(.price-table tr.price-plan-row td.uneditable-td),
+:deep(.price-table tr.price-plan-row td.uneditable-td > .cell),
+:deep(.price-table tr.price-plan-row td.uneditable-td .price-cell) {
+  background-color: #fff8e7 !important;
+}
+
+:deep(.price-table tr.price-plan-row td.uneditable-td .price-cell:hover) {
+  background-color: #fff2cf !important;
 }
 
 :deep(.price-table tr.price-plan-row:hover > td.el-table__cell) {

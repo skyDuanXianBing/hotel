@@ -138,6 +138,14 @@ export const bulkPriceChange = async (
   return await request.post('/room-prices/bulk-change', requestData)
 }
 
+export type PricePlanBindingState = 'BOUND' | 'UNBOUND'
+
+export interface ChannelRefDTO {
+  channelId: number
+  channelCode?: string
+  channelName?: string
+}
+
 // 房价管理DTO
 export interface RoomPriceManagementDTO {
   id: number
@@ -146,6 +154,9 @@ export interface RoomPriceManagementDTO {
   roomTypeCode: string
   pricePlanId?: number
   pricePlanName?: string
+  bindingState?: PricePlanBindingState
+  editable?: boolean
+  uneditableReason?: string
   priceDate: string
   price: number
   availableRooms?: number
@@ -159,6 +170,8 @@ export interface RoomPriceManagementDTO {
   priceLabsUpdatedAt?: string
   manualOverride?: boolean
   manualOverrideUntil?: string
+  channelCount?: number
+  channelRefs?: ChannelRefDTO[]
   isWeekend: boolean
   isHoliday: boolean
   notes?: string

@@ -5,15 +5,18 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.demo.constants.ChannelPriceOtaSyncState;
 import server.demo.config.SuWebhookConfig;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.AutoMessageSendLog;
 import server.demo.entity.Channel;
+import server.demo.entity.ChannelPrice;
 import server.demo.entity.OtaIntegration;
 import server.demo.entity.PricePlan;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.RoomType;
+import server.demo.entity.RoomTypePricePlan;
 import server.demo.entity.Store;
 import server.demo.entity.StoreUser;
 import server.demo.entity.SuMessage;
@@ -26,11 +29,13 @@ import server.demo.enums.SuWebhookEventStatus;
 import server.demo.enums.SuWebhookEventType;
 import server.demo.repository.AutoMessageRepository;
 import server.demo.repository.AutoMessageSendLogRepository;
+import server.demo.repository.ChannelPriceRepository;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.OtaIntegrationRepository;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
+import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.StoreUserRepository;
@@ -47,6 +52,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ChannelE2ETestSupportService {
@@ -82,6 +88,9 @@ public class ChannelE2ETestSupportService {
     private static final String LOCAL_SETUP_PRICE_PLAN_NAME = "Local E2E Standard Rate";
     private static final String LOCAL_SETUP_ROOM_TYPE_NAME = "Local E2E Standard Room";
     private static final String LOCAL_SETUP_ROOM_TYPE_CODE = "E2ELOCAL";
+    private static final String LOCAL_SETUP_UNBOUND_ROOM_TYPE_NAME = "Local E2E Unbound Room";
+    private static final String LOCAL_SETUP_UNBOUND_ROOM_TYPE_CODE = "E2EUNBOUND";
+    private static final String LOCAL_SETUP_UNBOUND_ROOM_NUMBER = "E2E-201";
     private static final String LOCAL_SETUP_ROOM_NUMBER = "E2E-101";
     private static final List<String> LOCAL_SETUP_ROOM_NUMBERS = List.of(
             LOCAL_SETUP_ROOM_NUMBER,
@@ -89,6 +98,13 @@ public class ChannelE2ETestSupportService {
             "E2E-103"
     );
     private static final BigDecimal LOCAL_SETUP_DEFAULT_PRICE = new BigDecimal("120.00");
+    private static final BigDecimal LOCAL_SETUP_BOOKING_CHANNEL_PRICE = new BigDecimal("132.00");
+    private static final BigDecimal LOCAL_SETUP_AIRBNB_CHANNEL_PRICE = new BigDecimal("126.00");
+    private static final int LOCAL_SETUP_CHANNEL_PRICE_DAYS_BEFORE = 14;
+    private static final int LOCAL_SETUP_CHANNEL_PRICE_DAYS_AFTER = 120;
+    private static final int LOCAL_SETUP_MIN_STAY = 1;
+    private static final int LOCAL_SETUP_MAX_STAY = 30;
+    private static final String LOCAL_SETUP_PRICE_MODE_UNIFIED = "unified";
 
     private final UserRepository userRepository;
     private final StoreRepository storeRepository;
@@ -97,6 +113,8 @@ public class ChannelE2ETestSupportService {
     private final RoomTypeRepository roomTypeRepository;
     private final RoomRepository roomRepository;
     private final PricePlanRepository pricePlanRepository;
+    private final RoomTypePricePlanRepository roomTypePricePlanRepository;
+    private final ChannelPriceRepository channelPriceRepository;
     private final OtaIntegrationRepository otaIntegrationRepository;
     private final AutoMessageRepository autoMessageRepository;
     private final AutoMessageSendLogRepository autoMessageSendLogRepository;
@@ -124,6 +142,8 @@ public class ChannelE2ETestSupportService {
             RoomTypeRepository roomTypeRepository,
             RoomRepository roomRepository,
             PricePlanRepository pricePlanRepository,
+            RoomTypePricePlanRepository roomTypePricePlanRepository,
+            ChannelPriceRepository channelPriceRepository,
             OtaIntegrationRepository otaIntegrationRepository,
             AutoMessageRepository autoMessageRepository,
             AutoMessageSendLogRepository autoMessageSendLogRepository,
@@ -143,6 +163,8 @@ public class ChannelE2ETestSupportService {
         this.roomTypeRepository = roomTypeRepository;
         this.roomRepository = roomRepository;
         this.pricePlanRepository = pricePlanRepository;
+        this.roomTypePricePlanRepository = roomTypePricePlanRepository;
+        this.channelPriceRepository = channelPriceRepository;
         this.otaIntegrationRepository = otaIntegrationRepository;
         this.autoMessageRepository = autoMessageRepository;
         this.autoMessageSendLogRepository = autoMessageSendLogRepository;
@@ -168,12 +190,23 @@ public class ChannelE2ETestSupportService {
         ensureLocalSetupStoreUser(store, user, created, reused);
         ensureLocalSetupChannels(store.getId(), created, reused);
         Channel bookingChannel = requireLocalSetupBookingChannel(store.getId());
+        Channel airbnbChannel = requireLocalSetupChannel(store.getId(), CHANNEL_CODE_AIRBNB);
         PricePlan pricePlan = ensureLocalSetupPricePlan(store.getId(), user, created, reused);
         RoomType roomType = ensureLocalSetupRoomType(store.getId(), user, created, reused);
         List<Room> rooms = ensureLocalSetupRooms(store.getId(), user, roomType, created, reused);
         Room primaryRoom = rooms.get(0);
+        ensureLocalSetupRoomTypePricePlan(store.getId(), roomType, pricePlan, created, reused);
+        ensureLocalSetupUnboundRoomTypeWithRoom(store.getId(), user, created, reused);
         ensureLocalSetupOtaIntegration(store.getId(), CHANNEL_CODE_BOOKING, "Booking.com", pricePlan, created, reused);
         ensureLocalSetupOtaIntegration(store.getId(), CHANNEL_CODE_AIRBNB, "Airbnb", pricePlan, created, reused);
+        ensureLocalSetupChannelPrices(
+                store.getId(),
+                roomType,
+                pricePlan,
+                List.of(bookingChannel, airbnbChannel),
+                created,
+                reused
+        );
         ensureLocalSetupAutoMessageTemplate(store.getId(), bookingChannel, created, reused);
 
         String token = jwtUtil.generateToken(user.getId(), user.getEmail());
@@ -537,8 +570,12 @@ public class ChannelE2ETestSupportService {
     }
 
     private Channel requireLocalSetupBookingChannel(Long storeId) {
-        return channelRepository.findByStoreIdAndCode(storeId, CHANNEL_CODE_BOOKING)
-                .orElseThrow(() -> new IllegalStateException("本地 E2E Booking 渠道不存在"));
+        return requireLocalSetupChannel(storeId, CHANNEL_CODE_BOOKING);
+    }
+
+    private Channel requireLocalSetupChannel(Long storeId, String channelCode) {
+        return channelRepository.findByStoreIdAndCode(storeId, channelCode)
+                .orElseThrow(() -> new IllegalStateException("本地 E2E " + channelCode + " 渠道不存在"));
     }
 
     private PricePlan ensureLocalSetupPricePlan(
@@ -631,6 +668,303 @@ public class ChannelE2ETestSupportService {
         }
 
         return rooms;
+    }
+
+    private RoomTypePricePlan ensureLocalSetupRoomTypePricePlan(
+            Long storeId,
+            RoomType roomType,
+            PricePlan pricePlan,
+            List<String> created,
+            List<String> reused
+    ) {
+        Optional<RoomTypePricePlan> existing = roomTypePricePlanRepository.findByRoomTypeIdAndPricePlanId(
+                roomType.getId(),
+                pricePlan.getId()
+        );
+        RoomTypePricePlan binding = existing.orElseGet(() -> new RoomTypePricePlan(roomType, pricePlan));
+        boolean isNew = binding.getId() == null;
+        boolean changed = normalizeLocalSetupRoomTypePricePlan(storeId, roomType, pricePlan, binding);
+        if (isNew || changed) {
+            binding = roomTypePricePlanRepository.save(binding);
+        }
+
+        if (isNew) {
+            created.add("roomTypePricePlan:" + binding.getId());
+        } else {
+            reused.add("roomTypePricePlan:" + binding.getId());
+        }
+        return binding;
+    }
+
+    private boolean normalizeLocalSetupRoomTypePricePlan(
+            Long storeId,
+            RoomType roomType,
+            PricePlan pricePlan,
+            RoomTypePricePlan binding
+    ) {
+        boolean changed = false;
+        if (!storeId.equals(binding.getStoreId())) {
+            binding.setStoreId(storeId);
+            changed = true;
+        }
+        if (binding.getRoomType() == null || !roomType.getId().equals(binding.getRoomType().getId())) {
+            binding.setRoomType(roomType);
+            changed = true;
+        }
+        if (binding.getPricePlan() == null || !pricePlan.getId().equals(binding.getPricePlan().getId())) {
+            binding.setPricePlan(pricePlan);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(binding.getMondayPrice())) {
+            binding.setMondayPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(binding.getTuesdayPrice())) {
+            binding.setTuesdayPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(binding.getWednesdayPrice())) {
+            binding.setWednesdayPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(binding.getThursdayPrice())) {
+            binding.setThursdayPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(binding.getFridayPrice())) {
+            binding.setFridayPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(binding.getSaturdayPrice())) {
+            binding.setSaturdayPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(binding.getSundayPrice())) {
+            binding.setSundayPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        if (binding.getMaxGuests() == null || binding.getMaxGuests() < 1) {
+            binding.setMaxGuests(2);
+            changed = true;
+        }
+        if (binding.getIncludedGuests() == null || binding.getIncludedGuests() < 1) {
+            binding.setIncludedGuests(2);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_PRICE_MODE_UNIFIED.equals(binding.getPriceMode())) {
+            binding.setPriceMode(LOCAL_SETUP_PRICE_MODE_UNIFIED);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private RoomType ensureLocalSetupUnboundRoomTypeWithRoom(
+            Long storeId,
+            User user,
+            List<String> created,
+            List<String> reused
+    ) {
+        RoomType roomType = firstRoomType(
+                roomTypeRepository.findAllByStoreIdAndCodeOrderByIdAsc(storeId, LOCAL_SETUP_UNBOUND_ROOM_TYPE_CODE)
+        );
+        if (roomType == null) {
+            roomType = firstRoomType(
+                    roomTypeRepository.findAllByStoreIdAndNameOrderByIdAsc(storeId, LOCAL_SETUP_UNBOUND_ROOM_TYPE_NAME)
+            );
+        }
+
+        if (roomType == null) {
+            roomType = new RoomType();
+            roomType.setStoreId(storeId);
+            roomType.setUser(user);
+            roomType.setName(LOCAL_SETUP_UNBOUND_ROOM_TYPE_NAME);
+            roomType.setCode(LOCAL_SETUP_UNBOUND_ROOM_TYPE_CODE);
+            roomType.setTotalRooms(1);
+            roomType.setMaxGuests(2);
+            roomType.setMaxChildOccupancy(0);
+            roomType.setDescription("Local channel E2E unbound room type for read-only price rows");
+            roomType.setSuRoomType(LOCAL_SETUP_UNBOUND_ROOM_TYPE_CODE);
+            roomType.setDefaultPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            roomType = roomTypeRepository.save(roomType);
+            created.add("unboundRoomType:" + roomType.getId());
+        } else {
+            roomType = normalizeLocalSetupUnboundRoomType(roomType, user);
+            reused.add("unboundRoomType:" + roomType.getId());
+        }
+
+        Room room = firstRoom(roomRepository.findAllByStoreIdAndRoomNumberOrderByIdAsc(
+                storeId,
+                LOCAL_SETUP_UNBOUND_ROOM_NUMBER
+        ));
+        if (room == null) {
+            createLocalSetupRoom(storeId, user, roomType, LOCAL_SETUP_UNBOUND_ROOM_NUMBER, created);
+        } else {
+            normalizeLocalSetupRoom(storeId, user, roomType, room, reused);
+        }
+        return roomType;
+    }
+
+    private RoomType normalizeLocalSetupUnboundRoomType(RoomType roomType, User user) {
+        boolean changed = false;
+        if (!LOCAL_SETUP_UNBOUND_ROOM_TYPE_CODE.equals(roomType.getCode())) {
+            roomType.setCode(LOCAL_SETUP_UNBOUND_ROOM_TYPE_CODE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_UNBOUND_ROOM_TYPE_NAME.equals(roomType.getName())) {
+            roomType.setName(LOCAL_SETUP_UNBOUND_ROOM_TYPE_NAME);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_UNBOUND_ROOM_TYPE_CODE.equals(roomType.getSuRoomType())) {
+            roomType.setSuRoomType(LOCAL_SETUP_UNBOUND_ROOM_TYPE_CODE);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(roomType.getDefaultPrice())) {
+            roomType.setDefaultPrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        if (roomType.getTotalRooms() == null || roomType.getTotalRooms() < 1) {
+            roomType.setTotalRooms(1);
+            changed = true;
+        }
+        if (roomType.getMaxGuests() == null || roomType.getMaxGuests() < 1) {
+            roomType.setMaxGuests(2);
+            changed = true;
+        }
+        if (roomType.getMaxChildOccupancy() == null) {
+            roomType.setMaxChildOccupancy(0);
+            changed = true;
+        }
+        if (roomType.getUser() == null) {
+            roomType.setUser(user);
+            changed = true;
+        }
+        if (changed) {
+            return roomTypeRepository.save(roomType);
+        }
+        return roomType;
+    }
+
+    private void ensureLocalSetupChannelPrices(
+            Long storeId,
+            RoomType roomType,
+            PricePlan pricePlan,
+            List<Channel> channels,
+            List<String> created,
+            List<String> reused
+    ) {
+        LocalDate startDate = LocalDate.now().minusDays(LOCAL_SETUP_CHANNEL_PRICE_DAYS_BEFORE);
+        LocalDate endDate = LocalDate.now().plusDays(LOCAL_SETUP_CHANNEL_PRICE_DAYS_AFTER);
+        int createdCount = 0;
+        int reusedCount = 0;
+
+        LocalDate date = startDate;
+        while (!date.isAfter(endDate)) {
+            for (Channel channel : channels) {
+                ChannelPrice channelPrice = channelPriceRepository
+                        .findByStoreIdAndRoomTypeIdAndPricePlanIdAndChannelIdAndPriceDate(
+                                storeId,
+                                roomType.getId(),
+                                pricePlan.getId(),
+                                channel.getId(),
+                                date
+                        )
+                        .orElseGet(ChannelPrice::new);
+                boolean isNew = channelPrice.getId() == null;
+                boolean changed = normalizeLocalSetupChannelPrice(
+                        storeId,
+                        roomType,
+                        pricePlan,
+                        channel,
+                        date,
+                        channelPrice
+                );
+                if (isNew || changed) {
+                    channelPriceRepository.save(channelPrice);
+                }
+                if (isNew) {
+                    createdCount++;
+                } else {
+                    reusedCount++;
+                }
+            }
+            date = date.plusDays(1);
+        }
+
+        if (createdCount > 0) {
+            created.add("channelPrices:" + createdCount);
+        }
+        if (reusedCount > 0) {
+            reused.add("channelPrices:" + reusedCount);
+        }
+    }
+
+    private boolean normalizeLocalSetupChannelPrice(
+            Long storeId,
+            RoomType roomType,
+            PricePlan pricePlan,
+            Channel channel,
+            LocalDate priceDate,
+            ChannelPrice channelPrice
+    ) {
+        boolean changed = false;
+        if (!storeId.equals(channelPrice.getStoreId())) {
+            channelPrice.setStoreId(storeId);
+            changed = true;
+        }
+        if (channelPrice.getRoomType() == null || !roomType.getId().equals(channelPrice.getRoomType().getId())) {
+            channelPrice.setRoomType(roomType);
+            changed = true;
+        }
+        if (channelPrice.getPricePlan() == null || !pricePlan.getId().equals(channelPrice.getPricePlan().getId())) {
+            channelPrice.setPricePlan(pricePlan);
+            changed = true;
+        }
+        if (channelPrice.getChannel() == null || !channel.getId().equals(channelPrice.getChannel().getId())) {
+            channelPrice.setChannel(channel);
+            changed = true;
+        }
+        if (!priceDate.equals(channelPrice.getPriceDate())) {
+            channelPrice.setPriceDate(priceDate);
+            changed = true;
+        }
+        if (!LOCAL_SETUP_DEFAULT_PRICE.equals(channelPrice.getBasePrice())) {
+            channelPrice.setBasePrice(LOCAL_SETUP_DEFAULT_PRICE);
+            changed = true;
+        }
+        BigDecimal expectedChannelPrice = resolveLocalSetupChannelPrice(channel);
+        if (!expectedChannelPrice.equals(channelPrice.getChannelPrice())) {
+            channelPrice.setChannelPrice(expectedChannelPrice);
+            changed = true;
+        }
+        if (channelPrice.getMinStay() == null || channelPrice.getMinStay() != LOCAL_SETUP_MIN_STAY) {
+            channelPrice.setMinStay(LOCAL_SETUP_MIN_STAY);
+            changed = true;
+        }
+        if (channelPrice.getMaxStay() == null || channelPrice.getMaxStay() != LOCAL_SETUP_MAX_STAY) {
+            channelPrice.setMaxStay(LOCAL_SETUP_MAX_STAY);
+            changed = true;
+        }
+        if (!Boolean.TRUE.equals(channelPrice.getIsSyncedToOta())) {
+            channelPrice.setIsSyncedToOta(true);
+            changed = true;
+        }
+        if (!ChannelPriceOtaSyncState.NOT_REQUIRED.equals(channelPrice.getOtaSyncState())) {
+            channelPrice.setOtaSyncState(ChannelPriceOtaSyncState.NOT_REQUIRED);
+            changed = true;
+        }
+        LocalDateTime updatedAt = channelPrice.getPriceLabsUpdatedAt();
+        if (updatedAt == null) {
+            channelPrice.setPriceLabsUpdatedAt(LocalDateTime.now());
+            changed = true;
+        }
+        return changed;
+    }
+
+    private BigDecimal resolveLocalSetupChannelPrice(Channel channel) {
+        if (channel != null && CHANNEL_CODE_AIRBNB.equalsIgnoreCase(channel.getCode())) {
+            return LOCAL_SETUP_AIRBNB_CHANNEL_PRICE;
+        }
+        return LOCAL_SETUP_BOOKING_CHANNEL_PRICE;
     }
 
     private Room createLocalSetupRoom(

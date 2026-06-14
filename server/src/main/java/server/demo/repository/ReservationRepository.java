@@ -29,6 +29,18 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
         Long getAssignedRoomTypeId();
     }
 
+    interface MonthlyReservationOccupancyRow {
+        LocalDate getCheckInDate();
+
+        LocalDate getCheckOutDate();
+
+        Long getRoomId();
+
+        Long getOtaRoomTypeId();
+
+        Long getAssignedRoomTypeId();
+    }
+
     // ===== store-scoped APIs =====
     List<Reservation> findByStoreId(Long storeId);
 
@@ -251,6 +263,27 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
             "AND r.checkInDate < :endExclusive " +
             "AND r.checkOutDate > :startDate")
     List<ReservationOccupancyRow> findOccupancyRowsByStoreIdAndDateRangeAndStatuses(
+            @Param("storeId") Long storeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endExclusive") LocalDate endExclusive,
+            @Param("statuses") Set<ReservationStatus> statuses
+    );
+
+    @Query("""
+            SELECT r.checkInDate as checkInDate,
+                   r.checkOutDate as checkOutDate,
+                   room.id as roomId,
+                   r.otaRoomTypeId as otaRoomTypeId,
+                   roomType.id as assignedRoomTypeId
+            FROM Reservation r
+            LEFT JOIN r.room room
+            LEFT JOIN room.roomType roomType
+            WHERE r.storeId = :storeId
+              AND r.status IN :statuses
+              AND r.checkInDate < :endExclusive
+              AND r.checkOutDate > :startDate
+            """)
+    List<MonthlyReservationOccupancyRow> findMonthlyOccupancyRowsByStoreIdAndDateRangeAndStatuses(
             @Param("storeId") Long storeId,
             @Param("startDate") LocalDate startDate,
             @Param("endExclusive") LocalDate endExclusive,

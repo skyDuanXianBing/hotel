@@ -3,6 +3,8 @@ package server.demo.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 房价管理DTO
@@ -15,6 +17,9 @@ public class RoomPriceManagementDTO {
     private String roomTypeCode;
     private Long pricePlanId;
     private String pricePlanName;
+    private String bindingState;
+    private Boolean editable;
+    private String uneditableReason;
     private LocalDate priceDate;
     private BigDecimal price;
     private Integer availableRooms;
@@ -30,10 +35,50 @@ public class RoomPriceManagementDTO {
     private LocalDateTime priceLabsUpdatedAt;
     private Boolean manualOverride;
     private LocalDate manualOverrideUntil;
+    private Integer channelCount;
+    private List<ChannelRefDTO> channelRefs = new ArrayList<>();
     private String notes;
 
     // Constructors
     public RoomPriceManagementDTO() {}
+
+    public static class ChannelRefDTO {
+        private Long channelId;
+        private String channelCode;
+        private String channelName;
+
+        public ChannelRefDTO() {}
+
+        public ChannelRefDTO(Long channelId, String channelCode, String channelName) {
+            this.channelId = channelId;
+            this.channelCode = channelCode;
+            this.channelName = channelName;
+        }
+
+        public Long getChannelId() {
+            return channelId;
+        }
+
+        public void setChannelId(Long channelId) {
+            this.channelId = channelId;
+        }
+
+        public String getChannelCode() {
+            return channelCode;
+        }
+
+        public void setChannelCode(String channelCode) {
+            this.channelCode = channelCode;
+        }
+
+        public String getChannelName() {
+            return channelName;
+        }
+
+        public void setChannelName(String channelName) {
+            this.channelName = channelName;
+        }
+    }
 
     // Getters and Setters
     public Long getId() {
@@ -82,6 +127,30 @@ public class RoomPriceManagementDTO {
 
     public void setPricePlanName(String pricePlanName) {
         this.pricePlanName = pricePlanName;
+    }
+
+    public String getBindingState() {
+        return bindingState;
+    }
+
+    public void setBindingState(String bindingState) {
+        this.bindingState = bindingState;
+    }
+
+    public Boolean getEditable() {
+        return editable;
+    }
+
+    public void setEditable(Boolean editable) {
+        this.editable = editable;
+    }
+
+    public String getUneditableReason() {
+        return uneditableReason;
+    }
+
+    public void setUneditableReason(String uneditableReason) {
+        this.uneditableReason = uneditableReason;
     }
 
     public LocalDate getPriceDate() {
@@ -202,6 +271,22 @@ public class RoomPriceManagementDTO {
 
     public void setManualOverrideUntil(LocalDate manualOverrideUntil) {
         this.manualOverrideUntil = manualOverrideUntil;
+    }
+
+    public Integer getChannelCount() {
+        return channelCount;
+    }
+
+    public void setChannelCount(Integer channelCount) {
+        this.channelCount = channelCount;
+    }
+
+    public List<ChannelRefDTO> getChannelRefs() {
+        return channelRefs;
+    }
+
+    public void setChannelRefs(List<ChannelRefDTO> channelRefs) {
+        this.channelRefs = channelRefs != null ? channelRefs : new ArrayList<>();
     }
 
     public String getNotes() {

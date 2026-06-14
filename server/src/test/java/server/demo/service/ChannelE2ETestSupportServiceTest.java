@@ -1,23 +1,36 @@
 package server.demo.service;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
+import server.demo.constants.ChannelPriceOtaSyncState;
 import server.demo.entity.AutoMessage;
 import server.demo.entity.Channel;
+import server.demo.entity.ChannelPrice;
 import server.demo.entity.OtaIntegration;
+import server.demo.entity.PricePlan;
+import server.demo.entity.RoomType;
+import server.demo.entity.RoomTypePricePlan;
 import server.demo.entity.Store;
 import server.demo.entity.User;
+import server.demo.repository.ChannelPriceRepository;
+import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.service.ChannelE2ETestSupportService.TestSupportAccessException;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -216,14 +229,108 @@ class ChannelE2ETestSupportServiceTest {
         assertFalse(Boolean.TRUE.equals(unsupported));
     }
 
+    @Test
+    void ensureLocalSetupRoomTypePricePlan_createsBoundWeeklyPrices() {
+        RoomTypePricePlanRepository repository = mock(RoomTypePricePlanRepository.class);
+        ChannelE2ETestSupportService service = newService(true, VALID_KEY, null, repository, null);
+        RoomType roomType = buildRoomType(4L, 11L, "Local E2E Standard Room", "E2ELOCAL");
+        PricePlan pricePlan = buildPricePlan(21L);
+        List<String> created = new ArrayList<>();
+        List<String> reused = new ArrayList<>();
+
+        when(repository.findByRoomTypeIdAndPricePlanId(11L, 21L)).thenReturn(Optional.empty());
+        when(repository.save(any(RoomTypePricePlan.class))).thenAnswer(invocation -> {
+            RoomTypePricePlan binding = invocation.getArgument(0);
+            binding.setId(31L);
+            return binding;
+        });
+
+        ReflectionTestUtils.invokeMethod(
+                service,
+                "ensureLocalSetupRoomTypePricePlan",
+                4L,
+                roomType,
+                pricePlan,
+                created,
+                reused
+        );
+
+        ArgumentCaptor<RoomTypePricePlan> captor = ArgumentCaptor.forClass(RoomTypePricePlan.class);
+        verify(repository).save(captor.capture());
+        RoomTypePricePlan saved = captor.getValue();
+        assertEquals(4L, saved.getStoreId());
+        assertEquals(11L, saved.getRoomType().getId());
+        assertEquals(21L, saved.getPricePlan().getId());
+        assertEquals(new BigDecimal("120.00"), saved.getMondayPrice());
+        assertEquals(new BigDecimal("120.00"), saved.getSundayPrice());
+        assertEquals(2, saved.getIncludedGuests());
+        assertTrue(created.contains("roomTypePricePlan:31"));
+        assertTrue(reused.isEmpty());
+    }
+
+    @Test
+    void ensureLocalSetupChannelPrices_createsReadOnlyChannelReferences() {
+        ChannelPriceRepository repository = mock(ChannelPriceRepository.class);
+        ChannelE2ETestSupportService service = newService(true, VALID_KEY, null, null, repository);
+        RoomType roomType = buildRoomType(4L, 11L, "Local E2E Standard Room", "E2ELOCAL");
+        PricePlan pricePlan = buildPricePlan(21L);
+        Channel booking = buildChannel(41L, "BOOKING", "Booking.com");
+        List<String> created = new ArrayList<>();
+        List<String> reused = new ArrayList<>();
+
+        when(repository.findByStoreIdAndRoomTypeIdAndPricePlanIdAndChannelIdAndPriceDate(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(LocalDate.class)
+        )).thenReturn(Optional.empty());
+        when(repository.save(any(ChannelPrice.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ReflectionTestUtils.invokeMethod(
+                service,
+                "ensureLocalSetupChannelPrices",
+                4L,
+                roomType,
+                pricePlan,
+                List.of(booking),
+                created,
+                reused
+        );
+
+        ArgumentCaptor<ChannelPrice> captor = ArgumentCaptor.forClass(ChannelPrice.class);
+        verify(repository, atLeastOnce()).save(captor.capture());
+        ChannelPrice saved = captor.getAllValues().get(0);
+        assertEquals(4L, saved.getStoreId());
+        assertEquals(11L, saved.getRoomType().getId());
+        assertEquals(21L, saved.getPricePlan().getId());
+        assertEquals(41L, saved.getChannel().getId());
+        assertEquals(new BigDecimal("120.00"), saved.getBasePrice());
+        assertEquals(new BigDecimal("132.00"), saved.getChannelPrice());
+        assertEquals(ChannelPriceOtaSyncState.NOT_REQUIRED, saved.getOtaSyncState());
+        assertEquals(Boolean.TRUE, saved.getIsSyncedToOta());
+        assertTrue(created.stream().anyMatch(item -> item.startsWith("channelPrices:")));
+        assertTrue(reused.isEmpty());
+    }
+
     private ChannelE2ETestSupportService newService(boolean localE2EEnabled, String testSupportKey) {
-        return newService(localE2EEnabled, testSupportKey, null);
+        return newService(localE2EEnabled, testSupportKey, null, null, null);
     }
 
     private ChannelE2ETestSupportService newService(
             boolean localE2EEnabled,
             String testSupportKey,
             StoreRepository storeRepository
+    ) {
+        return newService(localE2EEnabled, testSupportKey, storeRepository, null, null);
+    }
+
+    private ChannelE2ETestSupportService newService(
+            boolean localE2EEnabled,
+            String testSupportKey,
+            StoreRepository storeRepository,
+            RoomTypePricePlanRepository roomTypePricePlanRepository,
+            ChannelPriceRepository channelPriceRepository
     ) {
         ChannelE2ETestSupportService service = new ChannelE2ETestSupportService(
                 null,
@@ -233,6 +340,8 @@ class ChannelE2ETestSupportServiceTest {
                 null,
                 null,
                 null,
+                roomTypePricePlanRepository,
+                channelPriceRepository,
                 null,
                 null,
                 null,
@@ -248,6 +357,30 @@ class ChannelE2ETestSupportServiceTest {
         ReflectionTestUtils.setField(service, "localE2EEnabled", localE2EEnabled);
         ReflectionTestUtils.setField(service, "testSupportKey", testSupportKey);
         return service;
+    }
+
+    private RoomType buildRoomType(Long storeId, Long id, String name, String code) {
+        RoomType roomType = new RoomType();
+        roomType.setStoreId(storeId);
+        roomType.setId(id);
+        roomType.setName(name);
+        roomType.setCode(code);
+        return roomType;
+    }
+
+    private PricePlan buildPricePlan(Long id) {
+        PricePlan pricePlan = new PricePlan();
+        pricePlan.setId(id);
+        pricePlan.setName("Local E2E Standard Rate");
+        return pricePlan;
+    }
+
+    private Channel buildChannel(Long id, String code, String name) {
+        Channel channel = new Channel();
+        channel.setId(id);
+        channel.setCode(code);
+        channel.setName(name);
+        return channel;
     }
 
     private OtaIntegration buildIntegration(String code, boolean enabled, boolean connected) {

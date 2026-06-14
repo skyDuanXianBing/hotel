@@ -26,8 +26,10 @@ public interface RoomStatusShareRepository extends JpaRepository<RoomStatusShare
     /**
      * 分页查询激活的分享记录
      */
-    @Query("SELECT r FROM RoomStatusShare r WHERE r.isActive = true ORDER BY r.createdAt DESC")
-    Page<RoomStatusShare> findActiveShares(Pageable pageable);
+    @Query("SELECT r FROM RoomStatusShare r WHERE r.storeId = :storeId AND r.isActive = true ORDER BY r.createdAt DESC")
+    Page<RoomStatusShare> findActiveSharesByStoreId(@Param("storeId") Long storeId, Pageable pageable);
+
+    Optional<RoomStatusShare> findByStoreIdAndId(Long storeId, Long id);
     
     /**
      * 根据分享标题查找
@@ -37,11 +39,15 @@ public interface RoomStatusShareRepository extends JpaRepository<RoomStatusShare
     /**
      * 检查分享标题是否存在（排除指定ID）
      */
-    @Query("SELECT COUNT(r) > 0 FROM RoomStatusShare r WHERE r.shareTitle = :title AND r.id != :excludeId")
-    boolean existsByShareTitleAndIdNot(@Param("title") String shareTitle, @Param("excludeId") Long excludeId);
+    @Query("SELECT COUNT(r) > 0 FROM RoomStatusShare r WHERE r.storeId = :storeId AND r.shareTitle = :title AND r.id != :excludeId")
+    boolean existsByStoreIdAndShareTitleAndIdNot(
+            @Param("storeId") Long storeId,
+            @Param("title") String shareTitle,
+            @Param("excludeId") Long excludeId
+    );
     
     /**
      * 检查分享标题是否存在
      */
-    boolean existsByShareTitle(String shareTitle);
+    boolean existsByStoreIdAndShareTitle(Long storeId, String shareTitle);
 }

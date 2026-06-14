@@ -1,5 +1,6 @@
 package server.demo.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import server.demo.enums.RoomStatus;
 
 import java.math.BigDecimal;
@@ -80,6 +81,7 @@ public class DailyRoomStatusDTO {
         this.closeType = closeType;
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public String getCloseRemark() {
         return closeRemark;
     }
@@ -88,6 +90,7 @@ public class DailyRoomStatusDTO {
         this.closeRemark = closeRemark;
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ReservationInfoDTO {
         private Long id;
         private String guestName;
@@ -95,6 +98,7 @@ public class DailyRoomStatusDTO {
         private LocalDate checkIn;
         private LocalDate checkOut;
         private String orderNumber;
+        private String status;
         private BigDecimal totalAmount;
         private String groupOrderNo;
         private String notes;
@@ -158,6 +162,14 @@ public class DailyRoomStatusDTO {
 
         public void setOrderNumber(String orderNumber) {
             this.orderNumber = orderNumber;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public void setStatus(String status) {
+            this.status = status;
         }
 
         public BigDecimal getTotalAmount() {

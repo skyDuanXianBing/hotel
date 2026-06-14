@@ -28,7 +28,9 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
 
     List<Room> findByStoreIdAndIdIn(Long storeId, Collection<Long> ids);
 
-    List<Room> findByStoreIdAndRoomTypeId(Long storeId, Long roomTypeId);
+    @Query("SELECT r FROM Room r WHERE r.storeId = :storeId AND r.roomType.id = :roomTypeId")
+    List<Room> findByStoreIdAndRoomTypeId(@Param("storeId") Long storeId,
+                                          @Param("roomTypeId") Long roomTypeId);
 
     List<Room> findByStoreIdAndStatus(Long storeId, RoomStatus status);
 
@@ -71,7 +73,8 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     List<Room> findByRoomType(RoomType roomType);
 
     @Deprecated
-    List<Room> findByRoomTypeId(Long roomTypeId);
+    @Query("SELECT r FROM Room r WHERE r.roomType.id = :roomTypeId")
+    List<Room> findByRoomTypeId(@Param("roomTypeId") Long roomTypeId);
 
     @Deprecated
     List<Room> findByStatus(RoomStatus status);

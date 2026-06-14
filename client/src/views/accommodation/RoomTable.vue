@@ -565,13 +565,11 @@ import { ElMessage } from 'element-plus'
 import { Download, InfoFilled, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { request } from '@/utils/request'
-import { getRooms, type RoomDTO } from '@/api/room'
 import {
-  getRoomStatusCalendar,
-  type CalendarRoomDataDTO,
-  type DailyRoomStatusDTO,
-  type RoomStatusCalendarDTO,
-} from '@/api/roomStatus'
+  getMonthlyRoomTableData,
+  type MonthlyDailyStatusDTO,
+  type RoomTableMonthlyResponse,
+} from '@/api/roomTable'
 import type {
   RoomTableData,
   RoomStatistics,
@@ -624,8 +622,7 @@ const selectedDate = ref<string>(getStoreTodayYmd())
 const selectedMonthDate = ref<string>(getYmdMonthStart(getStoreTodayYmd()))
 const roomTableData = ref<RoomTableData | null>(null)
 const futureRoomTableData = ref<FutureRoomTableData | null>(null)
-const monthlyRoomStatusData = ref<RoomStatusCalendarDTO | null>(null)
-const monthlyRooms = ref<RoomDTO[]>([])
+const monthlyRoomTableData = ref<RoomTableMonthlyResponse | null>(null)
 const monthlyRoomTypeFilter = ref('')
 const monthlyStatusFilter = ref<MonthlyStatusFilter>('all')
 const monthlySearchKeyword = ref('')
@@ -760,7 +757,7 @@ const monthlyWeekdayLabels = computed(() =>
 
 const monthlyRoomTypeOptions = computed(() => {
   const roomTypes = new Set<string>()
-  monthlyRoomStatusData.value?.rooms?.forEach((room) => {
+  monthlyRoomTableData.value?.rooms?.forEach((room) => {
     if (room.roomType) {
       roomTypes.add(room.roomType)
     }
@@ -768,67 +765,20 @@ const monthlyRoomTypeOptions = computed(() => {
   return Array.from(roomTypes)
 })
 
-const staticRoomStatusByRoomId = computed(() => {
-  const statusMap = new Map<number, string>()
-  monthlyRooms.value.forEach((room) => {
-    statusMap.set(room.id, room.status)
-  })
-  return statusMap
-})
-
-const isMonthlyRoomBookable = (
-  room: CalendarRoomDataDTO,
-  dailyStatus: DailyRoomStatusDTO,
-) => {
-  if (dailyStatus.closed) {
-    return false
+const getMonthlyDayKind = (dailyStatus: MonthlyDailyStatusDTO): MonthlyDayKind => {
+  if (dailyStatus.displayStatus === 'AVAILABLE_MANY') {
+    return 'available-many'
   }
 
-  if (dailyStatus.reservation) {
-    return false
+  if (dailyStatus.displayStatus === 'AVAILABLE') {
+    return 'available'
   }
 
-  const dailyStatusValue = String(dailyStatus.status || '').toUpperCase()
-  if (dailyStatusValue !== 'AVAILABLE') {
-    return false
-  }
-
-  const staticStatus = String(staticRoomStatusByRoomId.value.get(room.roomId) || '').toUpperCase()
-  return !['MAINTENANCE', 'OUT_OF_ORDER'].includes(staticStatus)
-}
-
-const monthlyAvailabilityByTypeDate = computed(() => {
-  const availabilityMap = new Map<string, number>()
-
-  monthlyRoomStatusData.value?.rooms?.forEach((room) => {
-    room.dailyStatus?.forEach((dailyStatus) => {
-      if (!isMonthlyRoomBookable(room, dailyStatus)) {
-        return
-      }
-
-      const key = `${room.roomType}__${dailyStatus.date}`
-      availabilityMap.set(key, (availabilityMap.get(key) || 0) + 1)
-    })
-  })
-
-  return availabilityMap
-})
-
-const getMonthlyDayKind = (
-  room: CalendarRoomDataDTO,
-  dailyStatus: DailyRoomStatusDTO,
-): MonthlyDayKind => {
-  if (!isMonthlyRoomBookable(room, dailyStatus)) {
-    return 'full'
-  }
-
-  const availableCount = monthlyAvailabilityByTypeDate.value.get(`${room.roomType}__${dailyStatus.date}`) || 0
-  return availableCount >= 2 ? 'available-many' : 'available'
+  return 'full'
 }
 
 const getMonthlyDayTooltip = (
-  room: CalendarRoomDataDTO,
-  dailyStatus: DailyRoomStatusDTO,
+  dailyStatus: MonthlyDailyStatusDTO,
   kind: MonthlyDayKind,
 ) => {
   if (dailyStatus.closed) {
@@ -842,7 +792,7 @@ const getMonthlyDayTooltip = (
   }
 
   if (kind === 'available-many') {
-    const availableCount = monthlyAvailabilityByTypeDate.value.get(`${room.roomType}__${dailyStatus.date}`) || 0
+    const availableCount = dailyStatus.roomTypeAvailableRooms || 0
     return `${monthlyText.value.availableMany}: ${availableCount}`
   }
 
@@ -853,7 +803,7 @@ const monthlyRoomCards = computed<MonthlyRoomCard[]>(() => {
   const firstWeekday = getYmdWeekdayIndex(selectedMonthStart.value)
   const blankCells = Array.from({ length: firstWeekday }, () => null)
 
-  return (monthlyRoomStatusData.value?.rooms || []).map((room) => {
+  return (monthlyRoomTableData.value?.rooms || []).map((room) => {
     let hasFull = false
     let hasAvailable = false
     let hasAvailableMany = false
@@ -872,7 +822,7 @@ const monthlyRoomCards = computed<MonthlyRoomCard[]>(() => {
         }
       }
 
-      const kind = getMonthlyDayKind(room, dailyStatus)
+      const kind = getMonthlyDayKind(dailyStatus)
       hasFull = hasFull || kind === 'full'
       hasAvailable = hasAvailable || kind === 'available'
       hasAvailableMany = hasAvailableMany || kind === 'available-many'
@@ -882,7 +832,7 @@ const monthlyRoomCards = computed<MonthlyRoomCard[]>(() => {
         dayLabel: String(parseYmdAsUtcDate(date).getUTCDate()),
         kind,
         segment: 'single',
-        tooltip: getMonthlyDayTooltip(room, dailyStatus, kind),
+        tooltip: getMonthlyDayTooltip(dailyStatus, kind),
       }
     })
     const segmentedDays = days.map<MonthlyRoomDay>((day, index) => {
@@ -953,29 +903,18 @@ const filteredMonthlyRoomCards = computed(() => {
 const fetchMonthlyRoomTableData = async () => {
   try {
     loading.value = true
-    // TODO: Replace this aggregation with a dedicated monthly room-table endpoint when the
-    // backend exposes exact monthly inventory/status semantics for this page.
-    const [calendarResponse, roomsResponse] = await Promise.all([
-      getRoomStatusCalendar(selectedMonthStart.value, selectedMonthEnd.value),
-      getRooms(),
-    ])
 
-    if (calendarResponse.success) {
-      monthlyRoomStatusData.value = calendarResponse.data
-    } else {
-      monthlyRoomStatusData.value = null
-      ElMessage.error(calendarResponse.message || t('accommodation.roomTable.messages.loadMonthlyFailed'))
-    }
+    const response = await getMonthlyRoomTableData(selectedMonthStart.value, selectedMonthEnd.value)
 
-    if (roomsResponse.success) {
-      monthlyRooms.value = roomsResponse.data || []
+    if (response.success) {
+      monthlyRoomTableData.value = response.data
     } else {
-      monthlyRooms.value = []
+      monthlyRoomTableData.value = null
+      ElMessage.error(response.message || t('accommodation.roomTable.messages.loadMonthlyFailed'))
     }
   } catch (error) {
     console.error('获取月度房情表数据失败:', error)
-    monthlyRoomStatusData.value = null
-    monthlyRooms.value = []
+    monthlyRoomTableData.value = null
     ElMessage.error(t('accommodation.roomTable.messages.loadMonthlyFailed'))
   } finally {
     loading.value = false

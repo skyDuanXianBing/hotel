@@ -62,14 +62,28 @@ public class RoomStatusCalendarDTO {
         private Long roomId;
         private String roomNumber;
         private String roomType;
+        private Long roomTypeId;
+        private String roomTypeName;
         private List<DailyRoomStatusDTO> dailyStatus;
 
         public CalendarRoomDataDTO() {}
 
         public CalendarRoomDataDTO(Long roomId, String roomNumber, String roomType, List<DailyRoomStatusDTO> dailyStatus) {
+            this(roomId, roomNumber, null, roomType, dailyStatus);
+        }
+
+        public CalendarRoomDataDTO(
+                Long roomId,
+                String roomNumber,
+                Long roomTypeId,
+                String roomTypeName,
+                List<DailyRoomStatusDTO> dailyStatus
+        ) {
             this.roomId = roomId;
             this.roomNumber = roomNumber;
-            this.roomType = roomType;
+            this.roomTypeId = roomTypeId;
+            this.roomTypeName = roomTypeName;
+            this.roomType = roomTypeName;
             this.dailyStatus = dailyStatus;
         }
 
@@ -95,6 +109,24 @@ public class RoomStatusCalendarDTO {
 
         public void setRoomType(String roomType) {
             this.roomType = roomType;
+            this.roomTypeName = roomType;
+        }
+
+        public Long getRoomTypeId() {
+            return roomTypeId;
+        }
+
+        public void setRoomTypeId(Long roomTypeId) {
+            this.roomTypeId = roomTypeId;
+        }
+
+        public String getRoomTypeName() {
+            return roomTypeName != null ? roomTypeName : roomType;
+        }
+
+        public void setRoomTypeName(String roomTypeName) {
+            this.roomTypeName = roomTypeName;
+            this.roomType = roomTypeName;
         }
 
         public List<DailyRoomStatusDTO> getDailyStatus() {

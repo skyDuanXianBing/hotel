@@ -4269,6 +4269,39 @@ const getReservationDisplayStatus = (dailyStatus: DailyRoomStatus) => {
   return ReservationStatus.CONFIRMED
 }
 
+const inferReservationStatusFromDailyStatus = (dailyStatusValue: string) => {
+  const roomStatus = String(dailyStatusValue || '')
+    .trim()
+    .toUpperCase()
+
+  if (roomStatus === RoomStatus.OCCUPIED) {
+    return ReservationStatus.CHECKED_IN
+  }
+
+  if (roomStatus === RoomStatus.RESERVED) {
+    return ReservationStatus.CONFIRMED
+  }
+
+  return ReservationStatus.CONFIRMED
+}
+
+const resolveCalendarReservationStatus = (daily: {
+  status?: string
+  reservation?: { status?: string; reservationStatus?: string } | null
+}) => {
+  const reservation = daily.reservation
+  if (reservation) {
+    const explicitStatus = String(reservation.status || reservation.reservationStatus || '')
+      .trim()
+      .toUpperCase()
+    if (explicitStatus) {
+      return explicitStatus
+    }
+  }
+
+  return inferReservationStatusFromDailyStatus(daily.status || '')
+}
+
 const getReservationRibbonPalette = (dailyStatus: DailyRoomStatus) => {
   const status = getReservationDisplayStatus(dailyStatus)
   const channelColor = getReservationBaseChannelColor(dailyStatus.reservation)
@@ -4375,10 +4408,7 @@ const loadRoomStatusCalendarData = async () => {
                   adults: 1,
                   children: 0,
                   totalAmount: 0,
-                  status:
-                    daily.reservation.status ||
-                    (daily.reservation as any).reservationStatus ||
-                    undefined,
+                  status: resolveCalendarReservationStatus(daily) as ReservationStatus,
                 }
               : null,
           })),

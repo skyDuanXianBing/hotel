@@ -81,10 +81,14 @@ class RoomStatusServiceTest {
         assertEquals(1, calendar.getRooms().size());
         RoomStatusCalendarDTO.CalendarRoomDataDTO r = calendar.getRooms().get(0);
         assertEquals("101", r.getRoomNumber());
+        assertEquals(1L, r.getRoomTypeId());
+        assertEquals("RT1", r.getRoomTypeName());
+        assertEquals("RT1", r.getRoomType());
         assertEquals(1, r.getDailyStatus().size());
         assertEquals(RoomStatus.RESERVED, r.getDailyStatus().get(0).getStatus());
         assertNotNull(r.getDailyStatus().get(0).getReservation());
         assertEquals("GuestA", r.getDailyStatus().get(0).getReservation().getGuestName());
+        assertEquals("REQUESTED", r.getDailyStatus().get(0).getReservation().getStatus());
     }
 
     @Test

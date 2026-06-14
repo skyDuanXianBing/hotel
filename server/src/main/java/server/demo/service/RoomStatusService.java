@@ -209,9 +209,11 @@ public class RoomStatusService {
             }
 
             String roomTypeName = room.getRoomType() != null ? room.getRoomType().getName() : "未知房型";
+            Long roomTypeId = room.getRoomType() != null ? room.getRoomType().getId() : null;
             RoomStatusCalendarDTO.CalendarRoomDataDTO roomData = new RoomStatusCalendarDTO.CalendarRoomDataDTO(
                     room.getId(),
                     room.getRoomNumber(),
+                    roomTypeId,
                     roomTypeName,
                     dailyStatusList
             );
@@ -632,6 +634,7 @@ public class RoomStatusService {
                 r.getCheckOutDate(),
                 r.getOrderNumber()
         );
+        reservationInfo.setStatus(r.getStatus() != null ? r.getStatus().name() : null);
         reservationInfo.setTotalAmount(r.getTotalAmount());
         reservationInfo.setGroupOrderNo(r.getGroupOrderNo());
         reservationInfo.setNotes(r.getNotes());

@@ -2,8 +2,10 @@ package server.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.StoreScoped;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.RoomStatusShareRequest;
+import server.demo.dto.RoomStatusSharePublicResponse;
 import server.demo.dto.RoomStatusShareResponse;
 import server.demo.dto.RoomStatusCalendarDTO;
 import server.demo.dto.RoomStatusStatisticsDTO;
@@ -40,6 +42,7 @@ public class RoomStatusShareController {
      * 获取分享列表
      */
     @GetMapping
+    @StoreScoped
     public ApiResponse<RoomStatusShareResponse> getShares(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "25") int pageSize) {
@@ -56,6 +59,7 @@ public class RoomStatusShareController {
      * 创建分享链接
      */
     @PostMapping
+    @StoreScoped
     public ApiResponse<RoomStatusShare> createShare(@Valid @RequestBody RoomStatusShareRequest request) {
         try {
             RoomStatusShare share = roomStatusShareService.createShare(request);
@@ -69,6 +73,7 @@ public class RoomStatusShareController {
      * 更新分享链接
      */
     @PutMapping("/{id}")
+    @StoreScoped
     public ApiResponse<RoomStatusShare> updateShare(
             @PathVariable Long id,
             @Valid @RequestBody RoomStatusShareRequest request) {
@@ -84,6 +89,7 @@ public class RoomStatusShareController {
      * 删除分享链接
      */
     @DeleteMapping("/{id}")
+    @StoreScoped
     public ApiResponse<String> deleteShare(@PathVariable Long id) {
         try {
             roomStatusShareService.deleteShare(id);
@@ -97,9 +103,9 @@ public class RoomStatusShareController {
      * 获取分享详情（用于分享页面展示）
      */
     @GetMapping("/public/{shareToken}")
-    public ApiResponse<RoomStatusShare> getShareByToken(@PathVariable String shareToken) {
+    public ApiResponse<RoomStatusSharePublicResponse> getShareByToken(@PathVariable String shareToken) {
         try {
-            RoomStatusShare share = roomStatusShareService.getShareByToken(shareToken);
+            RoomStatusSharePublicResponse share = roomStatusShareService.getPublicShareByToken(shareToken);
             return ApiResponse.success(share);
         } catch (Exception e) {
             return ApiResponse.error("获取分享信息失败: " + e.getMessage());

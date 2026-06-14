@@ -277,6 +277,8 @@ public class RoomTypeWithRoomsDTO {
     public static class RoomInfoDTO {
         private Long id;
         private String roomNumber;
+        private Long roomTypeId;
+        private String roomTypeName;
         private String smartlockPasscode;
         private String status;
         private Integer floor;
@@ -287,6 +289,10 @@ public class RoomTypeWithRoomsDTO {
         public RoomInfoDTO(Room room) {
             this.id = room.getId();
             this.roomNumber = room.getRoomNumber();
+            if (room.getRoomType() != null) {
+                this.roomTypeId = room.getRoomType().getId();
+                this.roomTypeName = room.getRoomType().getName();
+            }
             this.smartlockPasscode = room.getSmartlockPasscode();
             this.status = room.getStatus() != null ? room.getStatus().name() : "AVAILABLE";
             this.floor = room.getFloor();
@@ -307,6 +313,22 @@ public class RoomTypeWithRoomsDTO {
 
         public void setRoomNumber(String roomNumber) {
             this.roomNumber = roomNumber;
+        }
+
+        public Long getRoomTypeId() {
+            return roomTypeId;
+        }
+
+        public void setRoomTypeId(Long roomTypeId) {
+            this.roomTypeId = roomTypeId;
+        }
+
+        public String getRoomTypeName() {
+            return roomTypeName;
+        }
+
+        public void setRoomTypeName(String roomTypeName) {
+            this.roomTypeName = roomTypeName;
         }
 
         public String getSmartlockPasscode() {

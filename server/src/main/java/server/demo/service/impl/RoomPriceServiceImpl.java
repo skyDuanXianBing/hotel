@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,6 +51,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
             ReservationStatus.CHECKED_IN,
             ReservationStatus.REQUESTED
     );
+    private static final String BINDING_STATE_BOUND = "BOUND";
+    private static final String BINDING_STATE_UNBOUND = "UNBOUND";
+    private static final String UNBOUND_PRICE_PLAN_REASON = "当前房型未绑定价格计划，请先绑定价格计划后再修改房价。";
 
     @Autowired
     private RoomPriceRepository roomPriceRepository;
@@ -413,22 +417,16 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     .toList();
         }
 
-        // 调试: 输出查询到的房型和价格计划数量
-        System.out.println("===== 查询到的房型数量: " + roomTypes.size() + " =====");
-        System.out.println("===== 查询到的价格计划数量: " + roomTypePricePlans.size() + " =====");
-        for (RoomTypePricePlan plan : roomTypePricePlans) {
-            System.out.println("价格计划: 房型=" + plan.getRoomType().getName() +
-                             ", 计划=" + plan.getPricePlan().getName());
-        }
-
         // 查询日期范围内的所有特定日期价格覆盖记录（门店级）
         List<RoomPrice> specificPrices = roomPriceRepository.findByStoreIdAndPriceDateBetweenWithRoomTypeAndPricePlan(
                 storeId,
                 startDate,
                 endDate
         );
-        List<ChannelPrice> priceLabsChannelPrices = channelPriceRepository.findByStoreIdAndDateRange(storeId, startDate, endDate);
-        Map<String, ChannelPrice> priceLabsPriceMap = buildPriceLabsPriceMap(priceLabsChannelPrices);
+        List<ChannelPrice> channelPrices = channelPriceRepository.findByStoreIdAndDateRangeWithRelations(storeId, startDate, endDate);
+        Map<String, ChannelPrice> priceLabsPriceMap = buildPriceLabsPriceMap(channelPrices);
+        Map<String, List<RoomPriceManagementDTO.ChannelRefDTO>> channelRefsByRoomTypePlan =
+                buildChannelRefsByRoomTypePlan(channelPrices);
 
         // 查询日期范围内的所有预订记录，用于计算可用房间数（门店级）
         List<Reservation> reservations = reservationRepository.findByStoreIdAndDateRange(storeId, startDate, endDate);
@@ -464,20 +462,6 @@ public class RoomPriceServiceImpl implements RoomPriceService {
             }
         }
 
-        // 临时调试: 输出查询到的预订信息
-        System.out.println("===== 房价管理查询预订 =====");
-        System.out.println("查询日期范围: " + startDate + " 到 " + endDate);
-        System.out.println("查询到的预订总数: " + reservations.size());
-        for (Reservation r : reservations) {
-            System.out.println("预订ID=" + r.getId() +
-                             ", 房间=" + (r.getRoom() != null ? r.getRoom().getRoomNumber() : "null") +
-                             ", 房型=" + (r.getRoom() != null && r.getRoom().getRoomType() != null ? r.getRoom().getRoomType().getName() : "null") +
-                             ", 状态=" + r.getStatus() +
-                             ", 入住=" + r.getCheckInDate() +
-                             ", 退房=" + r.getCheckOutDate());
-        }
-        System.out.println("============================\n");
-
         // 为每个房型和日期范围生成价格记录
         List<RoomPriceManagementDTO> result = new ArrayList<>();
 
@@ -499,6 +483,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     dto.setRoomTypeCode(roomType.getCode());
                     dto.setPricePlanId(null);
                     dto.setPricePlanName(null);
+                    applyUnboundState(dto);
+                    applyChannelSummary(dto, List.of());
                     dto.setPriceDate(currentDate);
 
                     // 动态计算可用房间数
@@ -538,6 +524,14 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                     dto.setRoomTypeCode(plan.getRoomType().getCode());
                     dto.setPricePlanId(plan.getPricePlan().getId());
                     dto.setPricePlanName(plan.getPricePlan().getName());
+                    applyBoundState(dto);
+                    applyChannelSummary(
+                            dto,
+                            channelRefsByRoomTypePlan.get(buildRoomTypePlanKey(
+                                    plan.getRoomType().getId(),
+                                    plan.getPricePlan().getId()
+                            ))
+                    );
                     dto.setPriceDate(currentDate);
 
                 // 首先检查是否有特定日期的价格覆盖
@@ -589,10 +583,6 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                             reservations,
                             blockedRoomsByTypeDate
                     );
-                    if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
-                        System.out.println("  动态计算availableRooms(无specificPrice): " + availableRooms);
-                    }
-
                     // 没有特定价格记录时,minStay和maxStay为null
                     dto.setMinStay(null);
                     dto.setMaxStay(null);
@@ -611,14 +601,6 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                 // 判断是否为周末
                 dto.setIsWeekend(currentDate.getDayOfWeek() == DayOfWeek.SATURDAY ||
                                  currentDate.getDayOfWeek() == DayOfWeek.SUNDAY);
-
-                // 调试: 输出每个DTO的详细信息（仅11-11到11-13）
-                if (!checkDate.isBefore(LocalDate.of(2025, 11, 11)) && !checkDate.isAfter(LocalDate.of(2025, 11, 13))) {
-                    System.out.println("生成DTO: 房型=" + plan.getRoomType().getName() +
-                                     ", 日期=" + checkDate +
-                                     ", 价格=" + price +
-                                     ", 可用房间=" + availableRooms);
-                }
 
                 result.add(dto);
                 currentDate = currentDate.plusDays(1);
@@ -1001,7 +983,11 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         if (roomPrice.getPricePlan() != null) {
             dto.setPricePlanId(roomPrice.getPricePlan().getId());
             dto.setPricePlanName(roomPrice.getPricePlan().getName());
+            applyBoundState(dto);
+        } else {
+            applyUnboundState(dto);
         }
+        applyChannelSummary(dto, List.of());
 
         dto.setPriceDate(roomPrice.getPriceDate());
         dto.setPrice(roomPrice.getPrice());
@@ -1101,6 +1087,71 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         return result;
     }
 
+    private Map<String, List<RoomPriceManagementDTO.ChannelRefDTO>> buildChannelRefsByRoomTypePlan(
+            List<ChannelPrice> channelPrices
+    ) {
+        Map<String, Map<Long, RoomPriceManagementDTO.ChannelRefDTO>> groupedRefs = new HashMap<>();
+        if (channelPrices == null || channelPrices.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        for (ChannelPrice channelPrice : channelPrices) {
+            if (channelPrice == null
+                    || channelPrice.getRoomType() == null
+                    || channelPrice.getRoomType().getId() == null
+                    || channelPrice.getPricePlan() == null
+                    || channelPrice.getPricePlan().getId() == null
+                    || channelPrice.getChannel() == null
+                    || channelPrice.getChannel().getId() == null) {
+                continue;
+            }
+
+            String key = buildRoomTypePlanKey(
+                    channelPrice.getRoomType().getId(),
+                    channelPrice.getPricePlan().getId()
+            );
+            Map<Long, RoomPriceManagementDTO.ChannelRefDTO> refs = groupedRefs.computeIfAbsent(
+                    key,
+                    ignored -> new LinkedHashMap<>()
+            );
+            Long channelId = channelPrice.getChannel().getId();
+            if (!refs.containsKey(channelId)) {
+                refs.put(channelId, new RoomPriceManagementDTO.ChannelRefDTO(
+                        channelId,
+                        channelPrice.getChannel().getCode(),
+                        channelPrice.getChannel().getName()
+                ));
+            }
+        }
+
+        Map<String, List<RoomPriceManagementDTO.ChannelRefDTO>> result = new HashMap<>();
+        for (Map.Entry<String, Map<Long, RoomPriceManagementDTO.ChannelRefDTO>> entry : groupedRefs.entrySet()) {
+            result.put(entry.getKey(), new ArrayList<>(entry.getValue().values()));
+        }
+        return result;
+    }
+
+    private void applyBoundState(RoomPriceManagementDTO dto) {
+        dto.setBindingState(BINDING_STATE_BOUND);
+        dto.setEditable(true);
+        dto.setUneditableReason(null);
+    }
+
+    private void applyUnboundState(RoomPriceManagementDTO dto) {
+        dto.setBindingState(BINDING_STATE_UNBOUND);
+        dto.setEditable(false);
+        dto.setUneditableReason(UNBOUND_PRICE_PLAN_REASON);
+    }
+
+    private void applyChannelSummary(
+            RoomPriceManagementDTO dto,
+            List<RoomPriceManagementDTO.ChannelRefDTO> channelRefs
+    ) {
+        List<RoomPriceManagementDTO.ChannelRefDTO> safeRefs = channelRefs != null ? channelRefs : List.of();
+        dto.setChannelRefs(safeRefs);
+        dto.setChannelCount(safeRefs.size());
+    }
+
     private static boolean isLater(LocalDateTime left, LocalDateTime right) {
         if (left == null) {
             return false;
@@ -1113,6 +1164,10 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     private static String buildPriceLabsKey(Long roomTypeId, Long pricePlanId, LocalDate date) {
         return roomTypeId + "_" + pricePlanId + "_" + date;
+    }
+
+    private static String buildRoomTypePlanKey(Long roomTypeId, Long pricePlanId) {
+        return roomTypeId + "_" + pricePlanId;
     }
 
     private void applyPriceLabsMetadata(RoomPriceManagementDTO dto, ChannelPrice priceLabsPrice) {

@@ -109,6 +109,21 @@ public class Room implements StoreScopedEntity {
         this.roomType = roomType;
     }
 
+    @Transient
+    public Long getRoomTypeId() {
+        return roomType != null ? roomType.getId() : null;
+    }
+
+    @Transient
+    public String getRoomTypeName() {
+        return roomType != null ? roomType.getName() : null;
+    }
+
+    @Transient
+    public String getRoomTypeCode() {
+        return roomType != null ? roomType.getCode() : null;
+    }
+
     public Long getUserId() {
         return userId;
     }
