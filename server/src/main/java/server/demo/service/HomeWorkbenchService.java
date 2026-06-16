@@ -248,7 +248,7 @@ public class HomeWorkbenchService {
         }
 
         List<Reservation> pendingReservations =
-                reservationRepository.findPendingOrdersWithDetailsByStoreId(storeId);
+                reservationRepository.findPendingOrdersWithDetailsByStoreId(storeId, businessDate);
         for (Reservation reservation : pendingReservations) {
             if (reservation.getId() != null && !candidates.containsKey(reservation.getId())) {
                 candidates.put(reservation.getId(), new OrderCandidate(reservation, "PENDING"));

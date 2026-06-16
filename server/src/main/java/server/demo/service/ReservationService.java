@@ -12,9 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import server.demo.dto.AssignableRoomDTO;
 import server.demo.dto.AssignableRoomTypeDTO;
 import server.demo.dto.AssignableRoomsResponse;
@@ -32,6 +34,7 @@ import server.demo.entity.Room;
 import server.demo.entity.RoomType;
 import server.demo.entity.Store;
 import server.demo.entity.User;
+import server.demo.enums.ChannelType;
 import server.demo.enums.RoomStatus;
 import server.demo.enums.OperationType;
 import server.demo.enums.ReservationStatus;
@@ -1143,26 +1146,7 @@ public class ReservationService {
 
             // 结账状态过滤
             if (paymentStatus != null && !paymentStatus.trim().isEmpty()) {
-                Predicate manuallySettledPredicate = criteriaBuilder.isTrue(root.get("settled"));
-                Predicate suReservationPredicate = criteriaBuilder.and(
-                        criteriaBuilder.isNotNull(root.get("suReservationId")),
-                        criteriaBuilder.notEqual(root.get("suReservationId"), "")
-                );
-                Predicate checkedInOrOutPredicate = root.get("status").in(
-                        ReservationStatus.CHECKED_IN,
-                        ReservationStatus.CHECKED_OUT
-                );
-                Predicate fullyPaidPredicate = criteriaBuilder.and(
-                        criteriaBuilder.greaterThan(root.get("totalAmount"), BigDecimal.ZERO),
-                        criteriaBuilder.greaterThanOrEqualTo(root.get("paidAmount"), root.get("totalAmount"))
-                );
-                Predicate paidPredicate = criteriaBuilder.or(
-                        manuallySettledPredicate,
-                        suReservationPredicate,
-                        checkedInOrOutPredicate,
-                        fullyPaidPredicate
-                );
-
+                Predicate paidPredicate = buildSettledPredicate(root, criteriaBuilder);
                 if ("paid".equalsIgnoreCase(paymentStatus)) {
                     predicates.add(paidPredicate);
                 } else if ("unpaid".equalsIgnoreCase(paymentStatus)) {
@@ -1197,8 +1181,7 @@ public class ReservationService {
                         predicates.add(criteriaBuilder.isNotNull(root.get("room")));
                         break;
                     case "pending":
-                        predicates.add(criteriaBuilder.equal(root.get("status"), ReservationStatus.CONFIRMED));
-                        predicates.add(criteriaBuilder.isNull(root.get("actualCheckIn")));
+                        addPendingOrderPredicates(predicates, root, criteriaBuilder, targetTodayDate);
                         break;
                     case "deleted-rooms":
                         predicates.add(criteriaBuilder.isNull(root.get("room")));
@@ -1227,6 +1210,79 @@ public class ReservationService {
         );
     }
 
+    private void addPendingOrderPredicates(
+            List<Predicate> predicates,
+            Root<Reservation> root,
+            CriteriaBuilder criteriaBuilder,
+            LocalDate today
+    ) {
+        predicates.add(criteriaBuilder.equal(
+                root.<ReservationStatus>get("status"),
+                ReservationStatus.CONFIRMED
+        ));
+        predicates.add(criteriaBuilder.greaterThanOrEqualTo(
+                root.<LocalDate>get("checkOutDate"),
+                today
+        ));
+        predicates.add(criteriaBuilder.not(buildPendingExcludedPredicate(root, criteriaBuilder)));
+    }
+
+    private Predicate buildSettledPredicate(Root<Reservation> root, CriteriaBuilder criteriaBuilder) {
+        Predicate checkedInOrOutPredicate = root.<ReservationStatus>get("status").in(
+                ReservationStatus.CHECKED_IN,
+                ReservationStatus.CHECKED_OUT
+        );
+        return criteriaBuilder.or(
+                buildPendingSettlementExcludedPredicate(root, criteriaBuilder),
+                checkedInOrOutPredicate
+        );
+    }
+
+    private Predicate buildPendingSettlementExcludedPredicate(
+            Root<Reservation> root,
+            CriteriaBuilder criteriaBuilder
+    ) {
+        Predicate manuallySettledPredicate = criteriaBuilder.isTrue(root.<Boolean>get("settled"));
+        Predicate suReservationPredicate = criteriaBuilder.and(
+                criteriaBuilder.isNotNull(root.<String>get("suReservationId")),
+                criteriaBuilder.notEqual(criteriaBuilder.trim(root.<String>get("suReservationId")), "")
+        );
+        Predicate fullyPaidPredicate = criteriaBuilder.and(
+                criteriaBuilder.isNotNull(root.<BigDecimal>get("totalAmount")),
+                criteriaBuilder.greaterThan(root.<BigDecimal>get("totalAmount"), BigDecimal.ZERO),
+                criteriaBuilder.isNotNull(root.<BigDecimal>get("paidAmount")),
+                criteriaBuilder.greaterThanOrEqualTo(
+                        root.<BigDecimal>get("paidAmount"),
+                        root.<BigDecimal>get("totalAmount")
+                )
+        );
+        return criteriaBuilder.or(
+                manuallySettledPredicate,
+                suReservationPredicate,
+                fullyPaidPredicate
+        );
+    }
+
+    private Predicate buildPendingExcludedPredicate(
+            Root<Reservation> root,
+            CriteriaBuilder criteriaBuilder
+    ) {
+        Predicate settlementExcludedPredicate = buildPendingSettlementExcludedPredicate(root, criteriaBuilder);
+        Predicate otaChannelPredicate = buildOtaChannelPredicate(root, criteriaBuilder);
+        return criteriaBuilder.or(settlementExcludedPredicate, otaChannelPredicate);
+    }
+
+    private Predicate buildOtaChannelPredicate(
+            Root<Reservation> root,
+            CriteriaBuilder criteriaBuilder
+    ) {
+        Join<Reservation, Channel> channelJoin = root.join("channel", JoinType.LEFT);
+        return criteriaBuilder.and(
+                channelJoin.isNotNull(),
+                criteriaBuilder.equal(channelJoin.<ChannelType>get("type"), ChannelType.OTA)
+        );
+    }
+
     /**
      * 获取预订统计信息
      */
@@ -1239,7 +1295,7 @@ public class ReservationService {
         BusinessDayWindow todayWindow = storeDayWindow(storeId, today);
         long todayNewCount = reservationRepository.countTodayNewOrdersByStoreId(storeId, todayWindow.start(), todayWindow.end());
         long unassignedCount = reservationRepository.countUnassignedOrUnmappedByStoreId(storeId, unassignedMinCheckOutDate);
-        long pendingCount = reservationRepository.countPendingOrdersByStoreId(storeId);
+        long pendingCount = reservationRepository.countPendingOrdersByStoreId(storeId, today);
 
         Specification<Reservation> spec = (root, query, criteriaBuilder) ->
                 criteriaBuilder.equal(root.get("storeId"), storeId);
@@ -1290,7 +1346,9 @@ public class ReservationService {
      * 获取待处理预订
      */
     public List<ReservationDTO> getPendingReservations() {
-        List<Reservation> reservations = reservationRepository.findByStoreIdAndStatus(currentStoreId(), ReservationStatus.CONFIRMED);
+        Long storeId = currentStoreId();
+        LocalDate today = storeToday(storeId);
+        List<Reservation> reservations = reservationRepository.findPendingOrdersByStoreId(storeId, today);
         return reservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -1478,7 +1536,7 @@ public class ReservationService {
                 reservations = reservationRepository.findAssignedByStoreId(storeId);
                 break;
             case "pending":
-                reservations = reservationRepository.findPendingOrdersByStoreId(storeId);
+                reservations = reservationRepository.findPendingOrdersByStoreId(storeId, today);
                 break;
             default:
                 Specification<Reservation> spec = (root, query, criteriaBuilder) ->

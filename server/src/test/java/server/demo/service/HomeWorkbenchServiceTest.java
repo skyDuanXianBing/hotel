@@ -109,7 +109,7 @@ class HomeWorkbenchServiceTest {
         )).thenReturn(new SuMessagingThreadPageResponse(List.of(), 0, 50, 0, 0, false));
         when(reservationRepository.findUnassignedOrUnmappedWithDetailsByStoreId(eq(STORE_ID), any()))
                 .thenReturn(List.of());
-        when(reservationRepository.findPendingOrdersWithDetailsByStoreId(STORE_ID))
+        when(reservationRepository.findPendingOrdersWithDetailsByStoreId(eq(STORE_ID), any(LocalDate.class)))
                 .thenReturn(List.of());
     }
 
@@ -125,7 +125,7 @@ class HomeWorkbenchServiceTest {
 
         when(reservationRepository.findUnassignedOrUnmappedWithDetailsByStoreId(STORE_ID, businessDate))
                 .thenReturn(List.of(reservation));
-        when(reservationRepository.findPendingOrdersWithDetailsByStoreId(STORE_ID))
+        when(reservationRepository.findPendingOrdersWithDetailsByStoreId(STORE_ID, businessDate))
                 .thenReturn(List.of(reservation));
 
         HomeWorkbenchResponse response = service.getWorkbench(businessDate, 50);
@@ -140,6 +140,7 @@ class HomeWorkbenchServiceTest {
         assertEquals("unassigned", item.getTarget().getQuery().get("type"));
         assertEquals("assign_room", item.getActions().get(1).getCode());
         assertEquals(1L, response.getTypeSummaries().get(2).getCount());
+        Mockito.verify(reservationRepository).findPendingOrdersWithDetailsByStoreId(STORE_ID, businessDate);
     }
 
     @Test
@@ -147,7 +148,7 @@ class HomeWorkbenchServiceTest {
         LocalDate businessDate = LocalDate.of(2026, 6, 12);
         when(reservationRepository.findUnassignedOrUnmappedWithDetailsByStoreId(STORE_ID, businessDate))
                 .thenReturn(List.of());
-        when(reservationRepository.findPendingOrdersWithDetailsByStoreId(STORE_ID))
+        when(reservationRepository.findPendingOrdersWithDetailsByStoreId(STORE_ID, businessDate))
                 .thenReturn(List.of());
 
         SuMessagingThreadDTO thread = new SuMessagingThreadDTO();
@@ -191,7 +192,7 @@ class HomeWorkbenchServiceTest {
 
         when(reservationRepository.findUnassignedOrUnmappedWithDetailsByStoreId(STORE_ID, businessDate))
                 .thenReturn(List.of(reservation));
-        when(reservationRepository.findPendingOrdersWithDetailsByStoreId(STORE_ID))
+        when(reservationRepository.findPendingOrdersWithDetailsByStoreId(STORE_ID, businessDate))
                 .thenReturn(List.of());
 
         SuMessagingThreadDTO thread = buildMessageThread(31L, "Yamada", "BK-31");

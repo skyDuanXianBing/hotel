@@ -25,6 +25,7 @@ import server.demo.entity.Channel;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
 import server.demo.entity.Store;
+import server.demo.enums.ChannelType;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.OrderBoxRepository;
 import server.demo.repository.ReservationRepository;
@@ -34,6 +35,7 @@ import server.demo.repository.StoreRepository;
 import server.demo.repository.UserRepository;
 import server.demo.util.StoreTimeZoneUtil;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -48,6 +50,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -105,6 +109,7 @@ class ReservationServiceBusinessDateTest {
                 LocalDateTime.of(2026, 4, 8, 23, 0)
         );
         verify(reservationRepository).countUnassignedOrUnmappedByStoreId(STORE_ID, LocalDate.of(2026, 4, 8));
+        verify(reservationRepository).countPendingOrdersByStoreId(STORE_ID, LocalDate.of(2026, 4, 8));
     }
 
     @Test
@@ -498,6 +503,132 @@ class ReservationServiceBusinessDateTest {
                 null,
                 "today-new",
                 LocalDate.of(2026, 6, 1)
+        );
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getReservationsWithFiltersPendingOrderType_shouldUseUnifiedPendingPredicate() {
+        StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "ADMIN"));
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.empty());
+        when(reservationRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenAnswer(invocation -> {
+                    Specification<Reservation> specification = invocation.getArgument(0);
+                    Root<Reservation> root = mock(Root.class);
+                    CriteriaQuery<?> query = mock(CriteriaQuery.class);
+                    CriteriaBuilder criteriaBuilder = mock(CriteriaBuilder.class);
+                    Path<Long> storeIdPath = mock(Path.class);
+                    Path<server.demo.enums.ReservationStatus> statusPath = mock(Path.class);
+                    Path<LocalDate> checkOutDatePath = mock(Path.class);
+                    Path<Boolean> settledPath = mock(Path.class);
+                    Path<String> suReservationIdPath = mock(Path.class);
+                    Path<BigDecimal> totalAmountPath = mock(Path.class);
+                    Path<BigDecimal> paidAmountPath = mock(Path.class);
+                    Join<Reservation, Channel> channelJoin = mock(Join.class);
+                    Path<ChannelType> channelTypePath = mock(Path.class);
+                    Expression<String> trimmedSuReservationId = mock(Expression.class);
+                    Predicate predicate = mock(Predicate.class);
+                    Predicate channelPresentPredicate = mock(Predicate.class);
+                    Predicate settlementExcludedPredicate = mock(Predicate.class);
+                    Predicate pendingExcludedPredicate = mock(Predicate.class);
+                    LocalDate operationDate = LocalDate.of(2026, 6, 12);
+
+                    when(root.<Long>get("storeId")).thenReturn(storeIdPath);
+                    when(root.<server.demo.enums.ReservationStatus>get("status")).thenReturn(statusPath);
+                    when(root.<LocalDate>get("checkOutDate")).thenReturn(checkOutDatePath);
+                    when(root.<Boolean>get("settled")).thenReturn(settledPath);
+                    when(root.<String>get("suReservationId")).thenReturn(suReservationIdPath);
+                    when(root.<BigDecimal>get("totalAmount")).thenReturn(totalAmountPath);
+                    when(root.<BigDecimal>get("paidAmount")).thenReturn(paidAmountPath);
+                    when(root.<Reservation, Channel>join("channel", JoinType.LEFT)).thenReturn(channelJoin);
+                    when(channelJoin.<ChannelType>get("type")).thenReturn(channelTypePath);
+                    when(channelJoin.isNotNull()).thenReturn(channelPresentPredicate);
+                    when(criteriaBuilder.equal(storeIdPath, STORE_ID)).thenReturn(predicate);
+                    when(criteriaBuilder.equal(
+                            statusPath,
+                            server.demo.enums.ReservationStatus.CONFIRMED
+                    )).thenReturn(predicate);
+                    when(criteriaBuilder.equal(channelTypePath, ChannelType.OTA)).thenReturn(predicate);
+                    when(criteriaBuilder.greaterThanOrEqualTo(checkOutDatePath, operationDate))
+                            .thenReturn(predicate);
+                    when(criteriaBuilder.isTrue(settledPath)).thenReturn(predicate);
+                    when(criteriaBuilder.isNotNull(any(Expression.class))).thenReturn(predicate);
+                    when(criteriaBuilder.trim(suReservationIdPath)).thenReturn(trimmedSuReservationId);
+                    when(criteriaBuilder.notEqual(trimmedSuReservationId, "")).thenReturn(predicate);
+                    when(criteriaBuilder.greaterThan(totalAmountPath, BigDecimal.ZERO)).thenReturn(predicate);
+                    when(criteriaBuilder.greaterThanOrEqualTo(paidAmountPath, totalAmountPath))
+                            .thenReturn(predicate);
+                    when(criteriaBuilder.and(any(Predicate.class), any(Predicate.class)))
+                            .thenReturn(predicate);
+                    when(criteriaBuilder.and(
+                            any(Predicate.class),
+                            any(Predicate.class),
+                            any(Predicate.class),
+                            any(Predicate.class)
+                    )).thenReturn(predicate);
+                    when(criteriaBuilder.or(
+                            any(Predicate.class),
+                            any(Predicate.class),
+                            any(Predicate.class)
+                    )).thenReturn(settlementExcludedPredicate);
+                    when(criteriaBuilder.or(any(Predicate.class), any(Predicate.class)))
+                            .thenReturn(pendingExcludedPredicate);
+                    when(criteriaBuilder.not(pendingExcludedPredicate)).thenReturn(predicate);
+
+                    specification.toPredicate(root, query, criteriaBuilder);
+
+                    verify(criteriaBuilder).equal(
+                            statusPath,
+                            server.demo.enums.ReservationStatus.CONFIRMED
+                    );
+                    verify(criteriaBuilder).greaterThanOrEqualTo(checkOutDatePath, operationDate);
+                    verify(criteriaBuilder).isTrue(settledPath);
+                    verify(criteriaBuilder).notEqual(trimmedSuReservationId, "");
+                    verify(root).<Reservation, Channel>join("channel", JoinType.LEFT);
+                    verify(channelJoin).isNotNull();
+                    verify(criteriaBuilder).equal(channelTypePath, ChannelType.OTA);
+                    verify(criteriaBuilder).and(channelPresentPredicate, predicate);
+                    verify(criteriaBuilder).greaterThan(totalAmountPath, BigDecimal.ZERO);
+                    verify(criteriaBuilder).greaterThanOrEqualTo(paidAmountPath, totalAmountPath);
+                    verify(root, never()).get("actualCheckIn");
+                    return new PageImpl<Reservation>(List.of());
+                });
+
+        reservationService.getReservationsWithFilters(
+                0,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "pending",
+                LocalDate.of(2026, 6, 12)
+        );
+    }
+
+    @Test
+    void pendingListEntrypoints_shouldUseStoreTodayPendingRepository() {
+        StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "ADMIN"));
+        ReflectionTestUtils.setField(
+                reservationService,
+                "clock",
+                Clock.fixed(Instant.parse("2026-04-07T15:30:00Z"), ZoneOffset.UTC)
+        );
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store("Asia/Tokyo")));
+        when(reservationRepository.findPendingOrdersByStoreId(STORE_ID, LocalDate.of(2026, 4, 8)))
+                .thenReturn(List.of());
+
+        reservationService.getPendingReservations();
+        reservationService.getReservationsByType("pending");
+
+        verify(reservationRepository, times(2)).findPendingOrdersByStoreId(
+                STORE_ID,
+                LocalDate.of(2026, 4, 8)
         );
     }
 

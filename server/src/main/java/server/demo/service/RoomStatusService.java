@@ -525,7 +525,7 @@ public class RoomStatusService {
         long todayNewOrders = reservationRepository.countTodayNewOrdersByStoreId(storeId, targetWindow.start(), targetWindow.end());
         long availableRooms = roomRepository.countAvailableRoomsForDateByStore(storeId, targetDate);
         long unassignedOrders = reservationRepository.countUnassignedOrUnmappedByStoreId(storeId, targetDate);
-        long pendingOrders = reservationRepository.countPendingOrdersByStoreId(storeId);
+        long pendingOrders = reservationRepository.countPendingOrdersByStoreId(storeId, targetDate);
 
         return new RoomStatusStatisticsDTO(
                 targetDate,

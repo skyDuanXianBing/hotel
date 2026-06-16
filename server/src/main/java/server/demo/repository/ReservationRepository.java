@@ -385,8 +385,32 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
            @Param("minCheckOutDate") LocalDate minCheckOutDate
     );
 
-    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.storeId = :storeId AND r.status = 'CONFIRMED' AND r.actualCheckIn IS NULL")
-    long countPendingOrdersByStoreId(@Param("storeId") Long storeId);
+    @Query("""
+            SELECT COUNT(r)
+            FROM Reservation r
+            LEFT JOIN r.channel reservationChannel
+            WHERE r.storeId = :storeId
+              AND r.status = server.demo.enums.ReservationStatus.CONFIRMED
+              AND r.checkOutDate >= :today
+              AND NOT (
+                    r.settled = true
+                    OR (r.suReservationId IS NOT NULL AND TRIM(r.suReservationId) <> '')
+                    OR (
+                        reservationChannel IS NOT NULL
+                        AND reservationChannel.type = server.demo.enums.ChannelType.OTA
+                    )
+                    OR (
+                        r.totalAmount IS NOT NULL
+                        AND r.totalAmount > 0
+                        AND r.paidAmount IS NOT NULL
+                        AND r.paidAmount >= r.totalAmount
+                    )
+              )
+            """)
+    long countPendingOrdersByStoreId(
+            @Param("storeId") Long storeId,
+            @Param("today") LocalDate today
+    );
 
     @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId " +
            "AND r.createdAt >= :start AND r.createdAt < :end " +
@@ -434,22 +458,63 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
                                                   @Param("startOfDay") LocalDateTime startOfDay,
                                                   @Param("endOfDay") LocalDateTime endOfDay);
 
-    @Query("SELECT r FROM Reservation r WHERE r.storeId = :storeId AND r.status = 'CONFIRMED' AND r.actualCheckIn IS NULL " +
-           "ORDER BY r.createdAt DESC")
-    List<Reservation> findPendingOrdersByStoreId(@Param("storeId") Long storeId);
+    @Query("""
+            SELECT r
+            FROM Reservation r
+            LEFT JOIN r.channel reservationChannel
+            WHERE r.storeId = :storeId
+              AND r.status = server.demo.enums.ReservationStatus.CONFIRMED
+              AND r.checkOutDate >= :today
+              AND NOT (
+                    r.settled = true
+                    OR (r.suReservationId IS NOT NULL AND TRIM(r.suReservationId) <> '')
+                    OR (
+                        reservationChannel IS NOT NULL
+                        AND reservationChannel.type = server.demo.enums.ChannelType.OTA
+                    )
+                    OR (
+                        r.totalAmount IS NOT NULL
+                        AND r.totalAmount > 0
+                        AND r.paidAmount IS NOT NULL
+                        AND r.paidAmount >= r.totalAmount
+                    )
+              )
+            ORDER BY r.createdAt DESC
+            """)
+    List<Reservation> findPendingOrdersByStoreId(
+            @Param("storeId") Long storeId,
+            @Param("today") LocalDate today
+    );
 
     @Query("""
             SELECT DISTINCT r
             FROM Reservation r
             LEFT JOIN FETCH r.room room
             LEFT JOIN FETCH room.roomType
-            LEFT JOIN FETCH r.channel
+            LEFT JOIN FETCH r.channel reservationChannel
             WHERE r.storeId = :storeId
               AND r.status = server.demo.enums.ReservationStatus.CONFIRMED
-              AND r.actualCheckIn IS NULL
+              AND r.checkOutDate >= :today
+              AND NOT (
+                    r.settled = true
+                    OR (r.suReservationId IS NOT NULL AND TRIM(r.suReservationId) <> '')
+                    OR (
+                        reservationChannel IS NOT NULL
+                        AND reservationChannel.type = server.demo.enums.ChannelType.OTA
+                    )
+                    OR (
+                        r.totalAmount IS NOT NULL
+                        AND r.totalAmount > 0
+                        AND r.paidAmount IS NOT NULL
+                        AND r.paidAmount >= r.totalAmount
+                    )
+              )
             ORDER BY r.checkInDate ASC, r.createdAt DESC
             """)
-    List<Reservation> findPendingOrdersWithDetailsByStoreId(@Param("storeId") Long storeId);
+    List<Reservation> findPendingOrdersWithDetailsByStoreId(
+            @Param("storeId") Long storeId,
+            @Param("today") LocalDate today
+    );
 
     @Query("""
             SELECT DISTINCT r
@@ -585,8 +650,39 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     long countByRoomIsNullForUser(@Param("roomIds") List<Long> roomIds);
 
     @Deprecated
-    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.room.id IN :roomIds AND r.status = 'CONFIRMED' AND r.actualCheckIn IS NULL")
-    long countPendingOrdersForUser(@Param("roomIds") List<Long> roomIds);
+    @Query("""
+            SELECT COUNT(r)
+            FROM Reservation r
+            LEFT JOIN r.channel reservationChannel
+            WHERE r.room.id IN :roomIds
+              AND r.status = server.demo.enums.ReservationStatus.CONFIRMED
+              AND r.checkOutDate >= :today
+              AND NOT (
+                    r.settled = true
+                    OR (r.suReservationId IS NOT NULL AND TRIM(r.suReservationId) <> '')
+                    OR (
+                        reservationChannel IS NOT NULL
+                        AND reservationChannel.type = server.demo.enums.ChannelType.OTA
+                    )
+                    OR (
+                        r.totalAmount IS NOT NULL
+                        AND r.totalAmount > 0
+                        AND r.paidAmount IS NOT NULL
+                        AND r.paidAmount >= r.totalAmount
+                    )
+              )
+            """)
+    long countPendingOrdersForUser(
+            @Param("roomIds") List<Long> roomIds,
+            @Param("today") LocalDate today
+    );
+
+    @Deprecated
+    default long countPendingOrdersForUser(List<Long> roomIds) {
+        throw new UnsupportedOperationException(
+                "countPendingOrdersForUser requires explicit business date"
+        );
+    }
 
     // ===== legacy generic APIs =====
     Optional<Reservation> findByOrderNumber(String orderNumber);
@@ -642,8 +738,35 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
     long countByRoomIsNull();
 
-    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.status = 'CONFIRMED' AND r.actualCheckIn IS NULL")
-    long countPendingOrders();
+    @Query("""
+            SELECT COUNT(r)
+            FROM Reservation r
+            LEFT JOIN r.channel reservationChannel
+            WHERE r.status = server.demo.enums.ReservationStatus.CONFIRMED
+              AND r.checkOutDate >= :today
+              AND NOT (
+                    r.settled = true
+                    OR (r.suReservationId IS NOT NULL AND TRIM(r.suReservationId) <> '')
+                    OR (
+                        reservationChannel IS NOT NULL
+                        AND reservationChannel.type = server.demo.enums.ChannelType.OTA
+                    )
+                    OR (
+                        r.totalAmount IS NOT NULL
+                        AND r.totalAmount > 0
+                        AND r.paidAmount IS NOT NULL
+                        AND r.paidAmount >= r.totalAmount
+                    )
+              )
+            """)
+    long countPendingOrders(@Param("today") LocalDate today);
+
+    @Deprecated
+    default long countPendingOrders() {
+        throw new UnsupportedOperationException(
+                "countPendingOrders requires explicit business date"
+        );
+    }
 
     /**
      * 根据入住日期和状态查找订单(用于自动化消息触发)

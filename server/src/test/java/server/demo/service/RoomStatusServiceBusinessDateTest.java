@@ -73,5 +73,6 @@ class RoomStatusServiceBusinessDateTest {
                 LocalDateTime.of(2026, 4, 8, 23, 0)
         );
         verify(reservationRepository).countUnassignedOrUnmappedByStoreId(storeId, LocalDate.of(2026, 4, 8));
+        verify(reservationRepository).countPendingOrdersByStoreId(storeId, LocalDate.of(2026, 4, 8));
     }
 }

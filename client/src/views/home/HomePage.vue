@@ -300,7 +300,7 @@ const goToOrdersByType = (type: string) => {
 }
 
 const goToRoomStatus = () => {
-  router.push('/room-status')
+  router.push('/accommodation/room-status/calendar')
 }
 
 const fetchRoomStatusStatistics = async () => {
