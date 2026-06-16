@@ -20,8 +20,10 @@ export interface ReservationInfoDTO {
   channelOrderNumber?: string
   checkIn: string
   checkOut: string
+  effectiveCheckOut?: string
   checkInDate?: string
   checkOutDate?: string
+  effectiveCheckOutDate?: string
   orderNumber: string
   groupOrderNo?: string
   status?: string

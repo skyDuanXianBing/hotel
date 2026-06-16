@@ -20,8 +20,11 @@ import server.demo.repository.StoreRepository;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -158,5 +161,91 @@ class PriceLabsSyncServiceCalendarPayloadTest {
         assertEquals(2, calendarData.getMultiUnit().getUnitIds().size());
         assertEquals("2026-04-08", calendarData.getCalendar().get(0).getDate());
         assertTrue(calendarData.getCalendar().size() >= PriceLabsSyncDefaults.INITIAL_SYNC_DAYS);
+    }
+
+    @Test
+    void buildBookedUnitsByRoomTypeAndDate_shouldClipCheckedOutRowsAtActualCheckoutDate() {
+        ReservationRepository reservationRepository = mock(ReservationRepository.class);
+        StoreRepository storeRepository = mock(StoreRepository.class);
+
+        Store store = new Store();
+        store.setId(7L);
+        store.setTimezone("Asia/Shanghai");
+
+        LocalDate start = LocalDate.of(2026, 4, 8);
+        LocalDate end = LocalDate.of(2026, 4, 10);
+        when(storeRepository.findById(7L)).thenReturn(Optional.of(store));
+        when(reservationRepository.findOccupancyRowsByStoreIdAndDateRangeAndStatuses(
+                eq(7L),
+                eq(start),
+                eq(end.plusDays(1)),
+                any()
+        )).thenReturn(List.of(occupancyRow(
+                LocalDate.of(2026, 4, 8),
+                LocalDate.of(2026, 4, 11),
+                ReservationStatus.CHECKED_OUT,
+                LocalDateTime.of(2026, 4, 9, 9, 0),
+                30L,
+                null
+        )));
+
+        PriceLabsSyncService service = new PriceLabsSyncService();
+        ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "storeRepo", storeRepository);
+
+        @SuppressWarnings("unchecked")
+        Map<Long, Map<LocalDate, Integer>> booked = ReflectionTestUtils.invokeMethod(
+                service,
+                "buildBookedUnitsByRoomTypeAndDate",
+                7L,
+                start,
+                end
+        );
+
+        assertNotNull(booked);
+        assertEquals(1, booked.get(30L).get(LocalDate.of(2026, 4, 8)));
+        assertEquals(null, booked.get(30L).get(LocalDate.of(2026, 4, 9)));
+        assertEquals(null, booked.get(30L).get(LocalDate.of(2026, 4, 10)));
+    }
+
+    private ReservationRepository.ReservationOccupancyRow occupancyRow(
+            LocalDate checkInDate,
+            LocalDate checkOutDate,
+            ReservationStatus status,
+            LocalDateTime actualCheckOut,
+            Long assignedRoomTypeId,
+            Long otaRoomTypeId
+    ) {
+        return new ReservationRepository.ReservationOccupancyRow() {
+            @Override
+            public LocalDate getCheckInDate() {
+                return checkInDate;
+            }
+
+            @Override
+            public LocalDate getCheckOutDate() {
+                return checkOutDate;
+            }
+
+            @Override
+            public ReservationStatus getStatus() {
+                return status;
+            }
+
+            @Override
+            public LocalDateTime getActualCheckOut() {
+                return actualCheckOut;
+            }
+
+            @Override
+            public Long getOtaRoomTypeId() {
+                return otaRoomTypeId;
+            }
+
+            @Override
+            public Long getAssignedRoomTypeId() {
+                return assignedRoomTypeId;
+            }
+        };
     }
 }

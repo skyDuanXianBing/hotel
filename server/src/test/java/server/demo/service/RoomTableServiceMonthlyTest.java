@@ -25,6 +25,7 @@ import server.demo.repository.StoreRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -282,6 +283,16 @@ class RoomTableServiceMonthlyTest {
             @Override
             public LocalDate getCheckOutDate() {
                 return checkOutDate;
+            }
+
+            @Override
+            public ReservationStatus getStatus() {
+                return ReservationStatus.CONFIRMED;
+            }
+
+            @Override
+            public LocalDateTime getActualCheckOut() {
+                return null;
             }
 
             @Override

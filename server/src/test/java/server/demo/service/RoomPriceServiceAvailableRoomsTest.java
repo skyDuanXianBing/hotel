@@ -29,6 +29,7 @@ import server.demo.service.impl.RoomPriceServiceImpl;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -129,6 +130,84 @@ class RoomPriceServiceAvailableRoomsTest {
 
         assertEquals(1, result.size());
         assertEquals(0, result.get(0).getAvailableRooms());
+    }
+
+    @Test
+    void getRoomPriceManagementData_shouldReleaseCheckedOutRoomOnActualCheckoutDate() {
+        StoreContextHolder.setContext(new StoreContext(1L, 1L, "TEST"));
+
+        RoomPriceRepository roomPriceRepository = Mockito.mock(RoomPriceRepository.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        PricePlanRepository pricePlanRepository = Mockito.mock(PricePlanRepository.class);
+        RoomTypePricePlanRepository roomTypePricePlanRepository = Mockito.mock(RoomTypePricePlanRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ChannelPriceRepository channelPriceRepository = Mockito.mock(ChannelPriceRepository.class);
+        RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
+        RoomBlockoutRepository roomBlockoutRepository = Mockito.mock(RoomBlockoutRepository.class);
+
+        RoomPriceServiceImpl service = new RoomPriceServiceImpl();
+        ReflectionTestUtils.setField(service, "roomPriceRepository", roomPriceRepository);
+        ReflectionTestUtils.setField(service, "roomTypeRepository", roomTypeRepository);
+        ReflectionTestUtils.setField(service, "pricePlanRepository", pricePlanRepository);
+        ReflectionTestUtils.setField(service, "roomTypePricePlanRepository", roomTypePricePlanRepository);
+        ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "channelPriceRepository", channelPriceRepository);
+        ReflectionTestUtils.setField(service, "roomRepository", roomRepository);
+        ReflectionTestUtils.setField(service, "roomBlockoutRepository", roomBlockoutRepository);
+
+        LocalDate startDate = LocalDate.of(2026, 6, 15);
+        LocalDate endDate = LocalDate.of(2026, 6, 16);
+
+        RoomType roomType = new RoomType();
+        roomType.setId(59L);
+        roomType.setStoreId(1L);
+        roomType.setName("标准房");
+        roomType.setCode("STD");
+        roomType.setTotalRooms(1);
+        roomType.setDefaultPrice(new BigDecimal("60000"));
+
+        Room room = new Room();
+        room.setId(118L);
+        room.setRoomNumber("0101");
+        room.setRoomType(roomType);
+
+        PricePlan pricePlan = new PricePlan();
+        pricePlan.setId(18L);
+        pricePlan.setStoreId(1L);
+        pricePlan.setName("标准定价");
+
+        RoomTypePricePlan roomTypePricePlan = new RoomTypePricePlan();
+        roomTypePricePlan.setId(88L);
+        roomTypePricePlan.setStoreId(1L);
+        roomTypePricePlan.setRoomType(roomType);
+        roomTypePricePlan.setPricePlan(pricePlan);
+        roomTypePricePlan.setMondayPrice(new BigDecimal("60000"));
+        roomTypePricePlan.setTuesdayPrice(new BigDecimal("60000"));
+
+        Reservation reservation = new Reservation();
+        reservation.setId(405L);
+        reservation.setStatus(ReservationStatus.CHECKED_OUT);
+        reservation.setCheckInDate(LocalDate.of(2026, 6, 15));
+        reservation.setCheckOutDate(LocalDate.of(2026, 6, 18));
+        reservation.setActualCheckOut(LocalDateTime.of(2026, 6, 16, 9, 0));
+        reservation.setRoom(room);
+
+        when(roomTypeRepository.findByStoreIdAndId(1L, 59L)).thenReturn(Optional.of(roomType));
+        when(roomTypePricePlanRepository.findByStoreIdWithRoomTypeAndPricePlan(1L)).thenReturn(List.of(roomTypePricePlan));
+        when(roomPriceRepository.findByStoreIdAndPriceDateBetweenWithRoomTypeAndPricePlan(1L, startDate, endDate)).thenReturn(List.of());
+        when(channelPriceRepository.findByStoreIdAndDateRangeWithRelations(1L, startDate, endDate)).thenReturn(List.of());
+        when(reservationRepository.findByStoreIdAndDateRange(1L, startDate, endDate)).thenReturn(List.of(reservation));
+        when(roomRepository.findByStoreIdWithRoomType(1L)).thenReturn(List.of(room));
+        when(roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(1L, List.of(118L), startDate, endDate))
+                .thenReturn(List.of());
+
+        List<RoomPriceManagementDTO> result = service.getRoomPriceManagementData(startDate, endDate, 59L);
+
+        assertEquals(2, result.size());
+        assertEquals(startDate, result.get(0).getPriceDate());
+        assertEquals(0, result.get(0).getAvailableRooms());
+        assertEquals(endDate, result.get(1).getPriceDate());
+        assertEquals(1, result.get(1).getAvailableRooms());
     }
 
     @Test

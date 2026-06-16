@@ -27,6 +27,7 @@ import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.service.helper.util.ReservationOccupancyProjection;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.StoreTimeZoneUtil;
 
@@ -40,7 +41,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -51,6 +51,7 @@ public class RoomStatusService {
     private static final Set<ReservationStatus> ROOM_STATUS_OCCUPANCY_STATUSES = Set.of(
             ReservationStatus.CONFIRMED,
             ReservationStatus.CHECKED_IN,
+            ReservationStatus.CHECKED_OUT,
             ReservationStatus.REQUESTED
     );
     private static final Comparator<Reservation> PRIMARY_RESERVATION_COMPARATOR =
@@ -167,6 +168,7 @@ public class RoomStatusService {
                 startDate,
                 endDate
         );
+        ZoneId storeZoneId = resolveStoreZoneId(storeId);
 
         Map<String, RoomBlockout> blockoutByKey = new HashMap<>();
         if (!roomIds.isEmpty() && startDate != null && endDate != null && !endDate.isBefore(startDate)) {
@@ -192,7 +194,12 @@ public class RoomStatusService {
             LocalDate currentDate = startDate;
             while (!currentDate.isAfter(endDate)) {
                 RoomStatus status = determineRoomStatus(storeId, room, currentDate, primaryReservationByKey);
-                DailyRoomStatusDTO.ReservationInfoDTO reservationInfo = getReservationInfo(room, currentDate, primaryReservationByKey);
+                DailyRoomStatusDTO.ReservationInfoDTO reservationInfo = getReservationInfo(
+                        room,
+                        currentDate,
+                        primaryReservationByKey,
+                        storeZoneId
+                );
 
                 RoomBlockout blockout = room != null && room.getId() != null
                         ? blockoutByKey.get(blockoutKey(room.getId(), currentDate))
@@ -272,14 +279,17 @@ public class RoomStatusService {
 
         // 不允许对已有阻塞预订的日期关房，避免破坏在住/已确认订单
         List<Long> normalizedRoomIds = rooms.stream().map(Room::getId).filter(id -> id != null).toList();
-        Set<ReservationStatus> blocking = Set.of(ReservationStatus.CONFIRMED, ReservationStatus.CHECKED_IN, ReservationStatus.REQUESTED);
+        Set<ReservationStatus> blocking = ROOM_STATUS_OCCUPANCY_STATUSES;
+        ZoneId storeZoneId = resolveStoreZoneId(storeId);
         List<Reservation> conflicts = reservationRepository.findByStoreIdAndRoomIdInAndDateRangeAndStatuses(
                 storeId,
                 normalizedRoomIds,
                 startDate,
                 endDate,
                 blocking
-        );
+        ).stream()
+                .filter(r -> hasOccupancyInRange(r, startDate, endDate, blocking, storeZoneId))
+                .toList();
         if (conflicts != null && !conflicts.isEmpty()) {
             String detail = conflicts.stream()
                     .limit(20)
@@ -462,10 +472,23 @@ public class RoomStatusService {
             }
         }
 
-        Optional<Reservation> existingReservation =
-                reservationRepository.findByStoreIdAndRoomIdAndDate(storeId, room.getId(), date);
+        List<Reservation> existingReservations = reservationRepository.findByStoreIdAndRoomIdInAndDateRangeAndStatuses(
+                storeId,
+                List.of(room.getId()),
+                date,
+                date,
+                ROOM_STATUS_OCCUPANCY_STATUSES
+        );
+        ZoneId storeZoneId = resolveStoreZoneId(storeId);
 
-        if (existingReservation.isPresent() &&
+        boolean hasExistingReservation = existingReservations.stream()
+                .anyMatch(r -> ReservationOccupancyProjection.occupiesDate(
+                        r,
+                        date,
+                        ROOM_STATUS_OCCUPANCY_STATUSES,
+                        storeZoneId
+                ));
+        if (hasExistingReservation &&
                 (newStatus == RoomStatus.AVAILABLE || newStatus == RoomStatus.MAINTENANCE)) {
             throw new RuntimeException("该日期已有预订，无法修改为该状态");
         }
@@ -557,6 +580,7 @@ public class RoomStatusService {
                 ROOM_STATUS_OCCUPANCY_STATUSES
         );
 
+        ZoneId storeZoneId = resolveStoreZoneId(storeId);
         for (Reservation reservation : reservations) {
             if (reservation == null || reservation.getRoom() == null || reservation.getRoom().getId() == null) {
                 continue;
@@ -565,7 +589,10 @@ public class RoomStatusService {
             LocalDate overlapStart = reservation.getCheckInDate() != null && reservation.getCheckInDate().isAfter(startDate)
                     ? reservation.getCheckInDate()
                     : startDate;
-            LocalDate stayEndExclusive = reservation.getCheckOutDate();
+            LocalDate stayEndExclusive = ReservationOccupancyProjection.resolveEffectiveCheckOutDate(
+                    reservation,
+                    storeZoneId
+            );
             if (stayEndExclusive == null) {
                 continue;
             }
@@ -606,6 +633,9 @@ public class RoomStatusService {
             if (reservationStatus == ReservationStatus.CHECKED_IN) {
                 return RoomStatus.OCCUPIED;
             }
+            if (reservationStatus == ReservationStatus.CHECKED_OUT) {
+                return RoomStatus.OCCUPIED;
+            }
         }
         if (isDateToday(storeId, date)) {
             return room.getStatus();
@@ -616,7 +646,8 @@ public class RoomStatusService {
     private DailyRoomStatusDTO.ReservationInfoDTO getReservationInfo(
             Room room,
             LocalDate date,
-            Map<String, Reservation> primaryReservationByKey
+            Map<String, Reservation> primaryReservationByKey,
+            ZoneId storeZoneId
     ) {
         Reservation reservation = room != null && room.getId() != null
                 ? primaryReservationByKey.get(blockoutKey(room.getId(), date))
@@ -634,6 +665,10 @@ public class RoomStatusService {
                 r.getCheckOutDate(),
                 r.getOrderNumber()
         );
+        reservationInfo.setEffectiveCheckOut(ReservationOccupancyProjection.resolveEffectiveCheckOutDate(
+                r,
+                storeZoneId
+        ));
         reservationInfo.setStatus(r.getStatus() != null ? r.getStatus().name() : null);
         reservationInfo.setTotalAmount(r.getTotalAmount());
         reservationInfo.setGroupOrderNo(r.getGroupOrderNo());
@@ -644,6 +679,9 @@ public class RoomStatusService {
 
     private static int reservationStatusPriority(ReservationStatus status) {
         if (status == ReservationStatus.CHECKED_IN) {
+            return 4;
+        }
+        if (status == ReservationStatus.CHECKED_OUT) {
             return 3;
         }
         if (status == ReservationStatus.CONFIRMED) {
@@ -653,6 +691,31 @@ public class RoomStatusService {
             return 1;
         }
         return 0;
+    }
+
+    private boolean hasOccupancyInRange(
+            Reservation reservation,
+            LocalDate startDate,
+            LocalDate endDate,
+            Set<ReservationStatus> occupancyStatuses,
+            ZoneId storeZoneId
+    ) {
+        if (reservation == null || startDate == null || endDate == null || endDate.isBefore(startDate)) {
+            return false;
+        }
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            if (ReservationOccupancyProjection.occupiesDate(
+                    reservation,
+                    currentDate,
+                    occupancyStatuses,
+                    storeZoneId
+            )) {
+                return true;
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+        return false;
     }
 
     private boolean isDateToday(Long storeId, LocalDate date) {

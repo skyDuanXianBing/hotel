@@ -97,6 +97,7 @@ public class DailyRoomStatusDTO {
         private String channel;
         private LocalDate checkIn;
         private LocalDate checkOut;
+        private LocalDate effectiveCheckOut;
         private String orderNumber;
         private String status;
         private BigDecimal totalAmount;
@@ -154,6 +155,14 @@ public class DailyRoomStatusDTO {
 
         public void setCheckOut(LocalDate checkOut) {
             this.checkOut = checkOut;
+        }
+
+        public LocalDate getEffectiveCheckOut() {
+            return effectiveCheckOut;
+        }
+
+        public void setEffectiveCheckOut(LocalDate effectiveCheckOut) {
+            this.effectiveCheckOut = effectiveCheckOut;
         }
 
         public String getOrderNumber() {

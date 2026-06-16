@@ -16,6 +16,7 @@ import server.demo.entity.RoomBlockout;
 import server.demo.entity.RoomPrice;
 import server.demo.entity.RoomType;
 import server.demo.entity.RoomTypePricePlan;
+import server.demo.entity.Store;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
@@ -25,15 +26,19 @@ import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.service.PriceLabsCalendarSyncDebouncer;
 import server.demo.service.PriceChangeHistoryService;
 import server.demo.service.RoomPriceService;
+import server.demo.service.helper.util.ReservationOccupancyProjection;
 import server.demo.util.StoreContextUtils;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -49,6 +54,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     private static final Set<ReservationStatus> ROOM_PRICE_OCCUPANCY_STATUSES = Set.of(
             ReservationStatus.CONFIRMED,
             ReservationStatus.CHECKED_IN,
+            ReservationStatus.CHECKED_OUT,
             ReservationStatus.REQUESTED
     );
     private static final String BINDING_STATE_BOUND = "BOUND";
@@ -81,6 +87,9 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     @Autowired
     private RoomBlockoutRepository roomBlockoutRepository;
+
+    @Autowired
+    private StoreRepository storeRepository;
 
     @Autowired(required = false)
     private PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
@@ -398,6 +407,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
     @Override
     public List<RoomPriceManagementDTO> getRoomPriceManagementData(LocalDate startDate, LocalDate endDate, Long roomTypeId) {
         Long storeId = currentStoreId();
+        ZoneId storeZoneId = resolveStoreZoneId(storeId);
         // 先查询所有房型(或特定房型)
         List<RoomType> roomTypes;
         if (roomTypeId != null) {
@@ -493,7 +503,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                             currentDate,
                             null,
                             reservations,
-                            blockedRoomsByTypeDate
+                            blockedRoomsByTypeDate,
+                            storeZoneId
                     );
                     dto.setAvailableRooms(availableRooms);
 
@@ -558,7 +569,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                             checkDate,
                             roomPrice.getAvailableRooms(),
                             reservations,
-                            blockedRoomsByTypeDate
+                            blockedRoomsByTypeDate,
+                            storeZoneId
                     );
 
                     // 设置minStay和maxStay
@@ -581,7 +593,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                             checkDate,
                             null,
                             reservations,
-                            blockedRoomsByTypeDate
+                            blockedRoomsByTypeDate,
+                            storeZoneId
                     );
                     // 没有特定价格记录时,minStay和maxStay为null
                     dto.setMinStay(null);
@@ -624,7 +637,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
             LocalDate date,
             Integer baseAvailableRoomsOverride,
             List<Reservation> reservations,
-            Map<String, Integer> blockedRoomsByTypeDate
+            Map<String, Integer> blockedRoomsByTypeDate,
+            ZoneId storeZoneId
     ) {
         Integer baseAvailableRooms = resolveBaseAvailableRooms(roomType, baseAvailableRoomsOverride);
         if (baseAvailableRooms <= 0) {
@@ -633,13 +647,16 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
         long occupiedCount = reservations.stream()
                 .filter(r -> {
-                    boolean isOccupiedStatus = ROOM_PRICE_OCCUPANCY_STATUSES.contains(r.getStatus());
-                    boolean isInDateRange = !date.isBefore(r.getCheckInDate()) && date.isBefore(r.getCheckOutDate());
                     boolean isSameRoomType = r.getRoom() != null
                             && r.getRoom().getRoomType() != null
                             && r.getRoom().getRoomType().getId().equals(roomType.getId());
 
-                    return isOccupiedStatus && isInDateRange && isSameRoomType;
+                    return isSameRoomType && ReservationOccupancyProjection.occupiesDate(
+                            r,
+                            date,
+                            ROOM_PRICE_OCCUPANCY_STATUSES,
+                            storeZoneId
+                    );
                 })
                 .count();
 
@@ -993,6 +1010,7 @@ public class RoomPriceServiceImpl implements RoomPriceService {
         dto.setPrice(roomPrice.getPrice());
 
         Long storeId = currentStoreId();
+        ZoneId storeZoneId = resolveStoreZoneId(storeId);
         List<Reservation> reservations = reservationRepository.findByStoreIdAndRoomTypeIdOverlappingDateRangeWithRoomType(
                 storeId,
                 roomPrice.getRoomType().getId(),
@@ -1026,7 +1044,8 @@ public class RoomPriceServiceImpl implements RoomPriceService {
                 roomPrice.getPriceDate(),
                 roomPrice.getAvailableRooms(),
                 reservations,
-                blockedRoomsByTypeDate
+                blockedRoomsByTypeDate,
+                storeZoneId
         );
         dto.setAvailableRooms(availableRooms);
 
@@ -1168,6 +1187,13 @@ public class RoomPriceServiceImpl implements RoomPriceService {
 
     private static String buildRoomTypePlanKey(Long roomTypeId, Long pricePlanId) {
         return roomTypeId + "_" + pricePlanId;
+    }
+
+    private ZoneId resolveStoreZoneId(Long storeId) {
+        Store store = storeId == null || storeRepository == null
+                ? null
+                : storeRepository.findById(storeId).orElse(null);
+        return StoreTimeZoneUtil.resolveZoneId(store);
     }
 
     private void applyPriceLabsMetadata(RoomPriceManagementDTO dto, ChannelPrice priceLabsPrice) {

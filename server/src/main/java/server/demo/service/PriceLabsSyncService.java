@@ -34,6 +34,7 @@ import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.service.helper.util.ReservationOccupancyProjection;
 import server.demo.util.PriceLabsCountryUtil;
 import server.demo.util.PriceLabsIdUtil;
 import server.demo.util.StoreTimeZoneUtil;
@@ -1152,6 +1153,7 @@ public class PriceLabsSyncService {
 
         List<ReservationRepository.ReservationOccupancyRow> rows = reservationRepository
                 .findOccupancyRowsByStoreIdAndDateRangeAndStatuses(storeId, start, endExclusive, statuses);
+        ZoneId storeZoneId = StoreTimeZoneUtil.resolveZoneId(storeRepo.findById(storeId).orElse(null));
 
         Map<Long, Map<LocalDate, Integer>> booked = new HashMap<>();
 
@@ -1166,13 +1168,19 @@ public class PriceLabsSyncService {
             }
 
             LocalDate checkIn = row.getCheckInDate();
-            LocalDate checkOut = row.getCheckOutDate();
-            if (checkIn == null || checkOut == null) {
+            LocalDate effectiveCheckOut = ReservationOccupancyProjection.resolveEffectiveCheckOutDate(
+                    row.getCheckInDate(),
+                    row.getCheckOutDate(),
+                    row.getStatus(),
+                    row.getActualCheckOut(),
+                    storeZoneId
+            );
+            if (checkIn == null || effectiveCheckOut == null) {
                 continue;
             }
 
             LocalDate from = checkIn.isAfter(start) ? checkIn : start;
-            LocalDate toExclusive = checkOut.isBefore(endExclusive) ? checkOut : endExclusive;
+            LocalDate toExclusive = effectiveCheckOut.isBefore(endExclusive) ? effectiveCheckOut : endExclusive;
             if (!from.isBefore(toExclusive)) {
                 continue;
             }

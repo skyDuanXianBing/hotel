@@ -24,6 +24,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
         LocalDate getCheckOutDate();
 
+        ReservationStatus getStatus();
+
+        LocalDateTime getActualCheckOut();
+
         Long getOtaRoomTypeId();
 
         Long getAssignedRoomTypeId();
@@ -33,6 +37,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
         LocalDate getCheckInDate();
 
         LocalDate getCheckOutDate();
+
+        ReservationStatus getStatus();
+
+        LocalDateTime getActualCheckOut();
 
         Long getRoomId();
 
@@ -256,7 +264,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
                                                                   @Param("startDate") LocalDate startDate,
                                                                   @Param("endDate") LocalDate endDate);
 
-    @Query("SELECT r.checkInDate as checkInDate, r.checkOutDate as checkOutDate, r.otaRoomTypeId as otaRoomTypeId, r.room.roomType.id as assignedRoomTypeId " +
+    @Query("SELECT r.checkInDate as checkInDate, r.checkOutDate as checkOutDate, r.status as status, r.actualCheckOut as actualCheckOut, r.otaRoomTypeId as otaRoomTypeId, r.room.roomType.id as assignedRoomTypeId " +
             "FROM Reservation r " +
             "WHERE r.storeId = :storeId " +
             "AND r.status IN :statuses " +
@@ -272,6 +280,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     @Query("""
             SELECT r.checkInDate as checkInDate,
                    r.checkOutDate as checkOutDate,
+                   r.status as status,
+                   r.actualCheckOut as actualCheckOut,
                    room.id as roomId,
                    r.otaRoomTypeId as otaRoomTypeId,
                    roomType.id as assignedRoomTypeId

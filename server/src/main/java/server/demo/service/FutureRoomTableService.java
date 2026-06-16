@@ -10,11 +10,14 @@ import server.demo.enums.ReservationStatus;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.StoreRepository;
+import server.demo.service.helper.util.ReservationOccupancyProjection;
 import server.demo.util.StoreContextUtils;
-import server.demo.util.StoreContextUtils;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -31,6 +34,15 @@ public class FutureRoomTableService {
     @Autowired
     private ReservationRepository reservationRepository;
 
+    @Autowired
+    private StoreRepository storeRepository;
+
+    private static final Set<ReservationStatus> FUTURE_ROOM_TABLE_OCCUPANCY_STATUSES = Set.of(
+            ReservationStatus.CONFIRMED,
+            ReservationStatus.CHECKED_IN,
+            ReservationStatus.CHECKED_OUT
+    );
+
     private static final String[] WEEKDAYS = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
 
     private Long currentStoreId() {
@@ -46,6 +58,7 @@ public class FutureRoomTableService {
     public FutureRoomTableResponse getFutureRoomTableData(LocalDate startDate, int days) {
         LocalDate endDate = startDate.plusDays(days - 1);
         Long storeId = currentStoreId();
+        ZoneId storeZoneId = resolveStoreZoneId(storeId);
         
         // 获取所有房型
         List<RoomType> roomTypes = roomTypeRepository.findByStoreId(storeId);
@@ -84,7 +97,7 @@ public class FutureRoomTableService {
                 String dayOfWeek = WEEKDAYS[currentDate.getDayOfWeek().getValue() % 7];
                 
                 // 计算当日房型的房间状态
-                int occupiedCount = calculateOccupiedRooms(roomsOfType, currentDate, reservations);
+                int occupiedCount = calculateOccupiedRooms(roomsOfType, currentDate, reservations, storeZoneId);
                 int unavailableCount = calculateUnavailableRooms(roomsOfType, currentDate);
                 int availableCount = roomCount - occupiedCount - unavailableCount;
                 
@@ -139,7 +152,12 @@ public class FutureRoomTableService {
      * 计算占用房间数
      * 参考房价管理的calculateAvailableRooms逻辑
      */
-    private int calculateOccupiedRooms(List<Room> rooms, LocalDate date, List<Reservation> allReservations) {
+    private int calculateOccupiedRooms(
+            List<Room> rooms,
+            LocalDate date,
+            List<Reservation> allReservations,
+            ZoneId storeZoneId
+    ) {
         // 获取房间ID集合,用于快速查找
         Set<Long> roomIds = rooms.stream()
             .map(Room::getId)
@@ -148,19 +166,16 @@ public class FutureRoomTableService {
         // 直接从预订中筛选符合条件的房间数
         long occupiedCount = allReservations.stream()
             .filter(r -> {
-                // 检查预订状态：已确认、已入住状态都算占用
-                boolean isOccupiedStatus = r.getStatus() == ReservationStatus.CONFIRMED ||
-                                         r.getStatus() == ReservationStatus.CHECKED_IN;
-
-                // 检查日期是否在预订范围内: checkInDate <= date < checkOutDate
-                boolean isInDateRange = !date.isBefore(r.getCheckInDate()) &&
-                                      date.isBefore(r.getCheckOutDate());
-
                 // 检查是否属于当前房型的房间
                 boolean isTargetRoom = r.getRoom() != null &&
                                       roomIds.contains(r.getRoom().getId());
 
-                return isOccupiedStatus && isInDateRange && isTargetRoom;
+                return isTargetRoom && ReservationOccupancyProjection.occupiesDate(
+                    r,
+                    date,
+                    FUTURE_ROOM_TABLE_OCCUPANCY_STATUSES,
+                    storeZoneId
+                );
             })
             .count();
 
@@ -225,6 +240,7 @@ public class FutureRoomTableService {
             throw new RuntimeException("无法获取当前门店信息");
         }
         Long currentStoreId = storeContext.getStoreId();
+        ZoneId storeZoneId = resolveStoreZoneId(currentStoreId);
 
         double totalRevenue = 0.0;
 
@@ -239,10 +255,12 @@ public class FutureRoomTableService {
                         .anyMatch(reservation -> 
                             reservation.getRoom() != null &&
                             reservation.getRoom().getId().equals(room.getId()) &&
-                            !date.isBefore(reservation.getCheckInDate()) &&
-                            date.isBefore(reservation.getCheckOutDate()) &&
-                            (reservation.getStatus() == ReservationStatus.CONFIRMED ||
-                             reservation.getStatus() == ReservationStatus.CHECKED_IN)
+                            ReservationOccupancyProjection.occupiesDate(
+                                reservation,
+                                date,
+                                FUTURE_ROOM_TABLE_OCCUPANCY_STATUSES,
+                                storeZoneId
+                            )
                         );
                 })
                 .count();
@@ -292,5 +310,12 @@ public class FutureRoomTableService {
         }
         
         return price.doubleValue();
+    }
+
+    private ZoneId resolveStoreZoneId(Long storeId) {
+        server.demo.entity.Store store = storeId == null || storeRepository == null
+                ? null
+                : storeRepository.findById(storeId).orElse(null);
+        return StoreTimeZoneUtil.resolveZoneId(store);
     }
 }

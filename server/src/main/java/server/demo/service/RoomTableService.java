@@ -21,6 +21,7 @@ import server.demo.repository.RoomPriceRepository;
 import server.demo.repository.RoomRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
+import server.demo.service.helper.util.ReservationOccupancyProjection;
 import server.demo.util.StoreContextUtils;
 import server.demo.util.StoreTimeZoneUtil;
 
@@ -55,7 +56,8 @@ public class RoomTableService {
     private static final Set<ReservationStatus> MONTHLY_OCCUPANCY_STATUSES = Set.of(
             ReservationStatus.REQUESTED,
             ReservationStatus.CONFIRMED,
-            ReservationStatus.CHECKED_IN
+            ReservationStatus.CHECKED_IN,
+            ReservationStatus.CHECKED_OUT
     );
 
     @Autowired
@@ -137,6 +139,7 @@ public class RoomTableService {
         }
 
         List<Room> rooms = findMonthlyRooms(storeId, roomTypeIds);
+        ZoneId storeZoneId = resolveStoreZoneId(storeId);
         List<Long> roomIds = new ArrayList<>();
         for (Room room : rooms) {
             if (room != null && room.getId() != null) {
@@ -149,7 +152,8 @@ public class RoomTableService {
                 storeId,
                 roomIds,
                 startDate,
-                endDate
+                endDate,
+                storeZoneId
         );
         Map<String, RoomBlockout> blockoutByRoomDate = buildBlockoutLookup(
                 storeId,
@@ -161,7 +165,8 @@ public class RoomTableService {
                 storeId,
                 roomTypeIds,
                 startDate,
-                endDate
+                endDate,
+                storeZoneId
         );
         Map<String, PriceRestriction> restrictionByTypeDate = buildPriceRestrictionLookup(
                 storeId,
@@ -216,7 +221,8 @@ public class RoomTableService {
                         calculation,
                         reservationByRoomDate,
                         blockoutByRoomDate,
-                        remainingSlotsByTypeDate
+                        remainingSlotsByTypeDate,
+                        storeZoneId
                 ));
             }
             roomData.add(new RoomTableMonthlyResponse.MonthlyRoomDataDTO(
@@ -295,7 +301,8 @@ public class RoomTableService {
             Long storeId,
             List<Long> roomIds,
             LocalDate startDate,
-            LocalDate endDate
+            LocalDate endDate,
+            ZoneId storeZoneId
     ) {
         Map<String, Reservation> lookup = new HashMap<>();
         if (roomIds.isEmpty()) {
@@ -316,8 +323,15 @@ public class RoomTableService {
             if (reservation.getCheckInDate() == null || reservation.getCheckOutDate() == null) {
                 continue;
             }
+            LocalDate effectiveCheckOutDate = ReservationOccupancyProjection.resolveEffectiveCheckOutDate(
+                    reservation,
+                    storeZoneId
+            );
+            if (effectiveCheckOutDate == null) {
+                continue;
+            }
             LocalDate currentDate = laterDate(reservation.getCheckInDate(), startDate);
-            LocalDate lastOccupiedDate = earlierDate(reservation.getCheckOutDate().minusDays(1), endDate);
+            LocalDate lastOccupiedDate = earlierDate(effectiveCheckOutDate.minusDays(1), endDate);
             while (!currentDate.isAfter(lastOccupiedDate)) {
                 String key = roomDateKey(reservation.getRoom().getId(), currentDate);
                 Reservation existing = lookup.get(key);
@@ -363,7 +377,8 @@ public class RoomTableService {
             Long storeId,
             Set<Long> roomTypeIds,
             LocalDate startDate,
-            LocalDate endDate
+            LocalDate endDate,
+            ZoneId storeZoneId
     ) {
         Map<String, Integer> lookup = new HashMap<>();
         List<ReservationRepository.MonthlyReservationOccupancyRow> rows = reservationRepository
@@ -388,8 +403,11 @@ public class RoomTableService {
                     row.getOtaRoomTypeId(),
                     row.getCheckInDate(),
                     row.getCheckOutDate(),
+                    row.getStatus(),
+                    row.getActualCheckOut(),
                     startDate,
-                    endDate
+                    endDate,
+                    storeZoneId
             );
         }
         return lookup;
@@ -503,7 +521,8 @@ public class RoomTableService {
             RoomTypeDateCalculation calculation,
             Map<String, Reservation> reservationByRoomDate,
             Map<String, RoomBlockout> blockoutByRoomDate,
-            Map<String, Integer> remainingSlotsByTypeDate
+            Map<String, Integer> remainingSlotsByTypeDate,
+            ZoneId storeZoneId
     ) {
         RoomTableMonthlyResponse.MonthlyDailyStatusDTO status =
                 new RoomTableMonthlyResponse.MonthlyDailyStatusDTO();
@@ -522,7 +541,7 @@ public class RoomTableService {
         Reservation reservation = reservationByRoomDate.get(roomDateKey);
         if (reservation != null) {
             status.setStatus(statusForReservation(reservation));
-            status.setReservation(toReservationInfo(reservation));
+            status.setReservation(toReservationInfo(reservation, storeZoneId));
             status.setBlockedReason(BLOCKED_REASON_RESERVATION);
             return status;
         }
@@ -589,13 +608,14 @@ public class RoomTableService {
     }
 
     private String statusForReservation(Reservation reservation) {
-        if (reservation.getStatus() == ReservationStatus.CHECKED_IN) {
+        if (reservation.getStatus() == ReservationStatus.CHECKED_IN
+                || reservation.getStatus() == ReservationStatus.CHECKED_OUT) {
             return RoomStatus.OCCUPIED.name();
         }
         return RoomStatus.RESERVED.name();
     }
 
-    private DailyRoomStatusDTO.ReservationInfoDTO toReservationInfo(Reservation reservation) {
+    private DailyRoomStatusDTO.ReservationInfoDTO toReservationInfo(Reservation reservation, ZoneId storeZoneId) {
         String channelName = "";
         if (reservation.getChannel() != null && reservation.getChannel().getName() != null) {
             channelName = reservation.getChannel().getName();
@@ -608,6 +628,10 @@ public class RoomTableService {
                 reservation.getCheckOutDate(),
                 reservation.getOrderNumber()
         );
+        info.setEffectiveCheckOut(ReservationOccupancyProjection.resolveEffectiveCheckOutDate(
+                reservation,
+                storeZoneId
+        ));
         if (reservation.getStatus() != null) {
             info.setStatus(reservation.getStatus().name());
         }
@@ -623,11 +647,24 @@ public class RoomTableService {
             Long roomTypeId,
             LocalDate checkInDate,
             LocalDate checkOutDate,
+            ReservationStatus status,
+            LocalDateTime actualCheckOut,
             LocalDate startDate,
-            LocalDate endDate
+            LocalDate endDate,
+            ZoneId storeZoneId
     ) {
+        LocalDate effectiveCheckOutDate = ReservationOccupancyProjection.resolveEffectiveCheckOutDate(
+                checkInDate,
+                checkOutDate,
+                status,
+                actualCheckOut,
+                storeZoneId
+        );
+        if (effectiveCheckOutDate == null) {
+            return;
+        }
         LocalDate currentDate = laterDate(checkInDate, startDate);
-        LocalDate lastOccupiedDate = earlierDate(checkOutDate.minusDays(1), endDate);
+        LocalDate lastOccupiedDate = earlierDate(effectiveCheckOutDate.minusDays(1), endDate);
         while (!currentDate.isAfter(lastOccupiedDate)) {
             String key = roomTypeDateKey(roomTypeId, currentDate);
             lookup.put(key, lookup.getOrDefault(key, 0) + 1);
@@ -663,6 +700,9 @@ public class RoomTableService {
 
     private int reservationStatusPriority(ReservationStatus status) {
         if (status == ReservationStatus.CHECKED_IN) {
+            return 4;
+        }
+        if (status == ReservationStatus.CHECKED_OUT) {
             return 3;
         }
         if (status == ReservationStatus.CONFIRMED) {

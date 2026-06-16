@@ -16,6 +16,7 @@ import server.demo.repository.RoomBlockoutRepository;
 import server.demo.repository.RoomRepository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.lang.reflect.Field;
 
@@ -137,6 +138,70 @@ class RoomStatusServiceTest {
         assertEquals(Boolean.TRUE, r.getDailyStatus().get(0).getClosed());
         assertEquals("stop", r.getDailyStatus().get(0).getCloseType());
         assertEquals("x", r.getDailyStatus().get(0).getCloseRemark());
+    }
+
+    @Test
+    void getRoomStatusCalendarForStore_shouldClipCheckedOutReservationAtActualCheckoutDate() {
+        RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        RoomBlockoutRepository roomBlockoutRepository = Mockito.mock(RoomBlockoutRepository.class);
+
+        RoomStatusService service = new RoomStatusService();
+        inject(service, "roomRepository", roomRepository);
+        inject(service, "reservationRepository", reservationRepository);
+        inject(service, "roomBlockoutRepository", roomBlockoutRepository);
+
+        RoomType roomType = new RoomType();
+        roomType.setId(1L);
+        roomType.setName("RT1");
+
+        Room room = new Room();
+        room.setId(10L);
+        room.setStoreId(5L);
+        room.setRoomNumber("101");
+        room.setRoomType(roomType);
+        room.setStatus(RoomStatus.AVAILABLE);
+
+        Channel channel = new Channel();
+        channel.setName("BOOKING");
+
+        Reservation reservation = new Reservation();
+        reservation.setId(99L);
+        reservation.setStoreId(5L);
+        reservation.setRoom(room);
+        reservation.setStatus(ReservationStatus.CHECKED_OUT);
+        reservation.setGuestName("GuestA");
+        reservation.setChannel(channel);
+        reservation.setCheckInDate(LocalDate.of(2026, 6, 15));
+        reservation.setCheckOutDate(LocalDate.of(2026, 6, 18));
+        reservation.setActualCheckOut(LocalDateTime.of(2026, 6, 16, 9, 0));
+        reservation.setOrderNumber("SU5-1");
+
+        when(roomRepository.findByStoreIdWithRoomType(5L)).thenReturn(List.of(room));
+        when(reservationRepository.findByStoreIdAndRoomIdInAndDateRangeAndStatusesWithChannel(
+                eq(5L),
+                eq(List.of(10L)),
+                eq(LocalDate.of(2026, 6, 15)),
+                eq(LocalDate.of(2026, 6, 17)),
+                anySet()
+        )).thenReturn(List.of(reservation));
+        when(roomBlockoutRepository.findByStoreIdAndRoom_IdInAndBlockDateBetween(eq(5L), anyList(), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+
+        RoomStatusCalendarDTO calendar = service.getRoomStatusCalendarForStore(
+                5L,
+                LocalDate.of(2026, 6, 15),
+                LocalDate.of(2026, 6, 17)
+        );
+
+        RoomStatusCalendarDTO.CalendarRoomDataDTO roomData = calendar.getRooms().get(0);
+        assertEquals(RoomStatus.OCCUPIED, roomData.getDailyStatus().get(0).getStatus());
+        assertNotNull(roomData.getDailyStatus().get(0).getReservation());
+        assertEquals("CHECKED_OUT", roomData.getDailyStatus().get(0).getReservation().getStatus());
+        assertEquals(LocalDate.of(2026, 6, 18), roomData.getDailyStatus().get(0).getReservation().getCheckOut());
+        assertEquals(LocalDate.of(2026, 6, 16), roomData.getDailyStatus().get(0).getReservation().getEffectiveCheckOut());
+        assertNull(roomData.getDailyStatus().get(1).getReservation());
+        assertNull(roomData.getDailyStatus().get(2).getReservation());
     }
 
     private static void inject(Object target, String fieldName, Object value) {

@@ -2815,8 +2815,19 @@ const getReservationDateValue = (
 
 const getReservationDateOnly = (value: string) => normalizeDateOnly(value)
 
+const getReservationDisplayCheckOutDate = (
+  reservation: Record<string, any> | null | undefined,
+) => {
+  if (!reservation) return ''
+  return (
+    reservation.effectiveCheckOutDate ||
+    reservation.effectiveCheckOut ||
+    getReservationDateValue(reservation, 'checkOut')
+  )
+}
+
 const getReservationStayEndDate = (reservation: Record<string, any> | null | undefined) => {
-  const checkOutDate = getReservationDateOnly(getReservationDateValue(reservation, 'checkOut'))
+  const checkOutDate = getReservationDateOnly(getReservationDisplayCheckOutDate(reservation))
   if (!checkOutDate) return ''
   return addDays(checkOutDate, -1)
 }
@@ -4401,6 +4412,16 @@ const loadRoomStatusCalendarData = async () => {
                   channel: daily.reservation.channel,
                   checkIn: daily.reservation.checkIn || (daily.reservation as any).checkInDate,
                   checkOut: daily.reservation.checkOut || (daily.reservation as any).checkOutDate,
+                  effectiveCheckOut:
+                    daily.reservation.effectiveCheckOut ||
+                    (daily.reservation as any).effectiveCheckOutDate ||
+                    '',
+                  checkInDate: daily.reservation.checkIn || (daily.reservation as any).checkInDate,
+                  checkOutDate: daily.reservation.checkOut || (daily.reservation as any).checkOutDate,
+                  effectiveCheckOutDate:
+                    daily.reservation.effectiveCheckOut ||
+                    (daily.reservation as any).effectiveCheckOutDate ||
+                    '',
                   orderNumber: daily.reservation.orderNumber,
                   groupOrderNo: (daily.reservation as any).groupOrderNo || '',
                   specialRequests: (daily.reservation as any).specialRequests || '',

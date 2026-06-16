@@ -11,6 +11,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
+import server.demo.context.StoreContext;
+import server.demo.context.StoreContextHolder;
 import server.demo.dto.ApiResponse;
 import server.demo.dto.CleaningTaskCreateDTO;
 import server.demo.dto.CleaningTaskDTO;
@@ -105,7 +107,7 @@ public class CleaningTaskController {
     @RequirePermission(module = PermissionModule.ACCOMMODATION, action = PermissionAction.TASK_LIST)
     public ApiResponse<CleaningTaskDTO> getTaskById(@PathVariable Long id, HttpServletRequest request) {
         try {
-            Long userId = (Long) request.getAttribute("userId");
+            Long userId = resolveCleanerScopedUserId(request);
             CleaningTaskDTO task = cleaningTaskService.getTaskById(userId, id);
             return ApiResponse.success("获取任务成功", task);
         } catch (Exception e) {
@@ -133,7 +135,7 @@ public class CleaningTaskController {
             @RequestParam(defaultValue = "DESC") String sortDirection,
             HttpServletRequest request) {
         try {
-            Long userId = (Long) request.getAttribute("userId");
+            Long userId = resolveCleanerScopedUserId(request);
             Sort.Direction direction = sortDirection.equalsIgnoreCase("ASC") ?
                     Sort.Direction.ASC : Sort.Direction.DESC;
             Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
@@ -159,7 +161,7 @@ public class CleaningTaskController {
             @RequestParam(required = false) Long cleanerId,
             HttpServletRequest request) {
         try {
-            Long userId = (Long) request.getAttribute("userId");
+            Long userId = resolveCleanerScopedUserId(request);
             Map<String, Object> data = cleaningTaskService.getCalendarViewData(
                     userId,
                     startDate,
@@ -283,5 +285,22 @@ public class CleaningTaskController {
         } catch (Exception e) {
             return ApiResponse.error("获取统计数据失败: " + e.getMessage());
         }
+    }
+
+    private Long resolveCleanerScopedUserId(HttpServletRequest request) {
+        StoreContext context = StoreContextHolder.getContext();
+        if (context == null || !isCleanerMemberRole(context.getRole())) {
+            return null;
+        }
+
+        Object userId = request.getAttribute("userId");
+        if (userId instanceof Long value) {
+            return value;
+        }
+        return null;
+    }
+
+    private boolean isCleanerMemberRole(String role) {
+        return role != null && "member".equalsIgnoreCase(role);
     }
 }
