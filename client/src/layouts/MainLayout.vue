@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import NotificationPopup from '@/components/NotificationPopup.vue'
+import CustomerService from '@/components/CustomerService.vue'
 import AppTopNav from '@/components/layout/AppTopNav.vue'
 import {
   appTopNavBindingsKey,
@@ -29,6 +30,7 @@ const notificationCenterStore = useNotificationCenterStore()
 
 const stores = ref<StoreDTO[]>([])
 const notificationPopupRef = ref<InstanceType<typeof NotificationPopup> | null>(null)
+const showCustomerService = ref(false)
 
 const MAX_UNREAD_BADGE_COUNT = 99
 
@@ -76,10 +78,6 @@ const canAccessAccommodation = computed(() =>
   ),
 )
 
-const canAccessChannel = computed(() =>
-  permissionStore.hasPermission(PermissionModule.CHANNEL, PermissionAction.VIEW_CHANNELS),
-)
-
 const canAccessOrder = computed(() =>
   permissionStore.hasPermission(PermissionModule.ORDER, PermissionAction.VIEW_ORDERS),
 )
@@ -93,6 +91,7 @@ const canAccessSettings = computed(() =>
     [
       { module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS },
       { module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS },
+      { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
     ],
     'any',
   ),
@@ -106,20 +105,19 @@ const navItems = computed<NavItem[]>(() => {
   const items: Array<NavItem & { visible: boolean }> = [
     { labelKey: 'nav.home', path: '/', visible: true },
     { labelKey: 'nav.accommodation', path: '/accommodation', visible: canAccessAccommodation.value },
+    { labelKey: 'nav.messages', path: '/messages', visible: true },
     { labelKey: 'nav.order', path: '/order', visible: canAccessOrder.value },
     {
       labelKey: 'nav.statistics',
       path: '/data-center/overview',
       visible: canAccessStatistics.value,
     },
-    { labelKey: 'nav.channel', path: '/channel', visible: canAccessChannel.value },
     {
       labelKey: 'nav.review',
       path: '/data-center/registrations',
       visible: canAccessStatistics.value,
     },
     { labelKey: 'nav.settings', path: '/settings', visible: canAccessSettings.value },
-    { labelKey: 'nav.messages', path: '/messages', visible: true },
   ]
 
   return items.filter((item) => item.visible)
@@ -168,6 +166,10 @@ const handleInboxClick = () => {
   router.push('/messages')
 }
 
+const handleSupportChat = () => {
+  showCustomerService.value = true
+}
+
 const handleProfileClick = () => {
   router.push('/profile')
 }
@@ -210,6 +212,7 @@ provide(appTopNavBindingsKey, {
   onMenuClick: handleMenuClick,
   onWalletClick: handleWalletClick,
   onInboxClick: handleInboxClick,
+  onSupportChat: handleSupportChat,
   onSystemNotification: handleSystemNotification,
   onOrderNotification: handleOrderNotification,
   onProfileClick: handleProfileClick,
@@ -289,6 +292,7 @@ onUnmounted(() => {
           @menu-click="handleMenuClick"
           @wallet-click="handleWalletClick"
           @inbox-click="handleInboxClick"
+          @support-chat="handleSupportChat"
           @system-notification="handleSystemNotification"
           @order-notification="handleOrderNotification"
           @profile-click="handleProfileClick"
@@ -302,6 +306,11 @@ onUnmounted(() => {
     </template>
 
     <NotificationPopup ref="notificationPopupRef" />
+    <CustomerService
+      :visible="showCustomerService"
+      @close="showCustomerService = false"
+      @minimize="showCustomerService = false"
+    />
   </div>
 </template>
 
