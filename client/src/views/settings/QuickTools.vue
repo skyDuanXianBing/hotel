@@ -8,7 +8,7 @@
     </div>
 
     <div class="tools-grid">
-      <section class="tool-panel tool-panel--memo">
+      <section class="tool-panel">
         <div class="tool-panel-header">
           <span class="tool-icon memo-icon">
             <el-icon><Document /></el-icon>
@@ -50,45 +50,22 @@
           {{ t('settings.quickTools.record.action') }}
         </el-button>
       </section>
-
-      <section class="tool-panel">
-        <div class="tool-panel-header">
-          <span class="tool-icon support-icon">
-            <el-icon><Headset /></el-icon>
-          </span>
-          <div class="tool-heading">
-            <h3>{{ t('settings.quickTools.support.title') }}</h3>
-            <p>{{ t('settings.quickTools.support.description') }}</p>
-          </div>
-        </div>
-
-        <el-button class="tool-action" @click="showCustomerService = true">
-          {{ t('settings.quickTools.support.action') }}
-        </el-button>
-      </section>
     </div>
 
     <RecordTransaction v-model="showRecordTransaction" />
-    <CustomerService
-      :visible="showCustomerService"
-      @close="showCustomerService = false"
-      @minimize="showCustomerService = false"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Document, EditPen, Headset } from '@element-plus/icons-vue'
-import CustomerService from '@/components/CustomerService.vue'
+import { Document, EditPen } from '@element-plus/icons-vue'
 import RecordTransaction from '@/components/RecordTransaction.vue'
 import { useMemoStore } from '@/stores/memo'
 
 const { t } = useI18n()
 const memoStore = useMemoStore()
 const showRecordTransaction = ref(false)
-const showCustomerService = ref(false)
 
 const memo = computed({
   get: () => memoStore.memoContent,
@@ -141,10 +118,6 @@ onMounted(() => {
   box-shadow: 0 8px 22px rgba(21, 27, 38, 0.05);
 }
 
-.tool-panel--memo {
-  grid-row: span 2;
-}
-
 .tool-panel-header {
   display: flex;
   gap: 14px;
@@ -171,11 +144,6 @@ onMounted(() => {
 .record-icon {
   color: #9b6a10;
   background: #fff4d8;
-}
-
-.support-icon {
-  color: #148766;
-  background: #e8f8f1;
 }
 
 .tool-heading {
@@ -224,8 +192,5 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .tool-panel--memo {
-    grid-row: auto;
-  }
 }
 </style>

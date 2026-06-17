@@ -31,6 +31,7 @@ export interface AppTopNavBindings {
   onMenuClick: (path: string) => void
   onWalletClick: () => void
   onInboxClick: () => void
+  onSupportChat: () => void
   onSystemNotification: () => void
   onOrderNotification: () => void
   onProfileClick: () => void

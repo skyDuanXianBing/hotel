@@ -87,6 +87,10 @@ body {
   color: #272a30 !important;
 }
 
+.el-message {
+  top: 76px !important;
+}
+
 /* Responsive layout */
 @media (max-width: 768px) {
   .el-aside {

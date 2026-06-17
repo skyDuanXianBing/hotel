@@ -1,35 +1,8 @@
 <template>
   <div class="channel-management">
-    <!-- 左侧导航菜单 -->
-    <div class="sidebar" :class="{ collapsed: isCollapsed }">
-      <!-- 收起导航按钮 -->
-      <div class="sidebar-header" @click="toggleSidebar">
-        <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
-        <span v-if="!isCollapsed" class="sidebar-title">{{ t('channel.sidebar.collapse') }}</span>
-        <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
-        <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
-      </div>
-
-      <el-menu
-        class="sidebar-menu"
-        :default-active="activeMenu"
-        @select="handleMenuSelect"
-        :collapse="isCollapsed"
-      >
-        <el-menu-item index="channel-list">
-          <el-icon><List /></el-icon>
-          <span>{{ t('channel.sidebar.list') }}</span>
-        </el-menu-item>
-        <el-menu-item index="price-ratio">
-          <el-icon><Money /></el-icon>
-          <span>{{ t('channel.sidebar.priceRatio') }}</span>
-        </el-menu-item>
-      </el-menu>
-    </div>
-
     <!-- 主内容区域 -->
     <div class="main-container">
-      <template v-if="activeMenu === 'channel-list'">
+      <template v-if="activeSection === 'channel-list'">
         <ChannelSettingsPanel
           v-if="showChannelSettings"
           :channel="selectedChannel"
@@ -76,7 +49,7 @@
       </template>
 
       <PriceRatioPanel
-        v-else-if="activeMenu === 'price-ratio'"
+        v-else-if="activeSection === 'price-ratio'"
         :loading="priceRatioLoading"
         v-loading="priceRatioLoading"
         :data="priceRatioData"
@@ -134,9 +107,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Menu as MenuIcon, ArrowLeft, ArrowRight, List, Money } from '@element-plus/icons-vue'
 
 // Foundational modules
 import type {
@@ -189,15 +162,12 @@ const {
 } = useChannelData()
 
 const { t } = useI18n()
-
-// Sidebar folding status
-const isCollapsed = ref(false)
-const toggleSidebar = () => {
-  isCollapsed.value = !isCollapsed.value
-}
+const route = useRoute()
 
 // Navigation & panels status
-const activeMenu = ref('channel-list')
+const activeSection = computed<'channel-list' | 'price-ratio'>(() =>
+  route.name === 'ChannelPriceRatioSettings' ? 'price-ratio' : 'channel-list',
+)
 const showChannelSettings = ref(false)
 const selectedChannel = ref<ChannelItem | null>(null)
 
@@ -250,17 +220,6 @@ const selectedOtaId = ref<number>(0)
 const selectedOtaName = ref<string>('')
 
 // ──────────── Component Actions ────────────
-
-/** Menu selection routing */
-const handleMenuSelect = (index: string) => {
-  activeMenu.value = index
-  if (index === 'price-ratio') {
-    showChannelSettings.value = false
-    loadPriceRatioData()
-  } else if (index === 'channel-list') {
-    showChannelSettings.value = false
-  }
-}
 
 /** Flatten mapping data helper */
 const updateFlattenedMappingData = () => {
@@ -501,6 +460,16 @@ onMounted(() => {
   loadChannels()
   loadPmsRoomOptions()
   loadPmsPricePlanOptions()
+  if (activeSection.value === 'price-ratio') {
+    loadPriceRatioData()
+  }
+})
+
+watch(activeSection, (section) => {
+  showChannelSettings.value = false
+  if (section === 'price-ratio') {
+    loadPriceRatioData()
+  }
 })
 
 watch(
@@ -516,90 +485,16 @@ watch(
 <style scoped>
 .channel-management {
   display: flex;
-  height: 100vh;
+  height: 100%;
   background: #f5f5f5;
   overflow: hidden;
-}
-
-/* 左侧导航 */
-.sidebar {
-  width: 200px;
-  background: white;
-  border-right: 1px solid #e8e8e8;
-  display: flex;
-  flex-direction: column;
-  transition: width 0.3s ease;
-  flex-shrink: 0;
-}
-
-.sidebar.collapsed {
-  width: 64px;
-}
-
-.sidebar-header {
-  height: 56px;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  border-bottom: 1px solid #e8e8e8;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  flex-shrink: 0;
-}
-
-.sidebar-header:hover {
-  background-color: #f5f5f5;
-}
-
-.sidebar-icon {
-  font-size: 20px;
-  color: #1890ff;
-  flex-shrink: 0;
-}
-
-.sidebar-title {
-  flex: 1;
-  margin-left: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
-.collapse-icon {
-  font-size: 16px;
-  color: #999;
-}
-
-.sidebar-menu {
-  flex: 1;
-  border-right: none;
-  overflow-y: auto;
 }
 
 /* 主内容区域 */
 .main-container {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   background: #f5f5f5;
-}
-
-/* 移动端适配 */
-@media (max-width: 768px) {
-  .channel-management {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    height: auto;
-  }
-
-  .sidebar.collapsed {
-    width: 100%;
-  }
-
-  .sidebar-header {
-    display: none;
-  }
 }
 </style>
