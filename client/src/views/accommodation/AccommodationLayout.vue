@@ -81,6 +81,7 @@
           @menu-click="topNavBindings.onMenuClick"
           @wallet-click="topNavBindings.onWalletClick"
           @inbox-click="topNavBindings.onInboxClick"
+          @support-chat="topNavBindings.onSupportChat"
           @system-notification="topNavBindings.onSystemNotification"
           @order-notification="topNavBindings.onOrderNotification"
           @profile-click="topNavBindings.onProfileClick"

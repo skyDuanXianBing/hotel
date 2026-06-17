@@ -40,6 +40,7 @@ const emit = defineEmits<{
   (e: 'menu-click', path: string): void
   (e: 'wallet-click'): void
   (e: 'inbox-click'): void
+  (e: 'support-chat'): void
   (e: 'system-notification'): void
   (e: 'order-notification'): void
   (e: 'profile-click'): void
@@ -172,14 +173,19 @@ const getStoreRoleBadge = (role?: string) => {
             </el-dropdown-item>
             <el-dropdown-item @click="emit('system-notification')">
               <span class="message-menu-item">
-                <span v-if="hasSystemUnread" class="message-menu-dot"></span>
-                {{ t('layout.inbox.system') }}
+                <span v-if="hasSystemUnread" class="message-menu-indicator"></span>
+                <span class="message-menu-label">{{ t('layout.inbox.system') }}</span>
               </span>
             </el-dropdown-item>
             <el-dropdown-item v-if="canAccessOrder" @click="emit('order-notification')">
               <span class="message-menu-item">
-                <span v-if="hasOrderUnread" class="message-menu-dot"></span>
-                {{ t('layout.inbox.order') }}
+                <span v-if="hasOrderUnread" class="message-menu-indicator"></span>
+                <span class="message-menu-label">{{ t('layout.inbox.order') }}</span>
+              </span>
+            </el-dropdown-item>
+            <el-dropdown-item divided @click="emit('support-chat')">
+              <span class="message-menu-item">
+                {{ t('layout.support.customerService') }}
               </span>
             </el-dropdown-item>
           </el-dropdown-menu>
@@ -537,13 +543,27 @@ const getStoreRoleBadge = (role?: string) => {
   color: #979d97;
 }
 
-.store-menu-item,
-.message-menu-item {
+.store-menu-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+}
+
+.message-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: max-content;
+}
+
+.message-menu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .store-menu-name {
@@ -575,7 +595,16 @@ const getStoreRoleBadge = (role?: string) => {
   border-bottom: 1px solid #efefea;
 }
 
-.message-menu-dot {
+:deep(.message-menu) {
+  min-width: 0;
+}
+
+:deep(.message-menu .el-dropdown-menu__item) {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.message-menu-indicator {
   width: 7px;
   height: 7px;
   border-radius: 50%;

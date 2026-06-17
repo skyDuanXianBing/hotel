@@ -53,6 +53,10 @@ const accountSettingsPermission: PermissionRequirement[] = [
   { module: PermissionModule.SETTINGS, action: PermissionAction.MANAGE_EMPLOYEE_ACCOUNTS },
 ]
 
+const channelSettingsPermission: PermissionRequirement[] = [
+  { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+]
+
 const menuItems: MenuItem[] = [
   {
     key: 'room',
@@ -91,6 +95,15 @@ const menuItems: MenuItem[] = [
     children: [
       { key: 'store-basic-info', label: 'settings.layout.items.storeBasicInfo', path: '/settings/store/basic-info', requiredPermissions: storeSettingsPermission },
       { key: 'store-details', label: 'settings.layout.items.storeDetails', path: '/settings/store/details', requiredPermissions: storeSettingsPermission },
+    ],
+  },
+  {
+    key: 'channel',
+    label: 'settings.layout.items.channelSettings',
+    icon: Connection,
+    children: [
+      { key: 'channel-list', label: 'channel.sidebar.list', path: '/settings/channel/list', requiredPermissions: channelSettingsPermission },
+      { key: 'channel-price-ratio', label: 'channel.sidebar.priceRatio', path: '/settings/channel/price-ratio', requiredPermissions: channelSettingsPermission },
     ],
   },
   {
