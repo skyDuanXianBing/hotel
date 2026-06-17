@@ -113,6 +113,76 @@ public interface SuMessageRepository extends JpaRepository<SuMessage, Long> {
     @Query("""
             SELECT m
             FROM SuMessage m
+            JOIN FETCH m.thread
+            WHERE m.storeId = :storeId
+              AND m.id > :afterMessageId
+            ORDER BY m.id ASC
+            """)
+    List<SuMessage> findHistoryBatchForKnowledgeScanner(
+            @Param("storeId") Long storeId,
+            @Param("afterMessageId") Long afterMessageId,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT m
+            FROM SuMessage m
+            JOIN FETCH m.thread
+            WHERE m.storeId = :storeId
+              AND m.thread.id = :threadId
+              AND m.senderType = :senderType
+              AND m.id < :beforeMessageId
+              AND m.content IS NOT NULL
+            ORDER BY m.id DESC
+            """)
+    List<SuMessage> findPreviousMessageBySenderForKnowledgeScanner(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("senderType") SuMessagingSenderType senderType,
+            @Param("beforeMessageId") Long beforeMessageId,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END
+            FROM SuMessage m
+            WHERE m.storeId = :storeId
+              AND m.thread.id = :threadId
+              AND m.senderType = :senderType
+              AND m.id > :afterMessageId
+              AND m.id < :beforeMessageId
+              AND (
+                    m.deliveryStatus IS NULL
+                    OR (
+                        LOWER(m.deliveryStatus) <> 'failed'
+                        AND LOWER(m.deliveryStatus) <> 'sending'
+                    )
+                  )
+            """)
+    boolean existsSuccessfulStaffReplyBetween(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("senderType") SuMessagingSenderType senderType,
+            @Param("afterMessageId") Long afterMessageId,
+            @Param("beforeMessageId") Long beforeMessageId
+    );
+
+    @Query("""
+            SELECT DISTINCT m.storeId
+            FROM SuMessage m
+            WHERE m.storeId IS NOT NULL
+              AND NOT EXISTS (
+                    SELECT state.id
+                    FROM MessageKnowledgeScanState state
+                    WHERE state.storeId = m.storeId
+              )
+            ORDER BY m.storeId ASC
+            """)
+    List<Long> findStoreIdsWithoutKnowledgeScanState(Pageable pageable);
+
+    @Query("""
+            SELECT m
+            FROM SuMessage m
             WHERE m.storeId = :storeId
               AND m.thread.id = :threadId
               AND (:beforeMessageId IS NULL OR m.id < :beforeMessageId)

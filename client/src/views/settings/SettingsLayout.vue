@@ -103,6 +103,7 @@ const menuItems: MenuItem[] = [
       { key: 'channel-settings', label: 'settings.layout.items.channelSettings', path: '/settings/general/channel', requiredPermissions: storeSettingsPermission },
       { key: 'quick-reply', label: 'settings.layout.items.quickReply', path: '/settings/general/quick-reply', requiredPermissions: storeSettingsPermission },
       { key: 'auto-message', label: 'settings.layout.items.autoMessage', path: '/settings/general/auto-message', requiredPermissions: storeSettingsPermission },
+      { key: 'ai-message-knowledge', label: 'settings.layout.items.aiMessageKnowledge', path: '/settings/general/ai-message-knowledge', requiredPermissions: storeSettingsPermission },
     ],
   },
   {

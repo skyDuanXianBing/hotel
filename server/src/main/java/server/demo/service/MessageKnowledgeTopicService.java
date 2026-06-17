@@ -16,6 +16,13 @@ public class MessageKnowledgeTopicService {
     public static final String TOPIC_PARKING = "PARKING";
     public static final String TOPIC_LUGGAGE = "LUGGAGE";
     public static final String TOPIC_BREAKFAST = "BREAKFAST";
+    public static final String TOPIC_CHECKOUT = "CHECKOUT";
+    public static final String TOPIC_CHECKIN = "CHECKIN";
+    public static final String TOPIC_PET_POLICY = "PET_POLICY";
+    public static final String TOPIC_SHUTTLE = "SHUTTLE";
+    public static final String TOPIC_AMENITY = "AMENITY";
+    public static final String TOPIC_TRASH = "TRASH";
+    public static final String TOPIC_LOCATION = "LOCATION";
 
     private static final int MAX_REUSABLE_FACTS = 4;
     private static final int MAX_FACT_LENGTH = 260;
@@ -105,6 +112,114 @@ public class MessageKnowledgeTopicService {
                     "早飯",
                     "朝食",
                     "조식"
+            )),
+            new TopicRule(TOPIC_CHECKOUT, List.of(
+                    "checkout",
+                    "check out",
+                    "check-out",
+                    "退房",
+                    "チェックアウト",
+                    "체크아웃"
+            )),
+            new TopicRule(TOPIC_CHECKIN, List.of(
+                    "checkin",
+                    "check in",
+                    "check-in",
+                    "arrival time",
+                    "early check in",
+                    "early check-in",
+                    "入住",
+                    "チェックイン",
+                    "체크인"
+            )),
+            new TopicRule(TOPIC_PET_POLICY, List.of(
+                    "pet policy",
+                    "pets",
+                    "allow pets",
+                    "bring a pet",
+                    "bring my pet",
+                    "pet friendly",
+                    "mascota",
+                    "mascotas",
+                    "perro",
+                    "perros",
+                    "gato",
+                    "gatos",
+                    "animaux",
+                    "animal de compagnie",
+                    "chien",
+                    "ペット",
+                    "犬",
+                    "猫",
+                    "반려동물",
+                    "애완동물",
+                    "강아지",
+                    "고양이"
+            )),
+            new TopicRule(TOPIC_SHUTTLE, List.of(
+                    "airport shuttle",
+                    "shuttle",
+                    "shuttle bus",
+                    "airport transfer",
+                    "transfer from airport",
+                    "transfer to airport",
+                    "airport pickup",
+                    "airport pick up",
+                    "pickup from airport",
+                    "pick up from airport",
+                    "navette",
+                    "traslado",
+                    "transporte al aeropuerto",
+                    "servicio de transporte",
+                    "机场接送",
+                    "機場接送",
+                    "接送",
+                    "班车",
+                    "班車",
+                    "送迎",
+                    "シャトル",
+                    "空港送迎",
+                    "셔틀",
+                    "공항 픽업"
+            )),
+            new TopicRule(TOPIC_AMENITY, List.of(
+                    "amenity",
+                    "amenities",
+                    "towel",
+                    "towels",
+                    "toiletries",
+                    "toothbrush",
+                    "slippers",
+                    "毛巾",
+                    "用品",
+                    "アメニティ",
+                    "タオル",
+                    "수건"
+            )),
+            new TopicRule(TOPIC_TRASH, List.of(
+                    "trash",
+                    "garbage",
+                    "rubbish",
+                    "recycling",
+                    "waste",
+                    "垃圾",
+                    "回收",
+                    "ゴミ",
+                    "쓰레기"
+            )),
+            new TopicRule(TOPIC_LOCATION, List.of(
+                    "address",
+                    "location",
+                    "directions",
+                    "nearest station",
+                    "nearby station",
+                    "station",
+                    "地址",
+                    "位置",
+                    "车站",
+                    "車站",
+                    "駅",
+                    "오시는 길"
             ))
     );
 
@@ -175,6 +290,12 @@ public class MessageKnowledgeTopicService {
             if (rule.matches(normalized, compact)) {
                 topics.add(rule.topicCode);
             }
+        }
+        if (topics.contains(TOPIC_SHUTTLE)) {
+            topics.remove(TOPIC_LOCATION);
+        }
+        if (topics.contains(TOPIC_LATE_CHECKOUT)) {
+            topics.remove(TOPIC_CHECKOUT);
         }
         return topics;
     }

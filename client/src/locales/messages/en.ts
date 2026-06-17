@@ -198,6 +198,7 @@ const en = mergeLocaleMessages(
       channelSettings: 'Channel Settings',
       quickReply: 'Quick Replies',
       automationMessages: 'Automation Messages',
+      aiMessageKnowledge: 'AI Message Knowledge Base',
       settings: 'Settings',
       supplies: 'Supplies',
       autoCheckinSettings: 'Auto Check-in Settings',

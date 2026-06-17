@@ -8,6 +8,7 @@ import server.demo.dto.ChatMessageRequest;
 import server.demo.dto.ChatMessageResponse;
 import server.demo.dto.SuMessagingTranslationRequest;
 import server.demo.dto.SuMessagingTranslationResponse;
+import server.demo.entity.MessageKnowledgeEntry;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.entity.SuMessageTranslation;
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -69,6 +71,7 @@ class SuMessagingTranslationServiceTest {
         assertEquals(sourceHash, response.getSourceContentHash());
         assertEquals(SuMessageTranslation.STATUS_SUCCESS, response.getStatus());
         verify(fixture.aiTranslationService, never()).translate(any(), any());
+        verify(fixture.knowledgeSearchService, never()).searchSimilar(any(), any(), any(), any(), anyInt());
         verify(fixture.translationRepository, never()).save(any(SuMessageTranslation.class));
     }
 
@@ -128,6 +131,69 @@ class SuMessagingTranslationServiceTest {
         assertEquals("ja", saved.getTargetLanguage());
         assertEquals(sourceHash, saved.getSourceContentHash());
         assertEquals(SuMessageTranslation.STATUS_SUCCESS, saved.getTranslationStatus());
+    }
+
+    @Test
+    void getOrCreateTranslation_shouldUseKnowledgeGuidanceOnCacheMissWithoutChangingHash() {
+        TestFixture fixture = new TestFixture();
+        SuMessageThread thread = newThread();
+        SuMessage message = newMessage(thread, "Is late checkout possible?");
+        String sourceHash = SuMessagingTranslationService.hashSourceContent("Is late checkout possible?");
+        MessageKnowledgeEntry entry = new MessageKnowledgeEntry();
+        entry.setAnswer("Late checkout is available until 12:00 when available.");
+        MessageKnowledgeMatch match = new MessageKnowledgeMatch(
+                entry,
+                0.8,
+                SuMessagingThreadContext.SCOPE_STORE,
+                List.of("REFINED_FACT"),
+                List.of(MessageKnowledgeTopicService.TOPIC_LATE_CHECKOUT),
+                List.of("Late checkout is available until 12:00 when available.")
+        );
+
+        when(fixture.threadRepository.findByStoreIdAndId(STORE_ID, THREAD_ID)).thenReturn(Optional.of(thread));
+        when(fixture.messageRepository.findByStoreIdAndThreadIdAndId(STORE_ID, THREAD_ID, MESSAGE_ID))
+                .thenReturn(Optional.of(message));
+        when(fixture.translationRepository
+                .findFirstByStoreIdAndMessage_IdAndTargetLanguageAndSourceContentHashAndTranslationStatus(
+                        STORE_ID,
+                        MESSAGE_ID,
+                        "ja",
+                        sourceHash,
+                        SuMessageTranslation.STATUS_SUCCESS
+                )).thenReturn(Optional.empty());
+        when(fixture.contextResolver.resolveForIndex(STORE_ID, thread)).thenReturn(new SuMessagingThreadContext());
+        when(fixture.knowledgeSearchService.searchSimilar(
+                eq(STORE_ID),
+                eq(THREAD_ID),
+                any(SuMessagingThreadContext.class),
+                eq("Is late checkout possible?"),
+                eq(2)
+        )).thenReturn(new MessageKnowledgeSearchResult(
+                MessageKnowledgeSearchService.STATUS_MATCHED,
+                List.of(match),
+                List.of()
+        ));
+        when(fixture.aiTranslationService.translate(eq("Is late checkout possible?"), any(RegistrationTargetLanguage.class)))
+                .thenReturn(AiTranslationResult.translated(
+                        "レイトチェックアウトは可能ですか？",
+                        RegistrationTargetLanguage.resolved("ja", "Japanese", "test")
+                ));
+        when(fixture.translationRepository.save(any(SuMessageTranslation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SuMessagingTranslationResponse response = fixture.service.getOrCreateTranslation(
+                STORE_ID,
+                THREAD_ID,
+                MESSAGE_ID,
+                newRequest("ja")
+        );
+
+        assertFalse(response.isCached());
+        assertEquals(sourceHash, response.getSourceContentHash());
+        ArgumentCaptor<RegistrationTargetLanguage> languageCaptor =
+                ArgumentCaptor.forClass(RegistrationTargetLanguage.class);
+        verify(fixture.aiTranslationService).translate(eq("Is late checkout possible?"), languageCaptor.capture());
+        assertEquals("ja", languageCaptor.getValue().getCode());
+        assertTrue(languageCaptor.getValue().getName().contains("Late checkout is available until 12:00"));
     }
 
     @Test
@@ -427,11 +493,21 @@ class SuMessagingTranslationServiceTest {
         private final SuMessageTranslationRepository translationRepository =
                 Mockito.mock(SuMessageTranslationRepository.class);
         private final AiTranslationService aiTranslationService = Mockito.mock(AiTranslationService.class);
-        private final SuMessagingTranslationService service = new SuMessagingTranslationService(
-                threadRepository,
-                messageRepository,
-                translationRepository,
-                aiTranslationService
-        );
+        private final MessageKnowledgeSearchService knowledgeSearchService =
+                Mockito.mock(MessageKnowledgeSearchService.class);
+        private final SuMessagingThreadContextResolver contextResolver =
+                Mockito.mock(SuMessagingThreadContextResolver.class);
+        private final SuMessagingTranslationService service;
+
+        private TestFixture() {
+            service = new SuMessagingTranslationService(
+                    threadRepository,
+                    messageRepository,
+                    translationRepository,
+                    aiTranslationService
+            );
+            service.setKnowledgeSearchService(knowledgeSearchService);
+            service.setContextResolver(contextResolver);
+        }
     }
 }

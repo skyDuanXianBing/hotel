@@ -188,6 +188,12 @@ const router = createRouter({
               component: () => import('@/views/settings/general/AutoMessage.vue'),
               meta: { title: 'Automation Messages', requiresAuth: true },
             },
+            {
+              path: 'general/ai-message-knowledge',
+              name: 'AiMessageKnowledge',
+              component: () => import('@/views/settings/general/AiMessageKnowledge.vue'),
+              meta: { title: 'AI Message Knowledge Base', requiresAuth: true },
+            },
             // Quick tools
             {
               path: 'tools',
@@ -607,6 +613,7 @@ const routePermissionConfig = new Map<
   ['GeneralChannelSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['QuickReply', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['AutoMessage', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['AiMessageKnowledge', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['QuickTools', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['CleaningSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['CleaningSupplies', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
@@ -658,6 +665,7 @@ const routeTitleKeyByName = new Map<string, string>([
   ['GeneralChannelSettings', 'routeTitles.channelSettings'],
   ['QuickReply', 'routeTitles.quickReply'],
   ['AutoMessage', 'routeTitles.automationMessages'],
+  ['AiMessageKnowledge', 'routeTitles.aiMessageKnowledge'],
   ['QuickTools', 'settings.layout.items.quickTools'],
   ['CleaningSettings', 'routeTitles.settings'],
   ['CleaningSupplies', 'routeTitles.supplies'],

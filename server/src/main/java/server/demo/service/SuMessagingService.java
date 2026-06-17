@@ -7,6 +7,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class SuMessagingService {
@@ -79,6 +82,9 @@ public class SuMessagingService {
     private final SuAccessTokenService suAccessTokenService;
     private final ObjectMapper objectMapper;
     private final SuMessagingRealtimeGateway suMessagingRealtimeGateway;
+    private MessageKnowledgeRefinementService knowledgeRefinementService;
+    @Value("${messaging.knowledge.enabled:false}")
+    private boolean messagingKnowledgeEnabled = false;
 
     public SuMessagingService(
             SuMessageThreadRepository threadRepository,
@@ -102,6 +108,15 @@ public class SuMessagingService {
         this.suAccessTokenService = suAccessTokenService;
         this.objectMapper = objectMapper;
         this.suMessagingRealtimeGateway = suMessagingRealtimeGateway;
+    }
+
+    @Autowired(required = false)
+    public void setKnowledgeRefinementService(MessageKnowledgeRefinementService knowledgeRefinementService) {
+        this.knowledgeRefinementService = knowledgeRefinementService;
+    }
+
+    void setMessagingKnowledgeEnabled(boolean messagingKnowledgeEnabled) {
+        this.messagingKnowledgeEnabled = messagingKnowledgeEnabled;
     }
 
     @Transactional
@@ -603,18 +618,113 @@ public class SuMessagingService {
         threadRepository.save(thread);
 
         SuMessagingMessageDTO dto = toMessageDTO(msg);
+        Long savedStaffMessageId = msg.getId();
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
                     suMessagingRealtimeGateway.broadcastMessageCreated(storeId, threadId, dto);
+                    triggerKnowledgeRefinementAfterCommit(storeId, threadId, savedStaffMessageId);
                 }
             });
         } else {
             suMessagingRealtimeGateway.broadcastMessageCreated(storeId, threadId, dto);
+            triggerKnowledgeRefinementAfterCommit(storeId, threadId, savedStaffMessageId);
         }
 
         return dto;
+    }
+
+    private void triggerKnowledgeRefinementAfterCommit(Long storeId, Long threadId, Long staffMessageId) {
+        if (!messagingKnowledgeEnabled
+                || knowledgeRefinementService == null
+                || storeId == null
+                || threadId == null
+                || staffMessageId == null) {
+            return;
+        }
+        CompletableFuture.runAsync(() -> refineSentStaffMessageSafely(storeId, threadId, staffMessageId));
+    }
+
+    void refineSentStaffMessageSafely(Long storeId, Long threadId, Long staffMessageId) {
+        try {
+            refineSentStaffMessage(storeId, threadId, staffMessageId);
+        } catch (Exception e) {
+            logger.warn(
+                    "[SuMessaging] Knowledge refinement after send failed. storeId={}, threadId={}, staffMessageId={}, error={}",
+                    storeId,
+                    threadId,
+                    staffMessageId,
+                    e.getMessage(),
+                    e
+            );
+        }
+    }
+
+    private void refineSentStaffMessage(Long storeId, Long threadId, Long staffMessageId) {
+        if (!messagingKnowledgeEnabled || knowledgeRefinementService == null) {
+            return;
+        }
+
+        SuMessage staffMessage = messageRepository
+                .findByStoreIdAndThreadIdAndId(storeId, threadId, staffMessageId)
+                .orElse(null);
+        if (!isSuccessfulStaffMessage(storeId, threadId, staffMessage)) {
+            return;
+        }
+
+        List<SuMessage> guestMessages = messageRepository.findPreviousMessageBySenderForKnowledgeScanner(
+                storeId,
+                threadId,
+                SuMessagingSenderType.GUEST,
+                staffMessageId,
+                PageRequest.of(0, 1)
+        );
+        if (guestMessages == null || guestMessages.isEmpty()) {
+            return;
+        }
+
+        SuMessage guestMessage = guestMessages.get(0);
+        if (guestMessage == null || guestMessage.getId() == null) {
+            return;
+        }
+
+        boolean hasEarlierSuccessfulStaffReply = messageRepository.existsSuccessfulStaffReplyBetween(
+                storeId,
+                threadId,
+                SuMessagingSenderType.STAFF,
+                guestMessage.getId(),
+                staffMessageId
+        );
+        if (hasEarlierSuccessfulStaffReply) {
+            return;
+        }
+
+        knowledgeRefinementService.refineSourcePair(storeId, staffMessage.getThread(), guestMessage, staffMessage);
+    }
+
+    private static boolean isSuccessfulStaffMessage(Long storeId, Long threadId, SuMessage message) {
+        if (storeId == null || threadId == null || message == null || message.getThread() == null) {
+            return false;
+        }
+        if (!storeId.equals(message.getStoreId())) {
+            return false;
+        }
+        if (!threadId.equals(message.getThread().getId())) {
+            return false;
+        }
+        if (message.getSenderType() != SuMessagingSenderType.STAFF) {
+            return false;
+        }
+        if (message.getContent() == null || message.getContent().isBlank()) {
+            return false;
+        }
+        String deliveryStatus = message.getDeliveryStatus();
+        if (deliveryStatus == null || deliveryStatus.isBlank()) {
+            return true;
+        }
+        return !"FAILED".equalsIgnoreCase(deliveryStatus)
+                && !"SENDING".equalsIgnoreCase(deliveryStatus);
     }
 
     private Map<String, Object> buildReplyPayload(SuMessageThread thread, String message) {

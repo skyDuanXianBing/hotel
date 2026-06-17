@@ -195,6 +195,7 @@ const zhTW = mergeLocaleMessages(
       channelSettings: '渠道設定',
       quickReply: '快捷回覆',
       automationMessages: '自動化訊息',
+      aiMessageKnowledge: 'AI訊息知識庫',
       settings: '設定',
       supplies: '易耗品',
       autoCheckinSettings: '自動入住設定',

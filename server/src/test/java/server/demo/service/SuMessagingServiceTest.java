@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -877,6 +878,216 @@ class SuMessagingServiceTest {
         verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
     }
 
+    @Test
+    void sendMessage_shouldNotTriggerKnowledgeRefinementWhenMessagingKnowledgeDisabled() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver =
+                new ReservationBookingKeyResolver(reservationRepository);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        MessageKnowledgeRefinementService refinementService = Mockito.mock(MessageKnowledgeRefinementService.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        SuMessagingService service = new SuMessagingService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                reservationBookingKeyResolver,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                suApiClient,
+                suAccessTokenService,
+                objectMapper,
+                realtimeGateway
+        );
+        service.setKnowledgeRefinementService(refinementService);
+
+        SuMessageThread thread = newSendableThread();
+        when(threadRepository.findByStoreIdAndId(10L, 5L)).thenReturn(Optional.of(thread));
+        stubSuccessfulSuMessageSend(objectMapper, suApiClient, suAccessTokenService);
+        when(messageRepository.save(any())).thenAnswer(inv -> {
+            SuMessage message = inv.getArgument(0);
+            message.setId(101L);
+            return message;
+        });
+        when(threadRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        SuMessagingSendRequest request = new SuMessagingSendRequest();
+        request.setContent("Hi");
+        service.sendMessage(10L, 5L, request);
+
+        verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
+        verify(refinementService, Mockito.after(250).never()).refineSourcePair(any(), any(), any(), any());
+        verify(messageRepository, Mockito.after(250).never()).findByStoreIdAndThreadIdAndId(
+                eq(10L),
+                eq(5L),
+                eq(101L)
+        );
+    }
+
+    @Test
+    void sendMessage_shouldTriggerKnowledgeRefinementWhenMessagingKnowledgeEnabled() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        ReservationBookingKeyResolver reservationBookingKeyResolver =
+                new ReservationBookingKeyResolver(reservationRepository);
+        SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
+        SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
+        SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        MessageKnowledgeRefinementService refinementService = Mockito.mock(MessageKnowledgeRefinementService.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        SuMessagingService service = new SuMessagingService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                reservationBookingKeyResolver,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                suApiClient,
+                suAccessTokenService,
+                objectMapper,
+                realtimeGateway
+        );
+        service.setKnowledgeRefinementService(refinementService);
+        service.setMessagingKnowledgeEnabled(true);
+
+        SuMessageThread thread = newSendableThread();
+        SuMessage guestMessage = new SuMessage();
+        guestMessage.setId(100L);
+        guestMessage.setStoreId(10L);
+        guestMessage.setThread(thread);
+        guestMessage.setSenderType(SuMessagingSenderType.GUEST);
+        guestMessage.setContent("Can I store luggage?");
+        SuMessage staffMessage = new SuMessage();
+        staffMessage.setId(101L);
+        staffMessage.setStoreId(10L);
+        staffMessage.setThread(thread);
+        staffMessage.setSenderType(SuMessagingSenderType.STAFF);
+        staffMessage.setContent("Hi");
+        staffMessage.setDeliveryStatus("SENT");
+
+        when(threadRepository.findByStoreIdAndId(10L, 5L)).thenReturn(Optional.of(thread));
+        stubSuccessfulSuMessageSend(objectMapper, suApiClient, suAccessTokenService);
+        when(messageRepository.save(any())).thenAnswer(inv -> {
+            SuMessage message = inv.getArgument(0);
+            message.setId(101L);
+            return message;
+        });
+        when(threadRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(messageRepository.findByStoreIdAndThreadIdAndId(10L, 5L, 101L))
+                .thenReturn(Optional.of(staffMessage));
+        when(messageRepository.findPreviousMessageBySenderForKnowledgeScanner(
+                eq(10L),
+                eq(5L),
+                eq(SuMessagingSenderType.GUEST),
+                eq(101L),
+                eq(PageRequest.of(0, 1))
+        )).thenReturn(List.of(guestMessage));
+        when(messageRepository.existsSuccessfulStaffReplyBetween(
+                10L,
+                5L,
+                SuMessagingSenderType.STAFF,
+                100L,
+                101L
+        )).thenReturn(false);
+
+        SuMessagingSendRequest request = new SuMessagingSendRequest();
+        request.setContent("Hi");
+        service.sendMessage(10L, 5L, request);
+
+        verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
+        verify(refinementService, Mockito.timeout(1000))
+                .refineSourcePair(10L, thread, guestMessage, staffMessage);
+    }
+
+    @Test
+    void refineSentStaffMessageSafely_shouldReloadSuccessfulStaffMessageAndPreviousGuest() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        MessageKnowledgeRefinementService refinementService = Mockito.mock(MessageKnowledgeRefinementService.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+        service.setKnowledgeRefinementService(refinementService);
+        service.setMessagingKnowledgeEnabled(true);
+
+        SuMessageThread thread = new SuMessageThread();
+        thread.setId(5L);
+        thread.setStoreId(10L);
+        SuMessage guestMessage = new SuMessage();
+        guestMessage.setId(100L);
+        guestMessage.setStoreId(10L);
+        guestMessage.setThread(thread);
+        guestMessage.setSenderType(SuMessagingSenderType.GUEST);
+        guestMessage.setContent("Can I store luggage?");
+        SuMessage staffMessage = new SuMessage();
+        staffMessage.setId(101L);
+        staffMessage.setStoreId(10L);
+        staffMessage.setThread(thread);
+        staffMessage.setSenderType(SuMessagingSenderType.STAFF);
+        staffMessage.setContent("We can keep luggage at the front desk.");
+        staffMessage.setDeliveryStatus("SENT");
+
+        when(messageRepository.findByStoreIdAndThreadIdAndId(10L, 5L, 101L))
+                .thenReturn(Optional.of(staffMessage));
+        when(messageRepository.findPreviousMessageBySenderForKnowledgeScanner(
+                eq(10L),
+                eq(5L),
+                eq(SuMessagingSenderType.GUEST),
+                eq(101L),
+                eq(PageRequest.of(0, 1))
+        )).thenReturn(List.of(guestMessage));
+        when(messageRepository.existsSuccessfulStaffReplyBetween(
+                10L,
+                5L,
+                SuMessagingSenderType.STAFF,
+                100L,
+                101L
+        )).thenReturn(false);
+
+        service.refineSentStaffMessageSafely(10L, 5L, 101L);
+
+        verify(refinementService).refineSourcePair(10L, thread, guestMessage, staffMessage);
+    }
+
+    @Test
+    void refineSentStaffMessageSafely_shouldSkipFailedStaffMessage() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        MessageKnowledgeRefinementService refinementService = Mockito.mock(MessageKnowledgeRefinementService.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+        service.setKnowledgeRefinementService(refinementService);
+        service.setMessagingKnowledgeEnabled(true);
+
+        SuMessageThread thread = new SuMessageThread();
+        thread.setId(5L);
+        thread.setStoreId(10L);
+        SuMessage staffMessage = new SuMessage();
+        staffMessage.setId(101L);
+        staffMessage.setStoreId(10L);
+        staffMessage.setThread(thread);
+        staffMessage.setSenderType(SuMessagingSenderType.STAFF);
+        staffMessage.setContent("We can keep luggage at the front desk.");
+        staffMessage.setDeliveryStatus("FAILED");
+
+        when(messageRepository.findByStoreIdAndThreadIdAndId(10L, 5L, 101L))
+                .thenReturn(Optional.of(staffMessage));
+
+        service.refineSentStaffMessageSafely(10L, 5L, 101L);
+
+        verify(refinementService, never()).refineSourcePair(any(), any(), any(), any());
+        verify(messageRepository, never()).findPreviousMessageBySenderForKnowledgeScanner(
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+    }
+
     private static SuMessagingService newService(
             SuMessageThreadRepository threadRepository,
             SuMessageRepository messageRepository,
@@ -932,6 +1143,35 @@ class SuMessagingServiceTest {
         store.setId(storeId);
         store.setTimezone(timezone);
         return store;
+    }
+
+    private static SuMessageThread newSendableThread() {
+        SuMessageThread thread = new SuMessageThread();
+        thread.setId(5L);
+        thread.setStoreId(10L);
+        thread.setSuHotelId("STORE10");
+        thread.setChannelId(SuMessagingService.CHANNEL_AIRBNB);
+        thread.setThreadId("T1");
+        thread.setGuestId("G1");
+        thread.setBookingId("B1");
+        thread.setListingId("L1");
+        thread.setClosed(false);
+        return thread;
+    }
+
+    private static void stubSuccessfulSuMessageSend(
+            ObjectMapper objectMapper,
+            SuApiClient suApiClient,
+            SuAccessTokenService suAccessTokenService
+    ) throws Exception {
+        JsonNode ok = objectMapper.readTree("{\"Status\":\"Success\"}");
+        when(suApiClient.postMessagingAB(anyString(), any())).thenReturn(ok);
+        when(suApiClient.isSuSuccess(ok)).thenReturn(true);
+        when(suAccessTokenService.executeWithTokenRetry(any(), anyString())).thenAnswer(inv -> {
+            @SuppressWarnings("unchecked")
+            Function<String, Object> fn = (Function<String, Object>) inv.getArgument(0);
+            return fn.apply("token");
+        });
     }
 
     private static SuMessageThread newThread(

@@ -195,6 +195,7 @@ const zhCN = mergeLocaleMessages(
       channelSettings: '渠道设置',
       quickReply: '快捷回复',
       automationMessages: '自动化消息',
+      aiMessageKnowledge: 'AI消息知识库',
       settings: '设置',
       supplies: '易耗品',
       autoCheckinSettings: '自动入住设置',

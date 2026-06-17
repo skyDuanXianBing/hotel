@@ -197,6 +197,7 @@ const ja = mergeLocaleMessages(
       channelSettings: 'チャネル設定',
       quickReply: 'クイック返信',
       automationMessages: '自動メッセージ',
+      aiMessageKnowledge: 'AIメッセージ知識ベース',
       settings: '設定',
       supplies: '消耗品',
       autoCheckinSettings: '自動チェックイン設定',
