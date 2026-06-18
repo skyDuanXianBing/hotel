@@ -257,9 +257,18 @@
                       dailyStatus.date,
                     ),
                     'has-reservation': !!dailyStatus.reservation && !isRoomCollapsed,
-                    'reservation-start-cell': isReservationStartCell(dailyStatus),
-                    'reservation-middle-cell': isReservationMiddleCell(dailyStatus),
-                    'reservation-end-cell': isReservationEndCell(dailyStatus),
+                    'reservation-segment-start-cell': isReservationSegmentStartCell(
+                      roomData,
+                      dailyStatus,
+                    ),
+                    'reservation-segment-middle-cell': isReservationSegmentMiddleCell(
+                      roomData,
+                      dailyStatus,
+                    ),
+                    'reservation-segment-end-cell': isReservationSegmentEndCell(
+                      roomData,
+                      dailyStatus,
+                    ),
                     'room-change-drop-target': isRoomChangeDropTarget(
                       roomData.roomId,
                       dailyStatus.date,
@@ -329,22 +338,24 @@
                 >
                   <div
                     class="reservation-ribbon"
-                    :class="{ 'reservation-draggable': canDragReservationAtCell(dailyStatus) }"
-                    :style="getReservationRibbonStyle(dailyStatus)"
+                    :class="{
+                      'reservation-draggable': canDragReservationAtCell(dailyStatus),
+                    }"
+                    :style="getReservationRibbonStyle(roomData, dailyStatus)"
                     :draggable="canDragReservationAtCell(dailyStatus)"
                     @mousedown.stop
                     @dragstart="onReservationDragStart($event, roomData, dailyStatus)"
                     @dragend="onReservationDragEnd"
                   >
-                    <template v-if="isReservationStartCell(dailyStatus)">
+                    <template v-if="isReservationVisibleStartCell(dailyStatus)">
                       <div class="reservation-guest-name">
-                        {{ dailyStatus.reservation.guestName }}
+                        {{ dailyStatus.reservation?.guestName }}
                       </div>
                       <div
                         class="reservation-channel-badge"
                         :style="getReservationChannelBadgeStyle(dailyStatus)"
                       >
-                        {{ dailyStatus.reservation.channel }}
+                        {{ dailyStatus.reservation?.channel }}
                       </div>
                     </template>
                   </div>
@@ -2854,6 +2865,110 @@ const isReservationMiddleCell = (dailyStatus: DailyRoomStatus) => {
   )
 }
 
+const getReservationVisibleRange = (dailyStatus: DailyRoomStatus) => {
+  const reservation = dailyStatus.reservation
+  if (!reservation) return null
+
+  const checkInDate = getReservationDateOnly(getReservationDateValue(reservation, 'checkIn'))
+  const stayEndDate = getReservationStayEndDate(reservation)
+  if (!checkInDate || !stayEndDate) return null
+
+  const visibleStartDate = normalizeDateOnly(visibleDateRange.value[0])
+  const visibleEndDate = normalizeDateOnly(visibleDateRange.value[1])
+  const startDate = checkInDate > visibleStartDate ? checkInDate : visibleStartDate
+  const endDate = stayEndDate < visibleEndDate ? stayEndDate : visibleEndDate
+
+  if (startDate > endDate) return null
+
+  return {
+    checkInDate,
+    stayEndDate,
+    startDate,
+    endDate,
+  }
+}
+
+const isReservationVisibleStartCell = (dailyStatus: DailyRoomStatus) => {
+  const visibleRange = getReservationVisibleRange(dailyStatus)
+  if (!visibleRange) return false
+  return normalizeDateOnly(dailyStatus.date) === visibleRange.startDate
+}
+
+const getReservationIdentity = (reservation: Record<string, any> | null | undefined) => {
+  if (!reservation) return ''
+
+  const reservationId = String(reservation.id || '').trim()
+  if (reservationId) return `id:${reservationId}`
+
+  const groupOrderNo = String(reservation.groupOrderNo || '').trim()
+  if (groupOrderNo) return `group:${groupOrderNo}`
+
+  const orderNumber = String(reservation.orderNumber || '').trim()
+  if (orderNumber) return `order:${orderNumber}`
+
+  const guestName = String(reservation.guestName || '').trim()
+  const checkIn = getReservationDateOnly(getReservationDateValue(reservation, 'checkIn'))
+  const checkOut = getReservationDateOnly(getReservationDateValue(reservation, 'checkOut'))
+  return guestName && checkIn && checkOut ? `stay:${guestName}:${checkIn}:${checkOut}` : ''
+}
+
+const isSameReservation = (
+  currentReservation: Record<string, any> | null | undefined,
+  adjacentReservation: Record<string, any> | null | undefined,
+) => {
+  const currentIdentity = getReservationIdentity(currentReservation)
+  return !!currentIdentity && currentIdentity === getReservationIdentity(adjacentReservation)
+}
+
+const getAdjacentDailyStatus = (
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+  offsetDays: number,
+) => {
+  const adjacentDate = addDaysToYmd(normalizeDateOnly(dailyStatus.date), offsetDays)
+  return roomData.dailyStatus.find((daily) => normalizeDateOnly(daily.date) === adjacentDate)
+}
+
+const hasSameReservationOnAdjacentDate = (
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+  offsetDays: number,
+) => {
+  const adjacentDailyStatus = getAdjacentDailyStatus(roomData, dailyStatus, offsetDays)
+  return isSameReservation(dailyStatus.reservation, adjacentDailyStatus?.reservation)
+}
+
+const isReservationSegmentStartCell = (
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  return (
+    !!dailyStatus.reservation &&
+    !hasSameReservationOnAdjacentDate(roomData, dailyStatus, -1)
+  )
+}
+
+const isReservationSegmentEndCell = (
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  return (
+    !!dailyStatus.reservation &&
+    !hasSameReservationOnAdjacentDate(roomData, dailyStatus, 1)
+  )
+}
+
+const isReservationSegmentMiddleCell = (
+  roomData: CalendarRoomData,
+  dailyStatus: DailyRoomStatus,
+) => {
+  return (
+    !!dailyStatus.reservation &&
+    !isReservationSegmentStartCell(roomData, dailyStatus) &&
+    !isReservationSegmentEndCell(roomData, dailyStatus)
+  )
+}
+
 const getReservationDateDiffNights = (reservation: Record<string, any> | null | undefined) => {
   if (!reservation) return null
 
@@ -4350,12 +4465,30 @@ const getReservationRibbonPalette = (dailyStatus: DailyRoomStatus) => {
   }
 }
 
-const getReservationRibbonStyle = (dailyStatus: DailyRoomStatus) => {
+const getReservationRibbonStyle = (roomData: CalendarRoomData, dailyStatus: DailyRoomStatus) => {
   const palette = getReservationRibbonPalette(dailyStatus)
+  const segmentStarts = isReservationSegmentStartCell(roomData, dailyStatus)
+  const segmentEnds = isReservationSegmentEndCell(roomData, dailyStatus)
+  const boxShadowParts = [
+    `inset 0 1px 0 ${palette.borderColor}`,
+    `inset 0 -1px 0 ${palette.borderColor}`,
+  ]
+
+  if (segmentStarts) {
+    boxShadowParts.push(`inset 1px 0 0 ${palette.borderColor}`)
+  }
+  if (segmentEnds) {
+    boxShadowParts.push(`inset -1px 0 0 ${palette.borderColor}`)
+  }
+
   return {
     background: palette.background,
-    boxShadow: `inset 0 0 0 1px ${palette.borderColor}`,
+    boxShadow: boxShadowParts.join(', '),
     color: palette.textColor,
+    borderTopLeftRadius: segmentStarts ? '8px' : '0',
+    borderBottomLeftRadius: segmentStarts ? '8px' : '0',
+    borderTopRightRadius: segmentEnds ? '8px' : '0',
+    borderBottomRightRadius: segmentEnds ? '8px' : '0',
   }
 }
 
@@ -8062,32 +8195,33 @@ onActivated(async () => {
   background: transparent;
   border-top-color: transparent;
   border-left-color: transparent;
+  border-bottom-color: transparent;
   padding: 0;
   overflow: hidden;
 }
 
-.status-cell.reservation-middle-cell,
-.status-cell.reservation-end-cell {
+.status-cell.reservation-segment-middle-cell,
+.status-cell.reservation-segment-end-cell {
   border-left-color: transparent;
   border-left-width: 0;
 }
 
-.status-cell.reservation-start-cell,
-.status-cell.reservation-middle-cell {
+.status-cell.reservation-segment-start-cell,
+.status-cell.reservation-segment-middle-cell {
   border-right-color: transparent;
   border-right-width: 0;
 }
 
-.status-cell.reservation-start-cell {
+.status-cell.reservation-segment-start-cell {
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
 
-.status-cell.reservation-middle-cell {
+.status-cell.reservation-segment-middle-cell {
   border-radius: 0;
 }
 
-.status-cell.reservation-end-cell {
+.status-cell.reservation-segment-end-cell {
   border-top-right-radius: 6px;
   border-bottom-right-radius: 6px;
 }
@@ -8122,7 +8256,9 @@ onActivated(async () => {
   flex-direction: column;
   justify-content: center;
   padding: calc(10px * var(--calendar-scale)) calc(14px * var(--calendar-scale));
-  box-shadow: inset 0 0 0 1px rgba(230, 177, 135, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(230, 177, 135, 0.7),
+    inset 0 -1px 0 rgba(230, 177, 135, 0.7);
 }
 
 .reservation-ribbon.reservation-draggable {
@@ -8134,14 +8270,26 @@ onActivated(async () => {
   cursor: grabbing;
 }
 
-.status-cell.reservation-start-cell .reservation-ribbon {
+.status-cell.reservation-segment-start-cell .reservation-ribbon {
   border-top-left-radius: 8px;
   border-bottom-left-radius: 8px;
+  box-shadow:
+    inset 1px 0 0 rgba(230, 177, 135, 0.7),
+    inset 0 1px 0 rgba(230, 177, 135, 0.7),
+    inset 0 -1px 0 rgba(230, 177, 135, 0.7);
 }
 
-.status-cell.reservation-end-cell .reservation-ribbon {
+.status-cell.reservation-segment-end-cell .reservation-ribbon {
   border-top-right-radius: 8px;
   border-bottom-right-radius: 8px;
+  box-shadow:
+    inset -1px 0 0 rgba(230, 177, 135, 0.7),
+    inset 0 1px 0 rgba(230, 177, 135, 0.7),
+    inset 0 -1px 0 rgba(230, 177, 135, 0.7);
+}
+
+.status-cell.reservation-segment-start-cell.reservation-segment-end-cell .reservation-ribbon {
+  box-shadow: inset 0 0 0 1px rgba(230, 177, 135, 0.7);
 }
 
 .reservation-note-indicator {
