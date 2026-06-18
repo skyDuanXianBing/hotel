@@ -194,6 +194,9 @@
                   {{ t('stage6.components.messagesPage.status.closed') }}
                 </span>
               </div>
+              <div v-if="activeConversationListingInfo" class="channel-listing-text">
+                {{ activeConversationListingInfo }}
+              </div>
             </div>
           </div>
           <div class="header-actions">
@@ -682,6 +685,7 @@ interface ApiResponse<T> {
 
 interface UiTextOptions {
   count?: number
+  listingName?: string
 }
 
 const sanitizeUserFacingMessage = (rawMessage?: string) => {
@@ -896,6 +900,7 @@ const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
     booking: 'Booking.com',
     allChannels: 'All channels',
     routeTargetNotFound: 'No conversation matched this order. Try adjusting the filters.',
+    listingLine: 'Listing: {listingName}',
   },
   zh: {
     searchPlaceholder: '搜索住客、订单、房源或消息',
@@ -923,6 +928,7 @@ const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
     booking: 'Booking.com',
     allChannels: '全部渠道',
     routeTargetNotFound: '没有匹配到该订单的会话，可调整筛选条件后重试。',
+    listingLine: '房源：{listingName}',
   },
   ja: {
     searchPlaceholder: 'ゲスト、予約、リスティング、メッセージを検索',
@@ -950,6 +956,7 @@ const UI_TEXT: Record<UiTextLocale, Record<string, string>> = {
     booking: 'Booking.com',
     allChannels: 'すべてのチャネル',
     routeTargetNotFound: 'この予約に一致する会話が見つかりませんでした。',
+    listingLine: 'リスティング：{listingName}',
   },
 }
 
@@ -965,9 +972,13 @@ const uiTextLocale = computed<UiTextLocale>(() => {
 })
 
 const uiText = (key: string, options: UiTextOptions = {}) => {
-  const text = UI_TEXT[uiTextLocale.value][key] || UI_TEXT.en[key] || key
-  if (typeof options.count === 'number') {
-    return text.replace('{count}', String(options.count))
+  let text = UI_TEXT[uiTextLocale.value][key] || UI_TEXT.en[key] || key
+  for (const optionKey of Object.keys(options) as Array<keyof UiTextOptions>) {
+    const optionValue = options[optionKey]
+    if (optionValue === undefined) {
+      continue
+    }
+    text = text.replace(`{${optionKey}}`, String(optionValue))
   }
   return text
 }
@@ -2617,6 +2628,30 @@ const getConversationStayInfo = (conversation: SuMessagingThreadDTO) => {
   return parts.join(' · ')
 }
 
+const getConversationListingInfo = (conversation: SuMessagingThreadDTO) => {
+  if (conversation.orderKind !== 'INQUIRY') {
+    return ''
+  }
+  if (!isAirbnbConversation(conversation)) {
+    return ''
+  }
+
+  const listingName = (conversation.listingName || '').trim()
+  if (!listingName) {
+    return ''
+  }
+
+  return uiText('listingLine', { listingName })
+}
+
+const activeConversationListingInfo = computed(() => {
+  const conversation = activeConversation.value
+  if (!conversation) {
+    return ''
+  }
+  return getConversationListingInfo(conversation)
+})
+
 const toComparableText = (value?: string | null) => (value || '').trim().toLowerCase()
 
 const getRouteQueryText = (value: unknown) => {
@@ -3439,6 +3474,14 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.channel-listing-text {
+  margin-top: 4px;
+  color: #909399;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .header-actions {
