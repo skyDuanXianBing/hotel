@@ -38,6 +38,7 @@ class SuAiAutoReplyServiceTest {
         SuApiClient suApiClient = Mockito.mock(SuApiClient.class);
         SuAccessTokenService suAccessTokenService = Mockito.mock(SuAccessTokenService.class);
         SuMessagingRealtimeGateway realtimeGateway = Mockito.mock(SuMessagingRealtimeGateway.class);
+        MessageKnowledgeThreadDirtyMarker dirtyMarker = Mockito.mock(MessageKnowledgeThreadDirtyMarker.class);
         ObjectMapper objectMapper = new ObjectMapper();
 
         SuAiAutoReplyService service = new SuAiAutoReplyService(
@@ -50,6 +51,7 @@ class SuAiAutoReplyServiceTest {
                 realtimeGateway,
                 objectMapper
         );
+        service.setKnowledgeThreadDirtyMarker(dirtyMarker);
         ReflectionTestUtils.setField(service, "senderName", "AI客服");
         ReflectionTestUtils.setField(service, "maxInputLength", 1200);
 
@@ -116,6 +118,14 @@ class SuAiAutoReplyServiceTest {
         verify(sendLogRepository, atLeast(2)).save(any(AutoMessageSendLog.class));
         verify(realtimeGateway).broadcastMessageCreated(eq(10L), eq(5L), any());
         verify(realtimeGateway).broadcastMessageUpdated(eq(10L), eq(5L), any());
+
+        ArgumentCaptor<SuMessage> dirtyCaptor = ArgumentCaptor.forClass(SuMessage.class);
+        verify(dirtyMarker).markDirty(dirtyCaptor.capture());
+        SuMessage dirtyMessage = dirtyCaptor.getValue();
+        assertEquals(202L, dirtyMessage.getId());
+        assertEquals(10L, dirtyMessage.getStoreId());
+        assertEquals(5L, dirtyMessage.getThread().getId());
+        assertEquals(SuMessagingSenderType.STAFF, dirtyMessage.getSenderType());
     }
 
     @Test

@@ -16,6 +16,7 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MessageKnowledgeConfigurationDefaultsTest {
@@ -25,13 +26,17 @@ class MessageKnowledgeConfigurationDefaultsTest {
         PropertySourcesPropertyResolver resolver = newResolver(Map.of());
 
         assertFalse(booleanProperty(resolver, "messaging.knowledge.enabled"));
-        assertFalse(booleanProperty(resolver, "messaging.knowledge.refined-scanner.enabled"));
+        assertFalse(booleanProperty(resolver, "messaging.knowledge.thread-extractor.enabled"));
+        assertFalse(booleanProperty(resolver, "messaging.knowledge.thread-scheduler.enabled"));
         assertFalse(booleanProperty(resolver, "messaging.knowledge.embedding.enabled"));
         assertFalse(booleanProperty(resolver, "messaging.knowledge.embedding.backfill.enabled"));
         assertFalse(booleanProperty(resolver, "messaging.knowledge.semantic-retrieval.enabled"));
         assertFalse(booleanProperty(resolver, "messaging.knowledge.topic-classifier.enabled"));
         assertFalse(booleanProperty(resolver, "messaging.knowledge.semantic-rerank.enabled"));
-        assertFalse(booleanProperty(resolver, "messaging.knowledge.indexer.enabled"));
+        assertMissing(resolver, "messaging.knowledge.refined-scanner.enabled");
+        assertMissing(resolver, "messaging.knowledge.indexer.enabled");
+        assertMissing(resolver, "messaging.knowledge.legacy-fallback.enabled");
+        assertMissing(resolver, "messaging.knowledge.legacy-rebuild.enabled");
     }
 
     @Test
@@ -41,23 +46,27 @@ class MessageKnowledgeConfigurationDefaultsTest {
         ));
 
         assertTrue(booleanProperty(resolver, "messaging.knowledge.enabled"));
-        assertTrue(booleanProperty(resolver, "messaging.knowledge.refined-scanner.enabled"));
+        assertTrue(booleanProperty(resolver, "messaging.knowledge.thread-extractor.enabled"));
+        assertTrue(booleanProperty(resolver, "messaging.knowledge.thread-scheduler.enabled"));
         assertTrue(booleanProperty(resolver, "messaging.knowledge.embedding.enabled"));
         assertTrue(booleanProperty(resolver, "messaging.knowledge.embedding.backfill.enabled"));
         assertTrue(booleanProperty(resolver, "messaging.knowledge.semantic-retrieval.enabled"));
         assertTrue(booleanProperty(resolver, "messaging.knowledge.topic-classifier.enabled"));
 
-        assertFalse(booleanProperty(resolver, "messaging.knowledge.indexer.enabled"));
         assertFalse(booleanProperty(resolver, "messaging.knowledge.semantic-rerank.enabled"));
+        assertMissing(resolver, "messaging.knowledge.refined-scanner.enabled");
+        assertMissing(resolver, "messaging.knowledge.indexer.enabled");
+        assertMissing(resolver, "messaging.knowledge.legacy-fallback.enabled");
+        assertMissing(resolver, "messaging.knowledge.legacy-rebuild.enabled");
 
-        assertEquals(120000, intProperty(resolver, "messaging.knowledge.refined-scanner.initial-delay-ms"));
-        assertEquals(900000, intProperty(resolver, "messaging.knowledge.refined-scanner.fixed-delay-ms"));
-        assertEquals(1, intProperty(resolver, "messaging.knowledge.refined-scanner.batch-size"));
-        assertEquals(1, intProperty(resolver, "messaging.knowledge.refined-scanner.stores-per-run"));
-        assertEquals(300000, intProperty(resolver, "messaging.knowledge.refined-scanner.lease-ms"));
-        assertEquals(60000, intProperty(resolver, "messaging.knowledge.refined-scanner.success-delay-ms"));
-        assertEquals(3600000, intProperty(resolver, "messaging.knowledge.refined-scanner.idle-delay-ms"));
-        assertEquals(900000, intProperty(resolver, "messaging.knowledge.refined-scanner.failure-backoff-ms"));
+        assertEquals(30, intProperty(resolver, "messaging.knowledge.thread-dirty-marker.delay-minutes"));
+        assertEquals(50, intProperty(resolver, "messaging.knowledge.thread-extractor.max-topics-per-store"));
+        assertEquals(60000, intProperty(resolver, "messaging.knowledge.thread-scheduler.initial-delay-ms"));
+        assertEquals(60000, intProperty(resolver, "messaging.knowledge.thread-scheduler.fixed-delay-ms"));
+        assertEquals(3, intProperty(resolver, "messaging.knowledge.thread-scheduler.claim-size"));
+        assertEquals(3, intProperty(resolver, "messaging.knowledge.thread-scheduler.max-concurrency"));
+        assertEquals(600000, intProperty(resolver, "messaging.knowledge.thread-scheduler.lease-ms"));
+        assertEquals(900000, intProperty(resolver, "messaging.knowledge.thread-scheduler.failure-backoff-ms"));
 
         assertEquals("auto", stringProperty(resolver, "messaging.knowledge.embedding.provider"));
         assertEquals("", stringProperty(resolver, "messaging.knowledge.embedding.model"));
@@ -82,12 +91,13 @@ class MessageKnowledgeConfigurationDefaultsTest {
     void knowledgeDefaults_shouldPreserveLegacySwitchOverride() throws IOException {
         PropertySourcesPropertyResolver resolver = newResolver(Map.of(
                 "MESSAGING_KNOWLEDGE_ENABLED", "true",
-                "MESSAGING_KNOWLEDGE_REFINED_SCANNER_ENABLED", "false",
+                "MESSAGING_KNOWLEDGE_THREAD_EXTRACTOR_ENABLED", "false",
                 "MESSAGING_KNOWLEDGE_TOPIC_CLASSIFIER_ENABLED", "false"
         ));
 
         assertTrue(booleanProperty(resolver, "messaging.knowledge.enabled"));
-        assertFalse(booleanProperty(resolver, "messaging.knowledge.refined-scanner.enabled"));
+        assertFalse(booleanProperty(resolver, "messaging.knowledge.thread-extractor.enabled"));
+        assertFalse(booleanProperty(resolver, "messaging.knowledge.thread-scheduler.enabled"));
         assertFalse(booleanProperty(resolver, "messaging.knowledge.topic-classifier.enabled"));
         assertTrue(booleanProperty(resolver, "messaging.knowledge.embedding.enabled"));
     }
@@ -180,5 +190,9 @@ class MessageKnowledgeConfigurationDefaultsTest {
         String value = resolver.getProperty(key);
         assertNotNull(value, "Missing property: " + key);
         return value;
+    }
+
+    private static void assertMissing(PropertySourcesPropertyResolver resolver, String key) {
+        assertNull(resolver.getProperty(key), "Unexpected property: " + key);
     }
 }

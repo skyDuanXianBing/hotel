@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,7 @@ public class SuAutoReplyService {
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
     private final ObjectMapper objectMapper;
+    private MessageKnowledgeThreadDirtyMarker knowledgeThreadDirtyMarker;
 
     public SuAutoReplyService(
             SuMessageThreadRepository threadRepository,
@@ -71,6 +73,11 @@ public class SuAutoReplyService {
         this.suApiClient = suApiClient;
         this.suAccessTokenService = suAccessTokenService;
         this.objectMapper = objectMapper;
+    }
+
+    @Autowired(required = false)
+    public void setKnowledgeThreadDirtyMarker(MessageKnowledgeThreadDirtyMarker knowledgeThreadDirtyMarker) {
+        this.knowledgeThreadDirtyMarker = knowledgeThreadDirtyMarker;
     }
 
     @Async
@@ -153,11 +160,12 @@ public class SuAutoReplyService {
             msg.setSentAt(UtcTimeUtil.nowLocalDateTime());
             msg.setIsRead(true);
             msg.setRawJson(writeJsonSafely(payload));
-            messageRepository.save(msg);
+            msg = messageRepository.save(msg);
 
             thread.setLastMessage(rendered.trim());
             thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
             threadRepository.save(thread);
+            markKnowledgeThreadDirty(msg);
 
             log.setSuccess(true);
             log.setErrorMessage(null);
@@ -295,5 +303,11 @@ public class SuAutoReplyService {
             return null;
         }
     }
-}
 
+    private void markKnowledgeThreadDirty(SuMessage message) {
+        if (knowledgeThreadDirtyMarker == null) {
+            return;
+        }
+        knowledgeThreadDirtyMarker.markDirty(message);
+    }
+}

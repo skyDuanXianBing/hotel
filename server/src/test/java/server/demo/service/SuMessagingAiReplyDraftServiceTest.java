@@ -7,7 +7,6 @@ import org.mockito.Mockito;
 import org.springframework.data.domain.Pageable;
 import server.demo.dto.SuMessagingAiReplyDraftRequest;
 import server.demo.dto.SuMessagingAiReplyDraftResponse;
-import server.demo.entity.MessageKnowledgeEntry;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.SuMessagingSenderType;
@@ -31,9 +30,9 @@ import static org.mockito.Mockito.when;
 class SuMessagingAiReplyDraftServiceTest {
 
     @Test
-    void generateDraft_shouldNotDependOnKnowledgeIndexService() {
+    void generateDraft_shouldNotDependOnLegacyIndexer() {
         boolean hasIndexerDependency = Arrays.stream(SuMessagingAiReplyDraftService.class.getDeclaredFields())
-                .anyMatch(field -> field.getType().equals(MessageKnowledgeIndexService.class));
+                .anyMatch(field -> field.getType().getSimpleName().contains("KnowledgeIndex"));
 
         assertFalse(hasIndexerDependency);
     }
@@ -85,16 +84,16 @@ class SuMessagingAiReplyDraftServiceTest {
         SuMessage latestGuest = newMessage(201L, thread, SuMessagingSenderType.GUEST, "Is late checkout possible?");
         latestGuest.setRawJson("{\"secret\":\"DO_NOT_LEAK\"}");
 
-        MessageKnowledgeEntry entry = new MessageKnowledgeEntry();
-        entry.setId(1L);
-        entry.setStoreId(26L);
-        entry.setThreadId(11L);
-        entry.setQuestion("Can I check out late?");
-        entry.setAnswer("Late checkout is available until 12:00 if there is no next guest.");
-        entry.setNormalizedText("can i check out late late checkout available");
-        entry.setNormalizedHash("hash");
+        MessageKnowledgeCandidate candidate = new MessageKnowledgeCandidate();
+        candidate.setId(1L);
+        candidate.setStoreId(26L);
+        candidate.setThreadId(11L);
+        candidate.setQuestion("Can I check out late?");
+        candidate.setAnswer("Late checkout is available until 12:00 if there is no next guest.");
+        candidate.setNormalizedText("can i check out late late checkout available");
+        candidate.setNormalizedHash("hash");
         MessageKnowledgeMatch match = new MessageKnowledgeMatch(
-                entry,
+                candidate,
                 0.75,
                 SuMessagingThreadContext.SCOPE_ROOM_TYPE,
                 List.of("KEYWORD_OVERLAP")
@@ -154,16 +153,16 @@ class SuMessagingAiReplyDraftServiceTest {
         SuMessageThread thread = newThread(77L, 26L);
         SuMessage latestGuest = newMessage(201L, thread, SuMessagingSenderType.GUEST, "Is late checkout possible?");
 
-        MessageKnowledgeEntry entry = new MessageKnowledgeEntry();
-        entry.setId(1L);
-        entry.setStoreId(26L);
-        entry.setThreadId(11L);
-        entry.setQuestion("Can I check out late?");
-        entry.setAnswer("Late checkout is available until 12:30 for 1500 JPY.");
-        entry.setNormalizedText("can i check out late late checkout available");
-        entry.setNormalizedHash("hash");
+        MessageKnowledgeCandidate candidate = new MessageKnowledgeCandidate();
+        candidate.setId(1L);
+        candidate.setStoreId(26L);
+        candidate.setThreadId(11L);
+        candidate.setQuestion("Can I check out late?");
+        candidate.setAnswer("Late checkout is available until 12:30 for 1500 JPY.");
+        candidate.setNormalizedText("can i check out late late checkout available");
+        candidate.setNormalizedHash("hash");
         MessageKnowledgeMatch match = new MessageKnowledgeMatch(
-                entry,
+                candidate,
                 0.21,
                 SuMessagingThreadContext.SCOPE_STORE,
                 List.of("KEYWORD_OVERLAP"),

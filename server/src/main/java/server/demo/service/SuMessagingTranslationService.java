@@ -221,8 +221,8 @@ public class SuMessagingTranslationService {
                 addTranslationFacts(facts, seenFacts, reusableFacts);
                 continue;
             }
-            if (match.getEntry() != null) {
-                addTranslationFacts(facts, seenFacts, List.of(match.getEntry().getAnswer()));
+            if (match.getCandidate() != null) {
+                addTranslationFacts(facts, seenFacts, List.of(match.getCandidate().getAnswer()));
             }
         }
         return facts;

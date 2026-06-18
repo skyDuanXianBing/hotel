@@ -3,15 +3,25 @@ package server.demo.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.SuMessagingSenderType;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface SuMessageThreadRepository extends JpaRepository<SuMessageThread, Long> {
+    interface KnowledgeDueThreadRow {
+        Long getStoreId();
+
+        Long getThreadId();
+
+        Long getDirtyMessageId();
+    }
+
     Optional<SuMessageThread> findByStoreIdAndId(Long storeId, Long id);
 
     Optional<SuMessageThread> findByStoreIdAndChannelIdAndThreadKey(Long storeId, Integer channelId, String threadKey);
@@ -132,5 +142,159 @@ public interface SuMessageThreadRepository extends JpaRepository<SuMessageThread
             @Param("externalMessageId") String externalMessageId,
             @Param("messageId") Long messageId,
             Pageable pageable
+    );
+
+    @Query(
+            value = """
+                    SELECT store_id AS storeId,
+                           id AS threadId,
+                           knowledge_dirty_message_id AS dirtyMessageId
+                    FROM su_message_threads
+                    WHERE knowledge_pending = 1
+                      AND (knowledge_extract_after IS NULL OR knowledge_extract_after <= :now)
+                      AND (knowledge_extracting_until IS NULL OR knowledge_extracting_until < :now)
+                    ORDER BY COALESCE(knowledge_extract_after, '1970-01-01 00:00:00') ASC,
+                             store_id ASC,
+                             id ASC
+                    """,
+            nativeQuery = true
+    )
+    List<KnowledgeDueThreadRow> findDueKnowledgeThreads(
+            @Param("now") LocalDateTime now,
+            Pageable pageable
+    );
+
+    @Query(
+            value = """
+                    SELECT id
+                    FROM su_message_threads
+                    WHERE store_id = :storeId
+                      AND knowledge_pending = 1
+                      AND (knowledge_extract_after IS NULL OR knowledge_extract_after <= :now)
+                      AND (knowledge_extracting_until IS NULL OR knowledge_extracting_until < :now)
+                    ORDER BY COALESCE(knowledge_extract_after, '1970-01-01 00:00:00') ASC,
+                             id ASC
+                    """,
+            nativeQuery = true
+    )
+    List<Long> findDueKnowledgeThreadIds(
+            @Param("storeId") Long storeId,
+            @Param("now") LocalDateTime now,
+            Pageable pageable
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    UPDATE su_message_threads
+                    SET knowledge_extracting_owner = :leaseOwner,
+                        knowledge_extracting_until = :leaseUntil,
+                        knowledge_error = NULL,
+                        updated_at = :now
+                    WHERE store_id = :storeId
+                      AND id = :threadId
+                      AND knowledge_pending = 1
+                      AND (knowledge_extract_after IS NULL OR knowledge_extract_after <= :now)
+                      AND (knowledge_extracting_until IS NULL OR knowledge_extracting_until < :now)
+                    """,
+            nativeQuery = true
+    )
+    int claimDueKnowledgeThread(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("now") LocalDateTime now,
+            @Param("leaseOwner") String leaseOwner,
+            @Param("leaseUntil") LocalDateTime leaseUntil
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    UPDATE su_message_threads
+                    SET knowledge_pending = 0,
+                        knowledge_extract_after = NULL,
+                        knowledge_extracting_owner = NULL,
+                        knowledge_extracting_until = NULL,
+                        knowledge_extracted_at = :completedAt,
+                        knowledge_extracted_message_id = :processedMessageId,
+                        knowledge_error = NULL,
+                        knowledge_attempt_count = 0,
+                        knowledge_extractor_version = :extractorVersion,
+                        updated_at = :completedAt
+                    WHERE store_id = :storeId
+                      AND id = :threadId
+                      AND knowledge_extracting_owner = :leaseOwner
+                      AND (
+                            knowledge_dirty_message_id IS NULL
+                            OR knowledge_dirty_message_id <= :processedMessageId
+                          )
+                    """,
+            nativeQuery = true
+    )
+    int completeKnowledgeExtractionIfCurrent(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("leaseOwner") String leaseOwner,
+            @Param("processedMessageId") Long processedMessageId,
+            @Param("completedAt") LocalDateTime completedAt,
+            @Param("extractorVersion") String extractorVersion
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    UPDATE su_message_threads
+                    SET knowledge_extracting_owner = NULL,
+                        knowledge_extracting_until = NULL,
+                        knowledge_extracted_at = :completedAt,
+                        knowledge_extracted_message_id = CASE
+                            WHEN knowledge_extracted_message_id IS NULL
+                                 OR knowledge_extracted_message_id < :processedMessageId
+                            THEN :processedMessageId
+                            ELSE knowledge_extracted_message_id
+                        END,
+                        knowledge_error = NULL,
+                        knowledge_extractor_version = :extractorVersion,
+                        updated_at = :completedAt
+                    WHERE store_id = :storeId
+                      AND id = :threadId
+                      AND knowledge_extracting_owner = :leaseOwner
+                      AND knowledge_dirty_message_id > :processedMessageId
+                    """,
+            nativeQuery = true
+    )
+    int releaseKnowledgeExtractionForStaleDirty(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("leaseOwner") String leaseOwner,
+            @Param("processedMessageId") Long processedMessageId,
+            @Param("completedAt") LocalDateTime completedAt,
+            @Param("extractorVersion") String extractorVersion
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    UPDATE su_message_threads
+                    SET knowledge_pending = 1,
+                        knowledge_extract_after = :retryAfter,
+                        knowledge_extracting_owner = NULL,
+                        knowledge_extracting_until = NULL,
+                        knowledge_error = :error,
+                        knowledge_attempt_count = COALESCE(knowledge_attempt_count, 0) + 1,
+                        updated_at = :now
+                    WHERE store_id = :storeId
+                      AND id = :threadId
+                      AND knowledge_extracting_owner = :leaseOwner
+                    """,
+            nativeQuery = true
+    )
+    int failKnowledgeExtractionForRetry(
+            @Param("storeId") Long storeId,
+            @Param("threadId") Long threadId,
+            @Param("leaseOwner") String leaseOwner,
+            @Param("now") LocalDateTime now,
+            @Param("retryAfter") LocalDateTime retryAfter,
+            @Param("error") String error
     );
 }

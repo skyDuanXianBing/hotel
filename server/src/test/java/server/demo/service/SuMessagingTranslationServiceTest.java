@@ -8,7 +8,6 @@ import server.demo.dto.ChatMessageRequest;
 import server.demo.dto.ChatMessageResponse;
 import server.demo.dto.SuMessagingTranslationRequest;
 import server.demo.dto.SuMessagingTranslationResponse;
-import server.demo.entity.MessageKnowledgeEntry;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.entity.SuMessageTranslation;
@@ -139,10 +138,10 @@ class SuMessagingTranslationServiceTest {
         SuMessageThread thread = newThread();
         SuMessage message = newMessage(thread, "Is late checkout possible?");
         String sourceHash = SuMessagingTranslationService.hashSourceContent("Is late checkout possible?");
-        MessageKnowledgeEntry entry = new MessageKnowledgeEntry();
-        entry.setAnswer("Late checkout is available until 12:00 when available.");
+        MessageKnowledgeCandidate candidate = new MessageKnowledgeCandidate();
+        candidate.setAnswer("Late checkout is available until 12:00 when available.");
         MessageKnowledgeMatch match = new MessageKnowledgeMatch(
-                entry,
+                candidate,
                 0.8,
                 SuMessagingThreadContext.SCOPE_STORE,
                 List.of("REFINED_FACT"),

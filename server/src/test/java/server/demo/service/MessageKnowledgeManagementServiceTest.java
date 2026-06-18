@@ -95,9 +95,56 @@ class MessageKnowledgeManagementServiceTest {
         assertEquals(9L, response.getItem().getId());
         assertEquals("en, zh", response.getItem().getLanguageSummary());
         assertEquals(1, response.getEvidence().size());
+        assertEquals(
+                MessageKnowledgeEvidence.SOURCE_KIND_MESSAGE_PAIR,
+                response.getEvidence().get(0).getSourceType()
+        );
         assertEquals("zh", response.getEvidence().get(0).getLanguage());
         assertEquals("Guest: What is the wifi password?\nStaff: The wifi password is sakura2026.", response.getEvidence().get(0).getSourceText());
         verify(evidenceRepository).findByStoreIdAndItemIdOrderBySourceTimestampDesc(26L, 9L);
+    }
+
+    @Test
+    void getEvidence_shouldMapThreadConversationEvidenceWithoutPairAssumption() {
+        MessageKnowledgeItemRepository itemRepository = Mockito.mock(MessageKnowledgeItemRepository.class);
+        MessageKnowledgeEvidenceRepository evidenceRepository = Mockito.mock(MessageKnowledgeEvidenceRepository.class);
+        MessageKnowledgeManagementService service =
+                new MessageKnowledgeManagementService(itemRepository, evidenceRepository);
+        MessageKnowledgeItem item = newItem(9L);
+        MessageKnowledgeEvidence evidence = newThreadEvidence(item);
+
+        when(itemRepository.findByStoreIdAndId(26L, 9L)).thenReturn(Optional.of(item));
+        when(evidenceRepository.findByStoreIdAndItemIdOrderBySourceTimestampDesc(26L, 9L))
+                .thenReturn(List.of(evidence));
+
+        MessageKnowledgeEvidenceResponse response = service.getEvidence(26L, 9L);
+
+        assertEquals(1, response.getEvidence().size());
+        assertEquals(
+                MessageKnowledgeEvidence.SOURCE_KIND_THREAD_CONVERSATION,
+                response.getEvidence().get(0).getSourceType()
+        );
+        assertEquals(
+                MessageKnowledgeEvidence.SOURCE_KIND_THREAD_CONVERSATION,
+                response.getEvidence().get(0).getSourceKind()
+        );
+        assertEquals(77L, response.getEvidence().get(0).getThreadId());
+        assertEquals(List.of(101L, 102L, 103L), response.getEvidence().get(0).getSourceMessageIds());
+        assertEquals(101L, response.getEvidence().get(0).getSourceMessageStartId());
+        assertEquals(103L, response.getEvidence().get(0).getSourceMessageEndId());
+        assertEquals("thread-v1", response.getEvidence().get(0).getExtractorVersion());
+        assertEquals("Airbnb - Deluxe - 会话证据", response.getEvidence().get(0).getSourceTitle());
+        assertEquals(
+                "Question: Can I leave bags after checkout?\n"
+                        + "Answer: Luggage storage is available at the front desk until 18:00.\n"
+                        + "Source messages: 101, 102, 103\n"
+                        + "Thread: 77",
+                response.getEvidence().get(0).getSourceText()
+        );
+        assertEquals(
+                "Luggage storage is available at the front desk until 18:00.",
+                response.getEvidence().get(0).getStaffMessage()
+        );
     }
 
     @Test
@@ -176,6 +223,35 @@ class MessageKnowledgeManagementServiceTest {
         evidence.setConfidence(BigDecimal.valueOf(0.8));
         evidence.setSourceTimestamp(LocalDateTime.of(2026, 6, 15, 10, 20));
         evidence.setCreatedAt(LocalDateTime.of(2026, 6, 15, 10, 21));
+        return evidence;
+    }
+
+    private static MessageKnowledgeEvidence newThreadEvidence(MessageKnowledgeItem item) {
+        MessageKnowledgeEvidence evidence = new MessageKnowledgeEvidence();
+        evidence.setId(12L);
+        evidence.setStoreId(26L);
+        evidence.setItem(item);
+        evidence.setScopeType(SuMessagingThreadContext.SCOPE_ROOM_TYPE);
+        evidence.setScopeId(3L);
+        evidence.setScopeKey("ROOM_TYPE:3");
+        evidence.setThreadId(77L);
+        evidence.setRoomTypeId(3L);
+        evidence.setRoomTypeName("Deluxe");
+        evidence.setChannelId(SuMessagingService.CHANNEL_AIRBNB);
+        evidence.setQuestion("Can I leave bags after checkout?");
+        evidence.setAnswer("Luggage storage is available at the front desk until 18:00.");
+        evidence.setNormalizedText("luggage storage available front desk until 18:00");
+        evidence.setNormalizedHash("thread-evidence-hash");
+        evidence.setLanguage("en");
+        evidence.setConfidence(BigDecimal.valueOf(0.88));
+        evidence.setSourceKind(MessageKnowledgeEvidence.SOURCE_KIND_THREAD_CONVERSATION);
+        evidence.setSourceMessageIdsJson("[101,102,103]");
+        evidence.setSourceMessageStartId(101L);
+        evidence.setSourceMessageEndId(103L);
+        evidence.setExtractorVersion("thread-v1");
+        evidence.setSourceFingerprint("fingerprint-1");
+        evidence.setSourceTimestamp(LocalDateTime.of(2026, 6, 15, 10, 22));
+        evidence.setCreatedAt(LocalDateTime.of(2026, 6, 15, 10, 23));
         return evidence;
     }
 }

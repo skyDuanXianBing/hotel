@@ -18,7 +18,15 @@ import java.time.LocalDateTime;
         },
         indexes = {
                 @Index(name = "idx_su_msg_thread_store_last", columnList = "store_id,last_activity"),
-                @Index(name = "idx_su_msg_thread_store_channel", columnList = "store_id,channel_id")
+                @Index(name = "idx_su_msg_thread_store_channel", columnList = "store_id,channel_id"),
+                @Index(
+                        name = "idx_su_msg_thread_kb_due",
+                        columnList = "knowledge_pending,knowledge_extract_after,knowledge_extracting_until,store_id,id"
+                ),
+                @Index(
+                        name = "idx_su_msg_thread_store_kb_state",
+                        columnList = "store_id,knowledge_pending,knowledge_extracted_at"
+                )
         }
 )
 public class SuMessageThread {
@@ -82,6 +90,36 @@ public class SuMessageThread {
     @Column(name = "closed", nullable = false)
     private Boolean closed = false;
 
+    @Column(name = "knowledge_pending", nullable = false)
+    private Boolean knowledgePending = false;
+
+    @Column(name = "knowledge_extract_after")
+    private LocalDateTime knowledgeExtractAfter;
+
+    @Column(name = "knowledge_extracting_until")
+    private LocalDateTime knowledgeExtractingUntil;
+
+    @Column(name = "knowledge_extracting_owner", length = 120)
+    private String knowledgeExtractingOwner;
+
+    @Column(name = "knowledge_extracted_at")
+    private LocalDateTime knowledgeExtractedAt;
+
+    @Column(name = "knowledge_extracted_message_id")
+    private Long knowledgeExtractedMessageId;
+
+    @Column(name = "knowledge_dirty_message_id")
+    private Long knowledgeDirtyMessageId;
+
+    @Column(name = "knowledge_error", length = 500)
+    private String knowledgeError;
+
+    @Column(name = "knowledge_attempt_count", nullable = false)
+    private Integer knowledgeAttemptCount = 0;
+
+    @Column(name = "knowledge_extractor_version", length = 40)
+    private String knowledgeExtractorVersion;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -97,6 +135,12 @@ public class SuMessageThread {
         }
         if (closed == null) {
             closed = false;
+        }
+        if (knowledgePending == null) {
+            knowledgePending = false;
+        }
+        if (knowledgeAttemptCount == null) {
+            knowledgeAttemptCount = 0;
         }
     }
 
@@ -225,6 +269,86 @@ public class SuMessageThread {
         this.closed = closed;
     }
 
+    public Boolean getKnowledgePending() {
+        return knowledgePending;
+    }
+
+    public void setKnowledgePending(Boolean knowledgePending) {
+        this.knowledgePending = knowledgePending;
+    }
+
+    public LocalDateTime getKnowledgeExtractAfter() {
+        return knowledgeExtractAfter;
+    }
+
+    public void setKnowledgeExtractAfter(LocalDateTime knowledgeExtractAfter) {
+        this.knowledgeExtractAfter = knowledgeExtractAfter;
+    }
+
+    public LocalDateTime getKnowledgeExtractingUntil() {
+        return knowledgeExtractingUntil;
+    }
+
+    public void setKnowledgeExtractingUntil(LocalDateTime knowledgeExtractingUntil) {
+        this.knowledgeExtractingUntil = knowledgeExtractingUntil;
+    }
+
+    public String getKnowledgeExtractingOwner() {
+        return knowledgeExtractingOwner;
+    }
+
+    public void setKnowledgeExtractingOwner(String knowledgeExtractingOwner) {
+        this.knowledgeExtractingOwner = knowledgeExtractingOwner;
+    }
+
+    public LocalDateTime getKnowledgeExtractedAt() {
+        return knowledgeExtractedAt;
+    }
+
+    public void setKnowledgeExtractedAt(LocalDateTime knowledgeExtractedAt) {
+        this.knowledgeExtractedAt = knowledgeExtractedAt;
+    }
+
+    public Long getKnowledgeExtractedMessageId() {
+        return knowledgeExtractedMessageId;
+    }
+
+    public void setKnowledgeExtractedMessageId(Long knowledgeExtractedMessageId) {
+        this.knowledgeExtractedMessageId = knowledgeExtractedMessageId;
+    }
+
+    public Long getKnowledgeDirtyMessageId() {
+        return knowledgeDirtyMessageId;
+    }
+
+    public void setKnowledgeDirtyMessageId(Long knowledgeDirtyMessageId) {
+        this.knowledgeDirtyMessageId = knowledgeDirtyMessageId;
+    }
+
+    public String getKnowledgeError() {
+        return knowledgeError;
+    }
+
+    public void setKnowledgeError(String knowledgeError) {
+        this.knowledgeError = knowledgeError;
+    }
+
+    public Integer getKnowledgeAttemptCount() {
+        return knowledgeAttemptCount;
+    }
+
+    public void setKnowledgeAttemptCount(Integer knowledgeAttemptCount) {
+        this.knowledgeAttemptCount = knowledgeAttemptCount;
+    }
+
+    public String getKnowledgeExtractorVersion() {
+        return knowledgeExtractorVersion;
+    }
+
+    public void setKnowledgeExtractorVersion(String knowledgeExtractorVersion) {
+        this.knowledgeExtractorVersion = knowledgeExtractorVersion;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -241,4 +365,3 @@ public class SuMessageThread {
         this.updatedAt = updatedAt;
     }
 }
-

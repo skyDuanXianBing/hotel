@@ -2,7 +2,6 @@ package server.demo.service;
 
 import org.springframework.stereotype.Service;
 import server.demo.dto.SuMessagingAiReplyDraftRequest;
-import server.demo.entity.MessageKnowledgeEntry;
 import server.demo.entity.SuMessage;
 
 import java.util.ArrayList;
@@ -175,7 +174,7 @@ public class SuMessagingAiPromptBuilder {
         int count = Math.min(MAX_SIMILAR_EXAMPLES, searchResult.getMatches().size());
         for (int index = 0; index < count; index++) {
             MessageKnowledgeMatch match = searchResult.getMatches().get(index);
-            MessageKnowledgeEntry entry = match.getEntry();
+            MessageKnowledgeCandidate candidate = match.getCandidate();
             prompt.append("- Example ")
                     .append(index + 1)
                     .append(" (")
@@ -183,8 +182,8 @@ public class SuMessagingAiPromptBuilder {
                     .append(", score ")
                     .append(String.format("%.2f", match.getScore()))
                     .append(")\n");
-            prompt.append("  Guest: ").append(redactor.redact(entry.getQuestion())).append("\n");
-            prompt.append("  Staff: ").append(redactor.redact(entry.getAnswer())).append("\n");
+            prompt.append("  Guest: ").append(redactor.redact(candidate.getQuestion())).append("\n");
+            prompt.append("  Staff: ").append(redactor.redact(candidate.getAnswer())).append("\n");
         }
         prompt.append("\n");
     }
@@ -199,12 +198,12 @@ public class SuMessagingAiPromptBuilder {
         int count = Math.min(MAX_REUSABLE_FACT_MATCHES, searchResult.getMatches().size());
         for (int index = 0; index < count; index++) {
             MessageKnowledgeMatch match = searchResult.getMatches().get(index);
-            if (match == null || match.getEntry() == null) {
+            if (match == null || match.getCandidate() == null) {
                 continue;
             }
             List<String> matchFacts = match.getReusableFacts();
             if (matchFacts == null || matchFacts.isEmpty()) {
-                matchFacts = topicService.extractReusableFacts(match.getEntry().getAnswer());
+                matchFacts = topicService.extractReusableFacts(match.getCandidate().getAnswer());
             }
             for (String fact : matchFacts) {
                 if (fact == null || fact.isBlank()) {

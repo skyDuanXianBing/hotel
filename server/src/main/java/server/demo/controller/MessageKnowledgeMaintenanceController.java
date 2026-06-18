@@ -13,17 +13,14 @@ import server.demo.dto.MessageKnowledgeRebuildRequest;
 import server.demo.dto.MessageKnowledgeRebuildResponse;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
-import server.demo.service.MessageKnowledgeIndexService;
 
 @RestController
 @RequestMapping("/api/v1/su-messaging/knowledge")
 public class MessageKnowledgeMaintenanceController {
-
-    private final MessageKnowledgeIndexService indexService;
-
-    public MessageKnowledgeMaintenanceController(MessageKnowledgeIndexService indexService) {
-        this.indexService = indexService;
-    }
+    private static final int DEFAULT_RECENT_INDEX_DAYS = 365;
+    private static final int DEFAULT_MAX_MESSAGES_PER_RUN = 500;
+    private static final int MIN_RECENT_INDEX_DAYS = 1;
+    private static final int MIN_MESSAGES_PER_RUN = 1;
 
     @PostMapping("/rebuild")
     @StoreScoped
@@ -35,20 +32,36 @@ public class MessageKnowledgeMaintenanceController {
             MessageKnowledgeRebuildRequest safeRequest =
                     request == null ? new MessageKnowledgeRebuildRequest() : request;
             Long storeId = StoreContextHolder.getContext().getStoreId();
-            int lookbackDays = MessageKnowledgeIndexService.normalizeLookbackDays(safeRequest.getLookbackDays());
-            int limit = MessageKnowledgeIndexService.normalizeMessageLimit(safeRequest.getLimit());
-            int attemptedCount = indexService.indexRecentStoreMessages(storeId, lookbackDays, limit);
+            int lookbackDays = normalizeLookbackDays(safeRequest.getLookbackDays());
+            int limit = normalizeMessageLimit(safeRequest.getLimit());
             MessageKnowledgeRebuildResponse response = new MessageKnowledgeRebuildResponse(
                     storeId,
                     lookbackDays,
                     limit,
-                    attemptedCount
+                    0
             );
-            return ResponseEntity.ok(ApiResponse.success("知识库重建任务执行成功", response));
+            return ResponseEntity.ok(ApiResponse.success(
+                    "旧知识库重建已停用，会话级 AI 知识抽取是唯一新主路径",
+                    response
+            ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(ApiResponse.error("知识库重建任务执行失败: " + e.getMessage()));
         }
+    }
+
+    private static int normalizeLookbackDays(Integer lookbackDays) {
+        if (lookbackDays == null) {
+            return DEFAULT_RECENT_INDEX_DAYS;
+        }
+        return Math.max(MIN_RECENT_INDEX_DAYS, Math.min(lookbackDays, DEFAULT_RECENT_INDEX_DAYS));
+    }
+
+    private static int normalizeMessageLimit(Integer messageLimit) {
+        if (messageLimit == null) {
+            return DEFAULT_MAX_MESSAGES_PER_RUN;
+        }
+        return Math.max(MIN_MESSAGES_PER_RUN, Math.min(messageLimit, DEFAULT_MAX_MESSAGES_PER_RUN));
     }
 }

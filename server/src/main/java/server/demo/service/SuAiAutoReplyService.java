@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
@@ -47,6 +48,7 @@ public class SuAiAutoReplyService {
     private final SuAccessTokenService suAccessTokenService;
     private final SuMessagingRealtimeGateway realtimeGateway;
     private final ObjectMapper objectMapper;
+    private MessageKnowledgeThreadDirtyMarker knowledgeThreadDirtyMarker;
 
     @Value("${su.messaging.ai-auto-reply.sender-name:AI客服}")
     private String senderName;
@@ -72,6 +74,11 @@ public class SuAiAutoReplyService {
         this.suAccessTokenService = suAccessTokenService;
         this.realtimeGateway = realtimeGateway;
         this.objectMapper = objectMapper;
+    }
+
+    @Autowired(required = false)
+    public void setKnowledgeThreadDirtyMarker(MessageKnowledgeThreadDirtyMarker knowledgeThreadDirtyMarker) {
+        this.knowledgeThreadDirtyMarker = knowledgeThreadDirtyMarker;
     }
 
     @Async
@@ -158,6 +165,7 @@ public class SuAiAutoReplyService {
             thread.setLastMessage(aiReplyContent);
             thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
             threadRepository.save(thread);
+            markKnowledgeThreadDirty(aiMessage);
 
             realtimeGateway.broadcastMessageCreated(storeId, threadId, toMessageDTO(aiMessage));
 
@@ -315,5 +323,12 @@ public class SuAiAutoReplyService {
             return DEFAULT_AI_SENDER_NAME;
         }
         return trimmed;
+    }
+
+    private void markKnowledgeThreadDirty(SuMessage message) {
+        if (knowledgeThreadDirtyMarker == null) {
+            return;
+        }
+        knowledgeThreadDirtyMarker.markDirty(message);
     }
 }

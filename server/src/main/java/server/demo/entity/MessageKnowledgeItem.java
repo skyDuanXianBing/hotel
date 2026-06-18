@@ -23,13 +23,14 @@ import java.time.LocalDateTime;
         name = "message_knowledge_items",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_msg_knowledge_item_scope_topic",
-                        columnNames = {"store_id", "scope_key", "topic_hash"}
+                        name = "uk_msg_knowledge_item_scope_fact",
+                        columnNames = {"store_id", "scope_key", "topic_hash", "fact_hash"}
                 )
         }
 )
 public class MessageKnowledgeItem implements StoreScopedEntity {
     public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_CANDIDATE = "CANDIDATE";
     public static final String STATUS_CONFLICT = "CONFLICT";
     public static final String STATUS_REJECTED = "REJECTED";
     public static final String STATUS_ARCHIVED = "ARCHIVED";
@@ -79,6 +80,12 @@ public class MessageKnowledgeItem implements StoreScopedEntity {
 
     @Column(name = "topic_hash", nullable = false, length = 64)
     private String topicHash;
+
+    @Column(name = "fact_hash", length = 64)
+    private String factHash;
+
+    @Column(name = "extractor_version", length = 40)
+    private String extractorVersion;
 
     @Column(name = "question", columnDefinition = "TEXT", nullable = false)
     private String question;
@@ -306,6 +313,22 @@ public class MessageKnowledgeItem implements StoreScopedEntity {
 
     public void setTopicHash(String topicHash) {
         this.topicHash = topicHash;
+    }
+
+    public String getFactHash() {
+        return factHash;
+    }
+
+    public void setFactHash(String factHash) {
+        this.factHash = factHash;
+    }
+
+    public String getExtractorVersion() {
+        return extractorVersion;
+    }
+
+    public void setExtractorVersion(String extractorVersion) {
+        this.extractorVersion = extractorVersion;
     }
 
     public String getQuestion() {

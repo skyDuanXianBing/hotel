@@ -13,29 +13,21 @@ import server.demo.dto.MessageKnowledgeRebuildRequest;
 import server.demo.dto.MessageKnowledgeRebuildResponse;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
-import server.demo.service.MessageKnowledgeIndexService;
 
 import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class MessageKnowledgeMaintenanceControllerTest {
 
     @Test
-    void rebuildKnowledge_shouldUseStoreContextAndExposeStoreScopedEndpoint() throws Exception {
-        MessageKnowledgeIndexService indexService = mock(MessageKnowledgeIndexService.class);
-        MessageKnowledgeMaintenanceController controller =
-                new MessageKnowledgeMaintenanceController(indexService);
+    void rebuildKnowledge_shouldReturnDisabledNoopResponseAndKeepStoreScopedEndpoint() throws Exception {
+        MessageKnowledgeMaintenanceController controller = new MessageKnowledgeMaintenanceController();
         MessageKnowledgeRebuildRequest request = new MessageKnowledgeRebuildRequest();
         request.setLookbackDays(30);
         request.setLimit(25);
-
-        when(indexService.indexRecentStoreMessages(26L, 30, 25)).thenReturn(4);
 
         StoreContextHolder.setContext(new StoreContext(1L, 26L, "OWNER"));
         try {
@@ -48,8 +40,11 @@ class MessageKnowledgeMaintenanceControllerTest {
             assertEquals(26L, response.getBody().getData().getStoreId());
             assertEquals(30, response.getBody().getData().getLookbackDays());
             assertEquals(25, response.getBody().getData().getLimit());
-            assertEquals(4, response.getBody().getData().getAttemptedCount());
-            verify(indexService).indexRecentStoreMessages(26L, 30, 25);
+            assertEquals(0, response.getBody().getData().getAttemptedCount());
+            assertEquals(
+                    "旧知识库重建已停用，会话级 AI 知识抽取是唯一新主路径",
+                    response.getBody().getMessage()
+            );
         } finally {
             StoreContextHolder.clear();
         }
@@ -67,5 +62,24 @@ class MessageKnowledgeMaintenanceControllerTest {
         assertEquals("/rebuild", mapping.value()[0]);
         assertEquals(PermissionModule.ORDER, permission.module());
         assertEquals(PermissionAction.MODIFY_ORDER, permission.action());
+    }
+
+    @Test
+    void rebuildKnowledge_shouldNormalizeNullRequestWithoutLegacyWrites() {
+        MessageKnowledgeMaintenanceController controller = new MessageKnowledgeMaintenanceController();
+
+        StoreContextHolder.setContext(new StoreContext(1L, 26L, "OWNER"));
+        try {
+            ResponseEntity<ApiResponse<MessageKnowledgeRebuildResponse>> response =
+                    controller.rebuildKnowledge(null);
+
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertTrue(response.getBody().isSuccess());
+            assertEquals(26L, response.getBody().getData().getStoreId());
+            assertEquals(0, response.getBody().getData().getAttemptedCount());
+        } finally {
+            StoreContextHolder.clear();
+        }
     }
 }

@@ -19,6 +19,13 @@ public interface MessageKnowledgeItemRepository extends JpaRepository<MessageKno
             String topicHash
     );
 
+    Optional<MessageKnowledgeItem> findByStoreIdAndScopeKeyAndTopicHashAndFactHash(
+            Long storeId,
+            String scopeKey,
+            String topicHash,
+            String factHash
+    );
+
     Optional<MessageKnowledgeItem> findByStoreIdAndId(Long storeId, Long id);
 
     @Query("""

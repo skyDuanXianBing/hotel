@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -84,6 +85,7 @@ public class SuBusinessAutoMessageService {
     private final RegistrationLinkService registrationLinkService;
     private final String frontendBaseUrl;
     private final String templateSenderName;
+    private MessageKnowledgeThreadDirtyMarker knowledgeThreadDirtyMarker;
 
     public SuBusinessAutoMessageService(
             AutoMessageSendLogRepository sendLogRepository,
@@ -119,6 +121,11 @@ public class SuBusinessAutoMessageService {
         this.registrationLinkService = registrationLinkService;
         this.frontendBaseUrl = frontendBaseUrl;
         this.templateSenderName = templateSenderName;
+    }
+
+    @Autowired(required = false)
+    public void setKnowledgeThreadDirtyMarker(MessageKnowledgeThreadDirtyMarker knowledgeThreadDirtyMarker) {
+        this.knowledgeThreadDirtyMarker = knowledgeThreadDirtyMarker;
     }
 
     public record DispatchDecision(boolean okToSend, String reason) {}
@@ -1296,6 +1303,7 @@ public class SuBusinessAutoMessageService {
         thread.setLastMessage(trimToMax(content, 500));
         thread.setLastActivity(UtcTimeUtil.nowLocalDateTime());
         threadRepository.save(thread);
+        markKnowledgeThreadDirty(message);
 
         realtimeGateway.broadcastMessageCreated(storeId, thread.getId(), toMessageDTO(message));
         return message;
@@ -1433,6 +1441,13 @@ public class SuBusinessAutoMessageService {
             return trimmed;
         }
         return trimmed.substring(0, max);
+    }
+
+    private void markKnowledgeThreadDirty(SuMessage message) {
+        if (knowledgeThreadDirtyMarker == null) {
+            return;
+        }
+        knowledgeThreadDirtyMarker.markDirty(message);
     }
 
     private static String resolveTemplateSenderName(String configuredSenderName) {

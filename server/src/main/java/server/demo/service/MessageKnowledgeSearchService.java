@@ -5,9 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import server.demo.entity.MessageKnowledgeEntry;
 import server.demo.entity.MessageKnowledgeItem;
-import server.demo.repository.MessageKnowledgeEntryRepository;
 import server.demo.repository.MessageKnowledgeItemRepository;
 
 import java.time.Duration;
@@ -16,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -31,7 +28,6 @@ public class MessageKnowledgeSearchService {
     static final String WARNING_NO_SIMILAR_HISTORY = "NO_SIMILAR_HISTORY";
     static final String WARNING_LOW_CONFIDENCE_MATCH = "LOW_CONFIDENCE_MATCH";
 
-    private static final int MAX_CANDIDATES_PER_SCOPE = 60;
     private static final int MAX_REFINED_CANDIDATES_PER_SCOPE = 25;
     private static final int MAX_MATCHES = 5;
     private static final double MATCH_THRESHOLD = 0.32;
@@ -47,7 +43,6 @@ public class MessageKnowledgeSearchService {
     private static final double FACT_OVERLAP_MAX_BOOST = 0.12;
     private static final long RECENT_DAYS = 120;
 
-    private final MessageKnowledgeEntryRepository knowledgeEntryRepository;
     private final SuMessagingAiTextService textService;
     private final MessageKnowledgeTopicService topicService;
     private MessageKnowledgeItemRepository knowledgeItemRepository;
@@ -56,11 +51,9 @@ public class MessageKnowledgeSearchService {
     private MessageKnowledgeTopicRemediationService topicRemediationService;
 
     public MessageKnowledgeSearchService(
-            MessageKnowledgeEntryRepository knowledgeEntryRepository,
             SuMessagingAiTextService textService,
             MessageKnowledgeTopicService topicService
     ) {
-        this.knowledgeEntryRepository = knowledgeEntryRepository;
         this.textService = textService;
         this.topicService = topicService;
     }
@@ -130,33 +123,10 @@ public class MessageKnowledgeSearchService {
             return buildResultFromMatches(refinedMatches, normalizedLimit);
         }
 
-        List<MessageKnowledgeEntry> candidates = loadCandidates(storeId, currentThreadId, context);
-        candidates = suppressLegacyCandidatesCoveredByRefinedTopic(candidates, refinedCandidates, queryText);
-        if (candidates.isEmpty() && refinedMatches.isEmpty()) {
+        if (refinedMatches.isEmpty()) {
             return noMatchResult();
         }
-
-        List<MessageKnowledgeMatch> matches = new ArrayList<>();
-        for (MessageKnowledgeEntry candidate : candidates) {
-            MessageKnowledgeMatch match = scoreCandidate(candidate, context, queryTokens, queryTopics, queryFacts);
-            if (match != null && match.getScore() >= PARTIAL_THRESHOLD) {
-                matches.add(match);
-            }
-        }
-        if (!refinedMatches.isEmpty()) {
-            matches.addAll(refinedMatches);
-        }
-
-        matches.sort(Comparator.comparingDouble(MessageKnowledgeMatch::getScore).reversed());
-        if (matches.size() > normalizedLimit) {
-            matches = new ArrayList<>(matches.subList(0, normalizedLimit));
-        }
-
-        if (matches.isEmpty()) {
-            return noMatchResult();
-        }
-
-        return buildResultFromMatches(matches, normalizedLimit);
+        return buildResultFromMatches(refinedMatches, normalizedLimit);
     }
 
     private List<MessageKnowledgeMatch> searchSemanticMatchesSafely(
@@ -226,73 +196,6 @@ public class MessageKnowledgeSearchService {
         );
     }
 
-    private List<MessageKnowledgeEntry> loadCandidates(
-            Long storeId,
-            Long currentThreadId,
-            SuMessagingThreadContext context
-    ) {
-        List<MessageKnowledgeEntry> candidates = new ArrayList<>();
-        Set<String> seenKeys = new HashSet<>();
-
-        if (context != null && context.getRoomId() != null) {
-            addCandidates(
-                    candidates,
-                    seenKeys,
-                    knowledgeEntryRepository.findActiveByStoreIdAndRoomId(
-                            storeId,
-                            context.getRoomId(),
-                            MessageKnowledgeEntry.STATUS_ACTIVE,
-                            currentThreadId,
-                            PageRequest.of(0, MAX_CANDIDATES_PER_SCOPE)
-                    )
-            );
-        }
-
-        if (context != null && context.getRoomTypeId() != null) {
-            addCandidates(
-                    candidates,
-                    seenKeys,
-                    knowledgeEntryRepository.findActiveByStoreIdAndRoomTypeId(
-                            storeId,
-                            context.getRoomTypeId(),
-                            MessageKnowledgeEntry.STATUS_ACTIVE,
-                            currentThreadId,
-                            PageRequest.of(0, MAX_CANDIDATES_PER_SCOPE)
-                    )
-            );
-        }
-
-        if (context != null
-                && context.getChannelId() != null
-                && context.getBookingKey() != null
-                && !context.getBookingKey().isBlank()) {
-            addCandidates(
-                    candidates,
-                    seenKeys,
-                    knowledgeEntryRepository.findActiveByStoreIdAndChannelBookingKey(
-                            storeId,
-                            context.getChannelId(),
-                            context.getBookingKey(),
-                            MessageKnowledgeEntry.STATUS_ACTIVE,
-                            currentThreadId,
-                            PageRequest.of(0, MAX_CANDIDATES_PER_SCOPE)
-                    )
-            );
-        }
-
-        addCandidates(
-                candidates,
-                seenKeys,
-                knowledgeEntryRepository.findActiveRecentByStoreId(
-                        storeId,
-                        MessageKnowledgeEntry.STATUS_ACTIVE,
-                        currentThreadId,
-                        PageRequest.of(0, MAX_CANDIDATES_PER_SCOPE)
-                )
-        );
-        return candidates;
-    }
-
     private List<MessageKnowledgeMatch> scoreRefinedCandidates(
             List<MessageKnowledgeItem> candidates,
             SuMessagingThreadContext context,
@@ -307,9 +210,9 @@ public class MessageKnowledgeSearchService {
         List<MessageKnowledgeMatch> matches = new ArrayList<>();
         Set<String> seenAnswerKeys = new HashSet<>();
         for (MessageKnowledgeItem candidate : candidates) {
-            MessageKnowledgeEntry syntheticEntry = toEntry(candidate);
+            MessageKnowledgeCandidate syntheticCandidate = toCandidate(candidate);
             MessageKnowledgeMatch match = scoreCandidate(
-                    syntheticEntry,
+                    syntheticCandidate,
                     context,
                     queryTokens,
                     queryTopics,
@@ -376,50 +279,6 @@ public class MessageKnowledgeSearchService {
         return deduplicateRemediatedCandidates(candidates);
     }
 
-    private List<MessageKnowledgeEntry> suppressLegacyCandidatesCoveredByRefinedTopic(
-            List<MessageKnowledgeEntry> candidates,
-            List<MessageKnowledgeItem> refinedCandidates,
-            String queryText
-    ) {
-        if (candidates == null || candidates.isEmpty()) {
-            return List.of();
-        }
-        if (refinedCandidates == null || refinedCandidates.isEmpty()) {
-            return candidates;
-        }
-
-        Set<String> queryTopicKeys = detectKnowledgeTopicKeys(queryText);
-        if (queryTopicKeys.isEmpty()) {
-            return candidates;
-        }
-
-        Set<String> refinedTopicKeys = new HashSet<>();
-        for (MessageKnowledgeItem refinedCandidate : refinedCandidates) {
-            if (refinedCandidate == null) {
-                continue;
-            }
-            if (!MessageKnowledgeItem.STATUS_ACTIVE.equals(refinedCandidate.getStatus())) {
-                continue;
-            }
-            String topicKey = normalizeTopicKey(refinedCandidate.getTopic());
-            if (topicKey != null && queryTopicKeys.contains(topicKey)) {
-                refinedTopicKeys.add(topicKey);
-            }
-        }
-        if (refinedTopicKeys.isEmpty()) {
-            return candidates;
-        }
-
-        List<MessageKnowledgeEntry> filteredCandidates = new ArrayList<>();
-        for (MessageKnowledgeEntry candidate : candidates) {
-            Set<String> candidateTopicKeys = detectKnowledgeTopicKeys(candidateCombinedText(candidate));
-            if (!hasAnyTopicOverlap(refinedTopicKeys, candidateTopicKeys)) {
-                filteredCandidates.add(candidate);
-            }
-        }
-        return filteredCandidates;
-    }
-
     private List<MessageKnowledgeItem> deduplicateRemediatedCandidates(List<MessageKnowledgeItem> candidates) {
         if (topicRemediationService == null) {
             return candidates;
@@ -428,7 +287,7 @@ public class MessageKnowledgeSearchService {
     }
 
     private MessageKnowledgeMatch scoreCandidate(
-            MessageKnowledgeEntry candidate,
+            MessageKnowledgeCandidate candidate,
             SuMessagingThreadContext context,
             List<String> queryTokens,
             Set<String> queryTopics,
@@ -498,26 +357,6 @@ public class MessageKnowledgeSearchService {
         );
     }
 
-    private static void addCandidates(
-            List<MessageKnowledgeEntry> target,
-            Set<String> seenKeys,
-            List<MessageKnowledgeEntry> candidates
-    ) {
-        if (candidates == null || candidates.isEmpty()) {
-            return;
-        }
-
-        for (MessageKnowledgeEntry candidate : candidates) {
-            if (candidate == null) {
-                continue;
-            }
-            String key = candidateKey(candidate);
-            if (seenKeys.add(key)) {
-                target.add(candidate);
-            }
-        }
-    }
-
     private List<MessageKnowledgeMatch> toKnowledgeMatches(
             List<MessageKnowledgeSemanticMatch> semanticMatches,
             int normalizedLimit
@@ -551,7 +390,7 @@ public class MessageKnowledgeSearchService {
                     item.getSemanticText()
             );
             matches.add(new MessageKnowledgeMatch(
-                    toEntry(item),
+                    toCandidate(item),
                     semanticMatch.score(),
                     semanticMatch.scopeLevel(),
                     reasons,
@@ -585,86 +424,27 @@ public class MessageKnowledgeSearchService {
         }
     }
 
-    private static MessageKnowledgeEntry toEntry(MessageKnowledgeItem item) {
-        MessageKnowledgeEntry entry = new MessageKnowledgeEntry();
-        entry.setId(item.getId());
-        entry.setStoreId(item.getStoreId());
-        entry.setScopeType(item.getScopeType());
-        entry.setScopeId(item.getScopeId());
-        entry.setThreadId(item.getThreadId());
-        entry.setRoomId(item.getRoomId());
-        entry.setRoomNumber(item.getRoomNumber());
-        entry.setRoomTypeId(item.getRoomTypeId());
-        entry.setRoomTypeName(item.getRoomTypeName());
-        entry.setChannelId(item.getChannelId());
-        entry.setQuestion(item.getQuestion());
-        entry.setAnswer(item.getAnswer());
-        entry.setNormalizedText(refinedNormalizedText(item));
-        entry.setNormalizedHash(item.getNormalizedAnswerHash());
-        entry.setLanguage(item.getLanguage());
-        entry.setStatus(item.getStatus());
-        entry.setPiiRedactionStatus(item.getPiiRedactionStatus());
-        entry.setSourceTimestamp(item.getLastSeenAt());
-        return entry;
-    }
-
-    private Set<String> detectKnowledgeTopicKeys(String text) {
-        Set<String> topicKeys = new HashSet<>();
-        if (!hasText(text)) {
-            return topicKeys;
-        }
-        for (String topic : topicService.detectTopics(text)) {
-            String topicKey = normalizeTopicKey(topic);
-            if (topicKey != null) {
-                topicKeys.add(topicKey);
-            }
-        }
-
-        String normalized = text.toLowerCase(Locale.ROOT);
-        if (containsWifiTopic(normalized)) {
-            topicKeys.add("wifi");
-        }
-        return topicKeys;
-    }
-
-    private static boolean containsWifiTopic(String normalizedText) {
-        if (!hasText(normalizedText)) {
-            return false;
-        }
-        String compact = normalizedText.replaceAll("\\s+", "");
-        if (normalizedText.contains("wifi")
-                || normalizedText.contains("wi-fi")
-                || normalizedText.contains("wi fi")
-                || normalizedText.contains("wireless")
-                || normalizedText.contains("internet")) {
-            return true;
-        }
-        return compact.contains("无线")
-                || compact.contains("無線")
-                || compact.contains("网络")
-                || compact.contains("網路")
-                || compact.contains("ネット")
-                || compact.contains("ワイファイ")
-                || compact.contains("インターネット");
-    }
-
-    private static String normalizeTopicKey(String topic) {
-        if (!hasText(topic)) {
-            return null;
-        }
-        return topic.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private static boolean hasAnyTopicOverlap(Set<String> firstTopics, Set<String> secondTopics) {
-        if (firstTopics == null || secondTopics == null || firstTopics.isEmpty() || secondTopics.isEmpty()) {
-            return false;
-        }
-        for (String topic : firstTopics) {
-            if (secondTopics.contains(topic)) {
-                return true;
-            }
-        }
-        return false;
+    private static MessageKnowledgeCandidate toCandidate(MessageKnowledgeItem item) {
+        MessageKnowledgeCandidate candidate = new MessageKnowledgeCandidate();
+        candidate.setId(item.getId());
+        candidate.setStoreId(item.getStoreId());
+        candidate.setScopeType(item.getScopeType());
+        candidate.setScopeId(item.getScopeId());
+        candidate.setThreadId(item.getThreadId());
+        candidate.setRoomId(item.getRoomId());
+        candidate.setRoomNumber(item.getRoomNumber());
+        candidate.setRoomTypeId(item.getRoomTypeId());
+        candidate.setRoomTypeName(item.getRoomTypeName());
+        candidate.setChannelId(item.getChannelId());
+        candidate.setQuestion(item.getQuestion());
+        candidate.setAnswer(item.getAnswer());
+        candidate.setNormalizedText(refinedNormalizedText(item));
+        candidate.setNormalizedHash(item.getNormalizedAnswerHash());
+        candidate.setLanguage(item.getLanguage());
+        candidate.setStatus(item.getStatus());
+        candidate.setPiiRedactionStatus(item.getPiiRedactionStatus());
+        candidate.setSourceTimestamp(item.getLastSeenAt());
+        return candidate;
     }
 
     private static String refinedNormalizedText(MessageKnowledgeItem item) {
@@ -710,18 +490,6 @@ public class MessageKnowledgeSearchService {
         return facts;
     }
 
-    private static String candidateKey(MessageKnowledgeEntry candidate) {
-        if (candidate.getId() != null) {
-            return "id:" + candidate.getId();
-        }
-        return "source:"
-                + candidate.getSourceGuestMessageId()
-                + ":"
-                + candidate.getSourceStaffMessageId()
-                + ":"
-                + candidate.getNormalizedHash();
-    }
-
     private static boolean hasPolicyTopicMismatch(
             Set<String> queryTopics,
             Set<String> candidateTopics,
@@ -732,7 +500,7 @@ public class MessageKnowledgeSearchService {
         return hasAnyPolicyTopic && !hasSharedTopic;
     }
 
-    private static String candidateCombinedText(MessageKnowledgeEntry candidate) {
+    private static String candidateCombinedText(MessageKnowledgeCandidate candidate) {
         if (candidate == null) {
             return "";
         }
@@ -754,7 +522,7 @@ public class MessageKnowledgeSearchService {
     }
 
     private static String resolveScopeLevel(
-            MessageKnowledgeEntry candidate,
+            MessageKnowledgeCandidate candidate,
             SuMessagingThreadContext context
     ) {
         if (candidate == null || context == null) {
@@ -799,4 +567,5 @@ public class MessageKnowledgeSearchService {
     private static boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
     }
+
 }

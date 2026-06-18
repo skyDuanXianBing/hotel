@@ -10,10 +10,14 @@ import java.util.Optional;
 
 public interface MessageKnowledgeEvidenceRepository extends JpaRepository<MessageKnowledgeEvidence, Long> {
 
-    Optional<MessageKnowledgeEvidence> findByStoreIdAndSourceGuestMessageIdAndSourceStaffMessageId(
+    Optional<MessageKnowledgeEvidence> findByStoreIdAndSourceFingerprint(
             Long storeId,
-            Long sourceGuestMessageId,
-            Long sourceStaffMessageId
+            String sourceFingerprint
+    );
+
+    boolean existsByStoreIdAndSourceFingerprint(
+            Long storeId,
+            String sourceFingerprint
     );
 
     @Query("""

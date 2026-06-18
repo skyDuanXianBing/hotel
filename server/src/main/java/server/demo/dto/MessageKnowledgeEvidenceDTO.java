@@ -2,16 +2,25 @@ package server.demo.dto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MessageKnowledgeEvidenceDTO {
     private Long id;
     private String sourceType;
+    private String sourceKind;
     private String sourceTitle;
     private String sourceText;
     private String content;
     private String messageContent;
     private String guestMessage;
     private String staffMessage;
+    private Long threadId;
+    private List<Long> sourceMessageIds = new ArrayList<>();
+    private Long sourceMessageStartId;
+    private Long sourceMessageEndId;
+    private String extractorVersion;
+    private String sourceFingerprint;
     private String channelName;
     private String topicCode;
     private String language;
@@ -33,6 +42,14 @@ public class MessageKnowledgeEvidenceDTO {
 
     public void setSourceType(String sourceType) {
         this.sourceType = sourceType;
+    }
+
+    public String getSourceKind() {
+        return sourceKind;
+    }
+
+    public void setSourceKind(String sourceKind) {
+        this.sourceKind = sourceKind;
     }
 
     public String getSourceTitle() {
@@ -81,6 +98,54 @@ public class MessageKnowledgeEvidenceDTO {
 
     public void setStaffMessage(String staffMessage) {
         this.staffMessage = staffMessage;
+    }
+
+    public Long getThreadId() {
+        return threadId;
+    }
+
+    public void setThreadId(Long threadId) {
+        this.threadId = threadId;
+    }
+
+    public List<Long> getSourceMessageIds() {
+        return sourceMessageIds;
+    }
+
+    public void setSourceMessageIds(List<Long> sourceMessageIds) {
+        this.sourceMessageIds = sourceMessageIds == null ? new ArrayList<>() : sourceMessageIds;
+    }
+
+    public Long getSourceMessageStartId() {
+        return sourceMessageStartId;
+    }
+
+    public void setSourceMessageStartId(Long sourceMessageStartId) {
+        this.sourceMessageStartId = sourceMessageStartId;
+    }
+
+    public Long getSourceMessageEndId() {
+        return sourceMessageEndId;
+    }
+
+    public void setSourceMessageEndId(Long sourceMessageEndId) {
+        this.sourceMessageEndId = sourceMessageEndId;
+    }
+
+    public String getExtractorVersion() {
+        return extractorVersion;
+    }
+
+    public void setExtractorVersion(String extractorVersion) {
+        this.extractorVersion = extractorVersion;
+    }
+
+    public String getSourceFingerprint() {
+        return sourceFingerprint;
+    }
+
+    public void setSourceFingerprint(String sourceFingerprint) {
+        this.sourceFingerprint = sourceFingerprint;
     }
 
     public String getChannelName() {

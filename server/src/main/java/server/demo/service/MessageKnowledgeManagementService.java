@@ -1,5 +1,8 @@
 package server.demo.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,7 @@ public class MessageKnowledgeManagementService {
     private static final String STATUS_ARCHIVED = "ARCHIVED";
     private static final String STATUS_REJECTED = "REJECTED";
     private static final String STATUS_CANDIDATE = "CANDIDATE";
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final Set<String> ALLOWED_STATUS_FILTERS = Set.of(
             MessageKnowledgeItem.STATUS_ACTIVE,
             STATUS_CONFLICT,
@@ -184,14 +188,28 @@ public class MessageKnowledgeManagementService {
 
     private static MessageKnowledgeEvidenceDTO toEvidenceDTO(MessageKnowledgeEvidence evidence) {
         MessageKnowledgeEvidenceDTO dto = new MessageKnowledgeEvidenceDTO();
+        String sourceKind = resolveSourceKind(evidence);
+        List<Long> sourceMessageIds = resolveSourceMessageIds(evidence);
+        boolean threadEvidence = MessageKnowledgeEvidence.SOURCE_KIND_THREAD_CONVERSATION.equals(sourceKind);
         dto.setId(evidence.getId());
-        dto.setSourceType("MESSAGE_PAIR");
+        dto.setSourceType(sourceKind);
+        dto.setSourceKind(sourceKind);
         dto.setSourceTitle(buildEvidenceSourceTitle(evidence));
         dto.setGuestMessage(evidence.getQuestion());
         dto.setStaffMessage(evidence.getAnswer());
         dto.setMessageContent(evidence.getAnswer());
-        dto.setSourceText(buildSourceText(evidence.getQuestion(), evidence.getAnswer()));
+        if (threadEvidence) {
+            dto.setSourceText(buildThreadSourceText(evidence, sourceMessageIds));
+        } else {
+            dto.setSourceText(buildSourceText(evidence.getQuestion(), evidence.getAnswer()));
+        }
         dto.setContent(dto.getSourceText());
+        dto.setThreadId(evidence.getThreadId());
+        dto.setSourceMessageIds(sourceMessageIds);
+        dto.setSourceMessageStartId(evidence.getSourceMessageStartId());
+        dto.setSourceMessageEndId(evidence.getSourceMessageEndId());
+        dto.setExtractorVersion(normalizeBlankToNull(evidence.getExtractorVersion()));
+        dto.setSourceFingerprint(normalizeBlankToNull(evidence.getSourceFingerprint()));
         dto.setChannelName(resolveChannelName(evidence.getChannelId()));
         dto.setTopicCode(evidence.getItem() == null ? null : evidence.getItem().getTopic());
         dto.setLanguage(normalizeBlankToNull(evidence.getLanguage()));
@@ -313,16 +331,28 @@ public class MessageKnowledgeManagementService {
     private static String buildEvidenceSourceTitle(MessageKnowledgeEvidence evidence) {
         String channelName = resolveChannelName(evidence.getChannelId());
         String scopeName = buildScopeName(evidence.getScopeType(), evidence.getRoomNumber(), evidence.getRoomTypeName());
+        boolean threadEvidence = MessageKnowledgeEvidence.SOURCE_KIND_THREAD_CONVERSATION.equals(resolveSourceKind(evidence));
+        String suffix = threadEvidence ? "会话证据" : null;
         if (channelName != null && scopeName != null) {
-            return channelName + " - " + scopeName;
+            return appendTitleSuffix(channelName + " - " + scopeName, suffix);
         }
         if (channelName != null) {
-            return channelName;
+            return appendTitleSuffix(channelName, suffix);
         }
         if (scopeName != null) {
-            return scopeName;
+            return appendTitleSuffix(scopeName, suffix);
+        }
+        if (suffix != null) {
+            return suffix;
         }
         return "消息证据";
+    }
+
+    private static String appendTitleSuffix(String title, String suffix) {
+        if (suffix == null) {
+            return title;
+        }
+        return title + " - " + suffix;
     }
 
     private static String buildSourceText(String question, String answer) {
@@ -339,6 +369,95 @@ public class MessageKnowledgeManagementService {
             builder.append("Staff: ").append(staff);
         }
         return builder.toString();
+    }
+
+    private static String buildThreadSourceText(
+            MessageKnowledgeEvidence evidence,
+            List<Long> sourceMessageIds
+    ) {
+        StringBuilder builder = new StringBuilder();
+        appendLabeledText(builder, "Question", evidence.getQuestion());
+        appendLabeledText(builder, "Answer", evidence.getAnswer());
+        if (sourceMessageIds != null && !sourceMessageIds.isEmpty()) {
+            appendLabeledText(builder, "Source messages", joinLongs(sourceMessageIds));
+        }
+        if (evidence.getThreadId() != null) {
+            appendLabeledText(builder, "Thread", String.valueOf(evidence.getThreadId()));
+        }
+        return builder.toString();
+    }
+
+    private static void appendLabeledText(StringBuilder builder, String label, String value) {
+        String normalized = normalizeBlankToNull(value);
+        if (normalized == null) {
+            return;
+        }
+        if (builder.length() > 0) {
+            builder.append('\n');
+        }
+        builder.append(label).append(": ").append(normalized);
+    }
+
+    private static String joinLongs(List<Long> values) {
+        StringBuilder builder = new StringBuilder();
+        for (Long value : values) {
+            if (value == null) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(", ");
+            }
+            builder.append(value);
+        }
+        return builder.toString();
+    }
+
+    private static String resolveSourceKind(MessageKnowledgeEvidence evidence) {
+        String sourceKind = normalizeBlankToNull(evidence.getSourceKind());
+        if (sourceKind == null) {
+            return MessageKnowledgeEvidence.SOURCE_KIND_MESSAGE_PAIR;
+        }
+        return sourceKind;
+    }
+
+    private static List<Long> resolveSourceMessageIds(MessageKnowledgeEvidence evidence) {
+        List<Long> sourceIds = parseSourceMessageIds(evidence.getSourceMessageIdsJson());
+        if (!sourceIds.isEmpty()) {
+            return sourceIds;
+        }
+        addUniqueLong(sourceIds, evidence.getSourceMessageStartId());
+        addUniqueLong(sourceIds, evidence.getSourceMessageEndId());
+        return sourceIds;
+    }
+
+    private static List<Long> parseSourceMessageIds(String sourceMessageIdsJson) {
+        List<Long> sourceIds = new ArrayList<>();
+        String normalizedJson = normalizeBlankToNull(sourceMessageIdsJson);
+        if (normalizedJson == null) {
+            return sourceIds;
+        }
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(normalizedJson);
+            if (!root.isArray()) {
+                return sourceIds;
+            }
+            for (JsonNode item : root) {
+                if (item == null || !item.canConvertToLong()) {
+                    continue;
+                }
+                addUniqueLong(sourceIds, item.asLong());
+            }
+        } catch (JsonProcessingException e) {
+            return sourceIds;
+        }
+        return sourceIds;
+    }
+
+    private static void addUniqueLong(List<Long> values, Long value) {
+        if (value == null || values.contains(value)) {
+            return;
+        }
+        values.add(value);
     }
 
     private static String humanizeTopic(String topic) {

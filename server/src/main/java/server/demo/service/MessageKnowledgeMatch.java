@@ -1,12 +1,10 @@
 package server.demo.service;
 
-import server.demo.entity.MessageKnowledgeEntry;
-
 import java.util.ArrayList;
 import java.util.List;
 
 public class MessageKnowledgeMatch {
-    private MessageKnowledgeEntry entry;
+    private MessageKnowledgeCandidate candidate;
     private double score;
     private String scopeLevel;
     private List<String> matchReasons = new ArrayList<>();
@@ -17,23 +15,23 @@ public class MessageKnowledgeMatch {
     }
 
     public MessageKnowledgeMatch(
-            MessageKnowledgeEntry entry,
+            MessageKnowledgeCandidate candidate,
             double score,
             String scopeLevel,
             List<String> matchReasons
     ) {
-        this(entry, score, scopeLevel, matchReasons, List.of(), List.of());
+        this(candidate, score, scopeLevel, matchReasons, List.of(), List.of());
     }
 
     public MessageKnowledgeMatch(
-            MessageKnowledgeEntry entry,
+            MessageKnowledgeCandidate candidate,
             double score,
             String scopeLevel,
             List<String> matchReasons,
             List<String> policyTopics,
             List<String> reusableFacts
     ) {
-        this.entry = entry;
+        this.candidate = candidate;
         this.score = score;
         this.scopeLevel = scopeLevel;
         setMatchReasons(matchReasons);
@@ -41,12 +39,12 @@ public class MessageKnowledgeMatch {
         setReusableFacts(reusableFacts);
     }
 
-    public MessageKnowledgeEntry getEntry() {
-        return entry;
+    public MessageKnowledgeCandidate getCandidate() {
+        return candidate;
     }
 
-    public void setEntry(MessageKnowledgeEntry entry) {
-        this.entry = entry;
+    public void setCandidate(MessageKnowledgeCandidate candidate) {
+        this.candidate = candidate;
     }
 
     public double getScore() {

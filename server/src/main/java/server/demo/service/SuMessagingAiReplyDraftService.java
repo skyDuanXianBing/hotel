@@ -189,7 +189,7 @@ public class SuMessagingAiReplyDraftService {
         }
 
         if (canUseHistoricalAnswerFallback(searchResult)) {
-            return cleanupGeneratedReply(searchResult.getMatches().get(0).getEntry().getAnswer());
+            return cleanupGeneratedReply(searchResult.getMatches().get(0).getCandidate().getAnswer());
         }
         return fallbackDraft(latestGuestMessage);
     }
@@ -246,9 +246,9 @@ public class SuMessagingAiReplyDraftService {
 
         MessageKnowledgeMatch bestMatch = searchResult.getMatches().get(0);
         return bestMatch != null
-                && bestMatch.getEntry() != null
-                && bestMatch.getEntry().getAnswer() != null
-                && !bestMatch.getEntry().getAnswer().isBlank()
+                && bestMatch.getCandidate() != null
+                && bestMatch.getCandidate().getAnswer() != null
+                && !bestMatch.getCandidate().getAnswer().isBlank()
                 && bestMatch.getScore() >= HIGH_CONFIDENCE_FALLBACK_SCORE;
     }
 

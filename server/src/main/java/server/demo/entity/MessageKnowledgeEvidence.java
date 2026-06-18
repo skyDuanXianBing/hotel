@@ -26,15 +26,18 @@ import java.time.LocalDateTime;
         name = "message_knowledge_evidence",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_msg_knowledge_evidence_source",
-                        columnNames = {"store_id", "source_guest_message_id", "source_staff_message_id"}
+                        name = "uk_msg_knowledge_evidence_fingerprint",
+                        columnNames = {"store_id", "source_fingerprint"}
                 )
         }
 )
 public class MessageKnowledgeEvidence implements StoreScopedEntity {
     public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_CANDIDATE = "CANDIDATE";
     public static final String STATUS_CONFLICT = "CONFLICT";
     public static final String REDACTION_STATUS_REDACTED = "REDACTED";
+    public static final String SOURCE_KIND_MESSAGE_PAIR = "MESSAGE_PAIR";
+    public static final String SOURCE_KIND_THREAD_CONVERSATION = "THREAD_CONVERSATION";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -80,11 +83,23 @@ public class MessageKnowledgeEvidence implements StoreScopedEntity {
     @Column(name = "booking_key", length = 255)
     private String bookingKey;
 
-    @Column(name = "source_guest_message_id", nullable = false)
-    private Long sourceGuestMessageId;
+    @Column(name = "source_kind", nullable = false, length = 30)
+    private String sourceKind = SOURCE_KIND_MESSAGE_PAIR;
 
-    @Column(name = "source_staff_message_id", nullable = false)
-    private Long sourceStaffMessageId;
+    @Column(name = "source_message_ids_json", columnDefinition = "MEDIUMTEXT")
+    private String sourceMessageIdsJson;
+
+    @Column(name = "source_message_start_id")
+    private Long sourceMessageStartId;
+
+    @Column(name = "source_message_end_id")
+    private Long sourceMessageEndId;
+
+    @Column(name = "extractor_version", length = 40)
+    private String extractorVersion;
+
+    @Column(name = "source_fingerprint", length = 64)
+    private String sourceFingerprint;
 
     @Column(name = "source_timestamp")
     private LocalDateTime sourceTimestamp;
@@ -127,6 +142,9 @@ public class MessageKnowledgeEvidence implements StoreScopedEntity {
         }
         if (piiRedactionStatus == null) {
             piiRedactionStatus = REDACTION_STATUS_REDACTED;
+        }
+        if (sourceKind == null) {
+            sourceKind = SOURCE_KIND_MESSAGE_PAIR;
         }
         if (confidence == null) {
             confidence = BigDecimal.valueOf(0.7);
@@ -256,20 +274,52 @@ public class MessageKnowledgeEvidence implements StoreScopedEntity {
         this.bookingKey = bookingKey;
     }
 
-    public Long getSourceGuestMessageId() {
-        return sourceGuestMessageId;
+    public String getSourceKind() {
+        return sourceKind;
     }
 
-    public void setSourceGuestMessageId(Long sourceGuestMessageId) {
-        this.sourceGuestMessageId = sourceGuestMessageId;
+    public void setSourceKind(String sourceKind) {
+        this.sourceKind = sourceKind;
     }
 
-    public Long getSourceStaffMessageId() {
-        return sourceStaffMessageId;
+    public String getSourceMessageIdsJson() {
+        return sourceMessageIdsJson;
     }
 
-    public void setSourceStaffMessageId(Long sourceStaffMessageId) {
-        this.sourceStaffMessageId = sourceStaffMessageId;
+    public void setSourceMessageIdsJson(String sourceMessageIdsJson) {
+        this.sourceMessageIdsJson = sourceMessageIdsJson;
+    }
+
+    public Long getSourceMessageStartId() {
+        return sourceMessageStartId;
+    }
+
+    public void setSourceMessageStartId(Long sourceMessageStartId) {
+        this.sourceMessageStartId = sourceMessageStartId;
+    }
+
+    public Long getSourceMessageEndId() {
+        return sourceMessageEndId;
+    }
+
+    public void setSourceMessageEndId(Long sourceMessageEndId) {
+        this.sourceMessageEndId = sourceMessageEndId;
+    }
+
+    public String getExtractorVersion() {
+        return extractorVersion;
+    }
+
+    public void setExtractorVersion(String extractorVersion) {
+        this.extractorVersion = extractorVersion;
+    }
+
+    public String getSourceFingerprint() {
+        return sourceFingerprint;
+    }
+
+    public void setSourceFingerprint(String sourceFingerprint) {
+        this.sourceFingerprint = sourceFingerprint;
     }
 
     public LocalDateTime getSourceTimestamp() {
