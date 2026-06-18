@@ -67,6 +67,8 @@
     </SettingsSectionCard>
 
     <SettingsSectionCard title="渠道价差">
+      <p v-if="!canManageChannels" class="mobile-note">没有渠道管理权限，仅可查看渠道价差。</p>
+
       <div v-if="adjustments.length > 0" class="mobile-list settings-card-list">
         <article v-for="adjustment in adjustments" :key="adjustment.channelId" class="settings-card-item">
           <div>
@@ -75,7 +77,14 @@
             <p>{{ adjustment.autoSyncPrice ? '自动同步已开' : '自动同步已关' }}</p>
           </div>
           <div class="settings-card-item__actions">
-            <ion-button size="small" fill="outline" @click="handleEditAdjustment(adjustment)">编辑</ion-button>
+            <ion-button
+              size="small"
+              fill="outline"
+              :disabled="!canManageChannels"
+              @click="handleEditAdjustment(adjustment)"
+            >
+              编辑
+            </ion-button>
           </div>
         </article>
       </div>
@@ -140,7 +149,12 @@
       <div class="settings-form-grid">
         <label class="settings-form-field">
           <span>调整方式</span>
-          <ion-select v-model="adjustmentForm.adjustmentType" fill="outline" interface="action-sheet">
+          <ion-select
+            v-model="adjustmentForm.adjustmentType"
+            fill="outline"
+            interface="action-sheet"
+            :disabled="!canManageChannels"
+          >
             <ion-select-option value="COMMISSION">COMMISSION</ion-select-option>
             <ion-select-option value="FIXED">FIXED</ion-select-option>
             <ion-select-option value="PERCENTAGE">PERCENTAGE</ion-select-option>
@@ -148,19 +162,25 @@
         </label>
         <label class="settings-form-field">
           <span>调整值</span>
-          <ion-input v-model="adjustmentForm.adjustmentValue" fill="outline" inputmode="decimal" placeholder="请输入调整值" />
+          <ion-input
+            v-model="adjustmentForm.adjustmentValue"
+            fill="outline"
+            inputmode="decimal"
+            placeholder="请输入调整值"
+            :disabled="!canManageChannels"
+          />
         </label>
         <div class="settings-toggle-field">
           <div>
             <strong>自动同步价格</strong>
           </div>
-          <ion-toggle v-model="adjustmentForm.autoSyncPrice" />
+          <ion-toggle v-model="adjustmentForm.autoSyncPrice" :disabled="!canManageChannels" />
         </div>
       </div>
 
       <template #actions>
         <ion-button fill="outline" @click="handleCloseAdjustmentEditor">取消</ion-button>
-        <ion-button :disabled="submittingAdjustment" @click="handleSaveAdjustment">
+        <ion-button :disabled="submittingAdjustment || !canManageChannels" @click="handleSaveAdjustment">
           {{ submittingAdjustment ? '提交中...' : '保存价差' }}
         </ion-button>
       </template>
@@ -194,6 +214,7 @@ import {
   type PriceLabsConnectionDTO,
   type PriceLabsIntegrationDTO,
 } from '@/api/pricelabs'
+import { PermissionAction, PermissionModule } from '@/api/role'
 import { getAllPricePlans, type PricePlanDTO } from '@/api/pricePlan'
 import { getAllRoomTypes, type RoomTypeDTO } from '@/api/roomType'
 import SettingsEditorModal from '@/components/settings/base/SettingsEditorModal.vue'
@@ -202,6 +223,7 @@ import SettingsSectionCard from '@/components/settings/base/SettingsSectionCard.
 import { ROUTE_PATHS } from '@/router/guards'
 import { useUserStore } from '@/stores/user'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
+import { hasCurrentStorePermission } from '@/utils/permissions'
 import { isHandledRequestError } from '@/utils/request'
 import { normalizeOptionalNumber } from '@/utils/settings'
 
@@ -212,6 +234,7 @@ const savingIntegration = ref(false)
 const syncing = ref(false)
 const submittingConnection = ref(false)
 const submittingAdjustment = ref(false)
+const canManageChannels = ref(false)
 const integrationForm = ref<Partial<PriceLabsIntegrationDTO>>({
   isEnabled: false,
   priceLabsEmail: '',
@@ -232,6 +255,27 @@ function resolveWarningMessage(error: unknown, fallbackMessage: string) {
     return error.message
   }
   return fallbackMessage
+}
+
+function ensureCanManageChannels(actionLabel: string) {
+  if (canManageChannels.value) {
+    return true
+  }
+
+  showWarningToast(`您没有权限${actionLabel}`)
+  return false
+}
+
+async function loadManageChannelsPermission() {
+  try {
+    canManageChannels.value = await hasCurrentStorePermission({
+      module: PermissionModule.CHANNEL,
+      action: PermissionAction.MANAGE_CHANNELS,
+    })
+  } catch (error) {
+    canManageChannels.value = false
+    console.warn('加载渠道管理权限失败', error)
+  }
 }
 
 async function confirmDelete(name: string, title: string) {
@@ -264,6 +308,7 @@ async function loadPageData() {
       getAllRoomTypes(),
       getAllPricePlans(userId),
       getRecentSyncLogs(6),
+      loadManageChannelsPermission(),
     ])
 
     if (integrationResponse.success && integrationResponse.data) {
@@ -393,6 +438,10 @@ async function handleDeleteConnection(connection: PriceLabsConnectionDTO) {
 }
 
 function handleEditAdjustment(adjustment: ChannelPriceAdjustmentDTO) {
+  if (!ensureCanManageChannels('编辑渠道价差')) {
+    return
+  }
+
   selectedAdjustmentChannelId.value = adjustment.channelId
   adjustmentForm.value = {
     adjustmentType: adjustment.adjustmentType,
@@ -409,6 +458,10 @@ function handleCloseAdjustmentEditor() {
 }
 
 async function handleSaveAdjustment() {
+  if (!ensureCanManageChannels('保存渠道价差')) {
+    return
+  }
+
   if (!selectedAdjustmentChannelId.value) {
     return
   }

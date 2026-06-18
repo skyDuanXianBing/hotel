@@ -7,9 +7,22 @@
           <el-table-column prop="ratio" :label="t('channel.priceRatio.ratio')" min-width="200" align="center" />
           <el-table-column :label="t('channel.priceRatio.actions')" width="150" align="center">
             <template #default="{ row }">
-              <el-button type="text" size="small" @click="$emit('edit', row)">
-                {{ t('channel.priceRatio.edit') }}
-              </el-button>
+              <el-tooltip
+                :content="t('stage6.common.messages.noPermission')"
+                :disabled="canManage"
+                placement="top"
+              >
+                <span class="price-ratio-action">
+                  <el-button
+                    type="text"
+                    size="small"
+                    :disabled="!canManage"
+                    @click="handleEdit(row)"
+                  >
+                    {{ t('channel.priceRatio.edit') }}
+                  </el-button>
+                </span>
+              </el-tooltip>
             </template>
           </el-table-column>
         </el-table>
@@ -27,16 +40,25 @@
 import { useI18n } from 'vue-i18n'
 import type { PriceRatioItem } from '../types'
 
-defineProps<{
+const props = defineProps<{
   data: PriceRatioItem[]
   loading: boolean
+  canManage: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   edit: [row: PriceRatioItem]
 }>()
 
 const { t } = useI18n()
+
+function handleEdit(row: PriceRatioItem) {
+  if (!props.canManage) {
+    return
+  }
+
+  emit('edit', row)
+}
 </script>
 
 <style scoped>
@@ -61,6 +83,10 @@ const { t } = useI18n()
 
 .price-ratio-table {
   width: 100%;
+}
+
+.price-ratio-action {
+  display: inline-flex;
 }
 
 .empty-state {

@@ -3,10 +3,16 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PriceRatioEdit } from '../../types'
 
-const props = defineProps<{
-  modelValue: boolean
-  editData: PriceRatioEdit | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean
+    editData: PriceRatioEdit | null
+    canSave?: boolean
+  }>(),
+  {
+    canSave: true,
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -27,9 +33,11 @@ watch(
 )
 
 function handleSave() {
-  if (localData.value) {
-    emit('save', { ...localData.value })
+  if (!props.canSave || !localData.value) {
+    return
   }
+
+  emit('save', { ...localData.value })
 }
 </script>
 
@@ -69,7 +77,9 @@ function handleSave() {
     </div>
     <template #footer>
       <el-button @click="$emit('update:modelValue', false)">{{ t('channel.dialogs.common.cancel') }}</el-button>
-      <el-button type="primary" @click="handleSave">{{ t('channel.dialogs.common.save') }}</el-button>
+      <el-button type="primary" :disabled="!canSave" @click="handleSave">
+        {{ t('channel.dialogs.common.save') }}
+      </el-button>
     </template>
   </el-dialog>
 </template>

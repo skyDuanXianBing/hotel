@@ -5,9 +5,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.demo.annotation.RequirePermission;
 import server.demo.annotation.StoreScoped;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.*;
+import server.demo.enums.PermissionAction;
+import server.demo.enums.PermissionModule;
 import server.demo.enums.PriceAdjustmentType;
 import server.demo.service.ChannelPriceFallbackService;
 import server.demo.service.PriceLabsApiClient;
@@ -207,6 +210,7 @@ public class PriceLabsController {
      * 更新单个渠道的价格调整设置
      */
     @PutMapping("/channel-adjustments/{channelId}")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     @StoreScoped
     public ResponseEntity<ApiResponse<ChannelPriceAdjustmentDTO>> updateChannelPriceAdjustment(
             @PathVariable Long channelId,
@@ -228,6 +232,7 @@ public class PriceLabsController {
      * 批量更新渠道价格调整设置
      */
     @PutMapping("/channel-adjustments/batch")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     @StoreScoped
     public ResponseEntity<ApiResponse<List<ChannelPriceAdjustmentDTO>>> batchUpdateChannelPriceAdjustments(
             @RequestBody List<ChannelPriceAdjustmentDTO> adjustments) {
@@ -244,6 +249,7 @@ public class PriceLabsController {
      * 重新计算渠道价格
      */
     @PostMapping("/channel-adjustments/{channelId}/recalculate")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
     @StoreScoped
     public ResponseEntity<ApiResponse<Map<String, Object>>> recalculateChannelPrices(
             @PathVariable Long channelId,

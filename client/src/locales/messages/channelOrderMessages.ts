@@ -51,9 +51,10 @@ export const channelOrderMessages = {
         line3: '3. Room amount is excluded after moving into the order box. Settled or posted room charges will be reversed.',
       },
       table: {
-        orderNumbers: 'Order No. / Channel Order No.',
+        orderNumbers: 'Order Info',
+        channelOrderNumber: 'Channel Order No.',
         detailTitle: 'Click to view order details',
-        detailTip: 'Click the order number to view details',
+        detailTip: 'Click the order info to view details',
         channel: 'Channel',
         status: 'Status',
         guestName: 'Contact',
@@ -100,6 +101,10 @@ export const channelOrderMessages = {
       mapping: {
         channelRoomType: 'Channel Room Type',
         pmsRoomType: 'PMS Room Type',
+      },
+      channelLabels: {
+        directGuest: 'Direct Guest',
+        meituan: 'Meituan',
       },
       settlement: {
         settled: 'Settled',
@@ -488,9 +493,10 @@ export const channelOrderMessages = {
         line3: '3. 订单金额不计算移入订单盒子的房间，如房间已结账或挂账，移入后将被撤销',
       },
       table: {
-        orderNumbers: '订单号/渠道订单号',
+        orderNumbers: '订单信息',
+        channelOrderNumber: '渠道订单号',
         detailTitle: '点击查看订单详情',
-        detailTip: '点击订单号查看详情',
+        detailTip: '点击订单信息查看详情',
         channel: '渠道',
         status: '状态',
         guestName: '联系人',
@@ -537,6 +543,10 @@ export const channelOrderMessages = {
       mapping: {
         channelRoomType: '渠道房型',
         pmsRoomType: 'PMS房型',
+      },
+      channelLabels: {
+        directGuest: '自来客',
+        meituan: '美团',
       },
       settlement: {
         settled: '已结账',
@@ -912,9 +922,10 @@ export const channelOrderMessages = {
         line3: '3. 訂單金額不計算移入訂單盒子的房間，如房間已結帳或掛帳，移入後將被撤銷',
       },
       table: {
-        orderNumbers: '訂單號/渠道訂單號',
+        orderNumbers: '訂單資訊',
+        channelOrderNumber: '渠道訂單號',
         detailTitle: '點擊查看訂單詳情',
-        detailTip: '點擊訂單號查看詳情',
+        detailTip: '點擊訂單資訊查看詳情',
         channel: '渠道',
         status: '狀態',
         guestName: '聯絡人',
@@ -961,6 +972,10 @@ export const channelOrderMessages = {
       mapping: {
         channelRoomType: '渠道房型',
         pmsRoomType: 'PMS房型',
+      },
+      channelLabels: {
+        directGuest: '散客',
+        meituan: '美團',
       },
       settlement: {
         settled: '已結帳',
@@ -1335,9 +1350,10 @@ export const channelOrderMessages = {
         line3: '3. 注文ボックスへ移動した客室料金は注文金額に含まれません。精算済みまたは掛け処理済みの場合は取り消されます。',
       },
       table: {
-        orderNumbers: '注文番号/チャネル注文番号',
+        orderNumbers: '注文情報',
+        channelOrderNumber: 'チャネル注文番号',
         detailTitle: '注文詳細を表示',
-        detailTip: '注文番号をクリックして詳細を表示',
+        detailTip: '注文情報をクリックして詳細を表示',
         channel: 'チャネル',
         status: 'ステータス',
         guestName: '連絡先',
@@ -1384,6 +1400,10 @@ export const channelOrderMessages = {
       mapping: {
         channelRoomType: 'チャネル客室タイプ',
         pmsRoomType: 'PMS客室タイプ',
+      },
+      channelLabels: {
+        directGuest: '直接来店客',
+        meituan: 'Meituan',
       },
       settlement: {
         settled: '精算済み',

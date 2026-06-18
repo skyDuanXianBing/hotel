@@ -601,7 +601,16 @@ const routePermissionConfig = new Map<
   ['DailyTask', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
   ['TaskStatistics', { requirements: [{ module: PermissionModule.ACCOMMODATION, action: PermissionAction.TASK_LIST }] }],
   ['ChannelListSettings', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
-  ['ChannelPriceRatioSettings', { requirements: [{ module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS }] }],
+  [
+    'ChannelPriceRatioSettings',
+    {
+      requirements: [
+        { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+        { module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS },
+      ],
+      matchMode: 'any',
+    },
+  ],
   ['Order', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
   ['OrderNotifications', { requirements: [{ module: PermissionModule.ORDER, action: PermissionAction.VIEW_ORDERS }] }],
   ['DataCenterOverview', { requirements: [{ module: PermissionModule.STATISTICS, action: PermissionAction.VIEW_STATS }] }],

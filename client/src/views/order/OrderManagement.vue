@@ -250,20 +250,32 @@
             fixed="left"
           >
             <template #default="scope">
-              <div class="order-number">
+              <div class="order-summary">
                 <el-button
                   type="text"
                   class="order-link"
                   :title="t('order.table.detailTitle')"
                   @click="viewOrder(scope.row)"
-                  >{{ scope.row.orderNumber }}</el-button
                 >
+                  {{ getOrderPrimaryDisplay(scope.row) }}
+                </el-button>
+                <div class="order-summary-meta">
+                  <span
+                    v-for="item in getOrderSecondaryDisplayItems(scope.row)"
+                    :key="item"
+                    class="order-summary-meta-item"
+                  >
+                    {{ item }}
+                  </span>
+                </div>
                 <el-button
+                  v-if="getDisplayChannelOrderNumber(scope.row)"
                   type="text"
                   class="channel-order-link"
                   :title="t('order.table.detailTitle')"
                   @click="viewOrder(scope.row)"
                 >
+                  {{ t('order.table.channelOrderNumber') }}:
                   {{ getDisplayChannelOrderNumber(scope.row) }}
                 </el-button>
                 <span class="order-detail-tip">{{ t('order.table.detailTip') }}</span>
@@ -1255,16 +1267,16 @@ const formatDateTime = (dateStr: string, sourceTimeZone?: string) => {
 const getChannelDisplayName = (value?: string) => {
   const normalized = value?.trim().toLowerCase() || ''
   const channelMap: Record<string, string> = {
-    direct: t('pages.home.guest.directGuest'),
-    'direct guest': t('pages.home.guest.directGuest'),
-    直营客: t('pages.home.guest.directGuest'),
-    自来客: t('pages.home.guest.directGuest'),
-    散客: t('pages.home.guest.directGuest'),
-    直接来店客: t('pages.home.guest.directGuest'),
-    meituan: t('pages.home.roomStatusChannel.channels.meituan'),
-    'meituan homestay': t('pages.home.roomStatusChannel.channels.meituan'),
-    美团民宿: t('pages.home.roomStatusChannel.channels.meituan'),
-    美團民宿: t('pages.home.roomStatusChannel.channels.meituan'),
+    direct: t('order.channelLabels.directGuest'),
+    'direct guest': t('order.channelLabels.directGuest'),
+    直营客: t('order.channelLabels.directGuest'),
+    自来客: t('order.channelLabels.directGuest'),
+    散客: t('order.channelLabels.directGuest'),
+    直接来店客: t('order.channelLabels.directGuest'),
+    meituan: t('order.channelLabels.meituan'),
+    'meituan homestay': t('order.channelLabels.meituan'),
+    美团民宿: t('order.channelLabels.meituan'),
+    美團民宿: t('order.channelLabels.meituan'),
     tujia: 'Tujia',
     途家: 'Tujia',
   }
@@ -1430,18 +1442,104 @@ const openAssignRoom = async (order: ReservationDTO) => {
   await refreshAssignableRoomTypes()
 }
 
+const isInternalOrderNumber = (value?: string | null) => {
+  const normalized = getTrimmedValue(value)
+  return /^RSV[A-Z0-9]{16,}$/i.test(normalized)
+}
+
 const getDisplayChannelOrderNumber = (order: ReservationDTO) => {
-  const channelOrderNumber = order.channelOrderNumber?.trim()
-  if (channelOrderNumber) {
+  const channelOrderNumber = getTrimmedValue(order.channelOrderNumber)
+  if (channelOrderNumber && !isInternalOrderNumber(channelOrderNumber)) {
     return channelOrderNumber
   }
 
-  const orderNumber = order.orderNumber?.trim() || ''
+  const orderNumber = getTrimmedValue(order.orderNumber)
   const underscoreIndex = orderNumber.indexOf('_')
   if (underscoreIndex > 0) {
-    return orderNumber.slice(0, underscoreIndex)
+    const channelOrderCandidate = orderNumber.slice(0, underscoreIndex).trim()
+    if (channelOrderCandidate && !isInternalOrderNumber(channelOrderCandidate)) {
+      return channelOrderCandidate
+    }
   }
-  return '-'
+  return ''
+}
+
+const formatOrderStayDateRange = (order: ReservationDTO) => {
+  const checkInDate = normalizeYmdInput(order.checkInDate, '')
+  const checkOutDate = normalizeYmdInput(order.checkOutDate, '')
+  if (checkInDate && checkOutDate) {
+    return `${checkInDate} - ${checkOutDate}`
+  }
+  return checkInDate || checkOutDate
+}
+
+const getOrderRoomDescription = (order: ReservationDTO) => {
+  const roomTypeDisplay = getRoomTypeDisplay(order)
+  const roomTypeName = roomTypeDisplay === '-' ? '' : roomTypeDisplay
+  const roomNumber = getTrimmedValue(order.roomNumber)
+
+  if (roomTypeName && roomNumber) {
+    return `${roomTypeName} / ${roomNumber}`
+  }
+  return roomTypeName || roomNumber
+}
+
+const getReadableChannelName = (order: ReservationDTO) => {
+  const channelName = getChannelDisplayName(order.channelName)
+  if (channelName === '-') {
+    return ''
+  }
+  return channelName
+}
+
+const getOrderPrimaryDisplay = (order: ReservationDTO) => {
+  const guestName = getTrimmedValue(order.guestName)
+  const stayDateRange = formatOrderStayDateRange(order)
+  const channelName = getReadableChannelName(order)
+  const roomDescription = getOrderRoomDescription(order)
+
+  if (guestName && stayDateRange) {
+    return `${guestName} · ${stayDateRange}`
+  }
+  if (guestName) {
+    return guestName
+  }
+  if (channelName && stayDateRange) {
+    return `${channelName} · ${stayDateRange}`
+  }
+  if (stayDateRange) {
+    return stayDateRange
+  }
+  if (roomDescription) {
+    return roomDescription
+  }
+
+  const channelOrderNumber = getDisplayChannelOrderNumber(order)
+  if (channelOrderNumber) {
+    return channelOrderNumber
+  }
+  return t('order.table.detailTitle')
+}
+
+const getOrderSecondaryDisplayItems = (order: ReservationDTO) => {
+  const displayItems: string[] = []
+  const channelName = getReadableChannelName(order)
+  const roomDescription = getOrderRoomDescription(order)
+  const stayDateRange = formatOrderStayDateRange(order)
+  const primaryDisplay = getOrderPrimaryDisplay(order)
+
+  if (channelName && !primaryDisplay.includes(channelName)) {
+    displayItems.push(channelName)
+  }
+  if (roomDescription && !primaryDisplay.includes(roomDescription)) {
+    displayItems.push(roomDescription)
+  }
+
+  if (stayDateRange && !primaryDisplay.includes(stayDateRange)) {
+    displayItems.push(stayDateRange)
+  }
+
+  return displayItems
 }
 
 const handleReservationUpdated = async () => {
@@ -1660,7 +1758,7 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.order-number {
+.order-summary {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1689,15 +1787,25 @@ onMounted(() => {
   text-decoration: underline;
 }
 
-.channel-order {
+.order-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  max-width: 100%;
   font-size: 12px;
-  color: #999;
+  line-height: 1.35;
+  color: #606266;
+}
+
+.order-summary-meta-item {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .channel-order-link {
   padding: 0;
   font-size: 12px;
-  color: #999;
+  color: #8c8c8c;
   text-align: left;
   white-space: normal;
   word-break: break-all;

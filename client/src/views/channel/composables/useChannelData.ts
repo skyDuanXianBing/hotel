@@ -445,10 +445,8 @@ export function useChannelData() {
             const rateId = String(ratePlan.RatePlanID || '')
             const pmsPlan = pickPricePlanForRateId(rateId, pricePlans)
             const pmsPlanName = pmsPlan?.name || pmsPlan?.nameEn || null
-            const mappingActive =
-              normalizeText(ratePlan.MappingStatus || mapping.Status) === 'active'
-            const status =
-              mappingActive && pmsRoomType && pmsPlanName ? 'connected' : 'disconnected'
+            const mappingActive = normalizeText(ratePlan.MappingStatus || mapping.Status) === 'active'
+            const status = mappingActive && pmsRoomType && pmsPlanName ? 'connected' : 'disconnected'
             return {
               id: `${channelCode}-${channelRoomId}-${rateId || rateIndex}`,
               channelPricePlan: rateId || t('channel.managementData.standardRate'),

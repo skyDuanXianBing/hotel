@@ -53,6 +53,7 @@
         :loading="priceRatioLoading"
         v-loading="priceRatioLoading"
         :data="priceRatioData"
+        :can-manage="canManageChannels"
         @edit="handleEditPriceRatio"
       />
     </div>
@@ -80,6 +81,7 @@
     <EditPriceRatioDialog
       v-model="showEditPriceRatioDialog"
       :edit-data="editingPriceRatio"
+      :can-save="canManageChannels"
       @save="handleSavePriceRatio"
     />
 
@@ -110,6 +112,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { PermissionAction, PermissionModule } from '@/api/role'
+import { usePermissionStore } from '@/stores/permission'
 
 // Foundational modules
 import type {
@@ -122,6 +126,7 @@ import type {
   CalendarRow,
   RoomSettingsRow,
   BookingSettings,
+  PriceRatioItem,
   PriceRatioEdit,
 } from './types'
 
@@ -163,10 +168,14 @@ const {
 
 const { t } = useI18n()
 const route = useRoute()
+const permissionStore = usePermissionStore()
 
 // Navigation & panels status
 const activeSection = computed<'channel-list' | 'price-ratio'>(() =>
   route.name === 'ChannelPriceRatioSettings' ? 'price-ratio' : 'channel-list',
+)
+const canManageChannels = computed(() =>
+  permissionStore.hasPermission(PermissionModule.CHANNEL, PermissionAction.MANAGE_CHANNELS),
 )
 const showChannelSettings = ref(false)
 const selectedChannel = ref<ChannelItem | null>(null)
@@ -376,7 +385,16 @@ const handleHotelAuthorize = () => {
 
 // ──────────── Price Ratio Actions ────────────
 
-const handleEditPriceRatio = (row: any) => {
+const showNoPermissionMessage = () => {
+  ElMessage.warning(t('stage6.common.messages.noPermission'))
+}
+
+const handleEditPriceRatio = (row: PriceRatioItem) => {
+  if (!canManageChannels.value) {
+    showNoPermissionMessage()
+    return
+  }
+
   const adjustmentValue = row.adjustmentValue ?? 0
   editingPriceRatio.value = {
     channelId: row.channelId,
@@ -392,6 +410,11 @@ const handleEditPriceRatio = (row: any) => {
 }
 
 const handleSavePriceRatio = async (editData: PriceRatioEdit) => {
+  if (!canManageChannels.value) {
+    showNoPermissionMessage()
+    return
+  }
+
   const success = await savePriceRatio(editData)
   if (success) {
     showEditPriceRatioDialog.value = false

@@ -18,6 +18,7 @@ import {
 import { PermissionAction, PermissionModule } from '@/api/role'
 import {
   usePermissionStore,
+  type PermissionMatchMode,
   type PermissionRequirement,
 } from '@/stores/permission'
 
@@ -42,6 +43,7 @@ interface MenuItem {
   icon?: any
   path?: string
   requiredPermissions?: PermissionRequirement[]
+  permissionMatchMode?: PermissionMatchMode
   children?: MenuItem[]
 }
 
@@ -55,6 +57,11 @@ const accountSettingsPermission: PermissionRequirement[] = [
 
 const channelSettingsPermission: PermissionRequirement[] = [
   { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+]
+
+const channelPriceRatioPermission: PermissionRequirement[] = [
+  { module: PermissionModule.CHANNEL, action: PermissionAction.VIEW_CHANNELS },
+  { module: PermissionModule.CHANNEL, action: PermissionAction.MANAGE_CHANNELS },
 ]
 
 const menuItems: MenuItem[] = [
@@ -103,7 +110,13 @@ const menuItems: MenuItem[] = [
     icon: Connection,
     children: [
       { key: 'channel-list', label: 'channel.sidebar.list', path: '/settings/channel/list', requiredPermissions: channelSettingsPermission },
-      { key: 'channel-price-ratio', label: 'channel.sidebar.priceRatio', path: '/settings/channel/price-ratio', requiredPermissions: channelSettingsPermission },
+      {
+        key: 'channel-price-ratio',
+        label: 'channel.sidebar.priceRatio',
+        path: '/settings/channel/price-ratio',
+        requiredPermissions: channelPriceRatioPermission,
+        permissionMatchMode: 'any',
+      },
     ],
   },
   {
@@ -153,7 +166,7 @@ const filteredMenuItems = computed(() =>
       const children = item.children?.filter(
         (child) =>
           !child.requiredPermissions ||
-          permissionStore.hasPermissions(child.requiredPermissions, 'all')
+          permissionStore.hasPermissions(child.requiredPermissions, child.permissionMatchMode ?? 'all')
       )
 
       return {

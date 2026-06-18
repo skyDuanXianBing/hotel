@@ -61,10 +61,15 @@
               <span class="channel-detail-page__entry-arrow">›</span>
             </button>
 
-            <button type="button" class="channel-detail-page__entry" @click="openPriceEditor">
+            <button
+              type="button"
+              class="channel-detail-page__entry"
+              :disabled="!canManageChannels"
+              @click="openPriceEditor"
+            >
               <div class="channel-detail-page__entry-copy">
                 <strong>价格比例</strong>
-                <p>{{ priceSummary }}</p>
+                <p>{{ priceEntryDescription }}</p>
               </div>
               <span class="channel-detail-page__entry-arrow">›</span>
             </button>
@@ -186,12 +191,14 @@ import {
   updateChannelPriceAdjustment,
   type ChannelPriceAdjustmentDTO,
 } from '@/api/pricelabs'
+import { PermissionAction, PermissionModule } from '@/api/role'
 import { ROUTE_PATHS } from '@/router/guards'
 import {
   resolveChannelWarningMessage,
   sanitizeChannelWarningMessage,
 } from '@/utils/channelMessage'
 import { showSuccessToast, showWarningToast } from '@/utils/notify'
+import { hasCurrentStorePermission } from '@/utils/permissions'
 import { isHandledRequestError } from '@/utils/request'
 
 const route = useRoute()
@@ -200,6 +207,7 @@ const router = useRouter()
 const loading = ref(false)
 const actionLoading = ref(false)
 const priceSubmitting = ref(false)
+const canManageChannels = ref(false)
 const channel = ref<OtaIntegrationDTO | null>(null)
 const mappingStatus = ref<SuMappingStatusSummary | null>(null)
 const priceAdjustment = ref<ChannelPriceAdjustmentDTO | null>(null)
@@ -237,6 +245,10 @@ const priceSummary = computed(() => {
     return '暂未配置价格比例'
   }
   return formatAdjustmentSummary(resolvedPriceAdjustment.value)
+})
+
+const priceEntryDescription = computed(() => {
+  return priceSummary.value
 })
 
 const channelCapability = computed(() => getChannelActionCapability(channel.value?.code))
@@ -363,6 +375,22 @@ async function loadDetail() {
   }
 }
 
+async function loadManageChannelsPermission() {
+  try {
+    canManageChannels.value = await hasCurrentStorePermission({
+      module: PermissionModule.CHANNEL,
+      action: PermissionAction.MANAGE_CHANNELS,
+    })
+  } catch (error) {
+    canManageChannels.value = false
+    console.warn('加载渠道管理权限失败', error)
+  }
+}
+
+async function loadPageData() {
+  await Promise.all([loadDetail(), loadManageChannelsPermission()])
+}
+
 function openConnectEntry() {
   if (!channelView.value) {
     return
@@ -391,6 +419,11 @@ function handleWidgetError(message: string) {
 }
 
 function openPriceEditor() {
+  if (!canManageChannels.value) {
+    showWarningToast('您没有权限编辑价格比例')
+    return
+  }
+
   if (!channel.value) {
     return
   }
@@ -410,6 +443,11 @@ function openPriceEditor() {
 }
 
 async function handleSavePriceAdjustment(value: PriceAdjustmentEditorValue) {
+  if (!canManageChannels.value) {
+    showWarningToast('您没有权限保存价格比例')
+    return
+  }
+
   priceSubmitting.value = true
 
   try {
@@ -505,14 +543,14 @@ async function openInventoryPage() {
 
 async function handleRefresh(event: CustomEvent) {
   try {
-    await loadDetail()
+    await loadPageData()
   } finally {
     event.detail.complete()
   }
 }
 
 onIonViewWillEnter(async () => {
-  await loadDetail()
+  await loadPageData()
 })
 </script>
 
@@ -655,6 +693,11 @@ onIonViewWillEnter(async () => {
 
 .channel-detail-page__entry + .channel-detail-page__entry {
   border-top: 1px solid var(--app-border);
+}
+
+.channel-detail-page__entry:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .channel-detail-page__entry-copy {
