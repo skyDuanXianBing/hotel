@@ -80,7 +80,7 @@ class MessageKnowledgeHistoryScannerTest {
         SuMessage sendingReply = newMessage(103L, thread, SuMessagingSenderType.STAFF, "Still sending.", "SENDING");
         SuMessage guestQuestion = newMessage(90L, thread, SuMessagingSenderType.GUEST, "What is wifi?", "SENT");
 
-        when(scanStateRepository.findNextDueStateForUpdate(any(LocalDateTime.class))).thenReturn(Optional.of(state));
+        stubSuccessfulClaim(scanStateRepository, state);
         when(scanStateRepository.findById(1L)).thenReturn(Optional.of(state));
         when(scanStateRepository.save(any(MessageKnowledgeScanState.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepository.findHistoryBatchForKnowledgeScanner(
@@ -125,7 +125,7 @@ class MessageKnowledgeHistoryScannerTest {
                 pageableCaptor.capture()
         );
         assertEquals(3, pageableCaptor.getValue().getPageSize());
-        verify(scanStateRepository, times(1)).findNextDueStateForUpdate(any(LocalDateTime.class));
+        verify(scanStateRepository, times(1)).findNextDueStateId(any(LocalDateTime.class));
         verify(messageRepository, times(1)).findPreviousMessageBySenderForKnowledgeScanner(
                 eq(26L),
                 eq(77L),
@@ -153,7 +153,7 @@ class MessageKnowledgeHistoryScannerTest {
         SuMessageThread thread = newThread(88L, 26L);
         SuMessage staffReply = newMessage(201L, thread, SuMessagingSenderType.STAFF, "We have luggage storage.", "SENT");
 
-        when(scanStateRepository.findNextDueStateForUpdate(any(LocalDateTime.class))).thenReturn(Optional.of(state));
+        stubSuccessfulClaim(scanStateRepository, state);
         when(scanStateRepository.findById(2L)).thenReturn(Optional.of(state));
         when(scanStateRepository.save(any(MessageKnowledgeScanState.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepository.findHistoryBatchForKnowledgeScanner(
@@ -195,7 +195,7 @@ class MessageKnowledgeHistoryScannerTest {
         MessageKnowledgeScanState state = newScanState(3L, 26L, 300L);
         state.setFailureCount(2);
 
-        when(scanStateRepository.findNextDueStateForUpdate(any(LocalDateTime.class))).thenReturn(Optional.of(state));
+        stubSuccessfulClaim(scanStateRepository, state);
         when(scanStateRepository.findById(3L)).thenReturn(Optional.of(state));
         when(scanStateRepository.save(any(MessageKnowledgeScanState.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepository.findHistoryBatchForKnowledgeScanner(
@@ -216,7 +216,44 @@ class MessageKnowledgeHistoryScannerTest {
         assertNotNull(state.getNextScanAfter());
         assertNotNull(state.getLastFinishedAt());
         verify(refinementService, never()).refineSourcePair(any(), any(), any(), any());
-        verify(scanStateRepository, times(2)).save(state);
+        verify(scanStateRepository, times(1)).save(state);
+    }
+
+    @Test
+    void scanOnce_shouldNotProcessStateWhenAtomicClaimLosesRace() {
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        MessageKnowledgeScanStateRepository scanStateRepository =
+                Mockito.mock(MessageKnowledgeScanStateRepository.class);
+        MessageKnowledgeRefinementService refinementService =
+                Mockito.mock(MessageKnowledgeRefinementService.class);
+        MessageKnowledgeHistoryScanner scanner = newScanner(
+                messageRepository,
+                scanStateRepository,
+                refinementService
+        );
+
+        when(scanStateRepository.findNextDueStateId(any(LocalDateTime.class))).thenReturn(Optional.of(4L));
+        when(scanStateRepository.claimDueState(
+                eq(4L),
+                any(LocalDateTime.class),
+                any(),
+                any(LocalDateTime.class),
+                eq(MessageKnowledgeScanState.STATUS_RUNNING)
+        )).thenReturn(0);
+
+        int extracted = scanner.scanOnce();
+
+        assertEquals(0, extracted);
+        verify(scanStateRepository, times(1)).claimDueState(
+                eq(4L),
+                any(LocalDateTime.class),
+                any(),
+                any(LocalDateTime.class),
+                eq(MessageKnowledgeScanState.STATUS_RUNNING)
+        );
+        verify(scanStateRepository, never()).findById(4L);
+        verify(messageRepository, never()).findHistoryBatchForKnowledgeScanner(any(), any(), any());
+        verifyNoInteractions(refinementService);
     }
 
     private static MessageKnowledgeHistoryScanner newScanner(
@@ -242,6 +279,28 @@ class MessageKnowledgeHistoryScannerTest {
         state.setProcessedMessageCount(0L);
         state.setExtractedPairCount(0L);
         return state;
+    }
+
+    private static void stubSuccessfulClaim(
+            MessageKnowledgeScanStateRepository scanStateRepository,
+            MessageKnowledgeScanState state
+    ) {
+        when(scanStateRepository.findNextDueStateId(any(LocalDateTime.class)))
+                .thenReturn(Optional.of(state.getId()));
+        when(scanStateRepository.claimDueState(
+                eq(state.getId()),
+                any(LocalDateTime.class),
+                any(),
+                any(LocalDateTime.class),
+                eq(MessageKnowledgeScanState.STATUS_RUNNING)
+        )).thenAnswer(invocation -> {
+            state.setStatus(invocation.getArgument(4, String.class));
+            state.setLeaseOwner(invocation.getArgument(2, String.class));
+            state.setLeaseUntil(invocation.getArgument(3, LocalDateTime.class));
+            state.setLastStartedAt(invocation.getArgument(1, LocalDateTime.class));
+            state.setLastError(null);
+            return 1;
+        });
     }
 
     private static SuMessageThread newThread(Long id, Long storeId) {

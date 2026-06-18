@@ -101,23 +101,30 @@ public class MessageKnowledgeHistoryScanner {
 
     private Optional<Long> claimNextState() {
         LocalDateTime now = UtcTimeUtil.nowLocalDateTime();
-        Optional<MessageKnowledgeScanState> state = scanStateRepository.findNextDueStateForUpdate(now);
-        if (state.isEmpty()) {
+        Optional<Long> stateId = scanStateRepository.findNextDueStateId(now);
+        if (stateId.isEmpty()) {
             initializeOneUntrackedStore(now);
-            state = scanStateRepository.findNextDueStateForUpdate(now);
+            stateId = scanStateRepository.findNextDueStateId(now);
         }
-        if (state.isEmpty()) {
+        if (stateId.isEmpty()) {
             return Optional.empty();
         }
+        return claimDueState(stateId.get(), now);
+    }
 
-        MessageKnowledgeScanState scanState = state.get();
-        scanState.setStatus(MessageKnowledgeScanState.STATUS_RUNNING);
-        scanState.setLeaseOwner(leaseOwner);
-        scanState.setLeaseUntil(now.plusNanos(resolveLeaseMs() * 1_000_000L));
-        scanState.setLastStartedAt(now);
-        scanState.setLastError(null);
-        scanStateRepository.save(scanState);
-        return Optional.of(scanState.getId());
+    private Optional<Long> claimDueState(Long stateId, LocalDateTime now) {
+        LocalDateTime leaseUntil = now.plusNanos(resolveLeaseMs() * 1_000_000L);
+        int updated = scanStateRepository.claimDueState(
+                stateId,
+                now,
+                leaseOwner,
+                leaseUntil,
+                MessageKnowledgeScanState.STATUS_RUNNING
+        );
+        if (updated != 1) {
+            return Optional.empty();
+        }
+        return Optional.of(stateId);
     }
 
     private void initializeOneUntrackedStore(LocalDateTime now) {

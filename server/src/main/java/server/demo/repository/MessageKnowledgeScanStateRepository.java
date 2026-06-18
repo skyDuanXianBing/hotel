@@ -15,7 +15,7 @@ public interface MessageKnowledgeScanStateRepository extends JpaRepository<Messa
 
     @Query(
             value = """
-                    SELECT *
+                    SELECT id
                     FROM message_knowledge_scan_states
                     WHERE (next_scan_after IS NULL OR next_scan_after <= :now)
                       AND (backoff_until IS NULL OR backoff_until <= :now)
@@ -23,11 +23,35 @@ public interface MessageKnowledgeScanStateRepository extends JpaRepository<Messa
                     ORDER BY COALESCE(next_scan_after, '1970-01-01 00:00:00') ASC,
                              store_id ASC
                     LIMIT 1
-                    FOR UPDATE SKIP LOCKED
                     """,
             nativeQuery = true
     )
-    Optional<MessageKnowledgeScanState> findNextDueStateForUpdate(@Param("now") LocalDateTime now);
+    Optional<Long> findNextDueStateId(@Param("now") LocalDateTime now);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    UPDATE message_knowledge_scan_states
+                    SET status = :runningStatus,
+                        lease_owner = :leaseOwner,
+                        lease_until = :leaseUntil,
+                        last_started_at = :now,
+                        last_error = NULL,
+                        updated_at = :now
+                    WHERE id = :stateId
+                      AND (next_scan_after IS NULL OR next_scan_after <= :now)
+                      AND (backoff_until IS NULL OR backoff_until <= :now)
+                      AND (lease_until IS NULL OR lease_until < :now)
+                    """,
+            nativeQuery = true
+    )
+    int claimDueState(
+            @Param("stateId") Long stateId,
+            @Param("now") LocalDateTime now,
+            @Param("leaseOwner") String leaseOwner,
+            @Param("leaseUntil") LocalDateTime leaseUntil,
+            @Param("runningStatus") String runningStatus
+    );
 
     @Modifying
     @Query(
