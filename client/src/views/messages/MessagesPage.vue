@@ -117,6 +117,12 @@
               <span class="conversation-stay-info">
                 {{ getConversationStayInfo(conversation) }}
               </span>
+              <span
+                v-if="getConversationListingInfo(conversation)"
+                class="conversation-listing-info"
+              >
+                {{ getConversationListingInfo(conversation) }}
+              </span>
               <span v-if="conversation.closed" class="conversation-closed-text">
                 {{ t('stage6.components.messagesPage.status.closed') }}
               </span>
@@ -3350,9 +3356,17 @@ onUnmounted(() => {
 }
 
 .conversation-stay-info,
+.conversation-listing-info,
 .conversation-closed-text {
   color: #909399;
   font-size: 12px;
+}
+
+.conversation-listing-info {
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .order-kind-tag {
