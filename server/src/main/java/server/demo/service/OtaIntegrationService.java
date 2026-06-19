@@ -493,22 +493,46 @@ public class OtaIntegrationService {
                 .filter(ota -> ota.getStoreId().equals(storeId))
                 .orElseThrow(() -> new RuntimeException("OTA配置不存在"));
 
-        String hotelId = integration.getSuPropertyId();
-        if (hotelId == null || hotelId.isBlank()) {
-            Store store = storeRepository.findById(storeId)
-                    .orElseThrow(() -> new RuntimeException("门店不存在"));
-            String storeHotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
-            if (storeHotelId == null) {
-                storeHotelId = SuHotelIdUtil.buildDefault(storeId);
-            }
-            hotelId = storeHotelId;
+        return getSuMappingsForIntegration(storeId, integration, channelId);
+    }
+
+    @Transactional(readOnly = true)
+    public JsonNode getSuMappingsByStoreAndCode(Long storeId, String code, String channelId) {
+        if (storeId == null) {
+            throw new IllegalArgumentException("storeId 不能为空");
         }
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("OTA code 不能为空");
+        }
+        OtaIntegration integration = otaIntegrationRepository.findByStoreIdAndCode(storeId, code.trim().toUpperCase())
+                .orElseThrow(() -> new RuntimeException("OTA配置不存在: " + code));
+
+        return getSuMappingsForIntegration(storeId, integration, channelId);
+    }
+
+    private JsonNode getSuMappingsForIntegration(Long storeId, OtaIntegration integration, String channelId) {
+        String hotelId = resolveReadOnlySuHotelId(storeId, integration);
 
         final String resolvedHotelId = hotelId;
         return suAccessTokenService.executeWithTokenRetry(
                 token -> suApiClient.getMappings(token, resolvedHotelId, channelId),
                 "mappings"
         );
+    }
+
+    private String resolveReadOnlySuHotelId(Long storeId, OtaIntegration integration) {
+        String hotelId = integration.getSuPropertyId();
+        if (hotelId != null && !hotelId.isBlank()) {
+            return hotelId;
+        }
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new RuntimeException("门店不存在"));
+        String storeHotelId = SuHotelIdUtil.normalize(store.getSuHotelId());
+        if (storeHotelId == null) {
+            storeHotelId = SuHotelIdUtil.buildDefault(storeId);
+        }
+        return storeHotelId;
     }
 
     public record SuMappingStatusSummary(

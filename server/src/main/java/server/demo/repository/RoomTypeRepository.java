@@ -32,6 +32,8 @@ public interface RoomTypeRepository extends JpaRepository<RoomType, Long> {
 
     Optional<RoomType> findByStoreIdAndId(Long storeId, Long id);
 
+    List<RoomType> findByStoreIdAndIdIn(Long storeId, List<Long> ids);
+
     // ===== 兼容旧逻辑的方法，后续将被移除 =====
     @Deprecated
     List<RoomType> findByUserId(Long userId);

@@ -18,12 +18,14 @@ import server.demo.dto.SuMessagingThreadDTO;
 import server.demo.dto.SuMessagingThreadPageResponse;
 import server.demo.dto.SuMessagingUnreadSummaryDTO;
 import server.demo.entity.Reservation;
+import server.demo.entity.RoomType;
 import server.demo.entity.Store;
 import server.demo.entity.SuMessage;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
@@ -42,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -54,6 +57,7 @@ public class SuMessagingService {
 
     public static final int CHANNEL_BOOKING = 19;
     public static final int CHANNEL_AIRBNB = 244;
+    private static final String OTA_CODE_AIRBNB = "AIRBNB";
     private static final int DEFAULT_THREAD_PAGE_SIZE = 20;
     private static final int MAX_THREAD_PAGE_SIZE = 100;
     private static final int DEFAULT_MESSAGE_PAGE_LIMIT = 50;
@@ -74,12 +78,14 @@ public class SuMessagingService {
     private final SuMessageRepository messageRepository;
     private final ReservationRepository reservationRepository;
     private final StoreRepository storeRepository;
+    private final RoomTypeRepository roomTypeRepository;
     private final ReservationBookingKeyResolver reservationBookingKeyResolver;
     private final Clock clock;
     private final SuApiClient suApiClient;
     private final SuAccessTokenService suAccessTokenService;
     private final ObjectMapper objectMapper;
     private final SuMessagingRealtimeGateway suMessagingRealtimeGateway;
+    private final OtaIntegrationService otaIntegrationService;
     private MessageKnowledgeThreadDirtyMarker knowledgeThreadDirtyMarker;
 
     public SuMessagingService(
@@ -92,7 +98,9 @@ public class SuMessagingService {
             SuApiClient suApiClient,
             SuAccessTokenService suAccessTokenService,
             ObjectMapper objectMapper,
-            SuMessagingRealtimeGateway suMessagingRealtimeGateway
+            SuMessagingRealtimeGateway suMessagingRealtimeGateway,
+            OtaIntegrationService otaIntegrationService,
+            RoomTypeRepository roomTypeRepository
     ) {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
@@ -104,6 +112,8 @@ public class SuMessagingService {
         this.suAccessTokenService = suAccessTokenService;
         this.objectMapper = objectMapper;
         this.suMessagingRealtimeGateway = suMessagingRealtimeGateway;
+        this.otaIntegrationService = otaIntegrationService;
+        this.roomTypeRepository = roomTypeRepository;
     }
 
     @Autowired(required = false)
@@ -217,9 +227,11 @@ public class SuMessagingService {
 
     public List<SuMessagingThreadDTO> listThreads(Long storeId) {
         LocalDate today = currentStoreDate(storeId);
-        return threadRepository.findByStoreIdOrderByLastActivityDesc(storeId).stream()
+        List<SuMessagingThreadDTO> items = threadRepository.findByStoreIdOrderByLastActivityDesc(storeId).stream()
                 .map(thread -> toThreadDTO(storeId, thread, today))
                 .toList();
+        fillAirbnbInquiryRoomTypeNames(storeId, items);
+        return items;
     }
 
     public SuMessagingThreadPageResponse listThreadPage(
@@ -262,6 +274,7 @@ public class SuMessagingService {
             List<SuMessagingThreadDTO> items = threadPage.getContent().stream()
                     .map(thread -> toThreadDTO(storeId, thread, today))
                     .toList();
+            fillAirbnbInquiryRoomTypeNames(storeId, items);
             return new SuMessagingThreadPageResponse(
                     items,
                     currentPage,
@@ -297,6 +310,7 @@ public class SuMessagingService {
             int toIndex = Math.min(fromIndex + pageSize, filtered.size());
             items = filtered.subList(fromIndex, toIndex);
         }
+        fillAirbnbInquiryRoomTypeNames(storeId, items);
 
         int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / pageSize);
         return new SuMessagingThreadPageResponse(
@@ -447,6 +461,206 @@ public class SuMessagingService {
         }
         String roomTypeName = reservation.getRoom().getRoomType().getName();
         return roomTypeName == null || roomTypeName.isBlank() ? null : roomTypeName;
+    }
+
+    private void fillAirbnbInquiryRoomTypeNames(Long storeId, List<SuMessagingThreadDTO> items) {
+        if (storeId == null || items == null || items.isEmpty() || otaIntegrationService == null || roomTypeRepository == null) {
+            return;
+        }
+
+        Set<String> listingIds = new HashSet<>();
+        for (SuMessagingThreadDTO item : items) {
+            if (!shouldResolveAirbnbInquiryRoomType(item)) {
+                continue;
+            }
+            String listingId = normalizeBlankToNull(item.getListingId());
+            if (listingId != null) {
+                listingIds.add(listingId);
+            }
+        }
+
+        if (listingIds.isEmpty()) {
+            return;
+        }
+
+        JsonNode mappings;
+        try {
+            mappings = otaIntegrationService.getSuMappingsByStoreAndCode(
+                    storeId,
+                    OTA_CODE_AIRBNB,
+                    String.valueOf(CHANNEL_AIRBNB)
+            );
+        } catch (Exception e) {
+            logger.warn("[SuMessaging] failed to load Airbnb mappings for inquiry room type names. storeId={}, err={}",
+                    storeId, e.getMessage());
+            return;
+        }
+
+        Map<String, String> pmsRoomIdByListingId = resolvePmsRoomIdsByListingId(mappings, listingIds);
+        if (pmsRoomIdByListingId.isEmpty()) {
+            return;
+        }
+
+        Map<String, String> roomTypeNameByPmsRoomId = resolveRoomTypeNamesByPmsRoomId(storeId, pmsRoomIdByListingId);
+        if (roomTypeNameByPmsRoomId.isEmpty()) {
+            return;
+        }
+
+        for (SuMessagingThreadDTO item : items) {
+            if (!shouldResolveAirbnbInquiryRoomType(item)) {
+                continue;
+            }
+            String listingId = normalizeBlankToNull(item.getListingId());
+            String pmsRoomId = listingId != null ? pmsRoomIdByListingId.get(listingId) : null;
+            String roomTypeName = pmsRoomId != null ? roomTypeNameByPmsRoomId.get(pmsRoomId) : null;
+            if (roomTypeName != null) {
+                item.setRoomTypeName(roomTypeName);
+            }
+        }
+    }
+
+    private static boolean shouldResolveAirbnbInquiryRoomType(SuMessagingThreadDTO item) {
+        if (item == null || item.getChannelId() == null || item.getChannelId() != CHANNEL_AIRBNB) {
+            return false;
+        }
+        if (!ORDER_KIND_INQUIRY.equalsIgnoreCase(item.getOrderKind())) {
+            return false;
+        }
+        String currentRoomTypeName = item.getRoomTypeName();
+        return currentRoomTypeName == null || currentRoomTypeName.isBlank();
+    }
+
+    private Map<String, String> resolvePmsRoomIdsByListingId(JsonNode mappings, Set<String> listingIds) {
+        Map<String, String> result = new HashMap<>();
+        JsonNode channelArray = findAirbnbMappingsArray(mappings);
+        if (channelArray == null || !channelArray.isArray()) {
+            return result;
+        }
+
+        for (JsonNode mappingItem : channelArray) {
+            if (mappingItem == null || mappingItem.isNull() || !mappingItem.isObject()) {
+                continue;
+            }
+            JsonNode ratePlans = mappingItem.get("Rateplans");
+            if (ratePlans == null || !ratePlans.isArray()) {
+                continue;
+            }
+
+            for (JsonNode ratePlan : ratePlans) {
+                String channelRoomId = readText(ratePlan, "ChannelRoomID");
+                if (channelRoomId == null || !listingIds.contains(channelRoomId) || result.containsKey(channelRoomId)) {
+                    continue;
+                }
+
+                String pmsRoomId = readText(ratePlan, "PMSRoomID");
+                if (pmsRoomId == null) {
+                    pmsRoomId = resolveSingleRoomIdFallback(mappingItem);
+                }
+                if (pmsRoomId != null) {
+                    result.put(channelRoomId, pmsRoomId);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private Map<String, String> resolveRoomTypeNamesByPmsRoomId(
+            Long storeId,
+            Map<String, String> pmsRoomIdByListingId
+    ) {
+        Set<Long> roomTypeIds = new HashSet<>();
+        for (String pmsRoomId : pmsRoomIdByListingId.values()) {
+            Long roomTypeId = parsePositiveLong(pmsRoomId);
+            if (roomTypeId != null) {
+                roomTypeIds.add(roomTypeId);
+            }
+        }
+
+        if (roomTypeIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<RoomType> roomTypes = roomTypeRepository.findByStoreIdAndIdIn(storeId, new ArrayList<>(roomTypeIds));
+        Map<String, String> result = new HashMap<>();
+        for (RoomType roomType : roomTypes) {
+            if (roomType == null || roomType.getId() == null) {
+                continue;
+            }
+            String name = roomType.getName();
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            result.put(String.valueOf(roomType.getId()), name.trim());
+        }
+        return result;
+    }
+
+    private static JsonNode findAirbnbMappingsArray(JsonNode root) {
+        JsonNode direct = findAirbnbMappingsArrayInNode(root);
+        if (direct != null) {
+            return direct;
+        }
+        JsonNode data = root != null ? root.get("data") : null;
+        if (data == null && root != null) {
+            data = root.get("Data");
+        }
+        return findAirbnbMappingsArrayInNode(data);
+    }
+
+    private static JsonNode findAirbnbMappingsArrayInNode(JsonNode node) {
+        if (node == null || node.isNull() || !node.isObject()) {
+            return null;
+        }
+        JsonNode airbnbArray = node.get(String.valueOf(CHANNEL_AIRBNB));
+        if (airbnbArray != null && airbnbArray.isArray()) {
+            return airbnbArray;
+        }
+
+        Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+        while (fields.hasNext()) {
+            JsonNode value = fields.next().getValue();
+            if (value != null && value.isArray()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static String resolveSingleRoomIdFallback(JsonNode mappingItem) {
+        JsonNode roomIds = mappingItem != null ? mappingItem.get("RoomIDs") : null;
+        if (roomIds == null || !roomIds.isArray()) {
+            return null;
+        }
+
+        String singleRoomId = null;
+        int validRoomIdCount = 0;
+        for (JsonNode roomIdNode : roomIds) {
+            String roomId = roomIdNode != null ? roomIdNode.asText(null) : null;
+            if (roomId == null || roomId.isBlank()) {
+                continue;
+            }
+            validRoomIdCount++;
+            if (validRoomIdCount > 1) {
+                // Multiple RoomIDs are ambiguous for a listing-level inquiry, so keep the listing fallback.
+                return null;
+            }
+            singleRoomId = roomId.trim();
+        }
+
+        return validRoomIdCount == 1 ? singleRoomId : null;
+    }
+
+    private static Long parsePositiveLong(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            long parsed = Long.parseLong(value.trim());
+            return parsed > 0 ? parsed : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     @Transactional

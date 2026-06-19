@@ -21,6 +21,7 @@ import server.demo.entity.SuMessageThread;
 import server.demo.enums.ReservationStatus;
 import server.demo.enums.SuMessagingSenderType;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.repository.SuMessageRepository;
 import server.demo.repository.SuMessageThreadRepository;
@@ -39,6 +40,7 @@ import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -106,6 +108,622 @@ class SuMessagingServiceTest {
         assertFalse(json.has("currentPage"));
         assertFalse(json.has("pageSize"));
         assertFalse(json.has("last"));
+    }
+
+    @Test
+    void listThreadPage_shouldResolveAirbnbInquiryRoomTypeFromSuPmsRoomId() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread thread = newThread(1L, SuMessagingService.CHANNEL_AIRBNB, "T1", "T1", "T");
+        JsonNode mappings = new ObjectMapper().readTree("""
+                {
+                  "Status": "Success",
+                  "data": {
+                    "244": [
+                      {
+                        "RoomIDs": ["101"],
+                        "Rateplans": [
+                          { "ChannelRoomID": "L1", "PMSRoomID": "101" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """);
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(1L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+        when(otaIntegrationService.getSuMappingsByStoreAndCode(26L, "AIRBNB", "244"))
+                .thenReturn(mappings);
+        when(roomTypeRepository.findByStoreIdAndIdIn(eq(26L), any()))
+                .thenReturn(List.of(newRoomType(101L, "PMS Deluxe")));
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals("PMS Deluxe", result.getItems().get(0).getRoomTypeName());
+        verify(otaIntegrationService).getSuMappingsByStoreAndCode(26L, "AIRBNB", "244");
+    }
+
+    @Test
+    void listThreadPage_shouldKeepRoomTypeEmptyWhenAirbnbInquiryMappingDoesNotMatch() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread thread = newThread(2L, SuMessagingService.CHANNEL_AIRBNB, "T2", "T2", "T");
+        JsonNode mappings = new ObjectMapper().readTree("""
+                {
+                  "data": {
+                    "244": [
+                      {
+                        "RoomIDs": ["101"],
+                        "Rateplans": [
+                          { "ChannelRoomID": "OTHER", "PMSRoomID": "101" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """);
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(2L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+        when(otaIntegrationService.getSuMappingsByStoreAndCode(26L, "AIRBNB", "244"))
+                .thenReturn(mappings);
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertNull(result.getItems().get(0).getRoomTypeName());
+        Mockito.verify(roomTypeRepository, Mockito.never()).findByStoreIdAndIdIn(any(), any());
+    }
+
+    @Test
+    void listThreadPage_shouldNotOverrideReservationRoomTypeWithAirbnbMapping() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread thread = newThread(3L, SuMessagingService.CHANNEL_AIRBNB, "T3", "B3", "B");
+        Reservation reservation = newReservation(
+                31L,
+                ReservationStatus.CONFIRMED,
+                LocalDate.now().plusDays(2),
+                LocalDate.now().plusDays(4)
+        );
+        Room room = new Room();
+        room.setRoomType(newRoomType(301L, "Booked Room"));
+        reservation.setRoom(room);
+
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(reservationRepository.findByStoreIdAndExternalBookingKeyWithRoomType(26L, "B3"))
+                .thenReturn(List.of(reservation));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(3L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals("Booked Room", result.getItems().get(0).getRoomTypeName());
+        Mockito.verify(otaIntegrationService, Mockito.never())
+                .getSuMappingsByStoreAndCode(any(), anyString(), anyString());
+    }
+
+    @Test
+    void listThreadPage_shouldKeepRoomTypeEmptyWhenRoomIdsFallbackIsAmbiguous() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread thread = newThread(4L, SuMessagingService.CHANNEL_AIRBNB, "T4", "T4", "T");
+        JsonNode mappings = new ObjectMapper().readTree("""
+                {
+                  "data": {
+                    "244": [
+                      {
+                        "RoomIDs": ["101", "102"],
+                        "Rateplans": [
+                          { "ChannelRoomID": "L4" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """);
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(4L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+        when(otaIntegrationService.getSuMappingsByStoreAndCode(26L, "AIRBNB", "244"))
+                .thenReturn(mappings);
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertNull(result.getItems().get(0).getRoomTypeName());
+        Mockito.verify(roomTypeRepository, Mockito.never()).findByStoreIdAndIdIn(any(), any());
+    }
+
+    @Test
+    void listThreadPage_shouldKeepListAvailableWhenAirbnbMappingsFail() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread thread = newThread(5L, SuMessagingService.CHANNEL_AIRBNB, "T5", "T5", "T");
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(5L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+        when(otaIntegrationService.getSuMappingsByStoreAndCode(26L, "AIRBNB", "244"))
+                .thenThrow(new RuntimeException("Su unavailable"));
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals(1, result.getItems().size());
+        assertNull(result.getItems().get(0).getRoomTypeName());
+        Mockito.verify(roomTypeRepository, Mockito.never()).findByStoreIdAndIdIn(any(), any());
+    }
+
+    @Test
+    void listThreadPage_shouldNotLoadAirbnbMappingsWhenInquiryHasNoListingId() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread thread = newThread(6L, SuMessagingService.CHANNEL_AIRBNB, "T6", "T6", "T");
+        thread.setListingId(null);
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(6L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals(1, result.getItems().size());
+        assertNull(result.getItems().get(0).getRoomTypeName());
+        Mockito.verify(otaIntegrationService, Mockito.never())
+                .getSuMappingsByStoreAndCode(any(), anyString(), anyString());
+        Mockito.verify(roomTypeRepository, Mockito.never()).findByStoreIdAndIdIn(any(), any());
+    }
+
+    @Test
+    void listThreadPage_shouldKeepListAvailableWhenAirbnbIntegrationMissing() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread thread = newThread(7L, SuMessagingService.CHANNEL_AIRBNB, "T7", "T7", "T");
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(7L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+        when(otaIntegrationService.getSuMappingsByStoreAndCode(26L, "AIRBNB", "244"))
+                .thenThrow(new RuntimeException("OTA配置不存在: AIRBNB"));
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals(1, result.getItems().size());
+        assertNull(result.getItems().get(0).getRoomTypeName());
+        verify(otaIntegrationService).getSuMappingsByStoreAndCode(26L, "AIRBNB", "244");
+        Mockito.verify(roomTypeRepository, Mockito.never()).findByStoreIdAndIdIn(any(), any());
+    }
+
+    @Test
+    void listThreadPage_shouldKeepRoomTypeEmptyWhenMappedPmsRoomTypeDoesNotExist() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread thread = newThread(8L, SuMessagingService.CHANNEL_AIRBNB, "T8", "T8", "T");
+        JsonNode mappings = new ObjectMapper().readTree("""
+                {
+                  "data": {
+                    "244": [
+                      {
+                        "RoomIDs": ["801"],
+                        "Rateplans": [
+                          { "ChannelRoomID": "L8", "PMSRoomID": "999" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """);
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(8L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+        when(otaIntegrationService.getSuMappingsByStoreAndCode(26L, "AIRBNB", "244"))
+                .thenReturn(mappings);
+        when(roomTypeRepository.findByStoreIdAndIdIn(eq(26L), any())).thenReturn(List.of());
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals(1, result.getItems().size());
+        assertNull(result.getItems().get(0).getRoomTypeName());
+        verify(roomTypeRepository).findByStoreIdAndIdIn(eq(26L), any());
+    }
+
+    @Test
+    void listThreadPage_shouldResolveRoomTypeFromSingleRoomIdsFallback() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread thread = newThread(9L, SuMessagingService.CHANNEL_AIRBNB, "T9", "T9", "T");
+        JsonNode mappings = new ObjectMapper().readTree("""
+                {
+                  "data": {
+                    "244": [
+                      {
+                        "RoomIDs": ["901"],
+                        "Rateplans": [
+                          { "ChannelRoomID": "L9" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """);
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(thread), PageRequest.of(0, 20), 1));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(9L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+        when(otaIntegrationService.getSuMappingsByStoreAndCode(26L, "AIRBNB", "244"))
+                .thenReturn(mappings);
+        when(roomTypeRepository.findByStoreIdAndIdIn(eq(26L), any()))
+                .thenReturn(List.of(newRoomType(901L, "Fallback Studio")));
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals("Fallback Studio", result.getItems().get(0).getRoomTypeName());
+        verify(otaIntegrationService).getSuMappingsByStoreAndCode(26L, "AIRBNB", "244");
+        verify(roomTypeRepository).findByStoreIdAndIdIn(eq(26L), any());
+    }
+
+    @Test
+    void listThreadPage_shouldLoadAirbnbMappingsOnceForMultipleMappableInquiries() throws Exception {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        OtaIntegrationService otaIntegrationService = Mockito.mock(OtaIntegrationService.class);
+        RoomTypeRepository roomTypeRepository = Mockito.mock(RoomTypeRepository.class);
+        SuMessagingService service = newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                newStoreRepository(),
+                Clock.systemDefaultZone(),
+                otaIntegrationService,
+                roomTypeRepository
+        );
+
+        SuMessageThread firstThread = newThread(10L, SuMessagingService.CHANNEL_AIRBNB, "T10", "T10", "T");
+        SuMessageThread secondThread = newThread(11L, SuMessagingService.CHANNEL_AIRBNB, "T11", "T11", "T");
+        JsonNode mappings = new ObjectMapper().readTree("""
+                {
+                  "data": {
+                    "244": [
+                      {
+                        "RoomIDs": ["1001"],
+                        "Rateplans": [
+                          { "ChannelRoomID": "L10", "PMSRoomID": "1001" }
+                        ]
+                      },
+                      {
+                        "RoomIDs": ["1002"],
+                        "Rateplans": [
+                          { "ChannelRoomID": "L11", "PMSRoomID": "1002" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """);
+        when(threadRepository.findPageByStoreIdAndFilters(
+                eq(26L),
+                eq(SuMessagingService.CHANNEL_AIRBNB),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(SuMessagingSenderType.GUEST),
+                eq(PageRequest.of(0, 20))
+        )).thenReturn(new PageImpl<>(List.of(firstThread, secondThread), PageRequest.of(0, 20), 2));
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(10L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+        when(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(11L, SuMessagingSenderType.GUEST))
+                .thenReturn(0L);
+        when(otaIntegrationService.getSuMappingsByStoreAndCode(26L, "AIRBNB", "244"))
+                .thenReturn(mappings);
+        when(roomTypeRepository.findByStoreIdAndIdIn(eq(26L), any()))
+                .thenReturn(List.of(
+                        newRoomType(1001L, "First PMS Room"),
+                        newRoomType(1002L, "Second PMS Room")
+                ));
+
+        SuMessagingThreadPageResponse result = service.listThreadPage(
+                26L,
+                0,
+                20,
+                "AIRBNB",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertEquals(2, result.getItems().size());
+        assertEquals("First PMS Room", result.getItems().get(0).getRoomTypeName());
+        assertEquals("Second PMS Room", result.getItems().get(1).getRoomTypeName());
+        Mockito.verify(otaIntegrationService, Mockito.times(1))
+                .getSuMappingsByStoreAndCode(26L, "AIRBNB", "244");
+        Mockito.verify(roomTypeRepository, Mockito.times(1)).findByStoreIdAndIdIn(eq(26L), any());
     }
 
     @Test
@@ -520,7 +1138,9 @@ class SuMessagingServiceTest {
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                realtimeGateway
+                realtimeGateway,
+                Mockito.mock(OtaIntegrationService.class),
+                Mockito.mock(RoomTypeRepository.class)
         );
 
         SuMessageThread thread = new SuMessageThread();
@@ -578,7 +1198,9 @@ class SuMessagingServiceTest {
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                realtimeGateway
+                realtimeGateway,
+                Mockito.mock(OtaIntegrationService.class),
+                Mockito.mock(RoomTypeRepository.class)
         );
 
         SuMessageThread thread = new SuMessageThread();
@@ -635,7 +1257,9 @@ class SuMessagingServiceTest {
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                realtimeGateway
+                realtimeGateway,
+                Mockito.mock(OtaIntegrationService.class),
+                Mockito.mock(RoomTypeRepository.class)
         );
 
         SuMessageThread thread = new SuMessageThread();
@@ -670,7 +1294,9 @@ class SuMessagingServiceTest {
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                realtimeGateway
+                realtimeGateway,
+                Mockito.mock(OtaIntegrationService.class),
+                Mockito.mock(RoomTypeRepository.class)
         );
 
         String raw = """
@@ -758,7 +1384,9 @@ class SuMessagingServiceTest {
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                realtimeGateway
+                realtimeGateway,
+                Mockito.mock(OtaIntegrationService.class),
+                Mockito.mock(RoomTypeRepository.class)
         );
 
         String raw = """
@@ -819,7 +1447,9 @@ class SuMessagingServiceTest {
                 suApiClient,
                 suAccessTokenService,
                 objectMapper,
-                realtimeGateway
+                realtimeGateway,
+                Mockito.mock(OtaIntegrationService.class),
+                Mockito.mock(RoomTypeRepository.class)
         );
         service.setKnowledgeThreadDirtyMarker(dirtyMarker);
 
@@ -901,6 +1531,26 @@ class SuMessagingServiceTest {
             StoreRepository storeRepository,
             Clock clock
     ) {
+        return newService(
+                threadRepository,
+                messageRepository,
+                reservationRepository,
+                storeRepository,
+                clock,
+                Mockito.mock(OtaIntegrationService.class),
+                Mockito.mock(RoomTypeRepository.class)
+        );
+    }
+
+    private static SuMessagingService newService(
+            SuMessageThreadRepository threadRepository,
+            SuMessageRepository messageRepository,
+            ReservationRepository reservationRepository,
+            StoreRepository storeRepository,
+            Clock clock,
+            OtaIntegrationService otaIntegrationService,
+            RoomTypeRepository roomTypeRepository
+    ) {
         ReservationBookingKeyResolver reservationBookingKeyResolver =
                 new ReservationBookingKeyResolver(reservationRepository);
         return new SuMessagingService(
@@ -913,7 +1563,9 @@ class SuMessagingServiceTest {
                 Mockito.mock(SuApiClient.class),
                 Mockito.mock(SuAccessTokenService.class),
                 new ObjectMapper(),
-                Mockito.mock(SuMessagingRealtimeGateway.class)
+                Mockito.mock(SuMessagingRealtimeGateway.class),
+                otaIntegrationService,
+                roomTypeRepository
         );
     }
 
@@ -973,6 +1625,13 @@ class SuMessagingServiceTest {
         reservation.setCheckInDate(checkInDate);
         reservation.setCheckOutDate(checkOutDate);
         return reservation;
+    }
+
+    private static RoomType newRoomType(Long id, String name) {
+        RoomType roomType = new RoomType();
+        roomType.setId(id);
+        roomType.setName(name);
+        return roomType;
     }
 
     private static SuMessage newMessage(Long id, SuMessageThread thread, String content) {

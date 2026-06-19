@@ -2641,6 +2641,10 @@ const getConversationListingInfo = (conversation: SuMessagingThreadDTO) => {
   if (!isAirbnbConversation(conversation)) {
     return ''
   }
+  const roomTypeName = (conversation.roomTypeName || '').trim()
+  if (roomTypeName) {
+    return ''
+  }
 
   const listingName = (conversation.listingName || '').trim()
   if (!listingName) {
