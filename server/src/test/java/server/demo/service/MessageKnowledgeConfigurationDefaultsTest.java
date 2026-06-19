@@ -33,6 +33,7 @@ class MessageKnowledgeConfigurationDefaultsTest {
         assertFalse(booleanProperty(resolver, "messaging.knowledge.semantic-retrieval.enabled"));
         assertFalse(booleanProperty(resolver, "messaging.knowledge.topic-classifier.enabled"));
         assertFalse(booleanProperty(resolver, "messaging.knowledge.semantic-rerank.enabled"));
+        assertFalse(booleanProperty(resolver, "messaging.knowledge.ingest-dedup.enabled"));
         assertMissing(resolver, "messaging.knowledge.refined-scanner.enabled");
         assertMissing(resolver, "messaging.knowledge.indexer.enabled");
         assertMissing(resolver, "messaging.knowledge.legacy-fallback.enabled");
@@ -54,6 +55,7 @@ class MessageKnowledgeConfigurationDefaultsTest {
         assertTrue(booleanProperty(resolver, "messaging.knowledge.topic-classifier.enabled"));
 
         assertFalse(booleanProperty(resolver, "messaging.knowledge.semantic-rerank.enabled"));
+        assertFalse(booleanProperty(resolver, "messaging.knowledge.ingest-dedup.enabled"));
         assertMissing(resolver, "messaging.knowledge.refined-scanner.enabled");
         assertMissing(resolver, "messaging.knowledge.indexer.enabled");
         assertMissing(resolver, "messaging.knowledge.legacy-fallback.enabled");
@@ -80,6 +82,14 @@ class MessageKnowledgeConfigurationDefaultsTest {
         assertEquals(12, intProperty(resolver, "messaging.knowledge.semantic-retrieval.candidate-cap"));
         assertEquals(8, intProperty(resolver, "messaging.knowledge.semantic-retrieval.top-k"));
         assertEquals(0.45, doubleProperty(resolver, "messaging.knowledge.semantic-retrieval.min-score"));
+
+        assertEquals(5, intProperty(resolver, "messaging.knowledge.ingest-dedup.candidate-cap"));
+        assertEquals(0.82, doubleProperty(resolver, "messaging.knowledge.ingest-dedup.min-confidence"));
+        assertEquals(320, intProperty(resolver, "messaging.knowledge.ingest-dedup.max-text-length"));
+        assertEquals("gpt-4o-mini", stringProperty(resolver, "messaging.knowledge.ingest-dedup.openai.model-name"));
+        assertEquals("qwen-turbo", stringProperty(resolver, "messaging.knowledge.ingest-dedup.dashscope.model-name"));
+        assertEquals(512, intProperty(resolver, "messaging.knowledge.ingest-dedup.max-tokens"));
+        assertEquals(0.0, doubleProperty(resolver, "messaging.knowledge.ingest-dedup.temperature"));
 
         assertEquals(0.8, doubleProperty(resolver, "messaging.knowledge.topic-classifier.min-confidence"));
         assertEquals(50, intProperty(resolver, "messaging.knowledge.topic-classifier.max-topics-per-store"));

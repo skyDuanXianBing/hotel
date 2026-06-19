@@ -26,6 +26,25 @@ public interface MessageKnowledgeItemRepository extends JpaRepository<MessageKno
             String factHash
     );
 
+    @Query("""
+            SELECT item
+            FROM MessageKnowledgeItem item
+            WHERE item.storeId = :storeId
+              AND item.scopeKey = :scopeKey
+              AND item.topic = :topic
+              AND item.topicHash = :topicHash
+              AND item.status IN :statuses
+            ORDER BY item.lastSeenAt DESC, item.id DESC
+            """)
+    List<MessageKnowledgeItem> findIngestDuplicateCandidates(
+            @Param("storeId") Long storeId,
+            @Param("scopeKey") String scopeKey,
+            @Param("topic") String topic,
+            @Param("topicHash") String topicHash,
+            @Param("statuses") List<String> statuses,
+            Pageable pageable
+    );
+
     Optional<MessageKnowledgeItem> findByStoreIdAndId(Long storeId, Long id);
 
     @Query("""

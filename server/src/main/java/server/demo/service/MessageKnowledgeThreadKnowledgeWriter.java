@@ -2,6 +2,7 @@ package server.demo.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.entity.MessageKnowledgeEvidence;
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class MessageKnowledgeThreadKnowledgeWriter {
@@ -25,6 +27,8 @@ public class MessageKnowledgeThreadKnowledgeWriter {
     private final MessageKnowledgeEmbeddingTextService embeddingTextService;
     private final SuMessagingAiTextService textService;
     private final ObjectMapper objectMapper;
+    private MessageKnowledgeDuplicateCandidateService duplicateCandidateService;
+    private MessageKnowledgeDuplicateJudgeService duplicateJudgeService;
 
     public MessageKnowledgeThreadKnowledgeWriter(
             MessageKnowledgeItemRepository itemRepository,
@@ -38,6 +42,16 @@ public class MessageKnowledgeThreadKnowledgeWriter {
         this.embeddingTextService = embeddingTextService;
         this.textService = textService;
         this.objectMapper = objectMapper;
+    }
+
+    @Autowired(required = false)
+    public void setDuplicateCandidateService(MessageKnowledgeDuplicateCandidateService duplicateCandidateService) {
+        this.duplicateCandidateService = duplicateCandidateService;
+    }
+
+    @Autowired(required = false)
+    public void setDuplicateJudgeService(MessageKnowledgeDuplicateJudgeService duplicateJudgeService) {
+        this.duplicateJudgeService = duplicateJudgeService;
     }
 
     @Transactional
@@ -85,17 +99,83 @@ public class MessageKnowledgeThreadKnowledgeWriter {
             return new WriteAttempt(false, true);
         }
 
-        MessageKnowledgeItem item = itemRepository
+        LocalDateTime sourceSeenAt = resolveSeenAt(validItem.sourceTimestamp());
+        LocalDateTime refinedAt = UtcTimeUtil.nowLocalDateTime();
+
+        Optional<MessageKnowledgeItem> exactItem = itemRepository
                 .findByStoreIdAndScopeKeyAndTopicHashAndFactHash(
                         storeId,
                         validItem.scopeKey(),
                         topicHash,
                         factHash
-                )
-                .orElseGet(MessageKnowledgeItem::new);
-        boolean newItem = item.getId() == null;
-        LocalDateTime sourceSeenAt = resolveSeenAt(validItem.sourceTimestamp());
-        LocalDateTime refinedAt = UtcTimeUtil.nowLocalDateTime();
+                );
+        if (exactItem.isPresent()) {
+            return upsertItem(
+                    exactItem.get(),
+                    false,
+                    storeId,
+                    thread,
+                    context,
+                    validItem,
+                    topicHash,
+                    factHash,
+                    sourceSeenAt,
+                    refinedAt,
+                    sourceMessageIdsJson,
+                    sourceFingerprint
+            );
+        }
+
+        MessageKnowledgeItem duplicateItem = findAiDuplicateItem(
+                storeId,
+                validItem,
+                topicHash,
+                factHash
+        );
+        if (duplicateItem != null) {
+            return appendDuplicateEvidence(
+                    duplicateItem,
+                    storeId,
+                    thread,
+                    context,
+                    validItem,
+                    sourceSeenAt,
+                    refinedAt,
+                    sourceMessageIdsJson,
+                    sourceFingerprint
+            );
+        }
+
+        return upsertItem(
+                new MessageKnowledgeItem(),
+                true,
+                storeId,
+                thread,
+                context,
+                validItem,
+                topicHash,
+                factHash,
+                sourceSeenAt,
+                refinedAt,
+                sourceMessageIdsJson,
+                sourceFingerprint
+        );
+    }
+
+    private WriteAttempt upsertItem(
+            MessageKnowledgeItem item,
+            boolean newItem,
+            Long storeId,
+            SuMessageThread thread,
+            SuMessagingThreadContext context,
+            MessageKnowledgeThreadValidatedItem validItem,
+            String topicHash,
+            String factHash,
+            LocalDateTime sourceSeenAt,
+            LocalDateTime refinedAt,
+            String sourceMessageIdsJson,
+            String sourceFingerprint
+    ) {
         boolean updateCanonical = shouldUpdateCanonical(item, newItem, sourceSeenAt, validItem.normalizedAnswer());
 
         applyItemFields(
@@ -124,12 +204,98 @@ public class MessageKnowledgeThreadKnowledgeWriter {
         );
         evidenceRepository.save(evidence);
 
-        int evidenceCount = item.getEvidenceCount() == null ? 0 : item.getEvidenceCount();
-        item.setEvidenceCount(evidenceCount + 1);
-        item.setLastSeenAt(sourceSeenAt);
-        item.setRefinedAt(refinedAt);
+        touchItemAfterEvidence(item, sourceSeenAt, refinedAt);
         itemRepository.save(item);
         return new WriteAttempt(true, false);
+    }
+
+    private WriteAttempt appendDuplicateEvidence(
+            MessageKnowledgeItem item,
+            Long storeId,
+            SuMessageThread thread,
+            SuMessagingThreadContext context,
+            MessageKnowledgeThreadValidatedItem validItem,
+            LocalDateTime sourceSeenAt,
+            LocalDateTime refinedAt,
+            String sourceMessageIdsJson,
+            String sourceFingerprint
+    ) {
+        MessageKnowledgeEvidence evidence = buildEvidence(
+                item,
+                storeId,
+                thread,
+                context,
+                validItem,
+                sourceMessageIdsJson,
+                sourceFingerprint
+        );
+        evidenceRepository.save(evidence);
+
+        touchItemAfterEvidence(item, sourceSeenAt, refinedAt);
+        itemRepository.save(item);
+        return new WriteAttempt(true, false);
+    }
+
+    private void touchItemAfterEvidence(
+            MessageKnowledgeItem item,
+            LocalDateTime sourceSeenAt,
+            LocalDateTime refinedAt
+    ) {
+        int evidenceCount = item.getEvidenceCount() == null ? 0 : item.getEvidenceCount();
+        item.setEvidenceCount(evidenceCount + 1);
+        if (item.getFirstSeenAt() == null) {
+            item.setFirstSeenAt(sourceSeenAt);
+        }
+        item.setLastSeenAt(sourceSeenAt);
+        item.setRefinedAt(refinedAt);
+    }
+
+    private MessageKnowledgeItem findAiDuplicateItem(
+            Long storeId,
+            MessageKnowledgeThreadValidatedItem validItem,
+            String topicHash,
+            String factHash
+    ) {
+        if (duplicateCandidateService == null
+                || duplicateJudgeService == null
+                || !duplicateJudgeService.isEnabled()) {
+            return null;
+        }
+        try {
+            List<MessageKnowledgeItem> candidates = duplicateCandidateService.findCandidates(
+                    storeId,
+                    validItem.scopeKey(),
+                    validItem.topicCode(),
+                    topicHash,
+                    factHash
+            );
+            if (candidates.isEmpty()) {
+                return null;
+            }
+            MessageKnowledgeDuplicateJudgeService.DuplicateJudgeResult result =
+                    duplicateJudgeService.judge(validItem, candidates);
+            if (!result.duplicate() || result.matchedItemId() == null) {
+                return null;
+            }
+            return findCandidateById(candidates, result.matchedItemId());
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private MessageKnowledgeItem findCandidateById(
+            List<MessageKnowledgeItem> candidates,
+            Long matchedItemId
+    ) {
+        for (MessageKnowledgeItem candidate : candidates) {
+            if (candidate == null || candidate.getId() == null) {
+                continue;
+            }
+            if (candidate.getId().equals(matchedItemId)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private void applyItemFields(
@@ -250,7 +416,8 @@ public class MessageKnowledgeThreadKnowledgeWriter {
     }
 
     private String resolveItemStatus(String currentStatus, String validStatus) {
-        if (MessageKnowledgeItem.STATUS_ARCHIVED.equals(currentStatus)) {
+        if (MessageKnowledgeItem.STATUS_ARCHIVED.equals(currentStatus)
+                || MessageKnowledgeItem.STATUS_REJECTED.equals(currentStatus)) {
             return currentStatus;
         }
         if (MessageKnowledgeItem.STATUS_ACTIVE.equals(currentStatus)

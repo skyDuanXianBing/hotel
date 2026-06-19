@@ -23,10 +23,13 @@ class AiChatConfigTest {
         contextRunner.run(context -> {
             AiChatConfig config = context.getBean(AiChatConfig.class);
             ChatLanguageModel chatLanguageModel = context.getBean(ChatLanguageModel.class);
+            ChatLanguageModel dedupChatLanguageModel =
+                    context.getBean("messageKnowledgeDedupChatLanguageModel", ChatLanguageModel.class);
 
             assertEquals(4096, ReflectionTestUtils.getField(config, "openAiMaxTokens"));
             assertEquals(4096, ReflectionTestUtils.getField(config, "dashScopeMaxTokens"));
             assertTrue(chatLanguageModel instanceof MockChatLanguageModel);
+            assertTrue(dedupChatLanguageModel instanceof MockChatLanguageModel);
         });
     }
 
