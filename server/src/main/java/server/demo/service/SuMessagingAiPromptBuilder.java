@@ -3,6 +3,7 @@ package server.demo.service;
 import org.springframework.stereotype.Service;
 import server.demo.dto.SuMessagingAiReplyDraftRequest;
 import server.demo.entity.SuMessage;
+import server.demo.enums.SuMessagingSenderType;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -11,7 +12,7 @@ import java.util.Set;
 
 @Service
 public class SuMessagingAiPromptBuilder {
-    private static final int MAX_RECENT_MESSAGES = 12;
+    private static final int MAX_RECENT_MESSAGES = 30;
     private static final int MAX_SIMILAR_EXAMPLES = 3;
     private static final int MAX_REUSABLE_FACT_MATCHES = 3;
     private static final int MAX_PROMPT_LENGTH = 7000;
@@ -31,7 +32,7 @@ public class SuMessagingAiPromptBuilder {
             SuMessagingThreadContext context,
             List<SuMessage> storedRecentMessages,
             List<SuMessagingAiReplyDraftRequest.RecentMessage> requestRecentMessages,
-            String latestGuestMessage,
+            String latestGuestTurn,
             MessageKnowledgeSearchResult searchResult,
             String language
     ) {
@@ -39,10 +40,13 @@ public class SuMessagingAiPromptBuilder {
         prompt.append("You are a hotel guest messaging assistant.\n");
         prompt.append("Write only the reply draft that hotel staff can edit before sending.\n");
         prompt.append("Do not say you are AI. Do not invent policies, prices, access codes, or unavailable facts.\n");
-        prompt.append("Use the same language as the latest guest message unless a target language is provided.\n");
+        prompt.append("Reply to every item in the final consecutive guest turn that needs a response.\n");
+        prompt.append("If the final sentence is only thanks or greeting, still check earlier guest messages in the same turn for unanswered requests.\n");
+        prompt.append("Do not answer only the final courtesy message when the same guest turn contains another request.\n");
+        prompt.append("Use the same language as the final guest turn unless a target language is provided.\n");
         prompt.append("Return plain text only. No markdown, no JSON, no explanation.\n\n");
 
-        appendLatestGuestMessage(prompt, latestGuestMessage);
+        appendLatestGuestTurn(prompt, latestGuestTurn);
         appendReusablePolicyFacts(prompt, searchResult);
         appendSimilarExamples(prompt, searchResult);
         appendRecentMessages(prompt, storedRecentMessages, requestRecentMessages);
@@ -56,22 +60,20 @@ public class SuMessagingAiPromptBuilder {
         return result;
     }
 
-    private void appendLatestGuestMessage(StringBuilder prompt, String latestGuestMessage) {
-        prompt.append("Latest guest message:\n");
-        prompt.append(redactor.redact(latestGuestMessage)).append("\n\n");
+    private void appendLatestGuestTurn(StringBuilder prompt, String latestGuestTurn) {
+        prompt.append("Last guest turn to reply to:\n");
+        prompt.append(redactor.redact(latestGuestTurn)).append("\n\n");
     }
 
     private void appendReusablePolicyFacts(StringBuilder prompt, MessageKnowledgeSearchResult searchResult) {
-        prompt.append("Reusable policy facts:\n");
-        prompt.append("- Use these facts when they directly answer the latest guest message.\n");
-        prompt.append("- Do not ask staff to confirm a fact already listed here. Ignore facts that are not relevant.\n");
-
         List<String> facts = collectReusableFacts(searchResult);
         if (facts.isEmpty()) {
-            prompt.append("- No reusable policy facts found.\n\n");
             return;
         }
 
+        prompt.append("Reusable policy facts:\n");
+        prompt.append("- Use these facts when they directly answer the final guest turn.\n");
+        prompt.append("- Do not ask staff to confirm a fact already listed here. Ignore facts that are not relevant.\n");
         for (String fact : facts) {
             prompt.append("- ").append(redactor.redact(fact)).append("\n");
         }
@@ -128,8 +130,8 @@ public class SuMessagingAiPromptBuilder {
                 continue;
             }
             prompt.append("- ")
-                    .append(message.getSenderType())
-                    .append(": ")
+                    .append(formatStoredRole(message.getSenderType()))
+                    .append("：")
                     .append(redactor.redact(message.getContent()))
                     .append("\n");
             appended++;
@@ -152,10 +154,9 @@ public class SuMessagingAiPromptBuilder {
             if (message == null || message.getContent() == null || message.getContent().isBlank()) {
                 continue;
             }
-            String direction = message.getDirection() == null ? "UNKNOWN" : message.getDirection();
             prompt.append("- ")
-                    .append(direction)
-                    .append(": ")
+                    .append(formatRequestRole(message.getDirection()))
+                    .append("：")
                     .append(redactor.redact(message.getContent()))
                     .append("\n");
             appended++;
@@ -164,13 +165,11 @@ public class SuMessagingAiPromptBuilder {
     }
 
     private void appendSimilarExamples(StringBuilder prompt, MessageKnowledgeSearchResult searchResult) {
-        prompt.append("Similar historical resolved Q&A:\n");
         if (searchResult == null || searchResult.getMatches().isEmpty()) {
-            prompt.append("- No similar historical answer was found.\n");
-            prompt.append("\n");
             return;
         }
 
+        prompt.append("Similar historical resolved Q&A:\n");
         int count = Math.min(MAX_SIMILAR_EXAMPLES, searchResult.getMatches().size());
         for (int index = 0; index < count; index++) {
             MessageKnowledgeMatch match = searchResult.getMatches().get(index);
@@ -222,5 +221,36 @@ public class SuMessagingAiPromptBuilder {
             return;
         }
         prompt.append("- ").append(label).append(": ").append(redactor.redact(value)).append("\n");
+    }
+
+    private static String formatStoredRole(SuMessagingSenderType senderType) {
+        if (senderType == SuMessagingSenderType.GUEST) {
+            return "客户";
+        }
+        if (senderType == SuMessagingSenderType.STAFF) {
+            return "员工";
+        }
+        return "未知";
+    }
+
+    private static String formatRequestRole(String direction) {
+        if (direction == null || direction.isBlank()) {
+            return "未知";
+        }
+        String normalized = direction.trim();
+        if ("GUEST".equalsIgnoreCase(normalized)
+                || "CUSTOMER".equalsIgnoreCase(normalized)
+                || "USER".equalsIgnoreCase(normalized)) {
+            return "客户";
+        }
+        if ("STAFF".equalsIgnoreCase(normalized)
+                || "HOST".equalsIgnoreCase(normalized)
+                || "EMPLOYEE".equalsIgnoreCase(normalized)) {
+            return "员工";
+        }
+        if ("SYSTEM".equalsIgnoreCase(normalized)) {
+            return "系统";
+        }
+        return "未知";
     }
 }

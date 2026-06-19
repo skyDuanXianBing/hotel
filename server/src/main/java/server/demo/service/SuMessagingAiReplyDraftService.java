@@ -21,7 +21,7 @@ import java.util.Optional;
 public class SuMessagingAiReplyDraftService {
     private static final Logger logger = LoggerFactory.getLogger(SuMessagingAiReplyDraftService.class);
 
-    private static final int RECENT_MESSAGE_LIMIT = 12;
+    private static final int RECENT_MESSAGE_LIMIT = 30;
     private static final int SIMILAR_MATCH_LIMIT = 3;
     private static final String WARNING_KNOWLEDGE_RETRIEVAL_FAILED = "KNOWLEDGE_RETRIEVAL_FAILED";
     private static final String WARNING_LATEST_MESSAGE_ID_IGNORED = "LATEST_MESSAGE_ID_IGNORED";
@@ -67,7 +67,18 @@ public class SuMessagingAiReplyDraftService {
         SuMessagingThreadContext context = contextResolver.resolve(storeId, thread, safeRequest);
         addWarnings(warnings, context.getWarnings());
 
-        LatestGuestMessage latestGuestMessage = resolveLatestGuestMessage(storeId, threadId, safeRequest, warnings);
+        List<SuMessage> recentMessages = messageRepository.findRecentByStoreIdAndThreadIdDesc(
+                storeId,
+                threadId,
+                PageRequest.of(0, RECENT_MESSAGE_LIMIT)
+        );
+        LatestGuestMessage latestGuestMessage = resolveLatestGuestMessage(
+                storeId,
+                threadId,
+                safeRequest,
+                recentMessages,
+                warnings
+        );
         if (latestGuestMessage.content() == null || latestGuestMessage.content().isBlank()) {
             throw new IllegalArgumentException("缺少可用于生成草稿的客人消息");
         }
@@ -89,11 +100,6 @@ public class SuMessagingAiReplyDraftService {
                 searchResult.getWarnings()
         );
 
-        List<SuMessage> recentMessages = messageRepository.findRecentByStoreIdAndThreadIdDesc(
-                storeId,
-                threadId,
-                PageRequest.of(0, RECENT_MESSAGE_LIMIT)
-        );
         String prompt = promptBuilder.buildPrompt(
                 context,
                 recentMessages,
@@ -145,15 +151,23 @@ public class SuMessagingAiReplyDraftService {
             Long storeId,
             Long threadId,
             SuMessagingAiReplyDraftRequest request,
+            List<SuMessage> recentMessages,
             List<String> warnings
     ) {
-        if (request.getLatestGuestMessageId() != null) {
-            Optional<SuMessage> requestedMessage =
-                    messageRepository.findByStoreIdAndId(storeId, request.getLatestGuestMessageId());
-            if (requestedMessage.isPresent() && isThreadGuestMessage(requestedMessage.get(), threadId)) {
-                return new LatestGuestMessage(requestedMessage.get().getContent());
-            }
-            addWarning(warnings, WARNING_LATEST_MESSAGE_ID_IGNORED);
+        LatestGuestMessage requestedMessage = resolveRequestedLatestGuestMessage(storeId, threadId, request, warnings);
+
+        String storedGuestTurn = findLastStoredGuestTurn(recentMessages);
+        if (storedGuestTurn != null && !storedGuestTurn.isBlank()) {
+            return new LatestGuestMessage(storedGuestTurn);
+        }
+
+        String requestGuestTurn = findLastRequestGuestTurn(request.getRecentMessages());
+        if (requestGuestTurn != null && !requestGuestTurn.isBlank()) {
+            return new LatestGuestMessage(requestGuestTurn);
+        }
+
+        if (requestedMessage != null) {
+            return requestedMessage;
         }
 
         List<SuMessage> storedGuestMessages = messageRepository.findRecentByStoreIdAndThreadIdAndSenderTypeDesc(
@@ -168,6 +182,24 @@ public class SuMessagingAiReplyDraftService {
 
         String requestMessage = findLatestRequestGuestMessage(request.getRecentMessages());
         return new LatestGuestMessage(requestMessage);
+    }
+
+    private LatestGuestMessage resolveRequestedLatestGuestMessage(
+            Long storeId,
+            Long threadId,
+            SuMessagingAiReplyDraftRequest request,
+            List<String> warnings
+    ) {
+        if (request.getLatestGuestMessageId() != null) {
+            Optional<SuMessage> requestedMessage =
+                    messageRepository.findByStoreIdAndId(storeId, request.getLatestGuestMessageId());
+            if (requestedMessage.isPresent() && isThreadGuestMessage(requestedMessage.get(), threadId)) {
+                return new LatestGuestMessage(requestedMessage.get().getContent());
+            }
+            addWarning(warnings, WARNING_LATEST_MESSAGE_ID_IGNORED);
+        }
+
+        return null;
     }
 
     private String generateDraftReply(
@@ -224,6 +256,65 @@ public class SuMessagingAiReplyDraftService {
             }
         }
         return null;
+    }
+
+    private static String findLastStoredGuestTurn(List<SuMessage> recentMessages) {
+        if (recentMessages == null || recentMessages.isEmpty()) {
+            return null;
+        }
+
+        List<String> messages = new ArrayList<>();
+        for (SuMessage message : recentMessages) {
+            if (message == null) {
+                continue;
+            }
+            if (message.getSenderType() != SuMessagingSenderType.GUEST) {
+                if (messages.isEmpty()) {
+                    return null;
+                }
+                break;
+            }
+            addMessageAtStart(messages, message.getContent());
+        }
+        return joinMessages(messages);
+    }
+
+    private static String findLastRequestGuestTurn(
+            List<SuMessagingAiReplyDraftRequest.RecentMessage> recentMessages
+    ) {
+        if (recentMessages == null || recentMessages.isEmpty()) {
+            return null;
+        }
+
+        List<String> messages = new ArrayList<>();
+        for (int index = recentMessages.size() - 1; index >= 0; index--) {
+            SuMessagingAiReplyDraftRequest.RecentMessage message = recentMessages.get(index);
+            if (message == null) {
+                continue;
+            }
+            if (!isGuestDirection(message.getDirection())) {
+                if (messages.isEmpty()) {
+                    return null;
+                }
+                break;
+            }
+            addMessageAtStart(messages, message.getContent());
+        }
+        return joinMessages(messages);
+    }
+
+    private static void addMessageAtStart(List<String> messages, String content) {
+        if (content == null || content.isBlank()) {
+            return;
+        }
+        messages.add(0, content.trim());
+    }
+
+    private static String joinMessages(List<String> messages) {
+        if (messages.isEmpty()) {
+            return null;
+        }
+        return String.join("\n", messages);
     }
 
     private static boolean isGuestDirection(String direction) {

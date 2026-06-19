@@ -75,6 +75,152 @@ class SuMessagingAiReplyDraftServiceTest {
         assertEquals("We can confirm early check-in availability on the arrival day.", response.getDraftReply());
         assertTrue(response.getWarnings().contains(MessageKnowledgeSearchService.WARNING_NO_SIMILAR_HISTORY));
         verify(fixture.messageRepository, never()).save(any(SuMessage.class));
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.chatLanguageModel).generate(promptCaptor.capture());
+        String prompt = promptCaptor.getValue();
+        assertTrue(prompt.contains("Last guest turn to reply to:"));
+        assertTrue(prompt.contains("Can I check in early?"));
+        assertTrue(prompt.contains("- 客户：Can I check in early?"));
+    }
+
+    @Test
+    void generateDraft_shouldUseLastGuestTurnWhenLatestGuestOnlyThanks() {
+        TestFixture fixture = new TestFixture();
+        SuMessageThread thread = newThread(77L, 26L);
+        SuMessage staffGreeting = newMessage(200L, thread, SuMessagingSenderType.STAFF, "Welcome to the hotel.");
+        SuMessage toiletPaperQuestion = newMessage(
+                201L,
+                thread,
+                SuMessagingSenderType.GUEST,
+                "Could you bring toilet paper to room 301?"
+        );
+        SuMessage thanks = newMessage(202L, thread, SuMessagingSenderType.GUEST, "Thank you");
+        String expectedGuestTurn = "Could you bring toilet paper to room 301?\nThank you";
+
+        when(fixture.threadRepository.findByStoreIdAndId(26L, 77L)).thenReturn(Optional.of(thread));
+        when(fixture.contextResolver.resolve(eq(26L), eq(thread), any())).thenReturn(newContext());
+        when(fixture.messageRepository.findRecentByStoreIdAndThreadIdDesc(
+                eq(26L),
+                eq(77L),
+                any(Pageable.class)
+        )).thenReturn(List.of(thanks, toiletPaperQuestion, staffGreeting));
+        when(fixture.searchService.searchSimilar(eq(26L), eq(77L), any(), any(String.class), eq(3)))
+                .thenReturn(new MessageKnowledgeSearchResult(
+                        MessageKnowledgeSearchService.STATUS_NO_MATCH,
+                        List.of(),
+                        List.of()
+                ));
+        when(fixture.chatLanguageModel.generate(any(String.class)))
+                .thenReturn("Sure, we will bring toilet paper to room 301.");
+
+        SuMessagingAiReplyDraftResponse response = fixture.service.generateDraft(
+                26L,
+                77L,
+                new SuMessagingAiReplyDraftRequest()
+        );
+
+        assertEquals("Sure, we will bring toilet paper to room 301.", response.getDraftReply());
+
+        ArgumentCaptor<String> queryCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.searchService).searchSimilar(eq(26L), eq(77L), any(), queryCaptor.capture(), eq(3));
+        assertEquals(expectedGuestTurn, queryCaptor.getValue());
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.chatLanguageModel).generate(promptCaptor.capture());
+        String prompt = promptCaptor.getValue();
+        String targetSection = sectionBetween(prompt, "Last guest turn to reply to:", "Recent conversation:");
+        assertTrue(targetSection.contains("Could you bring toilet paper to room 301?"));
+        assertTrue(targetSection.contains("Thank you"));
+        assertTrue(prompt.contains("Do not answer only the final courtesy message"));
+        assertTrue(prompt.contains("- 员工：Welcome to the hotel."));
+        assertTrue(prompt.contains("- 客户：Could you bring toilet paper to room 301?"));
+        assertTrue(prompt.contains("- 客户：Thank you"));
+    }
+
+    @Test
+    void generateDraft_shouldMergeContinuousGuestQuestions() {
+        TestFixture fixture = new TestFixture();
+        SuMessageThread thread = newThread(77L, 26L);
+        SuMessage staffGreeting = newMessage(200L, thread, SuMessagingSenderType.STAFF, "Welcome to the hotel.");
+        SuMessage wifiQuestion = newMessage(201L, thread, SuMessagingSenderType.GUEST, "What is the Wi-Fi password?");
+        SuMessage towelsQuestion = newMessage(
+                202L,
+                thread,
+                SuMessagingSenderType.GUEST,
+                "Also, can we get extra towels?"
+        );
+        String expectedGuestTurn = "What is the Wi-Fi password?\nAlso, can we get extra towels?";
+
+        when(fixture.threadRepository.findByStoreIdAndId(26L, 77L)).thenReturn(Optional.of(thread));
+        when(fixture.contextResolver.resolve(eq(26L), eq(thread), any())).thenReturn(newContext());
+        when(fixture.messageRepository.findRecentByStoreIdAndThreadIdDesc(
+                eq(26L),
+                eq(77L),
+                any(Pageable.class)
+        )).thenReturn(List.of(towelsQuestion, wifiQuestion, staffGreeting));
+        when(fixture.searchService.searchSimilar(eq(26L), eq(77L), any(), any(String.class), eq(3)))
+                .thenReturn(new MessageKnowledgeSearchResult(
+                        MessageKnowledgeSearchService.STATUS_NO_MATCH,
+                        List.of(),
+                        List.of()
+                ));
+        when(fixture.chatLanguageModel.generate(any(String.class)))
+                .thenReturn("The Wi-Fi password is at the front desk, and we will bring extra towels.");
+
+        fixture.service.generateDraft(26L, 77L, new SuMessagingAiReplyDraftRequest());
+
+        ArgumentCaptor<String> queryCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.searchService).searchSimilar(eq(26L), eq(77L), any(), queryCaptor.capture(), eq(3));
+        assertEquals(expectedGuestTurn, queryCaptor.getValue());
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.chatLanguageModel).generate(promptCaptor.capture());
+        String targetSection = sectionBetween(promptCaptor.getValue(), "Last guest turn to reply to:", "Recent conversation:");
+        assertTrue(targetSection.contains("What is the Wi-Fi password?"));
+        assertTrue(targetSection.contains("Also, can we get extra towels?"));
+    }
+
+    @Test
+    void generateDraft_shouldOnlyUseGuestTurnAfterLatestStaffReply() {
+        TestFixture fixture = new TestFixture();
+        SuMessageThread thread = newThread(77L, 26L);
+        SuMessage oldQuestion = newMessage(200L, thread, SuMessagingSenderType.GUEST, "What time is checkout?");
+        SuMessage staffReply = newMessage(201L, thread, SuMessagingSenderType.STAFF, "Checkout is at 11:00.");
+        SuMessage newQuestion = newMessage(
+                202L,
+                thread,
+                SuMessagingSenderType.GUEST,
+                "Can we leave bags after checkout?"
+        );
+
+        when(fixture.threadRepository.findByStoreIdAndId(26L, 77L)).thenReturn(Optional.of(thread));
+        when(fixture.contextResolver.resolve(eq(26L), eq(thread), any())).thenReturn(newContext());
+        when(fixture.messageRepository.findRecentByStoreIdAndThreadIdDesc(
+                eq(26L),
+                eq(77L),
+                any(Pageable.class)
+        )).thenReturn(List.of(newQuestion, staffReply, oldQuestion));
+        when(fixture.searchService.searchSimilar(eq(26L), eq(77L), any(), any(String.class), eq(3)))
+                .thenReturn(new MessageKnowledgeSearchResult(
+                        MessageKnowledgeSearchService.STATUS_NO_MATCH,
+                        List.of(),
+                        List.of()
+                ));
+        when(fixture.chatLanguageModel.generate(any(String.class)))
+                .thenReturn("You can leave your bags with us after checkout.");
+
+        fixture.service.generateDraft(26L, 77L, new SuMessagingAiReplyDraftRequest());
+
+        ArgumentCaptor<String> queryCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.searchService).searchSimilar(eq(26L), eq(77L), any(), queryCaptor.capture(), eq(3));
+        assertEquals("Can we leave bags after checkout?", queryCaptor.getValue());
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fixture.chatLanguageModel).generate(promptCaptor.capture());
+        String targetSection = sectionBetween(promptCaptor.getValue(), "Last guest turn to reply to:", "Recent conversation:");
+        assertTrue(targetSection.contains("Can we leave bags after checkout?"));
+        assertFalse(targetSection.contains("What time is checkout?"));
     }
 
     @Test
@@ -141,7 +287,7 @@ class SuMessagingAiReplyDraftServiceTest {
         assertTrue(prompt.contains("Reusable policy facts:"));
         assertTrue(prompt.contains("Late checkout is available until 12:00"));
         assertFalse(prompt.contains("DO_NOT_LEAK"));
-        assertTrue(prompt.indexOf("Latest guest message:") < prompt.indexOf("Reusable policy facts:"));
+        assertTrue(prompt.indexOf("Last guest turn to reply to:") < prompt.indexOf("Reusable policy facts:"));
         assertTrue(prompt.indexOf("Reusable policy facts:") < prompt.indexOf("Similar historical resolved Q&A:"));
         assertTrue(prompt.indexOf("Similar historical resolved Q&A:") < prompt.indexOf("Recent conversation:"));
         assertTrue(prompt.indexOf("Recent conversation:") < prompt.indexOf("Current thread context:"));
@@ -247,6 +393,14 @@ class SuMessagingAiReplyDraftServiceTest {
         message.setSentAt(LocalDateTime.of(2026, 6, 10, 12, 0));
         message.setDeliveryStatus("SENT");
         return message;
+    }
+
+    private static String sectionBetween(String text, String startMarker, String endMarker) {
+        int start = text.indexOf(startMarker);
+        int end = text.indexOf(endMarker);
+        assertTrue(start >= 0);
+        assertTrue(end > start);
+        return text.substring(start, end);
     }
 
     private static class TestFixture {
