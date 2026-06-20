@@ -47,6 +47,10 @@ interface NavItem {
 const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/'
 
 const isAccommodationRoute = computed(() => normalizePath(route.path).startsWith('/accommodation'))
+const isRegistrationReviewListRoute = computed(() => route.name === 'DataCenterRegistrations')
+const usesEmbeddedTopNav = computed(
+  () => isAccommodationRoute.value || isRegistrationReviewListRoute.value,
+)
 
 const loadStores = async () => {
   try {
@@ -279,8 +283,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="main-layout" :class="{ 'main-layout--accommodation': isAccommodationRoute }">
-    <template v-if="isAccommodationRoute">
+  <div class="main-layout" :class="{ 'main-layout--embedded-nav': usesEmbeddedTopNav }">
+    <template v-if="usesEmbeddedTopNav">
       <router-view />
     </template>
     <template v-else>
@@ -322,7 +326,7 @@ onUnmounted(() => {
   background: #f5f5f2;
 }
 
-.main-layout--accommodation {
+.main-layout--embedded-nav {
   height: 100vh;
 }
 
