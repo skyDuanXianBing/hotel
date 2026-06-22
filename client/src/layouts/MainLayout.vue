@@ -48,8 +48,9 @@ const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/'
 
 const isAccommodationRoute = computed(() => normalizePath(route.path).startsWith('/accommodation'))
 const isRegistrationReviewListRoute = computed(() => route.name === 'DataCenterRegistrations')
+const isOrderRoute = computed(() => normalizePath(route.path).startsWith('/order'))
 const usesEmbeddedTopNav = computed(
-  () => isAccommodationRoute.value || isRegistrationReviewListRoute.value,
+  () => isAccommodationRoute.value || isRegistrationReviewListRoute.value || isOrderRoute.value,
 )
 
 const loadStores = async () => {
