@@ -10,6 +10,8 @@ const languageStore = useLanguageStore()
 const route = useRoute()
 const { t } = useI18n()
 
+const ELEMENT_PLUS_OVERLAY_Z_INDEX = 4000
+
 const elementLocale = computed(() => getElementPlusLocale(languageStore.locale))
 
 const updateDocumentTitle = () => {
@@ -24,7 +26,7 @@ watch([() => route.fullPath, () => languageStore.locale], updateDocumentTitle, {
 </script>
 
 <template>
-  <el-config-provider :locale="elementLocale">
+  <el-config-provider :locale="elementLocale" :z-index="ELEMENT_PLUS_OVERLAY_Z_INDEX">
     <router-view />
   </el-config-provider>
 </template>

@@ -203,6 +203,7 @@ const ja = mergeLocaleMessages(
       autoCheckinSettings: '自動チェックイン設定',
       pricingTools: '料金ツール',
       paymentPlatforms: '決済プラットフォーム',
+      doorLocks: 'スマートロック',
       roomSettings: '客室設定',
       roomOwnership: '客室所有情報',
       roomTypeDetails: '客室タイプ詳細',

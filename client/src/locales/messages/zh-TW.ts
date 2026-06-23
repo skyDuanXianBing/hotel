@@ -201,6 +201,7 @@ const zhTW = mergeLocaleMessages(
       autoCheckinSettings: '自動入住設定',
       pricingTools: '定價工具',
       paymentPlatforms: '支付平台',
+      doorLocks: '門鎖',
       roomSettings: '房間設定',
       roomOwnership: '房間歸屬',
       roomTypeDetails: '房型詳情',

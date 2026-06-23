@@ -204,6 +204,7 @@ const en = mergeLocaleMessages(
       autoCheckinSettings: 'Auto Check-in Settings',
       pricingTools: 'Pricing Tools',
       paymentPlatforms: 'Payment Platforms',
+      doorLocks: 'Door Locks',
       roomSettings: 'Room Settings',
       roomOwnership: 'Room Ownership',
       roomTypeDetails: 'Room Type Details',

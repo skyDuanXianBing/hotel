@@ -79,6 +79,13 @@
               {{ t(variable.label) }}
             </el-tag>
           </div>
+          <el-alert
+            type="warning"
+            :title="t('settings.autoMessage.legacySmartLockPasscodeNotice')"
+            :closable="false"
+            show-icon
+            class="legacy-smartlock-notice"
+          />
         </div>
 
         <!-- 渠道（多选） -->
@@ -1067,6 +1074,10 @@ onMounted(() => {
 .variable-tag:hover {
   border-color: #409eff;
   color: #409eff;
+}
+
+.legacy-smartlock-notice {
+  margin-top: 12px;
 }
 
 /* 自动化规则区域样式 */

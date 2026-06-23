@@ -201,6 +201,7 @@ const zhCN = mergeLocaleMessages(
       autoCheckinSettings: '自动入住设置',
       pricingTools: '定价工具',
       paymentPlatforms: '支付平台',
+      doorLocks: '门锁',
       roomSettings: '房间设置',
       roomOwnership: '房间归属',
       roomTypeDetails: '房型详情',

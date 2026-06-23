@@ -401,6 +401,10 @@
             {{ quickActionRoom?.roomType }}-{{ quickActionRoom?.roomNumber }}
           </div>
 
+          <div class="quick-lock-actions" v-if="showQuickActions && quickRoomLockTarget">
+            <RoomLockActions :target="quickRoomLockTarget" compact />
+          </div>
+
           <!-- 操作按钮 -->
           <div class="popup-actions">
             <!-- 今天显示两个主要按钮：预订和入住 -->
@@ -1157,6 +1161,12 @@
                 </div>
               </div>
             </div>
+
+            <RoomLockActions
+              v-if="showBookingDetailSidebar && detailRoomLockTarget"
+              class="detail-lock-actions"
+              :target="detailRoomLockTarget"
+            />
 
             <div class="expandable-sections">
               <el-collapse v-model="activeCollapsePanels">
@@ -2531,6 +2541,8 @@ import {
   type SuReservationWebhookEventDTO,
   type SuWebhookEventStatus,
 } from '@/api/suWebhookEvents'
+import RoomLockActions from './components/RoomLockActions.vue'
+import type { RoomLockOperationContext } from '@/api/roomLock'
 
 const router = useRouter()
 const route = useRoute()
@@ -6852,6 +6864,45 @@ const quickPriceDisplayDate = computed(() => {
     : `${targetRange.startDate} ~ ${targetRange.endDate}`
 })
 
+const getReservationIdForRoomLock = (reservation: Record<string, any> | null | undefined) => {
+  const reservationId = Number(reservation?.id || 0)
+  return Number.isFinite(reservationId) && reservationId > 0 ? reservationId : null
+}
+
+const quickRoomLockTarget = computed<RoomLockOperationContext | null>(() => {
+  const room = quickActionRoom.value
+  if (!room?.roomId) {
+    return null
+  }
+  return {
+    roomId: room.roomId,
+    roomNumber: room.roomNumber,
+    roomType: room.roomType,
+    date: quickActionDate.value,
+  }
+})
+
+const detailRoomLockTarget = computed<RoomLockOperationContext | null>(() => {
+  const reservation = selectedReservation.value as Record<string, any> | null
+  const roomId = Number(reservation?.roomId || selectedRoom.value?.roomId || 0)
+  if (!Number.isFinite(roomId) || roomId <= 0) {
+    return null
+  }
+
+  const checkInDate = getReservationDateOnly(getReservationDateValue(reservation, 'checkIn'))
+  const checkOutDate = getReservationDateOnly(getReservationDisplayCheckOutDate(reservation))
+  return {
+    roomId,
+    roomNumber: reservation?.roomNumber || selectedRoom.value?.roomNumber || String(roomId),
+    roomType: reservation?.roomTypeName || selectedRoom.value?.roomType || '',
+    date: selectedDate.value || checkInDate,
+    reservationId: getReservationIdForRoomLock(reservation),
+    guestName: String(reservation?.guestName || ''),
+    checkInDate,
+    checkOutDate,
+  }
+})
+
 const closeQuickPriceDialog = () => {
   showQuickPriceDialog.value = false
   quickPriceForm.value.price = 0
@@ -8472,6 +8523,12 @@ onActivated(async () => {
   text-align: center;
 }
 
+.quick-lock-actions {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 12px 12px;
+}
+
 .popup-actions {
   width: 100%;
   padding: 0 16px 16px;
@@ -9112,6 +9169,10 @@ onActivated(async () => {
   border: 1px solid #e9ecef;
   border-radius: 6px;
   padding: 15px;
+}
+
+.detail-lock-actions {
+  margin-top: 14px;
 }
 
 .room-header {

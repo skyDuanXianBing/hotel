@@ -156,6 +156,7 @@ const menuItems: MenuItem[] = [
     children: [
       { key: 'pricing-tools', label: 'settings.layout.items.pricingTools', path: '/settings/third-party/pricing-tools', requiredPermissions: storeSettingsPermission },
       { key: 'payment-platforms', label: 'settings.layout.items.paymentPlatforms', path: '/settings/third-party/payment-platforms', requiredPermissions: storeSettingsPermission },
+      { key: 'door-locks', label: 'settings.layout.items.doorLocks', path: '/settings/third-party/door-locks', requiredPermissions: storeSettingsPermission },
     ],
   },
 ]
@@ -197,7 +198,7 @@ const getMenuTitle = () => {
     <!-- 面包屑导航 -->
     <!-- <div class="breadcrumb-section">
       <el-breadcrumb separator="/">
-       
+
       </el-breadcrumb>
     </div> -->
 

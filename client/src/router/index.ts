@@ -234,6 +234,12 @@ const router = createRouter({
               component: () => import('@/views/settings/third-party/PaymentPlatforms.vue'),
               meta: { title: 'Payment Platforms', requiresAuth: true },
             },
+            {
+              path: 'third-party/door-locks',
+              name: 'DoorLocks',
+              component: () => import('@/views/settings/third-party/DoorLocks.vue'),
+              meta: { title: 'Door Locks', requiresAuth: true },
+            },
             // Legacy settings
             {
               path: 'room-type',
@@ -640,6 +646,7 @@ const routePermissionConfig = new Map<
   ['AutoCheckinSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['PricingTools', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['PaymentPlatforms', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
+  ['DoorLocks', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['RoomTypeManagement', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['RoomOwnership', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['RoomTypeDetails', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
@@ -692,6 +699,7 @@ const routeTitleKeyByName = new Map<string, string>([
   ['AutoCheckinSettings', 'routeTitles.autoCheckinSettings'],
   ['PricingTools', 'routeTitles.pricingTools'],
   ['PaymentPlatforms', 'routeTitles.paymentPlatforms'],
+  ['DoorLocks', 'routeTitles.doorLocks'],
   ['RoomTypeManagement', 'routeTitles.roomSettings'],
   ['RoomOwnership', 'routeTitles.roomOwnership'],
   ['RoomTypeDetails', 'routeTitles.roomTypeDetails'],
