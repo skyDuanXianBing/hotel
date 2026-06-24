@@ -171,17 +171,14 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import loginIllustration from '@/assets/auth/login-illustration.svg'
-import { useUserStore } from '@/stores/user'
-import { useStoreStore } from '@/stores/store'
 import {
   loginByPassword as loginByPasswordAPI,
   loginByCode as loginByCodeAPI,
   sendVerificationCode as sendVerificationCodeAPI,
 } from '@/api/auth'
+import { resolveLoginTarget } from '@/utils/loginTargetResolver'
 
 const router = useRouter()
-const userStore = useUserStore()
-const storeStore = useStoreStore()
 const { t } = useI18n()
 
 const loginMode = ref<'password' | 'code'>('password')
@@ -273,26 +270,16 @@ const handleLogin = async () => {
 
     if (!response.success || !response.data) {
       ElMessage.error(response.message || t('auth.login.failed'))
-      loading.value = false
       return
     }
 
-    const { token, user, stores } = response.data
-    localStorage.setItem('token', token)
-    localStorage.setItem('user', JSON.stringify(user))
-    userStore.setUser(user)
-
-    if (stores && stores.length > 0) {
-      storeStore.setStores(stores)
-    }
-
+    await resolveLoginTarget(response.data, router)
     ElMessage.success(t('auth.login.success'))
-    router.push('/store/selection')
-    loading.value = false
   } catch (error: any) {
-    loading.value = false
     const message = error.response?.data?.message || error.message || t('auth.login.failed')
     ElMessage.error(message)
+  } finally {
+    loading.value = false
   }
 }
 

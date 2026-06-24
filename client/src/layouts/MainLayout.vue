@@ -182,6 +182,7 @@ const handleProfileClick = () => {
 const handleLogout = async () => {
   try {
     await userStore.logout()
+    storeStore.clearStoreData()
     permissionStore.clearPermissions()
     ElMessage.success(t('layout.logoutSuccess'))
   } catch (error: unknown) {

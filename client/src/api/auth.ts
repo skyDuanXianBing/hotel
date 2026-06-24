@@ -20,6 +20,20 @@ export interface UserDTO {
   isCleaner?: boolean // 是否是保洁员
 }
 
+// 登录目标由后端统一判定，前端只消费该可信结果。
+export type LoginTarget = 'PMS' | 'CLEANER'
+
+export interface CleanerDTO {
+  id: number
+  userId: number
+  storeId: number
+  name: string
+  email: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 // 更新个人资料请求
 export interface UpdateProfileRequest {
   nickname?: string
@@ -53,6 +67,10 @@ export interface LoginResponse {
   token: string
   user: UserDTO
   stores: StoreDTO[]
+  loginTarget: LoginTarget
+  cleaner?: CleanerDTO | null
+  currentStore?: StoreDTO | null
+  targetStoreId?: number | null
 }
 
 // 注册请求

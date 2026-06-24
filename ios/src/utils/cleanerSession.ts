@@ -1,4 +1,5 @@
 import type { CleanerSessionUser } from '@/types/auth'
+import type { StoreDTO } from '@/types/store'
 import {
   readStoredJson,
   readStoredValue,
@@ -11,7 +12,7 @@ export const CLEANER_TOKEN_KEY = 'cleanerToken'
 export const CLEANER_USER_KEY = 'cleanerUser'
 export const CLEANER_STORE_KEY = 'cleanerCurrentStore'
 
-interface CleanerStoreSession {
+interface CleanerStoreSession extends Partial<StoreDTO> {
   id: number
 }
 
@@ -43,7 +44,18 @@ export const readCleanerUser = () => {
 }
 
 export const readCleanerStore = () => {
-  return readStoredJson<CleanerStoreSession>(CLEANER_STORE_KEY)
+  const cleanerStore = readStoredJson<CleanerStoreSession>(CLEANER_STORE_KEY)
+
+  if (!cleanerStore) {
+    return null
+  }
+
+  if (typeof cleanerStore.id !== 'number') {
+    removeStoredValue(CLEANER_STORE_KEY)
+    return null
+  }
+
+  return cleanerStore
 }
 
 export const readCleanerStoreId = () => {
@@ -67,13 +79,18 @@ export const hasCleanerSession = () => {
 export const saveCleanerSession = (
   token: string,
   user: CleanerSessionUser,
-  storeId?: number | null,
+  store?: number | CleanerStoreSession | null,
 ) => {
   writeStoredValue(CLEANER_TOKEN_KEY, token)
   writeStoredJson(CLEANER_USER_KEY, user)
 
-  if (storeId) {
-    writeStoredJson(CLEANER_STORE_KEY, { id: storeId })
+  if (typeof store === 'number' && store > 0) {
+    writeStoredJson(CLEANER_STORE_KEY, { id: store })
+    return
+  }
+
+  if (store && typeof store === 'object' && store.id) {
+    writeStoredJson(CLEANER_STORE_KEY, store)
     return
   }
 

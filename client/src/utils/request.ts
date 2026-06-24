@@ -1,7 +1,13 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
 import { i18n } from '@/locales'
-import { CLEANER_STORE_KEY, CLEANER_TOKEN_KEY, clearCleanerSession } from '@/utils/cleanerSession'
+import {
+  CLEANER_STORE_KEY,
+  CLEANER_TOKEN_KEY,
+  PMS_CURRENT_STORE_KEY,
+  PMS_TOKEN_KEY,
+  clearAllLocalSessions,
+} from '@/utils/cleanerSession'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -37,17 +43,33 @@ const shouldSuppressErrorToast = (error: unknown) => {
 }
 
 const translate = (key: string) => i18n.global.t(key)
+const LOGIN_PATH = '/login'
+const CLEANER_PATH_PREFIX = '/cleaner'
+const CLEANER_REGISTER_PATH = '/cleaner/register'
+const CLEANER_LOGIN_PATH = '/cleaner/login'
+
+const isCleanerWorkspacePath = (path: string) => {
+  if (!path.startsWith(CLEANER_PATH_PREFIX)) {
+    return false
+  }
+  if (path === CLEANER_LOGIN_PATH || path.startsWith(CLEANER_REGISTER_PATH)) {
+    return false
+  }
+  return true
+}
 
 request.interceptors.request.use(
   (config) => {
     const isCleanerRoute =
-      typeof window !== 'undefined' && window.location.pathname.startsWith('/cleaner')
-    const token = localStorage.getItem(isCleanerRoute ? CLEANER_TOKEN_KEY : 'token')
+      typeof window !== 'undefined' && isCleanerWorkspacePath(window.location.pathname)
+    const token = localStorage.getItem(isCleanerRoute ? CLEANER_TOKEN_KEY : PMS_TOKEN_KEY)
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
 
-    const currentStore = localStorage.getItem(isCleanerRoute ? CLEANER_STORE_KEY : 'currentStore')
+    const currentStore = localStorage.getItem(
+      isCleanerRoute ? CLEANER_STORE_KEY : PMS_CURRENT_STORE_KEY
+    )
     if (currentStore) {
       try {
         const store = JSON.parse(currentStore)
@@ -70,16 +92,8 @@ request.interceptors.response.use(
     const suppressErrorToast = shouldSuppressErrorToast(error)
 
     if (error.response?.status === 401) {
-      const isCleanerRoute =
-        typeof window !== 'undefined' && window.location.pathname.startsWith('/cleaner')
-      if (isCleanerRoute) {
-        clearCleanerSession()
-        window.location.href = '/cleaner/login'
-      } else {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
-      }
+      clearAllLocalSessions()
+      window.location.href = LOGIN_PATH
       ElMessage.error(translate('stage6.common.messages.loginExpired'))
     } else if (error.response?.status === 403) {
       const message = sanitizeUserFacingMessage(

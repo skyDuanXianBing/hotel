@@ -9,23 +9,22 @@ import org.springframework.stereotype.Service;
 import server.demo.dto.StoreDTO;
 import server.demo.dto.auth.*;
 import server.demo.entity.Cleaner;
+import server.demo.entity.Role;
 import server.demo.entity.StoreUser;
-import server.demo.entity.StoreUserPermission;
 import server.demo.entity.User;
 import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
-import server.demo.repository.CleanerRepository;
+import server.demo.repository.RolePermissionRepository;
 import server.demo.repository.StoreUserPermissionRepository;
 import server.demo.repository.StoreUserRepository;
 import server.demo.repository.UserRepository;
 import server.demo.util.JwtUtil;
 import server.demo.util.RedisUtil;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 认证服务
@@ -52,18 +51,22 @@ public class AuthService {
     private StoreService storeService;
 
     @Autowired
-    private CleanerRepository cleanerRepository;
-
-    @Autowired
     private StoreUserRepository storeUserRepository;
 
     @Autowired
     private StoreUserPermissionRepository storeUserPermissionRepository;
 
+    @Autowired
+    private RolePermissionRepository rolePermissionRepository;
+
+    @Autowired
+    private CleanerIdentityService cleanerIdentityService;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private static final Set<String> ALLOWED_GENDERS = Set.of("male", "female", "private");
-    private static final String CLEANER_LOGIN_ENTRY_MESSAGE = "请前往保洁员登录入口";
+    private static final String CLEANER_CONFIG_ERROR_MESSAGE =
+            "账号已配置查看保洁任务权限，但未找到对应的有效保洁员档案，请联系管理员检查保洁员配置";
 
     /**
      * 发送验证码
@@ -169,7 +172,7 @@ public class AuthService {
         // 获取用户的门店列表
         List<StoreDTO> stores = storeService.getUserStores(user.getId());
 
-        return new LoginResponse(token, userDTO, stores);
+        return buildLoginResponse(token, userDTO, stores);
     }
 
     /**
@@ -198,7 +201,23 @@ public class AuthService {
         // 获取用户的门店列表
         List<StoreDTO> stores = storeService.getUserStores(user.getId());
 
-        return new LoginResponse(token, userDTO, stores);
+        return buildLoginResponse(token, userDTO, stores);
+    }
+
+    /**
+     * 为已完成认证的用户构建统一登录响应，供旧 cleaner 兼容端点复用目标解析逻辑。
+     */
+    public LoginResponse buildAuthenticatedLoginResponse(Long userId, String token) {
+        if (userId == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        UserDTO userDTO = new UserDTO(user);
+        userDTO.setIsCleaner(false);
+        List<StoreDTO> stores = storeService.getUserStores(user.getId());
+        return buildLoginResponse(token, userDTO, stores);
     }
 
     /**
@@ -330,78 +349,138 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
-    public void ensurePmsLoginAllowed(LoginResponse loginResponse) {
-        if (loginResponse == null || loginResponse.getUser() == null) {
-            return;
-        }
 
-        Long userId = loginResponse.getUser().getId();
-        if (userId == null) {
-            return;
-        }
-
-        List<StoreUser> activeStoreUsers = storeUserRepository.findByUserIdWithStoreAndRoles(userId)
-                .stream()
-                .filter(storeUser -> storeUser != null && Boolean.TRUE.equals(storeUser.getIsActive()))
-                .toList();
-        if (activeStoreUsers.isEmpty()) {
-            return;
-        }
-
-        boolean hasRegularPmsAccess = activeStoreUsers.stream()
-                .anyMatch(storeUser -> !isCleanerOnlyMembership(storeUser));
-        if (hasRegularPmsAccess) {
-            return;
-        }
-
-        Set<Long> activeStoreIds = activeStoreUsers.stream()
-                .map(StoreUser::getStore)
-                .filter(Objects::nonNull)
-                .map(store -> store.getId())
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        if (activeStoreIds.isEmpty()) {
-            return;
-        }
-
-        boolean hasActiveCleanerIdentity = cleanerRepository.findByUserId(userId).stream()
-                .anyMatch(cleaner -> cleaner != null
-                        && Boolean.TRUE.equals(cleaner.getIsActive())
-                        && activeStoreIds.contains(cleaner.getStoreId()));
-        if (hasActiveCleanerIdentity) {
-            throw new RuntimeException(CLEANER_LOGIN_ENTRY_MESSAGE);
-        }
+    private LoginResponse buildLoginResponse(String token, UserDTO userDTO, List<StoreDTO> stores) {
+        LoginResponse response = new LoginResponse(token, userDTO, stores);
+        applyLoginTarget(response, stores);
+        return response;
     }
 
-    private boolean isCleanerOnlyMembership(StoreUser storeUser) {
-        if (storeUser == null || !Boolean.TRUE.equals(storeUser.getIsActive())) {
-            return false;
+    private void applyLoginTarget(LoginResponse response, List<StoreDTO> stores) {
+        response.setLoginTarget(LoginTarget.PMS);
+        response.setCleaner(null);
+        response.setCurrentStore(null);
+        response.setTargetStoreId(null);
+
+        if (response.getUser() == null || response.getUser().getId() == null) {
+            return;
         }
 
-        if (!"member".equals(storeUser.getRole())) {
-            return false;
+        List<CleanerTargetCandidate> candidates = resolveCleanerTargetCandidates(response.getUser().getId());
+        if (candidates.isEmpty()) {
+            return;
         }
 
-        if (storeUser.getRoles() != null && !storeUser.getRoles().isEmpty()) {
-            return false;
-        }
-
-        if (storeUser.getId() == null) {
-            return false;
-        }
-
-        List<StoreUserPermission> permissions =
-                storeUserPermissionRepository.findByStoreUser_Id(storeUser.getId());
-        if (permissions == null || permissions.isEmpty()) {
-            return false;
-        }
-
-        return permissions.stream().allMatch(this::isCleanerTaskListPermission);
+        sortCleanerCandidates(candidates);
+        CleanerTargetCandidate target = candidates.get(0);
+        response.setLoginTarget(LoginTarget.CLEANER);
+        response.setCleaner(new CleanerDTO(target.cleaner));
+        response.setTargetStoreId(target.storeId);
+        response.setCurrentStore(findStoreDto(stores, target.storeId));
     }
 
-    private boolean isCleanerTaskListPermission(StoreUserPermission permission) {
-        return permission != null
-                && permission.getModule() == PermissionModule.ACCOMMODATION
-                && permission.getAction() == PermissionAction.TASK_LIST;
+    private List<CleanerTargetCandidate> resolveCleanerTargetCandidates(Long userId) {
+        List<CleanerTargetCandidate> candidates = new ArrayList<>();
+        List<StoreUser> storeUsers = storeUserRepository.findByUserIdWithStoreAndRoles(userId);
+        if (storeUsers == null || storeUsers.isEmpty()) {
+            return candidates;
+        }
+
+        for (StoreUser storeUser : storeUsers) {
+            if (!isUsableActiveStoreUser(storeUser)) {
+                continue;
+            }
+            if (!hasExplicitCleanerTaskListPermission(storeUser)) {
+                continue;
+            }
+
+            Long storeId = storeUser.getStore().getId();
+            Cleaner cleaner = cleanerIdentityService.findCleanerByUserIdAndStoreId(userId, storeId)
+                    .filter(candidate -> candidate != null && Boolean.TRUE.equals(candidate.getIsActive()))
+                    .orElseThrow(() -> new RuntimeException(CLEANER_CONFIG_ERROR_MESSAGE));
+            candidates.add(new CleanerTargetCandidate(storeId, cleaner));
+        }
+
+        return candidates;
+    }
+
+    private boolean isUsableActiveStoreUser(StoreUser storeUser) {
+        return storeUser != null
+                && storeUser.getId() != null
+                && Boolean.TRUE.equals(storeUser.getIsActive())
+                && storeUser.getStore() != null
+                && storeUser.getStore().getId() != null;
+    }
+
+    private boolean hasExplicitCleanerTaskListPermission(StoreUser storeUser) {
+        if (storeUserPermissionRepository.existsByStoreUser_IdAndModuleAndAction(
+                storeUser.getId(),
+                PermissionModule.ACCOMMODATION,
+                PermissionAction.TASK_LIST
+        )) {
+            return true;
+        }
+
+        List<Long> roleIds = new ArrayList<>();
+        if (storeUser.getRoles() != null) {
+            for (Role role : storeUser.getRoles()) {
+                if (role != null && role.getId() != null) {
+                    roleIds.add(role.getId());
+                }
+            }
+        }
+
+        return !roleIds.isEmpty()
+                && rolePermissionRepository.existsByRoleIdInAndModuleAndAction(
+                        roleIds,
+                        PermissionModule.ACCOMMODATION,
+                        PermissionAction.TASK_LIST
+                );
+    }
+
+    private StoreDTO findStoreDto(List<StoreDTO> stores, Long storeId) {
+        if (stores == null || storeId == null) {
+            return null;
+        }
+
+        for (StoreDTO store : stores) {
+            if (store != null && storeId.equals(store.getId())) {
+                return store;
+            }
+        }
+        return null;
+    }
+
+    private void sortCleanerCandidates(List<CleanerTargetCandidate> candidates) {
+        candidates.sort((left, right) -> {
+            int storeCompare = compareLongValues(left.storeId, right.storeId);
+            if (storeCompare != 0) {
+                return storeCompare;
+            }
+            return compareLongValues(left.cleaner.getId(), right.cleaner.getId());
+        });
+    }
+
+    private int compareLongValues(Long left, Long right) {
+        if (left == null && right == null) {
+            return 0;
+        }
+        if (left == null) {
+            return 1;
+        }
+        if (right == null) {
+            return -1;
+        }
+        return left.compareTo(right);
+    }
+
+    private static class CleanerTargetCandidate {
+        private final Long storeId;
+        private final Cleaner cleaner;
+
+        private CleanerTargetCandidate(Long storeId, Cleaner cleaner) {
+            this.storeId = storeId;
+            this.cleaner = cleaner;
+        }
     }
 }

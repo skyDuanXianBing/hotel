@@ -120,12 +120,11 @@ import {
   rejectCleaningTask,
   type CleaningTaskDTO,
 } from '@/api/cleaning'
-import { readCleanerUser } from '@/utils/cleanerSession'
+import { hasCompleteCleanerSession } from '@/utils/cleanerSession'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const cleanerUser = readCleanerUser()
 
 const loading = ref(false)
 const task = ref<CleaningTaskDTO | null>(null)
@@ -278,9 +277,9 @@ const getTaskTypeText = (taskType: string): string => {
 }
 
 onMounted(() => {
-  if (!cleanerUser) {
+  if (!hasCompleteCleanerSession()) {
     ElMessage.error(t('stage5.cleaner.dashboard.sessionExpired'))
-    router.replace('/cleaner/login')
+    router.replace('/login')
     return
   }
   loadTaskDetail()

@@ -139,12 +139,6 @@
           </ion-segment>
 
           <div class="auth-footer">
-            <div class="auth-helper-link">
-              <span>你是保洁人员吗？</span>
-              <button class="auth-text-button auth-helper-link__button" type="button" @click="handleGoToCleanerLogin">
-                去保洁登录
-              </button>
-            </div>
             <div :class="['auth-footer-link', { 'auth-footer-link--password': loginMode === 'password' }]">
               <button class="auth-text-button" type="button" @click="handleGoToRegister">注册新账号</button>
             </div>
@@ -173,17 +167,14 @@ import { computed, reactive, ref, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { loginByPassword, sendVerificationCode } from '@/api/auth'
-import {
-  AUTH_LOGIN_FAILURE_STATUSES,
-  CLEANER_LOGIN_ENTRY_MESSAGE,
-  LOGIN_FAILURE_MESSAGE,
-} from '@/constants/auth'
+import { AUTH_LOGIN_FAILURE_STATUSES, LOGIN_FAILURE_MESSAGE } from '@/constants/auth'
 import { ROUTE_PATHS } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
-import type { LoginByPasswordRequest, LoginResponse } from '@/types/auth'
+import type { LoginByPasswordRequest } from '@/types/auth'
 import { clearAutoLoginCredentials, saveAutoLoginCredentials } from '@/utils/autoLogin'
+import { applyUnifiedLoginResponse } from '@/utils/loginSessionResolver'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { getRequestErrorStatus, isHandledRequestError } from '@/utils/request'
 
@@ -410,11 +401,10 @@ const validatePasswordLoginForm = (): LoginByPasswordRequest | null => {
   }
 }
 
-const persistLoginSession = (payload: LoginResponse) => {
-  authStore.setToken(payload.token)
-  userStore.setUser(payload.user)
-  storeStore.setStores(payload.stores ?? [])
-  storeStore.setCurrentStore(null)
+const hydrateRuntimeStores = () => {
+  authStore.hydrate()
+  userStore.hydrate()
+  storeStore.hydrate()
 }
 
 const isLoginFailureError = (error: unknown) => {
@@ -427,28 +417,18 @@ const isLoginFailureError = (error: unknown) => {
   return AUTH_LOGIN_FAILURE_STATUSES.some((failureStatus) => failureStatus === status)
 }
 
-const redirectToCleanerLogin = async (email: string) => {
-  showWarningToast('请使用保洁员入口登录')
-  await router.replace({
-    path: ROUTE_PATHS.cleanerLogin,
-    query: { email },
-  })
-}
-
-const loginAsAdmin = async (payload: LoginByPasswordRequest) => {
+const loginWithPassword = async (payload: LoginByPasswordRequest) => {
   try {
     const response = await loginByPassword(payload)
 
     if (!response.success || !response.data) {
-      if (response.message?.includes(CLEANER_LOGIN_ENTRY_MESSAGE)) {
-        await redirectToCleanerLogin(payload.email)
-        return true
-      }
-
       return false
     }
 
-    persistLoginSession(response.data)
+    const sessionResult = applyUnifiedLoginResponse(response.data, {
+      resetPmsCurrentStore: true,
+    })
+    hydrateRuntimeStores()
 
     if (!payload.rememberMe) {
       clearAutoLoginCredentials()
@@ -464,16 +444,15 @@ const loginAsAdmin = async (payload: LoginByPasswordRequest) => {
       }
     }
 
-    showSuccessToast('登录成功，请选择门店')
-    await router.replace(ROUTE_PATHS.storeSelection)
-    return true
-  } catch (error) {
-    const errorMessage = resolveErrorMessage(error, '')
-    if (errorMessage.includes(CLEANER_LOGIN_ENTRY_MESSAGE)) {
-      await redirectToCleanerLogin(payload.email)
-      return true
+    if (sessionResult.target === 'CLEANER') {
+      showSuccessToast('登录成功')
+    } else {
+      showSuccessToast('登录成功，请选择门店')
     }
 
+    await router.replace(sessionResult.redirectPath)
+    return true
+  } catch (error) {
     if (isLoginFailureError(error)) {
       return false
     }
@@ -603,8 +582,8 @@ const handleLogin = async () => {
   submitting.value = true
 
   try {
-    const adminLoggedIn = await loginAsAdmin(payload)
-    if (adminLoggedIn) {
+    const loggedIn = await loginWithPassword(payload)
+    if (loggedIn) {
       return
     }
 
@@ -616,20 +595,6 @@ const handleLogin = async () => {
   } finally {
     submitting.value = false
   }
-}
-
-const handleGoToCleanerLogin = async () => {
-  const email = normalizeEmail()
-
-  if (!email) {
-    await router.push(ROUTE_PATHS.cleanerLogin)
-    return
-  }
-
-  await router.push({
-    path: ROUTE_PATHS.cleanerLogin,
-    query: { email },
-  })
 }
 
 watch(

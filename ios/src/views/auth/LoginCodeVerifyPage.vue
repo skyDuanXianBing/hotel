@@ -64,8 +64,8 @@ import { ROUTE_PATHS } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
 import { useStoreStore } from '@/stores/store'
 import { useUserStore } from '@/stores/user'
-import type { LoginResponse } from '@/types/auth'
 import { clearAutoLoginCredentials } from '@/utils/autoLogin'
+import { applyUnifiedLoginResponse } from '@/utils/loginSessionResolver'
 import { showErrorToast, showSuccessToast, showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
 
@@ -98,11 +98,10 @@ const resendButtonText = computed(() => {
   return `重新获取 (${resendCountdown.value}s)`
 })
 
-const persistLoginSession = (payload: LoginResponse) => {
-  authStore.setToken(payload.token)
-  userStore.setUser(payload.user)
-  storeStore.setStores(payload.stores ?? [])
-  storeStore.setCurrentStore(null)
+const hydrateRuntimeStores = () => {
+  authStore.hydrate()
+  userStore.hydrate()
+  storeStore.hydrate()
 }
 
 const setDigitInputRef = (element: unknown, index: number) => {
@@ -214,9 +213,18 @@ const trySubmitLogin = async () => {
     }
 
     clearAutoLoginCredentials()
-    persistLoginSession(response.data)
-    showSuccessToast('登录成功，请选择门店')
-    await router.replace(ROUTE_PATHS.storeSelection)
+    const sessionResult = applyUnifiedLoginResponse(response.data, {
+      resetPmsCurrentStore: true,
+    })
+    hydrateRuntimeStores()
+
+    if (sessionResult.target === 'CLEANER') {
+      showSuccessToast('登录成功')
+    } else {
+      showSuccessToast('登录成功，请选择门店')
+    }
+
+    await router.replace(sessionResult.redirectPath)
   } catch (error) {
     clearVerificationDigits()
     await focusInput(0)

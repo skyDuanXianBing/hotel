@@ -22,9 +22,9 @@ import { IonApp, IonLoading, IonRouterOutlet, IonToast } from '@ionic/vue'
 import { onBeforeUnmount, onMounted } from 'vue'
 import AppNotificationOverlay from '@/components/global/AppNotificationOverlay.vue'
 import { useAppStore } from '@/stores/app'
-import { hasCleanerSession } from '@/utils/cleanerSession'
+import { hasCleanerSession, hasCleanerStore } from '@/utils/cleanerSession'
 import { APP_TOAST_EVENT_NAME, type AppToastEventDetail } from '@/utils/notify'
-import { restoreAdminSessionIfNeeded } from '@/utils/request'
+import { restoreUnifiedSessionIfNeeded } from '@/utils/request'
 
 const appStore = useAppStore()
 let removeAppStateListener: (() => void) | null = null
@@ -35,16 +35,12 @@ const handleToastEvent: EventListener = (event) => {
 }
 
 const restoreSessionSilently = async () => {
-  if (hasCleanerSession()) {
-    return
-  }
-
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/cleaner')) {
+  if (hasCleanerSession() && hasCleanerStore()) {
     return
   }
 
   try {
-    await restoreAdminSessionIfNeeded()
+    await restoreUnifiedSessionIfNeeded()
   } catch {
     // 静默续登失败时由请求层或登录页接管，无需在根组件重复提示
   }

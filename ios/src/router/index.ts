@@ -78,7 +78,7 @@ const routes: RouteRecordRaw[] = [
     path: ROUTE_PATHS.cleanerRegister,
     name: 'CleanerRegister',
     redirect: (to) => ({
-      path: ROUTE_PATHS.cleanerLogin,
+      path: ROUTE_PATHS.login,
       query: to.query,
     }),
   },
@@ -86,18 +86,17 @@ const routes: RouteRecordRaw[] = [
     path: ROUTE_PATHS.cleanerInviteRegister,
     name: 'CleanerInviteRegister',
     redirect: (to) => ({
-      path: ROUTE_PATHS.cleanerLogin,
+      path: ROUTE_PATHS.login,
       query: to.query,
     }),
   },
   {
     path: ROUTE_PATHS.cleanerLogin,
     name: 'CleanerLogin',
-    component: () => import('@/views/cleaner/CleanerLoginPage.vue'),
-    meta: {
-      title: '保洁员登录',
-      cleanerPublicOnly: true,
-    },
+    redirect: (to) => ({
+      path: ROUTE_PATHS.login,
+      query: to.query,
+    }),
   },
   {
     path: ROUTE_PATHS.cleanerDashboard,

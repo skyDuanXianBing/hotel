@@ -10,6 +10,7 @@ import {
   type UserDTO,
 } from '@/api/auth'
 import { i18n } from '@/locales'
+import { clearAllLocalSessions } from '@/utils/cleanerSession'
 
 const translate = (key: string) => i18n.global.t(key)
 
@@ -85,7 +86,7 @@ export const useUserStore = defineStore('user', () => {
     } catch {
       // Ignore logout API errors and still clear local state.
     } finally {
-      localStorage.removeItem('token')
+      clearAllLocalSessions()
       setUser(null)
     }
   }

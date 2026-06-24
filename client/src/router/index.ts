@@ -6,6 +6,33 @@ import {
   type PermissionMatchMode,
   type PermissionRequirement,
 } from '@/stores/permission'
+import {
+  CLEANER_TOKEN_KEY,
+  PMS_CURRENT_STORE_KEY,
+  PMS_TOKEN_KEY,
+  clearCleanerSession,
+  hasCompleteCleanerSession,
+  resolveCachedLoginSessionTarget,
+} from '@/utils/cleanerSession'
+
+const LOGIN_PATH = '/login'
+const REGISTER_PATH = '/register'
+const FORGOT_PASSWORD_PATH = '/forgot-password'
+const STORE_SELECTION_PATH = '/store/selection'
+const CLEANER_PATH_PREFIX = '/cleaner'
+const CLEANER_LOGIN_PATH = '/cleaner/login'
+const CLEANER_REGISTER_PATH = '/cleaner/register'
+const CLEANER_DASHBOARD_PATH = '/cleaner/dashboard'
+
+const isCleanerWorkspacePath = (path: string) => {
+  if (!path.startsWith(CLEANER_PATH_PREFIX)) {
+    return false
+  }
+  if (path === CLEANER_LOGIN_PATH || path.startsWith(CLEANER_REGISTER_PATH)) {
+    return false
+  }
+  return true
+}
 
 const router = createRouter({
   history: createWebHistory(),
@@ -537,10 +564,11 @@ const router = createRouter({
       meta: { title: 'Cleaner Register' },
     },
     {
-      path: '/cleaner/login',
-      name: 'CleanerLogin',
-      component: () => import('@/views/cleaner/CleanerLogin.vue'),
-      meta: { title: 'Cleaner Login' },
+      path: CLEANER_LOGIN_PATH,
+      redirect: (to) => ({
+        path: LOGIN_PATH,
+        query: to.query,
+      }),
     },
     {
       path: '/cleaner/dashboard',
@@ -746,7 +774,6 @@ const routeTitleKeyByName = new Map<string, string>([
   ['Login', 'routeTitles.login'],
   ['Register', 'routeTitles.register'],
   ['CleanerRegister', 'routeTitles.cleanerRegister'],
-  ['CleanerLogin', 'routeTitles.cleanerLogin'],
   ['CleanerDashboard', 'routeTitles.cleanerDashboard'],
   ['CleanerTaskDetail', 'routeTitles.taskDetails'],
   ['ForgotPassword', 'routeTitles.forgotPassword'],
@@ -777,22 +804,14 @@ router.getRoutes().forEach((route) => {
 
 // Route guard: validate session state
 router.beforeEach(async (to, from, next) => {
-  const isCleanerRoute = to.path.startsWith('/cleaner')
-  const pmsToken = localStorage.getItem('token')
-  const cleanerToken = localStorage.getItem('cleanerToken')
-  const cleanerUserStr = localStorage.getItem('cleanerUser')
-  const currentStoreStr = localStorage.getItem('currentStore')
+  const isCleanerRoute = isCleanerWorkspacePath(to.path)
+  const pmsToken = localStorage.getItem(PMS_TOKEN_KEY)
+  const cleanerToken = localStorage.getItem(CLEANER_TOKEN_KEY)
+  const currentStoreStr = localStorage.getItem(PMS_CURRENT_STORE_KEY)
   let hasCurrentStore = false
-  let hasCleanerSession = false
-
-  if (cleanerToken && cleanerUserStr) {
-    try {
-      const cleanerUser = JSON.parse(cleanerUserStr)
-      hasCleanerSession = cleanerUser?.isCleaner === true
-    } catch {
-      // Ignore invalid cached session data
-    }
-  }
+  const loginSessionTarget = to.path === LOGIN_PATH ? resolveCachedLoginSessionTarget() : null
+  const hasCleanerSession =
+    loginSessionTarget === 'CLEANER' || (to.path !== LOGIN_PATH && hasCompleteCleanerSession())
 
   const activeToken = isCleanerRoute ? cleanerToken : pmsToken
 
@@ -808,36 +827,42 @@ router.beforeEach(async (to, from, next) => {
 
   // Redirect authenticated routes without the matching token to login
   if (to.meta.requiresAuth && !activeToken) {
-    next(isCleanerRoute ? '/cleaner/login' : '/login')
+    if (isCleanerRoute) {
+      clearCleanerSession()
+    }
+    next(LOGIN_PATH)
     return
   }
 
   if (isCleanerRoute && to.meta.requiresAuth && !hasCleanerSession) {
-    next('/cleaner/login')
+    clearCleanerSession()
+    next(LOGIN_PATH)
+    return
+  }
+
+  // Redirect signed-in cleaners away from the unified login page
+  if (to.path === LOGIN_PATH && loginSessionTarget === 'CLEANER') {
+    next(CLEANER_DASHBOARD_PATH)
     return
   }
 
   // Redirect signed-in PMS users away from auth pages
-  if ((to.path === '/login' || to.path === '/register') && pmsToken) {
+  if (
+    (to.path === LOGIN_PATH && loginSessionTarget === 'PMS') ||
+    (to.path === REGISTER_PATH && pmsToken)
+  ) {
     next('/')
-    return
-  }
-
-  // Redirect signed-in cleaners away from cleaner login
-  if (to.path === '/cleaner/login' && cleanerToken && hasCleanerSession) {
-    next('/cleaner/dashboard')
     return
   }
 
   // Store guard: PMS users must select a store before main features
   // Exclude store selection, auth pages, and public cleaner pages
   const storeRelatedPaths = [
-    '/store/selection',
-    '/login',
-    '/register',
-    '/forgot-password',
-    '/cleaner/login',
-    '/cleaner/register',
+    STORE_SELECTION_PATH,
+    LOGIN_PATH,
+    REGISTER_PATH,
+    FORGOT_PASSWORD_PATH,
+    CLEANER_REGISTER_PATH,
   ]
   const isStoreRelatedPath = storeRelatedPaths.some(
     (path) => to.path === path || to.path.startsWith(path)

@@ -12,6 +12,10 @@ public class LoginResponse {
     private String token;
     private UserDTO user;
     private List<StoreDTO> stores;
+    private LoginTarget loginTarget = LoginTarget.PMS;
+    private CleanerDTO cleaner;
+    private StoreDTO currentStore;
+    private Long targetStoreId;
 
     public LoginResponse() {
     }
@@ -49,5 +53,37 @@ public class LoginResponse {
 
     public void setStores(List<StoreDTO> stores) {
         this.stores = stores;
+    }
+
+    public LoginTarget getLoginTarget() {
+        return loginTarget;
+    }
+
+    public void setLoginTarget(LoginTarget loginTarget) {
+        this.loginTarget = loginTarget == null ? LoginTarget.PMS : loginTarget;
+    }
+
+    public CleanerDTO getCleaner() {
+        return cleaner;
+    }
+
+    public void setCleaner(CleanerDTO cleaner) {
+        this.cleaner = cleaner;
+    }
+
+    public StoreDTO getCurrentStore() {
+        return currentStore;
+    }
+
+    public void setCurrentStore(StoreDTO currentStore) {
+        this.currentStore = currentStore;
+    }
+
+    public Long getTargetStoreId() {
+        return targetStoreId;
+    }
+
+    public void setTargetStoreId(Long targetStoreId) {
+        this.targetStoreId = targetStoreId;
     }
 }

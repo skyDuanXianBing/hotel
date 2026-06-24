@@ -172,7 +172,7 @@ export const registerRouterGuards = (router: Router) => {
     const publicAccess = to.matched.some((record) => record.meta.publicAccess)
     const requiresCleanerAuth = to.matched.some((record) => record.meta.requiresCleanerAuth)
     const requiresCleanerStore = to.matched.some((record) => record.meta.requiresCleanerStore)
-    const cleanerPublicOnly = to.matched.some((record) => record.meta.cleanerPublicOnly)
+    const hasCompleteCleanerSession = hasCleanerLoginSession && hasCleanerCurrentStore
 
     if (to.path === '/') {
       return resolveDefaultAuthenticatedPath()
@@ -182,24 +182,20 @@ export const registerRouterGuards = (router: Router) => {
       return true
     }
 
-    if (cleanerPublicOnly && hasCleanerLoginSession) {
+    if (adminPublicOnly && hasCompleteCleanerSession) {
       return ROUTE_PATHS.cleanerDashboard
     }
 
-    if (adminPublicOnly && hasCleanerLoginSession) {
-      return ROUTE_PATHS.cleanerDashboard
-    }
-
-    if (requiresAdminAuth && hasCleanerLoginSession && !requiresCleanerAuth) {
+    if (requiresAdminAuth && hasCompleteCleanerSession && !requiresCleanerAuth) {
       return ROUTE_PATHS.cleanerDashboard
     }
 
     if (requiresCleanerAuth && !hasCleanerLoginSession) {
-      return ROUTE_PATHS.cleanerLogin
+      return ROUTE_PATHS.login
     }
 
     if (requiresCleanerStore && !hasCleanerCurrentStore) {
-      return ROUTE_PATHS.cleanerLogin
+      return ROUTE_PATHS.login
     }
 
     if (adminPublicOnly && hasAdminToken) {

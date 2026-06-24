@@ -180,9 +180,10 @@ import {
   type CleanerTaskStatusKey,
 } from '@/constants/cleaner'
 import { buildCleanerTaskDetailPath, ROUTE_PATHS } from '@/router/guards'
+import { clearAllLoginSessions } from '@/utils/loginSessionResolver'
 import { showWarningToast } from '@/utils/notify'
 import { isHandledRequestError } from '@/utils/request'
-import { clearCleanerSession, readCleanerUser } from '@/utils/cleanerSession'
+import { readCleanerUser } from '@/utils/cleanerSession'
 import { formatDate } from '@/utils/accommodation'
 import {
   buildBusinessMonthCalendarDates,
@@ -356,7 +357,7 @@ function hasStatus(tasks: CleaningTaskDTO[], status: CleanerTaskStatusKey) {
 
 async function loadCalendarData() {
   if (!cleanerUser.value?.cleanerId) {
-    await router.replace(ROUTE_PATHS.cleanerLogin)
+    await router.replace(ROUTE_PATHS.login)
     return
   }
 
@@ -476,8 +477,10 @@ async function handleLogout() {
     return
   }
 
-  clearCleanerSession()
-  await router.replace(ROUTE_PATHS.cleanerLogin)
+  clearAllLoginSessions({
+    clearAutoLogin: true,
+  })
+  await router.replace(ROUTE_PATHS.login)
 }
 
 async function handleRefresh(event: CustomEvent) {
@@ -489,7 +492,7 @@ onIonViewWillEnter(async () => {
   cleanerUser.value = readCleanerUser()
 
   if (!cleanerUser.value) {
-    await router.replace(ROUTE_PATHS.cleanerLogin)
+    await router.replace(ROUTE_PATHS.login)
     return
   }
 

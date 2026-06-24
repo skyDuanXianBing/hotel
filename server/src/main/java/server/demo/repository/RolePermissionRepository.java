@@ -30,4 +30,10 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
     void deleteByRoleIdAndModule(@Param("roleId") Long roleId, @Param("module") PermissionModule module);
 
     boolean existsByRoleIdAndModuleAndAction(Long roleId, PermissionModule module, PermissionAction action);
+
+    boolean existsByRoleIdInAndModuleAndAction(
+            List<Long> roleIds,
+            PermissionModule module,
+            PermissionAction action
+    );
 }

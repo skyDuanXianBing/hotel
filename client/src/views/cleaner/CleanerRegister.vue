@@ -64,7 +64,7 @@
 
         <div class="login-link">
           {{ t('stage5.cleaner.auth.alreadyHaveAccount') }}
-          <router-link to="/cleaner/login">{{ t('stage5.cleaner.auth.login') }}</router-link>
+          <router-link to="/login">{{ t('stage5.cleaner.auth.login') }}</router-link>
         </div>
 
         <div class="terms-text">
@@ -136,7 +136,7 @@ const verifyToken = async () => {
 
   if (!token) {
     ElMessage.error(t('stage5.cleaner.auth.invalidInvitation'))
-    router.push('/cleaner/login')
+    router.push('/login')
     return
   }
 
@@ -151,12 +151,12 @@ const verifyToken = async () => {
       registerForm.name = response.data.name
     } else {
       ElMessage.error(response.message || t('stage5.cleaner.auth.invitationVerifyFailed'))
-      router.push('/cleaner/login')
+      router.push('/login')
     }
   } catch (error: any) {
     console.error('Cleaner invitation verification failed:', error)
     ElMessage.error(error.message || t('stage5.cleaner.auth.invitationVerifyFailed'))
-    router.push('/cleaner/login')
+    router.push('/login')
   } finally {
     loading.value = false
   }
@@ -188,7 +188,7 @@ const handleRegister = async () => {
     if (response.success) {
       ElMessage.success(t('stage5.cleaner.auth.registerSuccess'))
       setTimeout(() => {
-        router.push('/cleaner/login')
+        router.push('/login')
       }, 1500)
     } else {
       ElMessage.error(response.message || t('stage5.cleaner.auth.registerFailed'))

@@ -236,14 +236,15 @@ import {
   type CleaningTaskDTO,
 } from '@/api/cleaning'
 import {
-  clearCleanerSession,
+  clearAllLocalSessions,
+  hasCompleteCleanerSession,
   readCleanerUser,
   type CleanerSessionUser,
 } from '@/utils/cleanerSession'
 
 const router = useRouter()
 const { t, tm } = useI18n()
-const cleanerUser = ref<CleanerSessionUser | null>(readCleanerUser())
+const cleanerUser = ref<CleanerSessionUser | null>(null)
 
 const loading = ref(false)
 const selectedMonth = ref(new Date())
@@ -575,18 +576,19 @@ const handleComplete = async () => {
 
 const handleCommand = (command: string) => {
   if (command === 'logout') {
-    clearCleanerSession()
-    router.push('/cleaner/login')
+    clearAllLocalSessions()
+    router.push('/login')
     ElMessage.success(t('stage5.cleaner.dashboard.loggedOut'))
   }
 }
 
 onMounted(() => {
-  cleanerUser.value = readCleanerUser()
-  if (!cleanerUser.value) {
-    router.push('/cleaner/login')
+  if (!hasCompleteCleanerSession()) {
+    cleanerUser.value = null
+    router.push('/login')
     return
   }
+  cleanerUser.value = readCleanerUser()
   const year = selectedMonth.value.getFullYear()
   const month = selectedMonth.value.getMonth()
   generateCalendar(year, month)

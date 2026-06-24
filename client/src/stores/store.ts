@@ -236,8 +236,9 @@ export const useStoreStore = defineStore('store', () => {
 
   const clearStoreData = () => {
     setCurrentStore(null)
-    setStores([])
+    stores.value = []
     members.value = []
+    localStorage.removeItem('stores')
   }
 
   const hasStores = computed(() => stores.value.length > 0)

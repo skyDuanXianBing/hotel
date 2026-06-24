@@ -10,20 +10,15 @@ import {
   shouldRenewTokenSoon,
   touchAutoLoginActivity,
 } from '@/utils/autoLogin'
+import { getCleanerToken, readCleanerStoreId } from '@/utils/cleanerSession'
 import {
-  clearCleanerSession,
-  getCleanerToken,
-  readCleanerStoreId,
-} from '@/utils/cleanerSession'
+  applyUnifiedLoginResponse,
+  clearAllLoginSessions,
+  type UnifiedLoginSessionResult,
+} from '@/utils/loginSessionResolver'
 import {
-  CURRENT_STORE_KEY,
-  clearSessionStorage,
   getStoredCurrentStoreId,
-  getStoredCurrentStore,
   getStoredToken,
-  STORES_KEY,
-  USER_KEY,
-  writeStoredJson,
 } from '@/utils/storage'
 import { API_BASE_URL } from '@/constants/api'
 import type { LoginByPasswordRequest, LoginResponse } from '@/types/auth'
@@ -35,14 +30,13 @@ const REQUEST_ERROR_STATUS_KEY = 'status'
 const AUTHENTICATION_FREE_PATHS = [
   '/auth/login/password',
   '/auth/login/code',
-  '/auth/cleaner/login/password',
   '/auth/register',
   '/auth/send-code',
   '/auth/reset-password',
 ]
 const PUBLIC_ROUTE_PREFIXES = ['/public/']
 
-let silentReauthPromise: Promise<boolean> | null = null
+let silentReauthPromise: Promise<UnifiedLoginSessionResult | null> | null = null
 
 const trimLeadingSlash = (value: string) => value.replace(/^\/+/, '')
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
@@ -112,8 +106,8 @@ const isAuthenticationFreeRequest = (url: string) => {
   return AUTHENTICATION_FREE_PATHS.some((path) => pathMatchesPrefix(normalizedPath, path))
 }
 
-const shouldUseAdminAutoReauthForRoute = (path: string) => {
-  return Boolean(path) && !isCleanerPath(path) && !isAdminPublicRoutePath(path)
+const shouldUseAutoReauthForRoute = (path: string) => {
+  return Boolean(path) && !isAdminPublicRoutePath(path)
 }
 
 const getActiveRoutePath = () => {
@@ -129,32 +123,18 @@ const getActiveRoutePath = () => {
   return ''
 }
 
-const syncAdminSessionStorage = (payload: LoginResponse, resetCurrentStore: boolean) => {
-  const authStore = useAuthStore()
-  authStore.setToken(payload.token)
-
-  writeStoredJson(USER_KEY, payload.user)
-  writeStoredJson(STORES_KEY, payload.stores ?? [])
-
-  if (resetCurrentStore) {
-    writeStoredJson(CURRENT_STORE_KEY, null)
-    return
+const getStoredTokenForRoute = (path: string) => {
+  if (isCleanerPath(path)) {
+    return getCleanerToken()
   }
 
-  const currentStore = getStoredCurrentStore()
-  const hasMatchingCurrentStore = Boolean(
-    currentStore?.id && payload.stores?.some((store) => store.id === currentStore.id),
-  )
-
-  if (!hasMatchingCurrentStore) {
-    writeStoredJson(CURRENT_STORE_KEY, null)
-  }
+  return getStoredToken()
 }
 
-const handleRecoveredAdminSessionRedirect = async () => {
+const handleRecoveredUnifiedSessionRedirect = async (publicOnly = true) => {
   const currentPath = router.currentRoute.value.path
 
-  if (!isAdminPublicRoutePath(currentPath)) {
+  if (publicOnly && !isAdminPublicRoutePath(currentPath)) {
     return
   }
 
@@ -174,7 +154,7 @@ const getHandledRequestErrorStatus = (error: unknown) => {
   return typeof status === 'number' ? status : null
 }
 
-const performSilentAdminLogin = async (redirectAfterSuccess: boolean) => {
+const performSilentUnifiedLogin = async (redirectAfterSuccess: boolean) => {
   if (silentReauthPromise) {
     return silentReauthPromise
   }
@@ -183,7 +163,7 @@ const performSilentAdminLogin = async (redirectAfterSuccess: boolean) => {
     const credentials = await loadRenewableAutoLoginCredentials()
 
     if (!credentials) {
-      return false
+      return null
     }
 
     const payload: LoginByPasswordRequest = {
@@ -207,10 +187,21 @@ const performSilentAdminLogin = async (redirectAfterSuccess: boolean) => {
 
       if (!response.success || !response.data?.token) {
         clearAutoLoginCredentials()
-        return false
+        return null
       }
 
-      syncAdminSessionStorage(response.data, false)
+      let sessionResult: UnifiedLoginSessionResult
+
+      try {
+        sessionResult = applyUnifiedLoginResponse(response.data, {
+          resetPmsCurrentStore: false,
+        })
+      } catch (error) {
+        clearAutoLoginCredentials()
+        throw error
+      }
+
+      useAuthStore().hydrate()
 
       try {
         await saveAutoLoginCredentials({
@@ -223,10 +214,10 @@ const performSilentAdminLogin = async (redirectAfterSuccess: boolean) => {
       }
 
       if (redirectAfterSuccess) {
-        await handleRecoveredAdminSessionRedirect()
+        await handleRecoveredUnifiedSessionRedirect()
       }
 
-      return true
+      return sessionResult
     } catch (error) {
       const status = getHandledRequestErrorStatus(error)
 
@@ -234,7 +225,7 @@ const performSilentAdminLogin = async (redirectAfterSuccess: boolean) => {
         clearAutoLoginCredentials()
       }
 
-      return false
+      return null
     } finally {
       silentReauthPromise = null
     }
@@ -243,11 +234,24 @@ const performSilentAdminLogin = async (redirectAfterSuccess: boolean) => {
   return silentReauthPromise
 }
 
-const ensureAdminSessionIfNeeded = async (force = false) => {
-  const activeRoutePath = getActiveRoutePath()
-  const token = getStoredToken()
+const restoredSessionMatchesRoute = (sessionResult: UnifiedLoginSessionResult, routePath: string) => {
+  if (isCleanerPath(routePath)) {
+    return sessionResult.target === 'CLEANER'
+  }
 
-  if (!force && !shouldUseAdminAutoReauthForRoute(activeRoutePath)) {
+  return sessionResult.target === 'PMS'
+}
+
+const handleRestoredSessionRouteMismatch = async (status?: number) => {
+  await handleRecoveredUnifiedSessionRedirect(false)
+  throw buildHandledError('登录身份已更新，请重新打开页面', status)
+}
+
+const ensureUnifiedSessionIfNeeded = async (force = false, validateRestoredTarget = false) => {
+  const activeRoutePath = getActiveRoutePath()
+  const token = getStoredTokenForRoute(activeRoutePath)
+
+  if (!force && !shouldUseAutoReauthForRoute(activeRoutePath)) {
     if (token) {
       await touchAutoLoginActivity()
     }
@@ -269,11 +273,20 @@ const ensureAdminSessionIfNeeded = async (force = false) => {
     }
   }
 
-  return performSilentAdminLogin(force)
+  const sessionResult = await performSilentUnifiedLogin(force)
+  if (
+    sessionResult &&
+    validateRestoredTarget &&
+    !restoredSessionMatchesRoute(sessionResult, activeRoutePath)
+  ) {
+    await handleRestoredSessionRouteMismatch()
+  }
+
+  return Boolean(sessionResult)
 }
 
-export const restoreAdminSessionIfNeeded = async () => {
-  return ensureAdminSessionIfNeeded(true)
+export const restoreUnifiedSessionIfNeeded = async () => {
+  return ensureUnifiedSessionIfNeeded(true)
 }
 
 const buildRequestUrl = (url: string, params?: RequestConfig['params']) => {
@@ -375,23 +388,14 @@ const resolveErrorMessage = (payload: unknown, fallbackMessage: string) => {
 }
 
 const handleUnauthorized = async (clearAutoLogin = false) => {
-  const activeRoutePath = getActiveRoutePath()
-  const useCleanerSession = isCleanerPath(activeRoutePath)
-
-  if (useCleanerSession) {
-    clearCleanerSession()
-  } else {
-    useAuthStore().clearToken()
-    clearSessionStorage()
-
-    if (clearAutoLogin) {
-      clearAutoLoginCredentials()
-    }
-  }
+  clearAllLoginSessions({
+    clearAutoLogin,
+  })
+  useAuthStore().clearToken()
 
   showErrorToast('登录已过期，请重新登录')
 
-  const redirectPath = useCleanerSession ? ROUTE_PATHS.cleanerLogin : ROUTE_PATHS.login
+  const redirectPath = ROUTE_PATHS.login
 
   if (router.currentRoute.value.path !== redirectPath) {
     await router.replace(redirectPath)
@@ -437,13 +441,13 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
 
   try {
     const activeRoutePath = getActiveRoutePath()
-    const shouldAttemptAdminSessionRestore =
+    const shouldAttemptUnifiedSessionRestore =
       !config.skipAutoReauth &&
       !isAuthenticationFreeRequest(config.url) &&
-      shouldUseAdminAutoReauthForRoute(activeRoutePath)
+      shouldUseAutoReauthForRoute(activeRoutePath)
 
-    if (shouldAttemptAdminSessionRestore) {
-      await ensureAdminSessionIfNeeded(false)
+    if (shouldAttemptUnifiedSessionRestore) {
+      await ensureUnifiedSessionIfNeeded(false, true)
     }
 
     const response = await fetch(buildRequestUrl(config.url, config.params), {
@@ -468,12 +472,16 @@ const executeRequest = async <T>(config: RequestConfig, responseType: 'json' | '
         !config.skipUnauthorizedHandling &&
         !config.retriedAfterReauth &&
         !isAuthenticationFreeRequest(config.url) &&
-        shouldUseAdminAutoReauthForRoute(activeRoutePath)
+        shouldUseAutoReauthForRoute(activeRoutePath)
 
       if (canRecoverUnauthorized) {
-        const restored = await performSilentAdminLogin(false)
+        const restored = await performSilentUnifiedLogin(false)
 
         if (restored) {
+          if (!restoredSessionMatchesRoute(restored, activeRoutePath)) {
+            await handleRestoredSessionRouteMismatch(response.status)
+          }
+
           return executeRequest<T>(
             {
               ...config,
