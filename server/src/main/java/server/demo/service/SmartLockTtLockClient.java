@@ -14,8 +14,12 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import server.demo.config.SmartLockConfig;
+import server.demo.entity.Store;
 import server.demo.enums.SmartLockProvider;
 import server.demo.enums.SmartLockTaskStatus;
+import server.demo.repository.StoreRepository;
+import server.demo.util.StoreContextUtils;
+import server.demo.util.StoreTimeZoneUtil;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -39,25 +43,29 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
     private final Clock clock;
+    private final StoreRepository storeRepository;
 
     @Autowired
     public SmartLockTtLockClient(
             SmartLockConfig config,
             ObjectMapper objectMapper,
-            Clock clock
+            Clock clock,
+            StoreRepository storeRepository
     ) {
-        this(config, objectMapper, clock, new RestTemplate());
+        this(config, objectMapper, clock, storeRepository, new RestTemplate());
     }
 
     SmartLockTtLockClient(
             SmartLockConfig config,
             ObjectMapper objectMapper,
             Clock clock,
+            StoreRepository storeRepository,
             RestTemplate restTemplate
     ) {
         this.config = config;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.storeRepository = storeRepository;
         this.restTemplate = restTemplate;
     }
 
@@ -293,8 +301,14 @@ public class SmartLockTtLockClient implements SmartLockProviderClient {
         }
     }
 
-    private static long toEpochMillis(LocalDateTime value) {
-        return value.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    private long toEpochMillis(LocalDateTime value) {
+        return value.atZone(resolveStoreZoneId()).toInstant().toEpochMilli();
+    }
+
+    private ZoneId resolveStoreZoneId() {
+        Long storeId = StoreContextUtils.requireStoreId();
+        Store store = storeRepository == null ? null : storeRepository.findById(storeId).orElse(null);
+        return StoreTimeZoneUtil.resolveZoneId(store);
     }
 
     private long nowMillis() {

@@ -25,6 +25,15 @@ public class SmartLockConfig {
     @Value("${smart-lock.confirmation.ttl-seconds:300}")
     private long confirmationTtlSeconds;
 
+    @Value("${smart-lock.passcode-reconcile.enabled:true}")
+    private boolean passcodeReconcileEnabled;
+
+    @Value("${smart-lock.passcode-reconcile.batch-size:20}")
+    private int passcodeReconcileBatchSize;
+
+    @Value("${smart-lock.passcode-reconcile.timeout-minutes:5}")
+    private long passcodeReconcileTimeoutMinutes;
+
     public String getSwitchBotBaseUrl() {
         return trimOrDefault(switchBotBaseUrl, SWITCHBOT_DEFAULT_BASE_URL);
     }
@@ -49,6 +58,18 @@ public class SmartLockConfig {
 
     public long getConfirmationTtlSeconds() {
         return confirmationTtlSeconds;
+    }
+
+    public boolean isPasscodeReconcileEnabled() {
+        return passcodeReconcileEnabled;
+    }
+
+    public int getPasscodeReconcileBatchSize() {
+        return Math.max(1, passcodeReconcileBatchSize);
+    }
+
+    public long getPasscodeReconcileTimeoutMinutes() {
+        return Math.max(1, passcodeReconcileTimeoutMinutes);
     }
 
     private static String trimOrDefault(String value, String defaultValue) {

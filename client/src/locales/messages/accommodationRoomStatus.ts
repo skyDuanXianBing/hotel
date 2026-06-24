@@ -482,6 +482,12 @@ export const accommodationRoomStatusMessages = {
         target: {
           none: 'No room selected',
         },
+        roles: {
+          control: 'Lock/unlock device',
+          passcode: 'Passcode device',
+          available: 'Available',
+          unavailable: 'Not bound',
+        },
         actions: {
           refresh: 'Refresh',
           unlock: 'Unlock',
@@ -498,6 +504,7 @@ export const accommodationRoomStatusMessages = {
             locked: 'Locked',
             unlocked: 'Unlocked',
             unbound: 'No lock bound',
+            controlMissing: 'No lock/unlock device bound',
             jammed: 'Lock jammed',
             unknown: 'Status unknown',
           },
@@ -505,11 +512,14 @@ export const accommodationRoomStatusMessages = {
             safe: 'Safe',
             attention: 'Attention needed',
             unbound: 'Unbound',
+            controlMissing: 'Lock/unlock unavailable',
             abnormal: 'Abnormal',
             unknown: 'Unknown',
           },
           meta: {
             provider: 'Provider: {provider}',
+            controlDevice: 'Lock/unlock device: {device}',
+            passcodeDevice: 'Passcode device: {device}',
             online: 'Online: {value}',
             battery: 'Battery: {value}',
             updatedAt: 'Updated at {time}',
@@ -535,6 +545,7 @@ export const accommodationRoomStatusMessages = {
         passcodes: {
           title: 'Temporary passcodes',
           empty: 'No temporary passcodes',
+          emptyNoPasscodeDevice: 'No passcode device is bound. Temporary passcodes cannot be managed.',
           generatedHidden: 'Generated (hidden after creation)',
           validityMissing: 'Validity not returned',
           validityRange: '{from} to {until}',
@@ -588,8 +599,8 @@ export const accommodationRoomStatusMessages = {
         placeholders: {
           reason: 'Reason (optional)',
           passcode: 'Enter numeric passcode',
-          startDate: 'Start date',
-          endDate: 'End date',
+          startDate: 'Start date and time',
+          endDate: 'End date and time',
           passcodeName: 'For example: guest temporary passcode',
         },
         hints: {
@@ -602,6 +613,10 @@ export const accommodationRoomStatusMessages = {
           missingRoom: 'Door lock room information is missing',
           statusRefreshed: 'Door lock status refreshed',
           unboundRoom: 'No operable door lock is bound to this room',
+          controlUnavailable:
+            'No lock/unlock device is bound to this room. Status refresh, unlock, and lock are unavailable.',
+          passcodeUnavailable:
+            'No passcode device is bound to this room. Temporary passcodes cannot be managed.',
           confirmFailed: 'Failed to confirm the door lock operation',
           actionFailed: 'Door lock operation failed',
           actionSentUnlock: 'Unlock command sent. Use the refreshed lock status as final.',
@@ -609,13 +624,14 @@ export const accommodationRoomStatusMessages = {
           passcodeRequired: 'Enter a door lock passcode',
           passcodeDigitsOnly: 'Door lock passcode can contain digits only',
           passcodeLengthInvalid: 'Door lock passcode must be 6 to 12 digits',
-          validityRequired: 'Select passcode validity dates',
-          validityInvalid: 'End date must be later than start date',
+          validityRequired: 'Select passcode validity start and end times',
+          validityInvalid: 'End time must be later than start time',
           passcodeCreateFailed: 'Failed to set door lock passcode',
           passcodeCreatePending:
             'Passcode request submitted. Wait for door lock confirmation, then refresh status or the passcode list.',
           passcodeCreated: 'Door lock passcode has been set',
           passcodeCreatedWithCode: 'Door lock passcode has been set: {code}',
+          passcodeRoomMismatch: 'This passcode record does not belong to the current room. Refresh and try again.',
           deleteMissing: 'Passcode record to delete is missing',
           deleteSuccess: 'Door lock passcode deleted',
           deletePending:
@@ -1544,6 +1560,12 @@ export const accommodationRoomStatusMessages = {
         target: {
           none: '未选择房间',
         },
+        roles: {
+          control: '开锁/上锁设备',
+          passcode: '密码设备',
+          available: '可用',
+          unavailable: '未绑定',
+        },
         actions: {
           refresh: '刷新',
           unlock: '开锁',
@@ -1560,6 +1582,7 @@ export const accommodationRoomStatusMessages = {
             locked: '已上锁',
             unlocked: '未上锁',
             unbound: '未绑定门锁',
+            controlMissing: '未绑定开锁/上锁设备',
             jammed: '门锁卡住',
             unknown: '状态未知',
           },
@@ -1567,11 +1590,14 @@ export const accommodationRoomStatusMessages = {
             safe: '安全',
             attention: '需留意',
             unbound: '未绑定',
+            controlMissing: '开锁/上锁不可用',
             abnormal: '异常',
             unknown: '未知',
           },
           meta: {
             provider: '供应商：{provider}',
+            controlDevice: '开锁/上锁设备：{device}',
+            passcodeDevice: '密码设备：{device}',
             online: '在线：{value}',
             battery: '电量：{value}',
             updatedAt: '更新于 {time}',
@@ -1596,6 +1622,7 @@ export const accommodationRoomStatusMessages = {
         passcodes: {
           title: '临时密码',
           empty: '暂无临时密码',
+          emptyNoPasscodeDevice: '未绑定密码设备，无法管理临时密码',
           generatedHidden: '已生成（不再显示）',
           validityMissing: '有效期未返回',
           validityRange: '{from} 至 {until}',
@@ -1646,8 +1673,8 @@ export const accommodationRoomStatusMessages = {
         placeholders: {
           reason: '原因（可选）',
           passcode: '输入数字密码',
-          startDate: '开始日期',
-          endDate: '结束日期',
+          startDate: '开始日期时间',
+          endDate: '结束日期时间',
           passcodeName: '例如：住客临时密码',
         },
         hints: {
@@ -1660,6 +1687,8 @@ export const accommodationRoomStatusMessages = {
           missingRoom: '缺少门锁房间信息',
           statusRefreshed: '门锁状态已刷新',
           unboundRoom: '当前房间未绑定可操作门锁',
+          controlUnavailable: '当前房间未绑定开锁/上锁设备，无法刷新状态或开关锁',
+          passcodeUnavailable: '当前房间未绑定密码设备，无法管理临时密码',
           confirmFailed: '门锁操作确认失败',
           actionFailed: '门锁操作失败',
           actionSentUnlock: '开锁指令已发送，请以刷新后的门锁状态为准',
@@ -1668,11 +1697,12 @@ export const accommodationRoomStatusMessages = {
           passcodeDigitsOnly: '门锁密码只能包含数字',
           passcodeLengthInvalid: '门锁密码长度需为 6 到 12 位',
           validityRequired: '请选择密码有效期',
-          validityInvalid: '密码结束日期必须晚于开始日期',
+          validityInvalid: '密码结束时间必须晚于开始时间',
           passcodeCreateFailed: '门锁密码设置失败',
           passcodeCreatePending: '门锁密码已提交，等待门锁确认。请稍后刷新状态或密码列表。',
           passcodeCreated: '门锁密码已设置',
           passcodeCreatedWithCode: '门锁密码已设置：{code}',
+          passcodeRoomMismatch: '该密码记录不属于当前房间，请刷新后重试',
           deleteMissing: '缺少要删除的密码记录',
           deleteSuccess: '门锁密码已删除',
           deletePending: '删除密码已提交，等待门锁确认。请稍后刷新状态或密码列表。',
@@ -2599,6 +2629,12 @@ export const accommodationRoomStatusMessages = {
         target: {
           none: '未選擇房間',
         },
+        roles: {
+          control: '開鎖/上鎖設備',
+          passcode: '密碼設備',
+          available: '可用',
+          unavailable: '未綁定',
+        },
         actions: {
           refresh: '刷新',
           unlock: '開鎖',
@@ -2615,6 +2651,7 @@ export const accommodationRoomStatusMessages = {
             locked: '已上鎖',
             unlocked: '未上鎖',
             unbound: '未綁定門鎖',
+            controlMissing: '未綁定開鎖/上鎖設備',
             jammed: '門鎖卡住',
             unknown: '狀態未知',
           },
@@ -2622,11 +2659,14 @@ export const accommodationRoomStatusMessages = {
             safe: '安全',
             attention: '需留意',
             unbound: '未綁定',
+            controlMissing: '開鎖/上鎖不可用',
             abnormal: '異常',
             unknown: '未知',
           },
           meta: {
             provider: '供應商：{provider}',
+            controlDevice: '開鎖/上鎖設備：{device}',
+            passcodeDevice: '密碼設備：{device}',
             online: '線上：{value}',
             battery: '電量：{value}',
             updatedAt: '更新於 {time}',
@@ -2651,6 +2691,7 @@ export const accommodationRoomStatusMessages = {
         passcodes: {
           title: '臨時密碼',
           empty: '暫無臨時密碼',
+          emptyNoPasscodeDevice: '未綁定密碼設備，無法管理臨時密碼',
           generatedHidden: '已生成（不再顯示）',
           validityMissing: '有效期未返回',
           validityRange: '{from} 至 {until}',
@@ -2701,8 +2742,8 @@ export const accommodationRoomStatusMessages = {
         placeholders: {
           reason: '原因（可選）',
           passcode: '輸入數字密碼',
-          startDate: '開始日期',
-          endDate: '結束日期',
+          startDate: '開始日期時間',
+          endDate: '結束日期時間',
           passcodeName: '例如：住客臨時密碼',
         },
         hints: {
@@ -2715,6 +2756,8 @@ export const accommodationRoomStatusMessages = {
           missingRoom: '缺少門鎖房間資訊',
           statusRefreshed: '門鎖狀態已刷新',
           unboundRoom: '當前房間未綁定可操作門鎖',
+          controlUnavailable: '當前房間未綁定開鎖/上鎖設備，無法刷新狀態或開關鎖',
+          passcodeUnavailable: '當前房間未綁定密碼設備，無法管理臨時密碼',
           confirmFailed: '門鎖操作確認失敗',
           actionFailed: '門鎖操作失敗',
           actionSentUnlock: '開鎖指令已發送，請以刷新後的門鎖狀態為準',
@@ -2723,11 +2766,12 @@ export const accommodationRoomStatusMessages = {
           passcodeDigitsOnly: '門鎖密碼只能包含數字',
           passcodeLengthInvalid: '門鎖密碼長度需為 6 到 12 位',
           validityRequired: '請選擇密碼有效期',
-          validityInvalid: '密碼結束日期必須晚於開始日期',
+          validityInvalid: '密碼結束時間必須晚於開始時間',
           passcodeCreateFailed: '門鎖密碼設定失敗',
           passcodeCreatePending: '門鎖密碼已提交，等待門鎖確認。請稍後刷新狀態或密碼列表。',
           passcodeCreated: '門鎖密碼已設定',
           passcodeCreatedWithCode: '門鎖密碼已設定：{code}',
+          passcodeRoomMismatch: '該密碼記錄不屬於當前房間，請刷新後重試',
           deleteMissing: '缺少要刪除的密碼記錄',
           deleteSuccess: '門鎖密碼已刪除',
           deletePending: '刪除密碼已提交，等待門鎖確認。請稍後刷新狀態或密碼列表。',
@@ -3657,6 +3701,12 @@ export const accommodationRoomStatusMessages = {
         target: {
           none: '客室が選択されていません',
         },
+        roles: {
+          control: '施錠/解錠デバイス',
+          passcode: '暗証番号デバイス',
+          available: '利用可能',
+          unavailable: '未連携',
+        },
         actions: {
           refresh: '更新',
           unlock: '解錠',
@@ -3673,6 +3723,7 @@ export const accommodationRoomStatusMessages = {
             locked: '施錠済み',
             unlocked: '未施錠',
             unbound: 'ロック未連携',
+            controlMissing: '施錠/解錠デバイス未連携',
             jammed: 'ロック詰まり',
             unknown: '状態不明',
           },
@@ -3680,11 +3731,14 @@ export const accommodationRoomStatusMessages = {
             safe: '安全',
             attention: '確認必要',
             unbound: '未連携',
+            controlMissing: '施錠/解錠不可',
             abnormal: '異常',
             unknown: '不明',
           },
           meta: {
             provider: 'プロバイダー：{provider}',
+            controlDevice: '施錠/解錠デバイス：{device}',
+            passcodeDevice: '暗証番号デバイス：{device}',
             online: 'オンライン：{value}',
             battery: '電池：{value}',
             updatedAt: '{time} に更新',
@@ -3709,6 +3763,7 @@ export const accommodationRoomStatusMessages = {
         passcodes: {
           title: '一時暗証番号',
           empty: '一時暗証番号はありません',
+          emptyNoPasscodeDevice: '暗証番号デバイスが連携されていないため、一時暗証番号を管理できません',
           generatedHidden: '生成済み（以後は非表示）',
           validityMissing: '有効期間が返されていません',
           validityRange: '{from} から {until}',
@@ -3762,8 +3817,8 @@ export const accommodationRoomStatusMessages = {
         placeholders: {
           reason: '理由（任意）',
           passcode: '数字の暗証番号を入力',
-          startDate: '開始日',
-          endDate: '終了日',
+          startDate: '開始日時',
+          endDate: '終了日時',
           passcodeName: '例：ゲスト一時暗証番号',
         },
         hints: {
@@ -3776,6 +3831,10 @@ export const accommodationRoomStatusMessages = {
           missingRoom: 'スマートロックの客室情報が不足しています',
           statusRefreshed: 'スマートロック状態を更新しました',
           unboundRoom: 'この客室には操作可能なスマートロックが連携されていません',
+          controlUnavailable:
+            'この客室には施錠/解錠デバイスが連携されていないため、状態更新、解錠、施錠はできません',
+          passcodeUnavailable:
+            'この客室には暗証番号デバイスが連携されていないため、一時暗証番号を管理できません',
           confirmFailed: 'スマートロック操作の確認に失敗しました',
           actionFailed: 'スマートロック操作に失敗しました',
           actionSentUnlock: '解錠コマンドを送信しました。更新後のロック状態を確認してください',
@@ -3784,12 +3843,14 @@ export const accommodationRoomStatusMessages = {
           passcodeDigitsOnly: 'スマートロック暗証番号は数字のみ使用できます',
           passcodeLengthInvalid: 'スマートロック暗証番号は 6〜12 桁で入力してください',
           validityRequired: '暗証番号の有効期間を選択してください',
-          validityInvalid: '終了日は開始日より後にしてください',
+          validityInvalid: '終了日時は開始日時より後にしてください',
           passcodeCreateFailed: 'スマートロック暗証番号の設定に失敗しました',
           passcodeCreatePending:
             '暗証番号リクエストを送信しました。ロック側の確認を待ってから状態または一覧を更新してください。',
           passcodeCreated: 'スマートロック暗証番号を設定しました',
           passcodeCreatedWithCode: 'スマートロック暗証番号を設定しました：{code}',
+          passcodeRoomMismatch:
+            'この暗証番号レコードは現在の客室に属していません。一覧を更新してから再試行してください',
           deleteMissing: '削除する暗証番号レコードがありません',
           deleteSuccess: 'スマートロック暗証番号を削除しました',
           deletePending:

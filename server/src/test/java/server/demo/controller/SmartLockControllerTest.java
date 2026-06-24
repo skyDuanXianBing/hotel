@@ -2,20 +2,47 @@ package server.demo.controller;
 
 import org.junit.jupiter.api.Test;
 import server.demo.dto.ApiResponse;
+import server.demo.dto.SmartLockBindingDTO;
 import server.demo.dto.SmartLockIntegrationDTO;
+import server.demo.dto.SmartLockRequests;
 import server.demo.service.SmartLockService;
 
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class SmartLockControllerTest {
+    @Test
+    void createBinding_shouldDelegateDualRoleRequestFields() {
+        SmartLockService service = mock(SmartLockService.class);
+        SmartLockBindingDTO dto = new SmartLockBindingDTO();
+        dto.setId(100L);
+        dto.setControlDeviceId(20L);
+        dto.setPasscodeDeviceId(21L);
+        when(service.createBinding(any(SmartLockRequests.CreateBindingRequest.class))).thenReturn(dto);
+
+        SmartLockRequests.CreateBindingRequest request = new SmartLockRequests.CreateBindingRequest();
+        request.setRoomId(1L);
+        request.setControlDeviceId(20L);
+        request.setPasscodeDeviceId(21L);
+
+        SmartLockController controller = new SmartLockController(service);
+        ApiResponse<SmartLockBindingDTO> response = controller.createBinding(request);
+
+        assertTrue(response.isSuccess());
+        assertEquals(20L, response.getData().getControlDeviceId());
+        assertEquals(21L, response.getData().getPasscodeDeviceId());
+        verify(service).createBinding(request);
+    }
+
     @Test
     void listIntegrations_shouldRedactSensitiveExceptionMessage() {
         SmartLockService service = mock(SmartLockService.class);

@@ -2,6 +2,7 @@ import { request } from '@/utils/request'
 
 export type DoorLockProvider = 'SWITCHBOT' | 'TTLOCK'
 export type DoorLockStatusSource = 'DEVICE' | 'BOUND_LOCK' | 'UNAVAILABLE'
+export type DoorLockDeviceCapability = string
 
 export interface ApiResponse<T> {
   success: boolean
@@ -62,6 +63,9 @@ export interface DoorLockDeviceDTO {
   lockName?: string
   deviceType?: string
   auxiliaryDeviceId?: string
+  capabilities?: DoorLockDeviceCapability[]
+  supportsControl?: boolean
+  supportsPasscode?: boolean
   statusSource?: DoorLockStatusSource
   statusSourceDeviceId?: string
   battery?: number
@@ -72,6 +76,13 @@ export interface DoorLockDeviceDTO {
   updatedAt?: string
 }
 
+export interface DoorLockBindingRoleDeviceDTO {
+  deviceId?: number
+  providerDeviceId?: string
+  providerLockId?: string
+  lockName?: string
+}
+
 export interface DoorLockBindingDTO {
   id: number
   provider: DoorLockProvider
@@ -79,9 +90,17 @@ export interface DoorLockBindingDTO {
   roomNumber?: string
   roomTypeId?: number
   roomTypeName?: string
-  deviceId: number
+  deviceId?: number
   providerLockId?: string
   lockName?: string
+  controlDeviceId?: number | null
+  controlProviderLockId?: string | null
+  controlLockName?: string | null
+  controlDevice?: DoorLockBindingRoleDeviceDTO | null
+  passcodeDeviceId?: number | null
+  passcodeProviderLockId?: string | null
+  passcodeLockName?: string | null
+  passcodeDevice?: DoorLockBindingRoleDeviceDTO | null
   integrationId?: number
   status?: string
   createdAt?: string
@@ -119,6 +138,10 @@ export interface DoorLockBindingPayload {
   deviceId?: number
   provider?: DoorLockProvider
   providerLockId?: string
+  controlDeviceId?: number | null
+  controlProviderLockId?: string | null
+  passcodeDeviceId?: number | null
+  passcodeProviderLockId?: string | null
 }
 
 const SMART_LOCK_BASE_PATH = '/smart-locks'

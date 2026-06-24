@@ -1,12 +1,17 @@
 package server.demo.service;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import server.demo.config.SmartLockConfig;
 import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
+import server.demo.dto.SmartLockBindingDTO;
 import server.demo.dto.SmartLockDeviceDTO;
 import server.demo.dto.SmartLockIntegrationDTO;
 import server.demo.dto.SmartLockPasscodeDTO;
@@ -20,6 +25,7 @@ import server.demo.entity.SmartLockIntegration;
 import server.demo.entity.SmartLockPasscodeRecord;
 import server.demo.entity.SmartLockRoomBinding;
 import server.demo.entity.SmartLockTask;
+import server.demo.entity.Store;
 import server.demo.enums.SmartLockBindingStatus;
 import server.demo.enums.SmartLockIntegrationStatus;
 import server.demo.enums.SmartLockPasscodeStatus;
@@ -33,12 +39,14 @@ import server.demo.repository.SmartLockIntegrationRepository;
 import server.demo.repository.SmartLockPasscodeRecordRepository;
 import server.demo.repository.SmartLockRoomBindingRepository;
 import server.demo.repository.SmartLockTaskRepository;
+import server.demo.repository.StoreRepository;
 import server.demo.util.SmartLockCredentialCrypto;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,6 +62,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -73,8 +82,10 @@ class SmartLockServiceTest {
     private SmartLockPasscodeRecordRepository passcodeRepository;
     private SmartLockTaskRepository taskRepository;
     private RoomRepository roomRepository;
+    private StoreRepository storeRepository;
     private FakeProviderClient fakeProviderClient;
     private SmartLockService service;
+    private SmartLockPasscodeReconciliationService reconciliationService;
     private ObjectMapper objectMapper;
     private SmartLockCredentialCrypto credentialCrypto;
 
@@ -87,13 +98,26 @@ class SmartLockServiceTest {
         passcodeRepository = mock(SmartLockPasscodeRecordRepository.class);
         taskRepository = mock(SmartLockTaskRepository.class);
         roomRepository = mock(RoomRepository.class);
+        storeRepository = mock(StoreRepository.class);
         fakeProviderClient = new FakeProviderClient();
         objectMapper = new ObjectMapper().findAndRegisterModules();
         credentialCrypto = new SmartLockCredentialCrypto("test-smart-lock-key");
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store("UTC")));
 
         SmartLockConfig config = mock(SmartLockConfig.class);
         when(config.getConfirmationTtlSeconds()).thenReturn(300L);
         when(config.getSwitchBotWebhookToken()).thenReturn("webhook-token");
+        SmartLockProviderClientRegistry providerRegistry =
+                new SmartLockProviderClientRegistry(List.of(fakeProviderClient));
+        reconciliationService = new SmartLockPasscodeReconciliationService(
+                passcodeRepository,
+                taskRepository,
+                providerRegistry,
+                credentialCrypto,
+                objectMapper,
+                storeRepository,
+                FIXED_CLOCK
+        );
 
         service = new SmartLockService(
                 integrationRepository,
@@ -103,11 +127,13 @@ class SmartLockServiceTest {
                 passcodeRepository,
                 taskRepository,
                 roomRepository,
-                new SmartLockProviderClientRegistry(List.of(fakeProviderClient)),
+                storeRepository,
+                providerRegistry,
                 credentialCrypto,
                 new SmartLockMapper(),
                 config,
                 objectMapper,
+                reconciliationService,
                 FIXED_CLOCK
         );
 
@@ -148,6 +174,172 @@ class SmartLockServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.createBinding(request));
         verify(bindingRepository, never()).save(any(SmartLockRoomBinding.class));
+    }
+
+    @Test
+    void createBinding_shouldSaveSwitchBotControlAndPasscodeRoles() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-1", "Lock", null, "{}");
+        SmartLockDevice keypad = device(
+                21L,
+                integration,
+                "keypad-1",
+                "Keypad Touch",
+                "lock-1",
+                "{\"lockDeviceId\":\"lock-1\"}"
+        );
+        SmartLockRequests.CreateBindingRequest request = new SmartLockRequests.CreateBindingRequest();
+        request.setRoomId(room.getId());
+        request.setControlDeviceId(lock.getId());
+        request.setPasscodeDeviceId(keypad.getId());
+
+        stubCreateBindingDevices(room, lock, keypad);
+        stubNoRoleConflicts(SmartLockProvider.SWITCHBOT);
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.empty());
+        when(bindingRepository.save(any(SmartLockRoomBinding.class))).thenAnswer(invocation -> {
+            SmartLockRoomBinding binding = invocation.getArgument(0);
+            binding.setId(100L);
+            return binding;
+        });
+
+        SmartLockBindingDTO result = service.createBinding(request);
+
+        assertEquals(lock.getId(), result.getControlDeviceId());
+        assertEquals("lock-1", result.getControlProviderLockId());
+        assertEquals(keypad.getId(), result.getPasscodeDeviceId());
+        assertEquals("keypad-1", result.getPasscodeProviderLockId());
+        assertEquals(lock.getId(), result.getDeviceId());
+        assertEquals("lock-1", result.getProviderLockId());
+    }
+
+    @Test
+    void createBinding_shouldRejectSwitchBotKeypadAsControlRole() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice keypad = device(
+                21L,
+                integration,
+                "keypad-1",
+                "Keypad Touch",
+                "lock-1",
+                "{\"lockDeviceId\":\"lock-1\"}"
+        );
+        SmartLockRequests.CreateBindingRequest request = new SmartLockRequests.CreateBindingRequest();
+        request.setRoomId(room.getId());
+        request.setControlDeviceId(keypad.getId());
+
+        stubCreateBindingDevices(room, keypad);
+        stubNoRoleConflicts(SmartLockProvider.SWITCHBOT);
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.empty());
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.createBinding(request)
+        );
+
+        assertTrue(error.getMessage().contains("控制设备"));
+        verify(bindingRepository, never()).save(any(SmartLockRoomBinding.class));
+    }
+
+    @Test
+    void createBinding_shouldRejectSwitchBotLockAsPasscodeRole() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-1", "Lock", null, "{}");
+        SmartLockRequests.CreateBindingRequest request = new SmartLockRequests.CreateBindingRequest();
+        request.setRoomId(room.getId());
+        request.setPasscodeDeviceId(lock.getId());
+
+        stubCreateBindingDevices(room, lock);
+        stubNoRoleConflicts(SmartLockProvider.SWITCHBOT);
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.empty());
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.createBinding(request)
+        );
+
+        assertTrue(error.getMessage().contains("密码设备"));
+        verify(bindingRepository, never()).save(any(SmartLockRoomBinding.class));
+    }
+
+    @Test
+    void createBinding_shouldRejectSwitchBotKeypadLinkedToDifferentControlLock() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-2", "Lock", null, "{}");
+        SmartLockDevice keypad = device(
+                21L,
+                integration,
+                "keypad-1",
+                "Keypad Touch",
+                "lock-1",
+                "{\"lockDeviceId\":\"lock-1\"}"
+        );
+        SmartLockRequests.CreateBindingRequest request = new SmartLockRequests.CreateBindingRequest();
+        request.setRoomId(room.getId());
+        request.setControlDeviceId(lock.getId());
+        request.setPasscodeDeviceId(keypad.getId());
+
+        stubCreateBindingDevices(room, lock, keypad);
+        stubNoRoleConflicts(SmartLockProvider.SWITCHBOT);
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.empty());
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.createBinding(request)
+        );
+
+        assertTrue(error.getMessage().contains("关联的控制门锁"));
+        verify(bindingRepository, never()).save(any(SmartLockRoomBinding.class));
+    }
+
+    @Test
+    void createBinding_shouldAllowTtLockSameDeviceForBothRoles() {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = ttLockIntegration();
+        SmartLockDevice lock = device(20L, integration, "101", "TTLock", null, "{}");
+        SmartLockRequests.CreateBindingRequest request = new SmartLockRequests.CreateBindingRequest();
+        request.setRoomId(room.getId());
+        request.setControlDeviceId(lock.getId());
+        request.setPasscodeDeviceId(lock.getId());
+
+        stubCreateBindingDevices(room, lock);
+        stubNoRoleConflicts(SmartLockProvider.TTLOCK);
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.empty());
+        when(bindingRepository.save(any(SmartLockRoomBinding.class))).thenAnswer(invocation -> {
+            SmartLockRoomBinding binding = invocation.getArgument(0);
+            binding.setId(100L);
+            return binding;
+        });
+
+        SmartLockBindingDTO result = service.createBinding(request);
+
+        assertEquals(lock.getId(), result.getControlDeviceId());
+        assertEquals(lock.getId(), result.getPasscodeDeviceId());
+        assertEquals("101", result.getControlProviderLockId());
+        assertEquals("101", result.getPasscodeProviderLockId());
     }
 
     @Test
@@ -434,6 +626,114 @@ class SmartLockServiceTest {
     }
 
     @Test
+    void roomOperations_shouldRouteControlAndPasscodeToSeparateSwitchBotRoleDevices() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-A", "Lock", null, "{}");
+        SmartLockDevice keypad = device(
+                21L,
+                integration,
+                "keypad-A",
+                "Keypad Touch",
+                "lock-A",
+                "{\"lockDeviceId\":\"lock-A\"}"
+        );
+        SmartLockRoomBinding binding = dualRoleBinding(100L, room, lock, keypad);
+        SmartLockRequests.LockOperationRequest lockRequest = lockOperationRequest(binding, "dual-unlock");
+        stubSuccessfulLockOperation(room, binding, SmartLockTaskType.UNLOCK, lockRequest.getIdempotencyKey());
+
+        SmartLockTaskDTO lockResult = service.unlock(room.getId(), lockRequest);
+
+        assertEquals(SmartLockTaskStatus.SUCCESS, lockResult.getStatus());
+        assertEquals(List.of("lock-A"), fakeProviderClient.unlockRequests);
+
+        SmartLockRequests.CreatePasscodeRequest passcodeRequest = passcodeRequest();
+        passcodeRequest.setIdempotencyKey("create-for-keypad-a");
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(taskRepository.findByStoreIdAndIdempotencyKey(STORE_ID, passcodeRequest.getIdempotencyKey()))
+                .thenReturn(Optional.empty());
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> {
+            SmartLockPasscodeRecord record = invocation.getArgument(0);
+            if (record.getId() == null) {
+                record.setId(301L);
+            }
+            return record;
+        });
+        stubTaskSaveWithIds();
+
+        SmartLockPasscodeDTO passcodeResult = service.createPasscode(room.getId(), passcodeRequest);
+
+        assertEquals(SmartLockPasscodeStatus.ACTIVE, passcodeResult.getStatus());
+        assertEquals(List.of("keypad-A"), fakeProviderClient.createPasscodeRequests);
+        assertEquals(List.of("lock-A"), fakeProviderClient.unlockRequests);
+    }
+
+    @Test
+    void unlock_shouldRejectPasscodeOnlyBindingBeforeProviderCall() {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = new SmartLockIntegration();
+        integration.setId(10L);
+        integration.setStoreId(STORE_ID);
+        integration.setProvider(SmartLockProvider.SWITCHBOT);
+        SmartLockDevice keypad = device(
+                21L,
+                integration,
+                "keypad-A",
+                "Keypad Touch",
+                "lock-A",
+                "{\"lockDeviceId\":\"lock-A\"}"
+        );
+        SmartLockRoomBinding binding = dualRoleBinding(100L, room, null, keypad);
+        SmartLockRequests.LockOperationRequest request = lockOperationRequest(binding, "passcode-only-unlock");
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndIdAndStatus(
+                STORE_ID,
+                binding.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(taskRepository.findByStoreIdAndIdempotencyKey(STORE_ID, request.getIdempotencyKey()))
+                .thenReturn(Optional.empty());
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.unlock(room.getId(), request)
+        );
+
+        assertTrue(error.getMessage().contains("控制设备"));
+        assertEquals(List.of(), fakeProviderClient.unlockRequests);
+        verify(taskRepository, never()).save(any(SmartLockTask.class));
+    }
+
+    @Test
+    void createPasscode_shouldRejectControlOnlyBindingBeforeProviderCall() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-A", "Lock", null, "{}");
+        SmartLockRoomBinding binding = dualRoleBinding(100L, room, lock, null);
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.createPasscode(room.getId(), passcodeRequest())
+        );
+
+        assertTrue(error.getMessage().contains("密码设备"));
+        verify(passcodeRepository, never()).save(any(SmartLockPasscodeRecord.class));
+        assertEquals(0, fakeProviderClient.createPasscodeCalls);
+    }
+
+    @Test
     void unlock_shouldRejectSwitchBotKeypadWithoutLockDeviceIdBeforeProviderCall() {
         Room room = room(1L, STORE_ID);
         SmartLockRoomBinding binding = binding(100L, room);
@@ -522,29 +822,35 @@ class SmartLockServiceTest {
     }
 
     @Test
-    void deletePasscode_shouldRejectDirtyRecordSnapshotBeforeProviderDelete() {
+    void deletePasscode_shouldUsePasscodeDeviceSnapshotWhenBindingChanged() throws Exception {
         Room room = room(1L, STORE_ID);
-        SmartLockRoomBinding binding = binding(100L, room);
-        binding.getDevice().setDeviceType("Keypad Touch");
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-1", "Lock", null, "{}");
+        SmartLockDevice oldKeypad = device(
+                21L,
+                integration,
+                "keypad-old",
+                "Keypad Touch",
+                "lock-1",
+                "{\"lockDeviceId\":\"lock-1\"}"
+        );
+        SmartLockRoomBinding binding = dualRoleBinding(100L, room, lock, oldKeypad);
         SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.ACTIVE);
         record.setProviderPasscodeId("provider-passcode-1");
-        record.setProviderLockId("stale-lock");
 
         when(passcodeRepository.findByStoreIdAndId(STORE_ID, record.getId())).thenReturn(Optional.of(record));
-        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        stubTaskSaveWithIds();
+
+        SmartLockPasscodeDTO result = service.deletePasscode(record.getId());
+
+        assertEquals(SmartLockPasscodeStatus.DELETED, result.getStatus());
+        assertEquals(List.of("keypad-old"), fakeProviderClient.deletePasscodeRequests);
+        verify(bindingRepository, never()).findByStoreIdAndRoomIdAndStatus(
                 STORE_ID,
                 room.getId(),
                 SmartLockBindingStatus.ACTIVE
-        )).thenReturn(Optional.of(binding));
-
-        IllegalArgumentException error = assertThrows(
-                IllegalArgumentException.class,
-                () -> service.deletePasscode(record.getId())
         );
-
-        assertTrue(error.getMessage().contains("拒绝删除远程密码"));
-        verify(taskRepository, never()).save(any(SmartLockTask.class));
-        assertEquals(0, fakeProviderClient.deletePasscodeCalls);
     }
 
     @Test
@@ -679,6 +985,61 @@ class SmartLockServiceTest {
     }
 
     @Test
+    void createPasscode_shouldRejectExpiredValidityWindowBeforeProviderCall() {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = binding(100L, room);
+        binding.getDevice().setDeviceType("Keypad Touch");
+        SmartLockRequests.CreatePasscodeRequest request = passcodeRequest();
+        request.setValidFrom(LocalDateTime.now(FIXED_CLOCK).minusDays(2));
+        request.setValidUntil(LocalDateTime.now(FIXED_CLOCK).minusDays(1));
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.createPasscode(room.getId(), request)
+        );
+
+        assertTrue(error.getMessage().contains("有效期"));
+        verify(passcodeRepository, never()).save(any(SmartLockPasscodeRecord.class));
+        verify(taskRepository, never()).save(any(SmartLockTask.class));
+        assertEquals(0, fakeProviderClient.createPasscodeCalls);
+    }
+
+    @Test
+    void createPasscode_shouldUseStoreTimezoneForExpiredValidityWindowBeforeProviderCall() {
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store("Asia/Tokyo")));
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = binding(100L, room);
+        binding.getDevice().setDeviceType("Keypad Touch");
+        SmartLockRequests.CreatePasscodeRequest request = passcodeRequest();
+        request.setValidFrom(LocalDateTime.of(2026, 6, 21, 17, 0));
+        request.setValidUntil(LocalDateTime.of(2026, 6, 21, 18, 30));
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.createPasscode(room.getId(), request)
+        );
+
+        assertTrue(error.getMessage().contains("有效期"));
+        verify(passcodeRepository, never()).save(any(SmartLockPasscodeRecord.class));
+        verify(taskRepository, never()).save(any(SmartLockTask.class));
+        assertEquals(0, fakeProviderClient.createPasscodeCalls);
+    }
+
+    @Test
     void createPasscode_shouldRejectPlainSwitchBotLockDeviceBeforeProviderCall() {
         Room room = room(1L, STORE_ID);
         SmartLockRoomBinding binding = binding(100L, room);
@@ -740,6 +1101,475 @@ class SmartLockServiceTest {
     }
 
     @Test
+    void createPasscode_shouldPersistCommandIdOnlySwitchBotPendingResult() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = binding(100L, room);
+        binding.getDevice().setDeviceType("Keypad Touch");
+        binding.getIntegration().setCredentialCiphertext(encryptedSwitchBotCredentials());
+        fakeProviderClient.createPasscodeStatus = SmartLockTaskStatus.PENDING;
+        fakeProviderClient.createProviderTaskId = "cmd-create-1";
+        fakeProviderClient.createProviderPasscodeId = null;
+        SmartLockRequests.CreatePasscodeRequest request = passcodeRequest();
+        request.setIdempotencyKey("create-command-only");
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(taskRepository.findByStoreIdAndIdempotencyKey(any(), anyString())).thenReturn(Optional.empty());
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> {
+            SmartLockPasscodeRecord record = invocation.getArgument(0);
+            if (record.getId() == null) {
+                record.setId(301L);
+            }
+            return record;
+        });
+        stubTaskSaveWithIds();
+
+        SmartLockPasscodeDTO result = service.createPasscode(room.getId(), request);
+
+        assertEquals(SmartLockPasscodeStatus.PENDING, result.getStatus());
+        assertEquals("cmd-create-1", result.getProviderTaskId());
+        assertEquals(null, result.getProviderPasscodeId());
+        assertEquals(null, result.getOneTimePasscode());
+        assertEquals(1, fakeProviderClient.createPasscodeCalls);
+    }
+
+    @Test
+    void createPasscode_shouldKeepSwitchBotSuccessWithoutTraceableIdsPendingForKeyListSync() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = binding(100L, room);
+        binding.getDevice().setDeviceType("Keypad Touch");
+        binding.getIntegration().setCredentialCiphertext(encryptedSwitchBotCredentials());
+        fakeProviderClient.createPasscodeStatus = SmartLockTaskStatus.PENDING;
+        fakeProviderClient.createProviderTaskId = null;
+        fakeProviderClient.createProviderPasscodeId = null;
+        SmartLockRequests.CreatePasscodeRequest request = passcodeRequest();
+        request.setIdempotencyKey("create-no-trace");
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(taskRepository.findByStoreIdAndIdempotencyKey(any(), anyString())).thenReturn(Optional.empty());
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> {
+            SmartLockPasscodeRecord record = invocation.getArgument(0);
+            if (record.getId() == null) {
+                record.setId(301L);
+            }
+            return record;
+        });
+        List<SmartLockTask> savedTasks = new ArrayList<>();
+        long[] nextTaskId = {401L};
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> {
+            SmartLockTask task = invocation.getArgument(0);
+            if (task.getId() == null) {
+                task.setId(nextTaskId[0]);
+                nextTaskId[0] += 1;
+            }
+            savedTasks.add(task);
+            return task;
+        });
+
+        SmartLockPasscodeDTO result = service.createPasscode(room.getId(), request);
+
+        assertEquals(SmartLockPasscodeStatus.PENDING, result.getStatus());
+        assertEquals(null, result.getLastError());
+        assertEquals(null, result.getProviderTaskId());
+        assertEquals(null, result.getProviderPasscodeId());
+        assertTrue(savedTasks.stream().anyMatch(task ->
+                task.getResultMessage() != null && task.getResultMessage().contains("keyList")
+        ));
+        assertEquals(1, fakeProviderClient.createPasscodeCalls);
+    }
+
+    @Test
+    void listPasscodes_shouldReconcileSwitchBotPendingRecordFromKeyList() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-A", "Lock", null, "{}");
+        SmartLockDevice keypad = device(
+                21L,
+                integration,
+                "keypad-A",
+                "Keypad Touch",
+                "lock-A",
+                "{\"lockDeviceId\":\"lock-A\"}"
+        );
+        SmartLockRoomBinding binding = dualRoleBinding(100L, room, lock, keypad);
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.PENDING);
+        record.setProviderTaskId("cmd-create-1");
+        SmartLockTask task = task(401L, SmartLockTaskType.CREATE_PASSCODE, binding, record, "cmd-create-1");
+        fakeProviderClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("key-101", "Guest", "normal")
+        );
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(passcodeRepository.findByStoreIdAndRoomIdOrderByCreatedAtDesc(STORE_ID, room.getId()))
+                .thenReturn(List.of(record));
+        when(taskRepository.findByProviderAndProviderTaskIdOrderByCreatedAtDesc(
+                SmartLockProvider.SWITCHBOT,
+                "cmd-create-1"
+        )).thenReturn(List.of(task));
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<SmartLockPasscodeDTO> result = service.listPasscodes(room.getId());
+
+        assertEquals(1, result.size());
+        assertEquals(SmartLockPasscodeStatus.ACTIVE, result.get(0).getStatus());
+        assertEquals("key-101", result.get(0).getProviderPasscodeId());
+        assertEquals(SmartLockTaskStatus.SUCCESS, task.getStatus());
+        assertEquals(List.of("keypad-A"), fakeProviderClient.listPasscodeRequests);
+    }
+
+    @Test
+    void listPasscodes_shouldReconcileSwitchBotPendingNoTraceRecordFromKeyList() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-A", "Lock", null, "{}");
+        SmartLockDevice keypad = device(
+                21L,
+                integration,
+                "keypad-A",
+                "Keypad Touch",
+                "lock-A",
+                "{\"lockDeviceId\":\"lock-A\"}"
+        );
+        SmartLockRoomBinding binding = dualRoleBinding(100L, room, lock, keypad);
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.PENDING);
+        SmartLockTask task = task(401L, SmartLockTaskType.CREATE_PASSCODE, binding, record, null);
+        fakeProviderClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("key-101", "Guest", "normal")
+        );
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(passcodeRepository.findByStoreIdAndRoomIdOrderByCreatedAtDesc(STORE_ID, room.getId()))
+                .thenReturn(List.of(record));
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.findPasscodeTasksWithoutProviderTaskId(
+                STORE_ID,
+                record.getId(),
+                SmartLockTaskType.CREATE_PASSCODE,
+                SmartLockTaskStatus.PENDING
+        )).thenReturn(List.of(task));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<SmartLockPasscodeDTO> result = service.listPasscodes(room.getId());
+
+        assertEquals(1, result.size());
+        assertEquals(SmartLockPasscodeStatus.ACTIVE, result.get(0).getStatus());
+        assertEquals("key-101", result.get(0).getProviderPasscodeId());
+        assertEquals(SmartLockTaskStatus.SUCCESS, task.getStatus());
+        assertEquals("key-101", task.getPasscodeRecord().getProviderPasscodeId());
+        assertEquals(List.of("keypad-A"), fakeProviderClient.listPasscodeRequests);
+        verify(taskRepository, never()).findByProviderAndProviderTaskIdOrderByCreatedAtDesc(
+                eq(SmartLockProvider.SWITCHBOT),
+                anyString()
+        );
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldActivatePendingRecordWithoutCreateCall() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-A", "Lock", null, "{}");
+        SmartLockDevice keypad = device(
+                21L,
+                integration,
+                "keypad-A",
+                "Keypad Touch",
+                "lock-A",
+                "{\"lockDeviceId\":\"lock-A\"}"
+        );
+        SmartLockRoomBinding binding = dualRoleBinding(100L, room, lock, keypad);
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.PENDING);
+        record.setCreatedAt(LocalDateTime.now(FIXED_CLOCK).minusMinutes(1));
+        SmartLockTask task = task(401L, SmartLockTaskType.CREATE_PASSCODE, binding, record, null);
+        fakeProviderClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("key-101", "Guest", "normal")
+        );
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.findPasscodeTasksWithoutProviderTaskId(
+                STORE_ID,
+                record.getId(),
+                SmartLockTaskType.CREATE_PASSCODE,
+                SmartLockTaskStatus.PENDING
+        )).thenReturn(List.of(task));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartLockPasscodeReconciliationService.ReconciliationSummary summary =
+                reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+
+        assertEquals(1, summary.candidates());
+        assertEquals(1, summary.changed());
+        assertEquals(SmartLockPasscodeStatus.ACTIVE, record.getStatus());
+        assertEquals("key-101", record.getProviderPasscodeId());
+        assertEquals(SmartLockTaskStatus.SUCCESS, task.getStatus());
+        assertEquals(0, fakeProviderClient.createPasscodeCalls);
+        assertEquals(List.of("keypad-A"), fakeProviderClient.listPasscodeRequests);
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldKeepPendingWhenNoKeyListMatch() throws Exception {
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        fakeProviderClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("key-201", "Other Guest", "normal")
+        );
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartLockPasscodeReconciliationService.ReconciliationSummary summary =
+                reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+
+        assertEquals(1, summary.candidates());
+        assertEquals(SmartLockPasscodeStatus.PENDING, record.getStatus());
+        assertEquals(null, record.getProviderPasscodeId());
+        assertTrue(record.getLastError().contains("尚未发现"));
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldKeepPendingWhenKeyListHasMultipleNameMatches() throws Exception {
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        fakeProviderClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("key-101", "Guest", "normal"),
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("key-102", "Guest", "normal")
+        );
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+
+        assertEquals(SmartLockPasscodeStatus.PENDING, record.getStatus());
+        assertEquals(null, record.getProviderPasscodeId());
+        assertTrue(record.getLastError().contains("多条同名"));
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldKeepPendingWhenMatchedKeyHasNoId() throws Exception {
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        fakeProviderClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot(null, "Guest", "normal")
+        );
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+
+        assertEquals(SmartLockPasscodeStatus.PENDING, record.getStatus());
+        assertEquals(null, record.getProviderPasscodeId());
+        assertTrue(record.getLastError().contains("缺少远端 ID"));
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldFailTimedOutPendingCreateWithReason() throws Exception {
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        record.setCreatedAt(LocalDateTime.now(FIXED_CLOCK).minusMinutes(10));
+        SmartLockTask task = task(401L, SmartLockTaskType.CREATE_PASSCODE, record.getBinding(), record, null);
+        fakeProviderClient.passcodeSnapshots = List.of();
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.findPasscodeTasksWithoutProviderTaskId(
+                STORE_ID,
+                record.getId(),
+                SmartLockTaskType.CREATE_PASSCODE,
+                SmartLockTaskStatus.PENDING
+        )).thenReturn(List.of(task));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartLockPasscodeReconciliationService.ReconciliationSummary summary =
+                reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+
+        assertEquals(1, summary.timedOut());
+        assertEquals(1, summary.failed());
+        assertEquals(SmartLockPasscodeStatus.FAILED, record.getStatus());
+        assertTrue(record.getLastError().contains("超过后台对账超时"));
+        assertEquals(SmartLockTaskStatus.FAILED, task.getStatus());
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldUseTokyoStoreZoneForCreatedAtAge() throws Exception {
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store("Asia/Tokyo")));
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        LocalDateTime storeNow = LocalDateTime.ofInstant(FIXED_CLOCK.instant(), ZoneId.of("Asia/Tokyo"));
+        record.setCreatedAt(storeNow.minusMinutes(10));
+        record.setUpdatedAt(storeNow);
+        SmartLockTask task = task(401L, SmartLockTaskType.CREATE_PASSCODE, record.getBinding(), record, null);
+        fakeProviderClient.passcodeSnapshots = List.of();
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.findPasscodeTasksWithoutProviderTaskId(
+                STORE_ID,
+                record.getId(),
+                SmartLockTaskType.CREATE_PASSCODE,
+                SmartLockTaskStatus.PENDING
+        )).thenReturn(List.of(task));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        ListAppender<ILoggingEvent> logAppender = attachReconciliationLogAppender();
+
+        SmartLockPasscodeReconciliationService.ReconciliationSummary summary;
+        try {
+            summary = reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+        } finally {
+            detachReconciliationLogAppender(logAppender);
+        }
+
+        assertEquals(1, summary.timedOut());
+        assertEquals(1, summary.failed());
+        assertEquals(SmartLockPasscodeStatus.FAILED, record.getStatus());
+        assertEquals(SmartLockTaskStatus.FAILED, task.getStatus());
+        assertTrue(hasReconciliationLog(
+                logAppender,
+                "ageSeconds=600 ageSource=record_created_at ageZone=Asia/Tokyo"
+        ));
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldUseShanghaiStoreZoneForCreatedAtAge() throws Exception {
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store("Asia/Shanghai")));
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        LocalDateTime storeNow = LocalDateTime.ofInstant(FIXED_CLOCK.instant(), ZoneId.of("Asia/Shanghai"));
+        record.setCreatedAt(storeNow.minusMinutes(4));
+        record.setUpdatedAt(storeNow.plusMinutes(30));
+        fakeProviderClient.passcodeSnapshots = List.of();
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        ListAppender<ILoggingEvent> logAppender = attachReconciliationLogAppender();
+
+        SmartLockPasscodeReconciliationService.ReconciliationSummary summary;
+        try {
+            summary = reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+        } finally {
+            detachReconciliationLogAppender(logAppender);
+        }
+
+        assertEquals(0, summary.timedOut());
+        assertEquals(0, summary.failed());
+        assertEquals(SmartLockPasscodeStatus.PENDING, record.getStatus());
+        assertTrue(record.getLastError().contains("尚未发现"));
+        assertTrue(hasReconciliationLog(
+                logAppender,
+                "ageSeconds=240 ageSource=record_created_at ageZone=Asia/Shanghai"
+        ));
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldUseCreateTaskCreatedAtWhenRecordCreatedAtMissing() throws Exception {
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        record.setCreatedAt(null);
+        record.setUpdatedAt(LocalDateTime.now(FIXED_CLOCK));
+        SmartLockTask task = task(401L, SmartLockTaskType.CREATE_PASSCODE, record.getBinding(), record, null);
+        task.setCreatedAt(LocalDateTime.now(FIXED_CLOCK).minusMinutes(10));
+        task.setUpdatedAt(LocalDateTime.now(FIXED_CLOCK));
+        fakeProviderClient.passcodeSnapshots = List.of();
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.findPasscodeTasksWithoutProviderTaskId(
+                STORE_ID,
+                record.getId(),
+                SmartLockTaskType.CREATE_PASSCODE,
+                SmartLockTaskStatus.PENDING
+        )).thenReturn(List.of(task));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartLockPasscodeReconciliationService.ReconciliationSummary summary =
+                reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+
+        assertEquals(1, summary.timedOut());
+        assertEquals(1, summary.failed());
+        assertEquals(SmartLockPasscodeStatus.FAILED, record.getStatus());
+        assertTrue(record.getLastError().contains("超过后台对账超时"));
+        assertEquals(SmartLockTaskStatus.FAILED, task.getStatus());
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldMarkDeletePendingDeletedWhenRemoteIdDisappears() throws Exception {
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        record.setStatus(SmartLockPasscodeStatus.DELETE_PENDING);
+        record.setProviderPasscodeId("key-101");
+        record.setProviderTaskId("cmd-delete-1");
+        SmartLockTask task = task(
+                401L,
+                SmartLockTaskType.DELETE_PASSCODE,
+                record.getBinding(),
+                record,
+                "cmd-delete-1"
+        );
+        fakeProviderClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("key-202", "Other Guest", "normal")
+        );
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.findByProviderAndProviderTaskIdOrderByCreatedAtDesc(
+                SmartLockProvider.SWITCHBOT,
+                "cmd-delete-1"
+        )).thenReturn(List.of(task));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+
+        assertEquals(SmartLockPasscodeStatus.DELETED, record.getStatus());
+        assertTrue(record.getDeletedAt() != null);
+        assertEquals(SmartLockTaskStatus.SUCCESS, task.getStatus());
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldKeepDeletePendingWhenRemoteIdStillExists() throws Exception {
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        record.setStatus(SmartLockPasscodeStatus.DELETE_PENDING);
+        record.setProviderPasscodeId("key-101");
+        fakeProviderClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("key-101", "Guest", "normal")
+        );
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+
+        assertEquals(SmartLockPasscodeStatus.DELETE_PENDING, record.getStatus());
+        assertTrue(record.getLastError().contains("仍显示远端密码存在"));
+    }
+
+    @Test
+    void reconcilePendingSwitchBotPasscodesForCurrentStore_shouldWriteReasonWhenKeyListIsUnreadable() throws Exception {
+        SmartLockPasscodeRecord record = switchBotPendingRecordForReconciliation();
+        fakeProviderClient.passcodeKeyListReadable = false;
+
+        stubSwitchBotReconciliationCandidates(record);
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        reconciliationService.reconcilePendingSwitchBotPasscodesForCurrentStore(20, 5);
+
+        assertEquals(SmartLockPasscodeStatus.PENDING, record.getStatus());
+        assertTrue(record.getLastError().contains("未返回可读取的 keyList"));
+    }
+
+    @Test
     void getTask_shouldRejectTaskOutsideCurrentStore() {
         when(taskRepository.findByStoreIdAndId(STORE_ID, 902L)).thenReturn(Optional.empty());
 
@@ -767,12 +1597,140 @@ class SmartLockServiceTest {
         assertEquals(1, fakeProviderClient.queryTaskCalls);
     }
 
+    @Test
+    void deletePasscode_shouldRejectMissingProviderPasscodeIdWhenProviderTaskIdExists() {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = binding(100L, room);
+        binding.getDevice().setDeviceType("Keypad Touch");
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.PENDING);
+        record.setProviderTaskId("cmd-create-1");
+
+        when(passcodeRepository.findByStoreIdAndId(STORE_ID, record.getId())).thenReturn(Optional.of(record));
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.deletePasscode(record.getId())
+        );
+
+        assertTrue(error.getMessage().contains("供应商密码 ID"));
+        assertEquals(0, fakeProviderClient.deletePasscodeCalls);
+        verify(taskRepository, never()).save(any(SmartLockTask.class));
+    }
+
+    @Test
+    void deletePasscode_shouldLocalCleanupPendingNoRemoteIdsWithoutProviderCall() {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = binding(100L, room);
+        binding.getDevice().setDeviceType("Keypad Touch");
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.PENDING);
+        SmartLockTask task = task(401L, SmartLockTaskType.CREATE_PASSCODE, binding, record, null);
+
+        when(passcodeRepository.findByStoreIdAndId(STORE_ID, record.getId())).thenReturn(Optional.of(record));
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.findPasscodeTasksWithoutProviderTaskId(
+                STORE_ID,
+                record.getId(),
+                SmartLockTaskType.CREATE_PASSCODE,
+                SmartLockTaskStatus.PENDING
+        )).thenReturn(List.of(task));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartLockPasscodeDTO result = service.deletePasscode(record.getId());
+
+        assertEquals(SmartLockPasscodeStatus.DELETED, result.getStatus());
+        assertEquals(SmartLockPasscodeStatus.DELETED, record.getStatus());
+        assertEquals(null, record.getLastError());
+        assertTrue(record.getDeletedAt() != null);
+        assertEquals(SmartLockTaskStatus.FAILED, task.getStatus());
+        assertTrue(task.getResultMessage().contains("本地密码记录已清理"));
+        assertEquals(0, fakeProviderClient.deletePasscodeCalls);
+        verify(taskRepository, never()).save(argThat(taskArg ->
+                taskArg != null && taskArg.getTaskType() == SmartLockTaskType.DELETE_PASSCODE
+        ));
+    }
+
+    @Test
+    void deletePasscode_shouldLocalCleanupFailedNoRemoteIdsWithoutProviderCall() {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = binding(100L, room);
+        binding.getDevice().setDeviceType("Keypad Touch");
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.FAILED);
+
+        when(passcodeRepository.findByStoreIdAndId(STORE_ID, record.getId())).thenReturn(Optional.of(record));
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartLockPasscodeDTO result = service.deletePasscode(record.getId());
+
+        assertEquals(SmartLockPasscodeStatus.DELETED, result.getStatus());
+        assertEquals(SmartLockPasscodeStatus.DELETED, record.getStatus());
+        assertTrue(record.getDeletedAt() != null);
+        assertEquals(0, fakeProviderClient.deletePasscodeCalls);
+        verify(taskRepository, never()).save(argThat(taskArg ->
+                taskArg != null && taskArg.getTaskType() == SmartLockTaskType.DELETE_PASSCODE
+        ));
+    }
+
+    @Test
+    void listPasscodes_shouldHideDeletedRecordsAfterLocalCleanup() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = binding(100L, room);
+        binding.getDevice().setDeviceType("Keypad Touch");
+        SmartLockPasscodeRecord deletedRecord = passcodeRecord(301L, binding, SmartLockPasscodeStatus.DELETED);
+        SmartLockPasscodeRecord activeRecord = passcodeRecord(302L, binding, SmartLockPasscodeStatus.ACTIVE);
+        activeRecord.setProviderPasscodeId("key-active");
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(passcodeRepository.findByStoreIdAndRoomIdOrderByCreatedAtDesc(STORE_ID, room.getId()))
+                .thenReturn(List.of(deletedRecord, activeRecord));
+
+        List<SmartLockPasscodeDTO> result = service.listPasscodes(room.getId());
+
+        assertEquals(1, result.size());
+        assertEquals(activeRecord.getId(), result.get(0).getId());
+    }
+
+
     private Room room(Long id, Long storeId) {
         Room room = new Room();
         room.setId(id);
         room.setStoreId(storeId);
         room.setRoomNumber("101");
         return room;
+    }
+
+    private Store store(String timezone) {
+        Store store = new Store();
+        store.setId(STORE_ID);
+        store.setUserId(USER_ID);
+        store.setName("Test Store");
+        store.setTimezone(timezone);
+        return store;
+    }
+
+    private SmartLockDevice device(
+            Long id,
+            SmartLockIntegration integration,
+            String providerLockId,
+            String deviceType,
+            String auxiliaryDeviceId,
+            String rawDataJson
+    ) {
+        SmartLockDevice device = new SmartLockDevice();
+        device.setId(id);
+        device.setStoreId(STORE_ID);
+        device.setIntegration(integration);
+        device.setProvider(integration.getProvider());
+        device.setProviderLockId(providerLockId);
+        device.setLockName(providerLockId);
+        device.setDeviceType(deviceType);
+        device.setAuxiliaryDeviceId(auxiliaryDeviceId);
+        device.setRawDataJson(rawDataJson);
+        return device;
     }
 
     private SmartLockRoomBinding binding(Long id, Room room) {
@@ -803,6 +1761,32 @@ class SmartLockServiceTest {
         return binding;
     }
 
+    private SmartLockRoomBinding dualRoleBinding(
+            Long id,
+            Room room,
+            SmartLockDevice controlDevice,
+            SmartLockDevice passcodeDevice
+    ) {
+        SmartLockDevice legacyDevice = controlDevice != null ? controlDevice : passcodeDevice;
+        SmartLockIntegration integration = legacyDevice.getIntegration();
+
+        SmartLockRoomBinding binding = new SmartLockRoomBinding();
+        binding.setId(id);
+        binding.setStoreId(STORE_ID);
+        binding.setRoom(room);
+        binding.setIntegration(integration);
+        binding.setDevice(legacyDevice);
+        binding.setControlDevice(controlDevice);
+        binding.setControlProviderLockId(controlDevice != null ? controlDevice.getProviderLockId() : null);
+        binding.setPasscodeDevice(passcodeDevice);
+        binding.setPasscodeProviderLockId(passcodeDevice != null ? passcodeDevice.getProviderLockId() : null);
+        binding.setProvider(integration.getProvider());
+        binding.setProviderLockId(legacyDevice.getProviderLockId());
+        binding.setCreatedBy(USER_ID);
+        binding.setStatus(SmartLockBindingStatus.ACTIVE);
+        return binding;
+    }
+
     private SmartLockPasscodeRecord passcodeRecord(
             Long id,
             SmartLockRoomBinding binding,
@@ -815,7 +1799,16 @@ class SmartLockServiceTest {
         record.setBinding(binding);
         record.setIntegration(binding.getIntegration());
         record.setProvider(binding.getProvider());
-        record.setProviderLockId(binding.getProviderLockId());
+        SmartLockDevice passcodeDevice = binding.getPasscodeDevice() != null
+                ? binding.getPasscodeDevice()
+                : binding.getDevice();
+        String passcodeProviderLockId = binding.getPasscodeProviderLockId() != null
+                ? binding.getPasscodeProviderLockId()
+                : binding.getProviderLockId();
+        record.setProviderLockId(passcodeProviderLockId);
+        record.setPasscodeRole("PASSCODE");
+        record.setPasscodeDevice(passcodeDevice);
+        record.setPasscodeProviderLockId(passcodeProviderLockId);
         record.setPasscodeName("Guest");
         record.setPasscodeMasked("******");
         record.setPasscodeHash("hash");
@@ -824,6 +1817,60 @@ class SmartLockServiceTest {
         record.setStatus(status);
         record.setCreatedBy(USER_ID);
         return record;
+    }
+
+    private SmartLockPasscodeRecord switchBotPendingRecordForReconciliation() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockIntegration integration = switchBotIntegration();
+        SmartLockDevice lock = device(20L, integration, "lock-A", "Lock", null, "{}");
+        SmartLockDevice keypad = device(
+                21L,
+                integration,
+                "keypad-A",
+                "Keypad Touch",
+                "lock-A",
+                "{\"lockDeviceId\":\"lock-A\"}"
+        );
+        SmartLockRoomBinding binding = dualRoleBinding(100L, room, lock, keypad);
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.PENDING);
+        record.setCreatedAt(LocalDateTime.now(FIXED_CLOCK).minusMinutes(1));
+        return record;
+    }
+
+    private void stubSwitchBotReconciliationCandidates(SmartLockPasscodeRecord... records) {
+        when(passcodeRepository.findSwitchBotReconciliationCandidates(
+                eq(STORE_ID),
+                eq(SmartLockProvider.SWITCHBOT),
+                eq(SmartLockPasscodeStatus.PENDING),
+                eq(SmartLockPasscodeStatus.DELETE_PENDING),
+                any()
+        )).thenReturn(List.of(records));
+    }
+
+    private ListAppender<ILoggingEvent> attachReconciliationLogAppender() {
+        Logger logger = (Logger) LoggerFactory.getLogger(SmartLockPasscodeReconciliationService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        return appender;
+    }
+
+    private void detachReconciliationLogAppender(ListAppender<ILoggingEvent> appender) {
+        Logger logger = (Logger) LoggerFactory.getLogger(SmartLockPasscodeReconciliationService.class);
+        logger.detachAppender(appender);
+        appender.stop();
+    }
+
+    private boolean hasReconciliationLog(
+            ListAppender<ILoggingEvent> appender,
+            String expectedFragment
+    ) {
+        for (ILoggingEvent event : appender.list) {
+            if (event.getFormattedMessage().contains(expectedFragment)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private SmartLockTask task(
@@ -854,6 +1901,23 @@ class SmartLockServiceTest {
         request.setValidFrom(LocalDateTime.now(FIXED_CLOCK).plusHours(1));
         request.setValidUntil(LocalDateTime.now(FIXED_CLOCK).plusHours(5));
         return request;
+    }
+
+    private void stubCreateBindingDevices(Room room, SmartLockDevice... devices) {
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        for (SmartLockDevice device : devices) {
+            when(deviceRepository.findByStoreIdAndId(STORE_ID, device.getId())).thenReturn(Optional.of(device));
+        }
+    }
+
+    private void stubNoRoleConflicts(SmartLockProvider provider) {
+        when(bindingRepository.findActiveByAnyRoleProviderLockId(
+                eq(STORE_ID),
+                eq(provider),
+                anyString(),
+                eq(SmartLockBindingStatus.ACTIVE),
+                any()
+        )).thenReturn(List.of());
     }
 
     private SmartLockRequests.LockOperationRequest lockOperationRequest(
@@ -930,6 +1994,15 @@ class SmartLockServiceTest {
         return integration;
     }
 
+    private SmartLockIntegration ttLockIntegration() {
+        SmartLockIntegration integration = new SmartLockIntegration();
+        integration.setId(11L);
+        integration.setStoreId(STORE_ID);
+        integration.setProvider(SmartLockProvider.TTLOCK);
+        integration.setConnectionStatus(SmartLockIntegrationStatus.CONNECTED);
+        return integration;
+    }
+
     private void stubDeviceSaveWithIds() {
         long[] nextId = {20L};
         when(deviceRepository.save(any(SmartLockDevice.class))).thenAnswer(invocation -> {
@@ -971,8 +2044,16 @@ class SmartLockServiceTest {
         private RuntimeException testConnectionFailure;
         private final List<String> unlockRequests = new ArrayList<>();
         private final List<String> lockRequests = new ArrayList<>();
+        private final List<String> createPasscodeRequests = new ArrayList<>();
+        private final List<String> deletePasscodeRequests = new ArrayList<>();
+        private final List<String> listPasscodeRequests = new ArrayList<>();
         private SmartLockTaskStatus createPasscodeStatus = SmartLockTaskStatus.SUCCESS;
+        private String createProviderTaskId = "provider-task-1";
+        private String createProviderPasscodeId = "provider-passcode-1";
         private List<DeviceSnapshot> deviceSnapshots = List.of();
+        private List<ProviderPasscodeSnapshot> passcodeSnapshots = List.of();
+        private boolean passcodeDeviceFound = true;
+        private boolean passcodeKeyListReadable = true;
         private final List<String> statusRequests = new ArrayList<>();
         private final Map<String, LockStatusSnapshot> statusSnapshots = new HashMap<>();
         private final Set<String> failedStatusDeviceIds = new HashSet<>();
@@ -1032,10 +2113,11 @@ class SmartLockServiceTest {
                 PasscodeCommand command
         ) {
             createPasscodeCalls++;
+            createPasscodeRequests.add(providerLockId);
             return new ProviderTaskResult(
                     createPasscodeStatus,
-                    "provider-task-1",
-                    "provider-passcode-1",
+                    createProviderTaskId,
+                    createProviderPasscodeId,
                     "ok"
             );
         }
@@ -1047,7 +2129,33 @@ class SmartLockServiceTest {
                 String providerPasscodeId
         ) {
             deletePasscodeCalls++;
+            deletePasscodeRequests.add(providerLockId);
             return new ProviderTaskResult(SmartLockTaskStatus.SUCCESS, "task-4", providerPasscodeId, "ok");
+        }
+
+        @Override
+        public List<ProviderPasscodeSnapshot> listPasscodes(
+                SmartLockCredentialData credentials,
+                String providerLockId
+        ) {
+            return inspectPasscodes(credentials, providerLockId).passcodes();
+        }
+
+        @Override
+        public ProviderPasscodeListSnapshot inspectPasscodes(
+                SmartLockCredentialData credentials,
+                String providerLockId
+        ) {
+            listPasscodeRequests.add(providerLockId);
+            return new ProviderPasscodeListSnapshot(
+                    passcodeDeviceFound,
+                    passcodeKeyListReadable,
+                    "Keypad Touch",
+                    true,
+                    "lock-A",
+                    "hub-A",
+                    passcodeSnapshots
+            );
         }
 
         @Override

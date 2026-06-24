@@ -13,6 +13,14 @@ public class SmartLockBindingDTO {
     private String roomTypeName;
     private Long integrationId;
     private Long deviceId;
+    private Long controlDeviceId;
+    private String controlProviderLockId;
+    private String controlLockName;
+    private String controlDeviceType;
+    private Long passcodeDeviceId;
+    private String passcodeProviderLockId;
+    private String passcodeLockName;
+    private String passcodeDeviceType;
     private SmartLockProvider provider;
     private String providerLockId;
     private String lockName;
@@ -74,6 +82,70 @@ public class SmartLockBindingDTO {
 
     public void setDeviceId(Long deviceId) {
         this.deviceId = deviceId;
+    }
+
+    public Long getControlDeviceId() {
+        return controlDeviceId;
+    }
+
+    public void setControlDeviceId(Long controlDeviceId) {
+        this.controlDeviceId = controlDeviceId;
+    }
+
+    public String getControlProviderLockId() {
+        return controlProviderLockId;
+    }
+
+    public void setControlProviderLockId(String controlProviderLockId) {
+        this.controlProviderLockId = controlProviderLockId;
+    }
+
+    public String getControlLockName() {
+        return controlLockName;
+    }
+
+    public void setControlLockName(String controlLockName) {
+        this.controlLockName = controlLockName;
+    }
+
+    public String getControlDeviceType() {
+        return controlDeviceType;
+    }
+
+    public void setControlDeviceType(String controlDeviceType) {
+        this.controlDeviceType = controlDeviceType;
+    }
+
+    public Long getPasscodeDeviceId() {
+        return passcodeDeviceId;
+    }
+
+    public void setPasscodeDeviceId(Long passcodeDeviceId) {
+        this.passcodeDeviceId = passcodeDeviceId;
+    }
+
+    public String getPasscodeProviderLockId() {
+        return passcodeProviderLockId;
+    }
+
+    public void setPasscodeProviderLockId(String passcodeProviderLockId) {
+        this.passcodeProviderLockId = passcodeProviderLockId;
+    }
+
+    public String getPasscodeLockName() {
+        return passcodeLockName;
+    }
+
+    public void setPasscodeLockName(String passcodeLockName) {
+        this.passcodeLockName = passcodeLockName;
+    }
+
+    public String getPasscodeDeviceType() {
+        return passcodeDeviceType;
+    }
+
+    public void setPasscodeDeviceType(String passcodeDeviceType) {
+        this.passcodeDeviceType = passcodeDeviceType;
     }
 
     public SmartLockProvider getProvider() {

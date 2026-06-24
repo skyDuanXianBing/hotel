@@ -264,6 +264,17 @@ const formatUtcDateYmd = (date: Date): string => {
   return `${year}-${month}-${day}`
 }
 
+const formatLocalDateTime = (
+  year: string,
+  month: string,
+  day: string,
+  hour: string,
+  minute: string,
+  second: string,
+): string => {
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}`
+}
+
 export const parseYmdAsUtcDate = (ymd: string): Date => {
   const { year, month, day } = parseYmdParts(ymd)
   return new Date(Date.UTC(year, month - 1, day))
@@ -273,6 +284,43 @@ export const addDaysToYmd = (ymd: string, offsetDays: number): string => {
   const date = parseYmdAsUtcDate(normalizeYmdInput(ymd))
   date.setUTCDate(date.getUTCDate() + offsetDays)
   return formatUtcDateYmd(date)
+}
+
+export const getStoreLocalDateTime = (storeTimeZone?: string, date = new Date()): string => {
+  const timeZone = storeTimeZone
+    ? resolveStoreTimeZone(storeTimeZone)
+    : resolveStoreTimeZoneFromStorage()
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    hourCycle: 'h23',
+  })
+
+  const year = getFormatterPart(formatter, date, 'year')
+  const month = getFormatterPart(formatter, date, 'month')
+  const day = getFormatterPart(formatter, date, 'day')
+  const hour = getFormatterPart(formatter, date, 'hour')
+  const minute = getFormatterPart(formatter, date, 'minute')
+  const second = getFormatterPart(formatter, date, 'second')
+  return formatLocalDateTime(year, month, day, hour, minute, second)
+}
+
+export const addDaysToLocalDateTime = (localDateTime: string, offsetDays: number): string => {
+  const matched = localDateTime.trim().match(LOCAL_DATE_TIME_PATTERN)
+  if (!matched) {
+    const fallbackLocalDateTime = getStoreLocalDateTime()
+    return addDaysToLocalDateTime(fallbackLocalDateTime, offsetDays)
+  }
+
+  const [, year, month, day, hour, minute, secondText] = matched
+  const nextYmd = addDaysToYmd(`${year}-${month}-${day}`, offsetDays)
+  return `${nextYmd}T${hour}:${minute}:${secondText || '00'}`
 }
 
 export const addCalendarMonthsToYmd = (ymd: string, offsetMonths: number): string => {

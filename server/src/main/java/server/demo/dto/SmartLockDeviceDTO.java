@@ -14,6 +14,9 @@ public class SmartLockDeviceDTO {
     private String auxiliaryDeviceId;
     private String statusSource;
     private String statusSourceDeviceId;
+    private Boolean supportsControl;
+    private Boolean supportsPasscode;
+    private String linkedControlProviderLockId;
     private Integer battery;
     private String lockStatus;
     private Boolean online;
@@ -90,6 +93,30 @@ public class SmartLockDeviceDTO {
 
     public void setStatusSourceDeviceId(String statusSourceDeviceId) {
         this.statusSourceDeviceId = statusSourceDeviceId;
+    }
+
+    public Boolean getSupportsControl() {
+        return supportsControl;
+    }
+
+    public void setSupportsControl(Boolean supportsControl) {
+        this.supportsControl = supportsControl;
+    }
+
+    public Boolean getSupportsPasscode() {
+        return supportsPasscode;
+    }
+
+    public void setSupportsPasscode(Boolean supportsPasscode) {
+        this.supportsPasscode = supportsPasscode;
+    }
+
+    public String getLinkedControlProviderLockId() {
+        return linkedControlProviderLockId;
+    }
+
+    public void setLinkedControlProviderLockId(String linkedControlProviderLockId) {
+        this.linkedControlProviderLockId = linkedControlProviderLockId;
     }
 
     public Integer getBattery() {

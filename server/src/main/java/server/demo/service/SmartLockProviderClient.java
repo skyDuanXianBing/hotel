@@ -33,6 +33,28 @@ public interface SmartLockProviderClient {
             String providerPasscodeId
     );
 
+    default List<ProviderPasscodeSnapshot> listPasscodes(
+            SmartLockCredentialData credentials,
+            String providerLockId
+    ) {
+        return List.of();
+    }
+
+    default ProviderPasscodeListSnapshot inspectPasscodes(
+            SmartLockCredentialData credentials,
+            String providerLockId
+    ) {
+        return new ProviderPasscodeListSnapshot(
+                true,
+                true,
+                null,
+                null,
+                null,
+                null,
+                listPasscodes(credentials, providerLockId)
+        );
+    }
+
     ProviderTaskResult queryTask(SmartLockCredentialData credentials, String providerTaskId);
 
     record DeviceSnapshot(
@@ -69,5 +91,28 @@ public interface SmartLockProviderClient {
             String providerPasscodeId,
             String message
     ) {
+    }
+
+    record ProviderPasscodeSnapshot(
+            String providerPasscodeId,
+            String passcodeName,
+            String status
+    ) {
+    }
+
+    record ProviderPasscodeListSnapshot(
+            boolean deviceFound,
+            boolean keyListReadable,
+            String deviceType,
+            Boolean online,
+            String linkedLockDeviceId,
+            String hubDeviceId,
+            List<ProviderPasscodeSnapshot> passcodes
+    ) {
+        public ProviderPasscodeListSnapshot {
+            if (passcodes == null) {
+                passcodes = List.of();
+            }
+        }
     }
 }

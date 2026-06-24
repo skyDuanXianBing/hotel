@@ -44,6 +44,20 @@ public class SmartLockRoomBinding implements StoreScopedEntity {
     @JoinColumn(name = "device_id", nullable = false)
     private SmartLockDevice device;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "control_device_id")
+    private SmartLockDevice controlDevice;
+
+    @Column(name = "control_provider_lock_id", length = 120)
+    private String controlProviderLockId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "passcode_device_id")
+    private SmartLockDevice passcodeDevice;
+
+    @Column(name = "passcode_provider_lock_id", length = 120)
+    private String passcodeProviderLockId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private SmartLockProvider provider;
@@ -116,6 +130,38 @@ public class SmartLockRoomBinding implements StoreScopedEntity {
 
     public void setDevice(SmartLockDevice device) {
         this.device = device;
+    }
+
+    public SmartLockDevice getControlDevice() {
+        return controlDevice;
+    }
+
+    public void setControlDevice(SmartLockDevice controlDevice) {
+        this.controlDevice = controlDevice;
+    }
+
+    public String getControlProviderLockId() {
+        return controlProviderLockId;
+    }
+
+    public void setControlProviderLockId(String controlProviderLockId) {
+        this.controlProviderLockId = controlProviderLockId;
+    }
+
+    public SmartLockDevice getPasscodeDevice() {
+        return passcodeDevice;
+    }
+
+    public void setPasscodeDevice(SmartLockDevice passcodeDevice) {
+        this.passcodeDevice = passcodeDevice;
+    }
+
+    public String getPasscodeProviderLockId() {
+        return passcodeProviderLockId;
+    }
+
+    public void setPasscodeProviderLockId(String passcodeProviderLockId) {
+        this.passcodeProviderLockId = passcodeProviderLockId;
     }
 
     public SmartLockProvider getProvider() {

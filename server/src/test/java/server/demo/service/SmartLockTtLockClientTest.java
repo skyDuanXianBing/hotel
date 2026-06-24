@@ -1,6 +1,7 @@
 package server.demo.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.http.MockHttpOutputMessage;
@@ -16,7 +17,11 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import server.demo.config.SmartLockConfig;
+import server.demo.context.StoreContext;
+import server.demo.context.StoreContextHolder;
+import server.demo.entity.Store;
 import server.demo.enums.SmartLockTaskStatus;
+import server.demo.repository.StoreRepository;
 
 import java.net.URI;
 import java.net.URLDecoder;
@@ -28,6 +33,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -42,12 +48,16 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 class SmartLockTtLockClientTest {
     private static final String BASE_URL = "http://ttlock.test";
+    private static final Long USER_ID = 7L;
+    private static final Long STORE_ID = 26L;
+    private static final ZoneId STORE_ZONE = ZoneId.of("Asia/Shanghai");
     private static final Clock FIXED_CLOCK =
             Clock.fixed(Instant.parse("2026-06-21T10:00:00Z"), ZoneOffset.UTC);
 
     private MockRestServiceServer server;
     private SmartLockTtLockClient client;
     private SmartLockCredentialData credentials;
+    private StoreRepository storeRepository;
 
     @BeforeEach
     void setUp() {
@@ -56,7 +66,9 @@ class SmartLockTtLockClientTest {
 
         SmartLockConfig config = mock(SmartLockConfig.class);
         when(config.getTtLockBaseUrl()).thenReturn(BASE_URL);
-        client = new SmartLockTtLockClient(config, new ObjectMapper(), FIXED_CLOCK, restTemplate);
+        storeRepository = mock(StoreRepository.class);
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store(STORE_ZONE.getId())));
+        client = new SmartLockTtLockClient(config, new ObjectMapper(), FIXED_CLOCK, storeRepository, restTemplate);
 
         credentials = new SmartLockCredentialData();
         credentials.setTtLockClientId("client-1");
@@ -64,6 +76,12 @@ class SmartLockTtLockClientTest {
         credentials.setTtLockUsername("owner@example.com");
         credentials.setTtLockPasswordMd5("5f4dcc3b5aa765d61d8327deb882cf99");
         credentials.setTtLockAccessToken("access-1");
+        StoreContextHolder.setContext(new StoreContext(USER_ID, STORE_ID, "owner"));
+    }
+
+    @AfterEach
+    void tearDown() {
+        StoreContextHolder.clear();
     }
 
     @Test
@@ -115,8 +133,8 @@ class SmartLockTtLockClientTest {
     void createPasscode_shouldSendGatewayAddWithRequiredDates() {
         LocalDateTime validFrom = LocalDateTime.of(2026, 6, 21, 18, 0);
         LocalDateTime validUntil = LocalDateTime.of(2026, 6, 22, 10, 0);
-        String startDate = String.valueOf(validFrom.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
-        String endDate = String.valueOf(validUntil.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+        String startDate = String.valueOf(validFrom.atZone(STORE_ZONE).toInstant().toEpochMilli());
+        String endDate = String.valueOf(validUntil.atZone(STORE_ZONE).toInstant().toEpochMilli());
 
         server.expect(once(), requestTo(BASE_URL + "/v3/keyboardPwd/add"))
                 .andExpect(method(HttpMethod.POST))
@@ -287,6 +305,15 @@ class SmartLockTtLockClientTest {
         return params;
     }
 
+    private static Store store(String timezone) {
+        Store store = new Store();
+        store.setId(STORE_ID);
+        store.setUserId(USER_ID);
+        store.setName("TTLock Test Store");
+        store.setTimezone(timezone);
+        return store;
+    }
+
     @Configuration(proxyBeanMethods = false)
     private static class TtLockSpringTestConfig {
         @Bean
@@ -304,6 +331,11 @@ class SmartLockTtLockClientTest {
         @Bean
         Clock clock() {
             return FIXED_CLOCK;
+        }
+
+        @Bean
+        StoreRepository storeRepository() {
+            return mock(StoreRepository.class);
         }
     }
 }

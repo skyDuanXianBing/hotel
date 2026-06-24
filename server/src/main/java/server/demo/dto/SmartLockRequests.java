@@ -106,6 +106,10 @@ public class SmartLockRequests {
         private Long roomId;
         private Long integrationId;
         private Long deviceId;
+        private Long controlDeviceId;
+        private String controlProviderLockId;
+        private Long passcodeDeviceId;
+        private String passcodeProviderLockId;
         private SmartLockProvider provider;
         private String providerLockId;
 
@@ -131,6 +135,38 @@ public class SmartLockRequests {
 
         public void setDeviceId(Long deviceId) {
             this.deviceId = deviceId;
+        }
+
+        public Long getControlDeviceId() {
+            return controlDeviceId;
+        }
+
+        public void setControlDeviceId(Long controlDeviceId) {
+            this.controlDeviceId = controlDeviceId;
+        }
+
+        public String getControlProviderLockId() {
+            return controlProviderLockId;
+        }
+
+        public void setControlProviderLockId(String controlProviderLockId) {
+            this.controlProviderLockId = controlProviderLockId;
+        }
+
+        public Long getPasscodeDeviceId() {
+            return passcodeDeviceId;
+        }
+
+        public void setPasscodeDeviceId(Long passcodeDeviceId) {
+            this.passcodeDeviceId = passcodeDeviceId;
+        }
+
+        public String getPasscodeProviderLockId() {
+            return passcodeProviderLockId;
+        }
+
+        public void setPasscodeProviderLockId(String passcodeProviderLockId) {
+            this.passcodeProviderLockId = passcodeProviderLockId;
         }
 
         public SmartLockProvider getProvider() {

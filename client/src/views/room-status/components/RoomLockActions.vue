@@ -13,7 +13,7 @@
         plain
         :icon="Refresh"
         :loading="isStatusLoading"
-        :disabled="!normalizedTarget"
+        :disabled="!normalizedTarget || (!canUseControlDevice && !statusError)"
         @click="refreshCurrentStatus"
       >
         {{ lockT('actions.refresh') }}
@@ -36,10 +36,15 @@
         </div>
         <div class="status-meta">
           <span>{{ providerText }}</span>
+          <span>{{ controlDeviceText }}</span>
+          <span>{{ passcodeDeviceText }}</span>
           <span>{{ onlineText }}</span>
           <span>{{ batteryText }}</span>
         </div>
         <div v-if="statusError" class="status-error">{{ statusError }}</div>
+        <div v-else-if="controlUnavailableText" class="status-hint">
+          {{ controlUnavailableText }}
+        </div>
         <div v-else-if="pollingStatusText" class="status-polling">{{ pollingStatusText }}</div>
         <div v-else-if="statusUpdatedText" class="status-updated">
           {{ lockT('status.meta.updatedAt', { time: statusUpdatedText }) }}
@@ -52,7 +57,7 @@
           plain
           :icon="Unlock"
           :loading="isActionBusy('UNLOCK')"
-          :disabled="!canOperateLock || isCurrentRoomBusy"
+          :disabled="!canUseControlDevice || isCurrentControlBusy"
           @click="beginProtectedAction('UNLOCK')"
         >
           {{ lockT('actions.unlock') }}
@@ -62,7 +67,7 @@
           plain
           :icon="Lock"
           :loading="isActionBusy('LOCK')"
-          :disabled="!canOperateLock || isCurrentRoomBusy"
+          :disabled="!canUseControlDevice || isCurrentControlBusy"
           @click="beginProtectedAction('LOCK')"
         >
           {{ lockT('actions.lock') }}
@@ -70,7 +75,7 @@
         <el-button
           plain
           :icon="Key"
-          :disabled="!canOperateLock || isCurrentRoomBusy"
+          :disabled="!canUsePasscodeDevice || isCurrentPasscodeBusy"
           @click="openPasscodeDialog"
         >
           {{ lockT('actions.setPasscode') }}
@@ -84,7 +89,7 @@
             link
             size="small"
             :loading="isPasscodesLoading"
-            :disabled="!canOperateLock"
+            :disabled="!canUsePasscodeDevice || isCurrentPasscodeBusy"
             @click="reloadCurrentPasscodes"
           >
             {{ lockT('actions.refreshPasscodes') }}
@@ -94,7 +99,7 @@
         <div v-if="passcodeError" class="passcode-error">{{ passcodeError }}</div>
         <el-empty
           v-else-if="!isPasscodesLoading && currentPasscodes.length === 0"
-          :description="lockT('passcodes.empty')"
+          :description="passcodeEmptyDescription"
           :image-size="48"
         />
         <div v-else class="passcode-list" v-loading="isPasscodesLoading">
@@ -114,7 +119,11 @@
               type="danger"
               :icon="Delete"
               :loading="isDeleteBusy(passcode)"
-              :disabled="!getPasscodeRecordId(passcode) || isPasscodeDeletePending(passcode)"
+              :disabled="
+                !canUsePasscodeDevice ||
+                !getPasscodeRecordId(passcode) ||
+                isPasscodeDeletePending(passcode)
+              "
               @click="confirmDeletePasscode(passcode)"
             >
               {{ lockT('actions.delete') }}
@@ -203,17 +212,17 @@
           <div class="date-range-fields">
             <el-date-picker
               v-model="passcodeForm.validFrom"
-              type="date"
-              value-format="YYYY-MM-DD"
-              format="YYYY-MM-DD"
+              type="datetime"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              format="YYYY-MM-DD HH:mm:ss"
               :placeholder="lockT('placeholders.startDate')"
             />
             <span>{{ lockT('fields.validitySeparator') }}</span>
             <el-date-picker
               v-model="passcodeForm.validUntil"
-              type="date"
-              value-format="YYYY-MM-DD"
-              format="YYYY-MM-DD"
+              type="datetime"
+              value-format="YYYY-MM-DDTHH:mm:ss"
+              format="YYYY-MM-DD HH:mm:ss"
               :placeholder="lockT('placeholders.endDate')"
             />
           </div>
@@ -259,6 +268,7 @@ import {
   lockRoomLock,
   refreshRoomLockStatus,
   unlockRoomLock,
+  type SmartLockProvider,
   type RoomLockActionRequest,
   type RoomLockConfirmationDTO,
   type RoomLockOperationAction,
@@ -266,13 +276,32 @@ import {
   type RoomLockPasscodeDTO,
   type RoomLockStatusDTO,
 } from '@/api/roomLock'
-import { addDaysToYmd, getStoreTodayYmd, normalizeYmdInput } from '@/utils/storeDateTime'
+import {
+  addDaysToLocalDateTime,
+  getStoreLocalDateTime,
+  normalizeYmdInput,
+} from '@/utils/storeDateTime'
 
 const PASSCODE_MIN_LENGTH = 6
 const PASSCODE_MAX_LENGTH = 12
 const GENERATED_PASSCODE_LENGTH = 6
+const PASSCODE_DEFAULT_VALIDITY_DAYS = 1
 const LOCK_STATUS_POLL_INTERVAL_MS = 1000
 const LOCK_STATUS_POLL_MAX_ATTEMPTS = 10
+const PASSCODE_CREATE_PENDING_STATUSES = new Set([
+  'PENDING',
+  'CREATE_PENDING',
+  'PENDING_CREATE',
+  'CREATE_REQUESTED',
+  'CREATING',
+  'PROCESSING',
+])
+const PASSCODE_DELETE_PENDING_STATUSES = new Set([
+  'DELETE_PENDING',
+  'PENDING_DELETE',
+  'DELETE_REQUESTED',
+  'DELETING',
+])
 
 const props = defineProps<{
   target: RoomLockOperationContext | null
@@ -353,10 +382,25 @@ const statusTagText = computed(() => getStatusTagText(currentStatus.value))
 const statusTagType = computed(() => getStatusTagType(currentStatus.value))
 const statusClass = computed(() => getStatusClass(currentStatus.value))
 const providerText = computed(() => getProviderText(currentStatus.value))
+const controlDeviceText = computed(() => getControlDeviceText(currentStatus.value))
+const passcodeDeviceText = computed(() => getPasscodeDeviceText(currentStatus.value))
 const onlineText = computed(() => getOnlineText(currentStatus.value))
 const batteryText = computed(() => getBatteryText(currentStatus.value))
 const statusUpdatedText = computed(() => getStatusUpdatedText(currentStatus.value))
-const canOperateLock = computed(() => isRoomLockBound(currentStatus.value))
+const canUseControlDevice = computed(() => canUseControlDeviceForStatus(currentStatus.value))
+const canUsePasscodeDevice = computed(() => canUsePasscodeDeviceForStatus(currentStatus.value))
+const controlUnavailableText = computed(() => {
+  if (canUseControlDevice.value) {
+    return ''
+  }
+  return getControlUnavailableMessage(currentStatus.value)
+})
+const passcodeEmptyDescription = computed(() => {
+  if (canUsePasscodeDevice.value) {
+    return lockT('passcodes.empty')
+  }
+  return lockT('passcodes.emptyNoPasscodeDevice')
+})
 const pollingStatusText = computed(() => {
   const polling = currentStatusPolling.value
   if (!polling) {
@@ -377,18 +421,20 @@ const pollingStatusText = computed(() => {
   })
 })
 
-const isCurrentRoomBusy = computed(() => {
+const isCurrentControlBusy = computed(() => {
   const roomId = currentRoomId.value
   if (!roomId) {
     return false
   }
-  const prefix = `${roomId}:`
-  for (const [key, loading] of actionLoadingMap.value.entries()) {
-    if (key.startsWith(prefix) && loading) {
-      return true
-    }
+  return isRoomActionBusy(roomId, ['LOCK', 'UNLOCK'])
+})
+
+const isCurrentPasscodeBusy = computed(() => {
+  const roomId = currentRoomId.value
+  if (!roomId) {
+    return false
   }
-  return false
+  return isRoomActionPrefixBusy(roomId, 'PASSCODE_')
 })
 
 const confirmDialogTitle = computed(() => {
@@ -502,6 +548,25 @@ const isActionBusy = (action: string) => {
   return actionLoadingMap.value.get(getActionKey(roomId, action)) || false
 }
 
+const isRoomActionBusy = (roomId: number, actions: string[]) => {
+  for (const action of actions) {
+    if (actionLoadingMap.value.get(getActionKey(roomId, action))) {
+      return true
+    }
+  }
+  return false
+}
+
+const isRoomActionPrefixBusy = (roomId: number, actionPrefix: string) => {
+  const keyPrefix = `${roomId}:${actionPrefix}`
+  for (const [key, loading] of actionLoadingMap.value.entries()) {
+    if (loading && key.startsWith(keyPrefix)) {
+      return true
+    }
+  }
+  return false
+}
+
 const isCurrentTargetRoom = (roomId: number) => {
   return normalizedTarget.value?.roomId === roomId
 }
@@ -523,7 +588,12 @@ const loadStatus = async (roomId: number, force: boolean) => {
       setStatusError(roomId, lockT('messages.statusLoadFailed'))
       return
     }
-    setRoomStatus(roomId, response.data || null)
+    const nextStatus = response.data || null
+    setRoomStatus(roomId, nextStatus)
+    if (!canUsePasscodeDeviceForStatus(nextStatus)) {
+      setPasscodes(roomId, [])
+      setPasscodeError(roomId, '')
+    }
   } catch (error) {
     setRoomStatus(roomId, null)
     setStatusError(roomId, getErrorMessage(error, 'messages.statusLoadFailed'))
@@ -534,7 +604,7 @@ const loadStatus = async (roomId: number, force: boolean) => {
 
 const loadPasscodes = async (roomId: number) => {
   if (!roomId) {
-    return
+    return false
   }
   setPasscodesLoading(roomId, true)
   setPasscodeError(roomId, '')
@@ -543,12 +613,14 @@ const loadPasscodes = async (roomId: number) => {
     if (!response.success) {
       setPasscodes(roomId, [])
       setPasscodeError(roomId, lockT('messages.passcodesLoadFailed'))
-      return
+      return false
     }
     setPasscodes(roomId, Array.isArray(response.data) ? response.data : [])
+    return true
   } catch (error) {
     setPasscodes(roomId, [])
     setPasscodeError(roomId, getErrorMessage(error, 'messages.passcodesLoadFailed'))
+    return false
   } finally {
     setPasscodesLoading(roomId, false)
   }
@@ -558,6 +630,11 @@ const refreshCurrentStatus = async () => {
   const target = cloneCurrentTarget()
   if (!target) {
     ElMessage.warning(lockT('messages.missingRoom'))
+    return
+  }
+  const cachedStatus = statusMap.value.get(target.roomId) || null
+  if (!canUseControlDeviceForStatus(cachedStatus) && !statusErrorMap.value.get(target.roomId)) {
+    ElMessage.warning(getControlUnavailableMessage(cachedStatus))
     return
   }
   await loadStatus(target.roomId, true)
@@ -572,6 +649,11 @@ const refreshCurrentStatus = async () => {
 const reloadCurrentPasscodes = async () => {
   const target = cloneCurrentTarget()
   if (!target) {
+    return
+  }
+  const cachedStatus = statusMap.value.get(target.roomId) || null
+  if (!canUsePasscodeDeviceForStatus(cachedStatus)) {
+    ElMessage.warning(getPasscodeUnavailableMessage(cachedStatus))
     return
   }
   await loadPasscodes(target.roomId)
@@ -590,8 +672,8 @@ const beginProtectedAction = async (action: RoomLockOperationAction) => {
     ElMessage.warning(lockT('messages.missingRoom'))
     return
   }
-  if (!canOperateLock.value) {
-    ElMessage.warning(lockT('messages.unboundRoom'))
+  if (!canUseControlDevice.value) {
+    ElMessage.warning(getControlUnavailableMessage(currentStatus.value))
     return
   }
 
@@ -781,15 +863,14 @@ const openPasscodeDialog = () => {
     ElMessage.warning(lockT('messages.missingRoom'))
     return
   }
-  if (!canOperateLock.value) {
-    ElMessage.warning(lockT('messages.unboundRoom'))
+  if (!canUsePasscodeDevice.value) {
+    ElMessage.warning(getPasscodeUnavailableMessage(currentStatus.value))
     return
   }
 
   passcodeTarget.value = target
-  const today = getStoreTodayYmd()
-  const defaultStart = target.checkInDate || target.date || today
-  const defaultUntil = target.checkOutDate || addDaysToYmd(defaultStart, 1)
+  const defaultStart = getStoreLocalDateTime()
+  const defaultUntil = addDaysToLocalDateTime(defaultStart, PASSCODE_DEFAULT_VALIDITY_DAYS)
   passcodeForm.value = {
     generate: true,
     passcode: '',
@@ -841,6 +922,11 @@ const validatePasscodeForm = () => {
     ElMessage.warning(lockT('messages.missingRoom'))
     return false
   }
+  const cachedStatus = statusMap.value.get(passcodeTarget.value.roomId) || null
+  if (!canUsePasscodeDeviceForStatus(cachedStatus)) {
+    ElMessage.warning(getPasscodeUnavailableMessage(cachedStatus))
+    return false
+  }
   if (!isManualPasscodeValid()) {
     return false
   }
@@ -869,20 +955,16 @@ const createGeneratedPasscode = () => {
   return code
 }
 
-const toStartDateTime = (date: string) => `${date}T00:00:00`
-
-const toEndDateTime = (date: string) => `${date}T23:59:59`
-
 const getNormalizedPasscodeStatus = (passcode?: RoomLockPasscodeDTO | null) => {
   return String(passcode?.status || '').trim().toUpperCase()
 }
 
 const isPasscodePendingStatus = (status: string) => {
-  return status === 'PENDING'
+  return PASSCODE_CREATE_PENDING_STATUSES.has(status)
 }
 
 const isPasscodeDeletePendingStatus = (status: string) => {
-  return status === 'DELETE_PENDING' || status === 'PENDING_DELETE' || status === 'DELETE_REQUESTED'
+  return PASSCODE_DELETE_PENDING_STATUSES.has(status)
 }
 
 const isPasscodeDeletePending = (passcode: RoomLockPasscodeDTO) => {
@@ -899,6 +981,11 @@ const submitPasscode = async () => {
   }
 
   const target = { ...passcodeTarget.value }
+  const cachedStatus = statusMap.value.get(target.roomId) || null
+  if (!canUsePasscodeDeviceForStatus(cachedStatus)) {
+    ElMessage.warning(getPasscodeUnavailableMessage(cachedStatus))
+    return
+  }
   const passcode = passcodeForm.value.generate
     ? createGeneratedPasscode()
     : passcodeForm.value.passcode.trim()
@@ -910,8 +997,8 @@ const submitPasscode = async () => {
     const response = await createRoomLockPasscode(target.roomId, {
       passcodeName,
       passcode,
-      validFrom: toStartDateTime(passcodeForm.value.validFrom),
-      validUntil: toEndDateTime(passcodeForm.value.validUntil),
+      validFrom: passcodeForm.value.validFrom,
+      validUntil: passcodeForm.value.validUntil,
       idempotencyKey,
     })
     if (!response.success) {
@@ -966,6 +1053,15 @@ const confirmDeletePasscode = async (passcode: RoomLockPasscodeDTO) => {
     ElMessage.warning(lockT('messages.deleteMissing'))
     return
   }
+  const cachedStatus = statusMap.value.get(target.roomId) || null
+  if (!canUsePasscodeDeviceForStatus(cachedStatus)) {
+    ElMessage.warning(getPasscodeUnavailableMessage(cachedStatus))
+    return
+  }
+  if (passcode.roomId && Number(passcode.roomId) !== target.roomId) {
+    ElMessage.warning(lockT('messages.passcodeRoomMismatch'))
+    return
+  }
   if (isDeleteBusy(passcode) || isPasscodeDeletePending(passcode)) {
     return
   }
@@ -1010,13 +1106,12 @@ const confirmDeletePasscode = async (passcode: RoomLockPasscodeDTO) => {
   }
 }
 
-const isRoomLockBound = (status: RoomLockStatusDTO | null) => {
+const hasLegacyControlStatus = (status: RoomLockStatusDTO | null) => {
   if (!status) {
     return false
   }
   return Boolean(
-    status.bindingId ||
-      status.deviceId ||
+    status.deviceId ||
       status.providerLockId ||
       status.lockName ||
       status.provider ||
@@ -1024,12 +1119,69 @@ const isRoomLockBound = (status: RoomLockStatusDTO | null) => {
   )
 }
 
+const hasAnyLockBinding = (status: RoomLockStatusDTO | null) => {
+  if (!status) {
+    return false
+  }
+  return Boolean(
+    status.bindingId ||
+      status.controlAvailable ||
+      status.passcodeAvailable ||
+      status.controlDeviceId ||
+      status.controlProviderLockId ||
+      status.controlDeviceName ||
+      status.controlLockName ||
+      status.passcodeDeviceId ||
+      status.passcodeProviderLockId ||
+      status.passcodeDeviceName ||
+      status.passcodeLockName ||
+      hasLegacyControlStatus(status),
+  )
+}
+
+const canUseControlDeviceForStatus = (status: RoomLockStatusDTO | null) => {
+  if (!status) {
+    return false
+  }
+  if (typeof status.controlAvailable === 'boolean') {
+    return status.controlAvailable
+  }
+  return hasLegacyControlStatus(status)
+}
+
+const canUsePasscodeDeviceForStatus = (status: RoomLockStatusDTO | null) => {
+  if (!status) {
+    return false
+  }
+  if (typeof status.passcodeAvailable === 'boolean') {
+    return status.passcodeAvailable
+  }
+  return hasLegacyControlStatus(status)
+}
+
+const getControlUnavailableMessage = (status: RoomLockStatusDTO | null) => {
+  if (!hasAnyLockBinding(status)) {
+    return lockT('messages.unboundRoom')
+  }
+  return lockT('messages.controlUnavailable')
+}
+
+const getPasscodeUnavailableMessage = (status: RoomLockStatusDTO | null) => {
+  if (!hasAnyLockBinding(status)) {
+    return lockT('messages.unboundRoom')
+  }
+  return lockT('messages.passcodeUnavailable')
+}
+
 const normalizeLockState = (status: RoomLockStatusDTO | null) => {
   if (!status) {
     return 'UNBOUND'
   }
-  if (!isRoomLockBound(status)) {
+  if (!hasAnyLockBinding(status)) {
     return 'UNBOUND'
+  }
+  if (!canUseControlDeviceForStatus(status)) {
+    return 'CONTROL_MISSING'
   }
   const rawStatus = String(status.lockStatus || '').trim()
   if (!rawStatus) {
@@ -1078,6 +1230,9 @@ const getStatusLabel = (status: RoomLockStatusDTO | null) => {
   if (state === 'UNBOUND') {
     return lockT('status.labels.unbound')
   }
+  if (state === 'CONTROL_MISSING') {
+    return lockT('status.labels.controlMissing')
+  }
   if (state === 'JAMMED') {
     return lockT('status.labels.jammed')
   }
@@ -1095,6 +1250,9 @@ const getStatusTagText = (status: RoomLockStatusDTO | null) => {
   if (state === 'UNBOUND') {
     return lockT('status.badges.unbound')
   }
+  if (state === 'CONTROL_MISSING') {
+    return lockT('status.badges.controlMissing')
+  }
   if (state === 'JAMMED') {
     return lockT('status.badges.abnormal')
   }
@@ -1109,7 +1267,7 @@ const getStatusTagType = (status: RoomLockStatusDTO | null) => {
   if (state === 'UNLOCKED') {
     return 'warning'
   }
-  if (state === 'UNBOUND') {
+  if (state === 'UNBOUND' || state === 'CONTROL_MISSING') {
     return 'info'
   }
   return 'danger'
@@ -1149,16 +1307,39 @@ const getStatusClass = (status: RoomLockStatusDTO | null) => {
 }
 
 const getProviderText = (status: RoomLockStatusDTO | null) => {
-  let provider = '-'
-  if (!status?.provider) {
-    return lockT('status.meta.provider', { provider })
-  }
-  if (status.provider === 'SWITCHBOT') {
-    provider = 'SwitchBot'
-  } else {
-    provider = 'TTLock'
-  }
+  const provider = getProviderName(status?.controlProvider || status?.provider)
   return lockT('status.meta.provider', { provider })
+}
+
+const getProviderName = (provider?: SmartLockProvider) => {
+  if (!provider) {
+    return '-'
+  }
+  if (provider === 'SWITCHBOT') {
+    return 'SwitchBot'
+  }
+  return 'TTLock'
+}
+
+const getRoleDeviceFallback = (available: boolean) => {
+  return available ? lockT('roles.available') : lockT('roles.unavailable')
+}
+
+const getControlDeviceText = (status: RoomLockStatusDTO | null) => {
+  const device =
+    status?.controlDeviceName ||
+    status?.controlLockName ||
+    status?.lockName ||
+    getRoleDeviceFallback(canUseControlDeviceForStatus(status))
+  return lockT('status.meta.controlDevice', { device })
+}
+
+const getPasscodeDeviceText = (status: RoomLockStatusDTO | null) => {
+  const device =
+    status?.passcodeDeviceName ||
+    status?.passcodeLockName ||
+    getRoleDeviceFallback(canUsePasscodeDeviceForStatus(status))
+  return lockT('status.meta.passcodeDevice', { device })
 }
 
 const getOnlineText = (status: RoomLockStatusDTO | null) => {
@@ -1240,7 +1421,13 @@ watch(
     if (!target) {
       return
     }
-    await Promise.all([loadStatus(target.roomId, false), loadPasscodes(target.roomId)])
+    await loadStatus(target.roomId, false)
+    if (canUsePasscodeDeviceForStatus(statusMap.value.get(target.roomId) || null)) {
+      await loadPasscodes(target.roomId)
+    } else {
+      setPasscodes(target.roomId, [])
+      setPasscodeError(target.roomId, '')
+    }
   },
   { immediate: true },
 )
@@ -1342,6 +1529,12 @@ onBeforeUnmount(() => {
   margin-top: 8px;
   font-size: 12px;
   color: #c45656;
+}
+
+.status-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 
 .status-polling {
@@ -1457,7 +1650,9 @@ onBeforeUnmount(() => {
 }
 
 .date-range-fields .el-date-editor {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .field-tip {

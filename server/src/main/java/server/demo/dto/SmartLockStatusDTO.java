@@ -8,6 +8,16 @@ public class SmartLockStatusDTO {
     private Long roomId;
     private Long bindingId;
     private Long deviceId;
+    private Long controlDeviceId;
+    private String controlProviderLockId;
+    private String controlLockName;
+    private Boolean controlAvailable;
+    private String controlUnavailableReason;
+    private Long passcodeDeviceId;
+    private String passcodeProviderLockId;
+    private String passcodeLockName;
+    private Boolean passcodeAvailable;
+    private String passcodeUnavailableReason;
     private SmartLockProvider provider;
     private String providerLockId;
     private String lockName;
@@ -38,6 +48,86 @@ public class SmartLockStatusDTO {
 
     public void setDeviceId(Long deviceId) {
         this.deviceId = deviceId;
+    }
+
+    public Long getControlDeviceId() {
+        return controlDeviceId;
+    }
+
+    public void setControlDeviceId(Long controlDeviceId) {
+        this.controlDeviceId = controlDeviceId;
+    }
+
+    public String getControlProviderLockId() {
+        return controlProviderLockId;
+    }
+
+    public void setControlProviderLockId(String controlProviderLockId) {
+        this.controlProviderLockId = controlProviderLockId;
+    }
+
+    public String getControlLockName() {
+        return controlLockName;
+    }
+
+    public void setControlLockName(String controlLockName) {
+        this.controlLockName = controlLockName;
+    }
+
+    public Boolean getControlAvailable() {
+        return controlAvailable;
+    }
+
+    public void setControlAvailable(Boolean controlAvailable) {
+        this.controlAvailable = controlAvailable;
+    }
+
+    public String getControlUnavailableReason() {
+        return controlUnavailableReason;
+    }
+
+    public void setControlUnavailableReason(String controlUnavailableReason) {
+        this.controlUnavailableReason = controlUnavailableReason;
+    }
+
+    public Long getPasscodeDeviceId() {
+        return passcodeDeviceId;
+    }
+
+    public void setPasscodeDeviceId(Long passcodeDeviceId) {
+        this.passcodeDeviceId = passcodeDeviceId;
+    }
+
+    public String getPasscodeProviderLockId() {
+        return passcodeProviderLockId;
+    }
+
+    public void setPasscodeProviderLockId(String passcodeProviderLockId) {
+        this.passcodeProviderLockId = passcodeProviderLockId;
+    }
+
+    public String getPasscodeLockName() {
+        return passcodeLockName;
+    }
+
+    public void setPasscodeLockName(String passcodeLockName) {
+        this.passcodeLockName = passcodeLockName;
+    }
+
+    public Boolean getPasscodeAvailable() {
+        return passcodeAvailable;
+    }
+
+    public void setPasscodeAvailable(Boolean passcodeAvailable) {
+        this.passcodeAvailable = passcodeAvailable;
+    }
+
+    public String getPasscodeUnavailableReason() {
+        return passcodeUnavailableReason;
+    }
+
+    public void setPasscodeUnavailableReason(String passcodeUnavailableReason) {
+        this.passcodeUnavailableReason = passcodeUnavailableReason;
     }
 
     public SmartLockProvider getProvider() {

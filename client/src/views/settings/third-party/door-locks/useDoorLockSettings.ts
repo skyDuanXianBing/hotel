@@ -27,12 +27,15 @@ const PROVIDER_TTLOCK: DoorLockProvider = 'TTLOCK'
 const EMPTY_ROOM_TYPE_FILTER = ''
 const MASKED_ID_VISIBLE_LENGTH = 4
 const STATUS_SOURCE_BOUND_LOCK = 'BOUND_LOCK'
+const ROLE_CONTROL = 'control' as const
+const ROLE_PASSCODE = 'passcode' as const
 const SWITCHBOT_AUTHENTICATION_PANEL_TYPES = [
   'keypad',
   'keypad touch',
   'keypad vision',
   'keypad vision pro',
 ]
+const SWITCHBOT_CONTROL_DEVICE_TYPE_KEYWORD = 'lock'
 const SWITCHBOT_PASSCODE_DEVICE_TYPES = [
   'keypad',
   'keypad touch',
@@ -40,6 +43,22 @@ const SWITCHBOT_PASSCODE_DEVICE_TYPES = [
   'keypad vision pro',
   'lock vision',
   'lock vision pro',
+]
+const CONTROL_CAPABILITY_VALUES = [
+  'CONTROL',
+  'LOCK_CONTROL',
+  'LOCK',
+  'UNLOCK',
+  'STATUS',
+  'BATTERY',
+]
+const PASSCODE_CAPABILITY_VALUES = [
+  'PASSCODE',
+  'PASSCODE_MANAGEMENT',
+  'PASSCODE_MANAGE',
+  'PIN',
+  'PIN_CODE',
+  'PASSWORD',
 ]
 
 interface DoorLockConfigForm {
@@ -72,6 +91,18 @@ interface ResourceLoadingOwner {
   storeId: number
 }
 
+type DoorLockBindingRole = typeof ROLE_CONTROL | typeof ROLE_PASSCODE
+
+interface DoorLockRoleSelection {
+  controlDeviceKey: string
+  passcodeDeviceKey: string
+}
+
+interface RoomBindingValidation {
+  canSave: boolean
+  messages: string[]
+}
+
 export function useDoorLockSettings() {
   const { t } = useI18n()
   const storeStore = useStoreStore()
@@ -95,7 +126,7 @@ export function useDoorLockSettings() {
   const roomTypeFilter = ref<number | ''>(EMPTY_ROOM_TYPE_FILTER)
   const devices = ref<DoorLockDeviceDTO[]>([])
   const rooms = ref<DoorLockRoomDTO[]>([])
-  const selectedDeviceByRoomId = ref<Record<number, string>>({})
+  const selectedDeviceByRoomId = ref<Record<number, DoorLockRoleSelection>>({})
   const integrations = ref(createEmptyIntegrationMap())
   const configForms = ref(createEmptyConfigForms())
 
@@ -202,6 +233,13 @@ export function useDoorLockSettings() {
     return {
       SWITCHBOT: null,
       TTLOCK: null,
+    }
+  }
+
+  function createEmptyRoleSelection(): DoorLockRoleSelection {
+    return {
+      controlDeviceKey: '',
+      passcodeDeviceKey: '',
     }
   }
 
@@ -433,12 +471,15 @@ export function useDoorLockSettings() {
   }
 
   function syncSelectedDevicesFromRooms() {
-    const nextSelected: Record<number, string> = {}
+    const nextSelected: Record<number, DoorLockRoleSelection> = {}
     for (const room of rooms.value) {
       const binding = getRoomBinding(room)
       const roomId = getRoomId(room)
-      if (binding?.deviceId && roomId) {
-        nextSelected[roomId] = String(binding.deviceId)
+      if (roomId) {
+        nextSelected[roomId] = {
+          controlDeviceKey: binding ? getBindingRoleDeviceKey(binding, ROLE_CONTROL) : '',
+          passcodeDeviceKey: binding ? getBindingRoleDeviceKey(binding, ROLE_PASSCODE) : '',
+        }
       }
     }
     selectedDeviceByRoomId.value = nextSelected
@@ -726,7 +767,6 @@ export function useDoorLockSettings() {
   async function handleSaveBinding(room: DoorLockRoomDTO) {
     const providerAtRequest = activeProvider.value
     const roomId = getRoomId(room)
-    const deviceId = selectedDeviceByRoomId.value[roomId]
     const integration = integrations.value[providerAtRequest]
     const storeIdAtRequest = currentStoreId.value
 
@@ -740,41 +780,17 @@ export function useDoorLockSettings() {
       return
     }
 
-    if (!deviceId) {
-      ElMessage.warning(t('settings.doorLocks.messages.selectDevice'))
-      return
-    }
-
-    const selectedDevice = devices.value.find((device) => getDeviceKey(device) === deviceId)
-    if (!selectedDevice) {
-      ElMessage.warning(t('settings.doorLocks.messages.selectDevice'))
-      return
-    }
-
-    if (selectedDevice && isDeviceBoundToOtherRoom(selectedDevice, room)) {
-      ElMessage.warning(t('settings.doorLocks.hints.deviceReuse'))
-      return
-    }
-
-    const currentBinding = getRoomBinding(room)
-    if (currentBinding && getBindingDeviceKey(currentBinding) === deviceId) {
-      ElMessage.info(t('settings.doorLocks.messages.noChangedBinding'))
+    const validation = getRoomBindingValidation(room)
+    if (!validation.canSave) {
+      ElMessage.warning(
+        validation.messages[0] || t('settings.doorLocks.messages.selectAtLeastOneRoleDevice'),
+      )
       return
     }
 
     setRoomActionLoading(savingBindingKeys, providerAtRequest, roomId, true)
     try {
-      const bindingPayload: DoorLockBindingPayload = {
-        integrationId: integration.id,
-        roomId,
-      }
-      if (selectedDevice.id) {
-        bindingPayload.deviceId = selectedDevice.id
-      } else {
-        bindingPayload.provider = providerAtRequest
-        bindingPayload.providerLockId = selectedDevice.providerLockId
-      }
-
+      const bindingPayload = buildBindingPayload(room, integration.id)
       const response = await saveDoorLockBinding(bindingPayload)
       if (!isCurrentStoreRequest(storeIdAtRequest)) {
         return
@@ -959,21 +975,15 @@ export function useDoorLockSettings() {
   }
 
   function getDeviceCapabilityLabels(device: DoorLockDeviceDTO) {
-    if (!device.provider) {
-      return []
+    const labels: string[] = []
+    if (canDeviceServeRole(device, ROLE_CONTROL)) {
+      labels.push(t('settings.doorLocks.capabilities.control'))
     }
 
-    if (isSwitchBotAuthenticationPanel(device)) {
-      return [t('settings.doorLocks.capabilities.passcode')]
+    if (canDeviceServeRole(device, ROLE_PASSCODE)) {
+      labels.push(t('settings.doorLocks.capabilities.passcodeManagement'))
     }
 
-    const labels = [
-      t('settings.doorLocks.capabilities.lock'),
-      t('settings.doorLocks.capabilities.unlock'),
-    ]
-    if (hasPasscodeCapability(device)) {
-      labels.push(t('settings.doorLocks.capabilities.passcode'))
-    }
     return labels
   }
 
@@ -1015,11 +1025,35 @@ export function useDoorLockSettings() {
       return '-'
     }
 
-    if (binding.lockName) {
-      return binding.lockName
+    const controlDevice = getRoomBoundRoleDeviceName(room, ROLE_CONTROL)
+    const passcodeDevice = getRoomBoundRoleDeviceName(room, ROLE_PASSCODE)
+    if (controlDevice === '-' && passcodeDevice === '-') {
+      return '-'
     }
 
-    const device = devices.value.find((item) => isBindingForDevice(binding, item))
+    return [
+      `${t('settings.doorLocks.fields.controlDevice')}: ${controlDevice}`,
+      `${t('settings.doorLocks.fields.passcodeDevice')}: ${passcodeDevice}`,
+    ].join('; ')
+  }
+
+  function getRoomBoundRoleDeviceName(room: DoorLockRoomDTO, role: DoorLockBindingRole) {
+    const binding = getRoomBinding(room)
+    if (!binding) {
+      return '-'
+    }
+
+    const roleName = getBindingRoleDeviceName(binding, role)
+    if (roleName) {
+      return roleName
+    }
+
+    const roleDeviceKey = getBindingRoleDeviceKey(binding, role)
+    if (!roleDeviceKey) {
+      return '-'
+    }
+
+    const device = findDeviceByKey(roleDeviceKey)
     if (device) {
       return getDeviceDisplayName(device)
     }
@@ -1040,6 +1074,10 @@ export function useDoorLockSettings() {
   }
 
   function isDeviceBoundToOtherRoom(device: DoorLockDeviceDTO, room: DoorLockRoomDTO) {
+    return isRoleDeviceBoundToOtherRoom(device, room)
+  }
+
+  function isRoleDeviceBoundToOtherRoom(device: DoorLockDeviceDTO, room: DoorLockRoomDTO) {
     const roomId = getRoomId(room)
     if (!roomId) {
       return false
@@ -1055,13 +1093,147 @@ export function useDoorLockSettings() {
     return String(binding.deviceId || binding.providerLockId || '')
   }
 
+  function getBindingRoleDeviceKey(binding: DoorLockBindingDTO, role: DoorLockBindingRole) {
+    const roleKey = getExplicitBindingRoleDeviceKey(binding, role)
+    if (roleKey) {
+      return roleKey
+    }
+
+    if (hasExplicitBindingRoleFields(binding)) {
+      return ''
+    }
+
+    return getLegacyBindingRoleDeviceKey(binding, role)
+  }
+
+  function getExplicitBindingRoleDeviceKey(binding: DoorLockBindingDTO, role: DoorLockBindingRole) {
+    if (role === ROLE_CONTROL) {
+      return getBindingRoleKeyFromValues(
+        binding.controlDeviceId,
+        binding.controlProviderLockId,
+        binding.controlDevice?.deviceId,
+        binding.controlDevice?.providerLockId,
+        binding.controlDevice?.providerDeviceId,
+      )
+    }
+
+    return getBindingRoleKeyFromValues(
+      binding.passcodeDeviceId,
+      binding.passcodeProviderLockId,
+      binding.passcodeDevice?.deviceId,
+      binding.passcodeDevice?.providerLockId,
+      binding.passcodeDevice?.providerDeviceId,
+    )
+  }
+
+  function getBindingRoleKeyFromValues(
+    primaryDeviceId?: number | null,
+    primaryProviderLockId?: string | null,
+    nestedDeviceId?: number,
+    nestedProviderLockId?: string,
+    nestedProviderDeviceId?: string,
+  ) {
+    if (primaryDeviceId) {
+      return String(primaryDeviceId)
+    }
+
+    if (nestedDeviceId) {
+      return String(nestedDeviceId)
+    }
+
+    if (primaryProviderLockId) {
+      return primaryProviderLockId
+    }
+
+    if (nestedProviderLockId) {
+      return nestedProviderLockId
+    }
+
+    if (nestedProviderDeviceId) {
+      return nestedProviderDeviceId
+    }
+
+    return ''
+  }
+
+  function hasExplicitBindingRoleFields(binding: DoorLockBindingDTO) {
+    return (
+      binding.controlDeviceId !== undefined ||
+      binding.controlProviderLockId !== undefined ||
+      binding.controlDevice !== undefined ||
+      binding.passcodeDeviceId !== undefined ||
+      binding.passcodeProviderLockId !== undefined ||
+      binding.passcodeDevice !== undefined
+    )
+  }
+
+  function getLegacyBindingRoleDeviceKey(binding: DoorLockBindingDTO, role: DoorLockBindingRole) {
+    const legacyKey = getBindingDeviceKey(binding)
+    if (!legacyKey) {
+      return ''
+    }
+
+    const device = findDeviceByKey(legacyKey)
+    if (device) {
+      if (canDeviceServeRole(device, role)) {
+        return legacyKey
+      }
+
+      return ''
+    }
+
+    if (binding.provider !== PROVIDER_SWITCHBOT) {
+      return legacyKey
+    }
+
+    return ''
+  }
+
+  function getBindingRoleDeviceName(binding: DoorLockBindingDTO, role: DoorLockBindingRole) {
+    if (role === ROLE_CONTROL) {
+      return (
+        binding.controlLockName ||
+        binding.controlDevice?.lockName ||
+        getLegacyBindingRoleName(binding, role)
+      )
+    }
+
+    return (
+      binding.passcodeLockName ||
+      binding.passcodeDevice?.lockName ||
+      getLegacyBindingRoleName(binding, role)
+    )
+  }
+
+  function getLegacyBindingRoleName(binding: DoorLockBindingDTO, role: DoorLockBindingRole) {
+    if (!hasExplicitBindingRoleFields(binding) && getLegacyBindingRoleDeviceKey(binding, role)) {
+      return binding.lockName || ''
+    }
+
+    return ''
+  }
+
   function isBindingForDevice(binding: DoorLockBindingDTO, device: DoorLockDeviceDTO) {
     const deviceKey = getDeviceKey(device)
     if (!deviceKey) {
       return false
     }
 
-    return getBindingDeviceKey(binding) === deviceKey || binding.providerLockId === device.providerLockId
+    const bindingControlKey = getBindingRoleDeviceKey(binding, ROLE_CONTROL)
+    const bindingPasscodeKey = getBindingRoleDeviceKey(binding, ROLE_PASSCODE)
+    if (bindingControlKey === deviceKey || bindingPasscodeKey === deviceKey) {
+      return true
+    }
+
+    if (device.providerLockId) {
+      return (
+        binding.controlProviderLockId === device.providerLockId ||
+        binding.passcodeProviderLockId === device.providerLockId ||
+        binding.providerLockId === device.providerLockId
+      )
+    }
+
+    return false
   }
 
   function isSavingRoom(room: DoorLockRoomDTO) {
@@ -1073,14 +1245,411 @@ export function useDoorLockSettings() {
   }
 
   function canSaveRoomBinding(room: DoorLockRoomDTO) {
+    return getRoomBindingValidation(room).canSave
+  }
+
+  function getRoomBindingHintMessages(room: DoorLockRoomDTO) {
+    return getRoomBindingValidation(room).messages
+  }
+
+  function getRoomBindingValidation(room: DoorLockRoomDTO): RoomBindingValidation {
+    const messages: string[] = []
+    let hasBlockingError = false
+    const selection = getRoomRoleSelection(room)
+    const controlDevice = findDeviceByKey(selection.controlDeviceKey)
+    const passcodeDevice = findDeviceByKey(selection.passcodeDeviceKey)
+
+    if (!selection.controlDeviceKey && !selection.passcodeDeviceKey) {
+      messages.push(t('settings.doorLocks.messages.selectAtLeastOneRoleDevice'))
+      return {
+        canSave: false,
+        messages,
+      }
+    }
+
+    if (!selection.controlDeviceKey) {
+      messages.push(t('settings.doorLocks.hints.missingControlDevice'))
+    }
+
+    if (!selection.passcodeDeviceKey) {
+      messages.push(t('settings.doorLocks.hints.missingPasscodeDevice'))
+    }
+
+    if (selection.controlDeviceKey) {
+      if (!controlDevice || !canDeviceServeRole(controlDevice, ROLE_CONTROL)) {
+        messages.push(t('settings.doorLocks.messages.roleDeviceCapabilityMismatch'))
+        hasBlockingError = true
+      } else if (isRoleDeviceUnavailableForRoom(controlDevice, room)) {
+        messages.push(t('settings.doorLocks.messages.roleDeviceAlreadyBound'))
+        hasBlockingError = true
+      }
+    }
+
+    if (selection.passcodeDeviceKey) {
+      if (!passcodeDevice || !canDeviceServeRole(passcodeDevice, ROLE_PASSCODE)) {
+        messages.push(t('settings.doorLocks.messages.roleDeviceCapabilityMismatch'))
+        hasBlockingError = true
+      } else if (isRoleDeviceUnavailableForRoom(passcodeDevice, room)) {
+        messages.push(t('settings.doorLocks.messages.roleDeviceAlreadyBound'))
+        hasBlockingError = true
+      }
+    }
+
+    if (
+      controlDevice &&
+      passcodeDevice &&
+      selection.controlDeviceKey === selection.passcodeDeviceKey
+    ) {
+      if (
+        !canDeviceServeRole(controlDevice, ROLE_CONTROL) ||
+        !canDeviceServeRole(controlDevice, ROLE_PASSCODE)
+      ) {
+        messages.push(t('settings.doorLocks.hints.sameRoomSameDeviceAllowed'))
+        hasBlockingError = true
+      }
+    }
+
+    const switchBotMessage = getSwitchBotPasscodeValidationMessage(
+      room,
+      controlDevice,
+      passcodeDevice,
+    )
+    if (switchBotMessage) {
+      messages.push(switchBotMessage)
+      hasBlockingError = true
+    }
+
+    if (hasAnyRoleBindingState(room) && !hasRoomBindingChanged(room)) {
+      messages.push(t('settings.doorLocks.messages.noChangedRoleBinding'))
+      hasBlockingError = true
+    }
+
+    return {
+      canSave: Boolean(activeIntegration.value?.id && !isSavingRoom(room) && !hasBlockingError),
+      messages,
+    }
+  }
+
+  function getRoomRoleSelection(room: DoorLockRoomDTO) {
+    return getRoleSelectionByRoomId(getRoomId(room))
+  }
+
+  function getRoleSelectionByRoomId(roomId: number) {
+    return selectedDeviceByRoomId.value[roomId] || createEmptyRoleSelection()
+  }
+
+  function getSelectedRoleDeviceKey(room: DoorLockRoomDTO, role: DoorLockBindingRole) {
+    const selection = getRoomRoleSelection(room)
+    if (role === ROLE_CONTROL) {
+      return selection.controlDeviceKey
+    }
+
+    return selection.passcodeDeviceKey
+  }
+
+  function setSelectedRoleDeviceKey(
+    room: DoorLockRoomDTO,
+    role: DoorLockBindingRole,
+    value?: unknown,
+  ) {
     const roomId = getRoomId(room)
-    const selectedDeviceId = selectedDeviceByRoomId.value[roomId]
-    const selectedDevice = devices.value.find((device) => getDeviceKey(device) === selectedDeviceId)
-    if (selectedDevice && isDeviceBoundToOtherRoom(selectedDevice, room)) {
+    if (!roomId) {
+      return
+    }
+
+    const currentSelection = getRoleSelectionByRoomId(roomId)
+    const nextSelection = { ...currentSelection }
+    const nextValue = value ? String(value) : ''
+    if (role === ROLE_CONTROL) {
+      nextSelection.controlDeviceKey = nextValue
+    } else {
+      nextSelection.passcodeDeviceKey = nextValue
+    }
+
+    selectedDeviceByRoomId.value = {
+      ...selectedDeviceByRoomId.value,
+      [roomId]: nextSelection,
+    }
+  }
+
+  function handleControlDeviceChange(room: DoorLockRoomDTO, value?: unknown) {
+    setSelectedRoleDeviceKey(room, ROLE_CONTROL, value)
+  }
+
+  function handlePasscodeDeviceChange(room: DoorLockRoomDTO, value?: unknown) {
+    setSelectedRoleDeviceKey(room, ROLE_PASSCODE, value)
+  }
+
+  function getRoleDeviceOptions(role: DoorLockBindingRole) {
+    return devices.value.filter((device) => canDeviceServeRole(device, role))
+  }
+
+  function isRoleDeviceOptionDisabled(
+    device: DoorLockDeviceDTO,
+    room: DoorLockRoomDTO,
+    role: DoorLockBindingRole,
+  ) {
+    if (!canDeviceServeRole(device, role)) {
+      return true
+    }
+
+    if (isRoleDeviceUnavailableForRoom(device, room)) {
+      return true
+    }
+
+    if (role === ROLE_PASSCODE && isSwitchBotAssociatedLockBoundToOtherRoom(device, room)) {
+      return true
+    }
+
+    return false
+  }
+
+  function isRoleDeviceUnavailableForRoom(device: DoorLockDeviceDTO, room: DoorLockRoomDTO) {
+    return (
+      isRoleDeviceBoundToOtherRoom(device, room) ||
+      isRoleDeviceSelectedByOtherRoom(device, room)
+    )
+  }
+
+  function isRoleDeviceSelectedByOtherRoom(device: DoorLockDeviceDTO, room: DoorLockRoomDTO) {
+    const deviceKey = getDeviceKey(device)
+    const roomId = getRoomId(room)
+    if (!deviceKey || !roomId) {
       return false
     }
 
-    return Boolean(activeIntegration.value?.id && selectedDeviceId && !isSavingRoom(room))
+    for (const [selectedRoomId, selection] of Object.entries(selectedDeviceByRoomId.value)) {
+      if (Number(selectedRoomId) === roomId) {
+        continue
+      }
+
+      if (selection.controlDeviceKey === deviceKey || selection.passcodeDeviceKey === deviceKey) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  function hasRoomBindingChanged(room: DoorLockRoomDTO) {
+    const binding = getRoomBinding(room)
+    const selection = getRoomRoleSelection(room)
+    if (!binding) {
+      return Boolean(selection.controlDeviceKey || selection.passcodeDeviceKey)
+    }
+
+    const bindingControlKey = getBindingRoleDeviceKey(binding, ROLE_CONTROL)
+    const bindingPasscodeKey = getBindingRoleDeviceKey(binding, ROLE_PASSCODE)
+    return (
+      bindingControlKey !== selection.controlDeviceKey ||
+      bindingPasscodeKey !== selection.passcodeDeviceKey
+    )
+  }
+
+  function hasAnyRoleBindingState(room: DoorLockRoomDTO) {
+    const selection = getRoomRoleSelection(room)
+    return Boolean(
+      getRoomBinding(room) ||
+        selection.controlDeviceKey ||
+        selection.passcodeDeviceKey,
+    )
+  }
+
+  function buildBindingPayload(
+    room: DoorLockRoomDTO,
+    integrationId: number,
+  ): DoorLockBindingPayload {
+    const selection = getRoomRoleSelection(room)
+    const controlDevice = findDeviceByKey(selection.controlDeviceKey)
+    const passcodeDevice = findDeviceByKey(selection.passcodeDeviceKey)
+    const payload: DoorLockBindingPayload = {
+      integrationId,
+      roomId: getRoomId(room),
+      controlDeviceId: null,
+      controlProviderLockId: null,
+      passcodeDeviceId: null,
+      passcodeProviderLockId: null,
+    }
+
+    applyRoleDeviceToPayload(payload, ROLE_CONTROL, controlDevice)
+    applyRoleDeviceToPayload(payload, ROLE_PASSCODE, passcodeDevice)
+    return payload
+  }
+
+  function applyRoleDeviceToPayload(
+    payload: DoorLockBindingPayload,
+    role: DoorLockBindingRole,
+    device?: DoorLockDeviceDTO,
+  ) {
+    const deviceId = device?.id || null
+    const providerLockId = device ? getDeviceProviderLockPayloadValue(device) : null
+    if (role === ROLE_CONTROL) {
+      payload.controlDeviceId = deviceId
+      payload.controlProviderLockId = providerLockId
+      return
+    }
+
+    payload.passcodeDeviceId = deviceId
+    payload.passcodeProviderLockId = providerLockId
+  }
+
+  function getDeviceProviderLockPayloadValue(device: DoorLockDeviceDTO) {
+    return device.providerLockId || device.providerDeviceId || null
+  }
+
+  function findDeviceByKey(deviceKey?: string) {
+    if (!deviceKey) {
+      return undefined
+    }
+
+    return devices.value.find((device) => getDeviceKey(device) === deviceKey)
+  }
+
+  function canDeviceServeRole(device: DoorLockDeviceDTO, role: DoorLockBindingRole) {
+    const explicitCapability = getExplicitRoleCapability(device, role)
+    if (explicitCapability !== null) {
+      return explicitCapability
+    }
+
+    if (role === ROLE_CONTROL) {
+      return hasFallbackControlCapability(device)
+    }
+
+    return hasFallbackPasscodeCapability(device)
+  }
+
+  function getExplicitRoleCapability(device: DoorLockDeviceDTO, role: DoorLockBindingRole) {
+    if (role === ROLE_CONTROL && typeof device.supportsControl === 'boolean') {
+      return device.supportsControl
+    }
+
+    if (role === ROLE_PASSCODE && typeof device.supportsPasscode === 'boolean') {
+      return device.supportsPasscode
+    }
+
+    if (!device.capabilities?.length) {
+      return null
+    }
+
+    if (role === ROLE_CONTROL) {
+      return hasCapabilityValue(device, CONTROL_CAPABILITY_VALUES)
+    }
+
+    return hasCapabilityValue(device, PASSCODE_CAPABILITY_VALUES)
+  }
+
+  function hasCapabilityValue(device: DoorLockDeviceDTO, expectedValues: string[]) {
+    if (!device.capabilities?.length) {
+      return false
+    }
+
+    for (const capability of device.capabilities) {
+      const normalizedCapability = normalizeCapability(capability)
+      if (expectedValues.includes(normalizedCapability)) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  function hasFallbackControlCapability(device: DoorLockDeviceDTO) {
+    if (device.provider === PROVIDER_TTLOCK) {
+      return true
+    }
+
+    if (device.provider !== PROVIDER_SWITCHBOT) {
+      return true
+    }
+
+    if (isSwitchBotAuthenticationPanel(device)) {
+      return false
+    }
+
+    return normalizeDeviceType(device.deviceType).includes(SWITCHBOT_CONTROL_DEVICE_TYPE_KEYWORD)
+  }
+
+  function hasFallbackPasscodeCapability(device: DoorLockDeviceDTO) {
+    if (device.provider === PROVIDER_TTLOCK) {
+      return true
+    }
+
+    if (device.provider !== PROVIDER_SWITCHBOT) {
+      return true
+    }
+
+    return SWITCHBOT_PASSCODE_DEVICE_TYPES.includes(normalizeDeviceType(device.deviceType))
+  }
+
+  function getSwitchBotPasscodeValidationMessage(
+    room: DoorLockRoomDTO,
+    controlDevice?: DoorLockDeviceDTO,
+    passcodeDevice?: DoorLockDeviceDTO,
+  ) {
+    if (!passcodeDevice || !isSwitchBotAuthenticationPanel(passcodeDevice)) {
+      return ''
+    }
+
+    if (isSwitchBotAssociatedLockBoundToOtherRoom(passcodeDevice, room)) {
+      return t('settings.doorLocks.messages.switchBotPasscodeLockAlreadyBound')
+    }
+
+    if (controlDevice && isSwitchBotPasscodeControlMismatch(passcodeDevice, controlDevice)) {
+      return t('settings.doorLocks.messages.switchBotPasscodeLockMismatch')
+    }
+
+    return ''
+  }
+
+  function isSwitchBotAssociatedLockBoundToOtherRoom(
+    passcodeDevice: DoorLockDeviceDTO,
+    room: DoorLockRoomDTO,
+  ) {
+    const associatedControlDevice = getSwitchBotAssociatedControlDevice(passcodeDevice)
+    if (!associatedControlDevice) {
+      return false
+    }
+
+    return isRoleDeviceUnavailableForRoom(associatedControlDevice, room)
+  }
+
+  function isSwitchBotPasscodeControlMismatch(
+    passcodeDevice: DoorLockDeviceDTO,
+    controlDevice: DoorLockDeviceDTO,
+  ) {
+    const associatedLockKey = normalizeExternalKey(passcodeDevice.auxiliaryDeviceId)
+    if (!associatedLockKey) {
+      return false
+    }
+
+    return !getDeviceExternalKeys(controlDevice).includes(associatedLockKey)
+  }
+
+  function getSwitchBotAssociatedControlDevice(passcodeDevice: DoorLockDeviceDTO) {
+    if (!isSwitchBotAuthenticationPanel(passcodeDevice)) {
+      return undefined
+    }
+
+    const associatedLockKey = normalizeExternalKey(passcodeDevice.auxiliaryDeviceId)
+    if (!associatedLockKey) {
+      return undefined
+    }
+
+    return devices.value.find((device) => {
+      if (!canDeviceServeRole(device, ROLE_CONTROL)) {
+        return false
+      }
+
+      return getDeviceExternalKeys(device).includes(associatedLockKey)
+    })
+  }
+
+  function getDeviceExternalKeys(device: DoorLockDeviceDTO) {
+    return [
+      normalizeExternalKey(device.providerDeviceId),
+      normalizeExternalKey(device.providerLockId),
+      normalizeExternalKey(device.statusSourceDeviceId),
+    ].filter(Boolean)
   }
 
   function getDeviceBatteryLabel(device: DoorLockDeviceDTO) {
@@ -1133,20 +1702,28 @@ export function useDoorLockSettings() {
     return value.trim().toLowerCase()
   }
 
+  function normalizeCapability(value?: string) {
+    if (!value) {
+      return ''
+    }
+
+    return value.trim().toUpperCase().replace(/[\s-]+/g, '_')
+  }
+
+  function normalizeExternalKey(value?: string) {
+    if (!value) {
+      return ''
+    }
+
+    return value.trim().toLowerCase()
+  }
+
   function isSwitchBotAuthenticationPanel(device: DoorLockDeviceDTO) {
     if (device.provider !== PROVIDER_SWITCHBOT) {
       return false
     }
 
     return SWITCHBOT_AUTHENTICATION_PANEL_TYPES.includes(normalizeDeviceType(device.deviceType))
-  }
-
-  function hasPasscodeCapability(device: DoorLockDeviceDTO) {
-    if (device.provider !== PROVIDER_SWITCHBOT) {
-      return true
-    }
-
-    return SWITCHBOT_PASSCODE_DEVICE_TYPES.includes(normalizeDeviceType(device.deviceType))
   }
 
   watch(currentStoreId, (storeId, previousStoreId) => {
@@ -1170,6 +1747,8 @@ export function useDoorLockSettings() {
     PROVIDER_SWITCHBOT,
     PROVIDER_TTLOCK,
     EMPTY_ROOM_TYPE_FILTER,
+    ROLE_CONTROL,
+    ROLE_PASSCODE,
     t,
     providerOptions,
     activeProvider,
@@ -1201,6 +1780,8 @@ export function useDoorLockSettings() {
     handleSyncDevices,
     handleSaveBinding,
     handleUnbind,
+    handleControlDeviceChange,
+    handlePasscodeDeviceChange,
     handleProviderTabChange,
     handleRoomTypeChange,
     handleClearRoomTypeFilter,
@@ -1218,6 +1799,11 @@ export function useDoorLockSettings() {
     getRoomTypeName,
     getRoomBinding,
     getRoomBoundDeviceName,
+    getRoomBoundRoleDeviceName,
+    getSelectedRoleDeviceKey,
+    getRoleDeviceOptions,
+    isRoleDeviceOptionDisabled,
+    getRoomBindingHintMessages,
     getDeviceBoundRoomLabel,
     isDeviceBoundToOtherRoom,
     isSavingRoom,

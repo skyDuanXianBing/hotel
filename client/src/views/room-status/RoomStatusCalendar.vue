@@ -2590,6 +2590,7 @@ const showBookingSidebar = ref(false)
 const bookingMode = ref<'create' | 'edit' | 'check-in'>('create')
 const showBookingDetailSidebar = ref(false)
 const selectedReservation = ref<any>(null)
+const reservationDetailRequestId = ref(0)
 const detailNotesDraft = ref('')
 const savingDetailNotes = ref(false)
 const activeDetailTab = ref('detail')
@@ -5778,9 +5779,23 @@ const loadHoverReservationDetails = async (reservationId: number, requestId: num
 
 // 加载预订详情
 const loadReservationDetails = async (reservationId: number) => {
+  const requestId = reservationDetailRequestId.value + 1
+  reservationDetailRequestId.value = requestId
+  const isCurrentDetailRequest = () => {
+    return (
+      requestId === reservationDetailRequestId.value &&
+      showBookingDetailSidebar.value &&
+      Number(selectedReservation.value?.id || 0) === reservationId
+    )
+  }
+
   try {
     console.log('加载预订详情，ID:', reservationId)
     const response = await getReservationById(reservationId)
+
+    if (!isCurrentDetailRequest()) {
+      return
+    }
 
     if (response.success && response.data) {
       // 更新预订信息
@@ -5793,6 +5808,10 @@ const loadReservationDetails = async (reservationId: number) => {
 
       // 加载消费和收款数据
       await loadConsumptionAndPaymentData()
+
+      if (!isCurrentDetailRequest()) {
+        return
+      }
 
       // 加载操作日志与渠道信息
       void loadOperationLogs(reservationId)

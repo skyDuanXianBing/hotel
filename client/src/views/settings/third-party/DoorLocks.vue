@@ -317,7 +317,7 @@
         class="section-alert"
       />
       <el-alert
-        :title="t('settings.doorLocks.hints.deviceReuse')"
+        :title="t('settings.doorLocks.hints.roleDeviceReuse')"
         type="warning"
         show-icon
         :closable="false"
@@ -340,28 +340,71 @@
             {{ getRoomTypeName(row) }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('settings.doorLocks.fields.currentDevice')" min-width="190">
+        <el-table-column :label="t('settings.doorLocks.fields.currentBinding')" min-width="230">
           <template #default="{ row }">
-            {{ getRoomBoundDeviceName(row) }}
+            <div class="binding-summary">
+              <div class="role-line">
+                <span class="role-label">
+                  {{ t('settings.doorLocks.fields.currentControlDevice') }}
+                </span>
+                <span class="role-value">{{ getRoomBoundRoleDeviceName(row, ROLE_CONTROL) }}</span>
+              </div>
+              <div class="role-line">
+                <span class="role-label">
+                  {{ t('settings.doorLocks.fields.currentPasscodeDevice') }}
+                </span>
+                <span class="role-value">{{ getRoomBoundRoleDeviceName(row, ROLE_PASSCODE) }}</span>
+              </div>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('settings.doorLocks.fields.device')" min-width="260">
+        <el-table-column :label="t('settings.doorLocks.fields.bindingDevices')" min-width="320">
           <template #default="{ row }">
-            <el-select
-              v-model="selectedDeviceByRoomId[getRoomId(row)]"
-              :placeholder="t('settings.doorLocks.placeholders.selectDevice')"
-              clearable
-              filterable
-              class="device-select"
-            >
-              <el-option
-                v-for="device in devices"
-                :key="getDeviceKey(device)"
-                :label="getDeviceDisplayName(device)"
-                :value="getDeviceKey(device)"
-                :disabled="isDeviceBoundToOtherRoom(device, row)"
-              />
-            </el-select>
+            <div class="role-selection-list">
+              <div class="role-selection-row">
+                <span class="role-label">{{ t('settings.doorLocks.fields.controlDevice') }}</span>
+                <el-select
+                  :model-value="getSelectedRoleDeviceKey(row, ROLE_CONTROL)"
+                  :placeholder="t('settings.doorLocks.placeholders.selectControlDevice')"
+                  clearable
+                  filterable
+                  class="device-select"
+                  @update:model-value="handleControlDeviceChange(row, $event)"
+                >
+                  <el-option
+                    v-for="device in getRoleDeviceOptions(ROLE_CONTROL)"
+                    :key="getDeviceKey(device)"
+                    :label="getDeviceDisplayName(device)"
+                    :value="getDeviceKey(device)"
+                    :disabled="isRoleDeviceOptionDisabled(device, row, ROLE_CONTROL)"
+                  />
+                </el-select>
+              </div>
+              <div class="role-selection-row">
+                <span class="role-label">{{ t('settings.doorLocks.fields.passcodeDevice') }}</span>
+                <el-select
+                  :model-value="getSelectedRoleDeviceKey(row, ROLE_PASSCODE)"
+                  :placeholder="t('settings.doorLocks.placeholders.selectPasscodeDevice')"
+                  clearable
+                  filterable
+                  class="device-select"
+                  @update:model-value="handlePasscodeDeviceChange(row, $event)"
+                >
+                  <el-option
+                    v-for="device in getRoleDeviceOptions(ROLE_PASSCODE)"
+                    :key="getDeviceKey(device)"
+                    :label="getDeviceDisplayName(device)"
+                    :value="getDeviceKey(device)"
+                    :disabled="isRoleDeviceOptionDisabled(device, row, ROLE_PASSCODE)"
+                  />
+                </el-select>
+              </div>
+              <div v-if="getRoomBindingHintMessages(row).length" class="binding-hints">
+                <p v-for="message in getRoomBindingHintMessages(row)" :key="message">
+                  {{ message }}
+                </p>
+              </div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column :label="t('settings.common.actions')" width="190" fixed="right">
@@ -402,6 +445,8 @@ const {
   PROVIDER_SWITCHBOT,
   PROVIDER_TTLOCK,
   EMPTY_ROOM_TYPE_FILTER,
+  ROLE_CONTROL,
+  ROLE_PASSCODE,
   t,
   providerOptions,
   activeProvider,
@@ -415,7 +460,6 @@ const {
   roomTypeFilter,
   devices,
   configForms,
-  selectedDeviceByRoomId,
   currentStoreId,
   currentStoreName,
   activeIntegration,
@@ -433,6 +477,8 @@ const {
   handleSyncDevices,
   handleSaveBinding,
   handleUnbind,
+  handleControlDeviceChange,
+  handlePasscodeDeviceChange,
   handleProviderTabChange,
   handleRoomTypeChange,
   handleClearRoomTypeFilter,
@@ -445,13 +491,15 @@ const {
   getDeviceStatusTagType,
   getDeviceCapabilityLabels,
   getDeviceStatusSourceLabel,
-  getRoomId,
   getRoomDisplayName,
   getRoomTypeName,
   getRoomBinding,
-  getRoomBoundDeviceName,
+  getRoomBoundRoleDeviceName,
+  getSelectedRoleDeviceKey,
+  getRoleDeviceOptions,
+  isRoleDeviceOptionDisabled,
+  getRoomBindingHintMessages,
   getDeviceBoundRoomLabel,
-  isDeviceBoundToOtherRoom,
   isSavingRoom,
   isUnbindingRoom,
   canSaveRoomBinding,
@@ -634,6 +682,50 @@ const {
   line-height: 1.3;
 }
 
+.binding-summary,
+.role-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.role-line,
+.role-selection-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.role-label {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.role-value {
+  min-width: 0;
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.binding-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.binding-hints p {
+  margin: 0;
+  color: #b54708;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .device-select {
   width: 100%;
 }
@@ -657,6 +749,12 @@ const {
   .form-actions,
   .inline-hint {
     margin-left: 0;
+  }
+
+  .role-line,
+  .role-selection-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 }
 </style>

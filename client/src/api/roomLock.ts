@@ -27,6 +27,20 @@ export interface RoomLockStatusDTO {
   providerLockId?: string
   lockName?: string
   provider?: SmartLockProvider
+  controlAvailable?: boolean
+  passcodeAvailable?: boolean
+  controlDeviceId?: number
+  controlProviderLockId?: string
+  controlDeviceName?: string
+  controlLockName?: string
+  controlProvider?: SmartLockProvider
+  controlUnavailableReason?: string
+  passcodeDeviceId?: number
+  passcodeProviderLockId?: string
+  passcodeDeviceName?: string
+  passcodeLockName?: string
+  passcodeProvider?: SmartLockProvider
+  passcodeUnavailableReason?: string
   lockStatus?: string
   online?: boolean
   battery?: number

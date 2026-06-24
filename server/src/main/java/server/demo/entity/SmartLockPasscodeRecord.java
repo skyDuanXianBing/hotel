@@ -51,6 +51,16 @@ public class SmartLockPasscodeRecord implements StoreScopedEntity {
     @Column(name = "provider_lock_id", nullable = false, length = 120)
     private String providerLockId;
 
+    @Column(name = "passcode_role", nullable = false, length = 30)
+    private String passcodeRole = "PASSCODE";
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "passcode_device_id")
+    private SmartLockDevice passcodeDevice;
+
+    @Column(name = "passcode_provider_lock_id", length = 120)
+    private String passcodeProviderLockId;
+
     @Column(name = "provider_passcode_id", length = 120)
     private String providerPasscodeId;
 
@@ -159,6 +169,30 @@ public class SmartLockPasscodeRecord implements StoreScopedEntity {
 
     public void setProviderLockId(String providerLockId) {
         this.providerLockId = providerLockId;
+    }
+
+    public String getPasscodeRole() {
+        return passcodeRole;
+    }
+
+    public void setPasscodeRole(String passcodeRole) {
+        this.passcodeRole = passcodeRole;
+    }
+
+    public SmartLockDevice getPasscodeDevice() {
+        return passcodeDevice;
+    }
+
+    public void setPasscodeDevice(SmartLockDevice passcodeDevice) {
+        this.passcodeDevice = passcodeDevice;
+    }
+
+    public String getPasscodeProviderLockId() {
+        return passcodeProviderLockId;
+    }
+
+    public void setPasscodeProviderLockId(String passcodeProviderLockId) {
+        this.passcodeProviderLockId = passcodeProviderLockId;
     }
 
     public String getProviderPasscodeId() {

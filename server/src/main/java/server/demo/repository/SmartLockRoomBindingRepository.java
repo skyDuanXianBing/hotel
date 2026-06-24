@@ -1,6 +1,8 @@
 package server.demo.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import server.demo.entity.SmartLockRoomBinding;
 import server.demo.enums.SmartLockBindingStatus;
@@ -47,5 +49,26 @@ public interface SmartLockRoomBindingRepository extends JpaRepository<SmartLockR
             SmartLockProvider provider,
             String providerLockId,
             SmartLockBindingStatus status
+    );
+
+    @Query("""
+            select binding
+            from SmartLockRoomBinding binding
+            where binding.storeId = :storeId
+              and binding.provider = :provider
+              and binding.status = :status
+              and (:excludedBindingId is null or binding.id <> :excludedBindingId)
+              and (
+                    binding.controlProviderLockId = :providerLockId
+                 or binding.passcodeProviderLockId = :providerLockId
+                 or binding.providerLockId = :providerLockId
+              )
+            """)
+    List<SmartLockRoomBinding> findActiveByAnyRoleProviderLockId(
+            @Param("storeId") Long storeId,
+            @Param("provider") SmartLockProvider provider,
+            @Param("providerLockId") String providerLockId,
+            @Param("status") SmartLockBindingStatus status,
+            @Param("excludedBindingId") Long excludedBindingId
     );
 }

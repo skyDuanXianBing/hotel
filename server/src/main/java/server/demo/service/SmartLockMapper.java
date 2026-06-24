@@ -1,5 +1,6 @@
 package server.demo.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import server.demo.dto.SmartLockBindingDTO;
 import server.demo.dto.SmartLockDeviceDTO;
@@ -17,6 +18,16 @@ import server.demo.entity.SmartLockTask;
 
 @Component
 public class SmartLockMapper {
+    private final SmartLockDeviceRoleResolver roleResolver;
+
+    public SmartLockMapper() {
+        this(new SmartLockDeviceRoleResolver(new ObjectMapper()));
+    }
+
+    public SmartLockMapper(SmartLockDeviceRoleResolver roleResolver) {
+        this.roleResolver = roleResolver;
+    }
+
     public SmartLockIntegrationDTO toIntegrationDto(
             SmartLockIntegration integration,
             SmartLockCredentialData credentials
@@ -49,6 +60,9 @@ public class SmartLockMapper {
         dto.setLockName(device.getLockName());
         dto.setDeviceType(device.getDeviceType());
         dto.setAuxiliaryDeviceId(device.getAuxiliaryDeviceId());
+        dto.setSupportsControl(roleResolver.supportsControl(device));
+        dto.setSupportsPasscode(roleResolver.supportsPasscode(device));
+        dto.setLinkedControlProviderLockId(roleResolver.linkedControlProviderLockId(device));
         dto.setBattery(device.getBattery());
         dto.setLockStatus(device.getLockStatus());
         dto.setOnline(device.getOnline());
@@ -70,12 +84,37 @@ public class SmartLockMapper {
         if (binding.getIntegration() != null) {
             dto.setIntegrationId(binding.getIntegration().getId());
         }
-        if (binding.getDevice() != null) {
-            dto.setDeviceId(binding.getDevice().getId());
-            dto.setLockName(binding.getDevice().getLockName());
+        SmartLockDevice aliasDevice = legacyAliasDevice(binding);
+        if (aliasDevice != null) {
+            dto.setDeviceId(aliasDevice.getId());
+            dto.setLockName(aliasDevice.getLockName());
         }
+        SmartLockDevice controlDevice = displayControlDevice(binding);
+        SmartLockDevice passcodeDevice = displayPasscodeDevice(binding);
+        if (controlDevice != null) {
+            dto.setControlDeviceId(controlDevice.getId());
+            dto.setControlLockName(controlDevice.getLockName());
+            dto.setControlDeviceType(controlDevice.getDeviceType());
+        }
+        dto.setControlProviderLockId(firstText(
+                binding.getControlProviderLockId(),
+                controlDevice != null ? controlDevice.getProviderLockId() : null
+        ));
+        if (passcodeDevice != null) {
+            dto.setPasscodeDeviceId(passcodeDevice.getId());
+            dto.setPasscodeLockName(passcodeDevice.getLockName());
+            dto.setPasscodeDeviceType(passcodeDevice.getDeviceType());
+        }
+        dto.setPasscodeProviderLockId(firstText(
+                binding.getPasscodeProviderLockId(),
+                passcodeDevice != null ? passcodeDevice.getProviderLockId() : null
+        ));
         dto.setProvider(binding.getProvider());
-        dto.setProviderLockId(binding.getProviderLockId());
+        dto.setProviderLockId(firstText(
+                binding.getControlProviderLockId(),
+                binding.getPasscodeProviderLockId(),
+                binding.getProviderLockId()
+        ));
         dto.setStatus(binding.getStatus());
         dto.setCreatedAt(binding.getCreatedAt());
         dto.setUpdatedAt(binding.getUpdatedAt());
@@ -97,21 +136,44 @@ public class SmartLockMapper {
     public SmartLockStatusDTO toStatusDto(SmartLockRoomBinding binding) {
         SmartLockStatusDTO dto = new SmartLockStatusDTO();
         Room room = binding.getRoom();
-        SmartLockDevice device = binding.getDevice();
+        SmartLockDevice controlDevice = displayControlDevice(binding);
+        SmartLockDevice passcodeDevice = displayPasscodeDevice(binding);
         if (room != null) {
             dto.setRoomId(room.getId());
         }
         dto.setBindingId(binding.getId());
-        if (device != null) {
-            dto.setDeviceId(device.getId());
-            dto.setLockName(device.getLockName());
-            dto.setLockStatus(device.getLockStatus());
-            dto.setBattery(device.getBattery());
-            dto.setOnline(device.getOnline());
-            dto.setLastStatusAt(device.getLastStatusAt());
+        if (controlDevice != null) {
+            dto.setDeviceId(controlDevice.getId());
+            dto.setControlDeviceId(controlDevice.getId());
+            dto.setControlLockName(controlDevice.getLockName());
+            dto.setControlProviderLockId(firstText(binding.getControlProviderLockId(), controlDevice.getProviderLockId()));
+            dto.setLockName(controlDevice.getLockName());
+            dto.setLockStatus(controlDevice.getLockStatus());
+            dto.setBattery(controlDevice.getBattery());
+            dto.setOnline(controlDevice.getOnline());
+            dto.setLastStatusAt(controlDevice.getLastStatusAt());
+            dto.setControlAvailable(true);
+        } else {
+            dto.setControlProviderLockId(binding.getControlProviderLockId());
+            dto.setControlAvailable(false);
+            dto.setControlUnavailableReason("该房间未绑定控制设备");
+        }
+        if (passcodeDevice != null) {
+            dto.setPasscodeDeviceId(passcodeDevice.getId());
+            dto.setPasscodeLockName(passcodeDevice.getLockName());
+            dto.setPasscodeProviderLockId(firstText(binding.getPasscodeProviderLockId(), passcodeDevice.getProviderLockId()));
+            dto.setPasscodeAvailable(true);
+        } else {
+            dto.setPasscodeProviderLockId(binding.getPasscodeProviderLockId());
+            dto.setPasscodeAvailable(false);
+            dto.setPasscodeUnavailableReason("该房间未绑定密码设备");
         }
         dto.setProvider(binding.getProvider());
-        dto.setProviderLockId(binding.getProviderLockId());
+        dto.setProviderLockId(firstText(
+                binding.getControlProviderLockId(),
+                binding.getPasscodeProviderLockId(),
+                binding.getProviderLockId()
+        ));
         return dto;
     }
 
@@ -125,7 +187,7 @@ public class SmartLockMapper {
             dto.setBindingId(record.getBinding().getId());
         }
         dto.setProvider(record.getProvider());
-        dto.setProviderLockId(record.getProviderLockId());
+        dto.setProviderLockId(firstText(record.getPasscodeProviderLockId(), record.getProviderLockId()));
         dto.setProviderPasscodeId(record.getProviderPasscodeId());
         dto.setProviderTaskId(record.getProviderTaskId());
         dto.setPasscodeName(record.getPasscodeName());
@@ -162,5 +224,55 @@ public class SmartLockMapper {
         dto.setCreatedAt(task.getCreatedAt());
         dto.setUpdatedAt(task.getUpdatedAt());
         return dto;
+    }
+
+    private SmartLockDevice legacyAliasDevice(SmartLockRoomBinding binding) {
+        if (binding.getControlDevice() != null) {
+            return binding.getControlDevice();
+        }
+        if (binding.getPasscodeDevice() != null) {
+            return binding.getPasscodeDevice();
+        }
+        return binding.getDevice();
+    }
+
+    private SmartLockDevice displayControlDevice(SmartLockRoomBinding binding) {
+        if (binding.getControlDevice() != null) {
+            return binding.getControlDevice();
+        }
+        if (!hasRoleColumns(binding) && roleResolver.supportsControl(binding.getDevice())) {
+            return binding.getDevice();
+        }
+        return null;
+    }
+
+    private SmartLockDevice displayPasscodeDevice(SmartLockRoomBinding binding) {
+        if (binding.getPasscodeDevice() != null) {
+            return binding.getPasscodeDevice();
+        }
+        if (!hasRoleColumns(binding) && roleResolver.supportsPasscode(binding.getDevice())) {
+            return binding.getDevice();
+        }
+        return null;
+    }
+
+    private boolean hasRoleColumns(SmartLockRoomBinding binding) {
+        return binding.getControlDevice() != null
+                || hasText(binding.getControlProviderLockId())
+                || binding.getPasscodeDevice() != null
+                || hasText(binding.getPasscodeProviderLockId());
+    }
+
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (hasText(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }
