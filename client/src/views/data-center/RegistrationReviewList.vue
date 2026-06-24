@@ -1,165 +1,294 @@
 <template>
-  <StatisticsLayout>
-    <div class="wrap">
-      <div class="header">
-        <div class="title">{{ t('stage5.dataCenter.registrations.title') }}</div>
-        <div class="actions">
-          <el-select v-model="status" :placeholder="t('stage5.common.filters.status')" clearable style="width: 160px" @change="load">
-            <el-option :label="t('stage5.common.status.draft')" value="DRAFT" />
-            <el-option :label="t('stage5.common.status.submitted')" value="SUBMITTED" />
-            <el-option :label="t('stage5.common.status.approved')" value="APPROVED" />
-            <el-option :label="t('stage5.common.status.rejected')" value="REJECTED" />
-          </el-select>
-          <el-button
-            type="primary"
-            :disabled="selectedRows.length === 0"
-            :loading="downloadingPdfs"
-            @click="downloadSelectedPdfs"
-          >
-            {{ t('stage5.common.actions.downloadPdf') }}
-          </el-button>
-          <el-button @click="openLinkDrawer">{{ t('stage5.dataCenter.registrations.linkList') }}</el-button>
-          <el-button :loading="loading" @click="load">{{ t('stage5.common.actions.refresh') }}</el-button>
-        </div>
-      </div>
+  <div class="review-shell" :class="{ 'is-sidebar-collapsed': isCollapsed }" :style="shellStyle">
+    <aside class="review-sidebar" :class="{ 'is-collapsed': isCollapsed }">
+      <button type="button" class="sidebar-toggle" @click="toggleSidebar">
+        <span class="sidebar-toggle-mark">
+          <el-icon><MenuIcon /></el-icon>
+        </span>
+        <span v-if="!isCollapsed" class="sidebar-toggle-label">
+          {{ t('accommodation.layout.collapseNav') }}
+        </span>
+        <el-icon v-if="!isCollapsed" class="sidebar-toggle-arrow"><ArrowLeft /></el-icon>
+        <el-icon v-else class="sidebar-toggle-arrow"><ArrowRight /></el-icon>
+      </button>
 
-      <div class="filters">
-        <el-select
-          v-model="channelId"
-          filterable
-          clearable
-          :placeholder="t('stage5.common.filters.platform')"
-          style="width: 200px"
+      <nav class="sidebar-nav" aria-label="Review navigation">
+        <button
+          type="button"
+          class="sidebar-parent is-active"
+          :title="isCollapsed ? t('nav.review') : undefined"
+          @click="handleSidebarClick"
         >
-          <el-option v-for="c in channels" :key="c.id" :label="c.name" :value="c.id" />
-        </el-select>
-        <el-select
-          v-model="reservationStatus"
-          clearable
-          :placeholder="t('stage5.common.filters.orderStatus')"
-          style="width: 180px"
-        >
-          <el-option
-            v-for="option in reservationStatusOptions"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
-        <el-select
-          v-model="roomGroupId"
-          filterable
-          clearable
-          :placeholder="t('stage5.common.filters.roomGroup')"
-          style="width: 200px"
-        >
-          <el-option
-            v-for="group in roomGroups"
-            :key="group.id"
-            :label="group.name"
-            :value="group.id"
-          />
-        </el-select>
-        <el-select
-          v-model="roomNumbers"
-          multiple
-          filterable
-          clearable
-          collapse-tags
-          collapse-tags-tooltip
-          :placeholder="t('stage5.common.fields.roomNumber')"
-          style="width: 220px"
-        >
-          <el-option
-            v-for="room in selectableRooms"
-            :key="room.id"
-            :label="room.roomNumber"
-            :value="room.roomNumber"
-          />
-        </el-select>
-        <div class="date-range-filter">
-          <span class="date-range-label">{{ t('stage5.common.fields.checkInDate') }}</span>
-          <el-date-picker
-            v-model="checkInDateRange"
-            type="daterange"
-            range-separator="-"
-            :start-placeholder="t('stage5.common.date.startDate')"
-            :end-placeholder="t('stage5.common.date.endDate')"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-            clearable
-            style="width: 280px"
-          />
-        </div>
-        <div class="date-range-filter">
-          <span class="date-range-label">{{ t('stage5.common.fields.checkOutDate') }}</span>
-          <el-date-picker
-            v-model="checkOutDateRange"
-            type="daterange"
-            range-separator="-"
-            :start-placeholder="t('stage5.common.date.startDate')"
-            :end-placeholder="t('stage5.common.date.endDate')"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-            clearable
-            style="width: 280px"
-          />
-        </div>
-        <el-button type="primary" :loading="loading" @click="load">{{ t('stage5.common.actions.query') }}</el-button>
-        <el-button :disabled="loading" @click="resetFilters">{{ t('stage5.common.actions.reset') }}</el-button>
-      </div>
+          <span class="sidebar-parent-icon">
+            <el-icon><DocumentChecked /></el-icon>
+          </span>
+          <span v-if="!isCollapsed" class="sidebar-parent-label">{{ t('nav.review') }}</span>
+        </button>
+      </nav>
+    </aside>
 
-      <el-table
-        ref="tableRef"
-        :data="rows"
-        border
-        stripe
-        class="review-table"
-        style="width: 100%"
-        :row-class-name="getRowClassName"
-        @selection-change="handleSelectionChange"
-        @row-click="handleRowClick"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="channelOrderNumber" :label="t('stage5.dataCenter.registrations.channelOrderNumber')" min-width="160" />
-        <el-table-column prop="channelName" :label="t('stage5.common.filters.channel')" min-width="140" />
-        <el-table-column prop="guestName" :label="t('stage5.common.fields.guestName')" min-width="120" />
-        <el-table-column prop="checkInDate" :label="t('stage5.common.fields.checkIn')" min-width="110" />
-        <el-table-column prop="checkOutDate" :label="t('stage5.common.fields.checkOut')" min-width="110" />
-        <el-table-column :label="t('stage5.common.filters.orderStatus')" min-width="120">
-          <template #default="{ row }">
-            <el-tag :type="getReservationStatusTagType(row.reservationStatus)" effect="plain">
-              {{ getReservationStatusLabel(row.reservationStatus) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column :label="t('stage5.common.fields.status')" min-width="110">
-          <template #default="{ row }">
-            {{ getRegistrationStatusLabel(row.status) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="submittedAt" :label="t('stage5.common.fields.submittedAt')" min-width="170" />
-        <el-table-column prop="updatedAt" :label="t('stage5.common.fields.updatedAt')" min-width="170" />
-        <el-table-column :label="t('stage5.common.fields.actions')" width="110" fixed="right">
-          <template #default="{ row }">
-            <el-tooltip
-              v-if="isCancelledReservation(row)"
-              :content="t('stage5.dataCenter.registrations.cancelled')"
-              placement="top"
+    <section class="review-panel">
+      <header class="review-panel-header">
+        <AppTopNav
+          v-bind="topNavBindings.props.value"
+          @store-select="topNavBindings.onStoreSelect"
+          @manage-stores="topNavBindings.onManageStores"
+          @menu-click="topNavBindings.onMenuClick"
+          @wallet-click="topNavBindings.onWalletClick"
+          @inbox-click="topNavBindings.onInboxClick"
+          @support-chat="topNavBindings.onSupportChat"
+          @system-notification="topNavBindings.onSystemNotification"
+          @order-notification="topNavBindings.onOrderNotification"
+          @profile-click="topNavBindings.onProfileClick"
+          @logout="topNavBindings.onLogout"
+        />
+      </header>
+
+      <main class="review-content">
+        <div class="review-page">
+          <div class="section-label">{{ t('roomStatus.common.filter') }}</div>
+
+          <section class="filter-surface">
+            <div class="filter-row filter-row--actions">
+              <el-select
+                v-model="status"
+                :placeholder="t('stage5.common.filters.status')"
+                clearable
+                class="filter-control filter-control--status"
+                @change="load"
+              >
+                <el-option :label="t('stage5.common.status.draft')" value="DRAFT" />
+                <el-option :label="t('stage5.common.status.submitted')" value="SUBMITTED" />
+                <el-option :label="t('stage5.common.status.approved')" value="APPROVED" />
+                <el-option :label="t('stage5.common.status.rejected')" value="REJECTED" />
+              </el-select>
+              <el-button
+                type="primary"
+                class="filter-button filter-button--primary"
+                :disabled="selectedRows.length === 0"
+                :loading="downloadingPdfs"
+                @click="downloadSelectedPdfs"
+              >
+                {{ t('stage5.common.actions.downloadPdf') }}
+              </el-button>
+              <el-button class="filter-button" @click="openLinkDrawer">
+                {{ t('stage5.dataCenter.registrations.linkList') }}
+              </el-button>
+              <el-button class="filter-button" :loading="loading" @click="load">
+                {{ t('stage5.common.actions.refresh') }}
+              </el-button>
+            </div>
+
+            <div class="filter-row filter-row--fields">
+              <el-select
+                v-model="channelId"
+                filterable
+                clearable
+                :placeholder="t('stage5.common.filters.platform')"
+                class="filter-control filter-control--platform"
+              >
+                <el-option v-for="c in channels" :key="c.id" :label="c.name" :value="c.id" />
+              </el-select>
+              <el-select
+                v-model="reservationStatus"
+                clearable
+                :placeholder="t('stage5.common.filters.orderStatus')"
+                class="filter-control filter-control--order"
+              >
+                <el-option
+                  v-for="option in reservationStatusOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+              <el-select
+                v-model="roomNumbers"
+                multiple
+                filterable
+                clearable
+                collapse-tags
+                collapse-tags-tooltip
+                :placeholder="t('stage5.common.fields.roomNumber')"
+                class="filter-control filter-control--room"
+              >
+                <el-option
+                  v-for="room in selectableRooms"
+                  :key="room.id"
+                  :label="room.roomNumber"
+                  :value="room.roomNumber"
+                />
+              </el-select>
+              <el-select
+                v-model="roomGroupId"
+                filterable
+                clearable
+                :placeholder="t('stage5.common.filters.roomGroup')"
+                class="filter-control filter-control--group"
+              >
+                <el-option
+                  v-for="group in roomGroups"
+                  :key="group.id"
+                  :label="group.name"
+                  :value="group.id"
+                />
+              </el-select>
+              <div class="date-filter">
+                <el-date-picker
+                  v-model="checkInStartDate"
+                  type="date"
+                  :placeholder="t('stage5.common.fields.checkInDate')"
+                  format="YYYY/MM/DD"
+                  value-format="YYYY-MM-DD"
+                  clearable
+                  class="filter-date"
+                />
+                <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
+                <el-date-picker
+                  v-model="checkOutEndDate"
+                  type="date"
+                  :placeholder="t('stage5.common.fields.checkOutDate')"
+                  format="YYYY/MM/DD"
+                  value-format="YYYY-MM-DD"
+                  clearable
+                  class="filter-date"
+                />
+              </div>
+              <el-button type="primary" class="filter-submit" :loading="loading" @click="load">
+                {{ t('stage5.common.actions.query') }}
+              </el-button>
+              <el-button class="filter-reset" :disabled="loading" @click="resetFilters">
+                {{ t('stage5.common.actions.reset') }}
+              </el-button>
+            </div>
+          </section>
+
+          <div class="section-label section-label--table">
+            {{ t('stage5.dataCenter.registrations.title') }}
+          </div>
+
+          <section class="table-surface">
+            <el-table
+              ref="tableRef"
+              :data="rows"
+              border
+              v-loading="loading"
+              class="review-table"
+              style="width: 100%"
+              :header-cell-style="headerCellStyle"
+              :row-class-name="getRowClassName"
+              @selection-change="handleSelectionChange"
+              @row-click="handleRowClick"
             >
-              <span class="disabled-action">
-                <el-button size="small" disabled>{{ t('nav.review') }}</el-button>
-              </span>
-            </el-tooltip>
-            <el-button v-else size="small" type="primary" link @click.stop="go(row)">
-              {{ t('nav.review') }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+              <el-table-column type="selection" width="46" />
+              <el-table-column
+                prop="channelOrderNumber"
+                :label="t('stage5.dataCenter.registrations.channelOrderNumber')"
+                min-width="136"
+              />
+              <el-table-column
+                prop="channelName"
+                :label="t('stage5.common.filters.channel')"
+                min-width="124"
+              />
+              <el-table-column
+                prop="guestName"
+                :label="t('stage5.common.fields.guestName')"
+                min-width="170"
+              />
 
-    <el-drawer v-model="linkDrawerVisible" :title="t('stage5.dataCenter.registrations.linkList')" size="80%">
+              <el-table-column
+                prop="checkInDate"
+                :label="t('stage5.common.fields.checkIn')"
+                min-width="112"
+              >
+                <template #default="{ row }">
+                  {{ formatDate(row.checkInDate) }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="checkOutDate"
+                :label="t('stage5.common.fields.checkOut')"
+                min-width="112"
+              >
+                <template #default="{ row }">
+                  {{ formatDate(row.checkOutDate) }}
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('stage5.common.filters.orderStatus')" min-width="104">
+                <template #default="{ row }">
+                  <span
+                    class="reservation-status"
+                    :class="`reservation-status--${normalizeStatusClass(row.reservationStatus)}`"
+                  >
+                    {{ getReservationStatusLabel(row.reservationStatus) }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('stage5.common.fields.status')" min-width="86">
+                <template #default="{ row }">
+                  <span
+                    class="registration-status"
+                    :class="`registration-status--${normalizeStatusClass(row.status)}`"
+                  >
+                    {{ getRegistrationStatusLabel(row.status) }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="submittedAt"
+                :label="t('stage5.common.fields.submittedAt')"
+                min-width="176"
+              >
+                <template #default="{ row }">
+                  {{ formatDateTime(row.submittedAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="updatedAt"
+                :label="t('stage5.common.fields.updatedAt')"
+                min-width="176"
+              >
+                <template #default="{ row }">
+                  {{ formatDateTime(row.updatedAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('stage5.common.fields.status')" width="86" fixed="right">
+                <template #default="{ row }">
+                  <el-tooltip
+                    v-if="isCancelledReservation(row)"
+                    :content="t('stage5.dataCenter.registrations.cancelled')"
+                    placement="top"
+                  >
+                    <span class="disabled-action">
+                      <el-button class="review-action-button" size="small" disabled>
+                        {{ t('nav.review') }}
+                      </el-button>
+                    </span>
+                  </el-tooltip>
+                  <el-button
+                    v-else
+                    class="review-action-link"
+                    size="small"
+                    type="primary"
+                    link
+                    @click.stop="go(row)"
+                  >
+                    {{ t('nav.review') }}
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </section>
+        </div>
+      </main>
+    </section>
+
+    <el-drawer
+      v-model="linkDrawerVisible"
+      :title="t('stage5.dataCenter.registrations.linkList')"
+      size="80%"
+    >
       <div class="drawer-actions">
         <el-select
           v-model="linkReservationStatus"
@@ -199,15 +328,18 @@
         </el-table-column>
       </el-table>
     </el-drawer>
-  </StatisticsLayout>
+  </div>
 </template>
 
 <script setup lang="ts">
 import axios from 'axios'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ArrowLeft, ArrowRight, DocumentChecked, Menu as MenuIcon } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import AppTopNav from '@/components/layout/AppTopNav.vue'
+import { appTopNavBindingsKey } from '@/components/layout/appShellContext'
 import request from '@/utils/request'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRegistrationLinkInbox, type RegistrationLinkInboxItemDTO } from '@/api/registrationLinkInbox'
@@ -220,7 +352,6 @@ type Row = {
   channelOrderNumber?: string | null
   channelName?: string | null
   guestName: string
-  roomNumber?: string | null
   roomTypeName?: string | null
   checkInDate: string
   checkOutDate: string
@@ -236,10 +367,25 @@ const registrationReviewStatusFilterValues = ['DRAFT', 'SUBMITTED', 'APPROVED', 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
+const topNavBindings = inject(appTopNavBindingsKey)
+
+if (!topNavBindings) {
+  throw new Error('RegistrationReviewList requires top navigation bindings')
+}
+
+const SIDEBAR_STORAGE_KEY = 'registration-review-sidebar-collapsed'
+const COLLAPSED_WIDTH = 84
+const EXPANDED_WIDTH = 220
+
 const rows = ref<Row[]>([])
 const loading = ref(false)
 const selectedRows = ref<Row[]>([])
 const downloadingPdfs = ref(false)
+const isCollapsed = ref(
+  typeof window === 'undefined'
+    ? false
+    : localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true',
+)
 const status = ref<string | null>(null)
 const channels = ref<ChannelDTO[]>([])
 const rooms = ref<RoomDTO[]>([])
@@ -257,6 +403,14 @@ const linkLoading = ref(false)
 const linkRows = ref<RegistrationLinkInboxItemDTO[]>([])
 const linkReservationStatus = ref<string | null>(null)
 
+const headerCellStyle = {
+  background: '#fbfbfb',
+  color: '#252525',
+  fontSize: '12px',
+  fontWeight: '600',
+  padding: '0',
+}
+
 const reservationStatusOptions = [
   { label: t('stage5.dataCenter.registrations.pendingConfirmation'), value: 'REQUESTED' },
   { label: t('stage5.dataCenter.registrations.booked'), value: 'CONFIRMED' },
@@ -272,6 +426,10 @@ const linkReservationStatusOptions = [
 ]
 const reservationStatusFilterValues = reservationStatusOptions.map((option) => option.value)
 
+const shellStyle = computed(() => ({
+  '--sidebar-width': `${isCollapsed.value ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`,
+}))
+
 const selectableRooms = computed(() => {
   if (roomGroupId.value == null || roomIdsInSelectedGroup.value == null) {
     return rooms.value
@@ -280,6 +438,62 @@ const selectableRooms = computed(() => {
   const allowedIds = new Set(roomIdsInSelectedGroup.value)
   return rooms.value.filter((room) => allowedIds.has(room.id))
 })
+
+const checkInStartDate = computed({
+  get: () => checkInDateRange.value?.[0] || '',
+  set: (value: string) => {
+    if (!value) {
+      checkInDateRange.value = null
+      return
+    }
+    checkInDateRange.value = [value, value]
+  },
+})
+
+const checkOutEndDate = computed({
+  get: () => checkOutDateRange.value?.[1] || '',
+  set: (value: string) => {
+    if (!value) {
+      checkOutDateRange.value = null
+      return
+    }
+    checkOutDateRange.value = [value, value]
+  },
+})
+
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value
+}
+
+const handleSidebarClick = () => {
+  if (route.path !== '/data-center/registrations') {
+    router.push('/data-center/registrations')
+  }
+}
+
+const normalizeStatusClass = (value?: string | null) => {
+  return (value || 'unknown').toLowerCase().replace(/_/g, '-')
+}
+
+const formatDate = (value?: string | null) => {
+  if (!value) {
+    return '-'
+  }
+  const datePart = value.split('T')[0]
+  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return match ? `${match[1]}/${match[2]}/${match[3]}` : value
+}
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) {
+    return '-'
+  }
+  const normalized = value.replace('T', ' ')
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/)
+  return match
+    ? `${match[1]}/${match[2]}/${match[3]} ${match[4]}:${match[5]}:${match[6]}`
+    : normalized
+}
 
 function toDayNumber(dateValue?: string | null) {
   if (!dateValue) {
@@ -569,7 +783,6 @@ async function load() {
           ...r,
           channelOrderNumber: r.channelOrderNumber || '-',
           channelName: r.channelName || '-',
-          roomNumber: r.roomNumber || '',
         }))
         .sort(compareRowsByCheckInPriority)
       selectedRows.value = []
@@ -806,6 +1019,15 @@ watch(roomGroupId, async (groupId) => {
   roomNumbers.value = roomNumbers.value.filter((roomNumber) => allowedRoomNumbers.has(roomNumber))
 })
 
+watch(
+  isCollapsed,
+  (collapsed) => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed))
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
   hydrateFiltersFromRouteQuery()
   loadChannels()
@@ -824,52 +1046,348 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.wrap {
-  padding: 16px;
+.review-shell {
+  --sidebar-width: 84px;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  background: #f5f5f5;
 }
-.header {
+
+.review-sidebar {
+  width: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #ffffff;
+  border-right: 1px solid #ecece7;
+  transition: width 0.24s ease;
+  overflow: hidden;
+}
+
+.sidebar-toggle {
+  height: 76px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 8px;
+  padding: 0 20px;
+  border: none;
+  border-bottom: 1px solid #f0f0ea;
+  background: #ffffff;
+  color: #1f2120;
+  cursor: pointer;
 }
-.filters {
-  display: flex;
-  gap: 10px;
+
+.sidebar-toggle-mark {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
+  justify-content: center;
+  background: transparent;
+  color: #2f7cf6;
+  font-size: 20px;
+  flex: 0 0 auto;
 }
-.date-range-filter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.date-range-label {
-  color: #606266;
-  font-size: 13px;
+
+.sidebar-toggle-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: #232421;
   white-space: nowrap;
 }
-.title {
-  font-size: 16px;
-  font-weight: 700;
+
+.sidebar-toggle-arrow {
+  color: #a8ada8;
+  font-size: 14px;
+  flex: 0 0 auto;
 }
-.actions {
+
+.sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  padding: 18px 0 24px;
   display: flex;
+  flex-direction: column;
   gap: 10px;
+}
+
+.sidebar-parent {
+  position: relative;
+  height: 44px;
+  display: flex;
   align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 18px 0 20px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #5f645f;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
-.drawer-actions {
+
+.sidebar-parent:hover {
+  background: #f6f7f3;
+  color: #20211d;
+}
+
+.sidebar-parent.is-active {
+  background: #eef5ff;
+  color: #2f7cf6;
+}
+
+.sidebar-parent-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.sidebar-parent-label {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.review-sidebar.is-collapsed .sidebar-toggle {
+  justify-content: center;
+  padding: 0;
+}
+
+.review-sidebar.is-collapsed .sidebar-parent {
+  justify-content: center;
+  padding: 0;
+}
+
+.review-panel {
+  min-width: 0;
+  min-height: 0;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+}
+
+.review-panel-header {
+  padding: 18px 32px 14px;
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+.review-panel-header :deep(.top-nav) {
+  --nav-center-shift: calc(-56px + ((var(--sidebar-width) - 84px) / 6));
+  --nav-right-shift: -28px;
+}
+
+.review-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 24px;
+  padding-bottom: 24px;
+}
+
+.review-page {
+  min-width: 1120px;
+  padding: 0 0 12px 24px;
+}
+
+.section-label {
+  height: 30px;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 0 7px;
+  color: #d6d6d6;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.section-label--table {
+  height: 28px;
+}
+
+.filter-surface {
+  --filter-control-width: 156px;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
+  padding: 12px 18px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #ffffff;
+  overflow-x: auto;
 }
-.link-cell {
+
+.filter-row {
   display: flex;
+  align-items: center;
   gap: 8px;
-  align-items: center;
+  min-width: max-content;
 }
+
+.filter-row--actions {
+  gap: 6px;
+}
+
+.filter-control {
+  width: var(--filter-control-width);
+  flex: 0 0 var(--filter-control-width);
+}
+
+.date-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.filter-date {
+  width: var(--filter-control-width) !important;
+  flex: 0 0 var(--filter-control-width);
+}
+
+.filter-surface :deep(.filter-date.el-date-editor),
+.filter-surface :deep(.filter-date.el-date-editor.el-input),
+.filter-surface :deep(.filter-date.el-input) {
+  width: var(--filter-control-width) !important;
+  flex: 0 0 var(--filter-control-width);
+}
+
+.date-separator {
+  color: #5f5f5f;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.filter-button,
+.filter-submit,
+.filter-reset {
+  height: 34px;
+  min-width: 58px;
+  padding: 0 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.filter-button--primary,
+.filter-submit {
+  border-color: #2196f3;
+  background: #2196f3;
+}
+
+.filter-reset {
+  margin-left: 6px;
+}
+
+.filter-submit,
+.filter-reset {
+  width: 72px;
+  min-width: 72px;
+  padding: 0;
+}
+
+.filter-surface :deep(.el-input__wrapper),
+.filter-surface :deep(.el-select__wrapper) {
+  min-height: 34px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #dddddd inset;
+}
+
+.filter-surface :deep(.el-select__wrapper) {
+  padding: 0 0 0 14px;
+}
+
+.filter-surface :deep(.el-input__wrapper:hover),
+.filter-surface :deep(.el-input__wrapper.is-focus),
+.filter-surface :deep(.el-select__wrapper:hover),
+.filter-surface :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #bdbdbd inset;
+}
+
+.filter-surface :deep(.el-input__inner),
+.filter-surface :deep(.el-select__placeholder),
+.filter-surface :deep(.el-select__selected-item) {
+  font-size: 13px;
+}
+
+.filter-surface :deep(.el-select__suffix) {
+  align-self: stretch;
+  width: 40px;
+  margin-left: auto;
+  padding: 0;
+  border-left: 1px solid #dddddd;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a8abb2;
+}
+
+.filter-surface :deep(.el-select__suffix .el-icon) {
+  margin: 0;
+}
+
+.table-surface {
+  border: 1px solid #e3e3e3;
+  border-radius: 0;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.review-table {
+  width: 100%;
+  --el-table-border-color: #e0e0e0;
+  --el-table-header-bg-color: #fbfbfb;
+  --el-table-row-hover-bg-color: #fafafa;
+  color: #303030;
+  font-size: 14px;
+}
+
+:deep(.review-table .el-table__inner-wrapper::before),
+:deep(.review-table .el-table__border-left-patch) {
+  display: none;
+}
+
+:deep(.review-table .el-table__header th.el-table__cell) {
+  height: 42px;
+  padding: 0;
+  border-color: #d8d8d8;
+}
+
+:deep(.review-table .el-table__header th.el-table__cell .cell) {
+  padding: 0 10px;
+  color: #252525;
+  line-height: 1.3;
+}
+
+:deep(.review-table .el-table__body td.el-table__cell) {
+  height: 42px;
+  padding: 0;
+  border-color: #e5e5e5;
+  background: #ffffff;
+}
+
+:deep(.review-table .el-table__body td.el-table__cell .cell) {
+  padding: 0 10px;
+  color: #303030;
+  line-height: 1.3;
+}
+
+:deep(.review-table .el-table__body tr:nth-child(even) td.el-table__cell) {
+  background: #ffffff;
+}
+
 .review-table :deep(.el-table__row:not(.is-cancelled-row)) {
   cursor: pointer;
 }
@@ -882,7 +1400,107 @@ onMounted(() => {
   background-color: #fafafa;
 }
 
+.reservation-status,
+.registration-status {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.reservation-status--confirmed,
+.reservation-status--checked-in,
+.registration-status--approved {
+  color: #23b26d;
+}
+
+.reservation-status--cancelled,
+.registration-status--rejected {
+  color: #f04b56;
+}
+
+.reservation-status--requested,
+.registration-status--submitted {
+  color: #d7961d;
+}
+
+.reservation-status--checked-out,
+.registration-status--draft,
+.reservation-status--no-show,
+.reservation-status--unknown,
+.registration-status--unknown {
+  color: #858585;
+}
+
+.review-action-link {
+  min-width: 34px;
+  padding: 0;
+  color: #1689df;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.review-action-button {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.drawer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.link-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .disabled-action {
   display: inline-flex;
+}
+
+@media (max-width: 1280px) {
+  .review-panel-header {
+    padding-left: 24px;
+    padding-right: 20px;
+  }
+
+  .review-content {
+    padding-right: 20px;
+    padding-bottom: 20px;
+  }
+
+  .review-page {
+    padding-left: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .review-shell {
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+
+  .review-sidebar {
+    width: 84px;
+  }
+
+  .review-sidebar .sidebar-toggle {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .review-sidebar .sidebar-parent {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .review-page {
+    min-width: 980px;
+    padding-left: 12px;
+  }
 }
 </style>

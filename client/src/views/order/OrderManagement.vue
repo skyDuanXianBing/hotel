@@ -1,30 +1,53 @@
 <template>
-  <div class="order-management">
-    <!-- 左侧导航菜单 -->
-    <div class="sidebar" :class="{ collapsed: isCollapsed }">
-      <!-- 收起导航按钮 -->
-      <div class="sidebar-header" @click="toggleSidebar">
-        <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
-        <span v-if="!isCollapsed" class="sidebar-title">{{ t('order.sidebar.collapse') }}</span>
-        <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
-        <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
-      </div>
+  <div class="order-management" :class="{ 'is-sidebar-collapsed': isCollapsed }" :style="shellStyle">
+    <aside class="order-sidebar" :class="{ 'is-collapsed': isCollapsed }">
+      <button type="button" class="sidebar-toggle" @click="toggleSidebar">
+        <span class="sidebar-toggle-mark">
+          <el-icon><MenuIcon /></el-icon>
+        </span>
+        <span v-if="!isCollapsed" class="sidebar-toggle-label">
+          {{ t('order.sidebar.collapse') }}
+        </span>
+        <el-icon v-if="!isCollapsed" class="sidebar-toggle-arrow"><ArrowLeft /></el-icon>
+        <el-icon v-else class="sidebar-toggle-arrow"><ArrowRight /></el-icon>
+      </button>
 
-      <el-menu
-        class="sidebar-menu"
-        :default-active="activeMenu"
-        @select="handleMenuSelect"
-        :collapse="isCollapsed"
-      >
-        <el-menu-item index="order-management">
-          <el-icon><Document /></el-icon>
-          <span>{{ t('order.sidebar.accommodationOrders') }}</span>
-        </el-menu-item>
-      </el-menu>
-    </div>
+      <nav class="sidebar-nav" aria-label="Order navigation">
+        <button
+          type="button"
+          class="sidebar-parent"
+          :class="{ 'is-active': activeMenu === 'order-management' }"
+          :title="isCollapsed ? t('order.sidebar.accommodationOrders') : undefined"
+          @click="handleMenuSelect('order-management')"
+        >
+          <span class="sidebar-parent-icon">
+            <el-icon><Document /></el-icon>
+          </span>
+          <span v-if="!isCollapsed" class="sidebar-parent-label">
+            {{ t('order.sidebar.accommodationOrders') }}
+          </span>
+        </button>
+      </nav>
+    </aside>
 
-    <!-- 主内容区域 -->
-    <div class="main-content">
+    <section class="order-panel">
+      <header class="order-panel-header">
+        <AppTopNav
+          v-bind="topNavBindings.props.value"
+          @store-select="topNavBindings.onStoreSelect"
+          @manage-stores="topNavBindings.onManageStores"
+          @menu-click="topNavBindings.onMenuClick"
+          @wallet-click="topNavBindings.onWalletClick"
+          @inbox-click="topNavBindings.onInboxClick"
+          @support-chat="topNavBindings.onSupportChat"
+          @system-notification="topNavBindings.onSystemNotification"
+          @order-notification="topNavBindings.onOrderNotification"
+          @profile-click="topNavBindings.onProfileClick"
+          @logout="topNavBindings.onLogout"
+        />
+      </header>
+
+      <main class="main-content">
       <!-- 订单状态标签页 -->
       <div class="order-tabs">
         <el-tabs v-model="activeOrderTab" @tab-change="handleOrderTabChange">
@@ -69,7 +92,11 @@
               </div>
             </template>
           </el-tab-pane>
-          <el-tab-pane :label="t('order.tabs.assigned')" name="assigned"></el-tab-pane>
+          <el-tab-pane :label="t('order.tabs.assigned')" name="assigned">
+            <template #label>
+              <span>{{ t('order.tabs.assigned') }}</span>
+            </template>
+          </el-tab-pane>
           <el-tab-pane name="pending">
             <template #label>
               <div class="tab-label-with-badge">
@@ -78,8 +105,16 @@
               </div>
             </template>
           </el-tab-pane>
-          <el-tab-pane :label="t('order.tabs.orderBox')" name="order-box"></el-tab-pane>
-          <el-tab-pane :label="t('order.tabs.deletedRooms')" name="deleted-rooms"></el-tab-pane>
+          <el-tab-pane :label="t('order.tabs.orderBox')" name="order-box">
+            <template #label>
+              <span>{{ t('order.tabs.orderBox') }}</span>
+            </template>
+          </el-tab-pane>
+          <el-tab-pane :label="t('order.tabs.deletedRooms')" name="deleted-rooms">
+            <template #label>
+              <span>{{ t('order.tabs.deletedRooms') }}</span>
+            </template>
+          </el-tab-pane>
         </el-tabs>
       </div>
 
@@ -102,7 +137,7 @@
           </el-input>
 
           <!-- 渠道筛选 -->
-          <div class="filter-group">
+          <div class="filter-group filter-group--channel">
             <span class="filter-label">{{ t('order.filters.channel') }}</span>
             <el-select
               v-model="filters.channel"
@@ -120,7 +155,7 @@
           </div>
 
           <!-- 房型筛选 -->
-          <div class="filter-group">
+          <div class="filter-group filter-group--room">
             <span class="filter-label">{{ t('order.filters.roomType') }}</span>
             <el-select
               v-model="filters.roomType"
@@ -148,6 +183,7 @@
               :end-placeholder="t('accommodation.common.endDate')"
               format="YYYY-MM-DD"
               value-format="YYYY-MM-DD"
+              :clearable="false"
               @change="handleDateRangeChange"
             />
           </div>
@@ -159,6 +195,7 @@
               :placeholder="todayOperationDateLabel"
               format="YYYY-MM-DD"
               value-format="YYYY-MM-DD"
+              :clearable="false"
               @change="handleFilterChange"
             />
           </div>
@@ -166,7 +203,7 @@
 
         <!-- 第二行：详细筛选器 -->
         <div class="filter-row">
-          <div class="filter-group">
+          <div class="filter-group filter-group--checkin">
             <span class="filter-label">{{ t('order.filters.checkinType') }}</span>
             <el-select
               v-model="filters.checkinType"
@@ -180,7 +217,7 @@
             </el-select>
           </div>
 
-          <div class="filter-group">
+          <div class="filter-group filter-group--status">
             <span class="filter-label">{{ t('order.filters.stayStatus') }}</span>
             <el-select
               v-model="filters.status"
@@ -197,7 +234,7 @@
             </el-select>
           </div>
 
-          <div class="filter-group">
+          <div class="filter-group filter-group--payment">
             <span class="filter-label">{{ t('order.filters.paymentStatus') }}</span>
             <el-select
               v-model="filters.paymentStatus"
@@ -208,15 +245,6 @@
               <el-option :label="t('order.options.paid')" value="paid"></el-option>
               <el-option :label="t('order.options.unpaid')" value="unpaid"></el-option>
             </el-select>
-          </div>
-
-          <div class="filter-actions">
-            <el-button @click="toggleFilters">
-              {{ showAdvancedFilters ? t('order.filters.collapse') : t('order.filters.expand') }}
-              <el-icon>
-                <component :is="showAdvancedFilters ? ArrowUp : ArrowDown" />
-              </el-icon>
-            </el-button>
           </div>
         </div>
       </div>
@@ -246,7 +274,7 @@
           <el-table-column
             prop="orderNumber"
             :label="t('order.table.orderNumbers')"
-            min-width="280"
+            width="220"
             fixed="left"
           >
             <template #default="scope">
@@ -283,9 +311,18 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="channelName" :label="t('order.table.channel')" width="150">
+          <el-table-column
+            prop="channelName"
+            :label="t('order.table.channel')"
+            width="110"
+            class-name="channel-column"
+          >
             <template #default="scope">
-              <el-tag size="small" :type="getChannelTagType(scope.row.channelName)">
+              <el-tag
+                size="small"
+                class="channel-tag"
+                :style="getChannelTagStyle(scope.row)"
+              >
                 {{ getChannelDisplayName(scope.row.channelName) }}
               </el-tag>
             </template>
@@ -298,7 +335,11 @@
             width="100"
           >
             <template #default="scope">
-              <el-tag size="small" :type="getReservationStatusTagType(scope.row.status)">
+              <el-tag
+                size="small"
+                class="stay-status-tag"
+                :class="getReservationStatusTagClass(scope.row.status)"
+              >
                 {{ getReservationStatusText(scope.row.status) }}
               </el-tag>
             </template>
@@ -465,7 +506,13 @@
             width="120"
           >
             <template #default="scope">
-              <span>{{ getReservationStatusText(scope.row.status) }}</span>
+              <el-tag
+                size="small"
+                class="stay-status-tag"
+                :class="getReservationStatusTagClass(scope.row.status)"
+              >
+                {{ getReservationStatusText(scope.row.status) }}
+              </el-tag>
             </template>
           </el-table-column>
 
@@ -629,7 +676,8 @@
           />
         </div>
       </div>
-    </div>
+      </main>
+    </section>
 
     <ReservationDetailDrawer
       v-model="showOrderDetailDrawer"
@@ -705,7 +753,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, inject, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -713,12 +761,10 @@ import {
   ArrowRight,
   Document,
   Search,
-  ArrowDown,
-  ArrowUp,
   Menu as MenuIcon,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getAllChannels } from '@/api/channel'
+import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import {
   assignReservationRoom,
   getAssignableRooms,
@@ -731,6 +777,8 @@ import {
   type ReservationStatistics,
 } from '@/api/reservation'
 import { getAllRoomTypes } from '@/api/roomType'
+import AppTopNav from '@/components/layout/AppTopNav.vue'
+import { appTopNavBindingsKey } from '@/components/layout/appShellContext'
 import ReservationDetailDrawer from '@/components/reservation/ReservationDetailDrawer.vue'
 import { getOrderBoxList, type OrderBoxItem } from '@/api/orderBox'
 import { useStoreStore } from '@/stores/store'
@@ -744,11 +792,27 @@ import {
 
 const route = useRoute()
 const { t } = useI18n()
+const topNavBindings = inject(appTopNavBindingsKey)
 const storeStore = useStoreStore()
 const currentStoreTimeZone = computed(() => resolveStoreTimeZone(storeStore.currentStore?.timezone))
 
-// Sidebar collapsed state
-const isCollapsed = ref(false)
+if (!topNavBindings) {
+  throw new Error('OrderManagement requires top navigation bindings')
+}
+
+const SIDEBAR_STORAGE_KEY = 'order-sidebar-collapsed'
+const COLLAPSED_WIDTH = 84
+const EXPANDED_WIDTH = 220
+
+const isCollapsed = ref(
+  typeof window === 'undefined'
+    ? false
+    : localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true',
+)
+
+const shellStyle = computed(() => ({
+  '--sidebar-width': `${isCollapsed.value ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`,
+}))
 
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value
@@ -775,10 +839,38 @@ const searchQuery = ref('')
 const dateRange = ref<[string, string] | null>(null)
 const getTodayDate = () => getStoreTodayYmd(currentStoreTimeZone.value)
 const operationDate = ref<string | null>(getTodayDate())
-const showAdvancedFilters = ref(true)
 const loading = ref(false)
-const channelOptions = ref<Array<{ label: string; value: string }>>([])
+type ChannelOption = Pick<ChannelDTO, 'id' | 'color'> & {
+  label: string
+  value: string
+}
+
+const channelOptions = ref<ChannelOption[]>([])
 const roomTypeOptions = ref<Array<{ label: string; value: string }>>([])
+
+const normalizeChannelKey = (value?: string | null) => (value || '').trim().toLowerCase()
+
+const channelColorMap = computed(() => {
+  const map = new Map<string, string>()
+
+  channelOptions.value.forEach((channel) => {
+    if (!channel.color) return
+
+    map.set(`id:${channel.id}`, channel.color)
+
+    const rawName = normalizeChannelKey(channel.value)
+    if (rawName) {
+      map.set(`name:${rawName}`, channel.color)
+    }
+
+    const displayName = normalizeChannelKey(channel.label)
+    if (displayName) {
+      map.set(`name:${displayName}`, channel.color)
+    }
+  })
+
+  return map
+})
 
 // Filters
 const filters = ref({
@@ -928,6 +1020,8 @@ const loadFilterOptions = async () => {
         .map((channel) => ({
           label: getChannelDisplayName(channel.name),
           value: channel.name,
+          id: channel.id,
+          color: channel.color,
         }))
     } else {
       ElMessage.warning(channelResponse.message || t('order.messages.loadChannelFiltersFailed'))
@@ -1001,24 +1095,16 @@ const handleDateRangeChange = (value: [string, string] | null) => {
   loadReservations()
 }
 
-const toggleFilters = () => {
-  showAdvancedFilters.value = !showAdvancedFilters.value
-}
+const getChannelTagStyle = (order: ReservationDTO) => {
+  const rawName = order.channelName || ''
+  const displayName = getChannelDisplayName(rawName)
+  const color =
+    channelColorMap.value.get(`id:${order.channelId}`) ||
+    channelColorMap.value.get(`name:${normalizeChannelKey(rawName)}`) ||
+    channelColorMap.value.get(`name:${normalizeChannelKey(displayName)}`) ||
+    '#627083'
 
-const getChannelTagType = (channel: string) => {
-  switch (channel) {
-    case '直营客':
-    case 'Direct Guest':
-      return 'primary'
-    case '美团民宿':
-    case 'Meituan Homestay':
-      return 'warning'
-    case '途家':
-    case 'Tujia':
-      return 'success'
-    default:
-      return 'info'
-  }
+  return { '--channel-tag-bg': color, '--channel-tag-color': '#ffffff' }
 }
 
 const getReservationStatusText = (status?: string) => {
@@ -1039,17 +1125,16 @@ const getReservationStatusText = (status?: string) => {
   }
 }
 
-const getReservationStatusTagType = (status?: string) => {
+const getReservationStatusTagClass = (status?: string) => {
   const normalized = (status || '').toUpperCase()
   switch (normalized) {
     case 'CHECKED_IN':
-      return 'success'
+      return 'stay-status-tag--checked-in'
+    case 'CHECKED_OUT':
     case 'CANCELLED':
-      return 'danger'
-    case 'REQUESTED':
-      return 'warning'
+      return 'stay-status-tag--checked-out'
     default:
-      return 'info'
+      return 'stay-status-tag--not-checked-in'
   }
 }
 
@@ -1546,6 +1631,15 @@ const handleReservationUpdated = async () => {
   await Promise.all([loadReservations(), loadStatistics()])
 }
 
+watch(
+  isCollapsed,
+  (collapsed) => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed))
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
   // 处理路由参数，设置初始标签页
   const type = route.query.type as string
@@ -1564,159 +1658,339 @@ onMounted(() => {
 
 <style scoped>
 .order-management {
-  display: flex;
+  --sidebar-width: 84px;
   height: 100vh;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   background: #f5f5f5;
 }
 
-/* 左侧导航 */
-.sidebar {
-  width: 200px;
-  background: white;
-  border-right: 1px solid #e8e8e8;
+.order-sidebar {
+  width: var(--sidebar-width);
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease;
+  min-height: 0;
+  background: #ffffff;
+  border-right: 1px solid #ecece7;
+  transition: width 0.24s ease;
+  overflow: hidden;
 }
 
-.sidebar.collapsed {
-  width: 64px;
-}
-
-.sidebar-header {
-  height: 56px;
+.sidebar-toggle {
+  height: 76px;
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  border-bottom: 1px solid #e8e8e8;
+  gap: 8px;
+  padding: 0 20px;
+  border: none;
+  border-bottom: 1px solid #f0f0ea;
+  background: #ffffff;
+  color: #1f2120;
   cursor: pointer;
-  transition: background-color 0.3s;
-  flex-shrink: 0;
 }
 
-.sidebar-header:hover {
-  background-color: #f5f5f5;
-}
-
-.sidebar-icon {
+.sidebar-toggle-mark {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2f7cf6;
   font-size: 20px;
-  color: #1890ff;
-  flex-shrink: 0;
+  flex: 0 0 auto;
 }
 
-.sidebar-title {
+.sidebar-toggle-label {
   flex: 1;
-  margin-left: 12px;
+  min-width: 0;
+  text-align: left;
   font-size: 14px;
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  color: #232421;
+  white-space: nowrap;
 }
 
-.collapse-icon {
-  font-size: 16px;
-  color: #999;
+.sidebar-toggle-arrow {
+  color: #a8ada8;
+  font-size: 14px;
+  flex: 0 0 auto;
 }
 
-.sidebar-menu {
+.sidebar-nav {
   flex: 1;
-  border-right: none;
-  overflow-y: auto;
+  min-height: 0;
+  padding: 18px 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* 主内容区域 */
+.sidebar-parent {
+  position: relative;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 18px 0 20px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #5f645f;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.sidebar-parent:hover {
+  background: #f6f7f3;
+  color: #20211d;
+}
+
+.sidebar-parent.is-active {
+  background: #eef5ff;
+  color: #2f7cf6;
+}
+
+.sidebar-parent-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.sidebar-parent-label {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.order-sidebar.is-collapsed .sidebar-toggle {
+  justify-content: center;
+  padding: 0;
+}
+
+.order-sidebar.is-collapsed .sidebar-parent {
+  justify-content: center;
+  padding: 0;
+}
+
+.order-panel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-panel-header {
+  padding: 18px 32px 14px;
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+.order-panel-header :deep(.top-nav) {
+  --nav-center-shift: calc(-56px + ((var(--sidebar-width) - 84px) / 6));
+  --nav-right-shift: -28px;
+}
+
 .main-content {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   background: #f5f5f5;
+  padding: 0 24px 24px;
 }
 
-/* 订单状态标签页 */
 .order-tabs {
-  background: white;
-  border-bottom: 1px solid #e8e8e8;
-  padding: 0 20px;
+  --order-tabs-center-shift: calc(-56px + ((var(--sidebar-width, 84px) - 84px) / 6) + 20px);
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  min-width: 1120px;
+  padding: 2px 0 16px;
+  background: transparent;
+  border-bottom: none;
+}
+
+.order-tabs :deep(.el-tabs) {
+  display: flex;
+  justify-content: center;
+  width: max-content;
+  transform: translateX(var(--order-tabs-center-shift));
+  transition: transform 0.24s ease;
 }
 
 .order-tabs :deep(.el-tabs__header) {
   margin: 0;
 }
 
-.tab-label-with-badge {
+.order-tabs :deep(.el-tabs__nav-wrap) {
+  overflow: visible;
+}
+
+.order-tabs :deep(.el-tabs__nav-wrap::after),
+.order-tabs :deep(.el-tabs__active-bar) {
+  display: none;
+}
+
+.order-tabs :deep(.el-tabs__nav-scroll) {
   display: flex;
+  justify-content: center;
+  overflow: visible;
+}
+
+.order-tabs :deep(.el-tabs__nav) {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+  float: none;
+  height: 28px;
+  padding: 2px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 8px rgba(30, 30, 30, 0.04);
+}
+
+.order-tabs :deep(.el-tabs__item) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  height: 24px;
+  padding: 0 12px !important;
+  border-radius: 999px;
+  color: #252525;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.order-tabs :deep(.el-tabs__item:hover:not(.is-active)) {
+  background: #f2f2f2;
+  color: #111111;
+}
+
+.order-tabs :deep(.el-tabs__item.is-active),
+.order-tabs :deep(.el-tabs__item.is-active:hover) {
+  background: #111111;
+  color: #ffffff;
+}
+
+.tab-label-with-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 24px;
 }
 
 .custom-badge {
-  display: inline-block;
-  min-width: 16px;
-  height: 16px;
-  line-height: 16px;
-  text-align: center;
-  font-size: 11px;
-  color: white;
-  background-color: #409eff;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
   padding: 0 4px;
-  font-weight: 500;
-  margin-left: 4px;
+  border-radius: 999px;
+  background: #ff6267;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  transform: translateY(-1px);
 }
 
-/* 搜索和筛选区域 */
 .search-filter-section {
-  background: white;
-  padding: 20px;
-  margin-bottom: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.search-bar {
-  margin-bottom: 16px;
+  box-sizing: border-box;
+  min-width: 1120px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: visible;
+  margin-bottom: 22px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
 }
 
 .search-input {
-  max-width: 600px;
+  order: 1;
+  width: 188px;
+  flex: 0 0 188px;
 }
 
-.date-filter {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.filter-row {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
+.filter-row,
 .main-filter-row {
   display: flex;
   align-items: center;
-  gap: 20px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  flex-wrap: nowrap;
+  min-width: max-content;
+  flex: 0 0 auto;
 }
 
 .filter-group {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
+}
+
+.date-filter-group {
+  order: 2;
+}
+
+.filter-group--room {
+  order: 3;
+}
+
+.filter-group--channel {
+  order: 4;
+}
+
+.filter-group--checkin {
+  order: 5;
+}
+
+.filter-group--status {
+  order: 6;
+}
+
+.filter-group--payment {
+  order: 7;
 }
 
 .filter-label {
-  font-size: 14px;
-  color: #666;
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: #3f4347;
   white-space: nowrap;
-  min-width: 60px;
+  min-width: 0;
+  line-height: 1;
+  font-weight: 600;
 }
 
 .filter-group .el-select {
   width: 120px;
+  flex: 0 0 120px;
+}
+
+.filter-row .filter-group .el-select {
+  width: 108px;
+  flex-basis: 108px;
 }
 
 .date-filter-group {
@@ -1725,21 +1999,182 @@ onMounted(() => {
   gap: 8px;
 }
 
-.date-filter-group .el-date-editor {
-  width: 280px;
+.date-filter-group .el-date-editor,
+.date-filter-group :deep(.el-date-editor) {
+  width: 242px;
+  flex: 0 0 242px;
 }
 
-.single-date-filter .el-date-editor {
-  width: 160px;
+.single-date-filter .el-date-editor,
+.single-date-filter :deep(.el-date-editor) {
+  width: 152px;
+  flex: 0 0 152px;
 }
 
-.filter-actions {
+.search-filter-section :deep(.el-input__wrapper),
+.search-filter-section :deep(.el-select__wrapper) {
+  min-height: 34px;
+  height: 34px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #dddddd inset;
+  background: #ffffff;
+}
+
+.search-filter-section :deep(.el-input__wrapper:hover),
+.search-filter-section :deep(.el-input__wrapper.is-focus),
+.search-filter-section :deep(.el-select__wrapper:hover),
+.search-filter-section :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #bdbdbd inset;
+}
+
+.search-filter-section :deep(.el-input__inner),
+.search-filter-section :deep(.el-select__placeholder),
+.search-filter-section :deep(.el-select__selected-item) {
+  color: #303030;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.search-filter-section :deep(.el-input__prefix) {
+  color: #a8abb2;
+}
+
+.search-input {
+  position: relative;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  padding-left: 36px;
+}
+
+.search-filter-section :deep(.search-input .el-input-group__append) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 36px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.search-filter-section :deep(.search-input .el-input-group__append .el-button) {
+  width: 36px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  color: #9aa0a6;
+}
+
+.search-filter-section :deep(.el-select__wrapper) {
+  padding: 0 0 0 14px;
+}
+
+.search-filter-section :deep(.el-select__suffix) {
+  align-self: stretch;
+  width: 34px;
   margin-left: auto;
+  padding: 0;
+  border-left: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a8abb2;
 }
 
-/* 订单列表 */
-/* 订单盒子提示 */
+.search-filter-section :deep(.el-select__suffix .el-icon) {
+  margin: 0;
+}
+
+.search-filter-section :deep(.el-date-editor.el-input__wrapper) {
+  padding: 1px 1px 1px 6px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.search-filter-section :deep(.el-date-editor .el-input__prefix),
+.search-filter-section :deep(.el-range-editor .el-range__icon) {
+  color: #a8abb2;
+}
+
+.search-filter-section :deep(.el-range-editor .el-range__icon) {
+  margin: 0 8px 0 2px;
+  font-size: 16px;
+}
+
+.search-filter-section :deep(.el-range-editor .el-range-input) {
+  height: 30px;
+  line-height: 30px;
+  padding: 0 4px;
+  border-radius: 0;
+  background: #f3f3f3;
+  color: #2f2f2f;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.search-filter-section :deep(.el-range-editor .el-range-separator) {
+  width: 26px;
+  padding: 0;
+  color: #909399;
+  line-height: 32px;
+  text-align: center;
+}
+
+.search-filter-section :deep(.single-date-filter .el-input__wrapper) {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+
+.search-filter-section :deep(.single-date-filter .el-input__wrapper::after) {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  bottom: 2px;
+  z-index: 0;
+  width: 94px;
+  border-radius: 3px;
+  background: #f3f3f3;
+  content: '';
+  pointer-events: none;
+}
+
+.search-filter-section :deep(.single-date-filter .el-input__prefix) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 38px;
+  height: 100%;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.search-filter-section :deep(.single-date-filter .el-input__suffix) {
+  display: none;
+}
+
+.search-filter-section :deep(.single-date-filter .el-input__inner) {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 30px;
+  margin: 2px 0;
+  padding: 0 13px 0 42px;
+  border-radius: 0;
+  background: transparent;
+  color: #2f2f2f;
+  font-weight: 600;
+  text-align: right;
+  box-sizing: border-box;
+}
+
 .order-box-notice {
+  min-width: 1120px;
   margin-bottom: 16px;
 }
 
@@ -1752,29 +2187,173 @@ onMounted(() => {
 }
 
 .order-list {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 1120px;
+  background: #ffffff;
+  padding: 0 0 10px;
+  border: 1px solid #e5e5e5;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.order-list :deep(.el-table) {
+  --el-table-border-color: #e5e5e5;
+  --el-table-header-bg-color: #eef4ff;
+  --el-table-row-hover-bg-color: #fafafa;
+  color: #303030;
+  font-size: 12px;
+}
+
+.order-list :deep(.el-table__inner-wrapper::before),
+.order-list :deep(.el-table__border-left-patch),
+.order-list :deep(.el-table__body-wrapper::before) {
+  display: none;
+}
+
+.order-list :deep(.el-table__header th.el-table__cell) {
+  height: 34px;
+  padding: 0;
+  border-color: #e1e5ef;
+  background: #eef4ff !important;
+  color: #252525 !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.order-list :deep(.el-table__header th.el-table__cell .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  color: #252525;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.order-list :deep(.el-table__body td.el-table__cell) {
+  height: 54px;
+  padding: 2px 0;
+  border-color: #eeeeee;
+  background: #ffffff;
+}
+
+.order-list :deep(.el-table__body td.el-table__cell .cell) {
+  padding: 0 8px;
+  color: #303030;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.order-list :deep(.el-table__body td.el-table__cell:first-child .cell) {
+  padding: 4px 8px 4px 12px;
+  line-height: 1.3;
+}
+
+.order-list :deep(.el-table__body td.channel-column .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+}
+
+.order-list :deep(.el-table__row:hover > td.el-table__cell) {
+  background: #fbfbfb;
+}
+
+.order-list :deep(.el-table__fixed-right::before),
+.order-list :deep(.el-table__fixed::before) {
+  display: none;
+}
+
+.order-list :deep(.el-tag) {
+  min-width: 48px;
+  height: 20px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.order-list :deep(.el-tag--success) {
+  background: #d9ffc8;
+  color: #57b229;
+}
+
+.order-list :deep(.el-tag--warning) {
+  background: #fff0c7;
+  color: #d99b00;
+}
+
+.order-list :deep(.el-tag--danger) {
+  background: #ffd9d9;
+  color: #f05b61;
+}
+
+.order-list :deep(.el-tag--primary),
+.order-list :deep(.el-tag--info) {
+  background: #135fad;
+  color: #ffffff;
+}
+
+.order-list :deep(.channel-tag) {
+  min-width: 60px;
+  background: var(--channel-tag-bg);
+  color: var(--channel-tag-color);
+}
+
+.order-list :deep(.stay-status-tag) {
+  min-width: 58px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.order-list :deep(.stay-status-tag--not-checked-in) {
+  background: #72bdf4;
+  color: #1383d3;
+}
+
+.order-list :deep(.stay-status-tag--checked-in) {
+  background: #ffd2d8;
+  color: #f05f75;
+}
+
+.order-list :deep(.stay-status-tag--checked-out) {
+  background: #dcdcdc;
+  color: #9d9d9d;
+}
+
+.order-list :deep(.el-button.is-link) {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .order-summary {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   align-items: flex-start;
   width: 100%;
 }
 
 .order-link {
-  color: #1890ff;
+  color: #2f7cf6;
   padding: 0;
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 600;
   text-align: left;
   white-space: normal;
   word-break: break-all;
-  line-height: 1.35;
+  line-height: 1.3;
 }
+
 .order-link :deep(.el-button__text) {
   white-space: normal;
   word-break: break-all;
@@ -1782,8 +2361,9 @@ onMounted(() => {
   display: block;
   width: 100%;
 }
+
 .order-link:hover :deep(.el-button__text) {
-  color: #409eff;
+  color: #2f7cf6;
   text-decoration: underline;
 }
 
@@ -1792,9 +2372,9 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 4px 8px;
   max-width: 100%;
-  font-size: 12px;
-  line-height: 1.35;
-  color: #606266;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #777777;
 }
 
 .order-summary-meta-item {
@@ -1804,13 +2384,14 @@ onMounted(() => {
 
 .channel-order-link {
   padding: 0;
-  font-size: 12px;
-  color: #8c8c8c;
+  font-size: 11px;
+  color: #777777;
   text-align: left;
   white-space: normal;
   word-break: break-all;
-  line-height: 1.35;
+  line-height: 1.3;
 }
+
 .channel-order-link :deep(.el-button__text) {
   white-space: normal;
   word-break: break-all;
@@ -1818,8 +2399,9 @@ onMounted(() => {
   display: block;
   width: 100%;
 }
+
 .channel-order-link:hover :deep(.el-button__text) {
-  color: #409eff;
+  color: #2f7cf6;
   text-decoration: underline;
 }
 
@@ -1832,9 +2414,10 @@ onMounted(() => {
 }
 
 .order-detail-tip {
-  margin-top: 2px;
+  margin-top: 0;
   font-size: 11px;
-  color: #8c8c8c;
+  line-height: 1.3;
+  color: #777777;
 }
 
 .room-mapping-cell {
@@ -1862,19 +2445,45 @@ onMounted(() => {
   overflow-wrap: anywhere;
 }
 
-/* 分页 */
 .pagination-wrapper {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #e8e8e8;
+  min-height: 52px;
+  margin-top: 0;
+  padding: 0 14px;
+  border-top: 1px solid #eeeeee;
+  background: #ffffff;
 }
 
 .pagination-info {
-  font-size: 14px;
-  color: #666;
+  font-size: 12px;
+  font-weight: 600;
+  color: #252525;
+}
+
+.pagination-wrapper :deep(.el-pagination) {
+  --el-pagination-button-width: 28px;
+  --el-pagination-button-height: 28px;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pagination-wrapper :deep(.el-select .el-select__wrapper),
+.pagination-wrapper :deep(.el-pagination__jump .el-input__wrapper) {
+  min-height: 28px;
+  height: 28px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #dddddd inset;
+}
+
+.pagination-wrapper :deep(.el-pagination button),
+.pagination-wrapper :deep(.el-pager li) {
+  min-width: 28px;
+  height: 28px;
+  color: #252525;
+  background: transparent;
 }
 
 .assign-room-panel {
@@ -1911,30 +2520,43 @@ onMounted(() => {
   margin-top: 10px;
 }
 
-/* 响应式设计 */
+@media (max-width: 1280px) {
+  .order-panel-header {
+    padding-left: 24px;
+    padding-right: 20px;
+  }
+
+  .main-content {
+    padding-right: 20px;
+    padding-bottom: 20px;
+  }
+}
+
 @media (max-width: 768px) {
   .order-management {
-    flex-direction: column;
+    grid-template-columns: 84px minmax(0, 1fr);
   }
 
-  .sidebar {
-    width: 100%;
-    height: auto;
+  .order-sidebar {
+    width: 84px;
   }
 
-  .filter-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
+  .order-sidebar .sidebar-toggle,
+  .order-sidebar .sidebar-parent {
+    justify-content: center;
+    padding: 0;
   }
 
-  .filter-group {
-    justify-content: space-between;
+  .main-content {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
-  .filter-group .el-select {
-    width: auto;
-    min-width: 120px;
+  .order-tabs,
+  .search-filter-section,
+  .order-list,
+  .order-box-notice {
+    min-width: 980px;
   }
 }
 </style>

@@ -17,7 +17,7 @@ export const channelOrderMessages = {
         deletedRooms: 'Deleted Room Type / Room',
       },
       filters: {
-        searchPlaceholder: 'Search order no., channel order no., room no., guest name, or phone',
+        searchPlaceholder: 'Search',
         channel: 'Channel',
         roomType: 'Room Type',
         createdAt: 'Check-in Date',
@@ -459,7 +459,7 @@ export const channelOrderMessages = {
         deletedRooms: '房型/房间已删除',
       },
       filters: {
-        searchPlaceholder: '请输入订单号、渠道订单号、房间号、姓名、手机号查询',
+        searchPlaceholder: '搜索',
         channel: '渠道',
         roomType: '房型',
         createdAt: '入住日期',
@@ -888,7 +888,7 @@ export const channelOrderMessages = {
         deletedRooms: '房型/房間已刪除',
       },
       filters: {
-        searchPlaceholder: '請輸入訂單號、渠道訂單號、房間號、姓名、手機號查詢',
+        searchPlaceholder: '搜尋',
         channel: '渠道',
         roomType: '房型',
         createdAt: '入住日期',
@@ -1316,7 +1316,7 @@ export const channelOrderMessages = {
         deletedRooms: '削除済み客室タイプ/客室',
       },
       filters: {
-        searchPlaceholder: '注文番号、チャネル注文番号、客室番号、氏名、電話番号で検索',
+        searchPlaceholder: '検索',
         channel: 'チャネル',
         roomType: '客室タイプ',
         createdAt: 'チェックイン日',
