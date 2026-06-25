@@ -70,6 +70,26 @@ public class SmartLockService {
     private static final int MAX_PASSCODE_LENGTH = 12;
     private static final String SWITCHBOT_NO_ID_CREATE_PENDING_MESSAGE =
             "SwitchBot 已返回 success 但未返回 commandId 或 keyId，等待 keyList 同步";
+    private static final String TTLOCK_NO_ID_CREATE_PENDING_MESSAGE =
+            "TTLock 已返回成功但未返回 keyboardPwdId，请刷新密码列表同步";
+    private static final String TTLOCK_PASSCODE_SYNC_NO_MATCH_MESSAGE =
+            "TTLock 密码列表未找到对应远端密码，已停止等待";
+    private static final String TTLOCK_DELETE_STILL_EXISTS_MESSAGE =
+            "TTLock 远端密码仍存在，删除结果未确认";
+    private static final String TTLOCK_DELETE_IN_PROGRESS_MESSAGE =
+            "TTLock 远端密码正在删除，等待列表同步确认";
+    private static final String TTLOCK_STATUS_REFRESH_FAILED_PREFIX =
+            "命令已提交，状态刷新失败: ";
+    private static final String PENDING_PASSCODE_MASK = "******";
+    private static final String TTLOCK_AUTO_PASSCODE_PENDING_HASH_PREFIX = "TTLOCK_AUTO_PENDING";
+    private static final String TTLOCK_DEFAULT_KEYBOARD_PWD_VERSION = "4";
+    private static final String TTLOCK_PASSCODE_STATUS_ACTIVE = "1";
+    private static final String TTLOCK_PASSCODE_STATUS_INVALID = "2";
+    private static final String TTLOCK_PASSCODE_STATUS_PENDING = "3";
+    private static final String TTLOCK_PASSCODE_STATUS_ADDING = "4";
+    private static final String TTLOCK_PASSCODE_STATUS_ADD_FAILED = "5";
+    private static final String TTLOCK_PASSCODE_STATUS_DELETING = "8";
+    private static final String TTLOCK_PASSCODE_STATUS_DELETE_FAILED = "9";
     private static final String LOCAL_NO_REMOTE_PASSCODE_CLEANUP_MESSAGE =
             "本地密码记录已清理，未调用供应商删除";
     private static final String MISSING_PROVIDER_PASSCODE_ID_DELETE_MESSAGE =
@@ -200,7 +220,13 @@ public class SmartLockService {
         SmartLockIntegration integration = requireIntegration(storeId, integrationId);
         SmartLockCredentialData credentials = decryptCredentials(integration);
         SmartLockProviderClient client = providerRegistry.getClient(integration.getProvider());
-        SmartLockCredentialData refreshed = client.refreshToken(credentials);
+        SmartLockCredentialData refreshed;
+        try {
+            refreshed = client.refreshToken(credentials);
+        } catch (RuntimeException ex) {
+            logTtLockTokenFailure(integration, "refreshToken", ex);
+            throw ex;
+        }
         persistCredentials(integration, refreshed);
         integration.setConnectionStatus(SmartLockIntegrationStatus.CONNECTED);
         integration.setLastError(null);
@@ -274,9 +300,7 @@ public class SmartLockService {
                     SmartLockBindingStatus.ACTIVE
             );
             for (SmartLockRoomBinding binding : bindings) {
-                if (provider == null || provider == binding.getProvider()) {
-                    bindingByRoomId.put(binding.getRoom().getId(), binding);
-                }
+                bindingByRoomId.put(binding.getRoom().getId(), binding);
             }
         }
         return rooms.stream()
@@ -297,6 +321,7 @@ public class SmartLockService {
                 room.getId(),
                 SmartLockBindingStatus.ACTIVE
         );
+        validateRoomProviderExclusivity(existingBinding, integration);
         if (existingBinding.isPresent()) {
             existingBindingId = existingBinding.get().getId();
         }
@@ -342,20 +367,7 @@ public class SmartLockService {
         SmartLockRoomBinding binding = requireBindingForRoom(storeId, roomId, null);
         validateBindingConsistency(storeId, binding);
         RoleTarget target = requireControlTarget(binding);
-        SmartLockDevice device = target.device();
-        SmartLockProviderClient client = providerRegistry.getClient(target.provider());
-        SmartLockCredentialData credentials = ensureProviderToken(target.integration());
-        if (hasText(target.providerLockId()) && device != null) {
-            SmartLockProviderClient.LockStatusSnapshot snapshot = client.getStatus(credentials, target.providerLockId());
-            device.setLockStatus(snapshot.lockStatus());
-            device.setBattery(snapshot.battery());
-            device.setOnline(snapshot.online());
-            device.setRawDataJson(snapshot.rawJson());
-            device.setLastStatusAt(now());
-        } else if (device != null) {
-            clearDeviceStatus(device);
-        }
-        deviceRepository.save(device);
+        refreshControlDeviceStatus(target, now());
         return mapper.toStatusDto(binding);
     }
 
@@ -409,14 +421,18 @@ public class SmartLockService {
         requireRoom(storeId, roomId);
         SmartLockRoomBinding binding = requireBindingForRoom(storeId, roomId, null);
         validateBindingConsistency(storeId, binding);
-        requirePasscodeTarget(binding);
+        RoleTarget passcodeTarget = requirePasscodeTarget(binding);
         List<SmartLockPasscodeRecord> records =
                 passcodeRepository.findByStoreIdAndRoomIdOrderByCreatedAtDesc(storeId, roomId);
-        passcodeReconciliationService.reconcileSwitchBotPasscodeRecords(
-                storeId,
-                records,
-                config.getPasscodeReconcileTimeoutMinutes()
-        );
+        if (passcodeTarget.provider() == SmartLockProvider.TTLOCK) {
+            reconcileTtLockPasscodeRecords(storeId, passcodeTarget, records);
+        } else {
+            passcodeReconciliationService.reconcileSwitchBotPasscodeRecords(
+                    storeId,
+                    records,
+                    config.getPasscodeReconcileTimeoutMinutes()
+            );
+        }
         return records.stream()
                 .filter(record -> record.getStatus() != SmartLockPasscodeStatus.DELETED)
                 .map(record -> mapper.toPasscodeDto(record, null))
@@ -436,7 +452,10 @@ public class SmartLockService {
         RoleTarget passcodeTarget = requirePasscodeTarget(binding);
         ZoneId storeZoneId = resolveStoreZoneId(storeId);
         validatePasscodeWindow(request.getValidFrom(), request.getValidUntil(), storeZoneId);
-        String passcode = normalizePasscode(request.getPasscode());
+        String requestedPasscode = SmartLockMaskingUtils.trimToNull(request.getPasscode());
+        boolean ttLockAutomaticPasscode = passcodeTarget.provider() == SmartLockProvider.TTLOCK
+                && !hasText(requestedPasscode);
+        String passcode = ttLockAutomaticPasscode ? null : normalizePasscode(request.getPasscode());
         String passcodeName = fallback(SmartLockMaskingUtils.trimToNull(request.getPasscodeName()), "门锁密码");
         String requestHash = credentialCrypto.sha256Hex(
                 "PASSCODE_CREATE|" + storeId + "|" + userId + "|" + roomId + "|" + binding.getId() + "|" + passcodeName
@@ -461,8 +480,10 @@ public class SmartLockService {
         record.setPasscodeDevice(passcodeTarget.device());
         record.setPasscodeProviderLockId(passcodeTarget.providerLockId());
         record.setPasscodeName(passcodeName);
-        record.setPasscodeMasked(SmartLockMaskingUtils.maskPasscode(passcode));
-        record.setPasscodeHash(credentialCrypto.sha256Hex(storeId + "|" + roomId + "|" + passcode));
+        record.setPasscodeMasked(hasText(passcode) ? SmartLockMaskingUtils.maskPasscode(passcode) : PENDING_PASSCODE_MASK);
+        record.setPasscodeHash(hasText(passcode)
+                ? passcodeHash(storeId, roomId, passcode)
+                : pendingTtLockAutoPasscodeHash(storeId, userId, roomId, request.getIdempotencyKey()));
         record.setValidFrom(request.getValidFrom());
         record.setValidUntil(request.getValidUntil());
         record.setStatus(SmartLockPasscodeStatus.PENDING);
@@ -496,9 +517,25 @@ public class SmartLockService {
                     request.getValidFrom(),
                     request.getValidUntil()
             );
-            SmartLockProviderClient.ProviderTaskResult result = providerRegistry
-                    .getClient(passcodeTarget.provider())
-                    .createPasscode(credentials, passcodeTarget.providerLockId(), command);
+            SmartLockProviderClient client = providerRegistry.getClient(passcodeTarget.provider());
+            String oneTimePasscode = passcode;
+            SmartLockProviderClient.ProviderTaskResult result;
+            if (ttLockAutomaticPasscode) {
+                SmartLockTtLockClient.TtLockPasscodeCommandResult commandResult =
+                        createTtLockPeriodPasscode(
+                                client,
+                                credentials,
+                                passcodeTarget.providerLockId(),
+                                command,
+                                resolveTtLockKeyboardPwdVersion(passcodeTarget)
+                        );
+                oneTimePasscode = commandResult.passcode();
+                record.setPasscodeMasked(SmartLockMaskingUtils.maskPasscode(oneTimePasscode));
+                record.setPasscodeHash(passcodeHash(storeId, roomId, oneTimePasscode));
+                result = commandResult.taskResult();
+            } else {
+                result = client.createPasscode(credentials, passcodeTarget.providerLockId(), command);
+            }
             result = normalizeCreatePasscodeResult(passcodeTarget.provider(), result);
             completeTask(task, result);
             record.setProviderTaskId(result.providerTaskId());
@@ -510,12 +547,14 @@ public class SmartLockService {
                 record.setLastError(safeProviderMessage(result.message()));
             } else {
                 record.setStatus(SmartLockPasscodeStatus.PENDING);
-                record.setLastError(null);
+                record.setLastError(passcodeTarget.provider() == SmartLockProvider.TTLOCK
+                        ? safeProviderMessage(result.message())
+                        : null);
             }
             passcodeRepository.save(record);
             logPasscodeProviderCallResult("createPasscode", record, task, passcodeTarget, result);
-            String oneTimePasscode = result.status() == SmartLockTaskStatus.SUCCESS ? passcode : null;
-            return mapper.toPasscodeDto(record, oneTimePasscode);
+            String visiblePasscode = result.status() == SmartLockTaskStatus.SUCCESS ? oneTimePasscode : null;
+            return mapper.toPasscodeDto(record, visiblePasscode);
         } catch (RuntimeException ex) {
             failTask(task, ex);
             record.setStatus(SmartLockPasscodeStatus.FAILED);
@@ -545,6 +584,9 @@ public class SmartLockService {
             return mapper.toPasscodeDto(record, null);
         }
         RoleTarget passcodeTarget = requirePasscodeSnapshotTarget(storeId, record);
+        if (!hasText(record.getProviderPasscodeId()) && record.getProvider() == SmartLockProvider.TTLOCK) {
+            reconcileTtLockPasscodeRecords(storeId, passcodeTarget, List.of(record));
+        }
         if (!hasText(record.getProviderPasscodeId())) {
             logPasscodeDeleteMissingProviderPasscodeId(record, passcodeTarget);
             throw new IllegalArgumentException(MISSING_PROVIDER_PASSCODE_ID_DELETE_MESSAGE);
@@ -587,7 +629,7 @@ public class SmartLockService {
         Long storeId = StoreContextUtils.requireStoreId();
         SmartLockTask task = taskRepository.findByStoreIdAndId(storeId, taskId)
                 .orElseThrow(() -> new IllegalArgumentException("门锁任务不存在"));
-        if (task.getStatus() == SmartLockTaskStatus.PENDING && hasText(task.getProviderTaskId())) {
+        if (shouldRefreshPendingTask(task)) {
             refreshPendingTask(task);
         }
         return mapper.toTaskDto(task);
@@ -699,6 +741,10 @@ public class SmartLockService {
                 );
             }
             completeTask(task, result);
+            if (result.status() == SmartLockTaskStatus.SUCCESS
+                    && commandTarget.provider() == SmartLockProvider.TTLOCK) {
+                refreshTtLockStatusAfterLockCommand(commandTarget, task);
+            }
         } catch (RuntimeException ex) {
             failTask(task, ex);
         }
@@ -753,7 +799,12 @@ public class SmartLockService {
         SmartLockCredentialData credentials = decryptCredentials(integration);
         if (credentials.getProvider() == SmartLockProvider.TTLOCK && credentials.shouldRefreshTtLockToken(now())) {
             SmartLockProviderClient client = providerRegistry.getClient(SmartLockProvider.TTLOCK);
-            credentials = client.refreshToken(credentials);
+            try {
+                credentials = client.refreshToken(credentials);
+            } catch (RuntimeException ex) {
+                logTtLockTokenFailure(integration, "ensureProviderToken", ex);
+                throw ex;
+            }
             persistCredentials(integration, credentials);
             integrationRepository.save(integration);
         }
@@ -921,6 +972,26 @@ public class SmartLockService {
             );
             validatePasscodeDeviceAssociation(storeId, roomId, existingBindingId, controlDevice, passcodeDevice);
         }
+    }
+
+    private void validateRoomProviderExclusivity(
+            Optional<SmartLockRoomBinding> existingBinding,
+            SmartLockIntegration integration
+    ) {
+        if (existingBinding.isEmpty() || integration == null) {
+            return;
+        }
+
+        SmartLockProvider existingProvider = existingBinding.get().getProvider();
+        SmartLockProvider requestedProvider = integration.getProvider();
+        if (existingProvider == null || existingProvider == requestedProvider) {
+            return;
+        }
+
+        throw new IllegalArgumentException(
+                "该房间已绑定 " + providerDisplayName(existingProvider)
+                        + " 门锁，请先解绑后再绑定 " + providerDisplayName(requestedProvider)
+        );
     }
 
     private void validatePasscodeDeviceAssociation(
@@ -1104,10 +1175,86 @@ public class SmartLockService {
         taskRepository.save(task);
     }
 
+    private boolean shouldRefreshPendingTask(SmartLockTask task) {
+        if (task.getStatus() != SmartLockTaskStatus.PENDING) {
+            return false;
+        }
+        if (hasText(task.getProviderTaskId())) {
+            return true;
+        }
+        return task.getProvider() == SmartLockProvider.TTLOCK && task.getPasscodeRecord() != null;
+    }
+
+    private SmartLockTtLockClient.TtLockPasscodeCommandResult createTtLockPeriodPasscode(
+            SmartLockProviderClient client,
+            SmartLockCredentialData credentials,
+            String providerLockId,
+            SmartLockProviderClient.PasscodeCommand command,
+            String keyboardPwdVersion
+    ) {
+        if (client instanceof SmartLockTtLockClient ttLockClient) {
+            return ttLockClient.createPeriodPasscode(credentials, providerLockId, command, keyboardPwdVersion);
+        }
+        throw new IllegalStateException("TTLock 自动密码客户端不可用");
+    }
+
+    private String resolveTtLockKeyboardPwdVersion(RoleTarget target) {
+        if (target == null || target.provider() != SmartLockProvider.TTLOCK) {
+            return TTLOCK_DEFAULT_KEYBOARD_PWD_VERSION;
+        }
+        String version = readRawDeviceField(target.device(), "keyboardPwdVersion");
+        return fallback(version, TTLOCK_DEFAULT_KEYBOARD_PWD_VERSION);
+    }
+
+    private void refreshControlDeviceStatus(RoleTarget target, LocalDateTime statusTime) {
+        SmartLockDevice device = target.device();
+        SmartLockProviderClient client = providerRegistry.getClient(target.provider());
+        SmartLockCredentialData credentials = ensureProviderToken(target.integration());
+        if (hasText(target.providerLockId()) && device != null) {
+            SmartLockProviderClient.LockStatusSnapshot snapshot = client.getStatus(credentials, target.providerLockId());
+            device.setLockStatus(snapshot.lockStatus());
+            device.setBattery(snapshot.battery());
+            device.setOnline(snapshot.online());
+            device.setRawDataJson(snapshot.rawJson());
+            device.setLastStatusAt(statusTime);
+        } else if (device != null) {
+            clearDeviceStatus(device);
+        }
+        if (device != null) {
+            deviceRepository.save(device);
+        }
+    }
+
+    private void refreshTtLockStatusAfterLockCommand(RoleTarget target, SmartLockTask task) {
+        try {
+            refreshControlDeviceStatus(target, now());
+        } catch (RuntimeException ex) {
+            String message = TTLOCK_STATUS_REFRESH_FAILED_PREFIX + safeError(ex);
+            task.setResultMessage(appendTaskResultMessage(task.getResultMessage(), message));
+            taskRepository.save(task);
+            logger.warn(
+                    "TTLock status refresh after command failed taskId={} providerLockIdSuffix={} errorClass={}",
+                    task.getId(),
+                    identifierSuffix(target.providerLockId()),
+                    ex.getClass().getSimpleName()
+            );
+        }
+    }
+
     private SmartLockProviderClient.ProviderTaskResult normalizeCreatePasscodeResult(
             SmartLockProvider provider,
             SmartLockProviderClient.ProviderTaskResult result
     ) {
+        if (provider == SmartLockProvider.TTLOCK
+                && result.status() == SmartLockTaskStatus.SUCCESS
+                && !hasText(result.providerPasscodeId())) {
+            return new SmartLockProviderClient.ProviderTaskResult(
+                    SmartLockTaskStatus.PENDING,
+                    result.providerTaskId(),
+                    null,
+                    TTLOCK_NO_ID_CREATE_PENDING_MESSAGE
+            );
+        }
         if (provider != SmartLockProvider.SWITCHBOT || result.status() != SmartLockTaskStatus.PENDING) {
             return result;
         }
@@ -1144,6 +1291,355 @@ public class SmartLockService {
                 LOCAL_NO_REMOTE_PASSCODE_CLEANUP_MESSAGE
         );
         logPasscodeDeleteLocalPath("noRemoteIdLocalCleanup", record);
+    }
+
+    private void reconcileTtLockPasscodeRecords(
+            Long storeId,
+            RoleTarget target,
+            List<SmartLockPasscodeRecord> records
+    ) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+
+        SmartLockProviderClient client = providerRegistry.getClient(target.provider());
+        SmartLockCredentialData credentials = ensureProviderToken(target.integration());
+        List<SmartLockTtLockClient.TtLockPasscodeSnapshot> snapshots =
+                loadTtLockPasscodeSnapshots(client, credentials, target.providerLockId());
+        Map<String, SmartLockTtLockClient.TtLockPasscodeSnapshot> snapshotsById = new HashMap<>();
+        for (SmartLockTtLockClient.TtLockPasscodeSnapshot snapshot : snapshots) {
+            if (hasText(snapshot.providerPasscodeId())) {
+                snapshotsById.put(snapshot.providerPasscodeId(), snapshot);
+            }
+        }
+
+        for (SmartLockPasscodeRecord record : records) {
+            if (!isTtLockRecordForTarget(record, target)) {
+                continue;
+            }
+
+            SmartLockTtLockClient.TtLockPasscodeSnapshot snapshot =
+                    findTtLockSnapshotForRecord(record, snapshotsById, snapshots);
+            if (record.getStatus() == SmartLockPasscodeStatus.DELETE_PENDING) {
+                applyTtLockDeletePendingSync(record, snapshot);
+                continue;
+            }
+
+            if (snapshot != null) {
+                applyTtLockSnapshotToRecord(record, snapshot);
+                continue;
+            }
+
+            if (record.getStatus() == SmartLockPasscodeStatus.PENDING) {
+                failTtLockPendingPasscode(record, TTLOCK_PASSCODE_SYNC_NO_MATCH_MESSAGE);
+            }
+        }
+    }
+
+    private List<SmartLockTtLockClient.TtLockPasscodeSnapshot> loadTtLockPasscodeSnapshots(
+            SmartLockProviderClient client,
+            SmartLockCredentialData credentials,
+            String providerLockId
+    ) {
+        if (client instanceof SmartLockTtLockClient ttLockClient) {
+            return ttLockClient.listKeyboardPasscodes(credentials, providerLockId);
+        }
+
+        List<SmartLockTtLockClient.TtLockPasscodeSnapshot> snapshots = new ArrayList<>();
+        for (SmartLockProviderClient.ProviderPasscodeSnapshot snapshot : client.listPasscodes(credentials, providerLockId)) {
+            snapshots.add(new SmartLockTtLockClient.TtLockPasscodeSnapshot(
+                    snapshot.providerPasscodeId(),
+                    snapshot.passcodeName(),
+                    snapshot.status(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            ));
+        }
+        return snapshots;
+    }
+
+    private boolean isTtLockRecordForTarget(SmartLockPasscodeRecord record, RoleTarget target) {
+        if (record == null || record.getProvider() != SmartLockProvider.TTLOCK) {
+            return false;
+        }
+        String recordProviderLockId = firstText(record.getPasscodeProviderLockId(), record.getProviderLockId());
+        return hasText(recordProviderLockId) && recordProviderLockId.equals(target.providerLockId());
+    }
+
+    private SmartLockTtLockClient.TtLockPasscodeSnapshot findTtLockSnapshotForRecord(
+            SmartLockPasscodeRecord record,
+            Map<String, SmartLockTtLockClient.TtLockPasscodeSnapshot> snapshotsById,
+            List<SmartLockTtLockClient.TtLockPasscodeSnapshot> snapshots
+    ) {
+        if (hasText(record.getProviderPasscodeId())) {
+            return snapshotsById.get(record.getProviderPasscodeId());
+        }
+
+        SmartLockTtLockClient.TtLockPasscodeSnapshot match = null;
+        for (SmartLockTtLockClient.TtLockPasscodeSnapshot snapshot : snapshots) {
+            if (!hasText(snapshot.passcode())) {
+                continue;
+            }
+            Long roomId = record.getRoom() != null ? record.getRoom().getId() : null;
+            if (roomId == null) {
+                continue;
+            }
+            String snapshotHash = passcodeHash(record.getStoreId(), roomId, snapshot.passcode());
+            if (!snapshotHash.equals(record.getPasscodeHash())) {
+                continue;
+            }
+            if (match != null) {
+                return null;
+            }
+            match = snapshot;
+        }
+        return match;
+    }
+
+    private void applyTtLockSnapshotToRecord(
+            SmartLockPasscodeRecord record,
+            SmartLockTtLockClient.TtLockPasscodeSnapshot snapshot
+    ) {
+        SmartLockPasscodeStatus previousStatus = record.getStatus();
+        if (hasText(snapshot.providerPasscodeId())) {
+            record.setProviderPasscodeId(snapshot.providerPasscodeId());
+        }
+        if (hasText(snapshot.passcodeName())) {
+            record.setPasscodeName(snapshot.passcodeName());
+        }
+        if (hasText(snapshot.passcode())) {
+            Long roomId = record.getRoom() != null ? record.getRoom().getId() : null;
+            if (roomId != null) {
+                record.setPasscodeMasked(SmartLockMaskingUtils.maskPasscode(snapshot.passcode()));
+                record.setPasscodeHash(passcodeHash(record.getStoreId(), roomId, snapshot.passcode()));
+            }
+        }
+        if (snapshot.validFrom() != null) {
+            record.setValidFrom(snapshot.validFrom());
+        }
+        if (snapshot.validUntil() != null) {
+            record.setValidUntil(snapshot.validUntil());
+        }
+
+        SmartLockPasscodeStatus remoteStatus = mapTtLockRemotePasscodeStatus(snapshot.status());
+        record.setStatus(remoteStatus);
+        if (remoteStatus == SmartLockPasscodeStatus.DELETED) {
+            record.setDeletedAt(now());
+            record.setLastError(null);
+        } else if (remoteStatus == SmartLockPasscodeStatus.FAILED) {
+            record.setLastError("TTLock 远端密码状态异常: " + fallback(snapshot.status(), "unknown"));
+        } else {
+            record.setLastError(null);
+        }
+        passcodeRepository.save(record);
+
+        if (previousStatus == SmartLockPasscodeStatus.PENDING
+                && remoteStatus == SmartLockPasscodeStatus.ACTIVE) {
+            completePendingPasscodeTasks(
+                    record,
+                    SmartLockTaskType.CREATE_PASSCODE,
+                    SmartLockTaskStatus.SUCCESS,
+                    record.getProviderPasscodeId(),
+                    "TTLock 密码列表已确认创建成功"
+            );
+        } else if (previousStatus == SmartLockPasscodeStatus.PENDING
+                && remoteStatus == SmartLockPasscodeStatus.FAILED) {
+            completePendingPasscodeTasks(
+                    record,
+                    SmartLockTaskType.CREATE_PASSCODE,
+                    SmartLockTaskStatus.FAILED,
+                    record.getProviderPasscodeId(),
+                    record.getLastError()
+            );
+        } else if (previousStatus == SmartLockPasscodeStatus.PENDING
+                && remoteStatus == SmartLockPasscodeStatus.DELETED) {
+            completePendingPasscodeTasks(
+                    record,
+                    SmartLockTaskType.CREATE_PASSCODE,
+                    SmartLockTaskStatus.FAILED,
+                    record.getProviderPasscodeId(),
+                    "TTLock 远端密码已删除，创建结果未确认"
+            );
+        } else if (previousStatus == SmartLockPasscodeStatus.PENDING
+                && remoteStatus == SmartLockPasscodeStatus.DELETE_PENDING) {
+            completePendingPasscodeTasks(
+                    record,
+                    SmartLockTaskType.CREATE_PASSCODE,
+                    SmartLockTaskStatus.FAILED,
+                    record.getProviderPasscodeId(),
+                    TTLOCK_DELETE_IN_PROGRESS_MESSAGE
+            );
+        }
+    }
+
+    private void applyTtLockDeletePendingSync(
+            SmartLockPasscodeRecord record,
+            SmartLockTtLockClient.TtLockPasscodeSnapshot snapshot
+    ) {
+        SmartLockPasscodeStatus remoteStatus = snapshot == null
+                ? SmartLockPasscodeStatus.DELETED
+                : mapTtLockRemotePasscodeStatus(snapshot.status());
+        if (remoteStatus == SmartLockPasscodeStatus.DELETED) {
+            record.setStatus(SmartLockPasscodeStatus.DELETED);
+            record.setDeletedAt(now());
+            record.setLastError(null);
+            passcodeRepository.save(record);
+            completePendingPasscodeTasks(
+                    record,
+                    SmartLockTaskType.DELETE_PASSCODE,
+                    SmartLockTaskStatus.SUCCESS,
+                    record.getProviderPasscodeId(),
+                    "TTLock 密码列表已确认删除成功"
+            );
+            return;
+        }
+
+        if (remoteStatus == SmartLockPasscodeStatus.DELETE_PENDING
+                || remoteStatus == SmartLockPasscodeStatus.PENDING) {
+            record.setStatus(SmartLockPasscodeStatus.DELETE_PENDING);
+            record.setLastError(TTLOCK_DELETE_IN_PROGRESS_MESSAGE);
+            passcodeRepository.save(record);
+            return;
+        }
+
+        record.setStatus(SmartLockPasscodeStatus.FAILED);
+        record.setLastError(TTLOCK_DELETE_STILL_EXISTS_MESSAGE);
+        passcodeRepository.save(record);
+        completePendingPasscodeTasks(
+                record,
+                SmartLockTaskType.DELETE_PASSCODE,
+                SmartLockTaskStatus.FAILED,
+                record.getProviderPasscodeId(),
+                TTLOCK_DELETE_STILL_EXISTS_MESSAGE
+        );
+    }
+
+    private void failTtLockPendingPasscode(SmartLockPasscodeRecord record, String message) {
+        record.setStatus(SmartLockPasscodeStatus.FAILED);
+        record.setLastError(message);
+        passcodeRepository.save(record);
+        completePendingPasscodeTasks(
+                record,
+                SmartLockTaskType.CREATE_PASSCODE,
+                SmartLockTaskStatus.FAILED,
+                record.getProviderPasscodeId(),
+                message
+        );
+    }
+
+    private SmartLockPasscodeStatus mapTtLockRemotePasscodeStatus(String status) {
+        if (!hasText(status)) {
+            return SmartLockPasscodeStatus.ACTIVE;
+        }
+        String normalized = status.trim().toLowerCase(Locale.ROOT);
+        if (TTLOCK_PASSCODE_STATUS_ACTIVE.equals(normalized)) {
+            return SmartLockPasscodeStatus.ACTIVE;
+        }
+        if (TTLOCK_PASSCODE_STATUS_INVALID.equals(normalized)
+                || TTLOCK_PASSCODE_STATUS_ADD_FAILED.equals(normalized)
+                || TTLOCK_PASSCODE_STATUS_DELETE_FAILED.equals(normalized)) {
+            return SmartLockPasscodeStatus.FAILED;
+        }
+        if (TTLOCK_PASSCODE_STATUS_PENDING.equals(normalized)
+                || TTLOCK_PASSCODE_STATUS_ADDING.equals(normalized)) {
+            return SmartLockPasscodeStatus.PENDING;
+        }
+        if (TTLOCK_PASSCODE_STATUS_DELETING.equals(normalized)) {
+            return SmartLockPasscodeStatus.DELETE_PENDING;
+        }
+        if (normalized.contains("fail")
+                || normalized.contains("error")
+                || normalized.contains("invalid")
+                || normalized.contains("abnormal")) {
+            return SmartLockPasscodeStatus.FAILED;
+        }
+        if (normalized.contains("deleting")
+                || normalized.contains("delete_pending")
+                || normalized.contains("delete pending")) {
+            return SmartLockPasscodeStatus.DELETE_PENDING;
+        }
+        if (normalized.contains("delete")
+                || normalized.contains("deleted")
+                || normalized.contains("remove")
+                || normalized.contains("removed")
+                || normalized.contains("cancel")) {
+            return SmartLockPasscodeStatus.DELETED;
+        }
+        if (normalized.contains("pending")
+                || normalized.contains("processing")
+                || normalized.contains("adding")) {
+            return SmartLockPasscodeStatus.PENDING;
+        }
+        if (isNumericStatus(normalized)) {
+            return SmartLockPasscodeStatus.FAILED;
+        }
+        return SmartLockPasscodeStatus.ACTIVE;
+    }
+
+    private boolean isNumericStatus(String status) {
+        for (int i = 0; i < status.length(); i++) {
+            if (!Character.isDigit(status.charAt(i))) {
+                return false;
+            }
+        }
+        return !status.isEmpty();
+    }
+
+    private void completePendingPasscodeTasks(
+            SmartLockPasscodeRecord record,
+            SmartLockTaskType taskType,
+            SmartLockTaskStatus status,
+            String providerPasscodeId,
+            String message
+    ) {
+        List<SmartLockTask> tasks = new ArrayList<>();
+        if (hasText(record.getProviderTaskId())) {
+            tasks.addAll(taskRepository.findByProviderAndProviderTaskIdOrderByCreatedAtDesc(
+                    record.getProvider(),
+                    record.getProviderTaskId()
+            ));
+        }
+        tasks.addAll(taskRepository.findPasscodeTasksWithoutProviderTaskId(
+                record.getStoreId(),
+                record.getId(),
+                taskType,
+                SmartLockTaskStatus.PENDING
+        ));
+
+        for (SmartLockTask task : tasks) {
+            if (!isMatchingPendingPasscodeTask(task, record, taskType)) {
+                continue;
+            }
+            SmartLockProviderClient.ProviderTaskResult result =
+                    new SmartLockProviderClient.ProviderTaskResult(
+                            status,
+                            task.getProviderTaskId(),
+                            providerPasscodeId,
+                            message
+                    );
+            completeTask(task, result);
+        }
+    }
+
+    private boolean isMatchingPendingPasscodeTask(
+            SmartLockTask task,
+            SmartLockPasscodeRecord record,
+            SmartLockTaskType taskType
+    ) {
+        if (task == null || task.getStatus() != SmartLockTaskStatus.PENDING) {
+            return false;
+        }
+        if (task.getTaskType() != taskType) {
+            return false;
+        }
+        if (!record.getStoreId().equals(task.getStoreId())) {
+            return false;
+        }
+        SmartLockPasscodeRecord taskRecord = task.getPasscodeRecord();
+        return taskRecord != null && record.getId().equals(taskRecord.getId());
     }
 
     private void logPasscodeProviderCallStart(
@@ -1363,6 +1859,10 @@ public class SmartLockService {
                 }
             }
             RoleTarget target = requirePasscodeSnapshotTarget(task.getStoreId(), task.getPasscodeRecord());
+            if (task.getProvider() == SmartLockProvider.TTLOCK) {
+                reconcileTtLockPasscodeRecords(task.getStoreId(), target, List.of(task.getPasscodeRecord()));
+                return;
+            }
             SmartLockCredentialData credentials = ensureProviderToken(target.integration());
             SmartLockProviderClient.ProviderTaskResult result = providerRegistry
                     .getClient(target.provider())
@@ -1439,6 +1939,11 @@ public class SmartLockService {
             SmartLockCredentialData credentials,
             LocalDateTime syncTime
     ) {
+        if (device.getProvider() == SmartLockProvider.TTLOCK) {
+            applyTtLockSyncedStatus(device, snapshot, client, credentials, syncTime);
+            return;
+        }
+
         if (device.getProvider() != SmartLockProvider.SWITCHBOT) {
             device.setBattery(snapshot.battery());
             device.setLockStatus(snapshot.lockStatus());
@@ -1465,6 +1970,31 @@ public class SmartLockService {
             device.setLastStatusAt(syncTime);
         } catch (RuntimeException ex) {
             clearDeviceStatus(device);
+        }
+    }
+
+    private void applyTtLockSyncedStatus(
+            SmartLockDevice device,
+            SmartLockProviderClient.DeviceSnapshot snapshot,
+            SmartLockProviderClient client,
+            SmartLockCredentialData credentials,
+            LocalDateTime syncTime
+    ) {
+        device.setBattery(snapshot.battery());
+        device.setLockStatus(null);
+        device.setOnline(null);
+        device.setLastStatusAt(null);
+        try {
+            SmartLockProviderClient.LockStatusSnapshot status =
+                    client.getStatus(credentials, snapshot.providerLockId());
+            device.setBattery(status.battery() != null ? status.battery() : snapshot.battery());
+            device.setLockStatus(status.lockStatus());
+            device.setOnline(status.online());
+            device.setLastStatusAt(syncTime);
+        } catch (RuntimeException ex) {
+            device.setLockStatus(null);
+            device.setOnline(null);
+            device.setLastStatusAt(null);
         }
     }
 
@@ -2017,6 +2547,35 @@ public class SmartLockService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    private String passcodeHash(Long storeId, Long roomId, String passcode) {
+        return credentialCrypto.sha256Hex(storeId + "|" + roomId + "|" + passcode);
+    }
+
+    private String pendingTtLockAutoPasscodeHash(
+            Long storeId,
+            Long userId,
+            Long roomId,
+            String idempotencyKey
+    ) {
+        return credentialCrypto.sha256Hex(
+                TTLOCK_AUTO_PASSCODE_PENDING_HASH_PREFIX
+                        + "|" + storeId
+                        + "|" + userId
+                        + "|" + roomId
+                        + "|" + fallback(SmartLockMaskingUtils.trimToNull(idempotencyKey), "no-idempotency")
+        );
+    }
+
+    private String appendTaskResultMessage(String existing, String message) {
+        if (!hasText(existing)) {
+            return message;
+        }
+        if (!hasText(message)) {
+            return existing;
+        }
+        return existing + "；" + message;
+    }
+
     private String resolveIntegrationName(SmartLockProvider provider, String requestedName, String existingName) {
         String name = SmartLockMaskingUtils.trimToNull(requestedName);
         if (hasText(name)) {
@@ -2056,6 +2615,50 @@ public class SmartLockService {
 
     private String safeProviderMessage(String message) {
         return SmartLockMaskingUtils.redactSensitiveMessage(message);
+    }
+
+    private String providerDisplayName(SmartLockProvider provider) {
+        if (provider == SmartLockProvider.SWITCHBOT) {
+            return "SwitchBot";
+        }
+        if (provider == SmartLockProvider.TTLOCK) {
+            return "TTLock";
+        }
+        return provider != null ? provider.name() : "其他供应商";
+    }
+
+    private void logTtLockTokenFailure(
+            SmartLockIntegration integration,
+            String operation,
+            RuntimeException ex
+    ) {
+        if (integration == null || integration.getProvider() != SmartLockProvider.TTLOCK) {
+            return;
+        }
+
+        String endpoint = null;
+        String errcode = null;
+        String errmsg = safeError(ex);
+        String tokenOperation = operation;
+        if (ex instanceof SmartLockTtLockClient.TtLockTokenException tokenException) {
+            endpoint = tokenException.getEndpoint();
+            errcode = tokenException.getErrcode();
+            errmsg = safeProviderMessage(tokenException.getErrmsg());
+            tokenOperation = fallback(tokenException.getOperation(), operation);
+        }
+
+        logger.warn(
+                "TTLock token operation failed provider={} storeId={} integrationId={} operation={} "
+                        + "endpoint={} errcode={} errmsg={} errorClass={}",
+                SmartLockProvider.TTLOCK,
+                integration.getStoreId(),
+                integration.getId(),
+                tokenOperation,
+                endpoint,
+                errcode,
+                errmsg,
+                ex.getClass().getSimpleName()
+        );
     }
 
     private static String fallback(String value, String fallback) {

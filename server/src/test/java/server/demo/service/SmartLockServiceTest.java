@@ -84,6 +84,7 @@ class SmartLockServiceTest {
     private RoomRepository roomRepository;
     private StoreRepository storeRepository;
     private FakeProviderClient fakeProviderClient;
+    private FakeProviderClient fakeTtLockClient;
     private SmartLockService service;
     private SmartLockPasscodeReconciliationService reconciliationService;
     private ObjectMapper objectMapper;
@@ -99,7 +100,8 @@ class SmartLockServiceTest {
         taskRepository = mock(SmartLockTaskRepository.class);
         roomRepository = mock(RoomRepository.class);
         storeRepository = mock(StoreRepository.class);
-        fakeProviderClient = new FakeProviderClient();
+        fakeProviderClient = new FakeProviderClient(SmartLockProvider.SWITCHBOT);
+        fakeTtLockClient = new FakeProviderClient(SmartLockProvider.TTLOCK);
         objectMapper = new ObjectMapper().findAndRegisterModules();
         credentialCrypto = new SmartLockCredentialCrypto("test-smart-lock-key");
         when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store("UTC")));
@@ -108,7 +110,7 @@ class SmartLockServiceTest {
         when(config.getConfirmationTtlSeconds()).thenReturn(300L);
         when(config.getSwitchBotWebhookToken()).thenReturn("webhook-token");
         SmartLockProviderClientRegistry providerRegistry =
-                new SmartLockProviderClientRegistry(List.of(fakeProviderClient));
+                new SmartLockProviderClientRegistry(List.of(fakeProviderClient, fakeTtLockClient));
         reconciliationService = new SmartLockPasscodeReconciliationService(
                 passcodeRepository,
                 taskRepository,
@@ -315,7 +317,14 @@ class SmartLockServiceTest {
     void createBinding_shouldAllowTtLockSameDeviceForBothRoles() {
         Room room = room(1L, STORE_ID);
         SmartLockIntegration integration = ttLockIntegration();
-        SmartLockDevice lock = device(20L, integration, "101", "TTLock", null, "{}");
+        SmartLockDevice lock = device(
+                20L,
+                integration,
+                "101",
+                "TTLock",
+                null,
+                "{\"hasGateway\":1,\"keyboardPwdVersion\":4}"
+        );
         SmartLockRequests.CreateBindingRequest request = new SmartLockRequests.CreateBindingRequest();
         request.setRoomId(room.getId());
         request.setControlDeviceId(lock.getId());
@@ -343,11 +352,139 @@ class SmartLockServiceTest {
     }
 
     @Test
+    void createBinding_shouldRejectCrossProviderBindingForSameRoom() {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding existingSwitchBotBinding = binding(100L, room);
+        SmartLockIntegration ttLockIntegration = ttLockIntegration();
+        SmartLockDevice ttLock = device(
+                30L,
+                ttLockIntegration,
+                "101",
+                "TTLock",
+                null,
+                "{\"hasGateway\":1,\"keyboardPwdVersion\":4}"
+        );
+        SmartLockRequests.CreateBindingRequest request = new SmartLockRequests.CreateBindingRequest();
+        request.setRoomId(room.getId());
+        request.setControlDeviceId(ttLock.getId());
+        request.setPasscodeDeviceId(ttLock.getId());
+
+        stubCreateBindingDevices(room, ttLock);
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(existingSwitchBotBinding));
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.createBinding(request)
+        );
+
+        assertTrue(error.getMessage().contains("SwitchBot"));
+        assertTrue(error.getMessage().contains("TTLock"));
+        verify(bindingRepository, never()).save(any(SmartLockRoomBinding.class));
+    }
+
+    @Test
     void refreshToken_shouldRejectIntegrationOutsideCurrentStore() {
         when(integrationRepository.findByStoreIdAndId(STORE_ID, 77L)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () -> service.refreshToken(77L));
         verify(integrationRepository, never()).save(any(SmartLockIntegration.class));
+    }
+
+    @Test
+    void testIntegration_ttLockShouldPersistRefreshedTokenBeforeConnectionTest() throws Exception {
+        SmartLockIntegration integration = ttLockIntegration();
+        integration.setCredentialCiphertext(encryptedTtLockCredentials(
+                "access-old",
+                "refresh-old",
+                LocalDateTime.now(FIXED_CLOCK).minusMinutes(1)
+        ));
+        fakeTtLockClient.refreshTokenResult = ttLockCredentials(
+                "access-new",
+                "refresh-new",
+                LocalDateTime.now(FIXED_CLOCK).plusHours(2)
+        );
+
+        when(integrationRepository.findByStoreIdAndId(STORE_ID, integration.getId()))
+                .thenReturn(Optional.of(integration));
+        when(integrationRepository.save(any(SmartLockIntegration.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartLockTestResultDTO result = service.testIntegration(integration.getId());
+        SmartLockCredentialData savedCredentials = decryptCredentials(integration);
+
+        assertTrue(result.getSuccess());
+        assertEquals(1, fakeTtLockClient.refreshTokenCalls);
+        assertEquals(1, fakeTtLockClient.testConnectionCalls);
+        assertEquals("access-new", fakeTtLockClient.lastTestConnectionCredentials.getTtLockAccessToken());
+        assertEquals("refresh-new", fakeTtLockClient.lastTestConnectionCredentials.getTtLockRefreshToken());
+        assertEquals("access-new", savedCredentials.getTtLockAccessToken());
+        assertEquals("refresh-new", savedCredentials.getTtLockRefreshToken());
+        assertEquals(fakeTtLockClient.refreshTokenResult.getTtLockTokenExpiresAt(), integration.getTokenExpiresAt());
+    }
+
+    @Test
+    void updateIntegration_ttLockCoreCredentialChangeShouldClearStoredTokens() throws Exception {
+        SmartLockIntegration integration = ttLockIntegration();
+        integration.setCredentialCiphertext(encryptedTtLockCredentials(
+                "access-old",
+                "refresh-old",
+                LocalDateTime.now(FIXED_CLOCK).plusHours(2)
+        ));
+        integration.setTokenExpiresAt(LocalDateTime.now(FIXED_CLOCK).plusHours(2));
+        SmartLockRequests.UpsertIntegrationRequest request = new SmartLockRequests.UpsertIntegrationRequest();
+        request.setTtLockClientId("client-new");
+
+        when(integrationRepository.findByStoreIdAndId(STORE_ID, integration.getId()))
+                .thenReturn(Optional.of(integration));
+        when(integrationRepository.save(any(SmartLockIntegration.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateIntegration(integration.getId(), request);
+        SmartLockCredentialData savedCredentials = decryptCredentials(integration);
+
+        assertEquals("client-new", savedCredentials.getTtLockClientId());
+        assertEquals(null, savedCredentials.getTtLockAccessToken());
+        assertEquals(null, savedCredentials.getTtLockRefreshToken());
+        assertEquals(null, savedCredentials.getTtLockTokenExpiresAt());
+        assertEquals(null, integration.getTokenExpiresAt());
+    }
+
+    @Test
+    void refreshToken_ttLockFailureShouldLogContextAndExposeProviderMessage() throws Exception {
+        SmartLockIntegration integration = ttLockIntegration();
+        integration.setCredentialCiphertext(encryptedTtLockCredentials(
+                "access-old",
+                "refresh-old",
+                LocalDateTime.now(FIXED_CLOCK).minusMinutes(1)
+        ));
+        fakeTtLockClient.refreshTokenFailure = new SmartLockTtLockClient.TtLockTokenException(
+                "refresh_token",
+                "/oauth2/token",
+                "10011",
+                "invalid refresh_token"
+        );
+
+        when(integrationRepository.findByStoreIdAndId(STORE_ID, integration.getId()))
+                .thenReturn(Optional.of(integration));
+        ListAppender<ILoggingEvent> logAppender = attachServiceLogAppender();
+
+        RuntimeException error;
+        try {
+            error = assertThrows(RuntimeException.class, () -> service.refreshToken(integration.getId()));
+        } finally {
+            detachServiceLogAppender(logAppender);
+        }
+
+        assertTrue(error.getMessage().contains("invalid refresh_token"));
+        assertTrue(hasLogMessage(logAppender, "provider=TTLOCK storeId=26 integrationId=11"));
+        assertTrue(hasLogMessage(logAppender, "operation=refresh_token endpoint=/oauth2/token"));
+        assertTrue(hasLogMessage(logAppender, "errcode=10011 errmsg=invalid refresh_token"));
+        assertFalse(hasLogMessage(logAppender, "refresh-old"));
+        assertFalse(hasLogMessage(logAppender, "secret-1"));
     }
 
     @Test
@@ -522,6 +659,96 @@ class SmartLockServiceTest {
     }
 
     @Test
+    void syncDevices_shouldRefreshTtLockStatusAndExposeSingleDeviceCapabilities() throws Exception {
+        SmartLockIntegration integration = ttLockIntegration();
+        integration.setCredentialCiphertext(encryptedTtLockCredentials(
+                "access-1",
+                "refresh-1",
+                LocalDateTime.now(FIXED_CLOCK).plusHours(2)
+        ));
+        fakeTtLockClient.deviceSnapshots = List.of(
+                new SmartLockProviderClient.DeviceSnapshot(
+                        "101",
+                        "Room 101",
+                        "TTLock",
+                        null,
+                        88,
+                        null,
+                        null,
+                        "{\"lockId\":101,\"hasGateway\":1,\"keyboardPwdVersion\":4}"
+                )
+        );
+        fakeTtLockClient.statusSnapshots.put(
+                "101",
+                new SmartLockProviderClient.LockStatusSnapshot("locked", 77, null, "{}")
+        );
+
+        when(integrationRepository.findByStoreIdAndId(STORE_ID, integration.getId()))
+                .thenReturn(Optional.of(integration));
+        when(deviceRepository.findByStoreIdAndProviderAndProviderLockId(
+                eq(STORE_ID),
+                eq(SmartLockProvider.TTLOCK),
+                anyString()
+        )).thenReturn(Optional.empty());
+        stubDeviceSaveWithIds();
+
+        List<SmartLockDeviceDTO> devices = service.syncDevices(integration.getId());
+
+        SmartLockDeviceDTO ttLock = findDevice(devices, "101");
+        assertEquals("locked", ttLock.getLockStatus());
+        assertEquals(77, ttLock.getBattery());
+        assertEquals(Boolean.TRUE, ttLock.getSupportsControl());
+        assertEquals(Boolean.TRUE, ttLock.getSupportsPasscode());
+        assertEquals("DEVICE", ttLock.getStatusSource());
+        assertEquals("101", ttLock.getStatusSourceDeviceId());
+        assertEquals(LocalDateTime.now(FIXED_CLOCK), ttLock.getLastStatusAt());
+        assertEquals(List.of("101"), fakeTtLockClient.statusRequests);
+    }
+
+    @Test
+    void syncDevices_shouldKeepTtLockDevicePendingWhenStatusApiFails() throws Exception {
+        SmartLockIntegration integration = ttLockIntegration();
+        integration.setCredentialCiphertext(encryptedTtLockCredentials(
+                "access-1",
+                "refresh-1",
+                LocalDateTime.now(FIXED_CLOCK).plusHours(2)
+        ));
+        fakeTtLockClient.deviceSnapshots = List.of(
+                new SmartLockProviderClient.DeviceSnapshot(
+                        "101",
+                        "Room 101",
+                        "TTLock",
+                        null,
+                        88,
+                        null,
+                        null,
+                        "{\"lockId\":101,\"hasGateway\":1,\"keyboardPwdVersion\":4}"
+                )
+        );
+        fakeTtLockClient.failedStatusDeviceIds.add("101");
+
+        when(integrationRepository.findByStoreIdAndId(STORE_ID, integration.getId()))
+                .thenReturn(Optional.of(integration));
+        when(deviceRepository.findByStoreIdAndProviderAndProviderLockId(
+                eq(STORE_ID),
+                eq(SmartLockProvider.TTLOCK),
+                anyString()
+        )).thenReturn(Optional.empty());
+        stubDeviceSaveWithIds();
+
+        List<SmartLockDeviceDTO> devices = service.syncDevices(integration.getId());
+
+        SmartLockDeviceDTO ttLock = findDevice(devices, "101");
+        assertEquals(null, ttLock.getLockStatus());
+        assertEquals(88, ttLock.getBattery());
+        assertEquals(null, ttLock.getOnline());
+        assertEquals(null, ttLock.getLastStatusAt());
+        assertEquals("DEVICE", ttLock.getStatusSource());
+        assertEquals("101", ttLock.getStatusSourceDeviceId());
+        assertEquals(List.of("101"), fakeTtLockClient.statusRequests);
+    }
+
+    @Test
     void unlock_shouldRejectConfirmationForDifferentAction() {
         Room room = room(1L, STORE_ID);
         SmartLockRoomBinding binding = binding(100L, room);
@@ -670,6 +897,247 @@ class SmartLockServiceTest {
         assertEquals(SmartLockPasscodeStatus.ACTIVE, passcodeResult.getStatus());
         assertEquals(List.of("keypad-A"), fakeProviderClient.createPasscodeRequests);
         assertEquals(List.of("lock-A"), fakeProviderClient.unlockRequests);
+    }
+
+    @Test
+    void unlock_shouldRefreshTtLockStatusAfterSuccessfulCommand() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = ttLockDualRoleBinding(100L, room);
+        SmartLockRequests.LockOperationRequest request = lockOperationRequest(binding, "ttlock-unlock-refresh");
+        SmartLockConfirmation confirmation = confirmation(room, binding, SmartLockTaskType.UNLOCK);
+        fakeTtLockClient.statusSnapshots.put(
+                "101",
+                new SmartLockProviderClient.LockStatusSnapshot("unlocked", 66, null, "{\"state\":1}")
+        );
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndIdAndStatus(
+                STORE_ID,
+                binding.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(taskRepository.findByStoreIdAndIdempotencyKey(STORE_ID, request.getIdempotencyKey()))
+                .thenReturn(Optional.empty());
+        when(confirmationRepository.findByStoreIdAndTokenHash(eq(STORE_ID), anyString()))
+                .thenReturn(Optional.of(confirmation));
+        when(confirmationRepository.save(any(SmartLockConfirmation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(deviceRepository.save(any(SmartLockDevice.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        stubTaskSaveWithIds();
+
+        SmartLockTaskDTO result = service.unlock(room.getId(), request);
+
+        assertEquals(SmartLockTaskStatus.SUCCESS, result.getStatus());
+        assertEquals(List.of("101"), fakeTtLockClient.unlockRequests);
+        assertEquals(List.of("101"), fakeTtLockClient.statusRequests);
+        assertEquals("unlocked", binding.getControlDevice().getLockStatus());
+        assertEquals(66, binding.getControlDevice().getBattery());
+        assertEquals(LocalDateTime.now(FIXED_CLOCK), binding.getControlDevice().getLastStatusAt());
+    }
+
+    @Test
+    void createPasscode_shouldUseTtLockPasscodeRoleLockId() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = ttLockDualRoleBinding(100L, room);
+        SmartLockRequests.CreatePasscodeRequest request = passcodeRequest();
+        request.setIdempotencyKey("ttlock-create-manual");
+        fakeTtLockClient.createProviderTaskId = null;
+        fakeTtLockClient.createProviderPasscodeId = "pwd-101";
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(taskRepository.findByStoreIdAndIdempotencyKey(STORE_ID, request.getIdempotencyKey()))
+                .thenReturn(Optional.empty());
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> {
+            SmartLockPasscodeRecord record = invocation.getArgument(0);
+            if (record.getId() == null) {
+                record.setId(301L);
+            }
+            return record;
+        });
+        stubTaskSaveWithIds();
+
+        SmartLockPasscodeDTO result = service.createPasscode(room.getId(), request);
+
+        assertEquals(SmartLockPasscodeStatus.ACTIVE, result.getStatus());
+        assertEquals("pwd-101", result.getProviderPasscodeId());
+        assertEquals("123456", result.getOneTimePasscode());
+        assertEquals(List.of("101"), fakeTtLockClient.createPasscodeRequests);
+    }
+
+    @Test
+    void listPasscodes_shouldReconcileTtLockPendingRecordFromRemoteList() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = ttLockDualRoleBinding(100L, room);
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.PENDING);
+        record.setProviderPasscodeId("pwd-101");
+        record.setProviderTaskId("task-create-ttlock");
+        SmartLockTask task = task(401L, SmartLockTaskType.CREATE_PASSCODE, binding, record, "task-create-ttlock");
+        fakeTtLockClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("pwd-101", "Guest", "normal")
+        );
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(passcodeRepository.findByStoreIdAndRoomIdOrderByCreatedAtDesc(STORE_ID, room.getId()))
+                .thenReturn(List.of(record));
+        when(taskRepository.findByProviderAndProviderTaskIdOrderByCreatedAtDesc(
+                SmartLockProvider.TTLOCK,
+                "task-create-ttlock"
+        )).thenReturn(List.of(task));
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<SmartLockPasscodeDTO> result = service.listPasscodes(room.getId());
+
+        assertEquals(1, result.size());
+        assertEquals(SmartLockPasscodeStatus.ACTIVE, result.get(0).getStatus());
+        assertEquals(SmartLockTaskStatus.SUCCESS, task.getStatus());
+        assertEquals(List.of("101"), fakeTtLockClient.listPasscodeRequests);
+    }
+
+    @Test
+    void listPasscodes_shouldMapTtLockNumericRemoteStatuses() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = ttLockDualRoleBinding(100L, room);
+        SmartLockPasscodeRecord invalidRecord = passcodeRecord(301L, binding, SmartLockPasscodeStatus.ACTIVE);
+        SmartLockPasscodeRecord pendingRecord = passcodeRecord(302L, binding, SmartLockPasscodeStatus.ACTIVE);
+        SmartLockPasscodeRecord addingRecord = passcodeRecord(303L, binding, SmartLockPasscodeStatus.ACTIVE);
+        SmartLockPasscodeRecord addFailedRecord = passcodeRecord(304L, binding, SmartLockPasscodeStatus.ACTIVE);
+        SmartLockPasscodeRecord deletingRecord = passcodeRecord(305L, binding, SmartLockPasscodeStatus.ACTIVE);
+        SmartLockPasscodeRecord deleteFailedRecord = passcodeRecord(306L, binding, SmartLockPasscodeStatus.ACTIVE);
+        invalidRecord.setProviderPasscodeId("pwd-invalid");
+        pendingRecord.setProviderPasscodeId("pwd-pending");
+        addingRecord.setProviderPasscodeId("pwd-adding");
+        addFailedRecord.setProviderPasscodeId("pwd-add-failed");
+        deletingRecord.setProviderPasscodeId("pwd-deleting");
+        deleteFailedRecord.setProviderPasscodeId("pwd-delete-failed");
+        fakeTtLockClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("pwd-invalid", "Invalid", "2"),
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("pwd-pending", "Pending", "3"),
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("pwd-adding", "Adding", "4"),
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("pwd-add-failed", "Add failed", "5"),
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("pwd-deleting", "Deleting", "8"),
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("pwd-delete-failed", "Delete failed", "9")
+        );
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(passcodeRepository.findByStoreIdAndRoomIdOrderByCreatedAtDesc(STORE_ID, room.getId()))
+                .thenReturn(List.of(
+                        invalidRecord,
+                        pendingRecord,
+                        addingRecord,
+                        addFailedRecord,
+                        deletingRecord,
+                        deleteFailedRecord
+                ));
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<SmartLockPasscodeDTO> result = service.listPasscodes(room.getId());
+        Map<String, SmartLockPasscodeStatus> statusByPasscodeId = new HashMap<>();
+        for (SmartLockPasscodeDTO passcode : result) {
+            statusByPasscodeId.put(passcode.getProviderPasscodeId(), passcode.getStatus());
+        }
+
+        assertEquals(SmartLockPasscodeStatus.FAILED, statusByPasscodeId.get("pwd-invalid"));
+        assertEquals(SmartLockPasscodeStatus.PENDING, statusByPasscodeId.get("pwd-pending"));
+        assertEquals(SmartLockPasscodeStatus.PENDING, statusByPasscodeId.get("pwd-adding"));
+        assertEquals(SmartLockPasscodeStatus.FAILED, statusByPasscodeId.get("pwd-add-failed"));
+        assertEquals(SmartLockPasscodeStatus.DELETE_PENDING, statusByPasscodeId.get("pwd-deleting"));
+        assertEquals(SmartLockPasscodeStatus.FAILED, statusByPasscodeId.get("pwd-delete-failed"));
+        assertEquals(List.of("101"), fakeTtLockClient.listPasscodeRequests);
+    }
+
+    @Test
+    void listPasscodes_shouldMarkTtLockDeletePendingDeletedWhenRemoteIdDisappears() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = ttLockDualRoleBinding(100L, room);
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.DELETE_PENDING);
+        record.setProviderPasscodeId("pwd-delete");
+        record.setProviderTaskId("task-delete-ttlock");
+        SmartLockTask task = task(401L, SmartLockTaskType.DELETE_PASSCODE, binding, record, "task-delete-ttlock");
+        fakeTtLockClient.passcodeSnapshots = List.of(
+                new SmartLockProviderClient.ProviderPasscodeSnapshot("other-pwd", "Other", "normal")
+        );
+
+        when(roomRepository.findByStoreIdAndId(STORE_ID, room.getId())).thenReturn(Optional.of(room));
+        when(bindingRepository.findByStoreIdAndRoomIdAndStatus(
+                STORE_ID,
+                room.getId(),
+                SmartLockBindingStatus.ACTIVE
+        )).thenReturn(Optional.of(binding));
+        when(passcodeRepository.findByStoreIdAndRoomIdOrderByCreatedAtDesc(STORE_ID, room.getId()))
+                .thenReturn(List.of(record));
+        when(taskRepository.findByProviderAndProviderTaskIdOrderByCreatedAtDesc(
+                SmartLockProvider.TTLOCK,
+                "task-delete-ttlock"
+        )).thenReturn(List.of(task));
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<SmartLockPasscodeDTO> result = service.listPasscodes(room.getId());
+
+        assertEquals(0, result.size());
+        assertEquals(SmartLockPasscodeStatus.DELETED, record.getStatus());
+        assertTrue(record.getDeletedAt() != null);
+        assertEquals(SmartLockTaskStatus.SUCCESS, task.getStatus());
+        assertEquals(List.of("101"), fakeTtLockClient.listPasscodeRequests);
+    }
+
+    @Test
+    void getTask_shouldCloseTtLockPendingPasscodeWhenRemoteListHasNoMatch() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = ttLockDualRoleBinding(100L, room);
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.PENDING);
+        record.setProviderTaskId("task-create-ttlock");
+        SmartLockTask task = task(401L, SmartLockTaskType.CREATE_PASSCODE, binding, record, "task-create-ttlock");
+        fakeTtLockClient.passcodeSnapshots = List.of();
+
+        when(taskRepository.findByStoreIdAndId(STORE_ID, task.getId())).thenReturn(Optional.of(task));
+        when(taskRepository.findByProviderAndProviderTaskIdOrderByCreatedAtDesc(
+                SmartLockProvider.TTLOCK,
+                "task-create-ttlock"
+        )).thenReturn(List.of(task));
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(taskRepository.save(any(SmartLockTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SmartLockTaskDTO result = service.getTask(task.getId());
+
+        assertEquals(SmartLockTaskStatus.FAILED, result.getStatus());
+        assertEquals(SmartLockPasscodeStatus.FAILED, record.getStatus());
+        assertTrue(record.getLastError().contains("未找到"));
+        assertEquals(List.of("101"), fakeTtLockClient.listPasscodeRequests);
+    }
+
+    @Test
+    void deletePasscode_shouldUseTtLockDeleteAndLandDeletedSynchronously() throws Exception {
+        Room room = room(1L, STORE_ID);
+        SmartLockRoomBinding binding = ttLockDualRoleBinding(100L, room);
+        SmartLockPasscodeRecord record = passcodeRecord(301L, binding, SmartLockPasscodeStatus.ACTIVE);
+        record.setProviderPasscodeId("pwd-delete");
+
+        when(passcodeRepository.findByStoreIdAndId(STORE_ID, record.getId())).thenReturn(Optional.of(record));
+        when(passcodeRepository.save(any(SmartLockPasscodeRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        stubTaskSaveWithIds();
+
+        SmartLockPasscodeDTO result = service.deletePasscode(record.getId());
+
+        assertEquals(SmartLockPasscodeStatus.DELETED, result.getStatus());
+        assertEquals(SmartLockPasscodeStatus.DELETED, record.getStatus());
+        assertTrue(record.getDeletedAt() != null);
+        assertEquals(List.of("101"), fakeTtLockClient.deletePasscodeRequests);
     }
 
     @Test
@@ -1787,6 +2255,40 @@ class SmartLockServiceTest {
         return binding;
     }
 
+    private SmartLockRoomBinding ttLockDualRoleBinding(Long id, Room room) throws Exception {
+        SmartLockIntegration integration = ttLockIntegration();
+        integration.setCredentialCiphertext(encryptedTtLockCredentials(
+                "access-1",
+                "refresh-1",
+                LocalDateTime.now(FIXED_CLOCK).plusHours(2)
+        ));
+        SmartLockDevice lock = device(
+                20L,
+                integration,
+                "101",
+                "TTLock",
+                null,
+                "{\"lockId\":101,\"hasGateway\":1,\"keyboardPwdVersion\":4}"
+        );
+        return dualRoleBinding(id, room, lock, lock);
+    }
+
+    private SmartLockConfirmation confirmation(
+            Room room,
+            SmartLockRoomBinding binding,
+            SmartLockTaskType action
+    ) {
+        SmartLockConfirmation confirmation = new SmartLockConfirmation();
+        confirmation.setId(55L);
+        confirmation.setStoreId(STORE_ID);
+        confirmation.setRoom(room);
+        confirmation.setBinding(binding);
+        confirmation.setAction(action);
+        confirmation.setCreatedBy(USER_ID);
+        confirmation.setExpiresAt(LocalDateTime.now(FIXED_CLOCK).plusMinutes(5));
+        return confirmation;
+    }
+
     private SmartLockPasscodeRecord passcodeRecord(
             Long id,
             SmartLockRoomBinding binding,
@@ -1862,6 +2364,32 @@ class SmartLockServiceTest {
     }
 
     private boolean hasReconciliationLog(
+            ListAppender<ILoggingEvent> appender,
+            String expectedFragment
+    ) {
+        for (ILoggingEvent event : appender.list) {
+            if (event.getFormattedMessage().contains(expectedFragment)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private ListAppender<ILoggingEvent> attachServiceLogAppender() {
+        Logger logger = (Logger) LoggerFactory.getLogger(SmartLockService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        return appender;
+    }
+
+    private void detachServiceLogAppender(ListAppender<ILoggingEvent> appender) {
+        Logger logger = (Logger) LoggerFactory.getLogger(SmartLockService.class);
+        logger.detachAppender(appender);
+        appender.stop();
+    }
+
+    private boolean hasLogMessage(
             ListAppender<ILoggingEvent> appender,
             String expectedFragment
     ) {
@@ -1984,6 +2512,38 @@ class SmartLockServiceTest {
         return credentialCrypto.encrypt(objectMapper.writeValueAsString(credentials));
     }
 
+    private SmartLockCredentialData ttLockCredentials(
+            String accessToken,
+            String refreshToken,
+            LocalDateTime tokenExpiresAt
+    ) {
+        SmartLockCredentialData credentials = new SmartLockCredentialData();
+        credentials.setProvider(SmartLockProvider.TTLOCK);
+        credentials.setTtLockClientId("client-1");
+        credentials.setTtLockClientSecret("secret-1");
+        credentials.setTtLockUsername("owner@example.com");
+        credentials.setTtLockPasswordMd5("5f4dcc3b5aa765d61d8327deb882cf99");
+        credentials.setTtLockAccessToken(accessToken);
+        credentials.setTtLockRefreshToken(refreshToken);
+        credentials.setTtLockTokenExpiresAt(tokenExpiresAt);
+        return credentials;
+    }
+
+    private String encryptedTtLockCredentials(
+            String accessToken,
+            String refreshToken,
+            LocalDateTime tokenExpiresAt
+    ) throws Exception {
+        return credentialCrypto.encrypt(objectMapper.writeValueAsString(
+                ttLockCredentials(accessToken, refreshToken, tokenExpiresAt)
+        ));
+    }
+
+    private SmartLockCredentialData decryptCredentials(SmartLockIntegration integration) throws Exception {
+        String json = credentialCrypto.decrypt(integration.getCredentialCiphertext());
+        return objectMapper.readValue(json, SmartLockCredentialData.class);
+    }
+
     private SmartLockIntegration switchBotIntegration() throws Exception {
         SmartLockIntegration integration = new SmartLockIntegration();
         integration.setId(10L);
@@ -2037,11 +2597,18 @@ class SmartLockServiceTest {
     }
 
     private static final class FakeProviderClient implements SmartLockProviderClient {
+        private final SmartLockProvider provider;
+        private int refreshTokenCalls;
+        private int testConnectionCalls;
         private int unlockCalls;
         private int createPasscodeCalls;
         private int deletePasscodeCalls;
         private int queryTaskCalls;
         private RuntimeException testConnectionFailure;
+        private RuntimeException refreshTokenFailure;
+        private SmartLockCredentialData refreshTokenResult;
+        private SmartLockCredentialData lastTestConnectionCredentials;
+        private SmartLockCredentialData lastRefreshCredentials;
         private final List<String> unlockRequests = new ArrayList<>();
         private final List<String> lockRequests = new ArrayList<>();
         private final List<String> createPasscodeRequests = new ArrayList<>();
@@ -2058,13 +2625,19 @@ class SmartLockServiceTest {
         private final Map<String, LockStatusSnapshot> statusSnapshots = new HashMap<>();
         private final Set<String> failedStatusDeviceIds = new HashSet<>();
 
+        private FakeProviderClient(SmartLockProvider provider) {
+            this.provider = provider;
+        }
+
         @Override
         public SmartLockProvider getProvider() {
-            return SmartLockProvider.SWITCHBOT;
+            return provider;
         }
 
         @Override
         public void testConnection(SmartLockCredentialData credentials) {
+            testConnectionCalls++;
+            lastTestConnectionCredentials = credentials.copy();
             if (testConnectionFailure != null) {
                 throw testConnectionFailure;
             }
@@ -2072,6 +2645,14 @@ class SmartLockServiceTest {
 
         @Override
         public SmartLockCredentialData refreshToken(SmartLockCredentialData credentials) {
+            refreshTokenCalls++;
+            lastRefreshCredentials = credentials.copy();
+            if (refreshTokenFailure != null) {
+                throw refreshTokenFailure;
+            }
+            if (refreshTokenResult != null) {
+                return refreshTokenResult.copy();
+            }
             return credentials;
         }
 

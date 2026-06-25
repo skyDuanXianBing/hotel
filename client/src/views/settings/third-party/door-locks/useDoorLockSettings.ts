@@ -103,6 +103,11 @@ interface RoomBindingValidation {
   messages: string[]
 }
 
+interface DoorLockApiResponseLike {
+  message?: string
+  data?: unknown
+}
+
 export function useDoorLockSettings() {
   const { t } = useI18n()
   const storeStore = useStoreStore()
@@ -356,8 +361,62 @@ export function useDoorLockSettings() {
     roomTypeFilter.value = EMPTY_ROOM_TYPE_FILTER
   }
 
-  function getErrorText(_error: unknown, fallback: string) {
+  function getErrorText(error: unknown, fallback: string) {
+    const response = getObjectProperty(error, 'response')
+    const responseData = getObjectProperty(response, 'data')
+    const responseMessage = getObjectMessage(responseData)
+    if (responseMessage) {
+      return responseMessage
+    }
+
+    const directMessage = getObjectMessage(error)
+    if (directMessage) {
+      return directMessage
+    }
+
+    if (error instanceof Error && error.message.trim()) {
+      return error.message
+    }
+
+    if (typeof error === 'string' && error.trim()) {
+      return error
+    }
+
     return fallback
+  }
+
+  function getResponseErrorText(response: DoorLockApiResponseLike, fallback: string) {
+    const dataMessage = getObjectMessage(response.data)
+    if (dataMessage) {
+      return dataMessage
+    }
+
+    if (response.message?.trim()) {
+      return response.message
+    }
+
+    return fallback
+  }
+
+  function getObjectMessage(value: unknown) {
+    const message = getObjectProperty(value, 'message')
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+
+    return ''
+  }
+
+  function getObjectProperty(value: unknown, key: string) {
+    if (!isRecord(value)) {
+      return undefined
+    }
+
+    return value[key]
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null
   }
 
   function isIntegrationEnabled(integration: DoorLockIntegrationDTO) {
@@ -408,7 +467,7 @@ export function useDoorLockSettings() {
       }
 
       if (!response.success) {
-        throw new Error(t('settings.doorLocks.messages.loadFailed'))
+        throw new Error(getResponseErrorText(response, t('settings.doorLocks.messages.loadFailed')))
       }
 
       applyIntegrations(response.data || [])
@@ -448,11 +507,11 @@ export function useDoorLockSettings() {
       }
 
       if (!devicesResponse.success) {
-        throw new Error(t('settings.doorLocks.messages.loadFailed'))
+        throw new Error(getResponseErrorText(devicesResponse, t('settings.doorLocks.messages.loadFailed')))
       }
 
       if (!roomsResponse.success) {
-        throw new Error(t('settings.doorLocks.messages.loadFailed'))
+        throw new Error(getResponseErrorText(roomsResponse, t('settings.doorLocks.messages.loadFailed')))
       }
 
       devices.value = devicesResponse.data || []
@@ -476,6 +535,10 @@ export function useDoorLockSettings() {
       const binding = getRoomBinding(room)
       const roomId = getRoomId(room)
       if (roomId) {
+        if (binding?.provider && binding.provider !== activeProvider.value) {
+          nextSelected[roomId] = createEmptyRoleSelection()
+          continue
+        }
         nextSelected[roomId] = {
           controlDeviceKey: binding ? getBindingRoleDeviceKey(binding, ROLE_CONTROL) : '',
           passcodeDeviceKey: binding ? getBindingRoleDeviceKey(binding, ROLE_PASSCODE) : '',
@@ -645,7 +708,7 @@ export function useDoorLockSettings() {
       }
 
       if (!response.success || !response.data) {
-        throw new Error(t('settings.doorLocks.messages.saveFailed'))
+        throw new Error(getResponseErrorText(response, t('settings.doorLocks.messages.saveFailed')))
       }
 
       integrations.value[payload.provider] = response.data
@@ -680,7 +743,7 @@ export function useDoorLockSettings() {
       }
 
       if (!response.success || response.data?.success === false) {
-        throw new Error(t('settings.doorLocks.messages.testFailed'))
+        throw new Error(getResponseErrorText(response, t('settings.doorLocks.messages.testFailed')))
       }
 
       if (isCurrentProviderRequest(storeIdAtRequest, providerAtRequest)) {
@@ -713,7 +776,7 @@ export function useDoorLockSettings() {
       }
 
       if (!response.success || !response.data) {
-        throw new Error(t('settings.doorLocks.messages.refreshFailed'))
+        throw new Error(getResponseErrorText(response, t('settings.doorLocks.messages.refreshFailed')))
       }
 
       integrations.value[providerAtRequest] = response.data
@@ -748,7 +811,7 @@ export function useDoorLockSettings() {
       }
 
       if (!response.success) {
-        throw new Error(t('settings.doorLocks.messages.syncFailed'))
+        throw new Error(getResponseErrorText(response, t('settings.doorLocks.messages.syncFailed')))
       }
 
       if (isCurrentProviderRequest(storeIdAtRequest, providerAtRequest)) {
@@ -797,7 +860,7 @@ export function useDoorLockSettings() {
       }
 
       if (!response.success) {
-        throw new Error(t('settings.doorLocks.messages.bindFailed'))
+        throw new Error(getResponseErrorText(response, t('settings.doorLocks.messages.bindFailed')))
       }
 
       if (isCurrentProviderRequest(storeIdAtRequest, providerAtRequest)) {
@@ -847,7 +910,7 @@ export function useDoorLockSettings() {
       }
 
       if (!response.success) {
-        throw new Error(t('settings.doorLocks.messages.unbindFailed'))
+        throw new Error(getResponseErrorText(response, t('settings.doorLocks.messages.unbindFailed')))
       }
 
       if (isCurrentProviderRequest(storeIdAtRequest, providerAtRequest)) {
@@ -946,7 +1009,11 @@ export function useDoorLockSettings() {
       return t('settings.doorLocks.status.online')
     }
 
-    return t('settings.doorLocks.status.pendingOrUnavailable')
+    if (device.statusSource === 'UNAVAILABLE') {
+      return t('settings.doorLocks.status.unavailable')
+    }
+
+    return t('settings.doorLocks.status.pendingRefresh')
   }
 
   function getDeviceStatusTagType(device: DoorLockDeviceDTO) {
@@ -968,6 +1035,10 @@ export function useDoorLockSettings() {
     }
 
     if (device.online === false) {
+      return 'info'
+    }
+
+    if (device.statusSource === 'UNAVAILABLE') {
       return 'info'
     }
 
@@ -1087,6 +1158,11 @@ export function useDoorLockSettings() {
       const binding = getRoomBinding(item)
       return Boolean(binding && getRoomId(item) !== roomId && isBindingForDevice(binding, device))
     })
+  }
+
+  function isRoomBoundToDifferentProvider(room: DoorLockRoomDTO) {
+    const binding = getRoomBinding(room)
+    return Boolean(binding?.provider && binding.provider !== activeProvider.value)
   }
 
   function getBindingDeviceKey(binding: DoorLockBindingDTO) {
@@ -1214,6 +1290,10 @@ export function useDoorLockSettings() {
   }
 
   function isBindingForDevice(binding: DoorLockBindingDTO, device: DoorLockDeviceDTO) {
+    if (binding.provider && binding.provider !== device.provider) {
+      return false
+    }
+
     const deviceKey = getDeviceKey(device)
     if (!deviceKey) {
       return false
@@ -1258,6 +1338,12 @@ export function useDoorLockSettings() {
     const selection = getRoomRoleSelection(room)
     const controlDevice = findDeviceByKey(selection.controlDeviceKey)
     const passcodeDevice = findDeviceByKey(selection.passcodeDeviceKey)
+    const providerConflictMessage = getRoomProviderConflictMessage(room)
+
+    if (providerConflictMessage) {
+      messages.push(providerConflictMessage)
+      hasBlockingError = true
+    }
 
     if (!selection.controlDeviceKey && !selection.passcodeDeviceKey) {
       messages.push(t('settings.doorLocks.messages.selectAtLeastOneRoleDevice'))
@@ -1374,10 +1460,35 @@ export function useDoorLockSettings() {
 
   function handleControlDeviceChange(room: DoorLockRoomDTO, value?: unknown) {
     setSelectedRoleDeviceKey(room, ROLE_CONTROL, value)
+    syncTtLockCounterpartRole(room, ROLE_PASSCODE, value)
   }
 
   function handlePasscodeDeviceChange(room: DoorLockRoomDTO, value?: unknown) {
     setSelectedRoleDeviceKey(room, ROLE_PASSCODE, value)
+    syncTtLockCounterpartRole(room, ROLE_CONTROL, value)
+  }
+
+  function syncTtLockCounterpartRole(
+    room: DoorLockRoomDTO,
+    counterpartRole: DoorLockBindingRole,
+    value?: unknown,
+  ) {
+    if (activeProvider.value !== PROVIDER_TTLOCK) {
+      return
+    }
+
+    const deviceKey = value ? String(value) : ''
+    if (!deviceKey) {
+      setSelectedRoleDeviceKey(room, counterpartRole, '')
+      return
+    }
+
+    const device = findDeviceByKey(deviceKey)
+    if (!device || !canDeviceServeRole(device, counterpartRole)) {
+      return
+    }
+
+    setSelectedRoleDeviceKey(room, counterpartRole, deviceKey)
   }
 
   function getRoleDeviceOptions(role: DoorLockBindingRole) {
@@ -1654,7 +1765,11 @@ export function useDoorLockSettings() {
 
   function getDeviceBatteryLabel(device: DoorLockDeviceDTO) {
     if (typeof device.battery !== 'number') {
-      return t('settings.doorLocks.status.pendingOrUnavailable')
+      if (device.statusSource === 'UNAVAILABLE') {
+        return t('settings.doorLocks.status.unavailable')
+      }
+
+      return t('settings.doorLocks.status.pendingRefresh')
     }
 
     return formatBattery(device.battery)
@@ -1716,6 +1831,21 @@ export function useDoorLockSettings() {
     }
 
     return value.trim().toLowerCase()
+  }
+
+  function getRoomProviderConflictMessage(room: DoorLockRoomDTO) {
+    const binding = getRoomBinding(room)
+    if (!binding?.provider || binding.provider === activeProvider.value) {
+      return ''
+    }
+
+    return t('settings.doorLocks.messages.providerConflict', {
+      provider: getProviderLabel(binding.provider),
+    })
+  }
+
+  function getProviderLabel(provider: DoorLockProvider) {
+    return t(`settings.doorLocks.providers.${provider}`)
   }
 
   function isSwitchBotAuthenticationPanel(device: DoorLockDeviceDTO) {
@@ -1808,6 +1938,7 @@ export function useDoorLockSettings() {
     isDeviceBoundToOtherRoom,
     isSavingRoom,
     isUnbindingRoom,
+    isRoomBoundToDifferentProvider,
     canSaveRoomBinding,
     getDeviceBatteryLabel,
     formatDateTime,

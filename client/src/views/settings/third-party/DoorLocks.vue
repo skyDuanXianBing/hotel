@@ -368,6 +368,7 @@
                   :placeholder="t('settings.doorLocks.placeholders.selectControlDevice')"
                   clearable
                   filterable
+                  :disabled="isRoomBoundToDifferentProvider(row)"
                   class="device-select"
                   @update:model-value="handleControlDeviceChange(row, $event)"
                 >
@@ -387,6 +388,7 @@
                   :placeholder="t('settings.doorLocks.placeholders.selectPasscodeDevice')"
                   clearable
                   filterable
+                  :disabled="isRoomBoundToDifferentProvider(row)"
                   class="device-select"
                   @update:model-value="handlePasscodeDeviceChange(row, $event)"
                 >
@@ -502,6 +504,7 @@ const {
   getDeviceBoundRoomLabel,
   isSavingRoom,
   isUnbindingRoom,
+  isRoomBoundToDifferentProvider,
   canSaveRoomBinding,
   getDeviceBatteryLabel,
   formatDateTime,

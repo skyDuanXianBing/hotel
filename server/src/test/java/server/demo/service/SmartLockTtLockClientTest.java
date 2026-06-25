@@ -39,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
@@ -130,6 +131,54 @@ class SmartLockTtLockClientTest {
     }
 
     @Test
+    void testConnection_shouldUseExistingAccessTokenWithoutRefreshing() {
+        credentials.setTtLockRefreshToken("refresh-1");
+
+        server.expect(once(), pathAndParams("/v3/lock/list", Map.of(
+                        "clientId", "client-1",
+                        "accessToken", "access-1",
+                        "pageNo", "1",
+                        "pageSize", "10000",
+                        "date", String.valueOf(FIXED_CLOCK.millis())
+                )))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"list\":[],\"pages\":1}", MediaType.APPLICATION_JSON));
+
+        client.testConnection(credentials);
+
+        server.verify();
+    }
+
+    @Test
+    void refreshToken_tokenErrorShouldExposeErrcodeAndErrmsg() {
+        credentials.setTtLockRefreshToken("refresh-1");
+
+        server.expect(once(), requestTo(BASE_URL + "/oauth2/token"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(formMatches(Map.of(
+                        "client_id", "client-1",
+                        "client_secret", "secret-1",
+                        "grant_type", "refresh_token",
+                        "refresh_token", "refresh-1"
+                ), "username", "password", "clientId", "clientSecret"))
+                .andRespond(withSuccess("""
+                        {"errcode":10011,"errmsg":"invalid refresh_token"}
+                        """, MediaType.APPLICATION_JSON));
+
+        RuntimeException error = assertThrows(RuntimeException.class, () -> client.refreshToken(credentials));
+
+        assertTrue(error instanceof SmartLockTtLockClient.TtLockTokenException);
+        assertTrue(error.getMessage().contains("10011"));
+        assertTrue(error.getMessage().contains("invalid refresh_token"));
+        SmartLockTtLockClient.TtLockTokenException tokenError =
+                (SmartLockTtLockClient.TtLockTokenException) error;
+        assertEquals("/oauth2/token", tokenError.getEndpoint());
+        assertEquals("10011", tokenError.getErrcode());
+        assertEquals("invalid refresh_token", tokenError.getErrmsg());
+        server.verify();
+    }
+
+    @Test
     void createPasscode_shouldSendGatewayAddWithRequiredDates() {
         LocalDateTime validFrom = LocalDateTime.of(2026, 6, 21, 18, 0);
         LocalDateTime validUntil = LocalDateTime.of(2026, 6, 22, 10, 0);
@@ -172,6 +221,41 @@ class SmartLockTtLockClientTest {
     }
 
     @Test
+    void createPeriodPasscode_shouldSendOfficialGetRequestAndReturnGeneratedPassword() {
+        LocalDateTime validFrom = LocalDateTime.of(2026, 6, 21, 18, 0);
+        LocalDateTime validUntil = LocalDateTime.of(2026, 6, 22, 10, 0);
+        String startDate = String.valueOf(validFrom.atZone(STORE_ZONE).toInstant().toEpochMilli());
+        String endDate = String.valueOf(validUntil.atZone(STORE_ZONE).toInstant().toEpochMilli());
+
+        server.expect(once(), requestTo(BASE_URL + "/v3/keyboardPwd/get"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(formContains(Map.of(
+                        "clientId", "client-1",
+                        "accessToken", "access-1",
+                        "lockId", "101",
+                        "keyboardPwdType", "3",
+                        "keyboardPwdVersion", "4",
+                        "startDate", startDate,
+                        "endDate", endDate,
+                        "date", String.valueOf(FIXED_CLOCK.millis())
+                )))
+                .andRespond(withSuccess("""
+                        {"keyboardPwd":"654321","keyboardPwdId":24243}
+                        """, MediaType.APPLICATION_JSON));
+
+        SmartLockTtLockClient.TtLockPasscodeCommandResult result = client.createPeriodPasscode(
+                credentials,
+                "101",
+                new SmartLockProviderClient.PasscodeCommand("Guest", null, validFrom, validUntil)
+        );
+
+        assertEquals(SmartLockTaskStatus.SUCCESS, result.taskResult().status());
+        assertEquals("24243", result.taskResult().providerPasscodeId());
+        assertEquals("654321", result.passcode());
+        server.verify();
+    }
+
+    @Test
     void deletePasscode_shouldSendRemoteDeleteType() {
         server.expect(once(), requestTo(BASE_URL + "/v3/keyboardPwd/delete"))
                 .andExpect(method(HttpMethod.POST))
@@ -193,7 +277,36 @@ class SmartLockTtLockClientTest {
     }
 
     @Test
-    void getStatus_shouldQueryElectricQuantityAndReturnBattery() {
+    void unlockAndLock_shouldSendOfficialGatewayControlRequests() {
+        server.expect(once(), requestTo(BASE_URL + "/v3/lock/unlock"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(formContains(Map.of(
+                        "clientId", "client-1",
+                        "accessToken", "access-1",
+                        "lockId", "101",
+                        "date", String.valueOf(FIXED_CLOCK.millis())
+                )))
+                .andRespond(withSuccess("{\"errcode\":0}", MediaType.APPLICATION_JSON));
+        server.expect(once(), requestTo(BASE_URL + "/v3/lock/lock"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(formContains(Map.of(
+                        "clientId", "client-1",
+                        "accessToken", "access-1",
+                        "lockId", "101",
+                        "date", String.valueOf(FIXED_CLOCK.millis())
+                )))
+                .andRespond(withSuccess("{\"errcode\":0}", MediaType.APPLICATION_JSON));
+
+        SmartLockProviderClient.ProviderTaskResult unlockResult = client.unlock(credentials, "101");
+        SmartLockProviderClient.ProviderTaskResult lockResult = client.lock(credentials, "101");
+
+        assertEquals(SmartLockTaskStatus.SUCCESS, unlockResult.status());
+        assertEquals(SmartLockTaskStatus.SUCCESS, lockResult.status());
+        server.verify();
+    }
+
+    @Test
+    void getStatus_shouldNormalizeOfficialNumericOpenStateAndReturnBattery() {
         server.expect(once(), pathAndParams("/v3/lock/queryOpenState", Map.of(
                         "clientId", "client-1",
                         "accessToken", "access-1",
@@ -201,7 +314,7 @@ class SmartLockTtLockClientTest {
                         "date", String.valueOf(FIXED_CLOCK.millis())
                 )))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("{\"state\":\"locked\"}", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"state\":0}", MediaType.APPLICATION_JSON));
         server.expect(once(), pathAndParams("/v3/lock/queryElectricQuantity", Map.of(
                         "clientId", "client-1",
                         "accessToken", "access-1",
@@ -219,11 +332,55 @@ class SmartLockTtLockClientTest {
     }
 
     @Test
+    void getStatus_shouldNormalizeUnlockedAndUnknownOpenStates() {
+        server.expect(once(), pathAndParams("/v3/lock/queryOpenState", Map.of(
+                        "clientId", "client-1",
+                        "accessToken", "access-1",
+                        "lockId", "102",
+                        "date", String.valueOf(FIXED_CLOCK.millis())
+                )))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"state\":1}", MediaType.APPLICATION_JSON));
+        server.expect(once(), pathAndParams("/v3/lock/queryElectricQuantity", Map.of(
+                        "clientId", "client-1",
+                        "accessToken", "access-1",
+                        "lockId", "102",
+                        "date", String.valueOf(FIXED_CLOCK.millis())
+                )))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"electricQuantity\":55}", MediaType.APPLICATION_JSON));
+        server.expect(once(), pathAndParams("/v3/lock/queryOpenState", Map.of(
+                        "clientId", "client-1",
+                        "accessToken", "access-1",
+                        "lockId", "103",
+                        "date", String.valueOf(FIXED_CLOCK.millis())
+                )))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"state\":2}", MediaType.APPLICATION_JSON));
+        server.expect(once(), pathAndParams("/v3/lock/queryElectricQuantity", Map.of(
+                        "clientId", "client-1",
+                        "accessToken", "access-1",
+                        "lockId", "103",
+                        "date", String.valueOf(FIXED_CLOCK.millis())
+                )))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"electricQuantity\":44}", MediaType.APPLICATION_JSON));
+
+        SmartLockProviderClient.LockStatusSnapshot unlocked = client.getStatus(credentials, "102");
+        SmartLockProviderClient.LockStatusSnapshot unknown = client.getStatus(credentials, "103");
+
+        assertEquals("unlocked", unlocked.lockStatus());
+        assertEquals("unknown", unknown.lockStatus());
+        server.verify();
+    }
+
+    @Test
     void queryTask_shouldNotCallKeyboardPwdGet() {
         SmartLockProviderClient.ProviderTaskResult result = client.queryTask(credentials, "task-1");
 
-        assertEquals(SmartLockTaskStatus.PENDING, result.status());
+        assertEquals(SmartLockTaskStatus.FAILED, result.status());
         assertEquals("task-1", result.providerTaskId());
+        assertTrue(result.message().contains("刷新密码列表"));
         server.verify();
     }
 
@@ -238,13 +395,62 @@ class SmartLockTtLockClientTest {
                 )))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("""
-                        {"list":[{"lockId":101,"lockAlias":"Room 101","electricQuantity":88}],"pages":1}
+                        {"list":[{"lockId":101,"lockAlias":"Room 101","electricQuantity":88,"state":0}],"pages":1}
                         """, MediaType.APPLICATION_JSON));
 
         List<SmartLockProviderClient.DeviceSnapshot> devices = client.listDevices(credentials);
 
         assertEquals(1, devices.size());
         assertEquals(88, devices.get(0).battery());
+        assertEquals(null, devices.get(0).lockStatus());
+        server.verify();
+    }
+
+    @Test
+    void listKeyboardPasscodes_shouldReadOfficialListAndMapDates() {
+        LocalDateTime validFrom = LocalDateTime.of(2026, 6, 21, 18, 0);
+        LocalDateTime validUntil = LocalDateTime.of(2026, 6, 22, 10, 0);
+        String startDate = String.valueOf(validFrom.atZone(STORE_ZONE).toInstant().toEpochMilli());
+        String endDate = String.valueOf(validUntil.atZone(STORE_ZONE).toInstant().toEpochMilli());
+
+        server.expect(once(), pathAndParams("/v3/lock/listKeyboardPwd", Map.of(
+                        "clientId", "client-1",
+                        "accessToken", "access-1",
+                        "lockId", "101",
+                        "pageNo", "1",
+                        "pageSize", "100",
+                        "date", String.valueOf(FIXED_CLOCK.millis())
+                )))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "list": [
+                            {
+                              "keyboardPwdId": 24243,
+                              "keyboardPwd": "654321",
+                              "keyboardPwdName": "Guest",
+                              "status": "normal",
+                              "isCustom": 0,
+                              "startDate": %s,
+                              "endDate": %s
+                            }
+                          ],
+                          "pages": 1
+                        }
+                        """.formatted(startDate, endDate), MediaType.APPLICATION_JSON));
+
+        List<SmartLockTtLockClient.TtLockPasscodeSnapshot> passcodes =
+                client.listKeyboardPasscodes(credentials, "101");
+
+        assertEquals(1, passcodes.size());
+        SmartLockTtLockClient.TtLockPasscodeSnapshot passcode = passcodes.get(0);
+        assertEquals("24243", passcode.providerPasscodeId());
+        assertEquals("654321", passcode.passcode());
+        assertEquals("Guest", passcode.passcodeName());
+        assertEquals("normal", passcode.status());
+        assertEquals(Boolean.FALSE, passcode.custom());
+        assertEquals(validFrom, passcode.validFrom());
+        assertEquals(validUntil, passcode.validUntil());
         server.verify();
     }
 

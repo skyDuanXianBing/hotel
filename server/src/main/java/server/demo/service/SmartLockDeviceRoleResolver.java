@@ -1,5 +1,6 @@
 package server.demo.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import server.demo.entity.SmartLockDevice;
 import server.demo.enums.SmartLockProvider;
@@ -45,6 +46,10 @@ public class SmartLockDeviceRoleResolver {
         if (device == null) {
             return false;
         }
+        if (device.getProvider() == SmartLockProvider.TTLOCK) {
+            Integer hasGateway = readRawDeviceInteger(device, "hasGateway");
+            return hasGateway == null || hasGateway == 1;
+        }
         if (device.getProvider() != SmartLockProvider.SWITCHBOT) {
             return true;
         }
@@ -54,6 +59,10 @@ public class SmartLockDeviceRoleResolver {
     public boolean supportsPasscode(SmartLockDevice device) {
         if (device == null) {
             return false;
+        }
+        if (device.getProvider() == SmartLockProvider.TTLOCK) {
+            Integer keyboardPwdVersion = readRawDeviceInteger(device, "keyboardPwdVersion");
+            return keyboardPwdVersion == null || keyboardPwdVersion == 4;
         }
         if (device.getProvider() != SmartLockProvider.SWITCHBOT) {
             return true;
@@ -103,6 +112,21 @@ public class SmartLockDeviceRoleResolver {
             return SmartLockMaskingUtils.trimToNull(
                     objectMapper.readTree(device.getRawDataJson()).path(fieldName).asText(null)
             );
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private Integer readRawDeviceInteger(SmartLockDevice device, String fieldName) {
+        if (device == null || !hasText(device.getRawDataJson())) {
+            return null;
+        }
+        try {
+            JsonNode value = objectMapper.readTree(device.getRawDataJson()).path(fieldName);
+            if (value.isMissingNode() || value.isNull()) {
+                return null;
+            }
+            return value.asInt();
         } catch (Exception ex) {
             return null;
         }

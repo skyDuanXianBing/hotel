@@ -126,6 +126,7 @@ public class SmartLockCredentialData {
     }
 
     private void applyTtLock(SmartLockRequests.UpsertIntegrationRequest request) {
+        TtLockCoreCredentials previousCoreCredentials = ttLockCoreCredentials();
         String clientId = SmartLockMaskingUtils.trimToNull(request.getTtLockClientId());
         String clientSecret = SmartLockMaskingUtils.trimToNull(request.getTtLockClientSecret());
         String username = SmartLockMaskingUtils.trimToNull(request.getTtLockUsername());
@@ -149,6 +150,24 @@ public class SmartLockCredentialData {
             }
             ttLockPasswordMd5 = passwordMd5.toLowerCase();
         }
+        if (!previousCoreCredentials.equals(ttLockCoreCredentials())) {
+            clearTtLockTokens();
+        }
+    }
+
+    private TtLockCoreCredentials ttLockCoreCredentials() {
+        return new TtLockCoreCredentials(
+                ttLockClientId,
+                ttLockClientSecret,
+                ttLockUsername,
+                ttLockPasswordMd5
+        );
+    }
+
+    private void clearTtLockTokens() {
+        ttLockAccessToken = null;
+        ttLockRefreshToken = null;
+        ttLockTokenExpiresAt = null;
     }
 
     private void requireSwitchBotFields() {
@@ -187,6 +206,14 @@ public class SmartLockCredentialData {
             return "";
         }
         return value;
+    }
+
+    private record TtLockCoreCredentials(
+            String clientId,
+            String clientSecret,
+            String username,
+            String passwordMd5
+    ) {
     }
 
     public SmartLockProvider getProvider() {

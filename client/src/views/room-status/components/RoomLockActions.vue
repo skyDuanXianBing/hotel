@@ -268,8 +268,10 @@ import {
   lockRoomLock,
   refreshRoomLockStatus,
   unlockRoomLock,
+  type CreateRoomLockPasscodeRequest,
   type SmartLockProvider,
   type RoomLockActionRequest,
+  type RoomLockActionResultDTO,
   type RoomLockConfirmationDTO,
   type RoomLockOperationAction,
   type RoomLockOperationContext,
@@ -284,7 +286,6 @@ import {
 
 const PASSCODE_MIN_LENGTH = 6
 const PASSCODE_MAX_LENGTH = 12
-const GENERATED_PASSCODE_LENGTH = 6
 const PASSCODE_DEFAULT_VALIDITY_DAYS = 1
 const LOCK_STATUS_POLL_INTERVAL_MS = 1000
 const LOCK_STATUS_POLL_MAX_ATTEMPTS = 10
@@ -302,6 +303,7 @@ const PASSCODE_DELETE_PENDING_STATUSES = new Set([
   'DELETE_REQUESTED',
   'DELETING',
 ])
+const FAILED_STATUS = 'FAILED'
 
 const props = defineProps<{
   target: RoomLockOperationContext | null
@@ -571,7 +573,63 @@ const isCurrentTargetRoom = (roomId: number) => {
   return normalizedTarget.value?.roomId === roomId
 }
 
-const getErrorMessage = (_error: unknown, fallbackKey: string) => {
+const readStringField = (value: unknown, fieldName: string) => {
+  if (!value || typeof value !== 'object') {
+    return ''
+  }
+  const message = (value as Record<string, unknown>)[fieldName]
+  if (typeof message !== 'string') {
+    return ''
+  }
+  return message.trim()
+}
+
+const readMessageField = (value: unknown) => readStringField(value, 'message')
+
+const getResponseMessage = (response: unknown, fallbackKey: string) => {
+  const message = readMessageField(response)
+  if (message) {
+    return message
+  }
+  return lockT(fallbackKey)
+}
+
+const isFailedStatus = (status: unknown) => {
+  return String(status || '').trim().toUpperCase() === FAILED_STATUS
+}
+
+const getActionFailureMessage = (result: RoomLockActionResultDTO | undefined, fallbackKey: string) => {
+  const errorMessage = readStringField(result, 'errorMessage')
+  if (errorMessage) {
+    return errorMessage
+  }
+  const resultMessage = readStringField(result, 'resultMessage')
+  if (resultMessage) {
+    return resultMessage
+  }
+  return lockT(fallbackKey)
+}
+
+const getPasscodeFailureMessage = (result: RoomLockPasscodeDTO | undefined, fallbackKey: string) => {
+  const lastError = readStringField(result, 'lastError')
+  if (lastError) {
+    return lastError
+  }
+  return lockT(fallbackKey)
+}
+
+const getErrorMessage = (error: unknown, fallbackKey: string) => {
+  const directMessage = readMessageField(error)
+  if (directMessage) {
+    return directMessage
+  }
+  if (error && typeof error === 'object') {
+    const response = (error as { response?: { data?: unknown } }).response
+    const responseMessage = readMessageField(response?.data)
+    if (responseMessage) {
+      return responseMessage
+    }
+  }
   return lockT(fallbackKey)
 }
 
@@ -585,7 +643,7 @@ const loadStatus = async (roomId: number, force: boolean) => {
     const response = force ? await refreshRoomLockStatus(roomId) : await getRoomLockStatus(roomId)
     if (!response.success) {
       setRoomStatus(roomId, null)
-      setStatusError(roomId, lockT('messages.statusLoadFailed'))
+      setStatusError(roomId, getResponseMessage(response, 'messages.statusLoadFailed'))
       return
     }
     const nextStatus = response.data || null
@@ -612,7 +670,7 @@ const loadPasscodes = async (roomId: number) => {
     const response = await getRoomLockPasscodes(roomId)
     if (!response.success) {
       setPasscodes(roomId, [])
-      setPasscodeError(roomId, lockT('messages.passcodesLoadFailed'))
+      setPasscodeError(roomId, getResponseMessage(response, 'messages.passcodesLoadFailed'))
       return false
     }
     setPasscodes(roomId, Array.isArray(response.data) ? response.data : [])
@@ -685,7 +743,7 @@ const beginProtectedAction = async (action: RoomLockOperationAction) => {
       bindingId: currentStatus.value?.bindingId,
     })
     if (!response.success || !response.data) {
-      ElMessage.error(lockT('messages.confirmFailed'))
+      ElMessage.error(getResponseMessage(response, 'messages.confirmFailed'))
       return
     }
     pendingConfirmation.value = {
@@ -735,7 +793,11 @@ const submitConfirmedAction = async () => {
         : await lockRoomLock(pending.target.roomId, requestData)
 
     if (!response.success) {
-      ElMessage.error(lockT('messages.actionFailed'))
+      ElMessage.error(getResponseMessage(response, 'messages.actionFailed'))
+      return
+    }
+    if (isFailedStatus(response.data?.status)) {
+      ElMessage.error(getActionFailureMessage(response.data, 'messages.actionFailed'))
       return
     }
 
@@ -941,20 +1003,6 @@ const validatePasscodeForm = () => {
   return true
 }
 
-const createGeneratedPasscode = () => {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const values = new Uint32Array(GENERATED_PASSCODE_LENGTH)
-    crypto.getRandomValues(values)
-    return Array.from(values, (value) => String(value % 10)).join('')
-  }
-
-  let code = ''
-  for (let index = 0; index < GENERATED_PASSCODE_LENGTH; index += 1) {
-    code += String(Math.floor(Math.random() * 10))
-  }
-  return code
-}
-
 const getNormalizedPasscodeStatus = (passcode?: RoomLockPasscodeDTO | null) => {
   return String(passcode?.status || '').trim().toUpperCase()
 }
@@ -986,23 +1034,27 @@ const submitPasscode = async () => {
     ElMessage.warning(getPasscodeUnavailableMessage(cachedStatus))
     return
   }
-  const passcode = passcodeForm.value.generate
-    ? createGeneratedPasscode()
-    : passcodeForm.value.passcode.trim()
   const passcodeName = passcodeForm.value.name.trim() || undefined
   const idempotencyKey = createIdempotencyKey('passcode-create', target)
   passcodeSubmitting.value = true
   setActionLoading(target.roomId, 'PASSCODE_CREATE', true)
   try {
-    const response = await createRoomLockPasscode(target.roomId, {
+    const requestData: CreateRoomLockPasscodeRequest = {
       passcodeName,
-      passcode,
       validFrom: passcodeForm.value.validFrom,
       validUntil: passcodeForm.value.validUntil,
       idempotencyKey,
-    })
+    }
+    if (!passcodeForm.value.generate) {
+      requestData.passcode = passcodeForm.value.passcode.trim()
+    }
+    const response = await createRoomLockPasscode(target.roomId, requestData)
     if (!response.success) {
-      ElMessage.error(lockT('messages.passcodeCreateFailed'))
+      ElMessage.error(getResponseMessage(response, 'messages.passcodeCreateFailed'))
+      return
+    }
+    if (isFailedStatus(response.data?.status)) {
+      ElMessage.error(getPasscodeFailureMessage(response.data, 'messages.passcodeCreateFailed'))
       return
     }
     const createdCode = response.data?.oneTimePasscode || ''
@@ -1089,7 +1141,12 @@ const confirmDeletePasscode = async (passcode: RoomLockPasscodeDTO) => {
   try {
     const response = await deleteRoomLockPasscode(recordId)
     if (!response.success) {
-      ElMessage.error(lockT('messages.deleteFailed'))
+      ElMessage.error(getResponseMessage(response, 'messages.deleteFailed'))
+      return
+    }
+    if (isFailedStatus(response.data?.status)) {
+      ElMessage.error(getPasscodeFailureMessage(response.data, 'messages.deleteFailed'))
+      await loadPasscodes(target.roomId)
       return
     }
     const deleteStatus = getNormalizedPasscodeStatus(response.data)

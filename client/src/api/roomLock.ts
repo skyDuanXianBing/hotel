@@ -106,7 +106,7 @@ export interface RoomLockPasscodeDTO {
 
 export interface CreateRoomLockPasscodeRequest {
   passcodeName?: string
-  passcode: string
+  passcode?: string
   validFrom: string
   validUntil: string
   idempotencyKey: string
