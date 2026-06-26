@@ -145,10 +145,19 @@ export interface ChannelDailyData {
 
 export interface ChannelDetail {
   channelName: string
+  totalRevenue?: number
+  totalRoomNights?: number
+  dailyValues?: ChannelDetailDailyValue[]
+  revenue?: number
+  roomNights?: number
+  averagePrice?: number
+  orderCount?: number
+}
+
+export interface ChannelDetailDailyValue {
+  date: string
   revenue: number
   roomNights: number
-  averagePrice: number
-  orderCount: number
 }
 
 // ==================== 销售汇总统计 ====================

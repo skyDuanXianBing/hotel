@@ -82,11 +82,6 @@
           <div class="chart-card trend-card">
             <div class="chart-card-header">
               <h3 class="chart-title">营业额趋势</h3>
-              <el-select v-model="businessTrendRange" class="business-chart-select">
-                <el-option label="本月" value="month" />
-                <el-option label="本周" value="week" />
-                <el-option label="今天" value="today" />
-              </el-select>
             </div>
             <div ref="businessBarChart" class="chart-container business-trend-chart"></div>
           </div>
@@ -148,7 +143,7 @@
               <div class="revenue-card-head">
                 <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.airbnbCollection') }}</div>
                 <div class="revenue-card-icon blue">
-                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.airbnbCollection')" />
+                  <img :src="businessDepositIcon" :alt="t('stage5.dataCenter.overview.airbnbCollection')" />
                 </div>
               </div>
               <div class="revenue-card-value dark">¥{{ formatMoney(airbnbRevenue) }}</div>
@@ -158,7 +153,7 @@
               <div class="revenue-card-head">
                 <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.bookingCollection') }}</div>
                 <div class="revenue-card-icon blue">
-                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.bookingCollection')" />
+                  <img :src="businessDepositIcon" :alt="t('stage5.dataCenter.overview.bookingCollection')" />
                 </div>
               </div>
               <div class="revenue-card-value dark">¥{{ formatMoney(bookingRevenue) }}</div>
@@ -309,49 +304,47 @@
       <!-- 渠道汇总内容 -->
       <div v-if="activeTab === 'channel'" class="tab-content">
         <!-- 渠道消费分布和间夜分布 -->
-        <div class="charts-row">
-          <div class="chart-card">
-            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.channelConsumptionDistribution') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
-            <div ref="channelRevenueChart" class="chart-container"></div>
+        <div class="charts-row channel-charts-row">
+          <div class="chart-card channel-chart-card channel-donut-card">
+            <h3 class="chart-title channel-chart-title">{{ t('stage5.dataCenter.overview.channelConsumptionDistribution') }}</h3>
+            <div ref="channelRevenueChart" class="chart-container channel-donut-chart"></div>
           </div>
-          <div class="chart-card">
-            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.channelNightsDistribution') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
-            <div ref="channelNightsChart" class="chart-container"></div>
+          <div class="chart-card channel-chart-card channel-donut-card">
+            <h3 class="chart-title channel-chart-title">{{ t('stage5.dataCenter.overview.channelNightsDistribution') }}</h3>
+            <div ref="channelNightsChart" class="chart-container channel-donut-chart"></div>
           </div>
         </div>
 
         <!-- 渠道消费趋势和间夜趋势 -->
-        <div class="charts-row">
-          <div class="chart-card wide">
-            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.channelConsumptionTrend') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
-            <div ref="channelRevenueTrendChart" class="chart-container-large"></div>
+        <div class="charts-row channel-charts-row">
+          <div class="chart-card wide channel-chart-card channel-trend-card">
+            <h3 class="chart-title channel-chart-title">{{ t('stage5.dataCenter.overview.channelConsumptionTrend') }}</h3>
+            <div ref="channelRevenueTrendChart" class="chart-container-large channel-trend-chart"></div>
           </div>
-          <div class="chart-card wide">
-            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.channelNightsTrend') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
-            <div ref="channelNightsTrendChart" class="chart-container-large"></div>
+          <div class="chart-card wide channel-chart-card channel-trend-card">
+            <h3 class="chart-title channel-chart-title">{{ t('stage5.dataCenter.overview.channelNightsTrend') }}</h3>
+            <div ref="channelNightsTrendChart" class="chart-container-large channel-trend-chart"></div>
           </div>
         </div>
 
         <!-- 渠道明细表格 -->
-        <div class="table-section">
-          <div class="table-header">
+        <div class="table-section channel-table-section">
+          <div class="table-header channel-table-header">
             <h3 class="table-title">{{ t('stage5.dataCenter.overview.channelDetails') }} ({{ dateRangeLabel }})</h3>
-            <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+            <div class="table-tabs channel-table-tabs">
+              <el-button
+                v-for="tab in channelTableTabs"
+                :key="tab.key"
+                :class="{ active: channelTableTab === tab.key }"
+                @click="handleChannelTableTabChange(tab.key)"
+              >
+                {{ tab.label }}
+              </el-button>
+            </div>
+            <el-button type="primary" class="business-export-button channel-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
           </div>
 
-          <div class="table-tabs">
-            <el-button
-              v-for="tab in channelTableTabs"
-              :key="tab.key"
-              :type="channelTableTab === tab.key ? 'primary' : 'default'"
-              size="small"
-              @click="handleChannelTableTabChange(tab.key)"
-            >
-              {{ tab.label }}
-            </el-button>
-          </div>
-
-          <el-table :data="channelTableData" border stripe class="detail-table">
+          <el-table :data="channelTableData" class="detail-table business-detail-table channel-detail-table">
             <el-table-column prop="channel" :label="t('stage5.common.filters.channel')" min-width="120" align="center" />
             <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
               <template #default="{ row }">
@@ -378,55 +371,77 @@
       <div v-if="activeTab === 'sales'" class="tab-content">
         <!-- 销售额卡片 -->
         <div class="sales-stats">
-          <div class="stat-card large">
-            <div class="stat-label">{{ t('stage5.dataCenter.overview.salesTotal') }}</div>
-            <div class="stat-value large">¥{{ salesTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+          <div class="sales-summary-card">
+            <div class="sales-card-head">
+              <div class="sales-card-label">{{ t('stage5.dataCenter.overview.salesTotal') }}</div>
+              <div class="sales-card-icon">
+                <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.salesTotal')" />
+              </div>
+            </div>
+            <div class="sales-card-value">¥{{ salesTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
           </div>
         </div>
 
         <!-- 每日销售额趋势 -->
-        <div class="chart-card full-width">
-          <h3 class="chart-title">{{ t('stage5.dataCenter.overview.dailySalesStats') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
-          <div ref="salesTrendChart" class="chart-container-xlarge"></div>
+        <div class="chart-card full-width sales-trend-card">
+          <h3 class="chart-title sales-chart-title">{{ t('stage5.dataCenter.overview.dailySalesStats') }} <span class="chart-subtitle">{{ t('stage5.dataCenter.overview.statsConsumption') }}</span></h3>
+          <div ref="salesTrendChart" class="chart-container-xlarge sales-trend-chart"></div>
         </div>
 
         <!-- 销售订单明细 -->
-        <div class="table-section">
-          <div class="table-header">
+        <div class="table-section sales-table-section">
+          <div class="table-header sales-table-header">
             <h3 class="table-title">{{ t('stage5.dataCenter.overview.salesOrderDetails') }} ({{ dateRangeLabel }})</h3>
-            <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+            <el-button type="primary" class="business-export-button sales-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
           </div>
 
-          <div class="search-section">
+          <div class="search-section sales-search-section">
             <el-input
               v-model="searchKeyword"
+              class="sales-search-input"
               :placeholder="t('stage5.dataCenter.overview.searchOrders')"
               clearable
-              style="max-width: 400px"
+              @keyup.enter="handleSalesSearch"
+              @clear="handleSalesSearch"
             >
               <template #prefix>
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
-            <el-select v-model="searchChannel" :placeholder="t('stage5.common.filters.all')" clearable style="width: 150px">
+            <el-select
+              v-model="searchChannel"
+              class="sales-filter-select"
+              :placeholder="t('stage5.common.filters.all')"
+              clearable
+              @change="handleSalesSearch"
+            >
               <el-option :label="t('stage5.common.filters.all')" value="" />
-              <el-option label="Booking.com" value="booking" />
-              <el-option label="Airbnb" value="airbnb" />
+              <el-option
+                v-for="channel in salesChannelOptions"
+                :key="channel.id"
+                :label="channel.name"
+                :value="channel.id"
+              />
             </el-select>
-            <el-select v-model="searchGuest" :placeholder="t('stage5.common.filters.all')" clearable style="width: 150px">
+            <el-select
+              v-model="searchGuest"
+              class="sales-filter-select"
+              :placeholder="t('stage5.common.filters.all')"
+              clearable
+            >
+              <!-- TODO backend integration: populate guest options and pass a dedicated guest/customer filter
+                   when sales-summary supports it. Local-only filtering would make totals and chart inconsistent. -->
               <el-option :label="t('stage5.common.filters.all')" value="" />
             </el-select>
           </div>
 
-          <el-button type="default" size="small" style="margin-bottom: 16px">{{ t('stage5.dataCenter.overview.collapse') }}</el-button>
-
-          <el-table :data="salesTableData" border stripe class="detail-table">
+          <el-table :data="pagedSalesTableData" class="detail-table sales-detail-table">
             <el-table-column prop="createdAt" :label="t('stage5.dataCenter.overview.createdAt')" min-width="150" align="center" />
             <el-table-column prop="guestName" :label="t('stage5.dataCenter.overview.name')" min-width="100" align="center" />
             <el-table-column prop="orderNumber" :label="t('stage5.dataCenter.overview.orderChannelNumber')" min-width="200" align="center">
               <template #default="{ row }">
-                <div>{{ row.orderNumber }}</div>
-                <div style="color: #909399; font-size: 12px">{{ row.channelNumber }}</div>
+                <div class="sales-order-number">{{ row.orderNumber }}</div>
+                <div class="sales-channel-number">{{ row.channelNumber }}</div>
               </template>
             </el-table-column>
             <el-table-column prop="channel" :label="t('stage5.common.filters.channel')" min-width="120" align="center" />
@@ -439,16 +454,16 @@
             </el-table-column>
           </el-table>
 
-          <div class="table-footer">
-            <span class="table-info">{{ t('stage5.dataCenter.overview.recordsTotal', { count: 2 }) }}</span>
-            <span class="total-amount">¥{{ salesTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+          <div class="table-footer sales-table-footer">
+            <span class="table-info">{{ t('stage5.dataCenter.overview.recordsTotal', { count: salesTableTotal }) }}</span>
             <el-pagination
               small
               layout="prev, pager, next"
-              :total="2"
-              :page-size="10"
-              :current-page="1"
+              :total="salesTableTotal"
+              :page-size="salesPageSize"
+              v-model:current-page="salesCurrentPage"
             />
+            <span class="total-amount">¥{{ salesTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
           </div>
         </div>
       </div>
@@ -580,13 +595,23 @@ interface DateColumn {
 
 type DynamicAmountRow = Record<string, string | number>
 
+type SalesTableRow = {
+  createdAt: string
+  guestName: string
+  orderNumber: string
+  channelNumber: string
+  channel: string
+  customerName: string
+  phone: string
+  amount: number
+}
+
 const activeTab = ref('business')
 const dateType = ref('today')
 const todayYmd = getStoreTodayYmd()
 const startDate = ref(todayYmd)
 const endDate = ref(todayYmd)
 const loading = ref(false)
-const businessTrendRange = ref('month')
 
 const businessDateRange = computed<string[]>({
   get: () => {
@@ -621,6 +646,7 @@ const normalizeChannelColorKey = (name: string) =>
   normalizeLabel(name).replace(/\.com/g, 'com').replace(/[^a-z0-9\u4e00-\u9fa5]/g, '')
 
 const channelColorOverrides = ref(new Map<string, string>())
+let channelColorLoadPromise: Promise<void> | null = null
 
 const addChannelColorOverride = (map: Map<string, string>, value: string | undefined, color: string) => {
   if (!value || !color) return
@@ -638,6 +664,10 @@ const buildChannelColorOverrides = (channels: ChannelDTO[]) => {
   channelColorOverrides.value = map
 }
 
+const setSalesChannelOptions = (channels: ChannelDTO[]) => {
+  salesChannelOptions.value = channels.filter((channel) => channel.enabled !== false)
+}
+
 const getChannelColor = (name: string, index = 0) => {
   const normalized = normalizeChannelColorKey(name)
   const configuredKey = Array.from(channelColorOverrides.value.keys()).find(
@@ -649,6 +679,8 @@ const getChannelColor = (name: string, index = 0) => {
   const fallbackPalette = ['#168bf8', '#ff385c', '#bb2bd9', '#1f66ff', '#f16a2f', '#8ec5ff']
   return matchedKey ? CHANNEL_FALLBACK_COLORS[matchedKey] : fallbackPalette[index % fallbackPalette.length]
 }
+
+const getChannelColors = (names: string[]) => names.map((name, index) => getChannelColor(name, index))
 
 const parseDateValue = (value: string) => {
   const parts = value.split('-').map(Number)
@@ -707,6 +739,20 @@ const createSingleDateAmountCells = (amount: number | string) => {
   if (firstColumn) {
     row[firstColumn.prop] = amount
   }
+  return row
+}
+
+const createChannelDailyCells = (
+  dailyValues: { date: string; revenue?: number; roomNights?: number }[] = [],
+  key: 'revenue' | 'roomNights',
+) => {
+  const row = createEmptyDateAmounts()
+  dailyValues.forEach((dailyValue) => {
+    const prop = getDateColumnProp(dailyValue.date)
+    if (prop in row) {
+      row[prop] = dailyValue[key] || 0
+    }
+  })
   return row
 }
 
@@ -948,7 +994,7 @@ const categoryTableData = ref([
 // 渠道汇总相关数据
 const channelTableTab = ref('channel-fee')
 const channelTableTabs = computed(() => [
-  { key: 'channel-fee', label: t('stage5.dataCenter.overview.channelConsumptionDistribution') },
+  { key: 'channel-fee', label: t('stage5.statistics.channel.consumptionDetails') },
   { key: 'channel-nights', label: t('stage5.statistics.channel.nightsDetails') },
 ])
 
@@ -956,33 +1002,19 @@ const channelTableTabs = computed(() => [
 const channelTableData = ref<any[]>([])
 
 // 销售汇总相关数据
-const salesTotal = ref(59054.65)
+const salesTotal = ref(0)
 const searchKeyword = ref('')
-const searchChannel = ref('')
+const searchChannel = ref<number | ''>('')
 const searchGuest = ref('')
-
-const salesTableData = ref([
-  {
-    createdAt: '2025/11/08 14:37:33',
-    guestName: '-',
-    orderNumber: '1968094745265878529',
-    channelNumber: '648615527',
-    channel: 'Booking.com',
-    customerName: 'HOSHINO ABE',
-    phone: '+81 9082460244',
-    amount: 20394.65
-  },
-  {
-    createdAt: '2025/11/08 07:16:40',
-    guestName: '-',
-    orderNumber: '1968094742920252902',
-    channelNumber: 'HM4DRVABE3',
-    channel: 'Airbnb',
-    customerName: 'Judy An',
-    phone: '61430533463',
-    amount: 38660.00
-  }
-])
+const salesChannelOptions = ref<ChannelDTO[]>([])
+const salesTableData = ref<SalesTableRow[]>([])
+const salesCurrentPage = ref(1)
+const salesPageSize = 10
+const salesTableTotal = computed(() => salesTableData.value.length)
+const pagedSalesTableData = computed(() => {
+  const start = (salesCurrentPage.value - 1) * salesPageSize
+  return salesTableData.value.slice(start, start + salesPageSize)
+})
 
 // ECharts实例
 const businessPieChart = ref<HTMLDivElement>()
@@ -1012,19 +1044,21 @@ let salesTrend: ECharts | null = null
 // ==================== 数据加载函数 ====================
 
 const loadChannelColorOverrides = async () => {
-  try {
-    const response = await getAllChannels()
-    if (response.success && Array.isArray(response.data)) {
-      buildChannelColorOverrides(response.data)
-
-      if (activeTab.value === 'revenue' && revenueSubTab.value === 'payment') {
-        await nextTick()
-        initRevenueDistChart()
+  if (!channelColorLoadPromise) {
+    channelColorLoadPromise = (async () => {
+      try {
+        const response = await getAllChannels()
+        if (response.success && Array.isArray(response.data)) {
+          buildChannelColorOverrides(response.data)
+          setSalesChannelOptions(response.data)
+        }
+      } catch (error) {
+        console.warn('Failed to load channel colors for statistics charts', error)
       }
-    }
-  } catch (error) {
-    console.warn('Failed to load channel colors for revenue chart', error)
+    })()
   }
+
+  await channelColorLoadPromise
 }
 
 /**
@@ -1164,6 +1198,7 @@ const loadChannelSummary = async () => {
 
   try {
     loading.value = true
+    await loadChannelColorOverrides()
     const response = await getChannelSummary({
       startDate: startDate.value,
       endDate: endDate.value
@@ -1173,19 +1208,23 @@ const loadChannelSummary = async () => {
       const data = response.data
 
       // 更新表格数据
-      const channelFeeData = data.channelDetails.map(detail => ({
-        channel: detail.channelName,
-        total: `¥${(detail.revenue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
-        ...createSingleDateAmountCells(
-          `¥${(detail.revenue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
-        ),
-      }))
+      const channelFeeData = data.channelDetails.map((detail) => {
+        const totalRevenue = detail.totalRevenue ?? detail.revenue ?? 0
+        return {
+          channel: detail.channelName,
+          total: `¥${formatMoney(totalRevenue)}`,
+          ...createChannelDailyCells(detail.dailyValues || [], 'revenue'),
+        }
+      })
 
-      const channelNightsData = data.channelDetails.map(detail => ({
-        channel: detail.channelName,
-        total: detail.roomNights || 0,
-        ...createSingleDateAmountCells(detail.roomNights || 0),
-      }))
+      const channelNightsData = data.channelDetails.map((detail) => {
+        const totalRoomNights = detail.totalRoomNights ?? detail.roomNights ?? 0
+        return {
+          channel: detail.channelName,
+          total: totalRoomNights,
+          ...createChannelDailyCells(detail.dailyValues || [], 'roomNights'),
+        }
+      })
 
       if (channelTableTab.value === 'channel-fee') {
         channelTableData.value = channelFeeData
@@ -1213,7 +1252,7 @@ const loadChannelSummary = async () => {
 /**
  * 加载销售汇总数据
  */
-const loadSalesSummary = async () => {
+const loadSalesSummary = async (resetPage = false) => {
   // 检查日期参数是否有效
   if (!startDate.value || !endDate.value) {
     console.warn(t('stage5.dataCenter.overview.invalidDateRange'))
@@ -1222,10 +1261,15 @@ const loadSalesSummary = async () => {
 
   try {
     loading.value = true
+    if (resetPage) {
+      salesCurrentPage.value = 1
+    }
+    await loadChannelColorOverrides()
     const response = await getSalesSummary({
       startDate: startDate.value,
       endDate: endDate.value,
-      keyword: searchKeyword.value || undefined
+      keyword: searchKeyword.value || undefined,
+      channelId: searchChannel.value || undefined,
     })
 
     if (response.success && response.data) {
@@ -1245,6 +1289,13 @@ const loadSalesSummary = async () => {
         phone: order.phone,
         amount: order.amount
       }))
+
+      // Current pagination is client-side over the returned orderDetails.
+      // For real server-side pagination, sales-summary should accept page/pageSize and return total.
+      const maxPage = Math.max(1, Math.ceil(salesTableData.value.length / salesPageSize))
+      if (salesCurrentPage.value > maxPage) {
+        salesCurrentPage.value = maxPage
+      }
 
       // 重新初始化图表
       await nextTick()
@@ -1271,7 +1322,7 @@ const loadCurrentTabData = () => {
   } else if (activeTab.value === 'channel') {
     loadChannelSummary()
   } else if (activeTab.value === 'sales') {
-    loadSalesSummary()
+    loadSalesSummary(true)
   }
 }
 
@@ -1484,6 +1535,7 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
   const maxRevenue = Math.max(...revenueData, 40000)
   const yMax = Math.ceil(maxRevenue / 10000) * 10000
   const salesBackgroundData = dates.map(() => yMax)
+  const xAxisLabelInterval = Math.max(0, Math.ceil(dates.length / 8) - 1)
 
   const option = {
     tooltip: {
@@ -1540,7 +1592,8 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
         },
       },
       axisLabel: {
-        interval: 0,
+        interval: (index: number) =>
+          index === 0 || index === dates.length - 1 || index % (xAxisLabelInterval + 1) === 0,
         color: '#5c5c5c',
         fontSize: 12,
       },
@@ -1924,6 +1977,263 @@ const initCategoryExpenseChart = () => {
   categoryExpenseChart_instance.setOption(option)
 }
 
+type ChannelChartItem = {
+  value: number
+  name: string
+  percentage?: number
+}
+
+const formatChannelChartDate = (dateText: string) => {
+  if (!dateText) return ''
+  const parts = dateText.split('-')
+  if (parts.length === 3) {
+    return `${Number(parts[1])}/${Number(parts[2])}`
+  }
+  return dateText
+}
+
+const createChannelDonutOption = (
+  title: string,
+  chartData: ChannelChartItem[],
+  valueFormatter: (value: number) => string,
+) => {
+  const visibleChartData = chartData.length ? chartData : [{ value: 0, name: title, percentage: 0 }]
+  const colorNames = visibleChartData.map((item) => item.name)
+  const colors = getChannelColors(colorNames)
+
+  return {
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#ffffff',
+      borderColor: '#eeeeee',
+      borderWidth: 1,
+      padding: [10, 12],
+      textStyle: {
+        color: '#111111',
+        fontSize: 12,
+      },
+      formatter: (params: any) =>
+        `${params.name}<br/>${valueFormatter(Number(params.value || 0))} (${params.percent}%)`,
+    },
+    legend: {
+      bottom: 0,
+      left: 'center',
+      icon: 'circle',
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 14,
+      textStyle: {
+        color: '#555555',
+        fontSize: 12,
+      },
+      data: colorNames,
+    },
+    series: [
+      {
+        name: title,
+        type: 'pie',
+        radius: ['52%', '74%'],
+        center: ['50%', '44%'],
+        minAngle: 3,
+        avoidLabelOverlap: true,
+        data: visibleChartData.map((item, index) => ({
+          ...item,
+          itemStyle: {
+            color: colors[index],
+          },
+        })),
+        itemStyle: {
+          borderRadius: 0,
+          borderColor: '#ffffff',
+          borderWidth: 0,
+        },
+        label: {
+          show: true,
+          formatter: (params: any) => `${params.percent}%  ${params.name}\n${valueFormatter(Number(params.value || 0))}`,
+          color: 'inherit',
+          fontSize: 12,
+          lineHeight: 18,
+        },
+        labelLine: {
+          show: true,
+          length: 18,
+          length2: 70,
+          lineStyle: {
+            width: 1,
+          },
+        },
+      },
+    ],
+  }
+}
+
+const getChannelTrendNames = (trend: ChannelSummaryDTO['revenueTrend']) => {
+  const names = new Set<string>()
+  trend.forEach((item) => {
+    item.channels.forEach((channel) => names.add(channel.channelName))
+  })
+  return Array.from(names)
+}
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return `rgba(30, 144, 247, ${alpha})`
+  const value = Number.parseInt(normalized, 16)
+  const red = (value >> 16) & 255
+  const green = (value >> 8) & 255
+  const blue = value & 255
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
+const createChannelTrendOption = (
+  trend: ChannelSummaryDTO['revenueTrend'],
+  valueFormatter?: (value: number) => string,
+) => {
+  const dates = trend.map((item) => formatChannelChartDate(item.date))
+  const rawDates = trend.map((item) => item.date)
+  const channelNames = getChannelTrendNames(trend)
+  const colors = getChannelColors(channelNames)
+  const seriesData = channelNames.map((channelName, index) => {
+    const color = colors[index]
+    return {
+      name: channelName,
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 7,
+      showSymbol: true,
+      lineStyle: {
+        width: 2,
+        color,
+      },
+      itemStyle: {
+        color: '#ffffff',
+        borderColor: color,
+        borderWidth: 2,
+      },
+      areaStyle: {
+        opacity: 0.22,
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: hexToRgba(color, 0.34) },
+            { offset: 1, color: hexToRgba(color, 0.06) },
+          ],
+        },
+      },
+      emphasis: {
+        focus: 'series',
+      },
+      data: trend.map((item) => {
+        const channelData = item.channels.find((channel) => channel.channelName === channelName)
+        return channelData ? channelData.value : 0
+      }),
+    }
+  })
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#ffffff',
+      borderColor: '#eeeeee',
+      borderWidth: 1,
+      padding: [10, 12],
+      textStyle: {
+        color: '#111111',
+        fontSize: 12,
+      },
+      axisPointer: {
+        type: 'line',
+        lineStyle: {
+          color: '#d8d8d8',
+          type: 'dashed',
+        },
+      },
+      formatter: (params: any[]) => {
+        if (!params?.length) return ''
+        const dateText = rawDates[params[0].dataIndex] || params[0].axisValue
+        const rows = params.map((param) => {
+          const value = Number(param.value || 0)
+          const text = valueFormatter ? valueFormatter(value) : String(value)
+          return `${param.marker}${param.seriesName}&nbsp;&nbsp;${text}`
+        })
+        return [`<strong>${dateText}</strong>`, ...rows].join('<br/>')
+      },
+    },
+    legend: {
+      bottom: 0,
+      left: 'center',
+      icon: 'circle',
+      itemWidth: 9,
+      itemHeight: 9,
+      itemGap: 18,
+      textStyle: {
+        color: '#555555',
+        fontSize: 12,
+      },
+      data: channelNames,
+    },
+    grid: {
+      left: 48,
+      right: 20,
+      bottom: 54,
+      top: 24,
+      containLabel: false,
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      boundaryGap: false,
+      axisTick: {
+        show: false,
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#d8d8d8',
+        },
+      },
+      axisLabel: {
+        color: '#5c5c5c',
+        fontSize: 12,
+      },
+      splitLine: {
+        show: true,
+        lineStyle: {
+          color: '#dedede',
+          type: 'dashed',
+        },
+      },
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      axisLine: {
+        show: false,
+      },
+      axisTick: {
+        show: false,
+      },
+      axisLabel: {
+        color: '#5c5c5c',
+        fontSize: 12,
+        formatter: (value: number) => (valueFormatter ? valueFormatter(value).replace('¥', '') : value),
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#dedede',
+          type: 'dashed',
+        },
+      },
+    },
+    series: seriesData,
+    color: colors,
+  }
+}
+
 // 初始化渠道消费分布饼图
 const initChannelRevenueChart = (data?: ChannelSummaryDTO) => {
   if (!channelRevenueChart.value) return
@@ -1931,48 +2241,17 @@ const initChannelRevenueChart = (data?: ChannelSummaryDTO) => {
   if (channelRevenue) channelRevenue.dispose()
   channelRevenue = echarts.init(channelRevenueChart.value)
 
-  // 使用API数据或默认数据
-  const chartData = data ? data.revenueDistribution.map(item => ({
+  const chartData = data ? data.revenueDistribution.map((item) => ({
     value: item.value,
-    name: item.channelName
+    name: item.channelName,
+    percentage: item.percentage,
   })) : []
 
-  const option = {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: ¥{c} ({d}%)'
-    },
-    legend: {
-      orient: 'vertical',
-      right: '5%',
-      top: 'center',
-      formatter: (name: string) => {
-        const percentages: Record<string, string> = {
-          'Airbnb': '54.07%',
-          'Booking.com': '45.93%'
-        }
-        return `${name}  ${percentages[name] || ''}`
-      }
-    },
-    series: [
-      {
-        name: t('stage5.dataCenter.overview.channelConsumptionDistribution'),
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['30%', '50%'],
-        data: chartData,
-        itemStyle: {
-          borderRadius: 8,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: false
-        }
-      }
-    ],
-    color: ['#5470c6', '#fac858']
-  }
+  const option = createChannelDonutOption(
+    t('stage5.dataCenter.overview.channelConsumptionDistribution'),
+    chartData,
+    (value) => `¥${formatMoney(value)}`,
+  )
 
   channelRevenue.setOption(option)
 }
@@ -1984,48 +2263,17 @@ const initChannelNightsChart = (data?: ChannelSummaryDTO) => {
   if (channelNights) channelNights.dispose()
   channelNights = echarts.init(channelNightsChart.value)
 
-  // 使用API数据或默认数据
-  const chartData = data ? data.nightsDistribution.map(item => ({
+  const chartData = data ? data.nightsDistribution.map((item) => ({
     value: item.value,
-    name: item.channelName
+    name: item.channelName,
+    percentage: item.percentage,
   })) : []
 
-  const option = {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: {c} ({d}%)'
-    },
-    legend: {
-      orient: 'vertical',
-      right: '5%',
-      top: 'center',
-      formatter: (name: string) => {
-        const percentages: Record<string, string> = {
-          'Booking.com': '66.67%',
-          'Airbnb': '33.33%'
-        }
-        return `${name}  ${percentages[name] || ''}`
-      }
-    },
-    series: [
-      {
-        name: t('stage5.dataCenter.overview.channelNightsDistribution'),
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['30%', '50%'],
-        data: chartData,
-        itemStyle: {
-          borderRadius: 8,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: false
-        }
-      }
-    ],
-    color: ['#5470c6', '#fac858']
-  }
+  const option = createChannelDonutOption(
+    t('stage5.dataCenter.overview.channelNightsDistribution'),
+    chartData,
+    (value) => String(value),
+  )
 
   channelNights.setOption(option)
 }
@@ -2037,125 +2285,19 @@ const initChannelRevenueTrendChart = (data?: ChannelSummaryDTO) => {
   if (channelRevenueTrend) channelRevenueTrend.dispose()
   channelRevenueTrend = echarts.init(channelRevenueTrendChart.value)
 
-  // 使用API数据或默认数据
-  const dates = data ? data.revenueTrend.map(item => item.date) : []
-  const seriesData: any[] = []
-
-  if (data && data.revenueTrend.length > 0) {
-    // 获取所有渠道名称
-    const channelNames = new Set<string>()
-    data.revenueTrend.forEach(trend => {
-      trend.channels.forEach(ch => channelNames.add(ch.channelName))
-    })
-
-    // 为每个渠道创建series
-    channelNames.forEach(channelName => {
-      seriesData.push({
-        name: channelName,
-        type: 'line',
-        smooth: true,
-        data: data.revenueTrend.map(trend => {
-          const channelData = trend.channels.find(ch => ch.channelName === channelName)
-          return channelData ? channelData.value : 0
-        }),
-        lineStyle: { width: 2 }
-      })
-    })
-  }
-
-  const option = {
-    tooltip: {
-      trigger: 'axis'
-    },
-    legend: {
-      data: Array.from(new Set(seriesData.map(s => s.name))),
-      bottom: 0
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '15%',
-      top: '5%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: dates,
-      boundaryGap: false
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: {
-        formatter: '¥{value}'
-      }
-    },
-    series: seriesData,
-    color: ['#5470c6', '#fac858']
-  }
+  const option = createChannelTrendOption(data?.revenueTrend || [], (value) => `¥${formatMoney(value)}`)
 
   channelRevenueTrend.setOption(option)
 }
 
-// 初始化渠道间夜趋势柱状图
+// 初始化渠道间夜趋势图
 const initChannelNightsTrendChart = (data?: ChannelSummaryDTO) => {
   if (!channelNightsTrendChart.value) return
 
   if (channelNightsTrend) channelNightsTrend.dispose()
   channelNightsTrend = echarts.init(channelNightsTrendChart.value)
 
-  // 使用API数据或默认数据
-  const dates = data ? data.nightsTrend.map(item => item.date) : []
-  const seriesData: any[] = []
-
-  if (data && data.nightsTrend.length > 0) {
-    // 获取所有渠道名称
-    const channelNames = new Set<string>()
-    data.nightsTrend.forEach(trend => {
-      trend.channels.forEach(ch => channelNames.add(ch.channelName))
-    })
-
-    // 为每个渠道创建series
-    channelNames.forEach(channelName => {
-      seriesData.push({
-        name: channelName,
-        type: 'bar',
-        stack: 'total',
-        data: data.nightsTrend.map(trend => {
-          const channelData = trend.channels.find(ch => ch.channelName === channelName)
-          return channelData ? channelData.value : 0
-        })
-      })
-    })
-  }
-
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      }
-    },
-    legend: {
-      data: Array.from(new Set(seriesData.map(s => s.name))),
-      bottom: 0
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '15%',
-      top: '5%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: dates
-    },
-    yAxis: {
-      type: 'value'
-    },
-    series: seriesData,
-    color: ['#5470c6', '#fac858']
-  }
+  const option = createChannelTrendOption(data?.nightsTrend || [])
 
   channelNightsTrend.setOption(option)
 }
@@ -2174,38 +2316,96 @@ const initSalesTrendChart = (data?: SalesSummaryDTO) => {
   const option = {
     tooltip: {
       trigger: 'axis',
+      backgroundColor: '#ffffff',
+      borderColor: '#eeeeee',
+      borderWidth: 1,
+      padding: [10, 12],
+      textStyle: {
+        color: '#111111',
+        fontSize: 12,
+      },
+      axisPointer: {
+        type: 'line',
+        lineStyle: {
+          color: '#d6dce4',
+          type: 'dashed',
+        },
+      },
       formatter: (params: any) => {
         const param = params[0]
         return `${param.axisValue}<br/>${t('stage5.dataCenter.overview.salesAmount')}: ¥${param.value.toFixed(2)}`
-      }
+      },
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '5%',
-      containLabel: true
+      left: 64,
+      right: 16,
+      bottom: 44,
+      top: 16,
+      containLabel: false,
     },
     xAxis: {
       type: 'category',
       data: dates,
-      boundaryGap: false
+      boundaryGap: false,
+      axisTick: {
+        show: false,
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#aeb6c2',
+        },
+      },
+      axisLabel: {
+        color: '#5c5c5c',
+        fontSize: 12,
+        margin: 10,
+      },
+      splitLine: {
+        show: true,
+        lineStyle: {
+          color: '#d8d8d8',
+          type: 'dashed',
+        },
+      },
     },
     yAxis: {
       type: 'value',
+      min: 0,
+      axisLine: {
+        show: false,
+      },
+      axisTick: {
+        show: false,
+      },
       axisLabel: {
-        formatter: '¥{value}'
-      }
+        color: '#5c5c5c',
+        fontSize: 12,
+        formatter: (value: number) => `¥${Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}`,
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#d8d8d8',
+          type: 'dashed',
+        },
+      },
     },
     series: [
       {
         name: t('stage5.dataCenter.overview.salesAmount'),
         type: 'line',
         smooth: true,
+        symbol: 'circle',
+        symbolSize: 7,
+        showSymbol: true,
         data: salesData,
         lineStyle: {
-          width: 3,
-          color: '#5470c6'
+          width: 2,
+          color: '#168bf8',
+        },
+        itemStyle: {
+          color: '#ffffff',
+          borderColor: '#168bf8',
+          borderWidth: 2,
         },
         areaStyle: {
           color: {
@@ -2215,13 +2415,13 @@ const initSalesTrendChart = (data?: SalesSummaryDTO) => {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(84, 112, 198, 0.3)' },
-              { offset: 1, color: 'rgba(84, 112, 198, 0.05)' }
-            ]
-          }
-        }
-      }
-    ]
+              { offset: 0, color: 'rgba(22, 139, 248, 0.28)' },
+              { offset: 1, color: 'rgba(22, 139, 248, 0.05)' },
+            ],
+          },
+        },
+      },
+    ],
   }
 
   salesTrend.setOption(option)
@@ -2248,6 +2448,17 @@ const handleChannelTableTabChange = (tab: string) => {
   channelTableTab.value = tab
   // 重新加载渠道汇总数据以更新表格
   loadChannelSummary()
+}
+
+let salesSearchTimer: ReturnType<typeof setTimeout> | null = null
+
+const handleSalesSearch = () => {
+  if (activeTab.value !== 'sales') return
+  if (salesSearchTimer) {
+    clearTimeout(salesSearchTimer)
+    salesSearchTimer = null
+  }
+  loadSalesSummary(true)
 }
 
 // 标签页切换处理
@@ -2342,6 +2553,17 @@ watch(locale, () => {
   loadCurrentTabData()
 })
 
+watch(searchKeyword, () => {
+  if (activeTab.value !== 'sales') return
+  if (salesSearchTimer) {
+    clearTimeout(salesSearchTimer)
+  }
+  salesSearchTimer = setTimeout(() => {
+    loadSalesSummary(true)
+    salesSearchTimer = null
+  }, 400)
+})
+
 onMounted(() => {
   // 初始化日期为今天
   updateDateRange(dateType.value)
@@ -2354,6 +2576,9 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (salesSearchTimer) {
+    clearTimeout(salesSearchTimer)
+  }
   window.removeEventListener('resize', handleResize)
   businessPie?.dispose()
   businessBar?.dispose()
@@ -2896,24 +3121,6 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 
-.business-chart-select {
-  width: 72px;
-  flex: 0 0 72px;
-}
-
-.business-chart-select :deep(.el-select__wrapper) {
-  min-height: 30px;
-  border-radius: 4px;
-  background: #fafafa;
-  box-shadow: none;
-}
-
-.business-chart-select :deep(.el-select__selected-item) {
-  color: #121212;
-  font-size: 13px;
-  font-weight: 500;
-}
-
 .chart-subtitle {
   font-size: 12px;
   font-weight: 400;
@@ -2935,6 +3142,43 @@ onBeforeUnmount(() => {
   height: 392px;
 }
 
+.channel-charts-row {
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.channel-chart-card {
+  min-height: 430px;
+  padding: 20px 22px 16px;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+}
+
+.channel-donut-card {
+  min-height: 430px;
+}
+
+.channel-trend-card {
+  min-height: 430px;
+}
+
+.channel-chart-title {
+  margin: 0 0 14px;
+  color: #0f0f0f;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.channel-donut-chart {
+  height: 352px;
+}
+
+.channel-trend-chart {
+  height: 352px;
+}
+
 .chart-container-large {
   width: 100%;
   height: 350px;
@@ -2947,30 +3191,207 @@ onBeforeUnmount(() => {
 
 /* 销售汇总样式 */
 .sales-stats {
-  margin-bottom: 32px;
+  margin-bottom: 10px;
 }
 
-.sales-stats .stat-card.large {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 8px;
-  padding: 32px;
+.sales-summary-card {
+  display: flex;
+  width: 420px;
+  min-height: 132px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 20px 20px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #168bf8 0%, #68b8ff 100%);
+  color: #ffffff;
 }
 
-.sales-stats .stat-label {
+.sales-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sales-card-label {
+  color: #ffffff;
   font-size: 14px;
-  margin-bottom: 12px;
-  opacity: 0.9;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
-.sales-stats .stat-value.large {
-  font-size: 36px;
+.sales-card-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.sales-card-icon img {
+  display: block;
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+}
+
+.sales-card-value {
+  color: #ffffff;
+  font-size: 24px;
   font-weight: 600;
-  margin-bottom: 16px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.sales-stats .stat-card.large {
-  max-width: 500px;
+.chart-card.full-width.sales-trend-card {
+  min-height: 430px;
+  margin-bottom: 10px;
+  padding: 16px 22px 18px;
+  border: none;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.sales-chart-title {
+  margin: 0 0 10px;
+  color: #0f0f0f;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.sales-chart-title .chart-subtitle {
+  color: #909399;
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.sales-trend-chart {
+  height: 350px;
+}
+
+.sales-table-section {
+  min-height: 350px;
+  margin-top: 0;
+  padding: 18px 22px 24px;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.sales-table-header {
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.sales-table-section .table-title {
+  color: #0d0d0d;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.sales-export-button {
+  min-width: 138px;
+}
+
+.sales-search-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.sales-search-input {
+  width: 330px;
+  flex: 0 0 330px;
+}
+
+.sales-filter-select {
+  width: 120px;
+  flex: 0 0 120px;
+}
+
+.sales-search-section :deep(.el-input__wrapper),
+.sales-search-section :deep(.el-select__wrapper) {
+  min-height: 32px;
+  border-radius: 5px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+}
+
+.sales-search-section :deep(.el-input__wrapper:hover),
+.sales-search-section :deep(.el-input__wrapper.is-focus),
+.sales-search-section :deep(.el-select__wrapper:hover),
+.sales-search-section :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #87bdf6 inset;
+}
+
+.sales-search-section :deep(.el-input__inner),
+.sales-search-section :deep(.el-select__selected-item) {
+  color: #5f6670;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.sales-detail-table {
+  --el-table-border-color: #e6e6e6;
+  --el-table-header-bg-color: #fafafa;
+  --el-table-row-hover-bg-color: #f9fbff;
+  border: 1px solid #e6e6e6;
+  border-bottom: none;
+  background: #ffffff;
+}
+
+.sales-detail-table :deep(.el-table__inner-wrapper::before) {
+  background-color: #e6e6e6;
+}
+
+.sales-detail-table :deep(th.el-table__cell) {
+  height: 34px;
+  background: #fafafa !important;
+  border-right: 1px solid #e6e6e6;
+  border-bottom: 1px solid #e6e6e6;
+  color: #333333;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sales-detail-table :deep(td.el-table__cell) {
+  height: 52px;
+  border-right: 1px solid #e6e6e6;
+  border-bottom: 1px solid #e6e6e6;
+  color: #333333;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.sales-detail-table :deep(th.el-table__cell:last-child),
+.sales-detail-table :deep(td.el-table__cell:last-child) {
+  border-right: none;
+}
+
+.sales-detail-table :deep(.cell) {
+  padding: 0 10px;
+  line-height: 1.35;
+}
+
+.sales-order-number {
+  color: #333333;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.sales-channel-number {
+  margin-top: 3px;
+  color: #333333;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 /* 表格区域 */
@@ -2987,6 +3408,14 @@ onBeforeUnmount(() => {
 }
 
 .revenue-table-section {
+  min-height: 350px;
+  margin-top: 0;
+  padding: 18px 22px 28px;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.channel-table-section {
   min-height: 350px;
   margin-top: 0;
   padding: 18px 22px 28px;
@@ -3025,6 +3454,21 @@ onBeforeUnmount(() => {
   margin-bottom: 28px;
 }
 
+.channel-table-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 16px;
+  margin-bottom: 28px;
+}
+
+.channel-table-section .table-title {
+  color: #0d0d0d;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .revenue-table-actions {
   display: flex;
   align-items: center;
@@ -3050,6 +3494,36 @@ onBeforeUnmount(() => {
 .revenue-table-tabs {
   gap: 10px;
   margin-bottom: 0;
+}
+
+.channel-table-tabs {
+  justify-self: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.channel-table-tabs :deep(.el-button) {
+  min-width: 88px;
+  height: 32px;
+  margin: 0;
+  border: 1px solid #e2e5ea;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #8b8f97;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.channel-table-tabs :deep(.el-button.active),
+.channel-table-tabs :deep(.el-button:hover) {
+  border-color: #1e90f7;
+  background: #1e90f7;
+  color: #ffffff;
+}
+
+.channel-export-button {
+  justify-self: end;
 }
 
 .revenue-table-tabs :deep(.el-button) {
@@ -3119,6 +3593,17 @@ onBeforeUnmount(() => {
   line-height: 1.4;
 }
 
+.channel-detail-table {
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: #fafafa;
+  --el-table-row-hover-bg-color: #f9fbff;
+}
+
+.channel-detail-table :deep(.el-table__inner-wrapper::before),
+.channel-detail-table :deep(.el-table__border-left-patch) {
+  display: none;
+}
+
 .amount-bold {
   font-weight: 600;
   color: #303133;
@@ -3130,6 +3615,20 @@ onBeforeUnmount(() => {
   align-items: center;
   margin-top: 16px;
   padding: 12px 0;
+}
+
+.sales-table-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: 16px;
+}
+
+.sales-table-footer :deep(.el-pagination) {
+  justify-self: center;
+}
+
+.sales-table-footer .total-amount {
+  justify-self: end;
 }
 
 .table-info {
