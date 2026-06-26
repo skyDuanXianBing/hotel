@@ -1,134 +1,173 @@
 <template>
   <StatisticsLayout>
     <div class="notes-summary-content">
-      <!-- 日期选择器 -->
       <div class="date-selector">
+        <el-select v-model="dateType" class="business-quick-select">
+          <el-option :label="t('stage5.common.date.today')" value="today" />
+          <el-option :label="t('stage5.common.date.yesterday')" value="yesterday" />
+          <el-option :label="t('stage5.common.date.thisWeek')" value="week" />
+          <el-option :label="t('stage5.common.date.thisMonth')" value="month" />
+        </el-select>
         <el-date-picker
-          v-model="startDate"
-          type="date"
-          :placeholder="t('stage5.common.date.startDate')"
-          format="YYYY-MM-DD"
+          v-model="notesDateRange"
+          class="business-date-range"
+          type="daterange"
+          :placeholder="t('stage5.common.date.selectDate')"
+          :start-placeholder="t('stage5.common.date.selectDate')"
+          :end-placeholder="t('stage5.common.date.selectDate')"
+          :range-separator="t('stage5.common.date.rangeTo')"
+          format="YYYY/MM/DD"
           value-format="YYYY-MM-DD"
+          :clearable="false"
         />
-        <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
-        <el-date-picker
-          v-model="endDate"
-          type="date"
-          :placeholder="t('stage5.common.date.endDate')"
-          format="YYYY-MM-DD"
-          value-format="YYYY-MM-DD"
-        />
-        <el-button type="primary" @click="handleQuery">{{ t('stage5.common.actions.query') }}</el-button>
+        <el-button type="primary" class="query-button" @click="handleQuery">
+          {{ t('stage5.common.actions.query') }}
+        </el-button>
       </div>
 
-      <!-- 记一笔概况 -->
-      <div class="section-header">
-        <h2>{{ t('stage5.statistics.notes.overview') }}</h2>
-      </div>
-
-      <!-- 统计卡片 -->
       <div class="summary-cards">
-        <div class="summary-card net-income">
-          <div class="card-icon">
-            <el-icon><Money /></el-icon>
-          </div>
+        <div v-for="card in summaryCards" :key="card.key" class="summary-card">
           <div class="card-content">
-            <div class="card-label">{{ t('stage5.statistics.notes.netIncome') }}</div>
-            <div class="card-value">¥{{ summaryStats.netIncome.toFixed(2) }}</div>
+            <div class="card-label">{{ card.label }}</div>
+            <div class="card-value">{{ currencySymbol }}{{ formatMoney(card.value) }}</div>
           </div>
-        </div>
-
-        <div class="summary-card total-income">
           <div class="card-icon">
-            <el-icon><Wallet /></el-icon>
-          </div>
-          <div class="card-content">
-            <div class="card-label">{{ t('stage5.statistics.notes.totalIncome') }}</div>
-            <div class="card-value">¥{{ summaryStats.totalIncome.toFixed(2) }}</div>
-          </div>
-        </div>
-
-        <div class="summary-card total-expense">
-          <div class="card-icon">
-            <el-icon><ShoppingCart /></el-icon>
-          </div>
-          <div class="card-content">
-            <div class="card-label">{{ t('stage5.statistics.notes.totalExpense') }}</div>
-            <div class="card-value">¥{{ summaryStats.totalExpense.toFixed(2) }}</div>
+            <img :src="card.icon" :alt="card.label" />
           </div>
         </div>
       </div>
 
-      <!-- 记一笔收支统计 -->
+      <div class="statistics-heading">
+        <h2>{{ t('stage5.statistics.notes.incomeExpenseStats') }}</h2>
+        <div class="mode-switch">
+          <el-button
+            v-for="tab in statisticsTabs"
+            :key="tab.name"
+            :class="{ active: activeTab === tab.name }"
+            @click="activeTab = tab.name"
+          >
+            {{ tab.label }}
+          </el-button>
+        </div>
+      </div>
+
       <div class="statistics-section">
-        <div class="section-title">{{ t('stage5.statistics.notes.incomeExpenseStats') }}</div>
-
-        <el-tabs v-model="activeTab" class="statistics-tabs">
-          <!-- 按项目 -->
-          <el-tab-pane :label="t('stage5.statistics.notes.byProject')" name="byProject">
-            <div class="charts-row">
-              <div class="chart-wrapper">
-                <div class="chart-title">{{ t('stage5.statistics.notes.totalIncome') }}</div>
-                <div ref="incomeProjectChartRef" class="pie-chart"></div>
-              </div>
-              <div class="chart-wrapper">
-                <div class="chart-title">{{ t('stage5.statistics.notes.totalExpense') }}</div>
-                <div ref="expenseProjectChartRef" class="pie-chart"></div>
+        <div class="charts-row">
+          <div class="chart-wrapper income-chart-card">
+            <div class="chart-title">{{ t('stage5.statistics.notes.totalIncome') }}</div>
+            <div class="income-arc-chart">
+              <div class="income-arc-stage">
+                <svg class="income-arc-svg" viewBox="0 0 560 320" aria-hidden="true">
+                  <path
+                    v-for="segment in incomeGaugeSegments"
+                    :key="segment.index"
+                    class="income-arc-segment"
+                    :d="segment.path"
+                    :fill="segment.color"
+                  />
+                </svg>
+                <div class="income-arc-amount">
+                  {{ currencySymbol }} {{ formatMoney(activeIncomeTotal) }}
+                </div>
+                <div class="income-arc-compare">
+                  <span class="income-arc-previous">
+                    {{ t('stage5.statistics.notes.previousMonth') }}
+                    <strong>{{ incomeComparisonPreviousText }}</strong>
+                  </span>
+                  <span
+                    class="income-arc-growth"
+                    :class="`income-arc-growth-${incomeComparison.trend}`"
+                  >
+                    {{ incomeComparisonChangeText }}
+                  </span>
+                </div>
               </div>
             </div>
-          </el-tab-pane>
+          </div>
 
-          <!-- 按支付方式 -->
-          <el-tab-pane :label="t('stage5.statistics.notes.byPaymentMethod')" name="byPaymentMethod">
-            <div class="charts-row">
-              <div class="chart-wrapper">
-                <div class="chart-title">{{ t('stage5.statistics.notes.totalIncome') }}</div>
-                <div ref="incomePaymentChartRef" class="pie-chart"></div>
-              </div>
-              <div class="chart-wrapper">
-                <div class="chart-title">{{ t('stage5.statistics.notes.totalExpense') }}</div>
-                <div ref="expensePaymentChartRef" class="pie-chart"></div>
-              </div>
-            </div>
-          </el-tab-pane>
-        </el-tabs>
+          <div class="chart-wrapper expense-chart-card">
+            <div class="chart-title">{{ t('stage5.statistics.notes.totalExpense') }}</div>
+            <div
+              v-show="activeTab === 'byProject'"
+              ref="expenseProjectChartRef"
+              class="chart-canvas expense-donut-chart"
+            ></div>
+            <div
+              v-show="activeTab === 'byPaymentMethod'"
+              ref="expensePaymentChartRef"
+              class="chart-canvas expense-donut-chart"
+            ></div>
+          </div>
+        </div>
       </div>
 
-      <!-- 记一笔明细 -->
       <div class="details-section">
         <div class="details-header">
-          <h3>{{ t('stage5.statistics.notes.details') }} {{ t('stage5.statistics.common.detailsPeriod', { period: formatDateRange }) }}</h3>
+          <h3>
+            {{ t('stage5.statistics.notes.details') }}
+            {{ t('stage5.statistics.common.detailsPeriod', { period: formatDateRange }) }}
+          </h3>
           <div class="header-actions">
-            <el-select v-model="filterType" :placeholder="t('stage5.common.filters.type')" style="width: 120px">
+            <el-select
+              v-model="filterType"
+              class="detail-filter-select"
+              :placeholder="t('stage5.common.filters.type')"
+            >
               <el-option :label="t('stage5.common.filters.all')" value="all" />
               <el-option :label="t('stage5.statistics.notes.income')" value="income" />
               <el-option :label="t('stage5.statistics.notes.expense')" value="expense" />
             </el-select>
-            <el-button type="primary" @click="handleExport">{{ t('stage5.common.actions.exportReport') }}</el-button>
+            <el-button type="primary" class="export-button" @click="handleExport">
+              {{ t('stage5.common.actions.exportDetails') }}
+            </el-button>
           </div>
         </div>
 
-        <!-- 数据表格 -->
-        <el-table :data="filteredTableData" border stripe class="details-table">
-          <el-table-column prop="datetime" :label="t('stage5.common.fields.time')" width="180" />
+        <el-table :data="filteredTableData" border class="details-table">
+          <el-table-column prop="datetime" :label="t('stage5.common.fields.time')" min-width="160" />
           <el-table-column prop="type" :label="t('stage5.common.fields.type')" width="100">
             <template #default="{ row }">
-              <el-tag :type="row.type === 'income' ? 'success' : 'danger'">
-                {{ row.type === 'income' ? t('stage5.statistics.notes.income') : t('stage5.statistics.notes.expense') }}
+              <el-tag
+                class="type-tag"
+                :class="row.type === 'income' ? 'type-tag-income' : 'type-tag-expense'"
+                effect="plain"
+              >
+                {{
+                  row.type === 'income'
+                    ? t('stage5.statistics.notes.income')
+                    : t('stage5.statistics.notes.expense')
+                }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="category" :label="t('stage5.common.fields.project')" width="150" />
-          <el-table-column prop="amount" :label="t('stage5.common.fields.amount')" width="120" align="right">
+          <el-table-column prop="category" :label="t('stage5.common.fields.project')" min-width="100" />
+          <el-table-column prop="amount" :label="t('stage5.common.fields.amount')" min-width="150">
             <template #default="{ row }">
-              <span :class="{ 'income-amount': row.type === 'income', 'expense-amount': row.type === 'expense' }">
-                {{ row.type === 'income' ? '+' : '-' }}¥{{ row.amount.toFixed(2) }}
+              <span
+                :class="{
+                  'income-amount': row.type === 'income',
+                  'expense-amount': row.type === 'expense',
+                }"
+              >
+                {{ currencySymbol }}{{ formatMoney(row.amount) }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="paymentMethod" :label="t('stage5.statistics.notes.paymentReceivedMethod')" width="120" />
-          <el-table-column prop="roomNumber" :label="t('stage5.statistics.notes.relatedRoom')" width="100" />
-          <el-table-column prop="voucher" :label="t('stage5.common.fields.voucher')" width="80" align="center">
+          <el-table-column
+            prop="paymentMethod"
+            :label="t('stage5.statistics.notes.paymentReceivedMethod')"
+            min-width="120"
+          />
+          <el-table-column
+            prop="roomNumber"
+            :label="t('stage5.statistics.notes.relatedRoom')"
+            min-width="100"
+          />
+          <el-table-column
+            prop="voucher"
+            :label="t('stage5.common.fields.voucher')"
+            min-width="150"
+          >
             <template #default="{ row }">
               <el-button v-if="row.voucherCount > 0" link type="primary" @click="handleViewVoucher(row)">
                 {{ t('stage5.common.actions.view') }}({{ row.voucherCount }})
@@ -136,30 +175,44 @@
               <span v-else>-</span>
             </template>
           </el-table-column>
-          <el-table-column prop="notes" :label="t('stage5.common.fields.note')" min-width="150" show-overflow-tooltip />
+          <el-table-column
+            prop="notes"
+            :label="t('stage5.common.fields.note')"
+            min-width="220"
+            show-overflow-tooltip
+          />
         </el-table>
 
-        <!-- 分页和统计 -->
         <div class="table-footer">
           <div class="footer-stats">
-            {{
-              t('stage5.statistics.notes.recordsSummary', {
-                count: filteredTableData.length,
-                netIncome: `¥${netIncomeAmount.toFixed(2)}`,
-                totalIncome: `¥${totalIncomeAmount.toFixed(2)}`,
-                totalExpense: `¥${totalExpenseAmount.toFixed(2)}`,
-              })
-            }}
+            <span>{{ t('stage5.statistics.notes.recordsTotal', { count: filteredTableData.length }) }}</span>
+            <span>
+              {{ t('stage5.statistics.notes.netIncome') }}:
+              <strong class="net-income-value">{{ currencySymbol }}{{ formatMoney(netIncomeAmount) }}</strong>
+            </span>
+            <span>
+              {{ t('stage5.statistics.notes.totalIncome') }}:
+              <strong class="income-value">{{ currencySymbol }}{{ formatMoney(totalIncomeAmount) }}</strong>
+            </span>
+            <span>
+              {{ t('stage5.statistics.notes.totalExpense') }}:
+              <strong class="expense-value">{{ currencySymbol }}{{ formatMoney(totalExpenseAmount) }}</strong>
+            </span>
           </div>
-          <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
-            :total="filteredTableData.length"
-            :page-sizes="[10, 20, 50, 100]"
-            layout="prev, pager, next, sizes"
-            @size-change="handleSizeChange"
-            @current-change="handleCurrentChange"
-          />
+          <div class="pagination-group">
+            <el-pagination
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :total="filteredTableData.length"
+              :page-sizes="[10, 20, 50, 100]"
+              layout="sizes, prev, pager, next"
+              @size-change="handleSizeChange"
+              @current-change="handleCurrentChange"
+            />
+            <span class="page-total-text">
+              {{ t('stage5.statistics.notes.pageTotal', { count: totalPages }) }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -170,79 +223,118 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Money, Wallet, ShoppingCart } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import StatisticsLayout from './StatisticsLayout.vue'
-import { getNotesStatistics, getNotesList } from '@/api/notes'
-import { getStoreTodayYmd } from '@/utils/storeDateTime'
+import { getNotesStatistics, getNotesList, type NoteDTO, type NotesStatisticsDTO } from '@/api/notes'
+import notesNetIncomeIcon from '@/assets/icons/statistics/notes-net-income.png'
+import notesTotalExpenseIcon from '@/assets/icons/statistics/notes-total-expense.png'
+import businessDepositIcon from '@/assets/icons/statistics/business-deposit.png'
+import {
+  addDaysToYmd,
+  getStoreTodayYmd,
+  getYmdMonthStart,
+  getYmdWeekStart,
+} from '@/utils/storeDateTime'
+
+type NotesChartItem = {
+  name: string
+  value: number
+}
+
+type NotesTabName = 'byProject' | 'byPaymentMethod'
+type IncomeGaugeSegment = {
+  index: number
+  path: string
+  color: string
+}
+type IncomeComparisonTrend = 'up' | 'down' | 'flat'
+type IncomeComparison = {
+  previousAmount: number | null
+  changePercent: number | null
+  trend: IncomeComparisonTrend
+}
 
 const { t } = useI18n()
+const currencySymbol = '\u00a5'
 
-// 日期范围
 const today = getStoreTodayYmd()
+const dateType = ref('today')
 const startDate = ref(today)
 const endDate = ref(today)
-
-// Tab 切换
-const activeTab = ref('byProject')
-
-// 表格筛选
+const activeTab = ref<NotesTabName>('byProject')
 const filterType = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(20)
 
-// 汇总统计数据
 const summaryStats = ref({
   netIncome: 0,
   totalIncome: 0,
   totalExpense: 0,
 })
 
-// 图表数据
-const incomeByProject = ref([
+const incomeByProject = ref<NotesChartItem[]>([
   { name: t('stage5.statistics.notes.roomFeeIncome'), value: 0 },
   { name: t('stage5.statistics.notes.depositIncome'), value: 0 },
   { name: t('stage5.statistics.notes.compensationIncome'), value: 0 },
   { name: t('stage5.statistics.notes.otherIncome'), value: 0 },
 ])
 
-const expenseByProject = ref([
+const expenseByProject = ref<NotesChartItem[]>([
   { name: t('stage5.statistics.notes.roomRepair'), value: 0 },
   { name: t('stage5.statistics.notes.cleaningFee'), value: 0 },
   { name: t('stage5.statistics.notes.suppliesPurchase'), value: 0 },
   { name: t('stage5.statistics.notes.otherExpense'), value: 0 },
 ])
 
-const incomeByPayment = ref([
+const incomeByPayment = ref<NotesChartItem[]>([
   { name: t('stage5.statistics.notes.cash'), value: 0 },
   { name: t('stage5.statistics.notes.alipay'), value: 0 },
   { name: t('stage5.statistics.notes.wechat'), value: 0 },
   { name: t('stage5.statistics.notes.bankCard'), value: 0 },
 ])
 
-const expenseByPayment = ref([
+const expenseByPayment = ref<NotesChartItem[]>([
   { name: t('stage5.statistics.notes.cash'), value: 0 },
   { name: t('stage5.statistics.notes.alipay'), value: 0 },
   { name: t('stage5.statistics.notes.wechat'), value: 0 },
   { name: t('stage5.statistics.notes.bankCard'), value: 0 },
 ])
 
-// 明细数据
 const tableData = ref<any[]>([])
 
-// 图表实例
-let incomeProjectChart: echarts.ECharts | null = null
 let expenseProjectChart: echarts.ECharts | null = null
-let incomePaymentChart: echarts.ECharts | null = null
 let expensePaymentChart: echarts.ECharts | null = null
 
-const incomeProjectChartRef = ref<HTMLElement>()
 const expenseProjectChartRef = ref<HTMLElement>()
-const incomePaymentChartRef = ref<HTMLElement>()
 const expensePaymentChartRef = ref<HTMLElement>()
 
-// 日期范围格式化
+const incomeGaugeSegmentCount = 13
+const incomeGaugeActiveSegmentCount = 11
+const incomeGaugeEmptyColor = '#d7d7d7'
+const incomeGaugePalette = ['#0c82f7', '#168af7', '#3aa0f6', '#6eb9f4', '#bcdcff']
+
+// TODO: Replace this placeholder when the backend returns income period-over-period data:
+// previousAmount = previous period income, changePercent = current vs previous percentage,
+// trend = up/down/flat.
+const incomeComparison = ref<IncomeComparison>({
+  previousAmount: null,
+  changePercent: null,
+  trend: 'flat',
+})
+
+const notesDateRange = computed<string[]>({
+  get: () => {
+    if (!startDate.value || !endDate.value) return []
+    return [startDate.value, endDate.value]
+  },
+  set: (value: string[]) => {
+    const [start, end] = value || []
+    startDate.value = start || ''
+    endDate.value = end || ''
+  },
+})
+
 const formatDateRange = computed(() => {
   if (startDate.value === endDate.value) {
     return startDate.value
@@ -250,7 +342,32 @@ const formatDateRange = computed(() => {
   return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
 })
 
-// 筛选后的表格数据
+const statisticsTabs = computed(() => [
+  { name: 'byProject' as const, label: t('stage5.statistics.notes.byProject') },
+  { name: 'byPaymentMethod' as const, label: t('stage5.statistics.notes.byPaymentMethod') },
+])
+
+const summaryCards = computed(() => [
+  {
+    key: 'netIncome',
+    label: t('stage5.statistics.notes.netIncome'),
+    value: summaryStats.value.netIncome,
+    icon: notesNetIncomeIcon,
+  },
+  {
+    key: 'totalIncome',
+    label: t('stage5.statistics.notes.totalIncome'),
+    value: summaryStats.value.totalIncome,
+    icon: businessDepositIcon,
+  },
+  {
+    key: 'totalExpense',
+    label: t('stage5.statistics.notes.totalExpense'),
+    value: summaryStats.value.totalExpense,
+    icon: notesTotalExpenseIcon,
+  },
+])
+
 const filteredTableData = computed(() => {
   if (filterType.value === 'all') {
     return tableData.value
@@ -258,218 +375,386 @@ const filteredTableData = computed(() => {
   return tableData.value.filter((item) => item.type === filterType.value)
 })
 
-// 净收入
-const netIncomeAmount = computed(() => {
-  return totalIncomeAmount.value - totalExpenseAmount.value
-})
-
-// 总收入
 const totalIncomeAmount = computed(() => {
   return filteredTableData.value
     .filter((item) => item.type === 'income')
     .reduce((sum, item) => sum + item.amount, 0)
 })
 
-// 总支出
 const totalExpenseAmount = computed(() => {
   return filteredTableData.value
     .filter((item) => item.type === 'expense')
     .reduce((sum, item) => sum + item.amount, 0)
 })
 
-// 创建环形图配置
-const createPieChartOption = (data: any[], total: number, type: 'income' | 'expense'): EChartsOption => {
-  const filteredData = data.filter((item) => item.value > 0)
+const netIncomeAmount = computed(() => totalIncomeAmount.value - totalExpenseAmount.value)
+const totalPages = computed(() => Math.ceil(filteredTableData.value.length / pageSize.value))
+const activeIncomeData = computed(() =>
+  activeTab.value === 'byProject' ? incomeByProject.value : incomeByPayment.value,
+)
+const activeIncomeTotal = computed(() => getChartTotal(activeIncomeData.value))
+const incomeComparisonPreviousText = computed(() =>
+  incomeComparison.value.previousAmount === null
+    ? '--'
+    : formatMoney(incomeComparison.value.previousAmount),
+)
+const incomeComparisonChangeText = computed(() => {
+  if (incomeComparison.value.changePercent === null) return '--'
+
+  const trendSymbolMap: Record<IncomeComparisonTrend, string> = {
+    up: '+',
+    down: '-',
+    flat: '',
+  }
+
+  return `${trendSymbolMap[incomeComparison.value.trend]}${formatPercentValue(
+    incomeComparison.value.changePercent,
+  )}`
+})
+
+const polarToPoint = (centerX: number, centerY: number, radius: number, angle: number) => {
+  const radians = (angle * Math.PI) / 180
+  return {
+    x: centerX + Math.cos(radians) * radius,
+    y: centerY + Math.sin(radians) * radius,
+  }
+}
+
+const createArcSegmentPath = (
+  startAngle: number,
+  endAngle: number,
+  outerRadius: number,
+  innerRadius: number,
+) => {
+  const centerX = 280
+  const centerY = 258
+  const segmentAngle = endAngle - startAngle
+  const outerInset = Math.min(0.55, segmentAngle * 0.06)
+  const innerInset = Math.min(2.8, segmentAngle * 0.24)
+  const radiusInset = 6
+  const outerStart = polarToPoint(centerX, centerY, outerRadius, startAngle + outerInset)
+  const outerEnd = polarToPoint(centerX, centerY, outerRadius, endAngle - outerInset)
+  const outerEndCorner = polarToPoint(centerX, centerY, outerRadius, endAngle)
+  const endOuterSide = polarToPoint(centerX, centerY, outerRadius - radiusInset, endAngle)
+  const endInnerSide = polarToPoint(centerX, centerY, innerRadius + radiusInset, endAngle)
+  const innerEndCorner = polarToPoint(centerX, centerY, innerRadius, endAngle)
+  const innerEnd = polarToPoint(centerX, centerY, innerRadius, endAngle - innerInset)
+  const innerStart = polarToPoint(centerX, centerY, innerRadius, startAngle + innerInset)
+  const innerStartCorner = polarToPoint(centerX, centerY, innerRadius, startAngle)
+  const startInnerSide = polarToPoint(centerX, centerY, innerRadius + radiusInset, startAngle)
+  const startOuterSide = polarToPoint(centerX, centerY, outerRadius - radiusInset, startAngle)
+  const outerStartCorner = polarToPoint(centerX, centerY, outerRadius, startAngle)
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0
+
+  return [
+    `M ${outerStart.x.toFixed(2)} ${outerStart.y.toFixed(2)}`,
+    `A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${outerEnd.x.toFixed(2)} ${outerEnd.y.toFixed(2)}`,
+    `Q ${outerEndCorner.x.toFixed(2)} ${outerEndCorner.y.toFixed(2)} ${endOuterSide.x.toFixed(2)} ${endOuterSide.y.toFixed(2)}`,
+    `L ${endInnerSide.x.toFixed(2)} ${endInnerSide.y.toFixed(2)}`,
+    `Q ${innerEndCorner.x.toFixed(2)} ${innerEndCorner.y.toFixed(2)} ${innerEnd.x.toFixed(2)} ${innerEnd.y.toFixed(2)}`,
+    `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${innerStart.x.toFixed(2)} ${innerStart.y.toFixed(2)}`,
+    `Q ${innerStartCorner.x.toFixed(2)} ${innerStartCorner.y.toFixed(2)} ${startInnerSide.x.toFixed(2)} ${startInnerSide.y.toFixed(2)}`,
+    `L ${startOuterSide.x.toFixed(2)} ${startOuterSide.y.toFixed(2)}`,
+    `Q ${outerStartCorner.x.toFixed(2)} ${outerStartCorner.y.toFixed(2)} ${outerStart.x.toFixed(2)} ${outerStart.y.toFixed(2)}`,
+    'Z',
+  ].join(' ')
+}
+
+const incomeGaugeSegments = computed<IncomeGaugeSegment[]>(() => {
+  const segmentColors = createIncomeGaugeSegmentColors(activeIncomeData.value)
+  const startAngle = 180
+  const endAngle = 360
+  const gap = 3.4
+  const step = (endAngle - startAngle) / incomeGaugeSegmentCount
+
+  return segmentColors.map((color, index) => {
+    const segmentStart = startAngle + index * step + gap / 2
+    const segmentEnd = startAngle + (index + 1) * step - gap / 2
+    return {
+      index,
+      path: createArcSegmentPath(segmentStart, segmentEnd, 250, 164),
+      color,
+    }
+  })
+})
+
+const formatMoney = (value: number) => {
+  const normalizedValue = Number(value) || 0
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(normalizedValue)
+}
+
+const formatPercentValue = (value: number) =>
+  `${Math.abs(Number(value) || 0).toFixed(1)}%`
+
+const getPositiveChartData = (data: NotesChartItem[]) => data.filter((item) => Number(item.value) > 0)
+
+const getChartTotal = (data: NotesChartItem[]) =>
+  getPositiveChartData(data).reduce((sum, item) => sum + item.value, 0)
+
+const createIncomeGaugeSegmentColors = (data: NotesChartItem[]) => {
+  const visibleData = getPositiveChartData(data)
+  const total = getChartTotal(data)
+
+  if (!visibleData.length || total <= 0) {
+    return Array.from({ length: incomeGaugeSegmentCount }, () => incomeGaugeEmptyColor)
+  }
+
+  const allocations = visibleData.map((item, index) => {
+    const exactCount = (Number(item.value) / total) * incomeGaugeActiveSegmentCount
+    const count = Math.floor(exactCount)
+    return {
+      count,
+      remainder: exactCount - count,
+      color: incomeGaugePalette[index % incomeGaugePalette.length],
+    }
+  })
+
+  let assignedCount = allocations.reduce((sum, item) => sum + item.count, 0)
+
+  while (assignedCount < incomeGaugeActiveSegmentCount) {
+    let targetIndex = 0
+    for (let index = 1; index < allocations.length; index += 1) {
+      if (allocations[index].remainder > allocations[targetIndex].remainder) {
+        targetIndex = index
+      }
+    }
+    allocations[targetIndex].count += 1
+    allocations[targetIndex].remainder = -1
+    assignedCount += 1
+  }
+
+  if (allocations.length <= incomeGaugeActiveSegmentCount) {
+    allocations.forEach((allocation) => {
+      if (allocation.count > 0) return
+
+      let donorIndex = -1
+      allocations.forEach((candidate, index) => {
+        if (
+          candidate.count > 1 &&
+          (donorIndex === -1 || candidate.count > allocations[donorIndex].count)
+        ) {
+          donorIndex = index
+        }
+      })
+
+      if (donorIndex >= 0) {
+        allocations[donorIndex].count -= 1
+        allocation.count = 1
+      }
+    })
+  }
+
+  const colors = allocations.flatMap((allocation) =>
+    Array.from({ length: allocation.count }, () => allocation.color),
+  )
+
+  const activeColors = colors.slice(0, incomeGaugeActiveSegmentCount)
+  const emptySegmentCount = incomeGaugeSegmentCount - activeColors.length
+
+  return [
+    ...activeColors,
+    ...Array.from({ length: emptySegmentCount }, () => incomeGaugeEmptyColor),
+  ]
+}
+
+const createDonutChartOption = (data: NotesChartItem[], total: number): EChartsOption => {
+  const visibleData = getPositiveChartData(data)
+  const hasData = visibleData.length > 0 && total > 0
+  const chartData = hasData ? visibleData : [{ name: t('stage5.common.empty.noData'), value: 1 }]
 
   return {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: ¥{c} ({d}%)',
+      formatter: (params: any) =>
+        hasData
+          ? `${params.name}<br/>${currencySymbol}${formatMoney(params.value)} (${params.percent}%)`
+          : '',
     },
     legend: {
-      show: true,
-      orient: 'vertical',
-      right: '10%',
-      top: 'center',
-      itemGap: 16,
-      itemWidth: 12,
-      itemHeight: 12,
-      formatter: (name: string) => {
-        const item = filteredData.find((d) => d.name === name)
-        if (item) {
-          const percentage = total > 0 ? ((item.value / total) * 100).toFixed(0) : 0
-          return `${name}  ${percentage}%`
-        }
-        return name
-      },
+      show: hasData,
+      bottom: 6,
+      left: 'center',
+      itemWidth: 9,
+      itemHeight: 9,
+      icon: 'circle',
+      itemGap: 8,
       textStyle: {
-        fontSize: 14,
-        color: '#666',
+        color: '#555f70',
+        fontSize: 13,
       },
     },
+    graphic: [
+      {
+        type: 'text',
+        left: 'center',
+        top: '35%',
+        style: {
+          text: `${currencySymbol}${formatMoney(total)}`,
+          fill: '#050505',
+          fontSize: 30,
+          fontWeight: 600,
+        },
+      },
+    ],
     series: [
       {
         type: 'pie',
-        radius: ['55%', '75%'],
-        center: ['30%', '50%'],
-        avoidLabelOverlap: false,
+        radius: ['52%', '74%'],
+        center: ['50%', '40%'],
+        minAngle: hasData ? 8 : 360,
+        avoidLabelOverlap: true,
         itemStyle: {
-          borderRadius: 8,
-          borderColor: '#fff',
-          borderWidth: 2,
+          borderColor: '#ffffff',
+          borderWidth: 0,
         },
         label: {
-          show: false,
-        },
-        emphasis: {
-          scale: true,
-          scaleSize: 10,
-        },
-        labelLine: {
-          show: false,
-        },
-        data: filteredData,
-        color: ['#4E7CFF', '#53D769', '#FFB946', '#FF6B6B', '#A78BFA', '#60A5FA'],
-      },
-      {
-        type: 'pie',
-        radius: ['0%', '45%'],
-        center: ['30%', '50%'],
-        silent: true,
-        label: {
-          show: true,
-          position: 'center',
-          formatter: () => {
-            const title =
-              type === 'income'
-                ? t('stage5.statistics.notes.totalIncome')
-                : t('stage5.statistics.notes.totalExpense')
-            return `{title|${title}}\n{value|¥${total.toFixed(2)}}`
-          },
+          show: hasData,
+          formatter: (params: any) =>
+            `{name|${params.name}} {percent|${Math.round(params.percent)}%}\n{value|${formatMoney(
+              params.value,
+            )}}`,
           rich: {
-            title: {
-              fontSize: 14,
-              color: '#999',
-              lineHeight: 24,
+            name: {
+              color: '#666d78',
+              fontSize: 11,
+              lineHeight: 16,
+            },
+            percent: {
+              color: '#5f7df5',
+              fontSize: 11,
+              fontWeight: 700,
+              lineHeight: 16,
             },
             value: {
-              fontSize: 20,
-              fontWeight: 'bold',
-              color: '#333',
-              lineHeight: 30,
+              color: '#4d8fff',
+              fontSize: 11,
+              lineHeight: 16,
             },
           },
         },
         labelLine: {
-          show: false,
+          show: hasData,
+          length: 28,
+          length2: 32,
+          lineStyle: {
+            color: '#6690ff',
+            width: 1,
+          },
         },
-        data: [{ value: 1, itemStyle: { color: 'transparent' } }],
+        data: chartData,
+        color: hasData ? ['#5b79f5', '#dceaff', '#77baf6', '#b8d7fa', '#8fa8ff'] : ['#d7d7d7'],
       },
     ],
   }
 }
 
-// 初始化图表
 const initCharts = () => {
-  if (activeTab.value === 'byProject') {
-    nextTick(() => {
-      if (incomeProjectChartRef.value) {
-        incomeProjectChart = echarts.init(incomeProjectChartRef.value)
-        const incomeTotal = incomeByProject.value.reduce((sum, item) => sum + item.value, 0)
-        incomeProjectChart.setOption(createPieChartOption(incomeByProject.value, incomeTotal, 'income'))
-      }
-
+  nextTick(() => {
+    if (activeTab.value === 'byProject') {
       if (expenseProjectChartRef.value) {
         expenseProjectChart = echarts.init(expenseProjectChartRef.value)
-        const expenseTotal = expenseByProject.value.reduce((sum, item) => sum + item.value, 0)
-        expenseProjectChart.setOption(createPieChartOption(expenseByProject.value, expenseTotal, 'expense'))
+        const expenseTotal = getChartTotal(expenseByProject.value)
+        expenseProjectChart.setOption(createDonutChartOption(expenseByProject.value, expenseTotal))
       }
-    })
-  } else {
-    nextTick(() => {
-      if (incomePaymentChartRef.value) {
-        incomePaymentChart = echarts.init(incomePaymentChartRef.value)
-        const incomeTotal = incomeByPayment.value.reduce((sum, item) => sum + item.value, 0)
-        incomePaymentChart.setOption(createPieChartOption(incomeByPayment.value, incomeTotal, 'income'))
-      }
-
+    } else {
       if (expensePaymentChartRef.value) {
         expensePaymentChart = echarts.init(expensePaymentChartRef.value)
-        const expenseTotal = expenseByPayment.value.reduce((sum, item) => sum + item.value, 0)
-        expensePaymentChart.setOption(createPieChartOption(expenseByPayment.value, expenseTotal, 'expense'))
+        const expenseTotal = getChartTotal(expenseByPayment.value)
+        expensePaymentChart.setOption(createDonutChartOption(expenseByPayment.value, expenseTotal))
       }
-    })
-  }
+    }
+  })
 }
 
-// 更新图表
 const updateCharts = () => {
   if (activeTab.value === 'byProject') {
-    const incomeTotal = incomeByProject.value.reduce((sum, item) => sum + item.value, 0)
-    const expenseTotal = expenseByProject.value.reduce((sum, item) => sum + item.value, 0)
-    incomeProjectChart?.setOption(createPieChartOption(incomeByProject.value, incomeTotal, 'income'))
-    expenseProjectChart?.setOption(createPieChartOption(expenseByProject.value, expenseTotal, 'expense'))
+    const expenseTotal = getChartTotal(expenseByProject.value)
+    expenseProjectChart?.setOption(createDonutChartOption(expenseByProject.value, expenseTotal))
   } else {
-    const incomeTotal = incomeByPayment.value.reduce((sum, item) => sum + item.value, 0)
-    const expenseTotal = expenseByPayment.value.reduce((sum, item) => sum + item.value, 0)
-    incomePaymentChart?.setOption(createPieChartOption(incomeByPayment.value, incomeTotal, 'income'))
-    expensePaymentChart?.setOption(createPieChartOption(expenseByPayment.value, expenseTotal, 'expense'))
+    const expenseTotal = getChartTotal(expenseByPayment.value)
+    expensePaymentChart?.setOption(createDonutChartOption(expenseByPayment.value, expenseTotal))
   }
 }
 
-// 加载数据
+const updateDateRange = (type: string) => {
+  const currentToday = getStoreTodayYmd()
+  switch (type) {
+    case 'today':
+      startDate.value = currentToday
+      endDate.value = currentToday
+      break
+    case 'yesterday': {
+      const yesterday = addDaysToYmd(currentToday, -1)
+      startDate.value = yesterday
+      endDate.value = yesterday
+      break
+    }
+    case 'week':
+      startDate.value = getYmdWeekStart(currentToday)
+      endDate.value = currentToday
+      break
+    case 'month':
+      startDate.value = getYmdMonthStart(currentToday)
+      endDate.value = currentToday
+      break
+    default:
+      break
+  }
+}
+
+const applyNotesStats = (stats: NotesStatisticsDTO) => {
+  summaryStats.value = {
+    netIncome: stats.netIncome,
+    totalIncome: stats.totalIncome,
+    totalExpense: stats.totalExpense,
+  }
+
+  incomeByProject.value = stats.incomeByProject.map((item) => ({
+    name: item.name,
+    value: item.value,
+  }))
+
+  expenseByProject.value = stats.expenseByProject.map((item) => ({
+    name: item.name,
+    value: item.value,
+  }))
+
+  incomeByPayment.value = stats.incomeByPayment.map((item) => ({
+    name: item.name,
+    value: item.value,
+  }))
+
+  expenseByPayment.value = stats.expenseByPayment.map((item) => ({
+    name: item.name,
+    value: item.value,
+  }))
+}
+
 const loadData = async () => {
   try {
-    // 获取统计数据
     const statsResponse = await getNotesStatistics({
       startDate: startDate.value,
       endDate: endDate.value,
     })
 
     if (statsResponse.success) {
-      const stats = statsResponse.data
-      summaryStats.value = {
-        netIncome: stats.netIncome,
-        totalIncome: stats.totalIncome,
-        totalExpense: stats.totalExpense,
-      }
+      applyNotesStats(statsResponse.data)
 
-      // 更新按项目分类的数据
-      incomeByProject.value = stats.incomeByProject.map((item) => ({
-        name: item.name,
-        value: item.value,
-      }))
-
-      expenseByProject.value = stats.expenseByProject.map((item) => ({
-        name: item.name,
-        value: item.value,
-      }))
-
-      // 更新按支付方式的数据
-      incomeByPayment.value = stats.incomeByPayment.map((item) => ({
-        name: item.name,
-        value: item.value,
-      }))
-
-      expenseByPayment.value = stats.expenseByPayment.map((item) => ({
-        name: item.name,
-        value: item.value,
-      }))
-
-      // 更新图表
       updateCharts()
     } else {
       ElMessage.error(statsResponse.message || t('stage5.statistics.notes.statsLoadFailed'))
     }
 
-    // 获取明细列表
     const listResponse = await getNotesList({
       startDate: startDate.value,
       endDate: endDate.value,
     })
 
     if (listResponse.success) {
-      tableData.value = listResponse.data.map((item) => ({
+      tableData.value = listResponse.data.map((item: NoteDTO) => ({
         datetime: item.datetime,
         type: item.type,
         category: item.category,
@@ -490,7 +775,6 @@ const loadData = async () => {
   }
 }
 
-// 查询
 const handleQuery = () => {
   if (!startDate.value || !endDate.value) {
     ElMessage.warning(t('stage5.common.messages.pleaseSelectDateRange'))
@@ -499,17 +783,14 @@ const handleQuery = () => {
   loadData()
 }
 
-// 导出报表
 const handleExport = () => {
   ElMessage.info(t('stage5.common.messages.exportComingSoon'))
 }
 
-// 查看凭证
 const handleViewVoucher = (row: any) => {
   ElMessage.info(t('stage5.statistics.notes.viewVoucherComingSoon'))
 }
 
-// 分页处理
 const handleSizeChange = (size: number) => {
   pageSize.value = size
 }
@@ -518,28 +799,24 @@ const handleCurrentChange = (page: number) => {
   currentPage.value = page
 }
 
-// 窗口大小变化处理
 const handleResize = () => {
-  incomeProjectChart?.resize()
   expenseProjectChart?.resize()
-  incomePaymentChart?.resize()
   expensePaymentChart?.resize()
 }
 
-// 监听 Tab 切换
+watch(dateType, (newType) => {
+  if (newType) {
+    updateDateRange(newType)
+  }
+})
+
 watch(activeTab, () => {
-  // 销毁旧图表
-  incomeProjectChart?.dispose()
   expenseProjectChart?.dispose()
-  incomePaymentChart?.dispose()
   expensePaymentChart?.dispose()
 
-  incomeProjectChart = null
   expenseProjectChart = null
-  incomePaymentChart = null
   expensePaymentChart = null
 
-  // 重新初始化图表
   initCharts()
 })
 
@@ -551,220 +828,512 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
-  incomeProjectChart?.dispose()
   expenseProjectChart?.dispose()
-  incomePaymentChart?.dispose()
   expensePaymentChart?.dispose()
 })
 </script>
 
 <style scoped>
 .notes-summary-content {
-  padding: 24px;
+  min-height: 100%;
+  padding: 0;
   background: #f5f5f5;
 }
 
-/* 日期选择器 */
 .date-selector {
   display: flex;
+  min-height: 62px;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 14px 18px;
+  background: #ffffff;
+  border-radius: 4px;
 }
 
-.date-separator {
-  color: #666;
+.business-quick-select {
+  width: 78px;
+  flex: 0 0 78px;
+}
+
+.business-date-range {
+  width: 288px;
+  max-width: 288px;
+  flex: 0 0 288px;
+}
+
+.query-button {
+  width: 48px;
+  height: 32px;
+  margin-left: 14px;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.notes-summary-content :deep(.date-selector .el-select__wrapper),
+.notes-summary-content :deep(.date-selector .el-input__wrapper) {
+  min-height: 32px;
+  border-radius: 5px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+}
+
+.notes-summary-content :deep(.date-selector .el-select__wrapper:hover),
+.notes-summary-content :deep(.date-selector .el-select__wrapper.is-focused),
+.notes-summary-content :deep(.date-selector .el-input__wrapper:hover),
+.notes-summary-content :deep(.date-selector .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #87bdf6 inset;
+}
+
+.notes-summary-content :deep(.date-selector .business-date-range.el-range-editor.el-input__wrapper) {
+  width: 288px;
+  max-width: 288px;
+  flex: 0 0 288px;
+  padding: 1px 1px 1px 6px;
+  overflow: hidden;
+}
+
+.notes-summary-content :deep(.date-selector .business-date-range .el-range__icon) {
+  margin: 0 9px 0 2px;
+  color: #aeb4bd;
   font-size: 14px;
 }
 
-/* 标题 */
-.section-header {
-  margin-bottom: 20px;
+.notes-summary-content :deep(.date-selector .business-date-range .el-range-input) {
+  height: 30px;
+  padding: 0 7px;
+  background: #fafafa;
+  color: #30343b;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 30px;
 }
 
-.section-header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
+.notes-summary-content :deep(.date-selector .business-date-range .el-range-input:first-child) {
+  border-radius: 4px 0 0 4px;
 }
 
-/* 统计卡片 */
+.notes-summary-content :deep(.date-selector .business-date-range .el-range-input:last-child) {
+  border-radius: 0 4px 4px 0;
+}
+
+.notes-summary-content :deep(.date-selector .business-date-range .el-range-separator) {
+  width: 44px;
+  height: 30px;
+  background: #ffffff;
+  color: #777f89;
+  font-size: 12px;
+  line-height: 30px;
+}
+
+.notes-summary-content :deep(.date-selector .business-date-range .el-range__close-icon) {
+  display: none;
+}
+
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
 }
 
 .summary-card {
   display: flex;
+  min-height: 84px;
   align-items: center;
-  gap: 16px;
-  padding: 24px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.card-icon {
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  font-size: 28px;
-}
-
-.summary-card.net-income .card-icon {
-  background: #e8f5e9;
-  color: #4caf50;
-}
-
-.summary-card.total-income .card-icon {
-  background: #e3f2fd;
-  color: #2196f3;
-}
-
-.summary-card.total-expense .card-icon {
-  background: #ffebee;
-  color: #f44336;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 12px 16px 18px;
+  background: #ffffff;
+  border-radius: 4px;
 }
 
 .card-content {
-  flex: 1;
+  min-width: 0;
 }
 
 .card-label {
-  font-size: 14px;
-  color: #666;
   margin-bottom: 8px;
+  color: #8a8f99;
+  font-size: 14px;
+  line-height: 1.2;
 }
 
 .card-value {
-  font-size: 28px;
-  font-weight: bold;
-  color: #333;
+  color: #050505;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-/* 统计区域 */
+.card-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+}
+
+.card-icon img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.statistics-heading {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 10px;
+}
+
+.statistics-heading h2 {
+  margin: 0;
+  color: #050505;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 32px;
+}
+
+.mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mode-switch :deep(.el-button) {
+  min-width: 61px;
+  height: 32px;
+  margin: 0;
+  padding: 0 13px;
+  border-color: #dcdfe6;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #777f89;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.mode-switch :deep(.el-button.active),
+.mode-switch :deep(.el-button:hover) {
+  border-color: #1e90ff;
+  background: #1e90ff;
+  color: #ffffff;
+}
+
 .statistics-section {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 20px;
-}
-
-.statistics-tabs {
-  margin-top: 20px;
 }
 
 .charts-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 40px;
-  padding: 20px 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
 }
 
 .chart-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  min-height: 374px;
+  background: #ffffff;
+  border-radius: 0;
 }
 
 .chart-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 20px;
+  margin: 22px 20px 0;
+  color: #050505;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-.pie-chart {
+.chart-canvas {
   width: 100%;
-  height: 300px;
+  height: 316px;
 }
 
-/* 明细区域 */
+.income-arc-chart {
+  display: flex;
+  height: 316px;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0;
+}
+
+.income-arc-stage {
+  position: relative;
+  width: min(100%, 520px);
+  height: 306px;
+}
+
+.income-arc-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 296px;
+  overflow: visible;
+}
+
+.income-arc-segment {
+  shape-rendering: geometricPrecision;
+}
+
+.income-arc-amount {
+  position: absolute;
+  left: 50%;
+  top: 160px;
+  width: max-content;
+  transform: translateX(-50%);
+  color: #050505;
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.income-arc-compare {
+  position: absolute;
+  left: 50%;
+  top: 238px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  transform: translateX(-50%);
+  color: #30343b;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.income-arc-previous strong {
+  margin-left: 10px;
+  font-weight: 500;
+}
+
+.income-arc-growth {
+  display: inline-flex;
+  height: 26px;
+  align-items: center;
+  padding: 0 9px;
+  border-radius: 4px;
+  background: #c6ccd4;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.income-arc-growth-up {
+  background: #69b7ff;
+}
+
+.income-arc-growth-down {
+  background: #ff7a7a;
+}
+
+.income-arc-growth-flat {
+  background: #c6ccd4;
+}
+
+.expense-donut-chart {
+  height: 316px;
+}
+
 .details-section {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  border-radius: 0;
+  padding: 0 20px 18px;
 }
 
 .details-header {
   display: flex;
+  min-height: 78px;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  gap: 16px;
 }
 
 .details-header h3 {
   margin: 0;
-  font-size: 16px;
+  color: #050505;
+  font-size: 24px;
   font-weight: 600;
-  color: #333;
+  line-height: 1.2;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 20px;
+}
+
+.detail-filter-select {
+  width: 123px;
+}
+
+.export-button {
+  width: 140px;
+  height: 32px;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.details-section :deep(.header-actions .el-select__wrapper) {
+  min-height: 32px;
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
 }
 
 .details-table {
-  margin-bottom: 16px;
+  --el-table-border-color: #e6e6e6;
+  --el-table-header-bg-color: #fafafa;
+  --el-table-row-hover-bg-color: #f9fbff;
+  width: 100%;
+  margin-bottom: 0;
+  color: #424850;
+  font-size: 13px;
+}
+
+.details-table :deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+.details-table :deep(th.el-table__cell) {
+  height: 36px;
+  padding: 0;
+  background: #fafafa;
+  color: #6f7782;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.details-table :deep(td.el-table__cell) {
+  height: 52px;
+  padding: 0;
+  color: #3f4650;
+  font-size: 13px;
+}
+
+.details-table :deep(.cell) {
+  padding: 0 12px;
+  line-height: 1.3;
+}
+
+.details-table :deep(.type-tag) {
+  min-width: 44px;
+  height: 22px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.details-table :deep(.type-tag-expense) {
+  background: #ffd3d7;
+  color: #ff5a68;
+}
+
+.details-table :deep(.type-tag-income) {
+  background: #dff7ea;
+  color: #25b26b;
 }
 
 .income-amount {
-  color: #52c41a;
+  color: #3f4650 !important;
   font-weight: 500;
 }
 
 .expense-amount {
-  color: #ff4d4f;
+  color: #3f4650 !important;
   font-weight: 500;
 }
 
-/* 表格底部 */
 .table-footer {
   display: flex;
-  align-items: center;
+  min-height: 70px;
+  align-items: flex-end;
   justify-content: space-between;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  gap: 16px;
+  padding-top: 18px;
 }
 
 .footer-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  color: #777f89;
   font-size: 14px;
-  color: #666;
+  line-height: 32px;
 }
 
 .net-income-value {
-  color: #52c41a;
-  font-weight: 600;
-  font-size: 16px;
+  color: #50c18b;
+  font-weight: 500;
 }
 
 .income-value {
-  color: #1890ff;
-  font-weight: 600;
+  color: #168bf8;
+  font-weight: 500;
 }
 
 .expense-value {
-  color: #ff4d4f;
-  font-weight: 600;
+  color: #ff0000;
+  font-weight: 500;
+}
+
+.table-footer :deep(.el-pagination) {
+  flex: 0 0 auto;
+}
+
+.pagination-group {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.table-footer :deep(.el-pagination .el-select) {
+  width: 112px;
+}
+
+.table-footer :deep(.el-pagination .el-select__wrapper) {
+  min-height: 26px;
+  border-radius: 5px;
+}
+
+.table-footer :deep(.el-pager li),
+.table-footer :deep(.btn-prev),
+.table-footer :deep(.btn-next) {
+  min-width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
+.page-total-text {
+  color: #333333;
+  font-size: 12px;
+  line-height: 28px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .summary-cards,
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  .details-header,
+  .table-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 </style>
