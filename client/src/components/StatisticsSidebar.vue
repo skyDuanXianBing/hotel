@@ -1,209 +1,271 @@
 <template>
-  <div class="statistics-sidebar" :class="{ collapsed: isCollapsed }">
-    <!-- Collapse navigation button -->
-    <div class="sidebar-header" @click="toggleSidebar">
-      <el-icon class="sidebar-icon"><MenuIcon /></el-icon>
-      <span v-if="!isCollapsed" class="sidebar-title">{{ t('stage6.components.statisticsSidebar.collapse') }}</span>
-      <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
-      <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
-    </div>
+  <aside class="statistics-sidebar" :class="{ 'is-collapsed': collapsed }">
+    <button type="button" class="sidebar-toggle" @click="emit('toggle')">
+      <span class="sidebar-toggle-mark">
+        <el-icon><MenuIcon /></el-icon>
+      </span>
+      <span v-if="!collapsed" class="sidebar-toggle-label">
+        {{ t('stage6.components.statisticsSidebar.collapse') }}
+      </span>
+      <el-icon v-if="!collapsed" class="sidebar-toggle-arrow"><ArrowLeft /></el-icon>
+      <el-icon v-else class="sidebar-toggle-arrow"><ArrowRight /></el-icon>
+    </button>
 
-    <!-- Sidebar menu -->
-    <el-menu
-      class="sidebar-menu"
-      :default-active="activeMenu"
-      :default-openeds="['data-center']"
-      :collapse="isCollapsed"
-      @select="handleMenuSelect"
-    >
-      <!-- Data center -->
-      <el-sub-menu index="data-center">
-        <template #title>
-          <el-icon><TrendCharts /></el-icon>
-          <span>{{ t('stage6.components.statisticsSidebar.dataCenter') }}</span>
-        </template>
-        <el-menu-item index="data-overview">{{ t('stage6.components.statisticsSidebar.overview') }}</el-menu-item>
-        <el-menu-item index="data-accommodation">{{ t('stage6.components.statisticsSidebar.accommodation') }}</el-menu-item>
-        <el-menu-item index="data-notes">{{ t('stage6.components.statisticsSidebar.notes') }}</el-menu-item>
-      </el-sub-menu>
-    </el-menu>
-  </div>
+    <nav class="sidebar-nav" aria-label="Statistics navigation">
+      <div class="sidebar-section is-active">
+        <button
+          type="button"
+          class="sidebar-parent"
+          :title="collapsed ? t('stage6.components.statisticsSidebar.dataCenter') : undefined"
+        >
+          <span class="sidebar-parent-icon">
+            <el-icon><TrendCharts /></el-icon>
+          </span>
+          <span v-if="!collapsed" class="sidebar-parent-label">
+            {{ t('stage6.components.statisticsSidebar.dataCenter') }}
+          </span>
+        </button>
+
+        <div v-if="!collapsed" class="sidebar-children">
+          <button
+            v-for="item in menuItems"
+            :key="item.key"
+            type="button"
+            class="sidebar-child"
+            :class="{ 'is-active': activeMenu === item.key }"
+            @click="handleMenuSelect(item.path)"
+          >
+            <span class="sidebar-child-dot"></span>
+            <span class="sidebar-child-label">{{ t(item.labelKey) }}</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+  </aside>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, ArrowRight, TrendCharts, Menu as MenuIcon } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ArrowLeft, ArrowRight, Menu as MenuIcon, TrendCharts } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 
-const router = useRouter()
+defineProps<{
+  collapsed: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'toggle'): void
+}>()
+
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 
-// Sidebar collapsed state
-const isCollapsed = ref(false)
+const menuItems = [
+  {
+    key: 'overview',
+    labelKey: 'stage6.components.statisticsSidebar.overview',
+    path: '/data-center/overview',
+  },
+  {
+    key: 'accommodation',
+    labelKey: 'stage6.components.statisticsSidebar.accommodation',
+    path: '/data-center/accommodation',
+  },
+  {
+    key: 'notes',
+    labelKey: 'stage6.components.statisticsSidebar.notes',
+    path: '/data-center/notes',
+  },
+]
 
-const toggleSidebar = () => {
-  isCollapsed.value = !isCollapsed.value
-}
-
-// Determine the active menu item from the current route
 const activeMenu = computed(() => {
-  const routeName = route.name as string
-  switch (routeName) {
-    // Data center
-    case 'DataCenterOverview':
-      return 'data-overview'
-    case 'DataCenterAccommodation':
-      return 'data-accommodation'
-    case 'DataCenterNotes':
-      return 'data-notes'
-    default:
-      return 'data-overview'
+  if (route.path.startsWith('/data-center/accommodation')) {
+    return 'accommodation'
   }
+  if (route.path.startsWith('/data-center/notes')) {
+    return 'notes'
+  }
+  return 'overview'
 })
 
-// Handle menu selection
-const handleMenuSelect = (index: string) => {
-  switch (index) {
-    // Data center
-    case 'data-overview':
-      router.push('/data-center/overview')
-      break
-    case 'data-accommodation':
-      router.push('/data-center/accommodation')
-      break
-    case 'data-notes':
-      router.push('/data-center/notes')
-      break
+const handleMenuSelect = (path: string) => {
+  if (path !== route.path) {
+    router.push(path)
   }
 }
 </script>
 
 <style scoped>
 .statistics-sidebar {
-  width: 200px;
-  background: #f8f9fa;
-  border-right: 1px solid #e8e8e8;
+  width: var(--sidebar-width);
   display: flex;
   flex-direction: column;
-  height: 100%;
-  transition: width 0.3s ease;
+  min-height: 0;
+  background: #ffffff;
+  border-right: 1px solid #ecece7;
+  transition: width 0.24s ease;
+  overflow: hidden;
 }
 
-.statistics-sidebar.collapsed {
-  width: 64px;
-}
-
-/* Collapse navigation styles */
-.sidebar-header {
-  height: 56px;
+.sidebar-toggle {
+  height: 76px;
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  border-bottom: 1px solid #e8e8e8;
-  cursor: pointer;
-  background: white;
-  transition: background-color 0.3s;
-  flex-shrink: 0;
-}
-
-.sidebar-header:hover {
-  background-color: #f5f5f5;
-}
-
-.sidebar-icon {
-  font-size: 20px;
-  color: #1890ff;
-  flex-shrink: 0;
-}
-
-.sidebar-title {
-  flex: 1;
-  margin-left: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
-.collapse-icon {
-  font-size: 16px;
-  color: #999;
-}
-
-/* Menu styles */
-.sidebar-menu {
-  flex: 1;
-  border-right: none;
-  background: #f8f9fa;
-  padding: 8px 0;
-}
-
-/* Group title styles */
-.sidebar-menu :deep(.el-sub-menu__title) {
-  height: 44px;
-  line-height: 44px;
-  padding: 0 20px !important;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  border-radius: 0;
-}
-
-.sidebar-menu :deep(.el-sub-menu__title:hover) {
-  background: rgba(64, 158, 255, 0.1);
-  color: #409eff;
-}
-
-.sidebar-menu :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
-  color: #409eff;
-}
-
-/* Submenu item styles */
-.sidebar-menu :deep(.el-menu-item) {
-  height: 36px;
-  line-height: 36px;
-  padding: 0 40px !important;
-  background: transparent;
-  font-size: 13px;
-  color: #666;
-  border-radius: 0;
-  margin: 2px 0;
-}
-
-.sidebar-menu :deep(.el-menu-item:hover) {
-  background: rgba(64, 158, 255, 0.1);
-  color: #409eff;
-}
-
-.sidebar-menu :deep(.el-menu-item.is-active) {
-  background: #e6f4ff;
-  color: #409eff;
-  font-weight: 500;
-}
-
-/* Icon styles */
-.sidebar-menu :deep(.el-icon) {
-  width: 16px;
-  height: 16px;
-  margin-right: 8px;
-}
-
-/* Remove default border and shadow */
-.sidebar-menu :deep(.el-menu) {
+  gap: 8px;
+  padding: 0 20px;
   border: none;
+  border-bottom: 1px solid #f0f0ea;
+  background: #ffffff;
+  color: #1f2120;
+  cursor: pointer;
 }
 
-.sidebar-menu :deep(.el-sub-menu__title),
-.sidebar-menu :deep(.el-menu-item) {
-  border: none !important;
+.sidebar-toggle-mark {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2f7cf6;
+  font-size: 20px;
+  flex: 0 0 auto;
 }
 
-/* Expand/collapse icon */
-.sidebar-menu :deep(.el-sub-menu__icon-arrow) {
-  right: 20px;
-  font-size: 12px;
-  color: #999;
+.sidebar-toggle-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: #232421;
+  white-space: nowrap;
+}
+
+.sidebar-toggle-arrow {
+  color: #a8ada8;
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+
+.sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  padding: 18px 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-parent {
+  position: relative;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 18px 0 20px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #5f645f;
+  cursor: default;
+  text-align: left;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.sidebar-section.is-active > .sidebar-parent {
+  color: #2f7cf6;
+}
+
+.sidebar-parent-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.sidebar-parent-label {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sidebar-children {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 0;
+}
+
+.sidebar-child {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0 18px 0 48px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #717572;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.sidebar-child:hover {
+  background: #f7f8f4;
+  color: #232421;
+}
+
+.sidebar-child.is-active {
+  background: #f1f6ff;
+  color: #2f7cf6;
+}
+
+.sidebar-child-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.45;
+  flex: 0 0 auto;
+}
+
+.sidebar-child.is-active .sidebar-child-dot {
+  opacity: 1;
+}
+
+.sidebar-child-label {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.statistics-sidebar.is-collapsed .sidebar-toggle {
+  justify-content: center;
+  padding: 0;
+}
+
+.statistics-sidebar.is-collapsed .sidebar-parent {
+  justify-content: center;
+  padding: 0;
 }
 </style>

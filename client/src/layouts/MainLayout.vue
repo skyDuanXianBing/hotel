@@ -48,9 +48,23 @@ const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/'
 
 const isAccommodationRoute = computed(() => normalizePath(route.path).startsWith('/accommodation'))
 const isRegistrationReviewListRoute = computed(() => route.name === 'DataCenterRegistrations')
+const isStatisticsRoute = computed(() => {
+  const path = normalizePath(route.path)
+  return (
+    path.startsWith('/statistics') ||
+    path.startsWith('/data-center/overview') ||
+    path.startsWith('/data-center/accommodation') ||
+    path.startsWith('/data-center/notes') ||
+    route.name === 'DataCenterRegistrationDetail'
+  )
+})
 const isOrderRoute = computed(() => normalizePath(route.path).startsWith('/order'))
 const usesEmbeddedTopNav = computed(
-  () => isAccommodationRoute.value || isRegistrationReviewListRoute.value || isOrderRoute.value,
+  () =>
+    isAccommodationRoute.value ||
+    isStatisticsRoute.value ||
+    isRegistrationReviewListRoute.value ||
+    isOrderRoute.value,
 )
 
 const loadStores = async () => {

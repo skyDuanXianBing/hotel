@@ -285,7 +285,12 @@
                   :title="t('order.table.detailTitle')"
                   @click="viewOrder(scope.row)"
                 >
-                  {{ getOrderPrimaryDisplay(scope.row) }}
+                  <span class="order-link-content">
+                    <span>{{ getOrderPrimaryLineDisplay(scope.row) }}</span>
+                    <span v-if="getOrderStayDateDisplay(scope.row)">
+                      {{ getOrderStayDateDisplay(scope.row) }}
+                    </span>
+                  </span>
                 </el-button>
                 <div class="order-summary-meta">
                   <span
@@ -306,7 +311,6 @@
                   {{ t('order.table.channelOrderNumber') }}:
                   {{ getDisplayChannelOrderNumber(scope.row) }}
                 </el-button>
-                <span class="order-detail-tip">{{ t('order.table.detailTip') }}</span>
               </div>
             </template>
           </el-table-column>
@@ -1569,32 +1573,13 @@ const getOrderRoomDescription = (order: ReservationDTO) => {
   return roomTypeName || roomNumber
 }
 
-const getReadableChannelName = (order: ReservationDTO) => {
-  const channelName = getChannelDisplayName(order.channelName)
-  if (channelName === '-') {
-    return ''
-  }
-  return channelName
-}
-
-const getOrderPrimaryDisplay = (order: ReservationDTO) => {
+const getOrderPrimaryLineDisplay = (order: ReservationDTO) => {
   const guestName = getTrimmedValue(order.guestName)
-  const stayDateRange = formatOrderStayDateRange(order)
-  const channelName = getReadableChannelName(order)
-  const roomDescription = getOrderRoomDescription(order)
-
-  if (guestName && stayDateRange) {
-    return `${guestName} · ${stayDateRange}`
-  }
   if (guestName) {
     return guestName
   }
-  if (channelName && stayDateRange) {
-    return `${channelName} · ${stayDateRange}`
-  }
-  if (stayDateRange) {
-    return stayDateRange
-  }
+
+  const roomDescription = getOrderRoomDescription(order)
   if (roomDescription) {
     return roomDescription
   }
@@ -1603,25 +1588,19 @@ const getOrderPrimaryDisplay = (order: ReservationDTO) => {
   if (channelOrderNumber) {
     return channelOrderNumber
   }
+
   return t('order.table.detailTitle')
 }
 
+const getOrderStayDateDisplay = (order: ReservationDTO) => formatOrderStayDateRange(order)
+
 const getOrderSecondaryDisplayItems = (order: ReservationDTO) => {
   const displayItems: string[] = []
-  const channelName = getReadableChannelName(order)
   const roomDescription = getOrderRoomDescription(order)
-  const stayDateRange = formatOrderStayDateRange(order)
-  const primaryDisplay = getOrderPrimaryDisplay(order)
+  const primaryDisplay = getOrderPrimaryLineDisplay(order)
 
-  if (channelName && !primaryDisplay.includes(channelName)) {
-    displayItems.push(channelName)
-  }
   if (roomDescription && !primaryDisplay.includes(roomDescription)) {
     displayItems.push(roomDescription)
-  }
-
-  if (stayDateRange && !primaryDisplay.includes(stayDateRange)) {
-    displayItems.push(stayDateRange)
   }
 
   return displayItems
@@ -2362,6 +2341,13 @@ onMounted(() => {
   width: 100%;
 }
 
+.order-link-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
 .order-link:hover :deep(.el-button__text) {
   color: #2f7cf6;
   text-decoration: underline;
@@ -2411,13 +2397,6 @@ onMounted(() => {
   margin: 0 !important;
   justify-content: flex-start !important;
   height: auto;
-}
-
-.order-detail-tip {
-  margin-top: 0;
-  font-size: 11px;
-  line-height: 1.3;
-  color: #777777;
 }
 
 .room-mapping-cell {

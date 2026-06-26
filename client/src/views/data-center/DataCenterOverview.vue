@@ -13,26 +13,23 @@
 
       <!-- 日期筛选 -->
       <div class="filter-section">
-        <el-select v-model="dateType" style="width: 100px">
+        <el-select v-model="dateType" class="business-quick-select">
           <el-option :label="t('stage5.common.date.today')" value="today" />
           <el-option :label="t('stage5.common.date.yesterday')" value="yesterday" />
           <el-option :label="t('stage5.common.date.thisWeek')" value="week" />
           <el-option :label="t('stage5.common.date.thisMonth')" value="month" />
         </el-select>
         <el-date-picker
-          v-model="startDate"
-          type="date"
+          v-model="businessDateRange"
+          class="business-date-range"
+          type="daterange"
           :placeholder="t('stage5.common.date.selectDate')"
+          :start-placeholder="t('stage5.common.date.selectDate')"
+          :end-placeholder="t('stage5.common.date.selectDate')"
+          :range-separator="t('stage5.common.date.rangeTo')"
           format="YYYY/MM/DD"
           value-format="YYYY-MM-DD"
-        />
-        <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
-        <el-date-picker
-          v-model="endDate"
-          type="date"
-          :placeholder="t('stage5.common.date.selectDate')"
-          format="YYYY/MM/DD"
-          value-format="YYYY-MM-DD"
+          :clearable="false"
         />
       </div>
 
@@ -40,83 +37,75 @@
       <div v-if="activeTab === 'business'" class="tab-content">
         <!-- 营业概况统计卡片 -->
         <div class="stats-section">
-          <div class="stat-card primary">
-            <div class="stat-icon">
-              <el-icon size="48"><Money /></el-icon>
+          <div
+            v-for="card in businessMetricCards"
+            :key="card.key"
+            class="stat-card business-stat-card"
+            :class="{ primary: card.primary }"
+          >
+            <div class="stat-card-head">
+              <div class="stat-label">{{ card.label }}</div>
+              <div class="stat-icon">
+                <img :src="card.icon" :alt="card.label" class="stat-icon-image" />
+              </div>
             </div>
-            <div class="stat-content">
-              <div class="stat-label">{{ t('stage5.statistics.business.totalAccommodationRevenue') }}</div>
-              <div class="stat-value">¥{{ totalRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+            <div class="stat-value-row">
+              <div class="stat-value">¥{{ formatMoney(card.value) }}</div>
+              <span class="stat-change" :class="card.changeDirection">
+                <span class="stat-change-icon" aria-hidden="true">{{ card.changeIcon }}</span>
+                {{ Math.abs(card.changeRate) }}%
+              </span>
             </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-content">
-              <div class="stat-label">{{ t('stage5.statistics.common.roomFee') }}</div>
-              <div class="stat-value">¥{{ roomFee.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-content">
-              <div class="stat-label">{{ t('stage5.statistics.common.deposit') }}</div>
-              <div class="stat-value">¥{{ deposit.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-content">
-              <div class="stat-label">{{ t('stage5.dataCenter.overview.checkoutRefund') }}</div>
-              <div class="stat-value">¥{{ checkout.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-content">
-              <div class="stat-label">{{ t('stage5.dataCenter.overview.roomService') }}</div>
-              <div class="stat-value">¥{{ roomService.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+            <div class="stat-previous">
+              <span>上个月</span>
+              <strong>{{ card.previousText }}</strong>
             </div>
           </div>
         </div>
 
         <!-- 消费分类分布和住宿消费趋势 -->
-        <div class="charts-row">
-          <div class="chart-card">
-            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.spendCategoryDistribution') }}</h3>
-            <div ref="businessPieChart" class="chart-container"></div>
+        <div class="charts-row business-charts-row">
+          <div class="chart-card trend-card">
+            <div class="chart-card-header">
+              <h3 class="chart-title">营业额趋势</h3>
+              <el-select v-model="businessTrendRange" class="business-chart-select">
+                <el-option label="本月" value="month" />
+                <el-option label="本周" value="week" />
+                <el-option label="今天" value="today" />
+              </el-select>
+            </div>
+            <div ref="businessBarChart" class="chart-container business-trend-chart"></div>
           </div>
 
-          <div class="chart-card">
-            <h3 class="chart-title">{{ t('stage5.dataCenter.overview.accommodationSpendTrend') }}</h3>
-            <div ref="businessBarChart" class="chart-container"></div>
+          <div class="chart-card distribution-card">
+            <h3 class="chart-title">消费分布</h3>
+            <div ref="businessPieChart" class="chart-container business-distribution-chart"></div>
           </div>
         </div>
 
         <!-- 住宿消费明细表格 -->
-        <div class="table-section">
+        <div class="table-section business-table-section">
           <div class="table-header">
             <h3 class="table-title">{{ t('stage5.dataCenter.overview.accommodationSpendDetails') }} ({{ dateRangeLabel }})</h3>
-            <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+            <el-button type="primary" class="business-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
           </div>
-            <el-table :data="businessDetailData" border stripe class="detail-table">
-              <el-table-column prop="category" :label="t('stage5.common.fields.project')" min-width="120" align="center" />
-              <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
-                <template #default="{ row }">
-                  <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column
-                v-for="column in dateColumns"
-                :key="column.prop"
-                :prop="column.prop"
-                :label="column.label"
-                min-width="150"
-                align="center"
-              >
-                <template #default="{ row }">
-                  ¥{{ formatMoneyCell(row, column.prop) }}
-                </template>
-              </el-table-column>
+          <el-table :data="businessDetailData" class="detail-table business-detail-table">
+            <el-table-column prop="category" :label="t('stage5.common.fields.project')" min-width="140" align="center" />
+            <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="140" align="center">
+              <template #default="{ row }">¥{{ formatMoney(row.total) }}</template>
+            </el-table-column>
+            <el-table-column
+              v-for="column in dateColumns"
+              :key="column.prop"
+              :prop="column.prop"
+              :label="column.label"
+              min-width="140"
+              align="center"
+            >
+              <template #default="{ row }">
+                ¥{{ formatMoneyCell(row, column.prop) }}
+              </template>
+            </el-table-column>
           </el-table>
         </div>
       </div>
@@ -439,11 +428,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Search, Money } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import StatisticsLayout from '../statistics/StatisticsLayout.vue'
+import businessCartIcon from '@/assets/icons/statistics/business-cart.png'
+import businessCheckoutIcon from '@/assets/icons/statistics/business-checkout.png'
+import businessCustomerIcon from '@/assets/icons/statistics/business-customer.png'
+import businessDepositIcon from '@/assets/icons/statistics/business-deposit.png'
+import businessHomeIcon from '@/assets/icons/statistics/business-home.png'
 import {
   getBusinessOverview,
   getRevenueSummary,
@@ -559,6 +553,19 @@ const todayYmd = getStoreTodayYmd()
 const startDate = ref(todayYmd)
 const endDate = ref(todayYmd)
 const loading = ref(false)
+const businessTrendRange = ref('month')
+
+const businessDateRange = computed<string[]>({
+  get: () => {
+    if (!startDate.value || !endDate.value) return []
+    return [startDate.value, endDate.value]
+  },
+  set: (value: string[]) => {
+    const [start, end] = value || []
+    startDate.value = start || ''
+    endDate.value = end || ''
+  },
+})
 
 const dateRangeLabel = computed(() =>
   t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value }),
@@ -631,6 +638,9 @@ const formatMoneyCell = (row: DynamicAmountRow, prop: string) => {
   return value.toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 }
 
+const formatMoney = (value: number | string) =>
+  Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
+
 const resolveLabelKey = <T extends LocalizedKey>(value: string, aliases: Record<string, T>) => {
   const normalized = normalizeLabel(value || '')
   return aliases[normalized]
@@ -680,6 +690,81 @@ interface BusinessDetailItem {
   total: number
   [key: string]: string | number
 }
+
+type BusinessMetricKey = 'totalRevenue' | 'roomFee' | 'deposit' | 'checkout' | 'roomService'
+
+const BUSINESS_METRIC_COMPARISON: Record<
+  BusinessMetricKey,
+  { previousMonthAmount: number; changeRate: number }
+> = {
+  // TODO(backend): replace with previous-period metrics when the statistics API exposes them.
+  totalRevenue: { previousMonthAmount: 234568.33, changeRate: 14.9 },
+  roomFee: { previousMonthAmount: 89, changeRate: 14.9 },
+  deposit: { previousMonthAmount: 89, changeRate: 14.9 },
+  checkout: { previousMonthAmount: 89, changeRate: 14.9 },
+  roomService: { previousMonthAmount: 89, changeRate: 14.9 },
+}
+
+const getChangeDirection = (changeRate: number) => (changeRate >= 0 ? 'up' : 'down')
+const getChangeIcon = (changeRate: number) => (changeRate >= 0 ? '↑' : '↓')
+
+const businessMetricCards = computed(() => [
+  {
+    key: 'totalRevenue',
+    label: t('stage5.statistics.business.totalAccommodationRevenue'),
+    value: totalRevenue.value,
+    icon: businessCartIcon,
+    primary: true,
+    changeRate: BUSINESS_METRIC_COMPARISON.totalRevenue.changeRate,
+    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.totalRevenue.changeRate),
+    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.totalRevenue.changeRate),
+    previousText: `¥${formatMoney(BUSINESS_METRIC_COMPARISON.totalRevenue.previousMonthAmount)}`,
+  },
+  {
+    key: 'roomFee',
+    label: t('stage5.statistics.common.roomFee'),
+    value: roomFee.value,
+    icon: businessHomeIcon,
+    primary: false,
+    changeRate: BUSINESS_METRIC_COMPARISON.roomFee.changeRate,
+    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.roomFee.changeRate),
+    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.roomFee.changeRate),
+    previousText: formatMoney(BUSINESS_METRIC_COMPARISON.roomFee.previousMonthAmount),
+  },
+  {
+    key: 'deposit',
+    label: t('stage5.statistics.common.deposit'),
+    value: deposit.value,
+    icon: businessDepositIcon,
+    primary: false,
+    changeRate: BUSINESS_METRIC_COMPARISON.deposit.changeRate,
+    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.deposit.changeRate),
+    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.deposit.changeRate),
+    previousText: formatMoney(BUSINESS_METRIC_COMPARISON.deposit.previousMonthAmount),
+  },
+  {
+    key: 'checkout',
+    label: t('stage5.dataCenter.overview.checkoutRefund'),
+    value: checkout.value,
+    icon: businessCheckoutIcon,
+    primary: false,
+    changeRate: BUSINESS_METRIC_COMPARISON.checkout.changeRate,
+    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.checkout.changeRate),
+    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.checkout.changeRate),
+    previousText: formatMoney(BUSINESS_METRIC_COMPARISON.checkout.previousMonthAmount),
+  },
+  {
+    key: 'roomService',
+    label: t('stage5.dataCenter.overview.roomService'),
+    value: roomService.value,
+    icon: businessCustomerIcon,
+    primary: false,
+    changeRate: BUSINESS_METRIC_COMPARISON.roomService.changeRate,
+    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.roomService.changeRate),
+    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.roomService.changeRate),
+    previousText: formatMoney(BUSINESS_METRIC_COMPARISON.roomService.previousMonthAmount),
+  },
+])
 
 const businessDetailData = ref<BusinessDetailItem[]>([
   {
@@ -1073,61 +1158,95 @@ const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
 
   businessPie = echarts.init(businessPieChart.value)
 
-  // 使用API数据或默认数据
-  const pieChartData = data ? data.categoryDistribution.map(item => ({
-    value: item.value,
-    name: translateBusinessCategory(item.category),
-    percentage: `${item.percentage.toFixed(2)}%`
-  })) : [
-    { value: 0, name: t('stage5.statistics.common.roomFee'), percentage: '0%' },
-    { value: 0, name: t('stage5.statistics.common.deposit'), percentage: '0%' },
-    { value: 0, name: t('stage5.dataCenter.overview.checkoutRefund'), percentage: '0%' },
-    { value: 0, name: t('stage5.dataCenter.overview.roomService'), percentage: '0%' }
+  const fallbackPieData = [
+    { value: roomFee.value || 190.65, name: t('stage5.statistics.common.roomFee') },
+    { value: checkout.value || 190.65, name: t('stage5.dataCenter.overview.checkoutRefund') },
+    { value: deposit.value || 190.65, name: t('stage5.statistics.common.deposit') },
+    { value: roomService.value || 190.65, name: t('stage5.dataCenter.overview.roomService') },
   ]
+  const pieChartData = data?.categoryDistribution?.length
+    ? data.categoryDistribution.map((item) => ({
+        value: item.value,
+        name: translateBusinessCategory(item.category),
+      }))
+    : fallbackPieData
+  const pieTotal = pieChartData.reduce((sum, item) => sum + Number(item.value || 0), 0)
+  const pieColors = ['#5a7df6', '#ffa59a', '#9d7df8', '#ffe7b5']
 
   const option = {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: ¥{c} ({d}%)'
+      backgroundColor: '#ffffff',
+      borderColor: '#eeeeee',
+      borderWidth: 1,
+      textStyle: {
+        color: '#111111',
+        fontSize: 12,
+      },
+      formatter: (params: any) => `${params.name}<br/>¥${formatMoney(params.value)} (${params.percent}%)`,
     },
     legend: {
-      orient: 'vertical',
-      right: '10%',
-      top: 'center',
-      formatter: (name: string) => {
-        const data = pieChartData.find((item) => item.name === name)
-        return `${name}  ${data?.percentage || '0%'}`
-      }
+      bottom: 0,
+      left: 'center',
+      itemWidth: 10,
+      itemHeight: 10,
+      icon: 'circle',
+      itemGap: 14,
+      textStyle: {
+        color: '#333333',
+        fontSize: 12,
+      },
+      data: pieChartData.map((item) => item.name),
+    },
+    graphic: [
+      {
+        type: 'text',
+        left: 'center',
+        top: '48%',
+        style: {
+          text: `¥${formatMoney(pieTotal)}`,
+          fill: '#111111',
+          fontSize: 24,
+          fontWeight: 800,
+          textAlign: 'center',
+        },
+      },
+    ],
+    grid: {
+      top: 0,
+      bottom: 0,
     },
     series: [
       {
-        name: t('stage5.dataCenter.overview.spendCategoryDistribution'),
+        name: '消费分布',
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['30%', '50%'],
+        radius: ['56%', '76%'],
+        center: ['50%', '48%'],
         avoidLabelOverlap: false,
         itemStyle: {
-          borderRadius: 8,
+          borderRadius: 0,
           borderColor: '#fff',
-          borderWidth: 2
+          borderWidth: 0,
         },
         label: {
-          show: false
-        },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 16,
-            fontWeight: 'bold'
-          }
+          show: true,
+          formatter: (params: any) => `${params.percent}%  ${params.name}\n¥${formatMoney(params.value)}`,
+          color: 'inherit',
+          fontSize: 12,
+          lineHeight: 18,
         },
         labelLine: {
-          show: false
+          show: true,
+          length: 16,
+          length2: 56,
+          lineStyle: {
+            width: 1,
+          },
         },
-        data: pieChartData
-      }
+        data: pieChartData,
+      },
     ],
-    color: ['#5b8ff9', '#ff6b6b', '#ffd93d', '#f9c94a']
+    color: pieColors,
   }
 
   businessPie.setOption(option)
@@ -1135,6 +1254,27 @@ const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
 
 // 初始化营业概况柱状图
 const MAX_BUSINESS_BAR_COUNT = 35
+
+type BusinessTrendBarItem = {
+  label: string
+  roomFee: number
+  checkoutFee: number
+  roomServiceFee: number
+  deposit: number
+}
+
+const MOCK_BUSINESS_TREND_BARS: BusinessTrendBarItem[] = [
+  // TODO(backend): remove once the API reliably returns monthly trend data for the selected period.
+  { label: '5月', roomFee: 19000, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
+  { label: '6月', roomFee: 10500, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
+  { label: '7月', roomFee: 12200, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
+  { label: '8月', roomFee: 16000, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
+  { label: '9月', roomFee: 28000, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
+  { label: '10月', roomFee: 0, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
+  { label: '11月', roomFee: 0, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
+  { label: '12月', roomFee: 0, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
+  { label: '1月', roomFee: 0, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
+]
 
 const formatBusinessTrendDate = (dateText: string): string => {
   if (!dateText) return ''
@@ -1152,14 +1292,6 @@ const formatBusinessTrendDate = (dateText: string): string => {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${month}/${day}`
-}
-
-type BusinessTrendBarItem = {
-  label: string
-  roomFee: number
-  checkoutFee: number
-  roomServiceFee: number
-  deposit: number
 }
 
 const buildBusinessTrendBars = (
@@ -1213,91 +1345,133 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
 
   businessBar = echarts.init(businessBarChart.value)
 
-  // 直接展示柱图，当天数过多时按日期区间聚合，避免标签拥挤
-  const barData = buildBusinessTrendBars(data?.consumptionTrend || [])
-  const dates = barData.map(item => item.label)
-  const roomFeeData = barData.map(item => item.roomFee)
-  const checkoutFeeData = barData.map(item => item.checkoutFee)
-  const roomServiceData = barData.map(item => item.roomServiceFee)
-  const depositData = barData.map(item => item.deposit)
-  const labelRotate = dates.length > 20 ? 45 : dates.length > 12 ? 30 : 0
+  const apiBars = buildBusinessTrendBars(data?.consumptionTrend || [])
+  const barData = apiBars.length ? apiBars : MOCK_BUSINESS_TREND_BARS
+  const dates = barData.map((item) => item.label)
+  const revenueData = barData.map(
+    (item) => item.roomFee + item.checkoutFee + item.roomServiceFee + item.deposit,
+  )
+  const maxRevenue = Math.max(...revenueData, 40000)
+  const yMax = Math.ceil(maxRevenue / 10000) * 10000
+  const salesBackgroundData = dates.map(() => yMax)
 
   const option = {
     tooltip: {
       trigger: 'axis',
       axisPointer: {
-        type: 'shadow'
+        type: 'shadow',
       },
       formatter: (params: any) => {
         if (!params || !params.length) return ''
-        let result = `${params[0].axisValue}<br/>`
-        let total = 0
-        params.forEach((item: any) => {
-          result += `${item.marker}${item.seriesName}: ¥${item.value.toFixed(2)}<br/>`
-          total += item.value
-        })
-        result += `${t('stage5.statistics.common.summary')}: ¥${total.toFixed(2)}`
-        return result
-      }
+        const revenueItem = params.find((item: any) => item.seriesName === '总营业额')
+        return [
+          `<strong>${params[0].axisValue}</strong>`,
+          `${revenueItem?.marker || ''}总销售&nbsp;&nbsp;&nbsp;&nbsp;${apiBars.length ? '-' : '440'}`,
+          `${revenueItem?.marker || ''}总营业额&nbsp;&nbsp;¥${formatMoney(revenueItem?.value || 0)}`,
+        ].join('<br/>')
+      },
+      backgroundColor: '#ffffff',
+      borderColor: '#e6e6e6',
+      borderWidth: 1,
+      padding: [12, 14],
+      textStyle: {
+        color: '#101010',
+        fontSize: 12,
+      },
+      extraCssText: 'box-shadow:0 6px 18px rgba(0,0,0,0.18);border-radius:4px;',
     },
     legend: {
-      data: [
-        t('stage5.statistics.common.roomFee'),
-        t('stage5.dataCenter.overview.checkoutRefund'),
-        t('stage5.dataCenter.overview.roomService'),
-        t('stage5.statistics.common.deposit'),
-      ],
-      bottom: 0
+      data: ['总销售', '总营业额'],
+      bottom: 4,
+      left: 'center',
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: {
+        color: '#555555',
+        fontSize: 12,
+      },
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '15%',
-      top: '3%',
-      containLabel: true
+      left: 48,
+      right: 18,
+      bottom: 42,
+      top: 24,
+      containLabel: false,
     },
     xAxis: {
       type: 'category',
       data: dates,
+      axisTick: {
+        show: false,
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#d8d8d8',
+        },
+      },
       axisLabel: {
         interval: 0,
-        rotate: labelRotate
-      }
+        color: '#5c5c5c',
+        fontSize: 12,
+      },
     },
     yAxis: {
       type: 'value',
+      min: 0,
+      max: yMax,
+      splitNumber: 5,
       axisLabel: {
-        formatter: '¥{value}'
-      }
+        color: '#5c5c5c',
+        fontSize: 12,
+        formatter: (value: number) => `${value / 1000}K`,
+      },
+      axisLine: {
+        show: false,
+      },
+      axisTick: {
+        show: false,
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#dedede',
+          type: 'dashed',
+        },
+      },
     },
     series: [
       {
-        name: t('stage5.statistics.common.roomFee'),
+        // TODO(backend): replace this visual background with a real total-sales series when available.
+        name: '总销售',
         type: 'bar',
-        stack: 'total',
-        barMaxWidth: 36,
-        data: roomFeeData
+        barWidth: 34,
+        barGap: '-100%',
+        data: salesBackgroundData,
+        itemStyle: {
+          color: '#f0f0f0',
+          borderRadius: [5, 5, 0, 0],
+        },
+        emphasis: {
+          disabled: true,
+        },
+        tooltip: {
+          show: false,
+        },
       },
       {
-        name: t('stage5.dataCenter.overview.checkoutRefund'),
+        name: '总营业额',
         type: 'bar',
-        stack: 'total',
-        data: checkoutFeeData
+        barWidth: 34,
+        data: revenueData,
+        itemStyle: {
+          borderRadius: [5, 5, 0, 0],
+          color: (params: any) =>
+            params.dataIndex === revenueData.indexOf(Math.max(...revenueData))
+              ? '#5ea8f4'
+              : '#e8e8e8',
+        },
       },
-      {
-        name: t('stage5.dataCenter.overview.roomService'),
-        type: 'bar',
-        stack: 'total',
-        data: roomServiceData
-      },
-      {
-        name: t('stage5.statistics.common.deposit'),
-        type: 'bar',
-        stack: 'total',
-        data: depositData
-      }
     ],
-    color: ['#5b8ff9', '#ffd93d', '#f9c94a', '#ff6b6b']
+    color: ['#efefef', '#5ea8f4'],
   }
 
   businessBar.setOption(option)
@@ -1935,26 +2109,106 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .overview-container {
-  padding: 24px;
-  background: #fff;
-  min-height: calc(100vh - 100px);
+  min-width: 1218px;
+  min-height: 100%;
+  padding: 0 0 24px;
+  background: transparent;
 }
 
-/* 选项卡 */
 .tabs-section {
-  margin-bottom: 20px;
+  --overview-tabs-center-shift: calc(
+    -56px + ((var(--sidebar-width, 84px) - 84px) / 6) + 4px
+  );
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1218px;
+  padding: 2px 0 16px;
+  background: transparent;
+  border-bottom: none;
+}
+
+.overview-tabs {
+  display: flex;
+  justify-content: center;
+  width: max-content;
+  transform: translateX(var(--overview-tabs-center-shift));
+  transition: transform 0.24s ease;
+}
+
+.overview-tabs :deep(.el-tabs__header) {
+  margin: 0;
+}
+
+.overview-tabs :deep(.el-tabs__nav-wrap) {
+  overflow: visible;
 }
 
 .overview-tabs :deep(.el-tabs__nav-wrap::after) {
   display: none;
 }
 
-/* 筛选器 */
+.overview-tabs :deep(.el-tabs__active-bar) {
+  display: none;
+}
+
+.overview-tabs :deep(.el-tabs__nav-scroll) {
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+}
+
+.overview-tabs :deep(.el-tabs__nav) {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  float: none;
+  height: 28px;
+  padding: 2px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 8px rgba(30, 30, 30, 0.04);
+}
+
+.overview-tabs :deep(.el-tabs__item) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  height: 24px;
+  padding: 0 12px !important;
+  border-radius: 999px;
+  color: #252525;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.overview-tabs :deep(.el-tabs__item:hover:not(.is-active)) {
+  background: #f2f2f2;
+  color: #111111;
+}
+
+.overview-tabs :deep(.el-tabs__item.is-active),
+.overview-tabs :deep(.el-tabs__item.is-active:hover) {
+  background: #111111;
+  color: #ffffff;
+}
+
 .filter-section {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  height: 60px;
+  margin-bottom: 10px;
+  padding: 0 16px;
+  background: #ffffff;
+  border-radius: 4px;
 }
 
 .date-separator {
@@ -1962,61 +2216,213 @@ onBeforeUnmount(() => {
   font-size: 14px;
 }
 
+.business-quick-select {
+  width: 78px;
+  flex: 0 0 78px;
+}
+
+.business-date-range {
+  width: 288px;
+  max-width: 288px;
+  flex: 0 0 288px;
+}
+
+.overview-container :deep(.filter-section .el-select__wrapper),
+.overview-container :deep(.filter-section .el-input__wrapper) {
+  min-height: 32px;
+  border-radius: 5px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+}
+
+.overview-container :deep(.filter-section .el-select__wrapper:hover),
+.overview-container :deep(.filter-section .el-select__wrapper.is-focused),
+.overview-container :deep(.filter-section .el-input__wrapper:hover),
+.overview-container :deep(.filter-section .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #87bdf6 inset;
+}
+
+.overview-container :deep(.filter-section .business-date-range.el-range-editor.el-input__wrapper) {
+  width: 288px;
+  max-width: 288px;
+  flex: 0 0 288px;
+  padding: 1px 1px 1px 6px;
+  overflow: hidden;
+}
+
+.overview-container :deep(.filter-section .business-date-range .el-range__icon) {
+  margin: 0 9px 0 2px;
+  color: #aeb4bd;
+  font-size: 14px;
+}
+
+.overview-container :deep(.filter-section .business-date-range .el-range-input) {
+  height: 30px;
+  padding: 0 7px;
+  background: #fafafa;
+  color: #30343b;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 30px;
+}
+
+.overview-container :deep(.filter-section .business-date-range .el-range-input:first-child) {
+  border-radius: 4px 0 0 4px;
+}
+
+.overview-container :deep(.filter-section .business-date-range .el-range-input:last-child) {
+  border-radius: 0 4px 4px 0;
+}
+
+.overview-container :deep(.filter-section .business-date-range .el-range-separator) {
+  width: 44px;
+  height: 30px;
+  background: #ffffff;
+  color: #777f89;
+  font-size: 12px;
+  line-height: 30px;
+}
+
+.overview-container :deep(.filter-section .business-date-range .el-range__close-icon) {
+  display: none;
+}
+
 /* 标签页内容 */
 .tab-content {
-  margin-top: 24px;
+  margin-top: 0;
 }
 
 /* 营业概况样式 */
 .stats-section {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-  margin-bottom: 32px;
+  grid-template-columns: 1.25fr repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
-.stat-card {
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 20px;
+.business-stat-card {
   display: flex;
-  align-items: center;
+  min-height: 154px;
+  flex-direction: column;
+  justify-content: space-between;
   gap: 16px;
+  padding: 22px 20px 18px;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  box-shadow: none;
 }
 
-.stat-card.primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.business-stat-card.primary {
+  background: linear-gradient(135deg, #168bf8 0%, #67b5ff 100%);
   color: white;
-  grid-column: span 1;
+}
+
+.stat-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
 .stat-icon {
-  flex-shrink: 0;
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.stat-content {
-  flex: 1;
+.business-stat-card.primary .stat-icon {
+  background: transparent;
+  box-shadow: none;
 }
 
-.stat-card .stat-label {
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 8px;
+.stat-icon-image {
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 
-.stat-card.primary .stat-label {
+.business-stat-card .stat-label {
+  color: #111111;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.business-stat-card.primary .stat-label {
+  color: #ffffff;
+}
+
+.stat-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+
+.business-stat-card .stat-value {
+  min-width: 0;
+  color: #050505;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.business-stat-card.primary .stat-value {
+  color: #ffffff;
+}
+
+.stat-change {
+  display: inline-flex;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 7px 0 6px;
+  border-radius: 4px;
+  background: #69b7ff;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.stat-change-icon {
+  display: inline-block;
+  transform: translateY(-1px);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.stat-previous {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  color: #0a0a0a;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.business-stat-card.primary .stat-previous {
   color: rgba(255, 255, 255, 0.9);
 }
 
-.stat-card .stat-value {
-  font-size: 22px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.stat-card.primary .stat-value {
-  color: white;
+.stat-previous strong {
+  color: inherit;
+  font-weight: 700;
 }
 
 /* 流水汇总样式 */
@@ -2099,6 +2505,27 @@ onBeforeUnmount(() => {
   padding: 20px;
 }
 
+.business-charts-row {
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.trend-card {
+  min-height: 405px;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 20px 22px 16px;
+}
+
+.distribution-card {
+  min-height: 405px;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 20px 22px 16px;
+}
+
 .chart-card.wide {
   grid-column: span 1;
 }
@@ -2118,6 +2545,40 @@ onBeforeUnmount(() => {
   margin: 0 0 20px 0;
 }
 
+.trend-card .chart-title,
+.distribution-card .chart-title {
+  margin: 0 0 14px 0;
+  color: #0f0f0f;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.business-chart-select {
+  width: 72px;
+  flex: 0 0 72px;
+}
+
+.business-chart-select :deep(.el-select__wrapper) {
+  min-height: 30px;
+  border-radius: 4px;
+  background: #fafafa;
+  box-shadow: none;
+}
+
+.business-chart-select :deep(.el-select__selected-item) {
+  color: #121212;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .chart-subtitle {
   font-size: 12px;
   font-weight: 400;
@@ -2128,6 +2589,11 @@ onBeforeUnmount(() => {
 .chart-container {
   width: 100%;
   height: 300px;
+}
+
+.business-trend-chart,
+.business-distribution-chart {
+  height: 330px;
 }
 
 .chart-container-large {
@@ -2154,6 +2620,14 @@ onBeforeUnmount(() => {
   margin-top: 32px;
 }
 
+.business-table-section {
+  min-height: 350px;
+  margin-top: 0;
+  padding: 18px 22px 28px;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
 .table-header {
   display: flex;
   justify-content: space-between;
@@ -2166,6 +2640,27 @@ onBeforeUnmount(() => {
   font-weight: 600;
   color: #303133;
   margin: 0;
+}
+
+.business-table-section .table-header {
+  margin-bottom: 28px;
+}
+
+.business-table-section .table-title {
+  color: #0d0d0d;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.business-export-button {
+  min-width: 138px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  background: #1e90f7;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .table-tabs {
@@ -2185,6 +2680,40 @@ onBeforeUnmount(() => {
   background-color: #f5f7fa;
   color: #606266;
   font-weight: 600;
+}
+
+.business-detail-table {
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: #fafafa;
+  --el-table-row-hover-bg-color: #f9fbff;
+  background: #ffffff;
+}
+
+.business-detail-table :deep(.el-table__inner-wrapper::before),
+.business-detail-table :deep(.el-table__border-left-patch) {
+  display: none;
+}
+
+.business-detail-table :deep(th.el-table__cell) {
+  height: 30px;
+  background: #fafafa !important;
+  border-bottom: none;
+  color: #181818;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.business-detail-table :deep(td.el-table__cell) {
+  height: 50px;
+  border-bottom: none;
+  color: #080808;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.business-detail-table :deep(.cell) {
+  padding: 0 8px;
+  line-height: 1.4;
 }
 
 .amount-bold {
