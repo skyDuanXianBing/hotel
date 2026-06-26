@@ -318,6 +318,26 @@ const dayStatusTabs = computed(() => {
   return CLEANER_STATUS_ORDER.filter((statusKey) => selectedDayStatusCount.value[statusKey] > 0)
 })
 
+function groupCalendarTasksByTaskDate(taskMap: Record<string, CleaningTaskDTO[]>) {
+  const tasksByDate: Record<string, CleaningTaskDTO[]> = {}
+
+  for (const taskGroup of Object.values(taskMap)) {
+    for (const task of taskGroup) {
+      if (!task.taskDate) {
+        continue
+      }
+
+      if (!tasksByDate[task.taskDate]) {
+        tasksByDate[task.taskDate] = []
+      }
+
+      tasksByDate[task.taskDate].push(task)
+    }
+  }
+
+  return tasksByDate
+}
+
 function buildCalendarDays(taskMap: Record<string, CleaningTaskDTO[]>) {
   const todayDate = getStoreTodayDate()
   calendarDays.value = buildBusinessMonthCalendarDates(selectedMonth.value).map((item) => ({
@@ -382,10 +402,11 @@ async function loadCalendarData() {
       pending: response.data.statusCount.pending || 0,
       completed: response.data.statusCount.completed || 0,
     }
-    buildCalendarDays(response.data.tasks || {})
+    const tasksByDate = groupCalendarTasksByTaskDate(response.data.tasks || {})
+    buildCalendarDays(tasksByDate)
 
     if (selectedDate.value) {
-      const selectedTasks = response.data.tasks[selectedDate.value] || []
+      const selectedTasks = tasksByDate[selectedDate.value] || []
       activeDayStatus.value = pickDefaultStatus(selectedTasks)
     }
   } catch (error) {
