@@ -31,6 +31,20 @@
           value-format="YYYY-MM-DD"
           :clearable="false"
         />
+        <div v-if="activeTab === 'revenue'" class="revenue-filter-tabs">
+          <el-button
+            :class="{ active: revenueSubTab === 'payment' }"
+            @click="handleRevenueSubTabChange('payment')"
+          >
+            {{ t('stage5.statistics.revenue.paymentMethod') }}
+          </el-button>
+          <el-button
+            :class="{ active: revenueSubTab === 'category' }"
+            @click="handleRevenueSubTabChange('category')"
+          >
+            {{ t('stage5.dataCenter.overview.paymentCategory') }}
+          </el-button>
+        </div>
       </div>
 
       <!-- 营业概况内容 -->
@@ -112,83 +126,81 @@
 
       <!-- 流水汇总内容 -->
       <div v-if="activeTab === 'revenue'" class="tab-content">
-        <!-- 流水概况标签页 -->
-        <div class="revenue-tabs">
-          <el-button
-            :type="revenueSubTab === 'payment' ? 'primary' : 'default'"
-            @click="handleRevenueSubTabChange('payment')"
-          >
-            {{ t('stage5.statistics.revenue.paymentMethod') }}
-          </el-button>
-          <el-button
-            :type="revenueSubTab === 'category' ? 'primary' : 'default'"
-            @click="handleRevenueSubTabChange('category')"
-          >
-            {{ t('stage5.dataCenter.overview.paymentCategory') }}
-          </el-button>
-        </div>
-
         <!-- 支付方式内容 -->
         <div v-if="revenueSubTab === 'payment'">
           <!-- 流水统计卡片 -->
           <div class="revenue-stats">
-            <div class="stat-card large">
-              <div class="stat-label">{{ t('stage5.dataCenter.overview.totalRevenue') }}</div>
-              <div class="stat-value large">¥{{ revenueTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
-              <div class="stat-details">
-                <span>{{ t('stage5.dataCenter.overview.splitAccount') }}: ¥{{ splitAccount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-                <span>{{ t('stage5.dataCenter.overview.actualReceived') }}: ¥{{ actualReceived.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+            <div class="revenue-summary-card primary">
+              <div class="revenue-card-head">
+                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.totalRevenue') }}</div>
+                <div class="revenue-card-icon">
+                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.totalRevenue')" />
+                </div>
+              </div>
+              <div class="revenue-card-value">¥{{ formatMoney(revenueTotal) }}</div>
+              <div class="revenue-card-details">
+                <span>{{ t('stage5.dataCenter.overview.splitAccount') }} ¥{{ formatMoney(splitAccount) }}</span>
+                <span>{{ t('stage5.dataCenter.overview.actualReceived') }} ¥{{ formatMoney(actualReceived) }}</span>
               </div>
             </div>
 
-            <div class="revenue-cards">
-              <div class="revenue-card">
-                <div class="card-label">{{ t('stage5.dataCenter.overview.bookingCollection') }}</div>
-                <div class="card-value">¥{{ bookingRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+            <div class="revenue-summary-card airbnb-card">
+              <div class="revenue-card-head">
+                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.airbnbCollection') }}</div>
+                <div class="revenue-card-icon blue">
+                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.airbnbCollection')" />
+                </div>
               </div>
-              <div class="revenue-card">
-                <div class="card-label">{{ t('stage5.dataCenter.overview.airbnbCollection') }}</div>
-                <div class="card-value">¥{{ airbnbRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+              <div class="revenue-card-value dark">¥{{ formatMoney(airbnbRevenue) }}</div>
+            </div>
+
+            <div class="revenue-summary-card booking-card">
+              <div class="revenue-card-head">
+                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.bookingCollection') }}</div>
+                <div class="revenue-card-icon blue">
+                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.bookingCollection')" />
+                </div>
               </div>
+              <div class="revenue-card-value dark">¥{{ formatMoney(bookingRevenue) }}</div>
             </div>
           </div>
 
           <!-- 收款分布和总支出饼图 -->
-          <div class="charts-row">
-            <div class="chart-card">
+          <div class="charts-row revenue-charts-row">
+            <div class="chart-card revenue-chart-card">
               <h3 class="chart-title">{{ t('stage5.dataCenter.overview.collectionDistribution') }}</h3>
-              <div ref="revenueDistChart" class="chart-container"></div>
+              <div ref="revenueDistChart" class="chart-container revenue-donut-chart"></div>
             </div>
-            <div class="chart-card">
+            <div class="chart-card revenue-chart-card">
               <h3 class="chart-title">{{ t('stage5.dataCenter.overview.totalExpense') }}</h3>
-              <div ref="expenseChart" class="chart-container"></div>
+              <div ref="expenseChart" class="chart-container revenue-donut-chart"></div>
             </div>
           </div>
 
           <!-- 流水明细表格 -->
-          <div class="table-section">
+          <div class="table-section revenue-table-section">
             <div class="table-header">
               <h3 class="table-title">{{ t('stage5.dataCenter.overview.revenueDetails') }} ({{ dateRangeLabel }})</h3>
-              <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+              <div class="revenue-table-actions">
+                <div class="table-tabs revenue-table-tabs">
+                  <el-button
+                    v-for="tab in revenueTableTabs"
+                    :key="tab.key"
+                    :class="{ active: revenueTableTab === tab.key }"
+                    @click="revenueTableTab = tab.key"
+                  >
+                    {{ tab.label }}
+                  </el-button>
+                </div>
+                <el-button type="primary" class="business-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+              </div>
             </div>
 
-            <div class="table-tabs">
-              <el-button
-                v-for="tab in revenueTableTabs"
-                :key="tab.key"
-                :type="revenueTableTab === tab.key ? 'primary' : 'default'"
-                size="small"
-                @click="revenueTableTab = tab.key"
-              >
-                {{ tab.label }}
-              </el-button>
-            </div>
-
-            <el-table :data="revenueTableData" border stripe class="detail-table">
-              <el-table-column prop="paymentMethod" :label="t('stage5.statistics.revenue.paymentMethod')" min-width="120" align="center" />
-              <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
+            <el-table :data="revenueTableData" class="detail-table business-detail-table revenue-detail-table">
+              <el-table-column prop="paymentMethod" :label="t('stage5.statistics.revenue.paymentMethod')" min-width="140" align="center" />
+              <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="140" align="center">
                 <template #default="{ row }">
-                  <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                  <span class="amount-bold">¥{{ formatMoney(row.total) }}</span>
                 </template>
               </el-table-column>
               <el-table-column
@@ -196,7 +208,7 @@
                 :key="column.prop"
                 :prop="column.prop"
                 :label="column.label"
-                min-width="150"
+                min-width="140"
                 align="center"
               >
                 <template #default="{ row }">
@@ -211,51 +223,70 @@
         <div v-if="revenueSubTab === 'category'">
           <!-- 流水统计卡片 -->
           <div class="revenue-stats">
-            <div class="stat-card large">
-              <div class="stat-label">{{ t('stage5.dataCenter.overview.totalRevenue') }}</div>
-              <div class="stat-value large">¥{{ categoryRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
-              <div class="stat-details">
-                <span>{{ t('stage5.dataCenter.overview.totalCollection') }}: ¥{{ categoryIncome.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-                <span>{{ t('stage5.dataCenter.overview.totalExpense') }}: ¥{{ Math.abs(categoryExpense).toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+            <div class="revenue-summary-card primary">
+              <div class="revenue-card-head">
+                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.totalRevenue') }}</div>
+                <div class="revenue-card-icon">
+                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.totalRevenue')" />
+                </div>
+              </div>
+              <div class="revenue-card-value">¥{{ formatMoney(categoryRevenue) }}</div>
+              <div class="revenue-card-details">
+                <span>{{ t('stage5.dataCenter.overview.totalCollection') }} ¥{{ formatMoney(categoryIncome) }}</span>
+                <span>{{ t('stage5.dataCenter.overview.totalExpense') }} ¥{{ formatMoney(Math.abs(categoryExpense)) }}</span>
               </div>
             </div>
 
-            <div class="revenue-cards">
-              <div class="revenue-card">
-                <div class="card-label">{{ t('stage5.dataCenter.overview.regularRevenue') }}</div>
-                <div class="card-value">¥{{ normalRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+            <div class="revenue-summary-card">
+              <div class="revenue-card-head">
+                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.regularRevenue') }}</div>
+                <div class="revenue-card-icon blue">
+                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.regularRevenue')" />
+                </div>
               </div>
-              <div class="revenue-card">
-                <div class="card-label">{{ t('stage5.dataCenter.overview.notesRevenue') }}</div>
-                <div class="card-value">¥{{ notesRevenue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+              <div class="revenue-card-value dark">¥{{ formatMoney(normalRevenue) }}</div>
+            </div>
+
+            <div class="revenue-summary-card">
+              <div class="revenue-card-head">
+                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.notesRevenue') }}</div>
+                <div class="revenue-card-icon blue">
+                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.notesRevenue')" />
+                </div>
               </div>
+              <div class="revenue-card-value dark">¥{{ formatMoney(notesRevenue) }}</div>
             </div>
           </div>
 
           <!-- 收款分布和总支出饼图 -->
-          <div class="charts-row">
-            <div class="chart-card">
+          <div class="charts-row revenue-charts-row">
+            <div class="chart-card revenue-chart-card">
               <h3 class="chart-title">{{ t('stage5.dataCenter.overview.collectionDistribution') }}</h3>
-              <div ref="categoryDistChart" class="chart-container"></div>
+              <div ref="categoryDistChart" class="chart-container revenue-donut-chart"></div>
             </div>
-            <div class="chart-card">
+            <div class="chart-card revenue-chart-card">
               <h3 class="chart-title">{{ t('stage5.dataCenter.overview.totalExpenseDistribution') }}</h3>
-              <div ref="categoryExpenseChart" class="chart-container"></div>
+              <div ref="categoryExpenseChart" class="chart-container revenue-donut-chart"></div>
             </div>
           </div>
 
           <!-- 流水明细表格 -->
-          <div class="table-section">
+          <div class="table-section revenue-table-section">
             <div class="table-header">
               <h3 class="table-title">{{ t('stage5.dataCenter.overview.revenueDetails') }} ({{ dateRangeLabel }})</h3>
-              <el-button type="primary">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+              <div class="revenue-table-actions">
+                <div class="table-tabs revenue-table-tabs">
+                  <el-button class="active">{{ t('stage5.dataCenter.overview.paymentCategory') }}</el-button>
+                </div>
+                <el-button type="primary" class="business-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+              </div>
             </div>
 
-            <el-table :data="categoryTableData" border stripe class="detail-table">
-              <el-table-column prop="paymentMethod" :label="t('stage5.statistics.revenue.paymentMethod')" min-width="120" align="center" />
-              <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
+            <el-table :data="categoryTableData" class="detail-table business-detail-table revenue-detail-table">
+              <el-table-column prop="paymentMethod" :label="t('stage5.statistics.revenue.paymentMethod')" min-width="140" align="center" />
+              <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="140" align="center">
                 <template #default="{ row }">
-                  <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                  <span class="amount-bold">¥{{ formatMoney(row.total) }}</span>
                 </template>
               </el-table-column>
               <el-table-column
@@ -263,7 +294,7 @@
                 :key="column.prop"
                 :prop="column.prop"
                 :label="column.label"
-                min-width="150"
+                min-width="140"
                 align="center"
               >
                 <template #default="{ row }">
@@ -448,6 +479,8 @@ import {
   type ChannelSummaryDTO,
   type SalesSummaryDTO
 } from '@/api/statistics'
+import { getAllChannels } from '@/api/channel'
+import type { ChannelDTO } from '@/api/channel'
 import {
   addDaysToYmd,
   formatYmdMonthDay,
@@ -572,6 +605,50 @@ const dateRangeLabel = computed(() =>
 )
 
 const normalizeLabel = (value: string) => value.trim().replace(/\s+/g, '').toLowerCase()
+
+const CHANNEL_FALLBACK_COLORS: Record<string, string> = {
+  airbnb: '#ff385c',
+  booking: '#003b95',
+  bookingcom: '#003b95',
+  agoda: '#bb2bd9',
+  trip: '#1f66ff',
+  tripcom: '#1f66ff',
+  tujia: '#f16a2f',
+  途家: '#f16a2f',
+}
+
+const normalizeChannelColorKey = (name: string) =>
+  normalizeLabel(name).replace(/\.com/g, 'com').replace(/[^a-z0-9\u4e00-\u9fa5]/g, '')
+
+const channelColorOverrides = ref(new Map<string, string>())
+
+const addChannelColorOverride = (map: Map<string, string>, value: string | undefined, color: string) => {
+  if (!value || !color) return
+  const normalized = normalizeChannelColorKey(value)
+  if (normalized) map.set(normalized, color)
+}
+
+const buildChannelColorOverrides = (channels: ChannelDTO[]) => {
+  const map = new Map<string, string>()
+  channels.forEach((channel) => {
+    if (!channel.color) return
+    addChannelColorOverride(map, channel.name, channel.color)
+    addChannelColorOverride(map, channel.code, channel.color)
+  })
+  channelColorOverrides.value = map
+}
+
+const getChannelColor = (name: string, index = 0) => {
+  const normalized = normalizeChannelColorKey(name)
+  const configuredKey = Array.from(channelColorOverrides.value.keys()).find(
+    (key) => normalized.includes(key) || key.includes(normalized),
+  )
+  if (configuredKey) return channelColorOverrides.value.get(configuredKey) as string
+
+  const matchedKey = Object.keys(CHANNEL_FALLBACK_COLORS).find((key) => normalized.includes(key))
+  const fallbackPalette = ['#168bf8', '#ff385c', '#bb2bd9', '#1f66ff', '#f16a2f', '#8ec5ff']
+  return matchedKey ? CHANNEL_FALLBACK_COLORS[matchedKey] : fallbackPalette[index % fallbackPalette.length]
+}
 
 const parseDateValue = (value: string) => {
   const parts = value.split('-').map(Number)
@@ -798,6 +875,32 @@ const actualReceived = ref(0.00)
 const bookingRevenue = ref(182126.14)
 const airbnbRevenue = ref(94667.00)
 
+const resolvePaymentAmount = (
+  stats: RevenueSummaryDTO['paymentMethodStats'],
+  methodKey: (typeof PAYMENT_METHOD_KEYS)[keyof typeof PAYMENT_METHOD_KEYS],
+) => {
+  const targetLabel = translatePaymentMethod(methodKey)
+  const targetKey = normalizeLabel(targetLabel)
+  const stat = stats.find((item) => {
+    const translated = translatePaymentMethod(item.paymentMethod)
+    return normalizeLabel(translated) === targetKey || resolveLabelKey(item.paymentMethod, PAYMENT_METHOD_ALIASES) === methodKey
+  })
+  return stat?.amount || 0
+}
+
+const resolveCategoryAmount = (
+  stats: RevenueSummaryDTO['categoryStats'],
+  categoryKey: (typeof REVENUE_CATEGORY_KEYS)[keyof typeof REVENUE_CATEGORY_KEYS],
+) => {
+  const targetLabel = translateRevenueCategory(categoryKey)
+  const targetKey = normalizeLabel(targetLabel)
+  const stat = stats.find((item) => {
+    const translated = translateRevenueCategory(item.category)
+    return normalizeLabel(translated) === targetKey || resolveLabelKey(item.category, REVENUE_CATEGORY_ALIASES) === categoryKey
+  })
+  return stat?.amount || 0
+}
+
 const revenueTableTabs = computed(() => [
   { key: 'payment-method', label: t('stage5.statistics.revenue.paymentMethod') },
   { key: 'room-fee', label: t('stage5.dataCenter.overview.roomFeeSource') },
@@ -908,6 +1011,22 @@ let salesTrend: ECharts | null = null
 
 // ==================== 数据加载函数 ====================
 
+const loadChannelColorOverrides = async () => {
+  try {
+    const response = await getAllChannels()
+    if (response.success && Array.isArray(response.data)) {
+      buildChannelColorOverrides(response.data)
+
+      if (activeTab.value === 'revenue' && revenueSubTab.value === 'payment') {
+        await nextTick()
+        initRevenueDistChart()
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load channel colors for revenue chart', error)
+  }
+}
+
 /**
  * 加载营业概况数据
  */
@@ -981,6 +1100,14 @@ const loadRevenueSummary = async () => {
       revenueTotal.value = data.totalRevenue
       splitAccount.value = data.splitAccount
       actualReceived.value = data.actualReceived
+      bookingRevenue.value = resolvePaymentAmount(
+        data.paymentMethodStats,
+        PAYMENT_METHOD_KEYS.bookingCollection,
+      )
+      airbnbRevenue.value = resolvePaymentAmount(
+        data.paymentMethodStats,
+        PAYMENT_METHOD_KEYS.airbnbCollection,
+      )
 
       // 更新表格数据 - 支付方式
       revenueTableData.value = data.paymentMethodStats.map(stat => ({
@@ -993,8 +1120,11 @@ const loadRevenueSummary = async () => {
       categoryRevenue.value = data.totalRevenue
       categoryIncome.value = data.totalRevenue
       categoryExpense.value = 0
-      normalRevenue.value = data.totalRevenue
-      notesRevenue.value = 0
+      normalRevenue.value =
+        resolveCategoryAmount(data.categoryStats, REVENUE_CATEGORY_KEYS.regularRevenue) ||
+        data.totalRevenue
+      arRevenue.value = resolveCategoryAmount(data.categoryStats, REVENUE_CATEGORY_KEYS.arMismatchRevenue)
+      notesRevenue.value = resolveCategoryAmount(data.categoryStats, REVENUE_CATEGORY_KEYS.notesRevenue)
 
       categoryTableData.value = data.categoryStats.map(stat => ({
         paymentMethod: translateRevenueCategory(stat.category),
@@ -1221,7 +1351,7 @@ const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
         name: '消费分布',
         type: 'pie',
         radius: ['56%', '76%'],
-        center: ['50%', '48%'],
+        center: ['50%', '45%'],
         avoidLabelOverlap: false,
         itemStyle: {
           borderRadius: 0,
@@ -1382,7 +1512,7 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
     },
     legend: {
       data: ['总销售', '总营业额'],
-      bottom: 4,
+      bottom: 0,
       left: 'center',
       itemWidth: 10,
       itemHeight: 10,
@@ -1484,47 +1614,92 @@ const initRevenueDistChart = (data?: RevenueSummaryDTO) => {
   if (revenueDist) revenueDist.dispose()
   revenueDist = echarts.init(revenueDistChart.value)
 
-  // 使用API数据或默认数据
-  const chartData = data ? data.paymentMethodStats.map(stat => ({
-    value: stat.amount,
-    name: translatePaymentMethod(stat.paymentMethod)
-  })) : []
+  const chartData = (
+    data?.paymentMethodStats?.length
+      ? data.paymentMethodStats.map((stat) => ({
+          value: stat.amount,
+          name: translatePaymentMethod(stat.paymentMethod),
+        }))
+      : revenueTableData.value.map((row) => ({
+          value: Number(row.total || 0),
+          name: String(row.paymentMethod),
+        }))
+  ).filter((item) => Number(item.value) > 0)
+  const visibleChartData = chartData.length
+    ? chartData
+    : [{ value: 0, name: t('stage5.dataCenter.overview.collectionDistribution') }]
+  const total = visibleChartData.reduce((sum, item) => sum + Number(item.value || 0), 0)
 
   const option = {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: ¥{c} ({d}%)'
+      backgroundColor: '#ffffff',
+      borderColor: '#eeeeee',
+      borderWidth: 1,
+      textStyle: {
+        color: '#111111',
+        fontSize: 12,
+      },
+      formatter: (params: any) => `${params.name}<br/>¥${formatMoney(params.value)} (${params.percent}%)`,
     },
     legend: {
-      orient: 'vertical',
-      right: '5%',
-      top: 'center',
-      formatter: (name: string) => {
-        const percentages: Record<string, string> = {
-          [t('stage5.dataCenter.overview.bookingCollection')]: '65.8%',
-          [t('stage5.dataCenter.overview.airbnbCollection')]: '34.2%',
-        }
-        return `${name}  ${percentages[name] || ''}`
-      }
+      bottom: 0,
+      left: 'center',
+      icon: 'circle',
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 16,
+      textStyle: {
+        color: '#555555',
+        fontSize: 12,
+      },
+    },
+    graphic: {
+      type: 'text',
+      left: 'center',
+      top: '48%',
+      style: {
+        text: formatMoney(total),
+        fill: '#111111',
+        fontSize: 24,
+        fontWeight: 700,
+        textAlign: 'center',
+      },
     },
     series: [
       {
         name: t('stage5.dataCenter.overview.collectionDistribution'),
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['30%', '50%'],
-        data: chartData,
+        radius: ['56%', '74%'],
+        center: ['50%', '45%'],
+        data: visibleChartData.map((item, index) => ({
+          ...item,
+          itemStyle: {
+            color: getChannelColor(item.name, index),
+          },
+        })),
         itemStyle: {
-          borderRadius: 8,
+          borderRadius: 0,
           borderColor: '#fff',
-          borderWidth: 2
+          borderWidth: 0,
         },
         label: {
-          show: false
-        }
-      }
+          show: true,
+          formatter: (params: any) => `${params.percent}% ${params.name}\n¥${formatMoney(params.value)}`,
+          color: 'inherit',
+          fontSize: 12,
+          lineHeight: 18,
+        },
+        labelLine: {
+          show: true,
+          length: 18,
+          length2: 70,
+          lineStyle: {
+            width: 1,
+          },
+        },
+      },
     ],
-    color: ['#5470c6', '#fac858']
   }
 
   revenueDist.setOption(option)
@@ -1540,28 +1715,48 @@ const initExpenseChart = () => {
   const option = {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: ¥{c} ({d}%)'
+      formatter: (params: any) => `${params.name}<br/>¥${formatMoney(params.value)} (${params.percent}%)`,
+    },
+    legend: {
+      bottom: 0,
+      left: 'center',
+      icon: 'circle',
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: {
+        color: '#666666',
+        fontSize: 12,
+      },
+    },
+    graphic: {
+      type: 'text',
+      left: 'center',
+      top: '48%',
+      style: {
+        text: '0.00',
+        fill: '#111111',
+        fontSize: 24,
+        fontWeight: 700,
+        textAlign: 'center',
+      },
     },
     series: [
       {
         name: t('stage5.dataCenter.overview.totalExpense'),
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['50%', '50%'],
+        radius: ['56%', '74%'],
+        center: ['50%', '45%'],
         data: [
           { value: 0, name: t('stage5.dataCenter.overview.totalExpense') }
         ],
         itemStyle: {
-          color: '#e5e5e5'
+          color: '#dcecff',
         },
         label: {
-          show: true,
-          position: 'center',
-          formatter: `${t('stage5.dataCenter.overview.totalExpense')}\n¥0.00`,
-          fontSize: 16
-        }
-      }
-    ]
+          show: false,
+        },
+      },
+    ],
   }
 
   expense.setOption(option)
@@ -1574,42 +1769,83 @@ const initCategoryDistChart = () => {
   if (categoryDistChart_instance) categoryDistChart_instance.dispose()
   categoryDistChart_instance = echarts.init(categoryDistChart.value)
 
+  const chartData = categoryTableData.value
+    .map((row) => ({
+      value: Number(row.total || 0),
+      name: String(row.paymentMethod),
+    }))
+    .filter((item) => item.value > 0)
+  const visibleChartData = chartData.length
+    ? chartData
+    : [{ value: 0, name: t('stage5.dataCenter.overview.collectionDistribution') }]
+  const total = visibleChartData.reduce((sum, item) => sum + Number(item.value || 0), 0)
+
   const option = {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: ¥{c} ({d}%)'
+      backgroundColor: '#ffffff',
+      borderColor: '#eeeeee',
+      borderWidth: 1,
+      textStyle: {
+        color: '#111111',
+        fontSize: 12,
+      },
+      formatter: (params: any) => `${params.name}<br/>¥${formatMoney(params.value)} (${params.percent}%)`,
     },
     legend: {
-      orient: 'vertical',
-      right: '5%',
-      top: 'center',
-      formatter: (name: string) => {
-        const percentages: Record<string, string> = {
-          [t('stage5.dataCenter.overview.regularRevenue')]: '100%',
-        }
-        return `${name}  ${percentages[name] || ''}`
-      }
+      bottom: 0,
+      left: 'center',
+      icon: 'circle',
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 16,
+      textStyle: {
+        color: '#555555',
+        fontSize: 12,
+      },
+    },
+    graphic: {
+      type: 'text',
+      left: 'center',
+      top: '48%',
+      style: {
+        text: formatMoney(total),
+        fill: '#111111',
+        fontSize: 24,
+        fontWeight: 700,
+        textAlign: 'center',
+      },
     },
     series: [
       {
         name: t('stage5.dataCenter.overview.collectionDistribution'),
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['30%', '50%'],
-        data: [
-          { value: 481398.66, name: t('stage5.dataCenter.overview.regularRevenue') }
-        ],
+        radius: ['56%', '74%'],
+        center: ['50%', '45%'],
+        data: visibleChartData,
         itemStyle: {
-          borderRadius: 8,
+          borderRadius: 0,
           borderColor: '#fff',
-          borderWidth: 2
+          borderWidth: 0,
         },
         label: {
-          show: false
-        }
-      }
+          show: true,
+          formatter: (params: any) => `${params.percent}% ${params.name}\n¥${formatMoney(params.value)}`,
+          color: '#168bf8',
+          fontSize: 12,
+          lineHeight: 18,
+        },
+        labelLine: {
+          show: true,
+          length: 18,
+          length2: 70,
+          lineStyle: {
+            width: 1,
+          },
+        },
+      },
     ],
-    color: ['#5470c6']
+    color: ['#168bf8'],
   }
 
   categoryDistChart_instance.setOption(option)
@@ -1625,39 +1861,64 @@ const initCategoryExpenseChart = () => {
   const option = {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: ¥{c} ({d}%)'
+      formatter: (params: any) => `${params.name}<br/>¥${formatMoney(params.value)} (${params.percent}%)`,
     },
     legend: {
-      orient: 'vertical',
-      right: '5%',
-      top: 'center',
-      formatter: (name: string) => {
-        const percentages: Record<string, string> = {
-          [t('stage5.dataCenter.overview.regularRevenue')]: '100%',
-        }
-        return `${name}  ${percentages[name] || ''}`
-      }
+      bottom: 0,
+      left: 'center',
+      icon: 'circle',
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 16,
+      textStyle: {
+        color: '#555555',
+        fontSize: 12,
+      },
+    },
+    graphic: {
+      type: 'text',
+      left: 'center',
+      top: '48%',
+      style: {
+        text: formatMoney(Math.abs(categoryExpense.value)),
+        fill: '#111111',
+        fontSize: 24,
+        fontWeight: 700,
+        textAlign: 'center',
+      },
     },
     series: [
       {
         name: t('stage5.dataCenter.overview.totalExpense'),
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['30%', '50%'],
+        radius: ['56%', '74%'],
+        center: ['50%', '45%'],
         data: [
-          { value: 91002.00, name: t('stage5.dataCenter.overview.regularRevenue') }
+          { value: Math.abs(categoryExpense.value), name: t('stage5.dataCenter.overview.regularRevenue') }
         ],
         itemStyle: {
-          borderRadius: 8,
+          borderRadius: 0,
           borderColor: '#fff',
-          borderWidth: 2
+          borderWidth: 0,
         },
         label: {
-          show: false
-        }
-      }
+          show: true,
+          formatter: (params: any) => `${params.percent}% ${params.name}\n¥${formatMoney(params.value)}`,
+          color: '#5a7df6',
+          fontSize: 12,
+          lineHeight: 18,
+        },
+        labelLine: {
+          show: true,
+          length: 18,
+          length2: 70,
+          lineStyle: {
+            width: 1,
+          },
+        },
+      },
     ],
-    color: ['#e5e5e5']
+    color: ['#dcecff'],
   }
 
   categoryExpenseChart_instance.setOption(option)
@@ -2087,6 +2348,7 @@ onMounted(() => {
 
   // 加载初始数据
   loadCurrentTabData()
+  loadChannelColorOverrides()
 
   window.addEventListener('resize', handleResize)
 })
@@ -2426,83 +2688,151 @@ onBeforeUnmount(() => {
 }
 
 /* 流水汇总样式 */
-.revenue-tabs {
+.revenue-filter-tabs {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  align-items: center;
+  gap: 20px;
+  margin-left: 8px;
+}
+
+.revenue-filter-tabs :deep(.el-button) {
+  min-width: 88px;
+  height: 32px;
+  margin: 0;
+  border: 1px solid #e2e5ea;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #8b8f97;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.revenue-filter-tabs :deep(.el-button.active),
+.revenue-filter-tabs :deep(.el-button:hover) {
+  border-color: #1e90f7;
+  background: #1e90f7;
+  color: #ffffff;
 }
 
 .revenue-stats {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: minmax(360px, 420px) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
-.stat-card.large {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 8px;
-  padding: 32px;
-}
-
-.stat-label {
-  font-size: 14px;
-  margin-bottom: 12px;
-  opacity: 0.9;
-}
-
-.stat-value.large {
-  font-size: 36px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
-.stat-details {
+.revenue-summary-card {
+  position: relative;
   display: flex;
-  gap: 24px;
-  font-size: 14px;
-  opacity: 0.9;
+  min-height: 154px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 28px 22px 22px;
+  overflow: hidden;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
 }
 
-.revenue-cards {
-  display: grid;
-  grid-template-columns: 1fr;
+.revenue-summary-card.primary {
+  justify-content: space-between;
+  background: linear-gradient(135deg, #168bf8 0%, #68b8ff 100%);
+  color: #ffffff;
+}
+
+.revenue-summary-card:not(.primary)::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 100%;
+  background: #168bf8;
+  content: '';
+}
+
+.revenue-summary-card.airbnb-card::before {
+  background: #ff385c;
+}
+
+.revenue-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
 }
 
-.revenue-card {
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 20px;
+.revenue-card-label {
+  color: #333333;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
-.card-label {
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 8px;
+.revenue-summary-card.primary .revenue-card-label {
+  color: #ffffff;
 }
 
-.card-value {
-  font-size: 22px;
+.revenue-card-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.revenue-card-icon.blue {
+  background: #168bf8;
+}
+
+.revenue-card-icon img {
+  display: block;
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+}
+
+.revenue-card-value {
+  color: #ffffff;
+  font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.revenue-card-value.dark {
+  color: #0d0d0d;
+  font-size: 24px;
+}
+
+.revenue-card-details {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* 图表区域 */
 .charts-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 32px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .chart-card {
-  background: #fafafa;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 20px;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 20px 22px 16px;
 }
 
 .business-charts-row {
@@ -2519,11 +2849,15 @@ onBeforeUnmount(() => {
 }
 
 .distribution-card {
-  min-height: 405px;
+  min-height: 444px;
   background: #ffffff;
   border: none;
   border-radius: 4px;
   padding: 20px 22px 16px;
+}
+
+.revenue-chart-card {
+  min-height: 470px;
 }
 
 .chart-card.wide {
@@ -2546,7 +2880,8 @@ onBeforeUnmount(() => {
 }
 
 .trend-card .chart-title,
-.distribution-card .chart-title {
+.distribution-card .chart-title,
+.revenue-chart-card .chart-title {
   margin: 0 0 14px 0;
   color: #0f0f0f;
   font-size: 24px;
@@ -2593,7 +2928,11 @@ onBeforeUnmount(() => {
 
 .business-trend-chart,
 .business-distribution-chart {
-  height: 330px;
+  height: 370px;
+}
+
+.revenue-donut-chart {
+  height: 392px;
 }
 
 .chart-container-large {
@@ -2612,15 +2951,42 @@ onBeforeUnmount(() => {
 }
 
 .sales-stats .stat-card.large {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  padding: 32px;
+}
+
+.sales-stats .stat-label {
+  font-size: 14px;
+  margin-bottom: 12px;
+  opacity: 0.9;
+}
+
+.sales-stats .stat-value.large {
+  font-size: 36px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.sales-stats .stat-card.large {
   max-width: 500px;
 }
 
 /* 表格区域 */
 .table-section {
-  margin-top: 32px;
+  margin-top: 0;
 }
 
 .business-table-section {
+  min-height: 350px;
+  margin-top: 0;
+  padding: 18px 22px 28px;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.revenue-table-section {
   min-height: 350px;
   margin-top: 0;
   padding: 18px 22px 28px;
@@ -2646,11 +3012,23 @@ onBeforeUnmount(() => {
   margin-bottom: 28px;
 }
 
-.business-table-section .table-title {
+.business-table-section .table-title,
+.revenue-table-section .table-title {
   color: #0d0d0d;
   font-size: 24px;
   font-weight: 600;
   line-height: 1.2;
+}
+
+.revenue-table-section .table-header {
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.revenue-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .business-export-button {
@@ -2667,6 +3045,31 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
+}
+
+.revenue-table-tabs {
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.revenue-table-tabs :deep(.el-button) {
+  min-width: 88px;
+  height: 32px;
+  margin: 0;
+  border: 1px solid #e2e5ea;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #8b8f97;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.revenue-table-tabs :deep(.el-button.active),
+.revenue-table-tabs :deep(.el-button:hover) {
+  border-color: #1e90f7;
+  background: #1e90f7;
+  color: #ffffff;
 }
 
 .search-section {
