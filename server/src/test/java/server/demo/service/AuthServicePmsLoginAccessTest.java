@@ -29,7 +29,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 class AuthServicePmsLoginAccessTest {
@@ -37,7 +36,7 @@ class AuthServicePmsLoginAccessTest {
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
 
     @Test
-    void loginByPassword_shouldReturnCleanerTargetForDirectTaskListPermission() {
+    void loginByPassword_shouldReturnCleanerTargetForActiveCleanerIdentityWithoutTaskListPermission() {
         ServiceFixture fixture = buildServiceFixture();
         User user = buildUser(6L, "cleaner@example.com", "secret");
         Store store = buildStore(7L);
@@ -49,11 +48,6 @@ class AuthServicePmsLoginAccessTest {
         when(fixture.jwtUtil.generateToken(6L, "cleaner@example.com")).thenReturn("token-123");
         when(fixture.storeService.getUserStores(6L)).thenReturn(List.of(storeDTO));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(6L)).thenReturn(List.of(storeUser));
-        when(fixture.storeUserPermissionRepository.existsByStoreUser_IdAndModuleAndAction(
-                17L,
-                PermissionModule.ACCOMMODATION,
-                PermissionAction.TASK_LIST
-        )).thenReturn(true);
         when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(6L, 7L))
                 .thenReturn(Optional.of(cleaner));
 
@@ -67,21 +61,21 @@ class AuthServicePmsLoginAccessTest {
         assertEquals(3L, response.getCleaner().getId());
         assertEquals(6L, response.getCleaner().getUserId());
         assertEquals(7L, response.getCleaner().getStoreId());
+        Mockito.verifyNoInteractions(fixture.storeUserPermissionRepository, fixture.rolePermissionRepository);
     }
 
     @Test
-    void loginByPassword_shouldReturnCleanerTargetForRoleTaskListPermission() {
+    void loginByPassword_shouldKeepRoleTaskListPermissionWithoutCleanerInPms() {
         ServiceFixture fixture = buildServiceFixture();
-        User user = buildUser(8L, "role.cleaner@example.com", "secret");
+        User user = buildUser(8L, "role.manager@example.com", "secret");
         Store store = buildStore(10L);
         StoreUser storeUser = buildStoreUser(18L, store, "member");
         Role role = new Role();
         role.setId(30L);
         storeUser.getRoles().add(role);
-        Cleaner cleaner = buildCleaner(4L, 8L, 10L, true);
 
-        when(fixture.userRepository.findByEmail("role.cleaner@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(8L, "role.cleaner@example.com")).thenReturn("token-role");
+        when(fixture.userRepository.findByEmail("role.manager@example.com")).thenReturn(Optional.of(user));
+        when(fixture.jwtUtil.generateToken(8L, "role.manager@example.com")).thenReturn("token-role");
         when(fixture.storeService.getUserStores(8L)).thenReturn(List.of(buildStoreDTO(10L, "Role Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(8L)).thenReturn(List.of(storeUser));
         when(fixture.rolePermissionRepository.existsByRoleIdInAndModuleAndAction(
@@ -90,19 +84,19 @@ class AuthServicePmsLoginAccessTest {
                 PermissionAction.TASK_LIST
         )).thenReturn(true);
         when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(8L, 10L))
-                .thenReturn(Optional.of(cleaner));
+                .thenReturn(Optional.empty());
 
         LoginResponse response = fixture.service.loginByPassword(
-                buildPasswordRequest("role.cleaner@example.com", "secret")
+                buildPasswordRequest("role.manager@example.com", "secret")
         );
 
-        assertEquals(LoginTarget.CLEANER, response.getLoginTarget());
-        assertEquals(10L, response.getTargetStoreId());
-        assertEquals(4L, response.getCleaner().getId());
+        assertEquals(LoginTarget.PMS, response.getLoginTarget());
+        assertNull(response.getTargetStoreId());
+        assertNull(response.getCleaner());
     }
 
     @Test
-    void loginByPassword_shouldKeepOwnerWithoutExplicitTaskListInPms() {
+    void loginByPassword_shouldKeepOwnerWithoutCleanerIdentityInPms() {
         ServiceFixture fixture = buildServiceFixture();
         User user = buildUser(2L, "owner@example.com", "secret");
         Store store = buildStore(7L);
@@ -112,26 +106,30 @@ class AuthServicePmsLoginAccessTest {
         when(fixture.jwtUtil.generateToken(2L, "owner@example.com")).thenReturn("token-owner");
         when(fixture.storeService.getUserStores(2L)).thenReturn(List.of(buildStoreDTO(7L, "Owner Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(2L)).thenReturn(List.of(storeUser));
+        when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(2L, 7L))
+                .thenReturn(Optional.empty());
 
         LoginResponse response = fixture.service.loginByPassword(buildPasswordRequest("owner@example.com", "secret"));
 
         assertEquals(LoginTarget.PMS, response.getLoginTarget());
         assertNull(response.getCleaner());
         assertNull(response.getTargetStoreId());
-        Mockito.verifyNoInteractions(fixture.cleanerIdentityService);
     }
 
     @Test
-    void loginByPassword_shouldKeepActiveCleanerWithoutExplicitTaskListInPms() {
+    void loginByPassword_shouldKeepInactiveCleanerIdentityInPms() {
         ServiceFixture fixture = buildServiceFixture();
         User user = buildUser(11L, "plain.member@example.com", "secret");
         Store store = buildStore(12L);
         StoreUser storeUser = buildStoreUser(31L, store, "member");
+        Cleaner cleaner = buildCleaner(9L, 11L, 12L, false);
 
         when(fixture.userRepository.findByEmail("plain.member@example.com")).thenReturn(Optional.of(user));
         when(fixture.jwtUtil.generateToken(11L, "plain.member@example.com")).thenReturn("token-member");
         when(fixture.storeService.getUserStores(11L)).thenReturn(List.of(buildStoreDTO(12L, "Member Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(11L)).thenReturn(List.of(storeUser));
+        when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(11L, 12L))
+                .thenReturn(Optional.of(cleaner));
 
         LoginResponse response = fixture.service.loginByPassword(
                 buildPasswordRequest("plain.member@example.com", "secret")
@@ -139,18 +137,18 @@ class AuthServicePmsLoginAccessTest {
 
         assertEquals(LoginTarget.PMS, response.getLoginTarget());
         assertNull(response.getCleaner());
-        Mockito.verifyNoInteractions(fixture.cleanerIdentityService);
+        assertNull(response.getTargetStoreId());
     }
 
     @Test
-    void loginByPassword_shouldFailWhenTaskListPermissionHasNoActiveCleaner() {
+    void loginByPassword_shouldKeepDirectTaskListPermissionWithoutCleanerInPms() {
         ServiceFixture fixture = buildServiceFixture();
-        User user = buildUser(20L, "broken.cleaner@example.com", "secret");
+        User user = buildUser(20L, "task.manager@example.com", "secret");
         Store store = buildStore(21L);
         StoreUser storeUser = buildStoreUser(22L, store, "member");
 
-        when(fixture.userRepository.findByEmail("broken.cleaner@example.com")).thenReturn(Optional.of(user));
-        when(fixture.jwtUtil.generateToken(20L, "broken.cleaner@example.com")).thenReturn("token-broken");
+        when(fixture.userRepository.findByEmail("task.manager@example.com")).thenReturn(Optional.of(user));
+        when(fixture.jwtUtil.generateToken(20L, "task.manager@example.com")).thenReturn("token-task");
         when(fixture.storeService.getUserStores(20L)).thenReturn(List.of(buildStoreDTO(21L, "Broken Store")));
         when(fixture.storeUserRepository.findByUserIdWithStoreAndRoles(20L)).thenReturn(List.of(storeUser));
         when(fixture.storeUserPermissionRepository.existsByStoreUser_IdAndModuleAndAction(
@@ -161,15 +159,14 @@ class AuthServicePmsLoginAccessTest {
         when(fixture.cleanerIdentityService.findCleanerByUserIdAndStoreId(20L, 21L))
                 .thenReturn(Optional.empty());
 
-        RuntimeException exception = assertThrows(
-                RuntimeException.class,
-                () -> fixture.service.loginByPassword(buildPasswordRequest("broken.cleaner@example.com", "secret"))
+        LoginResponse response = fixture.service.loginByPassword(
+                buildPasswordRequest("task.manager@example.com", "secret")
         );
 
-        assertEquals(
-                "账号已配置查看保洁任务权限，但未找到对应的有效保洁员档案，请联系管理员检查保洁员配置",
-                exception.getMessage()
-        );
+        assertEquals(LoginTarget.PMS, response.getLoginTarget());
+        assertEquals("token-task", response.getToken());
+        assertNull(response.getCleaner());
+        assertNull(response.getTargetStoreId());
     }
 
     @Test
@@ -209,12 +206,6 @@ class AuthServicePmsLoginAccessTest {
         ReflectionTestUtils.setField(fixture.service, "emailService", fixture.emailService);
         ReflectionTestUtils.setField(fixture.service, "storeService", fixture.storeService);
         ReflectionTestUtils.setField(fixture.service, "storeUserRepository", fixture.storeUserRepository);
-        ReflectionTestUtils.setField(
-                fixture.service,
-                "storeUserPermissionRepository",
-                fixture.storeUserPermissionRepository
-        );
-        ReflectionTestUtils.setField(fixture.service, "rolePermissionRepository", fixture.rolePermissionRepository);
         ReflectionTestUtils.setField(fixture.service, "cleanerIdentityService", fixture.cleanerIdentityService);
         return fixture;
     }

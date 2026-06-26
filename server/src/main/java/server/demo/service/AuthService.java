@@ -9,13 +9,8 @@ import org.springframework.stereotype.Service;
 import server.demo.dto.StoreDTO;
 import server.demo.dto.auth.*;
 import server.demo.entity.Cleaner;
-import server.demo.entity.Role;
 import server.demo.entity.StoreUser;
 import server.demo.entity.User;
-import server.demo.enums.PermissionAction;
-import server.demo.enums.PermissionModule;
-import server.demo.repository.RolePermissionRepository;
-import server.demo.repository.StoreUserPermissionRepository;
 import server.demo.repository.StoreUserRepository;
 import server.demo.repository.UserRepository;
 import server.demo.util.JwtUtil;
@@ -54,19 +49,11 @@ public class AuthService {
     private StoreUserRepository storeUserRepository;
 
     @Autowired
-    private StoreUserPermissionRepository storeUserPermissionRepository;
-
-    @Autowired
-    private RolePermissionRepository rolePermissionRepository;
-
-    @Autowired
     private CleanerIdentityService cleanerIdentityService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private static final Set<String> ALLOWED_GENDERS = Set.of("male", "female", "private");
-    private static final String CLEANER_CONFIG_ERROR_MESSAGE =
-            "账号已配置查看保洁任务权限，但未找到对应的有效保洁员档案，请联系管理员检查保洁员配置";
 
     /**
      * 发送验证码
@@ -390,14 +377,14 @@ public class AuthService {
             if (!isUsableActiveStoreUser(storeUser)) {
                 continue;
             }
-            if (!hasExplicitCleanerTaskListPermission(storeUser)) {
-                continue;
-            }
 
             Long storeId = storeUser.getStore().getId();
             Cleaner cleaner = cleanerIdentityService.findCleanerByUserIdAndStoreId(userId, storeId)
                     .filter(candidate -> candidate != null && Boolean.TRUE.equals(candidate.getIsActive()))
-                    .orElseThrow(() -> new RuntimeException(CLEANER_CONFIG_ERROR_MESSAGE));
+                    .orElse(null);
+            if (cleaner == null) {
+                continue;
+            }
             candidates.add(new CleanerTargetCandidate(storeId, cleaner));
         }
 
@@ -410,32 +397,6 @@ public class AuthService {
                 && Boolean.TRUE.equals(storeUser.getIsActive())
                 && storeUser.getStore() != null
                 && storeUser.getStore().getId() != null;
-    }
-
-    private boolean hasExplicitCleanerTaskListPermission(StoreUser storeUser) {
-        if (storeUserPermissionRepository.existsByStoreUser_IdAndModuleAndAction(
-                storeUser.getId(),
-                PermissionModule.ACCOMMODATION,
-                PermissionAction.TASK_LIST
-        )) {
-            return true;
-        }
-
-        List<Long> roleIds = new ArrayList<>();
-        if (storeUser.getRoles() != null) {
-            for (Role role : storeUser.getRoles()) {
-                if (role != null && role.getId() != null) {
-                    roleIds.add(role.getId());
-                }
-            }
-        }
-
-        return !roleIds.isEmpty()
-                && rolePermissionRepository.existsByRoleIdInAndModuleAndAction(
-                        roleIds,
-                        PermissionModule.ACCOMMODATION,
-                        PermissionAction.TASK_LIST
-                );
     }
 
     private StoreDTO findStoreDto(List<StoreDTO> stores, Long storeId) {
