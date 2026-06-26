@@ -33,6 +33,9 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
               AND (:status IS NULL OR f.status = :status)
               AND (:channelId IS NULL OR c.id = :channelId)
               AND (:reservationStatus IS NULL OR r.status = :reservationStatus)
+              AND (:includeCancelledArchive = true
+                    OR r.status IS NULL
+                    OR r.status <> server.demo.enums.ReservationStatus.CANCELLED)
               AND (:roomNumberFilterEnabled = false OR room.roomNumber IN :roomNumbers OR r.otaRoomNumber IN :roomNumbers)
               AND (:roomGroupId IS NULL OR EXISTS (
                     SELECT rgm.id FROM RoomGroupMember rgm
@@ -51,6 +54,7 @@ public interface RegistrationFormRepository extends JpaRepository<RegistrationFo
             @Param("status") RegistrationFormStatus status,
             @Param("channelId") Long channelId,
             @Param("reservationStatus") ReservationStatus reservationStatus,
+            @Param("includeCancelledArchive") boolean includeCancelledArchive,
             @Param("roomNumberFilterEnabled") boolean roomNumberFilterEnabled,
             @Param("roomNumbers") List<String> roomNumbers,
             @Param("roomGroupId") Long roomGroupId,

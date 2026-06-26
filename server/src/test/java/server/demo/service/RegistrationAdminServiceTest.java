@@ -39,11 +39,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -97,6 +100,7 @@ class RegistrationAdminServiceTest {
                 isNull(),
                 eq(ReservationStatus.CANCELLED),
                 eq(true),
+                eq(true),
                 eq(List.of("101", "102")),
                 eq(7L),
                 isNull(),
@@ -134,6 +138,7 @@ class RegistrationAdminServiceTest {
                 null,
                 ReservationStatus.CANCELLED,
                 true,
+                true,
                 List.of("101", "102"),
                 7L,
                 null,
@@ -141,6 +146,50 @@ class RegistrationAdminServiceTest {
                 null,
                 null
         );
+    }
+
+    @Test
+    void list_shouldOnlyIncludeCancelledArchiveForExplicitCancelledFilter() {
+        RegistrationAdminService service = createService();
+        when(registrationFormRepository.searchForAdminList(
+                eq(26L),
+                any(),
+                any(),
+                any(),
+                anyBoolean(),
+                anyBoolean(),
+                anyList(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        )).thenReturn(List.of());
+
+        try (MockedStatic<StoreContextUtils> storeContextUtils = mockStatic(StoreContextUtils.class)) {
+            storeContextUtils.when(StoreContextUtils::requireStoreId).thenReturn(26L);
+
+            service.list(null, null, null, null, null, null, null, null, null, null, null);
+            service.list(null, null, ReservationStatus.CANCELLED, null, null, null, null, null, null, null, null);
+            service.list(null, null, ReservationStatus.CONFIRMED, null, null, null, null, null, null, null, null);
+        }
+
+        ArgumentCaptor<Boolean> includeCancelledArchiveCaptor = ArgumentCaptor.forClass(Boolean.class);
+        verify(registrationFormRepository, times(3)).searchForAdminList(
+                eq(26L),
+                any(),
+                any(),
+                any(),
+                includeCancelledArchiveCaptor.capture(),
+                anyBoolean(),
+                anyList(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        assertEquals(List.of(false, true, false), includeCancelledArchiveCaptor.getAllValues());
     }
 
     @Test
@@ -156,6 +205,7 @@ class RegistrationAdminServiceTest {
                 isNull(),
                 isNull(),
                 isNull(),
+                eq(false),
                 eq(true),
                 eq(List.of("101")),
                 isNull(),
@@ -188,6 +238,7 @@ class RegistrationAdminServiceTest {
                 null,
                 null,
                 null,
+                false,
                 true,
                 List.of("101"),
                 null,
@@ -209,6 +260,7 @@ class RegistrationAdminServiceTest {
                 isNull(),
                 isNull(),
                 isNull(),
+                eq(false),
                 eq(true),
                 eq(List.of("101")),
                 isNull(),
@@ -241,6 +293,7 @@ class RegistrationAdminServiceTest {
                 null,
                 null,
                 null,
+                false,
                 true,
                 List.of("101"),
                 null,
@@ -262,6 +315,7 @@ class RegistrationAdminServiceTest {
                 isNull(),
                 isNull(),
                 isNull(),
+                eq(false),
                 eq(true),
                 eq(List.of("101")),
                 isNull(),
@@ -294,6 +348,7 @@ class RegistrationAdminServiceTest {
                 null,
                 null,
                 null,
+                false,
                 true,
                 List.of("101"),
                 null,

@@ -90,6 +90,7 @@ public class RegistrationAdminService {
                 status,
                 channelId,
                 reservationStatus,
+                reservationStatus == ReservationStatus.CANCELLED,
                 roomNumberFilterEnabled,
                 queryRoomNumbers,
                 roomGroupId,

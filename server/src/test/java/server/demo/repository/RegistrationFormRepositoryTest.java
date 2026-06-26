@@ -79,6 +79,7 @@ class RegistrationFormRepositoryTest {
                 null,
                 null,
                 null,
+                false,
                 true,
                 List.of("101"),
                 null,
@@ -103,6 +104,7 @@ class RegistrationFormRepositoryTest {
                 null,
                 null,
                 null,
+                false,
                 true,
                 List.of("OTA-305"),
                 null,
@@ -128,6 +130,7 @@ class RegistrationFormRepositoryTest {
                 null,
                 null,
                 null,
+                false,
                 true,
                 List.of("101", "102", "OTA-305"),
                 ROOM_GROUP_ID,
@@ -138,6 +141,53 @@ class RegistrationFormRepositoryTest {
         );
 
         assertSingleOrderNumber(room101Form.getOrderNumber(), result);
+    }
+
+    @Test
+    void searchForAdminList_shouldExcludeCancelledByDefaultAndIncludeWhenExplicit() {
+        TestFixture fixture = createFixture();
+        RegistrationForm confirmedForm = fixture.createForm("ORD-ACTIVE", "Alice", fixture.room101, null);
+        RegistrationForm cancelledForm = fixture.createForm(
+                "ORD-CANCELLED",
+                "Bob",
+                fixture.room102,
+                null,
+                RegistrationFormStatus.SUBMITTED,
+                ReservationStatus.CANCELLED
+        );
+        flushAndClear();
+
+        List<RegistrationForm> defaultResult = registrationFormRepository.searchForAdminList(
+                STORE_ID,
+                null,
+                null,
+                null,
+                false,
+                false,
+                List.of("unused"),
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+        List<RegistrationForm> cancelledResult = registrationFormRepository.searchForAdminList(
+                STORE_ID,
+                null,
+                null,
+                ReservationStatus.CANCELLED,
+                true,
+                false,
+                List.of("unused"),
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertOrderNumbers(List.of(confirmedForm.getOrderNumber()), defaultResult);
+        assertOrderNumbers(List.of(cancelledForm.getOrderNumber()), cancelledResult);
     }
 
     @Test
@@ -199,6 +249,7 @@ class RegistrationFormRepositoryTest {
                 null,
                 null,
                 false,
+                false,
                 List.of("unused"),
                 null,
                 LocalDate.of(2026, 6, 1),
@@ -256,6 +307,7 @@ class RegistrationFormRepositoryTest {
                 null,
                 null,
                 false,
+                false,
                 List.of("unused"),
                 null,
                 LocalDate.of(2026, 6, 10),
@@ -268,6 +320,7 @@ class RegistrationFormRepositoryTest {
                 null,
                 null,
                 null,
+                false,
                 false,
                 List.of("unused"),
                 null,
