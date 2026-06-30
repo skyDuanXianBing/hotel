@@ -1,4 +1,8 @@
-import type { PriceAdjustmentType } from '@/api/pricelabs'
+import type {
+  ChannelMappingMultiplierSyncSummary,
+  MappingPriceSettingRowDTO,
+  PriceAdjustmentType,
+} from '@/api/pricelabs'
 
 /** OTA 渠道卡片数据 */
 export interface ChannelItem {
@@ -84,11 +88,15 @@ export interface BookingSettings {
 /** 价格比例表格行 */
 export interface PriceRatioItem {
   channelId: number
+  channelCode: string
   channel: string
   ratio: string
   adjustmentType: PriceAdjustmentType
   adjustmentValue: number | null
   autoSyncPrice: boolean
+  suMappingMultiplier?: number
+  suMappingSurcharge?: number
+  suMappingSync?: ChannelMappingMultiplierSyncSummary
 }
 
 /** 价格比例编辑态 */
@@ -101,6 +109,19 @@ export interface PriceRatioEdit {
   adjustmentUnit: '%' | '¥'
   autoSyncPrice: boolean
   backendAdjustmentType: PriceAdjustmentType
+}
+
+export type MappingPriceFilterMode = 'ALL' | 'FAILED' | 'DIRTY'
+
+export type MappingPriceBatchField = 'MULTIPLIER' | 'SURCHARGE'
+
+export interface MappingPriceDraftRow extends MappingPriceSettingRowDTO {
+  originalMultiplier: number | null
+  originalSurcharge: number | null
+  draftMultiplier: number | null
+  draftSurcharge: number | null
+  dirty: boolean
+  saving: boolean
 }
 
 /** 日历日期列 */

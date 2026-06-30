@@ -462,6 +462,24 @@ public class SuApiClient {
         return postSuJsonWithAuthRetry(url, accessToken, payload, "mappings");
     }
 
+    /**
+     * Booking rate-plan mapping write.
+     * Endpoint: POST /SUAPI/jservice/OTA_RatePlanMap
+     */
+    public JsonNode postBookingRatePlanMap(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/OTA_RatePlanMap";
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "OTA_RatePlanMap");
+    }
+
+    /**
+     * Airbnb listing mapping write.
+     * Endpoint: POST /SUAPI/jservice/airbnb/listing/map
+     */
+    public JsonNode postAirbnbListingMap(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/airbnb/listing/map";
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "airbnb/listing/map");
+    }
+
     private JsonNode postSuJsonWithAuthRetry(String url, String accessToken, Object payload, String actionName) {
         if (accessToken == null || accessToken.isBlank()) {
             throw new IllegalArgumentException("accessToken 不能为空");

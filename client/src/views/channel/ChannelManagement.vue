@@ -77,12 +77,14 @@
       @authorize="handleHotelAuthorize"
     />
 
-    <!-- 价格比例编辑 -->
-    <EditPriceRatioDialog
-      v-model="showEditPriceRatioDialog"
-      :edit-data="editingPriceRatio"
+    <!-- 映射级价格比例设置 -->
+    <MappingPriceSettingsDrawer
+      v-model="showMappingPriceSettingsDrawer"
+      :channel="selectedPriceRatioChannel"
       :can-save="canManageChannels"
-      @save="handleSavePriceRatio"
+      @saved="handleMappingPriceSaved"
+      @dirty-change="handleMappingPriceDirtyChange"
+      @saving-change="handleMappingPriceSavingChange"
     />
 
     <!-- 连接历史 -->
@@ -109,7 +111,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { PermissionAction, PermissionModule } from '@/api/role'
@@ -127,7 +129,6 @@ import type {
   RoomSettingsRow,
   BookingSettings,
   PriceRatioItem,
-  PriceRatioEdit,
 } from './types'
 
 import { useChannelData } from './composables/useChannelData'
@@ -137,7 +138,7 @@ import { getStoreTodayYmd } from '@/utils/storeDateTime'
 import ConnectNoticeDialog from './components/dialogs/ConnectNoticeDialog.vue'
 import AddAccountDialog from './components/dialogs/AddAccountDialog.vue'
 import AddHotelDialog from './components/dialogs/AddHotelDialog.vue'
-import EditPriceRatioDialog from './components/dialogs/EditPriceRatioDialog.vue'
+import MappingPriceSettingsDrawer from './components/dialogs/MappingPriceSettingsDrawer.vue'
 import ConnectionHistoryDialog from './components/dialogs/ConnectionHistoryDialog.vue'
 import BookingSettingsDrawer from './components/dialogs/BookingSettingsDrawer.vue'
 
@@ -161,7 +162,6 @@ const {
   priceRatioData,
   priceRatioLoading,
   loadPriceRatioData,
-  savePriceRatio,
   flattenMappingData,
   buildConnectedChannelManagementData,
 } = useChannelData()
@@ -206,12 +206,14 @@ const roomSettingsData = ref<RoomSettingsRow[]>([])
 const showConnectNoticeDialog = ref(false)
 const showAddAccountDialog = ref(false)
 const showAddHotelDialog = ref(false)
-const showEditPriceRatioDialog = ref(false)
+const showMappingPriceSettingsDrawer = ref(false)
 const showHistoryDialog = ref(false)
 const showBookingSettingsDrawer = ref(false)
 
 // Edit state properties
-const editingPriceRatio = ref<PriceRatioEdit | null>(null)
+const selectedPriceRatioChannel = ref<PriceRatioItem | null>(null)
+const mappingPriceDrawerDirty = ref(false)
+const mappingPriceDrawerSaving = ref(false)
 const historyList = ref<any[]>([])
 const bookingSettings = ref<BookingSettings>({
   advanceBookingHours: 2,
@@ -395,30 +397,50 @@ const handleEditPriceRatio = (row: PriceRatioItem) => {
     return
   }
 
-  const adjustmentValue = row.adjustmentValue ?? 0
-  editingPriceRatio.value = {
-    channelId: row.channelId,
-    channel: row.channel,
-    ratio: row.ratio,
-    adjustmentType: adjustmentValue > 0 ? 'expensive' : 'cheaper',
-    adjustmentValue: Math.abs(adjustmentValue),
-    adjustmentUnit: row.adjustmentType === 'FIXED' ? '¥' : '%',
-    autoSyncPrice: row.autoSyncPrice,
-    backendAdjustmentType: row.adjustmentType,
-  }
-  showEditPriceRatioDialog.value = true
+  selectedPriceRatioChannel.value = row
+  showMappingPriceSettingsDrawer.value = true
 }
 
-const handleSavePriceRatio = async (editData: PriceRatioEdit) => {
-  if (!canManageChannels.value) {
-    showNoPermissionMessage()
-    return
+const handleMappingPriceSaved = async () => {
+  await loadPriceRatioData()
+}
+
+const handleMappingPriceDirtyChange = (value: boolean) => {
+  mappingPriceDrawerDirty.value = value
+}
+
+const handleMappingPriceSavingChange = (value: boolean) => {
+  mappingPriceDrawerSaving.value = value
+}
+
+const resetMappingPriceDrawerState = () => {
+  showMappingPriceSettingsDrawer.value = false
+  selectedPriceRatioChannel.value = null
+  mappingPriceDrawerDirty.value = false
+  mappingPriceDrawerSaving.value = false
+}
+
+const confirmLeaveMappingPriceDrawer = async (): Promise<boolean> => {
+  if (!showMappingPriceSettingsDrawer.value) {
+    return true
+  }
+  if (!mappingPriceDrawerDirty.value && !mappingPriceDrawerSaving.value) {
+    return true
   }
 
-  const success = await savePriceRatio(editData)
-  if (success) {
-    showEditPriceRatioDialog.value = false
-    editingPriceRatio.value = null
+  const message = mappingPriceDrawerSaving.value
+    ? '映射级价格设置仍在保存，离开后可能无法看到最新结果。确定离开吗？'
+    : '映射级价格设置存在未保存草稿，离开后这些草稿会丢失。确定离开吗？'
+
+  try {
+    await ElMessageBox.confirm(message, '离开价格设置', {
+      confirmButtonText: '离开',
+      cancelButtonText: '继续编辑',
+      type: 'warning',
+    })
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -492,6 +514,16 @@ watch(activeSection, (section) => {
   showChannelSettings.value = false
   if (section === 'price-ratio') {
     loadPriceRatioData()
+  } else {
+    resetMappingPriceDrawerState()
+  }
+})
+
+watch(showMappingPriceSettingsDrawer, (visible) => {
+  if (!visible) {
+    selectedPriceRatioChannel.value = null
+    mappingPriceDrawerDirty.value = false
+    mappingPriceDrawerSaving.value = false
   }
 })
 
@@ -503,6 +535,14 @@ watch(
     }
   },
 )
+
+onBeforeRouteLeave(async () => {
+  return await confirmLeaveMappingPriceDrawer()
+})
+
+onBeforeRouteUpdate(async () => {
+  return await confirmLeaveMappingPriceDrawer()
+})
 </script>
 
 <style scoped>

@@ -18,6 +18,7 @@ import server.demo.repository.RoomTypePricePlanRepository;
 import server.demo.repository.RoomTypeRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.LocalBasePriceResolver;
+import server.demo.util.OtaChannelPricePolicy;
 import server.demo.util.StoreTimeZoneUtil;
 
 import java.math.BigDecimal;
@@ -33,7 +34,8 @@ import java.util.Map;
  * 生成/补齐 channel_prices 的本地兜底服务：
  * - 若存在 PriceLabs 数据（pricelabs_updated_at 不为空且 base_price 不为空），优先使用其 base_price
  * - 否则按 room_prices > room_type_price_plans > room_type 计算 base_price
- * - channel_price 始终按渠道价格比例计算
+ * - Airbnb / Booking 的 channel_price 使用基础价，倍率写入 Su mapping
+ * - 其它渠道仍按渠道价格比例计算
  */
 @Service
 public class ChannelPriceFallbackService {
@@ -220,7 +222,7 @@ public class ChannelPriceFallbackService {
                         continue;
                     }
 
-                    BigDecimal newChannelPrice = channel.calculateChannelPrice(basePrice);
+                    BigDecimal newChannelPrice = OtaChannelPricePolicy.resolveLocalFixedPrice(channel, basePrice);
                     if (newChannelPrice == null) {
                         skippedNoBasePrice++;
                         continue;

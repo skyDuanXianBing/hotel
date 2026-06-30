@@ -281,12 +281,23 @@ export interface SuMappingStatusSummary {
 
 export interface SuMappingRatePlan {
   RatePlanID?: string
+  PMSRoomID?: string
+  PMSRateID?: string
+  ChannelRoomID?: string
+  ChannelRateID?: string
+  ListingID?: string
   MappingStatus?: string
+  Pricing?: {
+    ApplicableNoOfGuest?: string
+    Multiplier?: string
+    Surcharge?: string
+  }
 }
 
 export interface SuMappingEntry {
   Status?: string
   ChannelID?: string
+  ChannelHotelID?: string
   RoomIDs?: string[]
   Rateplans?: SuMappingRatePlan[]
 }

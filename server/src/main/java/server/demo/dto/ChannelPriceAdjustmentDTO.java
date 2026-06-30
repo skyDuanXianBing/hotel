@@ -20,6 +20,9 @@ public class ChannelPriceAdjustmentDTO {
     // 用于显示的计算示例
     private BigDecimal exampleBasePrice;
     private BigDecimal exampleChannelPrice;
+    private BigDecimal suMappingMultiplier;
+    private BigDecimal suMappingSurcharge;
+    private ChannelMappingMultiplierSyncSummaryDTO suMappingSync;
 
     // Constructors
     public ChannelPriceAdjustmentDTO() {}
@@ -96,5 +99,29 @@ public class ChannelPriceAdjustmentDTO {
 
     public void setExampleChannelPrice(BigDecimal exampleChannelPrice) {
         this.exampleChannelPrice = exampleChannelPrice;
+    }
+
+    public BigDecimal getSuMappingMultiplier() {
+        return suMappingMultiplier;
+    }
+
+    public void setSuMappingMultiplier(BigDecimal suMappingMultiplier) {
+        this.suMappingMultiplier = suMappingMultiplier;
+    }
+
+    public BigDecimal getSuMappingSurcharge() {
+        return suMappingSurcharge;
+    }
+
+    public void setSuMappingSurcharge(BigDecimal suMappingSurcharge) {
+        this.suMappingSurcharge = suMappingSurcharge;
+    }
+
+    public ChannelMappingMultiplierSyncSummaryDTO getSuMappingSync() {
+        return suMappingSync;
+    }
+
+    public void setSuMappingSync(ChannelMappingMultiplierSyncSummaryDTO suMappingSync) {
+        this.suMappingSync = suMappingSync;
     }
 }

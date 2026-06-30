@@ -36,6 +36,12 @@ const countMatches = (source: string, pattern: RegExp): number => {
 const mappingTab = readClientFile('src/views/channel/components/tabs/MappingTab.vue')
 const roomStatusChannel = readClientFile('src/views/room-status/RoomStatusChannel.vue')
 const useChannelData = readClientFile('src/views/channel/composables/useChannelData.ts')
+const channelManagement = readClientFile('src/views/channel/ChannelManagement.vue')
+const priceRatioPanel = readClientFile('src/views/channel/components/PriceRatioPanel.vue')
+const mappingPriceDrawer = readClientFile(
+  'src/views/channel/components/dialogs/MappingPriceSettingsDrawer.vue',
+)
+const pricelabsApi = readClientFile('src/api/pricelabs.ts')
 
 assertIncludes(mappingTab, ':model-value="selectedHotelId"', 'MappingTab hotel selector')
 assertIncludes(mappingTab, 'disabled', 'MappingTab hotel selector and write actions')
@@ -101,5 +107,28 @@ for (const flattenedField of [
 ]) {
   assertIncludes(useChannelData, flattenedField, 'flattenMappingData')
 }
+
+assertIncludes(channelManagement, '<MappingPriceSettingsDrawer', 'Mapping price drawer host')
+assertIncludes(channelManagement, '@dirty-change="handleMappingPriceDirtyChange"', 'Mapping price dirty guard')
+assertIncludes(channelManagement, 'onBeforeRouteUpdate', 'Mapping price route update guard')
+assertIncludes(channelManagement, 'onBeforeRouteLeave', 'Mapping price route leave guard')
+assertNotIncludes(channelManagement, '<EditPriceRatioDialog', 'ChannelManagement primary price flow')
+
+assertIncludes(priceRatioPanel, '设置价格比例', 'PriceRatioPanel mapping price entry')
+assertIncludes(priceRatioPanel, 'row.channelCode', 'PriceRatioPanel channel summary code')
+
+assertIncludes(mappingPriceDrawer, 'saveMappingPriceSettings', 'Mapping price save all API use')
+assertIncludes(mappingPriceDrawer, 'saveMappingPriceSettingRow', 'Mapping price row save API use')
+assertIncludes(mappingPriceDrawer, 'retryMappingPriceSettings', 'Mapping price retry API use')
+assertIncludes(mappingPriceDrawer, 'row-key="rowKey"', 'Mapping price opaque row selector')
+assertIncludes(mappingPriceDrawer, '应用到全部映射行', 'Mapping price batch apply')
+assertIncludes(mappingPriceDrawer, '只重试失败', 'Mapping price retry failed action')
+assertNotIncludes(mappingPriceDrawer, 'prop="rowKey"', 'Mapping price drawer visible columns')
+assertNotIncludes(mappingPriceDrawer, '{{ row.rowKey }}', 'Mapping price drawer visible text')
+
+assertIncludes(pricelabsApi, 'getMappingPriceSettings', 'PriceLabs mapping price list API')
+assertIncludes(pricelabsApi, 'saveMappingPriceSettings', 'PriceLabs mapping price save all API')
+assertIncludes(pricelabsApi, 'saveMappingPriceSettingRow', 'PriceLabs mapping price row API')
+assertIncludes(pricelabsApi, 'retryMappingPriceSettings', 'PriceLabs mapping price retry API')
 
 console.log('[channel-management.audit] ok: channel static guards and data-flow sentinels present')

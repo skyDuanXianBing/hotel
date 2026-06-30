@@ -6,6 +6,12 @@ import chalk from 'chalk'
 import config from './config'
 import { requestLogger, getLogs, clearLogs } from './logger'
 import mockSuApiRouter from './mock-su-api'
+import {
+  clearMappingPriceFailures,
+  getMappingPriceStateSnapshot,
+  resetMappingPriceState,
+  setMappingPriceFailures,
+} from './mock-su-api/mappingPriceState'
 import webhookSenderRouter from './webhook-sender'
 import e2eRouter from './e2e'
 import { getPmsConfigDiagnostic } from './pms-client'
@@ -32,6 +38,33 @@ app.get('/api/logs', (_req: Request, res: Response) => {
 app.delete('/api/logs', (_req: Request, res: Response) => {
   clearLogs()
   res.json({ success: true, message: 'logs cleared' })
+})
+
+app.post('/api/test/channel-mapping-price-settings/reset', (req: Request, res: Response) => {
+  res.json(
+    resetMappingPriceState({
+      hotelId: req.body?.hotelId || req.body?.hotelid,
+      channelId: req.body?.channelId || req.body?.channelid,
+      scenario: req.body?.scenario,
+    }),
+  )
+})
+
+app.get('/api/test/channel-mapping-price-settings/state', (req: Request, res: Response) => {
+  res.json(
+    getMappingPriceStateSnapshot({
+      hotelId: req.query.hotelId || req.query.hotelid,
+      channelId: req.query.channelId || req.query.channelid,
+    }),
+  )
+})
+
+app.post('/api/test/channel-mapping-price-settings/failures', (req: Request, res: Response) => {
+  res.json(setMappingPriceFailures(req.body || {}))
+})
+
+app.delete('/api/test/channel-mapping-price-settings/failures', (_req: Request, res: Response) => {
+  res.json(clearMappingPriceFailures())
 })
 
 app.get('/api/config', (_req: Request, res: Response) => {

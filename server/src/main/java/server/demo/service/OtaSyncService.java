@@ -13,6 +13,7 @@ import server.demo.repository.ChannelRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.StoreTimeZoneUtil;
 import server.demo.util.SuHotelIdUtil;
+import server.demo.util.OtaChannelPricePolicy;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -122,7 +123,7 @@ public class OtaSyncService {
             );
 
             prices = prices.stream()
-                    .filter(cp -> cp.getChannelPrice() != null)
+                    .filter(cp -> OtaChannelPricePolicy.resolveOtaFixedPrice(cp) != null)
                     .collect(Collectors.toList());
 
             if (prices.isEmpty()) {
@@ -263,10 +264,11 @@ public class OtaSyncService {
         PriceRange current = null;
 
         for (ChannelPrice cp : sorted) {
-            if (cp.getPriceDate() == null || cp.getChannelPrice() == null) {
+            BigDecimal fixedPrice = OtaChannelPricePolicy.resolveOtaFixedPrice(cp);
+            if (cp.getPriceDate() == null || fixedPrice == null) {
                 continue;
             }
-            BigDecimal value = cp.getChannelPrice().setScale(2, RoundingMode.HALF_UP);
+            BigDecimal value = fixedPrice.setScale(2, RoundingMode.HALF_UP);
 
             if (current == null) {
                 current = new PriceRange(cp.getPriceDate(), cp.getPriceDate(), value);

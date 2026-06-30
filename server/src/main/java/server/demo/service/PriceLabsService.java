@@ -20,9 +20,11 @@ import server.demo.enums.SyncDirection;
 import server.demo.enums.SyncStatus;
 import server.demo.enums.SyncType;
 import server.demo.repository.*;
+import server.demo.util.OtaChannelPricePolicy;
 import server.demo.util.PriceLabsIdUtil;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -104,6 +106,9 @@ public class PriceLabsService {
 
     @Autowired
     private PriceLabsSyncService priceLabsSyncService;
+
+    @Autowired
+    private SuMappingMultiplierSyncService suMappingMultiplierSyncService;
 
     // ==================== 集成配置管理 ====================
 
@@ -565,7 +570,7 @@ public class PriceLabsService {
 
                     // 为每个渠道计算并保存价格
                     for (Channel channel : channels) {
-                        BigDecimal channelPrice = channel.calculateChannelPrice(effectiveBasePrice);
+                        BigDecimal channelPrice = OtaChannelPricePolicy.resolveLocalFixedPrice(channel, effectiveBasePrice);
 
                         // 查找或创建渠道价格记录（门店级隔离 + 价格计划隔离）
                         ChannelPrice cp = channelPriceRepository
@@ -782,13 +787,11 @@ public class PriceLabsService {
         }
 
         Channel saved = channelRepository.save(channel);
-
-        // 生产环境自动兜底：调整比例后，确保未来一段时间的渠道价存在且已按最新比例重算
-        LocalDate startDate = LocalDate.now();
-        LocalDate endDate = startDate.plusDays(DEFAULT_FALLBACK_DAYS - 1L);
-        recalculateChannelPrices(saved.getId(), startDate, endDate);
-
-        return convertToAdjustmentDTO(saved);
+        ChannelMappingMultiplierSyncSummaryDTO syncSummary =
+                suMappingMultiplierSyncService.syncForChannel(storeId, saved);
+        ChannelPriceAdjustmentDTO dto = convertToAdjustmentDTO(saved);
+        dto.setSuMappingSync(syncSummary);
+        return dto;
     }
 
     /**
@@ -799,7 +802,6 @@ public class PriceLabsService {
             List<ChannelPriceAdjustmentDTO> adjustments) {
         Long storeId = StoreContextHolder.getContext().getStoreId();
         List<ChannelPriceAdjustmentDTO> results = new ArrayList<>();
-        List<Long> updatedChannelIds = new ArrayList<>();
 
         for (ChannelPriceAdjustmentDTO dto : adjustments) {
             channelRepository.findById(dto.getChannelId())
@@ -811,17 +813,10 @@ public class PriceLabsService {
                             channel.setAutoSyncPrice(dto.getAutoSyncPrice());
                         }
                         Channel saved = channelRepository.save(channel);
-                        results.add(convertToAdjustmentDTO(saved));
-                        updatedChannelIds.add(saved.getId());
+                        ChannelPriceAdjustmentDTO result = convertToAdjustmentDTO(saved);
+                        result.setSuMappingSync(suMappingMultiplierSyncService.syncForChannel(storeId, saved));
+                        results.add(result);
                     });
-        }
-
-        if (!updatedChannelIds.isEmpty()) {
-            LocalDate startDate = LocalDate.now();
-            LocalDate endDate = startDate.plusDays(DEFAULT_FALLBACK_DAYS - 1L);
-            for (Long id : updatedChannelIds) {
-                recalculateChannelPrices(id, startDate, endDate);
-            }
         }
 
         return results;
@@ -847,7 +842,7 @@ public class PriceLabsService {
         int count = 0;
         for (ChannelPrice cp : prices) {
             if (cp.getBasePrice() != null) {
-                BigDecimal newChannelPrice = channel.calculateChannelPrice(cp.getBasePrice());
+                BigDecimal newChannelPrice = OtaChannelPricePolicy.resolveLocalFixedPrice(channel, cp.getBasePrice());
                 cp.setChannelPrice(newChannelPrice);
                 cp.setIsSyncedToOta(false); // 标记需要重新同步
                 cp.setOtaSyncState(ChannelPriceOtaSyncState.PENDING);
@@ -1139,10 +1134,31 @@ public class PriceLabsService {
         // 设置示例价格计算
         BigDecimal exampleBase = new BigDecimal("1000");
         dto.setExampleBasePrice(exampleBase);
-        dto.setExampleChannelPrice(channel.calculateChannelPrice(exampleBase));
+        dto.setExampleChannelPrice(OtaChannelPricePolicy.resolveLocalFixedPrice(channel, exampleBase));
+        PriceModifier modifier = buildSuMappingPriceModifier(adjustmentType, adjustmentValue);
+        dto.setSuMappingMultiplier(modifier.multiplier());
+        dto.setSuMappingSurcharge(modifier.surcharge());
 
         return dto;
     }
+
+    private static PriceModifier buildSuMappingPriceModifier(
+            PriceAdjustmentType adjustmentType,
+            BigDecimal adjustmentValue
+    ) {
+        PriceAdjustmentType type = adjustmentType != null ? adjustmentType : PriceAdjustmentType.PERCENTAGE;
+        BigDecimal value = adjustmentValue != null ? adjustmentValue : BigDecimal.ZERO;
+        if (type == PriceAdjustmentType.FIXED) {
+            return new PriceModifier(BigDecimal.ONE, value.setScale(2, RoundingMode.HALF_UP).stripTrailingZeros());
+        }
+
+        BigDecimal multiplier = BigDecimal.ONE.add(
+                value.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP)
+        ).setScale(6, RoundingMode.HALF_UP).stripTrailingZeros();
+        return new PriceModifier(multiplier, BigDecimal.ZERO);
+    }
+
+    private record PriceModifier(BigDecimal multiplier, BigDecimal surcharge) {}
 
     private String resolveDistributionMode(Long storeId) {
         if (storeId == null) {

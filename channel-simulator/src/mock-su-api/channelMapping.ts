@@ -4,27 +4,35 @@ import chalk from 'chalk'
 import { deflateSync } from 'node:zlib'
 
 import tokenValidator from './tokenValidator'
+import {
+  AIRBNB_CHANNEL_ID,
+  BOOKING_CHANNEL_ID,
+  DEFAULT_CHANNEL_ID,
+  DEFAULT_HOTEL_ID,
+  DEFAULT_RATE_PLAN_ID,
+  DEFAULT_RATE_PLAN_NAME,
+  DEFAULT_ROOM_ID,
+  DEFAULT_ROOM_NAME,
+  KNOWN_CHANNEL_IDS,
+  LOCAL_AIRBNB_RATE_PLAN_ID,
+  LOCAL_BOOKING_FLEX_RATE_PLAN_ID,
+  buildChannelRatePlanCombo,
+  buildMappingItems,
+  getChannelName,
+  getChannelRatePlanId,
+  getChannelRoomTypeId,
+  updateAirbnbListingMap,
+  updateBookingRatePlanMap,
+} from './mappingPriceState'
 
 const { v4: uuidv4 } = require('uuid') as { v4: () => string }
 
 const router = express.Router()
 
-export const BOOKING_CHANNEL_ID = '19'
-export const AIRBNB_CHANNEL_ID = '244'
-const DEFAULT_CHANNEL_ID = BOOKING_CHANNEL_ID
-const KNOWN_CHANNEL_IDS = [BOOKING_CHANNEL_ID, AIRBNB_CHANNEL_ID]
+export { AIRBNB_CHANNEL_ID, BOOKING_CHANNEL_ID }
+
 const LOCAL_MOCK_CHANNEL_ID_HEADER = 'x-su-channel-id'
-const DEFAULT_ROOM_ID = 'E2ELOCAL'
-const DEFAULT_RATE_PLAN_ID = 'Local E2E Standard Rate'
-const DEFAULT_HOTEL_ID = 'LOCALE2EHOTEL'
-const DEFAULT_ROOM_NAME = 'Local E2E Standard Room'
-const DEFAULT_RATE_PLAN_NAME = 'Local E2E Standard Rate'
 const CHANNEL_CATEGORY_NAME = 'Online Travel Agents'
-const LOCAL_BOOKING_ROOM_TYPE_ID = 'LOCAL-19-ROOM'
-const LOCAL_BOOKING_RATE_PLAN_ID = 'LOCAL-19-STD'
-const LOCAL_BOOKING_FLEX_RATE_PLAN_ID = 'LOCAL-19-FLEX'
-const LOCAL_AIRBNB_LISTING_ID = 'LOCAL-244-LISTING'
-const LOCAL_AIRBNB_RATE_PLAN_ID = 'LOCAL-244-STD'
 const WIDGET_TOKEN_TTL_SECONDS = 3600
 const DEFAULT_WIDGET_LANGUAGE = 'zn'
 
@@ -76,6 +84,31 @@ export interface SuMappingRequestBody {
   cmid?: string | number
 }
 
+interface BookingRatePlanMapBody extends SuMappingRequestBody {
+  action?: string
+  status?: string
+  channelhotelid?: string
+  roomid?: string
+  rateid?: string
+  channelroomid?: string
+  channelrateid?: string
+  pricing?: Array<{
+    applicablenoofguest?: string | number
+    multiplier?: string | number
+    surcharge?: string | number
+  }>
+}
+
+interface AirbnbListingMapBody extends SuMappingRequestBody {
+  channelhotelid?: string
+  listingid?: string
+  roomid?: string
+  rateid?: string
+  multiplier?: string | number
+  surcharge?: string | number
+  occupancy?: string | number
+}
+
 function normalizeText(value: unknown): string | null {
   if (typeof value !== 'string' && typeof value !== 'number') {
     return null
@@ -87,51 +120,6 @@ function normalizeText(value: unknown): string | null {
   }
 
   return text
-}
-
-function buildMappingItem(channelId: string) {
-  return {
-    Status: 'Active',
-    ChannelID: channelId,
-    RoomIDs: [DEFAULT_ROOM_ID],
-    Rateplans: [
-      {
-        RatePlanID: DEFAULT_RATE_PLAN_ID,
-        MappingStatus: 'Active',
-      },
-    ],
-  }
-}
-
-function getChannelName(channelId: string) {
-  if (channelId === AIRBNB_CHANNEL_ID) {
-    return 'Airbnb'
-  }
-
-  return 'Booking.com'
-}
-
-function getChannelRoomTypeId(channelId: string) {
-  if (channelId === AIRBNB_CHANNEL_ID) {
-    return LOCAL_AIRBNB_LISTING_ID
-  }
-
-  return LOCAL_BOOKING_ROOM_TYPE_ID
-}
-
-function getChannelRatePlanId(channelId: string) {
-  if (channelId === AIRBNB_CHANNEL_ID) {
-    return LOCAL_AIRBNB_RATE_PLAN_ID
-  }
-
-  return LOCAL_BOOKING_RATE_PLAN_ID
-}
-
-function buildChannelRatePlanCombo(channelId: string, ratePlanId?: string) {
-  const channelRoomTypeId = getChannelRoomTypeId(channelId)
-  const channelRatePlanId = ratePlanId || getChannelRatePlanId(channelId)
-
-  return `${channelRoomTypeId}####${channelRatePlanId}`
 }
 
 function buildChannelCard(channelId: string, status: boolean) {
@@ -440,23 +428,23 @@ export function buildOtaRatePlanPullResponse(body: SuMappingRequestBody, headerC
   }
 }
 
-function buildMappingsResponse(channelId: string | null) {
+function buildMappingsResponse(hotelId: string, channelId: string | null) {
   if (!channelId) {
     const response: Record<string, unknown> = {
       Status: 'Success',
     }
 
     for (const knownChannelId of KNOWN_CHANNEL_IDS) {
-      response[knownChannelId] = [buildMappingItem(knownChannelId)]
+      response[knownChannelId] = buildMappingItems(hotelId, knownChannelId)
     }
 
     return response
   }
 
-  const resolvedChannelId = channelId || DEFAULT_CHANNEL_ID
+  const resolvedChannelId = KNOWN_CHANNEL_IDS.includes(channelId) ? channelId : DEFAULT_CHANNEL_ID
   return {
     Status: 'Success',
-    [resolvedChannelId]: [buildMappingItem(resolvedChannelId)],
+    [resolvedChannelId]: buildMappingItems(hotelId, resolvedChannelId),
   }
 }
 
@@ -486,7 +474,89 @@ router.post('/SUAPI/jservice/mappings', tokenValidator, (req: Request, res: Resp
     return
   }
 
-  res.json(buildMappingsResponse(channelId))
+  res.json(buildMappingsResponse(hotelId, channelId))
+})
+
+router.post('/SUAPI/jservice/OTA_RatePlanMap', tokenValidator, (req: Request, res: Response) => {
+  const body = req.body as BookingRatePlanMapBody
+
+  // eslint-disable-next-line no-console
+  console.log(chalk.cyan('[mock-su-api/OTA_RatePlanMap] received payload:'))
+  // eslint-disable-next-line no-console
+  console.log(chalk.gray(JSON.stringify(req.body, null, 2)))
+
+  const requiredFields = [
+    'hotelid',
+    'channelhotelid',
+    'roomid',
+    'rateid',
+    'channelroomid',
+    'channelrateid',
+  ] as const
+  const missingField = requiredFields.find((field) => !normalizeText(body[field]))
+  const pricing = Array.isArray(body.pricing) ? body.pricing[0] : null
+
+  if (missingField) {
+    res.status(400).json({
+      Status: 'Fail',
+      Errors: {
+        ShortText: `${missingField} is required`,
+      },
+    })
+    return
+  }
+
+  if (
+    !pricing ||
+    pricing.multiplier === undefined ||
+    pricing.surcharge === undefined ||
+    pricing.applicablenoofguest === undefined
+  ) {
+    res.status(400).json({
+      Status: 'Fail',
+      Errors: {
+        ShortText: 'pricing multiplier, surcharge, and applicablenoofguest are required',
+      },
+    })
+    return
+  }
+
+  const result = updateBookingRatePlanMap(body)
+  res.status(result.statusCode).json(result.body)
+})
+
+router.post('/SUAPI/jservice/airbnb/listing/map', tokenValidator, (req: Request, res: Response) => {
+  const body = req.body as AirbnbListingMapBody
+
+  // eslint-disable-next-line no-console
+  console.log(chalk.cyan('[mock-su-api/airbnb/listing/map] received payload:'))
+  // eslint-disable-next-line no-console
+  console.log(chalk.gray(JSON.stringify(req.body, null, 2)))
+
+  const requiredFields = ['hotelid', 'channelhotelid', 'listingid', 'roomid', 'rateid'] as const
+  const missingField = requiredFields.find((field) => !normalizeText(body[field]))
+  if (missingField) {
+    res.status(400).json({
+      Status: 'Fail',
+      Errors: {
+        ShortText: `${missingField} is required`,
+      },
+    })
+    return
+  }
+
+  if (body.multiplier === undefined || body.surcharge === undefined || body.occupancy === undefined) {
+    res.status(400).json({
+      Status: 'Fail',
+      Errors: {
+        ShortText: 'multiplier, surcharge, and occupancy are required',
+      },
+    })
+    return
+  }
+
+  const result = updateAirbnbListingMap(body)
+  res.status(result.statusCode).json(result.body)
 })
 
 /**

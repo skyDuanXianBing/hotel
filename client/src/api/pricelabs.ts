@@ -164,6 +164,119 @@ export interface ChannelPriceAdjustmentDTO {
   autoSyncPrice: boolean
   exampleBasePrice?: number
   exampleChannelPrice?: number
+  suMappingMultiplier?: number
+  suMappingSurcharge?: number
+  suMappingSync?: ChannelMappingMultiplierSyncSummary
+}
+
+export interface ChannelMappingMultiplierSyncItem {
+  status: 'SUCCESS' | 'FAILED'
+  channelHotelId?: string
+  roomId?: string
+  rateId?: string
+  channelRoomId?: string
+  channelRateId?: string
+  listingId?: string
+  applicableNoOfGuest?: string
+  message?: string
+}
+
+export interface ChannelMappingMultiplierSyncSummary {
+  channelCode?: string
+  suChannelId?: string
+  hotelId?: string
+  requestedMultiplier?: number
+  requestedSurcharge?: number
+  status: 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'SKIPPED'
+  message?: string
+  totalCount: number
+  successCount: number
+  failureCount: number
+  items: ChannelMappingMultiplierSyncItem[]
+}
+
+export type MappingPriceSyncStatus =
+  | 'UNSYNCED'
+  | 'SYNCING'
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'STALE_MAPPING'
+
+export type MappingPriceSaveStatus = 'SUCCESS' | 'PARTIAL' | 'FAILED'
+
+export interface MappingPriceSettingRowDTO {
+  rowKey: string
+  channelCode?: string
+  suChannelId?: string
+  displayName?: string
+  mappingStatus?: string
+  channelHotelId?: string
+  localRoomId?: string
+  localRatePlanId?: string
+  remoteRoomId?: string
+  remoteRatePlanId?: string
+  listingId?: string
+  occupancy?: string
+  applicableNoOfGuest?: string
+  multiplier: number | null
+  surcharge: number | null
+  syncStatus?: MappingPriceSyncStatus
+  lastError?: string | null
+  retryCount?: number
+  lastOperationId?: string
+  lastBatchId?: string
+  lastAttemptedAt?: string
+  lastSyncedAt?: string
+  lastFailedAt?: string
+}
+
+export interface MappingPriceSettingsResponseDTO {
+  channelId: number
+  channelCode?: string
+  channelName?: string
+  otaIntegrationId?: number
+  suChannelId?: string
+  suPropertyId?: string
+  defaultMultiplier?: number | null
+  defaultSurcharge?: number | null
+  totalCount: number
+  successCount: number
+  failureCount: number
+  staleCount: number
+  unsyncedCount: number
+  rows: MappingPriceSettingRowDTO[]
+}
+
+export interface MappingPriceSettingRowSaveRequestDTO {
+  rowKey: string
+  multiplier: number | null
+  surcharge: number | null
+}
+
+export interface MappingPriceSettingsSaveRequestDTO {
+  clientOperationId?: string
+  rows: MappingPriceSettingRowSaveRequestDTO[]
+}
+
+export interface MappingPriceSettingsRetryRequestDTO {
+  clientOperationId?: string
+  rowKeys?: string[]
+}
+
+export interface MappingPriceSettingsSaveResponseDTO {
+  channelId: number
+  channelCode?: string
+  suChannelId?: string
+  suPropertyId?: string
+  operationId?: string
+  batchId?: string
+  status: MappingPriceSaveStatus
+  message?: string
+  totalCount: number
+  successCount: number
+  failureCount: number
+  staleCount: number
+  rows: MappingPriceSettingRowDTO[]
 }
 
 /**
@@ -339,6 +452,43 @@ export const recalculateChannelPrices = async (
 ): Promise<ApiResponse<{ affectedCount: number }>> => {
   return await request.post(
     `/pricelabs/channel-adjustments/${channelId}/recalculate?startDate=${startDate}&endDate=${endDate}`,
+  )
+}
+
+export const getMappingPriceSettings = async (
+  channelId: number,
+): Promise<ApiResponse<MappingPriceSettingsResponseDTO>> => {
+  return await request.get(`/pricelabs/channel-adjustments/${channelId}/mapping-price-settings`)
+}
+
+export const saveMappingPriceSettings = async (
+  channelId: number,
+  data: MappingPriceSettingsSaveRequestDTO,
+): Promise<ApiResponse<MappingPriceSettingsSaveResponseDTO>> => {
+  return await request.put(
+    `/pricelabs/channel-adjustments/${channelId}/mapping-price-settings`,
+    data,
+  )
+}
+
+export const saveMappingPriceSettingRow = async (
+  channelId: number,
+  rowKey: string,
+  data: MappingPriceSettingRowSaveRequestDTO,
+): Promise<ApiResponse<MappingPriceSettingsSaveResponseDTO>> => {
+  return await request.patch(
+    `/pricelabs/channel-adjustments/${channelId}/mapping-price-settings/rows/${encodeURIComponent(rowKey)}`,
+    data,
+  )
+}
+
+export const retryMappingPriceSettings = async (
+  channelId: number,
+  data: MappingPriceSettingsRetryRequestDTO,
+): Promise<ApiResponse<MappingPriceSettingsSaveResponseDTO>> => {
+  return await request.post(
+    `/pricelabs/channel-adjustments/${channelId}/mapping-price-settings/retry`,
+    data,
   )
 }
 

@@ -13,6 +13,7 @@ import server.demo.enums.PermissionAction;
 import server.demo.enums.PermissionModule;
 import server.demo.enums.PriceAdjustmentType;
 import server.demo.service.ChannelPriceFallbackService;
+import server.demo.service.ChannelMappingPriceSettingsService;
 import server.demo.service.PriceLabsApiClient;
 import server.demo.service.PriceLabsService;
 import server.demo.service.PriceLabsReservationSyncService;
@@ -46,6 +47,9 @@ public class PriceLabsController {
 
     @Autowired
     private ChannelPriceFallbackService channelPriceFallbackService;
+
+    @Autowired
+    private ChannelMappingPriceSettingsService channelMappingPriceSettingsService;
 
     // ==================== 集成配置 API ====================
 
@@ -242,6 +246,69 @@ public class PriceLabsController {
         } catch (Exception e) {
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("批量更新渠道价格调整设置失败: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/channel-adjustments/{channelId}/mapping-price-settings")
+    @StoreScoped
+    public ResponseEntity<ApiResponse<MappingPriceSettingsResponseDTO>> getMappingPriceSettings(
+            @PathVariable Long channelId) {
+        try {
+            MappingPriceSettingsResponseDTO result =
+                    channelMappingPriceSettingsService.listMappingPriceSettings(channelId);
+            return ResponseEntity.ok(ApiResponse.success("获取映射级价格设置成功", result));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("获取映射级价格设置失败: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/channel-adjustments/{channelId}/mapping-price-settings")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
+    @StoreScoped
+    public ResponseEntity<ApiResponse<MappingPriceSettingsSaveResponseDTO>> saveMappingPriceSettings(
+            @PathVariable Long channelId,
+            @RequestBody MappingPriceSettingsSaveRequestDTO request) {
+        try {
+            MappingPriceSettingsSaveResponseDTO result =
+                    channelMappingPriceSettingsService.saveMappingPriceSettings(channelId, request);
+            return ResponseEntity.ok(ApiResponse.success("保存映射级价格设置完成", result));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("保存映射级价格设置失败: " + e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/channel-adjustments/{channelId}/mapping-price-settings/rows/{rowKey}")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
+    @StoreScoped
+    public ResponseEntity<ApiResponse<MappingPriceSettingsSaveResponseDTO>> saveMappingPriceSettingRow(
+            @PathVariable Long channelId,
+            @PathVariable String rowKey,
+            @RequestBody MappingPriceSettingRowSaveRequestDTO request) {
+        try {
+            MappingPriceSettingsSaveResponseDTO result =
+                    channelMappingPriceSettingsService.saveMappingPriceSettingRow(channelId, rowKey, request);
+            return ResponseEntity.ok(ApiResponse.success("保存映射行价格设置完成", result));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("保存映射行价格设置失败: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/channel-adjustments/{channelId}/mapping-price-settings/retry")
+    @RequirePermission(module = PermissionModule.CHANNEL, action = PermissionAction.MANAGE_CHANNELS)
+    @StoreScoped
+    public ResponseEntity<ApiResponse<MappingPriceSettingsSaveResponseDTO>> retryMappingPriceSettings(
+            @PathVariable Long channelId,
+            @RequestBody(required = false) MappingPriceSettingsRetryRequestDTO request) {
+        try {
+            MappingPriceSettingsSaveResponseDTO result =
+                    channelMappingPriceSettingsService.retryMappingPriceSettings(channelId, request);
+            return ResponseEntity.ok(ApiResponse.success("重试映射级价格设置完成", result));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("重试映射级价格设置失败: " + e.getMessage()));
         }
     }
 

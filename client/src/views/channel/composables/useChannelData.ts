@@ -231,11 +231,15 @@ export function useChannelData() {
 
           return {
             channelId: item.channelId,
+            channelCode: item.channelCode,
             channel: item.channelName,
             ratio: formatBackendRatioString(adjustmentType, adjustmentValue),
             adjustmentType,
             adjustmentValue,
             autoSyncPrice: item.autoSyncPrice ?? true,
+            suMappingMultiplier: item.suMappingMultiplier,
+            suMappingSurcharge: item.suMappingSurcharge,
+            suMappingSync: item.suMappingSync,
           }
         })
       }
@@ -290,19 +294,26 @@ export function useChannelData() {
       })
 
       if (response.success) {
-        const newRatio = formatBackendRatioString(backendAdjustmentType, backendAdjustmentValue)
+        const saved = response.data
+        const savedAdjustmentType = saved?.adjustmentType ?? backendAdjustmentType
+        const savedAdjustmentValue = saved?.adjustmentValue ?? backendAdjustmentValue
+        const newRatio = formatBackendRatioString(savedAdjustmentType, savedAdjustmentValue)
         const index = priceRatioData.value.findIndex((item) => item.channelId === channelId)
         if (index > -1) {
           priceRatioData.value[index] = {
             channelId,
-            channel: editData.channel,
+            channelCode: saved?.channelCode || priceRatioData.value[index].channelCode,
+            channel: saved?.channelName || editData.channel,
             ratio: newRatio,
-            adjustmentType: backendAdjustmentType,
-            adjustmentValue: backendAdjustmentValue,
-            autoSyncPrice,
+            adjustmentType: savedAdjustmentType,
+            adjustmentValue: savedAdjustmentValue,
+            autoSyncPrice: saved?.autoSyncPrice ?? autoSyncPrice,
+            suMappingMultiplier: saved?.suMappingMultiplier,
+            suMappingSurcharge: saved?.suMappingSurcharge,
+            suMappingSync: saved?.suMappingSync,
           }
         }
-        ElMessage.success(t('channel.priceRatio.updated'))
+        showPriceRatioSyncMessage(saved?.suMappingSync)
         return true
       } else {
         ElMessage.error(response.message || t('channel.priceRatio.updateFailed'))
@@ -313,6 +324,25 @@ export function useChannelData() {
       ElMessage.error(t('channel.priceRatio.retryFailed'))
       return false
     }
+  }
+
+  const showPriceRatioSyncMessage = (syncSummary: ChannelPriceAdjustmentDTO['suMappingSync']) => {
+    if (!syncSummary || syncSummary.status === 'SKIPPED') {
+      ElMessage.success(t('channel.priceRatio.updated'))
+      return
+    }
+
+    if (syncSummary.status === 'SUCCESS') {
+      ElMessage.success(syncSummary.message || '价格比例已保存，Su 映射倍率已同步')
+      return
+    }
+
+    if (syncSummary.status === 'PARTIAL') {
+      ElMessage.warning(syncSummary.message || '价格比例已保存，部分 Su 映射倍率同步失败')
+      return
+    }
+
+    ElMessage.warning(syncSummary.message || '价格比例已保存，但 Su 映射倍率同步失败')
   }
 
   // ──────────── 工具函数 ────────────
