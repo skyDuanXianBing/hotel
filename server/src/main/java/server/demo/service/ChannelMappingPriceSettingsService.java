@@ -573,10 +573,9 @@ public class ChannelMappingPriceSettingsService {
     ) {
         if (target != null) {
             Optional<ChannelMappingPriceSetting> existing = settingRepository
-                    .findByStoreIdAndChannelIdAndSuPropertyIdAndMappingKey(
+                    .findByStoreIdAndChannelIdAndMappingKey(
                             context.storeId(),
                             context.channel().getId(),
-                            context.hotelId(),
                             target.mappingKey()
                     );
             if (existing.isPresent()) {

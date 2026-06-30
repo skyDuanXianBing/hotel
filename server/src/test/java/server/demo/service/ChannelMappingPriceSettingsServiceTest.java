@@ -326,13 +326,13 @@ class ChannelMappingPriceSettingsServiceTest {
     private void mockSettingRepository() {
         lenient().when(settingRepository.findByStoreIdAndChannelIdAndSuPropertyId(any(), any(), anyString()))
                 .thenAnswer(invocation -> filterSettings(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2), null, null));
-        lenient().when(settingRepository.findByStoreIdAndChannelIdAndSuPropertyIdAndMappingKey(any(), any(), anyString(), anyString()))
+        lenient().when(settingRepository.findByStoreIdAndChannelIdAndMappingKey(any(), any(), anyString()))
                 .thenAnswer(invocation -> {
                     List<ChannelMappingPriceSetting> found = filterSettings(
                             invocation.getArgument(0),
                             invocation.getArgument(1),
+                            null,
                             invocation.getArgument(2),
-                            invocation.getArgument(3),
                             null
                     );
                     if (found.isEmpty()) {

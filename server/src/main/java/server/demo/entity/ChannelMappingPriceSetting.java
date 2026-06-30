@@ -25,7 +25,7 @@ import java.time.LocalDateTime;
         name = "channel_mapping_price_settings",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_channel_mapping_price_current",
-                columnNames = {"store_id", "channel_id", "su_property_id", "mapping_key"}
+                columnNames = {"store_id", "channel_id", "mapping_key"}
         )
 )
 @EntityListeners(StoreScopedEntityListener.class)
@@ -59,7 +59,12 @@ public class ChannelMappingPriceSetting implements StoreScopedEntity {
     @Column(name = "mapping_key", nullable = false, length = 700)
     private String mappingKey;
 
-    @Column(name = "row_key", nullable = false, length = 1000)
+    @Column(
+            name = "row_key",
+            nullable = false,
+            length = 1000,
+            columnDefinition = "VARCHAR(1000) CHARACTER SET ascii COLLATE ascii_bin"
+    )
     private String rowKey;
 
     @Column(name = "mapping_key_version", nullable = false, length = 20)
