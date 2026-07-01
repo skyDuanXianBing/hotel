@@ -16,11 +16,13 @@ import {
   KNOWN_CHANNEL_IDS,
   LOCAL_AIRBNB_RATE_PLAN_ID,
   LOCAL_BOOKING_FLEX_RATE_PLAN_ID,
+  retrieveAirbnbListing,
   buildChannelRatePlanCombo,
   buildMappingItems,
   getChannelName,
   getChannelRatePlanId,
   getChannelRoomTypeId,
+  updateAirbnbListingUpdate,
   updateAirbnbListingMap,
   updateBookingRatePlanMap,
 } from './mappingPriceState'
@@ -107,6 +109,7 @@ interface AirbnbListingMapBody extends SuMappingRequestBody {
   multiplier?: string | number
   surcharge?: string | number
   occupancy?: string | number
+  name?: string | number
 }
 
 function normalizeText(value: unknown): string | null {
@@ -522,6 +525,62 @@ router.post('/SUAPI/jservice/OTA_RatePlanMap', tokenValidator, (req: Request, re
   }
 
   const result = updateBookingRatePlanMap(body)
+  res.status(result.statusCode).json(result.body)
+})
+
+router.post('/SUAPI/jservice/airbnb/listing/retrieve', tokenValidator, (req: Request, res: Response) => {
+  const body = req.body as AirbnbListingMapBody
+
+  // eslint-disable-next-line no-console
+  console.log(chalk.cyan('[mock-su-api/airbnb/listing/retrieve] received payload:'))
+  // eslint-disable-next-line no-console
+  console.log(chalk.gray(JSON.stringify(req.body, null, 2)))
+
+  if (!normalizeText(body.hotelid) || !normalizeText(body.listingid)) {
+    res.status(400).json({
+      Status: 'Fail',
+      Errors: {
+        ShortText: 'hotelid and listingid are required',
+      },
+    })
+    return
+  }
+
+  const result = retrieveAirbnbListing(body)
+  res.status(result.statusCode).json(result.body)
+})
+
+router.post('/SUAPI/jservice/airbnb/listing/update', tokenValidator, (req: Request, res: Response) => {
+  const body = req.body as AirbnbListingMapBody
+
+  // eslint-disable-next-line no-console
+  console.log(chalk.cyan('[mock-su-api/airbnb/listing/update] received payload:'))
+  // eslint-disable-next-line no-console
+  console.log(chalk.gray(JSON.stringify(req.body, null, 2)))
+
+  const requiredFields = ['hotelid', 'channelhotelid', 'listingid', 'roomid', 'rateid', 'name'] as const
+  const missingField = requiredFields.find((field) => !normalizeText(body[field]))
+  if (missingField) {
+    res.status(400).json({
+      Status: 'Fail',
+      Errors: {
+        ShortText: `${missingField} is required`,
+      },
+    })
+    return
+  }
+
+  if (body.multiplier === undefined || body.surcharge === undefined || body.occupancy === undefined) {
+    res.status(400).json({
+      Status: 'Fail',
+      Errors: {
+        ShortText: 'multiplier, surcharge, and occupancy are required',
+      },
+    })
+    return
+  }
+
+  const result = updateAirbnbListingUpdate(body)
   res.status(result.statusCode).json(result.body)
 })
 

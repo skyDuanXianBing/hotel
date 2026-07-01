@@ -71,6 +71,12 @@ public class SuMappingMultiplierSyncService {
         summary.setRequestedMultiplier(modifier.multiplier());
         summary.setRequestedSurcharge(modifier.surcharge());
 
+        if (OtaChannelPricePolicy.CHANNEL_CODE_AIRBNB.equals(channelCode)) {
+            summary.setStatus(STATUS_SKIPPED);
+            summary.setMessage("Airbnb 旧渠道级 Su 同步已停用；请在映射级价格设置中逐行保存后同步");
+            return summary;
+        }
+
         if (modifier.multiplier().compareTo(BigDecimal.ZERO) < 0) {
             summary.setStatus(STATUS_FAILED);
             summary.setMessage("百分比调整不能小于 -100%，未同步 Su 映射倍率");
@@ -308,11 +314,7 @@ public class SuMappingMultiplierSyncService {
             PriceModifier modifier
     ) {
         if (OtaChannelPricePolicy.CHANNEL_CODE_AIRBNB.equals(channelCode)) {
-            Map<String, Object> payload = buildAirbnbListingMapPayload(hotelId, target, modifier);
-            return suAccessTokenService.executeWithTokenRetry(
-                    token -> suApiClient.postAirbnbListingMap(token, payload),
-                    "airbnb/listing/map"
-            );
+            throw new IllegalStateException("Airbnb legacy channel-level sync is unsupported; use mapping-level settings");
         }
 
         Map<String, Object> payload = buildBookingRatePlanMapPayload(hotelId, target, modifier);
@@ -343,23 +345,6 @@ public class SuMappingMultiplierSyncService {
         payload.put("channelroomid", target.channelRoomId());
         payload.put("channelrateid", target.channelRateId());
         payload.put("pricing", List.of(pricing));
-        return payload;
-    }
-
-    private Map<String, Object> buildAirbnbListingMapPayload(
-            String hotelId,
-            MappingTarget target,
-            PriceModifier modifier
-    ) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("hotelid", hotelId);
-        payload.put("channelhotelid", target.channelHotelId());
-        payload.put("listingid", target.listingId());
-        payload.put("roomid", target.roomId());
-        payload.put("rateid", target.rateId());
-        payload.put("multiplier", modifier.multiplier());
-        payload.put("surcharge", modifier.surcharge());
-        payload.put("occupancy", parseIntegerOrText(target.applicableNoOfGuest()));
         return payload;
     }
 

@@ -15,9 +15,11 @@ declare module 'axios' {
   }
 }
 
+const DEFAULT_API_TIMEOUT_MS = 60000
+
 const request: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-  timeout: 10000,
+  timeout: DEFAULT_API_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json; charset=UTF-8',
     Accept: 'application/json; charset=UTF-8',

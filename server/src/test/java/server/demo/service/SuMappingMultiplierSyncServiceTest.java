@@ -21,13 +21,13 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -169,133 +169,33 @@ class SuMappingMultiplierSyncServiceTest {
     }
 
     @Test
-    void syncForChannel_shouldPostAirbnbListingMapWithFixedSurcharge() throws Exception {
+    void syncForChannel_shouldSkipAirbnbLegacySyncWithoutCallingListingMap() {
         SuMappingMultiplierSyncService service = createService();
         Channel channel = channel("AIRBNB", PriceAdjustmentType.FIXED, new BigDecimal("25"));
-        OtaIntegration integration = integration("AIRBNB");
-        JsonNode mappings = objectMapper.readTree("""
-                {
-                  "Status": "Success",
-                  "244": [
-                    {
-                      "Status": "Active",
-                      "ChannelHotelID": "AIRBNB-HOTEL",
-                      "RoomIDs": ["101"],
-                      "Rateplans": [
-                        {
-                          "PMSRoomID": "101",
-                          "PMSRateID": "BAR",
-                          "ChannelRoomID": "A-LISTING",
-                          "ListingID": "A-LISTING",
-                          "MappingStatus": "Active",
-                          "Pricing": {
-                            "ApplicableNoOfGuest": "2",
-                            "Multiplier": "1",
-                            "Surcharge": "0"
-                          }
-                        }
-                      ]
-                    }
-                  ]
-                }
-                """);
-        JsonNode success = objectMapper.readTree("{\"Status\":\"Success\"}");
-
-        when(otaIntegrationRepository.findByStoreIdAndCode(STORE_ID, "AIRBNB"))
-                .thenReturn(Optional.of(integration));
-        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(mappings);
-        when(suApiClient.postAirbnbListingMap(eq("token"), any())).thenReturn(success);
-        when(suApiClient.isSuSuccess(success)).thenReturn(true);
-        mockTokenExecution();
 
         ChannelMappingMultiplierSyncSummaryDTO summary = service.syncForChannel(STORE_ID, channel);
 
-        assertEquals("SUCCESS", summary.getStatus());
-
-        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(suApiClient).postAirbnbListingMap(eq("token"), payloadCaptor.capture());
-        verify(suApiClient, never()).postBookingRatePlanMap(anyString(), any());
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
-        assertEquals(HOTEL_ID, payload.get("hotelid"));
-        assertEquals("AIRBNB-HOTEL", payload.get("channelhotelid"));
-        assertEquals("A-LISTING", payload.get("listingid"));
-        assertEquals("101", payload.get("roomid"));
-        assertEquals("BAR", payload.get("rateid"));
-        assertEquals(BigDecimal.ONE, payload.get("multiplier"));
-        assertEquals(new BigDecimal("25"), payload.get("surcharge"));
-        assertEquals(2, payload.get("occupancy"));
+        assertEquals("SKIPPED", summary.getStatus());
+        assertEquals("AIRBNB", summary.getChannelCode());
+        assertEquals("244", summary.getSuChannelId());
+        assertEquals(BigDecimal.ONE, summary.getRequestedMultiplier());
+        assertEquals(new BigDecimal("25"), summary.getRequestedSurcharge());
+        assertEquals("Airbnb 旧渠道级 Su 同步已停用；请在映射级价格设置中逐行保存后同步",
+                summary.getMessage());
+        verifyNoInteractions(suApiClient, suAccessTokenService);
     }
 
     @Test
-    void syncForChannel_shouldReportPartialFailureWhenAirbnbListingOrOccupancyIsMissing() throws Exception {
+    void syncForChannel_shouldSkipAirbnbLegacySyncBeforeReadingMappings() {
         SuMappingMultiplierSyncService service = createService();
         Channel channel = channel("AIRBNB", PriceAdjustmentType.PERCENTAGE, new BigDecimal("10"));
-        OtaIntegration integration = integration("AIRBNB");
-        JsonNode mappings = objectMapper.readTree("""
-                {
-                  "Status": "Success",
-                  "244": [
-                    {
-                      "Status": "Active",
-                      "ChannelHotelID": "AIRBNB-HOTEL",
-                      "RoomIDs": ["101"],
-                      "Rateplans": [
-                        {
-                          "PMSRoomID": "101",
-                          "PMSRateID": "BAR",
-                          "ChannelRoomID": "A-LISTING",
-                          "ListingID": "A-LISTING",
-                          "MappingStatus": "Active",
-                          "Pricing": { "ApplicableNoOfGuest": "2" }
-                        },
-                        {
-                          "PMSRoomID": "101",
-                          "PMSRateID": "FLEX",
-                          "MappingStatus": "Active",
-                          "Pricing": { "ApplicableNoOfGuest": "2" }
-                        },
-                        {
-                          "PMSRoomID": "101",
-                          "PMSRateID": "NR",
-                          "ChannelRoomID": "A-LISTING-NR",
-                          "ListingID": "A-LISTING-NR",
-                          "MappingStatus": "Active",
-                          "Pricing": {}
-                        }
-                      ]
-                    }
-                  ]
-                }
-                """);
-        JsonNode success = objectMapper.readTree("{\"Status\":\"Success\"}");
-
-        when(otaIntegrationRepository.findByStoreIdAndCode(STORE_ID, "AIRBNB"))
-                .thenReturn(Optional.of(integration));
-        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(mappings);
-        when(suApiClient.postAirbnbListingMap(eq("token"), any())).thenReturn(success);
-        when(suApiClient.isSuSuccess(success)).thenReturn(true);
-        mockTokenExecution();
 
         ChannelMappingMultiplierSyncSummaryDTO summary = service.syncForChannel(STORE_ID, channel);
 
-        assertEquals("PARTIAL", summary.getStatus());
-        assertEquals(3, summary.getTotalCount());
-        assertEquals(1, summary.getSuccessCount());
-        assertEquals(2, summary.getFailureCount());
-        verify(suApiClient, times(1)).postAirbnbListingMap(eq("token"), any());
-        verify(suApiClient, never()).postBookingRatePlanMap(anyString(), any());
-        assertTrue(summary.getItems().stream().anyMatch(item ->
-                "FLEX".equals(item.getRateId())
-                        && "FAILED".equals(item.getStatus())
-                        && item.getMessage().contains("listingid")
-        ));
-        assertTrue(summary.getItems().stream().anyMatch(item ->
-                "NR".equals(item.getRateId())
-                        && "FAILED".equals(item.getStatus())
-                        && item.getMessage().contains("入住人数")
-        ));
+        assertEquals("SKIPPED", summary.getStatus());
+        assertEquals(new BigDecimal("1.1"), summary.getRequestedMultiplier());
+        assertEquals(BigDecimal.ZERO, summary.getRequestedSurcharge());
+        verifyNoInteractions(otaIntegrationRepository, storeRepository, suApiClient, suAccessTokenService);
     }
 
     private SuMappingMultiplierSyncService createService() {

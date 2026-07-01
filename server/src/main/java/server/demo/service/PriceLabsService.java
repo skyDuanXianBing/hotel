@@ -787,10 +787,8 @@ public class PriceLabsService {
         }
 
         Channel saved = channelRepository.save(channel);
-        ChannelMappingMultiplierSyncSummaryDTO syncSummary =
-                suMappingMultiplierSyncService.syncForChannel(storeId, saved);
         ChannelPriceAdjustmentDTO dto = convertToAdjustmentDTO(saved);
-        dto.setSuMappingSync(syncSummary);
+        dto.setSuMappingSync(buildLegacyChannelAdjustmentSyncSummary(saved));
         return dto;
     }
 
@@ -814,7 +812,7 @@ public class PriceLabsService {
                         }
                         Channel saved = channelRepository.save(channel);
                         ChannelPriceAdjustmentDTO result = convertToAdjustmentDTO(saved);
-                        result.setSuMappingSync(suMappingMultiplierSyncService.syncForChannel(storeId, saved));
+                        result.setSuMappingSync(buildLegacyChannelAdjustmentSyncSummary(saved));
                         results.add(result);
                     });
         }
@@ -1140,6 +1138,24 @@ public class PriceLabsService {
         dto.setSuMappingSurcharge(modifier.surcharge());
 
         return dto;
+    }
+
+    private ChannelMappingMultiplierSyncSummaryDTO buildLegacyChannelAdjustmentSyncSummary(Channel channel) {
+        String channelCode = channel != null ? channel.getCode() : null;
+        ChannelMappingMultiplierSyncSummaryDTO summary = ChannelMappingMultiplierSyncSummaryDTO.skipped(
+                channelCode,
+                "已保存本地价格比例设置；Su 映射级价格设置需在映射级页面逐行保存后同步"
+        );
+        if (channel == null) {
+            return summary;
+        }
+
+        PriceAdjustmentType adjustmentType = channel.getPriceAdjustmentType();
+        BigDecimal adjustmentValue = channel.getPriceAdjustmentValue();
+        PriceModifier modifier = buildSuMappingPriceModifier(adjustmentType, adjustmentValue);
+        summary.setRequestedMultiplier(modifier.multiplier());
+        summary.setRequestedSurcharge(modifier.surcharge());
+        return summary;
     }
 
     private static PriceModifier buildSuMappingPriceModifier(

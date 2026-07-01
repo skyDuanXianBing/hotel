@@ -155,10 +155,29 @@ class ChannelMappingPriceSettingsServiceTest {
 
         assertEquals("SUCCESS", response.getStatus());
         assertEquals(2, response.getSuccessCount());
-        verify(suApiClient, times(2)).postBookingRatePlanMap(eq("token"), any());
         verify(channelRepository, never()).save(any());
         assertEquals(PriceAdjustmentType.PERCENTAGE, channel.getPriceAdjustmentType());
         assertEquals(new BigDecimal("8"), channel.getPriceAdjustmentValue());
+
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(suApiClient, times(2)).postBookingRatePlanMap(eq("token"), payloadCaptor.capture());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> firstPayload = (Map<String, Object>) payloadCaptor.getAllValues().get(0);
+        assertEquals("setup", firstPayload.get("action"));
+        assertTrue(firstPayload.containsKey("derivedrateids"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> pricing = (List<Map<String, Object>>) firstPayload.get("pricing");
+        assertEquals(2, pricing.size());
+        assertEquals(1, pricing.get(0).get("applicablenoofguest"));
+        assertEquals(2, pricing.get(1).get("applicablenoofguest"));
+        assertEquals(new BigDecimal("1.1"), pricing.get(0).get("multiplier"));
+        assertEquals(new BigDecimal("1"), pricing.get(1).get("multiplier"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> secondPayload = (Map<String, Object>) payloadCaptor.getAllValues().get(1);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> secondPricing = (List<Map<String, Object>>) secondPayload.get("pricing");
+        assertEquals(new BigDecimal("1.1"), secondPricing.get(0).get("multiplier"));
+        assertEquals(new BigDecimal("1.2"), secondPricing.get(1).get("multiplier"));
 
         List<ChannelMappingPriceSetting> saved = new ArrayList<>(settings.values());
         assertEquals(2, saved.size());
@@ -251,12 +270,14 @@ class ChannelMappingPriceSettingsServiceTest {
     }
 
     @Test
-    void airbnbRows_shouldUseOccupancyInDistinctRowKeysAndAirbnbPayload() throws Exception {
+    void airbnbRows_shouldUseOccupancyInDistinctRowKeysAndListingUpdatePayload() throws Exception {
         ChannelMappingPriceSettingsService service = createService();
         mockChannelAndIntegration("AIRBNB");
         when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
+        JsonNode retrieve = readJson(airbnbRetrieveListing("A-LISTING", "Airbnb Listing"));
         JsonNode success = readJson("{\"Status\":\"Success\"}");
-        when(suApiClient.postAirbnbListingMap(eq("token"), any())).thenReturn(success);
+        when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieve);
+        when(suApiClient.postAirbnbListingUpdate(eq("token"), any())).thenReturn(success);
         when(suApiClient.isSuSuccess(success)).thenReturn(true);
 
         MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
@@ -275,14 +296,84 @@ class ChannelMappingPriceSettingsServiceTest {
 
         assertEquals("SUCCESS", response.getStatus());
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(suApiClient, times(2)).postAirbnbListingMap(eq("token"), payloadCaptor.capture());
+        verify(suApiClient, times(2)).retrieveAirbnbListing(eq("token"), any());
+        verify(suApiClient, times(2)).postAirbnbListingUpdate(eq("token"), payloadCaptor.capture());
         @SuppressWarnings("unchecked")
         Map<String, Object> firstPayload = (Map<String, Object>) payloadCaptor.getAllValues().get(0);
         @SuppressWarnings("unchecked")
         Map<String, Object> secondPayload = (Map<String, Object>) payloadCaptor.getAllValues().get(1);
+        assertEquals("Airbnb Listing", firstPayload.get("name"));
         assertEquals(1, firstPayload.get("occupancy"));
         assertEquals(2, secondPayload.get("occupancy"));
+        verify(suApiClient, never()).postAirbnbListingMap(anyString(), any());
         verify(suApiClient, never()).postBookingRatePlanMap(anyString(), any());
+    }
+
+    @Test
+    void airbnbSave_shouldFailSafelyWhenListingDetailsAreMissingAndNotFallbackToMap() throws Exception {
+        ChannelMappingPriceSettingsService service = createService();
+        mockChannelAndIntegration("AIRBNB");
+        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
+        JsonNode retrieveWithoutName = readJson("""
+                {
+                  "Status": "Success",
+                  "Data": {
+                    "listing": {
+                      "listingid": "A-LISTING"
+                    }
+                  }
+                }
+                """);
+        when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieveWithoutName);
+
+        MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
+        MappingPriceSettingsSaveResponseDTO response = service.saveMappingPriceSettings(
+                CHANNEL_ID,
+                saveRequest(List.of(row(list.getRows().get(0).getRowKey(), "1.05", "0")))
+        );
+
+        assertEquals("FAILED", response.getStatus());
+        assertEquals(1, response.getFailureCount());
+        assertTrue(response.getRows().get(0).getLastError()
+                .contains("Airbnb listing update requires listing details"));
+        verify(suApiClient).retrieveAirbnbListing(eq("token"), any());
+        verify(suApiClient, never()).postAirbnbListingUpdate(anyString(), any());
+        verify(suApiClient, never()).postAirbnbListingMap(anyString(), any());
+    }
+
+    @Test
+    void airbnbSave_shouldKeepDuplicateMappingErrorAsRowFailure() throws Exception {
+        ChannelMappingPriceSettingsService service = createService();
+        mockChannelAndIntegration("AIRBNB");
+        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
+        JsonNode retrieve = readJson(airbnbRetrieveListing("A-LISTING", "Airbnb Listing"));
+        JsonNode duplicateFailure = readJson("""
+                {
+                  "Status": "Fail",
+                  "Errors": {
+                    "ShortText": "Room and rateplan combination already mapped"
+                  }
+                }
+                """);
+        when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieve);
+        when(suApiClient.postAirbnbListingUpdate(eq("token"), any())).thenReturn(duplicateFailure);
+        when(suApiClient.isSuSuccess(duplicateFailure)).thenReturn(false);
+        when(suApiClient.extractSuErrorMessage(duplicateFailure))
+                .thenReturn("Room and rateplan combination already mapped");
+
+        MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
+        MappingPriceSettingsSaveResponseDTO response = service.saveMappingPriceSettings(
+                CHANNEL_ID,
+                saveRequest(List.of(row(list.getRows().get(0).getRowKey(), "1.05", "0")))
+        );
+
+        assertEquals("FAILED", response.getStatus());
+        assertEquals(1, response.getFailureCount());
+        assertEquals(
+                "Room and rateplan combination already mapped",
+                response.getRows().get(0).getLastError()
+        );
+        verify(suApiClient, never()).postAirbnbListingMap(anyString(), any());
     }
 
     private ChannelMappingPriceSettingsService createService() {
@@ -525,5 +616,21 @@ class ChannelMappingPriceSettingsServiceTest {
                   ]
                 }
                 """;
+    }
+
+    private String airbnbRetrieveListing(String listingId, String name) {
+        return """
+                {
+                  "Status": "Success",
+                  "Data": {
+                    "listing": {
+                      "listingid": "%s",
+                      "name": "%s",
+                      "person_capacity": 2,
+                      "room_type_category": "entire_home"
+                    }
+                  }
+                }
+                """.formatted(listingId, name);
     }
 }

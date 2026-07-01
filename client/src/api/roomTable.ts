@@ -1,7 +1,7 @@
 import { request } from '@/utils/request'
 import type { ApiResponse } from '@/types/room'
 
-const ROOM_TABLE_MONTHLY_TIMEOUT_MS = 30000
+const ROOM_TABLE_MONTHLY_TIMEOUT_MS = 60_000
 
 export type MonthlyRoomDisplayStatus = 'FULL' | 'AVAILABLE' | 'AVAILABLE_MANY'
 

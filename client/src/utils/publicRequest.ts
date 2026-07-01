@@ -7,9 +7,11 @@ function resolvePublicBaseUrl(): string {
   return converted
 }
 
+const DEFAULT_API_TIMEOUT_MS = 60000
+
 const publicRequest: AxiosInstance = axios.create({
   baseURL: resolvePublicBaseUrl(),
-  timeout: 10000,
+  timeout: DEFAULT_API_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json; charset=UTF-8',
     Accept: 'application/json; charset=UTF-8',

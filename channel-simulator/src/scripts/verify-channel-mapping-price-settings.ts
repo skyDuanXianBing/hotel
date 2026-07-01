@@ -30,6 +30,7 @@ interface MappingPriceRow {
   channelRoomId?: string
   channelRateId?: string
   listingId?: string
+  listingName?: string
   applicableNoOfGuest?: string
   occupancy?: string
   multiplier: string
@@ -39,7 +40,7 @@ interface MappingPriceRow {
 interface MappingWriteEvent {
   endpoint: MappingFailureEndpoint
   rowKey: string
-  outcome: 'success' | 'injected_failure' | 'not_found'
+  outcome: 'success' | 'injected_failure' | 'not_found' | 'duplicate_failure'
 }
 
 interface MappingStateSnapshot {
@@ -264,7 +265,7 @@ async function writeBookingRow(
   return response.data as Record<string, unknown>
 }
 
-async function writeAirbnbRow(
+async function mapAirbnbRow(
   row: MappingPriceRow,
   multiplier: string,
   surcharge: string,
@@ -275,6 +276,30 @@ async function writeAirbnbRow(
       hotelid: HOTEL_ID,
       channelhotelid: row.channelHotelId,
       listingid: row.listingId,
+      roomid: row.roomId,
+      rateid: row.rateId,
+      multiplier,
+      surcharge,
+      occupancy: row.occupancy,
+    },
+    { headers: AUTH_HEADERS },
+  )
+  assert.equal(response.status, 200)
+  return response.data as Record<string, unknown>
+}
+
+async function updateAirbnbRow(
+  row: MappingPriceRow,
+  multiplier: string,
+  surcharge: string,
+): Promise<Record<string, unknown>> {
+  const response = await http.post(
+    '/SUAPI/jservice/airbnb/listing/update',
+    {
+      hotelid: HOTEL_ID,
+      channelhotelid: row.channelHotelId,
+      listingid: row.listingId,
+      name: row.listingName || `${row.listingId} Listing`,
       roomid: row.roomId,
       rateid: row.rateId,
       multiplier,
@@ -332,6 +357,7 @@ async function assertLogsContainExpectedPaths(): Promise<void> {
   assert.equal(paths.has('/SUAPI/jservice/mappings'), true)
   assert.equal(paths.has('/SUAPI/jservice/OTA_RatePlanMap'), true)
   assert.equal(paths.has('/SUAPI/jservice/airbnb/listing/map'), true)
+  assert.equal(paths.has('/SUAPI/jservice/airbnb/listing/update'), true)
 }
 
 async function main(): Promise<void> {
@@ -380,20 +406,39 @@ async function main(): Promise<void> {
   assert.equal(bookingRetry.Status, 'Success')
   assertRowValue(await readState(), bookingFailureRow.rowKey, '1.5', '7')
 
-  const airbnbSuccess = await writeAirbnbRow(airbnbSuccessRow, '0.95', '2')
+  const duplicateMap = await mapAirbnbRow(airbnbSuccessRow, '0.95', '2')
+  assert.equal(duplicateMap.Status, 'Fail')
+  assert.deepEqual(duplicateMap.Errors, {
+    ShortText: 'Room and rateplan combination already mapped',
+  })
+  assertRowValue(await readState(), airbnbSuccessRow.rowKey, '1', '0')
+
+  const airbnbSuccess = await updateAirbnbRow(airbnbSuccessRow, '0.95', '2')
   assert.equal(airbnbSuccess.Status, 'Success')
   assertRowValue(await readState(), airbnbSuccessRow.rowKey, '0.95', '2')
 
-  await injectFailure(airbnbFailureRow, 'airbnb-listing-map')
-  const airbnbInjectedFailure = await writeAirbnbRow(airbnbFailureRow, '1.1', '3')
+  await injectFailure(airbnbFailureRow, 'airbnb-listing-update')
+  const airbnbInjectedFailure = await updateAirbnbRow(airbnbFailureRow, '1.1', '3')
   assert.equal(airbnbInjectedFailure.Status, 'Fail')
   assertRowValue(await readState(), airbnbFailureRow.rowKey, '1', '0')
 
-  const airbnbRetry = await writeAirbnbRow(airbnbFailureRow, '1.1', '3')
+  const airbnbRetry = await updateAirbnbRow(airbnbFailureRow, '1.1', '3')
   assert.equal(airbnbRetry.Status, 'Success')
   const finalSnapshot = await readState()
   assertRowValue(finalSnapshot, airbnbFailureRow.rowKey, '1.1', '3')
   assert.equal(finalSnapshot.data.failureRules.length, 0)
+  assert.equal(
+    finalSnapshot.data.writeHistory.some(
+      (event) => event.endpoint === 'airbnb-listing-map' && event.outcome === 'success',
+    ),
+    false,
+  )
+  assert.equal(
+    finalSnapshot.data.writeHistory.some(
+      (event) => event.endpoint === 'airbnb-listing-update' && event.outcome === 'success',
+    ),
+    true,
+  )
 
   await assertLogsContainExpectedPaths()
 

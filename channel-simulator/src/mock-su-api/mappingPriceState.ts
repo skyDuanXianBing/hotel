@@ -17,7 +17,10 @@ export const LOCAL_AIRBNB_RATE_PLAN_ID = 'LOCAL-244-STD'
 const DEFAULT_SCENARIO = 'default-multi'
 const MAX_WRITE_HISTORY = 200
 
-export type MappingFailureEndpoint = 'booking-rate-plan-map' | 'airbnb-listing-map'
+export type MappingFailureEndpoint =
+  | 'booking-rate-plan-map'
+  | 'airbnb-listing-map'
+  | 'airbnb-listing-update'
 
 export interface MappingPriceRow {
   rowKey: string
@@ -30,6 +33,7 @@ export interface MappingPriceRow {
   channelRoomId?: string
   channelRateId?: string
   listingId?: string
+  listingName?: string
   applicableNoOfGuest?: string
   occupancy?: string
   multiplier: string
@@ -61,7 +65,7 @@ export interface MappingWriteEvent {
   channelId: string
   multiplier: string
   surcharge: string
-  outcome: 'success' | 'injected_failure' | 'not_found'
+  outcome: 'success' | 'injected_failure' | 'not_found' | 'duplicate_failure'
 }
 
 interface MappingChannelState {
@@ -98,6 +102,10 @@ export interface AirbnbListingMapWriteBody {
   multiplier?: string | number
   surcharge?: string | number
   occupancy?: string | number
+}
+
+export interface AirbnbListingUpdateWriteBody extends AirbnbListingMapWriteBody {
+  name?: string | number
 }
 
 export interface MappingWriteResult {
@@ -225,10 +233,12 @@ function createAirbnbRow(input: {
   hotelId: string
   channelHotelId: string
   listingId?: string
+  listingName?: string
   occupancy?: string
   multiplier?: string
   surcharge?: string
 }): MappingPriceRow {
+  const listingName = input.listingName || `${input.listingId || 'Local Airbnb'} Listing`
   const row = {
     hotelId: input.hotelId,
     channelId: AIRBNB_CHANNEL_ID,
@@ -239,6 +249,7 @@ function createAirbnbRow(input: {
     channelRoomId: input.listingId,
     channelRateId: LOCAL_AIRBNB_RATE_PLAN_ID,
     listingId: input.listingId,
+    listingName,
     occupancy: input.occupancy,
     multiplier: input.multiplier || '1',
     surcharge: input.surcharge || '0',
@@ -384,7 +395,7 @@ function findRowByKey(endpoint: MappingFailureEndpoint, rowKey: string): Mapping
     }
 
     if (
-      endpoint === 'airbnb-listing-map' &&
+      (endpoint === 'airbnb-listing-map' || endpoint === 'airbnb-listing-update') &&
       state.channelId !== AIRBNB_CHANNEL_ID
     ) {
       continue
@@ -433,7 +444,7 @@ function inferEndpointFromRowKey(rowKey: string): MappingFailureEndpoint | null 
   }
 
   if (rowKey.startsWith('airbnb:')) {
-    return 'airbnb-listing-map'
+    return 'airbnb-listing-update'
   }
 
   return null
@@ -842,11 +853,125 @@ export function updateAirbnbListingMap(body: AirbnbListingMapWriteBody): Mapping
     }
   }
 
-  const failureRule = consumeFailureRule('airbnb-listing-map', rowKey)
+  addWriteEvent({
+    timestamp: new Date().toISOString(),
+    endpoint: 'airbnb-listing-map',
+    rowKey,
+    hotelId,
+    channelId: AIRBNB_CHANNEL_ID,
+    multiplier: multiplier || '',
+    surcharge: surcharge || '',
+    outcome: 'duplicate_failure',
+  })
+
+  return {
+    statusCode: 200,
+    body: {
+      Status: 'Fail',
+      Errors: {
+        ShortText: 'Room and rateplan combination already mapped',
+      },
+      RowKey: rowKey,
+    },
+  }
+}
+
+export function retrieveAirbnbListing(body: AirbnbListingMapWriteBody): MappingWriteResult {
+  const hotelId = normalizeText(body.hotelid) || DEFAULT_HOTEL_ID
+  const listingId = normalizeText(body.listingid)
+  ensureState(hotelId, AIRBNB_CHANNEL_ID)
+
+  let listingRow: MappingPriceRow | null = null
+  for (const row of getRowsForState(hotelId, AIRBNB_CHANNEL_ID)) {
+    if (row.listingId === listingId) {
+      listingRow = row
+      break
+    }
+  }
+
+  if (!listingRow) {
+    return {
+      statusCode: 200,
+      body: {
+        Status: 'Fail',
+        Errors: {
+          ShortText: 'Airbnb listing not found',
+        },
+      },
+    }
+  }
+
+  return {
+    statusCode: 200,
+    body: {
+      Status: 'Success',
+      Data: {
+        listing: {
+          hotelid: hotelId,
+          channelhotelid: listingRow.channelHotelId,
+          listingid: listingRow.listingId,
+          roomid: listingRow.roomId,
+          rateid: listingRow.rateId,
+          name: listingRow.listingName,
+          person_capacity: 2,
+          room_type_category: 'entire_home',
+        },
+      },
+    },
+  }
+}
+
+export function updateAirbnbListingUpdate(body: AirbnbListingUpdateWriteBody): MappingWriteResult {
+  const hotelId = normalizeText(body.hotelid) || DEFAULT_HOTEL_ID
+  const channelHotelId = normalizeText(body.channelhotelid)
+  const listingId = normalizeText(body.listingid)
+  const listingName = normalizeText(body.name)
+  const roomId = normalizeText(body.roomid)
+  const rateId = normalizeText(body.rateid)
+  const occupancy = normalizeText(body.occupancy)
+  const multiplier = normalizeText(body.multiplier)
+  const surcharge = normalizeText(body.surcharge)
+
+  const rowKey = buildAirbnbRowKey({
+    hotelId,
+    channelHotelId: channelHotelId || undefined,
+    listingId: listingId || undefined,
+    roomId: roomId || undefined,
+    rateId: rateId || undefined,
+    occupancy: occupancy || undefined,
+  })
+  ensureState(hotelId, AIRBNB_CHANNEL_ID)
+  const row = findRowByKey('airbnb-listing-update', rowKey)
+
+  if (!row) {
+    addWriteEvent({
+      timestamp: new Date().toISOString(),
+      endpoint: 'airbnb-listing-update',
+      rowKey,
+      hotelId,
+      channelId: AIRBNB_CHANNEL_ID,
+      multiplier: multiplier || '',
+      surcharge: surcharge || '',
+      outcome: 'not_found',
+    })
+
+    return {
+      statusCode: 200,
+      body: {
+        Status: 'Fail',
+        Errors: {
+          ShortText: 'Airbnb mapping row not found',
+        },
+        RowKey: rowKey,
+      },
+    }
+  }
+
+  const failureRule = consumeFailureRule('airbnb-listing-update', rowKey)
   if (failureRule) {
     addWriteEvent({
       timestamp: new Date().toISOString(),
-      endpoint: 'airbnb-listing-map',
+      endpoint: 'airbnb-listing-update',
       rowKey,
       hotelId,
       channelId: AIRBNB_CHANNEL_ID,
@@ -861,11 +986,12 @@ export function updateAirbnbListingMap(body: AirbnbListingMapWriteBody): Mapping
     }
   }
 
+  row.listingName = listingName || row.listingName
   row.multiplier = multiplier || '1'
   row.surcharge = surcharge || '0'
   addWriteEvent({
     timestamp: new Date().toISOString(),
-    endpoint: 'airbnb-listing-map',
+    endpoint: 'airbnb-listing-update',
     rowKey,
     hotelId,
     channelId: AIRBNB_CHANNEL_ID,
@@ -878,12 +1004,13 @@ export function updateAirbnbListingMap(body: AirbnbListingMapWriteBody): Mapping
     statusCode: 200,
     body: {
       Status: 'Success',
-      Message: 'Local Airbnb listing mapping updated',
+      Message: 'Local Airbnb listing updated',
       RowKey: rowKey,
       Data: {
         listing: {
           channelhotelid: body.channelhotelid,
           listingid: body.listingid,
+          name: row.listingName,
           roomid: body.roomid,
           rateid: body.rateid,
           multiplier: body.multiplier,

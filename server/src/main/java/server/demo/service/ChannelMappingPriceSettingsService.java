@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,8 @@ public class ChannelMappingPriceSettingsService {
     private static final BigDecimal DEFAULT_MULTIPLIER = BigDecimal.ONE;
     private static final BigDecimal DEFAULT_SURCHARGE = BigDecimal.ZERO;
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+    private static final String AIRBNB_LISTING_DETAILS_REQUIRED =
+            "Airbnb listing update requires listing details before multiplier can be changed";
 
     private final ChannelRepository channelRepository;
     private final OtaIntegrationRepository otaIntegrationRepository;
@@ -181,8 +184,27 @@ public class ChannelMappingPriceSettingsService {
         response.setBatchId(batchId);
 
         List<MappingPriceSettingRowDTO> resultRows = new ArrayList<>();
+        Map<String, PriceModifier> successfulModifiersByRowKey = new LinkedHashMap<>();
         for (MappingPriceSettingRowSaveRequestDTO rowRequest : rows) {
-            resultRows.add(saveOneRow(context, targetsByRowKey, rowRequest, operationId, batchId, retrying));
+            MappingPriceSettingRowDTO resultRow = saveOneRow(
+                    context,
+                    targetsByRowKey,
+                    successfulModifiersByRowKey,
+                    rowRequest,
+                    operationId,
+                    batchId,
+                    retrying
+            );
+            resultRows.add(resultRow);
+            if (ChannelMappingPriceSyncStatus.SUCCESS.name().equals(resultRow.getSyncStatus())) {
+                String syncedRowKey = normalizeText(resultRow.getRowKey());
+                if (syncedRowKey != null) {
+                    successfulModifiersByRowKey.put(
+                            syncedRowKey,
+                            new PriceModifier(resultRow.getMultiplier(), resultRow.getSurcharge())
+                    );
+                }
+            }
         }
 
         response.setRows(resultRows);
@@ -194,6 +216,7 @@ public class ChannelMappingPriceSettingsService {
     private MappingPriceSettingRowDTO saveOneRow(
             ResolvedContext context,
             Map<String, MappingTarget> targetsByRowKey,
+            Map<String, PriceModifier> preservedModifiersByRowKey,
             MappingPriceSettingRowSaveRequestDTO rowRequest,
             String operationId,
             String batchId,
@@ -250,7 +273,7 @@ public class ChannelMappingPriceSettingsService {
 
         PriceModifier modifier = new PriceModifier(multiplier, surcharge);
         try {
-            JsonNode suResponse = postMappingUpdate(context, target, modifier);
+            JsonNode suResponse = postMappingUpdate(context, target, modifier, preservedModifiersByRowKey);
             if (suApiClient.isSuSuccess(suResponse)) {
                 markSuccess(setting);
             } else {
@@ -347,7 +370,19 @@ public class ChannelMappingPriceSettingsService {
             JsonNode ratePlans = mappingNode.get("Rateplans");
 
             if (ratePlans == null || !ratePlans.isArray() || ratePlans.size() == 0) {
-                MappingTarget target = buildTarget(context, mappingIndex, 0, 0, mappingNode, null, null, channelHotelId, mappingStatus, first(roomIds));
+                MappingTarget target = buildTarget(
+                        context,
+                        mappingIndex,
+                        0,
+                        0,
+                        mappingNode,
+                        null,
+                        null,
+                        List.of(),
+                        channelHotelId,
+                        mappingStatus,
+                        first(roomIds)
+                );
                 targets.add(target);
                 mappingIndex++;
                 continue;
@@ -370,6 +405,7 @@ public class ChannelMappingPriceSettingsService {
                             mappingNode,
                             ratePlanNode,
                             pricingNode,
+                            pricingNodes,
                             channelHotelId,
                             mappingStatus,
                             first(roomIds)
@@ -393,6 +429,7 @@ public class ChannelMappingPriceSettingsService {
             JsonNode mappingNode,
             JsonNode ratePlanNode,
             JsonNode pricingNode,
+            List<JsonNode> pricingNodes,
             String channelHotelId,
             String mappingStatus,
             String fallbackRoomId
@@ -438,6 +475,20 @@ public class ChannelMappingPriceSettingsService {
         String targetStatus = firstNonBlank(readText(ratePlanNode, "MappingStatus", "mappingStatus"), mappingStatus);
         BigDecimal currentMultiplier = readBigDecimal(pricingNode, "Multiplier", "multiplier");
         BigDecimal currentSurcharge = readBigDecimal(pricingNode, "Surcharge", "surcharge");
+        List<BookingPricingTarget> bookingPricingTargets = List.of();
+        Map<String, Object> bookingRatePlanFields = Map.of();
+        if (!CHANNEL_CODE_AIRBNB.equals(context.channelCode())) {
+            bookingPricingTargets = buildBookingPricingTargets(
+                    context,
+                    pricingNodes,
+                    channelHotelId,
+                    roomId,
+                    rateId,
+                    channelRoomId,
+                    channelRateId
+            );
+            bookingRatePlanFields = buildBookingRatePlanFields(ratePlanNode);
+        }
         String mappingKey = buildMappingKey(
                 context,
                 channelHotelId,
@@ -468,6 +519,8 @@ public class ChannelMappingPriceSettingsService {
                 targetStatus,
                 currentMultiplier,
                 currentSurcharge,
+                bookingPricingTargets,
+                bookingRatePlanFields,
                 buildDisplayName(context.channelCode(), roomId, rateId, channelRoomId, channelRateId, listingId, applicableGuest, occupancy),
                 mappingIndex,
                 ratePlanIndex,
@@ -478,17 +531,32 @@ public class ChannelMappingPriceSettingsService {
     private JsonNode postMappingUpdate(
             ResolvedContext context,
             MappingTarget target,
-            PriceModifier modifier
+            PriceModifier modifier,
+            Map<String, PriceModifier> preservedModifiersByRowKey
     ) {
         if (CHANNEL_CODE_AIRBNB.equals(context.channelCode())) {
-            Map<String, Object> payload = buildAirbnbListingMapPayload(context.hotelId(), target, modifier);
             return suAccessTokenService.executeWithTokenRetry(
-                    token -> suApiClient.postAirbnbListingMap(token, payload),
-                    "airbnb/listing/map"
+                    token -> {
+                        Map<String, Object> retrievePayload = buildAirbnbListingRetrievePayload(context.hotelId(), target);
+                        JsonNode listingResponse = suApiClient.retrieveAirbnbListing(token, retrievePayload);
+                        Map<String, Object> updatePayload = buildAirbnbListingUpdatePayload(
+                                context.hotelId(),
+                                target,
+                                modifier,
+                                listingResponse
+                        );
+                        return suApiClient.postAirbnbListingUpdate(token, updatePayload);
+                    },
+                    "airbnb/listing/update"
             );
         }
 
-        Map<String, Object> payload = buildBookingRatePlanMapPayload(context.hotelId(), target, modifier);
+        Map<String, Object> payload = buildBookingRatePlanMapPayload(
+                context.hotelId(),
+                target,
+                modifier,
+                preservedModifiersByRowKey
+        );
         return suAccessTokenService.executeWithTokenRetry(
                 token -> suApiClient.postBookingRatePlanMap(token, payload),
                 "OTA_RatePlanMap"
@@ -498,13 +566,9 @@ public class ChannelMappingPriceSettingsService {
     private Map<String, Object> buildBookingRatePlanMapPayload(
             String hotelId,
             MappingTarget target,
-            PriceModifier modifier
+            PriceModifier modifier,
+            Map<String, PriceModifier> preservedModifiersByRowKey
     ) {
-        Map<String, Object> pricing = new LinkedHashMap<>();
-        pricing.put("applicablenoofguest", parseIntegerOrText(target.applicableNoOfGuest()));
-        pricing.put("multiplier", modifier.multiplier());
-        pricing.put("surcharge", modifier.surcharge());
-
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("hotelid", hotelId);
         payload.put("action", "setup");
@@ -515,25 +579,249 @@ public class ChannelMappingPriceSettingsService {
         payload.put("rateid", target.rateId());
         payload.put("channelroomid", target.channelRoomId());
         payload.put("channelrateid", target.channelRateId());
-        payload.put("pricing", List.of(pricing));
+        for (Map.Entry<String, Object> entry : target.bookingRatePlanFields().entrySet()) {
+            payload.put(entry.getKey(), entry.getValue());
+        }
+        payload.putIfAbsent("derivedrateids", List.of());
+        payload.put("pricing", buildBookingPricingPayload(target, modifier, preservedModifiersByRowKey));
         return payload;
     }
 
-    private Map<String, Object> buildAirbnbListingMapPayload(
-            String hotelId,
+    private List<Map<String, Object>> buildBookingPricingPayload(
             MappingTarget target,
-            PriceModifier modifier
+            PriceModifier modifier,
+            Map<String, PriceModifier> preservedModifiersByRowKey
+    ) {
+        List<Map<String, Object>> pricingPayload = new ArrayList<>();
+        boolean includedTargetGuest = false;
+        for (BookingPricingTarget pricingTarget : target.bookingPricingTargets()) {
+            if (pricingTarget == null || isBlank(pricingTarget.applicableNoOfGuest())) {
+                continue;
+            }
+            PriceModifier effectiveModifier = preservedModifiersByRowKey.get(pricingTarget.rowKey());
+            if (effectiveModifier == null && pricingTarget.applicableNoOfGuest().equals(target.applicableNoOfGuest())) {
+                effectiveModifier = modifier;
+            }
+            if (effectiveModifier == null) {
+                effectiveModifier = new PriceModifier(
+                        valueOrDefault(pricingTarget.multiplier(), DEFAULT_MULTIPLIER),
+                        valueOrDefault(pricingTarget.surcharge(), DEFAULT_SURCHARGE)
+                );
+            }
+
+            Map<String, Object> pricing = new LinkedHashMap<>();
+            pricing.put("applicablenoofguest", parseIntegerOrText(pricingTarget.applicableNoOfGuest()));
+            pricing.put("multiplier", effectiveModifier.multiplier());
+            pricing.put("surcharge", effectiveModifier.surcharge());
+            pricingPayload.add(pricing);
+            if (pricingTarget.applicableNoOfGuest().equals(target.applicableNoOfGuest())) {
+                includedTargetGuest = true;
+            }
+        }
+
+        if (!includedTargetGuest) {
+            Map<String, Object> pricing = new LinkedHashMap<>();
+            pricing.put("applicablenoofguest", parseIntegerOrText(target.applicableNoOfGuest()));
+            pricing.put("multiplier", modifier.multiplier());
+            pricing.put("surcharge", modifier.surcharge());
+            pricingPayload.add(pricing);
+        }
+
+        return pricingPayload;
+    }
+
+    private Map<String, Object> buildAirbnbListingRetrievePayload(
+            String hotelId,
+            MappingTarget target
     ) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("hotelid", hotelId);
         payload.put("channelhotelid", target.channelHotelId());
         payload.put("listingid", target.listingId());
+        return payload;
+    }
+
+    private Map<String, Object> buildAirbnbListingUpdatePayload(
+            String hotelId,
+            MappingTarget target,
+            PriceModifier modifier,
+            JsonNode listingResponse
+    ) {
+        JsonNode listingDetails = extractAirbnbListingDetails(listingResponse);
+        if (listingDetails == null || !listingDetails.isObject()) {
+            String errorMessage = suApiClient.extractSuErrorMessage(listingResponse);
+            if (isBlank(errorMessage)) {
+                errorMessage = "listing details not found";
+            }
+            throw new IllegalStateException(AIRBNB_LISTING_DETAILS_REQUIRED + ": " + errorMessage);
+        }
+
+        String listingName = readText(listingDetails, "name", "Name", "listing_name", "listingName");
+        if (isBlank(listingName)) {
+            throw new IllegalStateException(AIRBNB_LISTING_DETAILS_REQUIRED + ": missing name");
+        }
+
+        Map<String, Object> payload = jsonObjectToMap(listingDetails);
+        payload.put("hotelid", hotelId);
+        payload.put("channelhotelid", target.channelHotelId());
+        payload.put("listingid", target.listingId());
         payload.put("roomid", target.roomId());
         payload.put("rateid", target.rateId());
+        payload.put("name", listingName);
         payload.put("multiplier", modifier.multiplier());
         payload.put("surcharge", modifier.surcharge());
         payload.put("occupancy", parseIntegerOrText(target.occupancy()));
         return payload;
+    }
+
+    private List<BookingPricingTarget> buildBookingPricingTargets(
+            ResolvedContext context,
+            List<JsonNode> pricingNodes,
+            String channelHotelId,
+            String roomId,
+            String rateId,
+            String channelRoomId,
+            String channelRateId
+    ) {
+        List<BookingPricingTarget> result = new ArrayList<>();
+        for (JsonNode pricingNode : pricingNodes) {
+            String applicableGuest = readText(pricingNode, "ApplicableNoOfGuest", "applicablenoofguest");
+            String mappingKey = buildMappingKey(
+                    context,
+                    channelHotelId,
+                    roomId,
+                    rateId,
+                    channelRoomId,
+                    channelRateId,
+                    null,
+                    applicableGuest,
+                    null
+            );
+            result.add(new BookingPricingTarget(
+                    encodeRowKey(mappingKey),
+                    applicableGuest,
+                    readBigDecimal(pricingNode, "Multiplier", "multiplier"),
+                    readBigDecimal(pricingNode, "Surcharge", "surcharge")
+            ));
+        }
+        return result;
+    }
+
+    private Map<String, Object> buildBookingRatePlanFields(JsonNode ratePlanNode) {
+        Map<String, Object> fields = new LinkedHashMap<>();
+        Object derivedRateIds = readRawValue(ratePlanNode, "DerivedRateIDs", "DerivedRateIds", "derivedrateids");
+        fields.put("derivedrateids", derivedRateIds != null ? derivedRateIds : List.of());
+        copyRawField(fields, ratePlanNode, "disablerates", "DisableRates", "disablerates");
+        copyRawField(fields, ratePlanNode, "disableavailablity", "DisableAvailablity", "disableavailablity");
+        copyRawField(fields, ratePlanNode, "advance_purchase_days", "AdvancePurchaseDays", "advance_purchase_days");
+        copyRawField(fields, ratePlanNode, "fixedminstay", "FixedMinStay", "fixedminstay");
+        return fields;
+    }
+
+    private JsonNode extractAirbnbListingDetails(JsonNode response) {
+        JsonNode dataNode = firstExistingNode(response, "Data", "data");
+        JsonNode listingNode = firstExistingNode(dataNode, "listing", "Listing");
+        if (listingNode != null && listingNode.isObject()) {
+            return listingNode;
+        }
+        JsonNode listingsNode = firstExistingNode(dataNode, "listings", "Listings");
+        JsonNode firstListing = firstArrayObject(listingsNode);
+        if (firstListing != null) {
+            return firstListing;
+        }
+        if (dataNode != null && dataNode.isObject() && readText(dataNode, "name", "Name") != null) {
+            return dataNode;
+        }
+        listingNode = firstExistingNode(response, "listing", "Listing");
+        if (listingNode != null && listingNode.isObject()) {
+            return listingNode;
+        }
+        listingsNode = firstExistingNode(response, "listings", "Listings");
+        return firstArrayObject(listingsNode);
+    }
+
+    private static JsonNode firstExistingNode(JsonNode node, String... fields) {
+        if (node == null || node.isNull() || fields == null) {
+            return null;
+        }
+        for (String field : fields) {
+            if (isBlank(field)) {
+                continue;
+            }
+            JsonNode value = node.get(field);
+            if (value != null && !value.isNull()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static JsonNode firstArrayObject(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return null;
+        }
+        for (JsonNode item : node) {
+            if (item != null && item.isObject()) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    private static Map<String, Object> jsonObjectToMap(JsonNode node) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (node == null || !node.isObject()) {
+            return result;
+        }
+        Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> field = fields.next();
+            result.put(field.getKey(), jsonToPlainValue(field.getValue()));
+        }
+        return result;
+    }
+
+    private static Object readRawValue(JsonNode node, String... fields) {
+        JsonNode value = firstExistingNode(node, fields);
+        if (value == null) {
+            return null;
+        }
+        return jsonToPlainValue(value);
+    }
+
+    private static void copyRawField(
+            Map<String, Object> target,
+            JsonNode source,
+            String payloadField,
+            String... sourceFields
+    ) {
+        Object value = readRawValue(source, sourceFields);
+        if (value != null) {
+            target.put(payloadField, value);
+        }
+    }
+
+    private static Object jsonToPlainValue(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isObject()) {
+            return jsonObjectToMap(node);
+        }
+        if (node.isArray()) {
+            List<Object> values = new ArrayList<>();
+            for (JsonNode item : node) {
+                values.add(jsonToPlainValue(item));
+            }
+            return values;
+        }
+        if (node.isNumber()) {
+            return node.numberValue();
+        }
+        if (node.isBoolean()) {
+            return node.booleanValue();
+        }
+        return node.asText();
     }
 
     private List<ChannelMappingPriceSetting> loadRetrySettings(
@@ -785,6 +1073,27 @@ public class ChannelMappingPriceSettingsService {
         }
         if (isBlank(target.channelRateId())) {
             return "Booking 映射缺少 channelrateid，未同步该条映射";
+        }
+        String pricingError = validateBookingPricingTargets(target);
+        if (pricingError != null) {
+            return pricingError;
+        }
+        return null;
+    }
+
+    private String validateBookingPricingTargets(MappingTarget target) {
+        List<BookingPricingTarget> pricingTargets = target.bookingPricingTargets();
+        if (pricingTargets == null || pricingTargets.isEmpty()) {
+            return "Booking 映射缺少 pricing，未同步该条映射";
+        }
+        for (BookingPricingTarget pricingTarget : pricingTargets) {
+            if (pricingTarget == null || isBlank(pricingTarget.applicableNoOfGuest())) {
+                return "Booking 映射缺少 applicablenoofguest，未同步该条映射";
+            }
+            boolean currentGuest = pricingTarget.applicableNoOfGuest().equals(target.applicableNoOfGuest());
+            if (!currentGuest && (pricingTarget.multiplier() == null || pricingTarget.surcharge() == null)) {
+                return "Booking 映射缺少其它 applicable guest 的现有价格设置，未同步该条映射";
+            }
         }
         return null;
     }
@@ -1081,6 +1390,13 @@ public class ChannelMappingPriceSettingsService {
 
     private record PriceModifier(BigDecimal multiplier, BigDecimal surcharge) {}
 
+    private record BookingPricingTarget(
+            String rowKey,
+            String applicableNoOfGuest,
+            BigDecimal multiplier,
+            BigDecimal surcharge
+    ) {}
+
     private record MappingTarget(
             String rowKey,
             String mappingKey,
@@ -1098,6 +1414,8 @@ public class ChannelMappingPriceSettingsService {
             String status,
             BigDecimal currentMultiplier,
             BigDecimal currentSurcharge,
+            List<BookingPricingTarget> bookingPricingTargets,
+            Map<String, Object> bookingRatePlanFields,
             String displayName,
             int mappingIndex,
             int ratePlanIndex,

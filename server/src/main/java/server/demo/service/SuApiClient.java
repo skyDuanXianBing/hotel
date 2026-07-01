@@ -480,6 +480,24 @@ public class SuApiClient {
         return postSuJsonWithAuthRetry(url, accessToken, payload, "airbnb/listing/map");
     }
 
+    /**
+     * Airbnb listing retrieve.
+     * Endpoint: POST /SUAPI/jservice/airbnb/listing/retrieve
+     */
+    public JsonNode retrieveAirbnbListing(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/airbnb/listing/retrieve";
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "airbnb/listing/retrieve");
+    }
+
+    /**
+     * Airbnb existing listing update.
+     * Endpoint: POST /SUAPI/jservice/airbnb/listing/update
+     */
+    public JsonNode postAirbnbListingUpdate(String accessToken, Object payload) {
+        String url = suApiConfig.getBaseUrl() + "/SUAPI/jservice/airbnb/listing/update";
+        return postSuJsonWithAuthRetry(url, accessToken, payload, "airbnb/listing/update");
+    }
+
     private JsonNode postSuJsonWithAuthRetry(String url, String accessToken, Object payload, String actionName) {
         if (accessToken == null || accessToken.isBlank()) {
             throw new IllegalArgumentException("accessToken 不能为空");

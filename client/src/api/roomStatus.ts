@@ -1,6 +1,6 @@
 import { request } from '@/utils/request'
 
-const ROOM_STATUS_CALENDAR_TIMEOUT_MS = 30000
+const ROOM_STATUS_CALENDAR_TIMEOUT_MS = 60_000
 
 // 房态日历相关数据结构
 export interface DailyRoomStatusDTO {
