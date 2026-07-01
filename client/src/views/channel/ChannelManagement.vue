@@ -429,13 +429,13 @@ const confirmLeaveMappingPriceDrawer = async (): Promise<boolean> => {
   }
 
   const message = mappingPriceDrawerSaving.value
-    ? '映射级价格设置仍在保存，离开后可能无法看到最新结果。确定离开吗？'
-    : '映射级价格设置存在未保存草稿，离开后这些草稿会丢失。确定离开吗？'
+    ? t('channel.mappingPriceSettings.leave.savingMessage')
+    : t('channel.mappingPriceSettings.leave.dirtyMessage')
 
   try {
-    await ElMessageBox.confirm(message, '离开价格设置', {
-      confirmButtonText: '离开',
-      cancelButtonText: '继续编辑',
+    await ElMessageBox.confirm(message, t('channel.mappingPriceSettings.leave.title'), {
+      confirmButtonText: t('channel.mappingPriceSettings.leave.confirm'),
+      cancelButtonText: t('channel.mappingPriceSettings.leave.cancel'),
       type: 'warning',
     })
     return true

@@ -112,6 +112,20 @@ interface AirbnbListingMapBody extends SuMappingRequestBody {
   name?: string | number
 }
 
+const AIRBNB_LISTING_UPDATE_ALLOWED_FIELDS = new Set([
+  'hotelid',
+  'channelhotelid',
+  'listingid',
+  'roomid',
+  'rateid',
+  'name',
+  'multiplier',
+  'surcharge',
+  'occupancy',
+  'check_in_option',
+])
+const AIRBNB_LISTING_NAME_MAX_CODE_POINTS = 50
+
 function normalizeText(value: unknown): string | null {
   if (typeof value !== 'string' && typeof value !== 'number') {
     return null
@@ -123,6 +137,52 @@ function normalizeText(value: unknown): string | null {
   }
 
   return text
+}
+
+function countCodePoints(value: string): number {
+  return [...value].length
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function buildUnableToProcessJsonResponse(message = 'Unable to process JSON') {
+  return {
+    Status: 'Fail',
+    Message: message,
+    Errors: {
+      ShortText: message,
+    },
+  }
+}
+
+function validateAirbnbListingUpdateBody(body: AirbnbListingMapBody): string | null {
+  const bodyRecord = body as Record<string, unknown>
+  for (const key of Object.keys(bodyRecord)) {
+    if (!AIRBNB_LISTING_UPDATE_ALLOWED_FIELDS.has(key)) {
+      return 'Unable to process JSON'
+    }
+  }
+
+  const listingName = normalizeText(body.name)
+  if (listingName && countCodePoints(listingName) > AIRBNB_LISTING_NAME_MAX_CODE_POINTS) {
+    return 'Airbnb listing name exceeds Su limit of 50 characters'
+  }
+
+  if (bodyRecord.check_in_option !== undefined) {
+    const checkInOption = bodyRecord.check_in_option
+    if (!isRecord(checkInOption)) {
+      return 'check_in_option.category and check_in_option.instruction are required'
+    }
+    const category = normalizeText(checkInOption.category)
+    const instruction = normalizeText(checkInOption.instruction)
+    if (!category || !instruction) {
+      return 'check_in_option.category and check_in_option.instruction are required'
+    }
+  }
+
+  return null
 }
 
 function buildChannelCard(channelId: string, status: boolean) {
@@ -567,6 +627,13 @@ router.post('/SUAPI/jservice/airbnb/listing/update', tokenValidator, (req: Reque
         ShortText: `${missingField} is required`,
       },
     })
+    return
+  }
+
+  const updateBodyError = validateAirbnbListingUpdateBody(body)
+  if (updateBodyError) {
+    const statusCode = updateBodyError === 'Unable to process JSON' ? 400 : 200
+    res.status(statusCode).json(buildUnableToProcessJsonResponse(updateBodyError))
     return
   }
 

@@ -114,6 +114,31 @@ public class ChannelMappingPriceSetting implements StoreScopedEntity {
     @Column(name = "last_batch_id", length = 64)
     private String lastBatchId;
 
+    @Column(name = "last_su_action", length = 100)
+    private String lastSuAction;
+
+    @Column(name = "last_su_http_status")
+    private Integer lastSuHttpStatus;
+
+    @Column(name = "last_su_response_status", length = 100)
+    private String lastSuResponseStatus;
+
+    @Lob
+    @Column(name = "last_su_response_message", columnDefinition = "TEXT")
+    private String lastSuResponseMessage;
+
+    @Lob
+    @Column(name = "last_su_response_errors", columnDefinition = "TEXT")
+    private String lastSuResponseErrors;
+
+    @Lob
+    @Column(name = "last_su_payload_summary", columnDefinition = "TEXT")
+    private String lastSuPayloadSummary;
+
+    @Lob
+    @Column(name = "last_su_response_summary", columnDefinition = "TEXT")
+    private String lastSuResponseSummary;
+
     @Column(name = "last_attempted_at")
     private LocalDateTime lastAttemptedAt;
 
@@ -353,6 +378,62 @@ public class ChannelMappingPriceSetting implements StoreScopedEntity {
 
     public void setLastBatchId(String lastBatchId) {
         this.lastBatchId = lastBatchId;
+    }
+
+    public String getLastSuAction() {
+        return lastSuAction;
+    }
+
+    public void setLastSuAction(String lastSuAction) {
+        this.lastSuAction = lastSuAction;
+    }
+
+    public Integer getLastSuHttpStatus() {
+        return lastSuHttpStatus;
+    }
+
+    public void setLastSuHttpStatus(Integer lastSuHttpStatus) {
+        this.lastSuHttpStatus = lastSuHttpStatus;
+    }
+
+    public String getLastSuResponseStatus() {
+        return lastSuResponseStatus;
+    }
+
+    public void setLastSuResponseStatus(String lastSuResponseStatus) {
+        this.lastSuResponseStatus = lastSuResponseStatus;
+    }
+
+    public String getLastSuResponseMessage() {
+        return lastSuResponseMessage;
+    }
+
+    public void setLastSuResponseMessage(String lastSuResponseMessage) {
+        this.lastSuResponseMessage = lastSuResponseMessage;
+    }
+
+    public String getLastSuResponseErrors() {
+        return lastSuResponseErrors;
+    }
+
+    public void setLastSuResponseErrors(String lastSuResponseErrors) {
+        this.lastSuResponseErrors = lastSuResponseErrors;
+    }
+
+    public String getLastSuPayloadSummary() {
+        return lastSuPayloadSummary;
+    }
+
+    public void setLastSuPayloadSummary(String lastSuPayloadSummary) {
+        this.lastSuPayloadSummary = lastSuPayloadSummary;
+    }
+
+    public String getLastSuResponseSummary() {
+        return lastSuResponseSummary;
+    }
+
+    public void setLastSuResponseSummary(String lastSuResponseSummary) {
+        this.lastSuResponseSummary = lastSuResponseSummary;
     }
 
     public LocalDateTime getLastAttemptedAt() {

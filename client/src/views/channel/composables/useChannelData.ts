@@ -316,7 +316,7 @@ export function useChannelData() {
         showPriceRatioSyncMessage(saved?.suMappingSync)
         return true
       } else {
-        ElMessage.error(response.message || t('channel.priceRatio.updateFailed'))
+        ElMessage.error(t('channel.priceRatio.updateFailed'))
         return false
       }
     } catch (error) {
@@ -327,22 +327,32 @@ export function useChannelData() {
   }
 
   const showPriceRatioSyncMessage = (syncSummary: ChannelPriceAdjustmentDTO['suMappingSync']) => {
-    if (!syncSummary || syncSummary.status === 'SKIPPED') {
+    if (!syncSummary) {
       ElMessage.success(t('channel.priceRatio.updated'))
       return
     }
 
+    if (syncSummary.status === 'SKIPPED') {
+      ElMessage.success(t('channel.priceRatio.syncMessages.skipped'))
+      return
+    }
+
     if (syncSummary.status === 'SUCCESS') {
-      ElMessage.success(syncSummary.message || '价格比例已保存，Su 映射倍率已同步')
+      ElMessage.success(t('channel.priceRatio.syncMessages.success'))
       return
     }
 
     if (syncSummary.status === 'PARTIAL') {
-      ElMessage.warning(syncSummary.message || '价格比例已保存，部分 Su 映射倍率同步失败')
+      ElMessage.warning(t('channel.priceRatio.syncMessages.partial'))
       return
     }
 
-    ElMessage.warning(syncSummary.message || '价格比例已保存，但 Su 映射倍率同步失败')
+    if (syncSummary.status === 'PENDING') {
+      ElMessage.warning(t('channel.priceRatio.syncMessages.pending'))
+      return
+    }
+
+    ElMessage.warning(t('channel.priceRatio.syncMessages.failed'))
   }
 
   // ──────────── 工具函数 ────────────

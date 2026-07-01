@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Close, Refresh, RefreshRight, Setting } from '@element-plus/icons-vue'
 import {
@@ -41,6 +42,8 @@ const NUMBER_STEP = 0.01
 const NUMBER_PRECISION = 4
 const OPERATION_PREFIX = 'mapping-price'
 
+const { t, locale } = useI18n()
+
 const loading = ref(false)
 const savingAll = ref(false)
 const retryingFailed = ref(false)
@@ -60,7 +63,7 @@ const channelTitle = computed(() => {
   if (props.channel?.channel) {
     return props.channel.channel
   }
-  return '渠道'
+  return t('channel.mappingPriceSettings.fallbackChannel')
 })
 
 const totalCount = computed(() => rows.value.length)
@@ -220,7 +223,7 @@ async function loadRows() {
   try {
     const response = await getMappingPriceSettings(props.channel.channelId)
     if (!response.success || !response.data) {
-      drawerError.value = response.message || '加载映射级价格设置失败'
+      drawerError.value = t('channel.mappingPriceSettings.messages.loadFailed')
       rows.value = []
       return
     }
@@ -229,7 +232,7 @@ async function loadRows() {
     rows.value = response.data.rows.map(createDraftRow)
   } catch (error) {
     console.error('加载映射级价格设置失败:', error)
-    drawerError.value = '加载映射级价格设置失败，请稍后重试'
+    drawerError.value = t('channel.mappingPriceSettings.messages.loadFailedRetry')
     rows.value = []
   } finally {
     loading.value = false
@@ -264,32 +267,32 @@ function handleResetRowDraft(row: MappingPriceDraftRow) {
 
 function handleApplyBatch() {
   if (!props.canSave) {
-    ElMessage.warning('当前账号没有修改渠道价格比例的权限')
+    ElMessage.warning(t('channel.mappingPriceSettings.messages.noPermission'))
     return
   }
 
   if (batchField.value === BATCH_MULTIPLIER) {
     if (batchMultiplier.value === null) {
-      ElMessage.warning('请先填写要批量应用的倍率')
+      ElMessage.warning(t('channel.mappingPriceSettings.messages.batchMultiplierRequired'))
       return
     }
     for (const row of rows.value) {
       row.draftMultiplier = batchMultiplier.value
       refreshRowDirtyState(row)
     }
-    ElMessage.success('已将倍率应用到全部映射行，保存后生效')
+    ElMessage.success(t('channel.mappingPriceSettings.messages.batchMultiplierApplied'))
     return
   }
 
   if (batchSurcharge.value === null) {
-    ElMessage.warning('请先填写要批量应用的固定加价')
+    ElMessage.warning(t('channel.mappingPriceSettings.messages.batchSurchargeRequired'))
     return
   }
   for (const row of rows.value) {
     row.draftSurcharge = batchSurcharge.value
     refreshRowDirtyState(row)
   }
-  ElMessage.success('已将固定加价应用到全部映射行，保存后生效')
+  ElMessage.success(t('channel.mappingPriceSettings.messages.batchSurchargeApplied'))
 }
 
 function toSaveRow(row: MappingPriceDraftRow) {
@@ -332,14 +335,14 @@ function clearRowsSaving() {
 
 function showSaveResultMessage(result: MappingPriceSettingsSaveResponseDTO) {
   if (result.status === 'SUCCESS') {
-    ElMessage.success(result.message || '映射级价格设置已保存')
+    ElMessage.success(t('channel.mappingPriceSettings.messages.saveSuccess'))
     return
   }
   if (result.status === 'PARTIAL') {
-    ElMessage.warning(result.message || '部分映射行保存失败，请查看失败原因后重试')
+    ElMessage.warning(t('channel.mappingPriceSettings.messages.savePartial'))
     return
   }
-  ElMessage.error(result.message || '映射级价格设置保存失败')
+  ElMessage.error(t('channel.mappingPriceSettings.messages.saveFailed'))
 }
 
 async function handleSaveAll() {
@@ -347,7 +350,7 @@ async function handleSaveAll() {
     return
   }
   if (!props.canSave) {
-    ElMessage.warning('当前账号没有修改渠道价格比例的权限')
+    ElMessage.warning(t('channel.mappingPriceSettings.messages.noPermission'))
     return
   }
 
@@ -359,7 +362,7 @@ async function handleSaveAll() {
       rows: rows.value.map(toSaveRow),
     })
     if (!response.success || !response.data) {
-      ElMessage.error(response.message || '保存全部映射行失败')
+      ElMessage.error(t('channel.mappingPriceSettings.messages.saveAllFailed'))
       return
     }
 
@@ -368,7 +371,7 @@ async function handleSaveAll() {
     emit('saved')
   } catch (error) {
     console.error('保存全部映射行失败:', error)
-    ElMessage.error('保存全部映射行失败，请稍后重试')
+    ElMessage.error(t('channel.mappingPriceSettings.messages.saveAllFailedRetry'))
   } finally {
     savingAll.value = false
     clearRowsSaving()
@@ -388,7 +391,7 @@ async function handleSaveRow(row: MappingPriceDraftRow) {
       toSaveRow(row),
     )
     if (!response.success || !response.data) {
-      ElMessage.error(response.message || '保存本行失败')
+      ElMessage.error(t('channel.mappingPriceSettings.messages.saveRowFailed'))
       return
     }
 
@@ -397,7 +400,7 @@ async function handleSaveRow(row: MappingPriceDraftRow) {
     emit('saved')
   } catch (error) {
     console.error('保存本行映射价格失败:', error)
-    ElMessage.error('保存本行失败，请稍后重试')
+    ElMessage.error(t('channel.mappingPriceSettings.messages.saveRowFailedRetry'))
   } finally {
     row.saving = false
   }
@@ -415,7 +418,7 @@ async function handleRetryRow(row: MappingPriceDraftRow) {
       rowKeys: [row.rowKey],
     })
     if (!response.success || !response.data) {
-      ElMessage.error(response.message || '重试本行失败')
+      ElMessage.error(t('channel.mappingPriceSettings.messages.retryRowFailed'))
       return
     }
 
@@ -424,7 +427,7 @@ async function handleRetryRow(row: MappingPriceDraftRow) {
     emit('saved')
   } catch (error) {
     console.error('重试本行映射价格失败:', error)
-    ElMessage.error('重试本行失败，请稍后重试')
+    ElMessage.error(t('channel.mappingPriceSettings.messages.retryRowFailedRetry'))
   } finally {
     row.saving = false
   }
@@ -437,7 +440,7 @@ async function handleRetryFailed() {
 
   const retryRows = rows.value.filter(isRetryableRow)
   if (retryRows.length === 0) {
-    ElMessage.info('当前没有失败的映射行')
+    ElMessage.info(t('channel.mappingPriceSettings.messages.noFailedRows'))
     return
   }
 
@@ -450,7 +453,7 @@ async function handleRetryFailed() {
       rowKeys,
     })
     if (!response.success || !response.data) {
-      ElMessage.error(response.message || '重试失败映射行失败')
+      ElMessage.error(t('channel.mappingPriceSettings.messages.retryFailedRowsFailed'))
       return
     }
 
@@ -459,7 +462,7 @@ async function handleRetryFailed() {
     emit('saved')
   } catch (error) {
     console.error('重试失败映射行失败:', error)
-    ElMessage.error('重试失败映射行失败，请稍后重试')
+    ElMessage.error(t('channel.mappingPriceSettings.messages.retryFailedRowsFailedRetry'))
   } finally {
     retryingFailed.value = false
     setRowsSaving(retryRows, false)
@@ -472,24 +475,24 @@ function isRetryableRow(row: MappingPriceDraftRow): boolean {
 
 function formatStatus(row: MappingPriceDraftRow): string {
   if (row.saving) {
-    return '同步中'
+    return t('channel.mappingPriceSettings.statuses.syncing')
   }
   if (row.dirty) {
-    return '未保存'
+    return t('channel.mappingPriceSettings.statuses.unsaved')
   }
   if (row.syncStatus === 'SUCCESS') {
-    return '已同步'
+    return t('channel.mappingPriceSettings.statuses.success')
   }
   if (row.syncStatus === 'FAILED') {
-    return '同步失败'
+    return t('channel.mappingPriceSettings.statuses.failed')
   }
   if (row.syncStatus === 'STALE_MAPPING') {
-    return '映射已变化'
+    return t('channel.mappingPriceSettings.statuses.stale')
   }
   if (row.syncStatus === 'SYNCING') {
-    return '同步中'
+    return t('channel.mappingPriceSettings.statuses.syncing')
   }
-  return '未同步'
+  return t('channel.mappingPriceSettings.statuses.unsynced')
 }
 
 function resolveStatusType(row: MappingPriceDraftRow) {
@@ -514,10 +517,14 @@ function resolveStatusType(row: MappingPriceDraftRow) {
 function formatMappingDimension(row: MappingPriceDraftRow): string {
   const parts: string[] = []
   if (row.occupancy) {
-    parts.push(`入住人数 ${row.occupancy}`)
+    parts.push(t('channel.mappingPriceSettings.dimension.occupancy', { value: row.occupancy }))
   }
   if (row.applicableNoOfGuest) {
-    parts.push(`适用住客 ${row.applicableNoOfGuest}`)
+    parts.push(
+      t('channel.mappingPriceSettings.dimension.applicableGuest', {
+        value: row.applicableNoOfGuest,
+      }),
+    )
   }
   if (parts.length === 0) {
     return '-'
@@ -528,10 +535,10 @@ function formatMappingDimension(row: MappingPriceDraftRow): string {
 function formatLocalInfo(row: MappingPriceDraftRow): string {
   const parts: string[] = []
   if (row.localRoomId) {
-    parts.push(`房型 ${row.localRoomId}`)
+    parts.push(t('channel.mappingPriceSettings.localInfo.roomType', { value: row.localRoomId }))
   }
   if (row.localRatePlanId) {
-    parts.push(`费率 ${row.localRatePlanId}`)
+    parts.push(t('channel.mappingPriceSettings.localInfo.ratePlan', { value: row.localRatePlanId }))
   }
   if (parts.length === 0) {
     return '-'
@@ -542,13 +549,13 @@ function formatLocalInfo(row: MappingPriceDraftRow): string {
 function formatRemoteInfo(row: MappingPriceDraftRow): string {
   const parts: string[] = []
   if (row.listingId) {
-    parts.push(`房源 ${row.listingId}`)
+    parts.push(t('channel.mappingPriceSettings.remoteInfo.listing', { value: row.listingId }))
   }
   if (row.remoteRoomId) {
-    parts.push(`房间 ${row.remoteRoomId}`)
+    parts.push(t('channel.mappingPriceSettings.remoteInfo.room', { value: row.remoteRoomId }))
   }
   if (row.remoteRatePlanId) {
-    parts.push(`费率 ${row.remoteRatePlanId}`)
+    parts.push(t('channel.mappingPriceSettings.remoteInfo.ratePlan', { value: row.remoteRatePlanId }))
   }
   if (parts.length === 0) {
     return '-'
@@ -564,18 +571,18 @@ function formatDateTime(value?: string | null): string {
   if (Number.isNaN(date.getTime())) {
     return value
   }
-  return date.toLocaleString()
+  return date.toLocaleString(locale.value)
 }
 
 async function confirmClose(): Promise<boolean> {
   if (savingCount.value > 0) {
     try {
       await ElMessageBox.confirm(
-        '仍有映射行正在保存，关闭抽屉可能无法看到最新结果。确定要关闭吗？',
-        '关闭价格设置',
+        t('channel.mappingPriceSettings.confirmClose.savingMessage'),
+        t('channel.mappingPriceSettings.confirmClose.title'),
         {
-          confirmButtonText: '关闭',
-          cancelButtonText: '继续等待',
+          confirmButtonText: t('channel.mappingPriceSettings.confirmClose.close'),
+          cancelButtonText: t('channel.mappingPriceSettings.confirmClose.wait'),
           type: 'warning',
         },
       )
@@ -590,11 +597,15 @@ async function confirmClose(): Promise<boolean> {
   }
 
   try {
-    await ElMessageBox.confirm('存在未保存的价格设置，关闭后这些草稿会丢失。确定关闭吗？', '关闭价格设置', {
-      confirmButtonText: '放弃草稿',
-      cancelButtonText: '继续编辑',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      t('channel.mappingPriceSettings.confirmClose.dirtyMessage'),
+      t('channel.mappingPriceSettings.confirmClose.title'),
+      {
+        confirmButtonText: t('channel.mappingPriceSettings.confirmClose.discard'),
+        cancelButtonText: t('channel.mappingPriceSettings.confirmClose.edit'),
+        type: 'warning',
+      },
+    )
     return true
   } catch {
     return false
@@ -642,7 +653,9 @@ async function requestClose() {
   >
     <template #header>
       <div class="drawer-title">
-        <span class="drawer-title-text">{{ channelTitle }}价格比例设置</span>
+        <span class="drawer-title-text">
+          {{ t('channel.mappingPriceSettings.title', { channel: channelTitle }) }}
+        </span>
         <el-tag v-if="settings?.channelCode" effect="plain" type="info">
           {{ settings.channelCode }}
         </el-tag>
@@ -661,27 +674,27 @@ async function requestClose() {
 
       <div class="summary-bar">
         <div class="summary-item">
-          <span class="summary-label">映射行</span>
+          <span class="summary-label">{{ t('channel.mappingPriceSettings.summary.rows') }}</span>
           <strong>{{ totalCount }}</strong>
         </div>
         <div class="summary-item">
-          <span class="summary-label">已同步</span>
+          <span class="summary-label">{{ t('channel.mappingPriceSettings.summary.synced') }}</span>
           <strong>{{ successCount }}</strong>
         </div>
         <div class="summary-item danger">
-          <span class="summary-label">失败</span>
+          <span class="summary-label">{{ t('channel.mappingPriceSettings.summary.failed') }}</span>
           <strong>{{ failedCount }}</strong>
         </div>
         <div class="summary-item">
-          <span class="summary-label">未同步</span>
+          <span class="summary-label">{{ t('channel.mappingPriceSettings.summary.unsynced') }}</span>
           <strong>{{ unsyncedCount }}</strong>
         </div>
         <div class="summary-item warning">
-          <span class="summary-label">映射变化</span>
+          <span class="summary-label">{{ t('channel.mappingPriceSettings.summary.stale') }}</span>
           <strong>{{ staleCount }}</strong>
         </div>
         <div class="summary-item dirty">
-          <span class="summary-label">未保存</span>
+          <span class="summary-label">{{ t('channel.mappingPriceSettings.summary.dirty') }}</span>
           <strong>{{ dirtyCount }}</strong>
         </div>
       </div>
@@ -689,8 +702,12 @@ async function requestClose() {
       <div class="toolbar">
         <div class="batch-controls">
           <el-radio-group v-model="batchField" size="small">
-            <el-radio-button :label="BATCH_MULTIPLIER">倍率</el-radio-button>
-            <el-radio-button :label="BATCH_SURCHARGE">固定加价</el-radio-button>
+            <el-radio-button :label="BATCH_MULTIPLIER">
+              {{ t('channel.mappingPriceSettings.fields.multiplier') }}
+            </el-radio-button>
+            <el-radio-button :label="BATCH_SURCHARGE">
+              {{ t('channel.mappingPriceSettings.fields.surcharge') }}
+            </el-radio-button>
           </el-radio-group>
 
           <el-input-number
@@ -701,7 +718,7 @@ async function requestClose() {
             :step="NUMBER_STEP"
             :precision="NUMBER_PRECISION"
             controls-position="right"
-            placeholder="倍率"
+            :placeholder="t('channel.mappingPriceSettings.fields.multiplier')"
           />
           <el-input-number
             v-else
@@ -710,7 +727,7 @@ async function requestClose() {
             :step="NUMBER_STEP"
             :precision="NUMBER_PRECISION"
             controls-position="right"
-            placeholder="固定加价"
+            :placeholder="t('channel.mappingPriceSettings.fields.surcharge')"
           />
 
           <el-button
@@ -720,18 +737,24 @@ async function requestClose() {
             :disabled="!canUseActions || !hasRows"
             @click="handleApplyBatch"
           >
-            应用到全部映射行
+            {{ t('channel.mappingPriceSettings.actions.applyAllRows') }}
           </el-button>
         </div>
 
         <div class="filter-controls">
           <el-radio-group v-model="filterMode" size="small">
-            <el-radio-button :label="FILTER_ALL">全部</el-radio-button>
-            <el-radio-button :label="FILTER_FAILED">失败</el-radio-button>
-            <el-radio-button :label="FILTER_DIRTY">未保存</el-radio-button>
+            <el-radio-button :label="FILTER_ALL">
+              {{ t('channel.mappingPriceSettings.filters.all') }}
+            </el-radio-button>
+            <el-radio-button :label="FILTER_FAILED">
+              {{ t('channel.mappingPriceSettings.filters.failed') }}
+            </el-radio-button>
+            <el-radio-button :label="FILTER_DIRTY">
+              {{ t('channel.mappingPriceSettings.filters.dirty') }}
+            </el-radio-button>
           </el-radio-group>
           <el-button :icon="Refresh" :loading="loading" :disabled="isBusy" @click="loadRows">
-            刷新
+            {{ t('channel.mappingPriceSettings.actions.refresh') }}
           </el-button>
         </div>
       </div>
@@ -743,11 +766,13 @@ async function requestClose() {
           border
           row-key="rowKey"
           class="mapping-table"
-          empty-text="暂无映射价格设置"
+          :empty-text="t('channel.mappingPriceSettings.empty')"
         >
-          <el-table-column label="映射" min-width="210">
+          <el-table-column :label="t('channel.mappingPriceSettings.table.mapping')" min-width="210">
             <template #default="{ row }">
-              <div class="mapping-name">{{ row.displayName || '未命名映射' }}</div>
+              <div class="mapping-name">
+                {{ row.displayName || t('channel.mappingPriceSettings.unnamedMapping') }}
+              </div>
               <div class="mapping-meta">
                 <span v-if="row.mappingStatus">{{ row.mappingStatus }}</span>
                 <span v-if="row.suChannelId">Su {{ row.suChannelId }}</span>
@@ -755,25 +780,25 @@ async function requestClose() {
             </template>
           </el-table-column>
 
-          <el-table-column label="本地房型 / 费率" min-width="180">
+          <el-table-column :label="t('channel.mappingPriceSettings.table.local')" min-width="180">
             <template #default="{ row }">
               <span class="line-text">{{ formatLocalInfo(row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column label="远端房源 / 费率" min-width="210">
+          <el-table-column :label="t('channel.mappingPriceSettings.table.remote')" min-width="210">
             <template #default="{ row }">
               <span class="line-text">{{ formatRemoteInfo(row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column label="入住维度" min-width="150">
+          <el-table-column :label="t('channel.mappingPriceSettings.table.dimension')" min-width="150">
             <template #default="{ row }">
               <span class="line-text">{{ formatMappingDimension(row) }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column label="倍率" width="150" align="center">
+          <el-table-column :label="t('channel.mappingPriceSettings.fields.multiplier')" width="150" align="center">
             <template #default="{ row }">
               <el-input-number
                 v-model="row.draftMultiplier"
@@ -788,7 +813,7 @@ async function requestClose() {
             </template>
           </el-table-column>
 
-          <el-table-column label="固定加价" width="150" align="center">
+          <el-table-column :label="t('channel.mappingPriceSettings.fields.surcharge')" width="150" align="center">
             <template #default="{ row }">
               <el-input-number
                 v-model="row.draftSurcharge"
@@ -802,13 +827,15 @@ async function requestClose() {
             </template>
           </el-table-column>
 
-          <el-table-column label="同步状态" width="150" align="center">
+          <el-table-column :label="t('channel.mappingPriceSettings.table.syncStatus')" width="150" align="center">
             <template #default="{ row }">
               <div class="status-cell">
                 <el-tag :type="resolveStatusType(row)" effect="light">
                   {{ formatStatus(row) }}
                 </el-tag>
-                <span v-if="row.retryCount" class="status-note">重试 {{ row.retryCount }} 次</span>
+                <span v-if="row.retryCount" class="status-note">
+                  {{ t('channel.mappingPriceSettings.retryCount', { count: row.retryCount }) }}
+                </span>
                 <span v-if="row.lastSyncedAt && !row.dirty" class="status-note">
                   {{ formatDateTime(row.lastSyncedAt) }}
                 </span>
@@ -816,7 +843,7 @@ async function requestClose() {
             </template>
           </el-table-column>
 
-          <el-table-column label="失败原因" min-width="200">
+          <el-table-column :label="t('channel.mappingPriceSettings.table.failureReason')" min-width="200">
             <template #default="{ row }">
               <el-tooltip v-if="row.lastError" :content="row.lastError" placement="top">
                 <span class="error-text">{{ row.lastError }}</span>
@@ -825,7 +852,7 @@ async function requestClose() {
             </template>
           </el-table-column>
 
-          <el-table-column label="操作" width="190" fixed="right" align="center">
+          <el-table-column :label="t('channel.mappingPriceSettings.table.actions')" width="190" fixed="right" align="center">
             <template #default="{ row }">
               <div class="row-actions">
                 <el-button
@@ -837,7 +864,7 @@ async function requestClose() {
                   :loading="row.saving"
                   @click="handleSaveRow(row)"
                 >
-                  保存本行
+                  {{ t('channel.mappingPriceSettings.actions.saveRow') }}
                 </el-button>
                 <el-button
                   v-if="isRetryableRow(row) && !row.dirty"
@@ -848,7 +875,7 @@ async function requestClose() {
                   :loading="row.saving"
                   @click="handleRetryRow(row)"
                 >
-                  重试
+                  {{ t('channel.mappingPriceSettings.actions.retry') }}
                 </el-button>
                 <el-button
                   type="info"
@@ -857,7 +884,7 @@ async function requestClose() {
                   :disabled="!row.dirty || row.saving"
                   @click="handleResetRowDraft(row)"
                 >
-                  还原
+                  {{ t('channel.mappingPriceSettings.actions.reset') }}
                 </el-button>
               </div>
             </template>
@@ -869,18 +896,22 @@ async function requestClose() {
     <template #footer>
       <div class="drawer-footer">
         <div class="footer-status">
-          <span v-if="dirtyCount > 0">有 {{ dirtyCount }} 行未保存</span>
-          <span v-else>当前没有未保存草稿</span>
+          <span v-if="dirtyCount > 0">
+            {{ t('channel.mappingPriceSettings.footer.dirtyRows', { count: dirtyCount }) }}
+          </span>
+          <span v-else>{{ t('channel.mappingPriceSettings.footer.clean') }}</span>
         </div>
         <div class="footer-actions">
-          <el-button @click="requestClose">取消</el-button>
+          <el-button @click="requestClose">
+            {{ t('channel.mappingPriceSettings.actions.cancel') }}
+          </el-button>
           <el-button
             :icon="RefreshRight"
             :loading="retryingFailed"
             :disabled="!canUseActions || failedCount === 0"
             @click="handleRetryFailed"
           >
-            只重试失败
+            {{ t('channel.mappingPriceSettings.actions.retryFailed') }}
           </el-button>
           <el-button
             type="primary"
@@ -889,7 +920,7 @@ async function requestClose() {
             :disabled="!props.canSave || loading || rows.length === 0"
             @click="handleSaveAll"
           >
-            保存全部
+            {{ t('channel.mappingPriceSettings.actions.saveAll') }}
           </el-button>
         </div>
       </div>

@@ -14,7 +14,7 @@
             </template>
           </el-table-column>
           <el-table-column prop="ratio" :label="t('channel.priceRatio.ratio')" min-width="200" align="center" />
-          <el-table-column label="Su 同步状态" min-width="180" align="center">
+          <el-table-column :label="t('channel.priceRatio.suSyncStatus')" min-width="180" align="center">
             <template #default="{ row }">
               <el-tooltip :content="formatSyncDetails(row)" placement="top" :show-after="200">
                 <el-tag :type="resolveSyncTagType(row)" effect="light" class="sync-status-tag">
@@ -38,7 +38,7 @@
                     :disabled="!canManage"
                     @click="handleEdit(row)"
                   >
-                    设置价格比例
+                    {{ t('channel.priceRatio.openMappingSettings') }}
                   </el-button>
                 </span>
               </el-tooltip>
@@ -83,18 +83,30 @@ function handleEdit(row: PriceRatioItem) {
 function formatSyncStatus(row: PriceRatioItem) {
   const sync = row.suMappingSync
   if (!sync) {
-    return '保存后同步'
+    return t('channel.priceRatio.syncStatus.afterSave')
   }
   if (sync.status === 'SUCCESS') {
-    return `已同步 ${sync.successCount}/${sync.totalCount}`
+    return t('channel.priceRatio.syncStatus.successWithCount', {
+      success: sync.successCount,
+      total: sync.totalCount,
+    })
   }
   if (sync.status === 'PARTIAL') {
-    return `部分失败 ${sync.successCount}/${sync.totalCount}`
+    return t('channel.priceRatio.syncStatus.partialWithCount', {
+      success: sync.successCount,
+      total: sync.totalCount,
+    })
   }
   if (sync.status === 'FAILED') {
-    return '同步失败'
+    return t('channel.priceRatio.syncStatus.failed')
   }
-  return '未同步'
+  if (sync.status === 'PENDING') {
+    return t('channel.priceRatio.syncStatus.pending')
+  }
+  if (sync.status === 'SKIPPED') {
+    return t('channel.priceRatio.syncStatus.skipped')
+  }
+  return t('channel.priceRatio.syncStatus.unsynced')
 }
 
 function resolveSyncTagType(row: PriceRatioItem) {
@@ -111,27 +123,67 @@ function resolveSyncTagType(row: PriceRatioItem) {
   if (sync.status === 'FAILED') {
     return 'danger'
   }
+  if (sync.status === 'PENDING') {
+    return 'warning'
+  }
   return 'info'
 }
 
 function formatSyncDetails(row: PriceRatioItem) {
   const sync = row.suMappingSync
   if (!sync) {
-    return '保存价格比例后会同步到 Su 映射价格设置'
+    return t('channel.priceRatio.syncDetails.afterSave')
   }
   if (!sync.items || sync.items.length === 0) {
-    return sync.message || '暂无同步明细'
+    return formatSyncStatusDetail(sync.status)
   }
 
   const details = sync.items.slice(0, 5).map((item) => {
-    const target = item.listingId || item.channelRoomId || item.roomId || '未知映射'
-    const message = item.message || item.status
+    const target =
+      item.listingId ||
+      item.channelRoomId ||
+      item.roomId ||
+      t('channel.priceRatio.syncDetails.unknownMapping')
+    const message = item.message || formatSyncItemStatus(item.status)
     return `${target}: ${message}`
   })
   if (sync.items.length > details.length) {
-    details.push(`另有 ${sync.items.length - details.length} 条结果`)
+    details.push(
+      t('channel.priceRatio.syncDetails.moreResults', {
+        count: sync.items.length - details.length,
+      }),
+    )
   }
   return details.join('\n')
+}
+
+function formatSyncStatusDetail(status: NonNullable<PriceRatioItem['suMappingSync']>['status']) {
+  if (status === 'SUCCESS') {
+    return t('channel.priceRatio.syncDetails.success')
+  }
+  if (status === 'PARTIAL') {
+    return t('channel.priceRatio.syncDetails.partial')
+  }
+  if (status === 'FAILED') {
+    return t('channel.priceRatio.syncDetails.failed')
+  }
+  if (status === 'PENDING') {
+    return t('channel.priceRatio.syncDetails.pending')
+  }
+  if (status === 'SKIPPED') {
+    return t('channel.priceRatio.syncDetails.skipped')
+  }
+  return t('channel.priceRatio.syncDetails.none')
+}
+
+function formatSyncItemStatus(status: string) {
+  if (status === 'SUCCESS') {
+    return t('channel.priceRatio.syncDetails.itemSuccess')
+  }
+  if (status === 'FAILED') {
+    return t('channel.priceRatio.syncDetails.itemFailed')
+  }
+  return status
 }
 </script>
 

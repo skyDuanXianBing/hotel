@@ -187,7 +187,7 @@ export interface ChannelMappingMultiplierSyncSummary {
   hotelId?: string
   requestedMultiplier?: number
   requestedSurcharge?: number
-  status: 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'SKIPPED'
+  status: 'SUCCESS' | 'PARTIAL' | 'FAILED' | 'SKIPPED' | 'PENDING'
   message?: string
   totalCount: number
   successCount: number

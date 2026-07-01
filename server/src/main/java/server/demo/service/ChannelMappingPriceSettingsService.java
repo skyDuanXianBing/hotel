@@ -1,6 +1,9 @@
 package server.demo.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.context.StoreContextHolder;
@@ -16,11 +19,13 @@ import server.demo.entity.OtaIntegration;
 import server.demo.entity.Store;
 import server.demo.enums.ChannelMappingPriceSyncStatus;
 import server.demo.enums.PriceAdjustmentType;
+import server.demo.exception.SuApiUnauthorizedException;
 import server.demo.repository.ChannelMappingPriceSettingRepository;
 import server.demo.repository.ChannelRepository;
 import server.demo.repository.OtaIntegrationRepository;
 import server.demo.repository.StoreRepository;
 import server.demo.util.OtaChannelPricePolicy;
+import server.demo.util.SmartLockMaskingUtils;
 import server.demo.util.SuHotelIdUtil;
 
 import java.math.BigDecimal;
@@ -36,9 +41,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 public class ChannelMappingPriceSettingsService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ChannelMappingPriceSettingsService.class);
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String CHANNEL_CODE_BOOKING = OtaChannelPricePolicy.CHANNEL_CODE_BOOKING;
     private static final String CHANNEL_CODE_BOOKING_COM = OtaChannelPricePolicy.CHANNEL_CODE_BOOKING_COM;
@@ -50,8 +59,42 @@ public class ChannelMappingPriceSettingsService {
     private static final BigDecimal DEFAULT_MULTIPLIER = BigDecimal.ONE;
     private static final BigDecimal DEFAULT_SURCHARGE = BigDecimal.ZERO;
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+    private static final int AIRBNB_LISTING_NAME_MAX_CODE_POINTS = 50;
+    private static final int AUDIT_TEXT_MAX_LENGTH = 500;
+    private static final String REDACTED_AUDIT_VALUE = "[REDACTED]";
+    private static final Pattern AUDIT_EMAIL_PATTERN = Pattern.compile(
+            "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+    );
+    private static final Pattern AUDIT_PHONE_PATTERN = Pattern.compile(
+            "(?<!\\w)(?:\\+?\\d[\\d\\s().-]{7,}\\d)(?!\\w)"
+    );
+    private static final Pattern AUDIT_URL_PATTERN = Pattern.compile(
+            "https?://\\S+",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern AUDIT_TOKEN_PATTERN = Pattern.compile(
+            "(?i)\\b(?:tok|sk|sec|ghp|xoxb|xoxp|bearer)_[A-Za-z0-9._~-]{6,}\\b"
+    );
+    private static final Pattern AUDIT_TOKEN_KEYWORD_PATTERN = Pattern.compile(
+            "(?i)(\\b(?:access[-_\\s]*token|refresh[-_\\s]*token|client[-_\\s]*secret|api[-_\\s]*key|secret|token)\\b\\s*(?:is|was|value)?\\s*[:=]?\\s*)([A-Za-z0-9._~+/=-]{8,})"
+    );
+    private static final Pattern AUDIT_SENSITIVE_LABEL_VALUE_PATTERN = Pattern.compile(
+            "(?i)(\\b(?:check[_\\s-]*in(?:[_\\s-]*(?:option|instruction|instructions))?(?:\\.[A-Za-z0-9_.-]+)?|instruction|instructions|address|street|location|directions?|door(?:\\s*code)?|entry(?:\\s*(?:instruction|code))?|access(?:\\s*code)?|gate(?:\\s*code)?|lockbox|keypad|room(?:\\s*(?:access|entry|code))?)\\b\\s*[:=]\\s*)(\"[^\"]*\"|'[^']*'|[^,;{}\\]\\r\\n]+)"
+    );
+    private static final Pattern AUDIT_STREET_ADDRESS_PATTERN = Pattern.compile(
+            "(?i)\\b\\d{1,6}\\s+[A-Za-z0-9 .'-]{2,60}\\s(?:street|st\\.?|avenue|ave\\.?|road|rd\\.?|boulevard|blvd\\.?|lane|ln\\.?|drive|dr\\.?|court|ct\\.?|terrace|ter\\.?|way|place|pl\\.?|circle|cir\\.?)\\b(?:\\s*(?:apt|apartment|suite|unit|#)\\s*[A-Za-z0-9-]+)?"
+    );
+    private static final Pattern AUDIT_ENTRY_INSTRUCTION_SENTENCE_PATTERN = Pattern.compile(
+            "(?i)(?:^|[.;]\\s+)([^.;\\r\\n]*(?:lockbox|front door|back door|keypad|door code|gate code|entry code|access code|钥匙|密码|门口|门牌|入内|入住)[^.;\\r\\n]*)"
+    );
     private static final String AIRBNB_LISTING_DETAILS_REQUIRED =
             "Airbnb listing update requires listing details before multiplier can be changed";
+    private static final String AIRBNB_LISTING_NAME_REQUIRED =
+            "Airbnb listing name is required; please set it in Airbnb/Su before retrying.";
+    private static final String AIRBNB_LISTING_NAME_TOO_LONG =
+            "Airbnb listing name exceeds Su limit of 50 characters; please shorten it in Airbnb/Su before retrying.";
+    private static final String AIRBNB_CHECK_IN_REQUIRED =
+            "Airbnb check-in instructions are incomplete in Su/Airbnb; please complete check-in instructions in Su/Airbnb before retrying.";
 
     private final ChannelRepository channelRepository;
     private final OtaIntegrationRepository otaIntegrationRepository;
@@ -273,16 +316,35 @@ public class ChannelMappingPriceSettingsService {
 
         PriceModifier modifier = new PriceModifier(multiplier, surcharge);
         try {
-            JsonNode suResponse = postMappingUpdate(context, target, modifier, preservedModifiersByRowKey);
+            MappingUpdateResult updateResult = postMappingUpdate(
+                    context,
+                    target,
+                    modifier,
+                    preservedModifiersByRowKey,
+                    operationId,
+                    batchId,
+                    rowKey
+            );
+            applySuAudit(setting, updateResult);
+            JsonNode suResponse = updateResult.response();
             if (suApiClient.isSuSuccess(suResponse)) {
                 markSuccess(setting);
             } else {
-                String errorMessage = suApiClient.extractSuErrorMessage(suResponse);
+                String errorMessage = buildUserFacingSuErrorMessage(suResponse);
                 if (isBlank(errorMessage)) {
                     errorMessage = "Su 返回非成功状态";
                 }
                 markFailure(setting, ChannelMappingPriceSyncStatus.FAILED, errorMessage, retrying);
+                logSuRowFailure(context, rowKey, operationId, batchId, updateResult);
             }
+        } catch (MappingUpdateValidationException e) {
+            applySuAudit(setting, e.toUpdateResult());
+            markFailure(setting, ChannelMappingPriceSyncStatus.FAILED, e.getMessage(), retrying);
+            logSuRowFailure(context, rowKey, operationId, batchId, e.toUpdateResult());
+        } catch (MappingUpdateCallException e) {
+            applySuAudit(setting, e.toUpdateResult());
+            markFailure(setting, ChannelMappingPriceSyncStatus.FAILED, e.getMessage(), retrying);
+            logSuRowFailure(context, rowKey, operationId, batchId, e.toUpdateResult());
         } catch (Exception e) {
             markFailure(setting, ChannelMappingPriceSyncStatus.FAILED, e.getMessage(), retrying);
         }
@@ -528,24 +590,50 @@ public class ChannelMappingPriceSettingsService {
         );
     }
 
-    private JsonNode postMappingUpdate(
+    private MappingUpdateResult postMappingUpdate(
             ResolvedContext context,
             MappingTarget target,
             PriceModifier modifier,
-            Map<String, PriceModifier> preservedModifiersByRowKey
+            Map<String, PriceModifier> preservedModifiersByRowKey,
+            String operationId,
+            String batchId,
+            String rowKey
     ) {
         if (CHANNEL_CODE_AIRBNB.equals(context.channelCode())) {
             return suAccessTokenService.executeWithTokenRetry(
                     token -> {
                         Map<String, Object> retrievePayload = buildAirbnbListingRetrievePayload(context.hotelId(), target);
                         JsonNode listingResponse = suApiClient.retrieveAirbnbListing(token, retrievePayload);
-                        Map<String, Object> updatePayload = buildAirbnbListingUpdatePayload(
+                        AirbnbUpdatePayloadResult payloadResult = buildAirbnbListingUpdatePayload(
                                 context.hotelId(),
                                 target,
                                 modifier,
-                                listingResponse
+                                listingResponse,
+                                operationId,
+                                batchId,
+                                rowKey
                         );
-                        return suApiClient.postAirbnbListingUpdate(token, updatePayload);
+                        JsonNode response;
+                        try {
+                            response = suApiClient.postAirbnbListingUpdate(token, payloadResult.payload());
+                        } catch (RuntimeException e) {
+                            if (e instanceof SuApiUnauthorizedException) {
+                                throw e;
+                            }
+                            throw new MappingUpdateCallException(
+                                    e.getMessage(),
+                                    "airbnb/listing/update",
+                                    payloadResult.payloadSummary(),
+                                    null,
+                                    e
+                            );
+                        }
+                        return new MappingUpdateResult(
+                                "airbnb/listing/update",
+                                payloadResult.payloadSummary(),
+                                buildResponseSummary("airbnb/listing/update", response),
+                                response
+                        );
                     },
                     "airbnb/listing/update"
             );
@@ -557,8 +645,43 @@ public class ChannelMappingPriceSettingsService {
                 modifier,
                 preservedModifiersByRowKey
         );
+        Map<String, Object> payloadSummary = buildPayloadSummary(
+                "OTA_RatePlanMap",
+                context,
+                target,
+                payload,
+                operationId,
+                batchId,
+                rowKey,
+                null,
+                null,
+                null,
+                null
+        );
         return suAccessTokenService.executeWithTokenRetry(
-                token -> suApiClient.postBookingRatePlanMap(token, payload),
+                token -> {
+                    JsonNode response;
+                    try {
+                        response = suApiClient.postBookingRatePlanMap(token, payload);
+                    } catch (RuntimeException e) {
+                        if (e instanceof SuApiUnauthorizedException) {
+                            throw e;
+                        }
+                        throw new MappingUpdateCallException(
+                                e.getMessage(),
+                                "OTA_RatePlanMap",
+                                payloadSummary,
+                                null,
+                                e
+                        );
+                    }
+                    return new MappingUpdateResult(
+                            "OTA_RatePlanMap",
+                            payloadSummary,
+                            buildResponseSummary("OTA_RatePlanMap", response),
+                            response
+                    );
+                },
                 "OTA_RatePlanMap"
         );
     }
@@ -641,11 +764,14 @@ public class ChannelMappingPriceSettingsService {
         return payload;
     }
 
-    private Map<String, Object> buildAirbnbListingUpdatePayload(
+    private AirbnbUpdatePayloadResult buildAirbnbListingUpdatePayload(
             String hotelId,
             MappingTarget target,
             PriceModifier modifier,
-            JsonNode listingResponse
+            JsonNode listingResponse,
+            String operationId,
+            String batchId,
+            String rowKey
     ) {
         JsonNode listingDetails = extractAirbnbListingDetails(listingResponse);
         if (listingDetails == null || !listingDetails.isObject()) {
@@ -653,15 +779,60 @@ public class ChannelMappingPriceSettingsService {
             if (isBlank(errorMessage)) {
                 errorMessage = "listing details not found";
             }
-            throw new IllegalStateException(AIRBNB_LISTING_DETAILS_REQUIRED + ": " + errorMessage);
+            Map<String, Object> payloadSummary = buildPayloadSummary(
+                    "airbnb/listing/update",
+                    null,
+                    target,
+                    Map.of(),
+                    operationId,
+                    batchId,
+                    rowKey,
+                    null,
+                    null,
+                    false,
+                    false
+            );
+            throw new MappingUpdateValidationException(
+                    AIRBNB_LISTING_DETAILS_REQUIRED + ": " + errorMessage,
+                    "airbnb/listing/update",
+                    payloadSummary,
+                    buildValidationResponseSummary(
+                            "airbnb/listing/update",
+                            AIRBNB_LISTING_DETAILS_REQUIRED + ": " + errorMessage,
+                            listingResponse
+                    )
+            );
         }
 
-        String listingName = readText(listingDetails, "name", "Name", "listing_name", "listingName");
-        if (isBlank(listingName)) {
-            throw new IllegalStateException(AIRBNB_LISTING_DETAILS_REQUIRED + ": missing name");
+        String listingName = readStringValue(listingDetails, "name", "Name", "listing_name", "listingName");
+        if (listingName == null || listingName.trim().isBlank()) {
+            Map<String, Object> payloadSummary = buildPayloadSummary(
+                    "airbnb/listing/update",
+                    null,
+                    target,
+                    Map.of(),
+                    operationId,
+                    batchId,
+                    rowKey,
+                    0,
+                    false,
+                    hasCheckInOptionObject(listingDetails),
+                    hasCheckInInstruction(listingDetails)
+            );
+            throw new MappingUpdateValidationException(
+                    AIRBNB_LISTING_NAME_REQUIRED,
+                    "airbnb/listing/update",
+                    payloadSummary,
+                    buildValidationResponseSummary("airbnb/listing/update", AIRBNB_LISTING_NAME_REQUIRED, listingResponse)
+            );
         }
 
-        Map<String, Object> payload = jsonObjectToMap(listingDetails);
+        int nameLength = listingName.codePointCount(0, listingName.length());
+        boolean hasCheckInOption = hasCheckInOptionObject(listingDetails);
+        boolean hasCheckInInstruction = hasCheckInInstruction(listingDetails);
+        boolean hasCheckInCategory = hasCheckInCategory(listingDetails);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("hotelid", hotelId);
         payload.put("channelhotelid", target.channelHotelId());
         payload.put("listingid", target.listingId());
@@ -671,7 +842,223 @@ public class ChannelMappingPriceSettingsService {
         payload.put("multiplier", modifier.multiplier());
         payload.put("surcharge", modifier.surcharge());
         payload.put("occupancy", parseIntegerOrText(target.occupancy()));
+
+        Map<String, Object> checkInOption = buildCheckInOptionPayload(listingDetails);
+        if (checkInOption != null) {
+            payload.put("check_in_option", checkInOption);
+        }
+
+        Map<String, Object> payloadSummary = buildPayloadSummary(
+                "airbnb/listing/update",
+                null,
+                target,
+                payload,
+                operationId,
+                batchId,
+                rowKey,
+                nameLength,
+                payload.containsKey("check_in_option"),
+                hasCheckInOption,
+                hasCheckInInstruction
+        );
+        payloadSummary.put("hasCheckInCategory", hasCheckInCategory);
+
+        if (nameLength > AIRBNB_LISTING_NAME_MAX_CODE_POINTS) {
+            throw new MappingUpdateValidationException(
+                    AIRBNB_LISTING_NAME_TOO_LONG,
+                    "airbnb/listing/update",
+                    payloadSummary,
+                    buildValidationResponseSummary("airbnb/listing/update", AIRBNB_LISTING_NAME_TOO_LONG, listingResponse)
+            );
+        }
+
+        return new AirbnbUpdatePayloadResult(payload, payloadSummary);
+    }
+
+    private Map<String, Object> buildPayloadSummary(
+            String action,
+            ResolvedContext context,
+            MappingTarget target,
+            Map<String, Object> payload,
+            String operationId,
+            String batchId,
+            String rowKey,
+            Integer nameLength,
+            Boolean sentCheckInOption,
+            Boolean hasCheckInOption,
+            Boolean hasCheckInInstruction
+    ) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("endpoint", action);
+        summary.put("action", action);
+        summary.put("operationId", operationId);
+        summary.put("batchId", batchId);
+        summary.put("rowKey", rowKey);
+        if (context != null) {
+            summary.put("channelCode", context.channelCode());
+            summary.put("suChannelId", context.suChannelId());
+            summary.put("suPropertyId", context.hotelId());
+        } else if (target != null) {
+            summary.put("channelCode", target.channelCode());
+            summary.put("suChannelId", target.suChannelId());
+            summary.put("suPropertyId", target.suPropertyId());
+        }
+        if (target != null) {
+            summary.put("channelHotelId", target.channelHotelId());
+            summary.put("listingid", target.listingId());
+            summary.put("roomid", target.roomId());
+            summary.put("rateid", target.rateId());
+            summary.put("channelroomid", target.channelRoomId());
+            summary.put("channelrateid", target.channelRateId());
+            summary.put("occupancy", target.occupancy());
+            summary.put("applicableNoOfGuest", target.applicableNoOfGuest());
+        }
+        summary.put("payloadKeys", payload != null ? new ArrayList<>(payload.keySet()) : List.of());
+        if (nameLength != null) {
+            summary.put("nameLength", nameLength);
+        }
+        if (sentCheckInOption != null) {
+            summary.put("sentCheckInOption", sentCheckInOption);
+        }
+        if (hasCheckInOption != null) {
+            summary.put("hasCheckInOption", hasCheckInOption);
+        }
+        if (hasCheckInInstruction != null) {
+            summary.put("hasCheckInInstruction", hasCheckInInstruction);
+        }
+        return summary;
+    }
+
+    private Map<String, Object> buildResponseSummary(String action, JsonNode response) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("endpoint", action);
+        summary.put("action", action);
+        if (response == null || response.isNull()) {
+            return summary;
+        }
+
+        summary.put("httpStatus", suApiClient.extractHttpStatus(response));
+        summary.put("status", readStringValue(response, "Status", "status", "Success", "success"));
+        summary.put("message", redactAuditText(readStringValue(response, "Message", "message")));
+        JsonNode errorsNode = firstExistingNode(response, "Errors", "errors");
+        if (errorsNode != null && !errorsNode.isNull()) {
+            summary.put("errors", sanitizeJsonForAudit(errorsNode));
+        }
+        return summary;
+    }
+
+    private Map<String, Object> buildValidationResponseSummary(
+            String action,
+            String message,
+            JsonNode retrieveResponse
+    ) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("endpoint", action);
+        summary.put("action", action);
+        summary.put("validationFailure", true);
+        summary.put("message", redactAuditText(message));
+        if (retrieveResponse != null && !retrieveResponse.isNull()) {
+            summary.put("retrieveHttpStatus", suApiClient.extractHttpStatus(retrieveResponse));
+            summary.put("retrieveStatus", readStringValue(retrieveResponse, "Status", "status", "Success", "success"));
+            JsonNode errorsNode = firstExistingNode(retrieveResponse, "Errors", "errors");
+            if (errorsNode != null && !errorsNode.isNull()) {
+                summary.put("retrieveErrors", sanitizeJsonForAudit(errorsNode));
+            }
+        }
+        return summary;
+    }
+
+    private void applySuAudit(ChannelMappingPriceSetting setting, MappingUpdateResult result) {
+        if (setting == null || result == null) {
+            return;
+        }
+        Map<String, Object> responseSummary = sanitizeMapForAudit(result.responseSummary());
+        setting.setLastSuAction(result.action());
+        setting.setLastSuHttpStatus(asInteger(responseSummary.get("httpStatus")));
+        setting.setLastSuResponseStatus(stringValue(responseSummary.get("status")));
+        setting.setLastSuResponseMessage(stringValue(responseSummary.get("message")));
+        Object errors = responseSummary.get("errors");
+        setting.setLastSuResponseErrors(errors != null ? toJsonString(errors) : null);
+        setting.setLastSuPayloadSummary(toJsonString(result.payloadSummary()));
+        setting.setLastSuResponseSummary(toJsonString(responseSummary));
+    }
+
+    private void logSuRowFailure(
+            ResolvedContext context,
+            String rowKey,
+            String operationId,
+            String batchId,
+            MappingUpdateResult result
+    ) {
+        if (result == null) {
+            return;
+        }
+        logger.warn(
+                "Su mapping price row failed. action={}, channelCode={}, operationId={}, batchId={}, rowKey={}, responseSummary={}",
+                result.action(),
+                context.channelCode(),
+                operationId,
+                batchId,
+                rowKey,
+                toJsonString(result.responseSummary())
+        );
+    }
+
+    private String buildUserFacingSuErrorMessage(JsonNode suResponse) {
+        String errorMessage = suApiClient.extractSuErrorMessage(suResponse);
+        if (requiresAirbnbCheckInInstructions(errorMessage)) {
+            return AIRBNB_CHECK_IN_REQUIRED;
+        }
+        return redactAuditText(errorMessage);
+    }
+
+    private boolean requiresAirbnbCheckInInstructions(String errorMessage) {
+        if (errorMessage == null) {
+            return false;
+        }
+        String normalized = errorMessage.toLowerCase();
+        return normalized.contains("check_in_option")
+                || (normalized.contains("check") && normalized.contains("instruction"));
+    }
+
+    private Map<String, Object> buildCheckInOptionPayload(JsonNode listingDetails) {
+        JsonNode checkInOption = firstExistingNode(listingDetails, "check_in_option", "checkInOption");
+        if (checkInOption == null || !checkInOption.isObject()) {
+            return null;
+        }
+        String category = readStringValue(checkInOption, "category", "Category");
+        String instruction = readStringValue(checkInOption, "instruction", "Instruction");
+        if (category == null || category.trim().isBlank() || instruction == null || instruction.trim().isBlank()) {
+            return null;
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("category", category);
+        payload.put("instruction", instruction);
         return payload;
+    }
+
+    private boolean hasCheckInOptionObject(JsonNode listingDetails) {
+        JsonNode checkInOption = firstExistingNode(listingDetails, "check_in_option", "checkInOption");
+        return checkInOption != null && checkInOption.isObject();
+    }
+
+    private boolean hasCheckInInstruction(JsonNode listingDetails) {
+        JsonNode checkInOption = firstExistingNode(listingDetails, "check_in_option", "checkInOption");
+        if (checkInOption == null || !checkInOption.isObject()) {
+            return false;
+        }
+        String instruction = readStringValue(checkInOption, "instruction", "Instruction");
+        return instruction != null && !instruction.trim().isBlank();
+    }
+
+    private boolean hasCheckInCategory(JsonNode listingDetails) {
+        JsonNode checkInOption = firstExistingNode(listingDetails, "check_in_option", "checkInOption");
+        if (checkInOption == null || !checkInOption.isObject()) {
+            return false;
+        }
+        String category = readStringValue(checkInOption, "category", "Category");
+        return category != null && !category.trim().isBlank();
     }
 
     private List<BookingPricingTarget> buildBookingPricingTargets(
@@ -766,6 +1153,206 @@ public class ChannelMappingPriceSettingsService {
             }
         }
         return null;
+    }
+
+    private static String readStringValue(JsonNode node, String... fields) {
+        if (node == null || node.isNull() || fields == null) {
+            return null;
+        }
+        for (String field : fields) {
+            if (isBlank(field)) {
+                continue;
+            }
+            JsonNode valueNode = node.get(field);
+            if (valueNode == null || valueNode.isNull()) {
+                continue;
+            }
+            String value = valueNode.asText(null);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static Object sanitizeJsonForAudit(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isObject()) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> field = fields.next();
+                if (isSensitiveAuditField(field.getKey())) {
+                    result.put(field.getKey(), "[REDACTED]");
+                } else {
+                    result.put(field.getKey(), sanitizeJsonForAudit(field.getValue()));
+                }
+            }
+            return result;
+        }
+        if (node.isArray()) {
+            List<Object> result = new ArrayList<>();
+            int index = 0;
+            for (JsonNode item : node) {
+                if (index >= 10) {
+                    result.add("...");
+                    break;
+                }
+                result.add(sanitizeJsonForAudit(item));
+                index++;
+            }
+            return result;
+        }
+        if (node.isNumber()) {
+            return node.numberValue();
+        }
+        if (node.isBoolean()) {
+            return node.booleanValue();
+        }
+        return redactAuditText(node.asText());
+    }
+
+    private static boolean isSensitiveAuditField(String fieldName) {
+        if (fieldName == null) {
+            return false;
+        }
+        String normalized = fieldName.toLowerCase();
+        return normalized.contains("authorization")
+                || normalized.contains("token")
+                || normalized.contains("secret")
+                || normalized.contains("password")
+                || normalized.contains("address")
+                || normalized.contains("street")
+                || normalized.contains("location")
+                || normalized.contains("latitude")
+                || normalized.contains("longitude")
+                || normalized.contains("direction")
+                || normalized.contains("instruction")
+                || normalized.contains("access_code");
+    }
+
+    private static Map<String, Object> sanitizeMapForAudit(Map<String, Object> source) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (source == null) {
+            return result;
+        }
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            String key = entry.getKey();
+            if (isSensitiveAuditField(key)) {
+                result.put(key, REDACTED_AUDIT_VALUE);
+            } else {
+                result.put(key, sanitizePlainValueForAudit(entry.getValue()));
+            }
+        }
+        return result;
+    }
+
+    private static Object sanitizePlainValueForAudit(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof JsonNode node) {
+            return sanitizeJsonForAudit(node);
+        }
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = String.valueOf(entry.getKey());
+                if (isSensitiveAuditField(key)) {
+                    result.put(key, REDACTED_AUDIT_VALUE);
+                } else {
+                    result.put(key, sanitizePlainValueForAudit(entry.getValue()));
+                }
+            }
+            return result;
+        }
+        if (value instanceof Collection<?> collection) {
+            List<Object> result = new ArrayList<>();
+            int index = 0;
+            for (Object item : collection) {
+                if (index >= 10) {
+                    result.add("...");
+                    break;
+                }
+                result.add(sanitizePlainValueForAudit(item));
+                index++;
+            }
+            return result;
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return value;
+        }
+        return redactAuditText(String.valueOf(value));
+    }
+
+    private static String redactAuditText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String redacted = value;
+        redacted = AUDIT_SENSITIVE_LABEL_VALUE_PATTERN.matcher(redacted).replaceAll("$1" + REDACTED_AUDIT_VALUE);
+        redacted = AUDIT_STREET_ADDRESS_PATTERN.matcher(redacted).replaceAll("[REDACTED_ADDRESS]");
+        redacted = AUDIT_ENTRY_INSTRUCTION_SENTENCE_PATTERN.matcher(redacted).replaceAll(" " + REDACTED_AUDIT_VALUE);
+        redacted = SmartLockMaskingUtils.redactSensitiveMessage(redacted);
+        redacted = AUDIT_URL_PATTERN.matcher(redacted).replaceAll("[REDACTED_URL]");
+        redacted = AUDIT_EMAIL_PATTERN.matcher(redacted).replaceAll("[REDACTED_EMAIL]");
+        redacted = AUDIT_PHONE_PATTERN.matcher(redacted).replaceAll("[REDACTED_PHONE]");
+        redacted = AUDIT_TOKEN_PATTERN.matcher(redacted).replaceAll(REDACTED_AUDIT_VALUE);
+        redacted = AUDIT_TOKEN_KEYWORD_PATTERN.matcher(redacted).replaceAll("$1" + REDACTED_AUDIT_VALUE);
+        redacted = redacted.replaceAll("[\\r\\n\\t]+", " ");
+        redacted = redacted.replaceAll("\\s{2,}", " ").trim();
+        return abbreviate(redacted, AUDIT_TEXT_MAX_LENGTH);
+    }
+
+    private static String toJsonString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            return String.valueOf(value);
+        }
+    }
+
+    private static Integer asInteger(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignore) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String text) {
+            return abbreviate(text, 1000);
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return String.valueOf(value);
+        }
+        return abbreviate(toJsonString(value), 1000);
+    }
+
+    private static String abbreviate(String value, int maxLength) {
+        if (value == null) {
+            return null;
+        }
+        int safeMaxLength = Math.max(1, maxLength);
+        if (value.length() <= safeMaxLength) {
+            return value;
+        }
+        return value.substring(0, safeMaxLength) + "...";
     }
 
     private static Map<String, Object> jsonObjectToMap(JsonNode node) {
@@ -933,7 +1520,7 @@ public class ChannelMappingPriceSettingsService {
             boolean retrying
     ) {
         setting.setSyncStatus(status);
-        setting.setLastError(message);
+        setting.setLastError(redactAuditText(message));
         setting.setLastFailedAt(LocalDateTime.now());
     }
 
@@ -1377,6 +1964,66 @@ public class ChannelMappingPriceSettingsService {
             return value;
         }
         return defaultValue;
+    }
+
+    private record MappingUpdateResult(
+            String action,
+            Map<String, Object> payloadSummary,
+            Map<String, Object> responseSummary,
+            JsonNode response
+    ) {}
+
+    private record AirbnbUpdatePayloadResult(
+            Map<String, Object> payload,
+            Map<String, Object> payloadSummary
+    ) {}
+
+    private static class MappingUpdateValidationException extends RuntimeException {
+        private final String action;
+        private final Map<String, Object> payloadSummary;
+        private final Map<String, Object> responseSummary;
+
+        MappingUpdateValidationException(
+                String message,
+                String action,
+                Map<String, Object> payloadSummary,
+                Map<String, Object> responseSummary
+        ) {
+            super(redactAuditText(message));
+            this.action = action;
+            this.payloadSummary = payloadSummary;
+            this.responseSummary = responseSummary;
+        }
+
+        MappingUpdateResult toUpdateResult() {
+            return new MappingUpdateResult(action, payloadSummary, responseSummary, null);
+        }
+    }
+
+    private static class MappingUpdateCallException extends RuntimeException {
+        private final String action;
+        private final Map<String, Object> payloadSummary;
+        private final Map<String, Object> responseSummary;
+
+        MappingUpdateCallException(
+                String message,
+                String action,
+                Map<String, Object> payloadSummary,
+                Map<String, Object> responseSummary,
+                Throwable cause
+        ) {
+            super(redactAuditText(message), cause);
+            this.action = action;
+            this.payloadSummary = payloadSummary;
+            this.responseSummary = responseSummary != null ? responseSummary : new LinkedHashMap<>();
+            this.responseSummary.put("endpoint", action);
+            this.responseSummary.put("action", action);
+            this.responseSummary.put("message", redactAuditText(message));
+        }
+
+        MappingUpdateResult toUpdateResult() {
+            return new MappingUpdateResult(action, payloadSummary, responseSummary, null);
+        }
     }
 
     private record ResolvedContext(

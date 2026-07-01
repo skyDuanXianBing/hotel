@@ -44,6 +44,14 @@ const shouldSuppressErrorToast = (error: unknown) => {
   return Boolean((error as { config?: { suppressErrorToast?: boolean } }).config?.suppressErrorToast)
 }
 
+const isTimeoutError = (error: unknown) => {
+  if (!axios.isAxiosError(error)) {
+    return false
+  }
+  const message = String(error.message || '').toLowerCase()
+  return error.code === 'ECONNABORTED' || message.includes('timeout')
+}
+
 const translate = (key: string) => i18n.global.t(key)
 const LOGIN_PATH = '/login'
 const CLEANER_PATH_PREFIX = '/cleaner'
@@ -105,8 +113,11 @@ request.interceptors.response.use(
         ElMessage.error(message)
       }
     } else {
+      const fallbackMessage = isTimeoutError(error)
+        ? translate('stage6.common.messages.requestTimeout')
+        : error.message || translate('stage6.common.messages.requestFailed')
       const message = sanitizeUserFacingMessage(
-        error.response?.data?.message || error.message || translate('stage6.common.messages.requestFailed'),
+        error.response?.data?.message || fallbackMessage,
       )
       if (!suppressErrorToast) {
         ElMessage.error(message)

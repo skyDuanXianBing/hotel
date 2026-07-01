@@ -36,9 +36,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -305,8 +307,250 @@ class ChannelMappingPriceSettingsServiceTest {
         assertEquals("Airbnb Listing", firstPayload.get("name"));
         assertEquals(1, firstPayload.get("occupancy"));
         assertEquals(2, secondPayload.get("occupancy"));
+        assertEquals(
+                Set.of("hotelid", "channelhotelid", "listingid", "roomid", "rateid", "name", "multiplier", "surcharge", "occupancy"),
+                firstPayload.keySet()
+        );
+        assertFalse(firstPayload.containsKey("person_capacity"));
+        assertFalse(firstPayload.containsKey("room_type_category"));
         verify(suApiClient, never()).postAirbnbListingMap(anyString(), any());
         verify(suApiClient, never()).postBookingRatePlanMap(anyString(), any());
+    }
+
+    @Test
+    void airbnbSave_shouldFailBeforeUpdateWhenListingNameExceedsSuLimit() throws Exception {
+        ChannelMappingPriceSettingsService service = createService();
+        mockChannelAndIntegration("AIRBNB");
+        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
+        JsonNode retrieve = readJson(airbnbRetrieveListing("A-LISTING", "😀".repeat(51)));
+        when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieve);
+
+        MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
+        String rowKey = list.getRows().get(0).getRowKey();
+        MappingPriceSettingsSaveResponseDTO response = service.saveMappingPriceSettings(
+                CHANNEL_ID,
+                saveRequest(List.of(row(rowKey, "1.05", "0")))
+        );
+
+        assertEquals("FAILED", response.getStatus());
+        assertEquals(
+                "Airbnb listing name exceeds Su limit of 50 characters; please shorten it in Airbnb/Su before retrying.",
+                response.getRows().get(0).getLastError()
+        );
+        verify(suApiClient).retrieveAirbnbListing(eq("token"), any());
+        verify(suApiClient, never()).postAirbnbListingUpdate(anyString(), any());
+        ChannelMappingPriceSetting saved = settings.get(rowKey);
+        assertEquals("airbnb/listing/update", saved.getLastSuAction());
+        assertTrue(saved.getLastSuPayloadSummary().contains("\"nameLength\":51"));
+        assertFalse(saved.getLastSuPayloadSummary().contains("😀"));
+    }
+
+    @Test
+    void airbnbSave_shouldOmitIncompleteCheckInOptionAndStillUpdate() throws Exception {
+        ChannelMappingPriceSettingsService service = createService();
+        mockChannelAndIntegration("AIRBNB");
+        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
+        JsonNode retrieve = readJson(airbnbRetrieveListingWithCheckIn(
+                "A-LISTING",
+                "Airbnb Listing",
+                "self_check_in",
+                null
+        ));
+        JsonNode success = readJson("{\"Status\":\"Success\"}");
+        when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieve);
+        when(suApiClient.postAirbnbListingUpdate(eq("token"), any())).thenReturn(success);
+        when(suApiClient.isSuSuccess(success)).thenReturn(true);
+
+        MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
+        String rowKey = list.getRows().get(0).getRowKey();
+        MappingPriceSettingsSaveResponseDTO response = service.saveMappingPriceSettings(
+                CHANNEL_ID,
+                saveRequest(List.of(row(rowKey, "1.05", "0")))
+        );
+
+        assertEquals("SUCCESS", response.getStatus());
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(suApiClient).postAirbnbListingUpdate(eq("token"), payloadCaptor.capture());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
+        assertFalse(payload.containsKey("check_in_option"));
+        ChannelMappingPriceSetting saved = settings.get(rowKey);
+        assertTrue(saved.getLastSuPayloadSummary().contains("\"hasCheckInOption\":true"));
+        assertTrue(saved.getLastSuPayloadSummary().contains("\"hasCheckInInstruction\":false"));
+        assertTrue(saved.getLastSuPayloadSummary().contains("\"sentCheckInOption\":false"));
+    }
+
+    @Test
+    void airbnbSave_shouldSendCompleteCheckInOptionOnlyWhenCategoryAndInstructionExist() throws Exception {
+        ChannelMappingPriceSettingsService service = createService();
+        mockChannelAndIntegration("AIRBNB");
+        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
+        JsonNode retrieve = readJson(airbnbRetrieveListingWithCheckIn(
+                "A-LISTING",
+                "Airbnb Listing",
+                "self_check_in",
+                "Use the lockbox beside the front door."
+        ));
+        JsonNode success = readJson("{\"Status\":\"Success\"}");
+        when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieve);
+        when(suApiClient.postAirbnbListingUpdate(eq("token"), any())).thenReturn(success);
+        when(suApiClient.isSuSuccess(success)).thenReturn(true);
+
+        MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
+        String rowKey = list.getRows().get(0).getRowKey();
+        service.saveMappingPriceSettings(
+                CHANNEL_ID,
+                saveRequest(List.of(row(rowKey, "1.05", "0")))
+        );
+
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(suApiClient).postAirbnbListingUpdate(eq("token"), payloadCaptor.capture());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) payloadCaptor.getValue();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> checkInOption = (Map<String, Object>) payload.get("check_in_option");
+        assertEquals("self_check_in", checkInOption.get("category"));
+        assertEquals("Use the lockbox beside the front door.", checkInOption.get("instruction"));
+        assertEquals(
+                Set.of("hotelid", "channelhotelid", "listingid", "roomid", "rateid", "name", "multiplier", "surcharge", "occupancy", "check_in_option"),
+                payload.keySet()
+        );
+        ChannelMappingPriceSetting saved = settings.get(rowKey);
+        assertTrue(saved.getLastSuPayloadSummary().contains("\"sentCheckInOption\":true"));
+        assertFalse(saved.getLastSuPayloadSummary().contains("Use the lockbox"));
+    }
+
+    @Test
+    void airbnbSave_shouldPersistAuditSummaryWhenSuCannotProcessJson() throws Exception {
+        ChannelMappingPriceSettingsService service = createService();
+        mockChannelAndIntegration("AIRBNB");
+        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
+        JsonNode retrieve = readJson(airbnbRetrieveListing("A-LISTING", "Airbnb Listing"));
+        JsonNode unableToProcessJson = readJson("""
+                {
+                  "Status": "Fail",
+                  "Message": "Unable to process JSON",
+                  "Errors": {
+                    "ShortText": "Unable to process JSON"
+                  },
+                  "_su_http_status": 400
+                }
+                """);
+        when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieve);
+        when(suApiClient.postAirbnbListingUpdate(eq("token"), any())).thenReturn(unableToProcessJson);
+        when(suApiClient.isSuSuccess(unableToProcessJson)).thenReturn(false);
+        when(suApiClient.extractSuErrorMessage(unableToProcessJson)).thenReturn("Unable to process JSON");
+        when(suApiClient.extractHttpStatus(unableToProcessJson)).thenReturn(400);
+
+        MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
+        String rowKey = list.getRows().get(0).getRowKey();
+        MappingPriceSettingsSaveResponseDTO response = service.saveMappingPriceSettings(
+                CHANNEL_ID,
+                saveRequest(List.of(row(rowKey, "1.05", "0")))
+        );
+
+        assertEquals("FAILED", response.getStatus());
+        ChannelMappingPriceSetting saved = settings.get(rowKey);
+        assertEquals("airbnb/listing/update", saved.getLastSuAction());
+        assertEquals(400, saved.getLastSuHttpStatus());
+        assertEquals("Fail", saved.getLastSuResponseStatus());
+        assertEquals("Unable to process JSON", saved.getLastSuResponseMessage());
+        assertTrue(saved.getLastSuResponseErrors().contains("Unable to process JSON"));
+        assertTrue(saved.getLastSuPayloadSummary().contains("\"payloadKeys\""));
+        assertTrue(saved.getLastSuPayloadSummary().contains("\"listingid\":\"A-LISTING\""));
+        assertTrue(saved.getLastSuPayloadSummary().contains("\"nameLength\":14"));
+        assertFalse(saved.getLastSuPayloadSummary().contains("Airbnb Listing"));
+        assertTrue(saved.getLastSuResponseSummary().contains("\"httpStatus\":400"));
+    }
+
+    @Test
+    void airbnbSave_shouldRedactSensitiveContentFromSuAuditFields() throws Exception {
+        ChannelMappingPriceSettingsService service = createService();
+        mockChannelAndIntegration("AIRBNB");
+        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
+        JsonNode retrieve = readJson(airbnbRetrieveListing("A-LISTING", "Airbnb Listing"));
+        JsonNode sensitiveFailure = readJson("""
+                {
+                  "Status": "Fail",
+                  "Message": "Invalid check_in_option.instruction: Use the lockbox at 123 Fake Street Apt 4B. Door code 246810. Contact qa-redact@example.test or +1 415 555 0199 token=tok_fake_123456",
+                  "Errors": {
+                    "ShortText": "check_in_option.instruction: Use the lockbox at 123 Fake Street Apt 4B. Email qa-redact@example.test phone +1 415 555 0199 token=tok_fake_123456",
+                    "address": "123 Fake Street Apt 4B",
+                    "detail": "Room entry instructions: go through the blue door and use gate code 246810."
+                  },
+                  "_su_http_status": 422
+                }
+                """);
+        when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieve);
+        when(suApiClient.postAirbnbListingUpdate(eq("token"), any())).thenReturn(sensitiveFailure);
+        when(suApiClient.isSuSuccess(sensitiveFailure)).thenReturn(false);
+        when(suApiClient.extractSuErrorMessage(sensitiveFailure)).thenReturn(
+                "Invalid check_in_option.instruction: Use the lockbox at 123 Fake Street Apt 4B."
+        );
+        when(suApiClient.extractHttpStatus(sensitiveFailure)).thenReturn(422);
+
+        MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
+        String rowKey = list.getRows().get(0).getRowKey();
+        MappingPriceSettingsSaveResponseDTO response = service.saveMappingPriceSettings(
+                CHANNEL_ID,
+                saveRequest(List.of(row(rowKey, "1.05", "0")))
+        );
+
+        assertEquals("FAILED", response.getStatus());
+        ChannelMappingPriceSetting saved = settings.get(rowKey);
+        String auditText = saved.getLastSuResponseMessage()
+                + saved.getLastSuResponseErrors()
+                + saved.getLastSuResponseSummary();
+        assertFalse(auditText.contains("Use the lockbox"));
+        assertFalse(auditText.contains("123 Fake Street"));
+        assertFalse(auditText.contains("blue door"));
+        assertFalse(auditText.contains("qa-redact@example.test"));
+        assertFalse(auditText.contains("+1 415 555 0199"));
+        assertFalse(auditText.contains("tok_fake_123456"));
+        assertTrue(saved.getLastSuResponseMessage().contains("check_in_option.instruction"));
+        assertTrue(saved.getLastSuResponseMessage().contains("[REDACTED]"));
+        assertTrue(saved.getLastSuResponseSummary().contains("\"httpStatus\":422"));
+        assertTrue(saved.getLastSuResponseSummary().contains("\"status\":\"Fail\""));
+        assertTrue(saved.getLastSuResponseErrors().contains("check_in_option.instruction"));
+        assertTrue(response.getRows().get(0).getLastError().contains("Airbnb check-in instructions are incomplete"));
+        assertFalse(response.getRows().get(0).getLastError().contains("Use the lockbox"));
+    }
+
+    @Test
+    void airbnbSave_shouldShowActionableCheckInInstructionFailureWhenSuRequiresIt() throws Exception {
+        ChannelMappingPriceSettingsService service = createService();
+        mockChannelAndIntegration("AIRBNB");
+        when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
+        JsonNode retrieve = readJson(airbnbRetrieveListingWithCheckIn(
+                "A-LISTING",
+                "Airbnb Listing",
+                "self_check_in",
+                null
+        ));
+        JsonNode failure = readJson("""
+                {
+                  "Status": "Fail",
+                  "Errors": {
+                    "ShortText": "check_in_option.instruction is required"
+                  }
+                }
+                """);
+        when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieve);
+        when(suApiClient.postAirbnbListingUpdate(eq("token"), any())).thenReturn(failure);
+        when(suApiClient.isSuSuccess(failure)).thenReturn(false);
+        when(suApiClient.extractSuErrorMessage(failure)).thenReturn("check_in_option.instruction is required");
+
+        MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
+        MappingPriceSettingsSaveResponseDTO response = service.saveMappingPriceSettings(
+                CHANNEL_ID,
+                saveRequest(List.of(row(list.getRows().get(0).getRowKey(), "1.05", "0")))
+        );
+
+        assertEquals("FAILED", response.getStatus());
+        assertEquals(
+                "Airbnb check-in instructions are incomplete in Su/Airbnb; please complete check-in instructions in Su/Airbnb before retrying.",
+                response.getRows().get(0).getLastError()
+        );
     }
 
     @Test
@@ -335,7 +579,7 @@ class ChannelMappingPriceSettingsServiceTest {
         assertEquals("FAILED", response.getStatus());
         assertEquals(1, response.getFailureCount());
         assertTrue(response.getRows().get(0).getLastError()
-                .contains("Airbnb listing update requires listing details"));
+                .contains("Airbnb listing name is required"));
         verify(suApiClient).retrieveAirbnbListing(eq("token"), any());
         verify(suApiClient, never()).postAirbnbListingUpdate(anyString(), any());
         verify(suApiClient, never()).postAirbnbListingMap(anyString(), any());
@@ -632,5 +876,34 @@ class ChannelMappingPriceSettingsServiceTest {
                   }
                 }
                 """.formatted(listingId, name);
+    }
+
+    private String airbnbRetrieveListingWithCheckIn(
+            String listingId,
+            String name,
+            String category,
+            String instruction
+    ) {
+        String categoryLine = category != null ? "\"category\": \"%s\"".formatted(category) : "";
+        String instructionLine = instruction != null ? "\"instruction\": \"%s\"".formatted(instruction) : "";
+        String separator = !categoryLine.isBlank() && !instructionLine.isBlank() ? "," : "";
+        return """
+                {
+                  "Status": "Success",
+                  "Data": {
+                    "listing": {
+                      "listingid": "%s",
+                      "name": "%s",
+                      "person_capacity": 2,
+                      "room_type_category": "entire_home",
+                      "address": "Sensitive street address",
+                      "check_in_option": {
+                        %s%s
+                        %s
+                      }
+                    }
+                  }
+                }
+                """.formatted(listingId, name, categoryLine, separator, instructionLine);
     }
 }

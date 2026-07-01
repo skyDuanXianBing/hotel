@@ -312,6 +312,50 @@ async function updateAirbnbRow(
   return response.data as Record<string, unknown>
 }
 
+async function updateAirbnbRowWithUnknownField(row: MappingPriceRow): Promise<Record<string, unknown>> {
+  const response = await http.post(
+    '/SUAPI/jservice/airbnb/listing/update',
+    {
+      hotelid: HOTEL_ID,
+      channelhotelid: row.channelHotelId,
+      listingid: row.listingId,
+      name: row.listingName || `${row.listingId} Listing`,
+      roomid: row.roomId,
+      rateid: row.rateId,
+      multiplier: '0.9',
+      surcharge: '1',
+      occupancy: row.occupancy,
+      retrieve_only_field: 'should fail',
+    },
+    { headers: AUTH_HEADERS },
+  )
+  assert.equal(response.status, 400)
+  return response.data as Record<string, unknown>
+}
+
+async function updateAirbnbRowWithIncompleteCheckIn(row: MappingPriceRow): Promise<Record<string, unknown>> {
+  const response = await http.post(
+    '/SUAPI/jservice/airbnb/listing/update',
+    {
+      hotelid: HOTEL_ID,
+      channelhotelid: row.channelHotelId,
+      listingid: row.listingId,
+      name: row.listingName || `${row.listingId} Listing`,
+      roomid: row.roomId,
+      rateid: row.rateId,
+      multiplier: '0.9',
+      surcharge: '1',
+      occupancy: row.occupancy,
+      check_in_option: {
+        category: 'self_check_in',
+      },
+    },
+    { headers: AUTH_HEADERS },
+  )
+  assert.equal(response.status, 200)
+  return response.data as Record<string, unknown>
+}
+
 async function injectFailure(row: MappingPriceRow, endpoint: MappingFailureEndpoint): Promise<void> {
   const response = await http.post('/api/test/channel-mapping-price-settings/failures', {
     failures: [
@@ -410,6 +454,18 @@ async function main(): Promise<void> {
   assert.equal(duplicateMap.Status, 'Fail')
   assert.deepEqual(duplicateMap.Errors, {
     ShortText: 'Room and rateplan combination already mapped',
+  })
+  assertRowValue(await readState(), airbnbSuccessRow.rowKey, '1', '0')
+
+  const unknownFieldFailure = await updateAirbnbRowWithUnknownField(airbnbSuccessRow)
+  assert.equal(unknownFieldFailure.Status, 'Fail')
+  assert.equal(unknownFieldFailure.Message, 'Unable to process JSON')
+  assertRowValue(await readState(), airbnbSuccessRow.rowKey, '1', '0')
+
+  const incompleteCheckInFailure = await updateAirbnbRowWithIncompleteCheckIn(airbnbSuccessRow)
+  assert.equal(incompleteCheckInFailure.Status, 'Fail')
+  assert.deepEqual(incompleteCheckInFailure.Errors, {
+    ShortText: 'check_in_option.category and check_in_option.instruction are required',
   })
   assertRowValue(await readState(), airbnbSuccessRow.rowKey, '1', '0')
 

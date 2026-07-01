@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,7 @@ public class SuApiClient {
 
     private static final Logger logger = LoggerFactory.getLogger(SuApiClient.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String SU_HTTP_STATUS_METADATA_FIELD = "_su_http_status";
 
     @Autowired
     private SuApiConfig suApiConfig;
@@ -127,6 +129,49 @@ public class SuApiClient {
             return "{hotelid=" + hotelId + ", roomCount=" + rooms.size() + ", roomPreview=" + joiner + "}";
         }
         return "{hotelid=" + hotelId + ", keys=" + payloadMap.keySet() + "}";
+    }
+
+    public Integer extractHttpStatus(JsonNode response) {
+        if (response == null || response.isNull()) {
+            return null;
+        }
+        JsonNode statusNode = response.get(SU_HTTP_STATUS_METADATA_FIELD);
+        if (statusNode == null || !statusNode.canConvertToInt()) {
+            return null;
+        }
+        return statusNode.asInt();
+    }
+
+    private JsonNode readJsonWithHttpStatus(String body, int httpStatus) throws Exception {
+        JsonNode parsed = objectMapper.readTree(body);
+        if (parsed instanceof ObjectNode objectNode) {
+            objectNode.put(SU_HTTP_STATUS_METADATA_FIELD, httpStatus);
+        }
+        return parsed;
+    }
+
+    private String summarizeResponseBody(String body) {
+        if (body == null || body.isBlank()) {
+            return "empty";
+        }
+        try {
+            JsonNode parsed = objectMapper.readTree(body);
+            Map<String, Object> summary = new HashMap<>();
+            String status = firstNonBlankText(parsed, "Status", "status", "Success", "success");
+            String message = firstNonBlankText(parsed, "Message", "message");
+            JsonNode errors = parsed.get("Errors");
+            if (errors == null) {
+                errors = parsed.get("errors");
+            }
+            String errorsMessage = extractMessageFromErrorNode(errors);
+            summary.put("status", status);
+            summary.put("message", message != null ? abbreviate(message, 300) : null);
+            summary.put("errorsMessage", errorsMessage != null ? abbreviate(errorsMessage, 300) : null);
+            summary.put("hasErrors", errors != null && !errors.isNull());
+            return objectMapper.writeValueAsString(summary);
+        } catch (Exception ignore) {
+            return abbreviate(body, 300);
+        }
     }
 
     /**
@@ -514,12 +559,12 @@ public class SuApiClient {
                 throw new RuntimeException("Su " + actionName + " returned empty response body");
             }
             logger.info(
-                    "Su {} response received. status={}, bodyPreview={}",
+                    "Su {} response received. status={}, responseSummary={}",
                     actionName,
                     response.getStatusCode(),
-                    abbreviate(body, 300)
+                    summarizeResponseBody(body)
             );
-            return objectMapper.readTree(body);
+            return readJsonWithHttpStatus(body, response.getStatusCode().value());
         } catch (HttpClientErrorException.Unauthorized e) {
             logger.warn("Su {} unauthorized (401). Retrying with app-id header. payloadSummary={}", actionName, payloadSummary);
             HttpHeaders retryHeaders = buildSuAuthHeaders(accessToken, true, true);
@@ -531,21 +576,27 @@ public class SuApiClient {
                     throw new RuntimeException("Su " + actionName + " returned empty response body (after retry)");
                 }
                 logger.info(
-                        "Su {} response received(after retry). status={}, bodyPreview={}",
+                        "Su {} response received(after retry). status={}, responseSummary={}",
                         actionName,
                         response.getStatusCode(),
-                        abbreviate(body, 300)
+                        summarizeResponseBody(body)
                 );
-                return objectMapper.readTree(body);
+                return readJsonWithHttpStatus(body, response.getStatusCode().value());
             } catch (HttpClientErrorException retryErr) {
                 String body = retryErr.getResponseBodyAsString();
-                logger.error("Su {} retry returned client error. status={}, payloadSummary={}, body={}", actionName, retryErr.getStatusCode(), payloadSummary, body);
+                logger.error(
+                        "Su {} retry returned client error. status={}, payloadSummary={}, responseSummary={}",
+                        actionName,
+                        retryErr.getStatusCode(),
+                        payloadSummary,
+                        summarizeResponseBody(body)
+                );
                 if (retryErr instanceof HttpClientErrorException.Unauthorized) {
                     throw new SuApiUnauthorizedException(actionName, "Su " + actionName + " unauthorized (401) after retry", retryErr);
                 }
                 if (body != null && !body.isBlank()) {
                     try {
-                        return objectMapper.readTree(body);
+                        return readJsonWithHttpStatus(body, retryErr.getStatusCode().value());
                     } catch (Exception ignore) {
                         // fallthrough
                     }
@@ -557,13 +608,19 @@ public class SuApiClient {
             }
         } catch (HttpClientErrorException e) {
             String body = e.getResponseBodyAsString();
-            logger.error("Su {} returned client error. status={}, payloadSummary={}, body={}", actionName, e.getStatusCode(), payloadSummary, body);
+            logger.error(
+                    "Su {} returned client error. status={}, payloadSummary={}, responseSummary={}",
+                    actionName,
+                    e.getStatusCode(),
+                    payloadSummary,
+                    summarizeResponseBody(body)
+            );
             if (e instanceof HttpClientErrorException.Unauthorized) {
                 throw new SuApiUnauthorizedException(actionName, "Su " + actionName + " unauthorized (401)", e);
             }
             if (body != null && !body.isBlank()) {
                 try {
-                    return objectMapper.readTree(body);
+                    return readJsonWithHttpStatus(body, e.getStatusCode().value());
                 } catch (Exception ignore) {
                     // fallthrough
                 }
