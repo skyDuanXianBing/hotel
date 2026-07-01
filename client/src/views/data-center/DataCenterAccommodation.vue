@@ -1,221 +1,134 @@
 <template>
   <StatisticsLayout>
     <div class="accommodation-container">
-    <!-- 日期筛选 -->
-    <div class="filter-section">
-      <el-select v-model="dateType" style="width: 100px">
-        <el-option :label="t('stage5.common.date.today')" value="today" />
-        <el-option :label="t('stage5.common.date.yesterday')" value="yesterday" />
-        <el-option :label="t('stage5.common.date.thisWeek')" value="week" />
-        <el-option :label="t('stage5.common.date.thisMonth')" value="month" />
-      </el-select>
-      <el-date-picker
-        v-model="startDate"
-        type="date"
-        :placeholder="t('stage5.common.date.selectDate')"
-        format="YYYY/MM/DD"
-        value-format="YYYY-MM-DD"
-      />
-      <span class="date-separator">{{ t('stage5.common.date.rangeTo') }}</span>
-      <el-date-picker
-        v-model="endDate"
-        type="date"
-        :placeholder="t('stage5.common.date.selectDate')"
-        format="YYYY/MM/DD"
-        value-format="YYYY-MM-DD"
-      />
-    </div>
-
-    <!-- 经营指标统计 -->
-    <div class="metrics-section">
-      <h3 class="section-title">
-        {{ t('stage5.statistics.accommodation.operationalMetrics') }}
-        <el-tooltip :content="t('stage5.statistics.common.statsInfo')" placement="right">
-          <el-icon class="info-icon"><QuestionFilled /></el-icon>
-        </el-tooltip>
-      </h3>
+      <div class="filter-section">
+        <el-select v-model="dateType" class="business-quick-select">
+          <el-option :label="t('stage5.common.date.today')" value="today" />
+          <el-option :label="t('stage5.common.date.yesterday')" value="yesterday" />
+          <el-option :label="t('stage5.common.date.thisWeek')" value="week" />
+          <el-option :label="t('stage5.common.date.thisMonth')" value="month" />
+        </el-select>
+        <el-date-picker
+          v-model="businessDateRange"
+          class="business-date-range"
+          type="daterange"
+          :placeholder="t('stage5.common.date.selectDate')"
+          :start-placeholder="t('stage5.common.date.selectDate')"
+          :end-placeholder="t('stage5.common.date.selectDate')"
+          :range-separator="t('stage5.common.date.rangeTo')"
+          format="YYYY/MM/DD"
+          value-format="YYYY-MM-DD"
+          :clearable="false"
+        />
+      </div>
 
       <div class="metrics-grid">
-        <div class="metric-card">
-          <div class="metric-icon">
-            <el-icon size="32" color="#5b8ff9"><House /></el-icon>
-          </div>
-          <div class="metric-content">
-            <div class="metric-label">{{ t('stage5.statistics.accommodation.totalRoomFee') }}</div>
-            <div class="metric-value">¥{{ metrics.totalRoomFee.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-icon">
-            <el-icon size="32" color="#667eea"><TrendCharts /></el-icon>
-          </div>
-          <div class="metric-content">
+        <div v-for="card in metricCards" :key="card.key" class="metric-card">
+          <div class="metric-copy">
             <div class="metric-label">
-              {{ t('stage5.statistics.accommodation.avgDailyRate') }}
-              <el-tooltip :content="t('stage5.statistics.accommodation.avgDailyRate')" placement="top">
+              {{ card.label }}
+              <el-tooltip v-if="card.tooltip" :content="card.tooltip" placement="top">
                 <el-icon class="small-info"><QuestionFilled /></el-icon>
               </el-tooltip>
             </div>
-            <div class="metric-value">¥{{ metrics.avgDailyRate.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
+            <div class="metric-value">{{ card.value }}</div>
           </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-icon">
-            <el-icon size="32" color="#67c23a"><SuccessFilled /></el-icon>
-          </div>
-          <div class="metric-content">
-            <div class="metric-label">
-              {{ t('stage5.statistics.accommodation.occupancyRate') }}
-              <el-tooltip :content="t('stage5.statistics.accommodation.occupancyRate')" placement="top">
-                <el-icon class="small-info"><QuestionFilled /></el-icon>
-              </el-tooltip>
-            </div>
-            <div class="metric-value">{{ metrics.occupancyRate }}%</div>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-icon">
-            <el-icon size="32" color="#f9c94a"><Money /></el-icon>
-          </div>
-          <div class="metric-content">
-            <div class="metric-label">
-              {{ t('stage5.statistics.accommodation.revPAR') }}
-              <el-tooltip :content="t('stage5.statistics.accommodation.revPAR')" placement="top">
-                <el-icon class="small-info"><QuestionFilled /></el-icon>
-              </el-tooltip>
-            </div>
-            <div class="metric-value">¥{{ metrics.revPAR.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-icon">
-            <el-icon size="32" color="#f56c6c"><Calendar /></el-icon>
-          </div>
-          <div class="metric-content">
-            <div class="metric-label">
-              {{ t('stage5.statistics.accommodation.totalRoomNights') }}
-              <el-tooltip :content="t('stage5.statistics.accommodation.roomNights')" placement="top">
-                <el-icon class="small-info"><QuestionFilled /></el-icon>
-              </el-tooltip>
-            </div>
-            <div class="metric-value">{{ metrics.totalRoomNights.toFixed(2) }}</div>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-icon">
-            <el-icon size="32" color="#e6a23c"><Clock /></el-icon>
-          </div>
-          <div class="metric-content">
-            <div class="metric-label">
-              {{ t('stage5.statistics.accommodation.avgDailyRoomNights') }}
-              <el-tooltip :content="t('stage5.statistics.accommodation.avgDailyRoomNights')" placement="top">
-                <el-icon class="small-info"><QuestionFilled /></el-icon>
-              </el-tooltip>
-            </div>
-            <div class="metric-value">{{ metrics.avgDailyRoomNights.toFixed(2) }}</div>
-          </div>
+          <img :src="card.icon" :alt="card.label" class="metric-icon-image" />
         </div>
       </div>
-    </div>
 
-    <!-- 经营指标趋势图 -->
-    <div class="trend-section">
-      <h3 class="section-title">{{ t('stage5.statistics.accommodation.operationalTrend') }}</h3>
+      <section class="trend-section">
+        <h3 class="section-title">{{ t('stage5.statistics.accommodation.operationalMetrics') }}</h3>
 
-      <div class="trend-tabs">
-        <el-button
-          v-for="tab in trendTabs"
-          :key="tab.key"
-          :type="activeTrendTab === tab.key ? 'primary' : 'default'"
-          @click="switchTrendTab(tab.key)"
-        >
-          {{ tab.label }}
-        </el-button>
-      </div>
+        <div class="trend-tabs">
+          <el-button
+            v-for="tab in trendTabs"
+            :key="tab.key"
+            :class="{ active: activeTrendTab === tab.key }"
+            @click="switchTrendTab(tab.key)"
+          >
+            {{ tab.label }}
+          </el-button>
+        </div>
 
-      <div ref="lineChartRef" class="trend-chart"></div>
-    </div>
+        <div ref="lineChartRef" class="trend-chart"></div>
+      </section>
 
-    <!-- 数据明细表格 -->
-    <div class="table-section">
-      <h3 class="section-title">
-        {{ t('stage5.statistics.accommodation.dataDetails') }} ({{ dateRangeLabel }})
-        <el-button type="primary" style="float: right">{{ t('stage5.common.actions.exportDetails') }}</el-button>
-      </h3>
+      <section class="table-section">
+        <div class="table-header">
+          <h3 class="section-title table-title">
+            {{ t('stage5.statistics.accommodation.dataDetails') }} ({{ dateRangeLabel }})
+          </h3>
+          <el-button type="primary" class="export-button">
+            {{ t('stage5.common.actions.exportDetails') }}
+          </el-button>
+        </div>
 
-      <div class="table-tabs">
-        <el-button
-          v-for="tab in tableTabs"
-          :key="tab.key"
-          :type="activeTableTab === tab.key ? 'primary' : 'default'"
-          size="small"
-          @click="activeTableTab = tab.key"
-        >
-          {{ tab.label }}
-        </el-button>
-      </div>
+        <div class="table-tabs">
+          <el-button
+            v-for="tab in tableTabs"
+            :key="tab.key"
+            :class="{ active: activeTableTab === tab.key }"
+            @click="activeTableTab = tab.key"
+          >
+            {{ tab.label }}
+          </el-button>
+        </div>
 
-      <!-- 房费明细表格 -->
-      <el-table v-if="activeTableTab === 'room-fee'" :data="roomFeeData" border stripe class="detail-table">
-        <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="150" align="center" />
-        <el-table-column prop="roomNumber" :label="t('stage5.common.fields.room')" min-width="120" align="center" />
-        <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
-          <template #default="{ row }">
-            <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150" align="center">
-          <template #default="{ row }">
-            ¥{{ row.currentDate.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
-          </template>
-        </el-table-column>
-      </el-table>
+        <el-table v-if="activeTableTab === 'room-fee'" :data="roomFeeData" class="detail-table">
+          <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="150" />
+          <el-table-column prop="roomNumber" :label="t('stage5.common.fields.room')" min-width="120" />
+          <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150">
+            <template #default="{ row }">
+              <span class="amount-bold">{{ formatCurrency(row.total) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150">
+            <template #default="{ row }">
+              {{ formatCurrency(row.currentDate) }}
+            </template>
+          </el-table-column>
+        </el-table>
 
-      <!-- 间夜明细表格 -->
-      <el-table v-if="activeTableTab === 'checkin'" :data="checkinData" border stripe class="detail-table">
-        <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="150" align="center" />
-        <el-table-column prop="roomNumber" :label="t('stage5.common.fields.room')" min-width="120" align="center" />
-        <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
-          <template #default="{ row }">
-            <span class="amount-bold">{{ row.total }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150" align="center" />
-      </el-table>
+        <el-table v-if="activeTableTab === 'checkin'" :data="checkinData" class="detail-table">
+          <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="150" />
+          <el-table-column prop="roomNumber" :label="t('stage5.common.fields.room')" min-width="120" />
+          <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150">
+            <template #default="{ row }">
+              <span class="amount-bold">{{ formatNumber(row.total) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150">
+            <template #default="{ row }">{{ formatNumber(row.currentDate) }}</template>
+          </el-table-column>
+        </el-table>
 
-      <!-- 入住率明细表格 -->
-      <el-table v-if="activeTableTab === 'occupancy'" :data="occupancyData" border stripe class="detail-table">
-        <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="200" align="center" />
-        <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
-          <template #default="{ row }">
-            <span class="amount-bold">{{ row.total.toFixed(2) }}%</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150" align="center">
-          <template #default="{ row }">{{ row.currentDate.toFixed(2) }}%</template>
-        </el-table-column>
-      </el-table>
+        <el-table v-if="activeTableTab === 'occupancy'" :data="occupancyData" class="detail-table">
+          <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="200" />
+          <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150">
+            <template #default="{ row }">
+              <span class="amount-bold">{{ formatPercent(row.total) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150">
+            <template #default="{ row }">{{ formatPercent(row.currentDate) }}</template>
+          </el-table-column>
+        </el-table>
 
-      <!-- RevPAR明细表格 -->
-      <el-table v-if="activeTableTab === 'revpar'" :data="revparData" border stripe class="detail-table">
-        <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="200" align="center" />
-        <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150" align="center">
-          <template #default="{ row }">
-            <span class="amount-bold">¥{{ row.total.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150" align="center">
-          <template #default="{ row }">
-            ¥{{ row.currentDate.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+        <el-table v-if="activeTableTab === 'revpar'" :data="revparData" class="detail-table">
+          <el-table-column prop="roomType" :label="t('stage5.common.fields.roomType')" min-width="200" />
+          <el-table-column prop="total" :label="t('stage5.common.fields.total')" min-width="150">
+            <template #default="{ row }">
+              <span class="amount-bold">{{ formatCurrency(row.total) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="currentDate" :label="currentDateLabel" min-width="150">
+            <template #default="{ row }">
+              {{ formatCurrency(row.currentDate) }}
+            </template>
+          </el-table-column>
+        </el-table>
+      </section>
     </div>
   </StatisticsLayout>
 </template>
@@ -223,7 +136,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { QuestionFilled, House, TrendCharts, SuccessFilled, Money, Calendar, Clock } from '@element-plus/icons-vue'
+import { QuestionFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
@@ -233,26 +146,74 @@ import {
   type OperationalMetricsDTO,
   type OperationalRoomDetailDTO,
 } from '@/api/statistics'
-import { getStoreTodayYmd } from '@/utils/storeDateTime'
+import { addDaysToYmd, getStoreTodayYmd, getYmdMonthStart, getYmdWeekStart } from '@/utils/storeDateTime'
+import businessHomeIcon from '@/assets/icons/statistics/business-home.png'
+import businessDepositIcon from '@/assets/icons/statistics/business-deposit.png'
+import avgRoomRevenueIcon from '@/assets/icons/statistics/accommodation-avg-room-revenue.png'
+import avgDailyRoomNightsIcon from '@/assets/icons/statistics/accommodation-avg-daily-nights.png'
+import soldRoomNightsIcon from '@/assets/icons/statistics/accommodation-sold-room-nights.png'
+import occupancyRateIcon from '@/assets/icons/statistics/accommodation-occupancy-rate.png'
 
 const { t } = useI18n()
 const dateType = ref('today')
 const loading = ref(false)
 
-// 自动获取今天的日期
-const getTodayDate = () => {
-  return getStoreTodayYmd()
-}
+const getTodayDate = () => getStoreTodayYmd()
 
 const startDate = ref(getTodayDate())
 const endDate = ref(getTodayDate())
+
+const businessDateRange = computed<string[]>({
+  get: () => {
+    if (!startDate.value || !endDate.value) return []
+    return [startDate.value, endDate.value]
+  },
+  set: (value: string[]) => {
+    const [start, end] = value || []
+    startDate.value = start || ''
+    endDate.value = end || ''
+  },
+})
+
+const updateDateRange = (type: string) => {
+  const today = getTodayDate()
+
+  switch (type) {
+    case 'today':
+      startDate.value = today
+      endDate.value = today
+      break
+    case 'yesterday': {
+      const yesterday = addDaysToYmd(today, -1)
+      startDate.value = yesterday
+      endDate.value = yesterday
+      break
+    }
+    case 'week':
+      startDate.value = getYmdWeekStart(today)
+      endDate.value = today
+      break
+    case 'month':
+      startDate.value = getYmdMonthStart(today)
+      endDate.value = today
+      break
+  }
+}
 
 const toNumber = (value: unknown): number => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-// 日期范围标签 - 动态显示选择的日期范围
+const formatNumber = (value: number) =>
+  value.toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+
+const formatCurrency = (value: number) => `¥${formatNumber(value)}`
+const formatPercent = (value: number) => `${formatNumber(value)}%`
+
 const dateRangeLabel = computed(() => {
   return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
 })
@@ -273,7 +234,6 @@ const currentDateLabel = computed(() => {
   return t('stage5.common.date.monthDay', { month, day })
 })
 
-// 经营指标数据
 const metrics = ref({
   totalRoomFee: 0,
   avgDailyRate: 0,
@@ -283,20 +243,60 @@ const metrics = ref({
   avgDailyRoomNights: 0,
 })
 
-/**
- * 加载经营指标数据
- */
+const metricCards = computed(() => [
+  {
+    key: 'total-room-fee',
+    label: t('stage5.statistics.accommodation.totalRoomFee'),
+    value: formatCurrency(metrics.value.totalRoomFee),
+    icon: businessHomeIcon,
+  },
+  {
+    key: 'avg-daily-rate',
+    label: t('stage5.statistics.accommodation.avgDailyRate'),
+    value: formatCurrency(metrics.value.avgDailyRate),
+    icon: businessDepositIcon,
+    tooltip: t('stage5.statistics.accommodation.avgDailyRate'),
+  },
+  {
+    key: 'occupancy-rate',
+    label: t('stage5.statistics.accommodation.occupancyRate'),
+    value: formatPercent(metrics.value.occupancyRate),
+    icon: occupancyRateIcon,
+    tooltip: t('stage5.statistics.accommodation.occupancyRate'),
+  },
+  {
+    key: 'revpar',
+    label: t('stage5.statistics.accommodation.revPAR'),
+    value: formatCurrency(metrics.value.revPAR),
+    icon: avgRoomRevenueIcon,
+    tooltip: t('stage5.statistics.accommodation.revPAR'),
+  },
+  {
+    key: 'total-room-nights',
+    label: t('stage5.statistics.accommodation.totalRoomNights'),
+    value: formatNumber(metrics.value.totalRoomNights),
+    icon: soldRoomNightsIcon,
+    tooltip: t('stage5.statistics.accommodation.roomNights'),
+  },
+  {
+    key: 'avg-daily-room-nights',
+    label: t('stage5.statistics.accommodation.avgDailyRoomNights'),
+    value: formatNumber(metrics.value.avgDailyRoomNights),
+    icon: avgDailyRoomNightsIcon,
+    tooltip: t('stage5.statistics.accommodation.avgDailyRoomNights'),
+  },
+])
+
 const loadOperationalMetrics = async () => {
   try {
     loading.value = true
     const response = await getOperationalMetrics({
       startDate: startDate.value,
-      endDate: endDate.value
+      endDate: endDate.value,
     })
 
     if (response.success && response.data) {
-      const data = response.data
-      applyOperationalMetricsData(data)
+      applyOperationalMetricsData(response.data)
     } else {
       ElMessage.error(response.message || t('stage5.statistics.accommodation.loadMetricsFailed'))
     }
@@ -328,7 +328,6 @@ const mapRoomDetailRows = (details: OperationalRoomDetailDTO[] | undefined) => {
     }
   })
 
-  // 单房间房型的小计与明细完全重复，过滤掉该小计行以避免视觉重复。
   return rows.filter(row => {
     if (!row.isSubtotal) {
       return true
@@ -371,7 +370,6 @@ const applyOperationalMetricsData = (data: OperationalMetricsDTO) => {
   }
 }
 
-// 趋势图选项卡
 const trendTabs = computed(() => [
   { key: 'room-fee', label: t('stage5.statistics.accommodation.totalRoomFee') },
   { key: 'avg-price', label: t('stage5.statistics.accommodation.avgDailyRate') },
@@ -380,16 +378,14 @@ const trendTabs = computed(() => [
 ])
 const activeTrendTab = ref('room-fee')
 
-// 趋势数据(待从后端获取)
 const dates = ref<string[]>([])
 const trendData = ref<Record<string, number[]>>({
   'room-fee': [],
   'avg-price': [],
   'avg-revenue': [],
-  'occupancy': []
+  occupancy: [],
 })
 
-// 表格选项卡
 const tableTabs = computed(() => [
   { key: 'room-fee', label: t('stage5.statistics.accommodation.roomFeeDetails') },
   { key: 'checkin', label: t('stage5.statistics.accommodation.roomNightDetails') },
@@ -398,7 +394,6 @@ const tableTabs = computed(() => [
 ])
 const activeTableTab = ref('room-fee')
 
-// 房费明细数据
 interface RoomFeeItem {
   roomType: string
   roomNumber: string
@@ -409,7 +404,6 @@ interface RoomFeeItem {
 
 const roomFeeData = ref<RoomFeeItem[]>([])
 
-// 间夜明细数据
 interface CheckinItem {
   roomType: string
   roomNumber: string
@@ -420,7 +414,6 @@ interface CheckinItem {
 
 const checkinData = ref<CheckinItem[]>([])
 
-// 入住率明细数据
 interface OccupancyItem {
   roomType: string
   total: number
@@ -429,9 +422,9 @@ interface OccupancyItem {
 
 const occupancyData = ref<OccupancyItem[]>([])
 
-// RevPAR明细数据
 interface RevPARItem {
   roomType: string
+  roomNumber?: string
   isSubtotal?: boolean
   total: number
   currentDate: number
@@ -439,11 +432,9 @@ interface RevPARItem {
 
 const revparData = ref<RevPARItem[]>([])
 
-// ECharts实例
 const lineChartRef = ref<HTMLDivElement>()
 let lineChart: ECharts | null = null
 
-// 初始化折线图
 const initLineChart = () => {
   if (!lineChartRef.value) return
 
@@ -451,64 +442,116 @@ const initLineChart = () => {
   updateLineChart('room-fee')
 }
 
-// 更新折线图数据
+const getXAxisLabelInterval = (dateCount: number) => {
+  if (dateCount <= 7) return 0
+  if (dateCount <= 14) return 1
+  if (dateCount <= 31) return 3
+  return Math.ceil(dateCount / 8) - 1
+}
+
 const updateLineChart = (tabKey: string) => {
   if (!lineChart) return
 
   const data = trendData.value[tabKey] || []
   const tabLabel = trendTabs.value.find(tab => tab.key === tabKey)?.label || ''
+  const isMoney = tabKey === 'room-fee' || tabKey === 'avg-price' || tabKey === 'avg-revenue'
+  const xAxisLabelInterval = getXAxisLabelInterval(dates.value.length)
+  const showAllSymbols = dates.value.length <= 14
 
   const option = {
     tooltip: {
       trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.96)',
+      borderColor: '#d9e7ff',
+      borderWidth: 1,
+      textStyle: {
+        color: '#2f3440',
+        fontSize: 12,
+      },
       formatter: (params: any) => {
         const param = params[0]
-        let value = param.value
-        if (tabKey === 'room-fee' || tabKey === 'avg-price' || tabKey === 'avg-revenue') {
-          value = `¥${value.toFixed(2)}`
-        } else {
-          value = value.toFixed(2)
-        }
+        const value = isMoney ? formatCurrency(Number(param.value)) : formatNumber(Number(param.value))
         return `${param.axisValue}<br/>${param.marker}${tabLabel}: ${value}`
-      }
+      },
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '10%',
-      containLabel: true
+      left: 22,
+      right: 22,
+      bottom: 34,
+      top: 18,
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
       data: dates.value,
       boundaryGap: false,
+      axisTick: { show: false },
+      axisLine: {
+        lineStyle: {
+          color: '#aeb6c2',
+        },
+      },
       axisLabel: {
-        interval: 0
-      }
+        interval: xAxisLabelInterval,
+        color: '#5f6670',
+        fontSize: 12,
+        hideOverlap: true,
+      },
+      splitLine: {
+        show: true,
+        lineStyle: {
+          color: '#d9dde4',
+          type: 'dashed',
+        },
+      },
     },
     yAxis: {
       type: 'value',
+      axisLine: { show: false },
+      axisTick: { show: false },
       axisLabel: {
-        formatter: (value: number) => {
-          if (tabKey === 'room-fee' || tabKey === 'avg-price' || tabKey === 'avg-revenue') {
-            return `¥${value}`
-          }
-          return value.toString()
-        }
-      }
+        color: '#5f6670',
+        fontSize: 12,
+        formatter: (value: number) => (isMoney ? `¥${value.toLocaleString('zh-CN')}` : value.toString()),
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#d9dde4',
+          type: 'dashed',
+        },
+      },
     },
+    dataZoom: [
+      {
+        type: 'inside',
+        xAxisIndex: 0,
+        filterMode: 'none',
+        zoomOnMouseWheel: true,
+        moveOnMouseMove: true,
+        moveOnMouseWheel: false,
+      },
+    ],
     series: [
       {
         name: tabLabel,
         type: 'line',
         smooth: true,
-        data: data,
+        symbol: 'circle',
+        symbolSize: 7,
+        showSymbol: showAllSymbols,
+        emphasis: {
+          focus: 'series',
+          scale: true,
+        },
+        data,
         lineStyle: {
-          width: 3
+          width: 2,
+          color: '#198cff',
         },
         itemStyle: {
-          color: '#5b8ff9'
+          color: '#ffffff',
+          borderColor: '#198cff',
+          borderWidth: 2,
         },
         areaStyle: {
           color: {
@@ -518,36 +561,39 @@ const updateLineChart = (tabKey: string) => {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(91, 143, 249, 0.3)' },
-              { offset: 1, color: 'rgba(91, 143, 249, 0.05)' }
-            ]
-          }
-        }
-      }
-    ]
+              { offset: 0, color: 'rgba(25, 140, 255, 0.28)' },
+              { offset: 1, color: 'rgba(25, 140, 255, 0.04)' },
+            ],
+          },
+        },
+      },
+    ],
   }
 
   lineChart.setOption(option)
 }
 
-// 切换趋势图标签
 const switchTrendTab = (tabKey: string) => {
   activeTrendTab.value = tabKey
   updateLineChart(tabKey)
 }
 
-// 响应式调整
 const handleResize = () => {
   lineChart?.resize()
 }
 
-// 监听日期变化
 watch([startDate, endDate], () => {
   loadOperationalMetrics()
 })
 
+watch(dateType, (newType) => {
+  if (newType) {
+    updateDateRange(newType)
+  }
+})
+
 onMounted(() => {
-  // 加载初始数据
+  updateDateRange(dateType.value)
   loadOperationalMetrics()
 
   initLineChart()
@@ -562,143 +608,297 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .accommodation-container {
-  padding: 24px;
-  background: #fff;
-  min-height: calc(100vh - 100px);
+  min-width: 1218px;
+  min-height: 100%;
+  padding: 0 0 24px;
+  background: transparent;
 }
 
-/* 筛选器 */
 .filter-section {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  height: 60px;
+  margin-bottom: 10px;
+  padding: 0 16px;
+  background: #ffffff;
+  border-radius: 4px;
 }
 
-.date-separator {
-  color: #606266;
+.business-quick-select {
+  width: 78px;
+  flex: 0 0 78px;
+}
+
+.business-date-range {
+  width: 288px;
+  max-width: 288px;
+  flex: 0 0 288px;
+}
+
+.accommodation-container :deep(.filter-section .el-select__wrapper),
+.accommodation-container :deep(.filter-section .el-input__wrapper) {
+  min-height: 32px;
+  border-radius: 5px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+}
+
+.accommodation-container :deep(.filter-section .el-select__wrapper:hover),
+.accommodation-container :deep(.filter-section .el-select__wrapper.is-focused),
+.accommodation-container :deep(.filter-section .el-input__wrapper:hover),
+.accommodation-container :deep(.filter-section .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #87bdf6 inset;
+}
+
+.accommodation-container :deep(.filter-section .el-input__inner),
+.accommodation-container :deep(.filter-section .el-select__selected-item) {
+  color: #30343b;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.accommodation-container :deep(.filter-section .el-input__prefix) {
+  color: #aeb4bd;
+}
+
+.accommodation-container :deep(.filter-section .business-date-range.el-range-editor.el-input__wrapper) {
+  width: 288px;
+  max-width: 288px;
+  flex: 0 0 288px;
+  padding: 1px 1px 1px 6px;
+  overflow: hidden;
+}
+
+.accommodation-container :deep(.filter-section .business-date-range .el-range__icon) {
+  margin: 0 9px 0 2px;
+  color: #aeb4bd;
   font-size: 14px;
 }
 
-/* 指标区域 */
-.metrics-section {
-  margin-bottom: 32px;
+.accommodation-container :deep(.filter-section .business-date-range .el-range-input) {
+  height: 30px;
+  padding: 0 7px;
+  background: #fafafa;
+  color: #30343b;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 30px;
 }
 
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 20px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.accommodation-container :deep(.filter-section .business-date-range .el-range-input:first-child) {
+  border-radius: 4px 0 0 4px;
 }
 
-.info-icon {
-  color: #909399;
-  cursor: help;
+.accommodation-container :deep(.filter-section .business-date-range .el-range-input:last-child) {
+  border-radius: 0 4px 4px 0;
 }
 
-.small-info {
+.accommodation-container :deep(.filter-section .business-date-range .el-range-separator) {
+  width: 44px;
+  height: 30px;
+  background: #ffffff;
+  color: #777f89;
   font-size: 12px;
-  color: #909399;
-  cursor: help;
-  margin-left: 4px;
+  line-height: 30px;
+}
+
+.accommodation-container :deep(.filter-section .business-date-range .el-range__close-icon) {
+  display: none;
 }
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .metric-card {
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 20px;
   display: flex;
+  min-height: 82px;
   align-items: center;
-  gap: 16px;
-  transition: all 0.3s ease;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 12px 16px;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
 }
 
-.metric-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-}
-
-.metric-icon {
-  flex-shrink: 0;
-}
-
-.metric-content {
-  flex: 1;
+.metric-copy {
+  min-width: 0;
 }
 
 .metric-label {
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 8px;
   display: flex;
   align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  color: #8c8c8c;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .metric-value {
+  color: #0b0b0b;
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
-/* 趋势区域 */
+.metric-icon-image {
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  object-fit: contain;
+}
+
+.small-info {
+  color: #9ca3ad;
+  cursor: help;
+  font-size: 13px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #0d0d0d;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .trend-section {
-  margin-bottom: 32px;
+  min-height: 442px;
+  margin-bottom: 10px;
+  padding: 18px 22px 16px;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.trend-tabs,
+.table-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .trend-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
+  margin: 12px 0 14px;
+}
+
+.trend-tabs :deep(.el-button),
+.table-tabs :deep(.el-button) {
+  min-width: 64px;
+  height: 32px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #606266;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.trend-tabs :deep(.el-button.active),
+.trend-tabs :deep(.el-button:hover),
+.table-tabs :deep(.el-button.active),
+.table-tabs :deep(.el-button:hover) {
+  border-color: #1e90f7;
+  background: #1e90f7;
+  color: #ffffff;
 }
 
 .trend-chart {
   width: 100%;
-  height: 350px;
-  margin-top: 20px;
+  height: 344px;
 }
 
-/* 表格区域 */
 .table-section {
-  margin-top: 32px;
+  min-height: 350px;
+  padding: 18px 22px 28px;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.table-title {
+  min-width: 0;
+}
+
+.export-button {
+  min-width: 138px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  background: #1e90f7;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .table-tabs {
-  display: flex;
-  gap: 8px;
-  margin: 16px 0;
+  margin-bottom: 10px;
 }
 
 .detail-table {
-  margin-top: 16px;
+  --el-table-border-color: #e6e6e6;
+  --el-table-header-bg-color: #fafafa;
+  --el-table-row-hover-bg-color: #f9fbff;
+  border: 1px solid #e6e6e6;
+  border-bottom: none;
+  background: #ffffff;
 }
 
-.detail-table :deep(.el-table th) {
-  background-color: #f5f7fa;
-  color: #606266;
+.detail-table :deep(.el-table__inner-wrapper::before) {
+  background-color: #e6e6e6;
+}
+
+.detail-table :deep(th.el-table__cell) {
+  height: 34px;
+  background: #fafafa !important;
+  border-right: 1px solid #e6e6e6;
+  border-bottom: 1px solid #e6e6e6;
+  color: #333333;
+  font-size: 13px;
   font-weight: 600;
+}
+
+.detail-table :deep(td.el-table__cell) {
+  height: 52px;
+  border-right: 1px solid #e6e6e6;
+  border-bottom: 1px solid #e6e6e6;
+  color: #333333;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.detail-table :deep(th.el-table__cell:last-child),
+.detail-table :deep(td.el-table__cell:last-child) {
+  border-right: none;
+}
+
+.detail-table :deep(.cell) {
+  padding: 0 10px;
+  line-height: 1.35;
 }
 
 .amount-bold {
-  font-weight: 600;
-  color: #303133;
-}
-
-:deep(.el-table) {
-  font-size: 14px;
-}
-
-:deep(.el-table .cell) {
-  padding: 12px 8px;
+  color: #333333;
+  font-weight: 400;
 }
 </style>

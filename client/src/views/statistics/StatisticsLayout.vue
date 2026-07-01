@@ -1,139 +1,129 @@
 <template>
-  <div class="statistics-layout">
-    <!-- 统一的侧边栏 -->
-    <StatisticsSidebar />
-    
-    <!-- 主内容区域 -->
-    <div class="main-content">
-     
-      <!-- 子页面内容 -->
-      <div class="page-content">
+  <div class="statistics-shell" :class="{ 'is-sidebar-collapsed': isCollapsed }" :style="shellStyle">
+    <StatisticsSidebar
+      :collapsed="isCollapsed"
+      @toggle="toggleSidebar"
+    />
+
+    <section class="statistics-panel">
+      <header class="statistics-panel-header">
+        <AppTopNav
+          v-bind="topNavBindings.props.value"
+          @store-select="topNavBindings.onStoreSelect"
+          @manage-stores="topNavBindings.onManageStores"
+          @menu-click="topNavBindings.onMenuClick"
+          @wallet-click="topNavBindings.onWalletClick"
+          @inbox-click="topNavBindings.onInboxClick"
+          @support-chat="topNavBindings.onSupportChat"
+          @system-notification="topNavBindings.onSystemNotification"
+          @order-notification="topNavBindings.onOrderNotification"
+          @profile-click="topNavBindings.onProfileClick"
+          @logout="topNavBindings.onLogout"
+        />
+      </header>
+
+      <main class="statistics-content">
         <slot />
-      </div>
-    </div>
+      </main>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { computed, inject, ref, watch } from 'vue'
+import AppTopNav from '@/components/layout/AppTopNav.vue'
+import { appTopNavBindingsKey } from '@/components/layout/appShellContext'
 import StatisticsSidebar from '@/components/StatisticsSidebar.vue'
 
-const router = useRouter()
-const route = useRoute()
-const { t } = useI18n()
+const topNavBindings = inject(appTopNavBindingsKey)
 
-// 根据当前路由确定激活的Tab
-const activeTab = computed(() => {
-  const routeName = route.name as string
-  switch (routeName) {
-    case 'BusinessSummary':
-      return 'business-summary'
-    case 'ChannelSummary':
-      return 'channel-summary'
-    default:
-      return 'business-summary'
-  }
-})
-
-// Tab导航处理
-const navigateToTab = (tabName: string) => {
-  switch (tabName) {
-    case 'business-summary':
-      router.push('/statistics/business-summary')
-      break
-    case 'channel-summary':
-      router.push('/statistics/channel-summary')
-      break
-    case 'revenue-summary':
-      ElMessage.info(t('stage5.statistics.layout.revenueComingSoon'))
-      break
-    case 'customer-type-summary':
-      ElMessage.info(t('stage5.statistics.layout.customerTypeComingSoon'))
-      break
-    case 'sales-summary':
-      ElMessage.info(t('stage5.statistics.layout.salesComingSoon'))
-      break
-  }
+if (!topNavBindings) {
+  throw new Error('StatisticsLayout requires top navigation bindings')
 }
+
+const SIDEBAR_STORAGE_KEY = 'statistics-sidebar-collapsed'
+const COLLAPSED_WIDTH = 84
+const EXPANDED_WIDTH = 220
+
+const isCollapsed = ref(
+  typeof window === 'undefined'
+    ? false
+    : localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true',
+)
+
+const shellStyle = computed(() => ({
+  '--sidebar-width': `${isCollapsed.value ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`,
+}))
+
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value
+}
+
+watch(
+  isCollapsed,
+  (collapsed) => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed))
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
-.statistics-layout {
-  display: flex;
+.statistics-shell {
+  --sidebar-width: 84px;
   height: 100vh;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   background: #f5f5f5;
 }
 
-/* 主内容区域 */
-.main-content {
-  flex: 1;
+.statistics-panel {
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.statistics-panel-header {
+  padding: 18px 32px 14px;
+  background: #f5f5f5;
   overflow: hidden;
 }
 
-/* 顶部Tab标签 */
-.top-tabs {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  padding: 16px 20px;
-  background: white;
-  border-bottom: 1px solid #e8e8e8;
-  flex-shrink: 0;
+.statistics-panel-header :deep(.top-nav) {
+  --nav-center-shift: calc(-56px + ((var(--sidebar-width) - 84px) / 6));
+  --nav-right-shift: -28px;
 }
 
-.tab-item {
-  font-size: 16px;
-  color: #666;
-  cursor: pointer;
-  padding: 8px 0;
-  position: relative;
-  transition: color 0.3s;
-}
-
-.tab-item:hover {
-  color: #409eff;
-}
-
-.tab-item.active {
-  color: #409eff;
-  font-weight: 500;
-}
-
-.tab-item.active::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -17px;
-  height: 2px;
-  background: #409eff;
-}
-
-/* 页面内容区域 */
-.page-content {
+.statistics-content {
   flex: 1;
+  min-height: 0;
   overflow: auto;
-  padding: 20px;
+  padding: 0 24px 24px;
+  background: #f5f5f5;
 }
 
-/* 响应式设计 */
+@media (max-width: 1280px) {
+  .statistics-panel-header {
+    padding-left: 24px;
+    padding-right: 20px;
+  }
+
+  .statistics-content {
+    padding-right: 20px;
+    padding-bottom: 20px;
+  }
+}
+
 @media (max-width: 768px) {
-  .statistics-layout {
-    flex-direction: column;
+  .statistics-shell {
+    grid-template-columns: 84px minmax(0, 1fr);
   }
 
-  .top-tabs {
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .page-content {
-    padding: 16px;
+  .statistics-content {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 }
 </style>
