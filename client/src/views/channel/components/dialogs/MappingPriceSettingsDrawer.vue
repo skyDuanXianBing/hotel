@@ -41,6 +41,14 @@ const BATCH_SURCHARGE: MappingPriceBatchField = 'SURCHARGE'
 const NUMBER_STEP = 0.01
 const NUMBER_PRECISION = 4
 const OPERATION_PREFIX = 'mapping-price'
+const AIRBNB_CHANNEL_CODE = 'AIRBNB'
+const AIRBNB_SU_CHANNEL_ID = '244'
+const AIRBNB_LISTING_TITLE_LIMIT = 50
+const FAILURE_TOOLTIP_STYLE = {
+  maxWidth: '520px',
+  whiteSpace: 'pre-line',
+  wordBreak: 'break-word',
+}
 
 const { t, locale } = useI18n()
 
@@ -563,6 +571,77 @@ function formatRemoteInfo(row: MappingPriceDraftRow): string {
   return parts.join(' / ')
 }
 
+function isAirbnbRow(row: MappingPriceDraftRow): boolean {
+  const rowChannelCode =
+    row.channelCode || settings.value?.channelCode || props.channel?.channelCode
+  if (rowChannelCode && rowChannelCode.toUpperCase() === AIRBNB_CHANNEL_CODE) {
+    return true
+  }
+  const rowSuChannelId = row.suChannelId || settings.value?.suChannelId
+  return rowSuChannelId === AIRBNB_SU_CHANNEL_ID
+}
+
+function countCodePoints(value: string): number {
+  return Array.from(value).length
+}
+
+function resolveAirbnbListingNameLength(row: MappingPriceDraftRow): number | null {
+  if (
+    typeof row.lastAirbnbListingNameLength === 'number' &&
+    Number.isFinite(row.lastAirbnbListingNameLength)
+  ) {
+    return row.lastAirbnbListingNameLength
+  }
+  if (row.lastAirbnbListingName) {
+    return countCodePoints(row.lastAirbnbListingName)
+  }
+  return null
+}
+
+function formatAirbnbListingTitleEvidence(row: MappingPriceDraftRow): string {
+  if (!isAirbnbRow(row)) {
+    return ''
+  }
+
+  const listingName = row.lastAirbnbListingName?.trim() || ''
+  const listingNameLength = resolveAirbnbListingNameLength(row)
+  if (!listingName && listingNameLength === null) {
+    return ''
+  }
+  if (listingName && listingNameLength !== null) {
+    return t('channel.mappingPriceSettings.failureDetails.airbnbListingTitleWithLength', {
+      length: listingNameLength,
+      limit: AIRBNB_LISTING_TITLE_LIMIT,
+      title: listingName,
+    })
+  }
+  if (listingName) {
+    return t('channel.mappingPriceSettings.failureDetails.airbnbListingTitleOnly', {
+      title: listingName,
+    })
+  }
+  return t('channel.mappingPriceSettings.failureDetails.airbnbListingTitleLengthOnly', {
+    length: listingNameLength,
+    limit: AIRBNB_LISTING_TITLE_LIMIT,
+  })
+}
+
+function formatFailureDetail(row: MappingPriceDraftRow): string {
+  if (!row.lastError) {
+    return ''
+  }
+  const parts = [row.lastError]
+  const titleEvidence = formatAirbnbListingTitleEvidence(row)
+  if (titleEvidence) {
+    parts.push(titleEvidence)
+  }
+  return parts.join('\n')
+}
+
+function formatFailureSummary(row: MappingPriceDraftRow): string {
+  return formatFailureDetail(row).replace(/\s+/g, ' ')
+}
+
 function formatDateTime(value?: string | null): string {
   if (!value) {
     return ''
@@ -845,8 +924,13 @@ async function requestClose() {
 
           <el-table-column :label="t('channel.mappingPriceSettings.table.failureReason')" min-width="200">
             <template #default="{ row }">
-              <el-tooltip v-if="row.lastError" :content="row.lastError" placement="top">
-                <span class="error-text">{{ row.lastError }}</span>
+              <el-tooltip
+                v-if="formatFailureDetail(row)"
+                :content="formatFailureDetail(row)"
+                :popper-style="FAILURE_TOOLTIP_STYLE"
+                placement="top"
+              >
+                <span class="error-text">{{ formatFailureSummary(row) }}</span>
               </el-tooltip>
               <span v-else class="muted-text">-</span>
             </template>

@@ -297,6 +297,8 @@ class ChannelMappingPriceSettingsServiceTest {
         );
 
         assertEquals("SUCCESS", response.getStatus());
+        assertEquals("Airbnb Listing", response.getRows().get(0).getLastAirbnbListingName());
+        assertEquals(14, response.getRows().get(0).getLastAirbnbListingNameLength());
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
         verify(suApiClient, times(2)).retrieveAirbnbListing(eq("token"), any());
         verify(suApiClient, times(2)).postAirbnbListingUpdate(eq("token"), payloadCaptor.capture());
@@ -313,6 +315,9 @@ class ChannelMappingPriceSettingsServiceTest {
         );
         assertFalse(firstPayload.containsKey("person_capacity"));
         assertFalse(firstPayload.containsKey("room_type_category"));
+        ChannelMappingPriceSetting firstSaved = settings.get(list.getRows().get(0).getRowKey());
+        assertEquals("Airbnb Listing", firstSaved.getLastAirbnbListingName());
+        assertEquals(14, firstSaved.getLastAirbnbListingNameLength());
         verify(suApiClient, never()).postAirbnbListingMap(anyString(), any());
         verify(suApiClient, never()).postBookingRatePlanMap(anyString(), any());
     }
@@ -322,7 +327,8 @@ class ChannelMappingPriceSettingsServiceTest {
         ChannelMappingPriceSettingsService service = createService();
         mockChannelAndIntegration("AIRBNB");
         when(suApiClient.getMappings("token", HOTEL_ID, "244")).thenReturn(readJson(airbnbMappingsWithTwoOccupancies()));
-        JsonNode retrieve = readJson(airbnbRetrieveListing("A-LISTING", "😀".repeat(51)));
+        String longListingName = "😀".repeat(51);
+        JsonNode retrieve = readJson(airbnbRetrieveListing("A-LISTING", longListingName));
         when(suApiClient.retrieveAirbnbListing(eq("token"), any())).thenReturn(retrieve);
 
         MappingPriceSettingsResponseDTO list = service.listMappingPriceSettings(CHANNEL_ID);
@@ -340,9 +346,17 @@ class ChannelMappingPriceSettingsServiceTest {
         verify(suApiClient).retrieveAirbnbListing(eq("token"), any());
         verify(suApiClient, never()).postAirbnbListingUpdate(anyString(), any());
         ChannelMappingPriceSetting saved = settings.get(rowKey);
+        assertEquals(longListingName, response.getRows().get(0).getLastAirbnbListingName());
+        assertEquals(51, response.getRows().get(0).getLastAirbnbListingNameLength());
+        assertEquals(longListingName, saved.getLastAirbnbListingName());
+        assertEquals(51, saved.getLastAirbnbListingNameLength());
         assertEquals("airbnb/listing/update", saved.getLastSuAction());
         assertTrue(saved.getLastSuPayloadSummary().contains("\"nameLength\":51"));
         assertFalse(saved.getLastSuPayloadSummary().contains("😀"));
+
+        MappingPriceSettingsResponseDTO refreshed = service.listMappingPriceSettings(CHANNEL_ID);
+        assertEquals(longListingName, refreshed.getRows().get(0).getLastAirbnbListingName());
+        assertEquals(51, refreshed.getRows().get(0).getLastAirbnbListingNameLength());
     }
 
     @Test

@@ -22,6 +22,8 @@ public class MappingPriceSettingRowDTO {
     private BigDecimal surcharge;
     private String syncStatus;
     private String lastError;
+    private String lastAirbnbListingName;
+    private Integer lastAirbnbListingNameLength;
     private Integer retryCount;
     private String lastOperationId;
     private String lastBatchId;
@@ -163,6 +165,22 @@ public class MappingPriceSettingRowDTO {
 
     public void setLastError(String lastError) {
         this.lastError = lastError;
+    }
+
+    public String getLastAirbnbListingName() {
+        return lastAirbnbListingName;
+    }
+
+    public void setLastAirbnbListingName(String lastAirbnbListingName) {
+        this.lastAirbnbListingName = lastAirbnbListingName;
+    }
+
+    public Integer getLastAirbnbListingNameLength() {
+        return lastAirbnbListingNameLength;
+    }
+
+    public void setLastAirbnbListingNameLength(Integer lastAirbnbListingNameLength) {
+        this.lastAirbnbListingNameLength = lastAirbnbListingNameLength;
     }
 
     public Integer getRetryCount() {

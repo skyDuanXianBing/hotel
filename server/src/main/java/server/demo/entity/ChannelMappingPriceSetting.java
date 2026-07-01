@@ -139,6 +139,13 @@ public class ChannelMappingPriceSetting implements StoreScopedEntity {
     @Column(name = "last_su_response_summary", columnDefinition = "TEXT")
     private String lastSuResponseSummary;
 
+    @Lob
+    @Column(name = "last_airbnb_listing_name", columnDefinition = "TEXT")
+    private String lastAirbnbListingName;
+
+    @Column(name = "last_airbnb_listing_name_length")
+    private Integer lastAirbnbListingNameLength;
+
     @Column(name = "last_attempted_at")
     private LocalDateTime lastAttemptedAt;
 
@@ -434,6 +441,22 @@ public class ChannelMappingPriceSetting implements StoreScopedEntity {
 
     public void setLastSuResponseSummary(String lastSuResponseSummary) {
         this.lastSuResponseSummary = lastSuResponseSummary;
+    }
+
+    public String getLastAirbnbListingName() {
+        return lastAirbnbListingName;
+    }
+
+    public void setLastAirbnbListingName(String lastAirbnbListingName) {
+        this.lastAirbnbListingName = lastAirbnbListingName;
+    }
+
+    public Integer getLastAirbnbListingNameLength() {
+        return lastAirbnbListingNameLength;
+    }
+
+    public void setLastAirbnbListingNameLength(Integer lastAirbnbListingNameLength) {
+        this.lastAirbnbListingNameLength = lastAirbnbListingNameLength;
     }
 
     public LocalDateTime getLastAttemptedAt() {

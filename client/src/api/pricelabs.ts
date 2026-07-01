@@ -222,6 +222,8 @@ export interface MappingPriceSettingRowDTO {
   surcharge: number | null
   syncStatus?: MappingPriceSyncStatus
   lastError?: string | null
+  lastAirbnbListingName?: string | null
+  lastAirbnbListingNameLength?: number | null
   retryCount?: number
   lastOperationId?: string
   lastBatchId?: string

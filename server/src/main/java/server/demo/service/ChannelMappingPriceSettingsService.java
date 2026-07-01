@@ -625,6 +625,7 @@ public class ChannelMappingPriceSettingsService {
                                     "airbnb/listing/update",
                                     payloadResult.payloadSummary(),
                                     null,
+                                    payloadResult.airbnbListingNameSnapshot(),
                                     e
                             );
                         }
@@ -632,7 +633,8 @@ public class ChannelMappingPriceSettingsService {
                                 "airbnb/listing/update",
                                 payloadResult.payloadSummary(),
                                 buildResponseSummary("airbnb/listing/update", response),
-                                response
+                                response,
+                                payloadResult.airbnbListingNameSnapshot()
                         );
                     },
                     "airbnb/listing/update"
@@ -672,6 +674,7 @@ public class ChannelMappingPriceSettingsService {
                                 "OTA_RatePlanMap",
                                 payloadSummary,
                                 null,
+                                null,
                                 e
                         );
                     }
@@ -679,7 +682,8 @@ public class ChannelMappingPriceSettingsService {
                             "OTA_RatePlanMap",
                             payloadSummary,
                             buildResponseSummary("OTA_RatePlanMap", response),
-                            response
+                            response,
+                            null
                     );
                 },
                 "OTA_RatePlanMap"
@@ -800,12 +804,14 @@ public class ChannelMappingPriceSettingsService {
                             "airbnb/listing/update",
                             AIRBNB_LISTING_DETAILS_REQUIRED + ": " + errorMessage,
                             listingResponse
-                    )
+                    ),
+                    new AirbnbListingNameSnapshot(null, null)
             );
         }
 
         String listingName = readStringValue(listingDetails, "name", "Name", "listing_name", "listingName");
         if (listingName == null || listingName.trim().isBlank()) {
+            AirbnbListingNameSnapshot listingNameSnapshot = new AirbnbListingNameSnapshot(null, 0);
             Map<String, Object> payloadSummary = buildPayloadSummary(
                     "airbnb/listing/update",
                     null,
@@ -823,11 +829,13 @@ public class ChannelMappingPriceSettingsService {
                     AIRBNB_LISTING_NAME_REQUIRED,
                     "airbnb/listing/update",
                     payloadSummary,
-                    buildValidationResponseSummary("airbnb/listing/update", AIRBNB_LISTING_NAME_REQUIRED, listingResponse)
+                    buildValidationResponseSummary("airbnb/listing/update", AIRBNB_LISTING_NAME_REQUIRED, listingResponse),
+                    listingNameSnapshot
             );
         }
 
         int nameLength = listingName.codePointCount(0, listingName.length());
+        AirbnbListingNameSnapshot listingNameSnapshot = new AirbnbListingNameSnapshot(listingName, nameLength);
         boolean hasCheckInOption = hasCheckInOptionObject(listingDetails);
         boolean hasCheckInInstruction = hasCheckInInstruction(listingDetails);
         boolean hasCheckInCategory = hasCheckInCategory(listingDetails);
@@ -868,11 +876,12 @@ public class ChannelMappingPriceSettingsService {
                     AIRBNB_LISTING_NAME_TOO_LONG,
                     "airbnb/listing/update",
                     payloadSummary,
-                    buildValidationResponseSummary("airbnb/listing/update", AIRBNB_LISTING_NAME_TOO_LONG, listingResponse)
+                    buildValidationResponseSummary("airbnb/listing/update", AIRBNB_LISTING_NAME_TOO_LONG, listingResponse),
+                    listingNameSnapshot
             );
         }
 
-        return new AirbnbUpdatePayloadResult(payload, payloadSummary);
+        return new AirbnbUpdatePayloadResult(payload, payloadSummary, listingNameSnapshot);
     }
 
     private Map<String, Object> buildPayloadSummary(
@@ -981,6 +990,10 @@ public class ChannelMappingPriceSettingsService {
         setting.setLastSuResponseErrors(errors != null ? toJsonString(errors) : null);
         setting.setLastSuPayloadSummary(toJsonString(result.payloadSummary()));
         setting.setLastSuResponseSummary(toJsonString(responseSummary));
+        if (result.airbnbListingNameSnapshot() != null) {
+            setting.setLastAirbnbListingName(result.airbnbListingNameSnapshot().name());
+            setting.setLastAirbnbListingNameLength(result.airbnbListingNameSnapshot().length());
+        }
     }
 
     private void logSuRowFailure(
@@ -1595,6 +1608,8 @@ public class ChannelMappingPriceSettingsService {
             dto.setSyncStatus(setting.getSyncStatus().name());
         }
         dto.setLastError(setting.getLastError());
+        dto.setLastAirbnbListingName(setting.getLastAirbnbListingName());
+        dto.setLastAirbnbListingNameLength(setting.getLastAirbnbListingNameLength());
         dto.setRetryCount(setting.getRetryCount());
         dto.setLastOperationId(setting.getLastOperationId());
         dto.setLastBatchId(setting.getLastBatchId());
@@ -1970,18 +1985,26 @@ public class ChannelMappingPriceSettingsService {
             String action,
             Map<String, Object> payloadSummary,
             Map<String, Object> responseSummary,
-            JsonNode response
+            JsonNode response,
+            AirbnbListingNameSnapshot airbnbListingNameSnapshot
     ) {}
 
     private record AirbnbUpdatePayloadResult(
             Map<String, Object> payload,
-            Map<String, Object> payloadSummary
+            Map<String, Object> payloadSummary,
+            AirbnbListingNameSnapshot airbnbListingNameSnapshot
+    ) {}
+
+    private record AirbnbListingNameSnapshot(
+            String name,
+            Integer length
     ) {}
 
     private static class MappingUpdateValidationException extends RuntimeException {
         private final String action;
         private final Map<String, Object> payloadSummary;
         private final Map<String, Object> responseSummary;
+        private final AirbnbListingNameSnapshot airbnbListingNameSnapshot;
 
         MappingUpdateValidationException(
                 String message,
@@ -1989,14 +2012,25 @@ public class ChannelMappingPriceSettingsService {
                 Map<String, Object> payloadSummary,
                 Map<String, Object> responseSummary
         ) {
+            this(message, action, payloadSummary, responseSummary, null);
+        }
+
+        MappingUpdateValidationException(
+                String message,
+                String action,
+                Map<String, Object> payloadSummary,
+                Map<String, Object> responseSummary,
+                AirbnbListingNameSnapshot airbnbListingNameSnapshot
+        ) {
             super(redactAuditText(message));
             this.action = action;
             this.payloadSummary = payloadSummary;
             this.responseSummary = responseSummary;
+            this.airbnbListingNameSnapshot = airbnbListingNameSnapshot;
         }
 
         MappingUpdateResult toUpdateResult() {
-            return new MappingUpdateResult(action, payloadSummary, responseSummary, null);
+            return new MappingUpdateResult(action, payloadSummary, responseSummary, null, airbnbListingNameSnapshot);
         }
     }
 
@@ -2004,25 +2038,28 @@ public class ChannelMappingPriceSettingsService {
         private final String action;
         private final Map<String, Object> payloadSummary;
         private final Map<String, Object> responseSummary;
+        private final AirbnbListingNameSnapshot airbnbListingNameSnapshot;
 
         MappingUpdateCallException(
                 String message,
                 String action,
                 Map<String, Object> payloadSummary,
                 Map<String, Object> responseSummary,
+                AirbnbListingNameSnapshot airbnbListingNameSnapshot,
                 Throwable cause
         ) {
             super(redactAuditText(message), cause);
             this.action = action;
             this.payloadSummary = payloadSummary;
             this.responseSummary = responseSummary != null ? responseSummary : new LinkedHashMap<>();
+            this.airbnbListingNameSnapshot = airbnbListingNameSnapshot;
             this.responseSummary.put("endpoint", action);
             this.responseSummary.put("action", action);
             this.responseSummary.put("message", redactAuditText(message));
         }
 
         MappingUpdateResult toUpdateResult() {
-            return new MappingUpdateResult(action, payloadSummary, responseSummary, null);
+            return new MappingUpdateResult(action, payloadSummary, responseSummary, null, airbnbListingNameSnapshot);
         }
     }
 

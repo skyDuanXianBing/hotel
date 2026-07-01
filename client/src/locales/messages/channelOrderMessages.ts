@@ -298,6 +298,11 @@ export const channelOrderMessages = {
           room: 'Room {value}',
           ratePlan: 'Rate plan {value}',
         },
+        failureDetails: {
+          airbnbListingTitleWithLength: 'Airbnb listing title ({length}/{limit}): {title}',
+          airbnbListingTitleOnly: 'Airbnb listing title: {title}',
+          airbnbListingTitleLengthOnly: 'Airbnb listing title length: {length}/{limit}',
+        },
         retryCount: 'Retried {count} times',
         footer: {
           dirtyRows: '{count} unsaved rows',
@@ -882,6 +887,11 @@ export const channelOrderMessages = {
           room: '房间 {value}',
           ratePlan: '费率 {value}',
         },
+        failureDetails: {
+          airbnbListingTitleWithLength: 'Airbnb 房源标题（{length}/{limit}）：{title}',
+          airbnbListingTitleOnly: 'Airbnb 房源标题：{title}',
+          airbnbListingTitleLengthOnly: 'Airbnb 房源标题长度：{length}/{limit}',
+        },
         retryCount: '重试 {count} 次',
         footer: {
           dirtyRows: '有 {count} 行未保存',
@@ -1447,6 +1457,11 @@ export const channelOrderMessages = {
           room: '房間 {value}',
           ratePlan: '費率 {value}',
         },
+        failureDetails: {
+          airbnbListingTitleWithLength: 'Airbnb 房源標題（{length}/{limit}）：{title}',
+          airbnbListingTitleOnly: 'Airbnb 房源標題：{title}',
+          airbnbListingTitleLengthOnly: 'Airbnb 房源標題長度：{length}/{limit}',
+        },
         retryCount: '重試 {count} 次',
         footer: {
           dirtyRows: '有 {count} 行未保存',
@@ -2010,6 +2025,12 @@ export const channelOrderMessages = {
           listing: 'リスティング {value}',
           room: '客室 {value}',
           ratePlan: '料金プラン {value}',
+        },
+        failureDetails: {
+          airbnbListingTitleWithLength:
+            'Airbnbリスティングタイトル（{length}/{limit}）：{title}',
+          airbnbListingTitleOnly: 'Airbnbリスティングタイトル：{title}',
+          airbnbListingTitleLengthOnly: 'Airbnbリスティングタイトル長さ：{length}/{limit}',
         },
         retryCount: '{count} 回再試行',
         footer: {
