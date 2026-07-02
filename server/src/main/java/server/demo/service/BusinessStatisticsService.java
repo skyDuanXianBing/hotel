@@ -26,6 +26,9 @@ public class BusinessStatisticsService {
     @Autowired
     private RoomRepository roomRepository;
 
+    @Autowired
+    private ReservationRevenueAllocationService revenueAllocationService;
+
     /**
      * 获取当前门店ID
      */
@@ -45,27 +48,20 @@ public class BusinessStatisticsService {
         Long storeId = getCurrentStoreId();
         BusinessSummaryDTO summary = new BusinessSummaryDTO();
 
-        // 获取时间范围内的有效订单（不包括已取消的）- 只查询当前门店的订单
-        List<Reservation> reservations = reservationRepository.findByStoreId(storeId).stream()
-                .filter(r -> r.getStatus() != ReservationStatus.CANCELLED)
-                .filter(r -> isDateInRange(r.getCheckInDate(), r.getCheckOutDate(), startDate, endDate))
-                .collect(Collectors.toList());
+        List<Reservation> reservations = findActiveReservations(storeId, startDate, endDate);
+        ReservationRevenueAllocationService.AllocationResult allocationResult =
+                revenueAllocationService.allocateRevenue(storeId, reservations, startDate, endDate);
+        List<ReservationRevenueAllocationService.Allocation> allocations = allocationResult.allocations();
 
-        // 计算总营业收入和订单数
-        BigDecimal totalRevenue = reservations.stream()
-                .map(Reservation::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalRevenue = allocationResult.totalRevenue();
 
         summary.setTotalRevenue(totalRevenue);
         summary.setTotalOrders(reservations.size());
+        summary.setRevenuePrecision(allocationResult.revenuePrecision());
 
-        // 计算总间夜数
-        int totalRoomNights = reservations.stream()
-                .mapToInt(r -> calculateRoomNights(r, startDate, endDate))
-                .sum();
+        int totalRoomNights = allocationResult.totalRoomNights();
         summary.setTotalRoomNights(totalRoomNights);
 
-        // 计算平均房价 = 总收入 / 总间夜数
         if (totalRoomNights > 0) {
             BigDecimal averageRate = totalRevenue.divide(
                     new BigDecimal(totalRoomNights), 2, RoundingMode.HALF_UP);
@@ -88,14 +84,9 @@ public class BusinessStatisticsService {
             summary.setOccupancyRate(BigDecimal.ZERO);
         }
 
-        // 按渠道统计
-        summary.setRevenueByChannel(calculateRevenueByChannel(reservations, startDate, endDate));
-
-        // 按房型统计
-        summary.setRevenueByRoomType(calculateRevenueByRoomType(reservations, startDate, endDate));
-
-        // 按日期统计
-        summary.setRevenueByDate(calculateRevenueByDate(reservations, startDate, endDate));
+        summary.setRevenueByChannel(calculateRevenueByChannel(allocations));
+        summary.setRevenueByRoomType(calculateRevenueByRoomType(allocations));
+        summary.setRevenueByDate(calculateRevenueByDate(allocations, startDate, endDate));
 
         return summary;
     }
@@ -104,8 +95,7 @@ public class BusinessStatisticsService {
      * 判断订单日期是否在统计范围内
      */
     private boolean isDateInRange(LocalDate checkIn, LocalDate checkOut, LocalDate startDate, LocalDate endDate) {
-        // 订单的入住或退房日期在统计范围内即计入
-        return !(checkOut.isBefore(startDate) || checkIn.isAfter(endDate));
+        return checkIn.isBefore(endDate.plusDays(1)) && checkOut.isAfter(startDate);
     }
 
     /**
@@ -125,101 +115,91 @@ public class BusinessStatisticsService {
      * 按渠道统计收入
      */
     private List<BusinessSummaryDTO.ChannelRevenue> calculateRevenueByChannel(
-            List<Reservation> reservations, LocalDate startDate, LocalDate endDate) {
+            List<ReservationRevenueAllocationService.Allocation> allocations) {
 
-        Map<String, List<Reservation>> channelMap = reservations.stream()
-                .collect(Collectors.groupingBy(r -> r.getChannel().getName()));
+        Map<String, RevenueAggregation> channelMap = new HashMap<>();
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            String channelName = getChannelName(allocation.reservation());
+            RevenueAggregation aggregation = channelMap.computeIfAbsent(channelName, key -> new RevenueAggregation());
+            aggregation.add(allocation);
+        }
 
-        return channelMap.entrySet().stream()
-                .map(entry -> {
-                    String channelName = entry.getKey();
-                    List<Reservation> channelReservations = entry.getValue();
-
-                    BigDecimal revenue = channelReservations.stream()
-                            .map(Reservation::getTotalAmount)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                    int roomNights = channelReservations.stream()
-                            .mapToInt(r -> calculateRoomNights(r, startDate, endDate))
-                            .sum();
-
-                    return new BusinessSummaryDTO.ChannelRevenue(
-                            channelName, revenue, channelReservations.size(), roomNights);
-                })
-                .sorted(Comparator.comparing(BusinessSummaryDTO.ChannelRevenue::getRevenue).reversed())
-                .collect(Collectors.toList());
+        List<BusinessSummaryDTO.ChannelRevenue> result = new ArrayList<>();
+        for (Map.Entry<String, RevenueAggregation> entry : channelMap.entrySet()) {
+            RevenueAggregation aggregation = entry.getValue();
+            result.add(new BusinessSummaryDTO.ChannelRevenue(
+                    entry.getKey(),
+                    aggregation.revenue,
+                    aggregation.orderIds.size(),
+                    aggregation.roomNights
+            ));
+        }
+        result.sort(Comparator.comparing(BusinessSummaryDTO.ChannelRevenue::getRevenue).reversed());
+        return result;
     }
 
     /**
      * 按房型统计收入
      */
     private List<BusinessSummaryDTO.RoomTypeRevenue> calculateRevenueByRoomType(
-            List<Reservation> reservations, LocalDate startDate, LocalDate endDate) {
+            List<ReservationRevenueAllocationService.Allocation> allocations) {
 
-        Map<String, List<Reservation>> roomTypeMap = reservations.stream()
-                .collect(Collectors.groupingBy(r -> r.getRoom().getRoomType().getName()));
+        Map<String, RevenueAggregation> roomTypeMap = new HashMap<>();
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            String roomTypeName = getRoomTypeName(allocation.reservation());
+            RevenueAggregation aggregation = roomTypeMap.computeIfAbsent(roomTypeName, key -> new RevenueAggregation());
+            aggregation.add(allocation);
+        }
 
-        return roomTypeMap.entrySet().stream()
-                .map(entry -> {
-                    String roomTypeName = entry.getKey();
-                    List<Reservation> roomTypeReservations = entry.getValue();
-
-                    BigDecimal revenue = roomTypeReservations.stream()
-                            .map(Reservation::getTotalAmount)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                    int roomNights = roomTypeReservations.stream()
-                            .mapToInt(r -> calculateRoomNights(r, startDate, endDate))
-                            .sum();
-
-                    return new BusinessSummaryDTO.RoomTypeRevenue(
-                            roomTypeName, revenue, roomTypeReservations.size(), roomNights);
-                })
-                .sorted(Comparator.comparing(BusinessSummaryDTO.RoomTypeRevenue::getRevenue).reversed())
-                .collect(Collectors.toList());
+        List<BusinessSummaryDTO.RoomTypeRevenue> result = new ArrayList<>();
+        for (Map.Entry<String, RevenueAggregation> entry : roomTypeMap.entrySet()) {
+            RevenueAggregation aggregation = entry.getValue();
+            result.add(new BusinessSummaryDTO.RoomTypeRevenue(
+                    entry.getKey(),
+                    aggregation.revenue,
+                    aggregation.orderIds.size(),
+                    aggregation.roomNights
+            ));
+        }
+        result.sort(Comparator.comparing(BusinessSummaryDTO.RoomTypeRevenue::getRevenue).reversed());
+        return result;
     }
 
     /**
      * 按日期统计收入（每日收入）
      */
     private List<BusinessSummaryDTO.DailyRevenue> calculateRevenueByDate(
-            List<Reservation> reservations, LocalDate startDate, LocalDate endDate) {
+            List<ReservationRevenueAllocationService.Allocation> allocations,
+            LocalDate startDate,
+            LocalDate endDate) {
 
-        Map<LocalDate, List<Reservation>> dateMap = new HashMap<>();
-
-        // 初始化每一天
+        Map<LocalDate, RevenueAggregation> dateMap = new HashMap<>();
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
-            dateMap.put(currentDate, new ArrayList<>());
+            dateMap.put(currentDate, new RevenueAggregation());
             currentDate = currentDate.plusDays(1);
         }
 
-        // 将订单分配到每一天（按入住日期）
-        for (Reservation reservation : reservations) {
-            LocalDate checkInDate = reservation.getCheckInDate();
-            if (!checkInDate.isBefore(startDate) && !checkInDate.isAfter(endDate)) {
-                dateMap.get(checkInDate).add(reservation);
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            RevenueAggregation aggregation = dateMap.get(allocation.date());
+            if (aggregation != null) {
+                aggregation.add(allocation);
             }
         }
 
-        return dateMap.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> {
-                    LocalDate date = entry.getKey();
-                    List<Reservation> dailyReservations = entry.getValue();
-
-                    BigDecimal revenue = dailyReservations.stream()
-                            .map(Reservation::getTotalAmount)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                    int roomNights = dailyReservations.stream()
-                            .mapToInt(r -> (int) ChronoUnit.DAYS.between(r.getCheckInDate(), r.getCheckOutDate()))
-                            .sum();
-
-                    return new BusinessSummaryDTO.DailyRevenue(
-                            date.toString(), revenue, dailyReservations.size(), roomNights);
-                })
-                .collect(Collectors.toList());
+        List<BusinessSummaryDTO.DailyRevenue> result = new ArrayList<>();
+        currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            RevenueAggregation aggregation = dateMap.get(currentDate);
+            result.add(new BusinessSummaryDTO.DailyRevenue(
+                    currentDate.toString(),
+                    aggregation.revenue,
+                    aggregation.orderIds.size(),
+                    aggregation.roomNights
+            ));
+            currentDate = currentDate.plusDays(1);
+        }
+        return result;
     }
 
     /**
@@ -274,18 +254,12 @@ public class BusinessStatisticsService {
         Long storeId = getCurrentStoreId();
         BusinessOverviewDTO overview = new BusinessOverviewDTO();
 
-        // 获取时间范围内的有效订单（不包括已取消的）
-        List<Reservation> reservations = reservationRepository.findByStoreId(storeId).stream()
-                .filter(r -> r.getStatus() != ReservationStatus.CANCELLED)
-                .filter(r -> isDateInRange(r.getCheckInDate(), r.getCheckOutDate(), startDate, endDate))
-                .collect(Collectors.toList());
+        List<Reservation> reservations = findActiveReservations(storeId, startDate, endDate);
+        ReservationRevenueAllocationService.AllocationResult allocationResult =
+                revenueAllocationService.allocateRevenue(storeId, reservations, startDate, endDate);
+        List<ReservationRevenueAllocationService.Allocation> allocations = allocationResult.allocations();
 
-        // 计算各项费用
-        // 注意: 当前系统中 Reservation 只有 totalAmount, 暂时用 totalAmount 作为房费
-        // 押金、退房金、餐食消费暂时设为0,未来可以扩展 Reservation 实体添加这些字段
-        BigDecimal roomFee = reservations.stream()
-                .map(Reservation::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal roomFee = allocationResult.totalRevenue();
 
         BigDecimal deposit = BigDecimal.ZERO; // 押金 - 未来扩展
         BigDecimal checkoutFee = BigDecimal.ZERO; // 退房金 - 未来扩展
@@ -296,6 +270,7 @@ public class BusinessStatisticsService {
         overview.setCheckoutFee(checkoutFee);
         overview.setRoomServiceFee(roomServiceFee);
         overview.setTotalRevenue(roomFee.add(deposit).add(checkoutFee).add(roomServiceFee));
+        overview.setRevenuePrecision(allocationResult.revenuePrecision());
 
         // 计算消费分类分布(饼图数据)
         List<BusinessOverviewDTO.CategoryDistribution> categoryDistribution = new ArrayList<>();
@@ -332,18 +307,14 @@ public class BusinessStatisticsService {
 
         // 计算每日消费趋势(柱状图数据)
         List<BusinessOverviewDTO.DailyConsumption> consumptionTrend = new ArrayList<>();
+        Map<LocalDate, RevenueAggregation> dailyRevenueMap = aggregateByDate(allocations, startDate, endDate);
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
-            final LocalDate date = currentDate;
-
-            // 计算当天的各项费用
-            BigDecimal dailyRoomFee = reservations.stream()
-                    .filter(r -> r.getCheckInDate().equals(date))
-                    .map(Reservation::getTotalAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            RevenueAggregation aggregation = dailyRevenueMap.get(currentDate);
+            BigDecimal dailyRoomFee = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
 
             consumptionTrend.add(new BusinessOverviewDTO.DailyConsumption(
-                date.toString(),
+                currentDate.toString(),
                 dailyRoomFee,
                 BigDecimal.ZERO, // 押金
                 BigDecimal.ZERO, // 退房金
@@ -361,13 +332,10 @@ public class BusinessStatisticsService {
         List<BusinessOverviewDTO.ConsumptionDetail.DailyAmount> roomFeeDailyAmounts = new ArrayList<>();
         currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
-            final LocalDate date = currentDate;
-            BigDecimal dailyAmount = reservations.stream()
-                    .filter(r -> r.getCheckInDate().equals(date))
-                    .map(Reservation::getTotalAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            RevenueAggregation aggregation = dailyRevenueMap.get(currentDate);
+            BigDecimal dailyAmount = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
             roomFeeDailyAmounts.add(new BusinessOverviewDTO.ConsumptionDetail.DailyAmount(
-                date.toString(), dailyAmount
+                currentDate.toString(), dailyAmount
             ));
             currentDate = currentDate.plusDays(1);
         }
@@ -427,35 +395,26 @@ public class BusinessStatisticsService {
         Long storeId = getCurrentStoreId();
         RevenueSummaryDTO summary = new RevenueSummaryDTO();
 
-        // 获取时间范围内的有效订单
-        List<Reservation> reservations = reservationRepository.findByStoreId(storeId).stream()
-                .filter(r -> r.getStatus() != ReservationStatus.CANCELLED)
-                .filter(r -> isDateInRange(r.getCheckInDate(), r.getCheckOutDate(), startDate, endDate))
-                .collect(Collectors.toList());
+        List<Reservation> reservations = findActiveReservations(storeId, startDate, endDate);
+        ReservationRevenueAllocationService.AllocationResult allocationResult =
+                revenueAllocationService.allocateRevenue(storeId, reservations, startDate, endDate);
+        List<ReservationRevenueAllocationService.Allocation> allocations = allocationResult.allocations();
 
-        // 计算总流水
-        BigDecimal totalRevenue = reservations.stream()
-                .map(Reservation::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalRevenue = allocationResult.totalRevenue();
 
         summary.setTotalRevenue(totalRevenue);
+        summary.setRevenuePrecision(allocationResult.revenuePrecision());
 
-        // 目前系统中没有支付方式字段,暂时按渠道统计作为支付方式
-        // 分账款(OTA代收) = 所有OTA渠道的订单
-        // 实收款 = 其他渠道的订单
-        Map<String, List<Reservation>> channelMap = reservations.stream()
-                .collect(Collectors.groupingBy(r -> r.getChannel().getName()));
+        Map<String, RevenueAggregation> channelMap = aggregateByChannel(allocations);
 
         BigDecimal splitAccount = BigDecimal.ZERO; // OTA代收
         BigDecimal actualReceived = BigDecimal.ZERO; // 实收款
         List<RevenueSummaryDTO.PaymentMethodStat> paymentStats = new ArrayList<>();
         List<RevenueSummaryDTO.Distribution> incomeDistribution = new ArrayList<>();
 
-        for (Map.Entry<String, List<Reservation>> entry : channelMap.entrySet()) {
+        for (Map.Entry<String, RevenueAggregation> entry : channelMap.entrySet()) {
             String channelName = entry.getKey();
-            BigDecimal channelRevenue = entry.getValue().stream()
-                    .map(Reservation::getTotalAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal channelRevenue = entry.getValue().revenue;
 
             // 简单判断:包含 booking、airbnb、携程、美团 等关键词的视为OTA代收
             if (channelName.toLowerCase().contains("booking") ||
@@ -499,19 +458,15 @@ public class BusinessStatisticsService {
 
         // 每日流水明细
         List<RevenueSummaryDTO.DailyRevenue> dailyRevenues = new ArrayList<>();
+        Map<LocalDate, RevenueAggregation> dailyRevenueMap = aggregateByDate(allocations, startDate, endDate);
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
-            final LocalDate date = currentDate;
-            BigDecimal dailyAmount = reservations.stream()
-                    .filter(r -> r.getCheckInDate().equals(date))
-                    .map(Reservation::getTotalAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            int orderCount = (int) reservations.stream()
-                    .filter(r -> r.getCheckInDate().equals(date))
-                    .count();
+            RevenueAggregation aggregation = dailyRevenueMap.get(currentDate);
+            BigDecimal dailyAmount = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
+            int orderCount = aggregation != null ? aggregation.orderIds.size() : 0;
 
             dailyRevenues.add(new RevenueSummaryDTO.DailyRevenue(
-                    date.toString(), dailyAmount, orderCount
+                    currentDate.toString(), dailyAmount, orderCount
             ));
             currentDate = currentDate.plusDays(1);
         }
@@ -527,15 +482,16 @@ public class BusinessStatisticsService {
         Long storeId = getCurrentStoreId();
         ChannelSummaryDTO summary = new ChannelSummaryDTO();
 
-        // 获取时间范围内的有效订单
-        List<Reservation> reservations = reservationRepository.findByStoreId(storeId).stream()
-                .filter(r -> r.getStatus() != ReservationStatus.CANCELLED)
-                .filter(r -> isDateInRange(r.getCheckInDate(), r.getCheckOutDate(), startDate, endDate))
-                .collect(Collectors.toList());
+        List<Reservation> reservations = findActiveReservations(storeId, startDate, endDate);
+        ReservationRevenueAllocationService.AllocationResult allocationResult =
+                revenueAllocationService.allocateRevenue(storeId, reservations, startDate, endDate);
+        List<ReservationRevenueAllocationService.Allocation> allocations = allocationResult.allocations();
 
-        // 按渠道分组
-        Map<String, List<Reservation>> channelMap = reservations.stream()
-                .collect(Collectors.groupingBy(r -> r.getChannel().getName()));
+        Map<String, List<ReservationRevenueAllocationService.Allocation>> channelAllocations = new HashMap<>();
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            String channelName = getChannelName(allocation.reservation());
+            channelAllocations.computeIfAbsent(channelName, ignored -> new ArrayList<>()).add(allocation);
+        }
 
         // 计算总消费和总间夜
         BigDecimal totalRevenue = BigDecimal.ZERO;
@@ -545,36 +501,30 @@ public class BusinessStatisticsService {
         List<ChannelSummaryDTO.ChannelDistribution> nightsDistribution = new ArrayList<>();
         List<ChannelSummaryDTO.ChannelDetail> channelDetails = new ArrayList<>();
 
-        for (Map.Entry<String, List<Reservation>> entry : channelMap.entrySet()) {
+        for (Map.Entry<String, List<ReservationRevenueAllocationService.Allocation>> entry : channelAllocations.entrySet()) {
             String channelName = entry.getKey();
-            List<Reservation> channelReservations = entry.getValue();
+            List<ReservationRevenueAllocationService.Allocation> channelItems = entry.getValue();
 
-            BigDecimal channelRevenue = channelReservations.stream()
-                    .map(Reservation::getTotalAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            int channelNights = channelReservations.stream()
-                    .mapToInt(r -> calculateRoomNights(r, startDate, endDate))
-                    .sum();
+            BigDecimal channelRevenue = BigDecimal.ZERO;
+            for (ReservationRevenueAllocationService.Allocation allocation : channelItems) {
+                channelRevenue = channelRevenue.add(allocation.amount());
+            }
+            int channelNights = channelItems.size();
 
             totalRevenue = totalRevenue.add(channelRevenue);
             totalRoomNights += channelNights;
 
             // 渠道明细每日数据
             List<ChannelSummaryDTO.ChannelDetail.DailyValue> dailyValues = new ArrayList<>();
+            Map<LocalDate, RevenueAggregation> dailyRevenueMap = aggregateByDate(channelItems, startDate, endDate);
             LocalDate currentDate = startDate;
             while (!currentDate.isAfter(endDate)) {
-                final LocalDate date = currentDate;
-                BigDecimal dailyRevenue = channelReservations.stream()
-                        .filter(r -> r.getCheckInDate().equals(date))
-                        .map(Reservation::getTotalAmount)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-                int dailyNights = (int) channelReservations.stream()
-                        .filter(r -> !date.isBefore(r.getCheckInDate()) && date.isBefore(r.getCheckOutDate()))
-                        .count();
+                RevenueAggregation aggregation = dailyRevenueMap.get(currentDate);
+                BigDecimal dailyRevenue = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
+                int dailyNights = aggregation != null ? aggregation.roomNights : 0;
 
                 dailyValues.add(new ChannelSummaryDTO.ChannelDetail.DailyValue(
-                        date.toString(), dailyRevenue, dailyNights
+                        currentDate.toString(), dailyRevenue, dailyNights
                 ));
                 currentDate = currentDate.plusDays(1);
             }
@@ -586,6 +536,7 @@ public class BusinessStatisticsService {
 
         summary.setTotalRevenue(totalRevenue);
         summary.setTotalRoomNights(totalRoomNights);
+        summary.setRevenuePrecision(allocationResult.revenuePrecision());
 
         // 计算百分比并生成分布数据
         for (ChannelSummaryDTO.ChannelDetail detail : channelDetails) {
@@ -625,17 +576,14 @@ public class BusinessStatisticsService {
             List<ChannelSummaryDTO.ChannelTrend.ChannelValue> revenueValues = new ArrayList<>();
             List<ChannelSummaryDTO.ChannelTrend.ChannelValue> nightsValues = new ArrayList<>();
 
-            for (String channelName : channelMap.keySet()) {
-                List<Reservation> channelReservations = channelMap.get(channelName);
+            for (String channelName : channelAllocations.keySet()) {
+                List<ReservationRevenueAllocationService.Allocation> channelItems =
+                        channelAllocations.get(channelName);
+                Map<LocalDate, RevenueAggregation> dailyRevenueMap = aggregateByDate(channelItems, date, date);
+                RevenueAggregation aggregation = dailyRevenueMap.get(date);
 
-                BigDecimal dailyRevenue = channelReservations.stream()
-                        .filter(r -> r.getCheckInDate().equals(date))
-                        .map(Reservation::getTotalAmount)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                long dailyNights = channelReservations.stream()
-                        .filter(r -> !date.isBefore(r.getCheckInDate()) && date.isBefore(r.getCheckOutDate()))
-                        .count();
+                BigDecimal dailyRevenue = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
+                long dailyNights = aggregation != null ? aggregation.roomNights : 0;
 
                 revenueValues.add(new ChannelSummaryDTO.ChannelTrend.ChannelValue(
                         channelName, dailyRevenue
@@ -665,11 +613,7 @@ public class BusinessStatisticsService {
         Long storeId = getCurrentStoreId();
         SalesSummaryDTO summary = new SalesSummaryDTO();
 
-        // 获取时间范围内的有效订单
-        List<Reservation> reservations = reservationRepository.findByStoreId(storeId).stream()
-                .filter(r -> r.getStatus() != ReservationStatus.CANCELLED)
-                .filter(r -> isDateInRange(r.getCheckInDate(), r.getCheckOutDate(), startDate, endDate))
-                .collect(Collectors.toList());
+        List<Reservation> reservations = findActiveReservations(storeId, startDate, endDate);
 
         // 应用搜索过滤
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -690,29 +634,26 @@ public class BusinessStatisticsService {
                     .collect(Collectors.toList());
         }
 
-        // 计算总销售额和订单数
-        BigDecimal totalSales = reservations.stream()
-                .map(Reservation::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        ReservationRevenueAllocationService.AllocationResult allocationResult =
+                revenueAllocationService.allocateRevenue(storeId, reservations, startDate, endDate);
+        List<ReservationRevenueAllocationService.Allocation> allocations = allocationResult.allocations();
+        BigDecimal totalSales = allocationResult.totalRevenue();
 
         summary.setTotalSales(totalSales);
         summary.setTotalOrders(reservations.size());
+        summary.setRevenuePrecision(allocationResult.revenuePrecision());
 
         // 每日销售额趋势
         List<SalesSummaryDTO.DailySales> dailySalesTrend = new ArrayList<>();
+        Map<LocalDate, RevenueAggregation> dailyRevenueMap = aggregateByDate(allocations, startDate, endDate);
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
-            final LocalDate date = currentDate;
-            BigDecimal dailySales = reservations.stream()
-                    .filter(r -> r.getCheckInDate().equals(date))
-                    .map(Reservation::getTotalAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            int orderCount = (int) reservations.stream()
-                    .filter(r -> r.getCheckInDate().equals(date))
-                    .count();
+            RevenueAggregation aggregation = dailyRevenueMap.get(currentDate);
+            BigDecimal dailySales = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
+            int orderCount = aggregation != null ? aggregation.orderIds.size() : 0;
 
             dailySalesTrend.add(new SalesSummaryDTO.DailySales(
-                    date.toString(), dailySales, orderCount
+                    currentDate.toString(), dailySales, orderCount
             ));
             currentDate = currentDate.plusDays(1);
         }
@@ -751,21 +692,14 @@ public class BusinessStatisticsService {
     public OperationalMetricsDTO getOperationalMetrics(LocalDate startDate, LocalDate endDate) {
         Long storeId = getCurrentStoreId();
 
-        // 获取时间范围内的有效订单
-        List<Reservation> reservations = reservationRepository.findByStoreId(storeId).stream()
-                .filter(r -> r.getStatus() != ReservationStatus.CANCELLED)
-                .filter(r -> isDateInRange(r.getCheckInDate(), r.getCheckOutDate(), startDate, endDate))
-                .collect(Collectors.toList());
+        List<Reservation> reservations = findActiveReservations(storeId, startDate, endDate);
+        ReservationRevenueAllocationService.AllocationResult allocationResult =
+                revenueAllocationService.allocateRevenue(storeId, reservations, startDate, endDate);
+        List<ReservationRevenueAllocationService.Allocation> allocations = allocationResult.allocations();
 
-        // 计算总房费
-        BigDecimal totalRoomFee = reservations.stream()
-                .map(Reservation::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalRoomFee = allocationResult.totalRevenue();
 
-        // 计算间夜数
-        int totalSoldRoomNights = reservations.stream()
-                .mapToInt(r -> calculateRoomNights(r, startDate, endDate))
-                .sum();
+        int totalSoldRoomNights = allocationResult.totalRoomNights();
 
         // 计算可售房间总数
         long days = ChronoUnit.DAYS.between(startDate, endDate) + 1;
@@ -803,15 +737,16 @@ public class BusinessStatisticsService {
                 (int) totalRooms,
                 (int) days
         );
+        dto.setRevenuePrecision(allocationResult.revenuePrecision());
 
         // 1. 计算每日趋势数据
         List<DailyMetricsDTO> dailyTrends = calculateDailyTrends(
-                reservations, startDate, endDate, totalRooms);
+                allocations, startDate, endDate, totalRooms);
         dto.setDailyTrends(dailyTrends);
 
         // 2. 计算房费明细
         List<RoomDetailDTO> roomFeeDetails = calculateRoomFeeDetails(
-                reservations, startDate, endDate);
+                allocations, startDate, endDate);
         dto.setRoomFeeDetails(roomFeeDetails);
 
         // 3. 计算间夜明细
@@ -826,7 +761,7 @@ public class BusinessStatisticsService {
 
         // 5. 计算RevPAR明细
         List<RoomDetailDTO> revparDetails = calculateRevparDetails(
-                reservations, startDate, endDate, totalRooms, days);
+                allocations, totalRooms, days);
         dto.setRevparDetails(revparDetails);
 
         return dto;
@@ -836,26 +771,19 @@ public class BusinessStatisticsService {
      * 计算每日趋势数据
      */
     private List<DailyMetricsDTO> calculateDailyTrends(
-            List<Reservation> reservations, LocalDate startDate, LocalDate endDate, long totalRooms) {
+            List<ReservationRevenueAllocationService.Allocation> allocations,
+            LocalDate startDate,
+            LocalDate endDate,
+            long totalRooms) {
 
         List<DailyMetricsDTO> dailyTrends = new ArrayList<>();
+        Map<LocalDate, RevenueAggregation> dailyRevenueMap = aggregateByDate(allocations, startDate, endDate);
         LocalDate currentDate = startDate;
 
         while (!currentDate.isAfter(endDate)) {
-            final LocalDate date = currentDate;
-
-            // 筛选当天在住的订单
-            List<Reservation> dailyReservations = reservations.stream()
-                    .filter(r -> isReservationActiveOnDate(r, date))
-                    .collect(Collectors.toList());
-
-            // 计算当天的房费(按日均摊)
-            BigDecimal dailyRoomFee = dailyReservations.stream()
-                    .map(r -> calculateDailyAmount(r, date))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            // 当天间夜数 = 在住的房间数
-            int dailyRoomNights = dailyReservations.size();
+            RevenueAggregation aggregation = dailyRevenueMap.get(currentDate);
+            BigDecimal dailyRoomFee = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
+            int dailyRoomNights = aggregation != null ? aggregation.roomNights : 0;
 
             // 当天ADR
             BigDecimal dailyAdr = BigDecimal.ZERO;
@@ -878,7 +806,7 @@ public class BusinessStatisticsService {
             }
 
             dailyTrends.add(new DailyMetricsDTO(
-                    date.toString(),
+                    currentDate.toString(),
                     dailyRoomFee,
                     dailyAdr,
                     dailyRevpar,
@@ -896,44 +824,48 @@ public class BusinessStatisticsService {
      * 计算房费明细(按房型和房间分组)
      */
     private List<RoomDetailDTO> calculateRoomFeeDetails(
-            List<Reservation> reservations, LocalDate startDate, LocalDate endDate) {
+            List<ReservationRevenueAllocationService.Allocation> allocations,
+            LocalDate startDate,
+            LocalDate endDate) {
 
         List<RoomDetailDTO> details = new ArrayList<>();
 
         // 按房型和房间号分组
-        Map<String, Map<String, List<Reservation>>> roomTypeMap = new HashMap<>();
+        Map<String, Map<String, RevenueAggregation>> roomTypeMap = new HashMap<>();
 
-        for (Reservation r : reservations) {
-            String roomType = r.getRoom() != null && r.getRoom().getRoomType() != null
-                    ? r.getRoom().getRoomType().getName() : "未知房型";
-            String roomNumber = r.getRoom() != null && r.getRoom().getRoomNumber() != null
-                    ? r.getRoom().getRoomNumber() : "未排房";
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            Reservation r = allocation.reservation();
+            String roomType = getRoomTypeName(r);
+            String roomNumber = getRoomNumber(r);
 
             roomTypeMap.computeIfAbsent(roomType, k -> new HashMap<>())
-                    .computeIfAbsent(roomNumber, k -> new ArrayList<>())
-                    .add(r);
+                    .computeIfAbsent(roomNumber, k -> new RevenueAggregation())
+                    .add(allocation);
         }
 
         // 计算每个房间的费用
-        for (Map.Entry<String, Map<String, List<Reservation>>> typeEntry : roomTypeMap.entrySet()) {
+        for (Map.Entry<String, Map<String, RevenueAggregation>> typeEntry : roomTypeMap.entrySet()) {
             String roomType = typeEntry.getKey();
             BigDecimal roomTypeTotal = BigDecimal.ZERO;
             BigDecimal roomTypeLastDay = BigDecimal.ZERO;
 
-            for (Map.Entry<String, List<Reservation>> roomEntry : typeEntry.getValue().entrySet()) {
+            for (Map.Entry<String, RevenueAggregation> roomEntry : typeEntry.getValue().entrySet()) {
                 String roomNumber = roomEntry.getKey();
-                List<Reservation> roomReservations = roomEntry.getValue();
-
-                // 计算总费用
-                BigDecimal total = roomReservations.stream()
-                        .map(Reservation::getTotalAmount)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                // 计算最后一天的费用
-                BigDecimal lastDayAmount = roomReservations.stream()
-                        .filter(r -> isReservationActiveOnDate(r, endDate))
-                        .map(r -> calculateDailyAmount(r, endDate))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                RevenueAggregation roomAggregation = roomEntry.getValue();
+                BigDecimal total = roomAggregation.revenue;
+                BigDecimal lastDayAmount = BigDecimal.ZERO;
+                for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+                    if (!allocation.date().equals(endDate)) {
+                        continue;
+                    }
+                    if (!roomType.equals(getRoomTypeName(allocation.reservation()))) {
+                        continue;
+                    }
+                    if (!roomNumber.equals(getRoomNumber(allocation.reservation()))) {
+                        continue;
+                    }
+                    lastDayAmount = lastDayAmount.add(allocation.amount());
+                }
 
                 details.add(new RoomDetailDTO(roomType, roomNumber, total, lastDayAmount));
 
@@ -1081,33 +1013,43 @@ public class BusinessStatisticsService {
      * 计算RevPAR明细(按房型分组)
      */
     private List<RoomDetailDTO> calculateRevparDetails(
-            List<Reservation> reservations, LocalDate startDate, LocalDate endDate,
+            List<ReservationRevenueAllocationService.Allocation> allocations,
             long totalRooms, long days) {
 
         List<RoomDetailDTO> details = new ArrayList<>();
 
         // 按房型分组
-        Map<String, List<Reservation>> roomTypeMap = reservations.stream()
-                .collect(Collectors.groupingBy(r ->
-                        r.getRoom() != null && r.getRoom().getRoomType() != null
-                                ? r.getRoom().getRoomType().getName() : "未知房型"
-                ));
+        Map<String, RevenueAggregation> roomTypeMap = new HashMap<>();
+        Map<String, Set<Long>> roomIdsByType = new HashMap<>();
+        Map<String, BigDecimal> lastDayFeeByType = new HashMap<>();
 
-        for (Map.Entry<String, List<Reservation>> entry : roomTypeMap.entrySet()) {
+        LocalDate lastDate = null;
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            if (lastDate == null || allocation.date().isAfter(lastDate)) {
+                lastDate = allocation.date();
+            }
+        }
+
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            String roomType = getRoomTypeName(allocation.reservation());
+            roomTypeMap.computeIfAbsent(roomType, ignored -> new RevenueAggregation()).add(allocation);
+            Long roomId = allocation.reservation().getRoom() != null ? allocation.reservation().getRoom().getId() : null;
+            if (roomId != null) {
+                roomIdsByType.computeIfAbsent(roomType, ignored -> new LinkedHashSet<>()).add(roomId);
+            }
+            if (lastDate != null && allocation.date().equals(lastDate)) {
+                BigDecimal current = lastDayFeeByType.getOrDefault(roomType, BigDecimal.ZERO);
+                lastDayFeeByType.put(roomType, current.add(allocation.amount()));
+            }
+        }
+
+        for (Map.Entry<String, RevenueAggregation> entry : roomTypeMap.entrySet()) {
             String roomType = entry.getKey();
-            List<Reservation> typeReservations = entry.getValue();
-
-            // 计算该房型的总房费
-            BigDecimal totalFee = typeReservations.stream()
-                    .map(Reservation::getTotalAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            RevenueAggregation aggregation = entry.getValue();
+            BigDecimal totalFee = aggregation.revenue;
 
             // 获取该房型的房间总数
-            long roomCount = typeReservations.stream()
-                    .filter(r -> r.getRoom() != null)
-                    .map(r -> r.getRoom().getId())
-                    .distinct()
-                    .count();
+            long roomCount = roomIdsByType.getOrDefault(roomType, Set.of()).size();
 
             if (roomCount == 0) {
                 roomCount = 1; // 避免除零
@@ -1121,11 +1063,7 @@ public class BusinessStatisticsService {
                 revpar = totalFee.divide(new BigDecimal(availableNights), 2, RoundingMode.HALF_UP);
             }
 
-            // 计算最后一天的RevPAR
-            BigDecimal lastDayFee = typeReservations.stream()
-                    .filter(r -> isReservationActiveOnDate(r, endDate))
-                    .map(r -> calculateDailyAmount(r, endDate))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal lastDayFee = lastDayFeeByType.getOrDefault(roomType, BigDecimal.ZERO);
 
             BigDecimal lastDayRevpar = BigDecimal.ZERO;
             if (roomCount > 0) {
@@ -1136,6 +1074,94 @@ public class BusinessStatisticsService {
         }
 
         return details;
+    }
+
+    private List<Reservation> findActiveReservations(Long storeId, LocalDate startDate, LocalDate endDate) {
+        List<Reservation> result = new ArrayList<>();
+        List<Reservation> reservations = reservationRepository.findByStoreId(storeId);
+        for (Reservation reservation : reservations) {
+            if (reservation == null || reservation.getStatus() == ReservationStatus.CANCELLED) {
+                continue;
+            }
+            if (reservation.getCheckInDate() == null || reservation.getCheckOutDate() == null) {
+                continue;
+            }
+            if (isDateInRange(reservation.getCheckInDate(), reservation.getCheckOutDate(), startDate, endDate)) {
+                result.add(reservation);
+            }
+        }
+        return result;
+    }
+
+    private Map<String, RevenueAggregation> aggregateByChannel(
+            List<ReservationRevenueAllocationService.Allocation> allocations) {
+        Map<String, RevenueAggregation> result = new HashMap<>();
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            String channelName = getChannelName(allocation.reservation());
+            result.computeIfAbsent(channelName, ignored -> new RevenueAggregation()).add(allocation);
+        }
+        return result;
+    }
+
+    private Map<LocalDate, RevenueAggregation> aggregateByDate(
+            List<ReservationRevenueAllocationService.Allocation> allocations,
+            LocalDate startDate,
+            LocalDate endDate) {
+        Map<LocalDate, RevenueAggregation> result = new HashMap<>();
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            result.put(currentDate, new RevenueAggregation());
+            currentDate = currentDate.plusDays(1);
+        }
+
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            RevenueAggregation aggregation = result.get(allocation.date());
+            if (aggregation != null) {
+                aggregation.add(allocation);
+            }
+        }
+        return result;
+    }
+
+    private String getChannelName(Reservation reservation) {
+        if (reservation != null && reservation.getChannel() != null && reservation.getChannel().getName() != null) {
+            return reservation.getChannel().getName();
+        }
+        return "未知渠道";
+    }
+
+    private String getRoomTypeName(Reservation reservation) {
+        if (reservation != null
+                && reservation.getRoom() != null
+                && reservation.getRoom().getRoomType() != null
+                && reservation.getRoom().getRoomType().getName() != null) {
+            return reservation.getRoom().getRoomType().getName();
+        }
+        return "未知房型";
+    }
+
+    private String getRoomNumber(Reservation reservation) {
+        if (reservation != null && reservation.getRoom() != null && reservation.getRoom().getRoomNumber() != null) {
+            return reservation.getRoom().getRoomNumber();
+        }
+        return "未排房";
+    }
+
+    private static class RevenueAggregation {
+        private BigDecimal revenue = BigDecimal.ZERO;
+        private int roomNights = 0;
+        private final Set<Long> orderIds = new LinkedHashSet<>();
+
+        void add(ReservationRevenueAllocationService.Allocation allocation) {
+            if (allocation == null) {
+                return;
+            }
+            revenue = revenue.add(allocation.amount() != null ? allocation.amount() : BigDecimal.ZERO);
+            roomNights++;
+            if (allocation.reservation() != null && allocation.reservation().getId() != null) {
+                orderIds.add(allocation.reservation().getId());
+            }
+        }
     }
 
     /**

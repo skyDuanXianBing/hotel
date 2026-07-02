@@ -35,6 +35,9 @@ public class OperationalMetricsDTO {
     // 统计天数
     private Integer days;
 
+    // 收入口径元数据
+    private RevenuePrecisionDTO revenuePrecision;
+
     // 每日趋势数据
     private List<DailyMetricsDTO> dailyTrends;
 
@@ -132,6 +135,14 @@ public class OperationalMetricsDTO {
         this.days = days;
     }
 
+    public RevenuePrecisionDTO getRevenuePrecision() {
+        return revenuePrecision;
+    }
+
+    public void setRevenuePrecision(RevenuePrecisionDTO revenuePrecision) {
+        this.revenuePrecision = revenuePrecision;
+    }
+
     public List<DailyMetricsDTO> getDailyTrends() {
         return dailyTrends;
     }
@@ -172,4 +183,3 @@ public class OperationalMetricsDTO {
         this.revparDetails = revparDetails;
     }
 }
-

@@ -12,6 +12,7 @@ public class BusinessSummaryDTO {
     private Integer totalRoomNights; // 总间夜数
     private BigDecimal averageRoomRate; // 平均房价
     private BigDecimal occupancyRate; // 出租率
+    private RevenuePrecisionDTO revenuePrecision; // 收入口径元数据
 
     // 按渠道统计
     private List<ChannelRevenue> revenueByChannel;
@@ -64,6 +65,14 @@ public class BusinessSummaryDTO {
 
     public void setOccupancyRate(BigDecimal occupancyRate) {
         this.occupancyRate = occupancyRate;
+    }
+
+    public RevenuePrecisionDTO getRevenuePrecision() {
+        return revenuePrecision;
+    }
+
+    public void setRevenuePrecision(RevenuePrecisionDTO revenuePrecision) {
+        this.revenuePrecision = revenuePrecision;
     }
 
     public List<ChannelRevenue> getRevenueByChannel() {

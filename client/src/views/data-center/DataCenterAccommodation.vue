@@ -22,6 +22,10 @@
         />
       </div>
 
+      <div class="price-basis-note">
+        {{ revenuePrecisionNotice }}
+      </div>
+
       <div class="metrics-grid">
         <div v-for="card in metricCards" :key="card.key" class="metric-card">
           <div class="metric-copy">
@@ -145,6 +149,7 @@ import {
   getOperationalMetrics,
   type OperationalMetricsDTO,
   type OperationalRoomDetailDTO,
+  type RevenuePrecisionDTO,
 } from '@/api/statistics'
 import { addDaysToYmd, getStoreTodayYmd, getYmdMonthStart, getYmdWeekStart } from '@/utils/storeDateTime'
 import businessHomeIcon from '@/assets/icons/statistics/business-home.png'
@@ -157,6 +162,7 @@ import occupancyRateIcon from '@/assets/icons/statistics/accommodation-occupancy
 const { t } = useI18n()
 const dateType = ref('today')
 const loading = ref(false)
+const revenuePrecision = ref<RevenuePrecisionDTO | null>(null)
 
 const getTodayDate = () => getStoreTodayYmd()
 
@@ -216,6 +222,17 @@ const formatPercent = (value: number) => `${formatNumber(value)}%`
 
 const dateRangeLabel = computed(() => {
   return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
+})
+
+const revenuePrecisionNotice = computed(() => {
+  const precision = revenuePrecision.value
+  if (!precision) {
+    return t('stage5.dataCenter.overview.priceBasisNotice')
+  }
+  return t('stage5.dataCenter.overview.priceBasisNoticeWithCoverage', {
+    exact: precision.exactRoomNights || 0,
+    averaged: precision.averagedRoomNights || 0,
+  })
 })
 
 const currentDateLabel = computed(() => {
@@ -296,6 +313,7 @@ const loadOperationalMetrics = async () => {
     })
 
     if (response.success && response.data) {
+      revenuePrecision.value = response.data.revenuePrecision || null
       applyOperationalMetricsData(response.data)
     } else {
       ElMessage.error(response.message || t('stage5.statistics.accommodation.loadMetricsFailed'))
@@ -623,6 +641,17 @@ onBeforeUnmount(() => {
   padding: 0 16px;
   background: #ffffff;
   border-radius: 4px;
+}
+
+.price-basis-note {
+  margin: 0 0 10px;
+  padding: 10px 16px;
+  border-left: 3px solid #1e90f7;
+  border-radius: 4px;
+  background: #f5f9ff;
+  color: #42526a;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .business-quick-select {

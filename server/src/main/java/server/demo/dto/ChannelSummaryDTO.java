@@ -13,6 +13,9 @@ public class ChannelSummaryDTO {
     // 总间夜数
     private Integer totalRoomNights;
 
+    // 收入口径元数据
+    private RevenuePrecisionDTO revenuePrecision;
+
     // 渠道消费分布(饼图)
     private List<ChannelDistribution> revenueDistribution;
 
@@ -46,6 +49,14 @@ public class ChannelSummaryDTO {
 
     public void setTotalRoomNights(Integer totalRoomNights) {
         this.totalRoomNights = totalRoomNights;
+    }
+
+    public RevenuePrecisionDTO getRevenuePrecision() {
+        return revenuePrecision;
+    }
+
+    public void setRevenuePrecision(RevenuePrecisionDTO revenuePrecision) {
+        this.revenuePrecision = revenuePrecision;
     }
 
     public List<ChannelDistribution> getRevenueDistribution() {

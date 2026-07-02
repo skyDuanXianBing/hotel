@@ -10,9 +10,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -43,6 +45,16 @@ public final class SuReservationParser {
     private SuReservationParser() {}
 
     public record MessagingListingResolution(String listingId, String source) {}
+
+    public record DailyRoomPrice(
+            LocalDate priceDate,
+            String rateId,
+            String mealplanId,
+            String mealplan,
+            BigDecimal taxAmount,
+            BigDecimal priceBeforeTax,
+            BigDecimal priceAfterTax
+    ) {}
 
     public static List<JsonNode> extractReservationNodes(JsonNode root) {
         if (root == null || root.isNull()) {
@@ -546,6 +558,50 @@ public final class SuReservationParser {
         return BigDecimal.ZERO;
     }
 
+    public static List<DailyRoomPrice> extractDailyPrices(
+            JsonNode reservation,
+            JsonNode roomStay,
+            LocalDate checkIn,
+            LocalDate checkOut
+    ) {
+        if (roomStay == null || roomStay.isNull() || checkIn == null || checkOut == null) {
+            return List.of();
+        }
+        if (!checkOut.isAfter(checkIn)) {
+            return List.of();
+        }
+
+        JsonNode priceArray = roomStay.get("price");
+        if (priceArray == null || !priceArray.isArray() || priceArray.isEmpty()) {
+            return List.of();
+        }
+
+        Map<LocalDate, DailyRoomPrice> pricesByDate = new LinkedHashMap<>();
+        for (JsonNode item : priceArray) {
+            if (item == null || item.isNull() || !item.isObject()) {
+                continue;
+            }
+
+            LocalDate priceDate = parseDate(firstText(item, "date", "price_date", "priceDate"));
+            if (priceDate == null || priceDate.isBefore(checkIn) || !priceDate.isBefore(checkOut)) {
+                continue;
+            }
+
+            DailyRoomPrice dailyPrice = new DailyRoomPrice(
+                    priceDate,
+                    firstText(item, "rate_id", "rateid", "rateId", "rateplanid", "rate_plan_id", "ratePlanId"),
+                    firstText(item, "mealplan_id", "mealplanid", "mealplanId", "meal_plan_id", "mealPlanId"),
+                    firstText(item, "mealplan", "meal_plan", "mealPlan"),
+                    parseBigDecimal(firstText(item, "tax", "tax_amount", "taxAmount")),
+                    parseBigDecimal(firstText(item, "pricebeforetax", "price_before_tax", "priceBeforeTax")),
+                    parseBigDecimal(firstText(item, "priceaftertax", "price_after_tax", "priceAfterTax"))
+            );
+            pricesByDate.put(priceDate, dailyPrice);
+        }
+
+        return List.copyOf(pricesByDate.values());
+    }
+
     public static String extractRatePlanId(JsonNode reservation, JsonNode roomStay) {
         String direct = text(roomStay, "rateplanid")
                 .or(() -> text(roomStay, "rate_plan_id"))
@@ -596,6 +652,19 @@ public final class SuReservationParser {
         }
         s = s.trim();
         return s.isBlank() ? Optional.empty() : Optional.of(s);
+    }
+
+    private static String firstText(JsonNode node, String... fields) {
+        if (fields == null) {
+            return null;
+        }
+        for (String field : fields) {
+            String value = text(node, field).orElse(null);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private static String firstValidListingId(JsonNode node, String... fields) {

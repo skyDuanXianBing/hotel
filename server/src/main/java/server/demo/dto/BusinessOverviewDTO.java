@@ -22,6 +22,9 @@ public class BusinessOverviewDTO {
     // 餐食/客房消费
     private BigDecimal roomServiceFee;
 
+    // 收入口径元数据
+    private RevenuePrecisionDTO revenuePrecision;
+
     // 消费分类分布(用于饼图)
     private List<CategoryDistribution> categoryDistribution;
 
@@ -73,6 +76,14 @@ public class BusinessOverviewDTO {
 
     public void setRoomServiceFee(BigDecimal roomServiceFee) {
         this.roomServiceFee = roomServiceFee;
+    }
+
+    public RevenuePrecisionDTO getRevenuePrecision() {
+        return revenuePrecision;
+    }
+
+    public void setRevenuePrecision(RevenuePrecisionDTO revenuePrecision) {
+        this.revenuePrecision = revenuePrecision;
     }
 
     public List<CategoryDistribution> getCategoryDistribution() {

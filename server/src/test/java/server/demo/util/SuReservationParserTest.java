@@ -132,6 +132,110 @@ class SuReservationParserTest {
     }
 
     @Test
+    void extractDailyPrices_shouldReadRoomPriceArrayWithinStayDates() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "currencycode": "JPY",
+                    "rooms": [
+                      {
+                        "arrival_date": "2026-02-01",
+                        "departure_date": "2026-02-03",
+                        "price": [
+                          {
+                            "date": "2026-02-01",
+                            "rate_id": "rate-a",
+                            "mealplan_id": "meal-a",
+                            "mealplan": "Room Only",
+                            "tax": "100",
+                            "pricebeforetax": "10000",
+                            "priceaftertax": "10100"
+                          },
+                          {
+                            "date": "2026-02-02",
+                            "rateId": "rate-b",
+                            "mealPlanId": "meal-b",
+                            "mealPlan": "Breakfast",
+                            "taxAmount": "120",
+                            "priceBeforeTax": "12000",
+                            "priceAfterTax": "12120"
+                          },
+                          {
+                            "date": "2026-02-03",
+                            "priceaftertax": "13000"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        JsonNode roomStay = SuReservationParser.extractRoomStays(reservation).get(0);
+
+        List<SuReservationParser.DailyRoomPrice> prices = SuReservationParser.extractDailyPrices(
+                reservation,
+                roomStay,
+                LocalDate.of(2026, 2, 1),
+                LocalDate.of(2026, 2, 3)
+        );
+
+        assertEquals(2, prices.size());
+        assertEquals(LocalDate.of(2026, 2, 1), prices.get(0).priceDate());
+        assertEquals("rate-a", prices.get(0).rateId());
+        assertEquals("meal-a", prices.get(0).mealplanId());
+        assertEquals("Room Only", prices.get(0).mealplan());
+        assertEquals(new BigDecimal("100"), prices.get(0).taxAmount());
+        assertEquals(new BigDecimal("10000"), prices.get(0).priceBeforeTax());
+        assertEquals(new BigDecimal("10100"), prices.get(0).priceAfterTax());
+        assertEquals(LocalDate.of(2026, 2, 2), prices.get(1).priceDate());
+        assertEquals("rate-b", prices.get(1).rateId());
+        assertEquals("meal-b", prices.get(1).mealplanId());
+        assertEquals("Breakfast", prices.get(1).mealplan());
+        assertEquals(new BigDecimal("120"), prices.get(1).taxAmount());
+        assertEquals(new BigDecimal("12000"), prices.get(1).priceBeforeTax());
+        assertEquals(new BigDecimal("12120"), prices.get(1).priceAfterTax());
+    }
+
+    @Test
+    void extractDailyPrices_shouldIgnoreInvalidAndOutOfStayPriceRows() throws Exception {
+        String json = """
+                {
+                  "reservation": {
+                    "currencycode": "JPY",
+                    "rooms": [
+                      {
+                        "arrival_date": "2026-02-01",
+                        "departure_date": "2026-02-04",
+                        "price": [
+                          { "date": "2026-01-31", "priceaftertax": "90" },
+                          { "date": "invalid-date", "priceaftertax": "100" },
+                          { "date": "2026-02-02", "priceaftertax": "120" },
+                          { "date": "2026-02-04", "priceaftertax": "130" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """;
+
+        JsonNode reservation = objectMapper.readTree(json).get("reservation");
+        JsonNode roomStay = SuReservationParser.extractRoomStays(reservation).get(0);
+
+        List<SuReservationParser.DailyRoomPrice> prices = SuReservationParser.extractDailyPrices(
+                reservation,
+                roomStay,
+                LocalDate.of(2026, 2, 1),
+                LocalDate.of(2026, 2, 4)
+        );
+
+        assertEquals(1, prices.size());
+        assertEquals(LocalDate.of(2026, 2, 2), prices.get(0).priceDate());
+        assertEquals(new BigDecimal("120"), prices.get(0).priceAfterTax());
+    }
+
+    @Test
     void extractBookedAtAndModifiedAt_preserveSuDateTimePrecision() throws Exception {
         String json = """
                 {

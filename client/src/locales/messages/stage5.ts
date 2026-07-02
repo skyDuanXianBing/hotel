@@ -276,6 +276,10 @@
           roomService: 'Meal / Room Consumption',
           paymentCategory: 'Payment Category',
           roomFeeSource: 'Room Fee Source',
+          priceBasisNotice:
+            'Room revenue defaults to Su daily prices. Historical or abnormal orders without daily prices are averaged from the order total by room night.',
+          priceBasisNoticeWithCoverage:
+            'Room revenue defaults to Su daily prices. Exact room nights: {exact}; averaged room nights: {averaged}.',
           totalCollection: 'Total Collection',
           totalExpenseDistribution: 'Total Expense Distribution',
           regularRevenue: 'Regular Revenue',
@@ -1057,6 +1061,10 @@
           roomService: '餐食/客房消费',
           paymentCategory: '款项分类',
           roomFeeSource: '房费来源',
+          priceBasisNotice:
+            '房费默认按 Su 每日价格统计；历史或异常缺少每日价的订单按订单总价平均摊分到每个间夜。',
+          priceBasisNoticeWithCoverage:
+            '房费默认按 Su 每日价格统计；精确每日价间夜 {exact}，平均摊分间夜 {averaged}。',
           totalCollection: '总收款',
           totalExpenseDistribution: '总支出分布',
           regularRevenue: '常规流水',

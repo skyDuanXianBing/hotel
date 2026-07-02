@@ -3,10 +3,27 @@ package server.demo.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import server.demo.entity.Channel;
 import server.demo.entity.Reservation;
+import server.demo.entity.Store;
+import server.demo.entity.User;
+import server.demo.enums.ChannelType;
+import server.demo.repository.ChannelRepository;
+import server.demo.repository.PricePlanRepository;
 import server.demo.repository.ReservationRepository;
+import server.demo.repository.StoreRepository;
+import server.demo.repository.SuMessageThreadRepository;
+import server.demo.repository.UserRepository;
+import server.demo.util.SuReservationParser;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +31,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -249,6 +268,157 @@ class OtaReservationSyncServiceUpsertLookupTest {
         verify(registrationLinkInboxService).recordIfAbsent(26L, reservation, 2);
     }
 
+    @Test
+    void upsertReservationsFromWebhook_shouldCallDailyPriceSyncWithParsedRoomPrices() throws Exception {
+        StoreRepository storeRepository = mock(StoreRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        PricePlanRepository pricePlanRepository = mock(PricePlanRepository.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        ReservationRepository reservationRepository = mock(ReservationRepository.class);
+        SuMessageThreadRepository threadRepository = mock(SuMessageThreadRepository.class);
+        OtaReservationRoomAssignmentService roomAssignmentService = mock(OtaReservationRoomAssignmentService.class);
+        AutoMessageTriggerService autoMessageTriggerService = mock(AutoMessageTriggerService.class);
+        CleaningTaskAutoService cleaningTaskAutoService = mock(CleaningTaskAutoService.class);
+        ReservationDailyPriceSyncService dailyPriceSyncService = mock(ReservationDailyPriceSyncService.class);
+        OrderNotificationDispatchService orderNotificationDispatchService =
+                mock(OrderNotificationDispatchService.class);
+
+        Store store = new Store();
+        store.setId(26L);
+        store.setUserId(100L);
+        store.setName("Store 26");
+        store.setSuHotelId("HOTEL26");
+        when(storeRepository.findById(26L)).thenReturn(Optional.of(store));
+
+        User user = new User();
+        user.setId(100L);
+        user.setUsername("owner");
+        user.setEmail("owner@example.test");
+        user.setPassword("secret");
+        when(userRepository.findById(100L)).thenReturn(Optional.of(user));
+
+        Channel channel = new Channel("Booking", "BOOKING", ChannelType.OTA);
+        channel.setId(19L);
+        channel.setStoreId(26L);
+        when(channelRepository.findByStoreIdAndCode(26L, "BOOKING")).thenReturn(Optional.of(channel));
+
+        when(reservationRepository.findByStoreIdAndOrderNumber(eq(26L), anyString()))
+                .thenReturn(Optional.empty());
+        when(reservationRepository.findByStoreIdAndSuReservationIdAndRoomReservationId(
+                26L,
+                "5003249282_W39FVCQYSN",
+                "1775048736013"
+        )).thenReturn(Optional.empty());
+        when(reservationRepository.findByStoreIdAndChannelIdAndExternalBookingKey(26L, 19L, "5003249282"))
+                .thenReturn(List.of());
+        when(reservationRepository.findByStoreIdAndChannelOrderNumber(26L, "5003249282"))
+                .thenReturn(List.of());
+        when(reservationRepository.save(org.mockito.ArgumentMatchers.any(Reservation.class)))
+                .thenAnswer(invocation -> {
+                    Reservation saved = invocation.getArgument(0);
+                    saved.setId(77L);
+                    return saved;
+                });
+        when(threadRepository.findByStoreIdAndChannelIdAndThreadKey(26L, 19, "5003249282"))
+                .thenReturn(Optional.empty());
+        when(threadRepository.save(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        OtaReservationSyncService service = new OtaReservationSyncService(
+                null,
+                storeRepository,
+                userRepository,
+                pricePlanRepository,
+                channelRepository,
+                reservationRepository,
+                threadRepository,
+                roomAssignmentService,
+                new NoopTransactionManager(),
+                null,
+                autoMessageTriggerService,
+                cleaningTaskAutoService,
+                null,
+                null,
+                null,
+                dailyPriceSyncService,
+                orderNotificationDispatchService
+        );
+
+        JsonNode reservationNode = OBJECT_MAPPER.readTree("""
+                {
+                  "reservation_notif_id": "notif-1",
+                  "id": "5003249282_W39FVCQYSN",
+                  "channel_booking_id": "5003249282",
+                  "status": "new",
+                  "currencycode": "JPY",
+                  "affiliation": { "OTA_Code": "19" },
+                  "customer": { "first_name": "Daily", "last_name": "Guest" },
+                  "rooms": [
+                    {
+                      "roomreservation_id": "1775048736013",
+                      "arrival_date": "2026-02-01",
+                      "departure_date": "2026-02-03",
+                      "numberofadults": "2",
+                      "numberofchildren": "0",
+                      "totalprice": "220.00",
+                      "price": [
+                        {
+                          "date": "2026-02-01",
+                          "tax": "10.00",
+                          "pricebeforetax": "100.00",
+                          "priceaftertax": "110.00"
+                        },
+                        {
+                          "date": "2026-02-02",
+                          "tax": "12.00",
+                          "pricebeforetax": "108.00",
+                          "priceaftertax": "120.00"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
+
+        OtaReservationSyncService.UpsertOnlyResult result =
+                service.upsertReservationsFromWebhook(26L, List.of(reservationNode));
+
+        assertEquals(1, result.processedRoomStays());
+        assertEquals(1, result.createdCount());
+        assertEquals(0, result.failedCount());
+
+        ArgumentCaptor<Reservation> savedReservationCaptor = ArgumentCaptor.forClass(Reservation.class);
+        ArgumentCaptor<JsonNode> reservationNodeCaptor = ArgumentCaptor.forClass(JsonNode.class);
+        ArgumentCaptor<JsonNode> roomStayCaptor = ArgumentCaptor.forClass(JsonNode.class);
+        verify(dailyPriceSyncService).syncDailyPrices(
+                eq(26L),
+                eq("HOTEL26"),
+                savedReservationCaptor.capture(),
+                reservationNodeCaptor.capture(),
+                roomStayCaptor.capture()
+        );
+
+        Reservation savedReservation = savedReservationCaptor.getValue();
+        assertEquals(77L, savedReservation.getId());
+        assertEquals("5003249282_W39FVCQYSN", savedReservation.getSuReservationId());
+        assertEquals("1775048736013", savedReservation.getRoomReservationId());
+        assertEquals(LocalDate.of(2026, 2, 1), savedReservation.getCheckInDate());
+        assertEquals(LocalDate.of(2026, 2, 3), savedReservation.getCheckOutDate());
+        assertSame(reservationNode, reservationNodeCaptor.getValue());
+
+        List<SuReservationParser.DailyRoomPrice> parsedPrices = SuReservationParser.extractDailyPrices(
+                reservationNodeCaptor.getValue(),
+                roomStayCaptor.getValue(),
+                savedReservation.getCheckInDate(),
+                savedReservation.getCheckOutDate()
+        );
+        assertEquals(2, parsedPrices.size());
+        assertEquals(LocalDate.of(2026, 2, 1), parsedPrices.get(0).priceDate());
+        assertEquals(new BigDecimal("110.00"), parsedPrices.get(0).priceAfterTax());
+        assertEquals(LocalDate.of(2026, 2, 2), parsedPrices.get(1).priceDate());
+        assertEquals(new BigDecimal("120.00"), parsedPrices.get(1).priceAfterTax());
+    }
+
     private static OtaReservationSyncService createService(ReservationRepository reservationRepository) {
         return createService(reservationRepository, null);
     }
@@ -274,7 +444,23 @@ class OtaReservationSyncServiceUpsertLookupTest {
                 null,
                 registrationLinkInboxService,
                 null,
+                null,
                 null
         );
+    }
+
+    private static final class NoopTransactionManager implements PlatformTransactionManager {
+        @Override
+        public TransactionStatus getTransaction(TransactionDefinition definition) throws TransactionException {
+            return new SimpleTransactionStatus();
+        }
+
+        @Override
+        public void commit(TransactionStatus status) throws TransactionException {
+        }
+
+        @Override
+        public void rollback(TransactionStatus status) throws TransactionException {
+        }
     }
 }

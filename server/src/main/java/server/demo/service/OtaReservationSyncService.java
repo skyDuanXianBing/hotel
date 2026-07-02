@@ -72,6 +72,7 @@ public class OtaReservationSyncService {
     private final PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer;
     private final RegistrationLinkInboxService registrationLinkInboxService;
     private final SuAriAutoSyncService suAriAutoSyncService;
+    private final ReservationDailyPriceSyncService reservationDailyPriceSyncService;
     private final OrderNotificationDispatchService orderNotificationDispatchService;
 
     public OtaReservationSyncService(
@@ -90,6 +91,7 @@ public class OtaReservationSyncService {
             PriceLabsCalendarSyncDebouncer priceLabsCalendarSyncDebouncer,
             RegistrationLinkInboxService registrationLinkInboxService,
             SuAriAutoSyncService suAriAutoSyncService,
+            ReservationDailyPriceSyncService reservationDailyPriceSyncService,
             OrderNotificationDispatchService orderNotificationDispatchService
     ) {
         this.suApiClient = suApiClient;
@@ -107,6 +109,7 @@ public class OtaReservationSyncService {
         this.priceLabsCalendarSyncDebouncer = priceLabsCalendarSyncDebouncer;
         this.registrationLinkInboxService = registrationLinkInboxService;
         this.suAriAutoSyncService = suAriAutoSyncService;
+        this.reservationDailyPriceSyncService = reservationDailyPriceSyncService;
         this.orderNotificationDispatchService = orderNotificationDispatchService;
     }
 
@@ -789,6 +792,15 @@ public class OtaReservationSyncService {
                     }
 
                     reservationRepository.save(reservation);
+                    if (reservationDailyPriceSyncService != null) {
+                        reservationDailyPriceSyncService.syncDailyPrices(
+                                store.getId(),
+                                suHotelId,
+                                reservation,
+                                reservationNode,
+                                roomStay
+                        );
+                    }
 
                     OrderNotificationDispatchService.OrderEventType eventType =
                             orderNotificationDispatchService.resolveOtaEventType(

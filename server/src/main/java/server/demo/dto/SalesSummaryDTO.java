@@ -20,6 +20,9 @@ public class SalesSummaryDTO {
     // 销售订单明细(表格数据)
     private List<SalesOrderDetail> orderDetails;
 
+    // 收入口径元数据
+    private RevenuePrecisionDTO revenuePrecision;
+
     // Constructors
     public SalesSummaryDTO() {}
 
@@ -54,6 +57,14 @@ public class SalesSummaryDTO {
 
     public void setOrderDetails(List<SalesOrderDetail> orderDetails) {
         this.orderDetails = orderDetails;
+    }
+
+    public RevenuePrecisionDTO getRevenuePrecision() {
+        return revenuePrecision;
+    }
+
+    public void setRevenuePrecision(RevenuePrecisionDTO revenuePrecision) {
+        this.revenuePrecision = revenuePrecision;
     }
 
     /**

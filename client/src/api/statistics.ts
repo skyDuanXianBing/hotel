@@ -13,13 +13,29 @@ export interface DateRangeParams {
   endDate: string
 }
 
+export interface RevenuePrecisionDTO {
+  priceBasis?: string
+  dateBasis?: string
+  taxMode?: string
+  currencyCode?: string
+  exactRoomNights?: number
+  averagedRoomNights?: number
+  totalRoomNights?: number
+  coverageRate?: number
+}
+
 // ==================== 营业汇总统计 ====================
 export interface BusinessSummaryDTO {
   totalRevenue: number
   totalOrders: number
-  averageOrderValue: number
+  totalRoomNights?: number
+  averageRoomRate?: number
+  averageOrderValue?: number
   occupancyRate: number
-  topChannels: ChannelStat[]
+  revenuePrecision?: RevenuePrecisionDTO
+  topChannels?: ChannelStat[]
+  revenueByChannel?: ChannelStat[]
+  revenueByRoomType?: RoomTypeRevenueStat[]
   revenueByDate: DailyRevenueStat[]
 }
 
@@ -27,12 +43,21 @@ export interface ChannelStat {
   channelName: string
   revenue: number
   orderCount: number
+  roomNights?: number
+}
+
+export interface RoomTypeRevenueStat {
+  roomTypeName: string
+  revenue: number
+  orderCount: number
+  roomNights: number
 }
 
 export interface DailyRevenueStat {
   date: string
   revenue: number
   orderCount: number
+  roomNights?: number
 }
 
 // ==================== 每日入住率统计 ====================
@@ -50,6 +75,7 @@ export interface BusinessOverviewDTO {
   deposit: number
   checkoutFee: number
   roomServiceFee: number
+  revenuePrecision?: RevenuePrecisionDTO
   categoryDistribution: CategoryDistribution[]
   consumptionTrend: DailyConsumption[]
   consumptionDetails: ConsumptionDetail[]
@@ -85,9 +111,13 @@ export interface RevenueSummaryDTO {
   totalRevenue: number
   splitAccount: number
   actualReceived: number
+  totalIncome?: number
+  totalExpense?: number
+  revenuePrecision?: RevenuePrecisionDTO
   paymentMethodStats: PaymentMethodStat[]
   categoryStats: CategoryStat[]
   incomeDistribution: Distribution[]
+  expenseDistribution?: Distribution[]
   dailyRevenues: DailyRevenue[]
 }
 
@@ -111,15 +141,18 @@ export interface Distribution {
 
 export interface DailyRevenue {
   date: string
-  totalRevenue: number
-  splitAccount: number
-  actualReceived: number
+  amount?: number
+  orderCount?: number
+  totalRevenue?: number
+  splitAccount?: number
+  actualReceived?: number
 }
 
 // ==================== 渠道汇总统计 ====================
 export interface ChannelSummaryDTO {
   totalRevenue: number
   totalRoomNights: number
+  revenuePrecision?: RevenuePrecisionDTO
   revenueDistribution: ChannelDistribution[]
   nightsDistribution: ChannelDistribution[]
   revenueTrend: ChannelTrend[]
@@ -164,6 +197,7 @@ export interface ChannelDetailDailyValue {
 export interface SalesSummaryDTO {
   totalSales: number
   totalOrders: number
+  revenuePrecision?: RevenuePrecisionDTO
   dailySalesTrend: DailySales[]
   orderDetails: SalesOrderDetail[]
 }
@@ -196,6 +230,7 @@ export interface OperationalMetricsDTO {
   totalAvailableRoomNights: number
   totalRooms: number
   days: number
+  revenuePrecision?: RevenuePrecisionDTO
   dailyTrends?: DailyMetricsDTO[]
   roomFeeDetails?: OperationalRoomDetailDTO[]
   roomNightsDetails?: OperationalRoomDetailDTO[]

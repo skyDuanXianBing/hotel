@@ -25,6 +25,7 @@
       <div class="section-header">
         <h2>{{ t('stage5.statistics.business.title') }}</h2>
         <span class="stats-period">{{ t('stage5.statistics.common.statsPeriod', { period: formatDateRange }) }}</span>
+        <span class="price-basis-note">{{ revenuePrecisionNotice }}</span>
       </div>
 
     <!-- 营业指标卡片 -->
@@ -179,7 +180,7 @@ import {
   ShoppingCart,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getBusinessSummary, type BusinessSummaryDTO } from '@/api/business'
+import { getBusinessSummary, type BusinessSummaryDTO } from '@/api/statistics'
 import StatisticsLayout from './StatisticsLayout.vue'
 import * as echarts from 'echarts'
 import { formatYmdMonthDay, getRecentStoreDateRange } from '@/utils/storeDateTime'
@@ -234,6 +235,17 @@ const formatDateRange = computed(() => {
   return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
 })
 
+const revenuePrecisionNotice = computed(() => {
+  const precision = businessSummaryData.value?.revenuePrecision
+  if (!precision) {
+    return t('stage5.dataCenter.overview.priceBasisNotice')
+  }
+  return t('stage5.dataCenter.overview.priceBasisNoticeWithCoverage', {
+    exact: precision.exactRoomNights || 0,
+    averaged: precision.averagedRoomNights || 0,
+  })
+})
+
 // 初始化饼图
 const initPieChart = () => {
   if (!pieChartRef.value) return
@@ -241,7 +253,8 @@ const initPieChart = () => {
   pieChart = echarts.init(pieChartRef.value)
 
   // 准备图表数据 - 按渠道分布
-  const pieData = businessSummaryData.value?.revenueByChannel.map((channel, index) => ({
+  const channelRevenue = businessSummaryData.value?.revenueByChannel || businessSummaryData.value?.topChannels || []
+  const pieData = channelRevenue.map((channel, index) => ({
     value: Number(channel.revenue),
     name: channel.channelName,
     itemStyle: {
@@ -468,7 +481,7 @@ const calculateBusinessMetrics = async () => {
 
     // 映射API数据到页面显示格式
     const totalRevenue = Number(data.totalRevenue)
-    const roomFee = totalRevenue // 目前所有收入都作为房费
+    const roomFee = totalRevenue
     const deposit = 0 // 暂无押金数据
     const consumption = 0 // 暂无消费数据
 
@@ -484,7 +497,8 @@ const calculateBusinessMetrics = async () => {
     }
 
     // 更新营业明细数据 - 按渠道分组
-    const details = data.revenueByChannel.map(channel => ({
+    const channelRevenue = data.revenueByChannel || data.topChannels || []
+    const details = channelRevenue.map(channel => ({
       category: channel.channelName,
       description: t('stage5.statistics.business.orderRoomNights', {
         orders: channel.orderCount,
@@ -654,6 +668,17 @@ onBeforeUnmount(() => {
 .stats-period {
   font-size: 14px;
   color: #666;
+}
+
+.price-basis-note {
+  max-width: 520px;
+  padding: 6px 10px;
+  border-left: 3px solid #1e90f7;
+  border-radius: 4px;
+  background: #f5f9ff;
+  color: #42526a;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 /* 营业指标卡片 */

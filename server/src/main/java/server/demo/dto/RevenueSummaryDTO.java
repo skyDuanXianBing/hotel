@@ -23,6 +23,9 @@ public class RevenueSummaryDTO {
     // 总支出
     private BigDecimal totalExpense;
 
+    // 收入口径元数据
+    private RevenuePrecisionDTO revenuePrecision;
+
     // 支付方式统计
     private List<PaymentMethodStat> paymentMethodStats;
 
@@ -80,6 +83,14 @@ public class RevenueSummaryDTO {
 
     public void setTotalExpense(BigDecimal totalExpense) {
         this.totalExpense = totalExpense;
+    }
+
+    public RevenuePrecisionDTO getRevenuePrecision() {
+        return revenuePrecision;
+    }
+
+    public void setRevenuePrecision(RevenuePrecisionDTO revenuePrecision) {
+        this.revenuePrecision = revenuePrecision;
     }
 
     public List<PaymentMethodStat> getPaymentMethodStats() {

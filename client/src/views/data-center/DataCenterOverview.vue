@@ -47,6 +47,10 @@
         </div>
       </div>
 
+      <div class="price-basis-note">
+        {{ revenuePrecisionNotice }}
+      </div>
+
       <!-- 营业概况内容 -->
       <div v-if="activeTab === 'business'" class="tab-content">
         <!-- 营业概况统计卡片 -->
@@ -492,7 +496,8 @@ import {
   type BusinessOverviewDTO,
   type RevenueSummaryDTO,
   type ChannelSummaryDTO,
-  type SalesSummaryDTO
+  type SalesSummaryDTO,
+  type RevenuePrecisionDTO
 } from '@/api/statistics'
 import { getAllChannels } from '@/api/channel'
 import type { ChannelDTO } from '@/api/channel'
@@ -612,6 +617,7 @@ const todayYmd = getStoreTodayYmd()
 const startDate = ref(todayYmd)
 const endDate = ref(todayYmd)
 const loading = ref(false)
+const currentRevenuePrecision = ref<RevenuePrecisionDTO | null>(null)
 
 const businessDateRange = computed<string[]>({
   get: () => {
@@ -628,6 +634,17 @@ const businessDateRange = computed<string[]>({
 const dateRangeLabel = computed(() =>
   t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value }),
 )
+
+const revenuePrecisionNotice = computed(() => {
+  const precision = currentRevenuePrecision.value
+  if (!precision) {
+    return t('stage5.dataCenter.overview.priceBasisNotice')
+  }
+  return t('stage5.dataCenter.overview.priceBasisNoticeWithCoverage', {
+    exact: precision.exactRoomNights || 0,
+    averaged: precision.averagedRoomNights || 0,
+  })
+})
 
 const normalizeLabel = (value: string) => value.trim().replace(/\s+/g, '').toLowerCase()
 
@@ -1080,6 +1097,7 @@ const loadBusinessOverview = async () => {
 
     if (response.success && response.data) {
       const data = response.data
+      currentRevenuePrecision.value = data.revenuePrecision || null
 
       // 更新统计卡片数据
       totalRevenue.value = data.totalRevenue
@@ -1129,6 +1147,7 @@ const loadRevenueSummary = async () => {
 
     if (response.success && response.data) {
       const data = response.data
+      currentRevenuePrecision.value = data.revenuePrecision || null
 
       // 更新统计数据
       revenueTotal.value = data.totalRevenue
@@ -1206,6 +1225,7 @@ const loadChannelSummary = async () => {
 
     if (response.success && response.data) {
       const data = response.data
+      currentRevenuePrecision.value = data.revenuePrecision || null
 
       // 更新表格数据
       const channelFeeData = data.channelDetails.map((detail) => {
@@ -1274,6 +1294,7 @@ const loadSalesSummary = async (resetPage = false) => {
 
     if (response.success && response.data) {
       const data = response.data
+      currentRevenuePrecision.value = data.revenuePrecision || null
 
       // 更新统计数据
       salesTotal.value = data.totalSales
@@ -2696,6 +2717,17 @@ onBeforeUnmount(() => {
   padding: 0 16px;
   background: #ffffff;
   border-radius: 4px;
+}
+
+.price-basis-note {
+  margin: 0 0 10px;
+  padding: 10px 16px;
+  border-left: 3px solid #1e90f7;
+  border-radius: 4px;
+  background: #f5f9ff;
+  color: #42526a;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .date-separator {
