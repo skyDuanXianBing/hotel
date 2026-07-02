@@ -66,11 +66,7 @@ public class RegistrationLinkService {
             throw new IllegalArgumentException("token格式错误");
         }
 
-        long now = Instant.now().getEpochSecond();
-        if (now > exp) {
-            throw new IllegalArgumentException("链接已过期");
-        }
-
+        // exp remains part of the signed legacy token payload, but no longer authorizes access.
         String expectedSig = hmacSha256Hex(payload(storeId, orderNumber, exp));
         if (!constantTimeEquals(expectedSig, parts[2])) {
             throw new IllegalArgumentException("token无效");
