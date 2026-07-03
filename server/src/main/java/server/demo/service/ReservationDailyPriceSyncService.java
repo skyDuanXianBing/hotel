@@ -11,7 +11,10 @@ import server.demo.util.SuReservationParser;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ReservationDailyPriceSyncService {
@@ -54,24 +57,62 @@ public class ReservationDailyPriceSyncService {
             return List.of();
         }
 
-        dailyPriceRepository.deleteByStoreIdAndReservationId(storeId, reservation.getId());
+        Map<LocalDate, SuReservationParser.DailyRoomPrice> parsedPricesByDate = new LinkedHashMap<>();
+        for (SuReservationParser.DailyRoomPrice parsedPrice : parsedPrices) {
+            if (parsedPrice.priceDate() != null) {
+                parsedPricesByDate.put(parsedPrice.priceDate(), parsedPrice);
+            }
+        }
+
+        if (parsedPricesByDate.isEmpty()) {
+            dailyPriceLogger.debug(
+                    "[ReservationDailyPrice] skip. storeId={}, reservationId={}, suReservationId={}, roomReservationId={}, source=SU_DAILY_PRICE, reason=no_valid_daily_price",
+                    storeId,
+                    reservation.getId(),
+                    reservation.getSuReservationId(),
+                    reservation.getRoomReservationId()
+            );
+            return List.of();
+        }
+
+        List<ReservationDailyPrice> existingRows = dailyPriceRepository.findByStoreIdAndReservationIdOrderByPriceDateAsc(
+                storeId,
+                reservation.getId()
+        );
+        Map<LocalDate, ReservationDailyPrice> existingRowsByDate = new HashMap<>();
+        for (ReservationDailyPrice existingRow : existingRows) {
+            if (
+                    isCurrentReservationDailyPrice(existingRow, storeId, reservation.getId())
+                            && existingRow.getPriceDate() != null
+            ) {
+                existingRowsByDate.put(existingRow.getPriceDate(), existingRow);
+            }
+        }
+
+        List<ReservationDailyPrice> staleRows = new ArrayList<>();
+        for (ReservationDailyPrice existingRow : existingRows) {
+            LocalDate priceDate = existingRow.getPriceDate();
+            if (
+                    isCurrentReservationDailyPrice(existingRow, storeId, reservation.getId())
+                            && priceDate != null
+                            && !parsedPricesByDate.containsKey(priceDate)
+            ) {
+                staleRows.add(existingRow);
+            }
+        }
+        if (!staleRows.isEmpty()) {
+            dailyPriceRepository.deleteAll(staleRows);
+        }
 
         List<ReservationDailyPrice> rows = new ArrayList<>();
-        for (SuReservationParser.DailyRoomPrice parsedPrice : parsedPrices) {
-            ReservationDailyPrice row = new ReservationDailyPrice();
-            row.setStoreId(storeId);
-            row.setReservation(reservation);
-            row.setSuHotelId(suHotelId);
-            row.setSuReservationId(reservation.getSuReservationId());
-            row.setRoomReservationId(reservation.getRoomReservationId());
-            row.setPriceDate(parsedPrice.priceDate());
-            row.setCurrencyCode(reservation.getCurrencyCode());
-            row.setRateId(parsedPrice.rateId());
-            row.setMealplanId(parsedPrice.mealplanId());
-            row.setMealplan(parsedPrice.mealplan());
-            row.setTaxAmount(parsedPrice.taxAmount());
-            row.setPriceBeforeTax(parsedPrice.priceBeforeTax());
-            row.setPriceAfterTax(parsedPrice.priceAfterTax());
+        for (Map.Entry<LocalDate, SuReservationParser.DailyRoomPrice> entry : parsedPricesByDate.entrySet()) {
+            LocalDate priceDate = entry.getKey();
+            SuReservationParser.DailyRoomPrice parsedPrice = entry.getValue();
+            ReservationDailyPrice row = existingRowsByDate.get(priceDate);
+            if (row == null) {
+                row = new ReservationDailyPrice();
+            }
+            applyParsedDailyPrice(row, storeId, suHotelId, reservation, priceDate, parsedPrice);
             rows.add(row);
         }
 
@@ -103,5 +144,39 @@ public class ReservationDailyPriceSyncService {
                 reservation.getCurrencyCode()
         );
         return savedRows;
+    }
+
+    private void applyParsedDailyPrice(
+            ReservationDailyPrice row,
+            Long storeId,
+            String suHotelId,
+            Reservation reservation,
+            LocalDate priceDate,
+            SuReservationParser.DailyRoomPrice parsedPrice
+    ) {
+        row.setStoreId(storeId);
+        row.setReservation(reservation);
+        row.setSuHotelId(suHotelId);
+        row.setSuReservationId(reservation.getSuReservationId());
+        row.setRoomReservationId(reservation.getRoomReservationId());
+        row.setPriceDate(priceDate);
+        row.setCurrencyCode(reservation.getCurrencyCode());
+        row.setRateId(parsedPrice.rateId());
+        row.setMealplanId(parsedPrice.mealplanId());
+        row.setMealplan(parsedPrice.mealplan());
+        row.setTaxAmount(parsedPrice.taxAmount());
+        row.setPriceBeforeTax(parsedPrice.priceBeforeTax());
+        row.setPriceAfterTax(parsedPrice.priceAfterTax());
+    }
+
+    private boolean isCurrentReservationDailyPrice(
+            ReservationDailyPrice row,
+            Long storeId,
+            Long reservationId
+    ) {
+        if (row == null || row.getReservation() == null) {
+            return false;
+        }
+        return storeId.equals(row.getStoreId()) && reservationId.equals(row.getReservation().getId());
     }
 }
