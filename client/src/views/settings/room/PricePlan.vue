@@ -15,7 +15,7 @@
           :placeholder="t('settingsStage4.pricePlan.placeholders.searchPlan')"
           :prefix-icon="Search"
           clearable
-          style="width: 300px"
+          style="width: 180px"
         />
         <el-button type="primary" @click="handleAddPlan">{{
           t('settingsStage4.pricePlan.actions.addPlan')
@@ -23,7 +23,7 @@
       </div>
 
       <!-- 价格计划表格 -->
-      <el-table :data="pricePlans" stripe border style="width: 100%">
+      <el-table :data="pricePlans" border class="plan-table">
         <el-table-column
           prop="name"
           :label="t('settingsStage4.pricePlan.columns.pricePlan')"
@@ -70,20 +70,22 @@
         </el-table-column>
         <el-table-column
           :label="t('settingsStage4.accountList.columns.actions')"
-          width="200"
+          width="150"
           align="center"
           fixed="right"
         >
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">{{
-              t('settings.common.edit')
-            }}</el-button>
-            <el-button link type="primary" @click="handleDetail(row)">{{
-              t('settingsStage4.common.details')
-            }}</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">{{
-              t('settings.common.delete')
-            }}</el-button>
+            <div class="plan-actions">
+              <el-button link type="primary" @click="handleEdit(row)">{{
+                t('settings.common.edit')
+              }}</el-button>
+              <el-button link type="primary" @click="handleDetail(row)">{{
+                t('settingsStage4.common.details')
+              }}</el-button>
+              <el-button link type="danger" @click="handleDelete(row)">{{
+                t('settings.common.delete')
+              }}</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -98,7 +100,7 @@
           :placeholder="t('settingsStage4.pricePlan.placeholders.searchRoomType')"
           :prefix-icon="Search"
           clearable
-          style="width: 300px"
+          style="width: 180px"
         />
       </div>
 
@@ -116,7 +118,7 @@
 
         <!-- 价格表格 -->
         <el-table :data="roomType.pricePlans" border class="rate-table">
-          <el-table-column :label="t('settingsStage4.pricePlan.columns.pricePlan')" width="150">
+          <el-table-column :label="t('settingsStage4.pricePlan.columns.pricePlan')" width="112">
             <template #default="{ row }">
               <div class="plan-name-cell">
                 <el-icon class="arrow-icon"><ArrowLeft /></el-icon>
@@ -126,7 +128,7 @@
           </el-table-column>
           <el-table-column
             :label="t('settingsStage4.pricePlan.columns.priceMode')"
-            width="120"
+            width="112"
             align="center"
           >
             <template #default>
@@ -139,49 +141,49 @@
           >
             <el-table-column
               :label="t('settingsStage4.weekdays.monShort')"
-              width="100"
+              width="78"
               align="center"
             >
               <template #default="{ row }">{{ formatPrice(row.prices.mon) }}</template>
             </el-table-column>
             <el-table-column
               :label="t('settingsStage4.weekdays.tueShort')"
-              width="100"
+              width="78"
               align="center"
             >
               <template #default="{ row }">{{ formatPrice(row.prices.tue) }}</template>
             </el-table-column>
             <el-table-column
               :label="t('settingsStage4.weekdays.wedShort')"
-              width="100"
+              width="78"
               align="center"
             >
               <template #default="{ row }">{{ formatPrice(row.prices.wed) }}</template>
             </el-table-column>
             <el-table-column
               :label="t('settingsStage4.weekdays.thuShort')"
-              width="100"
+              width="78"
               align="center"
             >
               <template #default="{ row }">{{ formatPrice(row.prices.thu) }}</template>
             </el-table-column>
             <el-table-column
               :label="t('settingsStage4.weekdays.friShort')"
-              width="100"
+              width="78"
               align="center"
             >
               <template #default="{ row }">{{ formatPrice(row.prices.fri) }}</template>
             </el-table-column>
             <el-table-column
               :label="t('settingsStage4.weekdays.satShort')"
-              width="100"
+              width="78"
               align="center"
             >
               <template #default="{ row }">{{ formatPrice(row.prices.sat) }}</template>
             </el-table-column>
             <el-table-column
               :label="t('settingsStage4.weekdays.sunShort')"
-              width="100"
+              width="78"
               align="center"
             >
               <template #default="{ row }">{{ formatPrice(row.prices.sun) }}</template>
@@ -189,29 +191,31 @@
           </el-table-column>
           <el-table-column
             :label="t('settingsStage4.pricePlan.columns.maxGuests')"
-            width="120"
+            width="118"
             align="center"
             prop="maxGuests"
           />
           <el-table-column
             :label="t('settingsStage4.pricePlan.columns.includedGuests')"
-            width="100"
+            width="82"
             align="center"
             prop="includedGuests"
           />
           <el-table-column
             :label="t('settingsStage4.accountList.columns.actions')"
-            width="150"
+            width="118"
             align="center"
             fixed="right"
           >
             <template #default="{ row }">
-              <el-button link type="primary" @click="handleEditRate(roomType, row)">
-                {{ t('settings.common.edit') }}
-              </el-button>
-              <el-button link type="danger" @click="handleDeleteRate(roomType, row)">
-                {{ t('settings.common.delete') }}
-              </el-button>
+              <div class="rate-actions">
+                <el-button link type="primary" @click="handleEditRate(roomType, row)">
+                  {{ t('settings.common.edit') }}
+                </el-button>
+                <el-button link type="danger" @click="handleDeleteRate(roomType, row)">
+                  {{ t('settings.common.delete') }}
+                </el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -1928,24 +1932,126 @@ watch(selectedRoomTypeIds, (newIds) => {
 }
 
 .price-tabs {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
+}
+
+:deep(.price-tabs .el-tabs__header) {
+  margin: 0 0 18px;
+}
+
+:deep(.price-tabs .el-tabs__nav-wrap::after),
+:deep(.price-tabs .el-tabs__active-bar) {
+  display: none;
+}
+
+:deep(.price-tabs .el-tabs__nav) {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  float: none;
+}
+
+:deep(.price-tabs .el-tabs__item) {
+  height: 28px;
+  padding: 0 13px !important;
+  border-radius: 999px;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 28px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+:deep(.price-tabs .el-tabs__item:hover) {
+  background: #f5f5f5;
+  color: #111111;
+}
+
+:deep(.price-tabs .el-tabs__item.is-active),
+:deep(.price-tabs .el-tabs__item.is-active:hover) {
+  background: #111111;
+  color: #ffffff;
 }
 
 .toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 20px;
+  gap: 28px;
+  margin-bottom: 18px;
+}
+
+.toolbar :deep(.el-input__wrapper) {
+  min-height: 28px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #eceff3 inset;
+}
+
+.toolbar :deep(.el-input__inner) {
+  height: 28px;
+  font-size: 12px;
+}
+
+.toolbar :deep(.el-button) {
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 3px;
+  font-size: 12px;
 }
 
 :deep(.el-table) {
-  font-size: 14px;
+  --el-table-border-color: #d9d9d9;
+  --el-table-row-hover-bg-color: #ffffff;
+  font-size: 13px;
+  color: #303133;
 }
 
 :deep(.el-table th) {
-  background-color: #f5f7fa;
-  color: #606266;
-  font-weight: 600;
+  background-color: #ffffff;
+  color: #111111;
+  font-weight: 500;
+}
+
+:deep(.el-table .el-table__cell) {
+  height: 38px;
+  padding: 0;
+}
+
+:deep(.el-table .cell) {
+  line-height: 38px;
+}
+
+.plan-table {
+  width: 100%;
+  --el-table-header-bg-color: #ffffff;
+  --el-table-tr-bg-color: #ffffff;
+}
+
+.plan-table :deep(.el-table__row--striped td.el-table__cell) {
+  background-color: #ffffff;
+}
+
+.plan-table :deep(.el-table__body tr:hover > td.el-table__cell) {
+  background-color: #ffffff;
+}
+
+.plan-actions,
+.rate-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.plan-actions :deep(.el-button),
+.rate-actions :deep(.el-button) {
+  height: 22px;
+  padding: 0;
+  margin-left: 0;
+  font-size: 12px;
 }
 
 :deep(.el-link) {
@@ -2010,31 +2116,37 @@ watch(selectedRoomTypeIds, (newIds) => {
 
 /* 房费页面样式 */
 .room-type-section {
-  margin-bottom: 30px;
+  --price-plan-rate-border: #d9d9d9;
+  margin-bottom: 16px;
 }
 
 .room-type-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
-  background: #f5f7fa;
-  border: 1px solid #dcdfe6;
+  height: 30px;
+  padding: 0 16px;
+  background: #ffffff;
+  border: 1px solid var(--price-plan-rate-border);
   border-bottom: none;
-  border-radius: 4px 4px 0 0;
+  border-radius: 0;
 }
 
 .room-type-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 15px;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 700;
+  color: #1890FF;
+}
+
+.room-type-title .el-icon {
+  display: none;
 }
 
 .room-type-name {
-  color: #303133;
+  color: #1890FF;
 }
 
 .room-type-code {
@@ -2043,23 +2155,79 @@ watch(selectedRoomTypeIds, (newIds) => {
 }
 
 .rate-table {
-  border-top: none;
-  border-radius: 0 0 4px 4px;
+  --el-table-border-color: var(--price-plan-rate-border);
+  --el-table-border: 1px solid var(--price-plan-rate-border);
+  --el-table-header-bg-color: #ffffff;
+  --el-table-tr-bg-color: #ffffff;
+  width: 100%;
+  border-radius: 0;
+}
+
+.rate-table :deep(.el-table__inner-wrapper::before),
+.rate-table :deep(.el-table__inner-wrapper::after) {
+  height: 1px;
+  background-color: var(--price-plan-rate-border);
+}
+
+.rate-table.el-table--border::before,
+.rate-table.el-table--border::after,
+.rate-table :deep(.el-table__border-left-patch),
+.rate-table :deep(.el-table__border-right-patch) {
+  width: 1px;
+  background-color: var(--price-plan-rate-border);
+}
+
+.rate-table :deep(th.el-table__cell),
+.rate-table :deep(td.el-table__cell) {
+  border-bottom: 1px solid var(--price-plan-rate-border);
+  border-right: 1px solid var(--price-plan-rate-border);
+}
+
+.rate-table :deep(.el-table__header th),
+.rate-table :deep(.el-table__body td) {
+  background-color: #ffffff !important;
+}
+
+.rate-table :deep(.el-table__body tr:hover > td.el-table__cell) {
+  background-color: #ffffff;
+}
+
+.rate-table :deep(.el-table__cell) {
+  height: 38px;
+}
+
+.rate-table :deep(.cell) {
+  min-height: 38px;
+  line-height: 38px;
+}
+
+.rate-table :deep(.el-tag) {
+  height: 20px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: #bfe6ff;
+  color: #1685c1;
+  font-size: 12px;
+  line-height: 20px;
 }
 
 .plan-name-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
+  color: #6f7782;
+  font-size: 12px;
 }
 
 .arrow-icon {
-  color: #909399;
-  font-size: 14px;
+  color: #6f7782;
+  font-size: 13px;
 }
 
 :deep(.rate-table .el-table__header th) {
-  background-color: #fafafa;
+  background-color: #ffffff;
 }
 
 /* 编辑房价对话框样式 */

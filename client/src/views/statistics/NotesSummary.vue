@@ -23,6 +23,10 @@
         <el-button type="primary" class="query-button" @click="handleQuery">
           {{ t('stage5.common.actions.query') }}
         </el-button>
+        <el-button type="primary" class="record-button" @click="showRecordTransaction = true">
+          <el-icon><EditPen /></el-icon>
+          <span>{{ t('stage6.components.recordTransaction.title') }}</span>
+        </el-button>
       </div>
 
       <el-alert
@@ -150,6 +154,8 @@
         </div>
       </div>
     </div>
+
+    <RecordTransaction v-model="showRecordTransaction" @success="handleRecordSuccess" />
   </StatisticsLayout>
 </template>
 
@@ -157,6 +163,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { EditPen } from '@element-plus/icons-vue'
+import RecordTransaction from '@/components/RecordTransaction.vue'
 import StatisticsLayout from './StatisticsLayout.vue'
 import {
   getNotesList,
@@ -181,6 +189,7 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
 const loadError = ref('')
+const showRecordTransaction = ref(false)
 
 const tableData = ref<any[]>([])
 
@@ -311,6 +320,10 @@ const handleQuery = () => {
   loadData()
 }
 
+const handleRecordSuccess = () => {
+  void loadData()
+}
+
 const handleSizeChange = (size: number) => {
   pageSize.value = size
   currentPage.value = 1
@@ -383,6 +396,20 @@ onMounted(() => {
   margin-bottom: 10px;
   background: #ffffff;
   border-radius: 4px;
+}
+
+.record-button {
+  height: 32px;
+  margin-left: auto;
+  padding: 0 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.record-button :deep(.el-icon) {
+  margin-right: 4px;
+  font-size: 14px;
 }
 
 .notes-summary-content :deep(.date-selector .el-select__wrapper),

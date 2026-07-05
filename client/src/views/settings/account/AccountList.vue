@@ -221,114 +221,115 @@
     <el-drawer
       v-model="drawerVisible"
       :title="accountForm.id ? t('settingsStage4.accountList.dialog.setAccountPermissions') : t('settingsStage4.accountList.dialog.addAccount')"
-      size="80%"
+      class="account-permission-drawer"
+      size="72%"
       direction="rtl"
     >
       <div class="drawer-body">
-        <div class="section">
-          <div class="section-title">{{ t('settingsStage4.accountList.sections.basicInfo') }}</div>
-          <el-form :model="accountForm" label-width="100px">
-            <el-form-item :label="t('settingsStage4.accountList.fields.email')" required>
-              <el-input
-                v-model="accountForm.email"
-                style="width: 420px"
-                :placeholder="t('settingsStage4.accountList.placeholders.email')"
-                :disabled="Boolean(accountForm.id)"
-              />
-            </el-form-item>
-            <el-form-item
-              v-if="accountForm.id"
-              :label="t('settingsStage4.accountList.fields.employeeName')"
-              :error="accountNameError"
-              required
-            >
-              <el-input
-                v-model="accountForm.name"
-                style="width: 420px"
-                :placeholder="t('settingsStage4.accountList.placeholders.employeeName')"
-                @input="clearAccountNameError"
-              />
-            </el-form-item>
-          </el-form>
-        </div>
-
-        <div class="section">
-          <div class="section-title">{{ t('settingsStage4.accountList.sections.permissionSettings') }}</div>
-          <div class="sub-title">{{ t('settingsStage4.accountList.sections.rolePermissions') }}</div>
-          <div class="role-checkboxes">
-            <el-checkbox-group v-model="selectedAccountRoles">
-              <el-checkbox v-for="role in roleOptions" :key="role.id" :label="role.id">
-                {{ role.name }}
-              </el-checkbox>
-            </el-checkbox-group>
+        <div class="drawer-scroll">
+          <div class="section">
+            <div class="section-title">{{ t('settingsStage4.accountList.sections.basicInfo') }}</div>
+            <el-form class="account-basic-form" :model="accountForm" label-width="88px">
+              <el-form-item :label="t('settingsStage4.accountList.fields.email')" required>
+                <el-input
+                  v-model="accountForm.email"
+                  :placeholder="t('settingsStage4.accountList.placeholders.email')"
+                  :disabled="Boolean(accountForm.id)"
+                />
+              </el-form-item>
+              <el-form-item
+                v-if="accountForm.id"
+                :label="t('settingsStage4.accountList.fields.employeeName')"
+                :error="accountNameError"
+                required
+              >
+                <el-input
+                  v-model="accountForm.name"
+                  :placeholder="t('settingsStage4.accountList.placeholders.employeeName')"
+                  @input="clearAccountNameError"
+                />
+              </el-form-item>
+            </el-form>
           </div>
 
-          <el-alert
-            :title="t('settingsStage4.accountList.alerts.extraPermissionOnly')"
-            type="info"
-            :closable="false"
-            show-icon
-            style="margin: 16px 0"
-          />
+          <div class="section">
+            <div class="section-title">{{ t('settingsStage4.accountList.sections.permissionSettings') }}</div>
+            <div class="sub-title">{{ t('settingsStage4.accountList.sections.rolePermissions') }}</div>
+            <div class="role-checkboxes">
+              <el-checkbox-group v-model="selectedAccountRoles">
+                <el-checkbox v-for="role in roleOptions" :key="role.id" :label="role.id">
+                  {{ role.name }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </div>
 
-          <el-tabs v-model="activePermissionTab">
-            <el-tab-pane
-              v-for="tab in ACCOUNT_PERMISSION_TABS"
-              :key="tab.name"
-              :label="t(tab.label)"
-              :name="tab.name"
-            >
-              <div
-                v-for="section in tab.sections"
-                :key="`${tab.name}-${section.title}`"
-                class="permission-card"
+            <el-alert
+              class="permission-alert"
+              :title="t('settingsStage4.accountList.alerts.extraPermissionOnly')"
+              type="info"
+              :closable="false"
+              show-icon
+            />
+
+            <el-tabs v-model="activePermissionTab">
+              <el-tab-pane
+                v-for="tab in ACCOUNT_PERMISSION_TABS"
+                :key="tab.name"
+                :label="t(tab.label)"
+                :name="tab.name"
               >
-                <div class="group-title">{{ t(section.title) }}</div>
-                <div class="checkbox-grid">
-                  <el-checkbox
-                    v-for="item in section.items"
-                    :key="`${tab.name}-${section.title}-${item.key}`"
-                    :model-value="isPermissionChecked(item)"
-                    :disabled="isPermissionDisabled(item)"
-                    @change="handlePermissionToggle(item, !!$event)"
-                  >
-                    {{ t(item.label) }}
-                  </el-checkbox>
-                </div>
-
-                <div v-if="showRoomTypeScopeEditor(tab.name, section)" class="room-scope-box">
-                  <div class="sub-head">{{ t('settingsStage4.accountList.sections.roomTypeScope') }}</div>
-                  <div class="permission-hint">
-                    {{ t('settingsStage4.accountList.hints.roomTypeScope') }}
-                  </div>
-
-                  <el-checkbox
-                    :model-value="hasAllRoomTypesPermission"
-                    :disabled="roleRoomScope.allRoomTypes || !hasViewRoomStatusPermission"
-                    @change="handleRoomTypeAllToggle(!!$event)"
-                  >
-                    {{ t('settingsStage4.accountList.actions.viewAllRoomTypes') }}
-                  </el-checkbox>
-
-                  <div v-if="!roomTypes.length" class="tip-text" style="margin-top: 12px">
-                    {{ t('settingsStage4.accountList.hints.noRoomTypes') }}
-                  </div>
-
-                  <div v-else class="checkbox-grid room-type-grid">
+                <div
+                  v-for="section in tab.sections"
+                  :key="`${tab.name}-${section.title}`"
+                  class="permission-card"
+                >
+                  <div class="group-title">{{ t(section.title) }}</div>
+                  <div class="checkbox-grid">
                     <el-checkbox
-                      v-for="roomType in roomTypes"
-                      :key="roomType.id"
-                      :model-value="isRoomTypeChecked(roomType.id)"
-                      :disabled="isRoomTypeDisabled(roomType.id)"
-                      @change="handleRoomTypeToggle(roomType.id, !!$event)"
+                      v-for="item in section.items"
+                      :key="`${tab.name}-${section.title}-${item.key}`"
+                      :model-value="isPermissionChecked(item)"
+                      :disabled="isPermissionDisabled(item)"
+                      @change="handlePermissionToggle(item, !!$event)"
                     >
-                      {{ roomType.name }}
+                      {{ t(item.label) }}
                     </el-checkbox>
                   </div>
+
+                  <div v-if="showRoomTypeScopeEditor(tab.name, section)" class="room-scope-box">
+                    <div class="sub-head">{{ t('settingsStage4.accountList.sections.roomTypeScope') }}</div>
+                    <div class="permission-hint">
+                      {{ t('settingsStage4.accountList.hints.roomTypeScope') }}
+                    </div>
+
+                    <el-checkbox
+                      :model-value="hasAllRoomTypesPermission"
+                      :disabled="roleRoomScope.allRoomTypes || !hasViewRoomStatusPermission"
+                      @change="handleRoomTypeAllToggle(!!$event)"
+                    >
+                      {{ t('settingsStage4.accountList.actions.viewAllRoomTypes') }}
+                    </el-checkbox>
+
+                    <div v-if="!roomTypes.length" class="tip-text" style="margin-top: 12px">
+                      {{ t('settingsStage4.accountList.hints.noRoomTypes') }}
+                    </div>
+
+                    <div v-else class="checkbox-grid room-type-grid">
+                      <el-checkbox
+                        v-for="roomType in roomTypes"
+                        :key="roomType.id"
+                        :model-value="isRoomTypeChecked(roomType.id)"
+                        :disabled="isRoomTypeDisabled(roomType.id)"
+                        @change="handleRoomTypeToggle(roomType.id, !!$event)"
+                      >
+                        {{ roomType.name }}
+                      </el-checkbox>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
         </div>
 
         <div class="drawer-footer">
@@ -1518,22 +1519,64 @@ function handleCurrentChange(page: number) {
 
 .drawer-body {
   height: 100%;
-  padding: 20px;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  background: #ffffff;
+}
+
+.drawer-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 22px 28px 18px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.drawer-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.drawer-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: #d8dce3;
 }
 
 .section {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
 }
 
 .section-title {
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
   border-bottom: 1px solid #ebeef5;
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  line-height: 22px;
+  color: #1f2d3d;
+}
+
+.account-basic-form {
+  max-width: 540px;
+}
+
+.account-basic-form :deep(.el-form-item) {
+  margin-bottom: 12px;
+}
+
+.account-basic-form :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+.account-basic-form :deep(.el-input) {
+  width: 100%;
 }
 
 .sub-title,
@@ -1542,39 +1585,53 @@ function handleCurrentChange(page: number) {
   font-size: 14px;
   font-weight: 600;
   color: #303133;
-  margin-bottom: 12px;
+  line-height: 20px;
+  margin-bottom: 10px;
 }
 
 .role-checkboxes,
 .permission-card,
 .room-scope-box {
-  padding: 16px;
-  border-radius: 8px;
-  background: #f5f7fa;
+  padding: 14px 16px;
+  border: 1px solid #edf1f5;
+  border-radius: 6px;
+  background: #f7f9fc;
+}
+
+.drawer-body .role-checkboxes {
+  width: fit-content;
+  min-width: 260px;
+  max-width: 100%;
+  padding: 10px 14px;
+  background: #f8fafc;
 }
 
 .permission-card {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+.permission-card:last-child {
+  margin-bottom: 0;
 }
 
 .room-scope-box {
-  margin-top: 16px;
+  margin-top: 12px;
   background: #fff;
 }
 
 .permission-hint {
-  margin-bottom: 12px;
-  line-height: 1.6;
+  margin-bottom: 10px;
+  line-height: 1.5;
 }
 
 .checkbox-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 8px 18px;
 }
 
 .room-type-grid {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .transfer-owner-body {
@@ -1583,18 +1640,129 @@ function handleCurrentChange(page: number) {
 }
 
 .drawer-footer {
-  margin-top: auto;
-  padding-top: 16px;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 0;
+  min-height: 58px;
+  padding: 12px 24px;
   border-top: 1px solid #ebeef5;
+  background: #ffffff;
+  box-shadow: 0 -4px 14px rgb(31 45 61 / 4%);
 }
 
-:deep(.el-drawer__body) {
+:deep(.account-permission-drawer.el-drawer) {
+  max-width: 1080px;
+}
+
+:deep(.account-permission-drawer.el-drawer .el-drawer__body) {
   padding: 0;
+  overflow: hidden;
 }
 
-:deep(.el-drawer__header) {
+:deep(.account-permission-drawer.el-drawer .el-drawer__header) {
   margin-bottom: 0;
-  padding: 20px;
+  padding: 18px 24px;
   border-bottom: 1px solid #ebeef5;
+}
+
+:deep(.account-permission-drawer.el-drawer .el-drawer__title) {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  color: #1f2d3d;
+}
+
+:deep(.account-permission-drawer.el-drawer .el-drawer__close-btn) {
+  width: 32px;
+  height: 32px;
+}
+
+:deep(.account-permission-drawer.el-drawer .role-checkboxes .el-checkbox-group) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+}
+
+:deep(.account-permission-drawer.el-drawer .permission-alert.el-alert) {
+  margin: 12px 0 16px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #f6f7f9;
+}
+
+:deep(.account-permission-drawer.el-drawer .permission-alert .el-alert__content) {
+  line-height: 20px;
+}
+
+:deep(.account-permission-drawer.el-drawer .permission-alert .el-alert__title) {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #6b7280;
+}
+
+:deep(.account-permission-drawer.el-drawer .el-tabs__header) {
+  margin: 0 0 14px;
+}
+
+:deep(.account-permission-drawer.el-drawer .el-tabs__nav-wrap::after) {
+  height: 1px;
+  background: #e5e7eb;
+}
+
+:deep(.account-permission-drawer.el-drawer .el-tabs__active-bar) {
+  height: 2px;
+  background: #1890ff;
+}
+
+:deep(.account-permission-drawer.el-drawer .el-tabs__item) {
+  height: 36px;
+  padding: 0 18px;
+  font-weight: 600;
+  line-height: 36px;
+  color: #4b5563;
+}
+
+:deep(.account-permission-drawer.el-drawer .el-tabs__item.is-active) {
+  color: #1890ff;
+}
+
+:deep(.account-permission-drawer.el-drawer .checkbox-grid .el-checkbox) {
+  min-width: 0;
+  height: auto;
+  min-height: 24px;
+  margin-right: 0;
+  align-items: flex-start;
+}
+
+:deep(.account-permission-drawer.el-drawer .checkbox-grid .el-checkbox__label) {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 20px;
+}
+
+:deep(.account-permission-drawer.el-drawer .drawer-footer .el-button) {
+  min-width: 72px;
+}
+
+@media (max-width: 768px) {
+  :deep(.account-permission-drawer.el-drawer) {
+    width: 100% !important;
+    max-width: 100vw;
+  }
+
+  .drawer-scroll {
+    padding: 18px 16px 16px;
+  }
+
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .drawer-footer {
+    padding: 12px 16px;
+  }
 }
 </style>

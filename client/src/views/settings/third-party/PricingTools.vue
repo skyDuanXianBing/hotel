@@ -47,318 +47,323 @@
       <el-tabs v-model="activeTab" class="config-tabs" @tab-change="handleTabChange">
         <!-- 房源连接标签页 -->
         <el-tab-pane :label="t('settingsStage4.pricingTools.tabs.connections')" name="connections">
-          <!-- 说明区域 -->
-          <div class="instructions-banner">
-            <div class="instruction-item">
-              <span class="instruction-number">1.</span>
-              <span class="instruction-text">{{
-                t('settingsStage4.pricingTools.instructions.beforeStore')
-              }}</span>
+          <div class="connections-panel">
+            <!-- 说明区域 -->
+            <div class="instructions-banner">
+              <div class="instruction-item">
+                <span class="instruction-number">1.</span>
+                <span class="instruction-text">{{
+                  t('settingsStage4.pricingTools.instructions.beforeStore')
+                }}</span>
+              </div>
+              <div class="instruction-item">
+                <span class="instruction-number">2.</span>
+                <span class="instruction-text">{{
+                  t('settingsStage4.pricingTools.instructions.connectionDelay')
+                }}</span>
+              </div>
+              <div class="instruction-item">
+                <span class="instruction-number">3.</span>
+                <span class="instruction-text">{{
+                  t('settingsStage4.pricingTools.instructions.defaultSync')
+                }}</span>
+              </div>
             </div>
-            <div class="instruction-item">
-              <span class="instruction-number">2.</span>
-              <span class="instruction-text">{{
-                t('settingsStage4.pricingTools.instructions.connectionDelay')
-              }}</span>
-            </div>
-            <div class="instruction-item">
-              <span class="instruction-number">3.</span>
-              <span class="instruction-text">{{
-                t('settingsStage4.pricingTools.instructions.defaultSync')
-              }}</span>
-            </div>
-          </div>
 
-          <!-- 集成配置区域 -->
-          <div class="integration-config-section">
-            <div class="section-row">
-              <div class="section-label">
-                <h3 class="label-title">
-                  {{ t('settingsStage4.pricingTools.sections.accountConfig') }}
-                </h3>
-                <p class="label-desc">
-                  {{ t('settingsStage4.pricingTools.sections.accountDesc') }}
-                </p>
-              </div>
-              <div class="config-form">
-                <el-select
-                  v-model="defaultAccountId"
-                  :placeholder="t('settingsStage4.pricingTools.placeholders.selectDefaultAccount')"
-                  style="width: 300px; margin-right: 12px"
-                  :disabled="integration.isEnabled"
-                >
-                  <el-option
-                    v-for="account in accounts"
-                    :key="account.id"
-                    :label="`${account.accountName} (${account.priceLabsEmail})`"
-                    :value="account.id"
-                  />
-                </el-select>
-                <el-button
-                  type="primary"
-                  :disabled="!defaultAccountId || integration.isEnabled"
-                  @click="handleSaveDefaultAccountConfig"
-                >
-                  {{ t('settingsStage4.pricingTools.actions.saveConfig') }}
-                </el-button>
-                <el-text v-if="integration.isEnabled" type="info" size="small">
-                  {{ t('settingsStage4.pricingTools.hints.disableBeforeEditEmail') }}
-                </el-text>
+            <!-- 集成配置区域 -->
+            <div class="integration-config-section">
+              <div class="section-row">
+                <div class="section-label">
+                  <h3 class="label-title">
+                    {{ t('settingsStage4.pricingTools.sections.accountConfig') }}
+                  </h3>
+                  <p class="label-desc">
+                    {{ t('settingsStage4.pricingTools.sections.accountDesc') }}
+                  </p>
+                </div>
+                <div class="config-form">
+                  <el-select
+                    v-model="defaultAccountId"
+                    :placeholder="
+                      t('settingsStage4.pricingTools.placeholders.selectDefaultAccount')
+                    "
+                    class="default-account-select"
+                    :disabled="integration.isEnabled"
+                  >
+                    <el-option
+                      v-for="account in accounts"
+                      :key="account.id"
+                      :label="`${account.accountName} (${account.priceLabsEmail})`"
+                      :value="account.id"
+                    />
+                  </el-select>
+                  <el-button
+                    type="primary"
+                    :disabled="!defaultAccountId || integration.isEnabled"
+                    @click="handleSaveDefaultAccountConfig"
+                  >
+                    {{ t('settingsStage4.pricingTools.actions.saveConfig') }}
+                  </el-button>
+                  <el-text v-if="integration.isEnabled" type="info" size="small">
+                    {{ t('settingsStage4.pricingTools.hints.disableBeforeEditEmail') }}
+                  </el-text>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- 集成状态区域 -->
-          <div class="integration-status-section">
-            <div class="section-row">
-              <div class="section-label">
-                <h3 class="label-title">
-                  {{ t('settingsStage4.pricingTools.sections.integrationStatus') }}
-                </h3>
-                <p class="label-desc">
-                  {{
-                    integration.isEnabled
-                      ? t('settingsStage4.pricingTools.status.integrationEnabled')
-                      : t('settingsStage4.pricingTools.status.integrationDisabled')
-                  }}
-                </p>
-              </div>
-              <div class="status-actions">
-                <el-tag :type="integration.isEnabled ? 'success' : 'info'" size="large">
-                  {{
-                    integration.isEnabled
-                      ? t('settingsStage4.pricingTools.status.enabled')
-                      : t('settingsStage4.pricingTools.status.disabled')
-                  }}
-                </el-tag>
-                <el-switch
-                  v-model="integration.isEnabled"
-                  :loading="toggleLoading"
-                  @change="handleToggleIntegration"
-                />
-              </div>
-            </div>
-            <div v-if="integration.isEnabled" class="sync-stats">
-              <div class="stat-item">
-                <span class="stat-label">{{
-                  t('settingsStage4.pricingTools.stats.connectedRoomTypes')
-                }}</span>
-                <span class="stat-value">{{ integration.connectedRoomTypeCount || 0 }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">{{
-                  t('settingsStage4.pricingTools.stats.lastPriceSync')
-                }}</span>
-                <span class="stat-value">{{
-                  formatDateTime(integration.lastPriceSyncAt) || '-'
-                }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">{{
-                  t('settingsStage4.pricingTools.stats.syncSuccessRate')
-                }}</span>
-                <span class="stat-value">{{ calculateSuccessRate() }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 工具栏 -->
-          <div class="integration-config-section">
-            <div class="section-row">
-              <div class="section-label">
-                <h3 class="label-title">
-                  {{ t('settingsStage4.pricingTools.sections.multiAccount') }}
-                </h3>
-                <p class="label-desc">
-                  {{ t('settingsStage4.pricingTools.sections.multiAccountDesc') }}
-                </p>
-              </div>
-              <div class="config-form">
-                <el-button type="primary" @click="openCreateAccountDialog">{{
-                  t('settingsStage4.pricingTools.actions.addAccount')
-                }}</el-button>
-              </div>
-            </div>
-            <el-table
-              :data="accounts"
-              border
-              size="small"
-              class="config-table account-table"
-              v-loading="accountsLoading"
-            >
-              <el-table-column
-                prop="accountName"
-                :label="t('settingsStage4.pricingTools.columns.accountName')"
-                min-width="180"
-              />
-              <el-table-column
-                prop="priceLabsEmail"
-                :label="t('settingsStage4.pricingTools.columns.priceLabsEmail')"
-                min-width="220"
-              />
-              <el-table-column :label="t('settings.common.status')" width="120" align="center">
-                <template #default="{ row }">
-                  <el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">
+            <!-- 集成状态区域 -->
+            <div class="integration-status-section">
+              <div class="section-row">
+                <div class="section-label">
+                  <h3 class="label-title">
+                    {{ t('settingsStage4.pricingTools.sections.integrationStatus') }}
+                  </h3>
+                  <p class="label-desc">
                     {{
-                      row.isEnabled
+                      integration.isEnabled
+                        ? t('settingsStage4.pricingTools.status.integrationEnabled')
+                        : t('settingsStage4.pricingTools.status.integrationDisabled')
+                    }}
+                  </p>
+                </div>
+                <div class="status-actions">
+                  <el-tag :type="integration.isEnabled ? 'success' : 'info'" size="large">
+                    {{
+                      integration.isEnabled
                         ? t('settingsStage4.pricingTools.status.enabled')
                         : t('settingsStage4.pricingTools.status.disabled')
                     }}
                   </el-tag>
+                  <el-switch
+                    v-model="integration.isEnabled"
+                    :loading="toggleLoading"
+                    @change="handleToggleIntegration"
+                  />
+                </div>
+              </div>
+              <div v-if="integration.isEnabled" class="sync-stats">
+                <div class="stat-item">
+                  <span class="stat-label">{{
+                    t('settingsStage4.pricingTools.stats.connectedRoomTypes')
+                  }}</span>
+                  <span class="stat-value">{{ integration.connectedRoomTypeCount || 0 }}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">{{
+                    t('settingsStage4.pricingTools.stats.lastPriceSync')
+                  }}</span>
+                  <span class="stat-value">{{
+                    formatDateTime(integration.lastPriceSyncAt) || '-'
+                  }}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">{{
+                    t('settingsStage4.pricingTools.stats.syncSuccessRate')
+                  }}</span>
+                  <span class="stat-value">{{ calculateSuccessRate() }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 工具栏 -->
+            <div class="integration-config-section">
+              <div class="section-row">
+                <div class="section-label">
+                  <h3 class="label-title">
+                    {{ t('settingsStage4.pricingTools.sections.multiAccount') }}
+                  </h3>
+                  <p class="label-desc">
+                    {{ t('settingsStage4.pricingTools.sections.multiAccountDesc') }}
+                  </p>
+                </div>
+                <div class="config-form">
+                  <el-button type="primary" @click="openCreateAccountDialog">{{
+                    t('settingsStage4.pricingTools.actions.addAccount')
+                  }}</el-button>
+                </div>
+              </div>
+              <el-table
+                :data="accounts"
+                size="small"
+                class="config-table account-table"
+                v-loading="accountsLoading"
+              >
+                <el-table-column
+                  prop="accountName"
+                  :label="t('settingsStage4.pricingTools.columns.accountName')"
+                  min-width="180"
+                />
+                <el-table-column
+                  prop="priceLabsEmail"
+                  :label="t('settingsStage4.pricingTools.columns.priceLabsEmail')"
+                  min-width="220"
+                />
+                <el-table-column :label="t('settings.common.status')" width="120" align="center">
+                  <template #default="{ row }">
+                    <el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">
+                      {{
+                        row.isEnabled
+                          ? t('settingsStage4.pricingTools.status.enabled')
+                          : t('settingsStage4.pricingTools.status.disabled')
+                      }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  :label="t('settingsStage4.pricingTools.columns.linkedRoomTypes')"
+                  width="120"
+                  align="center"
+                >
+                  <template #default="{ row }">
+                    {{ row.connectionCount ?? 0 }}
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('settings.common.actions')" width="220" align="center">
+                  <template #default="{ row }">
+                    <el-button link type="primary" @click="selectAccount(row.id)">{{
+                      t('settingsStage4.pricingTools.actions.viewRoomTypes')
+                    }}</el-button>
+                    <el-button link type="primary" @click="openEditAccountDialog(row)">{{
+                      t('settings.common.edit')
+                    }}</el-button>
+                    <el-button
+                      link
+                      :type="row.isEnabled ? 'warning' : 'success'"
+                      @click="handleToggleAccount(row)"
+                    >
+                      {{
+                        row.isEnabled ? t('settings.common.disable') : t('settings.common.enable')
+                      }}
+                    </el-button>
+                    <el-button link type="danger" @click="handleDeleteAccount(row)">{{
+                      t('settings.common.delete')
+                    }}</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <div v-if="selectedAccountName" class="account-filter-tip">
+                {{
+                  t('settingsStage4.pricingTools.accountFilterTip', { name: selectedAccountName })
+                }}
+                <el-button link type="primary" @click="clearSelectedAccount">{{
+                  t('settingsStage4.pricingTools.actions.viewAll')
+                }}</el-button>
+              </div>
+            </div>
+
+            <div class="toolbar">
+              <div class="toolbar-left">
+                <span class="filter-label">{{
+                  t('settingsStage4.pricingTools.filters.connectionStatus')
+                }}</span>
+                <el-select
+                  v-model="connectionFilter"
+                  :placeholder="t('settingsStage4.pricingTools.placeholders.select')"
+                  style="width: 120px"
+                >
+                  <el-option :label="t('settings.common.all')" value="all" />
+                  <el-option
+                    :label="t('settingsStage4.pricingTools.status.connected')"
+                    value="connected"
+                  />
+                  <el-option
+                    :label="t('settingsStage4.pricingTools.status.disconnected')"
+                    value="disconnected"
+                  />
+                </el-select>
+              </div>
+              <el-button type="primary" @click="handleAddConnection">{{
+                t('settingsStage4.pricingTools.actions.addConnection')
+              }}</el-button>
+            </div>
+
+            <!-- 配置表格 -->
+            <el-table
+              :data="filteredConnections"
+              class="config-table"
+              v-loading="connectionsLoading"
+            >
+              <el-table-column
+                prop="accountName"
+                :label="t('settingsStage4.pricingTools.columns.account')"
+                min-width="160"
+              />
+              <el-table-column
+                prop="roomTypeName"
+                :label="t('settingsStage4.cleaningSettings.fields.roomType')"
+                min-width="180"
+              />
+              <el-table-column
+                prop="pricePlanName"
+                :label="t('settingsStage4.pricePlan.columns.pricePlan')"
+                min-width="150"
+              />
+              <el-table-column
+                prop="priceLabsListingId"
+                :label="t('settingsStage4.pricingTools.columns.listingId')"
+                min-width="200"
+              />
+              <el-table-column :label="t('settings.common.status')" width="120" align="center">
+                <template #default="{ row }">
+                  <el-tag
+                    :type="
+                      row.syncStatus === 'connected'
+                        ? 'success'
+                        : row.syncStatus === 'error'
+                          ? 'danger'
+                          : 'info'
+                    "
+                    size="small"
+                  >
+                    {{ getSyncStatusText(row.syncStatus) }}
+                  </el-tag>
                 </template>
               </el-table-column>
               <el-table-column
-                :label="t('settingsStage4.pricingTools.columns.linkedRoomTypes')"
-                width="120"
+                :label="t('settingsStage4.pricingTools.columns.recentSync')"
+                width="180"
                 align="center"
               >
                 <template #default="{ row }">
-                  {{ row.connectionCount ?? 0 }}
+                  {{ formatDateTime(row.lastSyncAt) || '-' }}
                 </template>
               </el-table-column>
-              <el-table-column :label="t('settings.common.actions')" width="220" align="center">
+              <el-table-column
+                :label="t('settings.common.actions')"
+                width="180"
+                align="center"
+                fixed="right"
+              >
                 <template #default="{ row }">
-                  <el-button link type="primary" @click="selectAccount(row.id)">{{
-                    t('settingsStage4.pricingTools.actions.viewRoomTypes')
-                  }}</el-button>
-                  <el-button link type="primary" @click="openEditAccountDialog(row)">{{
-                    t('settings.common.edit')
-                  }}</el-button>
+                  <el-button
+                    link
+                    type="primary"
+                    @click="handleOpenStatusDialog({ type: 'listing', id: row.priceLabsListingId })"
+                  >
+                    {{ t('settingsStage4.pricingTools.actions.statusQuery') }}
+                  </el-button>
+                  <el-button
+                    link
+                    type="primary"
+                    :loading="syncingRoomTypeIds.includes(row.roomTypeId)"
+                    @click="handleSyncRoomType(row)"
+                  >
+                    {{ t('settingsStage4.pricingTools.actions.sync') }}
+                  </el-button>
                   <el-button
                     link
                     :type="row.isEnabled ? 'warning' : 'success'"
-                    @click="handleToggleAccount(row)"
+                    @click="handleToggleConnection(row)"
                   >
                     {{ row.isEnabled ? t('settings.common.disable') : t('settings.common.enable') }}
                   </el-button>
-                  <el-button link type="danger" @click="handleDeleteAccount(row)">{{
-                    t('settings.common.delete')
-                  }}</el-button>
+                  <el-button link type="danger" @click="handleDeleteConnection(row)">
+                    {{ t('settings.common.delete') }}
+                  </el-button>
                 </template>
               </el-table-column>
             </el-table>
-            <div v-if="selectedAccountName" class="account-filter-tip">
-              {{ t('settingsStage4.pricingTools.accountFilterTip', { name: selectedAccountName }) }}
-              <el-button link type="primary" @click="clearSelectedAccount">{{
-                t('settingsStage4.pricingTools.actions.viewAll')
-              }}</el-button>
-            </div>
           </div>
-
-          <div class="toolbar">
-            <div class="toolbar-left">
-              <span class="filter-label">{{
-                t('settingsStage4.pricingTools.filters.connectionStatus')
-              }}</span>
-              <el-select
-                v-model="connectionFilter"
-                :placeholder="t('settingsStage4.pricingTools.placeholders.select')"
-                style="width: 120px"
-              >
-                <el-option :label="t('settings.common.all')" value="all" />
-                <el-option
-                  :label="t('settingsStage4.pricingTools.status.connected')"
-                  value="connected"
-                />
-                <el-option
-                  :label="t('settingsStage4.pricingTools.status.disconnected')"
-                  value="disconnected"
-                />
-              </el-select>
-            </div>
-            <el-button type="primary" @click="handleAddConnection">{{
-              t('settingsStage4.pricingTools.actions.addConnection')
-            }}</el-button>
-          </div>
-
-          <!-- 配置表格 -->
-          <el-table
-            :data="filteredConnections"
-            border
-            stripe
-            class="config-table"
-            v-loading="connectionsLoading"
-          >
-            <el-table-column
-              prop="accountName"
-              :label="t('settingsStage4.pricingTools.columns.account')"
-              min-width="160"
-            />
-            <el-table-column
-              prop="roomTypeName"
-              :label="t('settingsStage4.cleaningSettings.fields.roomType')"
-              min-width="180"
-            />
-            <el-table-column
-              prop="pricePlanName"
-              :label="t('settingsStage4.pricePlan.columns.pricePlan')"
-              min-width="150"
-            />
-            <el-table-column
-              prop="priceLabsListingId"
-              :label="t('settingsStage4.pricingTools.columns.listingId')"
-              min-width="200"
-            />
-            <el-table-column :label="t('settings.common.status')" width="120" align="center">
-              <template #default="{ row }">
-                <el-tag
-                  :type="
-                    row.syncStatus === 'connected'
-                      ? 'success'
-                      : row.syncStatus === 'error'
-                        ? 'danger'
-                        : 'info'
-                  "
-                  size="small"
-                >
-                  {{ getSyncStatusText(row.syncStatus) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column
-              :label="t('settingsStage4.pricingTools.columns.recentSync')"
-              width="180"
-              align="center"
-            >
-              <template #default="{ row }">
-                {{ formatDateTime(row.lastSyncAt) || '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column
-              :label="t('settings.common.actions')"
-              width="180"
-              align="center"
-              fixed="right"
-            >
-              <template #default="{ row }">
-                <el-button
-                  link
-                  type="primary"
-                  @click="handleOpenStatusDialog({ type: 'listing', id: row.priceLabsListingId })"
-                >
-                  {{ t('settingsStage4.pricingTools.actions.statusQuery') }}
-                </el-button>
-                <el-button
-                  link
-                  type="primary"
-                  :loading="syncingRoomTypeIds.includes(row.roomTypeId)"
-                  @click="handleSyncRoomType(row)"
-                >
-                  {{ t('settingsStage4.pricingTools.actions.sync') }}
-                </el-button>
-                <el-button
-                  link
-                  :type="row.isEnabled ? 'warning' : 'success'"
-                  @click="handleToggleConnection(row)"
-                >
-                  {{ row.isEnabled ? t('settings.common.disable') : t('settings.common.enable') }}
-                </el-button>
-                <el-button link type="danger" @click="handleDeleteConnection(row)">
-                  {{ t('settings.common.delete') }}
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
         </el-tab-pane>
 
         <!-- 同步日志标签页 -->
@@ -1922,9 +1927,14 @@ const handlePushReservations = async () => {
 
 <style scoped>
 .pricing-tools-container {
+  --pricing-primary: #1685ff;
+  --pricing-primary-gradient: linear-gradient(90deg, #81bfff 0%, #017cfe 100%);
+  --pricing-primary-gradient-hover: linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%);
   padding: 20px;
   background: #fff;
   min-height: calc(100vh - 100px);
+  color: #111111;
+  box-sizing: border-box;
 }
 
 /* 连接状态视图 */
@@ -1984,40 +1994,190 @@ const handlePushReservations = async () => {
 .config-view {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 /* 面包屑 */
 .breadcrumb-section {
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e4e7ed;
+  padding: 0;
+  border-bottom: none;
+}
+
+.breadcrumb-section :deep(.el-breadcrumb) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  font-size: 13px;
+  line-height: 24px;
+}
+
+.breadcrumb-section :deep(.el-breadcrumb__separator) {
+  margin: 0 6px;
+  color: #222222;
+  font-weight: 400;
+}
+
+.breadcrumb-section :deep(.el-button.is-link) {
+  height: auto;
+  padding: 0;
+  color: #111111;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
-  color: #303133;
+  color: #111111;
   font-weight: 500;
 }
 
 /* 标签页 */
 .config-tabs {
-  margin-top: 16px;
+  min-height: calc(100vh - 170px);
+  margin-top: 0;
+  padding: 18px 20px 28px;
+  background: #ffffff;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.config-tabs :deep(.el-tabs__header) {
+  margin: 0 0 20px;
+}
+
+.config-tabs :deep(.el-tabs__nav-wrap::after),
+.config-tabs :deep(.el-tabs__active-bar) {
+  display: none;
+}
+
+.config-tabs :deep(.el-tabs__nav-scroll) {
+  display: flex;
+}
+
+.config-tabs :deep(.el-tabs__nav) {
+  display: inline-flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.config-tabs :deep(.el-tabs__item) {
+  height: 23px;
+  padding: 0 18px !important;
+  border-radius: 999px;
+  background: #fbfbfb;
+  color: #252525;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 23px;
+  letter-spacing: 0;
+}
+
+.config-tabs :deep(.el-tabs__item:hover) {
+  color: #111111;
+}
+
+.config-tabs :deep(.el-tabs__item.is-active),
+.config-tabs :deep(.el-tabs__item.is-active:hover) {
+  background: #000000;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.config-tabs :deep(.el-tabs__content) {
+  overflow: visible;
+}
+
+.connections-panel {
+  color: #111111;
+}
+
+.connections-panel :deep(.el-button--primary) {
+  --el-button-bg-color: var(--pricing-primary);
+  --el-button-border-color: var(--pricing-primary);
+  --el-button-hover-bg-color: #2f93ff;
+  --el-button-hover-border-color: #2f93ff;
+  --el-button-active-bg-color: #0d73e8;
+  --el-button-active-border-color: #0d73e8;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.connections-panel :deep(.el-button.is-disabled) {
+  opacity: 0.6;
+}
+
+.connections-panel :deep(.el-button.is-link) {
+  height: auto;
+  min-height: 20px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.connections-panel :deep(.el-button + .el-button) {
+  margin-left: 12px;
+}
+
+.connections-panel :deep(.el-select__wrapper) {
+  min-height: 32px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px #dedede inset;
+}
+
+.connections-panel :deep(.el-select__placeholder),
+.connections-panel :deep(.el-select__selected-item) {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.config-form {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.default-account-select {
+  width: 276px;
+}
+
+.config-form :deep(.el-text) {
+  color: #8c8c8c;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.integration-config-section {
+  margin-bottom: 24px;
+}
+
+.integration-config-section + .toolbar {
+  margin-top: 4px;
 }
 
 /* 说明区域 */
 .instructions-banner {
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
+  background: rgba(89, 126, 247, 0.15);
+  border: 1px solid rgba(89, 126, 247, 0.15);
   border-radius: 4px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
+  padding: 8px 18px;
+  margin-bottom: 22px;
 }
 
 .instruction-item {
   display: flex;
   align-items: flex-start;
-  line-height: 1.8;
-  color: #1890ff;
+  line-height: 26px;
+  color: rgba(89, 126, 247, 0.66);
   font-size: 14px;
+  font-weight: 400;
 }
 
 .instruction-item + .instruction-item {
@@ -2026,8 +2186,8 @@ const handlePushReservations = async () => {
 
 .instruction-number {
   flex-shrink: 0;
-  margin-right: 6px;
-  font-weight: 500;
+  margin-right: 2px;
+  font-weight: 400;
 }
 
 .instruction-text {
@@ -2036,49 +2196,98 @@ const handlePushReservations = async () => {
 
 /* 集成状态区域 */
 .integration-status-section {
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
+  background: #fbfbfb;
+  border: none;
   border-radius: 4px;
-  padding: 20px 24px;
-  margin-bottom: 20px;
+  padding: 14px 20px;
+  margin-bottom: 24px;
 }
 
 .section-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 24px;
+  align-items: flex-start;
+  gap: 20px;
 }
 
 .section-label {
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .label-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
-  margin: 0 0 4px 0;
+  color: #111111;
+  line-height: 22px;
+  margin: 0 0 12px 0;
 }
 
 .label-desc {
-  font-size: 13px;
-  color: #909399;
+  font-size: 14px;
+  color: #8c8c8c;
+  line-height: 20px;
   margin: 0;
 }
 
 .status-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
+  min-height: 28px;
+  padding-top: 5px;
+}
+
+.status-actions :deep(.el-tag) {
+  height: 20px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: #f4fff8;
+  color: #27c571;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.status-actions :deep(.el-switch) {
+  height: 24px;
+}
+
+.status-actions :deep(.el-switch__core) {
+  width: 47px;
+  min-width: 47px;
+  height: 22px;
+  border: none;
+  background: #d7dce5;
+}
+
+.status-actions :deep(.el-switch.is-checked .el-switch__core) {
+  background: var(--pricing-primary-gradient);
+}
+
+.status-actions :deep(.el-switch.is-checked:hover .el-switch__core) {
+  background: var(--pricing-primary-gradient-hover);
+}
+
+.status-actions :deep(.el-switch__action) {
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.status-actions :deep(.el-switch.is-checked .el-switch__action) {
+  left: calc(100% - 20px);
 }
 
 .sync-stats {
   display: flex;
-  gap: 40px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e4e7ed;
+  gap: 82px;
+  margin-top: 18px;
+  padding-top: 0;
+  border-top: none;
 }
 
 .stat-item {
@@ -2088,14 +2297,16 @@ const handlePushReservations = async () => {
 }
 
 .stat-label {
-  font-size: 13px;
-  color: #909399;
+  font-size: 14px;
+  color: #8c8c8c;
+  line-height: 20px;
 }
 
 .stat-value {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: #111111;
+  line-height: 20px;
 }
 
 /* 工具栏 */
@@ -2103,28 +2314,143 @@ const handlePushReservations = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 0;
+  padding: 0;
+  margin: 20px 0 10px;
 }
 
 .toolbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .filter-label {
   font-size: 14px;
-  color: #606266;
-  font-weight: 500;
+  color: #111111;
+  font-weight: 600;
+  line-height: 20px;
 }
 
 /* 表格 */
 .config-table {
-  margin-top: 8px;
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 0;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.config-table :deep(.el-table__inner-wrapper::before),
+.config-table :deep(.el-table__border-left-patch),
+.config-table :deep(.el-table__border-right-patch),
+.config-table :deep(.el-table__border-bottom-patch) {
+  display: none;
+}
+
+.config-table :deep(.el-table__inner-wrapper) {
+  border-radius: 0;
+}
+
+.config-table :deep(.el-table__cell) {
+  border-right: none;
+}
+
+.config-table :deep(.el-table__header-wrapper th) {
+  height: 29px;
+  padding: 0;
+  background: #f1f5ff;
+  border-bottom: none;
+  color: #111111;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.config-table :deep(.el-table__header-wrapper .cell) {
+  line-height: 29px;
+}
+
+.config-table :deep(.el-table__body-wrapper td) {
+  height: 54px;
+  padding: 0;
+  border-bottom: 1px solid #eeeeee;
+  color: #8c8c8c;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.config-table :deep(.el-table__body-wrapper .cell) {
+  line-height: 20px;
+}
+
+.config-table :deep(.el-table__row:hover > td.el-table__cell) {
+  background: #fbfdff;
+}
+
+.config-table :deep(.el-tag) {
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #27c571;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.config-table :deep(.el-tag.el-tag--info) {
+  color: #8c8c8c;
+}
+
+.config-table :deep(.el-tag.el-tag--danger) {
+  color: #ff6b6b;
+}
+
+.config-table :deep(.el-tag.el-tag--warning) {
+  color: #c49b1d;
+}
+
+.config-table :deep(.el-button.is-link.el-button--primary) {
+  color: #1685ff;
+}
+
+.config-table :deep(.el-button.is-link.el-button--warning) {
+  color: #c49b1d;
+}
+
+.config-table :deep(.el-button.is-link.el-button--danger) {
+  color: #ff6b6b;
+}
+
+.account-table {
+  overflow: hidden;
+  margin-top: 10px;
+  background: #fbfbfb;
+}
+
+.account-table :deep(.el-table__header-wrapper th),
+.account-table :deep(.el-table__body-wrapper td) {
+  background: #fbfbfb;
+  border-bottom: none;
+}
+
+.account-table :deep(.el-table__header-wrapper th) {
+  height: 28px;
+}
+
+.account-table :deep(.el-table__body-wrapper td) {
+  height: 44px;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.account-table :deep(.el-table__header-wrapper .cell) {
+  color: #111111;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 :deep(.el-table th) {
-  background-color: #fafafa;
+  background-color: #f1f5ff;
   font-weight: 600;
 }
 
@@ -2265,5 +2591,40 @@ const handlePushReservations = async () => {
   background: #f5f7fa;
   border-radius: 4px;
   color: #606266;
+}
+
+.account-filter-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #8c8c8c;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.pagination-wrapper {
+  margin-top: 18px;
+}
+
+@media (max-width: 1100px) {
+  .section-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .config-form,
+  .status-actions {
+    justify-content: flex-start;
+  }
+
+  .sync-stats {
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .default-account-select {
+    width: min(100%, 320px);
+  }
 }
 </style>

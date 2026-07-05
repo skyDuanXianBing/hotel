@@ -13,7 +13,7 @@
 
     <!-- 标签页 -->
     <div class="content-area">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+      <el-tabs v-model="activeTab" class="sort-tabs" @tab-change="handleTabChange">
         <!-- 房型排序 -->
         <el-tab-pane :label="t('settingsStage4.roomSort.tabs.roomType')" name="roomType">
           <div class="sort-grid">
@@ -350,7 +350,10 @@ const handleDrop = async (dropIndex: number, type: string) => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   padding: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
   background: #fff;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
@@ -377,26 +380,42 @@ const handleDrop = async (dropIndex: number, type: string) => {
 }
 
 .item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   font-size: 14px;
   color: #303133;
   font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .room-item-content {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .room-number {
+  width: 100%;
+  overflow: hidden;
   font-size: 14px;
   color: #303133;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .room-type {
+  width: 100%;
+  overflow: hidden;
   font-size: 12px;
   color: #909399;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .loading-text {
@@ -418,16 +437,43 @@ const handleDrop = async (dropIndex: number, type: string) => {
   opacity: 0.5;
 }
 
-:deep(.el-tabs__item) {
+:deep(.sort-tabs .el-tabs__header) {
+  margin: 0 0 18px;
+}
+
+:deep(.sort-tabs .el-tabs__nav-wrap::after),
+:deep(.sort-tabs .el-tabs__active-bar) {
+  display: none;
+}
+
+:deep(.sort-tabs .el-tabs__nav) {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  float: none;
+}
+
+:deep(.sort-tabs .el-tabs__item) {
+  height: 28px;
+  padding: 0 13px !important;
+  border-radius: 999px;
+  color: #111111;
   font-size: 14px;
-  padding: 0 20px;
+  font-weight: 600;
+  line-height: 28px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
-:deep(.el-tabs__item.is-active) {
-  color: #409eff;
+:deep(.sort-tabs .el-tabs__item:hover) {
+  background: #f5f5f5;
+  color: #111111;
 }
 
-:deep(.el-tabs__active-bar) {
-  background-color: #409eff;
+:deep(.sort-tabs .el-tabs__item.is-active),
+:deep(.sort-tabs .el-tabs__item.is-active:hover) {
+  background: #111111;
+  color: #ffffff;
 }
 </style>

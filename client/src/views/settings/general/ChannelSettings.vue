@@ -23,10 +23,16 @@
           <el-checkbox :model-value="selectAllChannels" @change="handleToggleSelectAll">
             {{ t('settings.generalChannel.selectAll') }}
           </el-checkbox>
-          <el-button type="danger" plain :disabled="selectedCount === 0" @click="handleDeleteSelected">
+          <el-button
+            class="delete-selected-button"
+            type="danger"
+            plain
+            :disabled="selectedCount === 0"
+            @click="handleDeleteSelected"
+          >
             {{ t('settings.generalChannel.deleteSelected', { count: selectedCount }) }}
           </el-button>
-          <el-button type="primary" @click="handleAddChannel">
+          <el-button class="add-channel-button" type="primary" @click="handleAddChannel">
             {{ t('settings.generalChannel.add') }}
           </el-button>
         </div>
@@ -354,35 +360,37 @@ onMounted(() => {
 
 <style scoped>
 .channel-settings-container {
-  padding: 20px;
+  padding: 18px 20px 24px;
   background: #fff;
   min-height: calc(100vh - 100px);
+  box-sizing: border-box;
 }
 
 /* 顶部提示信息 */
 .notice-section {
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
+  background: rgba(89, 126, 247, 0.15);
+  border: 1px solid rgba(89, 126, 247, 0.15);
   border-radius: 4px;
-  padding: 12px 16px;
-  margin-bottom: 24px;
+  padding: 9px 18px;
+  margin-bottom: 20px;
 }
 
 .notice-item {
   display: flex;
   align-items: flex-start;
-  line-height: 1.6;
-  color: #1890ff;
+  line-height: 20px;
+  color: rgba(89, 126, 247, 0.66);
   font-size: 14px;
+  font-weight: 400;
 }
 
 .notice-item + .notice-item {
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .notice-number {
   flex-shrink: 0;
-  margin-right: 4px;
+  margin-right: 2px;
 }
 
 .notice-text {
@@ -397,78 +405,91 @@ onMounted(() => {
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 28px;
 }
 
 .section-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  min-height: 24px;
+  flex-shrink: 0;
 }
 
 .section-title-wrapper {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 2px;
 }
 
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  line-height: 22px;
+  color: #111111;
   margin: 0;
+  white-space: nowrap;
 }
 
 .section-subtitle {
   font-size: 13px;
-  color: #909399;
+  line-height: 18px;
+  color: #8c8c8c;
 }
 
 /* 渠道网格 */
 .channels-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, 224px);
+  gap: 16px 20px;
+  align-items: start;
 }
 
 .channel-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  padding-left: 38px;
-  padding-right: 40px;
-  background: #f5f7fa;
-  border: 1px solid #dcdfe6;
+  gap: 7px;
+  width: 224px;
+  min-height: 56px;
+  padding: 12px 40px 12px 38px;
+  background: #ffffff;
+  border: 1px solid #e0e3e8;
   border-radius: 4px;
+  box-sizing: border-box;
   cursor: move;
-  transition: all 0.2s;
-  min-height: 48px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .channel-item:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+  border-color: rgba(89, 126, 247, 0.66);
+  box-shadow: 0 4px 12px rgba(89, 126, 247, 0.08);
 }
 
 .channel-item.editing {
   background: #fff;
-  padding: 8px 12px;
+  padding: 9px 10px;
+  gap: 8px;
   cursor: default;
 }
 
 .drag-icon {
   flex-shrink: 0;
-  font-size: 18px;
-  color: #909399;
+  font-size: 17px;
+  color: #8c8c8c;
   cursor: move;
 }
 
 .item-checkbox {
   position: absolute;
-  left: 10px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
 }
@@ -482,23 +503,26 @@ onMounted(() => {
 
 .channel-color-bar {
   flex-shrink: 0;
-  width: 4px;
-  height: 24px;
-  border-radius: 2px;
+  width: 2px;
+  height: 22px;
+  border-radius: 1px;
 }
 
 .channel-name {
   flex: 1;
   font-size: 14px;
-  color: #303133;
+  line-height: 20px;
+  color: #606266;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .item-actions {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 2px;
   flex-shrink: 0;
 }
 
@@ -521,15 +545,74 @@ onMounted(() => {
 /* 按钮样式调整 */
 :deep(.el-button.is-link) {
   padding: 4px;
-  font-size: 18px;
+  font-size: 16px;
+}
+
+.section-actions :deep(.el-checkbox) {
+  height: 24px;
+  color: #111111;
+  font-size: 13px;
+}
+
+.section-actions :deep(.el-checkbox__label) {
+  padding-left: 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.section-actions :deep(.el-button) {
+  height: 24px;
+  min-height: 24px;
+  padding: 0 13px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.section-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.section-actions :deep(.delete-selected-button.is-plain) {
+  --el-button-bg-color: rgba(245, 108, 108, 0.12);
+  --el-button-border-color: rgba(245, 108, 108, 0.12);
+  --el-button-text-color: rgba(245, 108, 108, 0.66);
+  --el-button-hover-bg-color: rgba(245, 108, 108, 0.16);
+  --el-button-hover-border-color: rgba(245, 108, 108, 0.18);
+  --el-button-hover-text-color: #f56c6c;
+}
+
+.section-actions :deep(.delete-selected-button.is-disabled),
+.section-actions :deep(.delete-selected-button.is-disabled:hover) {
+  background-color: rgba(245, 108, 108, 0.12);
+  border-color: rgba(245, 108, 108, 0.12);
+  color: rgba(245, 108, 108, 0.46);
+  opacity: 1;
+}
+
+.section-actions :deep(.add-channel-button) {
+  --el-button-bg-color: #1890ff;
+  --el-button-border-color: #1890ff;
+  --el-button-hover-bg-color: #40a9ff;
+  --el-button-hover-border-color: #40a9ff;
+  --el-button-active-bg-color: #096dd9;
+  --el-button-active-border-color: #096dd9;
 }
 
 :deep(.el-input__wrapper) {
-  padding: 8px 12px;
+  min-height: 36px;
+  padding: 0 10px;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
 }
 
 .channel-item.editing :deep(.el-input) {
   flex: 1;
+  min-width: 0;
+}
+
+.channel-item.editing :deep(.el-input__inner) {
+  font-size: 13px;
 }
 
 /* 渠道颜色变体 */
@@ -555,5 +638,30 @@ onMounted(() => {
 
 .channel-green {
   border-left: 3px solid #67c23a;
+}
+
+@media (max-width: 768px) {
+  .channel-settings-container {
+    padding: 16px 12px 20px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .section-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .channels-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .channel-item {
+    width: 100%;
+  }
 }
 </style>

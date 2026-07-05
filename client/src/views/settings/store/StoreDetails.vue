@@ -1,10 +1,6 @@
 ﻿<template>
   <div class="store-details-container">
     <div class="config-page">
-      <div class="page-header">
-        <h2 class="page-title">{{ t('settingsStage4.storeDetails.title') }}</h2>
-      </div>
-
       <el-tabs v-model="activeTab" class="store-tabs">
         <el-tab-pane :label="t('settingsStage4.storeDetails.tabs.details')" name="details">
           <div class="details-content">
@@ -163,18 +159,25 @@
       v-model="editDialogVisible"
       :title="t('settings.common.edit')"
       width="800px"
+      class="store-details-edit-dialog"
       :close-on-click-modal="false"
     >
-      <el-form ref="formRef" :model="editForm" :rules="formRules" label-width="100px">
+      <el-form
+        ref="formRef"
+        class="store-edit-form"
+        :model="editForm"
+        :rules="formRules"
+        label-width="112px"
+      >
         <el-form-item :label="t('settingsStage4.storeBasic.fields.name')" prop="name">
-          <div style="width: 100%">
-            <div class="form-hint" style="margin-bottom: 8px">{{ t('settingsStage4.storeDetails.hints.guestFacingName') }}</div>
+          <div class="form-control-stack">
+            <div class="form-hint">{{ t('settingsStage4.storeDetails.hints.guestFacingName') }}</div>
             <el-input v-model="editForm.name" :placeholder="t('settingsStage4.storeDetails.placeholders.name')" />
           </div>
         </el-form-item>
 
-        <el-form-item :label="t('settingsStage4.storeDetails.fields.logo')">
-          <el-upload v-if="false"
+        <el-form-item v-if="false" :label="t('settingsStage4.storeDetails.fields.logo')">
+          <el-upload
             :show-file-list="false"
             :before-upload="beforeImageUpload"
             :http-request="handlePhotoRequest"
@@ -189,7 +192,7 @@
           </el-upload>
         </el-form-item>
 
-        <el-row :gutter="20">
+        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeDetails.fields.phone')" prop="phone">
               <el-input v-model="editForm.phone" :placeholder="t('settingsStage4.storeDetails.placeholders.phone')" />
@@ -201,7 +204,7 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="20">
+        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeDetails.fields.propertyType')" prop="type">
               <el-select v-model="editForm.type" :placeholder="t('settingsStage4.storeDetails.placeholders.propertyType')" style="width: 100%">
@@ -220,18 +223,20 @@
           <el-input v-model="editForm.address" :placeholder="t('settingsStage4.storeDetails.placeholders.address')" />
         </el-form-item>
 
-        <el-row :gutter="20">
-          <el-col :span="8">
+        <el-row :gutter="24">
+          <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.city')" prop="city">
               <el-input v-model="editForm.city" :placeholder="t('settingsStage4.storeBasic.placeholders.city')" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeDetails.fields.state')">
               <el-input v-model="editForm.state" :placeholder="t('settingsStage4.storeDetails.placeholders.state')" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+        </el-row>
+        <el-row :gutter="24">
+          <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.country')" prop="country">
               <el-select v-model="editForm.country" :placeholder="t('settingsStage4.storeBasic.placeholders.country')" style="width: 100%">
                 <el-option
@@ -243,9 +248,7 @@
               </el-select>
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.timezone')" prop="timezone">
               <el-select v-model="editForm.timezone" :placeholder="t('settingsStage4.storeBasic.placeholders.timezone')" style="width: 100%">
                 <el-option
@@ -257,7 +260,9 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+        </el-row>
+        <el-row :gutter="24">
+          <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.currency')" prop="currency">
               <el-select v-model="editForm.currency" :placeholder="t('settingsStage4.storeBasic.placeholders.currency')" style="width: 100%">
                 <el-option
@@ -269,7 +274,7 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeDetails.fields.language')" prop="language">
               <el-select v-model="editForm.language" :placeholder="t('settingsStage4.storeDetails.placeholders.language')" style="width: 100%">
                 <el-option
@@ -282,7 +287,7 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="20">
+        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeDetails.fields.checkinTime')" prop="checkinTime">
               <el-time-select
@@ -798,24 +803,8 @@ onMounted(() => {
   min-height: calc(100vh - 140px);
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.page-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-
 .store-tabs {
-  margin-top: 20px;
+  margin-top: 0;
 }
 
 .details-content,
@@ -927,6 +916,7 @@ onMounted(() => {
 .info-value {
   font-size: 14px;
   color: #303133;
+  font-weight: 500;
   word-break: break-word;
 }
 
@@ -1040,12 +1030,49 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   line-height: 1.5;
+  margin-bottom: 8px;
 }
 
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.store-edit-form {
+  padding: 2px 4px 0 0;
+}
+
+.store-edit-form :deep(.el-row) {
+  row-gap: 0;
+}
+
+.store-edit-form :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+.store-edit-form :deep(.el-form-item__label) {
+  justify-content: flex-end;
+  padding-right: 12px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.store-edit-form :deep(.el-input),
+.store-edit-form :deep(.el-select),
+.store-edit-form :deep(.el-date-editor),
+.store-edit-form :deep(.el-textarea) {
+  width: 100%;
+}
+
+.store-edit-form :deep(.el-input__wrapper),
+.store-edit-form :deep(.el-select__wrapper),
+.store-edit-form :deep(.el-textarea__inner) {
+  box-sizing: border-box;
+}
+
+.form-control-stack {
+  width: 100%;
 }
 
 .facilities-edit-grid {
@@ -1145,6 +1172,50 @@ onMounted(() => {
 
 :deep(.el-tabs__nav-wrap::after) {
   display: none;
+}
+
+.store-tabs :deep(.el-tabs__header) {
+  margin: 0 0 24px;
+}
+
+.store-tabs :deep(.el-tabs__nav-scroll) {
+  display: flex;
+  overflow: visible;
+}
+
+.store-tabs :deep(.el-tabs__nav) {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  float: none;
+}
+
+.store-tabs :deep(.el-tabs__active-bar) {
+  display: none;
+}
+
+.store-tabs :deep(.el-tabs__item) {
+  height: 24px;
+  padding: 0 12px !important;
+  border-radius: 999px;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 24px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.store-tabs :deep(.el-tabs__item:hover:not(.is-active)) {
+  color: #111111;
+  background: #f5f5f5;
+}
+
+.store-tabs :deep(.el-tabs__item.is-active),
+.store-tabs :deep(.el-tabs__item.is-active:hover) {
+  background: #000000;
+  color: #ffffff;
 }
 
 :deep(.el-textarea__inner) {

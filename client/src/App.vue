@@ -13,6 +13,7 @@ const { t } = useI18n()
 const ELEMENT_PLUS_OVERLAY_Z_INDEX = 4000
 
 const elementLocale = computed(() => getElementPlusLocale(languageStore.locale))
+const isSettingsRoute = computed(() => route.path.replace(/\/+$/, '').startsWith('/settings'))
 
 const updateDocumentTitle = () => {
   const appTitle = t('app.name')
@@ -23,6 +24,14 @@ const updateDocumentTitle = () => {
 }
 
 watch([() => route.fullPath, () => languageStore.locale], updateDocumentTitle, { immediate: true })
+
+watch(
+  isSettingsRoute,
+  (active) => {
+    document.body.classList.toggle('is-settings-route', active)
+  },
+  { immediate: true },
+)
 </script>
 
 <template>

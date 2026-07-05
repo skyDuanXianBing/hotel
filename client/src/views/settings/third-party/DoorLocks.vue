@@ -595,6 +595,17 @@ const {
   max-width: 980px;
 }
 
+.config-form :deep(.el-input__inner:-webkit-autofill),
+.config-form :deep(.el-input__inner:-webkit-autofill:hover),
+.config-form :deep(.el-input__inner:-webkit-autofill:focus),
+.config-form :deep(.el-input__inner:-webkit-autofill:active) {
+  -webkit-text-fill-color: var(--el-input-text-color, var(--el-text-color-regular));
+  caret-color: var(--el-input-text-color, var(--el-text-color-regular));
+  background-color: transparent;
+  -webkit-background-clip: text;
+  transition: background-color 9999s ease-out 0s;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(280px, 1fr));

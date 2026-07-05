@@ -2,7 +2,8 @@
   <el-dialog
     v-model="visible"
     :title="t('stage6.components.recordTransaction.title')"
-    width="500px"
+    width="min(500px, calc(100vw - 32px))"
+    top="4vh"
     :before-close="handleClose"
     class="record-transaction-dialog"
   >
@@ -397,6 +398,20 @@ onMounted(() => {
 
 <style scoped>
 .record-transaction-dialog {
+  max-height: calc(100vh - 8vh);
+  display: flex;
+  flex-direction: column;
+
+  :deep(.el-dialog__body) {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  :deep(.el-dialog__footer) {
+    flex: 0 0 auto;
+  }
+
   .record-form {
     .el-form-item {
       margin-bottom: 18px;

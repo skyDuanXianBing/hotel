@@ -70,10 +70,17 @@
       v-model="editDialogVisible"
       :title="t('settingsStage4.storeBasic.dialog.editTitle')"
       width="800px"
+      class="store-basic-edit-dialog"
       :close-on-click-modal="false"
     >
-      <el-form :model="editForm" :rules="formRules" ref="formRef" label-width="120px">
-        <el-row :gutter="20">
+      <el-form
+        ref="formRef"
+        class="store-edit-form"
+        :model="editForm"
+        :rules="formRules"
+        label-width="112px"
+      >
+        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.name')" prop="name">
               <el-input
@@ -92,7 +99,7 @@
           </el-col>
         </el-row>
 
-        <el-row :gutter="20">
+        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.type')" prop="type">
               <el-select
@@ -130,7 +137,7 @@
           </el-col>
         </el-row>
 
-        <el-row :gutter="20">
+        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.manager')" prop="manager">
               <el-input
@@ -159,7 +166,7 @@
           />
         </el-form-item>
 
-        <el-row :gutter="20">
+        <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item :label="t('settingsStage4.storeBasic.fields.city')" prop="city">
               <el-input
@@ -459,7 +466,10 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 0;
+  padding: 24px 24px 0;
+  background: #fff;
+  border-radius: 8px 8px 0 0;
 }
 
 .page-title {
@@ -471,8 +481,8 @@ onMounted(() => {
 
 .info-card {
   background: #fff;
-  border-radius: 8px;
-  padding: 32px;
+  border-radius: 0 0 8px 8px;
+  padding: 32px 24px 32px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
@@ -501,5 +511,36 @@ onMounted(() => {
 
 :deep(.el-form-item) {
   margin-bottom: 20px;
+}
+
+.store-edit-form {
+  padding: 2px 4px 0 0;
+}
+
+.store-edit-form :deep(.el-row) {
+  row-gap: 0;
+}
+
+.store-edit-form :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+.store-edit-form :deep(.el-form-item__label) {
+  justify-content: flex-end;
+  padding-right: 12px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.store-edit-form :deep(.el-input),
+.store-edit-form :deep(.el-select),
+.store-edit-form :deep(.el-date-editor) {
+  width: 100%;
+}
+
+.store-edit-form :deep(.el-input__wrapper),
+.store-edit-form :deep(.el-select__wrapper),
+.store-edit-form :deep(.el-textarea__inner) {
+  box-sizing: border-box;
 }
 </style>

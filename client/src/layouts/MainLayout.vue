@@ -47,6 +47,7 @@ interface NavItem {
 const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/'
 
 const isAccommodationRoute = computed(() => normalizePath(route.path).startsWith('/accommodation'))
+const isSettingsRoute = computed(() => normalizePath(route.path).startsWith('/settings'))
 const isRegistrationReviewListRoute = computed(() => route.name === 'DataCenterRegistrations')
 const isStatisticsRoute = computed(() => {
   const path = normalizePath(route.path)
@@ -62,6 +63,7 @@ const isOrderRoute = computed(() => normalizePath(route.path).startsWith('/order
 const usesEmbeddedTopNav = computed(
   () =>
     isAccommodationRoute.value ||
+    isSettingsRoute.value ||
     isStatisticsRoute.value ||
     isRegistrationReviewListRoute.value ||
     isOrderRoute.value,
