@@ -38,29 +38,6 @@ export interface CreateNoteRequest {
   vouchers?: File[]
 }
 
-// 记一笔统计数据
-export interface NotesStatisticsDTO {
-  netIncome: number
-  totalIncome: number
-  totalExpense: number
-  incomeByProject: CategoryStatistic[]
-  expenseByProject: CategoryStatistic[]
-  incomeByPayment: PaymentStatistic[]
-  expenseByPayment: PaymentStatistic[]
-}
-
-// 分类统计
-export interface CategoryStatistic {
-  name: string
-  value: number
-}
-
-// 支付方式统计
-export interface PaymentStatistic {
-  name: string
-  value: number
-}
-
 // 记一笔查询参数
 export interface NotesQueryParams {
   startDate: string
@@ -69,13 +46,6 @@ export interface NotesQueryParams {
   category?: string
   paymentMethod?: string
   roomId?: number
-}
-
-// 获取记一笔统计数据
-export const getNotesStatistics = async (
-  params: NotesQueryParams
-): Promise<ApiResponse<NotesStatisticsDTO>> => {
-  return await request.get('/notes/statistics', { params })
 }
 
 // 获取记一笔列表
@@ -129,13 +99,4 @@ export const updateNote = async (
 // 获取记一笔详情
 export const getNoteDetail = async (id: number): Promise<ApiResponse<NoteDTO>> => {
   return await request.get(`/notes/${id}`)
-}
-
-// 导出记一笔报表
-export const exportNotesReport = async (params: NotesQueryParams): Promise<Blob> => {
-  const response = await request.get('/notes/export', {
-    params,
-    responseType: 'blob',
-  })
-  return response as unknown as Blob
 }

@@ -19,21 +19,6 @@ export interface DateRangeParams {
   pageSize?: number
 }
 
-export interface StatisticsSourceMetadataDTO {
-  metric: string
-  sourceType: string
-  dateBasis: string
-  amountBasis: string
-  note?: string
-}
-
-export interface StatisticsDataGapDTO {
-  metric: string
-  reason: string
-  requiredSource?: string
-  unsupported?: boolean
-}
-
 export interface RevenuePrecisionDTO {
   priceBasis?: string
   dateBasis?: string
@@ -102,8 +87,6 @@ export interface BusinessOverviewDTO {
   notesExpense?: number
   netRevenue?: number
   revenuePrecision?: RevenuePrecisionDTO
-  sourceMetadata?: StatisticsSourceMetadataDTO[]
-  dataGaps?: StatisticsDataGapDTO[]
   categoryDistribution: CategoryDistribution[]
   consumptionTrend: DailyConsumption[]
   consumptionDetails: ConsumptionDetail[]
@@ -153,8 +136,6 @@ export interface RevenueSummaryDTO {
   notesExpense?: number
   paymentRefund?: number
   revenuePrecision?: RevenuePrecisionDTO
-  sourceMetadata?: StatisticsSourceMetadataDTO[]
-  dataGaps?: StatisticsDataGapDTO[]
   paymentMethodStats: PaymentMethodStat[]
   categoryStats: CategoryStat[]
   incomeDistribution: Distribution[]
@@ -299,8 +280,6 @@ export interface OperationalMetricsDTO {
   totalRooms: number
   days: number
   revenuePrecision?: RevenuePrecisionDTO
-  sourceMetadata?: StatisticsSourceMetadataDTO[]
-  dataGaps?: StatisticsDataGapDTO[]
   dailyTrends?: DailyMetricsDTO[]
   roomFeeDetails?: OperationalRoomDetailDTO[]
   roomNightsDetails?: OperationalRoomDetailDTO[]
@@ -600,7 +579,7 @@ export const saveBlobDownload = (download: StatisticsReportDownload) => {
 }
 
 /**
- * 下载统计 CSV 报表。后端当前支持 room-fees、transaction-summary、daily。
+ * 下载统计 CSV 报表。当前支持 room-fees、transaction-summary、daily。
  */
 export const downloadStatisticsReport = async (
   type: StatisticsReportType,

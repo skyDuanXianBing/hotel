@@ -25,6 +25,12 @@ public class BusinessStatisticsService {
     private static final int DEFAULT_SALES_PAGE = 1;
     private static final int DEFAULT_SALES_PAGE_SIZE = 50;
     private static final int MAX_SALES_PAGE_SIZE = 500;
+    private static final Set<ReservationStatus> ACCOMMODATION_REVENUE_STATUSES =
+            Collections.unmodifiableSet(EnumSet.of(
+                    ReservationStatus.CONFIRMED,
+                    ReservationStatus.CHECKED_IN,
+                    ReservationStatus.CHECKED_OUT
+            ));
 
     @Autowired
     private ReservationRepository reservationRepository;
@@ -257,7 +263,7 @@ public class BusinessStatisticsService {
 
     /**
      * 获取营业概况详细统计(门店级)
-     * 包括房费、押金、退房金、餐食消费等详细数据
+     * 包括房费、押金收款、客房消费和记一笔辅助数据
      */
     public BusinessOverviewDTO getBusinessOverview(LocalDate startDate, LocalDate endDate) {
         Long storeId = getCurrentStoreId();
@@ -276,7 +282,7 @@ public class BusinessStatisticsService {
         BigDecimal roomServiceFee = financial.getRoomServiceFee();
         BigDecimal notesIncome = financial.getNotesIncome();
         BigDecimal notesExpense = financial.getNotesExpense().add(financial.getPaymentRefund());
-        BigDecimal totalIncome = roomFee.add(deposit).add(checkoutFee).add(roomServiceFee).add(notesIncome);
+        BigDecimal accommodationRevenue = roomFee.add(roomServiceFee);
 
         overview.setRoomFee(roomFee);
         overview.setDeposit(deposit);
@@ -284,19 +290,16 @@ public class BusinessStatisticsService {
         overview.setRoomServiceFee(roomServiceFee);
         overview.setNotesIncome(notesIncome);
         overview.setNotesExpense(notesExpense);
-        overview.setTotalRevenue(totalIncome);
-        overview.setNetRevenue(totalIncome.subtract(notesExpense));
+        overview.setTotalRevenue(accommodationRevenue);
+        overview.setNetRevenue(accommodationRevenue.subtract(notesExpense));
         overview.setRevenuePrecision(allocationResult.revenuePrecision());
-        overview.setSourceMetadata(buildSourceMetadata());
-        overview.setDataGaps(buildDataGaps());
+        overview.setSourceMetadata(Collections.emptyList());
+        overview.setDataGaps(Collections.emptyList());
 
         // 计算消费分类分布(饼图数据)
         List<BusinessOverviewDTO.CategoryDistribution> categoryDistribution = new ArrayList<>();
-        addOverviewDistribution(categoryDistribution, "房费", roomFee, totalIncome);
-        addOverviewDistribution(categoryDistribution, "押金", deposit, totalIncome);
-        addOverviewDistribution(categoryDistribution, "退房金", checkoutFee, totalIncome);
-        addOverviewDistribution(categoryDistribution, "餐食/客房消费", roomServiceFee, totalIncome);
-        addOverviewDistribution(categoryDistribution, "记一笔收入", notesIncome, totalIncome);
+        addOverviewDistribution(categoryDistribution, "房费", roomFee, accommodationRevenue);
+        addOverviewDistribution(categoryDistribution, "餐食/客房消费", roomServiceFee, accommodationRevenue);
         overview.setCategoryDistribution(categoryDistribution);
 
         // 计算每日消费趋势(柱状图数据)
@@ -304,7 +307,6 @@ public class BusinessStatisticsService {
         Map<LocalDate, RevenueAggregation> dailyRevenueMap = aggregateByDate(allocations, startDate, endDate);
         Map<LocalDate, BigDecimal> roomFeeByDate = new LinkedHashMap<>();
         Map<LocalDate, BigDecimal> depositByDate = new LinkedHashMap<>();
-        Map<LocalDate, BigDecimal> checkoutFeeByDate = new LinkedHashMap<>();
         Map<LocalDate, BigDecimal> roomServiceFeeByDate = new LinkedHashMap<>();
         Map<LocalDate, BigDecimal> notesIncomeByDate = new LinkedHashMap<>();
         Map<LocalDate, BigDecimal> notesExpenseByDate = new LinkedHashMap<>();
@@ -337,7 +339,6 @@ public class BusinessStatisticsService {
 
             roomFeeByDate.put(currentDate, dailyRoomFee);
             depositByDate.put(currentDate, dailyDeposit);
-            checkoutFeeByDate.put(currentDate, BigDecimal.ZERO);
             roomServiceFeeByDate.put(currentDate, dailyRoomServiceFee);
             notesIncomeByDate.put(currentDate, dailyNotesIncome);
             notesExpenseByDate.put(currentDate, dailyNotesExpense);
@@ -353,54 +354,35 @@ public class BusinessStatisticsService {
                 roomFee,
                 roomFeeByDate,
                 startDate,
-                endDate,
-                "RESERVATION_DAILY_PRICE_OR_RESIDUAL_AVERAGE",
-                false
+                endDate
         ));
         consumptionDetails.add(buildOverviewDetail(
-                "押金",
+                "押金收款",
                 deposit,
                 depositByDate,
                 startDate,
-                endDate,
-                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT,
-                false
-        ));
-        consumptionDetails.add(buildOverviewDetail(
-                "退房金",
-                checkoutFee,
-                checkoutFeeByDate,
-                startDate,
-                endDate,
-                "UNSUPPORTED",
-                true
+                endDate
         ));
         consumptionDetails.add(buildOverviewDetail(
                 "餐食/客房消费",
                 roomServiceFee,
                 roomServiceFeeByDate,
                 startDate,
-                endDate,
-                StatisticsFinancialAggregationService.SOURCE_CONSUMPTION_ABS_AMOUNT,
-                false
+                endDate
         ));
         consumptionDetails.add(buildOverviewDetail(
                 "记一笔收入",
                 notesIncome,
                 notesIncomeByDate,
                 startDate,
-                endDate,
-                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE,
-                false
+                endDate
         ));
         consumptionDetails.add(buildOverviewDetail(
                 "记一笔支出",
                 notesExpense,
                 notesExpenseByDate,
                 startDate,
-                endDate,
-                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE,
-                false
+                endDate
         ));
         overview.setConsumptionDetails(consumptionDetails);
 
@@ -430,7 +412,7 @@ public class BusinessStatisticsService {
         BigDecimal notesIncome = financial.getNotesIncome();
         BigDecimal paymentRefund = financial.getPaymentRefund();
         BigDecimal notesExpense = financial.getNotesExpense();
-        BigDecimal totalIncome = roomFee.add(deposit).add(roomServiceFee).add(notesIncome);
+        BigDecimal totalIncome = roomFee.add(roomServiceFee);
         BigDecimal totalExpense = paymentRefund.add(notesExpense);
         BigDecimal netIncome = totalIncome.subtract(totalExpense);
 
@@ -447,17 +429,15 @@ public class BusinessStatisticsService {
         summary.setNotesIncome(notesIncome);
         summary.setNotesExpense(notesExpense);
         summary.setPaymentRefund(paymentRefund);
-        summary.setSourceMetadata(buildSourceMetadata());
-        summary.setDataGaps(buildDataGaps());
+        summary.setSourceMetadata(Collections.emptyList());
+        summary.setDataGaps(Collections.emptyList());
 
         List<RevenueSummaryDTO.PaymentMethodStat> paymentStats = buildPaymentMethodStats(financial);
         summary.setPaymentMethodStats(paymentStats);
 
         List<RevenueSummaryDTO.Distribution> incomeDistribution = new ArrayList<>();
-        addDistribution(incomeDistribution, "税后房费", roomFee, totalIncome);
-        addDistribution(incomeDistribution, "押金", deposit, totalIncome);
+        addDistribution(incomeDistribution, "房费收入（税后）", roomFee, totalIncome);
         addDistribution(incomeDistribution, "客房消费", roomServiceFee, totalIncome);
-        addDistribution(incomeDistribution, "记一笔收入", notesIncome, totalIncome);
         summary.setIncomeDistribution(incomeDistribution);
 
         List<RevenueSummaryDTO.Distribution> expenseDistribution = new ArrayList<>();
@@ -466,19 +446,17 @@ public class BusinessStatisticsService {
         summary.setExpenseDistribution(expenseDistribution);
 
         List<RevenueSummaryDTO.CategoryStat> categoryStats = new ArrayList<>();
-        BigDecimal categoryDenominator = totalIncome.add(totalExpense);
-        addCategoryStat(categoryStats, "税后房费", roomFee, categoryDenominator,
-                "RESERVATION_DAILY_PRICE_OR_RESIDUAL_AVERAGE", allocationResult.totalRoomNights());
-        addCategoryStat(categoryStats, "押金", deposit, categoryDenominator,
-                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT, 0);
-        addCategoryStat(categoryStats, "客房消费", roomServiceFee, categoryDenominator,
-                StatisticsFinancialAggregationService.SOURCE_CONSUMPTION_ABS_AMOUNT, 0);
-        addCategoryStat(categoryStats, "记一笔收入", notesIncome, categoryDenominator,
-                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE, 0);
-        addCategoryStat(categoryStats, "退款", paymentRefund, categoryDenominator,
-                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT, 0);
-        addCategoryStat(categoryStats, "记一笔支出", notesExpense, categoryDenominator,
-                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE, 0);
+        BigDecimal categoryDenominator = totalIncome
+                .add(totalExpense)
+                .add(deposit)
+                .add(notesIncome);
+        addCategoryStat(categoryStats, "房费收入（税后）", roomFee, categoryDenominator,
+                allocationResult.totalRoomNights());
+        addCategoryStat(categoryStats, "押金收款", deposit, categoryDenominator, 0);
+        addCategoryStat(categoryStats, "客房消费", roomServiceFee, categoryDenominator, 0);
+        addCategoryStat(categoryStats, "记一笔收入", notesIncome, categoryDenominator, 0);
+        addCategoryStat(categoryStats, "退款/退押金", paymentRefund, categoryDenominator, 0);
+        addCategoryStat(categoryStats, "记一笔支出", notesExpense, categoryDenominator, 0);
         summary.setCategoryStats(categoryStats);
 
         // 每日流水明细
@@ -508,10 +486,7 @@ public class BusinessStatisticsService {
                 dailyActualReceived = dailyFinancial.getActualReceived();
                 transactionCount = dailyFinancial.getTransactionCount();
             }
-            BigDecimal dailyTotalIncome = dailyRoomFee
-                    .add(dailyDeposit)
-                    .add(dailyRoomServiceFee)
-                    .add(dailyNotesIncome);
+            BigDecimal dailyTotalIncome = dailyRoomFee.add(dailyRoomServiceFee);
             BigDecimal dailyTotalExpense = dailyPaymentRefund.add(dailyNotesExpense);
             BigDecimal dailyNetIncome = dailyTotalIncome.subtract(dailyTotalExpense);
 
@@ -1232,9 +1207,7 @@ public class BusinessStatisticsService {
             BigDecimal total,
             Map<LocalDate, BigDecimal> amountsByDate,
             LocalDate startDate,
-            LocalDate endDate,
-            String sourceType,
-            boolean unsupported
+            LocalDate endDate
     ) {
         List<BusinessOverviewDTO.ConsumptionDetail.DailyAmount> dailyAmounts = new ArrayList<>();
         LocalDate currentDate = startDate;
@@ -1252,60 +1225,7 @@ public class BusinessStatisticsService {
                 total,
                 dailyAmounts
         );
-        detail.setSourceType(sourceType);
-        detail.setUnsupported(unsupported);
         return detail;
-    }
-
-    private List<StatisticsSourceMetadataDTO> buildSourceMetadata() {
-        List<StatisticsSourceMetadataDTO> metadata = new ArrayList<>();
-        metadata.add(new StatisticsSourceMetadataDTO(
-                "roomFee",
-                "RESERVATION_DAILY_PRICE_OR_RESIDUAL_AVERAGE",
-                ReservationRevenueAllocationService.DATE_BASIS_STAY_DATE,
-                ReservationRevenueAllocationService.TAX_MODE_PRICE_AFTER_TAX,
-                "优先 ReservationDailyPrice.priceAfterTax；缺失每日价时使用整单残差均摊"
-        ));
-        metadata.add(new StatisticsSourceMetadataDTO(
-                "deposit",
-                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT,
-                "PAYMENT_DATE",
-                "ABS_AMOUNT",
-                "Payment.type 为自由文本，服务端按 deposit/押金等关键词保守归一化"
-        ));
-        metadata.add(new StatisticsSourceMetadataDTO(
-                "actualReceived",
-                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT,
-                "PAYMENT_DATE",
-                "ABS_AMOUNT",
-                "Payment.type 非押金/退款时按实收款处理；OTA 代收支付方式不计入直接实收"
-        ));
-        metadata.add(new StatisticsSourceMetadataDTO(
-                "roomServiceFee",
-                StatisticsFinancialAggregationService.SOURCE_CONSUMPTION_ABS_AMOUNT,
-                "CONSUMPTION_DATE",
-                "ABS_AMOUNT",
-                "Consumption.amount 当前以负数保存，统计展示取绝对值"
-        ));
-        metadata.add(new StatisticsSourceMetadataDTO(
-                "notesIncomeExpense",
-                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE,
-                "NOTE_DATETIME",
-                "ABS_AMOUNT",
-                "Note.type=income 计收入，type=expense 计支出"
-        ));
-        return metadata;
-    }
-
-    private List<StatisticsDataGapDTO> buildDataGaps() {
-        List<StatisticsDataGapDTO> dataGaps = new ArrayList<>();
-        dataGaps.add(new StatisticsDataGapDTO(
-                "checkoutFee",
-                "当前没有稳定独立的退房金字段或业务模型，Payment.type 自由文本不足以形成正式口径",
-                "需要新增退房金业务模型或稳定交易分类",
-                true
-        ));
-        return dataGaps;
     }
 
     private List<RevenueSummaryDTO.PaymentMethodStat> buildPaymentMethodStats(
@@ -1325,8 +1245,6 @@ public class BusinessStatisticsService {
                     methodAmount.getAmount(),
                     calculatePercentage(methodAmount.getAmount(), total)
             );
-            stat.setNormalizedType(methodAmount.getNormalizedType());
-            stat.setSourceType(methodAmount.getSourceType());
             stat.setTransactionCount(methodAmount.getTransactionCount());
             stats.add(stat);
         }
@@ -1351,7 +1269,6 @@ public class BusinessStatisticsService {
             String category,
             BigDecimal amount,
             BigDecimal total,
-            String sourceType,
             int transactionCount
     ) {
         BigDecimal safeAmount = amount != null ? amount : BigDecimal.ZERO;
@@ -1360,7 +1277,6 @@ public class BusinessStatisticsService {
                 safeAmount,
                 calculatePercentage(safeAmount, total)
         );
-        stat.setSourceType(sourceType);
         stat.setTransactionCount(transactionCount);
         target.add(stat);
     }
@@ -1463,7 +1379,7 @@ public class BusinessStatisticsService {
         List<Reservation> result = new ArrayList<>();
         List<Reservation> reservations = reservationRepository.findByStoreId(storeId);
         for (Reservation reservation : reservations) {
-            if (reservation == null || reservation.getStatus() == ReservationStatus.CANCELLED) {
+            if (reservation == null || !isAccommodationRevenueStatus(reservation.getStatus())) {
                 continue;
             }
             if (reservation.getCheckInDate() == null || reservation.getCheckOutDate() == null) {
@@ -1474,6 +1390,10 @@ public class BusinessStatisticsService {
             }
         }
         return result;
+    }
+
+    private boolean isAccommodationRevenueStatus(ReservationStatus status) {
+        return status != null && ACCOMMODATION_REVENUE_STATUSES.contains(status);
     }
 
     private Map<String, RevenueAggregation> aggregateByChannel(

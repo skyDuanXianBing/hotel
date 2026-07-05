@@ -7,7 +7,7 @@ import java.util.List;
  * 营业概况统计DTO
  */
 public class BusinessOverviewDTO {
-    // 住宿总营业额
+    // 住宿营业额（房费收入（税后）+ 客房消费）
     private BigDecimal totalRevenue;
 
     // 房费
@@ -16,7 +16,7 @@ public class BusinessOverviewDTO {
     // 押金
     private BigDecimal deposit;
 
-    // 退房金
+    // 兼容字段：当前无稳定退房金模型，保持为0
     private BigDecimal checkoutFee;
 
     // 餐食/客房消费
@@ -28,16 +28,16 @@ public class BusinessOverviewDTO {
     // 记一笔支出
     private BigDecimal notesExpense;
 
-    // 净收入
+    // 收支净额
     private BigDecimal netRevenue;
 
     // 收入口径元数据
     private RevenuePrecisionDTO revenuePrecision;
 
-    // 数据来源元数据
+    // 兼容字段：产品端不展示内部来源元数据
     private List<StatisticsSourceMetadataDTO> sourceMetadata;
 
-    // 当前模型无法稳定支撑的数据缺口
+    // 兼容字段：产品端不展示内部缺口说明
     private List<StatisticsDataGapDTO> dataGaps;
 
     // 消费分类分布(用于饼图)
@@ -169,7 +169,7 @@ public class BusinessOverviewDTO {
      * 消费分类分布（饼图数据）
      */
     public static class CategoryDistribution {
-        private String category; // 类别名称: 房费、押金、退房金、餐食/客房消费
+        private String category; // 类别名称: 房费、餐食/客房消费
         private BigDecimal value; // 金额
         private BigDecimal percentage; // 百分比
 
@@ -213,7 +213,7 @@ public class BusinessOverviewDTO {
         private String date; // 日期
         private BigDecimal roomFee; // 房费
         private BigDecimal deposit; // 押金
-        private BigDecimal checkoutFee; // 退房金
+        private BigDecimal checkoutFee; // 兼容字段：当前保持0
         private BigDecimal roomServiceFee; // 餐食/客房消费
         private BigDecimal notesIncome; // 记一笔收入
         private BigDecimal notesExpense; // 记一笔支出
@@ -293,8 +293,8 @@ public class BusinessOverviewDTO {
         private String category; // 项目类别
         private BigDecimal total; // 总计
         private List<DailyAmount> dailyAmounts; // 每日金额列表
-        private String sourceType; // 数据来源类型
-        private Boolean unsupported; // 是否为当前模型不支持项
+        private String sourceType; // 兼容字段：产品端不展示
+        private Boolean unsupported; // 兼容字段：产品端不展示
 
         public ConsumptionDetail() {}
 

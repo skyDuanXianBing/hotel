@@ -45,7 +45,6 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import StatisticsLayout from './StatisticsLayout.vue'
-import { exportNotesReport } from '@/api/notes'
 import {
   downloadStatisticsReport,
   getStatisticsReportErrorMessage,
@@ -60,7 +59,7 @@ const endDate = ref(today)
 const loadingReport = ref('')
 
 type ReportItem = {
-  type: 'transaction-summary' | 'notes-detail'
+  type: 'transaction-summary'
   labelKey: string
 }
 
@@ -75,7 +74,6 @@ const reportDateRange = computed<string[]>({
 
 const reports: ReportItem[] = [
   { type: 'transaction-summary', labelKey: 'stage5.statistics.reports.transactionSummary' },
-  { type: 'notes-detail', labelKey: 'stage5.statistics.reports.notesDetail' },
 ]
 
 const downloadReport = async (report: ReportItem) => {
@@ -85,16 +83,8 @@ const downloadReport = async (report: ReportItem) => {
       startDate: startDate.value,
       endDate: endDate.value,
     }
-    if (report.type === 'notes-detail') {
-      const blob = await exportNotesReport(params)
-      saveBlobDownload({
-        blob,
-        fileName: `${report.type}-${startDate.value}-${endDate.value}.csv`,
-      })
-    } else {
-      const download = await downloadStatisticsReport(report.type, params)
-      saveBlobDownload(download)
-    }
+    const download = await downloadStatisticsReport(report.type, params)
+    saveBlobDownload(download)
   } catch (error) {
     console.error('Failed to download finance report:', error)
     const message = await getStatisticsReportErrorMessage(

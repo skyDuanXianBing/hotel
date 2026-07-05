@@ -8,25 +8,25 @@ import java.util.List;
  * 包括支付方式和款项分类两种维度的统计
  */
 public class RevenueSummaryDTO {
-    // 总流水
+    // 住宿营业额（房费收入（税后）+ 客房消费）
     private BigDecimal totalRevenue;
 
-    // 分账款(OTA代收)
+    // OTA代收款 / 渠道代收房费
     private BigDecimal splitAccount;
 
-    // 实收款(直接收款)
+    // 直接收款
     private BigDecimal actualReceived;
 
-    // 总收款
+    // 住宿营业额（不含押金和记一笔收入）
     private BigDecimal totalIncome;
 
     // 总支出
     private BigDecimal totalExpense;
 
-    // 净收入
+    // 收支净额
     private BigDecimal netIncome;
 
-    // 税后房费
+    // 房费收入（税后）
     private BigDecimal roomFee;
 
     // 押金
@@ -47,10 +47,10 @@ public class RevenueSummaryDTO {
     // 收入口径元数据
     private RevenuePrecisionDTO revenuePrecision;
 
-    // 数据来源元数据
+    // 兼容字段：产品端不展示内部来源元数据
     private List<StatisticsSourceMetadataDTO> sourceMetadata;
 
-    // 当前模型无法稳定支撑的数据缺口
+    // 兼容字段：产品端不展示内部缺口说明
     private List<StatisticsDataGapDTO> dataGaps;
 
     // 支付方式统计
@@ -239,8 +239,8 @@ public class RevenueSummaryDTO {
         private String paymentMethod; // 支付方式名称 (Booking代收、Airbnb代收、微信、支付宝等)
         private BigDecimal amount; // 金额
         private BigDecimal percentage; // 百分比
-        private String sourceType; // 来源类型
-        private String normalizedType; // 归一化款项类型
+        private String sourceType; // 兼容字段：产品端不展示
+        private String normalizedType; // 兼容字段：产品端不展示
         private Integer transactionCount; // 交易笔数
 
         public PaymentMethodStat() {}
@@ -307,7 +307,7 @@ public class RevenueSummaryDTO {
         private String category; // 分类名称 (常规流水、AR收错流水、记一笔流水)
         private BigDecimal amount; // 金额
         private BigDecimal percentage; // 百分比
-        private String sourceType; // 来源类型
+        private String sourceType; // 兼容字段：产品端不展示
         private Integer transactionCount; // 交易笔数
 
         public CategoryStat() {}
@@ -407,17 +407,17 @@ public class RevenueSummaryDTO {
         private String date; // 日期
         private BigDecimal amount; // 金额
         private Integer orderCount; // 订单数
-        private BigDecimal roomFee; // 税后房费
-        private BigDecimal splitAccount; // 分账款
-        private BigDecimal actualReceived; // 实收款
+        private BigDecimal roomFee; // 房费收入（税后）
+        private BigDecimal splitAccount; // OTA代收款 / 渠道代收房费
+        private BigDecimal actualReceived; // 直接收款
         private BigDecimal deposit; // 押金
         private BigDecimal roomServiceFee; // 客房消费
         private BigDecimal notesIncome; // 记一笔收入
         private BigDecimal notesExpense; // 记一笔支出
         private BigDecimal paymentRefund; // 退款
-        private BigDecimal totalIncome; // 当日总收入
+        private BigDecimal totalIncome; // 当日住宿营业额
         private BigDecimal totalExpense; // 当日总支出
-        private BigDecimal netIncome; // 当日净收入
+        private BigDecimal netIncome; // 当日收支净额
         private Integer transactionCount; // 交易笔数
 
         public DailyRevenue() {}

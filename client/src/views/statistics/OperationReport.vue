@@ -21,7 +21,7 @@
           v-for="report in reports"
           :key="report.type"
           class="report-item"
-          :class="{ 'is-disabled': !report.supported, 'is-loading': loadingReport === report.type }"
+          :class="{ 'is-loading': loadingReport === report.type }"
           @click="downloadReport(report)"
         >
           <div class="report-icon">
@@ -34,9 +34,6 @@
             </svg>
           </div>
           <div class="report-name">{{ t(report.labelKey) }}</div>
-          <div v-if="!report.supported" class="report-status">
-            {{ t('stage5.statistics.reports.dataSourceMissing') }}
-          </div>
         </div>
       </div>
     </div>
@@ -64,7 +61,6 @@ const loadingReport = ref('')
 type ReportItem = {
   type: string
   labelKey: string
-  supported: boolean
 }
 
 const reportDateRange = computed<string[]>({
@@ -77,18 +73,10 @@ const reportDateRange = computed<string[]>({
 })
 
 const reports: ReportItem[] = [
-  { type: 'ledger', labelKey: 'stage5.statistics.reports.ledgerDetail', supported: false },
-  { type: 'daily', labelKey: 'stage5.statistics.reports.managerDaily', supported: true },
-  { type: 'materials', labelKey: 'stage5.statistics.reports.materialsReport', supported: false },
-  { type: 'housing', labelKey: 'stage5.statistics.reports.housingDetail', supported: false },
+  { type: 'daily', labelKey: 'stage5.statistics.reports.managerDaily' },
 ]
 
 const downloadReport = async (report: ReportItem) => {
-  if (!report.supported) {
-    ElMessage.warning(t('stage5.statistics.reports.unsupportedReport'))
-    return
-  }
-
   try {
     loadingReport.value = report.type
     const download = await downloadStatisticsReport(report.type, {
@@ -150,12 +138,7 @@ const downloadReport = async (report: ReportItem) => {
   border-radius: 8px;
 }
 
-.report-item.is-disabled {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.report-item:not(.is-disabled):hover {
+.report-item:hover {
   background: #f5f7fa;
   transform: translateY(-2px);
 }
@@ -178,15 +161,7 @@ const downloadReport = async (report: ReportItem) => {
   word-break: break-word;
 }
 
-.report-status {
-  min-height: 18px;
-  color: #909399;
-  font-size: 12px;
-  line-height: 18px;
-  text-align: center;
-}
-
-.report-item:not(.is-disabled):hover .report-name {
+.report-item:hover .report-name {
   color: #409eff;
 }
 </style>

@@ -51,25 +51,6 @@
         </div>
       </div>
 
-      <div class="price-basis-note">
-        {{ revenuePrecisionNotice }}
-      </div>
-
-      <div v-if="currentSourceMetadata.length || currentDataGaps.length" class="data-quality-panel">
-        <div v-if="currentSourceMetadata.length" class="data-quality-group">
-          <span class="data-quality-label">{{ t('stage5.dataCenter.overview.sourceMetadata') }}</span>
-          <span v-for="item in currentSourceMetadata" :key="`${item.metric}-${item.sourceType}`" class="data-quality-chip">
-            {{ item.metric }}: {{ item.note || item.sourceType }}
-          </span>
-        </div>
-        <div v-if="currentDataGaps.length" class="data-quality-group">
-          <span class="data-quality-label">{{ t('stage5.dataCenter.overview.dataGaps') }}</span>
-          <span v-for="item in currentDataGaps" :key="`${item.metric}-${item.reason}`" class="data-gap-chip">
-            {{ item.metric }}: {{ item.reason }}
-          </span>
-        </div>
-      </div>
-
       <el-alert
         v-if="activeTabError"
         class="tab-state-alert"
@@ -103,15 +84,6 @@
             </div>
             <div class="stat-value-row">
               <div class="stat-value">¥{{ formatMoney(card.value) }}</div>
-              <span v-if="card.changeRate !== null" class="stat-change" :class="card.changeDirection">
-                <span class="stat-change-icon" aria-hidden="true">{{ card.changeIcon }}</span>
-                {{ Math.abs(card.changeRate) }}%
-              </span>
-              <span v-else class="stat-change unavailable">--</span>
-            </div>
-            <div class="stat-previous">
-              <span>{{ t('stage5.dataCenter.overview.comparisonUnavailable') }}</span>
-              <strong>{{ card.previousText }}</strong>
             </div>
           </div>
         </div>
@@ -297,12 +269,12 @@
 
             <div class="revenue-summary-card">
               <div class="revenue-card-head">
-                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.notesRevenue') }}</div>
+                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.netIncome') }}</div>
                 <div class="revenue-card-icon blue">
-                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.notesRevenue')" />
+                  <img :src="businessCartIcon" :alt="t('stage5.dataCenter.overview.netIncome')" />
                 </div>
               </div>
-              <div class="revenue-card-value dark">¥{{ formatMoney(notesRevenue) }}</div>
+              <div class="revenue-card-value dark">¥{{ formatMoney(revenueNetIncome) }}</div>
             </div>
           </div>
 
@@ -401,14 +373,6 @@
                 {{ tab.label }}
               </el-button>
             </div>
-            <el-button
-              type="primary"
-              class="business-export-button channel-export-button"
-              disabled
-              :title="t('stage5.dataCenter.overview.channelExportUnsupported')"
-            >
-              {{ t('stage5.common.actions.exportDetails') }}
-            </el-button>
           </div>
 
           <el-table :data="channelTableData" class="detail-table business-detail-table channel-detail-table">
@@ -560,7 +524,6 @@ import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import StatisticsLayout from '../statistics/StatisticsLayout.vue'
 import businessCartIcon from '@/assets/icons/statistics/business-cart.png'
-import businessCheckoutIcon from '@/assets/icons/statistics/business-checkout.png'
 import businessCustomerIcon from '@/assets/icons/statistics/business-customer.png'
 import businessDepositIcon from '@/assets/icons/statistics/business-deposit.png'
 import businessHomeIcon from '@/assets/icons/statistics/business-home.png'
@@ -576,9 +539,6 @@ import {
   type RevenueSummaryDTO,
   type ChannelSummaryDTO,
   type SalesSummaryDTO,
-  type RevenuePrecisionDTO,
-  type StatisticsDataGapDTO,
-  type StatisticsSourceMetadataDTO,
   type StatisticsReportType,
 } from '@/api/statistics'
 import { PermissionAction, PermissionModule } from '@/api/role'
@@ -766,9 +726,6 @@ const todayYmd = getStoreTodayYmd()
 const startDate = ref(todayYmd)
 const endDate = ref(todayYmd)
 const loading = ref(false)
-const currentRevenuePrecision = ref<RevenuePrecisionDTO | null>(null)
-const currentSourceMetadata = ref<StatisticsSourceMetadataDTO[]>([])
-const currentDataGaps = ref<StatisticsDataGapDTO[]>([])
 const tabErrors = ref<Record<OverviewTab, string>>({
   business: '',
   revenue: '',
@@ -803,33 +760,6 @@ const businessDateRange = computed<string[]>({
 const dateRangeLabel = computed(() =>
   t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value }),
 )
-
-const revenuePrecisionNotice = computed(() => {
-  const precision = currentRevenuePrecision.value
-  const warnings: string[] = []
-  if (!precision) {
-    warnings.push(t('stage5.dataCenter.overview.priceBasisNotice'))
-  } else {
-    warnings.push(
-      t('stage5.dataCenter.overview.priceBasisNoticeWithCoverage', {
-        exact: precision.exactRoomNights || 0,
-        averaged: precision.averagedRoomNights || 0,
-        coverage: precision.coverageRate ?? 0,
-      }),
-    )
-  }
-  if (precision?.currencyCode === 'MIXED') {
-    warnings.push(t('stage5.dataCenter.overview.mixedCurrencyNotice'))
-  }
-  if (precision?.residualConflictDetected) {
-    warnings.push(
-      t('stage5.dataCenter.overview.residualConflictNotice', {
-        count: precision.residualConflictCount || 0,
-      }),
-    )
-  }
-  return warnings.join(' ')
-})
 
 const normalizeLabel = (value: string) => value.trim().replace(/\s+/g, '').toLowerCase()
 
@@ -1080,10 +1010,7 @@ const translateRevenueCategory = (category: string) => {
 const totalRevenue = ref(0)
 const roomFee = ref(0)
 const deposit = ref(0)
-const checkout = ref(0)
 const roomService = ref(0)
-const businessNotesIncome = ref(0)
-const businessNotesExpense = ref(0)
 const businessNetRevenue = ref(0)
 
 interface BusinessDetailItem {
@@ -1098,13 +1025,6 @@ interface RevenueDetailItem {
   [key: string]: string | number
 }
 
-const createMetricComparison = () => ({
-  changeRate: null as number | null,
-  changeDirection: 'flat',
-  changeIcon: '',
-  previousText: t('stage5.dataCenter.overview.dataGapUnsupported'),
-})
-
 const businessMetricCards = computed(() => [
   {
     key: 'totalRevenue',
@@ -1112,7 +1032,6 @@ const businessMetricCards = computed(() => [
     value: totalRevenue.value,
     icon: businessCartIcon,
     primary: true,
-    ...createMetricComparison(),
   },
   {
     key: 'roomFee',
@@ -1120,7 +1039,6 @@ const businessMetricCards = computed(() => [
     value: roomFee.value,
     icon: businessHomeIcon,
     primary: false,
-    ...createMetricComparison(),
   },
   {
     key: 'deposit',
@@ -1128,15 +1046,6 @@ const businessMetricCards = computed(() => [
     value: deposit.value,
     icon: businessDepositIcon,
     primary: false,
-    ...createMetricComparison(),
-  },
-  {
-    key: 'checkout',
-    label: t('stage5.dataCenter.overview.checkoutRefund'),
-    value: checkout.value,
-    icon: businessCheckoutIcon,
-    primary: false,
-    ...createMetricComparison(),
   },
   {
     key: 'roomService',
@@ -1144,23 +1053,6 @@ const businessMetricCards = computed(() => [
     value: roomService.value,
     icon: businessCustomerIcon,
     primary: false,
-    ...createMetricComparison(),
-  },
-  {
-    key: 'notesIncome',
-    label: t('stage5.dataCenter.overview.notesIncome'),
-    value: businessNotesIncome.value,
-    icon: businessCartIcon,
-    primary: false,
-    ...createMetricComparison(),
-  },
-  {
-    key: 'notesExpense',
-    label: t('stage5.dataCenter.overview.notesExpense'),
-    value: businessNotesExpense.value,
-    icon: businessCheckoutIcon,
-    primary: false,
-    ...createMetricComparison(),
   },
   {
     key: 'netRevenue',
@@ -1168,11 +1060,19 @@ const businessMetricCards = computed(() => [
     value: businessNetRevenue.value,
     icon: businessDepositIcon,
     primary: false,
-    ...createMetricComparison(),
   },
 ])
 
 const businessDetailData = ref<BusinessDetailItem[]>([])
+
+const isVisibleBusinessCategory = (category: string) => {
+  const key = resolveLabelKey(category, BUSINESS_CATEGORY_ALIASES)
+  return (
+    key !== BUSINESS_CATEGORY_KEYS.checkoutRefund &&
+    key !== BUSINESS_CATEGORY_KEYS.notesIncome &&
+    key !== BUSINESS_CATEGORY_KEYS.notesExpense
+  )
+}
 
 // 流水汇总相关数据
 const revenueSubTab = ref('payment')
@@ -1233,7 +1133,6 @@ const categoryIncome = ref(0)
 const categoryExpense = ref(0)
 const normalRevenue = ref(0)
 const arRevenue = ref(0)
-const notesRevenue = ref(0)
 
 const categoryTableData = ref<RevenueDetailItem[]>([])
 
@@ -1285,26 +1184,14 @@ let salesTrend: ECharts | null = null
 
 // ==================== 数据加载函数 ====================
 
-const setTabSuccess = (
-  tab: OverviewTab,
-  hasData: boolean,
-  revenuePrecision?: RevenuePrecisionDTO | null,
-  sourceMetadata?: StatisticsSourceMetadataDTO[],
-  dataGaps?: StatisticsDataGapDTO[],
-) => {
+const setTabSuccess = (tab: OverviewTab, hasData: boolean) => {
   tabErrors.value[tab] = ''
   tabHasData.value[tab] = hasData
-  currentRevenuePrecision.value = revenuePrecision || null
-  currentSourceMetadata.value = sourceMetadata || []
-  currentDataGaps.value = dataGaps || []
 }
 
 const setTabError = (tab: OverviewTab, message: string) => {
   tabErrors.value[tab] = message
   tabHasData.value[tab] = false
-  currentRevenuePrecision.value = null
-  currentSourceMetadata.value = []
-  currentDataGaps.value = []
 }
 
 const hasPositiveValue = (values: number[]) => values.some((value) => Math.abs(toNumber(value)) > 0)
@@ -1314,15 +1201,20 @@ const hasBusinessData = (data: BusinessOverviewDTO) =>
     data.totalRevenue,
     data.roomFee,
     data.deposit,
-    data.checkoutFee,
     data.roomServiceFee,
-    data.notesIncome || 0,
-    data.notesExpense || 0,
     data.netRevenue || 0,
   ]) ||
-  Boolean(data.categoryDistribution?.length) ||
-  Boolean(data.consumptionTrend?.length) ||
-  Boolean(data.consumptionDetails?.length)
+  Boolean(
+    (data.categoryDistribution || []).some(
+      (item) => isVisibleBusinessCategory(item.category) && Math.abs(toNumber(item.value)) > 0,
+    ),
+  ) ||
+  Boolean(
+    (data.consumptionTrend || []).some((item) =>
+      hasPositiveValue([item.roomFee, item.deposit, item.roomServiceFee]),
+    ),
+  ) ||
+  Boolean((data.consumptionDetails || []).some((detail) => isVisibleBusinessCategory(detail.category)))
 
 const hasRevenueData = (data: RevenueSummaryDTO) =>
   hasPositiveValue([
@@ -1391,25 +1283,18 @@ const loadBusinessOverview = async () => {
       totalRevenue.value = toNumber(data.totalRevenue)
       roomFee.value = toNumber(data.roomFee)
       deposit.value = toNumber(data.deposit)
-      checkout.value = toNumber(data.checkoutFee)
       roomService.value = toNumber(data.roomServiceFee)
-      businessNotesIncome.value = toNumber(data.notesIncome)
-      businessNotesExpense.value = toNumber(data.notesExpense)
       businessNetRevenue.value = toNumber(data.netRevenue)
 
       // 更新表格数据
-      businessDetailData.value = (data.consumptionDetails || []).map(detail => ({
-        category: translateBusinessCategory(detail.category),
-        total: toNumber(detail.total),
-        ...createDailyAmountCells(detail.dailyAmounts || []),
-      }))
-      setTabSuccess(
-        'business',
-        hasBusinessData(data),
-        data.revenuePrecision,
-        data.sourceMetadata,
-        data.dataGaps,
-      )
+      businessDetailData.value = (data.consumptionDetails || [])
+        .filter((detail) => isVisibleBusinessCategory(detail.category))
+        .map(detail => ({
+          category: translateBusinessCategory(detail.category),
+          total: toNumber(detail.total),
+          ...createDailyAmountCells(detail.dailyAmounts || []),
+        }))
+      setTabSuccess('business', hasBusinessData(data))
 
       // 重新初始化图表
       await nextTick()
@@ -1497,7 +1382,6 @@ const loadRevenueSummary = async () => {
       normalRevenue.value =
         toNumber(data.roomFee) + toNumber(data.deposit) + toNumber(data.roomServiceFee)
       arRevenue.value = resolveCategoryAmount(data.categoryStats || [], REVENUE_CATEGORY_KEYS.arMismatchRevenue)
-      notesRevenue.value = toNumber(data.notesIncome)
 
       const categoryRows: RevenueDetailItem[] = [
         {
@@ -1516,16 +1400,6 @@ const loadRevenueSummary = async () => {
           ...createDailyRevenueCells(dailyRevenues, 'roomServiceFee'),
         },
         {
-          paymentMethod: t('stage5.dataCenter.overview.notesIncome'),
-          total: toNumber(data.notesIncome) || sumDailyRevenueField(dailyRevenues, 'notesIncome'),
-          ...createDailyRevenueCells(dailyRevenues, 'notesIncome'),
-        },
-        {
-          paymentMethod: t('stage5.dataCenter.overview.notesExpense'),
-          total: toNumber(data.notesExpense) || sumDailyRevenueField(dailyRevenues, 'notesExpense'),
-          ...createDailyRevenueCells(dailyRevenues, 'notesExpense'),
-        },
-        {
           paymentMethod: t('stage5.dataCenter.overview.paymentRefund'),
           total: toNumber(data.paymentRefund) || sumDailyRevenueField(dailyRevenues, 'paymentRefund'),
           ...createDailyRevenueCells(dailyRevenues, 'paymentRefund'),
@@ -1541,13 +1415,7 @@ const loadRevenueSummary = async () => {
         dateColumns.value.some((column) => Math.abs(toNumber(row[column.prop])) > 0),
       )
 
-      setTabSuccess(
-        'revenue',
-        hasRevenueData(data),
-        data.revenuePrecision,
-        data.sourceMetadata,
-        data.dataGaps,
-      )
+      setTabSuccess('revenue', hasRevenueData(data))
 
       // 重新初始化图表
       await nextTick()
@@ -1618,7 +1486,7 @@ const loadChannelSummary = async () => {
       } else {
         channelTableData.value = channelNightsData
       }
-      setTabSuccess('channel', hasChannelData(data), data.revenuePrecision)
+      setTabSuccess('channel', hasChannelData(data))
 
       // 重新初始化图表
       await nextTick()
@@ -1691,7 +1559,7 @@ const loadSalesSummary = async (resetPage = false) => {
       if (data.page && data.page !== salesCurrentPage.value) {
         salesCurrentPage.value = data.page
       }
-      setTabSuccess('sales', hasSalesData(data), data.revenuePrecision)
+      setTabSuccess('sales', hasSalesData(data))
 
       // 重新初始化图表
       await nextTick()
@@ -1775,6 +1643,7 @@ const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
   businessPie = echarts.init(businessPieChart.value)
 
   const pieChartData = (data?.categoryDistribution || [])
+    .filter((item) => isVisibleBusinessCategory(item.category))
     .map((item) => ({
       value: toNumber(item.value),
       name: translateBusinessCategory(item.category),
@@ -1872,11 +1741,8 @@ const MAX_BUSINESS_BAR_COUNT = 35
 type BusinessTrendBarItem = {
   label: string
   roomFee: number
-  checkoutFee: number
   roomServiceFee: number
   deposit: number
-  notesIncome: number
-  notesExpense: number
 }
 
 const formatBusinessTrendDate = (dateText: string): string => {
@@ -1909,11 +1775,8 @@ const buildBusinessTrendBars = (
     return sortedTrend.map((item) => ({
       label: formatBusinessTrendDate(item.date),
       roomFee: item.roomFee || 0,
-      checkoutFee: item.checkoutFee || 0,
       roomServiceFee: item.roomServiceFee || 0,
       deposit: item.deposit || 0,
-      notesIncome: item.notesIncome || 0,
-      notesExpense: item.notesExpense || 0,
     }))
   }
 
@@ -1931,11 +1794,8 @@ const buildBusinessTrendBars = (
     bars.push({
       label,
       roomFee: bucket.reduce((sum, item) => sum + (item.roomFee || 0), 0),
-      checkoutFee: bucket.reduce((sum, item) => sum + (item.checkoutFee || 0), 0),
       roomServiceFee: bucket.reduce((sum, item) => sum + (item.roomServiceFee || 0), 0),
       deposit: bucket.reduce((sum, item) => sum + (item.deposit || 0), 0),
-      notesIncome: bucket.reduce((sum, item) => sum + (item.notesIncome || 0), 0),
-      notesExpense: bucket.reduce((sum, item) => sum + (item.notesExpense || 0), 0),
     })
   }
 
@@ -1961,11 +1821,8 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
   const revenueData = barData.map(
     (item) =>
       item.roomFee +
-      item.checkoutFee +
       item.roomServiceFee +
-      item.deposit +
-      item.notesIncome -
-      item.notesExpense,
+      item.deposit,
   )
   const maxRevenue = Math.max(...revenueData, 1)
   const yMax = Math.ceil(maxRevenue / 10000) * 10000
@@ -3202,58 +3059,6 @@ onBeforeUnmount(() => {
   border-radius: 4px;
 }
 
-.price-basis-note {
-  margin: 0 0 10px;
-  padding: 10px 16px;
-  border-left: 3px solid #1e90f7;
-  border-radius: 4px;
-  background: #f5f9ff;
-  color: #42526a;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.data-quality-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
-  padding: 10px 16px;
-  background: #ffffff;
-  border-radius: 4px;
-}
-
-.data-quality-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  color: #5f6670;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.data-quality-label {
-  color: #30343b;
-  font-weight: 600;
-}
-
-.data-quality-chip,
-.data-gap-chip {
-  display: inline-flex;
-  max-width: 100%;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: #f5f9ff;
-  color: #42526a;
-}
-
-.data-gap-chip {
-  background: #fff7e8;
-  color: #8a5a12;
-}
-
 .tab-state-alert {
   margin-bottom: 10px;
 }
@@ -3433,53 +3238,6 @@ onBeforeUnmount(() => {
 
 .business-stat-card.primary .stat-value {
   color: #ffffff;
-}
-
-.stat-change {
-  display: inline-flex;
-  height: 20px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 0 7px 0 6px;
-  border-radius: 4px;
-  background: #69b7ff;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 20px;
-}
-
-.stat-change.unavailable {
-  background: #c6ccd4;
-}
-
-.stat-change-icon {
-  display: inline-block;
-  transform: translateY(-1px);
-  font-size: 17px;
-  font-weight: 400;
-  line-height: 1;
-}
-
-.stat-previous {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  color: #0a0a0a;
-  font-size: 12px;
-  line-height: 1;
-}
-
-.business-stat-card.primary .stat-previous {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.stat-previous strong {
-  color: inherit;
-  font-weight: 700;
 }
 
 /* 流水汇总样式 */
@@ -4090,10 +3848,6 @@ onBeforeUnmount(() => {
   border-color: #1e90f7;
   background: #1e90f7;
   color: #ffffff;
-}
-
-.channel-export-button {
-  justify-self: end;
 }
 
 .revenue-table-tabs :deep(.el-button) {

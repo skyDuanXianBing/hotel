@@ -68,9 +68,9 @@ public class StatisticsReportExportService {
                 "房型",
                 "入住日期",
                 "退房日期",
-                "统计范围税后房费",
-                "整单总金额",
-                "统计范围间夜数"
+                "房费收入（税后）",
+                "订单总金额",
+                "间夜数"
         ));
 
         int page = 1;
@@ -118,21 +118,21 @@ public class StatisticsReportExportService {
     private String exportTransactionSummary(LocalDate startDate, LocalDate endDate) {
         RevenueSummaryDTO summary = businessStatisticsService.getRevenueSummary(startDate, endDate);
         StringBuilder csv = new StringBuilder();
-        appendRow(csv, List.of("指标", "金额", "来源", "备注"));
-        appendMetric(csv, "总收入", summary.getTotalIncome(), "MIXED_STATISTICS", "税后房费+押金+客房消费+记一笔收入");
-        appendMetric(csv, "总支出", summary.getTotalExpense(), "MIXED_STATISTICS", "退款+记一笔支出");
-        appendMetric(csv, "净收入", summary.getNetIncome(), "MIXED_STATISTICS", "总收入-总支出");
-        appendMetric(csv, "税后房费", summary.getRoomFee(), "RESERVATION_DAILY_PRICE_OR_RESIDUAL_AVERAGE", "入住日口径");
-        appendMetric(csv, "分账款", summary.getSplitAccount(), "ROOM_FEE_CHANNEL_OTA", "渠道类型/名称识别 OTA 代收");
-        appendMetric(csv, "实收款", summary.getActualReceived(), StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT, "Payment.type 文本归一化");
-        appendMetric(csv, "押金", summary.getDeposit(), StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT, "Payment.type 文本归一化");
-        appendMetric(csv, "客房消费", summary.getRoomServiceFee(), StatisticsFinancialAggregationService.SOURCE_CONSUMPTION_ABS_AMOUNT, "Consumption.amount 取绝对值");
-        appendMetric(csv, "记一笔收入", summary.getNotesIncome(), StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE, "Note.type=income");
-        appendMetric(csv, "退款", summary.getPaymentRefund(), StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT, "Payment.type=refund/退款");
-        appendMetric(csv, "记一笔支出", summary.getNotesExpense(), StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE, "Note.type=expense");
+        appendRow(csv, List.of("项目", "金额"));
+        appendMetric(csv, "住宿营业额", summary.getTotalIncome());
+        appendMetric(csv, "支出合计", summary.getTotalExpense());
+        appendMetric(csv, "收支净额", summary.getNetIncome());
+        appendMetric(csv, "房费收入（税后）", summary.getRoomFee());
+        appendMetric(csv, "OTA代收款", summary.getSplitAccount());
+        appendMetric(csv, "直接收款", summary.getActualReceived());
+        appendMetric(csv, "押金收款", summary.getDeposit());
+        appendMetric(csv, "客房消费", summary.getRoomServiceFee());
+        appendMetric(csv, "记一笔收入", summary.getNotesIncome());
+        appendMetric(csv, "退款/退押金", summary.getPaymentRefund());
+        appendMetric(csv, "记一笔支出", summary.getNotesExpense());
 
         appendRow(csv, List.of(""));
-        appendRow(csv, List.of("支付方式", "金额", "占比", "来源", "归一化类型", "交易笔数"));
+        appendRow(csv, List.of("支付方式", "金额", "占比", "交易笔数"));
         List<RevenueSummaryDTO.PaymentMethodStat> paymentStats = summary.getPaymentMethodStats();
         if (paymentStats != null) {
             for (RevenueSummaryDTO.PaymentMethodStat stat : paymentStats) {
@@ -140,8 +140,6 @@ public class StatisticsReportExportService {
                         safe(stat.getPaymentMethod()),
                         money(stat.getAmount()),
                         money(stat.getPercentage()),
-                        safe(stat.getSourceType()),
-                        safe(stat.getNormalizedType()),
                         number(stat.getTransactionCount())
                 ));
             }
@@ -154,17 +152,17 @@ public class StatisticsReportExportService {
         StringBuilder csv = new StringBuilder();
         appendRow(csv, List.of(
                 "日期",
-                "税后房费",
-                "分账款",
-                "实收款",
-                "押金",
+                "房费收入（税后）",
+                "OTA代收款",
+                "直接收款",
+                "押金收款",
                 "客房消费",
                 "记一笔收入",
                 "记一笔支出",
-                "退款",
-                "总收入",
-                "总支出",
-                "净收入",
+                "退款/退押金",
+                "住宿营业额",
+                "支出合计",
+                "收支净额",
                 "订单数",
                 "交易笔数"
         ));
@@ -193,8 +191,8 @@ public class StatisticsReportExportService {
         return csv.toString();
     }
 
-    private void appendMetric(StringBuilder csv, String name, BigDecimal amount, String source, String note) {
-        appendRow(csv, List.of(name, money(amount), source, note));
+    private void appendMetric(StringBuilder csv, String name, BigDecimal amount) {
+        appendRow(csv, List.of(name, money(amount)));
     }
 
     private void appendRow(StringBuilder csv, List<String> values) {

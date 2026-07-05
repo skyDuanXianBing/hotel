@@ -22,25 +22,6 @@
         />
       </div>
 
-      <div class="price-basis-note">
-        {{ revenuePrecisionNotice }}
-      </div>
-
-      <div v-if="sourceMetadata.length || dataGaps.length" class="data-quality-panel">
-        <div v-if="sourceMetadata.length" class="data-quality-group">
-          <span class="data-quality-label">{{ t('stage5.dataCenter.overview.sourceMetadata') }}</span>
-          <span v-for="item in sourceMetadata" :key="`${item.metric}-${item.sourceType}`" class="data-quality-chip">
-            {{ item.metric }}: {{ item.note || item.sourceType }}
-          </span>
-        </div>
-        <div v-if="dataGaps.length" class="data-quality-group">
-          <span class="data-quality-label">{{ t('stage5.dataCenter.overview.dataGaps') }}</span>
-          <span v-for="item in dataGaps" :key="`${item.metric}-${item.reason}`" class="data-gap-chip">
-            {{ item.metric }}: {{ item.reason }}
-          </span>
-        </div>
-      </div>
-
       <el-alert
         v-if="loadError"
         class="state-alert"
@@ -187,9 +168,6 @@ import {
   saveBlobDownload,
   type OperationalMetricsDTO,
   type OperationalRoomDetailDTO,
-  type RevenuePrecisionDTO,
-  type StatisticsDataGapDTO,
-  type StatisticsSourceMetadataDTO,
 } from '@/api/statistics'
 import { addDaysToYmd, getStoreTodayYmd, getYmdMonthStart, getYmdWeekStart } from '@/utils/storeDateTime'
 import businessHomeIcon from '@/assets/icons/statistics/business-home.png'
@@ -204,9 +182,6 @@ const dateType = ref('today')
 const loading = ref(false)
 const exporting = ref(false)
 const loadError = ref('')
-const revenuePrecision = ref<RevenuePrecisionDTO | null>(null)
-const sourceMetadata = ref<StatisticsSourceMetadataDTO[]>([])
-const dataGaps = ref<StatisticsDataGapDTO[]>([])
 
 const getTodayDate = () => getStoreTodayYmd()
 
@@ -291,33 +266,6 @@ const handleExport = async () => {
 
 const dateRangeLabel = computed(() => {
   return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
-})
-
-const revenuePrecisionNotice = computed(() => {
-  const precision = revenuePrecision.value
-  const notices: string[] = []
-  if (!precision) {
-    notices.push(t('stage5.dataCenter.overview.priceBasisNotice'))
-  } else {
-    notices.push(
-      t('stage5.dataCenter.overview.priceBasisNoticeWithCoverage', {
-        exact: precision.exactRoomNights || 0,
-        averaged: precision.averagedRoomNights || 0,
-        coverage: precision.coverageRate ?? 0,
-      }),
-    )
-  }
-  if (precision?.currencyCode === 'MIXED') {
-    notices.push(t('stage5.dataCenter.overview.mixedCurrencyNotice'))
-  }
-  if (precision?.residualConflictDetected) {
-    notices.push(
-      t('stage5.dataCenter.overview.residualConflictNotice', {
-        count: precision.residualConflictCount || 0,
-      }),
-    )
-  }
-  return notices.join(' ')
 })
 
 const hasMetricsData = computed(() =>
@@ -412,9 +360,6 @@ const loadOperationalMetrics = async () => {
 
     if (response.success && response.data) {
       loadError.value = ''
-      revenuePrecision.value = response.data.revenuePrecision || null
-      sourceMetadata.value = response.data.sourceMetadata || []
-      dataGaps.value = response.data.dataGaps || []
       applyOperationalMetricsData(response.data)
       await nextTick()
       if (!lineChart && lineChartRef.value) {
@@ -428,9 +373,6 @@ const loadOperationalMetrics = async () => {
     }
   } catch (error) {
     loadError.value = t('stage5.statistics.accommodation.loadMetricsFailed')
-    revenuePrecision.value = null
-    sourceMetadata.value = []
-    dataGaps.value = []
     console.error('Failed to load operational metrics:', error)
     ElMessage.error(loadError.value)
   } finally {
@@ -774,58 +716,6 @@ onBeforeUnmount(() => {
   padding: 0 16px;
   background: #ffffff;
   border-radius: 4px;
-}
-
-.price-basis-note {
-  margin: 0 0 10px;
-  padding: 10px 16px;
-  border-left: 3px solid #1e90f7;
-  border-radius: 4px;
-  background: #f5f9ff;
-  color: #42526a;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.data-quality-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
-  padding: 10px 16px;
-  background: #ffffff;
-  border-radius: 4px;
-}
-
-.data-quality-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  color: #5f6670;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.data-quality-label {
-  color: #30343b;
-  font-weight: 600;
-}
-
-.data-quality-chip,
-.data-gap-chip {
-  display: inline-flex;
-  max-width: 100%;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: #f5f9ff;
-  color: #42526a;
-}
-
-.data-gap-chip {
-  background: #fff7e8;
-  color: #8a5a12;
 }
 
 .state-alert {

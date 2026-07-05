@@ -8,7 +8,7 @@ import java.util.List;
  * 销售汇总统计DTO
  */
 public class SalesSummaryDTO {
-    // 总销售额
+    // 房费销售额（日期范围内税后住宿分摊金额）
     private BigDecimal totalSales;
 
     // 总订单数
@@ -116,7 +116,7 @@ public class SalesSummaryDTO {
      */
     public static class DailySales {
         private String date; // 日期
-        private BigDecimal sales; // 销售额
+        private BigDecimal sales; // 房费销售额
         private Integer orderCount; // 订单数
 
         public DailySales() {}
