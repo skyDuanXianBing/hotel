@@ -81,17 +81,21 @@ public class ReservationRevenueAllocationService {
         }
 
         Map<Long, Map<LocalDate, ReservationDailyPrice>> dailyPricesByReservation =
-                loadDailyPrices(storeId, scopedReservations, startDate, endDate);
+                loadDailyPricesForFullStays(storeId, scopedReservations, startDate, endDate);
 
         List<Allocation> allocations = new ArrayList<>();
         Set<String> currencyCodes = new LinkedHashSet<>();
         int exactRoomNights = 0;
         int averagedRoomNights = 0;
+        int residualConflictCount = 0;
 
         for (Reservation reservation : scopedReservations) {
             Map<LocalDate, ReservationDailyPrice> dailyPrices =
                     dailyPricesByReservation.getOrDefault(reservation.getId(), Map.of());
-            BigDecimal averagedAmount = calculateAveragedDailyAmount(reservation);
+            AllocationPlan allocationPlan = buildAllocationPlan(reservation, dailyPrices);
+            if (allocationPlan.residualConflict()) {
+                residualConflictCount++;
+            }
 
             LocalDate currentDate = maxDate(reservation.getCheckInDate(), startDate);
             LocalDate endExclusive = minDate(reservation.getCheckOutDate(), endDate.plusDays(1));
@@ -104,7 +108,7 @@ public class ReservationRevenueAllocationService {
                     addCurrency(currencyCodes, dailyPrice.getCurrencyCode());
                     exactRoomNights++;
                 } else {
-                    allocations.add(new Allocation(reservation, currentDate, averagedAmount, false));
+                    allocations.add(new Allocation(reservation, currentDate, allocationPlan.missingDailyAmount(), false));
                     addCurrency(currencyCodes, reservation.getCurrencyCode());
                     averagedRoomNights++;
                 }
@@ -112,7 +116,12 @@ public class ReservationRevenueAllocationService {
             }
         }
 
-        RevenuePrecisionDTO precision = buildPrecision(currencyCodes, exactRoomNights, averagedRoomNights);
+        RevenuePrecisionDTO precision = buildPrecision(
+                currencyCodes,
+                exactRoomNights,
+                averagedRoomNights,
+                residualConflictCount
+        );
         return new AllocationResult(allocations, precision);
     }
 
@@ -170,10 +179,39 @@ public class ReservationRevenueAllocationService {
         return result;
     }
 
+    private Map<Long, Map<LocalDate, ReservationDailyPrice>> loadDailyPricesForFullStays(
+            Long storeId,
+            Collection<Reservation> reservations,
+            LocalDate fallbackStartDate,
+            LocalDate fallbackEndDate
+    ) {
+        if (reservations == null || reservations.isEmpty()) {
+            return Map.of();
+        }
+
+        LocalDate loadStartDate = fallbackStartDate;
+        LocalDate loadEndDate = fallbackEndDate;
+        for (Reservation reservation : reservations) {
+            if (reservation == null || reservation.getCheckInDate() == null || reservation.getCheckOutDate() == null) {
+                continue;
+            }
+            if (loadStartDate == null || reservation.getCheckInDate().isBefore(loadStartDate)) {
+                loadStartDate = reservation.getCheckInDate();
+            }
+            LocalDate reservationLastNight = reservation.getCheckOutDate().minusDays(1);
+            if (loadEndDate == null || reservationLastNight.isAfter(loadEndDate)) {
+                loadEndDate = reservationLastNight;
+            }
+        }
+
+        return loadDailyPrices(storeId, reservations, loadStartDate, loadEndDate);
+    }
+
     private RevenuePrecisionDTO buildPrecision(
             Set<String> currencyCodes,
             int exactRoomNights,
-            int averagedRoomNights
+            int averagedRoomNights,
+            int residualConflictCount
     ) {
         int totalRoomNights = exactRoomNights + averagedRoomNights;
         RevenuePrecisionDTO precision = new RevenuePrecisionDTO();
@@ -183,6 +221,8 @@ public class ReservationRevenueAllocationService {
         precision.setExactRoomNights(exactRoomNights);
         precision.setAveragedRoomNights(averagedRoomNights);
         precision.setTotalRoomNights(totalRoomNights);
+        precision.setResidualConflictCount(residualConflictCount);
+        precision.setResidualConflictDetected(residualConflictCount > 0);
 
         if (totalRoomNights == 0) {
             precision.setPriceBasis(PRICE_BASIS_NO_REVENUE);
@@ -205,16 +245,48 @@ public class ReservationRevenueAllocationService {
         return precision;
     }
 
-    private BigDecimal calculateAveragedDailyAmount(Reservation reservation) {
+    private AllocationPlan buildAllocationPlan(
+            Reservation reservation,
+            Map<LocalDate, ReservationDailyPrice> dailyPrices
+    ) {
         BigDecimal totalAmount = reservation.getTotalAmount() != null
                 ? reservation.getTotalAmount()
                 : BigDecimal.ZERO;
-        long nights = ChronoUnit.DAYS.between(reservation.getCheckInDate(), reservation.getCheckOutDate());
-        if (nights <= 0) {
-            nights = 1;
+
+        BigDecimal exactDailySum = BigDecimal.ZERO;
+        int missingNightCount = 0;
+        LocalDate currentDate = reservation.getCheckInDate();
+        while (currentDate.isBefore(reservation.getCheckOutDate())) {
+            ReservationDailyPrice dailyPrice = dailyPrices != null ? dailyPrices.get(currentDate) : null;
+            if (dailyPrice == null) {
+                missingNightCount++;
+            } else {
+                exactDailySum = exactDailySum.add(resolveDailyPriceAmount(dailyPrice));
+            }
+            currentDate = currentDate.plusDays(1);
         }
-        return totalAmount.divide(BigDecimal.valueOf(nights), 2, RoundingMode.HALF_UP);
+
+        if (missingNightCount <= 0) {
+            return new AllocationPlan(BigDecimal.ZERO, false);
+        }
+
+        BigDecimal residualAmount = totalAmount.subtract(exactDailySum);
+        if (residualAmount.compareTo(BigDecimal.ZERO) < 0) {
+            return new AllocationPlan(BigDecimal.ZERO, true);
+        }
+
+        BigDecimal missingDailyAmount = residualAmount.divide(
+                BigDecimal.valueOf(missingNightCount),
+                2,
+                RoundingMode.HALF_UP
+        );
+        return new AllocationPlan(missingDailyAmount, false);
     }
+
+    private record AllocationPlan(
+            BigDecimal missingDailyAmount,
+            boolean residualConflict
+    ) {}
 
     private boolean isReservationOverlapping(Reservation reservation, LocalDate startDate, LocalDate endDate) {
         return reservation.getCheckInDate().isBefore(endDate.plusDays(1))

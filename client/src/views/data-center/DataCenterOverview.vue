@@ -1,11 +1,15 @@
 <template>
   <StatisticsLayout>
-    <div class="overview-container">
+    <div class="overview-container" v-loading="loading">
       <!-- 顶部选项卡 -->
       <div class="tabs-section">
         <el-tabs v-model="activeTab" class="overview-tabs" @tab-change="handleTabChange">
           <el-tab-pane :label="t('stage5.dataCenter.overview.tabs.business')" name="business" />
-          <el-tab-pane :label="t('stage5.dataCenter.overview.tabs.revenue')" name="revenue" />
+          <el-tab-pane
+            :label="t('stage5.dataCenter.overview.tabs.revenue')"
+            name="revenue"
+            :disabled="!canViewRevenue"
+          />
           <el-tab-pane :label="t('stage5.dataCenter.overview.tabs.channel')" name="channel" />
           <el-tab-pane :label="t('stage5.dataCenter.overview.tabs.sales')" name="sales" />
         </el-tabs>
@@ -51,8 +55,38 @@
         {{ revenuePrecisionNotice }}
       </div>
 
+      <div v-if="currentSourceMetadata.length || currentDataGaps.length" class="data-quality-panel">
+        <div v-if="currentSourceMetadata.length" class="data-quality-group">
+          <span class="data-quality-label">{{ t('stage5.dataCenter.overview.sourceMetadata') }}</span>
+          <span v-for="item in currentSourceMetadata" :key="`${item.metric}-${item.sourceType}`" class="data-quality-chip">
+            {{ item.metric }}: {{ item.note || item.sourceType }}
+          </span>
+        </div>
+        <div v-if="currentDataGaps.length" class="data-quality-group">
+          <span class="data-quality-label">{{ t('stage5.dataCenter.overview.dataGaps') }}</span>
+          <span v-for="item in currentDataGaps" :key="`${item.metric}-${item.reason}`" class="data-gap-chip">
+            {{ item.metric }}: {{ item.reason }}
+          </span>
+        </div>
+      </div>
+
+      <el-alert
+        v-if="activeTabError"
+        class="tab-state-alert"
+        type="error"
+        :title="activeTabError"
+        :closable="false"
+        show-icon
+      />
+
+      <el-empty
+        v-if="showActiveEmpty"
+        class="tab-empty"
+        :description="t('stage5.dataCenter.overview.noData')"
+      />
+
       <!-- 营业概况内容 -->
-      <div v-if="activeTab === 'business'" class="tab-content">
+      <div v-if="activeTab === 'business' && !showActiveEmpty && !activeTabError" class="tab-content">
         <!-- 营业概况统计卡片 -->
         <div class="stats-section">
           <div
@@ -69,13 +103,14 @@
             </div>
             <div class="stat-value-row">
               <div class="stat-value">¥{{ formatMoney(card.value) }}</div>
-              <span class="stat-change" :class="card.changeDirection">
+              <span v-if="card.changeRate !== null" class="stat-change" :class="card.changeDirection">
                 <span class="stat-change-icon" aria-hidden="true">{{ card.changeIcon }}</span>
                 {{ Math.abs(card.changeRate) }}%
               </span>
+              <span v-else class="stat-change unavailable">--</span>
             </div>
             <div class="stat-previous">
-              <span>上个月</span>
+              <span>{{ t('stage5.dataCenter.overview.comparisonUnavailable') }}</span>
               <strong>{{ card.previousText }}</strong>
             </div>
           </div>
@@ -100,7 +135,14 @@
         <div class="table-section business-table-section">
           <div class="table-header">
             <h3 class="table-title">{{ t('stage5.dataCenter.overview.accommodationSpendDetails') }} ({{ dateRangeLabel }})</h3>
-            <el-button type="primary" class="business-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+            <el-button
+              type="primary"
+              class="business-export-button"
+              :loading="exportingReport === 'daily'"
+              @click="handleOverviewExport('daily')"
+            >
+              {{ t('stage5.common.actions.exportDetails') }}
+            </el-button>
           </div>
           <el-table :data="businessDetailData" class="detail-table business-detail-table">
             <el-table-column prop="category" :label="t('stage5.common.fields.project')" min-width="140" align="center" />
@@ -124,7 +166,7 @@
       </div>
 
       <!-- 流水汇总内容 -->
-      <div v-if="activeTab === 'revenue'" class="tab-content">
+      <div v-if="activeTab === 'revenue' && !showActiveEmpty && !activeTabError" class="tab-content">
         <!-- 支付方式内容 -->
         <div v-if="revenueSubTab === 'payment'">
           <!-- 流水统计卡片 -->
@@ -145,22 +187,22 @@
 
             <div class="revenue-summary-card airbnb-card">
               <div class="revenue-card-head">
-                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.airbnbCollection') }}</div>
+                <div class="revenue-card-label">{{ secondaryRevenueCards[0].label }}</div>
                 <div class="revenue-card-icon blue">
-                  <img :src="businessDepositIcon" :alt="t('stage5.dataCenter.overview.airbnbCollection')" />
+                  <img :src="businessDepositIcon" :alt="secondaryRevenueCards[0].label" />
                 </div>
               </div>
-              <div class="revenue-card-value dark">¥{{ formatMoney(airbnbRevenue) }}</div>
+              <div class="revenue-card-value dark">¥{{ formatMoney(secondaryRevenueCards[0].value) }}</div>
             </div>
 
             <div class="revenue-summary-card booking-card">
               <div class="revenue-card-head">
-                <div class="revenue-card-label">{{ t('stage5.dataCenter.overview.bookingCollection') }}</div>
+                <div class="revenue-card-label">{{ secondaryRevenueCards[1].label }}</div>
                 <div class="revenue-card-icon blue">
-                  <img :src="businessDepositIcon" :alt="t('stage5.dataCenter.overview.bookingCollection')" />
+                  <img :src="businessDepositIcon" :alt="secondaryRevenueCards[1].label" />
                 </div>
               </div>
-              <div class="revenue-card-value dark">¥{{ formatMoney(bookingRevenue) }}</div>
+              <div class="revenue-card-value dark">¥{{ formatMoney(secondaryRevenueCards[1].value) }}</div>
             </div>
           </div>
 
@@ -191,7 +233,14 @@
                     {{ tab.label }}
                   </el-button>
                 </div>
-                <el-button type="primary" class="business-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+                <el-button
+                  type="primary"
+                  class="business-export-button"
+                  :loading="exportingReport === 'transaction-summary'"
+                  @click="handleOverviewExport('transaction-summary')"
+                >
+                  {{ t('stage5.common.actions.exportDetails') }}
+                </el-button>
               </div>
             </div>
 
@@ -277,7 +326,14 @@
                 <div class="table-tabs revenue-table-tabs">
                   <el-button class="active">{{ t('stage5.dataCenter.overview.paymentCategory') }}</el-button>
                 </div>
-                <el-button type="primary" class="business-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+                <el-button
+                  type="primary"
+                  class="business-export-button"
+                  :loading="exportingReport === 'transaction-summary'"
+                  @click="handleOverviewExport('transaction-summary')"
+                >
+                  {{ t('stage5.common.actions.exportDetails') }}
+                </el-button>
               </div>
             </div>
 
@@ -306,7 +362,7 @@
       </div>
 
       <!-- 渠道汇总内容 -->
-      <div v-if="activeTab === 'channel'" class="tab-content">
+      <div v-if="activeTab === 'channel' && !showActiveEmpty && !activeTabError" class="tab-content">
         <!-- 渠道消费分布和间夜分布 -->
         <div class="charts-row channel-charts-row">
           <div class="chart-card channel-chart-card channel-donut-card">
@@ -345,7 +401,14 @@
                 {{ tab.label }}
               </el-button>
             </div>
-            <el-button type="primary" class="business-export-button channel-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+            <el-button
+              type="primary"
+              class="business-export-button channel-export-button"
+              disabled
+              :title="t('stage5.dataCenter.overview.channelExportUnsupported')"
+            >
+              {{ t('stage5.common.actions.exportDetails') }}
+            </el-button>
           </div>
 
           <el-table :data="channelTableData" class="detail-table business-detail-table channel-detail-table">
@@ -364,7 +427,7 @@
               align="center"
             >
               <template #default="{ row }">
-                {{ row[column.prop] }}
+                {{ formatChannelCell(row, column.prop) }}
               </template>
             </el-table-column>
           </el-table>
@@ -372,7 +435,7 @@
       </div>
 
       <!-- 销售汇总内容 -->
-      <div v-if="activeTab === 'sales'" class="tab-content">
+      <div v-if="activeTab === 'sales' && !showActiveEmpty && !activeTabError" class="tab-content">
         <!-- 销售额卡片 -->
         <div class="sales-stats">
           <div class="sales-summary-card">
@@ -396,7 +459,14 @@
         <div class="table-section sales-table-section">
           <div class="table-header sales-table-header">
             <h3 class="table-title">{{ t('stage5.dataCenter.overview.salesOrderDetails') }} ({{ dateRangeLabel }})</h3>
-            <el-button type="primary" class="business-export-button sales-export-button">{{ t('stage5.common.actions.exportDetails') }}</el-button>
+            <el-button
+              type="primary"
+              class="business-export-button sales-export-button"
+              :loading="exportingReport === 'room-fees'"
+              @click="handleOverviewExport('room-fees')"
+            >
+              {{ t('stage5.common.actions.exportDetails') }}
+            </el-button>
           </div>
 
           <div class="search-section sales-search-section">
@@ -427,19 +497,18 @@
                 :value="channel.id"
               />
             </el-select>
-            <el-select
+            <el-input
               v-model="searchGuest"
               class="sales-filter-select"
-              :placeholder="t('stage5.common.filters.all')"
+              :placeholder="t('stage5.dataCenter.overview.customerFilterPlaceholder')"
               clearable
+              @keyup.enter="handleSalesSearch"
+              @clear="handleSalesSearch"
             >
-              <!-- TODO backend integration: populate guest options and pass a dedicated guest/customer filter
-                   when sales-summary supports it. Local-only filtering would make totals and chart inconsistent. -->
-              <el-option :label="t('stage5.common.filters.all')" value="" />
-            </el-select>
+            </el-input>
           </div>
 
-          <el-table :data="pagedSalesTableData" class="detail-table sales-detail-table">
+          <el-table :data="salesTableData" class="detail-table sales-detail-table">
             <el-table-column prop="createdAt" :label="t('stage5.dataCenter.overview.createdAt')" min-width="150" align="center" />
             <el-table-column prop="guestName" :label="t('stage5.dataCenter.overview.name')" min-width="100" align="center" />
             <el-table-column prop="orderNumber" :label="t('stage5.dataCenter.overview.orderChannelNumber')" min-width="200" align="center">
@@ -451,9 +520,14 @@
             <el-table-column prop="channel" :label="t('stage5.common.filters.channel')" min-width="120" align="center" />
             <el-table-column prop="customerName" :label="t('stage5.dataCenter.overview.customerName')" min-width="120" align="center" />
             <el-table-column prop="phone" :label="t('stage5.dataCenter.overview.phone')" min-width="120" align="center" />
-            <el-table-column prop="amount" :label="t('stage5.dataCenter.overview.orderTotalAmount')" min-width="150" align="center">
+            <el-table-column prop="allocatedAmount" :label="t('stage5.dataCenter.overview.allocatedAmount')" min-width="170" align="center">
               <template #default="{ row }">
-                <span class="amount-bold">¥{{ row.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
+                <span class="amount-bold">¥{{ formatMoney(row.allocatedAmount) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="totalAmount" :label="t('stage5.dataCenter.overview.orderTotalAmount')" min-width="150" align="center">
+              <template #default="{ row }">
+                <span class="amount-bold">¥{{ formatMoney(row.totalAmount) }}</span>
               </template>
             </el-table-column>
           </el-table>
@@ -466,6 +540,7 @@
               :total="salesTableTotal"
               :page-size="salesPageSize"
               v-model:current-page="salesCurrentPage"
+              @current-change="handleSalesPageChange"
             />
             <span class="total-amount">¥{{ salesTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
           </div>
@@ -477,6 +552,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -489,18 +565,26 @@ import businessCustomerIcon from '@/assets/icons/statistics/business-customer.pn
 import businessDepositIcon from '@/assets/icons/statistics/business-deposit.png'
 import businessHomeIcon from '@/assets/icons/statistics/business-home.png'
 import {
+  downloadStatisticsReport,
+  getStatisticsReportErrorMessage,
   getBusinessOverview,
   getRevenueSummary,
   getChannelSummary,
   getSalesSummary,
+  saveBlobDownload,
   type BusinessOverviewDTO,
   type RevenueSummaryDTO,
   type ChannelSummaryDTO,
   type SalesSummaryDTO,
-  type RevenuePrecisionDTO
+  type RevenuePrecisionDTO,
+  type StatisticsDataGapDTO,
+  type StatisticsSourceMetadataDTO,
+  type StatisticsReportType,
 } from '@/api/statistics'
+import { PermissionAction, PermissionModule } from '@/api/role'
 import { getAllChannels } from '@/api/channel'
 import type { ChannelDTO } from '@/api/channel'
+import { usePermissionStore } from '@/stores/permission'
 import {
   addDaysToYmd,
   formatYmdMonthDay,
@@ -511,12 +595,22 @@ import {
 } from '@/utils/storeDateTime'
 
 const { t, locale } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const permissionStore = usePermissionStore()
+
+type OverviewTab = 'business' | 'revenue' | 'channel' | 'sales'
+
+const OVERVIEW_TABS: OverviewTab[] = ['business', 'revenue', 'channel', 'sales']
 
 const BUSINESS_CATEGORY_KEYS = {
   roomFee: 'roomFee',
   checkoutRefund: 'checkoutRefund',
   roomService: 'roomService',
   deposit: 'deposit',
+  notesIncome: 'notesIncome',
+  notesExpense: 'notesExpense',
+  netRevenue: 'netRevenue',
 } as const
 
 const PAYMENT_METHOD_KEYS = {
@@ -528,6 +622,13 @@ const REVENUE_CATEGORY_KEYS = {
   regularRevenue: 'regularRevenue',
   arMismatchRevenue: 'arMismatchRevenue',
   notesRevenue: 'notesRevenue',
+  roomFee: 'roomFee',
+  deposit: 'deposit',
+  roomService: 'roomService',
+  notesIncome: 'notesIncome',
+  notesExpense: 'notesExpense',
+  paymentRefund: 'paymentRefund',
+  netIncome: 'netIncome',
 } as const
 
 type LocalizedKey = (typeof BUSINESS_CATEGORY_KEYS)[keyof typeof BUSINESS_CATEGORY_KEYS]
@@ -557,6 +658,18 @@ const BUSINESS_CATEGORY_ALIASES: Record<string, (typeof BUSINESS_CATEGORY_KEYS)[
   '客房消费': BUSINESS_CATEGORY_KEYS.roomService,
   '客房消費': BUSINESS_CATEGORY_KEYS.roomService,
   'ルームサービス': BUSINESS_CATEGORY_KEYS.roomService,
+  notesincome: BUSINESS_CATEGORY_KEYS.notesIncome,
+  notes_income: BUSINESS_CATEGORY_KEYS.notesIncome,
+  '记一笔收入': BUSINESS_CATEGORY_KEYS.notesIncome,
+  '記一筆收入': BUSINESS_CATEGORY_KEYS.notesIncome,
+  notesexpense: BUSINESS_CATEGORY_KEYS.notesExpense,
+  notes_expense: BUSINESS_CATEGORY_KEYS.notesExpense,
+  '记一笔支出': BUSINESS_CATEGORY_KEYS.notesExpense,
+  '記一筆支出': BUSINESS_CATEGORY_KEYS.notesExpense,
+  netrevenue: BUSINESS_CATEGORY_KEYS.netRevenue,
+  net_revenue: BUSINESS_CATEGORY_KEYS.netRevenue,
+  '净收入': BUSINESS_CATEGORY_KEYS.netRevenue,
+  '純収入': BUSINESS_CATEGORY_KEYS.netRevenue,
 }
 
 const PAYMENT_METHOD_ALIASES: Record<string, (typeof PAYMENT_METHOD_KEYS)[keyof typeof PAYMENT_METHOD_KEYS]> = {
@@ -590,6 +703,28 @@ const REVENUE_CATEGORY_ALIASES: Record<string, (typeof REVENUE_CATEGORY_KEYS)[ke
   notes_revenue: REVENUE_CATEGORY_KEYS.notesRevenue,
   '记一笔流水': REVENUE_CATEGORY_KEYS.notesRevenue,
   '記一筆流水': REVENUE_CATEGORY_KEYS.notesRevenue,
+  roomfee: REVENUE_CATEGORY_KEYS.roomFee,
+  room_fee: REVENUE_CATEGORY_KEYS.roomFee,
+  '税后房费': REVENUE_CATEGORY_KEYS.roomFee,
+  '房费': REVENUE_CATEGORY_KEYS.roomFee,
+  deposit: REVENUE_CATEGORY_KEYS.deposit,
+  '押金': REVENUE_CATEGORY_KEYS.deposit,
+  roomservice: REVENUE_CATEGORY_KEYS.roomService,
+  room_service: REVENUE_CATEGORY_KEYS.roomService,
+  '客房消费': REVENUE_CATEGORY_KEYS.roomService,
+  notesincome: REVENUE_CATEGORY_KEYS.notesIncome,
+  notes_income: REVENUE_CATEGORY_KEYS.notesIncome,
+  '记一笔收入': REVENUE_CATEGORY_KEYS.notesIncome,
+  notesexpense: REVENUE_CATEGORY_KEYS.notesExpense,
+  notes_expense: REVENUE_CATEGORY_KEYS.notesExpense,
+  '记一笔支出': REVENUE_CATEGORY_KEYS.notesExpense,
+  paymentrefund: REVENUE_CATEGORY_KEYS.paymentRefund,
+  payment_refund: REVENUE_CATEGORY_KEYS.paymentRefund,
+  refund: REVENUE_CATEGORY_KEYS.paymentRefund,
+  '退款': REVENUE_CATEGORY_KEYS.paymentRefund,
+  netincome: REVENUE_CATEGORY_KEYS.netIncome,
+  net_income: REVENUE_CATEGORY_KEYS.netIncome,
+  '净收入': REVENUE_CATEGORY_KEYS.netIncome,
 }
 
 interface DateColumn {
@@ -609,15 +744,49 @@ type SalesTableRow = {
   customerName: string
   phone: string
   amount: number
+  allocatedAmount: number
+  totalAmount: number
 }
 
-const activeTab = ref('business')
+const canViewRevenue = computed(() =>
+  permissionStore.hasPermission(PermissionModule.SENSITIVE, PermissionAction.VIEW_FINANCIAL_DATA),
+)
+
+const resolveTabFromQuery = (): OverviewTab => {
+  const queryTab = String(route.query.tab || '')
+  if (OVERVIEW_TABS.includes(queryTab as OverviewTab)) {
+    return queryTab as OverviewTab
+  }
+  return 'business'
+}
+
+const activeTab = ref<OverviewTab>(resolveTabFromQuery())
 const dateType = ref('today')
 const todayYmd = getStoreTodayYmd()
 const startDate = ref(todayYmd)
 const endDate = ref(todayYmd)
 const loading = ref(false)
 const currentRevenuePrecision = ref<RevenuePrecisionDTO | null>(null)
+const currentSourceMetadata = ref<StatisticsSourceMetadataDTO[]>([])
+const currentDataGaps = ref<StatisticsDataGapDTO[]>([])
+const tabErrors = ref<Record<OverviewTab, string>>({
+  business: '',
+  revenue: '',
+  channel: '',
+  sales: '',
+})
+const tabHasData = ref<Record<OverviewTab, boolean>>({
+  business: false,
+  revenue: false,
+  channel: false,
+  sales: false,
+})
+const exportingReport = ref<StatisticsReportType | ''>('')
+
+const activeTabError = computed(() => tabErrors.value[activeTab.value] || '')
+const showActiveEmpty = computed(
+  () => !loading.value && !activeTabError.value && !tabHasData.value[activeTab.value],
+)
 
 const businessDateRange = computed<string[]>({
   get: () => {
@@ -637,13 +806,29 @@ const dateRangeLabel = computed(() =>
 
 const revenuePrecisionNotice = computed(() => {
   const precision = currentRevenuePrecision.value
+  const warnings: string[] = []
   if (!precision) {
-    return t('stage5.dataCenter.overview.priceBasisNotice')
+    warnings.push(t('stage5.dataCenter.overview.priceBasisNotice'))
+  } else {
+    warnings.push(
+      t('stage5.dataCenter.overview.priceBasisNoticeWithCoverage', {
+        exact: precision.exactRoomNights || 0,
+        averaged: precision.averagedRoomNights || 0,
+        coverage: precision.coverageRate ?? 0,
+      }),
+    )
   }
-  return t('stage5.dataCenter.overview.priceBasisNoticeWithCoverage', {
-    exact: precision.exactRoomNights || 0,
-    averaged: precision.averagedRoomNights || 0,
-  })
+  if (precision?.currencyCode === 'MIXED') {
+    warnings.push(t('stage5.dataCenter.overview.mixedCurrencyNotice'))
+  }
+  if (precision?.residualConflictDetected) {
+    warnings.push(
+      t('stage5.dataCenter.overview.residualConflictNotice', {
+        count: precision.residualConflictCount || 0,
+      }),
+    )
+  }
+  return warnings.join(' ')
 })
 
 const normalizeLabel = (value: string) => value.trim().replace(/\s+/g, '').toLowerCase()
@@ -750,15 +935,6 @@ const createDailyAmountCells = (dailyAmounts: { date: string; amount: number }[]
   return row
 }
 
-const createSingleDateAmountCells = (amount: number | string) => {
-  const row = createEmptyDateAmounts()
-  const firstColumn = dateColumns.value[0]
-  if (firstColumn) {
-    row[firstColumn.prop] = amount
-  }
-  return row
-}
-
 const createChannelDailyCells = (
   dailyValues: { date: string; revenue?: number; roomNights?: number }[] = [],
   key: 'revenue' | 'roomNights',
@@ -781,6 +957,68 @@ const formatMoneyCell = (row: DynamicAmountRow, prop: string) => {
 const formatMoney = (value: number | string) =>
   Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 
+const formatChannelCell = (row: DynamicAmountRow, prop: string) => {
+  const value = toNumber(row[prop])
+  if (channelTableTab.value === 'channel-fee') {
+    return `¥${formatMoney(value)}`
+  }
+  return value.toLocaleString('zh-CN')
+}
+
+const toNumber = (value: unknown) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const createDailyRevenueCells = (
+  dailyRows: RevenueSummaryDTO['dailyRevenues'] = [],
+  key: keyof RevenueSummaryDTO['dailyRevenues'][number],
+) => {
+  const row = createEmptyDateAmounts()
+  dailyRows.forEach((dailyRow) => {
+    const prop = getDateColumnProp(dailyRow.date)
+    if (prop in row) {
+      row[prop] = toNumber(dailyRow[key])
+    }
+  })
+  return row
+}
+
+const sumDailyRevenueField = (
+  dailyRows: RevenueSummaryDTO['dailyRevenues'] = [],
+  key: keyof RevenueSummaryDTO['dailyRevenues'][number],
+) => dailyRows.reduce((sum, dailyRow) => sum + toNumber(dailyRow[key]), 0)
+
+const buildReportParams = () => ({
+  startDate: startDate.value,
+  endDate: endDate.value,
+  keyword: searchKeyword.value || undefined,
+  channelId: searchChannel.value || undefined,
+  customer: searchGuest.value || undefined,
+})
+
+const handleOverviewExport = async (type: StatisticsReportType) => {
+  if (!startDate.value || !endDate.value) {
+    ElMessage.warning(t('stage5.common.messages.pleaseSelectDateRange'))
+    return
+  }
+
+  try {
+    exportingReport.value = type
+    const download = await downloadStatisticsReport(type, buildReportParams())
+    saveBlobDownload(download)
+  } catch (error) {
+    console.error('Failed to download statistics report:', error)
+    const message = await getStatisticsReportErrorMessage(
+      error,
+      t('stage5.statistics.reports.downloadFailed'),
+    )
+    ElMessage.error(message)
+  } finally {
+    exportingReport.value = ''
+  }
+}
+
 const resolveLabelKey = <T extends LocalizedKey>(value: string, aliases: Record<string, T>) => {
   const normalized = normalizeLabel(value || '')
   return aliases[normalized]
@@ -795,6 +1033,12 @@ const translateBusinessCategory = (category: string) => {
     return t('stage5.dataCenter.overview.roomService')
   if (key === BUSINESS_CATEGORY_KEYS.deposit)
     return t('stage5.statistics.common.deposit')
+  if (key === BUSINESS_CATEGORY_KEYS.notesIncome)
+    return t('stage5.dataCenter.overview.notesIncome')
+  if (key === BUSINESS_CATEGORY_KEYS.notesExpense)
+    return t('stage5.dataCenter.overview.notesExpense')
+  if (key === BUSINESS_CATEGORY_KEYS.netRevenue)
+    return t('stage5.dataCenter.overview.netRevenue')
   return category
 }
 
@@ -815,15 +1059,32 @@ const translateRevenueCategory = (category: string) => {
     return t('stage5.dataCenter.overview.arMismatchRevenue')
   if (key === REVENUE_CATEGORY_KEYS.notesRevenue)
     return t('stage5.dataCenter.overview.notesRevenue')
+  if (key === REVENUE_CATEGORY_KEYS.roomFee)
+    return t('stage5.dataCenter.overview.taxIncludedRoomFee')
+  if (key === REVENUE_CATEGORY_KEYS.deposit)
+    return t('stage5.statistics.common.deposit')
+  if (key === REVENUE_CATEGORY_KEYS.roomService)
+    return t('stage5.dataCenter.overview.roomService')
+  if (key === REVENUE_CATEGORY_KEYS.notesIncome)
+    return t('stage5.dataCenter.overview.notesIncome')
+  if (key === REVENUE_CATEGORY_KEYS.notesExpense)
+    return t('stage5.dataCenter.overview.notesExpense')
+  if (key === REVENUE_CATEGORY_KEYS.paymentRefund)
+    return t('stage5.dataCenter.overview.paymentRefund')
+  if (key === REVENUE_CATEGORY_KEYS.netIncome)
+    return t('stage5.dataCenter.overview.netIncome')
   return category
 }
 
 // 营业概况相关数据
-const totalRevenue = ref(181196.45)
-const roomFee = ref(154256.45)
-const deposit = ref(0.00)
-const checkout = ref(0.00)
-const roomService = ref(26940.00)
+const totalRevenue = ref(0)
+const roomFee = ref(0)
+const deposit = ref(0)
+const checkout = ref(0)
+const roomService = ref(0)
+const businessNotesIncome = ref(0)
+const businessNotesExpense = ref(0)
+const businessNetRevenue = ref(0)
 
 interface BusinessDetailItem {
   category: string
@@ -831,22 +1092,18 @@ interface BusinessDetailItem {
   [key: string]: string | number
 }
 
-type BusinessMetricKey = 'totalRevenue' | 'roomFee' | 'deposit' | 'checkout' | 'roomService'
-
-const BUSINESS_METRIC_COMPARISON: Record<
-  BusinessMetricKey,
-  { previousMonthAmount: number; changeRate: number }
-> = {
-  // TODO(backend): replace with previous-period metrics when the statistics API exposes them.
-  totalRevenue: { previousMonthAmount: 234568.33, changeRate: 14.9 },
-  roomFee: { previousMonthAmount: 89, changeRate: 14.9 },
-  deposit: { previousMonthAmount: 89, changeRate: 14.9 },
-  checkout: { previousMonthAmount: 89, changeRate: 14.9 },
-  roomService: { previousMonthAmount: 89, changeRate: 14.9 },
+interface RevenueDetailItem {
+  paymentMethod: string
+  total: number
+  [key: string]: string | number
 }
 
-const getChangeDirection = (changeRate: number) => (changeRate >= 0 ? 'up' : 'down')
-const getChangeIcon = (changeRate: number) => (changeRate >= 0 ? '↑' : '↓')
+const createMetricComparison = () => ({
+  changeRate: null as number | null,
+  changeDirection: 'flat',
+  changeIcon: '',
+  previousText: t('stage5.dataCenter.overview.dataGapUnsupported'),
+})
 
 const businessMetricCards = computed(() => [
   {
@@ -855,10 +1112,7 @@ const businessMetricCards = computed(() => [
     value: totalRevenue.value,
     icon: businessCartIcon,
     primary: true,
-    changeRate: BUSINESS_METRIC_COMPARISON.totalRevenue.changeRate,
-    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.totalRevenue.changeRate),
-    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.totalRevenue.changeRate),
-    previousText: `¥${formatMoney(BUSINESS_METRIC_COMPARISON.totalRevenue.previousMonthAmount)}`,
+    ...createMetricComparison(),
   },
   {
     key: 'roomFee',
@@ -866,10 +1120,7 @@ const businessMetricCards = computed(() => [
     value: roomFee.value,
     icon: businessHomeIcon,
     primary: false,
-    changeRate: BUSINESS_METRIC_COMPARISON.roomFee.changeRate,
-    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.roomFee.changeRate),
-    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.roomFee.changeRate),
-    previousText: formatMoney(BUSINESS_METRIC_COMPARISON.roomFee.previousMonthAmount),
+    ...createMetricComparison(),
   },
   {
     key: 'deposit',
@@ -877,10 +1128,7 @@ const businessMetricCards = computed(() => [
     value: deposit.value,
     icon: businessDepositIcon,
     primary: false,
-    changeRate: BUSINESS_METRIC_COMPARISON.deposit.changeRate,
-    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.deposit.changeRate),
-    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.deposit.changeRate),
-    previousText: formatMoney(BUSINESS_METRIC_COMPARISON.deposit.previousMonthAmount),
+    ...createMetricComparison(),
   },
   {
     key: 'checkout',
@@ -888,10 +1136,7 @@ const businessMetricCards = computed(() => [
     value: checkout.value,
     icon: businessCheckoutIcon,
     primary: false,
-    changeRate: BUSINESS_METRIC_COMPARISON.checkout.changeRate,
-    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.checkout.changeRate),
-    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.checkout.changeRate),
-    previousText: formatMoney(BUSINESS_METRIC_COMPARISON.checkout.previousMonthAmount),
+    ...createMetricComparison(),
   },
   {
     key: 'roomService',
@@ -899,57 +1144,68 @@ const businessMetricCards = computed(() => [
     value: roomService.value,
     icon: businessCustomerIcon,
     primary: false,
-    changeRate: BUSINESS_METRIC_COMPARISON.roomService.changeRate,
-    changeDirection: getChangeDirection(BUSINESS_METRIC_COMPARISON.roomService.changeRate),
-    changeIcon: getChangeIcon(BUSINESS_METRIC_COMPARISON.roomService.changeRate),
-    previousText: formatMoney(BUSINESS_METRIC_COMPARISON.roomService.previousMonthAmount),
+    ...createMetricComparison(),
+  },
+  {
+    key: 'notesIncome',
+    label: t('stage5.dataCenter.overview.notesIncome'),
+    value: businessNotesIncome.value,
+    icon: businessCartIcon,
+    primary: false,
+    ...createMetricComparison(),
+  },
+  {
+    key: 'notesExpense',
+    label: t('stage5.dataCenter.overview.notesExpense'),
+    value: businessNotesExpense.value,
+    icon: businessCheckoutIcon,
+    primary: false,
+    ...createMetricComparison(),
+  },
+  {
+    key: 'netRevenue',
+    label: t('stage5.dataCenter.overview.netRevenue'),
+    value: businessNetRevenue.value,
+    icon: businessDepositIcon,
+    primary: false,
+    ...createMetricComparison(),
   },
 ])
 
-const businessDetailData = ref<BusinessDetailItem[]>([
-  {
-    category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.roomFee),
-    total: 154256.45,
-    ...createSingleDateAmountCells(154256.45),
-  },
-  {
-    category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.checkoutRefund),
-    total: 0.00,
-    ...createSingleDateAmountCells(0.00),
-  },
-  {
-    category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.roomService),
-    total: 26940.00,
-    ...createSingleDateAmountCells(26940.00),
-  },
-  {
-    category: translateBusinessCategory(BUSINESS_CATEGORY_KEYS.deposit),
-    total: 0.00,
-    ...createSingleDateAmountCells(0.00),
-  },
-])
+const businessDetailData = ref<BusinessDetailItem[]>([])
 
 // 流水汇总相关数据
 const revenueSubTab = ref('payment')
 const revenueTableTab = ref('payment-method')
-const revenueTotal = ref(276793.14)
-const splitAccount = ref(276793.14)
-const actualReceived = ref(0.00)
-const bookingRevenue = ref(182126.14)
-const airbnbRevenue = ref(94667.00)
+const revenueTotal = ref(0)
+const splitAccount = ref(0)
+const actualReceived = ref(0)
+const revenueTotalIncome = ref(0)
+const revenueTotalExpense = ref(0)
+const revenueNetIncome = ref(0)
+const revenuePaymentStats = ref<RevenueSummaryDTO['paymentMethodStats']>([])
+const revenueDailyRows = ref<RevenueSummaryDTO['dailyRevenues']>([])
+const latestRevenueSummary = ref<RevenueSummaryDTO | null>(null)
 
-const resolvePaymentAmount = (
-  stats: RevenueSummaryDTO['paymentMethodStats'],
-  methodKey: (typeof PAYMENT_METHOD_KEYS)[keyof typeof PAYMENT_METHOD_KEYS],
-) => {
-  const targetLabel = translatePaymentMethod(methodKey)
-  const targetKey = normalizeLabel(targetLabel)
-  const stat = stats.find((item) => {
-    const translated = translatePaymentMethod(item.paymentMethod)
-    return normalizeLabel(translated) === targetKey || resolveLabelKey(item.paymentMethod, PAYMENT_METHOD_ALIASES) === methodKey
-  })
-  return stat?.amount || 0
-}
+const secondaryRevenueCards = computed(() => {
+  const sortedStats = [...revenuePaymentStats.value]
+    .filter((item) => Number(item.amount || 0) > 0)
+    .sort((first, second) => Number(second.amount || 0) - Number(first.amount || 0))
+
+  const first = sortedStats[0]
+  const second = sortedStats[1]
+
+  return [
+    {
+      label: first ? translatePaymentMethod(first.paymentMethod) : t('stage5.dataCenter.overview.actualReceived'),
+      value: first ? first.amount : actualReceived.value,
+    },
+    {
+      label: second ? translatePaymentMethod(second.paymentMethod) : t('stage5.dataCenter.overview.splitAccount'),
+      value: second ? second.amount : splitAccount.value,
+    },
+  ]
+})
 
 const resolveCategoryAmount = (
   stats: RevenueSummaryDTO['categoryStats'],
@@ -969,44 +1225,17 @@ const revenueTableTabs = computed(() => [
   { key: 'room-fee', label: t('stage5.dataCenter.overview.roomFeeSource') },
 ])
 
-const revenueTableData = ref([
-  {
-    paymentMethod: translatePaymentMethod(PAYMENT_METHOD_KEYS.bookingCollection),
-    total: 182126.14,
-    ...createSingleDateAmountCells(182126.14),
-  },
-  {
-    paymentMethod: translatePaymentMethod(PAYMENT_METHOD_KEYS.airbnbCollection),
-    total: 94667.00,
-    ...createSingleDateAmountCells(94667.00),
-  },
-])
+const revenueTableData = ref<RevenueDetailItem[]>([])
 
 // 款项分类相关数据
-const categoryRevenue = ref(390396.66) // 总流水
-const categoryIncome = ref(481398.66) // 总收款
-const categoryExpense = ref(-91002.00) // 总支出
-const normalRevenue = ref(390396.66) // 常规流水
-const arRevenue = ref(0.00) // AR收错流水
-const notesRevenue = ref(0.00) // 记一笔流水
+const categoryRevenue = ref(0)
+const categoryIncome = ref(0)
+const categoryExpense = ref(0)
+const normalRevenue = ref(0)
+const arRevenue = ref(0)
+const notesRevenue = ref(0)
 
-const categoryTableData = ref([
-  {
-    paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.regularRevenue),
-    total: 390396.66,
-    ...createSingleDateAmountCells(390396.66),
-  },
-  {
-    paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.arMismatchRevenue),
-    total: 0.00,
-    ...createSingleDateAmountCells(0.00),
-  },
-  {
-    paymentMethod: translateRevenueCategory(REVENUE_CATEGORY_KEYS.notesRevenue),
-    total: 0.00,
-    ...createSingleDateAmountCells(0.00),
-  },
-])
+const categoryTableData = ref<RevenueDetailItem[]>([])
 
 // 渠道汇总相关数据
 const channelTableTab = ref('channel-fee')
@@ -1027,11 +1256,7 @@ const salesChannelOptions = ref<ChannelDTO[]>([])
 const salesTableData = ref<SalesTableRow[]>([])
 const salesCurrentPage = ref(1)
 const salesPageSize = 10
-const salesTableTotal = computed(() => salesTableData.value.length)
-const pagedSalesTableData = computed(() => {
-  const start = (salesCurrentPage.value - 1) * salesPageSize
-  return salesTableData.value.slice(start, start + salesPageSize)
-})
+const salesTableTotal = ref(0)
 
 // ECharts实例
 const businessPieChart = ref<HTMLDivElement>()
@@ -1059,6 +1284,70 @@ let channelNightsTrend: ECharts | null = null
 let salesTrend: ECharts | null = null
 
 // ==================== 数据加载函数 ====================
+
+const setTabSuccess = (
+  tab: OverviewTab,
+  hasData: boolean,
+  revenuePrecision?: RevenuePrecisionDTO | null,
+  sourceMetadata?: StatisticsSourceMetadataDTO[],
+  dataGaps?: StatisticsDataGapDTO[],
+) => {
+  tabErrors.value[tab] = ''
+  tabHasData.value[tab] = hasData
+  currentRevenuePrecision.value = revenuePrecision || null
+  currentSourceMetadata.value = sourceMetadata || []
+  currentDataGaps.value = dataGaps || []
+}
+
+const setTabError = (tab: OverviewTab, message: string) => {
+  tabErrors.value[tab] = message
+  tabHasData.value[tab] = false
+  currentRevenuePrecision.value = null
+  currentSourceMetadata.value = []
+  currentDataGaps.value = []
+}
+
+const hasPositiveValue = (values: number[]) => values.some((value) => Math.abs(toNumber(value)) > 0)
+
+const hasBusinessData = (data: BusinessOverviewDTO) =>
+  hasPositiveValue([
+    data.totalRevenue,
+    data.roomFee,
+    data.deposit,
+    data.checkoutFee,
+    data.roomServiceFee,
+    data.notesIncome || 0,
+    data.notesExpense || 0,
+    data.netRevenue || 0,
+  ]) ||
+  Boolean(data.categoryDistribution?.length) ||
+  Boolean(data.consumptionTrend?.length) ||
+  Boolean(data.consumptionDetails?.length)
+
+const hasRevenueData = (data: RevenueSummaryDTO) =>
+  hasPositiveValue([
+    data.totalRevenue,
+    data.totalIncome || 0,
+    data.totalExpense || 0,
+    data.netIncome || 0,
+    data.splitAccount,
+    data.actualReceived,
+  ]) ||
+  Boolean(data.paymentMethodStats?.length) ||
+  Boolean(data.categoryStats?.length) ||
+  Boolean(data.dailyRevenues?.length)
+
+const hasChannelData = (data: ChannelSummaryDTO) =>
+  hasPositiveValue([data.totalRevenue || 0, data.totalRoomNights || 0]) ||
+  Boolean(data.revenueDistribution?.length) ||
+  Boolean(data.nightsDistribution?.length) ||
+  Boolean(data.channelDetails?.length)
+
+const hasSalesData = (data: SalesSummaryDTO) =>
+  hasPositiveValue([data.totalSales || 0]) ||
+  Boolean(data.totalOrders) ||
+  Boolean(data.totalRecords) ||
+  Boolean(data.orderDetails?.length)
 
 const loadChannelColorOverrides = async () => {
   if (!channelColorLoadPromise) {
@@ -1097,32 +1386,45 @@ const loadBusinessOverview = async () => {
 
     if (response.success && response.data) {
       const data = response.data
-      currentRevenuePrecision.value = data.revenuePrecision || null
 
       // 更新统计卡片数据
-      totalRevenue.value = data.totalRevenue
-      roomFee.value = data.roomFee
-      deposit.value = data.deposit
-      checkout.value = data.checkoutFee
-      roomService.value = data.roomServiceFee
+      totalRevenue.value = toNumber(data.totalRevenue)
+      roomFee.value = toNumber(data.roomFee)
+      deposit.value = toNumber(data.deposit)
+      checkout.value = toNumber(data.checkoutFee)
+      roomService.value = toNumber(data.roomServiceFee)
+      businessNotesIncome.value = toNumber(data.notesIncome)
+      businessNotesExpense.value = toNumber(data.notesExpense)
+      businessNetRevenue.value = toNumber(data.netRevenue)
 
       // 更新表格数据
-      businessDetailData.value = data.consumptionDetails.map(detail => ({
+      businessDetailData.value = (data.consumptionDetails || []).map(detail => ({
         category: translateBusinessCategory(detail.category),
-        total: detail.total,
-        ...createDailyAmountCells(detail.dailyAmounts),
+        total: toNumber(detail.total),
+        ...createDailyAmountCells(detail.dailyAmounts || []),
       }))
+      setTabSuccess(
+        'business',
+        hasBusinessData(data),
+        data.revenuePrecision,
+        data.sourceMetadata,
+        data.dataGaps,
+      )
 
       // 重新初始化图表
       await nextTick()
       initBusinessPieChart(data)
       initBusinessBarChart(data)
     } else {
-      ElMessage.error(response.message || t('stage5.dataCenter.overview.loadBusinessFailed'))
+      const message = response.message || t('stage5.dataCenter.overview.loadBusinessFailed')
+      setTabError('business', message)
+      ElMessage.error(message)
     }
   } catch (error) {
-    console.error(t('stage5.dataCenter.overview.loadBusinessFailed'), error)
-    ElMessage.error(t('stage5.dataCenter.overview.loadBusinessFailed'))
+    const message = t('stage5.dataCenter.overview.loadBusinessFailed')
+    setTabError('business', message)
+    console.error(message, error)
+    ElMessage.error(message)
   } finally {
     loading.value = false
   }
@@ -1147,59 +1449,125 @@ const loadRevenueSummary = async () => {
 
     if (response.success && response.data) {
       const data = response.data
-      currentRevenuePrecision.value = data.revenuePrecision || null
+      latestRevenueSummary.value = data
+      const dailyRevenues = data.dailyRevenues || []
+      revenueDailyRows.value = dailyRevenues
+      revenuePaymentStats.value = data.paymentMethodStats || []
 
       // 更新统计数据
-      revenueTotal.value = data.totalRevenue
-      splitAccount.value = data.splitAccount
-      actualReceived.value = data.actualReceived
-      bookingRevenue.value = resolvePaymentAmount(
-        data.paymentMethodStats,
-        PAYMENT_METHOD_KEYS.bookingCollection,
-      )
-      airbnbRevenue.value = resolvePaymentAmount(
-        data.paymentMethodStats,
-        PAYMENT_METHOD_KEYS.airbnbCollection,
-      )
+      revenueTotal.value = toNumber(data.totalRevenue)
+      splitAccount.value = toNumber(data.splitAccount)
+      actualReceived.value = toNumber(data.actualReceived)
+      revenueTotalIncome.value = toNumber(data.totalIncome)
+      revenueTotalExpense.value = toNumber(data.totalExpense)
+      revenueNetIncome.value = toNumber(data.netIncome)
 
       // 更新表格数据 - 支付方式
-      revenueTableData.value = data.paymentMethodStats.map(stat => ({
-        paymentMethod: translatePaymentMethod(stat.paymentMethod),
-        total: stat.amount,
-        ...createSingleDateAmountCells(stat.amount),
-      }))
+      const paymentRows: RevenueDetailItem[] = [
+        {
+          paymentMethod: t('stage5.statistics.revenue.totalIncome'),
+          total: revenueTotalIncome.value || sumDailyRevenueField(dailyRevenues, 'totalIncome'),
+          ...createDailyRevenueCells(dailyRevenues, 'totalIncome'),
+        },
+        {
+          paymentMethod: t('stage5.dataCenter.overview.splitAccount'),
+          total: splitAccount.value || sumDailyRevenueField(dailyRevenues, 'splitAccount'),
+          ...createDailyRevenueCells(dailyRevenues, 'splitAccount'),
+        },
+        {
+          paymentMethod: t('stage5.dataCenter.overview.actualReceived'),
+          total: actualReceived.value || sumDailyRevenueField(dailyRevenues, 'actualReceived'),
+          ...createDailyRevenueCells(dailyRevenues, 'actualReceived'),
+        },
+        {
+          paymentMethod: t('stage5.dataCenter.overview.paymentRefund'),
+          total: toNumber(data.paymentRefund) || sumDailyRevenueField(dailyRevenues, 'paymentRefund'),
+          ...createDailyRevenueCells(dailyRevenues, 'paymentRefund'),
+        },
+      ]
+      revenueTableData.value = paymentRows.filter((row) =>
+        Math.abs(toNumber(row.total)) > 0 ||
+        dateColumns.value.some((column) => Math.abs(toNumber(row[column.prop])) > 0),
+      )
 
       // 更新表格数据 - 款项分类
-      categoryRevenue.value = data.totalRevenue
-      categoryIncome.value = data.totalRevenue
-      categoryExpense.value = 0
+      categoryRevenue.value = toNumber(data.totalRevenue)
+      categoryIncome.value = revenueTotalIncome.value || categoryRevenue.value
+      categoryExpense.value = revenueTotalExpense.value
       normalRevenue.value =
-        resolveCategoryAmount(data.categoryStats, REVENUE_CATEGORY_KEYS.regularRevenue) ||
-        data.totalRevenue
-      arRevenue.value = resolveCategoryAmount(data.categoryStats, REVENUE_CATEGORY_KEYS.arMismatchRevenue)
-      notesRevenue.value = resolveCategoryAmount(data.categoryStats, REVENUE_CATEGORY_KEYS.notesRevenue)
+        toNumber(data.roomFee) + toNumber(data.deposit) + toNumber(data.roomServiceFee)
+      arRevenue.value = resolveCategoryAmount(data.categoryStats || [], REVENUE_CATEGORY_KEYS.arMismatchRevenue)
+      notesRevenue.value = toNumber(data.notesIncome)
 
-      categoryTableData.value = data.categoryStats.map(stat => ({
-        paymentMethod: translateRevenueCategory(stat.category),
-        total: stat.amount,
-        ...createSingleDateAmountCells(stat.amount),
-      }))
+      const categoryRows: RevenueDetailItem[] = [
+        {
+          paymentMethod: t('stage5.dataCenter.overview.taxIncludedRoomFee'),
+          total: toNumber(data.roomFee) || sumDailyRevenueField(dailyRevenues, 'roomFee'),
+          ...createDailyRevenueCells(dailyRevenues, 'roomFee'),
+        },
+        {
+          paymentMethod: t('stage5.statistics.common.deposit'),
+          total: toNumber(data.deposit) || sumDailyRevenueField(dailyRevenues, 'deposit'),
+          ...createDailyRevenueCells(dailyRevenues, 'deposit'),
+        },
+        {
+          paymentMethod: t('stage5.dataCenter.overview.roomService'),
+          total: toNumber(data.roomServiceFee) || sumDailyRevenueField(dailyRevenues, 'roomServiceFee'),
+          ...createDailyRevenueCells(dailyRevenues, 'roomServiceFee'),
+        },
+        {
+          paymentMethod: t('stage5.dataCenter.overview.notesIncome'),
+          total: toNumber(data.notesIncome) || sumDailyRevenueField(dailyRevenues, 'notesIncome'),
+          ...createDailyRevenueCells(dailyRevenues, 'notesIncome'),
+        },
+        {
+          paymentMethod: t('stage5.dataCenter.overview.notesExpense'),
+          total: toNumber(data.notesExpense) || sumDailyRevenueField(dailyRevenues, 'notesExpense'),
+          ...createDailyRevenueCells(dailyRevenues, 'notesExpense'),
+        },
+        {
+          paymentMethod: t('stage5.dataCenter.overview.paymentRefund'),
+          total: toNumber(data.paymentRefund) || sumDailyRevenueField(dailyRevenues, 'paymentRefund'),
+          ...createDailyRevenueCells(dailyRevenues, 'paymentRefund'),
+        },
+        {
+          paymentMethod: t('stage5.dataCenter.overview.netIncome'),
+          total: revenueNetIncome.value || sumDailyRevenueField(dailyRevenues, 'netIncome'),
+          ...createDailyRevenueCells(dailyRevenues, 'netIncome'),
+        },
+      ]
+      categoryTableData.value = categoryRows.filter((row) =>
+        Math.abs(toNumber(row.total)) > 0 ||
+        dateColumns.value.some((column) => Math.abs(toNumber(row[column.prop])) > 0),
+      )
+
+      setTabSuccess(
+        'revenue',
+        hasRevenueData(data),
+        data.revenuePrecision,
+        data.sourceMetadata,
+        data.dataGaps,
+      )
 
       // 重新初始化图表
       await nextTick()
       if (revenueSubTab.value === 'payment') {
         initRevenueDistChart(data)
-        initExpenseChart()
+        initExpenseChart(data)
       } else {
-        initCategoryDistChart()
-        initCategoryExpenseChart()
+        initCategoryDistChart(data)
+        initCategoryExpenseChart(data)
       }
     } else {
-      ElMessage.error(response.message || t('stage5.dataCenter.overview.loadRevenueFailed'))
+      const message = response.message || t('stage5.dataCenter.overview.loadRevenueFailed')
+      setTabError('revenue', message)
+      ElMessage.error(message)
     }
   } catch (error) {
-    console.error(t('stage5.dataCenter.overview.loadRevenueFailed'), error)
-    ElMessage.error(t('stage5.dataCenter.overview.loadRevenueFailed'))
+    const message = t('stage5.dataCenter.overview.loadRevenueFailed')
+    setTabError('revenue', message)
+    console.error(message, error)
+    ElMessage.error(message)
   } finally {
     loading.value = false
   }
@@ -1225,7 +1593,6 @@ const loadChannelSummary = async () => {
 
     if (response.success && response.data) {
       const data = response.data
-      currentRevenuePrecision.value = data.revenuePrecision || null
 
       // 更新表格数据
       const channelFeeData = data.channelDetails.map((detail) => {
@@ -1251,6 +1618,7 @@ const loadChannelSummary = async () => {
       } else {
         channelTableData.value = channelNightsData
       }
+      setTabSuccess('channel', hasChannelData(data), data.revenuePrecision)
 
       // 重新初始化图表
       await nextTick()
@@ -1259,11 +1627,15 @@ const loadChannelSummary = async () => {
       initChannelRevenueTrendChart(data)
       initChannelNightsTrendChart(data)
     } else {
-      ElMessage.error(response.message || t('stage5.dataCenter.overview.loadChannelFailed'))
+      const message = response.message || t('stage5.dataCenter.overview.loadChannelFailed')
+      setTabError('channel', message)
+      ElMessage.error(message)
     }
   } catch (error) {
-    console.error(t('stage5.dataCenter.overview.loadChannelFailed'), error)
-    ElMessage.error(t('stage5.dataCenter.overview.loadChannelFailed'))
+    const message = t('stage5.dataCenter.overview.loadChannelFailed')
+    setTabError('channel', message)
+    console.error(message, error)
+    ElMessage.error(message)
   } finally {
     loading.value = false
   }
@@ -1290,17 +1662,21 @@ const loadSalesSummary = async (resetPage = false) => {
       endDate: endDate.value,
       keyword: searchKeyword.value || undefined,
       channelId: searchChannel.value || undefined,
+      customer: searchGuest.value || undefined,
+      page: salesCurrentPage.value,
+      pageSize: salesPageSize,
     })
 
     if (response.success && response.data) {
       const data = response.data
-      currentRevenuePrecision.value = data.revenuePrecision || null
 
       // 更新统计数据
-      salesTotal.value = data.totalSales
+      salesTotal.value = toNumber(data.totalSales)
+      const orderDetails = data.orderDetails || []
+      salesTableTotal.value = data.totalRecords ?? data.totalOrders ?? orderDetails.length
 
       // 更新表格数据
-      salesTableData.value = data.orderDetails.map(order => ({
+      salesTableData.value = orderDetails.map(order => ({
         createdAt: order.createdAt,
         guestName: order.guestName,
         orderNumber: order.orderNumber,
@@ -1308,25 +1684,28 @@ const loadSalesSummary = async (resetPage = false) => {
         channel: order.channelName,
         customerName: order.customerName,
         phone: order.phone,
-        amount: order.amount
+        amount: toNumber(order.amount),
+        allocatedAmount: toNumber(order.allocatedAmount ?? order.amount),
+        totalAmount: toNumber(order.totalAmount ?? order.amount),
       }))
-
-      // Current pagination is client-side over the returned orderDetails.
-      // For real server-side pagination, sales-summary should accept page/pageSize and return total.
-      const maxPage = Math.max(1, Math.ceil(salesTableData.value.length / salesPageSize))
-      if (salesCurrentPage.value > maxPage) {
-        salesCurrentPage.value = maxPage
+      if (data.page && data.page !== salesCurrentPage.value) {
+        salesCurrentPage.value = data.page
       }
+      setTabSuccess('sales', hasSalesData(data), data.revenuePrecision)
 
       // 重新初始化图表
       await nextTick()
       initSalesTrendChart(data)
     } else {
-      ElMessage.error(response.message || t('stage5.dataCenter.overview.loadSalesFailed'))
+      const message = response.message || t('stage5.dataCenter.overview.loadSalesFailed')
+      setTabError('sales', message)
+      ElMessage.error(message)
     }
   } catch (error) {
-    console.error(t('stage5.dataCenter.overview.loadSalesFailed'), error)
-    ElMessage.error(t('stage5.dataCenter.overview.loadSalesFailed'))
+    const message = t('stage5.dataCenter.overview.loadSalesFailed')
+    setTabError('sales', message)
+    console.error(message, error)
+    ElMessage.error(message)
   } finally {
     loading.value = false
   }
@@ -1336,6 +1715,11 @@ const loadSalesSummary = async (resetPage = false) => {
  * 根据当前标签页加载对应数据
  */
 const loadCurrentTabData = () => {
+  if (activeTab.value === 'revenue' && !canViewRevenue.value) {
+    activeTab.value = 'business'
+    ElMessage.warning(t('stage5.dataCenter.overview.revenuePermissionRequired'))
+    return
+  }
   if (activeTab.value === 'business') {
     loadBusinessOverview()
   } else if (activeTab.value === 'revenue') {
@@ -1347,7 +1731,37 @@ const loadCurrentTabData = () => {
   }
 }
 
+const syncTabQuery = () => {
+  if (route.query.tab === activeTab.value) {
+    return
+  }
+  router.replace({
+    path: route.path,
+    query: {
+      ...route.query,
+      tab: activeTab.value,
+    },
+  })
+}
+
 // ==================== 图表初始化函数 ====================
+
+const createEmptyChartOption = (message = t('stage5.dataCenter.overview.noData')) => ({
+  graphic: {
+    type: 'text',
+    left: 'center',
+    top: 'middle',
+    style: {
+      text: message,
+      fill: '#8a8f99',
+      fontSize: 14,
+      fontWeight: 500,
+    },
+  },
+  xAxis: { show: false },
+  yAxis: { show: false },
+  series: [],
+})
 
 // 初始化营业概况饼图
 const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
@@ -1360,18 +1774,16 @@ const initBusinessPieChart = (data?: BusinessOverviewDTO) => {
 
   businessPie = echarts.init(businessPieChart.value)
 
-  const fallbackPieData = [
-    { value: roomFee.value || 190.65, name: t('stage5.statistics.common.roomFee') },
-    { value: checkout.value || 190.65, name: t('stage5.dataCenter.overview.checkoutRefund') },
-    { value: deposit.value || 190.65, name: t('stage5.statistics.common.deposit') },
-    { value: roomService.value || 190.65, name: t('stage5.dataCenter.overview.roomService') },
-  ]
-  const pieChartData = data?.categoryDistribution?.length
-    ? data.categoryDistribution.map((item) => ({
-        value: item.value,
-        name: translateBusinessCategory(item.category),
-      }))
-    : fallbackPieData
+  const pieChartData = (data?.categoryDistribution || [])
+    .map((item) => ({
+      value: toNumber(item.value),
+      name: translateBusinessCategory(item.category),
+    }))
+    .filter((item) => item.value > 0)
+  if (!pieChartData.length) {
+    businessPie.setOption(createEmptyChartOption())
+    return
+  }
   const pieTotal = pieChartData.reduce((sum, item) => sum + Number(item.value || 0), 0)
   const pieColors = ['#5a7df6', '#ffa59a', '#9d7df8', '#ffe7b5']
 
@@ -1463,20 +1875,9 @@ type BusinessTrendBarItem = {
   checkoutFee: number
   roomServiceFee: number
   deposit: number
+  notesIncome: number
+  notesExpense: number
 }
-
-const MOCK_BUSINESS_TREND_BARS: BusinessTrendBarItem[] = [
-  // TODO(backend): remove once the API reliably returns monthly trend data for the selected period.
-  { label: '5月', roomFee: 19000, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
-  { label: '6月', roomFee: 10500, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
-  { label: '7月', roomFee: 12200, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
-  { label: '8月', roomFee: 16000, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
-  { label: '9月', roomFee: 28000, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
-  { label: '10月', roomFee: 0, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
-  { label: '11月', roomFee: 0, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
-  { label: '12月', roomFee: 0, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
-  { label: '1月', roomFee: 0, checkoutFee: 0, roomServiceFee: 0, deposit: 0 },
-]
 
 const formatBusinessTrendDate = (dateText: string): string => {
   if (!dateText) return ''
@@ -1510,7 +1911,9 @@ const buildBusinessTrendBars = (
       roomFee: item.roomFee || 0,
       checkoutFee: item.checkoutFee || 0,
       roomServiceFee: item.roomServiceFee || 0,
-      deposit: item.deposit || 0
+      deposit: item.deposit || 0,
+      notesIncome: item.notesIncome || 0,
+      notesExpense: item.notesExpense || 0,
     }))
   }
 
@@ -1530,7 +1933,9 @@ const buildBusinessTrendBars = (
       roomFee: bucket.reduce((sum, item) => sum + (item.roomFee || 0), 0),
       checkoutFee: bucket.reduce((sum, item) => sum + (item.checkoutFee || 0), 0),
       roomServiceFee: bucket.reduce((sum, item) => sum + (item.roomServiceFee || 0), 0),
-      deposit: bucket.reduce((sum, item) => sum + (item.deposit || 0), 0)
+      deposit: bucket.reduce((sum, item) => sum + (item.deposit || 0), 0),
+      notesIncome: bucket.reduce((sum, item) => sum + (item.notesIncome || 0), 0),
+      notesExpense: bucket.reduce((sum, item) => sum + (item.notesExpense || 0), 0),
     })
   }
 
@@ -1547,15 +1952,23 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
 
   businessBar = echarts.init(businessBarChart.value)
 
-  const apiBars = buildBusinessTrendBars(data?.consumptionTrend || [])
-  const barData = apiBars.length ? apiBars : MOCK_BUSINESS_TREND_BARS
+  const barData = buildBusinessTrendBars(data?.consumptionTrend || [])
+  if (!barData.length) {
+    businessBar.setOption(createEmptyChartOption())
+    return
+  }
   const dates = barData.map((item) => item.label)
   const revenueData = barData.map(
-    (item) => item.roomFee + item.checkoutFee + item.roomServiceFee + item.deposit,
+    (item) =>
+      item.roomFee +
+      item.checkoutFee +
+      item.roomServiceFee +
+      item.deposit +
+      item.notesIncome -
+      item.notesExpense,
   )
-  const maxRevenue = Math.max(...revenueData, 40000)
+  const maxRevenue = Math.max(...revenueData, 1)
   const yMax = Math.ceil(maxRevenue / 10000) * 10000
-  const salesBackgroundData = dates.map(() => yMax)
   const xAxisLabelInterval = Math.max(0, Math.ceil(dates.length / 8) - 1)
 
   const option = {
@@ -1566,11 +1979,10 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
       },
       formatter: (params: any) => {
         if (!params || !params.length) return ''
-        const revenueItem = params.find((item: any) => item.seriesName === '总营业额')
+        const revenueItem = params.find((item: any) => item.seriesName === t('stage5.dataCenter.overview.netRevenue'))
         return [
           `<strong>${params[0].axisValue}</strong>`,
-          `${revenueItem?.marker || ''}总销售&nbsp;&nbsp;&nbsp;&nbsp;${apiBars.length ? '-' : '440'}`,
-          `${revenueItem?.marker || ''}总营业额&nbsp;&nbsp;¥${formatMoney(revenueItem?.value || 0)}`,
+          `${revenueItem?.marker || ''}${t('stage5.dataCenter.overview.netRevenue')}&nbsp;&nbsp;¥${formatMoney(revenueItem?.value || 0)}`,
         ].join('<br/>')
       },
       backgroundColor: '#ffffff',
@@ -1584,7 +1996,7 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
       extraCssText: 'box-shadow:0 6px 18px rgba(0,0,0,0.18);border-radius:4px;',
     },
     legend: {
-      data: ['总销售', '总营业额'],
+      data: [t('stage5.dataCenter.overview.netRevenue')],
       bottom: 0,
       left: 'center',
       itemWidth: 10,
@@ -1644,25 +2056,7 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
     },
     series: [
       {
-        // TODO(backend): replace this visual background with a real total-sales series when available.
-        name: '总销售',
-        type: 'bar',
-        barWidth: 34,
-        barGap: '-100%',
-        data: salesBackgroundData,
-        itemStyle: {
-          color: '#f0f0f0',
-          borderRadius: [5, 5, 0, 0],
-        },
-        emphasis: {
-          disabled: true,
-        },
-        tooltip: {
-          show: false,
-        },
-      },
-      {
-        name: '总营业额',
+        name: t('stage5.dataCenter.overview.netRevenue'),
         type: 'bar',
         barWidth: 34,
         data: revenueData,
@@ -1675,7 +2069,7 @@ const initBusinessBarChart = (data?: BusinessOverviewDTO) => {
         },
       },
     ],
-    color: ['#efefef', '#5ea8f4'],
+    color: ['#5ea8f4'],
   }
 
   businessBar.setOption(option)
@@ -1688,20 +2082,17 @@ const initRevenueDistChart = (data?: RevenueSummaryDTO) => {
   if (revenueDist) revenueDist.dispose()
   revenueDist = echarts.init(revenueDistChart.value)
 
-  const chartData = (
-    data?.paymentMethodStats?.length
-      ? data.paymentMethodStats.map((stat) => ({
-          value: stat.amount,
-          name: translatePaymentMethod(stat.paymentMethod),
-        }))
-      : revenueTableData.value.map((row) => ({
-          value: Number(row.total || 0),
-          name: String(row.paymentMethod),
-        }))
-  ).filter((item) => Number(item.value) > 0)
-  const visibleChartData = chartData.length
-    ? chartData
-    : [{ value: 0, name: t('stage5.dataCenter.overview.collectionDistribution') }]
+  const chartData = (data?.paymentMethodStats || [])
+    .map((stat) => ({
+      value: toNumber(stat.amount),
+      name: translatePaymentMethod(stat.paymentMethod),
+    }))
+    .filter((item) => Number(item.value) > 0)
+  if (!chartData.length) {
+    revenueDist.setOption(createEmptyChartOption())
+    return
+  }
+  const visibleChartData = chartData
   const total = visibleChartData.reduce((sum, item) => sum + Number(item.value || 0), 0)
 
   const option = {
@@ -1780,11 +2171,23 @@ const initRevenueDistChart = (data?: RevenueSummaryDTO) => {
 }
 
 // 初始化总支出饼图
-const initExpenseChart = () => {
+const initExpenseChart = (data?: RevenueSummaryDTO) => {
   if (!expenseChart.value) return
 
   if (expense) expense.dispose()
   expense = echarts.init(expenseChart.value)
+
+  const chartData = (data?.expenseDistribution || [])
+    .map((item) => ({
+      value: toNumber(item.value),
+      name: item.name,
+    }))
+    .filter((item) => item.value > 0)
+  if (!chartData.length) {
+    expense.setOption(createEmptyChartOption())
+    return
+  }
+  const total = chartData.reduce((sum, item) => sum + item.value, 0)
 
   const option = {
     tooltip: {
@@ -1807,7 +2210,7 @@ const initExpenseChart = () => {
       left: 'center',
       top: '48%',
       style: {
-        text: '0.00',
+        text: formatMoney(total),
         fill: '#111111',
         fontSize: 24,
         fontWeight: 700,
@@ -1820,14 +2223,13 @@ const initExpenseChart = () => {
         type: 'pie',
         radius: ['56%', '74%'],
         center: ['50%', '45%'],
-        data: [
-          { value: 0, name: t('stage5.dataCenter.overview.totalExpense') }
-        ],
+        data: chartData,
         itemStyle: {
           color: '#dcecff',
         },
         label: {
-          show: false,
+          show: true,
+          formatter: (params: any) => `${params.percent}% ${params.name}\n¥${formatMoney(params.value)}`,
         },
       },
     ],
@@ -1837,21 +2239,23 @@ const initExpenseChart = () => {
 }
 
 // 初始化款项分类收款分布饼图
-const initCategoryDistChart = () => {
+const initCategoryDistChart = (data?: RevenueSummaryDTO) => {
   if (!categoryDistChart.value) return
 
   if (categoryDistChart_instance) categoryDistChart_instance.dispose()
   categoryDistChart_instance = echarts.init(categoryDistChart.value)
 
-  const chartData = categoryTableData.value
+  const chartData = (data?.incomeDistribution || [])
     .map((row) => ({
-      value: Number(row.total || 0),
-      name: String(row.paymentMethod),
+      value: toNumber(row.value),
+      name: row.name,
     }))
     .filter((item) => item.value > 0)
-  const visibleChartData = chartData.length
-    ? chartData
-    : [{ value: 0, name: t('stage5.dataCenter.overview.collectionDistribution') }]
+  if (!chartData.length) {
+    categoryDistChart_instance.setOption(createEmptyChartOption())
+    return
+  }
+  const visibleChartData = chartData
   const total = visibleChartData.reduce((sum, item) => sum + Number(item.value || 0), 0)
 
   const option = {
@@ -1926,11 +2330,23 @@ const initCategoryDistChart = () => {
 }
 
 // 初始化款项分类总支出饼图
-const initCategoryExpenseChart = () => {
+const initCategoryExpenseChart = (data?: RevenueSummaryDTO) => {
   if (!categoryExpenseChart.value) return
 
   if (categoryExpenseChart_instance) categoryExpenseChart_instance.dispose()
   categoryExpenseChart_instance = echarts.init(categoryExpenseChart.value)
+
+  const chartData = (data?.expenseDistribution || [])
+    .map((item) => ({
+      value: toNumber(item.value),
+      name: item.name,
+    }))
+    .filter((item) => item.value > 0)
+  if (!chartData.length) {
+    categoryExpenseChart_instance.setOption(createEmptyChartOption())
+    return
+  }
+  const total = chartData.reduce((sum, item) => sum + item.value, 0)
 
   const option = {
     tooltip: {
@@ -1954,7 +2370,7 @@ const initCategoryExpenseChart = () => {
       left: 'center',
       top: '48%',
       style: {
-        text: formatMoney(Math.abs(categoryExpense.value)),
+        text: formatMoney(total),
         fill: '#111111',
         fontSize: 24,
         fontWeight: 700,
@@ -1967,9 +2383,7 @@ const initCategoryExpenseChart = () => {
         type: 'pie',
         radius: ['56%', '74%'],
         center: ['50%', '45%'],
-        data: [
-          { value: Math.abs(categoryExpense.value), name: t('stage5.dataCenter.overview.regularRevenue') }
-        ],
+        data: chartData,
         itemStyle: {
           borderRadius: 0,
           borderColor: '#fff',
@@ -2268,6 +2682,11 @@ const initChannelRevenueChart = (data?: ChannelSummaryDTO) => {
     percentage: item.percentage,
   })) : []
 
+  if (!chartData.filter((item) => toNumber(item.value) > 0).length) {
+    channelRevenue.setOption(createEmptyChartOption())
+    return
+  }
+
   const option = createChannelDonutOption(
     t('stage5.dataCenter.overview.channelConsumptionDistribution'),
     chartData,
@@ -2290,6 +2709,11 @@ const initChannelNightsChart = (data?: ChannelSummaryDTO) => {
     percentage: item.percentage,
   })) : []
 
+  if (!chartData.filter((item) => toNumber(item.value) > 0).length) {
+    channelNights.setOption(createEmptyChartOption())
+    return
+  }
+
   const option = createChannelDonutOption(
     t('stage5.dataCenter.overview.channelNightsDistribution'),
     chartData,
@@ -2306,7 +2730,12 @@ const initChannelRevenueTrendChart = (data?: ChannelSummaryDTO) => {
   if (channelRevenueTrend) channelRevenueTrend.dispose()
   channelRevenueTrend = echarts.init(channelRevenueTrendChart.value)
 
-  const option = createChannelTrendOption(data?.revenueTrend || [], (value) => `¥${formatMoney(value)}`)
+  const trend = data?.revenueTrend || []
+  if (!trend.length) {
+    channelRevenueTrend.setOption(createEmptyChartOption())
+    return
+  }
+  const option = createChannelTrendOption(trend, (value) => `¥${formatMoney(value)}`)
 
   channelRevenueTrend.setOption(option)
 }
@@ -2318,7 +2747,12 @@ const initChannelNightsTrendChart = (data?: ChannelSummaryDTO) => {
   if (channelNightsTrend) channelNightsTrend.dispose()
   channelNightsTrend = echarts.init(channelNightsTrendChart.value)
 
-  const option = createChannelTrendOption(data?.nightsTrend || [])
+  const trend = data?.nightsTrend || []
+  if (!trend.length) {
+    channelNightsTrend.setOption(createEmptyChartOption())
+    return
+  }
+  const option = createChannelTrendOption(trend)
 
   channelNightsTrend.setOption(option)
 }
@@ -2331,8 +2765,12 @@ const initSalesTrendChart = (data?: SalesSummaryDTO) => {
   salesTrend = echarts.init(salesTrendChart.value)
 
   // 使用API数据或默认数据
-  const dates = data ? data.dailySalesTrend.map(item => item.date) : []
-  const salesData = data ? data.dailySalesTrend.map(item => item.sales) : []
+  const dates = data ? (data.dailySalesTrend || []).map(item => item.date) : []
+  const salesData = data ? (data.dailySalesTrend || []).map(item => item.sales) : []
+  if (!dates.length) {
+    salesTrend.setOption(createEmptyChartOption())
+    return
+  }
 
   const option = {
     tooltip: {
@@ -2454,11 +2892,11 @@ const handleRevenueSubTabChange = async (tab: string) => {
   await nextTick()
 
   if (tab === 'payment') {
-    initRevenueDistChart()
-    initExpenseChart()
+    initRevenueDistChart(latestRevenueSummary.value || undefined)
+    initExpenseChart(latestRevenueSummary.value || undefined)
   } else if (tab === 'category') {
-    initCategoryDistChart()
-    initCategoryExpenseChart()
+    initCategoryDistChart(latestRevenueSummary.value || undefined)
+    initCategoryExpenseChart(latestRevenueSummary.value || undefined)
   }
 
   handleResize()
@@ -2473,6 +2911,17 @@ const handleChannelTableTabChange = (tab: string) => {
 
 let salesSearchTimer: ReturnType<typeof setTimeout> | null = null
 
+const scheduleSalesSearch = () => {
+  if (activeTab.value !== 'sales') return
+  if (salesSearchTimer) {
+    clearTimeout(salesSearchTimer)
+  }
+  salesSearchTimer = setTimeout(() => {
+    loadSalesSummary(true)
+    salesSearchTimer = null
+  }, 400)
+}
+
 const handleSalesSearch = () => {
   if (activeTab.value !== 'sales') return
   if (salesSearchTimer) {
@@ -2482,8 +2931,19 @@ const handleSalesSearch = () => {
   loadSalesSummary(true)
 }
 
+const handleSalesPageChange = (page: number) => {
+  salesCurrentPage.value = page
+  loadSalesSummary(false)
+}
+
 // 标签页切换处理
 const handleTabChange = async () => {
+  if (activeTab.value === 'revenue' && !canViewRevenue.value) {
+    activeTab.value = 'business'
+    ElMessage.warning(t('stage5.dataCenter.overview.revenuePermissionRequired'))
+    return
+  }
+  syncTabQuery()
   await nextTick()
 
   if (activeTab.value === 'business') {
@@ -2492,11 +2952,11 @@ const handleTabChange = async () => {
   } else if (activeTab.value === 'revenue') {
     // 根据当前子标签初始化对应图表
     if (revenueSubTab.value === 'payment') {
-      initRevenueDistChart()
-      initExpenseChart()
+      initRevenueDistChart(latestRevenueSummary.value || undefined)
+      initExpenseChart(latestRevenueSummary.value || undefined)
     } else if (revenueSubTab.value === 'category') {
-      initCategoryDistChart()
-      initCategoryExpenseChart()
+      initCategoryDistChart(latestRevenueSummary.value || undefined)
+      initCategoryExpenseChart(latestRevenueSummary.value || undefined)
     }
   } else if (activeTab.value === 'channel') {
     initChannelRevenueChart()
@@ -2566,7 +3026,30 @@ watch([startDate, endDate], () => {
 
 // 监听标签页切换
 watch(activeTab, () => {
+  syncTabQuery()
   loadCurrentTabData()
+})
+
+watch(
+  () => route.query.tab,
+  () => {
+    const nextTab = resolveTabFromQuery()
+    if (nextTab === 'revenue' && !canViewRevenue.value) {
+      activeTab.value = 'business'
+      ElMessage.warning(t('stage5.dataCenter.overview.revenuePermissionRequired'))
+      return
+    }
+    if (nextTab !== activeTab.value) {
+      activeTab.value = nextTab
+    }
+  },
+)
+
+watch(canViewRevenue, (allowed) => {
+  if (!allowed && activeTab.value === 'revenue') {
+    activeTab.value = 'business'
+    ElMessage.warning(t('stage5.dataCenter.overview.revenuePermissionRequired'))
+  }
 })
 
 // 语言切换后刷新当前页数据和图表文案
@@ -2575,17 +3058,17 @@ watch(locale, () => {
 })
 
 watch(searchKeyword, () => {
-  if (activeTab.value !== 'sales') return
-  if (salesSearchTimer) {
-    clearTimeout(salesSearchTimer)
-  }
-  salesSearchTimer = setTimeout(() => {
-    loadSalesSummary(true)
-    salesSearchTimer = null
-  }, 400)
+  scheduleSalesSearch()
+})
+
+watch(searchGuest, () => {
+  scheduleSalesSearch()
 })
 
 onMounted(() => {
+  if (activeTab.value === 'revenue' && !canViewRevenue.value) {
+    activeTab.value = 'business'
+  }
   // 初始化日期为今天
   updateDateRange(dateType.value)
 
@@ -2730,6 +3213,57 @@ onBeforeUnmount(() => {
   line-height: 1.45;
 }
 
+.data-quality-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.data-quality-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #5f6670;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.data-quality-label {
+  color: #30343b;
+  font-weight: 600;
+}
+
+.data-quality-chip,
+.data-gap-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #f5f9ff;
+  color: #42526a;
+}
+
+.data-gap-chip {
+  background: #fff7e8;
+  color: #8a5a12;
+}
+
+.tab-state-alert {
+  margin-bottom: 10px;
+}
+
+.tab-empty {
+  min-height: 320px;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
 .date-separator {
   color: #606266;
   font-size: 14px;
@@ -2814,7 +3348,7 @@ onBeforeUnmount(() => {
 /* 营业概况样式 */
 .stats-section {
   display: grid;
-  grid-template-columns: 1.25fr repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -2915,6 +3449,10 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 500;
   line-height: 20px;
+}
+
+.stat-change.unavailable {
+  background: #c6ccd4;
 }
 
 .stat-change-icon {
@@ -3345,8 +3883,8 @@ onBeforeUnmount(() => {
 }
 
 .sales-filter-select {
-  width: 120px;
-  flex: 0 0 120px;
+  width: 190px;
+  flex: 0 0 190px;
 }
 
 .sales-search-section :deep(.el-input__wrapper),

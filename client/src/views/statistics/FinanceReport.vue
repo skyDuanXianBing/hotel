@@ -3,12 +3,26 @@
     <div class="finance-report-container">
       <h2 class="page-title">{{ t('stage5.statistics.reports.financeReport') }}</h2>
 
+      <div class="report-filter">
+        <el-date-picker
+          v-model="reportDateRange"
+          type="daterange"
+          :start-placeholder="t('stage5.common.date.startDate')"
+          :end-placeholder="t('stage5.common.date.endDate')"
+          :range-separator="t('stage5.common.date.rangeTo')"
+          format="YYYY/MM/DD"
+          value-format="YYYY-MM-DD"
+          :clearable="false"
+        />
+      </div>
+
       <div class="reports-grid">
         <div
           v-for="report in reports"
           :key="report.type"
           class="report-item"
-          @click="downloadReport(report.type)"
+          :class="{ 'is-loading': loadingReport === report.type }"
+          @click="downloadReport(report)"
         >
           <div class="report-icon">
             <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
@@ -27,24 +41,70 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import StatisticsLayout from './StatisticsLayout.vue'
+import { exportNotesReport } from '@/api/notes'
+import {
+  downloadStatisticsReport,
+  getStatisticsReportErrorMessage,
+  saveBlobDownload,
+} from '@/api/statistics'
+import { getStoreTodayYmd, getYmdMonthStart } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
+const today = getStoreTodayYmd()
+const startDate = ref(getYmdMonthStart(today))
+const endDate = ref(today)
+const loadingReport = ref('')
 
-const reports = [
+type ReportItem = {
+  type: 'transaction-summary' | 'notes-detail'
+  labelKey: string
+}
+
+const reportDateRange = computed<string[]>({
+  get: () => [startDate.value, endDate.value],
+  set: (value: string[]) => {
+    const [start, end] = value || []
+    startDate.value = start || today
+    endDate.value = end || today
+  },
+})
+
+const reports: ReportItem[] = [
   { type: 'transaction-summary', labelKey: 'stage5.statistics.reports.transactionSummary' },
   { type: 'notes-detail', labelKey: 'stage5.statistics.reports.notesDetail' },
 ]
 
-const downloadReport = (reportType: string) => {
-  const report = reports.find((item) => item.type === reportType)
-  const name = report ? t(report.labelKey) : reportType
-  ElMessage.info(t('stage5.statistics.reports.generating', { name }))
-
-  // TODO: 实现实际的报表下载逻辑
-  // 这里可以调用后端API生成Excel报表并下载
+const downloadReport = async (report: ReportItem) => {
+  try {
+    loadingReport.value = report.type
+    const params = {
+      startDate: startDate.value,
+      endDate: endDate.value,
+    }
+    if (report.type === 'notes-detail') {
+      const blob = await exportNotesReport(params)
+      saveBlobDownload({
+        blob,
+        fileName: `${report.type}-${startDate.value}-${endDate.value}.csv`,
+      })
+    } else {
+      const download = await downloadStatisticsReport(report.type, params)
+      saveBlobDownload(download)
+    }
+  } catch (error) {
+    console.error('Failed to download finance report:', error)
+    const message = await getStatisticsReportErrorMessage(
+      error,
+      t('stage5.statistics.reports.downloadFailed'),
+    )
+    ElMessage.error(message)
+  } finally {
+    loadingReport.value = ''
+  }
 }
 </script>
 
@@ -60,6 +120,15 @@ const downloadReport = (reportType: string) => {
   font-weight: 600;
   color: #303133;
   margin: 0 0 32px 0;
+}
+
+.report-filter {
+  display: flex;
+  margin-bottom: 24px;
+}
+
+.report-filter :deep(.el-date-editor) {
+  width: 320px;
 }
 
 .reports-grid {

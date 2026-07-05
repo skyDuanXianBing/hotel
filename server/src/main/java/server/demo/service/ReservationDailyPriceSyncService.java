@@ -118,7 +118,7 @@ public class ReservationDailyPriceSyncService {
 
         List<ReservationDailyPrice> savedRows = dailyPriceRepository.saveAll(rows);
         for (ReservationDailyPrice row : savedRows) {
-            dailyPriceLogger.info(
+            dailyPriceLogger.debug(
                     "[ReservationDailyPrice] saved source=SU_DAILY_PRICE storeId={} suReservationId={} roomReservationId={} reservationId={} date={} priceBeforeTax={} tax={} priceAfterTax={} currency={}",
                     row.getStoreId(),
                     row.getSuReservationId(),

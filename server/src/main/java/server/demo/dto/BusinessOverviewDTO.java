@@ -22,8 +22,23 @@ public class BusinessOverviewDTO {
     // 餐食/客房消费
     private BigDecimal roomServiceFee;
 
+    // 记一笔收入
+    private BigDecimal notesIncome;
+
+    // 记一笔支出
+    private BigDecimal notesExpense;
+
+    // 净收入
+    private BigDecimal netRevenue;
+
     // 收入口径元数据
     private RevenuePrecisionDTO revenuePrecision;
+
+    // 数据来源元数据
+    private List<StatisticsSourceMetadataDTO> sourceMetadata;
+
+    // 当前模型无法稳定支撑的数据缺口
+    private List<StatisticsDataGapDTO> dataGaps;
 
     // 消费分类分布(用于饼图)
     private List<CategoryDistribution> categoryDistribution;
@@ -78,12 +93,52 @@ public class BusinessOverviewDTO {
         this.roomServiceFee = roomServiceFee;
     }
 
+    public BigDecimal getNotesIncome() {
+        return notesIncome;
+    }
+
+    public void setNotesIncome(BigDecimal notesIncome) {
+        this.notesIncome = notesIncome;
+    }
+
+    public BigDecimal getNotesExpense() {
+        return notesExpense;
+    }
+
+    public void setNotesExpense(BigDecimal notesExpense) {
+        this.notesExpense = notesExpense;
+    }
+
+    public BigDecimal getNetRevenue() {
+        return netRevenue;
+    }
+
+    public void setNetRevenue(BigDecimal netRevenue) {
+        this.netRevenue = netRevenue;
+    }
+
     public RevenuePrecisionDTO getRevenuePrecision() {
         return revenuePrecision;
     }
 
     public void setRevenuePrecision(RevenuePrecisionDTO revenuePrecision) {
         this.revenuePrecision = revenuePrecision;
+    }
+
+    public List<StatisticsSourceMetadataDTO> getSourceMetadata() {
+        return sourceMetadata;
+    }
+
+    public void setSourceMetadata(List<StatisticsSourceMetadataDTO> sourceMetadata) {
+        this.sourceMetadata = sourceMetadata;
+    }
+
+    public List<StatisticsDataGapDTO> getDataGaps() {
+        return dataGaps;
+    }
+
+    public void setDataGaps(List<StatisticsDataGapDTO> dataGaps) {
+        this.dataGaps = dataGaps;
     }
 
     public List<CategoryDistribution> getCategoryDistribution() {
@@ -160,6 +215,8 @@ public class BusinessOverviewDTO {
         private BigDecimal deposit; // 押金
         private BigDecimal checkoutFee; // 退房金
         private BigDecimal roomServiceFee; // 餐食/客房消费
+        private BigDecimal notesIncome; // 记一笔收入
+        private BigDecimal notesExpense; // 记一笔支出
 
         public DailyConsumption() {}
 
@@ -211,6 +268,22 @@ public class BusinessOverviewDTO {
         public void setRoomServiceFee(BigDecimal roomServiceFee) {
             this.roomServiceFee = roomServiceFee;
         }
+
+        public BigDecimal getNotesIncome() {
+            return notesIncome;
+        }
+
+        public void setNotesIncome(BigDecimal notesIncome) {
+            this.notesIncome = notesIncome;
+        }
+
+        public BigDecimal getNotesExpense() {
+            return notesExpense;
+        }
+
+        public void setNotesExpense(BigDecimal notesExpense) {
+            this.notesExpense = notesExpense;
+        }
     }
 
     /**
@@ -220,6 +293,8 @@ public class BusinessOverviewDTO {
         private String category; // 项目类别
         private BigDecimal total; // 总计
         private List<DailyAmount> dailyAmounts; // 每日金额列表
+        private String sourceType; // 数据来源类型
+        private Boolean unsupported; // 是否为当前模型不支持项
 
         public ConsumptionDetail() {}
 
@@ -251,6 +326,22 @@ public class BusinessOverviewDTO {
 
         public void setDailyAmounts(List<DailyAmount> dailyAmounts) {
             this.dailyAmounts = dailyAmounts;
+        }
+
+        public String getSourceType() {
+            return sourceType;
+        }
+
+        public void setSourceType(String sourceType) {
+            this.sourceType = sourceType;
+        }
+
+        public Boolean getUnsupported() {
+            return unsupported;
+        }
+
+        public void setUnsupported(Boolean unsupported) {
+            this.unsupported = unsupported;
         }
 
         /**

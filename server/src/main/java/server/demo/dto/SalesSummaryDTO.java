@@ -14,6 +14,18 @@ public class SalesSummaryDTO {
     // 总订单数
     private Integer totalOrders;
 
+    // 当前页码
+    private Integer page;
+
+    // 每页数量
+    private Integer pageSize;
+
+    // 总记录数
+    private Integer totalRecords;
+
+    // 总页数
+    private Integer totalPages;
+
     // 每日销售额趋势(折线图)
     private List<DailySales> dailySalesTrend;
 
@@ -41,6 +53,38 @@ public class SalesSummaryDTO {
 
     public void setTotalOrders(Integer totalOrders) {
         this.totalOrders = totalOrders;
+    }
+
+    public Integer getPage() {
+        return page;
+    }
+
+    public void setPage(Integer page) {
+        this.page = page;
+    }
+
+    public Integer getPageSize() {
+        return pageSize;
+    }
+
+    public void setPageSize(Integer pageSize) {
+        this.pageSize = pageSize;
+    }
+
+    public Integer getTotalRecords() {
+        return totalRecords;
+    }
+
+    public void setTotalRecords(Integer totalRecords) {
+        this.totalRecords = totalRecords;
+    }
+
+    public Integer getTotalPages() {
+        return totalPages;
+    }
+
+    public void setTotalPages(Integer totalPages) {
+        this.totalPages = totalPages;
     }
 
     public List<DailySales> getDailySalesTrend() {
@@ -120,10 +164,13 @@ public class SalesSummaryDTO {
         private String channelName; // 渠道
         private String customerName; // 客户名
         private String phone; // 手机号
-        private BigDecimal amount; // 订单总金额
+        private BigDecimal amount; // 日期范围内税后分摊金额
+        private BigDecimal allocatedAmount; // 日期范围内税后分摊金额
+        private BigDecimal totalAmount; // 整单总金额
         private String roomTypeName; // 房型名称
         private String checkInDate; // 入住日期
         private String checkOutDate; // 退房日期
+        private Integer allocatedRoomNights; // 日期范围内间夜数
 
         public SalesOrderDetail() {}
 
@@ -200,6 +247,22 @@ public class SalesSummaryDTO {
             this.amount = amount;
         }
 
+        public BigDecimal getAllocatedAmount() {
+            return allocatedAmount;
+        }
+
+        public void setAllocatedAmount(BigDecimal allocatedAmount) {
+            this.allocatedAmount = allocatedAmount;
+        }
+
+        public BigDecimal getTotalAmount() {
+            return totalAmount;
+        }
+
+        public void setTotalAmount(BigDecimal totalAmount) {
+            this.totalAmount = totalAmount;
+        }
+
         public String getRoomTypeName() {
             return roomTypeName;
         }
@@ -222,6 +285,14 @@ public class SalesSummaryDTO {
 
         public void setCheckOutDate(String checkOutDate) {
             this.checkOutDate = checkOutDate;
+        }
+
+        public Integer getAllocatedRoomNights() {
+            return allocatedRoomNights;
+        }
+
+        public void setAllocatedRoomNights(Integer allocatedRoomNights) {
+            this.allocatedRoomNights = allocatedRoomNights;
         }
     }
 }

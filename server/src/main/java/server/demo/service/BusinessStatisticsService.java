@@ -5,7 +5,9 @@ import org.springframework.stereotype.Service;
 import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.*;
+import server.demo.entity.Room;
 import server.demo.entity.Reservation;
+import server.demo.enums.ChannelType;
 import server.demo.enums.ReservationStatus;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
@@ -20,6 +22,10 @@ import java.util.stream.Collectors;
 @Service
 public class BusinessStatisticsService {
 
+    private static final int DEFAULT_SALES_PAGE = 1;
+    private static final int DEFAULT_SALES_PAGE_SIZE = 50;
+    private static final int MAX_SALES_PAGE_SIZE = 500;
+
     @Autowired
     private ReservationRepository reservationRepository;
 
@@ -28,6 +34,9 @@ public class BusinessStatisticsService {
 
     @Autowired
     private ReservationRevenueAllocationService revenueAllocationService;
+
+    @Autowired
+    private StatisticsFinancialAggregationService financialAggregationService;
 
     /**
      * 获取当前门店ID
@@ -258,68 +267,80 @@ public class BusinessStatisticsService {
         ReservationRevenueAllocationService.AllocationResult allocationResult =
                 revenueAllocationService.allocateRevenue(storeId, reservations, startDate, endDate);
         List<ReservationRevenueAllocationService.Allocation> allocations = allocationResult.allocations();
+        StatisticsFinancialAggregationService.FinancialAggregation financial =
+                financialAggregationService.aggregate(storeId, startDate, endDate);
 
         BigDecimal roomFee = allocationResult.totalRevenue();
-
-        BigDecimal deposit = BigDecimal.ZERO; // 押金 - 未来扩展
-        BigDecimal checkoutFee = BigDecimal.ZERO; // 退房金 - 未来扩展
-        BigDecimal roomServiceFee = BigDecimal.ZERO; // 餐食/客房消费 - 未来扩展
+        BigDecimal deposit = financial.getDeposit();
+        BigDecimal checkoutFee = BigDecimal.ZERO;
+        BigDecimal roomServiceFee = financial.getRoomServiceFee();
+        BigDecimal notesIncome = financial.getNotesIncome();
+        BigDecimal notesExpense = financial.getNotesExpense().add(financial.getPaymentRefund());
+        BigDecimal totalIncome = roomFee.add(deposit).add(checkoutFee).add(roomServiceFee).add(notesIncome);
 
         overview.setRoomFee(roomFee);
         overview.setDeposit(deposit);
         overview.setCheckoutFee(checkoutFee);
         overview.setRoomServiceFee(roomServiceFee);
-        overview.setTotalRevenue(roomFee.add(deposit).add(checkoutFee).add(roomServiceFee));
+        overview.setNotesIncome(notesIncome);
+        overview.setNotesExpense(notesExpense);
+        overview.setTotalRevenue(totalIncome);
+        overview.setNetRevenue(totalIncome.subtract(notesExpense));
         overview.setRevenuePrecision(allocationResult.revenuePrecision());
+        overview.setSourceMetadata(buildSourceMetadata());
+        overview.setDataGaps(buildDataGaps());
 
         // 计算消费分类分布(饼图数据)
         List<BusinessOverviewDTO.CategoryDistribution> categoryDistribution = new ArrayList<>();
-        BigDecimal totalRevenue = overview.getTotalRevenue();
-
-        if (totalRevenue.compareTo(BigDecimal.ZERO) > 0) {
-            categoryDistribution.add(new BusinessOverviewDTO.CategoryDistribution(
-                "房费", roomFee,
-                roomFee.multiply(new BigDecimal(100)).divide(totalRevenue, 2, RoundingMode.HALF_UP)
-            ));
-
-            if (deposit.compareTo(BigDecimal.ZERO) > 0) {
-                categoryDistribution.add(new BusinessOverviewDTO.CategoryDistribution(
-                    "押金", deposit,
-                    deposit.multiply(new BigDecimal(100)).divide(totalRevenue, 2, RoundingMode.HALF_UP)
-                ));
-            }
-
-            if (checkoutFee.compareTo(BigDecimal.ZERO) > 0) {
-                categoryDistribution.add(new BusinessOverviewDTO.CategoryDistribution(
-                    "退房金", checkoutFee,
-                    checkoutFee.multiply(new BigDecimal(100)).divide(totalRevenue, 2, RoundingMode.HALF_UP)
-                ));
-            }
-
-            if (roomServiceFee.compareTo(BigDecimal.ZERO) > 0) {
-                categoryDistribution.add(new BusinessOverviewDTO.CategoryDistribution(
-                    "餐食/客房消费", roomServiceFee,
-                    roomServiceFee.multiply(new BigDecimal(100)).divide(totalRevenue, 2, RoundingMode.HALF_UP)
-                ));
-            }
-        }
+        addOverviewDistribution(categoryDistribution, "房费", roomFee, totalIncome);
+        addOverviewDistribution(categoryDistribution, "押金", deposit, totalIncome);
+        addOverviewDistribution(categoryDistribution, "退房金", checkoutFee, totalIncome);
+        addOverviewDistribution(categoryDistribution, "餐食/客房消费", roomServiceFee, totalIncome);
+        addOverviewDistribution(categoryDistribution, "记一笔收入", notesIncome, totalIncome);
         overview.setCategoryDistribution(categoryDistribution);
 
         // 计算每日消费趋势(柱状图数据)
         List<BusinessOverviewDTO.DailyConsumption> consumptionTrend = new ArrayList<>();
         Map<LocalDate, RevenueAggregation> dailyRevenueMap = aggregateByDate(allocations, startDate, endDate);
+        Map<LocalDate, BigDecimal> roomFeeByDate = new LinkedHashMap<>();
+        Map<LocalDate, BigDecimal> depositByDate = new LinkedHashMap<>();
+        Map<LocalDate, BigDecimal> checkoutFeeByDate = new LinkedHashMap<>();
+        Map<LocalDate, BigDecimal> roomServiceFeeByDate = new LinkedHashMap<>();
+        Map<LocalDate, BigDecimal> notesIncomeByDate = new LinkedHashMap<>();
+        Map<LocalDate, BigDecimal> notesExpenseByDate = new LinkedHashMap<>();
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
             RevenueAggregation aggregation = dailyRevenueMap.get(currentDate);
             BigDecimal dailyRoomFee = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
+            StatisticsFinancialAggregationService.DailyFinancialAmount dailyFinancial =
+                    financial.getDailyAmountMap().get(currentDate);
+            BigDecimal dailyDeposit = dailyFinancial != null ? dailyFinancial.getDeposit() : BigDecimal.ZERO;
+            BigDecimal dailyRoomServiceFee =
+                    dailyFinancial != null ? dailyFinancial.getRoomServiceFee() : BigDecimal.ZERO;
+            BigDecimal dailyNotesIncome =
+                    dailyFinancial != null ? dailyFinancial.getNotesIncome() : BigDecimal.ZERO;
+            BigDecimal dailyNotesExpense = BigDecimal.ZERO;
+            if (dailyFinancial != null) {
+                dailyNotesExpense = dailyFinancial.getNotesExpense().add(dailyFinancial.getPaymentRefund());
+            }
 
-            consumptionTrend.add(new BusinessOverviewDTO.DailyConsumption(
+            BusinessOverviewDTO.DailyConsumption dailyConsumption = new BusinessOverviewDTO.DailyConsumption(
                 currentDate.toString(),
                 dailyRoomFee,
-                BigDecimal.ZERO, // 押金
-                BigDecimal.ZERO, // 退房金
-                BigDecimal.ZERO  // 餐食/客房消费
-            ));
+                dailyDeposit,
+                BigDecimal.ZERO,
+                dailyRoomServiceFee
+            );
+            dailyConsumption.setNotesIncome(dailyNotesIncome);
+            dailyConsumption.setNotesExpense(dailyNotesExpense);
+            consumptionTrend.add(dailyConsumption);
+
+            roomFeeByDate.put(currentDate, dailyRoomFee);
+            depositByDate.put(currentDate, dailyDeposit);
+            checkoutFeeByDate.put(currentDate, BigDecimal.ZERO);
+            roomServiceFeeByDate.put(currentDate, dailyRoomServiceFee);
+            notesIncomeByDate.put(currentDate, dailyNotesIncome);
+            notesExpenseByDate.put(currentDate, dailyNotesExpense);
 
             currentDate = currentDate.plusDays(1);
         }
@@ -327,61 +348,60 @@ public class BusinessStatisticsService {
 
         // 计算住宿消费明细表格数据
         List<BusinessOverviewDTO.ConsumptionDetail> consumptionDetails = new ArrayList<>();
-
-        // 房费明细
-        List<BusinessOverviewDTO.ConsumptionDetail.DailyAmount> roomFeeDailyAmounts = new ArrayList<>();
-        currentDate = startDate;
-        while (!currentDate.isAfter(endDate)) {
-            RevenueAggregation aggregation = dailyRevenueMap.get(currentDate);
-            BigDecimal dailyAmount = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
-            roomFeeDailyAmounts.add(new BusinessOverviewDTO.ConsumptionDetail.DailyAmount(
-                currentDate.toString(), dailyAmount
-            ));
-            currentDate = currentDate.plusDays(1);
-        }
-        consumptionDetails.add(new BusinessOverviewDTO.ConsumptionDetail(
-            "房费", roomFee, roomFeeDailyAmounts
+        consumptionDetails.add(buildOverviewDetail(
+                "房费",
+                roomFee,
+                roomFeeByDate,
+                startDate,
+                endDate,
+                "RESERVATION_DAILY_PRICE_OR_RESIDUAL_AVERAGE",
+                false
         ));
-
-        // 押金明细
-        List<BusinessOverviewDTO.ConsumptionDetail.DailyAmount> depositDailyAmounts = new ArrayList<>();
-        currentDate = startDate;
-        while (!currentDate.isAfter(endDate)) {
-            depositDailyAmounts.add(new BusinessOverviewDTO.ConsumptionDetail.DailyAmount(
-                currentDate.toString(), BigDecimal.ZERO
-            ));
-            currentDate = currentDate.plusDays(1);
-        }
-        consumptionDetails.add(new BusinessOverviewDTO.ConsumptionDetail(
-            "押金", deposit, depositDailyAmounts
+        consumptionDetails.add(buildOverviewDetail(
+                "押金",
+                deposit,
+                depositByDate,
+                startDate,
+                endDate,
+                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT,
+                false
         ));
-
-        // 退房金明细
-        List<BusinessOverviewDTO.ConsumptionDetail.DailyAmount> checkoutDailyAmounts = new ArrayList<>();
-        currentDate = startDate;
-        while (!currentDate.isAfter(endDate)) {
-            checkoutDailyAmounts.add(new BusinessOverviewDTO.ConsumptionDetail.DailyAmount(
-                currentDate.toString(), BigDecimal.ZERO
-            ));
-            currentDate = currentDate.plusDays(1);
-        }
-        consumptionDetails.add(new BusinessOverviewDTO.ConsumptionDetail(
-            "退房金", checkoutFee, checkoutDailyAmounts
+        consumptionDetails.add(buildOverviewDetail(
+                "退房金",
+                checkoutFee,
+                checkoutFeeByDate,
+                startDate,
+                endDate,
+                "UNSUPPORTED",
+                true
         ));
-
-        // 餐食/客房消费明细
-        List<BusinessOverviewDTO.ConsumptionDetail.DailyAmount> roomServiceDailyAmounts = new ArrayList<>();
-        currentDate = startDate;
-        while (!currentDate.isAfter(endDate)) {
-            roomServiceDailyAmounts.add(new BusinessOverviewDTO.ConsumptionDetail.DailyAmount(
-                currentDate.toString(), BigDecimal.ZERO
-            ));
-            currentDate = currentDate.plusDays(1);
-        }
-        consumptionDetails.add(new BusinessOverviewDTO.ConsumptionDetail(
-            "餐食/客房消费", roomServiceFee, roomServiceDailyAmounts
+        consumptionDetails.add(buildOverviewDetail(
+                "餐食/客房消费",
+                roomServiceFee,
+                roomServiceFeeByDate,
+                startDate,
+                endDate,
+                StatisticsFinancialAggregationService.SOURCE_CONSUMPTION_ABS_AMOUNT,
+                false
         ));
-
+        consumptionDetails.add(buildOverviewDetail(
+                "记一笔收入",
+                notesIncome,
+                notesIncomeByDate,
+                startDate,
+                endDate,
+                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE,
+                false
+        ));
+        consumptionDetails.add(buildOverviewDetail(
+                "记一笔支出",
+                notesExpense,
+                notesExpenseByDate,
+                startDate,
+                endDate,
+                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE,
+                false
+        ));
         overview.setConsumptionDetails(consumptionDetails);
 
         return overview;
@@ -399,75 +419,120 @@ public class BusinessStatisticsService {
         ReservationRevenueAllocationService.AllocationResult allocationResult =
                 revenueAllocationService.allocateRevenue(storeId, reservations, startDate, endDate);
         List<ReservationRevenueAllocationService.Allocation> allocations = allocationResult.allocations();
+        StatisticsFinancialAggregationService.FinancialAggregation financial =
+                financialAggregationService.aggregate(storeId, startDate, endDate);
 
-        BigDecimal totalRevenue = allocationResult.totalRevenue();
+        BigDecimal roomFee = allocationResult.totalRevenue();
+        BigDecimal splitAccount = calculateSplitAccount(allocations);
+        BigDecimal actualReceived = financial.getActualReceived();
+        BigDecimal deposit = financial.getDeposit();
+        BigDecimal roomServiceFee = financial.getRoomServiceFee();
+        BigDecimal notesIncome = financial.getNotesIncome();
+        BigDecimal paymentRefund = financial.getPaymentRefund();
+        BigDecimal notesExpense = financial.getNotesExpense();
+        BigDecimal totalIncome = roomFee.add(deposit).add(roomServiceFee).add(notesIncome);
+        BigDecimal totalExpense = paymentRefund.add(notesExpense);
+        BigDecimal netIncome = totalIncome.subtract(totalExpense);
 
-        summary.setTotalRevenue(totalRevenue);
+        summary.setTotalRevenue(totalIncome);
         summary.setRevenuePrecision(allocationResult.revenuePrecision());
-
-        Map<String, RevenueAggregation> channelMap = aggregateByChannel(allocations);
-
-        BigDecimal splitAccount = BigDecimal.ZERO; // OTA代收
-        BigDecimal actualReceived = BigDecimal.ZERO; // 实收款
-        List<RevenueSummaryDTO.PaymentMethodStat> paymentStats = new ArrayList<>();
-        List<RevenueSummaryDTO.Distribution> incomeDistribution = new ArrayList<>();
-
-        for (Map.Entry<String, RevenueAggregation> entry : channelMap.entrySet()) {
-            String channelName = entry.getKey();
-            BigDecimal channelRevenue = entry.getValue().revenue;
-
-            // 简单判断:包含 booking、airbnb、携程、美团 等关键词的视为OTA代收
-            if (channelName.toLowerCase().contains("booking") ||
-                channelName.toLowerCase().contains("airbnb") ||
-                channelName.toLowerCase().contains("携程") ||
-                channelName.toLowerCase().contains("美团")) {
-                splitAccount = splitAccount.add(channelRevenue);
-            } else {
-                actualReceived = actualReceived.add(channelRevenue);
-            }
-
-            BigDecimal percentage = BigDecimal.ZERO;
-            if (totalRevenue.compareTo(BigDecimal.ZERO) > 0) {
-                percentage = channelRevenue.multiply(new BigDecimal(100))
-                        .divide(totalRevenue, 2, RoundingMode.HALF_UP);
-            }
-
-            paymentStats.add(new RevenueSummaryDTO.PaymentMethodStat(
-                    channelName, channelRevenue, percentage
-            ));
-
-            incomeDistribution.add(new RevenueSummaryDTO.Distribution(
-                    channelName, channelRevenue, percentage
-            ));
-        }
-
         summary.setSplitAccount(splitAccount);
         summary.setActualReceived(actualReceived);
-        summary.setTotalIncome(totalRevenue);
-        summary.setTotalExpense(BigDecimal.ZERO); // 目前系统无支出记录
-        summary.setPaymentMethodStats(paymentStats);
-        summary.setIncomeDistribution(incomeDistribution);
-        summary.setExpenseDistribution(new ArrayList<>()); // 暂无支出
+        summary.setTotalIncome(totalIncome);
+        summary.setTotalExpense(totalExpense);
+        summary.setNetIncome(netIncome);
+        summary.setRoomFee(roomFee);
+        summary.setDeposit(deposit);
+        summary.setRoomServiceFee(roomServiceFee);
+        summary.setNotesIncome(notesIncome);
+        summary.setNotesExpense(notesExpense);
+        summary.setPaymentRefund(paymentRefund);
+        summary.setSourceMetadata(buildSourceMetadata());
+        summary.setDataGaps(buildDataGaps());
 
-        // 款项分类统计 - 目前只有常规流水
+        List<RevenueSummaryDTO.PaymentMethodStat> paymentStats = buildPaymentMethodStats(financial);
+        summary.setPaymentMethodStats(paymentStats);
+
+        List<RevenueSummaryDTO.Distribution> incomeDistribution = new ArrayList<>();
+        addDistribution(incomeDistribution, "税后房费", roomFee, totalIncome);
+        addDistribution(incomeDistribution, "押金", deposit, totalIncome);
+        addDistribution(incomeDistribution, "客房消费", roomServiceFee, totalIncome);
+        addDistribution(incomeDistribution, "记一笔收入", notesIncome, totalIncome);
+        summary.setIncomeDistribution(incomeDistribution);
+
+        List<RevenueSummaryDTO.Distribution> expenseDistribution = new ArrayList<>();
+        addDistribution(expenseDistribution, "退款", paymentRefund, totalExpense);
+        addDistribution(expenseDistribution, "记一笔支出", notesExpense, totalExpense);
+        summary.setExpenseDistribution(expenseDistribution);
+
         List<RevenueSummaryDTO.CategoryStat> categoryStats = new ArrayList<>();
-        categoryStats.add(new RevenueSummaryDTO.CategoryStat(
-                "常规流水", totalRevenue, new BigDecimal(100)
-        ));
+        BigDecimal categoryDenominator = totalIncome.add(totalExpense);
+        addCategoryStat(categoryStats, "税后房费", roomFee, categoryDenominator,
+                "RESERVATION_DAILY_PRICE_OR_RESIDUAL_AVERAGE", allocationResult.totalRoomNights());
+        addCategoryStat(categoryStats, "押金", deposit, categoryDenominator,
+                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT, 0);
+        addCategoryStat(categoryStats, "客房消费", roomServiceFee, categoryDenominator,
+                StatisticsFinancialAggregationService.SOURCE_CONSUMPTION_ABS_AMOUNT, 0);
+        addCategoryStat(categoryStats, "记一笔收入", notesIncome, categoryDenominator,
+                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE, 0);
+        addCategoryStat(categoryStats, "退款", paymentRefund, categoryDenominator,
+                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT, 0);
+        addCategoryStat(categoryStats, "记一笔支出", notesExpense, categoryDenominator,
+                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE, 0);
         summary.setCategoryStats(categoryStats);
 
         // 每日流水明细
         List<RevenueSummaryDTO.DailyRevenue> dailyRevenues = new ArrayList<>();
         Map<LocalDate, RevenueAggregation> dailyRevenueMap = aggregateByDate(allocations, startDate, endDate);
+        Map<LocalDate, BigDecimal> splitAccountByDate = aggregateSplitAccountByDate(allocations, startDate, endDate);
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
             RevenueAggregation aggregation = dailyRevenueMap.get(currentDate);
-            BigDecimal dailyAmount = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
+            BigDecimal dailyRoomFee = aggregation != null ? aggregation.revenue : BigDecimal.ZERO;
             int orderCount = aggregation != null ? aggregation.orderIds.size() : 0;
+            StatisticsFinancialAggregationService.DailyFinancialAmount dailyFinancial =
+                    financial.getDailyAmountMap().get(currentDate);
+            BigDecimal dailyDeposit = BigDecimal.ZERO;
+            BigDecimal dailyRoomServiceFee = BigDecimal.ZERO;
+            BigDecimal dailyNotesIncome = BigDecimal.ZERO;
+            BigDecimal dailyPaymentRefund = BigDecimal.ZERO;
+            BigDecimal dailyNotesExpense = BigDecimal.ZERO;
+            BigDecimal dailyActualReceived = BigDecimal.ZERO;
+            int transactionCount = 0;
+            if (dailyFinancial != null) {
+                dailyDeposit = dailyFinancial.getDeposit();
+                dailyRoomServiceFee = dailyFinancial.getRoomServiceFee();
+                dailyNotesIncome = dailyFinancial.getNotesIncome();
+                dailyPaymentRefund = dailyFinancial.getPaymentRefund();
+                dailyNotesExpense = dailyFinancial.getNotesExpense();
+                dailyActualReceived = dailyFinancial.getActualReceived();
+                transactionCount = dailyFinancial.getTransactionCount();
+            }
+            BigDecimal dailyTotalIncome = dailyRoomFee
+                    .add(dailyDeposit)
+                    .add(dailyRoomServiceFee)
+                    .add(dailyNotesIncome);
+            BigDecimal dailyTotalExpense = dailyPaymentRefund.add(dailyNotesExpense);
+            BigDecimal dailyNetIncome = dailyTotalIncome.subtract(dailyTotalExpense);
 
-            dailyRevenues.add(new RevenueSummaryDTO.DailyRevenue(
-                    currentDate.toString(), dailyAmount, orderCount
-            ));
+            RevenueSummaryDTO.DailyRevenue dailyRevenue = new RevenueSummaryDTO.DailyRevenue(
+                    currentDate.toString(),
+                    dailyTotalIncome,
+                    orderCount
+            );
+            dailyRevenue.setRoomFee(dailyRoomFee);
+            dailyRevenue.setSplitAccount(splitAccountByDate.getOrDefault(currentDate, BigDecimal.ZERO));
+            dailyRevenue.setActualReceived(dailyActualReceived);
+            dailyRevenue.setDeposit(dailyDeposit);
+            dailyRevenue.setRoomServiceFee(dailyRoomServiceFee);
+            dailyRevenue.setNotesIncome(dailyNotesIncome);
+            dailyRevenue.setNotesExpense(dailyNotesExpense);
+            dailyRevenue.setPaymentRefund(dailyPaymentRefund);
+            dailyRevenue.setTotalIncome(dailyTotalIncome);
+            dailyRevenue.setTotalExpense(dailyTotalExpense);
+            dailyRevenue.setNetIncome(dailyNetIncome);
+            dailyRevenue.setTransactionCount(transactionCount);
+            dailyRevenues.add(dailyRevenue);
             currentDate = currentDate.plusDays(1);
         }
         summary.setDailyRevenues(dailyRevenues);
@@ -610,6 +675,26 @@ public class BusinessStatisticsService {
      * 获取销售汇总统计(门店级)
      */
     public SalesSummaryDTO getSalesSummary(LocalDate startDate, LocalDate endDate, String keyword, Long channelId) {
+        return getSalesSummary(
+                startDate,
+                endDate,
+                keyword,
+                channelId,
+                null,
+                DEFAULT_SALES_PAGE,
+                DEFAULT_SALES_PAGE_SIZE
+        );
+    }
+
+    public SalesSummaryDTO getSalesSummary(
+            LocalDate startDate,
+            LocalDate endDate,
+            String keyword,
+            Long channelId,
+            String customer,
+            Integer page,
+            Integer pageSize
+    ) {
         Long storeId = getCurrentStoreId();
         SalesSummaryDTO summary = new SalesSummaryDTO();
 
@@ -622,7 +707,19 @@ public class BusinessStatisticsService {
                     .filter(r ->
                         (r.getGuestName() != null && r.getGuestName().toLowerCase().contains(searchKeyword)) ||
                         (r.getGuestPhone() != null && r.getGuestPhone().contains(searchKeyword)) ||
+                        (r.getOrderNumber() != null && r.getOrderNumber().toLowerCase().contains(searchKeyword)) ||
+                        (r.getChannelOrderNumber() != null && r.getChannelOrderNumber().toLowerCase().contains(searchKeyword)) ||
                         (r.getId() != null && r.getId().toString().contains(searchKeyword))
+                    )
+                    .collect(Collectors.toList());
+        }
+
+        if (customer != null && !customer.trim().isEmpty()) {
+            final String customerKeyword = customer.trim().toLowerCase();
+            reservations = reservations.stream()
+                    .filter(r ->
+                        (r.getGuestName() != null && r.getGuestName().toLowerCase().contains(customerKeyword)) ||
+                        (r.getGuestPhone() != null && r.getGuestPhone().contains(customerKeyword))
                     )
                     .collect(Collectors.toList());
         }
@@ -642,6 +739,12 @@ public class BusinessStatisticsService {
         summary.setTotalSales(totalSales);
         summary.setTotalOrders(reservations.size());
         summary.setRevenuePrecision(allocationResult.revenuePrecision());
+        int resolvedPage = sanitizePage(page);
+        int resolvedPageSize = sanitizePageSize(pageSize);
+        summary.setPage(resolvedPage);
+        summary.setPageSize(resolvedPageSize);
+        summary.setTotalRecords(reservations.size());
+        summary.setTotalPages(calculateTotalPages(reservations.size(), resolvedPageSize));
 
         // 每日销售额趋势
         List<SalesSummaryDTO.DailySales> dailySalesTrend = new ArrayList<>();
@@ -659,19 +762,62 @@ public class BusinessStatisticsService {
         }
         summary.setDailySalesTrend(dailySalesTrend);
 
+        Map<Long, OrderAllocationAggregation> orderAllocationMap = new HashMap<>();
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            if (allocation.reservation() == null || allocation.reservation().getId() == null) {
+                continue;
+            }
+            OrderAllocationAggregation orderAggregation = orderAllocationMap.computeIfAbsent(
+                    allocation.reservation().getId(),
+                    ignored -> new OrderAllocationAggregation()
+            );
+            orderAggregation.add(allocation);
+        }
+
+        reservations.sort((left, right) -> {
+            if (left.getCreatedAt() == null && right.getCreatedAt() == null) {
+                return 0;
+            }
+            if (left.getCreatedAt() == null) {
+                return 1;
+            }
+            if (right.getCreatedAt() == null) {
+                return -1;
+            }
+            return right.getCreatedAt().compareTo(left.getCreatedAt());
+        });
+
+        int fromIndex = (resolvedPage - 1) * resolvedPageSize;
+        int toIndex = Math.min(fromIndex + resolvedPageSize, reservations.size());
+        List<Reservation> pagedReservations = new ArrayList<>();
+        if (fromIndex < reservations.size()) {
+            pagedReservations = reservations.subList(fromIndex, toIndex);
+        }
+
         // 销售订单明细
-        List<SalesSummaryDTO.SalesOrderDetail> orderDetails = reservations.stream()
+        List<SalesSummaryDTO.SalesOrderDetail> orderDetails = pagedReservations.stream()
                 .map(r -> {
+                    OrderAllocationAggregation orderAggregation = orderAllocationMap.get(r.getId());
+                    BigDecimal allocatedAmount = BigDecimal.ZERO;
+                    int allocatedRoomNights = 0;
+                    if (orderAggregation != null) {
+                        allocatedAmount = orderAggregation.amount;
+                        allocatedRoomNights = orderAggregation.roomNights;
+                    }
+
                     SalesSummaryDTO.SalesOrderDetail detail = new SalesSummaryDTO.SalesOrderDetail();
                     detail.setId(r.getId());
-                    detail.setOrderNumber(r.getId() != null ? r.getId().toString() : "");
+                    detail.setOrderNumber(r.getOrderNumber() != null ? r.getOrderNumber() : "");
                     detail.setChannelNumber(r.getChannelOrderNumber() != null ? r.getChannelOrderNumber() : "");
                     detail.setCreatedAt(r.getCreatedAt());
                     detail.setGuestName(r.getGuestName() != null ? r.getGuestName() : "系统");
                     detail.setChannelName(r.getChannel() != null ? r.getChannel().getName() : "");
                     detail.setCustomerName(r.getGuestName() != null ? r.getGuestName() : "");
                     detail.setPhone(r.getGuestPhone() != null ? r.getGuestPhone() : "");
-                    detail.setAmount(r.getTotalAmount());
+                    detail.setAmount(allocatedAmount);
+                    detail.setAllocatedAmount(allocatedAmount);
+                    detail.setTotalAmount(r.getTotalAmount() != null ? r.getTotalAmount() : BigDecimal.ZERO);
+                    detail.setAllocatedRoomNights(allocatedRoomNights);
                     detail.setRoomTypeName(r.getRoom() != null && r.getRoom().getRoomType() != null ?
                             r.getRoom().getRoomType().getName() : "");
                     detail.setCheckInDate(r.getCheckInDate() != null ? r.getCheckInDate().toString() : "");
@@ -705,6 +851,7 @@ public class BusinessStatisticsService {
         long days = ChronoUnit.DAYS.between(startDate, endDate) + 1;
         long totalRooms = roomRepository.countByStoreId(storeId);
         int totalAvailableRoomNights = (int) (days * totalRooms);
+        Map<String, Integer> roomCountByType = getRoomCountByType(storeId);
 
         // 计算 ADR (平均房价) = 总房费 / 已售间夜数
         BigDecimal adr = BigDecimal.ZERO;
@@ -756,12 +903,12 @@ public class BusinessStatisticsService {
 
         // 4. 计算入住率明细
         List<RoomDetailDTO> occupancyDetails = calculateOccupancyDetails(
-                reservations, startDate, endDate, totalRooms, days);
+                reservations, startDate, endDate, roomCountByType, days);
         dto.setOccupancyDetails(occupancyDetails);
 
         // 5. 计算RevPAR明细
         List<RoomDetailDTO> revparDetails = calculateRevparDetails(
-                allocations, totalRooms, days);
+                allocations, roomCountByType, days, endDate);
         dto.setRevparDetails(revparDetails);
 
         return dto;
@@ -950,16 +1097,19 @@ public class BusinessStatisticsService {
      */
     private List<RoomDetailDTO> calculateOccupancyDetails(
             List<Reservation> reservations, LocalDate startDate, LocalDate endDate,
-            long totalRooms, long days) {
+            Map<String, Integer> roomCountByType, long days) {
 
         List<RoomDetailDTO> details = new ArrayList<>();
 
         // 按房型分组
-        Map<String, List<Reservation>> roomTypeMap = reservations.stream()
-                .collect(Collectors.groupingBy(r ->
-                        r.getRoom() != null && r.getRoom().getRoomType() != null
-                                ? r.getRoom().getRoomType().getName() : "未知房型"
-                ));
+        Map<String, List<Reservation>> roomTypeMap = new HashMap<>();
+        for (Reservation reservation : reservations) {
+            String roomType = getRoomTypeName(reservation);
+            roomTypeMap.computeIfAbsent(roomType, ignored -> new ArrayList<>()).add(reservation);
+        }
+        for (String roomType : roomCountByType.keySet()) {
+            roomTypeMap.computeIfAbsent(roomType, ignored -> new ArrayList<>());
+        }
 
         for (Map.Entry<String, List<Reservation>> entry : roomTypeMap.entrySet()) {
             String roomType = entry.getKey();
@@ -970,13 +1120,7 @@ public class BusinessStatisticsService {
                     .mapToInt(r -> calculateRoomNights(r, startDate, endDate))
                     .sum();
 
-            // 获取该房型的房间总数(简化处理,使用已售的不同房间数)
-            long roomCount = typeReservations.stream()
-                    .filter(r -> r.getRoom() != null)
-                    .map(r -> r.getRoom().getId())
-                    .distinct()
-                    .count();
-
+            long roomCount = roomCountByType.getOrDefault(roomType, 0);
             if (roomCount == 0) {
                 roomCount = 1; // 避免除零
             }
@@ -1014,33 +1158,26 @@ public class BusinessStatisticsService {
      */
     private List<RoomDetailDTO> calculateRevparDetails(
             List<ReservationRevenueAllocationService.Allocation> allocations,
-            long totalRooms, long days) {
+            Map<String, Integer> roomCountByType,
+            long days,
+            LocalDate endDate) {
 
         List<RoomDetailDTO> details = new ArrayList<>();
 
         // 按房型分组
         Map<String, RevenueAggregation> roomTypeMap = new HashMap<>();
-        Map<String, Set<Long>> roomIdsByType = new HashMap<>();
         Map<String, BigDecimal> lastDayFeeByType = new HashMap<>();
-
-        LocalDate lastDate = null;
-        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
-            if (lastDate == null || allocation.date().isAfter(lastDate)) {
-                lastDate = allocation.date();
-            }
-        }
 
         for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
             String roomType = getRoomTypeName(allocation.reservation());
             roomTypeMap.computeIfAbsent(roomType, ignored -> new RevenueAggregation()).add(allocation);
-            Long roomId = allocation.reservation().getRoom() != null ? allocation.reservation().getRoom().getId() : null;
-            if (roomId != null) {
-                roomIdsByType.computeIfAbsent(roomType, ignored -> new LinkedHashSet<>()).add(roomId);
-            }
-            if (lastDate != null && allocation.date().equals(lastDate)) {
+            if (allocation.date().equals(endDate)) {
                 BigDecimal current = lastDayFeeByType.getOrDefault(roomType, BigDecimal.ZERO);
                 lastDayFeeByType.put(roomType, current.add(allocation.amount()));
             }
+        }
+        for (String roomType : roomCountByType.keySet()) {
+            roomTypeMap.computeIfAbsent(roomType, ignored -> new RevenueAggregation());
         }
 
         for (Map.Entry<String, RevenueAggregation> entry : roomTypeMap.entrySet()) {
@@ -1048,9 +1185,7 @@ public class BusinessStatisticsService {
             RevenueAggregation aggregation = entry.getValue();
             BigDecimal totalFee = aggregation.revenue;
 
-            // 获取该房型的房间总数
-            long roomCount = roomIdsByType.getOrDefault(roomType, Set.of()).size();
-
+            long roomCount = roomCountByType.getOrDefault(roomType, 0);
             if (roomCount == 0) {
                 roomCount = 1; // 避免除零
             }
@@ -1074,6 +1209,254 @@ public class BusinessStatisticsService {
         }
 
         return details;
+    }
+
+    private void addOverviewDistribution(
+            List<BusinessOverviewDTO.CategoryDistribution> target,
+            String category,
+            BigDecimal amount,
+            BigDecimal total
+    ) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        target.add(new BusinessOverviewDTO.CategoryDistribution(
+                category,
+                amount,
+                calculatePercentage(amount, total)
+        ));
+    }
+
+    private BusinessOverviewDTO.ConsumptionDetail buildOverviewDetail(
+            String category,
+            BigDecimal total,
+            Map<LocalDate, BigDecimal> amountsByDate,
+            LocalDate startDate,
+            LocalDate endDate,
+            String sourceType,
+            boolean unsupported
+    ) {
+        List<BusinessOverviewDTO.ConsumptionDetail.DailyAmount> dailyAmounts = new ArrayList<>();
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            BigDecimal amount = amountsByDate.getOrDefault(currentDate, BigDecimal.ZERO);
+            dailyAmounts.add(new BusinessOverviewDTO.ConsumptionDetail.DailyAmount(
+                    currentDate.toString(),
+                    amount
+            ));
+            currentDate = currentDate.plusDays(1);
+        }
+
+        BusinessOverviewDTO.ConsumptionDetail detail = new BusinessOverviewDTO.ConsumptionDetail(
+                category,
+                total,
+                dailyAmounts
+        );
+        detail.setSourceType(sourceType);
+        detail.setUnsupported(unsupported);
+        return detail;
+    }
+
+    private List<StatisticsSourceMetadataDTO> buildSourceMetadata() {
+        List<StatisticsSourceMetadataDTO> metadata = new ArrayList<>();
+        metadata.add(new StatisticsSourceMetadataDTO(
+                "roomFee",
+                "RESERVATION_DAILY_PRICE_OR_RESIDUAL_AVERAGE",
+                ReservationRevenueAllocationService.DATE_BASIS_STAY_DATE,
+                ReservationRevenueAllocationService.TAX_MODE_PRICE_AFTER_TAX,
+                "优先 ReservationDailyPrice.priceAfterTax；缺失每日价时使用整单残差均摊"
+        ));
+        metadata.add(new StatisticsSourceMetadataDTO(
+                "deposit",
+                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT,
+                "PAYMENT_DATE",
+                "ABS_AMOUNT",
+                "Payment.type 为自由文本，服务端按 deposit/押金等关键词保守归一化"
+        ));
+        metadata.add(new StatisticsSourceMetadataDTO(
+                "actualReceived",
+                StatisticsFinancialAggregationService.SOURCE_PAYMENT_TYPE_TEXT,
+                "PAYMENT_DATE",
+                "ABS_AMOUNT",
+                "Payment.type 非押金/退款时按实收款处理；OTA 代收支付方式不计入直接实收"
+        ));
+        metadata.add(new StatisticsSourceMetadataDTO(
+                "roomServiceFee",
+                StatisticsFinancialAggregationService.SOURCE_CONSUMPTION_ABS_AMOUNT,
+                "CONSUMPTION_DATE",
+                "ABS_AMOUNT",
+                "Consumption.amount 当前以负数保存，统计展示取绝对值"
+        ));
+        metadata.add(new StatisticsSourceMetadataDTO(
+                "notesIncomeExpense",
+                StatisticsFinancialAggregationService.SOURCE_NOTE_TYPE,
+                "NOTE_DATETIME",
+                "ABS_AMOUNT",
+                "Note.type=income 计收入，type=expense 计支出"
+        ));
+        return metadata;
+    }
+
+    private List<StatisticsDataGapDTO> buildDataGaps() {
+        List<StatisticsDataGapDTO> dataGaps = new ArrayList<>();
+        dataGaps.add(new StatisticsDataGapDTO(
+                "checkoutFee",
+                "当前没有稳定独立的退房金字段或业务模型，Payment.type 自由文本不足以形成正式口径",
+                "需要新增退房金业务模型或稳定交易分类",
+                true
+        ));
+        return dataGaps;
+    }
+
+    private List<RevenueSummaryDTO.PaymentMethodStat> buildPaymentMethodStats(
+            StatisticsFinancialAggregationService.FinancialAggregation financial
+    ) {
+        List<StatisticsFinancialAggregationService.MethodAmount> methodAmounts =
+                financial.getIncomeByPaymentMethod();
+        BigDecimal total = BigDecimal.ZERO;
+        for (StatisticsFinancialAggregationService.MethodAmount methodAmount : methodAmounts) {
+            total = total.add(methodAmount.getAmount());
+        }
+
+        List<RevenueSummaryDTO.PaymentMethodStat> stats = new ArrayList<>();
+        for (StatisticsFinancialAggregationService.MethodAmount methodAmount : methodAmounts) {
+            RevenueSummaryDTO.PaymentMethodStat stat = new RevenueSummaryDTO.PaymentMethodStat(
+                    methodAmount.getName(),
+                    methodAmount.getAmount(),
+                    calculatePercentage(methodAmount.getAmount(), total)
+            );
+            stat.setNormalizedType(methodAmount.getNormalizedType());
+            stat.setSourceType(methodAmount.getSourceType());
+            stat.setTransactionCount(methodAmount.getTransactionCount());
+            stats.add(stat);
+        }
+        stats.sort(Comparator.comparing(RevenueSummaryDTO.PaymentMethodStat::getAmount).reversed());
+        return stats;
+    }
+
+    private void addDistribution(
+            List<RevenueSummaryDTO.Distribution> target,
+            String name,
+            BigDecimal value,
+            BigDecimal total
+    ) {
+        if (value == null || value.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        target.add(new RevenueSummaryDTO.Distribution(name, value, calculatePercentage(value, total)));
+    }
+
+    private void addCategoryStat(
+            List<RevenueSummaryDTO.CategoryStat> target,
+            String category,
+            BigDecimal amount,
+            BigDecimal total,
+            String sourceType,
+            int transactionCount
+    ) {
+        BigDecimal safeAmount = amount != null ? amount : BigDecimal.ZERO;
+        RevenueSummaryDTO.CategoryStat stat = new RevenueSummaryDTO.CategoryStat(
+                category,
+                safeAmount,
+                calculatePercentage(safeAmount, total)
+        );
+        stat.setSourceType(sourceType);
+        stat.setTransactionCount(transactionCount);
+        target.add(stat);
+    }
+
+    private BigDecimal calculatePercentage(BigDecimal amount, BigDecimal total) {
+        if (amount == null || total == null || total.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return amount.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateSplitAccount(List<ReservationRevenueAllocationService.Allocation> allocations) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            if (isSplitAccountReservation(allocation.reservation())) {
+                total = total.add(allocation.amount());
+            }
+        }
+        return total;
+    }
+
+    private Map<LocalDate, BigDecimal> aggregateSplitAccountByDate(
+            List<ReservationRevenueAllocationService.Allocation> allocations,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        Map<LocalDate, BigDecimal> result = new LinkedHashMap<>();
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            result.put(currentDate, BigDecimal.ZERO);
+            currentDate = currentDate.plusDays(1);
+        }
+
+        for (ReservationRevenueAllocationService.Allocation allocation : allocations) {
+            if (!isSplitAccountReservation(allocation.reservation())) {
+                continue;
+            }
+            BigDecimal currentAmount = result.getOrDefault(allocation.date(), BigDecimal.ZERO);
+            result.put(allocation.date(), currentAmount.add(allocation.amount()));
+        }
+        return result;
+    }
+
+    private boolean isSplitAccountReservation(Reservation reservation) {
+        if (reservation == null || reservation.getChannel() == null) {
+            return false;
+        }
+        if (ChannelType.OTA.equals(reservation.getChannel().getType())) {
+            return true;
+        }
+        String channelName = getChannelName(reservation).toLowerCase();
+        return channelName.contains("booking")
+                || channelName.contains("airbnb")
+                || channelName.contains("agoda")
+                || channelName.contains("expedia")
+                || channelName.contains("ctrip")
+                || channelName.contains("携程")
+                || channelName.contains("美团");
+    }
+
+    private Map<String, Integer> getRoomCountByType(Long storeId) {
+        Map<String, Integer> result = new LinkedHashMap<>();
+        List<Room> rooms = roomRepository.findByStoreIdWithRoomType(storeId);
+        for (Room room : rooms) {
+            if (room == null || room.getRoomType() == null || room.getRoomType().getName() == null) {
+                continue;
+            }
+            String roomTypeName = room.getRoomType().getName();
+            int currentCount = result.getOrDefault(roomTypeName, 0);
+            result.put(roomTypeName, currentCount + 1);
+        }
+        return result;
+    }
+
+    private int sanitizePage(Integer page) {
+        if (page == null || page < 1) {
+            return DEFAULT_SALES_PAGE;
+        }
+        return page;
+    }
+
+    private int sanitizePageSize(Integer pageSize) {
+        if (pageSize == null || pageSize < 1) {
+            return DEFAULT_SALES_PAGE_SIZE;
+        }
+        if (pageSize > MAX_SALES_PAGE_SIZE) {
+            return MAX_SALES_PAGE_SIZE;
+        }
+        return pageSize;
+    }
+
+    private int calculateTotalPages(int totalRecords, int pageSize) {
+        if (totalRecords <= 0) {
+            return 0;
+        }
+        return (int) Math.ceil((double) totalRecords / (double) pageSize);
     }
 
     private List<Reservation> findActiveReservations(Long storeId, LocalDate startDate, LocalDate endDate) {
@@ -1161,6 +1544,19 @@ public class BusinessStatisticsService {
             if (allocation.reservation() != null && allocation.reservation().getId() != null) {
                 orderIds.add(allocation.reservation().getId());
             }
+        }
+    }
+
+    private static class OrderAllocationAggregation {
+        private BigDecimal amount = BigDecimal.ZERO;
+        private int roomNights = 0;
+
+        void add(ReservationRevenueAllocationService.Allocation allocation) {
+            if (allocation == null) {
+                return;
+            }
+            amount = amount.add(allocation.amount() != null ? allocation.amount() : BigDecimal.ZERO);
+            roomNights++;
         }
     }
 

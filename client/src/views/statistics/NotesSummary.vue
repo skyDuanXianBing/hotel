@@ -1,6 +1,6 @@
 <template>
   <StatisticsLayout>
-    <div class="notes-summary-content">
+    <div class="notes-summary-content" v-loading="loading">
       <div class="date-selector">
         <el-select v-model="dateType" class="business-quick-select">
           <el-option :label="t('stage5.common.date.today')" value="today" />
@@ -25,7 +25,22 @@
         </el-button>
       </div>
 
-      <div class="summary-cards">
+      <el-alert
+        v-if="loadError"
+        class="state-alert"
+        type="error"
+        :title="loadError"
+        :closable="false"
+        show-icon
+      />
+
+      <el-empty
+        v-if="showEmpty"
+        class="page-empty"
+        :description="t('stage5.dataCenter.overview.noData')"
+      />
+
+      <div v-if="contentReady" class="summary-cards">
         <div v-for="card in summaryCards" :key="card.key" class="summary-card">
           <div class="card-content">
             <div class="card-label">{{ card.label }}</div>
@@ -37,7 +52,7 @@
         </div>
       </div>
 
-      <div class="statistics-heading">
+      <div v-if="contentReady" class="statistics-heading">
         <h2>{{ t('stage5.statistics.notes.incomeExpenseStats') }}</h2>
         <div class="mode-switch">
           <el-button
@@ -51,7 +66,7 @@
         </div>
       </div>
 
-      <div class="statistics-section">
+      <div v-if="contentReady" class="statistics-section">
         <div class="charts-row">
           <div class="chart-wrapper income-chart-card">
             <div class="chart-title">{{ t('stage5.statistics.notes.totalIncome') }}</div>
@@ -75,6 +90,7 @@
                     <strong>{{ incomeComparisonPreviousText }}</strong>
                   </span>
                   <span
+                    v-if="incomeComparisonChangeText"
                     class="income-arc-growth"
                     :class="`income-arc-growth-${incomeComparison.trend}`"
                   >
@@ -101,7 +117,7 @@
         </div>
       </div>
 
-      <div class="details-section">
+      <div v-if="contentReady" class="details-section">
         <div class="details-header">
           <h3>
             {{ t('stage5.statistics.notes.details') }}
@@ -117,13 +133,18 @@
               <el-option :label="t('stage5.statistics.notes.income')" value="income" />
               <el-option :label="t('stage5.statistics.notes.expense')" value="expense" />
             </el-select>
-            <el-button type="primary" class="export-button" @click="handleExport">
+            <el-button
+              type="primary"
+              class="export-button"
+              :loading="exporting"
+              @click="handleExport"
+            >
               {{ t('stage5.common.actions.exportDetails') }}
             </el-button>
           </div>
         </div>
 
-        <el-table :data="filteredTableData" border class="details-table">
+        <el-table :data="pagedTableData" border class="details-table">
           <el-table-column prop="datetime" :label="t('stage5.common.fields.time')" min-width="160" />
           <el-table-column prop="type" :label="t('stage5.common.fields.type')" width="100">
             <template #default="{ row }">
@@ -226,7 +247,14 @@ import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import StatisticsLayout from './StatisticsLayout.vue'
-import { getNotesStatistics, getNotesList, type NoteDTO, type NotesStatisticsDTO } from '@/api/notes'
+import {
+  exportNotesReport,
+  getNotesStatistics,
+  getNotesList,
+  type NoteDTO,
+  type NoteType,
+  type NotesStatisticsDTO,
+} from '@/api/notes'
 import notesNetIncomeIcon from '@/assets/icons/statistics/notes-net-income.png'
 import notesTotalExpenseIcon from '@/assets/icons/statistics/notes-total-expense.png'
 import businessDepositIcon from '@/assets/icons/statistics/business-deposit.png'
@@ -236,6 +264,7 @@ import {
   getYmdMonthStart,
   getYmdWeekStart,
 } from '@/utils/storeDateTime'
+import { getStatisticsReportErrorMessage, saveBlobDownload } from '@/api/statistics'
 
 type NotesChartItem = {
   name: string
@@ -266,6 +295,9 @@ const activeTab = ref<NotesTabName>('byProject')
 const filterType = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(20)
+const loading = ref(false)
+const exporting = ref(false)
+const loadError = ref('')
 
 const summaryStats = ref({
   netIncome: 0,
@@ -314,9 +346,6 @@ const incomeGaugeActiveSegmentCount = 11
 const incomeGaugeEmptyColor = '#d7d7d7'
 const incomeGaugePalette = ['#0c82f7', '#168af7', '#3aa0f6', '#6eb9f4', '#bcdcff']
 
-// TODO: Replace this placeholder when the backend returns income period-over-period data:
-// previousAmount = previous period income, changePercent = current vs previous percentage,
-// trend = up/down/flat.
 const incomeComparison = ref<IncomeComparison>({
   previousAmount: null,
   changePercent: null,
@@ -375,6 +404,11 @@ const filteredTableData = computed(() => {
   return tableData.value.filter((item) => item.type === filterType.value)
 })
 
+const pagedTableData = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredTableData.value.slice(start, start + pageSize.value)
+})
+
 const totalIncomeAmount = computed(() => {
   return filteredTableData.value
     .filter((item) => item.type === 'income')
@@ -389,17 +423,25 @@ const totalExpenseAmount = computed(() => {
 
 const netIncomeAmount = computed(() => totalIncomeAmount.value - totalExpenseAmount.value)
 const totalPages = computed(() => Math.ceil(filteredTableData.value.length / pageSize.value))
+const hasNotesData = computed(
+  () =>
+    summaryStats.value.totalIncome > 0 ||
+    summaryStats.value.totalExpense > 0 ||
+    tableData.value.length > 0,
+)
+const showEmpty = computed(() => !loading.value && !loadError.value && !hasNotesData.value)
+const contentReady = computed(() => !loadError.value && !showEmpty.value)
 const activeIncomeData = computed(() =>
   activeTab.value === 'byProject' ? incomeByProject.value : incomeByPayment.value,
 )
 const activeIncomeTotal = computed(() => getChartTotal(activeIncomeData.value))
 const incomeComparisonPreviousText = computed(() =>
   incomeComparison.value.previousAmount === null
-    ? '--'
+    ? t('stage5.statistics.notes.comparisonUnavailable')
     : formatMoney(incomeComparison.value.previousAmount),
 )
 const incomeComparisonChangeText = computed(() => {
-  if (incomeComparison.value.changePercent === null) return '--'
+  if (incomeComparison.value.changePercent === null) return ''
 
   const trendSymbolMap: Record<IncomeComparisonTrend, string> = {
     up: '+',
@@ -655,12 +697,14 @@ const initCharts = () => {
   nextTick(() => {
     if (activeTab.value === 'byProject') {
       if (expenseProjectChartRef.value) {
+        expenseProjectChart?.dispose()
         expenseProjectChart = echarts.init(expenseProjectChartRef.value)
         const expenseTotal = getChartTotal(expenseByProject.value)
         expenseProjectChart.setOption(createDonutChartOption(expenseByProject.value, expenseTotal))
       }
     } else {
       if (expensePaymentChartRef.value) {
+        expensePaymentChart?.dispose()
         expensePaymentChart = echarts.init(expensePaymentChartRef.value)
         const expenseTotal = getChartTotal(expenseByPayment.value)
         expensePaymentChart.setOption(createDonutChartOption(expenseByPayment.value, expenseTotal))
@@ -735,6 +779,8 @@ const applyNotesStats = (stats: NotesStatisticsDTO) => {
 
 const loadData = async () => {
   try {
+    loading.value = true
+    loadError.value = ''
     const statsResponse = await getNotesStatistics({
       startDate: startDate.value,
       endDate: endDate.value,
@@ -745,7 +791,9 @@ const loadData = async () => {
 
       updateCharts()
     } else {
-      ElMessage.error(statsResponse.message || t('stage5.statistics.notes.statsLoadFailed'))
+      loadError.value = statsResponse.message || t('stage5.statistics.notes.statsLoadFailed')
+      ElMessage.error(loadError.value)
+      return
     }
 
     const listResponse = await getNotesList({
@@ -765,13 +813,20 @@ const loadData = async () => {
         notes: item.notes || '-',
       }))
     } else {
-      ElMessage.error(listResponse.message || t('stage5.statistics.notes.listLoadFailed'))
+      loadError.value = listResponse.message || t('stage5.statistics.notes.listLoadFailed')
+      ElMessage.error(loadError.value)
+      return
     }
 
-    ElMessage.success(t('stage5.common.messages.dataLoadSuccess'))
+    currentPage.value = 1
+    await nextTick()
+    initCharts()
   } catch (error) {
-    console.error(t('stage5.common.messages.dataLoadFailed'), error)
-    ElMessage.error(t('stage5.common.messages.dataLoadFailed'))
+    loadError.value = t('stage5.common.messages.dataLoadFailed')
+    console.error(loadError.value, error)
+    ElMessage.error(loadError.value)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -783,16 +838,41 @@ const handleQuery = () => {
   loadData()
 }
 
-const handleExport = () => {
-  ElMessage.info(t('stage5.common.messages.exportComingSoon'))
+const handleExport = async () => {
+  try {
+    exporting.value = true
+    const exportType: NoteType | undefined =
+      filterType.value === 'income' || filterType.value === 'expense'
+        ? filterType.value
+        : undefined
+    const blob = await exportNotesReport({
+      startDate: startDate.value,
+      endDate: endDate.value,
+      type: exportType,
+    })
+    saveBlobDownload({
+      blob,
+      fileName: `notes-${startDate.value}-${endDate.value}.csv`,
+    })
+  } catch (error) {
+    console.error('Failed to export notes report:', error)
+    const message = await getStatisticsReportErrorMessage(
+      error,
+      t('stage5.statistics.reports.downloadFailed'),
+    )
+    ElMessage.error(message)
+  } finally {
+    exporting.value = false
+  }
 }
 
 const handleViewVoucher = (row: any) => {
-  ElMessage.info(t('stage5.statistics.notes.viewVoucherComingSoon'))
+  ElMessage.warning(t('stage5.statistics.notes.voucherDataGap'))
 }
 
 const handleSizeChange = (size: number) => {
   pageSize.value = size
+  currentPage.value = 1
 }
 
 const handleCurrentChange = (page: number) => {
@@ -818,6 +898,10 @@ watch(activeTab, () => {
   expensePaymentChart = null
 
   initCharts()
+})
+
+watch(filterType, () => {
+  currentPage.value = 1
 })
 
 onMounted(() => {
@@ -870,6 +954,17 @@ onBeforeUnmount(() => {
   border-radius: 4px;
   font-size: 13px;
   font-weight: 500;
+}
+
+.state-alert {
+  margin-bottom: 10px;
+}
+
+.page-empty {
+  min-height: 320px;
+  margin-bottom: 10px;
+  background: #ffffff;
+  border-radius: 4px;
 }
 
 .notes-summary-content :deep(.date-selector .el-select__wrapper),

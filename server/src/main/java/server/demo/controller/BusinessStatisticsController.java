@@ -166,14 +166,25 @@ public class BusinessStatisticsController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Long channelId) {
+            @RequestParam(required = false) Long channelId,
+            @RequestParam(required = false) String customer,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer pageSize) {
 
         try {
             if (startDate.isAfter(endDate)) {
                 return ApiResponse.error("开始日期不能晚于结束日期");
             }
 
-            SalesSummaryDTO summary = businessStatisticsService.getSalesSummary(startDate, endDate, keyword, channelId);
+            SalesSummaryDTO summary = businessStatisticsService.getSalesSummary(
+                    startDate,
+                    endDate,
+                    keyword,
+                    channelId,
+                    customer,
+                    page,
+                    pageSize
+            );
             return ApiResponse.success("获取销售汇总成功", summary);
         } catch (Exception e) {
             e.printStackTrace();

@@ -437,19 +437,19 @@ const router = createRouter({
         {
           path: 'statistics/business-summary',
           name: 'BusinessSummary',
-          component: () => import('@/views/statistics/BusinessSummary.vue'),
+          redirect: { path: '/data-center/overview', query: { tab: 'business' } },
           meta: { title: 'Business Summary', requiresAuth: true },
         },
         {
           path: 'statistics/channel-summary',
           name: 'ChannelSummary',
-          component: () => import('@/views/statistics/ChannelSummary.vue'),
+          redirect: { path: '/data-center/overview', query: { tab: 'channel' } },
           meta: { title: 'Channel Summary', requiresAuth: true },
         },
         {
           path: 'statistics/notes-summary',
           name: 'NotesSummary',
-          component: () => import('@/views/statistics/NotesSummary.vue'),
+          redirect: '/data-center/notes',
           meta: { title: 'Record Summary', requiresAuth: true },
         },
         {
@@ -478,7 +478,7 @@ const router = createRouter({
         },
         {
           path: 'statistics',
-          redirect: '/statistics/business-summary',
+          redirect: { path: '/data-center/overview', query: { tab: 'business' } },
         },
         {
           path: 'wallet',

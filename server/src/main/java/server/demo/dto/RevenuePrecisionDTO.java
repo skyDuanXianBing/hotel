@@ -11,6 +11,8 @@ public class RevenuePrecisionDTO {
     private Integer averagedRoomNights;
     private Integer totalRoomNights;
     private BigDecimal coverageRate;
+    private Integer residualConflictCount;
+    private Boolean residualConflictDetected;
 
     public String getPriceBasis() {
         return priceBasis;
@@ -74,5 +76,21 @@ public class RevenuePrecisionDTO {
 
     public void setCoverageRate(BigDecimal coverageRate) {
         this.coverageRate = coverageRate;
+    }
+
+    public Integer getResidualConflictCount() {
+        return residualConflictCount;
+    }
+
+    public void setResidualConflictCount(Integer residualConflictCount) {
+        this.residualConflictCount = residualConflictCount;
+    }
+
+    public Boolean getResidualConflictDetected() {
+        return residualConflictDetected;
+    }
+
+    public void setResidualConflictDetected(Boolean residualConflictDetected) {
+        this.residualConflictDetected = residualConflictDetected;
     }
 }

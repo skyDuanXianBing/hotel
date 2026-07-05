@@ -3,12 +3,26 @@
     <div class="operation-report-container">
       <h2 class="page-title">{{ t('stage5.statistics.reports.operationReport') }}</h2>
 
+      <div class="report-filter">
+        <el-date-picker
+          v-model="reportDateRange"
+          type="daterange"
+          :start-placeholder="t('stage5.common.date.startDate')"
+          :end-placeholder="t('stage5.common.date.endDate')"
+          :range-separator="t('stage5.common.date.rangeTo')"
+          format="YYYY/MM/DD"
+          value-format="YYYY-MM-DD"
+          :clearable="false"
+        />
+      </div>
+
       <div class="reports-grid">
         <div
           v-for="report in reports"
           :key="report.type"
           class="report-item"
-          @click="downloadReport(report.type)"
+          :class="{ 'is-disabled': !report.supported, 'is-loading': loadingReport === report.type }"
+          @click="downloadReport(report)"
         >
           <div class="report-icon">
             <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
@@ -20,6 +34,9 @@
             </svg>
           </div>
           <div class="report-name">{{ t(report.labelKey) }}</div>
+          <div v-if="!report.supported" class="report-status">
+            {{ t('stage5.statistics.reports.dataSourceMissing') }}
+          </div>
         </div>
       </div>
     </div>
@@ -27,26 +44,68 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import StatisticsLayout from './StatisticsLayout.vue'
+import {
+  downloadStatisticsReport,
+  getStatisticsReportErrorMessage,
+  saveBlobDownload,
+} from '@/api/statistics'
+import { getStoreTodayYmd, getYmdMonthStart } from '@/utils/storeDateTime'
 
 const { t } = useI18n()
+const today = getStoreTodayYmd()
+const startDate = ref(getYmdMonthStart(today))
+const endDate = ref(today)
+const loadingReport = ref('')
 
-const reports = [
-  { type: 'ledger', labelKey: 'stage5.statistics.reports.ledgerDetail' },
-  { type: 'daily', labelKey: 'stage5.statistics.reports.managerDaily' },
-  { type: 'materials', labelKey: 'stage5.statistics.reports.materialsReport' },
-  { type: 'housing', labelKey: 'stage5.statistics.reports.housingDetail' },
+type ReportItem = {
+  type: string
+  labelKey: string
+  supported: boolean
+}
+
+const reportDateRange = computed<string[]>({
+  get: () => [startDate.value, endDate.value],
+  set: (value: string[]) => {
+    const [start, end] = value || []
+    startDate.value = start || today
+    endDate.value = end || today
+  },
+})
+
+const reports: ReportItem[] = [
+  { type: 'ledger', labelKey: 'stage5.statistics.reports.ledgerDetail', supported: false },
+  { type: 'daily', labelKey: 'stage5.statistics.reports.managerDaily', supported: true },
+  { type: 'materials', labelKey: 'stage5.statistics.reports.materialsReport', supported: false },
+  { type: 'housing', labelKey: 'stage5.statistics.reports.housingDetail', supported: false },
 ]
 
-const downloadReport = (reportType: string) => {
-  const report = reports.find((item) => item.type === reportType)
-  const name = report ? t(report.labelKey) : reportType
-  ElMessage.info(t('stage5.statistics.reports.generating', { name }))
+const downloadReport = async (report: ReportItem) => {
+  if (!report.supported) {
+    ElMessage.warning(t('stage5.statistics.reports.unsupportedReport'))
+    return
+  }
 
-  // TODO: 实现实际的报表下载逻辑
-  // 这里可以调用后端API生成Excel报表并下载
+  try {
+    loadingReport.value = report.type
+    const download = await downloadStatisticsReport(report.type, {
+      startDate: startDate.value,
+      endDate: endDate.value,
+    })
+    saveBlobDownload(download)
+  } catch (error) {
+    console.error('Failed to download operation report:', error)
+    const message = await getStatisticsReportErrorMessage(
+      error,
+      t('stage5.statistics.reports.downloadFailed'),
+    )
+    ElMessage.error(message)
+  } finally {
+    loadingReport.value = ''
+  }
 }
 </script>
 
@@ -62,6 +121,15 @@ const downloadReport = (reportType: string) => {
   font-weight: 600;
   color: #303133;
   margin: 0 0 32px 0;
+}
+
+.report-filter {
+  display: flex;
+  margin-bottom: 24px;
+}
+
+.report-filter :deep(.el-date-editor) {
+  width: 320px;
 }
 
 .reports-grid {
@@ -82,7 +150,12 @@ const downloadReport = (reportType: string) => {
   border-radius: 8px;
 }
 
-.report-item:hover {
+.report-item.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.report-item:not(.is-disabled):hover {
   background: #f5f7fa;
   transform: translateY(-2px);
 }
@@ -105,7 +178,15 @@ const downloadReport = (reportType: string) => {
   word-break: break-word;
 }
 
-.report-item:hover .report-name {
+.report-status {
+  min-height: 18px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.report-item:not(.is-disabled):hover .report-name {
   color: #409eff;
 }
 </style>

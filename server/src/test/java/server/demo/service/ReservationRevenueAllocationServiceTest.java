@@ -29,7 +29,7 @@ class ReservationRevenueAllocationServiceTest {
                 26L,
                 List.of(10L),
                 LocalDate.of(2026, 2, 1),
-                LocalDate.of(2026, 2, 2)
+                LocalDate.of(2026, 2, 3)
         )).thenReturn(List.of(first, second));
 
         ReservationRevenueAllocationService.AllocationResult result = service.allocateRevenue(
@@ -104,21 +104,52 @@ class ReservationRevenueAllocationServiceTest {
 
         assertEquals(3, result.allocations().size());
         assertEquals(LocalDate.of(2026, 2, 1), result.allocations().get(0).date());
-        assertEquals(new BigDecimal("100.00"), result.allocations().get(0).amount());
+        assertEquals(new BigDecimal("75.00"), result.allocations().get(0).amount());
         assertFalse(result.allocations().get(0).exactDailyPrice());
         assertEquals(LocalDate.of(2026, 2, 2), result.allocations().get(1).date());
         assertEquals(new BigDecimal("150.00"), result.allocations().get(1).amount());
         assertTrue(result.allocations().get(1).exactDailyPrice());
         assertEquals(LocalDate.of(2026, 2, 3), result.allocations().get(2).date());
-        assertEquals(new BigDecimal("100.00"), result.allocations().get(2).amount());
+        assertEquals(new BigDecimal("75.00"), result.allocations().get(2).amount());
         assertFalse(result.allocations().get(2).exactDailyPrice());
-        assertEquals(new BigDecimal("350.00"), result.totalRevenue());
+        assertEquals(new BigDecimal("300.00"), result.totalRevenue());
         assertEquals(1, result.revenuePrecision().getExactRoomNights());
         assertEquals(2, result.revenuePrecision().getAveragedRoomNights());
         assertEquals(3, result.revenuePrecision().getTotalRoomNights());
         assertEquals(new BigDecimal("33.33"), result.revenuePrecision().getCoverageRate());
         assertEquals(ReservationRevenueAllocationService.PRICE_BASIS_MIXED,
                 result.revenuePrecision().getPriceBasis());
+    }
+
+    @Test
+    void allocateRevenue_shouldZeroMissingDatesWhenExactRowsExceedReservationTotal() {
+        ReservationDailyPriceRepository repository = mock(ReservationDailyPriceRepository.class);
+        ReservationRevenueAllocationService service = new ReservationRevenueAllocationService(repository);
+        Reservation reservation = buildReservation(15L, "100.00");
+
+        ReservationDailyPrice exactMiddleNight =
+                buildDailyPrice(reservation, LocalDate.of(2026, 2, 2), "150.00");
+        when(repository.findByStoreIdAndReservationIdInAndPriceDateBetween(
+                26L,
+                List.of(15L),
+                LocalDate.of(2026, 2, 1),
+                LocalDate.of(2026, 2, 3)
+        )).thenReturn(List.of(exactMiddleNight));
+
+        ReservationRevenueAllocationService.AllocationResult result = service.allocateRevenue(
+                26L,
+                List.of(reservation),
+                LocalDate.of(2026, 2, 1),
+                LocalDate.of(2026, 2, 3)
+        );
+
+        assertEquals(3, result.allocations().size());
+        assertEquals(new BigDecimal("0"), result.allocations().get(0).amount());
+        assertEquals(new BigDecimal("150.00"), result.allocations().get(1).amount());
+        assertEquals(new BigDecimal("0"), result.allocations().get(2).amount());
+        assertEquals(new BigDecimal("150.00"), result.totalRevenue());
+        assertTrue(result.revenuePrecision().getResidualConflictDetected());
+        assertEquals(1, result.revenuePrecision().getResidualConflictCount());
     }
 
     @Test

@@ -8,16 +8,27 @@ import server.demo.context.StoreContext;
 import server.demo.context.StoreContextHolder;
 import server.demo.dto.BusinessSummaryDTO;
 import server.demo.dto.RevenuePrecisionDTO;
+import server.demo.dto.RevenueSummaryDTO;
+import server.demo.entity.Channel;
+import server.demo.entity.Consumption;
+import server.demo.entity.Note;
+import server.demo.entity.Payment;
 import server.demo.entity.Reservation;
+import server.demo.enums.ChannelType;
 import server.demo.enums.ReservationStatus;
+import server.demo.repository.ConsumptionRepository;
+import server.demo.repository.NoteRepository;
+import server.demo.repository.PaymentRepository;
 import server.demo.repository.ReservationRepository;
 import server.demo.repository.RoomRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -78,6 +89,84 @@ class BusinessStatisticsServiceTest {
         assertEquals(new BigDecimal("100.00"), summary.getTotalRevenue());
     }
 
+    @Test
+    void getRevenueSummary_shouldUseRealFinancialAggregatesAndNotChannelAsPaymentMethod() {
+        ReservationRepository reservationRepository = mock(ReservationRepository.class);
+        RoomRepository roomRepository = mock(RoomRepository.class);
+        ReservationRevenueAllocationService revenueAllocationService =
+                mock(ReservationRevenueAllocationService.class);
+        PaymentRepository paymentRepository = mock(PaymentRepository.class);
+        ConsumptionRepository consumptionRepository = mock(ConsumptionRepository.class);
+        NoteRepository noteRepository = mock(NoteRepository.class);
+        StatisticsFinancialAggregationService financialAggregationService =
+                new StatisticsFinancialAggregationService(paymentRepository, consumptionRepository, noteRepository);
+        BusinessStatisticsService service = new BusinessStatisticsService();
+        ReflectionTestUtils.setField(service, "reservationRepository", reservationRepository);
+        ReflectionTestUtils.setField(service, "roomRepository", roomRepository);
+        ReflectionTestUtils.setField(service, "revenueAllocationService", revenueAllocationService);
+        ReflectionTestUtils.setField(service, "financialAggregationService", financialAggregationService);
+
+        LocalDate startDate = LocalDate.of(2026, 2, 1);
+        LocalDate endDate = LocalDate.of(2026, 2, 1);
+        Reservation otaReservation = buildReservation(201L, ReservationStatus.CONFIRMED);
+        Channel otaChannel = new Channel();
+        otaChannel.setName("Booking");
+        otaChannel.setType(ChannelType.OTA);
+        otaReservation.setChannel(otaChannel);
+        StoreContextHolder.setContext(new StoreContext(1L, 26L, "OWNER"));
+
+        when(reservationRepository.findByStoreId(26L)).thenReturn(List.of(otaReservation));
+        when(revenueAllocationService.allocateRevenue(eq(26L), anyList(), eq(startDate), eq(endDate)))
+                .thenReturn(new ReservationRevenueAllocationService.AllocationResult(
+                        List.of(new ReservationRevenueAllocationService.Allocation(
+                                otaReservation,
+                                startDate,
+                                new BigDecimal("100.00"),
+                                true
+                        )),
+                        buildPrecision()
+                ));
+        when(paymentRepository.findActiveReservationPaymentsByStoreIdAndDateRange(26L, startDate, endDate))
+                .thenReturn(List.of(
+                        buildPayment("payment", "wechat", "80.00", startDate),
+                        buildPayment("deposit", "wechat", "30.00", startDate),
+                        buildPayment("refund", "cash", "20.00", startDate)
+                ));
+        when(consumptionRepository.findActiveReservationConsumptionsByStoreIdAndDateRange(26L, startDate, endDate))
+                .thenReturn(List.of(buildConsumption("餐饮", "-12.00", startDate)));
+        when(noteRepository.findByStoreIdAndDateRange(
+                26L,
+                startDate.atStartOfDay(),
+                endDate.plusDays(1).atStartOfDay()
+        )).thenReturn(List.of(
+                buildNote("income", "souvenir", "alipay", "7.00",
+                        LocalDateTime.of(2026, 2, 1, 10, 0)),
+                buildNote("expense", "maintenance", "cash", "2.00",
+                        LocalDateTime.of(2026, 2, 1, 11, 0))
+        ));
+
+        RevenueSummaryDTO summary = service.getRevenueSummary(startDate, endDate);
+
+        assertEquals(new BigDecimal("149.00"), summary.getTotalIncome());
+        assertEquals(new BigDecimal("22.00"), summary.getTotalExpense());
+        assertEquals(new BigDecimal("127.00"), summary.getNetIncome());
+        assertEquals(new BigDecimal("100.00"), summary.getRoomFee());
+        assertEquals(new BigDecimal("100.00"), summary.getSplitAccount());
+        assertEquals(new BigDecimal("80.00"), summary.getActualReceived());
+        assertEquals(new BigDecimal("30.00"), summary.getDeposit());
+        assertEquals(new BigDecimal("12.00"), summary.getRoomServiceFee());
+        assertEquals(new BigDecimal("7.00"), summary.getNotesIncome());
+        assertEquals(new BigDecimal("2.00"), summary.getNotesExpense());
+        assertEquals(new BigDecimal("20.00"), summary.getPaymentRefund());
+        assertFalse(summary.getPaymentMethodStats().stream()
+                .anyMatch(stat -> "Booking".equals(stat.getPaymentMethod())));
+        assertEquals(new BigDecimal("149.00"), summary.getDailyRevenues().get(0).getTotalIncome());
+        assertEquals(new BigDecimal("2.00"), summary.getDailyRevenues().get(0).getNotesExpense());
+        assertEquals(new BigDecimal("20.00"), summary.getDailyRevenues().get(0).getPaymentRefund());
+        assertEquals(new BigDecimal("22.00"), summary.getDailyRevenues().get(0).getTotalExpense());
+        assertEquals(new BigDecimal("127.00"), summary.getDailyRevenues().get(0).getNetIncome());
+    }
+
     private Reservation buildReservation(Long id, ReservationStatus status) {
         Reservation reservation = new Reservation();
         reservation.setId(id);
@@ -101,5 +190,38 @@ class BusinessStatisticsServiceTest {
         precision.setTotalRoomNights(1);
         precision.setCoverageRate(BigDecimal.ZERO);
         return precision;
+    }
+
+    private Payment buildPayment(String type, String paymentMethod, String amount, LocalDate date) {
+        Payment payment = new Payment();
+        payment.setType(type);
+        payment.setPaymentMethod(paymentMethod);
+        payment.setAmount(new BigDecimal(amount));
+        payment.setDate(date);
+        return payment;
+    }
+
+    private Consumption buildConsumption(String item, String amount, LocalDate date) {
+        Consumption consumption = new Consumption();
+        consumption.setItem(item);
+        consumption.setAmount(new BigDecimal(amount));
+        consumption.setDate(date);
+        return consumption;
+    }
+
+    private Note buildNote(
+            String type,
+            String category,
+            String paymentMethod,
+            String amount,
+            LocalDateTime datetime
+    ) {
+        Note note = new Note();
+        note.setType(type);
+        note.setCategory(category);
+        note.setPaymentMethod(paymentMethod);
+        note.setAmount(new BigDecimal(amount));
+        note.setDatetime(datetime);
+        return note;
     }
 }

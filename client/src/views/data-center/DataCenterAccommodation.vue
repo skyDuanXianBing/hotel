@@ -1,6 +1,6 @@
 <template>
   <StatisticsLayout>
-    <div class="accommodation-container">
+    <div class="accommodation-container" v-loading="loading">
       <div class="filter-section">
         <el-select v-model="dateType" class="business-quick-select">
           <el-option :label="t('stage5.common.date.today')" value="today" />
@@ -26,7 +26,37 @@
         {{ revenuePrecisionNotice }}
       </div>
 
-      <div class="metrics-grid">
+      <div v-if="sourceMetadata.length || dataGaps.length" class="data-quality-panel">
+        <div v-if="sourceMetadata.length" class="data-quality-group">
+          <span class="data-quality-label">{{ t('stage5.dataCenter.overview.sourceMetadata') }}</span>
+          <span v-for="item in sourceMetadata" :key="`${item.metric}-${item.sourceType}`" class="data-quality-chip">
+            {{ item.metric }}: {{ item.note || item.sourceType }}
+          </span>
+        </div>
+        <div v-if="dataGaps.length" class="data-quality-group">
+          <span class="data-quality-label">{{ t('stage5.dataCenter.overview.dataGaps') }}</span>
+          <span v-for="item in dataGaps" :key="`${item.metric}-${item.reason}`" class="data-gap-chip">
+            {{ item.metric }}: {{ item.reason }}
+          </span>
+        </div>
+      </div>
+
+      <el-alert
+        v-if="loadError"
+        class="state-alert"
+        type="error"
+        :title="loadError"
+        :closable="false"
+        show-icon
+      />
+
+      <el-empty
+        v-if="showEmpty"
+        class="page-empty"
+        :description="t('stage5.dataCenter.overview.noData')"
+      />
+
+      <div v-if="contentReady" class="metrics-grid">
         <div v-for="card in metricCards" :key="card.key" class="metric-card">
           <div class="metric-copy">
             <div class="metric-label">
@@ -41,7 +71,7 @@
         </div>
       </div>
 
-      <section class="trend-section">
+      <section v-if="contentReady" class="trend-section">
         <h3 class="section-title">{{ t('stage5.statistics.accommodation.operationalMetrics') }}</h3>
 
         <div class="trend-tabs">
@@ -58,12 +88,17 @@
         <div ref="lineChartRef" class="trend-chart"></div>
       </section>
 
-      <section class="table-section">
+      <section v-if="contentReady" class="table-section">
         <div class="table-header">
           <h3 class="section-title table-title">
             {{ t('stage5.statistics.accommodation.dataDetails') }} ({{ dateRangeLabel }})
           </h3>
-          <el-button type="primary" class="export-button">
+          <el-button
+            type="primary"
+            class="export-button"
+            :loading="exporting"
+            @click="handleExport"
+          >
             {{ t('stage5.common.actions.exportDetails') }}
           </el-button>
         </div>
@@ -138,7 +173,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -146,10 +181,15 @@ import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import StatisticsLayout from '../statistics/StatisticsLayout.vue'
 import {
+  downloadStatisticsReport,
+  getStatisticsReportErrorMessage,
   getOperationalMetrics,
+  saveBlobDownload,
   type OperationalMetricsDTO,
   type OperationalRoomDetailDTO,
   type RevenuePrecisionDTO,
+  type StatisticsDataGapDTO,
+  type StatisticsSourceMetadataDTO,
 } from '@/api/statistics'
 import { addDaysToYmd, getStoreTodayYmd, getYmdMonthStart, getYmdWeekStart } from '@/utils/storeDateTime'
 import businessHomeIcon from '@/assets/icons/statistics/business-home.png'
@@ -162,7 +202,11 @@ import occupancyRateIcon from '@/assets/icons/statistics/accommodation-occupancy
 const { t } = useI18n()
 const dateType = ref('today')
 const loading = ref(false)
+const exporting = ref(false)
+const loadError = ref('')
 const revenuePrecision = ref<RevenuePrecisionDTO | null>(null)
+const sourceMetadata = ref<StatisticsSourceMetadataDTO[]>([])
+const dataGaps = ref<StatisticsDataGapDTO[]>([])
 
 const getTodayDate = () => getStoreTodayYmd()
 
@@ -220,20 +264,74 @@ const formatNumber = (value: number) =>
 const formatCurrency = (value: number) => `¥${formatNumber(value)}`
 const formatPercent = (value: number) => `${formatNumber(value)}%`
 
+const handleExport = async () => {
+  if (!startDate.value || !endDate.value) {
+    ElMessage.warning(t('stage5.common.messages.pleaseSelectDateRange'))
+    return
+  }
+
+  try {
+    exporting.value = true
+    const download = await downloadStatisticsReport('room-fees', {
+      startDate: startDate.value,
+      endDate: endDate.value,
+    })
+    saveBlobDownload(download)
+  } catch (error) {
+    console.error('Failed to export accommodation report:', error)
+    const message = await getStatisticsReportErrorMessage(
+      error,
+      t('stage5.statistics.reports.downloadFailed'),
+    )
+    ElMessage.error(message)
+  } finally {
+    exporting.value = false
+  }
+}
+
 const dateRangeLabel = computed(() => {
   return t('stage5.common.date.dateRange', { start: startDate.value, end: endDate.value })
 })
 
 const revenuePrecisionNotice = computed(() => {
   const precision = revenuePrecision.value
+  const notices: string[] = []
   if (!precision) {
-    return t('stage5.dataCenter.overview.priceBasisNotice')
+    notices.push(t('stage5.dataCenter.overview.priceBasisNotice'))
+  } else {
+    notices.push(
+      t('stage5.dataCenter.overview.priceBasisNoticeWithCoverage', {
+        exact: precision.exactRoomNights || 0,
+        averaged: precision.averagedRoomNights || 0,
+        coverage: precision.coverageRate ?? 0,
+      }),
+    )
   }
-  return t('stage5.dataCenter.overview.priceBasisNoticeWithCoverage', {
-    exact: precision.exactRoomNights || 0,
-    averaged: precision.averagedRoomNights || 0,
-  })
+  if (precision?.currencyCode === 'MIXED') {
+    notices.push(t('stage5.dataCenter.overview.mixedCurrencyNotice'))
+  }
+  if (precision?.residualConflictDetected) {
+    notices.push(
+      t('stage5.dataCenter.overview.residualConflictNotice', {
+        count: precision.residualConflictCount || 0,
+      }),
+    )
+  }
+  return notices.join(' ')
 })
+
+const hasMetricsData = computed(() =>
+  metrics.value.totalRoomFee > 0 ||
+  metrics.value.totalRoomNights > 0 ||
+  dates.value.length > 0 ||
+  roomFeeData.value.length > 0 ||
+  checkinData.value.length > 0 ||
+  occupancyData.value.length > 0 ||
+  revparData.value.length > 0,
+)
+
+const showEmpty = computed(() => !loading.value && !loadError.value && !hasMetricsData.value)
+const contentReady = computed(() => !loadError.value && !showEmpty.value)
 
 const currentDateLabel = computed(() => {
   const current = endDate.value || getTodayDate()
@@ -313,14 +411,28 @@ const loadOperationalMetrics = async () => {
     })
 
     if (response.success && response.data) {
+      loadError.value = ''
       revenuePrecision.value = response.data.revenuePrecision || null
+      sourceMetadata.value = response.data.sourceMetadata || []
+      dataGaps.value = response.data.dataGaps || []
       applyOperationalMetricsData(response.data)
+      await nextTick()
+      if (!lineChart && lineChartRef.value) {
+        initLineChart()
+      } else {
+        updateLineChart(activeTrendTab.value)
+      }
     } else {
-      ElMessage.error(response.message || t('stage5.statistics.accommodation.loadMetricsFailed'))
+      loadError.value = response.message || t('stage5.statistics.accommodation.loadMetricsFailed')
+      ElMessage.error(loadError.value)
     }
   } catch (error) {
+    loadError.value = t('stage5.statistics.accommodation.loadMetricsFailed')
+    revenuePrecision.value = null
+    sourceMetadata.value = []
+    dataGaps.value = []
     console.error('Failed to load operational metrics:', error)
-    ElMessage.error(t('stage5.statistics.accommodation.loadMetricsFailed'))
+    ElMessage.error(loadError.value)
   } finally {
     loading.value = false
   }
@@ -460,6 +572,23 @@ const initLineChart = () => {
   updateLineChart('room-fee')
 }
 
+const createEmptyChartOption = () => ({
+  graphic: {
+    type: 'text',
+    left: 'center',
+    top: 'middle',
+    style: {
+      text: t('stage5.dataCenter.overview.noData'),
+      fill: '#8a8f99',
+      fontSize: 14,
+      fontWeight: 500,
+    },
+  },
+  xAxis: { show: false },
+  yAxis: { show: false },
+  series: [],
+})
+
 const getXAxisLabelInterval = (dateCount: number) => {
   if (dateCount <= 7) return 0
   if (dateCount <= 14) return 1
@@ -471,6 +600,10 @@ const updateLineChart = (tabKey: string) => {
   if (!lineChart) return
 
   const data = trendData.value[tabKey] || []
+  if (!dates.value.length || !data.length) {
+    lineChart.setOption(createEmptyChartOption(), true)
+    return
+  }
   const tabLabel = trendTabs.value.find(tab => tab.key === tabKey)?.label || ''
   const isMoney = tabKey === 'room-fee' || tabKey === 'avg-price' || tabKey === 'avg-revenue'
   const xAxisLabelInterval = getXAxisLabelInterval(dates.value.length)
@@ -652,6 +785,57 @@ onBeforeUnmount(() => {
   color: #42526a;
   font-size: 13px;
   line-height: 1.45;
+}
+
+.data-quality-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.data-quality-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #5f6670;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.data-quality-label {
+  color: #30343b;
+  font-weight: 600;
+}
+
+.data-quality-chip,
+.data-gap-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #f5f9ff;
+  color: #42526a;
+}
+
+.data-gap-chip {
+  background: #fff7e8;
+  color: #8a5a12;
+}
+
+.state-alert {
+  margin-bottom: 10px;
+}
+
+.page-empty {
+  min-height: 320px;
+  background: #ffffff;
+  border-radius: 4px;
 }
 
 .business-quick-select {
