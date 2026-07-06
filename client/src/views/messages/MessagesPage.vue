@@ -1,348 +1,357 @@
 ﻿<template>
-  <div class="messages-page">
-    <div class="conversations-panel">
-      <div class="panel-header">
-        <h2>{{ t('stage6.components.messagesPage.inbox') }}</h2>
-        <div class="panel-header-actions">
-          <el-button text size="small" @click="translationDialogVisible = true">
-            {{ t('stage6.components.messagesPage.translate') }}
+  <div class="messages-page-shell">
+    <div class="messages-page">
+      <div class="conversations-panel">
+        <div class="panel-header">
+          <h2>{{ t('stage6.components.messagesPage.inbox') }}</h2>
+          <div class="panel-header-actions">
+            <el-button text size="small" @click="translationDialogVisible = true">
+              {{ t('stage6.components.messagesPage.translate') }}
+            </el-button>
+          </div>
+        </div>
+
+        <div class="filters-panel">
+          <el-input
+            v-model="searchQuery"
+            :placeholder="uiText('searchPlaceholder')"
+            :prefix-icon="Search"
+            clearable
+            @keyup.enter="handleThreadSearchEnter"
+          />
+          <div class="filter-row">
+            <el-select
+              v-model="filterChannel"
+              :placeholder="uiText('channelFilterPlaceholder')"
+              clearable
+            >
+              <el-option
+                v-for="option in channelFilterOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+            <el-select
+              v-model="filterOrderStatuses"
+              :placeholder="uiText('orderKindFilterPlaceholder')"
+              clearable
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+            >
+              <el-option
+                v-for="option in orderStatusFilterOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </div>
+          <div class="filter-actions">
+            <el-checkbox v-model="filterUnreadOnly">
+              {{ uiText('unreadOnly') }}
+            </el-checkbox>
+          </div>
+        </div>
+
+        <div v-if="selectedThreadIds.length > 0" class="selection-bar">
+          <span>{{ uiText('selectedThreads', { count: selectedThreadIds.length }) }}</span>
+          <el-button link type="primary" @click="clearSelectedThreads">
+            {{ uiText('clearSelection') }}
           </el-button>
         </div>
-      </div>
 
-      <div class="filters-panel">
-        <el-input
-          v-model="searchQuery"
-          :placeholder="uiText('searchPlaceholder')"
-          :prefix-icon="Search"
-          clearable
-          @keyup.enter="handleThreadSearchEnter"
-        />
-        <div class="filter-row">
-          <el-select
-            v-model="filterChannel"
-            :placeholder="uiText('channelFilterPlaceholder')"
-            clearable
+        <div
+          ref="conversationsListRef"
+          class="conversations-list"
+          v-loading="isLoadingThreads"
+          @scroll="handleThreadListScroll"
+        >
+          <div
+            v-for="conversation in filteredConversations"
+            :key="conversation.id"
+            class="conversation-item"
+            :class="{
+              active: activeThreadId === conversation.id,
+              selected: isThreadSelected(conversation.id),
+            }"
+            @click="selectConversation(conversation.id)"
           >
-            <el-option
-              v-for="option in channelFilterOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
+            <el-checkbox
+              class="conversation-select"
+              :model-value="isThreadSelected(conversation.id)"
+              @click.stop
+              @change="handleThreadSelectionChange(conversation.id, Boolean($event))"
             />
-          </el-select>
-          <el-select
-            v-model="filterOrderStatuses"
-            :placeholder="uiText('orderKindFilterPlaceholder')"
-            clearable
-            multiple
-            collapse-tags
-            collapse-tags-tooltip
-          >
-            <el-option
-              v-for="option in orderStatusFilterOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
-        </div>
-        <div class="filter-actions">
-          <el-checkbox v-model="filterUnreadOnly">
-            {{ uiText('unreadOnly') }}
-          </el-checkbox>
-        </div>
-      </div>
-
-      <div v-if="selectedThreadIds.length > 0" class="selection-bar">
-        <span>{{ uiText('selectedThreads', { count: selectedThreadIds.length }) }}</span>
-        <el-button link type="primary" @click="clearSelectedThreads">
-          {{ uiText('clearSelection') }}
-        </el-button>
-      </div>
-
-      <div
-        ref="conversationsListRef"
-        class="conversations-list"
-        v-loading="isLoadingThreads"
-        @scroll="handleThreadListScroll"
-      >
-        <div
-          v-for="conversation in filteredConversations"
-          :key="conversation.id"
-          class="conversation-item"
-          :class="{
-            active: activeThreadId === conversation.id,
-            selected: isThreadSelected(conversation.id),
-          }"
-          @click="selectConversation(conversation.id)"
-        >
-          <el-checkbox
-            class="conversation-select"
-            :model-value="isThreadSelected(conversation.id)"
-            @click.stop
-            @change="handleThreadSelectionChange(conversation.id, Boolean($event))"
-          />
-          <div class="conversation-avatar">
-            <el-icon><User /></el-icon>
-          </div>
-          <div class="conversation-info">
-            <div class="conversation-header">
-              <span class="channel-name">{{
-                conversation.guestName || conversation.listingName || conversation.channelName
-              }}</span>
-              <div class="conversation-meta">
-                <span class="message-time">{{
-                  formatConversationTime(conversation.lastActivity)
-                }}</span>
-                <span v-if="conversation.unreadCount > 0" class="unread-badge">
-                  {{ formatUnreadCount(conversation.unreadCount) }}
-                </span>
-              </div>
-            </div>
-            <div class="last-message">
-              <span class="channel-badge" :class="`channel-${resolveChannelStyle(conversation)}`">
-                {{ resolveChannelLabel(conversation) }}
-              </span>
-              <span>{{ getConversationPreviewText(conversation) }}</span>
-            </div>
-            <div class="conversation-status">
-              <span
-                v-if="getConversationOrderKindLabel(conversation)"
-                class="order-kind-tag"
-                :class="`order-kind-${getConversationOrderKindStyle(conversation)}`"
-              >
-                {{ getConversationOrderKindLabel(conversation) }}
-              </span>
-              <span class="conversation-stay-info">
-                {{ getConversationStayInfo(conversation) }}
-              </span>
-              <span
-                v-if="getConversationListingInfo(conversation)"
-                class="conversation-listing-info"
-              >
-                {{ getConversationListingInfo(conversation) }}
-              </span>
-              <span v-if="conversation.closed" class="conversation-closed-text">
-                {{ t('stage6.components.messagesPage.status.closed') }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="isLoadingThreads && filteredConversations.length === 0" class="empty-state">
-          <el-icon :size="48" color="#ddd"><ChatDotRound /></el-icon>
-          <p>{{ uiText('loadingConversations') }}</p>
-        </div>
-
-        <div
-          v-else-if="!isLoadingThreads && filteredConversations.length === 0"
-          class="empty-state"
-        >
-          <el-icon :size="48" color="#ddd"><ChatDotRound /></el-icon>
-          <p>{{ threadEmptyStateText }}</p>
-        </div>
-
-        <div
-          v-if="filteredConversations.length > 0 && isLoadingMoreThreads"
-          class="thread-pagination"
-        >
-          <el-icon class="spin"><Loading /></el-icon>
-          <span>{{ uiText('loadingMoreThreads') }}</span>
-        </div>
-        <div
-          v-else-if="filteredConversations.length > 0 && hasThreadQueryStarted && !threadPageHasNext"
-          class="thread-pagination"
-        >
-          <span>{{ uiText('noMoreThreads') }}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="messages-panel">
-      <template v-if="activeConversation">
-        <div class="messages-header">
-          <div class="channel-info">
-            <div class="channel-avatar">
+            <div class="conversation-avatar">
               <el-icon><User /></el-icon>
             </div>
-            <div class="channel-details">
-              <div class="channel-name">
-                {{
-                  activeConversation.guestName ||
-                  activeConversation.listingName ||
-                  activeConversation.channelName
-                }}
+            <div class="conversation-info">
+              <div class="conversation-header">
+                <span class="channel-name">{{
+                  conversation.guestName || conversation.listingName || conversation.channelName
+                }}</span>
+                <div class="conversation-meta">
+                  <span class="message-time">{{
+                    formatConversationTime(conversation.lastActivity)
+                  }}</span>
+                  <span v-if="conversation.unreadCount > 0" class="unread-badge">
+                    {{ formatUnreadCount(conversation.unreadCount) }}
+                  </span>
+                </div>
               </div>
-              <div class="channel-status-text">
-                <span
-                  class="channel-badge"
-                  :class="`channel-${resolveChannelStyle(activeConversation)}`"
-                >
-                  {{ resolveChannelLabel(activeConversation) }}
+              <div class="last-message">
+                <span class="channel-badge" :class="`channel-${resolveChannelStyle(conversation)}`">
+                  {{ resolveChannelLabel(conversation) }}
                 </span>
-                <span>
-                  {{
-                    t('stage6.components.messagesPage.orderNumberWithValue', {
-                      value: activeConversation.bookingId || activeConversation.threadId || '-',
-                    })
-                  }}
-                </span>
+                <span>{{ getConversationPreviewText(conversation) }}</span>
+              </div>
+              <div class="conversation-status">
                 <span
-                  v-if="getConversationOrderKindLabel(activeConversation)"
+                  v-if="getConversationOrderKindLabel(conversation)"
                   class="order-kind-tag"
-                  :class="`order-kind-${getConversationOrderKindStyle(activeConversation)}`"
+                  :class="`order-kind-${getConversationOrderKindStyle(conversation)}`"
                 >
-                  {{ getConversationOrderKindLabel(activeConversation) }}
+                  {{ getConversationOrderKindLabel(conversation) }}
                 </span>
-                <span>{{ getConversationStayInfo(activeConversation) }}</span>
-                <span v-if="activeConversation.closed">
+                <span class="conversation-stay-info">
+                  {{ getConversationStayInfo(conversation) }}
+                </span>
+                <span
+                  v-if="getConversationListingInfo(conversation)"
+                  class="conversation-listing-info"
+                >
+                  {{ getConversationListingInfo(conversation) }}
+                </span>
+                <span v-if="conversation.closed" class="conversation-closed-text">
                   {{ t('stage6.components.messagesPage.status.closed') }}
                 </span>
               </div>
-              <div v-if="activeConversationListingInfo" class="channel-listing-text">
-                {{ activeConversationListingInfo }}
-              </div>
             </div>
           </div>
-          <div class="header-actions">
-            <el-button
-              size="small"
-              :loading="isResolvingReservation"
-              :disabled="!activeConversation"
-              @click="openOrderDetail"
-            >
-              {{ t('stage6.components.messagesPage.orderDetails') }}
-            </el-button>
-          </div>
-        </div>
 
-        <div
-          ref="messagesListRef"
-          class="messages-list"
-          v-loading="isLoadingMessages"
-          @scroll="handleMessagesScroll"
-        >
-          <div v-if="messages.length && hasMoreMessagesBefore" class="load-earlier-messages">
-            <el-button
-              text
-              type="primary"
-              :loading="isLoadingOlderMessages"
-              @click="loadOlderMessages"
-            >
-              {{ uiText('loadEarlierMessages') }}
-            </el-button>
-          </div>
-
-          <template v-for="group in groupedMessages" :key="group.key">
-            <div class="message-date-divider">{{ group.label }}</div>
-            <div
-              v-for="message in group.items"
-              :key="message.id"
-              class="message-item"
-              :data-message-id="message.id"
-              :class="{
-                'message-sent': message.senderType === SuMessagingSenderType.STAFF,
-                'message-received': message.senderType === SuMessagingSenderType.GUEST,
-              }"
-            >
-              <span
-                v-if="
-                  message.senderType === SuMessagingSenderType.STAFF &&
-                  message.deliveryStatus === 'SENDING'
-                "
-                class="message-delivery-indicator sending"
-                :aria-label="t('stage6.components.messagesPage.message.sending')"
-              >
-                <el-icon class="spin"><Loading /></el-icon>
-              </span>
-              <span
-                v-else-if="
-                  message.senderType === SuMessagingSenderType.STAFF &&
-                  message.deliveryStatus === 'FAILED'
-                "
-                class="message-delivery-indicator failed"
-                :title="t('stage6.components.messagesPage.message.sendFailed')"
-              >
-                <el-icon><WarningFilled /></el-icon>
-              </span>
-
-              <div class="message-content">
-                <div class="message-text">
-                  <template
-                    v-for="(segment, index) in splitMessageContent(message.content)"
-                    :key="`${message.id}-${index}`"
-                  >
-                    <a
-                      v-if="segment.type === 'link'"
-                      :href="segment.value"
-                      class="message-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {{ segment.label }}
-                    </a>
-                    <span v-else>{{ segment.value }}</span>
-                  </template>
-                </div>
-                <div v-if="shouldShowTranslatedMessage(message)" class="message-translation">
-                  {{ getTranslatedMessageText(message) }}
-                </div>
-                <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
-              </div>
-            </div>
-          </template>
-
-          <div v-if="!isLoadingMessages && activeConversation && messages.length === 0" class="empty-state">
+          <div v-if="isLoadingThreads && filteredConversations.length === 0" class="empty-state">
             <el-icon :size="48" color="#ddd"><ChatDotRound /></el-icon>
-            <p>{{ uiText('emptyMessages') }}</p>
+            <p>{{ uiText('loadingConversations') }}</p>
+          </div>
+
+          <div
+            v-else-if="!isLoadingThreads && filteredConversations.length === 0"
+            class="empty-state"
+          >
+            <el-icon :size="48" color="#ddd"><ChatDotRound /></el-icon>
+            <p>{{ threadEmptyStateText }}</p>
+          </div>
+
+          <div
+            v-if="filteredConversations.length > 0 && isLoadingMoreThreads"
+            class="thread-pagination"
+          >
+            <el-icon class="spin"><Loading /></el-icon>
+            <span>{{ uiText('loadingMoreThreads') }}</span>
+          </div>
+          <div
+            v-else-if="
+              filteredConversations.length > 0 && hasThreadQueryStarted && !threadPageHasNext
+            "
+            class="thread-pagination"
+          >
+            <span>{{ uiText('noMoreThreads') }}</span>
           </div>
         </div>
+      </div>
 
-        <div class="message-input-area">
-          <el-input
-            v-model="newMessage"
-            type="textarea"
-            :rows="3"
-            :placeholder="t('stage6.components.messagesPage.messageInputPlaceholder')"
-            :disabled="isSending || activeConversation.closed"
-            @keydown.enter.exact.prevent="sendMessage"
-          />
-          <div class="input-actions">
-            <div class="input-actions-left">
+      <div class="messages-panel">
+        <template v-if="activeConversation">
+          <div class="messages-header">
+            <div class="channel-info">
+              <div class="channel-avatar">
+                <el-icon><User /></el-icon>
+              </div>
+              <div class="channel-details">
+                <div class="channel-name">
+                  {{
+                    activeConversation.guestName ||
+                    activeConversation.listingName ||
+                    activeConversation.channelName
+                  }}
+                </div>
+                <div class="channel-status-text">
+                  <span
+                    class="channel-badge"
+                    :class="`channel-${resolveChannelStyle(activeConversation)}`"
+                  >
+                    {{ resolveChannelLabel(activeConversation) }}
+                  </span>
+                  <span>
+                    {{
+                      t('stage6.components.messagesPage.orderNumberWithValue', {
+                        value: activeConversation.bookingId || activeConversation.threadId || '-',
+                      })
+                    }}
+                  </span>
+                  <span
+                    v-if="getConversationOrderKindLabel(activeConversation)"
+                    class="order-kind-tag"
+                    :class="`order-kind-${getConversationOrderKindStyle(activeConversation)}`"
+                  >
+                    {{ getConversationOrderKindLabel(activeConversation) }}
+                  </span>
+                  <span>{{ getConversationStayInfo(activeConversation) }}</span>
+                  <span v-if="activeConversation.closed">
+                    {{ t('stage6.components.messagesPage.status.closed') }}
+                  </span>
+                </div>
+                <div v-if="activeConversationListingInfo" class="channel-listing-text">
+                  {{ activeConversationListingInfo }}
+                </div>
+              </div>
+            </div>
+            <div class="header-actions">
               <el-button
-                type="default"
-                :icon="ChatLineSquare"
-                :disabled="isSending || !activeConversation"
-                @click="openQuickReplyDialog"
+                size="small"
+                :loading="isResolvingReservation"
+                :disabled="!activeConversation"
+                @click="openOrderDetail"
               >
-                {{ t('stage6.components.messagesPage.quickReply') }}
-              </el-button>
-              <el-button
-                type="default"
-                :icon="MagicStick"
-                :disabled="isSending || activeConversation.closed || isAiGeneratingDraft"
-                :loading="isAiGeneratingDraft"
-                @click="openAiReplyAssistant"
-              >
-                {{ t('stage6.components.messagesPage.aiReplyAssistant') }}
+                {{ t('stage6.components.messagesPage.orderDetails') }}
               </el-button>
             </div>
-            <el-button
-              type="primary"
-              @click="sendMessage"
-              :disabled="!newMessage.trim() || isSending || activeConversation.closed"
-              :loading="isSending"
-            >
-              {{ t('stage6.common.actions.send') }}
-            </el-button>
           </div>
-        </div>
-      </template>
 
-      <div v-else class="empty-state">
-        <el-icon :size="80" color="#ccc"><ChatDotRound /></el-icon>
-        <p>{{ t('stage6.components.messagesPage.selectConversationPrompt') }}</p>
+          <div
+            ref="messagesListRef"
+            class="messages-list"
+            v-loading="isLoadingMessages"
+            @scroll="handleMessagesScroll"
+          >
+            <div v-if="messages.length && hasMoreMessagesBefore" class="load-earlier-messages">
+              <el-button
+                text
+                type="primary"
+                :loading="isLoadingOlderMessages"
+                @click="loadOlderMessages"
+              >
+                {{ uiText('loadEarlierMessages') }}
+              </el-button>
+            </div>
+
+            <template v-for="group in groupedMessages" :key="group.key">
+              <div class="message-date-divider">{{ group.label }}</div>
+              <div
+                v-for="message in group.items"
+                :key="message.id"
+                class="message-item"
+                :data-message-id="message.id"
+                :class="{
+                  'message-sent': message.senderType === SuMessagingSenderType.STAFF,
+                  'message-received': message.senderType === SuMessagingSenderType.GUEST,
+                }"
+              >
+                <span
+                  v-if="
+                    message.senderType === SuMessagingSenderType.STAFF &&
+                    message.deliveryStatus === 'SENDING'
+                  "
+                  class="message-delivery-indicator sending"
+                  :aria-label="t('stage6.components.messagesPage.message.sending')"
+                >
+                  <el-icon class="spin"><Loading /></el-icon>
+                </span>
+                <span
+                  v-else-if="
+                    message.senderType === SuMessagingSenderType.STAFF &&
+                    message.deliveryStatus === 'FAILED'
+                  "
+                  class="message-delivery-indicator failed"
+                  :title="t('stage6.components.messagesPage.message.sendFailed')"
+                >
+                  <el-icon><WarningFilled /></el-icon>
+                </span>
+
+                <div class="message-content">
+                  <div class="message-text">
+                    <template
+                      v-for="(segment, index) in splitMessageContent(message.content)"
+                      :key="`${message.id}-${index}`"
+                    >
+                      <a
+                        v-if="segment.type === 'link'"
+                        :href="segment.value"
+                        class="message-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {{ segment.label }}
+                      </a>
+                      <span v-else>{{ segment.value }}</span>
+                    </template>
+                  </div>
+                  <div v-if="shouldShowTranslatedMessage(message)" class="message-translation">
+                    {{ getTranslatedMessageText(message) }}
+                  </div>
+                  <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
+                </div>
+              </div>
+            </template>
+
+            <div
+              v-if="!isLoadingMessages && activeConversation && messages.length === 0"
+              class="empty-state message-empty-state"
+            >
+              <el-icon :size="48" color="#ddd"><ChatDotRound /></el-icon>
+              <p>{{ uiText('emptyMessages') }}</p>
+            </div>
+          </div>
+
+          <div class="message-input-area">
+            <el-input
+              v-model="newMessage"
+              type="textarea"
+              :rows="3"
+              :placeholder="t('stage6.components.messagesPage.messageInputPlaceholder')"
+              :disabled="isSending || activeConversation.closed"
+              @keydown.enter.exact.prevent="sendMessage"
+            />
+            <div class="input-actions">
+              <div class="input-actions-left">
+                <el-button
+                  type="default"
+                  :icon="ChatLineSquare"
+                  :disabled="isSending || !activeConversation"
+                  @click="openQuickReplyDialog"
+                >
+                  {{ t('stage6.components.messagesPage.quickReply') }}
+                </el-button>
+                <el-button
+                  type="default"
+                  :icon="MagicStick"
+                  :disabled="isSending || activeConversation.closed || isAiGeneratingDraft"
+                  :loading="isAiGeneratingDraft"
+                  @click="openAiReplyAssistant"
+                >
+                  {{ t('stage6.components.messagesPage.aiReplyAssistant') }}
+                </el-button>
+              </div>
+              <el-button
+                type="primary"
+                @click="sendMessage"
+                :disabled="!newMessage.trim() || isSending || activeConversation.closed"
+                :loading="isSending"
+              >
+                {{ t('stage6.common.actions.send') }}
+              </el-button>
+            </div>
+          </div>
+        </template>
+
+        <div v-else class="empty-state conversation-empty-state">
+          <div class="empty-state-icon">
+            <el-icon :size="64"><ChatDotRound /></el-icon>
+          </div>
+          <p>{{ t('stage6.components.messagesPage.selectConversationPrompt') }}</p>
+        </div>
       </div>
     </div>
 
@@ -453,9 +462,6 @@
               t('stage6.components.messagesPage.aiDraft.systemLanguageVersionPlaceholder')
             "
           />
-        </div>
-        <div v-if="aiDraftViewMode === 'system'" class="ai-draft-reference-hint">
-          {{ t('stage6.components.messagesPage.aiDraft.systemLanguageReferenceHint') }}
         </div>
       </div>
       <div class="ai-draft-section ai-draft-section-divider">
@@ -1898,7 +1904,9 @@ const handleThreadSelectionChange = (threadId: number, checked: string | number 
     return
   }
   if (!shouldSelect) {
-    selectedThreadIds.value = selectedThreadIds.value.filter((selectedId) => selectedId !== threadId)
+    selectedThreadIds.value = selectedThreadIds.value.filter(
+      (selectedId) => selectedId !== threadId,
+    )
   }
 }
 
@@ -1926,7 +1934,9 @@ const buildThreadPageParams = (page: number) => {
 
 const applyThreadPage = (pageData: SuMessagingThreadPageDTO, append: boolean) => {
   const incoming = pageData.items || []
-  conversations.value = append ? mergeThreadSummaries([...conversations.value, ...incoming]) : incoming
+  conversations.value = append
+    ? mergeThreadSummaries([...conversations.value, ...incoming])
+    : incoming
   threadPageNumber.value = pageData.page
   threadPageHasNext.value = Boolean(pageData.hasNext)
   hasThreadQueryStarted.value = true
@@ -2064,12 +2074,11 @@ const loadThreadMessages = async (threadId: number, beforeMessageId?: number) =>
       )
     }
 
-    const pageData =
-      response.data || {
-        items: [],
-        limit: MESSAGE_PAGE_LIMIT,
-        hasMoreBefore: false,
-      }
+    const pageData = response.data || {
+      items: [],
+      limit: MESSAGE_PAGE_LIMIT,
+      hasMoreBefore: false,
+    }
     const incoming = (pageData.items || []).map(mapMessage)
     messages.value = mergeMessagesById(isOlderPage ? [...incoming, ...messages.value] : incoming)
     hasMoreMessagesBefore.value = Boolean(pageData.hasMoreBefore)
@@ -2148,7 +2157,9 @@ const resolveAiDraftLanguage = () => {
   return languageCode
 }
 
-const resolveAiDraftChannel = (conversation: SuMessagingThreadDTO): SuMessagingChannelCode | undefined => {
+const resolveAiDraftChannel = (
+  conversation: SuMessagingThreadDTO,
+): SuMessagingChannelCode | undefined => {
   if (conversation.channelCode) {
     return conversation.channelCode
   }
@@ -3194,22 +3205,43 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.messages-page {
+.messages-page-shell {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  background: #fff;
+  overflow: hidden;
   display: flex;
-  height: calc(100vh - 60px);
-  background: #f5f5f5;
+  flex-direction: column;
+}
+
+.messages-page {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 352px minmax(0, 1fr);
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .conversations-panel {
-  width: 320px;
+  min-width: 0;
+  min-height: 0;
   background: #fff;
-  border-right: 1px solid #e8e8e8;
+  border-right: 1px solid #ecece7;
   display: flex;
   flex-direction: column;
 }
 
 .panel-header {
-  padding: 20px;
+  flex: 0 0 auto;
+  min-height: 60px;
+  padding: 16px 18px;
   border-bottom: 1px solid #e8e8e8;
   display: flex;
   justify-content: space-between;
@@ -3218,9 +3250,10 @@ onUnmounted(() => {
 
 .panel-header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: #333;
+  line-height: 1.35;
 }
 
 .panel-header-actions {
@@ -3230,11 +3263,13 @@ onUnmounted(() => {
 }
 
 .filters-panel {
-  padding: 16px;
+  flex: 0 0 auto;
+  padding: 14px 16px 15px;
+  background: #fff;
   border-bottom: 1px solid #e8e8e8;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .filter-row {
@@ -3248,13 +3283,53 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 22px;
+}
+
+.filters-panel :deep(.el-input__wrapper),
+.filters-panel :deep(.el-select__wrapper) {
+  min-height: 34px;
+  height: 34px;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #dddddd inset;
+}
+
+.filters-panel :deep(.el-input__wrapper:hover),
+.filters-panel :deep(.el-input__wrapper.is-focus),
+.filters-panel :deep(.el-select__wrapper:hover),
+.filters-panel :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #bdbdbd inset;
+}
+
+.filters-panel :deep(.el-input__inner),
+.filters-panel :deep(.el-select__placeholder),
+.filters-panel :deep(.el-select__selected-item) {
+  color: #303030;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.filters-panel :deep(.el-input__prefix),
+.filters-panel :deep(.el-select__suffix) {
+  color: #a8abb2;
+}
+
+.filters-panel :deep(.el-checkbox) {
+  height: 22px;
+  color: #606266;
+  font-size: 13px;
+}
+
+.filters-panel :deep(.el-checkbox__label) {
+  font-size: 13px;
 }
 
 .selection-bar {
   min-height: 36px;
-  padding: 8px 16px;
+  padding: 8px 16px 8px 18px;
   border-bottom: 1px solid #e8e8e8;
-  background: #f8fbff;
+  background: #f4f8ff;
   color: #606266;
   font-size: 13px;
   display: flex;
@@ -3265,22 +3340,47 @@ onUnmounted(() => {
 
 .conversations-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
 .conversation-item {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 14px 16px 14px 18px;
   cursor: pointer;
   border-bottom: 1px solid #f5f5f5;
-  transition: background-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.conversation-item:hover,
-.conversation-item.active {
+.conversation-item::before {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: #2f7cf6;
+  content: '';
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.conversation-item:hover {
   background: #f8fbff;
+}
+
+.conversation-item.active {
+  background: #eef4ff;
+  box-shadow: inset 0 1px 0 rgba(47, 124, 246, 0.06);
+}
+
+.conversation-item.active::before {
+  opacity: 1;
 }
 
 .conversation-item.selected {
@@ -3288,17 +3388,24 @@ onUnmounted(() => {
 }
 
 .conversation-select {
+  opacity: 0;
   flex-shrink: 0;
-  margin-top: 9px;
+  margin-top: 7px;
+  transition: opacity 0.2s ease;
+}
+
+.conversation-item:hover .conversation-select,
+.conversation-item.selected .conversation-select {
+  opacity: 1;
 }
 
 .conversation-avatar,
 .channel-avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: #e6f4ff;
-  color: #1677ff;
+  background: #eef4ff;
+  color: #2f7cf6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3317,27 +3424,45 @@ onUnmounted(() => {
   gap: 12px;
 }
 
+.channel-info {
+  min-width: 0;
+  align-items: flex-start;
+}
+
 .conversation-header {
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .conversation-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
+  padding-top: 1px;
 }
 
 .channel-name {
+  min-width: 0;
   color: #303133;
   font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.conversation-header .channel-name {
+  font-size: 14px;
+}
+
+.messages-header .channel-name {
+  font-size: 16px;
 }
 
 .last-message,
 .channel-status-text {
   margin-top: 6px;
-  color: #909399;
+  color: #606266;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -3345,8 +3470,9 @@ onUnmounted(() => {
 .last-message {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
+  margin-top: 6px;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -3355,8 +3481,9 @@ onUnmounted(() => {
   margin-top: 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex-wrap: wrap;
+  line-height: 1.5;
 }
 
 .conversation-stay-info,
@@ -3429,7 +3556,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 20px;
-  padding: 0 8px;
+  padding: 0 7px;
   border-radius: 4px;
   font-size: 12px;
   line-height: 1;
@@ -3451,7 +3578,7 @@ onUnmounted(() => {
 
 .message-time {
   font-size: 12px;
-  color: #999;
+  color: #8b918d;
   white-space: nowrap;
 }
 
@@ -3471,14 +3598,18 @@ onUnmounted(() => {
 }
 
 .messages-panel {
-  flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #f7f8f6;
 }
 
 .messages-header {
-  padding: 20px 24px;
+  flex: 0 0 auto;
+  min-height: 68px;
+  padding: 16px 20px;
   background: #fff;
   border-bottom: 1px solid #e8e8e8;
   display: flex;
@@ -3487,16 +3618,23 @@ onUnmounted(() => {
   gap: 16px;
 }
 
+.messages-header .channel-avatar {
+  width: 38px;
+  height: 38px;
+  background: #eef4ff;
+}
+
 .channel-status-text {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  color: #606266;
 }
 
 .channel-listing-text {
   margin-top: 4px;
-  color: #909399;
+  color: #8b918d;
   font-size: 13px;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -3504,18 +3642,24 @@ onUnmounted(() => {
 
 .header-actions {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .messages-list {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
-  padding: 24px;
+  padding: 20px 24px;
+  background: #f7f8f6;
 }
 
 .message-date-divider {
-  margin: 12px 0 20px;
+  margin: 10px 0 18px;
   font-size: 12px;
-  color: #909399;
+  color: #8b918d;
   text-align: center;
 }
 
@@ -3615,9 +3759,24 @@ onUnmounted(() => {
 }
 
 .message-input-area {
-  padding: 16px 24px;
+  flex: 0 0 auto;
+  padding: 14px 20px 16px;
   background: #fff;
   border-top: 1px solid #e8e8e8;
+}
+
+.message-input-area :deep(.el-textarea__inner) {
+  min-height: 92px !important;
+  border-radius: 4px;
+  color: #303030;
+  font-size: 13px;
+  line-height: 1.6;
+  box-shadow: 0 0 0 1px #dddddd inset;
+}
+
+.message-input-area :deep(.el-textarea__inner:hover),
+.message-input-area :deep(.el-textarea__inner:focus) {
+  box-shadow: 0 0 0 1px #bdbdbd inset;
 }
 
 .input-actions {
@@ -3625,13 +3784,29 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
 }
 
 .input-actions-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.panel-header-actions :deep(.el-button),
+.messages-header :deep(.el-button),
+.message-input-area :deep(.el-button) {
+  border-radius: 4px;
+}
+
+.message-input-area :deep(.el-button) {
+  min-height: 34px;
+}
+
+.message-empty-state {
+  flex: 1 1 auto;
 }
 
 .quick-reply-toolbar {
@@ -3666,13 +3841,6 @@ onUnmounted(() => {
 
 .ai-draft-input-shell {
   min-height: 218px;
-}
-
-.ai-draft-reference-hint {
-  margin-top: 8px;
-  color: #909399;
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .ai-draft-section-divider {
@@ -3769,6 +3937,7 @@ onUnmounted(() => {
 
 .empty-state {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3776,6 +3945,29 @@ onUnmounted(() => {
   color: #909399;
   padding: 24px;
   text-align: center;
+}
+
+.empty-state p {
+  margin: 12px 0 0;
+  color: #8b918d;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.conversation-empty-state {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(245, 245, 245, 0)), #f5f5f5;
+}
+
+.empty-state-icon {
+  width: 92px;
+  height: 92px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e4e6e3;
+  border-radius: 50%;
+  background: #fafafa;
+  color: #c7cbc7;
 }
 
 .conversations-list::-webkit-scrollbar,

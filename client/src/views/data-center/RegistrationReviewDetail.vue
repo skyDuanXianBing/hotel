@@ -23,25 +23,50 @@
 
       <div v-if="!detail" class="empty">{{ t('stage5.common.empty.noData') }}</div>
 
-      <div v-else class="card">
-        <div class="meta">
-          <div class="meta-actions">
-            <el-button size="small" :disabled="!detail" @click="previewForm">
-              {{ t('stage5.common.actions.preview') }}
-            </el-button>
+      <div v-else class="detail-grid">
+        <section class="meta-surface">
+          <div class="surface-header">
+            <div class="meta-actions">
+              <el-button size="small" :disabled="!detail" @click="previewForm">
+                {{ t('stage5.common.actions.preview') }}
+              </el-button>
+            </div>
           </div>
-          <div><b>{{ t('stage5.dataCenter.detail.metaOrderNumber') }}</b>{{ detail.channelOrderNumber || detail.orderNumber }}</div>
-          <div><b>{{ t('stage5.dataCenter.detail.metaGuest') }}</b>{{ detail.guestName }}</div>
-          <div><b>{{ t('stage5.dataCenter.detail.metaDate') }}</b>{{ detail.checkInDate }} ~ {{ detail.checkOutDate }}</div>
-          <div><b>{{ t('stage5.dataCenter.detail.metaReservedRoomType') }}</b>{{ detail.roomTypeName || '-' }}</div>
-          <div><b>{{ t('stage5.dataCenter.detail.metaRoomNumber') }}</b>{{ detail.roomNumber || '-' }}</div>
-          <div><b>{{ t('stage5.dataCenter.detail.metaStatus') }}</b>{{ detail.status }}</div>
-          <div v-if="detail.reviewNote"><b>{{ t('stage5.dataCenter.detail.metaNote') }}</b>{{ detail.reviewNote }}</div>
-        </div>
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">{{ t('stage5.dataCenter.detail.metaOrderNumber') }}</span>
+              <span class="meta-value">{{ detail.channelOrderNumber || detail.orderNumber }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">{{ t('stage5.dataCenter.detail.metaGuest') }}</span>
+              <span class="meta-value">{{ detail.guestName }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">{{ t('stage5.dataCenter.detail.metaDate') }}</span>
+              <span class="meta-value">{{ detail.checkInDate }} ~ {{ detail.checkOutDate }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">{{ t('stage5.dataCenter.detail.metaReservedRoomType') }}</span>
+              <span class="meta-value">{{ detail.roomTypeName || '-' }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">{{ t('stage5.dataCenter.detail.metaRoomNumber') }}</span>
+              <span class="meta-value">{{ detail.roomNumber || '-' }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">{{ t('stage5.dataCenter.detail.metaStatus') }}</span>
+              <span class="meta-value"><span class="status-pill">{{ detail.status }}</span></span>
+            </div>
+            <div v-if="detail.reviewNote" class="meta-item meta-item--wide">
+              <span class="meta-label">{{ t('stage5.dataCenter.detail.metaNote') }}</span>
+              <span class="meta-value">{{ detail.reviewNote }}</span>
+            </div>
+          </div>
+        </section>
 
-        <div class="section">
+        <div class="section section--table">
           <div class="section-title">{{ t('stage5.dataCenter.detail.guestInfo') }}</div>
-          <el-table :data="detail.guests" border stripe style="width: 100%">
+          <el-table :data="detail.guests" border class="detail-table" style="width: 100%">
             <el-table-column prop="sortOrder" label="#" width="60" />
             <el-table-column :label="t('stage5.dataCenter.detail.name')" min-width="160">
               <template #default="{ row }">{{ row.lastName }} {{ row.firstName }}</template>
@@ -54,9 +79,9 @@
           </el-table>
         </div>
 
-        <div class="section" v-if="detail.attachments && detail.attachments.length">
+        <div class="section section--table" v-if="detail.attachments && detail.attachments.length">
           <div class="section-title">{{ t('stage5.common.fields.attachments') }}</div>
-          <el-table :data="detail.attachments" border stripe style="width: 100%">
+          <el-table :data="detail.attachments" border class="detail-table" style="width: 100%">
             <el-table-column prop="id" :label="t('stage5.common.fields.id')" width="90" />
             <el-table-column :label="t('stage5.common.fields.guest')" min-width="120">
               <template #default="{ row }">{{ guestLabel(row.guestId) }}</template>
@@ -72,9 +97,15 @@
           </el-table>
         </div>
 
-        <div class="section">
+        <div class="section section--form">
           <div class="section-title">{{ t('stage5.dataCenter.detail.reviewAction') }}</div>
-          <el-input v-model="note" type="textarea" :rows="3" :placeholder="t('stage5.dataCenter.detail.notePlaceholder')" />
+          <el-input
+            v-model="note"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('stage5.dataCenter.detail.notePlaceholder')"
+            class="detail-textarea"
+          />
           <div class="approve-message">
             <div class="approve-message__header">
               <div class="approve-message__label">{{ t('stage5.dataCenter.detail.approveMessageLabel') }}</div>
@@ -115,9 +146,9 @@
           </div>
         </div>
 
-        <div class="section">
+        <div class="section section--table">
           <div class="section-title">{{ t('stage5.dataCenter.detail.reviewHistory') }}</div>
-          <el-table :data="detail.reviewLogs" border stripe style="width: 100%">
+          <el-table :data="detail.reviewLogs" border class="detail-table" style="width: 100%">
             <el-table-column prop="createdAt" :label="t('stage5.common.fields.time')" min-width="170" />
             <el-table-column prop="action" :label="t('stage5.common.fields.actions')" min-width="110" />
             <el-table-column prop="operatorUserId" :label="t('stage5.common.fields.userId')" min-width="110" />
@@ -169,9 +200,9 @@
           </div>
         </div>
 
-        <div class="section" v-if="detail.messageLogs && detail.messageLogs.length">
+        <div class="section section--table" v-if="detail.messageLogs && detail.messageLogs.length">
           <div class="section-title">{{ t('stage5.dataCenter.detail.messageHistory') }}</div>
-          <el-table :data="detail.messageLogs" border stripe style="width: 100%">
+          <el-table :data="detail.messageLogs" border class="detail-table" style="width: 100%">
             <el-table-column prop="createdAt" :label="t('stage5.common.fields.time')" min-width="170" />
             <el-table-column prop="type" :label="t('stage5.common.fields.type')" min-width="140" />
             <el-table-column prop="sendStatus" :label="t('stage5.common.fields.status')" min-width="150" />
@@ -864,57 +895,158 @@ onBeforeUnmount(handlePreviewDialogClosed)
 
 <style scoped>
 .wrap {
-  padding: 16px;
+  min-width: 1120px;
+  box-sizing: border-box;
+  padding: 12px 20px;
 }
 .top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 18px;
+  min-height: 34px;
+  margin-bottom: 10px;
 }
 .title {
-  font-size: 16px;
-  font-weight: 700;
+  min-width: 0;
+  color: #202124;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
 }
 .actions {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.actions :deep(.el-button),
+.meta-actions :deep(.el-button) {
+  height: 34px;
+  min-width: 58px;
+  margin: 0;
+  padding: 0 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
 }
 .action-tooltip-wrap {
   display: inline-flex;
 }
-.card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-}
-.meta {
-  position: relative;
+
+.detail-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
+  gap: 12px;
+}
+
+.meta-surface,
+.section {
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.meta-surface {
+  padding: 14px 18px 16px;
+}
+
+.surface-header {
+  display: flex;
+  justify-content: flex-end;
   margin-bottom: 12px;
 }
+
 .meta-actions {
-  position: absolute;
-  top: 0;
-  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 18px;
+}
+
+.meta-item {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.meta-item--wide {
+  grid-column: 1 / -1;
+}
+
+.meta-label {
+  color: #8b8f97;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.meta-value {
+  min-width: 0;
+  color: #202124;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #fff7e6;
+  color: #d7961d;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
 }
 .section {
-  margin-top: 14px;
+  padding: 14px 18px 18px;
+}
+
+.section--table {
+  overflow: hidden;
+}
+
+.section--form {
+  display: grid;
+  gap: 12px;
 }
 .section-title {
-  font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  color: #202124;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 .btns {
-  margin-top: 10px;
+  margin-top: 2px;
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
 }
+
+.btns :deep(.el-button) {
+  height: 34px;
+  min-width: 64px;
+  margin: 0;
+  padding: 0 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
 .approve-message {
-  margin-top: 12px;
+  display: grid;
+  gap: 8px;
 }
 
 .approve-message__header {
@@ -926,9 +1058,10 @@ onBeforeUnmount(handlePreviewDialogClosed)
 }
 
 .approve-message__label {
-  margin-bottom: 8px;
-  color: #333;
+  color: #202124;
+  font-size: 13px;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .approve-message__tools {
@@ -941,8 +1074,107 @@ onBeforeUnmount(handlePreviewDialogClosed)
   width: 260px;
 }
 .empty {
-  padding: 20px;
-  color: #666;
+  padding: 42px 20px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #8b8f97;
+  text-align: center;
+}
+
+.detail-table {
+  width: 100%;
+  --el-table-border-color: #e0e0e0;
+  --el-table-header-bg-color: #fbfbfb;
+  --el-table-row-hover-bg-color: #fafafa;
+  color: #303030;
+  font-size: 13px;
+}
+
+.detail-table :deep(.el-table__inner-wrapper::before),
+.detail-table :deep(.el-table__border-left-patch) {
+  display: none;
+}
+
+.detail-table :deep(.el-table__header th.el-table__cell) {
+  height: 42px;
+  padding: 0;
+  background: #fbfbfb !important;
+  border-color: #d8d8d8;
+  color: #252525;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.detail-table :deep(.el-table__header th.el-table__cell .cell) {
+  padding: 0 10px;
+  color: #252525;
+  line-height: 1.3;
+}
+
+.detail-table :deep(.el-table__body td.el-table__cell) {
+  height: 42px;
+  padding: 0;
+  border-color: #e5e5e5;
+  background: #ffffff;
+  color: #303030;
+  font-size: 13px;
+}
+
+.detail-table :deep(.el-table__body td.el-table__cell .cell) {
+  padding: 0 10px;
+  color: #303030;
+  line-height: 1.35;
+}
+
+.detail-table :deep(.el-button) {
+  height: 28px;
+  margin: 0 6px 0 0;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.detail-textarea :deep(.el-textarea__inner),
+.approve-message :deep(.el-textarea__inner) {
+  min-height: 88px !important;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #dddddd inset;
+  color: #303030;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.detail-textarea :deep(.el-textarea__inner:hover),
+.detail-textarea :deep(.el-textarea__inner:focus),
+.approve-message :deep(.el-textarea__inner:hover),
+.approve-message :deep(.el-textarea__inner:focus) {
+  box-shadow: 0 0 0 1px #bdbdbd inset;
+}
+
+.approve-message__tools :deep(.el-select__wrapper) {
+  min-height: 32px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #dddddd inset;
+}
+
+.approve-message__tools :deep(.el-select__wrapper:hover),
+.approve-message__tools :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #bdbdbd inset;
+}
+
+.approve-message__tools :deep(.el-input__inner),
+.approve-message__tools :deep(.el-select__placeholder),
+.approve-message__tools :deep(.el-select__selected-item) {
+  font-size: 13px;
+}
+
+.approve-message__tools :deep(.el-button) {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  margin: 0;
+  border-radius: 4px;
 }
 
 .msg-grid {
@@ -985,6 +1217,7 @@ onBeforeUnmount(handlePreviewDialogClosed)
 
 .msg-content {
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
 :deep(.preview-dialog .el-dialog__body) {
@@ -1048,5 +1281,15 @@ onBeforeUnmount(handlePreviewDialogClosed)
   max-width: 100%;
   border-radius: 8px;
   border: 1px solid #dcdfe6;
+}
+
+@media (max-width: 1280px) {
+  .wrap {
+    min-width: 980px;
+  }
+
+  .meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>
