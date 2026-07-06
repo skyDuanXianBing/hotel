@@ -9,7 +9,7 @@
     <div class="toolbar">
       <el-input
         v-model="searchText"
-        placeholder=""
+        :placeholder="t('settings.common.search')"
         class="search-input"
         clearable
       />
@@ -284,13 +284,13 @@ onMounted(() => {
 
 /* 顶部提示信息 */
 .notice-banner {
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
+  background: rgba(89, 126, 247, 0.15);
+  border: 1px solid rgba(89, 126, 247, 0.66);
   border-radius: 4px;
   padding: 12px 16px;
   margin-bottom: 20px;
   font-size: 14px;
-  color: #1890ff;
+  color: #597ef7;
   line-height: 1.6;
 }
 
@@ -335,6 +335,8 @@ onMounted(() => {
 }
 
 .supply-card.editing {
+  grid-column: span 2;
+  min-width: 340px;
   background: #fff;
   padding: 8px 12px;
   cursor: default;
@@ -382,6 +384,12 @@ onMounted(() => {
 
 .supply-card.editing :deep(.el-input) {
   flex: 1;
+  min-width: 0;
+}
+
+.supply-card.editing :deep(.el-input__inner) {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 对话框 */
@@ -389,5 +397,12 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .supply-card.editing {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
 }
 </style>

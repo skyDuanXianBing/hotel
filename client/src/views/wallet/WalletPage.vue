@@ -1,63 +1,28 @@
 <template>
-  <div class="wallet-page">
-    <div class="sidebar" :class="{ collapsed: isCollapsed }">
-      <div class="sidebar-header" @click="toggleSidebar">
-        <el-icon class="sidebar-icon"><Wallet /></el-icon>
-        <span v-if="!isCollapsed" class="sidebar-title">
-          {{ t('pages.wallet.sidebar.collapse') }}
-        </span>
-        <el-icon v-if="!isCollapsed" class="collapse-icon"><ArrowLeft /></el-icon>
-        <el-icon v-else class="collapse-icon"><ArrowRight /></el-icon>
-      </div>
+  <WorkspaceLayout storage-key="wallet-sidebar-collapsed">
+    <template #sidebar="{ collapsed, toggleSidebar }">
+      <WorkspaceSidebar
+        :collapsed="collapsed"
+        :items="walletSidebarItems"
+        :active-key="currentMenu"
+        :expanded-keys="expandedSidebarKeys"
+        :collapse-label="t('pages.wallet.sidebar.collapse')"
+        :aria-label="t('pages.wallet.sidebar.wallet')"
+        @toggle="toggleSidebar"
+        @parent-click="handleSidebarParentClick"
+        @item-select="handleMenuClick"
+      />
+    </template>
 
-      <div class="sidebar-menu">
-        <div class="menu-section">
-          <div
-            class="menu-item menu-parent"
-            :class="{ active: isWalletMenuActive }"
-            @click="toggleWalletMenu"
-          >
-            <el-icon><Wallet /></el-icon>
-            <span v-if="!isCollapsed" class="menu-text">{{ t('pages.wallet.sidebar.wallet') }}</span>
-            <el-icon v-if="!isCollapsed" class="expand-icon">
-              <ArrowRight v-if="!isWalletMenuExpanded" />
-              <ArrowDown v-else />
-            </el-icon>
-          </div>
-
-          <transition name="submenu">
-            <div v-show="isWalletMenuExpanded && !isCollapsed" class="submenu-section">
-              <div
-                class="menu-item submenu-item"
-                :class="{ active: currentMenu === 'account' }"
-                @click.stop="handleMenuClick('account')"
-              >
-                <span class="menu-text">{{ t('pages.wallet.sidebar.account') }}</span>
-              </div>
-              <div
-                class="menu-item submenu-item"
-                :class="{ active: currentMenu === 'withdraw' }"
-                @click.stop="handleMenuClick('withdraw')"
-              >
-                <span class="menu-text">{{ t('pages.wallet.sidebar.withdraw') }}</span>
-              </div>
-              <div
-                class="menu-item submenu-item"
-                :class="{ active: currentMenu === 'identity' }"
-                @click.stop="handleMenuClick('identity')"
-              >
-                <span class="menu-text">{{ t('pages.wallet.sidebar.identity') }}</span>
-              </div>
-            </div>
-          </transition>
-        </div>
-      </div>
-    </div>
-
-    <div class="main-content">
+    <div class="wallet-page">
       <div v-if="currentMenu === 'account'" class="account-content">
-        <el-tabs v-model="activeTab" class="wallet-tabs">
-          <el-tab-pane :label="t('pages.wallet.account.clearingTab')" name="clearing">
+        <WorkspaceTabs
+          v-model="activeTab"
+          :tabs="accountTabs"
+          :aria-label="t('pages.wallet.sidebar.account')"
+        />
+        <div class="wallet-tab-panel">
+          <template v-if="activeTab === 'clearing'">
             <div class="tab-content">
               <div class="filter-section">
                 <div class="filter-row">
@@ -157,9 +122,9 @@
                 />
               </div>
             </div>
-          </el-tab-pane>
+          </template>
 
-          <el-tab-pane :label="t('pages.wallet.account.fundsTab')" name="funds">
+          <template v-else-if="activeTab === 'funds'">
             <div class="tab-content">
               <div class="filter-section">
                 <div class="filter-row">
@@ -263,13 +228,18 @@
                 />
               </div>
             </div>
-          </el-tab-pane>
-        </el-tabs>
+          </template>
+        </div>
       </div>
 
       <div v-else-if="currentMenu === 'withdraw'" class="withdraw-content">
-        <el-tabs v-model="withdrawTab" class="wallet-tabs">
-          <el-tab-pane :label="t('pages.wallet.withdraw.availableTab')" name="available">
+        <WorkspaceTabs
+          v-model="withdrawTab"
+          :tabs="withdrawTabs"
+          :aria-label="t('pages.wallet.sidebar.withdraw')"
+        />
+        <div class="wallet-tab-panel">
+          <template v-if="withdrawTab === 'available'">
             <div class="tab-content">
               <div class="withdraw-card">
                 <h2>{{ t('pages.wallet.withdraw.availableTitle') }}</h2>
@@ -324,9 +294,9 @@
                 </el-table>
               </div>
             </div>
-          </el-tab-pane>
+          </template>
 
-          <el-tab-pane :label="t('pages.wallet.withdraw.historyTab')" name="history">
+          <template v-else-if="withdrawTab === 'history'">
             <div class="tab-content">
               <div class="filter-section">
                 <div class="filter-row">
@@ -381,8 +351,8 @@
                 />
               </div>
             </div>
-          </el-tab-pane>
-        </el-tabs>
+          </template>
+        </div>
       </div>
 
       <div v-else-if="currentMenu === 'identity'" class="identity-content">
@@ -479,37 +449,54 @@
         </div>
       </div>
     </div>
-  </div>
+  </WorkspaceLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  RefreshLeft,
-  Search,
-  Wallet,
-} from '@element-plus/icons-vue'
+import { RefreshLeft, Search, Wallet } from '@element-plus/icons-vue'
+import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue'
+import WorkspaceSidebar from '@/components/layout/WorkspaceSidebar.vue'
+import WorkspaceTabs from '@/components/layout/WorkspaceTabs.vue'
+import type { WorkspaceSidebarItem, WorkspaceTabItem } from '@/components/layout/workspace'
 
 const { t } = useI18n()
 
-const isCollapsed = ref(false)
-const isWalletMenuExpanded = ref(true)
 const currentMenu = ref('account')
 const activeTab = ref('clearing')
 const withdrawTab = ref('available')
+const expandedSidebarKeys = ref(['wallet'])
 
-const isWalletMenuActive = computed(() => ['account', 'withdraw', 'identity'].includes(currentMenu.value))
+const walletSidebarItems = computed<WorkspaceSidebarItem[]>(() => [
+  {
+    key: 'wallet',
+    label: t('pages.wallet.sidebar.wallet'),
+    icon: Wallet,
+    children: [
+      { key: 'account', label: t('pages.wallet.sidebar.account') },
+      { key: 'withdraw', label: t('pages.wallet.sidebar.withdraw') },
+      { key: 'identity', label: t('pages.wallet.sidebar.identity') },
+    ],
+  },
+])
 
-const toggleSidebar = () => {
-  isCollapsed.value = !isCollapsed.value
-}
+const accountTabs = computed<WorkspaceTabItem[]>(() => [
+  { name: 'clearing', label: t('pages.wallet.account.clearingTab') },
+  { name: 'funds', label: t('pages.wallet.account.fundsTab') },
+])
 
-const toggleWalletMenu = () => {
-  isWalletMenuExpanded.value = !isWalletMenuExpanded.value
+const withdrawTabs = computed<WorkspaceTabItem[]>(() => [
+  { name: 'available', label: t('pages.wallet.withdraw.availableTab') },
+  { name: 'history', label: t('pages.wallet.withdraw.historyTab') },
+])
+
+const handleSidebarParentClick = (key: string) => {
+  if (key !== 'wallet') {
+    return
+  }
+
+  expandedSidebarKeys.value = expandedSidebarKeys.value.includes(key) ? [] : [key]
 }
 
 const showIdentityForm = ref(false)
@@ -620,162 +607,9 @@ onMounted(() => {
 
 <style scoped>
 .wallet-page {
-  display: flex;
-  background: #f5f5f5;
-  min-height: calc(100vh - 60px);
-}
-
-.sidebar {
-  width: 220px;
-  background: #fff;
-  border-right: 1px solid #e8e8e8;
-  flex-shrink: 0;
-  transition: width 0.3s ease;
-}
-
-.sidebar.collapsed {
-  width: 64px;
-}
-
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e8e8e8;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.sidebar.collapsed .sidebar-header {
-  padding: 16px 12px;
-  justify-content: center;
-}
-
-.sidebar-header:hover {
-  background-color: #f5f5f5;
-}
-
-.sidebar-icon {
-  font-size: 18px;
-  color: #333;
-  flex-shrink: 0;
-}
-
-.sidebar-title {
-  flex: 1;
-  font-size: 14px;
-  color: #333;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.collapse-icon {
-  font-size: 16px;
-  color: #999;
-  flex-shrink: 0;
-  transition: transform 0.3s ease;
-}
-
-.sidebar-menu {
-  padding: 8px 0;
-}
-
-.menu-section {
-  padding: 4px 0;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  padding: 12px 20px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #666;
-  font-size: 14px;
-  position: relative;
-}
-
-.sidebar.collapsed .menu-item {
-  padding: 12px 0;
-  justify-content: center;
-}
-
-.menu-item:hover {
-  background-color: #f5f7fa;
-  color: #333;
-}
-
-.menu-item.active {
-  background-color: #e6f7ff;
-  color: #1890ff;
-  font-weight: 500;
-}
-
-.menu-item .el-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.menu-text {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.menu-parent {
-  position: relative;
-}
-
-.expand-icon {
-  margin-left: auto;
-  font-size: 14px;
-  transition: transform 0.3s ease;
-}
-
-.submenu-section {
-  background-color: #fafafa;
-  overflow: hidden;
-}
-
-.submenu-item {
-  padding-left: 48px !important;
-  font-size: 13px;
-}
-
-.submenu-item:hover {
-  background-color: #f0f0f0;
-}
-
-.submenu-item.active {
-  background-color: #e6f7ff;
-  color: #1890ff;
-}
-
-.submenu-enter-active,
-.submenu-leave-active {
-  transition: all 0.3s ease;
-}
-
-.submenu-enter-from,
-.submenu-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-.submenu-enter-to,
-.submenu-leave-from {
-  max-height: 200px;
-  opacity: 1;
-}
-
-.main-content {
-  flex: 1;
-  padding: 20px;
-  overflow: auto;
+  min-width: 1120px;
+  min-height: 100%;
+  background: transparent;
 }
 
 .account-content,
@@ -928,32 +762,13 @@ onMounted(() => {
   margin-top: 8px;
 }
 
-.wallet-tabs {
+.wallet-tab-panel {
   background: #fff;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.wallet-tabs :deep(.el-tabs__header) {
-  margin: 0;
-  padding: 0 20px;
-  background: #fafafa;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.wallet-tabs :deep(.el-tabs__nav-wrap) {
-  padding-top: 0;
-}
-
-.wallet-tabs :deep(.el-tabs__item) {
-  height: 50px;
-  line-height: 50px;
-  font-size: 14px;
-  padding: 0 20px;
 }
 
 .tab-content {
-  padding: 20px;
+  padding: 0 0 20px;
 }
 
 .filter-section {

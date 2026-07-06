@@ -14,7 +14,6 @@
       <el-tab-pane :label="t('settingsStage4.consumptionItems.tabs.list')" name="list">
         <!-- 工具栏 -->
         <div class="toolbar">
-          <div></div>
           <el-button type="primary" @click="handleAdd">{{ t('settings.common.add') }}</el-button>
         </div>
 
@@ -62,7 +61,6 @@
       <el-tab-pane :label="t('settingsStage4.consumptionItems.tabs.category')" name="category">
         <!-- 工具栏 -->
         <div class="toolbar">
-          <div></div>
           <el-button type="primary" @click="handleAddCategory">{{ t('settingsStage4.consumptionItems.addCategory') }}</el-button>
         </div>
 
@@ -565,15 +563,71 @@ const handleConfirmCategory = async () => {
   margin-top: 0;
 }
 
+:deep(.tabs-container .el-tabs__header) {
+  margin: 0 0 18px;
+}
+
+:deep(.tabs-container .el-tabs__nav-wrap::after),
+:deep(.tabs-container .el-tabs__active-bar) {
+  display: none;
+}
+
+:deep(.tabs-container .el-tabs__nav) {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  float: none;
+}
+
+:deep(.tabs-container .el-tabs__item) {
+  height: 28px;
+  padding: 0 13px !important;
+  border-radius: 999px;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 28px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+:deep(.tabs-container .el-tabs__item:hover) {
+  background: #f5f5f5;
+  color: #111111;
+}
+
+:deep(.tabs-container .el-tabs__item.is-active),
+:deep(.tabs-container .el-tabs__item.is-active:hover) {
+  background: #111111;
+  color: #ffffff;
+}
+
 .toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .items-table {
+  --el-table-border-color: #d8d8d8;
   margin-bottom: 16px;
+}
+
+.items-table :deep(.el-table__inner-wrapper::before),
+.items-table :deep(.el-table__inner-wrapper::after) {
+  height: 1.5px;
+  background-color: #d8d8d8;
+}
+
+.items-table :deep(.el-table__cell) {
+  border-bottom: 1.5px solid #d8d8d8 !important;
+  border-right: 1.5px solid #d8d8d8 !important;
+}
+
+.items-table :deep(.el-table__cell:last-child) {
+  border-right: none !important;
 }
 
 .pagination-container {

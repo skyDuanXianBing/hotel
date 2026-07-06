@@ -720,7 +720,7 @@ onMounted(() => {
 
 <style scoped>
 .cleaning-settings-container {
-  background: #f5f7fa;
+  background: #ffffff;
   min-height: calc(100vh - 100px);
 }
 

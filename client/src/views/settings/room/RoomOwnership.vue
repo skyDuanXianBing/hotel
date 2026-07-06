@@ -22,7 +22,7 @@
     <!-- 房型房间列表 -->
     <div class="room-list-wrapper">
       <el-table :data="roomTypeList" border class="room-table" v-loading="loading">
-        <el-table-column prop="name" :label="t('settingsStage4.roomSettings.columns.roomTypeName')" width="300" align="left">
+        <el-table-column prop="name" :label="t('settingsStage4.roomSettings.columns.roomTypeName')" width="200" align="left">
           <template #default="{ row }">
             <div class="room-type-cell">
               <div class="room-type-name">{{ row.name }}</div>
@@ -33,7 +33,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="defaultPrice" :label="t('settingsStage4.roomOwnership.columns.defaultPrice')" width="150" align="center">
+        <el-table-column prop="defaultPrice" :label="t('settingsStage4.roomOwnership.columns.defaultPrice')" width="150" align="left">
           <template #default="{ row }">
             <span>¥{{ formatPrice(row.defaultPrice) }}</span>
           </template>
@@ -230,26 +230,31 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: #ffffff;
 }
 
 /* 页面头部 */
 .page-header {
-  padding: 20px;
-  border-bottom: 1px solid #e8e8e8;
+  padding: 18px 20px 12px;
 }
 
 .header-info-box {
-  background: #f0f9ff;
-  border: 1px solid #bae7ff;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #e8efff;
+  border: 1px solid #7ea1ff;
   border-radius: 4px;
-  padding: 16px 20px;
+  padding: 8px 18px;
 }
 
 .info-item {
   display: flex;
-  margin-bottom: 8px;
-  line-height: 1.6;
+  align-items: flex-start;
+  margin-bottom: 2px;
+  line-height: 22px;
 }
 
 .info-item:last-child {
@@ -258,25 +263,26 @@ onMounted(() => {
 
 .info-number {
   font-weight: 500;
-  color: #333;
-  margin-right: 8px;
+  color: #3f7dff;
+  margin-right: 0;
   flex-shrink: 0;
 }
 
 .info-text {
-  color: #666;
+  color: #3f7dff;
   font-size: 14px;
 }
 
 .warning-text {
-  color: #ff9800;
+  color: #ff5f6d;
   font-weight: 500;
 }
 
 /* 房间列表 */
 .room-list-wrapper {
   flex: 1;
-  padding: 20px;
+  min-height: 0;
+  padding: 8px 20px 12px;
   overflow: auto;
 }
 
@@ -286,56 +292,69 @@ onMounted(() => {
 
 /* 房型单元格 */
 .room-type-cell {
+  min-height: 28px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  justify-content: center;
+  gap: 4px;
 }
 
 .room-type-name {
   font-size: 14px;
-  font-weight: 500;
-  color: #333;
+  font-weight: 400;
+  color: #3f3f3f;
+  line-height: 20px;
 }
 
 .room-type-warning {
   font-size: 12px;
-  color: #ff9800;
+  color: #ff5f6d;
+  line-height: 16px;
 }
 
 /* 房间号容器 */
 .room-numbers-container {
-  padding: 8px 0;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0;
 }
 
 .room-tags-list {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  min-height: 40px;
-  padding: 4px;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0;
 }
 
 .room-tag {
+  height: 24px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #f5f5f5;
-  border: 1px solid #d9d9d9;
+  gap: 7px;
+  padding: 0 8px;
+  background: #ffffff;
+  border: 1px solid #dcdfe6;
   border-radius: 4px;
+  color: #8a8f94;
   cursor: move;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
   user-select: none;
 }
 
 .room-tag:hover {
-  background: #e6f7ff;
-  border-color: #1890ff;
+  background: #f7fbff;
+  border-color: #7ea1ff;
 }
 
 .drag-icon {
-  color: #999;
-  font-size: 14px;
+  color: #8a8f94;
+  font-size: 13px;
   cursor: grab;
 }
 
@@ -345,18 +364,19 @@ onMounted(() => {
 
 .room-number {
   font-size: 14px;
-  color: #333;
+  color: #8a8f94;
+  line-height: 22px;
 }
 
 .copy-icon {
-  color: #999;
-  font-size: 14px;
+  color: #8a8f94;
+  font-size: 13px;
   cursor: pointer;
   transition: color 0.2s ease;
 }
 
 .copy-icon:hover {
-  color: #1890ff;
+  color: #3f7dff;
 }
 
 /* 底部操作按钮 */
@@ -364,29 +384,61 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 20px;
-  border-top: 1px solid #e8e8e8;
-  background: #fafafa;
+  padding: 12px 20px;
+  border-top: 1px solid #e6e8eb;
+  background: #ffffff;
 }
 
 /* 表格样式优化 */
 :deep(.el-table) {
+  --el-table-border-color: #e6e8eb;
+  --el-table-header-bg-color: #f8fafc;
+  --el-table-row-hover-bg-color: #fafcff;
   font-size: 14px;
+  color: #3f3f3f;
+}
+
+:deep(.el-table__inner-wrapper::before) {
+  display: none;
 }
 
 :deep(.el-table th) {
-  background: #fafafa;
-  color: #333;
+  height: 36px;
+  background: #f8fafc;
+  color: #293241;
   font-weight: 600;
 }
 
 :deep(.el-table td) {
-  padding: 12px 0;
+  height: 36px;
+  padding: 0;
+  border-bottom: 1px solid #e6e8eb;
+}
+
+:deep(.el-table .cell) {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  line-height: 20px;
+}
+
+:deep(.el-table th.el-table__cell > .cell) {
+  min-height: 34px;
+  font-size: 14px;
+}
+
+:deep(.el-table .el-table__cell) {
+  border-right: 1px solid #e6e8eb;
+}
+
+:deep(.el-table .el-table__cell:last-child) {
+  border-right: none;
 }
 
 /* 拖拽占位符 */
 .sortable-ghost {
   opacity: 0.5;
-  background: #e6f7ff;
+  background: #e8efff;
 }
 </style>

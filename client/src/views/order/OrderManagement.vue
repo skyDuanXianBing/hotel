@@ -1,53 +1,15 @@
 <template>
-  <div class="order-management" :class="{ 'is-sidebar-collapsed': isCollapsed }" :style="shellStyle">
-    <aside class="order-sidebar" :class="{ 'is-collapsed': isCollapsed }">
-      <button type="button" class="sidebar-toggle" @click="toggleSidebar">
-        <span class="sidebar-toggle-mark">
-          <el-icon><MenuIcon /></el-icon>
-        </span>
-        <span v-if="!isCollapsed" class="sidebar-toggle-label">
-          {{ t('order.sidebar.collapse') }}
-        </span>
-        <el-icon v-if="!isCollapsed" class="sidebar-toggle-arrow"><ArrowLeft /></el-icon>
-        <el-icon v-else class="sidebar-toggle-arrow"><ArrowRight /></el-icon>
-      </button>
-
-      <nav class="sidebar-nav" aria-label="Order navigation">
-        <button
-          type="button"
-          class="sidebar-parent"
-          :class="{ 'is-active': activeMenu === 'order-management' }"
-          :title="isCollapsed ? t('order.sidebar.accommodationOrders') : undefined"
-          @click="handleMenuSelect('order-management')"
-        >
-          <span class="sidebar-parent-icon">
-            <el-icon><Document /></el-icon>
-          </span>
-          <span v-if="!isCollapsed" class="sidebar-parent-label">
-            {{ t('order.sidebar.accommodationOrders') }}
-          </span>
-        </button>
-      </nav>
-    </aside>
-
-    <section class="order-panel">
-      <header class="order-panel-header">
-        <AppTopNav
-          v-bind="topNavBindings.props.value"
-          @store-select="topNavBindings.onStoreSelect"
-          @manage-stores="topNavBindings.onManageStores"
-          @menu-click="topNavBindings.onMenuClick"
-          @wallet-click="topNavBindings.onWalletClick"
-          @inbox-click="topNavBindings.onInboxClick"
-          @support-chat="topNavBindings.onSupportChat"
-          @system-notification="topNavBindings.onSystemNotification"
-          @order-notification="topNavBindings.onOrderNotification"
-          @profile-click="topNavBindings.onProfileClick"
-          @logout="topNavBindings.onLogout"
-        />
-      </header>
-
-      <main class="main-content">
+  <WorkspaceLayout storage-key="order-sidebar-collapsed">
+    <template #sidebar="{ collapsed, toggleSidebar }">
+      <WorkspaceSidebar
+        :collapsed="collapsed"
+        :items="orderSidebarItems"
+        active-key="order-management"
+        :collapse-label="t('order.sidebar.collapse')"
+        aria-label="Order navigation"
+        @toggle="toggleSidebar"
+      />
+    </template>
       <!-- 订单状态标签页 -->
       <div class="order-tabs">
         <el-tabs v-model="activeOrderTab" @tab-change="handleOrderTabChange">
@@ -680,9 +642,6 @@
           />
         </div>
       </div>
-      </main>
-    </section>
-
     <ReservationDetailDrawer
       v-model="showOrderDetailDrawer"
       :reservation-id="selectedReservationId"
@@ -753,20 +712,14 @@
         </div>
       </div>
     </el-dialog>
-  </div>
+  </WorkspaceLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import {
-  ArrowLeft,
-  ArrowRight,
-  Document,
-  Search,
-  Menu as MenuIcon,
-} from '@element-plus/icons-vue'
+import { Document, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import {
@@ -781,8 +734,9 @@ import {
   type ReservationStatistics,
 } from '@/api/reservation'
 import { getAllRoomTypes } from '@/api/roomType'
-import AppTopNav from '@/components/layout/AppTopNav.vue'
-import { appTopNavBindingsKey } from '@/components/layout/appShellContext'
+import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue'
+import WorkspaceSidebar from '@/components/layout/WorkspaceSidebar.vue'
+import type { WorkspaceSidebarItem } from '@/components/layout/workspace'
 import ReservationDetailDrawer from '@/components/reservation/ReservationDetailDrawer.vue'
 import { getOrderBoxList, type OrderBoxItem } from '@/api/orderBox'
 import { useStoreStore } from '@/stores/store'
@@ -796,34 +750,17 @@ import {
 
 const route = useRoute()
 const { t } = useI18n()
-const topNavBindings = inject(appTopNavBindingsKey)
 const storeStore = useStoreStore()
 const currentStoreTimeZone = computed(() => resolveStoreTimeZone(storeStore.currentStore?.timezone))
-
-if (!topNavBindings) {
-  throw new Error('OrderManagement requires top navigation bindings')
-}
-
-const SIDEBAR_STORAGE_KEY = 'order-sidebar-collapsed'
-const COLLAPSED_WIDTH = 84
-const EXPANDED_WIDTH = 220
-
-const isCollapsed = ref(
-  typeof window === 'undefined'
-    ? false
-    : localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true',
-)
-
-const shellStyle = computed(() => ({
-  '--sidebar-width': `${isCollapsed.value ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`,
-}))
-
-const toggleSidebar = () => {
-  isCollapsed.value = !isCollapsed.value
-}
+const orderSidebarItems = computed<WorkspaceSidebarItem[]>(() => [
+  {
+    key: 'order-management',
+    label: t('order.sidebar.accommodationOrders'),
+    icon: Document,
+  },
+])
 
 // Reactive state
-const activeMenu = ref('order-management')
 const activeOrderTab = ref('all')
 
 // 映射首页统计类型到订单页标签页
@@ -1062,10 +999,6 @@ const filteredOrders = computed(() => {
 })
 
 // 页面交互方法
-const handleMenuSelect = (index: string) => {
-  activeMenu.value = index
-}
-
 const handleOrderTabChange = (tabName: string) => {
   console.log('切换标签页:', tabName)
   activeOrderTab.value = tabName
@@ -1610,15 +1543,6 @@ const handleReservationUpdated = async () => {
   await Promise.all([loadReservations(), loadStatistics()])
 }
 
-watch(
-  isCollapsed,
-  (collapsed) => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed))
-  },
-  { immediate: true },
-)
-
 onMounted(() => {
   // 处理路由参数，设置初始标签页
   const type = route.query.type as string
@@ -1636,156 +1560,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.order-management {
-  --sidebar-width: 84px;
-  height: 100vh;
-  display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  background: #f5f5f5;
-}
-
-.order-sidebar {
-  width: var(--sidebar-width);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: #ffffff;
-  border-right: 1px solid #ecece7;
-  transition: width 0.24s ease;
-  overflow: hidden;
-}
-
-.sidebar-toggle {
-  height: 76px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 20px;
-  border: none;
-  border-bottom: 1px solid #f0f0ea;
-  background: #ffffff;
-  color: #1f2120;
-  cursor: pointer;
-}
-
-.sidebar-toggle-mark {
-  width: 20px;
-  height: 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #2f7cf6;
-  font-size: 20px;
-  flex: 0 0 auto;
-}
-
-.sidebar-toggle-label {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  font-size: 14px;
-  font-weight: 600;
-  color: #232421;
-  white-space: nowrap;
-}
-
-.sidebar-toggle-arrow {
-  color: #a8ada8;
-  font-size: 14px;
-  flex: 0 0 auto;
-}
-
-.sidebar-nav {
-  flex: 1;
-  min-height: 0;
-  padding: 18px 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.sidebar-parent {
-  position: relative;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 0 18px 0 20px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: #5f645f;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.sidebar-parent:hover {
-  background: #f6f7f3;
-  color: #20211d;
-}
-
-.sidebar-parent.is-active {
-  background: #eef5ff;
-  color: #2f7cf6;
-}
-
-.sidebar-parent-icon {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  flex: 0 0 auto;
-}
-
-.sidebar-parent-label {
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.order-sidebar.is-collapsed .sidebar-toggle {
-  justify-content: center;
-  padding: 0;
-}
-
-.order-sidebar.is-collapsed .sidebar-parent {
-  justify-content: center;
-  padding: 0;
-}
-
-.order-panel {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.order-panel-header {
-  padding: 18px 32px 14px;
-  background: #f5f5f5;
-  overflow: hidden;
-}
-
-.order-panel-header :deep(.top-nav) {
-  --nav-center-shift: calc(-56px + ((var(--sidebar-width) - 84px) / 6));
-  --nav-right-shift: -28px;
-}
-
-.main-content {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  background: #f5f5f5;
-  padding: 0 24px 24px;
-}
-
 .order-tabs {
   --order-tabs-center-shift: calc(-56px + ((var(--sidebar-width, 84px) - 84px) / 6) + 20px);
   box-sizing: border-box;
@@ -2499,38 +2273,7 @@ onMounted(() => {
   margin-top: 10px;
 }
 
-@media (max-width: 1280px) {
-  .order-panel-header {
-    padding-left: 24px;
-    padding-right: 20px;
-  }
-
-  .main-content {
-    padding-right: 20px;
-    padding-bottom: 20px;
-  }
-}
-
 @media (max-width: 768px) {
-  .order-management {
-    grid-template-columns: 84px minmax(0, 1fr);
-  }
-
-  .order-sidebar {
-    width: 84px;
-  }
-
-  .order-sidebar .sidebar-toggle,
-  .order-sidebar .sidebar-parent {
-    justify-content: center;
-    padding: 0;
-  }
-
-  .main-content {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
   .order-tabs,
   .search-filter-section,
   .order-list,

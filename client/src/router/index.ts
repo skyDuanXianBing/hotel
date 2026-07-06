@@ -221,13 +221,6 @@ const router = createRouter({
               component: () => import('@/views/settings/general/AiMessageKnowledge.vue'),
               meta: { title: 'AI Message Knowledge Base', requiresAuth: true },
             },
-            // Quick tools
-            {
-              path: 'tools',
-              name: 'QuickTools',
-              component: () => import('@/views/settings/QuickTools.vue'),
-              meta: { title: 'Quick Tools', requiresAuth: true },
-            },
             // Cleaning settings
             {
               path: 'cleaning/settings',
@@ -668,7 +661,6 @@ const routePermissionConfig = new Map<
   ['QuickReply', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['AutoMessage', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['AiMessageKnowledge', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
-  ['QuickTools', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['CleaningSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['CleaningSupplies', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
   ['AutoCheckinSettings', { requirements: [{ module: PermissionModule.SETTINGS, action: PermissionAction.MODIFY_STORE_SETTINGS }] }],
@@ -721,7 +713,6 @@ const routeTitleKeyByName = new Map<string, string>([
   ['QuickReply', 'routeTitles.quickReply'],
   ['AutoMessage', 'routeTitles.automationMessages'],
   ['AiMessageKnowledge', 'routeTitles.aiMessageKnowledge'],
-  ['QuickTools', 'settings.layout.items.quickTools'],
   ['CleaningSettings', 'routeTitles.settings'],
   ['CleaningSupplies', 'routeTitles.supplies'],
   ['AutoCheckinSettings', 'routeTitles.autoCheckinSettings'],

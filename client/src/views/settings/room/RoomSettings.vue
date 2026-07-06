@@ -2,6 +2,19 @@
   <div class="room-settings-container">
     <!-- 顶部信息栏 -->
     <div class="header-info">
+      <div class="header-copy">
+        <h2 class="header-title">{{ t('settings.layout.items.roomType') }}</h2>
+        <div class="summary-list">
+          <span class="summary-item">
+            <strong>{{ total }}</strong>
+            {{ t('settingsStage4.roomSort.entities.roomType') }}
+          </span>
+          <span class="summary-item">
+            <strong>{{ totalRoomCount }}</strong>
+            {{ t('settingsStage4.roomSettings.columns.roomCount') }}
+          </span>
+        </div>
+      </div>
       <div class="header-actions">
         <el-button @click="handleRoomOwnership">{{ t('settingsStage4.roomSettings.roomOwnership') }}</el-button>
         <el-button type="primary" @click="handleAdd">{{ t('settings.common.add') }}</el-button>
@@ -13,8 +26,6 @@
       <el-table
         v-loading="loading"
         :data="paginatedData"
-        border
-        stripe
         class="room-settings-table"
         :element-loading-text="t('settings.common.loading')"
       >
@@ -61,19 +72,68 @@
         </el-table-column>
 
         <el-table-column prop="roomCount" :label="t('settingsStage4.roomSettings.columns.roomCount')" min-width="100" align="center" />
-        <el-table-column prop="roomNumbers" :label="t('settingsStage4.roomSettings.columns.roomNumbers')" min-width="150">
+        <el-table-column
+          prop="roomNumbers"
+          :label="t('settingsStage4.roomSettings.columns.roomNumbers')"
+          width="132"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             {{ (row.roomNumbers || []).join(', ') }}
           </template>
         </el-table-column>
 
-        <el-table-column :label="t('settings.common.operation')" width="280" fixed="right" align="center">
+        <el-table-column :label="t('settings.common.operation')" width="200" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button link type="primary" @click="handleEdit(row)">{{ t('settings.common.edit') }}</el-button>
-              <el-button link type="primary" @click="handleViewDetails(row)">{{ t('settingsStage4.common.details') }}</el-button>
-              <el-button link type="primary" @click="handleSort(row)">{{ t('settings.layout.items.roomSort') }}</el-button>
-              <el-button link type="danger" @click="handleDelete(row)">{{ t('settings.common.delete') }}</el-button>
+              <el-tooltip :content="t('settings.common.edit')" placement="top" :show-after="250">
+                <el-button
+                  class="action-icon-button"
+                  text
+                  circle
+                  type="primary"
+                  :aria-label="t('settings.common.edit')"
+                  @click="handleEdit(row)"
+                >
+                  <el-icon><EditPen /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip :content="t('settingsStage4.common.details')" placement="top" :show-after="250">
+                <el-button
+                  class="action-icon-button"
+                  text
+                  circle
+                  type="primary"
+                  :aria-label="t('settingsStage4.common.details')"
+                  @click="handleViewDetails(row)"
+                >
+                  <el-icon><View /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip :content="t('settings.layout.items.roomSort')" placement="top" :show-after="250">
+                <el-button
+                  class="action-icon-button"
+                  text
+                  circle
+                  type="primary"
+                  :aria-label="t('settings.layout.items.roomSort')"
+                  @click="handleSort(row)"
+                >
+                  <el-icon><Sort /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip :content="t('settings.common.delete')" placement="top" :show-after="250">
+                <el-button
+                  class="action-icon-button is-danger"
+                  text
+                  circle
+                  type="danger"
+                  :aria-label="t('settings.common.delete')"
+                  @click="handleDelete(row)"
+                >
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </el-tooltip>
             </div>
           </template>
         </el-table-column>
@@ -251,7 +311,7 @@ import { ref, computed, watch, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, EditPen, Sort, View } from '@element-plus/icons-vue'
 import {
   getAllRoomTypesWithRooms,
   createRoomType,
@@ -337,6 +397,10 @@ const paginatedData = computed(() => {
   const end = start + pageSize.value
   return roomTypeList.value.slice(start, end)
 })
+
+const totalRoomCount = computed(() =>
+  roomTypeList.value.reduce((sum, item) => sum + (item.roomCount || item.rooms.length || 0), 0),
+)
 
 // 格式化价格
 const formatPrice = (price: number | undefined): string => {
@@ -801,44 +865,125 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  gap: 14px;
+  background: transparent;
 }
 
 /* 顶部信息栏 */
 .header-info {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e8e8e8;
-  background: #f5f7fa;
+  gap: 16px;
+  padding: 14px 20px;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.header-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.header-title {
+  margin: 0;
+  color: #202124;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.summary-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.summary-item {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #edf0f4;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #68717d;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.summary-item strong {
+  color: #202124;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 /* 表格容器 */
 .table-wrapper {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 0;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  background: #ffffff;
   overflow: hidden;
 }
 
 .room-settings-table {
   flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 
 /* 操作按钮 */
 .action-buttons {
   display: flex;
-  gap: 8px;
+  align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
+  gap: 3px;
+  flex-wrap: nowrap;
+}
+
+.action-buttons :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.action-icon-button {
+  width: 30px;
+  height: 30px;
+  color: #4d6f93;
+  background: #f5f8fc;
+}
+
+.action-icon-button:hover,
+.action-icon-button:focus-visible {
+  color: #2f7cf6;
+  background: #eaf2ff;
+}
+
+.action-icon-button.is-danger {
+  color: #d95d5d;
+  background: #fff5f5;
+}
+
+.action-icon-button.is-danger:hover,
+.action-icon-button.is-danger:focus-visible {
+  color: #d03050;
+  background: #ffecec;
 }
 
 /* 分页容器 */
@@ -846,14 +991,17 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 0;
-  border-top: 1px solid #e8e8e8;
-  margin-top: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border-top: 1px solid #edf0f4;
+  margin-top: 0;
+  background: #ffffff;
 }
 
 .pagination-info {
   font-size: 14px;
-  color: #666;
+  color: #68717d;
 }
 
 /* 对话框 */
@@ -915,21 +1063,39 @@ onMounted(() => {
 
 /* 表格样式优化 */
 :deep(.el-table) {
+  --el-table-border-color: #edf0f4;
+  --el-table-header-bg-color: #f8fafc;
+  --el-table-row-hover-bg-color: #f7fbff;
   font-size: 14px;
+  color: #4b5563;
+}
+
+:deep(.el-table__inner-wrapper::before) {
+  display: none;
 }
 
 :deep(.el-table th) {
-  background: #fafafa;
-  color: #333;
+  background: #f8fafc;
+  color: #293241;
   font-weight: 600;
 }
 
 :deep(.el-table td) {
-  padding: 12px 0;
+  padding: 14px 0;
+  border-bottom: 1px solid #edf0f4;
 }
 
 :deep(.el-table__header-wrapper .el-table__cell) {
-  background: #fafafa;
+  background: #f8fafc;
+  border-bottom: 1px solid #e9edf3;
+}
+
+:deep(.el-table__cell) {
+  border-right: none;
+}
+
+:deep(.el-table__cell.el-table-fixed-column--right) {
+  box-shadow: -8px 0 16px -16px rgba(26, 36, 51, 0.28);
 }
 
 /* 输入框样式 */

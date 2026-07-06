@@ -1,50 +1,23 @@
 <template>
-  <div class="review-shell" :class="{ 'is-sidebar-collapsed': isCollapsed }" :style="shellStyle">
-    <aside class="review-sidebar" :class="{ 'is-collapsed': isCollapsed }">
-      <button type="button" class="sidebar-toggle" @click="toggleSidebar">
-        <span class="sidebar-toggle-mark">
-          <el-icon><MenuIcon /></el-icon>
-        </span>
-        <span v-if="!isCollapsed" class="sidebar-toggle-label">
-          {{ t('accommodation.layout.collapseNav') }}
-        </span>
-        <el-icon v-if="!isCollapsed" class="sidebar-toggle-arrow"><ArrowLeft /></el-icon>
-        <el-icon v-else class="sidebar-toggle-arrow"><ArrowRight /></el-icon>
-      </button>
+  <WorkspaceLayout
+    storage-key="registration-review-sidebar-collapsed"
+    content-padding="0 24px 24px 0"
+    content-padding-narrow="0 20px 20px 0"
+    content-padding-mobile="0 20px 20px 0"
+  >
+    <template #sidebar="{ collapsed, toggleSidebar }">
+      <WorkspaceSidebar
+        :collapsed="collapsed"
+        :items="reviewSidebarItems"
+        active-key="review"
+        :collapse-label="t('accommodation.layout.collapseNav')"
+        aria-label="Review navigation"
+        @toggle="toggleSidebar"
+        @parent-click="handleSidebarClick"
+        @item-select="handleSidebarClick"
+      />
+    </template>
 
-      <nav class="sidebar-nav" aria-label="Review navigation">
-        <button
-          type="button"
-          class="sidebar-parent is-active"
-          :title="isCollapsed ? t('nav.review') : undefined"
-          @click="handleSidebarClick"
-        >
-          <span class="sidebar-parent-icon">
-            <el-icon><DocumentChecked /></el-icon>
-          </span>
-          <span v-if="!isCollapsed" class="sidebar-parent-label">{{ t('nav.review') }}</span>
-        </button>
-      </nav>
-    </aside>
-
-    <section class="review-panel">
-      <header class="review-panel-header">
-        <AppTopNav
-          v-bind="topNavBindings.props.value"
-          @store-select="topNavBindings.onStoreSelect"
-          @manage-stores="topNavBindings.onManageStores"
-          @menu-click="topNavBindings.onMenuClick"
-          @wallet-click="topNavBindings.onWalletClick"
-          @inbox-click="topNavBindings.onInboxClick"
-          @support-chat="topNavBindings.onSupportChat"
-          @system-notification="topNavBindings.onSystemNotification"
-          @order-notification="topNavBindings.onOrderNotification"
-          @profile-click="topNavBindings.onProfileClick"
-          @logout="topNavBindings.onLogout"
-        />
-      </header>
-
-      <main class="review-content">
         <div class="review-page">
           <div class="section-label">{{ t('roomStatus.common.filter') }}</div>
 
@@ -281,8 +254,6 @@
             </el-table>
           </section>
         </div>
-      </main>
-    </section>
 
     <el-drawer
       v-model="linkDrawerVisible"
@@ -328,18 +299,19 @@
         </el-table-column>
       </el-table>
     </el-drawer>
-  </div>
+  </WorkspaceLayout>
 </template>
 
 <script setup lang="ts">
 import axios from 'axios'
-import { computed, inject, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, ArrowRight, DocumentChecked, Menu as MenuIcon } from '@element-plus/icons-vue'
+import { DocumentChecked } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import AppTopNav from '@/components/layout/AppTopNav.vue'
-import { appTopNavBindingsKey } from '@/components/layout/appShellContext'
+import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue'
+import WorkspaceSidebar from '@/components/layout/WorkspaceSidebar.vue'
+import type { WorkspaceSidebarItem } from '@/components/layout/workspace'
 import request from '@/utils/request'
 import { getAllChannels, type ChannelDTO } from '@/api/channel'
 import { getRegistrationLinkInbox, type RegistrationLinkInboxItemDTO } from '@/api/registrationLinkInbox'
@@ -367,25 +339,18 @@ const registrationReviewStatusFilterValues = ['DRAFT', 'SUBMITTED', 'APPROVED', 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
-const topNavBindings = inject(appTopNavBindingsKey)
-
-if (!topNavBindings) {
-  throw new Error('RegistrationReviewList requires top navigation bindings')
-}
-
-const SIDEBAR_STORAGE_KEY = 'registration-review-sidebar-collapsed'
-const COLLAPSED_WIDTH = 84
-const EXPANDED_WIDTH = 220
+const reviewSidebarItems = computed<WorkspaceSidebarItem[]>(() => [
+  {
+    key: 'review',
+    label: t('nav.review'),
+    icon: DocumentChecked,
+  },
+])
 
 const rows = ref<Row[]>([])
 const loading = ref(false)
 const selectedRows = ref<Row[]>([])
 const downloadingPdfs = ref(false)
-const isCollapsed = ref(
-  typeof window === 'undefined'
-    ? false
-    : localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true',
-)
 const status = ref<string | null>(null)
 const channels = ref<ChannelDTO[]>([])
 const rooms = ref<RoomDTO[]>([])
@@ -426,10 +391,6 @@ const linkReservationStatusOptions = [
 ]
 const reservationStatusFilterValues = reservationStatusOptions.map((option) => option.value)
 
-const shellStyle = computed(() => ({
-  '--sidebar-width': `${isCollapsed.value ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`,
-}))
-
 const selectableRooms = computed(() => {
   if (roomGroupId.value == null || roomIdsInSelectedGroup.value == null) {
     return rooms.value
@@ -460,10 +421,6 @@ const checkOutEndDate = computed({
     checkOutDateRange.value = [value, value]
   },
 })
-
-const toggleSidebar = () => {
-  isCollapsed.value = !isCollapsed.value
-}
 
 const handleSidebarClick = () => {
   if (route.path !== '/data-center/registrations') {
@@ -1019,15 +976,6 @@ watch(roomGroupId, async (groupId) => {
   roomNumbers.value = roomNumbers.value.filter((roomNumber) => allowedRoomNumbers.has(roomNumber))
 })
 
-watch(
-  isCollapsed,
-  (collapsed) => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed))
-  },
-  { immediate: true },
-)
-
 onMounted(() => {
   hydrateFiltersFromRouteQuery()
   loadChannels()
@@ -1046,157 +994,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.review-shell {
-  --sidebar-width: 84px;
-  height: 100vh;
-  display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  background: #f5f5f5;
-}
-
-.review-sidebar {
-  width: var(--sidebar-width);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: #ffffff;
-  border-right: 1px solid #ecece7;
-  transition: width 0.24s ease;
-  overflow: hidden;
-}
-
-.sidebar-toggle {
-  height: 76px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 20px;
-  border: none;
-  border-bottom: 1px solid #f0f0ea;
-  background: #ffffff;
-  color: #1f2120;
-  cursor: pointer;
-}
-
-.sidebar-toggle-mark {
-  width: 20px;
-  height: 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  color: #2f7cf6;
-  font-size: 20px;
-  flex: 0 0 auto;
-}
-
-.sidebar-toggle-label {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  font-size: 14px;
-  font-weight: 600;
-  color: #232421;
-  white-space: nowrap;
-}
-
-.sidebar-toggle-arrow {
-  color: #a8ada8;
-  font-size: 14px;
-  flex: 0 0 auto;
-}
-
-.sidebar-nav {
-  flex: 1;
-  min-height: 0;
-  padding: 18px 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.sidebar-parent {
-  position: relative;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 0 18px 0 20px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: #5f645f;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.sidebar-parent:hover {
-  background: #f6f7f3;
-  color: #20211d;
-}
-
-.sidebar-parent.is-active {
-  background: #eef5ff;
-  color: #2f7cf6;
-}
-
-.sidebar-parent-icon {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  flex: 0 0 auto;
-}
-
-.sidebar-parent-label {
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.review-sidebar.is-collapsed .sidebar-toggle {
-  justify-content: center;
-  padding: 0;
-}
-
-.review-sidebar.is-collapsed .sidebar-parent {
-  justify-content: center;
-  padding: 0;
-}
-
-.review-panel {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.review-panel-header {
-  padding: 18px 32px 14px;
-  background: #f5f5f5;
-  overflow: hidden;
-}
-
-.review-panel-header :deep(.top-nav) {
-  --nav-center-shift: calc(-56px + ((var(--sidebar-width) - 84px) / 6));
-  --nav-right-shift: -28px;
-}
-
-.review-content {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding-right: 24px;
-  padding-bottom: 24px;
-}
-
 .review-page {
   min-width: 1120px;
   padding: 0 0 12px 24px;
@@ -1464,40 +1261,12 @@ onMounted(() => {
 }
 
 @media (max-width: 1280px) {
-  .review-panel-header {
-    padding-left: 24px;
-    padding-right: 20px;
-  }
-
-  .review-content {
-    padding-right: 20px;
-    padding-bottom: 20px;
-  }
-
   .review-page {
     padding-left: 20px;
   }
 }
 
 @media (max-width: 768px) {
-  .review-shell {
-    grid-template-columns: 84px minmax(0, 1fr);
-  }
-
-  .review-sidebar {
-    width: 84px;
-  }
-
-  .review-sidebar .sidebar-toggle {
-    justify-content: center;
-    padding: 0;
-  }
-
-  .review-sidebar .sidebar-parent {
-    justify-content: center;
-    padding: 0;
-  }
-
   .review-page {
     min-width: 980px;
     padding-left: 12px;

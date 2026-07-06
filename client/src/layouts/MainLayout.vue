@@ -6,10 +6,7 @@ import { useI18n } from 'vue-i18n'
 import NotificationPopup from '@/components/NotificationPopup.vue'
 import CustomerService from '@/components/CustomerService.vue'
 import AppTopNav from '@/components/layout/AppTopNav.vue'
-import {
-  appTopNavBindingsKey,
-  type AppTopNavProps,
-} from '@/components/layout/appShellContext'
+import { appTopNavBindingsKey, type AppTopNavProps } from '@/components/layout/appShellContext'
 import { PermissionAction, PermissionModule } from '@/api/role'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useMemoStore } from '@/stores/memo'
@@ -42,11 +39,13 @@ const currentUserEmail = computed(() => currentUser.value?.email || '')
 interface NavItem {
   labelKey: string
   path: string
+  activePaths?: string[]
 }
 
 const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/'
 
 const isAccommodationRoute = computed(() => normalizePath(route.path).startsWith('/accommodation'))
+const isSettingsRoute = computed(() => normalizePath(route.path).startsWith('/settings'))
 const isRegistrationReviewListRoute = computed(() => route.name === 'DataCenterRegistrations')
 const isStatisticsRoute = computed(() => {
   const path = normalizePath(route.path)
@@ -59,12 +58,16 @@ const isStatisticsRoute = computed(() => {
   )
 })
 const isOrderRoute = computed(() => normalizePath(route.path).startsWith('/order'))
+const isWalletRoute = computed(() => normalizePath(route.path).startsWith('/wallet'))
+const isMessagesRoute = computed(() => normalizePath(route.path).startsWith('/messages'))
 const usesEmbeddedTopNav = computed(
   () =>
     isAccommodationRoute.value ||
+    isSettingsRoute.value ||
     isStatisticsRoute.value ||
     isRegistrationReviewListRoute.value ||
-    isOrderRoute.value,
+    isOrderRoute.value ||
+    isWalletRoute.value,
 )
 
 const loadStores = async () => {
@@ -123,12 +126,22 @@ const canAccessWallet = computed(() =>
 const navItems = computed<NavItem[]>(() => {
   const items: Array<NavItem & { visible: boolean }> = [
     { labelKey: 'nav.home', path: '/', visible: true },
-    { labelKey: 'nav.accommodation', path: '/accommodation', visible: canAccessAccommodation.value },
+    {
+      labelKey: 'nav.accommodation',
+      path: '/accommodation',
+      visible: canAccessAccommodation.value,
+    },
     { labelKey: 'nav.messages', path: '/messages', visible: true },
     { labelKey: 'nav.order', path: '/order', visible: canAccessOrder.value },
     {
       labelKey: 'nav.statistics',
       path: '/data-center/overview',
+      activePaths: [
+        '/data-center/overview',
+        '/data-center/accommodation',
+        '/data-center/notes',
+        '/statistics',
+      ],
       visible: canAccessStatistics.value,
     },
     {
@@ -299,7 +312,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="main-layout" :class="{ 'main-layout--embedded-nav': usesEmbeddedTopNav }">
+  <div
+    class="main-layout"
+    :class="{
+      'main-layout--embedded-nav': usesEmbeddedTopNav,
+      'main-layout--messages': isMessagesRoute,
+    }"
+  >
     <template v-if="usesEmbeddedTopNav">
       <router-view />
     </template>
@@ -320,7 +339,7 @@ onUnmounted(() => {
         />
       </header>
 
-      <main class="layout-main">
+      <main class="layout-main" :class="{ 'layout-main--messages': isMessagesRoute }">
         <router-view />
       </main>
     </template>
@@ -346,6 +365,12 @@ onUnmounted(() => {
   height: 100vh;
 }
 
+.main-layout--messages {
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
 .app-header {
   position: sticky;
   top: 0;
@@ -358,6 +383,12 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+.layout-main--messages {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 @media (max-width: 1280px) {

@@ -2,17 +2,24 @@
   <div class="auto-message-container">
     <div class="page-header">
       <h2 class="page-title">{{ t('settings.autoMessage.title') }}</h2>
-      <el-button type="primary" @click="handleCreate">{{ t('settings.autoMessage.create') }}</el-button>
+      <el-button type="primary" @click="handleCreate">
+        {{ t('settings.autoMessage.create') }}
+      </el-button>
     </div>
 
-    <el-table :data="messages" border stripe v-loading="loading">
-      <el-table-column prop="title" :label="t('settings.autoMessage.columns.title')" min-width="120" />
-      <el-table-column prop="message" :label="t('settings.autoMessage.columns.message')" min-width="200">
+    <el-table :data="messages" border class="auto-message-table" v-loading="loading">
+      <el-table-column prop="title" :label="t('settings.autoMessage.columns.title')" min-width="120" align="center" />
+      <el-table-column prop="message" :label="t('settings.autoMessage.columns.message')" min-width="240" align="center">
         <template #default="{ row }">
           <span class="message-cell">{{ row.message }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="t('settings.autoMessage.columns.automationRule')" min-width="220">
+      <el-table-column
+        :label="t('settings.autoMessage.columns.automationRule')"
+        min-width="150"
+        align="center"
+        class-name="automation-rule-column"
+      >
         <template #default="{ row }">
           <div class="automation-rule-cell">
             <div class="automation-rule-action">
@@ -24,18 +31,36 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="channel" :label="t('settings.autoMessage.columns.channel')" min-width="120" />
-      <el-table-column prop="room" :label="t('settings.autoMessage.columns.room')" min-width="120" />
+      <el-table-column prop="channel" :label="t('settings.autoMessage.columns.channel')" min-width="120" align="center" />
+      <el-table-column prop="room" :label="t('settings.autoMessage.columns.room')" min-width="120" align="center" />
       <el-table-column :label="t('settings.autoMessage.columns.enabled')" width="80" align="center">
         <template #default="{ row }">
-          <el-switch v-model="row.enabled" @change="handleToggle(row)" />
+          <el-switch
+            v-model="row.enabled"
+            class="gradient-switch"
+            @change="handleToggle(row)"
+          />
         </template>
       </el-table-column>
-      <el-table-column :label="t('settings.common.actions')" width="180" align="center" fixed="right">
+      <el-table-column
+        :label="t('settings.common.actions')"
+        width="180"
+        align="center"
+        fixed="right"
+        class-name="actions-column"
+      >
         <template #default="{ row }">
-          <el-button link type="primary" @click="handleEdit(row)">{{ t('settings.common.edit') }}</el-button>
-          <el-button link type="primary" @click="handleCopy(row)">{{ t('settings.autoMessage.copy') }}</el-button>
-          <el-button link type="danger" @click="handleDelete(row)">{{ t('settings.common.delete') }}</el-button>
+          <div class="auto-message-actions">
+            <el-button link class="action-link action-link--primary" @click="handleEdit(row)">
+              {{ t('settings.common.edit') }}
+            </el-button>
+            <el-button link class="action-link action-link--primary" @click="handleCopy(row)">
+              {{ t('settings.autoMessage.copy') }}
+            </el-button>
+            <el-button link class="action-link action-link--danger" @click="handleDelete(row)">
+              {{ t('settings.common.delete') }}
+            </el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -81,11 +106,15 @@
           </div>
           <el-alert
             type="warning"
-            :title="t('settings.autoMessage.legacySmartLockPasscodeNotice')"
             :closable="false"
             show-icon
             class="legacy-smartlock-notice"
-          />
+          >
+            <template #title>
+              <code class="message-variable-code">{{ LEGACY_SMART_LOCK_PASSCODE_VARIABLE }}</code>
+              {{ t('settings.autoMessage.legacySmartLockPasscodeNotice') }}
+            </template>
+          </el-alert>
         </div>
 
         <!-- 渠道（多选） -->
@@ -107,7 +136,7 @@
 
         <!-- 过时补发 -->
         <el-form-item :label="t('settings.autoMessage.fields.resendOnExpire')">
-          <el-switch v-model="form.resendOnExpire" />
+          <el-switch v-model="form.resendOnExpire" class="gradient-switch" />
         </el-form-item>
 
         <!-- 房间选择 -->
@@ -225,7 +254,9 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogVisible = false">{{ t('settings.common.cancel') }}</el-button>
-          <el-button type="primary" @click="handleSave">{{ t('settings.common.save') }}</el-button>
+          <el-button class="gradient-primary-button" type="primary" @click="handleSave">
+            {{ t('settings.common.save') }}
+          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -327,6 +358,7 @@ const channels = ref<ChannelDTO[]>([])
 const rooms = ref<RoomDTO[]>([])
 const roomTypes = ref<RoomTypeDTO[]>([])
 const roomGroups = ref<RoomGroupDTO[]>([])
+const LEGACY_SMART_LOCK_PASSCODE_VARIABLE = '{{smartlock_passcode}}'
 
 const form = reactive<AutoMessageForm>({
   id: 0,
@@ -347,7 +379,7 @@ let isPopulatingForm = false
 
 // 检测消息中是否包含密码变量
 const hasPasswordVariable = computed(() => {
-  const passwordVars = ['{{smartlock_passcode}}', '{{checkin_code}}']
+  const passwordVars = [LEGACY_SMART_LOCK_PASSCODE_VARIABLE, '{{checkin_code}}']
   return passwordVars.some((v) => form.message.includes(v))
 })
 
@@ -983,6 +1015,10 @@ onMounted(() => {
 
 <style scoped>
 .auto-message-container {
+  --settings-control-gradient: linear-gradient(90deg, #81bfff 0%, #017cfe 100%);
+  --settings-control-gradient-hover: linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%);
+  --settings-control-gradient-active: linear-gradient(90deg, #6fb2f2 0%, #006fe6 100%);
+  --settings-control-shadow: 0 8px 18px rgba(1, 124, 254, 0.18);
   padding: 24px;
   background: #fff;
   min-height: calc(100vh - 100px);
@@ -1002,39 +1038,234 @@ onMounted(() => {
   margin: 0;
 }
 
-:deep(.el-table) {
+.gradient-primary-button.el-button--primary {
+  min-width: 58px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 5px;
+  border-color: transparent;
+  background: var(
+    --settings-control-gradient,
+    linear-gradient(90deg, #81bfff 0%, #017cfe 100%)
+  ) !important;
+  box-shadow: var(--settings-control-shadow, 0 8px 18px rgba(1, 124, 254, 0.18));
   font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
 }
 
-:deep(.el-table th) {
-  background-color: #f5f7fa;
-  color: #606266;
+.gradient-primary-button.el-button--primary:hover,
+.gradient-primary-button.el-button--primary:focus {
+  border-color: transparent;
+  background: var(
+    --settings-control-gradient-hover,
+    linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%)
+  ) !important;
+  color: #ffffff;
+}
+
+.gradient-primary-button.el-button--primary:active {
+  border-color: transparent;
+  background: var(
+    --settings-control-gradient-active,
+    linear-gradient(90deg, #6fb2f2 0%, #006fe6 100%)
+  ) !important;
+  color: #ffffff;
+}
+
+.auto-message-table {
+  border-color: #edf1f7;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.auto-message-table :deep(.el-table__inner-wrapper::before),
+.auto-message-table :deep(.el-table__border-left-patch) {
+  background-color: #edf1f7;
+}
+
+.auto-message-table :deep(.el-table__cell) {
+  border-color: #edf1f7;
+}
+
+.auto-message-table :deep(.el-table__header th.el-table__cell) {
+  height: 40px;
+  padding: 0;
+  background: #f3f6fc;
+  color: #4f5968;
+  font-size: 13px;
   font-weight: 600;
 }
 
+.auto-message-table :deep(.el-table__header th.el-table-fixed-column--right) {
+  background: #f3f6fc;
+}
+
+.auto-message-table :deep(.el-table__body td.el-table-fixed-column--right) {
+  background: #fff;
+}
+
+.auto-message-table :deep(.el-table__body tr),
+.auto-message-table :deep(.el-table__body tr:hover > td.el-table__cell) {
+  background: #fff;
+}
+
+.auto-message-table :deep(.el-table__body td.el-table__cell) {
+  padding: 0;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.auto-message-table :deep(.el-table__cell .cell) {
+  padding: 0 14px;
+  line-height: 20px;
+}
+
+.auto-message-table :deep(.el-table__body .el-table__cell .cell) {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auto-message-table :deep(.el-table__body td.actions-column) {
+  position: relative;
+}
+
+.auto-message-table :deep(.el-table__body td.actions-column .cell) {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .message-cell {
-  display: inline-block;
+  display: block;
   width: 100%;
   overflow: hidden;
+  color: #6b7280;
   white-space: nowrap;
+  text-align: center;
   text-overflow: ellipsis;
 }
 
 .automation-rule-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  line-height: 1.4;
+  gap: 2px;
+  align-items: center;
+  text-align: center;
+  line-height: 1.35;
 }
 
 .automation-rule-action {
-  color: #303133;
-  font-weight: 500;
+  color: #303642;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .automation-rule-timing {
-  color: #606266;
+  color: #7a8494;
   font-size: 12px;
+  font-weight: 400;
+}
+
+.auto-message-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.auto-message-actions :deep(.el-button) {
+  margin: 0;
+}
+
+.action-link {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px !important;
+}
+
+.action-link--primary {
+  background-image: var(
+    --settings-control-gradient,
+    linear-gradient(90deg, #81bfff 0%, #017cfe 100%)
+  );
+  background-clip: text;
+  color: #017cfe;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.action-link--primary:hover,
+.action-link--primary:focus {
+  background-image: var(
+    --settings-control-gradient-hover,
+    linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%)
+  );
+  color: #1489ff;
+}
+
+.action-link--danger {
+  color: #ff6b72;
+}
+
+.action-link--danger:hover,
+.action-link--danger:focus {
+  color: #f05259;
+}
+
+.gradient-switch {
+  height: 20px;
+}
+
+.gradient-switch :deep(.el-switch__core) {
+  min-width: 48px;
+  height: 22px;
+  border-color: #d7dce5;
+  background: #d7dce5;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.gradient-switch.is-checked :deep(.el-switch__core) {
+  border-color: transparent;
+  background: var(
+    --settings-control-gradient,
+    linear-gradient(90deg, #81bfff 0%, #017cfe 100%)
+  ) !important;
+}
+
+.gradient-switch.is-checked:hover :deep(.el-switch__core) {
+  background: var(
+    --settings-control-gradient-hover,
+    linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%)
+  ) !important;
+}
+
+.gradient-switch :deep(.el-switch__core .el-switch__action) {
+  left: 1px;
+  width: 20px;
+  height: 20px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(31, 71, 120, 0.16);
+}
+
+.gradient-switch.is-checked :deep(.el-switch__core .el-switch__action) {
+  left: calc(100% - 21px);
 }
 
 /* 插入变量区域样式 */
@@ -1072,12 +1303,24 @@ onMounted(() => {
 }
 
 .variable-tag:hover {
-  border-color: #409eff;
-  color: #409eff;
+  border-color: #017cfe;
+  background-image: var(
+    --settings-control-gradient,
+    linear-gradient(90deg, #81bfff 0%, #017cfe 100%)
+  );
+  background-clip: text;
+  color: #017cfe;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .legacy-smartlock-notice {
   margin-top: 12px;
+}
+
+.message-variable-code {
+  font-family: inherit;
+  font-weight: 600;
 }
 
 /* 自动化规则区域样式 */

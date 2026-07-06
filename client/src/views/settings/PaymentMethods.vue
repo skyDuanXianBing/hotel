@@ -66,9 +66,12 @@
               </el-icon>
             </template>
             <template v-else>
-              <el-icon class="action-icon primary" @click="handleEditMethod(method)">
-                <Edit />
-              </el-icon>
+              <img
+                class="action-image edit-image"
+                :src="paymentMethodEditIcon"
+                alt=""
+                @click="handleEditMethod(method)"
+              />
               <el-icon class="action-icon danger" @click="handleDeleteMethod(method)">
                 <Delete />
               </el-icon>
@@ -83,7 +86,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Grid, Check, Close, Delete, Edit } from '@element-plus/icons-vue'
+import { Grid, Check, Close, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createPaymentMethod,
@@ -92,6 +95,7 @@ import {
   updatePaymentMethod,
   type PaymentMethodDTO,
 } from '@/api/paymentMethod'
+import paymentMethodEditIcon from '@/assets/icons/payment-method-edit.png'
 
 const { t } = useI18n()
 
@@ -314,31 +318,42 @@ onMounted(() => {
 
 <style scoped>
 .payment-methods {
-  padding: 20px;
-  background: white;
+  padding: 25px 24px 40px;
+  background: #fff;
   min-height: 100%;
 }
 
 .info-alert {
-  margin-bottom: 24px;
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
+  margin-bottom: 28px;
+  padding: 7px 22px;
+  background: rgba(89, 126, 247, 0.15);
+  border: 1px solid rgba(89, 126, 247, 0.66);
+  border-radius: 4px;
+}
+
+.info-alert :deep(.el-alert__content) {
+  padding: 0;
+}
+
+.info-alert :deep(.el-alert__description),
+.info-alert :deep(.el-alert__title) {
+  color: #597ef7;
 }
 
 .info-content p {
-  margin: 8px 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #333;
+  margin: 0;
+  font-size: 16px;
+  line-height: 30px;
+  color: #597ef7;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e8e8e8;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e5e5;
 }
 
 .header-actions {
@@ -347,10 +362,29 @@ onMounted(() => {
   gap: 12px;
 }
 
+.header-actions :deep(.el-button) {
+  height: 30px;
+  padding: 0 16px;
+  border-radius: 4px;
+}
+
+.header-actions :deep(.el-button--danger.is-plain) {
+  background: rgba(245, 63, 63, 0.12);
+  border-color: transparent;
+  color: #f56c6c;
+}
+
+.header-actions :deep(.el-button--danger.is-plain.is-disabled) {
+  background: rgba(245, 63, 63, 0.12);
+  border-color: transparent;
+  color: rgba(245, 108, 108, 0.45);
+}
+
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  line-height: 25px;
+  color: #111;
   margin: 0;
 }
 
@@ -360,93 +394,134 @@ onMounted(() => {
 
 .subsection-title {
   font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  color: #111;
+  margin: 0 0 31px;
 }
 
 .subtitle-desc {
   font-size: 13px;
   font-weight: normal;
-  color: #999;
-  margin-left: 8px;
+  color: #8c8c8c;
+  margin-left: 16px;
 }
 
 .payment-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 6px;
+  align-items: start;
+  justify-content: start;
 }
 
 .payment-card {
+  position: relative;
   display: flex;
   align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 68px;
   gap: 8px;
-  padding: 12px 16px;
-  background: white;
-  border: 1px solid #e8e8e8;
+  padding: 0 16px;
+  background: #fff;
+  border: 1px solid #dcdfe6;
   border-radius: 4px;
-  transition: all 0.2s ease;
-  position: relative;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   overflow: hidden;
 }
 
 .select-checkbox {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
+}
+
+.select-checkbox :deep(.el-checkbox) {
+  height: 16px;
+}
+
+.select-checkbox :deep(.el-checkbox__inner) {
+  width: 14px;
+  height: 14px;
 }
 
 .payment-card:hover {
-  border-color: #1890ff;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+  border-color: #bfc7d9;
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.06);
 }
 
 .default-corner {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 50px;
-  height: 24px;
-  background: #1890ff;
-  color: white;
+  top: 4px;
+  right: 8px;
+  height: 18px;
+  padding: 0 6px;
+  background: rgba(89, 126, 247, 0.12);
+  color: #597ef7;
   font-size: 11px;
   font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
-  transform-origin: top right;
-  transform: rotate(45deg) translate(14px, -14px);
+  border-radius: 999px;
   z-index: 1;
 }
 
 .drag-handle {
   display: flex;
   align-items: center;
-  color: #999;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 14px;
+  color: #9b9b9b;
+  font-size: 14px;
 }
 
 .card-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  text-align: center;
+}
+
+.card-content :deep(.el-input) {
+  width: 100%;
 }
 
 .method-name {
-  font-size: 14px;
-  color: #333;
+  max-width: 104px;
+  font-size: 16px;
+  line-height: 18px;
+  color: #7a7a7a;
+  word-break: break-word;
 }
 
 .card-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex: 0 0 auto;
+  gap: 6px;
 }
 
 .action-icon {
-  font-size: 18px;
+  font-size: 15px;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.action-image {
+  display: block;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  object-fit: contain;
+  transition: transform 0.2s ease;
 }
 
 .action-icon.primary {
@@ -471,8 +546,36 @@ onMounted(() => {
   color: #ff4d4f;
 }
 
+.edit-image:hover,
+.action-icon.danger:hover {
+  transform: scale(1.1);
+}
+
 .action-icon.danger:hover {
   color: #ff7875;
-  transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+  .payment-methods {
+    padding: 20px 16px 32px;
+  }
+
+  .section-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+  }
+
+  .payment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-card {
+    width: 100%;
+  }
 }
 </style>

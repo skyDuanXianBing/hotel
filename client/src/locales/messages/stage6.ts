@@ -1009,7 +1009,7 @@ export const stage6Messages = {
             editDraft: '编辑草稿',
             viewSystemLanguage: '员工参考译文',
             initialDraftPlaceholder: 'AI 生成的草稿会显示在这里',
-            systemLanguageVersionTitle: '员工参考译文（{language}）',
+            systemLanguageVersionTitle: '员工参考译文（仅供查看，实际发送内容以编辑草稿为准）',
             systemLanguageVersionPlaceholder: '这里显示员工参考译文，便于你阅读理解',
             systemLanguageReferenceHint: '仅供查看，实际发送内容以编辑草稿为准',
             polishTitle: '继续优化草稿',

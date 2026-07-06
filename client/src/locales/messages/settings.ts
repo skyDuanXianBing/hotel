@@ -713,7 +713,7 @@ export const settingsMessages = {
         },
         variableDesc: 'Choose a shortcode and add it to your message. The correct details will be filled automatically each time you use the message.',
         legacySmartLockPasscodeNotice:
-          '{{smartlock_passcode}} uses the legacy static smart lock passcode saved on the room. It is not the new temporary door-lock passcode.',
+          'uses the legacy static smart lock passcode saved on the room. It is not the new temporary door-lock passcode.',
         automationDesc: 'Choose the action that triggers your message and how long before or after that action it should be sent.',
         passwordWarning: 'Note: If you add a password variable, make sure the password generation time is earlier than the message send time. Otherwise, the message will fail to send.',
         variables: {
@@ -1509,7 +1509,7 @@ export const settingsMessages = {
         },
         variableDesc: '选择一个短代码并将其添加到您的消息中。每次您使用该消息时，正确的详细信息都会自动填充。',
         legacySmartLockPasscodeNotice:
-          '{{smartlock_passcode}} 来自房间资料中的旧静态智能锁密码，不是新门锁临时密码。',
+          '来自房间资料中的旧静态智能锁密码，不是新门锁临时密码。',
         automationDesc: '选择将触发您的消息的操作以及在该操作之前或之后多久发送。',
         passwordWarning: '请注意：如果你增加了密码变量，请确保密码自动生成时间早于消息发送时间，否则消息将会发送失败。',
         variables: {
@@ -2305,7 +2305,7 @@ export const settingsMessages = {
         },
         variableDesc: '選擇一個短代碼並將其新增到您的訊息中。每次使用該訊息時，正確的詳細資訊都會自動填入。',
         legacySmartLockPasscodeNotice:
-          '{{smartlock_passcode}} 來自房間資料中的舊靜態智慧鎖密碼，不是新門鎖臨時密碼。',
+          '來自房間資料中的舊靜態智慧鎖密碼，不是新門鎖臨時密碼。',
         automationDesc: '選擇將觸發您的訊息的操作，以及在該操作之前或之後多久發送。',
         passwordWarning: '請注意：如果你增加了密碼變數，請確保密碼自動產生時間早於訊息發送時間，否則訊息將會發送失敗。',
         variables: {
@@ -3101,7 +3101,7 @@ export const settingsMessages = {
         },
         variableDesc: 'ショートコードを選択してメッセージに追加します。このメッセージを使用するたびに正しい情報が自動入力されます。',
         legacySmartLockPasscodeNotice:
-          '{{smartlock_passcode}} は客室に保存された旧来の固定スマートロック暗証番号です。新しい一時ドアロック暗証番号ではありません。',
+          'は客室に保存された旧来の固定スマートロック暗証番号です。新しい一時ドアロック暗証番号ではありません。',
         automationDesc: 'メッセージをトリガーする操作と、その操作の前後どれくらいで送信するかを選択します。',
         passwordWarning: '注意: パスワード変数を追加する場合は、パスワードの自動生成時刻がメッセージ送信時刻より前になるようにしてください。そうでない場合、送信に失敗します。',
         variables: {

@@ -2,7 +2,7 @@
   <div class="price-ratio-panel">
     <div class="settings-content">
       <div class="price-ratio-table-container">
-        <el-table :data="data" border stripe class="price-ratio-table" v-loading="loading">
+        <el-table :data="data" class="price-ratio-table" v-loading="loading">
           <el-table-column :label="t('channel.priceRatio.channel')" min-width="170" align="center">
             <template #default="{ row }">
               <div class="channel-cell">
@@ -193,22 +193,34 @@ function formatSyncItemStatus(status: string) {
   overflow: auto;
   display: flex;
   flex-direction: column;
+  background: #ffffff;
 }
 
 .settings-content {
   flex: 1;
-  padding: 24px;
+  padding: 20px 24px 24px;
+  background: #ffffff;
 }
 
 .price-ratio-table-container {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
 }
 
 .price-ratio-table {
   width: 100%;
+  --el-table-header-bg-color: #f7f7f7;
+  --el-table-tr-bg-color: #ffffff;
+  --el-table-row-hover-bg-color: #f8fbff;
+}
+
+.price-ratio-table :deep(.el-table__header-wrapper th.el-table__cell) {
+  background: #f7f7f7;
+  color: #909399;
+  font-weight: 500;
+}
+
+.price-ratio-table :deep(.el-table__body tr.el-table__row > td.el-table__cell) {
+  background: #ffffff;
 }
 
 .channel-cell {

@@ -469,7 +469,7 @@ const handleConfirmEdit = async () => {
 .group-item {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
-  padding: 16px;
+  padding: 18px 20px;
   background: #fff;
 }
 
@@ -482,8 +482,8 @@ const handleConfirmEdit = async () => {
 
 .group-name {
   font-size: 16px;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 700;
+  color: #111111;
 }
 
 .group-name-input {
@@ -493,14 +493,34 @@ const handleConfirmEdit = async () => {
 .group-rooms {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
   min-height: 40px;
   align-items: center;
 }
 
 .room-tag {
+  width: 182px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid #d9d9d9;
   border-radius: 4px;
+  background: #fafafa;
   cursor: move;
+}
+
+.room-tag :deep(.el-tag__content) {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.room-tag :deep(.el-tag__close) {
+  flex: 0 0 auto;
+  margin-left: 6px;
 }
 
 .draggable-item {
@@ -508,32 +528,45 @@ const handleConfirmEdit = async () => {
 }
 
 .draggable-item:hover {
-  opacity: 0.8;
+  border-color: #bfc4cc;
+  background: #f5f5f5;
 }
 
 .room-tag-content {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 1px;
 }
 
 .room-number {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
+  max-width: 100%;
+  color: #111111;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .room-type {
-  font-size: 12px;
-  color: #909399;
+  max-width: 100%;
+  color: #8b8f96;
+  font-size: 11px;
+  line-height: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ungrouped-section {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
-  padding: 16px;
-  background: #f5f7fa;
+  padding: 18px 20px;
+  background: #f7f8fa;
 }
 
 .ungrouped-header {
@@ -544,9 +577,9 @@ const handleConfirmEdit = async () => {
 }
 
 .ungrouped-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111111;
 }
 
 .ungrouped-hint {
@@ -557,7 +590,7 @@ const handleConfirmEdit = async () => {
 .ungrouped-rooms {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
   min-height: 60px;
 }
 </style>

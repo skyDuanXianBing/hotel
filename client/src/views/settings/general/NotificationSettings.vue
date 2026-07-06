@@ -13,7 +13,7 @@
             {{ t('settings.notificationSettings.items.orderPopup.description') }}
           </p>
         </div>
-        <el-switch v-model="settings.orderPopup" />
+        <el-switch v-model="settings.orderPopup" class="gradient-switch" />
       </div>
 
       <!-- 订单消息声音提醒 -->
@@ -27,11 +27,11 @@
           </p>
         </div>
         <div class="notification-actions">
-          <el-button link @click="testOrderSound">
+          <el-button class="gradient-link-button" link @click="testOrderSound">
             <el-icon><VideoPlay /></el-icon>
             {{ t('settings.notificationSettings.testSound') }}
           </el-button>
-          <el-switch v-model="settings.orderSound" />
+          <el-switch v-model="settings.orderSound" class="gradient-switch" />
         </div>
       </div>
 
@@ -45,7 +45,7 @@
             {{ t('settings.notificationSettings.items.chatPopup.description') }}
           </p>
         </div>
-        <el-switch v-model="settings.chatPopup" />
+        <el-switch v-model="settings.chatPopup" class="gradient-switch" />
       </div>
 
       <!-- 聊天信息声音提醒 -->
@@ -59,11 +59,11 @@
           </p>
         </div>
         <div class="notification-actions">
-          <el-button link @click="testChatSound">
+          <el-button class="gradient-link-button" link @click="testChatSound">
             <el-icon><VideoPlay /></el-icon>
             {{ t('settings.notificationSettings.testSound') }}
           </el-button>
-          <el-switch v-model="settings.chatSound" />
+          <el-switch v-model="settings.chatSound" class="gradient-switch" />
         </div>
       </div>
     </div>
@@ -215,6 +215,10 @@ onMounted(async () => {
 
 <style scoped>
 .notification-settings-container {
+  --settings-control-gradient: linear-gradient(90deg, #81bfff 0%, #017cfe 100%);
+  --settings-control-gradient-hover: linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%);
+  --settings-control-gradient-active: linear-gradient(90deg, #6fb2f2 0%, #006fe6 100%);
+  --settings-control-shadow: 0 8px 18px rgba(1, 124, 254, 0.18);
   padding: 24px;
   background: #fff;
   min-height: calc(100vh - 100px);
@@ -267,13 +271,110 @@ onMounted(async () => {
   gap: 16px;
 }
 
-.notification-actions .el-button {
+.notification-actions .gradient-link-button {
   font-size: 14px;
-  color: #409eff;
+  background-image: var(
+    --settings-control-gradient,
+    linear-gradient(90deg, #81bfff 0%, #017cfe 100%)
+  );
+  background-clip: text;
+  color: #017cfe;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.notification-actions .gradient-link-button:hover,
+.notification-actions .gradient-link-button:focus {
+  background-image: var(
+    --settings-control-gradient-hover,
+    linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%)
+  );
+  color: #1489ff;
+}
+
+.notification-actions .gradient-link-button .el-icon {
+  color: #017cfe;
+  -webkit-text-fill-color: #017cfe;
 }
 
 .notification-actions .el-icon {
   margin-right: 4px;
+}
+
+.gradient-primary-button.el-button--primary {
+  min-width: 74px;
+  height: 32px;
+  padding: 0 18px;
+  border-color: transparent;
+  border-radius: 5px;
+  background: var(
+    --settings-control-gradient,
+    linear-gradient(90deg, #81bfff 0%, #017cfe 100%)
+  ) !important;
+  box-shadow: var(--settings-control-shadow, 0 8px 18px rgba(1, 124, 254, 0.18));
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.gradient-primary-button.el-button--primary:hover,
+.gradient-primary-button.el-button--primary:focus {
+  border-color: transparent;
+  background: var(
+    --settings-control-gradient-hover,
+    linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%)
+  ) !important;
+  color: #ffffff;
+}
+
+.gradient-primary-button.el-button--primary:active {
+  border-color: transparent;
+  background: var(
+    --settings-control-gradient-active,
+    linear-gradient(90deg, #6fb2f2 0%, #006fe6 100%)
+  ) !important;
+  color: #ffffff;
+}
+
+.gradient-switch {
+  height: 20px;
+}
+
+.gradient-switch :deep(.el-switch__core) {
+  min-width: 48px;
+  height: 22px;
+  border-color: #d7dce5;
+  background: #d7dce5;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.gradient-switch.is-checked :deep(.el-switch__core) {
+  border-color: transparent;
+  background: var(
+    --settings-control-gradient,
+    linear-gradient(90deg, #81bfff 0%, #017cfe 100%)
+  ) !important;
+}
+
+.gradient-switch.is-checked:hover :deep(.el-switch__core) {
+  background: var(
+    --settings-control-gradient-hover,
+    linear-gradient(90deg, #8ec6ff 0%, #1489ff 100%)
+  ) !important;
+}
+
+.gradient-switch :deep(.el-switch__core .el-switch__action) {
+  left: 1px;
+  width: 20px;
+  height: 20px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(31, 71, 120, 0.16);
+}
+
+.gradient-switch.is-checked :deep(.el-switch__core .el-switch__action) {
+  left: calc(100% - 21px);
 }
 
 .save-section {
