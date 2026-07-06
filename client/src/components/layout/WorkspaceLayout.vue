@@ -8,10 +8,16 @@ const props = withDefaults(
     storageKey: string
     collapsedWidth?: number
     expandedWidth?: number
+    contentPadding?: string
+    contentPaddingNarrow?: string
+    contentPaddingMobile?: string
   }>(),
   {
     collapsedWidth: 84,
     expandedWidth: 220,
+    contentPadding: '0 24px 24px',
+    contentPaddingNarrow: '0 20px 20px 24px',
+    contentPaddingMobile: '0 12px 20px',
   },
 )
 
@@ -32,6 +38,9 @@ const isCollapsed = ref(
 
 const shellStyle = computed(() => ({
   '--sidebar-width': `${isCollapsed.value ? props.collapsedWidth : props.expandedWidth}px`,
+  '--workspace-content-padding': props.contentPadding,
+  '--workspace-content-padding-narrow': props.contentPaddingNarrow,
+  '--workspace-content-padding-mobile': props.contentPaddingMobile,
 }))
 
 const toggleSidebar = () => {
@@ -108,7 +117,7 @@ watch(
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  padding: 0 24px 24px;
+  padding: var(--workspace-content-padding);
   background: #f5f5f5;
 }
 
@@ -119,8 +128,7 @@ watch(
   }
 
   .workspace-content {
-    padding-right: 20px;
-    padding-bottom: 20px;
+    padding: var(--workspace-content-padding-narrow);
   }
 }
 
@@ -130,8 +138,7 @@ watch(
   }
 
   .workspace-content {
-    padding-left: 12px;
-    padding-right: 12px;
+    padding: var(--workspace-content-padding-mobile);
   }
 }
 </style>

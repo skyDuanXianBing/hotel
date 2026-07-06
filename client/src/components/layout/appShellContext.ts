@@ -4,6 +4,7 @@ import type { StoreDTO } from '@/api/store'
 export interface AppTopNavItem {
   labelKey: string
   path: string
+  activePaths?: string[]
 }
 
 export interface AppTopNavProps {

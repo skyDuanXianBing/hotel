@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch, type Component } from 'vue'
+import { computed, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -10,12 +10,10 @@ import {
   BrushFilled,
   Connection,
   Coin,
-  ArrowLeft,
-  ArrowRight,
-  Menu as MenuIcon,
 } from '@element-plus/icons-vue'
-import AppTopNav from '@/components/layout/AppTopNav.vue'
-import { appTopNavBindingsKey } from '@/components/layout/appShellContext'
+import WorkspaceLayout from '@/components/layout/WorkspaceLayout.vue'
+import WorkspaceSidebar from '@/components/layout/WorkspaceSidebar.vue'
+import type { WorkspaceSidebarItem } from '@/components/layout/workspace'
 import { PermissionAction, PermissionModule } from '@/api/role'
 import {
   usePermissionStore,
@@ -27,16 +25,6 @@ const router = useRouter()
 const route = useRoute()
 const permissionStore = usePermissionStore()
 const { t } = useI18n()
-
-const topNavBindings = inject(appTopNavBindingsKey)
-
-if (!topNavBindings) {
-  throw new Error('SettingsLayout requires top navigation bindings')
-}
-
-const SIDEBAR_STORAGE_KEY = 'settings-sidebar-collapsed'
-const COLLAPSED_WIDTH = 84
-const EXPANDED_WIDTH = 220
 
 interface MenuChildItem {
   key: string
@@ -279,16 +267,6 @@ const menuItems: MenuItem[] = [
   },
 ]
 
-const isCollapsed = ref(
-  typeof window === 'undefined'
-    ? false
-    : localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true',
-)
-
-const shellStyle = computed(() => ({
-  '--sidebar-width': `${isCollapsed.value ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`,
-}))
-
 const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/'
 
 const childMatchesRoute = (child: MenuChildItem, routePath = route.path) => {
@@ -331,16 +309,20 @@ const activeChildItem = computed(() =>
 
 const activeParentKey = computed(() => activeMenuItem.value?.key || '')
 
+const settingsSidebarItems = computed<WorkspaceSidebarItem[]>(() =>
+  filteredMenuItems.value.map((item) => ({
+    key: item.key,
+    label: t(item.label),
+    icon: item.icon,
+  })),
+)
+
 const visibleTabs = computed(() => {
   const children = activeMenuItem.value?.children || []
   return children.length >= 2 ? children : []
 })
 
 const shouldShowTabs = computed(() => visibleTabs.value.length > 0)
-
-const toggleSidebar = () => {
-  isCollapsed.value = !isCollapsed.value
-}
 
 const navigateToPath = (path: string) => {
   if (normalizePath(route.path) !== normalizePath(path)) {
@@ -355,245 +337,63 @@ const handleParentClick = (item: MenuItem) => {
   }
 }
 
+const handleSidebarItemSelect = (key: string) => {
+  const item = filteredMenuItems.value.find((menuItem) => menuItem.key === key)
+  if (item) {
+    handleParentClick(item)
+  }
+}
+
 const handleTabClick = (child: MenuChildItem) => {
   navigateToPath(child.path)
 }
 
-watch(
-  isCollapsed,
-  (collapsed) => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed))
-  },
-  { immediate: true },
-)
 </script>
 
 <template>
-  <div class="settings-shell" :class="{ 'is-sidebar-collapsed': isCollapsed }" :style="shellStyle">
-    <aside class="settings-sidebar" :class="{ 'is-collapsed': isCollapsed }">
-      <button type="button" class="sidebar-toggle" @click="toggleSidebar">
-        <span class="sidebar-toggle-mark">
-          <el-icon><MenuIcon /></el-icon>
-        </span>
-        <span v-if="!isCollapsed" class="sidebar-toggle-label">
-          {{ t('settings.layout.collapseNavigation') }}
-        </span>
-        <el-icon v-if="!isCollapsed" class="sidebar-toggle-arrow"><ArrowLeft /></el-icon>
-        <el-icon v-else class="sidebar-toggle-arrow"><ArrowRight /></el-icon>
-      </button>
+  <WorkspaceLayout storage-key="settings-sidebar-collapsed">
+    <template #sidebar="{ collapsed, toggleSidebar }">
+      <WorkspaceSidebar
+        :collapsed="collapsed"
+        :items="settingsSidebarItems"
+        :active-key="activeParentKey"
+        :collapse-label="t('settings.layout.collapseNavigation')"
+        aria-label="Settings navigation"
+        @toggle="toggleSidebar"
+        @item-select="handleSidebarItemSelect"
+      />
+    </template>
 
-      <nav class="sidebar-nav" aria-label="Settings navigation">
-        <button
-          v-for="item in filteredMenuItems"
-          :key="item.key"
-          type="button"
-          class="sidebar-parent"
-          :class="{ 'is-active': activeParentKey === item.key }"
-          :title="isCollapsed ? t(item.label) : undefined"
-          @click="handleParentClick(item)"
-        >
-          <span class="sidebar-parent-icon">
-            <el-icon>
-              <component :is="item.icon" />
-            </el-icon>
-          </span>
-          <span v-if="!isCollapsed" class="sidebar-parent-label">{{ t(item.label) }}</span>
-        </button>
-      </nav>
-    </aside>
-
-    <section class="settings-panel">
-      <header class="settings-panel-header">
-        <AppTopNav
-          v-bind="topNavBindings.props.value"
-          @store-select="topNavBindings.onStoreSelect"
-          @manage-stores="topNavBindings.onManageStores"
-          @menu-click="topNavBindings.onMenuClick"
-          @wallet-click="topNavBindings.onWalletClick"
-          @inbox-click="topNavBindings.onInboxClick"
-          @support-chat="topNavBindings.onSupportChat"
-          @system-notification="topNavBindings.onSystemNotification"
-          @order-notification="topNavBindings.onOrderNotification"
-          @profile-click="topNavBindings.onProfileClick"
-          @logout="topNavBindings.onLogout"
-        />
-      </header>
-
-      <main class="settings-panel-content">
-        <div v-if="shouldShowTabs" class="settings-tabs-shell" :aria-label="t(activeMenuItem?.label || '')">
-          <div class="settings-tabs" role="tablist">
-            <button
-              v-for="tab in visibleTabs"
-              :key="tab.key"
-              type="button"
-              class="settings-tab"
-              :class="{ 'is-active': activeChildItem?.key === tab.key }"
-              :aria-selected="activeChildItem?.key === tab.key"
-              @click="handleTabClick(tab)"
-            >
-              {{ t(tab.label) }}
-            </button>
-          </div>
+    <div class="settings-panel-content">
+      <div v-if="shouldShowTabs" class="settings-tabs-shell" :aria-label="t(activeMenuItem?.label || '')">
+        <div class="settings-tabs" role="tablist">
+          <button
+            v-for="tab in visibleTabs"
+            :key="tab.key"
+            type="button"
+            class="settings-tab"
+            :class="{ 'is-active': activeChildItem?.key === tab.key }"
+            :aria-selected="activeChildItem?.key === tab.key"
+            @click="handleTabClick(tab)"
+          >
+            {{ t(tab.label) }}
+          </button>
         </div>
+      </div>
 
-        <div class="settings-route-surface">
-          <router-view />
-        </div>
-      </main>
-    </section>
-  </div>
+      <div class="settings-route-surface">
+        <router-view />
+      </div>
+    </div>
+  </WorkspaceLayout>
 </template>
 
 <style scoped>
-.settings-shell {
-  --sidebar-width: 84px;
-  height: 100%;
-  display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  background: #fafafa;
-}
-
-.settings-sidebar {
-  width: var(--sidebar-width);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: #ffffff;
-  border-right: 1px solid #ecece7;
-  transition: width 0.24s ease;
-  overflow: hidden;
-}
-
-.sidebar-toggle {
-  height: 76px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 20px;
-  border: none;
-  border-bottom: 1px solid #f0f0ea;
-  background: #ffffff;
-  color: #1f2120;
-  cursor: pointer;
-}
-
-.sidebar-toggle-mark {
-  width: 20px;
-  height: 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #2f7cf6;
-  font-size: 20px;
-  flex: 0 0 auto;
-}
-
-.sidebar-toggle-label {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  font-size: 14px;
-  font-weight: 600;
-  color: #232421;
-  white-space: nowrap;
-}
-
-.sidebar-toggle-arrow {
-  color: #a8ada8;
-  font-size: 14px;
-  flex: 0 0 auto;
-}
-
-.sidebar-nav {
-  flex: 1;
-  min-height: 0;
-  padding: 18px 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-}
-
-.sidebar-parent {
-  position: relative;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 0 18px 0 20px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: #5f645f;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.sidebar-parent:hover {
-  background: #f6f7f3;
-  color: #20211d;
-}
-
-.sidebar-parent.is-active {
-  background: #eef5ff;
-  color: #2f7cf6;
-}
-
-.sidebar-parent-icon {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  flex: 0 0 auto;
-}
-
-.sidebar-parent-label {
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.settings-sidebar.is-collapsed .sidebar-toggle,
-.settings-sidebar.is-collapsed .sidebar-parent {
-  justify-content: center;
-  padding: 0;
-}
-
-.settings-panel {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.settings-panel-header {
-  padding: 18px 32px 14px;
-  background: #f5f5f5;
-  overflow: hidden;
-}
-
-.settings-panel-header :deep(.top-nav) {
-  --nav-center-shift: calc(-56px + ((var(--sidebar-width) - 84px) / 6));
-  --nav-right-shift: -28px;
-}
-
 .settings-panel-content {
-  flex: 1;
   min-width: 0;
-  min-height: 0;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: auto;
-  background: #f5f5f5;
-  padding: 0 24px 24px;
 }
 
 .settings-tabs-shell {
@@ -653,36 +453,4 @@ watch(
   min-height: 0;
 }
 
-@media (max-width: 1280px) {
-  .settings-panel-header {
-    padding-left: 24px;
-    padding-right: 20px;
-  }
-
-  .settings-panel-content {
-    padding-right: 20px;
-    padding-bottom: 20px;
-  }
-}
-
-@media (max-width: 768px) {
-  .settings-shell {
-    grid-template-columns: 84px minmax(0, 1fr);
-  }
-
-  .settings-sidebar {
-    width: 84px;
-  }
-
-  .settings-sidebar .sidebar-toggle,
-  .settings-sidebar .sidebar-parent {
-    justify-content: center;
-    padding: 0;
-  }
-
-  .settings-panel-content {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-}
 </style>

@@ -14,6 +14,7 @@ import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 interface NavItem {
   labelKey: string
   path: string
+  activePaths?: string[]
 }
 
 const props = defineProps<{
@@ -74,6 +75,12 @@ const isNavItemActive = (path: string) => {
   return normalizedRoute === normalizedPath || normalizedRoute.startsWith(`${normalizedPath}/`)
 }
 
+const isNavItemActiveByItem = (item: NavItem) => {
+  const activePaths = item.activePaths?.length ? item.activePaths : [item.path]
+
+  return activePaths.some((activePath) => isNavItemActive(activePath))
+}
+
 const getStoreRoleBadge = (role?: string) => {
   if (role === 'owner') {
     return 'Pro'
@@ -130,7 +137,7 @@ const getStoreRoleBadge = (role?: string) => {
           :key="item.path"
           type="button"
           class="nav-pill"
-          :class="{ 'is-active': isNavItemActive(item.path) }"
+          :class="{ 'is-active': isNavItemActiveByItem(item) }"
           @click="emit('menu-click', item.path)"
         >
           <span class="nav-pill-label">

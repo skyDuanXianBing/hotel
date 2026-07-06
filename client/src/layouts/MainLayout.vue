@@ -39,6 +39,7 @@ const currentUserEmail = computed(() => currentUser.value?.email || '')
 interface NavItem {
   labelKey: string
   path: string
+  activePaths?: string[]
 }
 
 const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/'
@@ -135,6 +136,12 @@ const navItems = computed<NavItem[]>(() => {
     {
       labelKey: 'nav.statistics',
       path: '/data-center/overview',
+      activePaths: [
+        '/data-center/overview',
+        '/data-center/accommodation',
+        '/data-center/notes',
+        '/statistics',
+      ],
       visible: canAccessStatistics.value,
     },
     {
