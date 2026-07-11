@@ -13,6 +13,8 @@ import server.demo.repository.SmartLockPasscodeRecordRepository;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class SmartLockPasscodeReconciliationScheduler {
@@ -24,6 +26,7 @@ public class SmartLockPasscodeReconciliationScheduler {
     private final SmartLockPasscodeRecordRepository passcodeRepository;
     private final SmartLockPasscodeReconciliationService reconciliationService;
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final ConcurrentHashMap<Long, AtomicInteger> storeCycleCounts = new ConcurrentHashMap<>();
 
     public SmartLockPasscodeReconciliationScheduler(
             SmartLockConfig config,
@@ -74,11 +77,15 @@ public class SmartLockPasscodeReconciliationScheduler {
                             config.getPasscodeReconcileBatchSize(),
                             config.getPasscodeReconcileTimeoutMinutes()
                     );
-            if (summary.candidates() > 0) {
+            int cycle = storeCycleCounts.computeIfAbsent(storeId, ignored -> new AtomicInteger()).incrementAndGet();
+            boolean periodicSummary = cycle == 1 || cycle % 6 == 0;
+            if (summary.candidates() > 0
+                    && (periodicSummary || summary.changed() > 0 || summary.timedOut() > 0 || summary.failed() > 0)) {
                 logger.info(
-                        "SmartLock passcode reconciliation finished storeId={} candidates={} changed={} "
+                        "switchbot_passcode_scheduler_cycle_summary storeId={} cycle={} candidates={} changed={} "
                                 + "timedOut={} failed={}",
                         storeId,
+                        cycle,
                         summary.candidates(),
                         summary.changed(),
                         summary.timedOut(),

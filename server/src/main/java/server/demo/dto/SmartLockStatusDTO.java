@@ -18,6 +18,8 @@ public class SmartLockStatusDTO {
     private String passcodeLockName;
     private Boolean passcodeAvailable;
     private String passcodeUnavailableReason;
+    private Boolean passcodeWriteEnabled;
+    private String reasonCode;
     private SmartLockProvider provider;
     private String providerLockId;
     private String lockName;
@@ -128,6 +130,22 @@ public class SmartLockStatusDTO {
 
     public void setPasscodeUnavailableReason(String passcodeUnavailableReason) {
         this.passcodeUnavailableReason = passcodeUnavailableReason;
+    }
+
+    public Boolean getPasscodeWriteEnabled() {
+        return passcodeWriteEnabled;
+    }
+
+    public void setPasscodeWriteEnabled(Boolean passcodeWriteEnabled) {
+        this.passcodeWriteEnabled = passcodeWriteEnabled;
+    }
+
+    public String getReasonCode() {
+        return reasonCode;
+    }
+
+    public void setReasonCode(String reasonCode) {
+        this.reasonCode = reasonCode;
     }
 
     public SmartLockProvider getProvider() {

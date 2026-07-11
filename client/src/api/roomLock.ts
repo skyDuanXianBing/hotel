@@ -2,6 +2,13 @@ import { request } from '@/utils/request'
 
 export type SmartLockProvider = 'SWITCHBOT' | 'TTLOCK'
 export type RoomLockOperationAction = 'LOCK' | 'UNLOCK'
+export type RoomLockPasscodeStatus =
+  | 'ACTIVE'
+  | 'PENDING'
+  | 'UNKNOWN'
+  | 'DELETE_PENDING'
+  | 'DELETED'
+  | 'FAILED'
 
 export interface ApiResponse<T> {
   success: boolean
@@ -29,6 +36,8 @@ export interface RoomLockStatusDTO {
   provider?: SmartLockProvider
   controlAvailable?: boolean
   passcodeAvailable?: boolean
+  passcodeWriteEnabled?: boolean
+  reasonCode?: string
   controlDeviceId?: number
   controlProviderLockId?: string
   controlDeviceName?: string
@@ -98,7 +107,7 @@ export interface RoomLockPasscodeDTO {
   oneTimePasscode?: string
   validFrom?: string
   validUntil?: string
-  status?: string
+  status?: RoomLockPasscodeStatus
   lastError?: string
   createdAt?: string
   updatedAt?: string

@@ -95,6 +95,9 @@ public class SmartLockPasscodeRecord implements StoreScopedEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    @Column(name = "submitted_at_epoch_ms")
+    private Long submittedAtEpochMs;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -285,6 +288,14 @@ public class SmartLockPasscodeRecord implements StoreScopedEntity {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public Long getSubmittedAtEpochMs() {
+        return submittedAtEpochMs;
+    }
+
+    public void setSubmittedAtEpochMs(Long submittedAtEpochMs) {
+        this.submittedAtEpochMs = submittedAtEpochMs;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {

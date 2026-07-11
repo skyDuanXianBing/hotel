@@ -1,16 +1,21 @@
 package server.demo.service;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.mock.http.MockHttpOutputMessage;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.RequestMatcher;
@@ -39,6 +44,7 @@ import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
 class SmartLockSwitchBotClientTest {
     private static final String BASE_URL = "http://switchbot.test";
@@ -193,6 +199,85 @@ class SmartLockSwitchBotClientTest {
         );
 
         assertTrue(error.getMessage().contains("device offline"));
+        server.verify();
+    }
+
+    @Test
+    void createPasscode_shouldNotTreatTopLevel101AsAccepted() {
+        LocalDateTime validFrom = LocalDateTime.of(2026, 6, 21, 18, 0);
+        LocalDateTime validUntil = LocalDateTime.of(2026, 6, 22, 10, 0);
+        server.expect(once(), requestTo(BASE_URL + "/v1.1/devices/keypad-1/commands"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"statusCode\":101,\"body\":{},\"message\":\"undefined for createKey\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertThrows(
+                SmartLockSwitchBotClient.ProviderRejectedException.class,
+                () -> client.createPasscode(
+                        credentials,
+                        "keypad-1",
+                        new SmartLockProviderClient.PasscodeCommand("Guest", "123456", validFrom, validUntil)
+                )
+        );
+        server.verify();
+    }
+
+    @Test
+    void createPasscode_shouldLogHttp4xxLayerWithoutResponseBody() {
+        LocalDateTime validFrom = LocalDateTime.of(2026, 6, 21, 18, 0);
+        LocalDateTime validUntil = LocalDateTime.of(2026, 6, 22, 10, 0);
+        server.expect(once(), requestTo(BASE_URL + "/v1.1/devices/keypad-1/commands"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .body("password=never-log-this-response-body")
+                        .contentType(MediaType.TEXT_PLAIN));
+        ListAppender<ILoggingEvent> appender = attachClientLogAppender();
+        try {
+            assertThrows(
+                    SmartLockSwitchBotClient.ProviderRejectedException.class,
+                    () -> client.createPasscode(
+                            credentials,
+                            "keypad-1",
+                            new SmartLockProviderClient.PasscodeCommand("Guest", "123456", validFrom, validUntil)
+                    )
+            );
+        } finally {
+            detachClientLogAppender(appender);
+        }
+
+        assertTrue(hasLogMessage(appender, "httpStatus=400 httpStatusClass=4xx"));
+        assertFalse(hasLogMessage(appender, "transport_error"));
+        assertFalse(hasLogMessage(appender, "never-log-this-response-body"));
+        server.verify();
+    }
+
+    @Test
+    void createPasscode_shouldLogParseFailureWithoutRawResponse() {
+        LocalDateTime validFrom = LocalDateTime.of(2026, 6, 21, 18, 0);
+        LocalDateTime validUntil = LocalDateTime.of(2026, 6, 22, 10, 0);
+        server.expect(once(), requestTo(BASE_URL + "/v1.1/devices/keypad-1/commands"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("not-json-secret-response", MediaType.APPLICATION_JSON));
+        ListAppender<ILoggingEvent> appender = attachClientLogAppender();
+        try {
+            RuntimeException error = assertThrows(
+                    RuntimeException.class,
+                    () -> client.createPasscode(
+                            credentials,
+                            "keypad-1",
+                            new SmartLockProviderClient.PasscodeCommand("Guest", "123456", validFrom, validUntil)
+                    )
+            );
+            assertTrue(error.getMessage().contains("无法解析"));
+        } finally {
+            detachClientLogAppender(appender);
+        }
+
+        assertTrue(hasLogMessage(appender, "switchbot_provider_response_parse_failed"));
+        assertTrue(hasLogMessage(appender, "httpStatus=200 httpStatusClass=2xx"));
+        assertFalse(hasLogMessage(appender, "not-json-secret-response"));
         server.verify();
     }
 
@@ -540,6 +625,24 @@ class SmartLockSwitchBotClientTest {
                 assertEquals("application/json; charset=utf8", contentType);
             }
         };
+    }
+
+    private ListAppender<ILoggingEvent> attachClientLogAppender() {
+        Logger logger = (Logger) LoggerFactory.getLogger(SmartLockSwitchBotClient.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        return appender;
+    }
+
+    private void detachClientLogAppender(ListAppender<ILoggingEvent> appender) {
+        Logger logger = (Logger) LoggerFactory.getLogger(SmartLockSwitchBotClient.class);
+        logger.detachAppender(appender);
+        appender.stop();
+    }
+
+    private boolean hasLogMessage(ListAppender<ILoggingEvent> appender, String expected) {
+        return appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains(expected));
     }
 
     private RequestMatcher jsonPayload(JsonAssertion assertion) {

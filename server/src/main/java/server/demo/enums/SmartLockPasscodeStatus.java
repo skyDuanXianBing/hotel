@@ -5,5 +5,6 @@ public enum SmartLockPasscodeStatus {
     PENDING,
     DELETE_PENDING,
     DELETED,
+    UNKNOWN,
     FAILED
 }

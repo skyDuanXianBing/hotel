@@ -10,18 +10,15 @@ import server.demo.entity.SmartLockDevice;
 import server.demo.entity.SmartLockIntegration;
 import server.demo.entity.SmartLockPasscodeRecord;
 import server.demo.entity.SmartLockTask;
-import server.demo.entity.Store;
 import server.demo.enums.SmartLockPasscodeStatus;
 import server.demo.enums.SmartLockProvider;
 import server.demo.enums.SmartLockTaskStatus;
 import server.demo.enums.SmartLockTaskType;
 import server.demo.repository.SmartLockPasscodeRecordRepository;
 import server.demo.repository.SmartLockTaskRepository;
-import server.demo.repository.StoreRepository;
 import server.demo.util.SmartLockCredentialCrypto;
 import server.demo.util.SmartLockMaskingUtils;
 import server.demo.util.StoreContextUtils;
-import server.demo.util.StoreTimeZoneUtil;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -30,6 +27,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class SmartLockPasscodeReconciliationService {
@@ -46,8 +44,8 @@ public class SmartLockPasscodeReconciliationService {
     private final SmartLockProviderClientRegistry providerRegistry;
     private final SmartLockCredentialCrypto credentialCrypto;
     private final ObjectMapper objectMapper;
-    private final StoreRepository storeRepository;
     private final Clock clock;
+    private final ConcurrentHashMap<Long, ObservationLogState> observationLogStates = new ConcurrentHashMap<>();
 
     public SmartLockPasscodeReconciliationService(
             SmartLockPasscodeRecordRepository passcodeRepository,
@@ -55,7 +53,6 @@ public class SmartLockPasscodeReconciliationService {
             SmartLockProviderClientRegistry providerRegistry,
             SmartLockCredentialCrypto credentialCrypto,
             ObjectMapper objectMapper,
-            StoreRepository storeRepository,
             Clock clock
     ) {
         this.passcodeRepository = passcodeRepository;
@@ -63,7 +60,6 @@ public class SmartLockPasscodeReconciliationService {
         this.providerRegistry = providerRegistry;
         this.credentialCrypto = credentialCrypto;
         this.objectMapper = objectMapper;
-        this.storeRepository = storeRepository;
         this.clock = clock;
     }
 
@@ -163,8 +159,8 @@ public class SmartLockPasscodeReconciliationService {
                         List.of()
                 );
             }
-            logSwitchBotPasscodeReconciliationInspection(record, target, inspection);
-            if (record.getStatus() == SmartLockPasscodeStatus.PENDING
+            if ((record.getStatus() == SmartLockPasscodeStatus.PENDING
+                    || record.getStatus() == SmartLockPasscodeStatus.UNKNOWN)
                     && !hasText(record.getProviderPasscodeId())) {
                 return applySwitchBotCreatePasscodeReconciliation(record, target, inspection, timeoutMinutes);
             }
@@ -192,7 +188,8 @@ public class SmartLockPasscodeReconciliationService {
         if (record == null || record.getProvider() != SmartLockProvider.SWITCHBOT) {
             return false;
         }
-        if (record.getStatus() == SmartLockPasscodeStatus.PENDING) {
+        if (record.getStatus() == SmartLockPasscodeStatus.PENDING
+                || record.getStatus() == SmartLockPasscodeStatus.UNKNOWN) {
             return !hasText(record.getProviderPasscodeId()) && hasText(record.getPasscodeName());
         }
         if (record.getStatus() == SmartLockPasscodeStatus.DELETE_PENDING) {
@@ -393,35 +390,46 @@ public class SmartLockPasscodeReconciliationService {
         SmartLockTaskType taskType = taskTypeForStatus(statusBefore);
         ReconciliationTiming timing = reconciliationTiming(record, taskType);
         boolean timedOut = hasReconciliationTimedOut(timing, timeoutMinutes);
+        boolean outcomeUnknown = timedOut || timing.clockAnomaly();
         String finalMessage = message;
         if (timedOut) {
             finalMessage = message + "；已超过后台对账超时 " + timeoutMinutes + " 分钟";
+        } else if (timing.clockAnomaly()) {
+            finalMessage = message + "；检测到本地提交时间漂移，结果待确认";
         }
-        record.setLastError(safeProviderMessage(finalMessage));
-        boolean terminal = false;
-        boolean failed = false;
-        if (timedOut) {
-            record.setStatus(SmartLockPasscodeStatus.FAILED);
+        String safeFinalMessage = safeProviderMessage(finalMessage);
+        boolean terminal = statusBefore == SmartLockPasscodeStatus.UNKNOWN;
+        boolean stateChanged = false;
+        if (outcomeUnknown && statusBefore == SmartLockPasscodeStatus.PENDING) {
+            record.setStatus(SmartLockPasscodeStatus.UNKNOWN);
             terminal = true;
-            failed = true;
+            stateChanged = true;
         }
-        passcodeRepository.save(record);
-        if (timedOut) {
-            markMatchingPasscodeTaskFailed(record, statusBefore, finalMessage);
+        boolean messageChanged = !java.util.Objects.equals(record.getLastError(), safeFinalMessage);
+        if (messageChanged) {
+            record.setLastError(safeFinalMessage);
         }
-        logSwitchBotPasscodeReconciliationReason(
-                record,
-                target,
-                inspection,
-                reasonCode,
-                candidateCount,
-                keyCount,
-                timedOut,
-                exception,
-                switchBotReconciliationAction(statusBefore),
-                timing
-        );
-        return new ReconciliationOutcome(true, timedOut, terminal, failed);
+        if (stateChanged || messageChanged) {
+            passcodeRepository.save(record);
+        }
+        if (outcomeUnknown && statusBefore == SmartLockPasscodeStatus.PENDING) {
+            markMatchingPasscodeTaskUnknown(record, statusBefore, finalMessage);
+        }
+        if (shouldLogObservation(record, reasonCode, statusBefore, exception, outcomeUnknown)) {
+            logSwitchBotPasscodeReconciliationReason(
+                    record,
+                    target,
+                    inspection,
+                    reasonCode,
+                    candidateCount,
+                    keyCount,
+                    timedOut,
+                    exception,
+                    switchBotReconciliationAction(statusBefore),
+                    timing
+            );
+        }
+        return new ReconciliationOutcome(stateChanged || messageChanged, timedOut, terminal, false);
     }
 
     private SwitchBotPasscodeMatchResult findSwitchBotCreatePasscodeMatch(
@@ -537,7 +545,7 @@ public class SmartLockPasscodeReconciliationService {
         );
         for (SmartLockTask task : tasks) {
             if (task.getTaskType() != SmartLockTaskType.CREATE_PASSCODE
-                    || task.getStatus() != SmartLockTaskStatus.PENDING
+                    || !isPendingOrUnknown(task.getStatus())
                     || !isSamePasscodeRecord(task.getPasscodeRecord(), record)) {
                 continue;
             }
@@ -552,16 +560,16 @@ public class SmartLockPasscodeReconciliationService {
         }
     }
 
-    private void markMatchingPasscodeTaskFailed(
+    private void markMatchingPasscodeTaskUnknown(
             SmartLockPasscodeRecord record,
             SmartLockPasscodeStatus statusBefore,
             String message
     ) {
         if (statusBefore == SmartLockPasscodeStatus.DELETE_PENDING) {
-            markMatchingDeleteTaskTerminal(record, SmartLockTaskStatus.FAILED, message);
+            markMatchingDeleteTaskTerminal(record, SmartLockTaskStatus.UNKNOWN, message);
             return;
         }
-        markMatchingCreateTaskTerminal(record, SmartLockTaskStatus.FAILED, message);
+        markMatchingCreateTaskTerminal(record, SmartLockTaskStatus.UNKNOWN, message);
     }
 
     private void markMatchingCreateTaskTerminal(
@@ -579,7 +587,7 @@ public class SmartLockPasscodeReconciliationService {
         );
         for (SmartLockTask task : tasks) {
             if (task.getTaskType() != SmartLockTaskType.CREATE_PASSCODE
-                    || task.getStatus() != SmartLockTaskStatus.PENDING
+                    || !isPendingOrUnknown(task.getStatus())
                     || !isSamePasscodeRecord(task.getPasscodeRecord(), record)) {
                 continue;
             }
@@ -614,7 +622,7 @@ public class SmartLockPasscodeReconciliationService {
         );
         for (SmartLockTask task : tasks) {
             if (task.getTaskType() != SmartLockTaskType.DELETE_PASSCODE
-                    || task.getStatus() != SmartLockTaskStatus.PENDING
+                    || !isPendingOrUnknown(task.getStatus())
                     || !isSamePasscodeRecord(task.getPasscodeRecord(), record)) {
                 continue;
             }
@@ -635,12 +643,13 @@ public class SmartLockPasscodeReconciliationService {
             SmartLockTaskStatus status,
             String message
     ) {
-        List<SmartLockTask> tasks = taskRepository.findPasscodeTasksWithoutProviderTaskId(
-                record.getStoreId(),
-                record.getId(),
-                taskType,
-                SmartLockTaskStatus.PENDING
-        );
+        List<SmartLockTask> tasks = new java.util.ArrayList<>();
+        tasks.addAll(safeTasks(taskRepository.findPasscodeTasksWithoutProviderTaskId(
+                record.getStoreId(), record.getId(), taskType, SmartLockTaskStatus.PENDING
+        )));
+        tasks.addAll(safeTasks(taskRepository.findPasscodeTasksWithoutProviderTaskId(
+                record.getStoreId(), record.getId(), taskType, SmartLockTaskStatus.UNKNOWN
+        )));
         for (SmartLockTask task : tasks) {
             if (!isPendingPasscodeTaskForRecordWithoutProviderTaskId(task, record, taskType)) {
                 continue;
@@ -666,7 +675,7 @@ public class SmartLockPasscodeReconciliationService {
                 && task.getStoreId() != null
                 && task.getStoreId().equals(record.getStoreId())
                 && task.getTaskType() == taskType
-                && task.getStatus() == SmartLockTaskStatus.PENDING
+                && isPendingOrUnknown(task.getStatus())
                 && !hasText(task.getProviderTaskId())
                 && isSamePasscodeRecord(task.getPasscodeRecord(), record);
     }
@@ -756,37 +765,6 @@ public class SmartLockPasscodeReconciliationService {
         }
     }
 
-    private void logSwitchBotPasscodeReconciliationInspection(
-            SmartLockPasscodeRecord record,
-            RoleTarget target,
-            SmartLockProviderClient.ProviderPasscodeListSnapshot inspection
-    ) {
-        ReconciliationTiming timing = reconciliationTiming(record, taskTypeForRecord(record));
-        logger.info(
-                "SmartLock SwitchBot passcode reconciliation inspect recordId={} storeId={} action={} "
-                        + "provider={} passcodeDeviceDbId={} passcodeDeviceIdSuffix={} providerLockIdSuffix={} "
-                        + "deviceFound={} keyListReadable={} keyCount={} deviceType={} online={} "
-                        + "linkedLockSuffix={} hubSuffix={} ageSeconds={} ageSource={} ageZone={}",
-                record.getId(),
-                record.getStoreId(),
-                switchBotReconciliationAction(record),
-                providerLabel(target, record),
-                passcodeDeviceDbId(target, record),
-                passcodeDeviceIdSuffix(target, record),
-                providerLockIdSuffix(target, record),
-                inspection.deviceFound(),
-                inspection.keyListReadable(),
-                keyCount(inspection),
-                safeProviderMessage(inspection.deviceType()),
-                inspection.online(),
-                identifierSuffix(inspection.linkedLockDeviceId()),
-                identifierSuffix(inspection.hubDeviceId()),
-                timing.ageSeconds(),
-                timing.source(),
-                timing.ageZone()
-        );
-    }
-
     private void logSwitchBotPasscodeReconciliationReason(
             SmartLockPasscodeRecord record,
             RoleTarget target,
@@ -799,7 +777,7 @@ public class SmartLockPasscodeReconciliationService {
             String action,
             ReconciliationTiming timing
     ) {
-        String logMessage = "SmartLock SwitchBot passcode reconciliation pending reason recordId={} storeId={} "
+        String logMessage = "switchbot_passcode_poll_observation recordId={} storeId={} "
                 + "action={} reason={} provider={} passcodeDeviceDbId={} passcodeDeviceIdSuffix={} "
                 + "providerLockIdSuffix={} deviceFound={} keyListReadable={} keyCount={} candidateCount={} "
                 + "ageSeconds={} ageSource={} ageZone={} timedOut={} finalStatus={} errorClass={}";
@@ -826,11 +804,30 @@ public class SmartLockPasscodeReconciliationService {
         );
     }
 
-    private String switchBotReconciliationAction(SmartLockPasscodeRecord record) {
-        if (record == null) {
-            return "create";
+    private boolean shouldLogObservation(
+            SmartLockPasscodeRecord record,
+            String reasonCode,
+            SmartLockPasscodeStatus statusBefore,
+            RuntimeException exception,
+            boolean terminalDecision
+    ) {
+        if (record == null || record.getId() == null || exception != null || terminalDecision) {
+            return true;
         }
-        return switchBotReconciliationAction(record.getStatus());
+        long nowMs = clock.millis();
+        String signature = reasonCode + '|' + statusBefore;
+        ObservationLogState previous = observationLogStates.putIfAbsent(
+                record.getId(),
+                new ObservationLogState(signature, nowMs)
+        );
+        if (previous == null) {
+            return true;
+        }
+        if (!previous.signature().equals(signature) || nowMs - previous.loggedAtEpochMs() >= 60_000L) {
+            observationLogStates.put(record.getId(), new ObservationLogState(signature, nowMs));
+            return true;
+        }
+        return false;
     }
 
     private String switchBotReconciliationAction(SmartLockPasscodeStatus status) {
@@ -860,8 +857,20 @@ public class SmartLockPasscodeReconciliationService {
             SmartLockTaskType taskType
     ) {
         if (record == null) {
-            ZoneId zoneId = StoreTimeZoneUtil.resolveZoneId((Store) null);
-            return new ReconciliationTiming(null, null, "missing", zoneId.getId(), 0);
+            ZoneId zoneId = ZoneId.systemDefault();
+            return new ReconciliationTiming(null, null, "missing", zoneId.getId(), 0, false);
+        }
+        if (record.getSubmittedAtEpochMs() != null) {
+            Instant startedInstant = Instant.ofEpochMilli(record.getSubmittedAtEpochMs());
+            long rawSeconds = Duration.between(startedInstant, clock.instant()).getSeconds();
+            return new ReconciliationTiming(
+                    null,
+                    startedInstant,
+                    "submitted_at_epoch_ms",
+                    "UTC",
+                    Math.max(0, rawSeconds),
+                    rawSeconds < 0
+            );
         }
         LocalDateTime startedAt = record.getCreatedAt();
         String source = "record_created_at";
@@ -872,21 +881,20 @@ public class SmartLockPasscodeReconciliationService {
                 source = "task_created_at";
             }
         }
-        ZoneId ageZone = resolveReconciliationAgeZone(record);
+        ZoneId ageZone = ZoneId.systemDefault();
         if (startedAt == null) {
-            return new ReconciliationTiming(null, null, "missing", ageZone.getId(), 0);
+            return new ReconciliationTiming(null, null, "missing", ageZone.getId(), 0, false);
         }
         Instant startedInstant = startedAt.atZone(ageZone).toInstant();
-        long seconds = Math.max(0, Duration.between(startedInstant, clock.instant()).getSeconds());
-        return new ReconciliationTiming(startedAt, startedInstant, source, ageZone.getId(), seconds);
-    }
-
-    private ZoneId resolveReconciliationAgeZone(SmartLockPasscodeRecord record) {
-        if (record == null || record.getStoreId() == null) {
-            return StoreTimeZoneUtil.resolveZoneId((Store) null);
-        }
-        Store store = storeRepository.findById(record.getStoreId()).orElse(null);
-        return StoreTimeZoneUtil.resolveZoneId(store);
+        long rawSeconds = Duration.between(startedInstant, clock.instant()).getSeconds();
+        return new ReconciliationTiming(
+                startedAt,
+                startedInstant,
+                "legacy_" + source,
+                ageZone.getId(),
+                Math.max(0, rawSeconds),
+                rawSeconds < 0
+        );
     }
 
     private SmartLockTask findStableReconciliationTask(
@@ -945,13 +953,6 @@ public class SmartLockPasscodeReconciliationService {
             return List.of();
         }
         return tasks;
-    }
-
-    private SmartLockTaskType taskTypeForRecord(SmartLockPasscodeRecord record) {
-        if (record == null) {
-            return SmartLockTaskType.CREATE_PASSCODE;
-        }
-        return taskTypeForStatus(record.getStatus());
     }
 
     private SmartLockTaskType taskTypeForStatus(SmartLockPasscodeStatus status) {
@@ -1061,6 +1062,10 @@ public class SmartLockPasscodeReconciliationService {
         return value != null && !value.trim().isEmpty();
     }
 
+    private boolean isPendingOrUnknown(SmartLockTaskStatus status) {
+        return status == SmartLockTaskStatus.PENDING || status == SmartLockTaskStatus.UNKNOWN;
+    }
+
     public record ReconciliationSummary(
             int candidates,
             int changed,
@@ -1117,8 +1122,12 @@ public class SmartLockPasscodeReconciliationService {
             Instant startedInstant,
             String source,
             String ageZone,
-            long ageSeconds
+            long ageSeconds,
+            boolean clockAnomaly
     ) {
+    }
+
+    private record ObservationLogState(String signature, long loggedAtEpochMs) {
     }
 
     private record RoleTarget(

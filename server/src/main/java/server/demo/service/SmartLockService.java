@@ -66,7 +66,7 @@ public class SmartLockService {
     private static final int CONFIRM_TOKEN_BYTES = 32;
     private static final int GENERATED_PASSCODE_MIN = 100000;
     private static final int GENERATED_PASSCODE_BOUND = 900000;
-    private static final int MIN_PASSCODE_LENGTH = 4;
+    private static final int MIN_PASSCODE_LENGTH = 6;
     private static final int MAX_PASSCODE_LENGTH = 12;
     private static final String SWITCHBOT_NO_ID_CREATE_PENDING_MESSAGE =
             "SwitchBot 已返回 success 但未返回 commandId 或 keyId，等待 keyList 同步";
@@ -94,9 +94,12 @@ public class SmartLockService {
             "本地密码记录已清理，未调用供应商删除";
     private static final String MISSING_PROVIDER_PASSCODE_ID_DELETE_MESSAGE =
             "该门锁密码尚未取得供应商密码 ID，已拒绝远程删除；请等待同步完成后再试";
+    private static final String SWITCHBOT_PASSCODE_WRITE_UNAVAILABLE_REASON_CODE =
+            "SWITCHBOT_PASSCODE_TEMPORARILY_UNAVAILABLE";
     private static final List<SmartLockPasscodeStatus> BINDING_DELETE_RISKY_PASSCODE_STATUSES = List.of(
             SmartLockPasscodeStatus.ACTIVE,
             SmartLockPasscodeStatus.PENDING,
+            SmartLockPasscodeStatus.UNKNOWN,
             SmartLockPasscodeStatus.DELETE_PENDING
     );
     private static final String STATUS_SOURCE_DEVICE = "DEVICE";
@@ -357,7 +360,7 @@ public class SmartLockService {
         SmartLockRoomBinding binding = requireBindingForRoom(storeId, roomId, null);
         validateBindingConsistency(storeId, binding);
         requireControlTarget(binding);
-        return mapper.toStatusDto(binding);
+        return decoratePasscodeWriteCapability(mapper.toStatusDto(binding), binding.getProvider());
     }
 
     @Transactional
@@ -368,7 +371,7 @@ public class SmartLockService {
         validateBindingConsistency(storeId, binding);
         RoleTarget target = requireControlTarget(binding);
         refreshControlDeviceStatus(target, now());
-        return mapper.toStatusDto(binding);
+        return decoratePasscodeWriteCapability(mapper.toStatusDto(binding), binding.getProvider());
     }
 
     @Transactional
@@ -450,6 +453,7 @@ public class SmartLockService {
         SmartLockRoomBinding binding = requireBindingForRoom(storeId, roomId, null);
         validateBindingConsistency(storeId, binding);
         RoleTarget passcodeTarget = requirePasscodeTarget(binding);
+        requirePasscodeWriteEnabled(passcodeTarget.provider());
         ZoneId storeZoneId = resolveStoreZoneId(storeId);
         validatePasscodeWindow(request.getValidFrom(), request.getValidUntil(), storeZoneId);
         String requestedPasscode = SmartLockMaskingUtils.trimToNull(request.getPasscode());
@@ -488,6 +492,7 @@ public class SmartLockService {
         record.setValidUntil(request.getValidUntil());
         record.setStatus(SmartLockPasscodeStatus.PENDING);
         record.setCreatedBy(userId);
+        record.setSubmittedAtEpochMs(clock.millis());
         record = passcodeRepository.save(record);
 
         SmartLockTask task = createTask(
@@ -509,8 +514,9 @@ public class SmartLockService {
                 request.getValidFrom(),
                 request.getValidUntil()
         );
-        SmartLockCredentialData credentials = ensureProviderToken(passcodeTarget.integration());
+        boolean providerCallStarted = false;
         try {
+            SmartLockCredentialData credentials = ensureProviderToken(passcodeTarget.integration());
             SmartLockProviderClient.PasscodeCommand command = new SmartLockProviderClient.PasscodeCommand(
                     passcodeName,
                     passcode,
@@ -520,6 +526,7 @@ public class SmartLockService {
             SmartLockProviderClient client = providerRegistry.getClient(passcodeTarget.provider());
             String oneTimePasscode = passcode;
             SmartLockProviderClient.ProviderTaskResult result;
+            providerCallStarted = true;
             if (ttLockAutomaticPasscode) {
                 SmartLockTtLockClient.TtLockPasscodeCommandResult commandResult =
                         createTtLockPeriodPasscode(
@@ -556,8 +563,22 @@ public class SmartLockService {
             String visiblePasscode = result.status() == SmartLockTaskStatus.SUCCESS ? oneTimePasscode : null;
             return mapper.toPasscodeDto(record, visiblePasscode);
         } catch (RuntimeException ex) {
-            failTask(task, ex);
-            record.setStatus(SmartLockPasscodeStatus.FAILED);
+            boolean outcomeUnknown = providerCallStarted
+                    && passcodeTarget.provider() == SmartLockProvider.SWITCHBOT
+                    && !(ex instanceof SmartLockSwitchBotClient.ProviderRejectedException);
+            if (outcomeUnknown) {
+                completeTask(task, new SmartLockProviderClient.ProviderTaskResult(
+                        SmartLockTaskStatus.UNKNOWN,
+                        task.getProviderTaskId(),
+                        null,
+                        "SwitchBot 创建命令结果待确认"
+                ));
+            } else {
+                failTask(task, ex);
+            }
+            record.setStatus(outcomeUnknown
+                    ? SmartLockPasscodeStatus.UNKNOWN
+                    : SmartLockPasscodeStatus.FAILED);
             record.setLastError(safeError(ex));
             passcodeRepository.save(record);
             logPasscodeProviderCallException("createPasscode", record, task, passcodeTarget, ex);
@@ -571,6 +592,7 @@ public class SmartLockService {
         Long userId = StoreContextUtils.requireUserId();
         SmartLockPasscodeRecord record = passcodeRepository.findByStoreIdAndId(storeId, recordId)
                 .orElseThrow(() -> new IllegalArgumentException("门锁密码记录不存在"));
+        requirePasscodeWriteEnabled(record.getProvider());
         if (record.getStatus() == SmartLockPasscodeStatus.DELETED) {
             logPasscodeDeleteLocalPath("alreadyDeleted", record);
             return mapper.toPasscodeDto(record, null);
@@ -639,23 +661,47 @@ public class SmartLockService {
     public Map<String, Object> handleSwitchBotWebhook(String token, Map<String, Object> payload) {
         validateSwitchBotWebhookToken(token);
         JsonNode root = objectMapper.valueToTree(payload != null ? payload : Map.of());
-        String commandId = findFirstText(root, "commandId", "taskId", "providerTaskId");
-        String eventName = findFirstText(root, "eventName", "eventType", "event", "command");
-        SmartLockTaskStatus status = resolveSwitchBotWebhookStatus(root);
+        JsonNode context = root.path("context");
+        boolean officialContext = context.isObject();
+        String commandId = officialContext
+                ? firstJsonText(context, "commandId")
+                : findFirstText(root, "commandId", "taskId", "providerTaskId");
+        String eventName = officialContext
+                ? firstJsonText(context, "eventName")
+                : findFirstText(root, "eventName", "eventType", "event", "command");
+        SmartLockTaskStatus status = officialContext
+                ? resolveSwitchBotWebhookResult(firstJsonText(context, "result"))
+                : resolveSwitchBotWebhookStatus(root);
+        String commandReference = safeReference(commandId);
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("provider", SmartLockProvider.SWITCHBOT.name());
-        result.put("eventName", eventName);
-        result.put("commandId", commandId);
+        logger.info(
+                "switchbot_passcode_webhook_received event={} commandRef={} parseMode={} result={}",
+                safeProviderMessage(eventName),
+                commandReference,
+                officialContext ? "official_context" : "controlled_fallback",
+                status
+        );
 
         if (!hasText(commandId)) {
             result.put("processed", false);
             result.put("reason", "missing_command_id");
+            logger.warn("switchbot_passcode_webhook_invalid reason=missing_command_id event={}",
+                    safeProviderMessage(eventName));
+            return result;
+        }
+        if (!"createKey".equals(eventName) && !"deleteKey".equals(eventName)) {
+            result.put("processed", false);
+            result.put("reason", "unsupported_event");
+            logger.warn("switchbot_passcode_webhook_invalid reason=unsupported_event commandRef={}",
+                    commandReference);
             return result;
         }
         if (status == null) {
             result.put("processed", false);
             result.put("reason", "unknown_result");
+            logger.warn("switchbot_passcode_webhook_invalid reason=unknown_result commandRef={} event={}",
+                    commandReference, eventName);
             return result;
         }
 
@@ -666,15 +712,29 @@ public class SmartLockService {
         if (tasks.isEmpty()) {
             result.put("processed", false);
             result.put("reason", "task_not_found");
+            logger.warn("switchbot_passcode_webhook_unmatched reason=task_not_found commandRef={} event={}",
+                    commandReference, eventName);
             return result;
         }
         if (tasks.size() > 1) {
             result.put("processed", false);
             result.put("reason", "ambiguous_command_id");
+            logger.warn("switchbot_passcode_webhook_unmatched reason=ambiguous_command_id commandRef={} event={}",
+                    commandReference, eventName);
             return result;
         }
 
         SmartLockTask task = tasks.get(0);
+        SmartLockTaskType expectedType = "createKey".equals(eventName)
+                ? SmartLockTaskType.CREATE_PASSCODE
+                : SmartLockTaskType.DELETE_PASSCODE;
+        if (task.getTaskType() != expectedType) {
+            result.put("processed", false);
+            result.put("reason", "task_type_mismatch");
+            logger.warn("switchbot_passcode_webhook_unmatched reason=task_type_mismatch commandRef={} event={} taskId={}",
+                    commandReference, eventName, task.getId());
+            return result;
+        }
         String providerPasscodeId = findFirstText(root, "providerPasscodeId", "passcodeId", "keyId");
         String message = fallback(
                 findFirstText(root, "message", "resultMessage", "errorMessage", "error"),
@@ -682,8 +742,7 @@ public class SmartLockService {
         );
         SmartLockProviderClient.ProviderTaskResult providerResult =
                 new SmartLockProviderClient.ProviderTaskResult(status, commandId, providerPasscodeId, message);
-        completeTask(task, providerResult);
-        applyTaskResultToPasscodeRecord(task, providerResult);
+        applySwitchBotWebhookResult(task, providerResult, commandReference);
 
         result.put("processed", true);
         result.put("taskId", task.getId());
@@ -693,6 +752,95 @@ public class SmartLockService {
             result.put("passcodeStatus", task.getPasscodeRecord().getStatus().name());
         }
         return result;
+    }
+
+    private void applySwitchBotWebhookResult(
+            SmartLockTask task,
+            SmartLockProviderClient.ProviderTaskResult providerResult,
+            String commandReference
+    ) {
+        SmartLockPasscodeRecord record = task.getPasscodeRecord();
+        SmartLockPasscodeStatus current = record != null ? record.getStatus() : null;
+        SmartLockPasscodeStatus target = switchBotWebhookPasscodeStatus(task.getTaskType(), providerResult.status());
+        boolean conflict = (current == SmartLockPasscodeStatus.ACTIVE && target == SmartLockPasscodeStatus.FAILED)
+                || (current == SmartLockPasscodeStatus.FAILED && target == SmartLockPasscodeStatus.ACTIVE)
+                || (target == SmartLockPasscodeStatus.UNKNOWN
+                    && (current == SmartLockPasscodeStatus.ACTIVE
+                        || current == SmartLockPasscodeStatus.FAILED
+                        || current == SmartLockPasscodeStatus.DELETED));
+        if (conflict) {
+            logger.warn(
+                    "switchbot_passcode_terminal_conflict recordId={} taskId={} commandRef={} current={} incoming={}",
+                    record.getId(), task.getId(), commandReference, current, target
+            );
+            return;
+        }
+        if (current != null && current == target && task.getStatus() == providerResult.status()) {
+            logger.info(
+                    "switchbot_passcode_webhook_noop recordId={} taskId={} commandRef={} status={}",
+                    record.getId(), task.getId(), commandReference, target
+            );
+            return;
+        }
+        completeTask(task, providerResult);
+        applyTaskResultToPasscodeRecord(task, providerResult);
+        logger.info(
+                "switchbot_passcode_state_updated recordId={} taskId={} commandRef={} from={} to={} taskStatus={}",
+                record != null ? record.getId() : null,
+                task.getId(),
+                commandReference,
+                current,
+                record != null ? record.getStatus() : null,
+                task.getStatus()
+        );
+    }
+
+    private SmartLockPasscodeStatus switchBotWebhookPasscodeStatus(
+            SmartLockTaskType taskType,
+            SmartLockTaskStatus taskStatus
+    ) {
+        if (taskType == SmartLockTaskType.DELETE_PASSCODE) {
+            if (taskStatus == SmartLockTaskStatus.SUCCESS) {
+                return SmartLockPasscodeStatus.DELETED;
+            }
+            return taskStatus == SmartLockTaskStatus.FAILED
+                    ? SmartLockPasscodeStatus.FAILED
+                    : SmartLockPasscodeStatus.UNKNOWN;
+        }
+        if (taskStatus == SmartLockTaskStatus.SUCCESS) {
+            return SmartLockPasscodeStatus.ACTIVE;
+        }
+        return taskStatus == SmartLockTaskStatus.FAILED
+                ? SmartLockPasscodeStatus.FAILED
+                : SmartLockPasscodeStatus.UNKNOWN;
+    }
+
+    private SmartLockTaskStatus resolveSwitchBotWebhookResult(String result) {
+        if (!hasText(result)) {
+            return null;
+        }
+        return switch (result.trim().toLowerCase(Locale.ROOT)) {
+            case "success", "succeeded" -> SmartLockTaskStatus.SUCCESS;
+            case "failed", "failure" -> SmartLockTaskStatus.FAILED;
+            case "timeout", "timed_out", "timedout" -> SmartLockTaskStatus.UNKNOWN;
+            default -> null;
+        };
+    }
+
+    private String firstJsonText(JsonNode node, String field) {
+        if (node == null || !node.isObject()) {
+            return null;
+        }
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() ? null : SmartLockMaskingUtils.trimToNull(value.asText());
+    }
+
+    private String safeReference(String value) {
+        if (!hasText(value)) {
+            return null;
+        }
+        String hash = credentialCrypto.sha256Hex(value);
+        return hash.substring(0, Math.min(12, hash.length()));
     }
 
     private SmartLockTaskDTO executeLockOperation(
@@ -1651,7 +1799,7 @@ public class SmartLockService {
             LocalDateTime validUntil
     ) {
         logger.info(
-                "SmartLock passcode provider call start command={} recordId={} taskId={} provider={} "
+                "smart_lock_passcode_provider_call_requested command={} recordId={} taskId={} provider={} "
                         + "passcodeDeviceDbId={} passcodeDeviceIdSuffix={} providerLockIdSuffix={} "
                         + "validFrom={} validUntil={} providerTaskIdPresent={} providerPasscodeIdPresent={} "
                         + "recordStatus={} taskStatus={}",
@@ -1679,7 +1827,7 @@ public class SmartLockService {
             SmartLockProviderClient.ProviderTaskResult result
     ) {
         logger.info(
-                "SmartLock passcode provider call result command={} recordId={} taskId={} provider={} "
+                "smart_lock_passcode_provider_response command={} recordId={} taskId={} provider={} "
                         + "passcodeDeviceDbId={} passcodeDeviceIdSuffix={} providerLockIdSuffix={} "
                         + "providerTaskIdPresent={} providerPasscodeIdPresent={} taskStatus={} recordStatus={}",
                 command,
@@ -1704,7 +1852,7 @@ public class SmartLockService {
             RuntimeException ex
     ) {
         logger.warn(
-                "SmartLock passcode provider call failed command={} recordId={} taskId={} provider={} "
+                "smart_lock_passcode_terminal_decision command={} recordId={} taskId={} provider={} "
                         + "passcodeDeviceDbId={} passcodeDeviceIdSuffix={} providerLockIdSuffix={} "
                         + "providerTaskIdPresent={} providerPasscodeIdPresent={} taskStatus={} "
                         + "recordStatus={} finalStatus={} errorClass={}",
@@ -1719,7 +1867,7 @@ public class SmartLockService {
                 hasText(record.getProviderPasscodeId()),
                 task.getStatus(),
                 record.getStatus(),
-                SmartLockTaskStatus.FAILED,
+                task.getStatus(),
                 ex.getClass().getSimpleName()
         );
     }
@@ -1909,6 +2057,9 @@ public class SmartLockService {
         } else if (result.status() == SmartLockTaskStatus.FAILED) {
             record.setStatus(SmartLockPasscodeStatus.FAILED);
             record.setLastError(safeProviderMessage(result.message()));
+        } else if (result.status() == SmartLockTaskStatus.UNKNOWN) {
+            record.setStatus(SmartLockPasscodeStatus.UNKNOWN);
+            record.setLastError(safeProviderMessage(result.message()));
         } else {
             record.setStatus(SmartLockPasscodeStatus.PENDING);
             record.setLastError(null);
@@ -1925,6 +2076,9 @@ public class SmartLockService {
             record.setLastError(null);
         } else if (result.status() == SmartLockTaskStatus.FAILED) {
             record.setStatus(SmartLockPasscodeStatus.FAILED);
+            record.setLastError(safeProviderMessage(result.message()));
+        } else if (result.status() == SmartLockTaskStatus.UNKNOWN) {
+            record.setStatus(SmartLockPasscodeStatus.UNKNOWN);
             record.setLastError(safeProviderMessage(result.message()));
         } else {
             record.setStatus(SmartLockPasscodeStatus.DELETE_PENDING);
@@ -2082,6 +2236,23 @@ public class SmartLockService {
         }
 
         throw new IllegalArgumentException("该房间未绑定密码设备，无法执行门锁密码操作");
+    }
+
+    private void requirePasscodeWriteEnabled(SmartLockProvider provider) {
+        if (provider == SmartLockProvider.SWITCHBOT && !config.isSwitchBotPasscodeWriteEnabled()) {
+            throw new IllegalStateException(SWITCHBOT_PASSCODE_WRITE_UNAVAILABLE_REASON_CODE);
+        }
+    }
+
+    private SmartLockStatusDTO decoratePasscodeWriteCapability(
+            SmartLockStatusDTO dto,
+            SmartLockProvider provider
+    ) {
+        boolean enabled = provider != SmartLockProvider.SWITCHBOT
+                || config.isSwitchBotPasscodeWriteEnabled();
+        dto.setPasscodeWriteEnabled(enabled);
+        dto.setReasonCode(enabled ? null : SWITCHBOT_PASSCODE_WRITE_UNAVAILABLE_REASON_CODE);
+        return dto;
     }
 
     private RoleTarget requirePasscodeSnapshotTarget(Long storeId, SmartLockPasscodeRecord record) {
@@ -2369,7 +2540,7 @@ public class SmartLockService {
             return String.valueOf(GENERATED_PASSCODE_MIN + SECURE_RANDOM.nextInt(GENERATED_PASSCODE_BOUND));
         }
         if (!passcode.matches("\\d{" + MIN_PASSCODE_LENGTH + "," + MAX_PASSCODE_LENGTH + "}")) {
-            throw new IllegalArgumentException("门锁密码必须是 4 到 12 位数字");
+            throw new IllegalArgumentException("门锁密码必须是 6 到 12 位数字");
         }
         return passcode;
     }
@@ -2426,7 +2597,6 @@ public class SmartLockService {
                 || normalized.equals("error")
                 || normalized.equals("false")
                 || normalized.equals("0")
-                || normalized.equals("timeout")
                 || normalized.equals("rejected")
                 || normalized.equals("denied")
                 || normalized.contains("unsuccess")
@@ -2447,6 +2617,9 @@ public class SmartLockService {
         }
         if (normalized.equals("pending") || normalized.equals("processing")) {
             return SmartLockTaskStatus.PENDING;
+        }
+        if (normalized.equals("timeout") || normalized.equals("timed_out") || normalized.equals("timedout")) {
+            return SmartLockTaskStatus.UNKNOWN;
         }
         return null;
     }

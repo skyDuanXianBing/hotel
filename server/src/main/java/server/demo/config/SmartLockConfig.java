@@ -22,6 +22,9 @@ public class SmartLockConfig {
     @Value("${SMART_LOCK_SWITCHBOT_WEBHOOK_TOKEN:${smart-lock.switchbot.webhook-token:}}")
     private String switchBotWebhookToken;
 
+    @Value("${SMART_LOCK_SWITCHBOT_PASSCODE_WRITE_ENABLED:${smart-lock.switchbot.passcode-write-enabled:false}}")
+    private boolean switchBotPasscodeWriteEnabled;
+
     @Value("${smart-lock.confirmation.ttl-seconds:300}")
     private long confirmationTtlSeconds;
 
@@ -54,6 +57,10 @@ public class SmartLockConfig {
             return switchBotWebhookToken.trim();
         }
         return null;
+    }
+
+    public boolean isSwitchBotPasscodeWriteEnabled() {
+        return switchBotPasscodeWriteEnabled;
     }
 
     public long getConfirmationTtlSeconds() {

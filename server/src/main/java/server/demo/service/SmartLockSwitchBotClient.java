@@ -11,6 +11,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.HttpStatusCodeException;
 import server.demo.config.SmartLockConfig;
 import server.demo.entity.Store;
 import server.demo.enums.SmartLockProvider;
@@ -78,6 +79,12 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
     private final StoreRepository storeRepository;
+
+    public static class ProviderRejectedException extends RuntimeException {
+        public ProviderRejectedException(String message) {
+            super(message);
+        }
+    }
 
     @Autowired
     public SmartLockSwitchBotClient(
@@ -202,6 +209,12 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
         String keyId = extractCommandPasscodeId(root);
         logCommandResponseParse("createKey", providerLockId, root, taskId, keyId);
         if (!hasText(taskId) && !hasText(keyId)) {
+            logger.warn(
+                    "switchbot_passcode_command_id_absent command=createKey deviceSuffix={} statusCode={} bodyKeys={}",
+                    identifierSuffix(providerLockId),
+                    root.path("statusCode").asInt(-1),
+                    responseBodyKeySummary(root)
+            );
             return new ProviderTaskResult(
                     SmartLockTaskStatus.PENDING,
                     null,
@@ -364,20 +377,75 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
         headers.set(HttpHeaders.CONTENT_TYPE, JSON_UTF8_CONTENT_TYPE);
         headers.set(HttpHeaders.ACCEPT, "application/json");
         HttpEntity<Object> entity = new HttpEntity<>(body, headers);
-        ResponseEntity<String> response = restTemplate.exchange(
-                config.getSwitchBotBaseUrl() + path,
+        long startedNanos = System.nanoTime();
+        ResponseEntity<String> response;
+        try {
+            response = restTemplate.exchange(
+                    config.getSwitchBotBaseUrl() + path,
+                    method,
+                    entity,
+                    String.class
+            );
+        } catch (RuntimeException ex) {
+            long elapsedMs = (System.nanoTime() - startedNanos) / 1_000_000;
+            if (ex instanceof HttpStatusCodeException httpError) {
+                logger.warn(
+                        "switchbot_provider_http_result command={} method={} outcome=http_error "
+                                + "httpStatus={} httpStatusClass={} elapsedMs={} errorClass={}",
+                        command,
+                        method,
+                        httpError.getStatusCode().value(),
+                        httpError.getStatusCode().value() / 100 + "xx",
+                        elapsedMs,
+                        ex.getClass().getSimpleName()
+                );
+                if (httpError.getStatusCode().is4xxClientError()) {
+                    throw new ProviderRejectedException(
+                            "SwitchBot HTTP 请求被拒绝: " + httpError.getStatusCode().value()
+                    );
+                }
+                throw ex;
+            }
+            logger.warn(
+                    "switchbot_provider_http_result command={} method={} outcome=transport_error elapsedMs={} errorClass={}",
+                    command,
+                    method,
+                    elapsedMs,
+                    ex.getClass().getSimpleName()
+            );
+            throw ex;
+        }
+        long responseElapsedMs = (System.nanoTime() - startedNanos) / 1_000_000;
+        logger.info(
+                "switchbot_provider_http_result command={} method={} httpStatusClass={} elapsedMs={}",
+                command,
                 method,
-                entity,
-                String.class
+                response.getStatusCode().value() / 100 + "xx",
+                responseElapsedMs
         );
-        JsonNode root = parseJson(response.getBody());
+        JsonNode root;
+        try {
+            root = parseJson(response.getBody());
+        } catch (RuntimeException ex) {
+            logger.warn(
+                    "switchbot_provider_response_parse_failed command={} method={} httpStatus={} "
+                            + "httpStatusClass={} elapsedMs={} errorClass={}",
+                    command,
+                    method,
+                    response.getStatusCode().value(),
+                    response.getStatusCode().value() / 100 + "xx",
+                    responseElapsedMs,
+                    ex.getClass().getSimpleName()
+            );
+            throw ex;
+        }
         int statusCode = root.path("statusCode").asInt(-1);
         if (statusCode != SUCCESS_STATUS_CODE) {
             if (hasText(command)) {
                 logCommandResponseParse(command, providerLockId, root, null, null);
             }
             String message = firstText(root, "message", "error");
-            throw new RuntimeException(
+            throw new ProviderRejectedException(
                     "SwitchBot 请求失败: " + fallback(safeDiagnosticMessage(message), String.valueOf(statusCode))
             );
         }
@@ -415,7 +483,7 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
                 command,
                 identifierSuffix(providerLockId),
                 statusCode,
-                safeDiagnosticMessage(message),
+                messageCategory(message, statusCode),
                 hasField(root, "body"),
                 hasDataField(root),
                 responseBodyKeySummary(root),
@@ -620,6 +688,9 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
         return normalized.equals("password")
                 || normalized.equals("passcode")
                 || normalized.equals("iv")
+                || normalized.equals("sign")
+                || normalized.equals("nonce")
+                || normalized.equals("cookie")
                 || normalized.contains("cipher")
                 || normalized.equals("token")
                 || normalized.equals("secret")
@@ -627,6 +698,26 @@ public class SmartLockSwitchBotClient implements SmartLockProviderClient {
                 || normalized.contains("secret")
                 || normalized.contains("authorization")
                 || normalized.contains("credential");
+    }
+
+    private static String messageCategory(String message, int statusCode) {
+        if (statusCode == SUCCESS_STATUS_CODE) {
+            return "accepted";
+        }
+        if (!hasText(message)) {
+            return "missing";
+        }
+        String normalized = message.toLowerCase();
+        if (normalized.contains("offline")) {
+            return "device_offline";
+        }
+        if (normalized.contains("limit") || normalized.contains("rate")) {
+            return "rate_limited";
+        }
+        if (normalized.contains("auth") || normalized.contains("token") || normalized.contains("sign")) {
+            return "authentication_error";
+        }
+        return "provider_error";
     }
 
     private static String identifierSuffix(String value) {

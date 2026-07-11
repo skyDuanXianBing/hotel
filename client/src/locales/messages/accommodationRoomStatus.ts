@@ -558,7 +558,7 @@ export const accommodationRoomStatusMessages = {
             expired: 'Expired',
             deleted: 'Deleted',
             failed: 'Failed',
-            unknown: 'Unknown',
+            unknown: 'Unconfirmed',
           },
         },
         dialogs: {
@@ -617,6 +617,9 @@ export const accommodationRoomStatusMessages = {
             'No lock/unlock device is bound to this room. Status refresh, unlock, and lock are unavailable.',
           passcodeUnavailable:
             'No passcode device is bound to this room. Temporary passcodes cannot be managed.',
+          switchBotPasscodeTemporarilyUnavailable:
+            'SwitchBot temporary passcodes are temporarily unavailable.',
+          passcodeWriteUnavailable: 'Temporary passcode changes are temporarily unavailable.',
           confirmFailed: 'Failed to confirm the door lock operation',
           actionFailed: 'Door lock operation failed',
           actionSentUnlock: 'Unlock command sent. Use the refreshed lock status as final.',
@@ -1635,7 +1638,7 @@ export const accommodationRoomStatusMessages = {
             expired: '已过期',
             deleted: '已删除',
             failed: '失败',
-            unknown: '未知',
+            unknown: '结果待确认',
           },
         },
         dialogs: {
@@ -1689,6 +1692,8 @@ export const accommodationRoomStatusMessages = {
           unboundRoom: '当前房间未绑定可操作门锁',
           controlUnavailable: '当前房间未绑定开锁/上锁设备，无法刷新状态或开关锁',
           passcodeUnavailable: '当前房间未绑定密码设备，无法管理临时密码',
+          switchBotPasscodeTemporarilyUnavailable: 'SwitchBot 临时密码暂不可用',
+          passcodeWriteUnavailable: '临时密码写操作暂不可用',
           confirmFailed: '门锁操作确认失败',
           actionFailed: '门锁操作失败',
           actionSentUnlock: '开锁指令已发送，请以刷新后的门锁状态为准',
@@ -2704,7 +2709,7 @@ export const accommodationRoomStatusMessages = {
             expired: '已過期',
             deleted: '已刪除',
             failed: '失敗',
-            unknown: '未知',
+            unknown: '結果待確認',
           },
         },
         dialogs: {
@@ -2758,6 +2763,8 @@ export const accommodationRoomStatusMessages = {
           unboundRoom: '當前房間未綁定可操作門鎖',
           controlUnavailable: '當前房間未綁定開鎖/上鎖設備，無法刷新狀態或開關鎖',
           passcodeUnavailable: '當前房間未綁定密碼設備，無法管理臨時密碼',
+          switchBotPasscodeTemporarilyUnavailable: 'SwitchBot 臨時密碼暫不可用',
+          passcodeWriteUnavailable: '臨時密碼寫入操作暫不可用',
           confirmFailed: '門鎖操作確認失敗',
           actionFailed: '門鎖操作失敗',
           actionSentUnlock: '開鎖指令已發送，請以刷新後的門鎖狀態為準',
@@ -3776,7 +3783,7 @@ export const accommodationRoomStatusMessages = {
             expired: '期限切れ',
             deleted: '削除済み',
             failed: '失敗',
-            unknown: '不明',
+            unknown: '結果確認待ち',
           },
         },
         dialogs: {
@@ -3835,6 +3842,9 @@ export const accommodationRoomStatusMessages = {
             'この客室には施錠/解錠デバイスが連携されていないため、状態更新、解錠、施錠はできません',
           passcodeUnavailable:
             'この客室には暗証番号デバイスが連携されていないため、一時暗証番号を管理できません',
+          switchBotPasscodeTemporarilyUnavailable:
+            'SwitchBot の一時暗証番号は現在利用できません',
+          passcodeWriteUnavailable: '一時暗証番号の変更は現在利用できません',
           confirmFailed: 'スマートロック操作の確認に失敗しました',
           actionFailed: 'スマートロック操作に失敗しました',
           actionSentUnlock: '解錠コマンドを送信しました。更新後のロック状態を確認してください',

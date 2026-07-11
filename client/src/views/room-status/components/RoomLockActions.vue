@@ -75,11 +75,15 @@
         <el-button
           plain
           :icon="Key"
-          :disabled="!canUsePasscodeDevice || isCurrentPasscodeBusy"
+          :disabled="!canUsePasscodeDevice || !canWritePasscode || isCurrentPasscodeBusy"
           @click="openPasscodeDialog"
         >
           {{ lockT('actions.setPasscode') }}
         </el-button>
+      </div>
+
+      <div v-if="canUsePasscodeDevice && !canWritePasscode" class="status-hint">
+        {{ passcodeWriteUnavailableText }}
       </div>
 
       <div class="passcode-section">
@@ -121,6 +125,7 @@
               :loading="isDeleteBusy(passcode)"
               :disabled="
                 !canUsePasscodeDevice ||
+                !canWritePasscode ||
                 !getPasscodeRecordId(passcode) ||
                 isPasscodeDeletePending(passcode)
               "
@@ -243,7 +248,7 @@
           <el-button
             type="primary"
             :loading="passcodeSubmitting"
-            :disabled="passcodeSubmitting"
+            :disabled="passcodeSubmitting || !canWritePasscode"
             @click="submitPasscode"
           >
             {{ lockT('actions.savePasscode') }}
@@ -287,6 +292,8 @@ import {
 const PASSCODE_MIN_LENGTH = 6
 const PASSCODE_MAX_LENGTH = 12
 const PASSCODE_DEFAULT_VALIDITY_DAYS = 1
+const SWITCHBOT_PASSCODE_WRITE_UNAVAILABLE_REASON_CODE =
+  'SWITCHBOT_PASSCODE_TEMPORARILY_UNAVAILABLE'
 const LOCK_STATUS_POLL_INTERVAL_MS = 1000
 const LOCK_STATUS_POLL_MAX_ATTEMPTS = 10
 const PASSCODE_CREATE_PENDING_STATUSES = new Set([
@@ -391,6 +398,10 @@ const batteryText = computed(() => getBatteryText(currentStatus.value))
 const statusUpdatedText = computed(() => getStatusUpdatedText(currentStatus.value))
 const canUseControlDevice = computed(() => canUseControlDeviceForStatus(currentStatus.value))
 const canUsePasscodeDevice = computed(() => canUsePasscodeDeviceForStatus(currentStatus.value))
+const canWritePasscode = computed(() => canWritePasscodeForStatus(currentStatus.value))
+const passcodeWriteUnavailableText = computed(() =>
+  getPasscodeWriteUnavailableMessage(currentStatus.value),
+)
 const controlUnavailableText = computed(() => {
   if (canUseControlDevice.value) {
     return ''
@@ -585,6 +596,20 @@ const readStringField = (value: unknown, fieldName: string) => {
 }
 
 const readMessageField = (value: unknown) => readStringField(value, 'message')
+
+const isPasscodeWriteUnavailableError = (value: unknown) => {
+  const message = readMessageField(value)
+  if (message.includes(SWITCHBOT_PASSCODE_WRITE_UNAVAILABLE_REASON_CODE)) {
+    return true
+  }
+  if (value && typeof value === 'object') {
+    const response = (value as { response?: { data?: unknown } }).response
+    return readMessageField(response?.data).includes(
+      SWITCHBOT_PASSCODE_WRITE_UNAVAILABLE_REASON_CODE,
+    )
+  }
+  return false
+}
 
 const getResponseMessage = (response: unknown, fallbackKey: string) => {
   const message = readMessageField(response)
@@ -929,6 +954,10 @@ const openPasscodeDialog = () => {
     ElMessage.warning(getPasscodeUnavailableMessage(currentStatus.value))
     return
   }
+  if (!canWritePasscode.value) {
+    ElMessage.warning(getPasscodeWriteUnavailableMessage(currentStatus.value))
+    return
+  }
 
   passcodeTarget.value = target
   const defaultStart = getStoreLocalDateTime()
@@ -989,6 +1018,10 @@ const validatePasscodeForm = () => {
     ElMessage.warning(getPasscodeUnavailableMessage(cachedStatus))
     return false
   }
+  if (!canWritePasscodeForStatus(cachedStatus)) {
+    ElMessage.warning(getPasscodeWriteUnavailableMessage(cachedStatus))
+    return false
+  }
   if (!isManualPasscodeValid()) {
     return false
   }
@@ -1034,6 +1067,10 @@ const submitPasscode = async () => {
     ElMessage.warning(getPasscodeUnavailableMessage(cachedStatus))
     return
   }
+  if (!canWritePasscodeForStatus(cachedStatus)) {
+    ElMessage.warning(getPasscodeWriteUnavailableMessage(cachedStatus))
+    return
+  }
   const passcodeName = passcodeForm.value.name.trim() || undefined
   const idempotencyKey = createIdempotencyKey('passcode-create', target)
   passcodeSubmitting.value = true
@@ -1050,6 +1087,10 @@ const submitPasscode = async () => {
     }
     const response = await createRoomLockPasscode(target.roomId, requestData)
     if (!response.success) {
+      if (isPasscodeWriteUnavailableError(response)) {
+        ElMessage.warning(lockT('messages.switchBotPasscodeTemporarilyUnavailable'))
+        return
+      }
       ElMessage.error(getResponseMessage(response, 'messages.passcodeCreateFailed'))
       return
     }
@@ -1069,6 +1110,10 @@ const submitPasscode = async () => {
     passcodeDialogVisible.value = false
     await loadPasscodes(target.roomId)
   } catch (error) {
+    if (isPasscodeWriteUnavailableError(error)) {
+      ElMessage.warning(lockT('messages.switchBotPasscodeTemporarilyUnavailable'))
+      return
+    }
     ElMessage.error(getErrorMessage(error, 'messages.passcodeCreateFailed'))
   } finally {
     passcodeSubmitting.value = false
@@ -1110,6 +1155,10 @@ const confirmDeletePasscode = async (passcode: RoomLockPasscodeDTO) => {
     ElMessage.warning(getPasscodeUnavailableMessage(cachedStatus))
     return
   }
+  if (!canWritePasscodeForStatus(cachedStatus)) {
+    ElMessage.warning(getPasscodeWriteUnavailableMessage(cachedStatus))
+    return
+  }
   if (passcode.roomId && Number(passcode.roomId) !== target.roomId) {
     ElMessage.warning(lockT('messages.passcodeRoomMismatch'))
     return
@@ -1133,6 +1182,11 @@ const confirmDeletePasscode = async (passcode: RoomLockPasscodeDTO) => {
   }
 
   const actionKey = `PASSCODE_DELETE_${recordId}`
+  const latestStatus = statusMap.value.get(target.roomId) || null
+  if (!canWritePasscodeForStatus(latestStatus)) {
+    ElMessage.warning(getPasscodeWriteUnavailableMessage(latestStatus))
+    return
+  }
   if (actionLoadingMap.value.get(getActionKey(target.roomId, actionKey))) {
     return
   }
@@ -1141,6 +1195,10 @@ const confirmDeletePasscode = async (passcode: RoomLockPasscodeDTO) => {
   try {
     const response = await deleteRoomLockPasscode(recordId)
     if (!response.success) {
+      if (isPasscodeWriteUnavailableError(response)) {
+        ElMessage.warning(lockT('messages.switchBotPasscodeTemporarilyUnavailable'))
+        return
+      }
       ElMessage.error(getResponseMessage(response, 'messages.deleteFailed'))
       return
     }
@@ -1157,6 +1215,10 @@ const confirmDeletePasscode = async (passcode: RoomLockPasscodeDTO) => {
     }
     await loadPasscodes(target.roomId)
   } catch (error) {
+    if (isPasscodeWriteUnavailableError(error)) {
+      ElMessage.warning(lockT('messages.switchBotPasscodeTemporarilyUnavailable'))
+      return
+    }
     ElMessage.error(getErrorMessage(error, 'messages.deleteFailed'))
   } finally {
     setActionLoading(target.roomId, actionKey, false)
@@ -1216,6 +1278,17 @@ const canUsePasscodeDeviceForStatus = (status: RoomLockStatusDTO | null) => {
   return hasLegacyControlStatus(status)
 }
 
+const canWritePasscodeForStatus = (status: RoomLockStatusDTO | null) => {
+  if (!status) {
+    return false
+  }
+  if (typeof status.passcodeWriteEnabled === 'boolean') {
+    return status.passcodeWriteEnabled
+  }
+  // 兼容旧后端：仅明确识别为 TTLock 时保留写能力，SwitchBot 和未知供应商均安全关闭。
+  return (status.passcodeProvider || status.provider) === 'TTLOCK'
+}
+
 const getControlUnavailableMessage = (status: RoomLockStatusDTO | null) => {
   if (!hasAnyLockBinding(status)) {
     return lockT('messages.unboundRoom')
@@ -1228,6 +1301,16 @@ const getPasscodeUnavailableMessage = (status: RoomLockStatusDTO | null) => {
     return lockT('messages.unboundRoom')
   }
   return lockT('messages.passcodeUnavailable')
+}
+
+const getPasscodeWriteUnavailableMessage = (status: RoomLockStatusDTO | null) => {
+  if (
+    status?.reasonCode === SWITCHBOT_PASSCODE_WRITE_UNAVAILABLE_REASON_CODE ||
+    (status?.passcodeProvider || status?.provider) === 'SWITCHBOT'
+  ) {
+    return lockT('messages.switchBotPasscodeTemporarilyUnavailable')
+  }
+  return lockT('messages.passcodeWriteUnavailable')
 }
 
 const normalizeLockState = (status: RoomLockStatusDTO | null) => {
@@ -1443,6 +1526,9 @@ const getPasscodeStatusText = (passcode: RoomLockPasscodeDTO) => {
   }
   if (status === 'PENDING') {
     return lockT('passcodes.status.pending')
+  }
+  if (status === 'UNKNOWN') {
+    return lockT('passcodes.status.unknown')
   }
   if (isPasscodeDeletePendingStatus(status)) {
     return lockT('passcodes.status.deletePending')
