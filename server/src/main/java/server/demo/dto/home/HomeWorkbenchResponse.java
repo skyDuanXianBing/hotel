@@ -8,8 +8,10 @@ import java.util.List;
 public class HomeWorkbenchResponse {
     private LocalDate businessDate;
     private LocalDateTime generatedAt;
+    private HomeWorkbenchQueryDTO query;
     private List<HomeWorkbenchTypeSummaryDTO> typeSummaries = new ArrayList<>();
     private List<HomeWorkbenchStatusSummaryDTO> statusSummaries = new ArrayList<>();
+    private HomeWorkbenchPageDTO page;
     private List<HomeWorkbenchItemDTO> items = new ArrayList<>();
 
     public LocalDate getBusinessDate() {
@@ -28,6 +30,9 @@ public class HomeWorkbenchResponse {
         this.generatedAt = generatedAt;
     }
 
+    public HomeWorkbenchQueryDTO getQuery() { return query; }
+    public void setQuery(HomeWorkbenchQueryDTO query) { this.query = query; }
+
     public List<HomeWorkbenchTypeSummaryDTO> getTypeSummaries() {
         return typeSummaries;
     }
@@ -43,6 +48,9 @@ public class HomeWorkbenchResponse {
     public void setStatusSummaries(List<HomeWorkbenchStatusSummaryDTO> statusSummaries) {
         this.statusSummaries = statusSummaries;
     }
+
+    public HomeWorkbenchPageDTO getPage() { return page; }
+    public void setPage(HomeWorkbenchPageDTO page) { this.page = page; }
 
     public List<HomeWorkbenchItemDTO> getItems() {
         return items;

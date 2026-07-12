@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
@@ -18,6 +19,44 @@ import java.util.Optional;
 
 @Repository
 public interface ReservationRepository extends JpaRepository<Reservation, Long>, JpaSpecificationExecutor<Reservation> {
+
+    @Query("""
+            select r from Reservation r
+            left join fetch r.room room left join fetch room.roomType
+            left join fetch r.channel reservationChannel
+            where r.storeId=:storeId and r.checkOutDate>=:today and (
+                r.room is null or (
+                    r.status=server.demo.enums.ReservationStatus.CONFIRMED and not (
+                        r.settled=true or (r.suReservationId is not null and trim(r.suReservationId)<>'')
+                        or (reservationChannel is not null and reservationChannel.type=server.demo.enums.ChannelType.OTA)
+                        or (r.totalAmount is not null and r.totalAmount>0 and r.paidAmount is not null and r.paidAmount>=r.totalAmount)
+                    )
+                )
+            ) and (:hasCursor=false
+                or (case when r.room is null or r.checkInDate<=:today then 0 else 1 end)>:cursorPriority
+                or ((case when r.room is null or r.checkInDate<=:today then 0 else 1 end)=:cursorPriority
+                    and :cursorDueNull=0 and (r.checkInDate>:cursorDate or r.checkInDate is null))
+                or ((case when r.room is null or r.checkInDate<=:today then 0 else 1 end)=:cursorPriority
+                    and ((:cursorDueNull=0 and r.checkInDate=:cursorDate) or (:cursorDueNull=1 and r.checkInDate is null))
+                    and r.id>:cursorId))
+            order by case when r.room is null or r.checkInDate<=:today then 0 else 1 end,
+                     case when r.checkInDate is null then 1 else 0 end, r.checkInDate, r.id
+            """)
+    List<Reservation> findHomeOrderSlice(@Param("storeId") Long storeId, @Param("today") LocalDate today,
+            @Param("hasCursor") boolean hasCursor, @Param("cursorPriority") int cursorPriority,
+            @Param("cursorDueNull") int cursorDueNull, @Param("cursorDate") LocalDate cursorDate,
+            @Param("cursorId") Long cursorId, Pageable pageable);
+
+    @Query("""
+            select count(r) from Reservation r left join r.channel reservationChannel
+            where r.storeId=:storeId and r.checkOutDate>=:today and (
+                r.room is null or (r.status=server.demo.enums.ReservationStatus.CONFIRMED and not (
+                    r.settled=true or (r.suReservationId is not null and trim(r.suReservationId)<>'')
+                    or (reservationChannel is not null and reservationChannel.type=server.demo.enums.ChannelType.OTA)
+                    or (r.totalAmount is not null and r.totalAmount>0 and r.paidAmount is not null and r.paidAmount>=r.totalAmount)
+                )))
+            """)
+    long countHomeOrders(@Param("storeId") Long storeId, @Param("today") LocalDate today);
 
     interface ReservationOccupancyRow {
         LocalDate getCheckInDate();

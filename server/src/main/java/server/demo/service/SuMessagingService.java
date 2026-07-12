@@ -368,6 +368,43 @@ public class SuMessagingService {
         return threadRepository.countAwaitingReplyByStoreId(storeId);
     }
 
+    /**
+     * Workbench-only keyset slice. It deliberately does not execute the awaiting-reply count query.
+     */
+    public SuMessagingThreadPageResponse listAwaitingReplyThreadSlice(
+            Long storeId,
+            LocalDateTime cursorDueAt,
+            Long cursorId,
+            int size
+    ) {
+        requireMatchingStoreContext(storeId);
+        int pageSize = normalizeThreadPageSize(size);
+        boolean hasCursor = cursorId != null;
+        List<SuMessageThread> candidates = threadRepository.findAwaitingReplySliceByStoreId(
+                storeId,
+                hasCursor,
+                cursorDueAt,
+                cursorId == null ? 0L : cursorId,
+                PageRequest.of(0, Math.min(pageSize + 1, 101))
+        );
+        boolean hasNext = candidates.size() > pageSize;
+        List<SuMessageThread> threads = candidates;
+        LocalDate today = currentStoreDate(storeId);
+        Map<Long, Reservation> reservationByThreadId =
+                reservationBookingKeyResolver.findFirstReservationsForThreads(storeId, threads);
+        Map<Long, Long> unreadByThreadId = loadUnreadCounts(storeId, threads);
+        List<SuMessagingThreadDTO> items = threads.stream()
+                .map(thread -> toThreadDTO(
+                        thread,
+                        reservationByThreadId.get(thread.getId()),
+                        unreadByThreadId.getOrDefault(thread.getId(), 0L),
+                        today
+                ))
+                .toList();
+        fillAirbnbInquiryRoomTypeNames(storeId, items);
+        return new SuMessagingThreadPageResponse(items, 0, pageSize, 0, 0, hasNext);
+    }
+
     private void requireMatchingStoreContext(Long storeId) {
         Long contextStoreId = StoreContextUtils.requireStoreId();
         if (storeId == null || !storeId.equals(contextStoreId)) {

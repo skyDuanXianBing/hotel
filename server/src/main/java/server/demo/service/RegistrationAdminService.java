@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 public class RegistrationAdminService {
@@ -115,6 +116,37 @@ public class RegistrationAdminService {
         return registrationFormRepository.findRecentApprovedForHome(storeId, approvedSince).stream()
                 .map(this::toListItem)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminRegistrationListItemDTO> listHomeSlice(
+            LocalDateTime completedSince,
+            RegistrationFormStatus status,
+            Integer cursorPriority,
+            LocalDateTime cursorDueAt,
+            Long cursorId,
+            int size
+    ) {
+        Long storeId = StoreContextUtils.requireStoreId();
+        boolean hasCursor = cursorId != null;
+        return registrationFormRepository.findHomeSlice(
+                        storeId,
+                        completedSince,
+                        status,
+                        hasCursor,
+                        cursorPriority == null ? 0 : cursorPriority,
+                        cursorDueAt == null ? completedSince : cursorDueAt,
+                        cursorId == null ? 0L : cursorId,
+                        PageRequest.of(0, Math.max(1, Math.min(size, 101)))
+                ).stream()
+                .map(this::toListItem)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long countHome(RegistrationFormStatus status, LocalDateTime completedSince) {
+        return registrationFormRepository.countHomeByStatus(
+                StoreContextUtils.requireStoreId(), status, completedSince);
     }
 
     private AdminRegistrationListItemDTO toListItem(RegistrationForm form) {

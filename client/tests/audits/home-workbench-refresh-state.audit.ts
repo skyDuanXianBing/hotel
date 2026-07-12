@@ -19,9 +19,9 @@ const assertMatches = (source: string, pattern: RegExp, message: string): void =
 const composable = read('src/views/home/composables/useHomeTaskWorkbench.ts')
 const component = read('src/views/home/components/TaskWorkbench.vue')
 const loadStart = composable.indexOf('const executeWorkbenchRequest = (')
-const loadEnd = composable.indexOf('const clearWorkbench = () =>')
+const loadEnd = composable.indexOf('const resetWorkbenchPage = () =>')
 const loadSource = composable.slice(loadStart, loadEnd)
-const clearStart = composable.indexOf('const clearWorkbench = () =>')
+const clearStart = composable.indexOf('const resetWorkbenchPage = () =>')
 const clearEnd = composable.indexOf('const loadWorkbench = async', clearStart)
 const clearSource = composable.slice(clearStart, clearEnd)
 
@@ -41,7 +41,7 @@ assertMatches(
 )
 assertMatches(
   loadSource,
-  /entry\.canScheduleTrailing\s*&&\s*entry\.trailingRequested[\s\S]*executeWorkbenchRequest\(createRequestContext\(\), false\)/,
+  /entry\.canScheduleTrailing\s*&&\s*entry\.trailingRequested[\s\S]*executeWorkbenchRequest\(createRequestContext\(\), false, false\)/,
   'an active request must consume its marker with exactly one non-recursive trailing request',
 )
 assert(composable.includes('new AbortController()'), 'requests must be cancellable')
@@ -72,13 +72,13 @@ assertMatches(
 )
 assertMatches(
   component,
-  /reloadWorkbenchData\(\{ markTrailing: source === 'event' \}\)/,
+  /reloadWorkbenchData\(\{ markTrailing: source !== 'manual' \}\)/,
   'event refresh source must explicitly request trailing coalescing',
 )
 assertMatches(
   component,
-  /performWorkbenchRefresh\('manual'\)/,
-  'manual refresh must remain a normal single-flight caller',
+  /refreshFromTop\(\)/,
+  'manual refresh must start a new snapshot from the top',
 )
 assert(component.includes('window.setTimeout'), 'polling must be scheduled after request completion')
 assert(!component.includes('window.setInterval'), 'fixed intervals must not overlap slow requests')

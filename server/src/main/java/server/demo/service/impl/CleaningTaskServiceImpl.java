@@ -3,6 +3,7 @@ package server.demo.service.impl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.demo.dto.CleaningTaskCreateDTO;
@@ -177,6 +178,47 @@ public class CleaningTaskServiceImpl implements CleaningTaskService {
         );
 
         return tasks.map(this::convertToDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CleaningTaskDTO> getHomeTaskSlice(
+            Long userId,
+            LocalDate date,
+            String statusGroup,
+            Integer cursorPriority,
+            LocalDateTime cursorDue,
+            Long cursorId,
+            int size
+    ) {
+        Long storeId = getCurrentStoreId();
+        Long cleanerId = findCurrentCleaner(userId).map(Cleaner::getId).orElse(null);
+        LocalDateTime dayStart = date.atStartOfDay();
+        return cleaningTaskRepository.findHomeSlice(
+                        storeId,
+                        date,
+                        cleanerId,
+                        statusGroup,
+                        dayStart,
+                        cursorId != null,
+                        cursorPriority == null ? 0 : cursorPriority,
+                        cursorDue == null ? dayStart : cursorDue,
+                        cursorId == null ? 0L : cursorId,
+                        PageRequest.of(0, Math.max(1, Math.min(size, 101)))
+                ).stream()
+                .map(this::convertToDTO)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Long> getHomeTaskStatusCounts(Long userId, LocalDate date) {
+        Long cleanerId = findCurrentCleaner(userId).map(Cleaner::getId).orElse(null);
+        Map<String, Long> result = new HashMap<>();
+        for (Object[] row : cleaningTaskRepository.countHomeByStatus(getCurrentStoreId(), date, cleanerId)) {
+            result.put((String) row[0], (Long) row[1]);
+        }
+        return result;
     }
 
     /**

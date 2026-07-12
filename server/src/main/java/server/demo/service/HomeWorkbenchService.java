@@ -1,9 +1,8 @@
 package server.demo.service;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import server.demo.dto.CleaningTaskDTO;
 import server.demo.dto.SuMessagingThreadDTO;
@@ -11,12 +10,13 @@ import server.demo.dto.SuMessagingThreadPageResponse;
 import server.demo.dto.home.HomeWorkbenchActionDTO;
 import server.demo.dto.home.HomeWorkbenchItemDTO;
 import server.demo.dto.home.HomeWorkbenchMetaItemDTO;
+import server.demo.dto.home.HomeWorkbenchPageDTO;
+import server.demo.dto.home.HomeWorkbenchQueryDTO;
 import server.demo.dto.home.HomeWorkbenchResponse;
 import server.demo.dto.home.HomeWorkbenchStatusSummaryDTO;
 import server.demo.dto.home.HomeWorkbenchTargetDTO;
 import server.demo.dto.home.HomeWorkbenchTypeSummaryDTO;
 import server.demo.dto.internaltask.InternalTaskDTO;
-import server.demo.dto.internaltask.InternalTaskPageDTO;
 import server.demo.dto.registration.AdminRegistrationListItemDTO;
 import server.demo.entity.Reservation;
 import server.demo.entity.Room;
@@ -79,6 +79,7 @@ public class HomeWorkbenchService {
     private final PermissionService permissionService;
     private final InternalTaskService internalTaskService;
     private final Clock clock;
+    private final HomeWorkbenchCursorCodec cursorCodec = new HomeWorkbenchCursorCodec();
 
     public HomeWorkbenchService(
             CleaningTaskService cleaningTaskService,
@@ -103,7 +104,7 @@ public class HomeWorkbenchService {
     }
 
     public HomeWorkbenchResponse getWorkbench(LocalDate requestedDate, Integer requestedLimit) {
-        return getWorkbench(requestedDate, requestedLimit, TYPE_ALL);
+        return getWorkbench(requestedDate, requestedLimit, TYPE_ALL, null, null, null, null);
     }
 
     public HomeWorkbenchResponse getWorkbench(
@@ -111,14 +112,34 @@ public class HomeWorkbenchService {
             Integer requestedLimit,
             String requestedType
     ) {
+        return getWorkbench(requestedDate, requestedLimit, requestedType, null, null, null, null);
+    }
+
+    public HomeWorkbenchResponse getWorkbench(
+            LocalDate requestedDate,
+            Integer requestedLimit,
+            String requestedType,
+            String requestedStatus,
+            Integer requestedSize,
+            String requestedCursor,
+            Boolean requestedIncludeSummaries
+    ) {
         Long storeId = StoreContextUtils.requireStoreId();
         Long userId = StoreContextUtils.requireUserId();
         if (!storeUserRepository.existsByStoreIdAndUserIdAndIsActiveTrue(storeId, userId)) {
             throw new StoreAccessDeniedException("当前账号未激活或无权访问该门店");
         }
         LocalDate businessDate = resolveBusinessDate(storeId, requestedDate);
-        int limit = normalizeLimit(requestedLimit);
+        int limit = normalizeLimit(requestedSize == null ? requestedLimit : requestedSize);
         String selectedType = normalizeTypeFilter(requestedType);
+        String selectedStatus = normalizeStatusFilter(requestedStatus);
+        validateTypeStatus(selectedType, selectedStatus);
+        boolean includeSummaries = requestedIncludeSummaries == null
+                ? blankToNull(requestedCursor) == null
+                : requestedIncludeSummaries;
+        String queryContext = buildQueryContext(
+                storeId, userId, businessDate, selectedType, selectedStatus, limit, isManagerContext());
+        HomeWorkbenchCursorCodec.SortKey cursorKey = cursorCodec.decode(requestedCursor, queryContext);
 
         List<HomeWorkbenchItemDTO> allItems = new ArrayList<>();
         Map<String, Long> typeCounts = new LinkedHashMap<>();
@@ -127,36 +148,53 @@ public class HomeWorkbenchService {
         boolean canViewCleaning = hasPermission(
                 storeId, userId, PermissionModule.ACCOMMODATION, PermissionAction.TASK_LIST);
         typeAvailability.put(TYPE_CLEANING, canViewCleaning);
-        List<HomeWorkbenchItemDTO> cleaningItems = canViewCleaning
-                ? buildCleaningItems(userId, businessDate) : List.of();
-        appendItems(TYPE_CLEANING, cleaningItems, typeCounts, allItems);
+        boolean needCleaningItems = TYPE_ALL.equals(selectedType) || TYPE_CLEANING.equals(selectedType);
+        CleaningItems cleaningResult = canViewCleaning && (needCleaningItems || includeSummaries)
+                ? buildCleaningItems(userId, businessDate, selectedStatus, cursorKey, limit,
+                        needCleaningItems, includeSummaries)
+                : new CleaningItems(List.of(), 0L, Map.of());
+        List<HomeWorkbenchItemDTO> cleaningItems = cleaningResult.items();
+        typeCounts.put(TYPE_CLEANING, cleaningResult.pendingCount());
+        allItems.addAll(cleaningItems);
 
         boolean canViewReview = hasPermission(
                 storeId, userId, PermissionModule.STATISTICS, PermissionAction.VIEW_STATS);
         typeAvailability.put(TYPE_REVIEW, canViewReview);
-        ReviewItems reviewResult = canViewReview
-                ? buildReviewItems() : new ReviewItems(List.of(), 0L);
+        boolean needReviewItems = TYPE_ALL.equals(selectedType) || TYPE_REVIEW.equals(selectedType);
+        ReviewItems reviewResult = canViewReview && (needReviewItems || includeSummaries)
+                ? buildReviewItems(selectedStatus, cursorKey, limit, needReviewItems, includeSummaries)
+                : new ReviewItems(List.of(), 0L, 0L);
         List<HomeWorkbenchItemDTO> reviewItems = reviewResult.items();
-        typeCounts.put(TYPE_REVIEW, reviewResult.awaitingCount());
+        typeCounts.put(TYPE_REVIEW, reviewResult.awaitingCount() + reviewResult.completedCount());
         allItems.addAll(reviewItems);
 
         boolean canViewOrder = hasPermission(
                 storeId, userId, PermissionModule.ORDER, PermissionAction.VIEW_ORDERS);
         typeAvailability.put(TYPE_ORDER, canViewOrder);
-        List<HomeWorkbenchItemDTO> orderItems = canViewOrder
-                ? buildOrderItems(storeId, businessDate) : List.of();
-        appendItems(TYPE_ORDER, orderItems, typeCounts, allItems);
+        boolean needOrderItems = TYPE_ALL.equals(selectedType) || TYPE_ORDER.equals(selectedType);
+        OrderItems orderResult = canViewOrder && (needOrderItems || includeSummaries)
+                ? buildOrderItems(storeId, businessDate, selectedStatus, cursorKey, limit,
+                        needOrderItems, includeSummaries)
+                : new OrderItems(List.of(), 0L);
+        List<HomeWorkbenchItemDTO> orderItems = orderResult.items();
+        typeCounts.put(TYPE_ORDER, orderResult.pendingCount());
+        allItems.addAll(orderItems);
 
         List<HomeWorkbenchItemDTO> messageItems = List.of();
         long awaitingReplyCount = 0L;
         boolean messageAvailable = true;
         try {
             if (TYPE_ALL.equals(selectedType) || TYPE_MESSAGE.equals(selectedType)) {
-                SuMessagingThreadPageResponse messagePage =
-                        suMessagingService.listAwaitingReplyThreadPage(storeId, 0, limit);
+                HomeWorkbenchCursorCodec.SortKey messageCursor = cursorForType(cursorKey, TYPE_MESSAGE);
+                SuMessagingThreadPageResponse messagePage = suMessagingService.listAwaitingReplyThreadSlice(
+                        storeId,
+                        messageCursor == null ? null : messageCursor.dueAt(),
+                        messageCursor == null ? null : messageCursor.sourceId(),
+                        limit
+                );
                 messageItems = buildMessageItems(messagePage);
-                awaitingReplyCount = messagePage.getTotalElements();
-            } else {
+            }
+            if (includeSummaries) {
                 awaitingReplyCount = suMessagingService.countAwaitingReplyThreads(storeId);
             }
         } catch (RuntimeException exception) {
@@ -172,51 +210,92 @@ public class HomeWorkbenchService {
         typeAvailability.put(TYPE_MESSAGE, messageAvailable);
         allItems.addAll(messageItems);
 
-        OtherItems otherResult = buildOtherItems(isManagerContext(), limit);
+        OtherItems otherResult = (TYPE_ALL.equals(selectedType) || TYPE_OTHER.equals(selectedType) || includeSummaries)
+                ? buildOtherItems(selectedStatus, cursorKey, limit,
+                        TYPE_ALL.equals(selectedType) || TYPE_OTHER.equals(selectedType), includeSummaries)
+                : new OtherItems(List.of(), 0L, 0L, 0L, 0L);
         List<HomeWorkbenchItemDTO> otherItems = otherResult.items();
-        typeCounts.put(TYPE_OTHER, otherResult.pendingCount());
+        typeCounts.put(TYPE_OTHER, otherResult.pendingCount() + otherResult.completedCount());
         typeAvailability.put(TYPE_OTHER, true);
         allItems.addAll(otherItems);
 
-        List<HomeWorkbenchItemDTO> selectedItems = selectItems(
-                selectedType,
-                limit,
-                allItems,
-                cleaningItems,
-                reviewItems,
-                orderItems,
-                messageItems,
-                otherItems
-        );
+        List<HomeWorkbenchItemDTO> selectedSourceItems = selectSourceItems(
+                selectedType, allItems, cleaningItems, reviewItems, orderItems, messageItems, otherItems);
+        List<HomeWorkbenchItemDTO> filteredItems = filterItems(selectedSourceItems, selectedStatus, cursorKey);
+        boolean hasMore = filteredItems.size() > limit;
+        List<HomeWorkbenchItemDTO> selectedItems = filteredItems.stream().limit(limit).toList();
+        String nextCursor = hasMore && !selectedItems.isEmpty()
+                ? cursorCodec.encode(queryContext, sortKey(selectedItems.get(selectedItems.size() - 1)))
+                : null;
+
+        List<HomeWorkbenchItemDTO> statusSourceItems = selectSourceItems(
+                selectedType, allItems, cleaningItems, reviewItems, orderItems, List.of(), otherItems);
+        if (TYPE_ALL.equals(selectedType)) {
+            statusSourceItems = statusSourceItems.stream()
+                    .filter(item -> !TYPE_MESSAGE.equals(item.getType()) && !TYPE_REVIEW.equals(item.getType())
+                            && !TYPE_OTHER.equals(item.getType()) && !TYPE_CLEANING.equals(item.getType()))
+                    .filter(item -> !TYPE_ORDER.equals(item.getType()))
+                    .toList();
+        } else if (TYPE_REVIEW.equals(selectedType) || TYPE_CLEANING.equals(selectedType)
+                || TYPE_ORDER.equals(selectedType)) {
+            statusSourceItems = List.of();
+        } else if (TYPE_OTHER.equals(selectedType)) {
+            statusSourceItems = List.of();
+        }
+        Map<String, Long> statusCounts = countStatuses(statusSourceItems);
+        if (TYPE_ALL.equals(selectedType) || TYPE_CLEANING.equals(selectedType)) {
+            for (Map.Entry<String, Long> entry : cleaningResult.statusCounts().entrySet()) {
+                mergeCount(statusCounts, entry.getKey(), entry.getValue());
+            }
+        }
+        if (TYPE_ALL.equals(selectedType) || TYPE_ORDER.equals(selectedType)) {
+            mergeCount(statusCounts, STATUS_PENDING, orderResult.pendingCount());
+        }
+        if ((TYPE_ALL.equals(selectedType) || TYPE_REVIEW.equals(selectedType)) && canViewReview) {
+            mergeCount(statusCounts, STATUS_AWAITING_REVIEW, reviewResult.awaitingCount());
+            mergeCount(statusCounts, STATUS_COMPLETED, reviewResult.completedCount());
+        }
+        if (TYPE_ALL.equals(selectedType) || TYPE_OTHER.equals(selectedType)) {
+            mergeCount(statusCounts, STATUS_UNASSIGNED, otherResult.unassignedCount());
+            mergeCount(statusCounts, STATUS_ASSIGNED, otherResult.assignedCount());
+            mergeCount(statusCounts, STATUS_COMPLETED, otherResult.completedCount());
+        }
+        if ((TYPE_ALL.equals(selectedType) || TYPE_MESSAGE.equals(selectedType)) && messageAvailable) {
+            mergeCount(statusCounts, STATUS_AWAITING_REPLY, awaitingReplyCount);
+        }
+        Long totalElements = null;
+        if (includeSummaries) {
+            totalElements = selectedStatus == null
+                    ? statusCounts.values().stream().mapToLong(Long::longValue).sum()
+                    : statusCounts.getOrDefault(selectedStatus, 0L);
+        }
 
         HomeWorkbenchResponse response = new HomeWorkbenchResponse();
         response.setBusinessDate(businessDate);
         response.setGeneratedAt(LocalDateTime.now(effectiveClock()));
-        response.setTypeSummaries(buildTypeSummaries(typeCounts, typeAvailability));
-        response.setStatusSummaries(buildStatusSummaries(countStatuses(selectedItems)));
+        response.setQuery(new HomeWorkbenchQueryDTO(selectedType, selectedStatus, limit, "priority_due"));
+        response.setTypeSummaries(includeSummaries
+                ? buildTypeSummaries(typeCounts, typeAvailability) : null);
+        response.setStatusSummaries(includeSummaries ? buildStatusSummaries(statusCounts) : null);
+        response.setPage(new HomeWorkbenchPageDTO(
+                limit, selectedItems.size(), totalElements, hasMore, nextCursor));
         response.setItems(selectedItems);
         return response;
     }
 
-    private List<HomeWorkbenchItemDTO> buildCleaningItems(Long userId, LocalDate businessDate) {
-        Page<CleaningTaskDTO> page = cleaningTaskService.getTasksWithFilters(
-                userId,
-                businessDate,
-                businessDate,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                Pageable.unpaged()
-        );
-
+    private CleaningItems buildCleaningItems(Long userId, LocalDate businessDate, String selectedStatus,
+                                              HomeWorkbenchCursorCodec.SortKey cursor, int limit,
+                                              boolean needItems, boolean includeSummaries) {
+        List<CleaningTaskDTO> tasks = List.of();
+        if (needItems) {
+            HomeWorkbenchCursorCodec.SortKey sourceCursor = cursorForVariableType(cursor, TYPE_CLEANING);
+            tasks = cleaningTaskService.getHomeTaskSlice(userId, businessDate, selectedStatus,
+                    sourceCursor == null ? null : sourceCursor.priorityRank(),
+                    sourceCursor == null ? null : sourceCursor.dueAt(),
+                    sourceCursor == null ? null : sourceCursor.sourceId(), limit + 1);
+        }
         List<HomeWorkbenchItemDTO> items = new ArrayList<>();
-        for (CleaningTaskDTO task : page.getContent()) {
-            if (!shouldIncludeCleaningTask(task)) {
-                continue;
-            }
+        for (CleaningTaskDTO task : tasks) {
             HomeWorkbenchItemDTO item = new HomeWorkbenchItemDTO();
             item.setId(TYPE_CLEANING + "-" + task.getId());
             item.setType(TYPE_CLEANING);
@@ -245,35 +324,51 @@ public class HomeWorkbenchService {
             item.setActions(buildCleaningActions(task.getStatus()));
             items.add(item);
         }
-        return items;
+        Map<String, Long> groupedCounts = new LinkedHashMap<>();
+        if (includeSummaries) {
+            for (Map.Entry<String, Long> entry : cleaningTaskService
+                    .getHomeTaskStatusCounts(userId, businessDate).entrySet()) {
+                mergeCount(groupedCounts, resolveCleaningStatusGroup(entry.getKey()), entry.getValue());
+            }
+        }
+        long count = groupedCounts.values().stream().mapToLong(Long::longValue).sum();
+        return new CleaningItems(items, count, groupedCounts);
     }
 
-    private ReviewItems buildReviewItems() {
-        List<AdminRegistrationListItemDTO> submittedForms = registrationAdminService.list(
-                RegistrationFormStatus.SUBMITTED,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
+    private ReviewItems buildReviewItems(
+            String selectedStatus,
+            HomeWorkbenchCursorCodec.SortKey cursor,
+            int limit,
+            boolean needItems,
+            boolean includeSummaries
+    ) {
         LocalDateTime completedSince = LocalDateTime.now(effectiveClock()).minusDays(COMPLETED_REVIEW_RETENTION_DAYS);
-        List<AdminRegistrationListItemDTO> completedForms =
-                registrationAdminService.listRecentApprovedForHome(completedSince);
+        RegistrationFormStatus status = null;
+        if (STATUS_AWAITING_REVIEW.equals(selectedStatus)) status = RegistrationFormStatus.SUBMITTED;
+        if (STATUS_COMPLETED.equals(selectedStatus)) status = RegistrationFormStatus.APPROVED;
+
+        List<AdminRegistrationListItemDTO> forms = List.of();
+        if (needItems) {
+            HomeWorkbenchCursorCodec.SortKey sourceCursor = cursorForVariableType(cursor, TYPE_REVIEW);
+            forms = registrationAdminService.listHomeSlice(
+                    completedSince,
+                    status,
+                    sourceCursor == null ? null : sourceCursor.priorityRank(),
+                    sourceCursor == null ? null : sourceCursor.dueAt(),
+                    sourceCursor == null ? null : sourceCursor.sourceId(),
+                    limit + 1
+            );
+        }
 
         List<HomeWorkbenchItemDTO> items = new ArrayList<>();
-        for (AdminRegistrationListItemDTO form : submittedForms) {
-            items.add(buildReviewItem(form, false));
+        for (AdminRegistrationListItemDTO form : forms) {
+            items.add(buildReviewItem(form, form.getStatus() == RegistrationFormStatus.APPROVED));
         }
-        for (AdminRegistrationListItemDTO form : completedForms) {
-            items.add(buildReviewItem(form, true));
-        }
-        return new ReviewItems(items, submittedForms.size());
+        long awaitingCount = includeSummaries
+                ? registrationAdminService.countHome(RegistrationFormStatus.SUBMITTED, null) : 0L;
+        long completedCount = includeSummaries
+                ? registrationAdminService.countHome(RegistrationFormStatus.APPROVED, completedSince) : 0L;
+        return new ReviewItems(items, awaitingCount, completedCount);
     }
 
     private HomeWorkbenchItemDTO buildReviewItem(AdminRegistrationListItemDTO form, boolean completed) {
@@ -306,28 +401,25 @@ public class HomeWorkbenchService {
         return item;
     }
 
-    private List<HomeWorkbenchItemDTO> buildOrderItems(Long storeId, LocalDate businessDate) {
-        Map<Long, OrderCandidate> candidates = new LinkedHashMap<>();
-        List<Reservation> unassignedReservations =
-                reservationRepository.findUnassignedOrUnmappedWithDetailsByStoreId(storeId, businessDate);
-        for (Reservation reservation : unassignedReservations) {
-            if (reservation.getId() != null) {
-                candidates.put(reservation.getId(), new OrderCandidate(reservation, "UNASSIGNED"));
-            }
+    private OrderItems buildOrderItems(Long storeId, LocalDate businessDate, String selectedStatus,
+                                       HomeWorkbenchCursorCodec.SortKey cursor, int limit,
+                                       boolean needItems, boolean includeSummaries) {
+        List<Reservation> reservations = List.of();
+        if (needItems && (selectedStatus == null || STATUS_PENDING.equals(selectedStatus))) {
+            HomeWorkbenchCursorCodec.SortKey sourceCursor = cursorForVariableType(cursor, TYPE_ORDER);
+            LocalDate cursorDate = sourceCursor == null || sourceCursor.dueAt() == null
+                    ? businessDate : sourceCursor.dueAt().toLocalDate();
+            reservations = reservationRepository.findHomeOrderSlice(storeId, businessDate,
+                    sourceCursor != null,
+                    sourceCursor == null ? 0 : sourceCursor.priorityRank(),
+                    sourceCursor == null ? 0 : sourceCursor.dueAtNullRank(),
+                    cursorDate,
+                    sourceCursor == null ? 0L : sourceCursor.sourceId(),
+                    PageRequest.of(0, Math.min(limit + 1, 101)));
         }
-
-        List<Reservation> pendingReservations =
-                reservationRepository.findPendingOrdersWithDetailsByStoreId(storeId, businessDate);
-        for (Reservation reservation : pendingReservations) {
-            if (reservation.getId() != null && !candidates.containsKey(reservation.getId())) {
-                candidates.put(reservation.getId(), new OrderCandidate(reservation, "PENDING"));
-            }
-        }
-
         List<HomeWorkbenchItemDTO> items = new ArrayList<>();
-        for (OrderCandidate candidate : candidates.values()) {
-            Reservation reservation = candidate.reservation();
-            String sourceStatus = candidate.sourceStatus();
+        for (Reservation reservation : reservations) {
+            String sourceStatus = reservation.getRoom() == null ? "UNASSIGNED" : "PENDING";
             HomeWorkbenchItemDTO item = new HomeWorkbenchItemDTO();
             item.setId(TYPE_ORDER + "-" + reservation.getId());
             item.setType(TYPE_ORDER);
@@ -355,7 +447,8 @@ public class HomeWorkbenchService {
             item.setActions(buildOrderActions(sourceStatus));
             items.add(item);
         }
-        return items;
+        long count = includeSummaries ? reservationRepository.countHomeOrders(storeId, businessDate) : 0L;
+        return new OrderItems(items, count);
     }
 
     private List<HomeWorkbenchItemDTO> buildMessageItems(SuMessagingThreadPageResponse messagePage) {
@@ -398,22 +491,27 @@ public class HomeWorkbenchService {
         return items;
     }
 
-    private OtherItems buildOtherItems(boolean manager, int limit) {
-        List<InternalTaskDTO> tasks = new ArrayList<>();
-        long pendingCount;
-        if (manager) {
-            InternalTaskPageDTO unassigned = internalTaskService.getManaged(InternalTaskStatus.UNASSIGNED, 0, limit);
-            InternalTaskPageDTO assigned = internalTaskService.getManaged(InternalTaskStatus.ASSIGNED, 0, limit);
-            tasks.addAll(unassigned.getItems());
-            tasks.addAll(assigned.getItems());
-            pendingCount = unassigned.getTotalElements() + assigned.getTotalElements();
-        } else {
-            InternalTaskPageDTO mine = internalTaskService.getMine(InternalTaskStatus.ASSIGNED, 0, limit);
-            tasks.addAll(mine.getItems());
-            pendingCount = mine.getTotalElements();
+    private OtherItems buildOtherItems(String selectedStatus, HomeWorkbenchCursorCodec.SortKey cursor,
+                                       int limit, boolean needItems, boolean includeSummaries) {
+        LocalDateTime completedSince = LocalDateTime.now(effectiveClock())
+                .minusDays(COMPLETED_REVIEW_RETENTION_DAYS);
+        InternalTaskStatus status = null;
+        if (STATUS_UNASSIGNED.equals(selectedStatus)) status = InternalTaskStatus.UNASSIGNED;
+        if (STATUS_ASSIGNED.equals(selectedStatus)) status = InternalTaskStatus.ASSIGNED;
+        if (STATUS_COMPLETED.equals(selectedStatus)) status = InternalTaskStatus.COMPLETED;
+        List<InternalTaskDTO> tasks = List.of();
+        if (needItems) {
+            HomeWorkbenchCursorCodec.SortKey sourceCursor = cursorForVariableType(cursor, TYPE_OTHER);
+            tasks = internalTaskService.listHomeSlice(status, completedSince,
+                    sourceCursor == null ? null : sourceCursor.priorityRank(),
+                    sourceCursor == null ? null : sourceCursor.dueAt(),
+                    sourceCursor == null ? null : sourceCursor.sourceId(), limit + 1);
         }
-
-        return new OtherItems(tasks.stream().map(this::buildOtherItem).toList(), pendingCount);
+        long unassigned = includeSummaries ? internalTaskService.countHome(InternalTaskStatus.UNASSIGNED, completedSince) : 0;
+        long assigned = includeSummaries ? internalTaskService.countHome(InternalTaskStatus.ASSIGNED, completedSince) : 0;
+        long completed = includeSummaries ? internalTaskService.countHome(InternalTaskStatus.COMPLETED, completedSince) : 0;
+        return new OtherItems(tasks.stream().map(this::buildOtherItem).toList(),
+                unassigned + assigned, unassigned, assigned, completed);
     }
 
     private HomeWorkbenchItemDTO buildOtherItem(InternalTaskDTO task) {
@@ -425,15 +523,23 @@ public class HomeWorkbenchService {
         item.setSourceId(asString(task.getId()));
         item.setSourceStatus(task.getStatus().name());
         item.setStatusGroup(statusGroup);
-        item.setPriority(task.getStatus() == InternalTaskStatus.UNASSIGNED ? PRIORITY_HIGH : PRIORITY_MEDIUM);
-        item.setDueAt(firstNonNull(task.getUpdatedAt(), task.getCreatedAt()));
+        if (task.getStatus() == InternalTaskStatus.UNASSIGNED) {
+            item.setPriority(PRIORITY_HIGH);
+        } else if (task.getStatus() == InternalTaskStatus.COMPLETED) {
+            item.setPriority(PRIORITY_LOW);
+        } else {
+            item.setPriority(PRIORITY_MEDIUM);
+        }
+        item.setDueAt(task.getStatus() == InternalTaskStatus.COMPLETED
+                ? firstNonNull(task.getCompletedAt(), task.getUpdatedAt())
+                : firstNonNull(task.getUpdatedAt(), task.getCreatedAt()));
         item.setTitle(task.getTitle());
         item.setSubtitle(task.getDescription());
         item.setAssigneeId(task.getAssigneeUserId());
         item.setAssigneeName(task.getAssigneeName());
         addMeta(item, "创建人", task.getCreatedByName());
         addMeta(item, "执行人", task.getAssigneeName());
-        addMeta(item, "状态", task.getStatus() == InternalTaskStatus.UNASSIGNED ? "待分配" : "待完成");
+        addMeta(item, "状态", resolveInternalTaskStatusLabel(task.getStatus()));
         item.setTarget(target(
                 "internal_task",
                 "/internal-tasks",
@@ -448,19 +554,8 @@ public class HomeWorkbenchService {
         return item;
     }
 
-    private void appendItems(
-            String type,
-            List<HomeWorkbenchItemDTO> sourceItems,
-            Map<String, Long> typeCounts,
-            List<HomeWorkbenchItemDTO> allItems
-    ) {
-        typeCounts.put(type, (long) sourceItems.size());
-        allItems.addAll(sourceItems);
-    }
-
-    private List<HomeWorkbenchItemDTO> selectItems(
+    private List<HomeWorkbenchItemDTO> selectSourceItems(
             String selectedType,
-            int limit,
             List<HomeWorkbenchItemDTO> allItems,
             List<HomeWorkbenchItemDTO> cleaningItems,
             List<HomeWorkbenchItemDTO> reviewItems,
@@ -469,27 +564,34 @@ public class HomeWorkbenchService {
             List<HomeWorkbenchItemDTO> otherItems
     ) {
         if (TYPE_CLEANING.equals(selectedType)) {
-            return sortAndLimit(cleaningItems, limit);
+            return cleaningItems;
         }
         if (TYPE_REVIEW.equals(selectedType)) {
-            return sortAndLimit(reviewItems, limit);
+            return reviewItems;
         }
         if (TYPE_ORDER.equals(selectedType)) {
-            return sortAndLimit(orderItems, limit);
+            return orderItems;
         }
         if (TYPE_MESSAGE.equals(selectedType)) {
-            return messageItems.stream().limit(limit).toList();
+            return messageItems;
         }
         if (TYPE_OTHER.equals(selectedType)) {
-            return sortAndLimit(otherItems, limit);
+            return otherItems;
         }
-        return sortAndLimit(allItems, limit);
+        return allItems;
     }
 
-    private List<HomeWorkbenchItemDTO> sortAndLimit(List<HomeWorkbenchItemDTO> sourceItems, int limit) {
-        List<HomeWorkbenchItemDTO> sortedItems = new ArrayList<>(sourceItems);
+    private List<HomeWorkbenchItemDTO> filterItems(
+            List<HomeWorkbenchItemDTO> sourceItems,
+            String selectedStatus,
+            HomeWorkbenchCursorCodec.SortKey cursorKey
+    ) {
+        List<HomeWorkbenchItemDTO> sortedItems = sourceItems.stream()
+                .filter(item -> selectedStatus == null || selectedStatus.equals(item.getStatusGroup()))
+                .filter(item -> cursorKey == null || compareSortKeys(sortKey(item), cursorKey) > 0)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         sortedItems.sort(this::compareItems);
-        return sortedItems.stream().limit(limit).toList();
+        return sortedItems;
     }
 
     private static Map<String, Long> countStatuses(List<HomeWorkbenchItemDTO> items) {
@@ -557,29 +659,66 @@ public class HomeWorkbenchService {
     }
 
     private int compareItems(HomeWorkbenchItemDTO left, HomeWorkbenchItemDTO right) {
-        int priorityCompare = Integer.compare(priorityRank(left.getPriority()), priorityRank(right.getPriority()));
-        if (priorityCompare != 0) {
-            return priorityCompare;
-        }
-
-        LocalDateTime leftDueAt = left.getDueAt();
-        LocalDateTime rightDueAt = right.getDueAt();
-        if (leftDueAt != null && rightDueAt != null) {
-            int dueCompare = leftDueAt.compareTo(rightDueAt);
-            if (dueCompare != 0) {
-                return dueCompare;
-            }
-        } else if (leftDueAt != null) {
-            return -1;
-        } else if (rightDueAt != null) {
-            return 1;
-        }
-
-        return fallback(left.getId(), "").compareTo(fallback(right.getId(), ""));
+        return compareSortKeys(sortKey(left), sortKey(right));
     }
 
-    private static boolean shouldIncludeCleaningTask(CleaningTaskDTO task) {
-        return task != null && !"completed".equalsIgnoreCase(task.getStatus());
+    private HomeWorkbenchCursorCodec.SortKey sortKey(HomeWorkbenchItemDTO item) {
+        return new HomeWorkbenchCursorCodec.SortKey(
+                priorityRank(item.getPriority()),
+                item.getDueAt() == null ? 1 : 0,
+                item.getDueAt(),
+                typeRank(item.getType()),
+                parseSourceId(item.getSourceId())
+        );
+    }
+
+    private int compareSortKeys(
+            HomeWorkbenchCursorCodec.SortKey left,
+            HomeWorkbenchCursorCodec.SortKey right
+    ) {
+        int compared = Integer.compare(left.priorityRank(), right.priorityRank());
+        if (compared != 0) return compared;
+        compared = Integer.compare(left.dueAtNullRank(), right.dueAtNullRank());
+        if (compared != 0) return compared;
+        if (left.dueAt() != null && right.dueAt() != null) {
+            compared = left.dueAt().compareTo(right.dueAt());
+            if (compared != 0) return compared;
+        }
+        compared = Integer.compare(left.typeRank(), right.typeRank());
+        if (compared != 0) return compared;
+        return Long.compare(left.sourceId(), right.sourceId());
+    }
+
+    private HomeWorkbenchCursorCodec.SortKey cursorForType(
+            HomeWorkbenchCursorCodec.SortKey cursor,
+            String type
+    ) {
+        if (cursor == null) return null;
+        int sourcePriority = TYPE_MESSAGE.equals(type) ? priorityRank(PRIORITY_MEDIUM) : cursor.priorityRank();
+        if (cursor.priorityRank() < sourcePriority) return null;
+        if (cursor.priorityRank() > sourcePriority) {
+            return new HomeWorkbenchCursorCodec.SortKey(
+                    cursor.priorityRank(), cursor.dueAtNullRank(), cursor.dueAt(), typeRank(type), Long.MAX_VALUE);
+        }
+        long sourceId = cursor.sourceId();
+        int sourceTypeRank = typeRank(type);
+        if (cursor.typeRank() < sourceTypeRank) sourceId = 0L;
+        if (cursor.typeRank() > sourceTypeRank) sourceId = Long.MAX_VALUE;
+        return new HomeWorkbenchCursorCodec.SortKey(
+                cursor.priorityRank(), cursor.dueAtNullRank(), cursor.dueAt(), sourceTypeRank, sourceId);
+    }
+
+    private HomeWorkbenchCursorCodec.SortKey cursorForVariableType(
+            HomeWorkbenchCursorCodec.SortKey cursor,
+            String type
+    ) {
+        if (cursor == null) return null;
+        long sourceId = cursor.sourceId();
+        int sourceTypeRank = typeRank(type);
+        if (cursor.typeRank() < sourceTypeRank) sourceId = 0L;
+        if (cursor.typeRank() > sourceTypeRank) sourceId = Long.MAX_VALUE;
+        return new HomeWorkbenchCursorCodec.SortKey(
+                cursor.priorityRank(), cursor.dueAtNullRank(), cursor.dueAt(), sourceTypeRank, sourceId);
     }
 
     private static String resolveCleaningStatusGroup(String status) {
@@ -714,7 +853,78 @@ public class HomeWorkbenchService {
         if (TYPE_OTHER.equals(lowerCaseType)) {
             return TYPE_OTHER;
         }
-        return TYPE_ALL;
+        throw new IllegalArgumentException("不支持的工作台类型: " + normalizedType);
+    }
+
+    private static String normalizeStatusFilter(String status) {
+        String normalizedStatus = blankToNull(status);
+        if (normalizedStatus == null) return null;
+        String value = normalizedStatus.toLowerCase(Locale.ROOT);
+        if (STATUS_PENDING.equals(value)
+                || STATUS_AWAITING_REVIEW.equals(value)
+                || STATUS_AWAITING_REPLY.equals(value)
+                || STATUS_UNASSIGNED.equals(value)
+                || STATUS_ASSIGNED.equals(value)
+                || STATUS_IN_PROGRESS.equals(value)
+                || STATUS_OVERDUE.equals(value)
+                || STATUS_COMPLETED.equals(value)) {
+            return value;
+        }
+        throw new IllegalArgumentException("不支持的工作台状态: " + normalizedStatus);
+    }
+
+    private static void validateTypeStatus(String type, String status) {
+        if (status == null || TYPE_ALL.equals(type)) return;
+        boolean valid = switch (type) {
+            case TYPE_CLEANING -> STATUS_PENDING.equals(status)
+                    || STATUS_IN_PROGRESS.equals(status) || STATUS_OVERDUE.equals(status);
+            case TYPE_REVIEW -> STATUS_AWAITING_REVIEW.equals(status) || STATUS_COMPLETED.equals(status);
+            case TYPE_ORDER -> STATUS_PENDING.equals(status);
+            case TYPE_MESSAGE -> STATUS_AWAITING_REPLY.equals(status);
+            case TYPE_OTHER -> STATUS_UNASSIGNED.equals(status)
+                    || STATUS_ASSIGNED.equals(status) || STATUS_COMPLETED.equals(status);
+            default -> false;
+        };
+        if (!valid) {
+            throw new IllegalArgumentException("工作台类型与状态不匹配");
+        }
+    }
+
+    private static String buildQueryContext(
+            Long storeId,
+            Long userId,
+            LocalDate businessDate,
+            String type,
+            String status,
+            int size,
+            boolean manager
+    ) {
+        return storeId + ":" + userId + ":" + businessDate + ":" + type + ":"
+                + fallback(status, "*") + ":" + size + ":priority_due:"
+                + (manager ? "manager" : "member");
+    }
+
+    private static int typeRank(String type) {
+        if (TYPE_CLEANING.equals(type)) return 1;
+        if (TYPE_REVIEW.equals(type)) return 2;
+        if (TYPE_ORDER.equals(type)) return 3;
+        if (TYPE_MESSAGE.equals(type)) return 4;
+        if (TYPE_OTHER.equals(type)) return 5;
+        return 9;
+    }
+
+    private static long parseSourceId(String sourceId) {
+        try {
+            return Long.parseLong(sourceId);
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException("工作台数据缺少稳定数值主键: " + sourceId, exception);
+        }
+    }
+
+    private static String resolveInternalTaskStatusLabel(InternalTaskStatus status) {
+        if (status == InternalTaskStatus.UNASSIGNED) return "待分配";
+        if (status == InternalTaskStatus.COMPLETED) return "已完成";
+        return "待完成";
     }
 
     private static int priorityRank(String priority) {
@@ -822,12 +1032,17 @@ public class HomeWorkbenchService {
         return value == null ? "" : String.valueOf(value);
     }
 
-    private record OrderCandidate(Reservation reservation, String sourceStatus) {
+    private record ReviewItems(List<HomeWorkbenchItemDTO> items, long awaitingCount, long completedCount) {
     }
 
-    private record ReviewItems(List<HomeWorkbenchItemDTO> items, long awaitingCount) {
+    private record CleaningItems(List<HomeWorkbenchItemDTO> items, long pendingCount,
+                                 Map<String, Long> statusCounts) {
     }
 
-    private record OtherItems(List<HomeWorkbenchItemDTO> items, long pendingCount) {
+    private record OrderItems(List<HomeWorkbenchItemDTO> items, long pendingCount) {
+    }
+
+    private record OtherItems(List<HomeWorkbenchItemDTO> items, long pendingCount,
+                              long unassignedCount, long assignedCount, long completedCount) {
     }
 }

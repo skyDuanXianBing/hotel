@@ -28,11 +28,18 @@ public class HomeWorkbenchController {
     public ResponseEntity<ApiResponse<HomeWorkbenchResponse>> getWorkbench(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) Integer limit,
-            @RequestParam(required = false) String type
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) Boolean includeSummaries
     ) {
         try {
-            HomeWorkbenchResponse response = homeWorkbenchService.getWorkbench(date, limit, type);
+            HomeWorkbenchResponse response = homeWorkbenchService.getWorkbench(
+                    date, limit, type, status, size, cursor, includeSummaries);
             return ResponseEntity.ok(ApiResponse.success("获取首页工作台成功", response));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (StoreAccessDeniedException e) {
             return ResponseEntity.status(403).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {

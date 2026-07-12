@@ -11,8 +11,12 @@ export type HomeWorkbenchTaskTypeFilter = 'all' | HomeWorkbenchTaskType
 
 export interface HomeWorkbenchRequest {
   date: string
-  limit?: number
+  size?: number
   type?: HomeWorkbenchTaskTypeFilter
+  status?: string
+  cursor?: string
+  includeSummaries?: boolean
+  sort?: string
 }
 
 export interface HomeWorkbenchTypeSummaryDTO {
@@ -76,9 +80,28 @@ export interface HomeWorkbenchItemDTO {
 export interface HomeWorkbenchDTO {
   businessDate: string
   generatedAt: string
-  typeSummaries?: HomeWorkbenchTypeSummaryDTO[]
-  statusSummaries?: HomeWorkbenchStatusSummaryDTO[]
-  items?: HomeWorkbenchItemDTO[]
+  query: {
+    type: HomeWorkbenchTaskTypeFilter
+    status: string | null
+    size: number
+    sort: string
+  }
+  typeSummaries: HomeWorkbenchTypeSummaryDTO[] | null
+  statusSummaries: HomeWorkbenchStatusSummaryDTO[] | null
+  items: HomeWorkbenchItemDTO[]
+  summary?: {
+    total?: number
+    types?: HomeWorkbenchTypeSummaryDTO[]
+    statuses?: HomeWorkbenchStatusSummaryDTO[]
+  }
+  total?: number
+  page: {
+    size: number
+    returnedElements: number
+    totalElements: number | null
+    nextCursor: string | null
+    hasMore: boolean
+  }
 }
 
 export const getHomeWorkbench = async (

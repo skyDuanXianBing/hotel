@@ -71,6 +71,26 @@ public class InternalTaskService {
     }
 
     @Transactional(readOnly = true)
+    public List<InternalTaskDTO> listHomeSlice(InternalTaskStatus status, LocalDateTime completedSince,
+                                               Integer cursorPriority, LocalDateTime cursorDueAt,
+                                               Long cursorId, int size) {
+        StoreContext context = requireActiveContext(); boolean manager = isManager(context);
+        List<InternalTask> tasks = taskRepository.findHomeSlice(
+                context.getStoreId(), context.getUserId(), manager, status, completedSince,
+                cursorId != null, cursorPriority == null ? 0 : cursorPriority,
+                cursorDueAt == null ? completedSince : cursorDueAt, cursorId == null ? 0L : cursorId,
+                PageRequest.of(0, Math.max(1, Math.min(size, 101))));
+        return tasks.stream().map(task -> toDto(task, context, manager)).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long countHome(InternalTaskStatus status, LocalDateTime completedSince) {
+        StoreContext context = requireActiveContext();
+        return taskRepository.countHome(context.getStoreId(), context.getUserId(), isManager(context), status,
+                status == InternalTaskStatus.COMPLETED ? completedSince : null);
+    }
+
+    @Transactional(readOnly = true)
     public InternalTaskDTO getById(Long id) {
         StoreContext context = requireActiveContext();
         InternalTask task = scopedTask(id, context.getStoreId());

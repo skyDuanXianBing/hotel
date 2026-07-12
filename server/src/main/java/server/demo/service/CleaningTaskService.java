@@ -51,6 +51,10 @@ public interface CleaningTaskService {
             Pageable pageable
     );
 
+    List<CleaningTaskDTO> getHomeTaskSlice(Long userId, LocalDate date, String statusGroup,
+            Integer cursorPriority, java.time.LocalDateTime cursorDue, Long cursorId, int size);
+    Map<String, Long> getHomeTaskStatusCounts(Long userId, LocalDate date);
+
     /**
      * 获取日历视图数据(按日期和房间分组)
      */

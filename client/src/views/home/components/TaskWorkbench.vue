@@ -72,14 +72,22 @@
         type="button"
         role="tab"
         :aria-selected="activeStatus === summary.status"
-        @click="activeStatus = summary.status"
+        @click="handleStatusChange(summary.status)"
       >
         <span>{{ summary.label }}</span>
         <strong>{{ summary.count }}</strong>
       </button>
     </div>
 
-    <div v-loading="loading" class="task-list-shell">
+    <div ref="taskListShellRef" v-loading="loading" class="task-list-shell">
+      <button
+        v-if="hasNewTasks"
+        type="button"
+        class="new-tasks-notice"
+        @click="handleNewTasksRefresh"
+      >
+        {{ t('pages.home.workbench.newTasksNotice') }}
+      </button>
       <el-alert
         v-if="loadError"
         :type="hasWorkbenchData ? 'warning' : 'error'"
@@ -99,64 +107,88 @@
         :description="t('pages.home.workbench.emptyToday')"
       />
 
+      <div v-else class="task-list-items">
+        <div
+          v-for="task in filteredTasks"
+          :key="`${task.type}:${task.id}`"
+          class="task-row"
+          :class="[`priority-${task.priority}`, { clickable: canNavigateTask(task) }]"
+          :role="canNavigateTask(task) ? 'button' : undefined"
+          :tabindex="canNavigateTask(task) ? 0 : undefined"
+          @click="goToTask(task)"
+          @keydown.enter.prevent="goToTask(task)"
+          @keydown.space.prevent="goToTask(task)"
+        >
+          <div class="task-marker">
+            <img :src="getTaskIcon(task.type)" :alt="task.title" />
+          </div>
+
+          <div class="task-main">
+            <div class="task-copy">
+              <h4>{{ task.title }}</h4>
+              <p v-if="task.subtitle">{{ task.subtitle }}</p>
+            </div>
+
+            <div class="task-meta">
+              <span v-for="item in task.metaItems" :key="item">{{ item }}</span>
+            </div>
+
+            <span class="task-status" :class="getStatusClass(task.statusGroup)">
+              {{ getTaskStatusLabel(task) }}
+            </span>
+
+            <el-select
+              v-if="task.canAssignCleaner"
+              v-model="assignSelections[task.sourceTaskId]"
+              :placeholder="t('pages.home.workbench.selectEmployee')"
+              :loading="cleanersLoading"
+              size="small"
+              filterable
+              class="assign-select"
+              @click.stop
+            >
+              <el-option
+                v-for="cleaner in cleanerList"
+                :key="cleaner.id"
+                :label="cleaner.name"
+                :value="cleaner.id"
+              />
+            </el-select>
+            <el-button
+              v-if="task.canAssignCleaner"
+              type="primary"
+              size="small"
+              class="assign-btn"
+              :loading="assigningTaskId === task.sourceTaskId"
+              @click.stop="assignTask(task)"
+            >
+              {{ t('pages.home.workbench.assign') }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+
       <div
-        v-for="task in filteredTasks"
-        v-else
-        :key="task.id"
-        class="task-row"
-        :class="[`priority-${task.priority}`, { clickable: canNavigateTask(task) }]"
-        :role="canNavigateTask(task) ? 'button' : undefined"
-        :tabindex="canNavigateTask(task) ? 0 : undefined"
-        @click="goToTask(task)"
-        @keydown.enter.prevent="goToTask(task)"
-        @keydown.space.prevent="goToTask(task)"
+        v-if="hasWorkbenchData && filteredTasks.length > 0"
+        ref="loadMoreSentinelRef"
+        class="load-more-sentinel"
+        aria-live="polite"
       >
-        <div class="task-marker">
-          <img :src="getTaskIcon(task.type)" :alt="task.title" />
-        </div>
-
-        <div class="task-main">
-          <div class="task-copy">
-            <h4>{{ task.title }}</h4>
-            <p v-if="task.subtitle">{{ task.subtitle }}</p>
-          </div>
-
-          <div class="task-meta">
-            <span v-for="item in task.metaItems" :key="item">{{ item }}</span>
-          </div>
-
-          <span class="task-status" :class="getStatusClass(task.statusGroup)">
-            {{ getStatusLabel(task.statusGroup) }}
-          </span>
-
-          <el-select
-            v-if="task.canAssignCleaner"
-            v-model="assignSelections[task.sourceTaskId]"
-            :placeholder="t('pages.home.workbench.selectEmployee')"
-            :loading="cleanersLoading"
-            size="small"
-            filterable
-            class="assign-select"
-            @click.stop
-          >
-            <el-option
-              v-for="cleaner in cleanerList"
-              :key="cleaner.id"
-              :label="cleaner.name"
-              :value="cleaner.id"
-            />
-          </el-select>
-          <el-button
-            v-if="task.canAssignCleaner"
-            type="primary"
-            size="small"
-            class="assign-btn"
-            :loading="assigningTaskId === task.sourceTaskId"
-            @click.stop="assignTask(task)"
-          >
-            {{ t('pages.home.workbench.assign') }}
-          </el-button>
-        </div>
+        <span v-if="loadingMore" role="status">
+          {{ t('pages.home.workbench.loadingMore') }}
+        </span>
+        <span v-else-if="loadMoreError" role="alert" class="load-more-error">
+          {{ loadMoreError }}
+          <button type="button" @click="handleLoadMoreRetry">
+            {{ t('pages.home.workbench.retryLoadMore') }}
+          </button>
+        </span>
+        <span v-else-if="!hasMore && total > WORKBENCH_PAGE_SIZE" role="status">
+          {{ t('pages.home.workbench.allLoaded', { total }) }}
+        </span>
+        <span v-else-if="hasMore" role="status">
+          {{ t('pages.home.workbench.loadedProgress', { loaded: loadedCount, total }) }}
+        </span>
       </div>
     </div>
 
@@ -169,7 +201,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ArrowRight, Plus, Refresh } from '@element-plus/icons-vue'
@@ -181,6 +213,7 @@ import workbenchOtherIcon from '@/assets/home/workbench-other.svg'
 import workbenchReviewIcon from '@/assets/home/workbench-review.svg'
 import { useStoreStore } from '@/stores/store'
 import InternalTaskCenter from '@/views/home/components/InternalTaskCenter.vue'
+import { getWorkbenchStatusLabelKey } from '@/views/home/composables/workbenchPagination'
 import {
   useHomeTaskWorkbench,
   type WorkbenchTask,
@@ -200,25 +233,40 @@ const {
   cleanerList,
   cleanersLoading,
   filteredTasks,
+  hasMore,
+  hasNewTasks,
   hasWorkbenchData,
   loadWorkbench,
   loading,
+  loadingMore,
   loadError,
+  loadMoreError,
+  loadedCount,
+  resetToken,
   selectedTypeIsConnected,
   selectedTypeSummary,
   statusSummaries,
   taskTypeSummaries,
   todayYmd,
+  total,
   assignTask,
   changeWorkbenchType,
+  changeWorkbenchStatus,
   clearWorkbench,
   disposeWorkbench,
+  loadMoreWorkbench,
+  refreshFromTop,
   reloadWorkbenchData,
 } = useHomeTaskWorkbench()
 
 const storeStore = useStoreStore()
 const canManageInternalTasks = computed(() => storeStore.hasAdminPermission)
 const internalTaskCenterRef = ref<InstanceType<typeof InternalTaskCenter> | null>(null)
+const taskListShellRef = ref<HTMLElement | null>(null)
+const loadMoreSentinelRef = ref<HTMLElement | null>(null)
+const WORKBENCH_PAGE_SIZE = 50
+let loadMoreObserver: IntersectionObserver | null = null
+let listResizeObserver: ResizeObserver | null = null
 let refreshTimer: number | null = null
 let refreshDebounceTimer: number | null = null
 let unmounted = false
@@ -240,18 +288,14 @@ const getTypeIcon = (type: WorkbenchTaskTypeFilter) => typeIconMap[type]
 
 const getTaskIcon = (type: WorkbenchTaskType) => typeIconMap[type]
 
-const getStatusLabel = (status: string) => {
-  const statusMap: Record<string, string> = {
-    awaiting_review: t('pages.home.workbench.statuses.awaitingReview'),
-    awaiting_reply: t('pages.home.workbench.statuses.awaitingReply'),
-    expired: t('pages.home.workbench.statuses.expired'),
-    pending: t('pages.home.workbench.statuses.pending'),
-    unassigned: t('pages.home.workbench.statuses.unassigned'),
-    assigned: t('pages.home.workbench.statuses.assigned'),
-    in_progress: t('pages.home.workbench.statuses.inProgress'),
-    completed: t('pages.home.workbench.statuses.completed'),
+const getTaskStatusLabel = (task: WorkbenchTask) => {
+  if (task.type === 'order' && task.statusGroup === 'pending') {
+    return task.sourceStatus.toUpperCase() === 'UNASSIGNED'
+      ? t('pages.home.workbench.statuses.unassigned')
+      : t('pages.home.workbench.statuses.awaitingCheckIn')
   }
-  return statusMap[status] || status
+  const key = getWorkbenchStatusLabelKey(task.type, task.statusGroup)
+  return key ? t(key) : task.statusGroup
 }
 
 const allowedRouteNames = new Set([
@@ -441,7 +485,47 @@ const getStatusClass = (status: string) => {
 }
 
 const handleTypeChange = (type: WorkbenchTaskTypeFilter) => {
-  void changeWorkbenchType(type)
+  taskListShellRef.value?.scrollTo({ top: 0 })
+  void changeWorkbenchType(type).finally(rebuildLoadMoreObserver)
+}
+
+const handleStatusChange = (status: string) => {
+  taskListShellRef.value?.scrollTo({ top: 0 })
+  void changeWorkbenchStatus(status).finally(rebuildLoadMoreObserver)
+}
+
+const handleNewTasksRefresh = () => {
+  taskListShellRef.value?.scrollTo({ top: 0 })
+  void refreshFromTop().finally(rebuildLoadMoreObserver)
+}
+
+const rebuildLoadMoreObserver = async () => {
+  loadMoreObserver?.disconnect()
+  loadMoreObserver = null
+  await nextTick()
+  if (unmounted || !hasMore.value || !loadMoreSentinelRef.value) return
+  const shell = taskListShellRef.value
+  const scrollsInternally = Boolean(
+    shell && getComputedStyle(shell).overflowY !== 'visible' && shell.scrollHeight > shell.clientHeight,
+  )
+  loadMoreObserver = new IntersectionObserver(
+    (entries) => {
+      if (
+        entries.some((entry) => entry.isIntersecting) &&
+        hasMore.value &&
+        !loadingMore.value &&
+        !loadMoreError.value
+      ) {
+        void loadMoreWorkbench().finally(rebuildLoadMoreObserver)
+      }
+    },
+    { root: scrollsInternally ? shell : null, rootMargin: '0px 0px 400px 0px', threshold: 0 },
+  )
+  loadMoreObserver.observe(loadMoreSentinelRef.value)
+}
+
+const handleLoadMoreRetry = () => {
+  void loadMoreWorkbench().finally(rebuildLoadMoreObserver)
 }
 
 const navigateToRoute = (route: RouteLocationRaw) => {
@@ -517,8 +601,9 @@ const scheduleNextRefresh = () => {
 
 const performWorkbenchRefresh = async (source: WorkbenchRefreshSource) => {
   try {
-    await reloadWorkbenchData({ markTrailing: source === 'event' })
+    await reloadWorkbenchData({ markTrailing: source !== 'manual' })
   } finally {
+    void rebuildLoadMoreObserver()
     scheduleNextRefresh()
   }
 }
@@ -542,13 +627,24 @@ const refreshWhenActive = () => {
 const handleManualRefresh = () => {
   clearRefreshTimer()
   clearRefreshDebounce()
-  void performWorkbenchRefresh('manual')
+  taskListShellRef.value?.scrollTo({ top: 0 })
+  void refreshFromTop().finally(() => {
+    void rebuildLoadMoreObserver()
+    scheduleNextRefresh()
+  })
 }
 
 const handleWorkbenchInvalidated = () => queueWorkbenchRefresh()
 
 onMounted(() => {
-  void loadWorkbench().finally(scheduleNextRefresh)
+  void loadWorkbench().finally(() => {
+    void rebuildLoadMoreObserver()
+    scheduleNextRefresh()
+  })
+  if (typeof ResizeObserver !== 'undefined') {
+    listResizeObserver = new ResizeObserver(() => void rebuildLoadMoreObserver())
+    if (taskListShellRef.value) listResizeObserver.observe(taskListShellRef.value)
+  }
   window.addEventListener('focus', refreshWhenActive)
   window.addEventListener('workbench-invalidated', handleWorkbenchInvalidated)
   document.addEventListener('visibilitychange', refreshWhenActive)
@@ -563,15 +659,28 @@ watch(
     clearWorkbench()
     internalTaskCenterRef.value?.reset()
     if (nextStoreId) {
-      void loadWorkbench().finally(scheduleNextRefresh)
+      taskListShellRef.value?.scrollTo({ top: 0 })
+      void loadWorkbench().finally(() => {
+        void rebuildLoadMoreObserver()
+        scheduleNextRefresh()
+      })
     }
   },
 )
+
+watch(resetToken, () => {
+  taskListShellRef.value?.scrollTo({ top: 0 })
+  void rebuildLoadMoreObserver()
+})
 
 onBeforeUnmount(() => {
   unmounted = true
   clearRefreshTimer()
   clearRefreshDebounce()
+  loadMoreObserver?.disconnect()
+  listResizeObserver?.disconnect()
+  loadMoreObserver = null
+  listResizeObserver = null
   disposeWorkbench()
   window.removeEventListener('focus', refreshWhenActive)
   window.removeEventListener('workbench-invalidated', handleWorkbenchInvalidated)
@@ -839,6 +948,42 @@ onBeforeUnmount(() => {
   margin-bottom: 12px;
 }
 
+.task-list-items {
+  display: contents;
+}
+
+.new-tasks-notice {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  color: #3158d5;
+  background: #eef3ff;
+  cursor: pointer;
+}
+
+.load-more-sentinel {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--workbench-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.load-more-error button {
+  margin-left: 8px;
+  border: 0;
+  color: #3158d5;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .task-list-shell :deep(.el-empty__description p) {
   color: rgba(0, 0, 0, 0.38);
 }
@@ -985,6 +1130,11 @@ onBeforeUnmount(() => {
 }
 
 .task-status.status-expired {
+  color: #111111;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.task-status.status-overdue {
   color: #111111;
   background: rgba(0, 0, 0, 0.05);
 }

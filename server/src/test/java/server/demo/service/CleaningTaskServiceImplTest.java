@@ -25,7 +25,9 @@ import server.demo.service.impl.CleaningTaskServiceImpl;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -145,5 +147,39 @@ class CleaningTaskServiceImplTest {
         service.getTasksWithFilters(USER_ID, null, null, null, null, null, null, null, null, Pageable.unpaged());
 
         Mockito.verify(cleaningTaskAutoService).markExpiredTasks(STORE_ID, LocalDate.of(2026, 4, 8));
+    }
+
+    @Test
+    void getHomeTaskSlice_shouldPushCleanerScopeAndSizePlusOneWithoutStateWrite() {
+        Cleaner cleaner = new Cleaner(); cleaner.setId(3L);
+        Mockito.when(cleanerIdentityService.findCleanerByUserIdAndStoreId(USER_ID, STORE_ID))
+                .thenReturn(Optional.of(cleaner));
+        Mockito.when(cleaningTaskRepository.findHomeSlice(
+                Mockito.eq(STORE_ID), Mockito.any(), Mockito.eq(3L), Mockito.eq("pending"),
+                Mockito.any(), Mockito.eq(false), Mockito.anyInt(), Mockito.any(), Mockito.anyLong(), Mockito.any()))
+                .thenReturn(List.of());
+
+        service.getHomeTaskSlice(USER_ID, LocalDate.of(2026, 4, 8), "pending",
+                null, null, null, 51);
+
+        Mockito.verify(cleaningTaskRepository).findHomeSlice(
+                Mockito.eq(STORE_ID), Mockito.eq(LocalDate.of(2026, 4, 8)), Mockito.eq(3L),
+                Mockito.eq("pending"), Mockito.eq(LocalDateTime.of(2026, 4, 8, 0, 0)),
+                Mockito.eq(false), Mockito.eq(0), Mockito.any(), Mockito.eq(0L),
+                Mockito.argThat(pageable -> pageable.getPageSize() == 51));
+        Mockito.verifyNoInteractions(cleaningTaskAutoService);
+    }
+
+    @Test
+    void getHomeTaskStatusCounts_ownerOrAdminScopeIsWholeStore() {
+        Mockito.when(cleanerIdentityService.findCleanerByUserIdAndStoreId(USER_ID, STORE_ID))
+                .thenReturn(Optional.empty());
+        Mockito.when(cleaningTaskRepository.countHomeByStatus(
+                STORE_ID, LocalDate.of(2026, 4, 8), null)).thenReturn(
+                        java.util.Collections.singletonList(new Object[]{"pending", 51L}));
+
+        assertEquals(51L, service.getHomeTaskStatusCounts(USER_ID, LocalDate.of(2026, 4, 8)).get("pending"));
+        Mockito.verify(cleaningTaskRepository).countHomeByStatus(
+                STORE_ID, LocalDate.of(2026, 4, 8), null);
     }
 }

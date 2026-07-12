@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import server.demo.entity.CleaningTask;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Collection;
 import java.util.Set;
@@ -18,6 +19,34 @@ import java.util.Set;
  */
 @Repository
 public interface CleaningTaskRepository extends JpaRepository<CleaningTask, Long> {
+    @Query("""
+            select ct from CleaningTask ct join fetch ct.room room left join fetch room.roomType
+            left join fetch ct.cleaner cleaner
+            where room.storeId=:storeId and ct.taskDate=:date and ct.status <> 'completed'
+              and (:cleanerId is null or cleaner.id=:cleanerId)
+              and (:statusGroup is null
+                   or (:statusGroup='overdue' and ct.status='expired')
+                   or (:statusGroup='in_progress' and ct.status='in_progress')
+                   or (:statusGroup='pending' and ct.status not in ('expired','in_progress','completed')))
+              and (:hasCursor=false
+                   or (case when ct.status='expired' then 0 else 1 end) > :cursorPriority
+                   or ((case when ct.status='expired' then 0 else 1 end)=:cursorPriority
+                       and coalesce(ct.estimatedTime,:dayStart) > :cursorDue)
+                   or ((case when ct.status='expired' then 0 else 1 end)=:cursorPriority
+                       and coalesce(ct.estimatedTime,:dayStart)=:cursorDue and ct.id>:cursorId))
+            order by case when ct.status='expired' then 0 else 1 end,
+                     coalesce(ct.estimatedTime,:dayStart), ct.id
+            """)
+    List<CleaningTask> findHomeSlice(@Param("storeId") Long storeId, @Param("date") LocalDate date,
+            @Param("cleanerId") Long cleanerId, @Param("statusGroup") String statusGroup,
+            @Param("dayStart") LocalDateTime dayStart, @Param("hasCursor") boolean hasCursor,
+            @Param("cursorPriority") int cursorPriority, @Param("cursorDue") LocalDateTime cursorDue,
+            @Param("cursorId") Long cursorId, Pageable pageable);
+
+    @Query("select ct.status,count(ct) from CleaningTask ct where ct.room.storeId=:storeId " +
+           "and ct.taskDate=:date and ct.status<>'completed' and (:cleanerId is null or ct.cleaner.id=:cleanerId) group by ct.status")
+    List<Object[]> countHomeByStatus(@Param("storeId") Long storeId, @Param("date") LocalDate date,
+                                     @Param("cleanerId") Long cleanerId);
 
     /**
      * 根据日期范围查询任务

@@ -15,6 +15,15 @@ import {
 import { request } from '@/utils/request'
 import { getStoreTodayYmd } from '@/utils/storeDateTime'
 import { useStoreStore } from '@/stores/store'
+import { useUserStore } from '@/stores/user'
+import {
+  appendUniqueWorkbenchItems,
+  getAllowedWorkbenchStatuses,
+  getWorkbenchStatusLabelKey,
+  normalizeWorkbenchStatus,
+  resolveWorkbenchTypeCounts,
+  toWorkbenchStatusParam,
+} from './workbenchPagination'
 
 const WORKBENCH_LIMIT = 50
 const DEFAULT_STATUS_GROUP = 'pending'
@@ -28,11 +37,13 @@ interface WorkbenchRequestContext {
   key: string
   date: string
   type: WorkbenchTaskTypeFilter
+  status: WorkbenchStatusFilter
 }
 
 interface ActiveWorkbenchRequest {
   context: WorkbenchRequestContext
   controller: AbortController
+  cursor: string | null
   canScheduleTrailing: boolean
   trailingRequested: boolean
   promise: Promise<boolean>
@@ -47,15 +58,9 @@ const statusSortOrder: Record<string, number> = {
   unassigned: 1,
   assigned: 2,
   in_progress: 3,
+  overdue: 4,
   expired: 4,
   completed: 5,
-}
-
-const prioritySortOrder: Record<string, number> = {
-  danger: 0,
-  warning: 1,
-  normal: 2,
-  success: 3,
 }
 
 export type WorkbenchTaskType = HomeWorkbenchTaskType
@@ -146,7 +151,7 @@ const normalizePriority = (priority?: string, statusGroup?: string): WorkbenchTa
     return normalizedPriority
   }
 
-  if (statusGroup === 'expired') {
+  if (statusGroup === 'expired' || statusGroup === 'overdue') {
     return 'danger'
   }
   if (statusGroup === 'pending') {
@@ -204,8 +209,16 @@ const formatMetaItem = (item: string | HomeWorkbenchMetaItemDTO) => {
 export const useHomeTaskWorkbench = () => {
   const { t } = useI18n()
   const storeStore = useStoreStore()
+  const userStore = useUserStore()
   const loading = ref(false)
+  const loadingMore = ref(false)
   const loadError = ref('')
+  const loadMoreError = ref('')
+  const total = ref(0)
+  const nextCursor = ref<string | null>(null)
+  const hasMore = ref(false)
+  const hasNewTasks = ref(false)
+  const resetToken = ref(0)
   const cleanersLoading = ref(false)
   const assigningTaskId = ref<number | null>(null)
   const activeType = ref<WorkbenchTaskTypeFilter>('all')
@@ -215,6 +228,9 @@ export const useHomeTaskWorkbench = () => {
   const cleanerList = ref<CleanerDTO[]>([])
   const assignSelections = ref<Record<number, number | undefined>>({})
   let activeRequest: ActiveWorkbenchRequest | null = null
+  let loadMoreRequest: ActiveWorkbenchRequest | null = null
+  let requestGeneration = 0
+  const warnedSummaryMismatches = new Set<string>()
   let cleanerRequestSeq = 0
   let disposed = false
 
@@ -237,34 +253,12 @@ export const useHomeTaskWorkbench = () => {
     return t('pages.home.workbench.types.other')
   }
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (type: WorkbenchTaskTypeFilter, status: string) => {
     if (status === 'all') {
       return t('pages.home.workbench.statuses.all')
     }
-    if (status === 'pending') {
-      return t('pages.home.workbench.statuses.pending')
-    }
-    if (status === 'awaiting_review') {
-      return t('pages.home.workbench.statuses.awaitingReview')
-    }
-    if (status === 'awaiting_reply') {
-      return t('pages.home.workbench.statuses.awaitingReply')
-    }
-    if (status === 'unassigned') {
-      return t('pages.home.workbench.statuses.unassigned')
-    }
-    if (status === 'assigned') {
-      return t('pages.home.workbench.statuses.assigned')
-    }
-    if (status === 'in_progress') {
-      return t('pages.home.workbench.statuses.inProgress')
-    }
-    if (status === 'completed') {
-      return t('pages.home.workbench.statuses.completed')
-    }
-    if (status === 'expired') {
-      return t('pages.home.workbench.statuses.expired')
-    }
+    const key = getWorkbenchStatusLabelKey(type, status)
+    if (key) return t(key)
     return formatUnknownStatus(status)
   }
 
@@ -343,23 +337,20 @@ export const useHomeTaskWorkbench = () => {
       })
     }
 
-    const itemCounts = new Map<WorkbenchTaskType, number>()
-    for (const task of workbenchTasks.value) {
-      itemCounts.set(task.type, (itemCounts.get(task.type) || 0) + 1)
-    }
+    const resolvedCounts = resolveWorkbenchTypeCounts(
+      workbenchData.value?.typeSummaries,
+      total.value,
+      activeType.value === 'all' && activeStatus.value === 'all',
+    )
 
     const summaries: WorkbenchTaskTypeSummary[] = []
-    let totalCount = 0
     for (const type of WORKBENCH_TYPES) {
       const backendSummary = backendSummaries.get(type)
-      const itemCount = itemCounts.get(type) || 0
-      const count = backendSummary ? backendSummary.count : itemCount
-      totalCount += count
       summaries.push({
         type,
         label: getTypeLabel(type),
-        count,
-        connected: backendSummary ? backendSummary.connected : itemCount > 0,
+        count: resolvedCounts.byType.get(type) || 0,
+        connected: backendSummary?.connected ?? false,
       })
     }
 
@@ -367,7 +358,7 @@ export const useHomeTaskWorkbench = () => {
       {
         type: 'all',
         label: getTypeLabel('all'),
-        count: totalCount,
+        count: resolvedCounts.allCount,
         connected: true,
       },
       ...summaries,
@@ -406,34 +397,17 @@ export const useHomeTaskWorkbench = () => {
 
   const statusSummaries = computed<WorkbenchStatusSummary[]>(() => {
     const counts = new Map<string, number>()
+    const statuses = new Set<string>(getAllowedWorkbenchStatuses(activeType.value))
     let totalCount = 0
 
-    if (activeType.value === 'all' && workbenchData.value?.statusSummaries?.length) {
+    if (workbenchData.value?.statusSummaries?.length) {
       for (const summary of workbenchData.value.statusSummaries) {
         const status = normalizeStatusGroup(summary.statusGroup)
+        if (!statuses.has(status)) continue
         const count = Number(summary.count || 0)
         counts.set(status, count)
         totalCount += count
       }
-    } else {
-      for (const task of tasksForActiveType.value) {
-        counts.set(task.statusGroup, (counts.get(task.statusGroup) || 0) + 1)
-        totalCount += 1
-      }
-    }
-
-    const statuses = new Set<string>([
-      'awaiting_review',
-      'awaiting_reply',
-      'pending',
-      'unassigned',
-      'assigned',
-      'in_progress',
-      'completed',
-      'expired',
-    ])
-    for (const status of counts.keys()) {
-      statuses.add(status)
     }
 
     const orderedStatuses = Array.from(statuses).sort((left, right) => {
@@ -448,7 +422,7 @@ export const useHomeTaskWorkbench = () => {
     const summaries: WorkbenchStatusSummary[] = [
       {
         status: 'all',
-        label: getStatusLabel('all'),
+        label: getStatusLabel(activeType.value, 'all'),
         count: totalCount,
       },
     ]
@@ -456,7 +430,7 @@ export const useHomeTaskWorkbench = () => {
     for (const status of orderedStatuses) {
       summaries.push({
         status,
-        label: getStatusLabel(status),
+        label: getStatusLabel(activeType.value, status),
         count: counts.get(status) || 0,
       })
     }
@@ -471,24 +445,12 @@ export const useHomeTaskWorkbench = () => {
 
     const tasks: WorkbenchTask[] = []
     for (const task of tasksForActiveType.value) {
-      if (activeStatus.value !== 'all' && task.statusGroup !== activeStatus.value) {
-        continue
-      }
       tasks.push(task)
     }
-
-    return tasks.slice().sort((left, right) => {
-      const leftStatusOrder = statusSortOrder[left.statusGroup] ?? 99
-      const rightStatusOrder = statusSortOrder[right.statusGroup] ?? 99
-      if (leftStatusOrder !== rightStatusOrder) {
-        return leftStatusOrder - rightStatusOrder
-      }
-
-      const leftPriorityOrder = prioritySortOrder[left.priority] ?? 99
-      const rightPriorityOrder = prioritySortOrder[right.priority] ?? 99
-      return leftPriorityOrder - rightPriorityOrder
-    })
+    return tasks
   })
+
+  const loadedCount = computed(() => filteredTasks.value.length)
 
   const syncAssignSelections = () => {
     const selections: Record<number, number | undefined> = {}
@@ -540,11 +502,14 @@ export const useHomeTaskWorkbench = () => {
   const createRequestContext = (): WorkbenchRequestContext => {
     const date = getStoreTodayYmd()
     const type = activeType.value
+    const status = normalizeWorkbenchStatus(type, activeStatus.value)
     const storeId = storeStore.currentStore?.id || 'none'
+    const permissionScope = `${userStore.currentUser?.id || 'anonymous'}:${storeStore.currentUserRole || 'unknown'}`
     return {
-      key: `${storeId}:${date}:${type}`,
+      key: `${storeId}:${date}:${type}:${status}:default:${permissionScope}`,
       date,
       type,
+      status,
     }
   }
 
@@ -556,27 +521,86 @@ export const useHomeTaskWorkbench = () => {
     return candidate.code === 'ERR_CANCELED' || candidate.name === 'CanceledError'
   }
 
-  const executeWorkbenchRequest = (
+  const requestParamsFor = (
     context: WorkbenchRequestContext,
-    canScheduleTrailing: boolean,
-  ): Promise<boolean> => {
+    cursor: string | null,
+    includeSummaries: boolean,
+  ): HomeWorkbenchRequest => {
     const requestParams: HomeWorkbenchRequest = {
       date: context.date,
-      limit: WORKBENCH_LIMIT,
+      size: WORKBENCH_LIMIT,
+      includeSummaries,
     }
     if (context.type !== 'all') {
       requestParams.type = context.type
     }
+    requestParams.status = toWorkbenchStatusParam(context.type, context.status)
+    if (cursor) requestParams.cursor = cursor
+    return requestParams
+  }
+
+  const responseTotal = (data: HomeWorkbenchDTO) =>
+    Number(data.summary?.total ?? data.total ?? data.page?.totalElements ?? 0)
+
+  const normalizeSummaries = (data: HomeWorkbenchDTO) => {
+    if (data.summary?.types) data.typeSummaries = data.summary.types
+    if (data.summary?.statuses) data.statusSummaries = data.summary.statuses
+  }
+
+  const auditTypeSummaryTotal = (
+    data: HomeWorkbenchDTO,
+    context: WorkbenchRequestContext,
+  ) => {
+    if (context.type !== 'all' || context.status !== 'all') return
+    const queryTotal = responseTotal(data)
+    const counts = resolveWorkbenchTypeCounts(data.typeSummaries, queryTotal, true)
+    if (!counts.inconsistent) return
+    const warningKey = `${context.key}:${queryTotal}:${counts.summaryTotal}`
+    if (warnedSummaryMismatches.has(warningKey)) return
+    warnedSummaryMismatches.add(warningKey)
+    console.warn('[HomeWorkbench] type summary total does not match page total', {
+      queryTotal,
+      typeSummaryTotal: counts.summaryTotal,
+      queryKey: context.key,
+    })
+  }
+
+  const responseMatchesContext = (
+    data: HomeWorkbenchDTO,
+    context: WorkbenchRequestContext,
+  ) => {
+    if (!data.query) return true
+    return data.query.type === context.type &&
+      normalizeWorkbenchStatus(context.type, data.query.status) === context.status
+  }
+
+  const applyPageState = (data: HomeWorkbenchDTO) => {
+    total.value = responseTotal(data)
+    nextCursor.value = data.page?.nextCursor || null
+    hasMore.value = Boolean(data.page?.hasMore && nextCursor.value)
+    if (workbenchData.value && workbenchData.value.items?.length && loadedCount.value >= total.value) {
+      hasMore.value = false
+    }
+  }
+
+  const executeWorkbenchRequest = (
+    context: WorkbenchRequestContext,
+    canScheduleTrailing: boolean,
+    preserveItems = false,
+  ): Promise<boolean> => {
+    const generation = requestGeneration
+    const requestParams = requestParamsFor(context, null, true)
 
     const entry: ActiveWorkbenchRequest = {
       context,
       controller: new AbortController(),
+      cursor: null,
       canScheduleTrailing,
       trailingRequested: false,
       promise: Promise.resolve(false),
     }
 
-    loading.value = true
+    loading.value = workbenchData.value === null
     todayYmd.value = context.date
     activeRequest = entry
 
@@ -591,10 +615,31 @@ export const useHomeTaskWorkbench = () => {
             suppressErrorToast: true,
           },
         )
-        const responseIsCurrent =
-          !disposed && activeRequest === entry && createRequestContext().key === context.key
-        if (responseIsCurrent && response.success && response.data) {
-          workbenchData.value = response.data
+        const responseIsCurrent = !disposed && generation === requestGeneration &&
+          activeRequest === entry && createRequestContext().key === context.key
+        if (
+          responseIsCurrent &&
+          response.success &&
+          response.data &&
+          responseMatchesContext(response.data, context)
+        ) {
+          normalizeSummaries(response.data)
+          auditTypeSummaryTotal(response.data, context)
+          if (preserveItems && loadedCount.value > WORKBENCH_LIMIT) {
+            const current = workbenchData.value
+            if (current) {
+              current.typeSummaries = response.data.typeSummaries
+              current.statusSummaries = response.data.statusSummaries
+              current.generatedAt = response.data.generatedAt
+            }
+            total.value = responseTotal(response.data)
+            if (loadedCount.value >= total.value) hasMore.value = false
+            hasNewTasks.value = true
+          } else {
+            workbenchData.value = response.data
+            applyPageState(response.data)
+            hasNewTasks.value = false
+          }
           loadError.value = ''
           syncAssignSelections()
           succeeded = true
@@ -619,7 +664,11 @@ export const useHomeTaskWorkbench = () => {
         entry.trailingRequested &&
         createRequestContext().key === context.key
       ) {
-        return executeWorkbenchRequest(createRequestContext(), false)
+        if (loadedCount.value > WORKBENCH_LIMIT) {
+          hasNewTasks.value = true
+          return succeeded
+        }
+        return executeWorkbenchRequest(createRequestContext(), false, false)
       }
 
       loading.value = false
@@ -636,7 +685,19 @@ export const useHomeTaskWorkbench = () => {
       return Promise.resolve(false)
     }
 
+    const normalizedStatus = normalizeWorkbenchStatus(activeType.value, activeStatus.value)
+    if (normalizedStatus !== activeStatus.value) {
+      resetWorkbenchPage()
+      activeStatus.value = normalizedStatus
+    }
     const context = createRequestContext()
+    if (workbenchData.value && todayYmd.value !== context.date) {
+      resetWorkbenchPage()
+    }
+    if (loadMoreRequest?.context.key === context.key && options.markTrailing) {
+      loadMoreRequest.trailingRequested = true
+      return loadMoreRequest.promise
+    }
     const runningRequest = activeRequest
     if (runningRequest) {
       if (runningRequest.context.key === context.key) {
@@ -649,20 +710,35 @@ export const useHomeTaskWorkbench = () => {
       runningRequest.controller.abort()
     }
 
-    return executeWorkbenchRequest(context, true)
+    const preserveItems = Boolean(options.markTrailing && loadedCount.value > WORKBENCH_LIMIT)
+    return executeWorkbenchRequest(context, true, preserveItems)
   }
 
   const reloadWorkbenchData = (options: WorkbenchRefreshOptions = {}) =>
     loadWorkbenchData(options)
 
-  const clearWorkbench = () => {
+  const resetWorkbenchPage = () => {
+    requestGeneration += 1
+    resetToken.value += 1
     activeRequest?.controller.abort()
     activeRequest = null
-    cleanerRequestSeq += 1
+    loadMoreRequest?.controller.abort()
+    loadMoreRequest = null
     loading.value = false
-    cleanersLoading.value = false
+    loadingMore.value = false
     workbenchData.value = null
     loadError.value = ''
+    loadMoreError.value = ''
+    total.value = 0
+    nextCursor.value = null
+    hasMore.value = false
+    hasNewTasks.value = false
+  }
+
+  const clearWorkbench = () => {
+    resetWorkbenchPage()
+    cleanerRequestSeq += 1
+    cleanersLoading.value = false
     cleanerList.value = []
     assignSelections.value = {}
   }
@@ -672,8 +748,104 @@ export const useHomeTaskWorkbench = () => {
   }
 
   const changeWorkbenchType = async (type: WorkbenchTaskTypeFilter) => {
+    if (type === activeType.value) return
+    resetWorkbenchPage()
     activeType.value = type
     activeStatus.value = 'all'
+    await reloadWorkbenchData()
+  }
+
+  const changeWorkbenchStatus = async (status: WorkbenchStatusFilter) => {
+    const normalizedStatus = normalizeWorkbenchStatus(activeType.value, status)
+    if (normalizedStatus === activeStatus.value) return
+    resetWorkbenchPage()
+    activeStatus.value = normalizedStatus
+    await reloadWorkbenchData()
+  }
+
+  const loadMoreWorkbench = (): Promise<boolean> => {
+    if (disposed) return Promise.resolve(false)
+    const normalizedStatus = normalizeWorkbenchStatus(activeType.value, activeStatus.value)
+    if (normalizedStatus !== activeStatus.value) {
+      resetWorkbenchPage()
+      activeStatus.value = normalizedStatus
+      return reloadWorkbenchData()
+    }
+    if (activeRequest || loading.value || !hasMore.value || !nextCursor.value) {
+      return Promise.resolve(false)
+    }
+    const context = createRequestContext()
+    const cursor = nextCursor.value
+    if (loadMoreRequest?.context.key === context.key && loadMoreRequest.cursor === cursor) {
+      return loadMoreRequest.promise
+    }
+    loadMoreRequest?.controller.abort()
+    const generation = requestGeneration
+    const entry: ActiveWorkbenchRequest = {
+      context,
+      controller: new AbortController(),
+      cursor,
+      canScheduleTrailing: false,
+      trailingRequested: false,
+      promise: Promise.resolve(false),
+    }
+    loadMoreRequest = entry
+    loadingMore.value = true
+    loadMoreError.value = ''
+    entry.promise = (async () => {
+      let succeeded = false
+      try {
+        const response = await request.get<never, ApiResponse<HomeWorkbenchDTO>>(
+          '/home/workbench',
+          {
+            params: requestParamsFor(context, cursor, false),
+            signal: entry.controller.signal,
+            suppressErrorToast: true,
+          },
+        )
+        const current = !disposed && generation === requestGeneration &&
+          loadMoreRequest === entry && createRequestContext().key === context.key
+        if (
+          current &&
+          response.success &&
+          response.data &&
+          responseMatchesContext(response.data, context) &&
+          workbenchData.value
+        ) {
+          const before = workbenchData.value.items || []
+          const appended = appendUniqueWorkbenchItems(before, response.data.items || [])
+          workbenchData.value.items = appended
+          nextCursor.value = response.data.page?.nextCursor || null
+          hasMore.value = Boolean(response.data.page?.hasMore && nextCursor.value)
+          if (appended.length >= total.value || (appended.length === before.length && hasMore.value)) {
+            hasMore.value = false
+          }
+          syncAssignSelections()
+          succeeded = true
+        } else if (current) {
+          loadMoreError.value = response.message || t('pages.home.workbench.loadMoreFailed')
+        }
+      } catch (error) {
+        if (!isCancellationError(error) && !disposed && loadMoreRequest === entry) {
+          console.error('Failed to load more home workbench tasks:', error)
+          loadMoreError.value = t('pages.home.workbench.loadMoreFailed')
+        }
+      } finally {
+        if (loadMoreRequest === entry) {
+          loadMoreRequest = null
+          loadingMore.value = false
+        }
+      }
+      if (entry.trailingRequested && !disposed && createRequestContext().key === context.key) {
+        await executeWorkbenchRequest(createRequestContext(), false, loadedCount.value > WORKBENCH_LIMIT)
+      }
+      return succeeded
+    })()
+    return entry.promise
+  }
+
+  const refreshFromTop = async () => {
+    resetWorkbenchPage()
     await reloadWorkbenchData()
   }
 
@@ -708,10 +880,14 @@ export const useHomeTaskWorkbench = () => {
 
   const disposeWorkbench = () => {
     disposed = true
+    requestGeneration += 1
     activeRequest?.controller.abort()
     activeRequest = null
+    loadMoreRequest?.controller.abort()
+    loadMoreRequest = null
     cleanerRequestSeq += 1
     loading.value = false
+    loadingMore.value = false
     cleanersLoading.value = false
   }
 
@@ -723,10 +899,17 @@ export const useHomeTaskWorkbench = () => {
     cleanerList,
     cleanersLoading,
     filteredTasks,
+    hasMore,
+    hasNewTasks,
     hasWorkbenchData,
     loadWorkbench,
     loading,
+    loadingMore,
     loadError,
+    loadMoreError,
+    loadedCount,
+    resetToken,
+    total,
     selectedTypeIsConnected,
     selectedTypeSummary,
     statusSummaries,
@@ -734,8 +917,11 @@ export const useHomeTaskWorkbench = () => {
     todayYmd,
     assignTask,
     changeWorkbenchType,
+    changeWorkbenchStatus,
     clearWorkbench,
     disposeWorkbench,
+    loadMoreWorkbench,
+    refreshFromTop,
     reloadWorkbenchData,
   }
 }

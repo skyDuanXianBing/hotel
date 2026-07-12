@@ -131,6 +131,51 @@ public interface SuMessageThreadRepository extends JpaRepository<SuMessageThread
     @org.springframework.transaction.annotation.Transactional(readOnly = true, timeout = 5)
     long countAwaitingReplyByStoreId(@Param("storeId") Long storeId);
 
+    @Query(
+            value = """
+                    SELECT /*+ MAX_EXECUTION_TIME(5000) */ t.*
+                    FROM su_message_threads t
+                    JOIN (
+                        SELECT ranked.thread_id
+                        FROM (
+                            SELECT m.thread_id,
+                                   m.sender_type,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY m.thread_id
+                                       ORDER BY m.sent_at DESC, m.id DESC
+                                   ) AS row_num
+                            FROM su_messages m
+                            WHERE m.store_id = :storeId
+                              AND (m.sender_type = 'GUEST'
+                                   OR (m.sender_type = 'STAFF' AND m.delivery_status = 'SENT'))
+                        ) ranked
+                        WHERE ranked.row_num = 1 AND ranked.sender_type = 'GUEST'
+                    ) latest_message ON latest_message.thread_id = t.id
+                    WHERE t.store_id = :storeId
+                      AND t.closed = false
+                      AND (
+                          :hasCursor = false
+                          OR (:cursorDueAt IS NOT NULL AND (
+                              t.last_activity IS NULL
+                              OR t.last_activity > :cursorDueAt
+                              OR (t.last_activity = :cursorDueAt AND t.id > :cursorId)
+                          ))
+                          OR (:cursorDueAt IS NULL AND t.last_activity IS NULL AND t.id > :cursorId)
+                      )
+                    ORDER BY t.last_activity IS NULL ASC, t.last_activity ASC, t.id ASC
+                    """,
+            nativeQuery = true
+    )
+    @QueryHints(@QueryHint(name = "jakarta.persistence.query.timeout", value = "5000"))
+    @org.springframework.transaction.annotation.Transactional(readOnly = true, timeout = 5)
+    List<SuMessageThread> findAwaitingReplySliceByStoreId(
+            @Param("storeId") Long storeId,
+            @Param("hasCursor") boolean hasCursor,
+            @Param("cursorDueAt") LocalDateTime cursorDueAt,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable
+    );
+
     @Query("""
             SELECT t
             FROM SuMessageThread t
