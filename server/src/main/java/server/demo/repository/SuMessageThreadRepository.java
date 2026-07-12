@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 import server.demo.entity.SuMessageThread;
 import server.demo.enums.SuMessagingSenderType;
@@ -12,6 +13,8 @@ import server.demo.enums.SuMessagingSenderType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
+import jakarta.persistence.QueryHint;
 
 public interface SuMessageThreadRepository extends JpaRepository<SuMessageThread, Long> {
     interface KnowledgeDueThreadRow {
@@ -32,72 +35,101 @@ public interface SuMessageThreadRepository extends JpaRepository<SuMessageThread
 
     @Query(
             value = """
-                    SELECT t.*
+                    SELECT /*+ MAX_EXECUTION_TIME(5000) */ t.*
                     FROM su_message_threads t
-                    JOIN su_messages guest_message
-                      ON guest_message.store_id = t.store_id
-                     AND guest_message.thread_id = t.id
-                     AND guest_message.sender_type = 'GUEST'
+                    JOIN (
+                        SELECT ranked.thread_id, ranked.sent_at, ranked.id
+                        FROM (
+                            SELECT m.thread_id,
+                                   m.sender_type,
+                                   m.sent_at,
+                                   m.id,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY m.thread_id
+                                       ORDER BY m.sent_at DESC, m.id DESC
+                                   ) AS row_num
+                            FROM su_messages m
+                            WHERE m.store_id = :storeId
+                              AND (
+                                  m.sender_type = 'GUEST'
+                                  OR (m.sender_type = 'STAFF' AND m.delivery_status = 'SENT')
+                              )
+                        ) ranked
+                        WHERE ranked.row_num = 1
+                          AND ranked.sender_type = 'GUEST'
+                    ) latest_message
+                      ON latest_message.thread_id = t.id
                     WHERE t.store_id = :storeId
                       AND t.closed = false
-                      AND NOT EXISTS (
-                          SELECT 1
-                          FROM su_messages later_message
-                          WHERE later_message.store_id = t.store_id
-                            AND later_message.thread_id = t.id
-                            AND (
-                                later_message.sender_type = 'GUEST'
-                                OR (
-                                    later_message.sender_type = 'STAFF'
-                                    AND later_message.delivery_status = 'SENT'
-                                )
-                            )
-                            AND (
-                                later_message.sent_at > guest_message.sent_at
-                                OR (
-                                    later_message.sent_at = guest_message.sent_at
-                                    AND later_message.id > guest_message.id
-                                )
-                            )
-                      )
-                    ORDER BY guest_message.sent_at DESC, guest_message.id DESC
+                    ORDER BY latest_message.sent_at DESC, latest_message.id DESC
                     """,
             countQuery = """
-                    SELECT COUNT(*)
+                    SELECT /*+ MAX_EXECUTION_TIME(5000) */ COUNT(*)
                     FROM su_message_threads t
-                    JOIN su_messages guest_message
-                      ON guest_message.store_id = t.store_id
-                     AND guest_message.thread_id = t.id
-                     AND guest_message.sender_type = 'GUEST'
+                    JOIN (
+                        SELECT ranked.thread_id
+                        FROM (
+                            SELECT m.thread_id,
+                                   m.sender_type,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY m.thread_id
+                                       ORDER BY m.sent_at DESC, m.id DESC
+                                   ) AS row_num
+                            FROM su_messages m
+                            WHERE m.store_id = :storeId
+                              AND (
+                                  m.sender_type = 'GUEST'
+                                  OR (m.sender_type = 'STAFF' AND m.delivery_status = 'SENT')
+                              )
+                        ) ranked
+                        WHERE ranked.row_num = 1
+                          AND ranked.sender_type = 'GUEST'
+                    ) latest_message
+                      ON latest_message.thread_id = t.id
                     WHERE t.store_id = :storeId
                       AND t.closed = false
-                      AND NOT EXISTS (
-                          SELECT 1
-                          FROM su_messages later_message
-                          WHERE later_message.store_id = t.store_id
-                            AND later_message.thread_id = t.id
-                            AND (
-                                later_message.sender_type = 'GUEST'
-                                OR (
-                                    later_message.sender_type = 'STAFF'
-                                    AND later_message.delivery_status = 'SENT'
-                                )
-                            )
-                            AND (
-                                later_message.sent_at > guest_message.sent_at
-                                OR (
-                                    later_message.sent_at = guest_message.sent_at
-                                    AND later_message.id > guest_message.id
-                                )
-                            )
-                      )
                     """,
             nativeQuery = true
     )
+    @QueryHints(@QueryHint(name = "jakarta.persistence.query.timeout", value = "5000"))
+    @org.springframework.transaction.annotation.Transactional(readOnly = true, timeout = 5)
     Page<SuMessageThread> findAwaitingReplyPageByStoreId(
             @Param("storeId") Long storeId,
             Pageable pageable
     );
+
+    @Query(
+            value = """
+                    SELECT /*+ MAX_EXECUTION_TIME(5000) */ COUNT(*)
+                    FROM su_message_threads t
+                    JOIN (
+                        SELECT ranked.thread_id
+                        FROM (
+                            SELECT m.thread_id,
+                                   m.sender_type,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY m.thread_id
+                                       ORDER BY m.sent_at DESC, m.id DESC
+                                   ) AS row_num
+                            FROM su_messages m
+                            WHERE m.store_id = :storeId
+                              AND (
+                                  m.sender_type = 'GUEST'
+                                  OR (m.sender_type = 'STAFF' AND m.delivery_status = 'SENT')
+                              )
+                        ) ranked
+                        WHERE ranked.row_num = 1
+                          AND ranked.sender_type = 'GUEST'
+                    ) latest_message
+                      ON latest_message.thread_id = t.id
+                    WHERE t.store_id = :storeId
+                      AND t.closed = false
+                    """,
+            nativeQuery = true
+    )
+    @QueryHints(@QueryHint(name = "jakarta.persistence.query.timeout", value = "5000"))
+    @org.springframework.transaction.annotation.Transactional(readOnly = true, timeout = 5)
+    long countAwaitingReplyByStoreId(@Param("storeId") Long storeId);
 
     @Query("""
             SELECT t

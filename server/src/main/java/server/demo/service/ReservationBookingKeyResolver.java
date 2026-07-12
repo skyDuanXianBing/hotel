@@ -6,8 +6,10 @@ import server.demo.entity.SuMessageThread;
 import server.demo.repository.ReservationRepository;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -31,6 +33,64 @@ public class ReservationBookingKeyResolver {
             }
         }
 
+        return null;
+    }
+
+    /**
+     * Resolves one page of inbox threads with one reservation query. The home inbox deliberately
+     * uses exact normalized keys here; the legacy fuzzy fallback remains available to detail pages
+     * through {@link #findFirstReservationForThread(Long, SuMessageThread)}.
+     */
+    public Map<Long, Reservation> findFirstReservationsForThreads(
+            Long storeId,
+            List<SuMessageThread> threads
+    ) {
+        if (storeId == null || threads == null || threads.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, List<String>> candidatesByThreadId = new LinkedHashMap<>();
+        Set<String> allCandidates = new LinkedHashSet<>();
+        for (SuMessageThread thread : threads) {
+            if (thread == null || thread.getId() == null) {
+                continue;
+            }
+            List<String> candidates = buildThreadLookupCandidates(thread);
+            candidatesByThreadId.put(thread.getId(), candidates);
+            allCandidates.addAll(candidates);
+        }
+        if (allCandidates.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Reservation> reservations = reservationRepository.findByStoreIdAndAnyBookingKeyInWithRoomType(
+                storeId,
+                new ArrayList<>(allCandidates)
+        );
+        Map<Long, Reservation> result = new LinkedHashMap<>();
+        for (Map.Entry<Long, List<String>> entry : candidatesByThreadId.entrySet()) {
+            Reservation match = findFirstMatchingReservation(reservations, entry.getValue());
+            if (match != null) {
+                result.put(entry.getKey(), match);
+            }
+        }
+        return result;
+    }
+
+    private Reservation findFirstMatchingReservation(
+            List<Reservation> reservations,
+            List<String> lookupCandidates
+    ) {
+        if (reservations == null || reservations.isEmpty() || lookupCandidates == null) {
+            return null;
+        }
+        for (String lookupCandidate : lookupCandidates) {
+            for (Reservation reservation : reservations) {
+                if (matchesReservationBookingKey(reservation, lookupCandidate)) {
+                    return reservation;
+                }
+            }
+        }
         return null;
     }
 

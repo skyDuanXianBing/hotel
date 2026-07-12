@@ -10,7 +10,7 @@
         :icon="Refresh"
         :loading="loading"
         :aria-label="t('pages.home.workbench.refresh')"
-        @click="loadWorkbench"
+        @click="handleManualRefresh"
       />
     </div>
 
@@ -163,7 +163,7 @@
     <InternalTaskCenter
       ref="internalTaskCenterRef"
       :can-manage="canManageInternalTasks"
-      @updated="reloadWorkbenchData"
+      @updated="queueWorkbenchRefresh"
     />
   </section>
 </template>
@@ -212,6 +212,7 @@ const {
   assignTask,
   changeWorkbenchType,
   clearWorkbench,
+  disposeWorkbench,
   reloadWorkbenchData,
 } = useHomeTaskWorkbench()
 
@@ -219,7 +220,12 @@ const storeStore = useStoreStore()
 const canManageInternalTasks = computed(() => storeStore.hasAdminPermission)
 const internalTaskCenterRef = ref<InstanceType<typeof InternalTaskCenter> | null>(null)
 let refreshTimer: number | null = null
-let lastVisibilityRefreshAt = 0
+let refreshDebounceTimer: number | null = null
+let unmounted = false
+
+const REFRESH_DELAY_MS = 30_000
+const REFRESH_EVENT_DEBOUNCE_MS = 350
+type WorkbenchRefreshSource = 'manual' | 'poll' | 'event'
 
 const typeIconMap: Record<WorkbenchTaskTypeFilter, string> = {
   all: workbenchAllIcon,
@@ -478,36 +484,95 @@ const goToTaskList = () => {
 
 const openCreateTask = () => internalTaskCenterRef.value?.openCreate()
 
-const refreshWhenActive = () => {
-  if (document.visibilityState !== 'visible') return
-  const now = Date.now()
-  if (now - lastVisibilityRefreshAt < 1000) return
-  lastVisibilityRefreshAt = now
-  void reloadWorkbenchData()
+const clearRefreshTimer = () => {
+  if (refreshTimer !== null) {
+    window.clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
 }
 
-const handleWorkbenchInvalidated = () => void reloadWorkbenchData()
+const clearRefreshDebounce = () => {
+  if (refreshDebounceTimer !== null) {
+    window.clearTimeout(refreshDebounceTimer)
+    refreshDebounceTimer = null
+  }
+}
+
+const scheduleNextRefresh = () => {
+  clearRefreshTimer()
+  if (unmounted || !storeStore.currentStore?.id) return
+  refreshTimer = window.setTimeout(() => {
+    refreshTimer = null
+    if (document.visibilityState !== 'visible') {
+      scheduleNextRefresh()
+      return
+    }
+    if (loading.value) {
+      scheduleNextRefresh()
+      return
+    }
+    void performWorkbenchRefresh('poll')
+  }, REFRESH_DELAY_MS)
+}
+
+const performWorkbenchRefresh = async (source: WorkbenchRefreshSource) => {
+  try {
+    await reloadWorkbenchData({ markTrailing: source === 'event' })
+  } finally {
+    scheduleNextRefresh()
+  }
+}
+
+const queueWorkbenchRefresh = () => {
+  if (unmounted || document.visibilityState !== 'visible') return
+  clearRefreshTimer()
+  clearRefreshDebounce()
+  refreshDebounceTimer = window.setTimeout(() => {
+    refreshDebounceTimer = null
+    void performWorkbenchRefresh('event')
+  }, REFRESH_EVENT_DEBOUNCE_MS)
+}
+
+const refreshWhenActive = () => {
+  if (document.visibilityState === 'visible') {
+    queueWorkbenchRefresh()
+  }
+}
+
+const handleManualRefresh = () => {
+  clearRefreshTimer()
+  clearRefreshDebounce()
+  void performWorkbenchRefresh('manual')
+}
+
+const handleWorkbenchInvalidated = () => queueWorkbenchRefresh()
 
 onMounted(() => {
-  loadWorkbench()
+  void loadWorkbench().finally(scheduleNextRefresh)
   window.addEventListener('focus', refreshWhenActive)
   window.addEventListener('workbench-invalidated', handleWorkbenchInvalidated)
   document.addEventListener('visibilitychange', refreshWhenActive)
-  refreshTimer = window.setInterval(refreshWhenActive, 30_000)
 })
 
 watch(
   () => storeStore.currentStore?.id,
   (nextStoreId, previousStoreId) => {
     if (nextStoreId === previousStoreId) return
+    clearRefreshTimer()
+    clearRefreshDebounce()
     clearWorkbench()
     internalTaskCenterRef.value?.reset()
-    if (nextStoreId) void loadWorkbench()
+    if (nextStoreId) {
+      void loadWorkbench().finally(scheduleNextRefresh)
+    }
   },
 )
 
 onBeforeUnmount(() => {
-  if (refreshTimer) window.clearInterval(refreshTimer)
+  unmounted = true
+  clearRefreshTimer()
+  clearRefreshDebounce()
+  disposeWorkbench()
   window.removeEventListener('focus', refreshWhenActive)
   window.removeEventListener('workbench-invalidated', handleWorkbenchInvalidated)
   document.removeEventListener('visibilitychange', refreshWhenActive)

@@ -14,9 +14,29 @@ import {
 } from '@/api/homeWorkbench'
 import { request } from '@/utils/request'
 import { getStoreTodayYmd } from '@/utils/storeDateTime'
+import { useStoreStore } from '@/stores/store'
 
 const WORKBENCH_LIMIT = 50
 const DEFAULT_STATUS_GROUP = 'pending'
+
+interface WorkbenchRefreshOptions {
+  /** Marks an event/mutation that happened after the active request started. */
+  markTrailing?: boolean
+}
+
+interface WorkbenchRequestContext {
+  key: string
+  date: string
+  type: WorkbenchTaskTypeFilter
+}
+
+interface ActiveWorkbenchRequest {
+  context: WorkbenchRequestContext
+  controller: AbortController
+  canScheduleTrailing: boolean
+  trailingRequested: boolean
+  promise: Promise<boolean>
+}
 
 const WORKBENCH_TYPES: WorkbenchTaskType[] = ['cleaning', 'review', 'order', 'message', 'other']
 
@@ -183,6 +203,7 @@ const formatMetaItem = (item: string | HomeWorkbenchMetaItemDTO) => {
 
 export const useHomeTaskWorkbench = () => {
   const { t } = useI18n()
+  const storeStore = useStoreStore()
   const loading = ref(false)
   const loadError = ref('')
   const cleanersLoading = ref(false)
@@ -193,8 +214,9 @@ export const useHomeTaskWorkbench = () => {
   const workbenchData = ref<HomeWorkbenchDTO | null>(null)
   const cleanerList = ref<CleanerDTO[]>([])
   const assignSelections = ref<Record<number, number | undefined>>({})
-  let workbenchRequestSeq = 0
-  let loadingSeq = 0
+  let activeRequest: ActiveWorkbenchRequest | null = null
+  let cleanerRequestSeq = 0
+  let disposed = false
 
   const getTypeLabel = (type: WorkbenchTaskTypeFilter) => {
     if (type === 'all') {
@@ -480,82 +502,165 @@ export const useHomeTaskWorkbench = () => {
   }
 
   const loadCleaners = async () => {
+    const requestSeq = cleanerRequestSeq + 1
+    cleanerRequestSeq = requestSeq
+    const requestStoreId = storeStore.currentStore?.id
     cleanersLoading.value = true
     try {
       const response = await getCleaners()
+      if (
+        requestSeq !== cleanerRequestSeq ||
+        requestStoreId !== storeStore.currentStore?.id ||
+        disposed
+      ) {
+        return
+      }
       if (response.success && response.data) {
         cleanerList.value = response.data
       } else {
         ElMessage.error(response.message || t('pages.home.workbench.loadCleanersFailed'))
       }
     } catch (error) {
+      if (
+        requestSeq !== cleanerRequestSeq ||
+        requestStoreId !== storeStore.currentStore?.id ||
+        disposed
+      ) {
+        return
+      }
       console.error('Failed to load cleaners for home workbench:', error)
       ElMessage.error(t('pages.home.workbench.loadCleanersFailed'))
     } finally {
-      cleanersLoading.value = false
+      if (requestSeq === cleanerRequestSeq) {
+        cleanersLoading.value = false
+      }
     }
   }
 
-  const loadWorkbenchData = async (): Promise<boolean> => {
-    const requestSeq = workbenchRequestSeq + 1
-    workbenchRequestSeq = requestSeq
-    const requestDate = getStoreTodayYmd()
-    const requestType = activeType.value
-    todayYmd.value = requestDate
-
-    const requestParams: HomeWorkbenchRequest = {
-      date: requestDate,
-      limit: WORKBENCH_LIMIT,
+  const createRequestContext = (): WorkbenchRequestContext => {
+    const date = getStoreTodayYmd()
+    const type = activeType.value
+    const storeId = storeStore.currentStore?.id || 'none'
+    return {
+      key: `${storeId}:${date}:${type}`,
+      date,
+      type,
     }
-    if (requestType !== 'all') {
-      requestParams.type = requestType
-    }
+  }
 
-    try {
-      const response = await request.get<never, ApiResponse<HomeWorkbenchDTO>>('/home/workbench', {
-        params: requestParams,
-        suppressErrorToast: true,
-      })
-      if (requestSeq !== workbenchRequestSeq) {
-        return false
-      }
-
-      if (response.success && response.data) {
-        workbenchData.value = response.data
-        loadError.value = ''
-        syncAssignSelections()
-        return true
-      } else {
-        loadError.value = response.message || t('pages.home.workbench.loadTasksFailed')
-        return false
-      }
-    } catch (error) {
-      if (requestSeq !== workbenchRequestSeq) {
-        return false
-      }
-      console.error('Failed to load home workbench tasks:', error)
-      loadError.value = t('pages.home.workbench.loadTasksFailed')
+  const isCancellationError = (error: unknown) => {
+    if (!error || typeof error !== 'object') {
       return false
     }
+    const candidate = error as { code?: string; name?: string }
+    return candidate.code === 'ERR_CANCELED' || candidate.name === 'CanceledError'
   }
 
-  const reloadWorkbenchData = async () => {
-    const currentLoadingSeq = loadingSeq + 1
-    loadingSeq = currentLoadingSeq
-    loading.value = true
-    try {
-      await loadWorkbenchData()
-    } finally {
-      if (currentLoadingSeq === loadingSeq) {
-        loading.value = false
-      }
+  const executeWorkbenchRequest = (
+    context: WorkbenchRequestContext,
+    canScheduleTrailing: boolean,
+  ): Promise<boolean> => {
+    const requestParams: HomeWorkbenchRequest = {
+      date: context.date,
+      limit: WORKBENCH_LIMIT,
     }
+    if (context.type !== 'all') {
+      requestParams.type = context.type
+    }
+
+    const entry: ActiveWorkbenchRequest = {
+      context,
+      controller: new AbortController(),
+      canScheduleTrailing,
+      trailingRequested: false,
+      promise: Promise.resolve(false),
+    }
+
+    loading.value = true
+    todayYmd.value = context.date
+    activeRequest = entry
+
+    entry.promise = (async () => {
+      let succeeded = false
+      try {
+        const response = await request.get<never, ApiResponse<HomeWorkbenchDTO>>(
+          '/home/workbench',
+          {
+            params: requestParams,
+            signal: entry.controller.signal,
+            suppressErrorToast: true,
+          },
+        )
+        const responseIsCurrent =
+          !disposed && activeRequest === entry && createRequestContext().key === context.key
+        if (responseIsCurrent && response.success && response.data) {
+          workbenchData.value = response.data
+          loadError.value = ''
+          syncAssignSelections()
+          succeeded = true
+        } else if (responseIsCurrent) {
+          loadError.value = response.message || t('pages.home.workbench.loadTasksFailed')
+        }
+      } catch (error) {
+        if (!isCancellationError(error) && !disposed && activeRequest === entry) {
+          console.error('Failed to load home workbench tasks:', error)
+          loadError.value = t('pages.home.workbench.loadTasksFailed')
+        }
+      }
+
+      if (activeRequest !== entry) {
+        return succeeded
+      }
+
+      activeRequest = null
+      if (
+        !disposed &&
+        entry.canScheduleTrailing &&
+        entry.trailingRequested &&
+        createRequestContext().key === context.key
+      ) {
+        return executeWorkbenchRequest(createRequestContext(), false)
+      }
+
+      loading.value = false
+      return succeeded
+    })()
+
+    return entry.promise
   }
+
+  const loadWorkbenchData = (
+    options: WorkbenchRefreshOptions = {},
+  ): Promise<boolean> => {
+    if (disposed) {
+      return Promise.resolve(false)
+    }
+
+    const context = createRequestContext()
+    const runningRequest = activeRequest
+    if (runningRequest) {
+      if (runningRequest.context.key === context.key) {
+        if (options.markTrailing && runningRequest.canScheduleTrailing) {
+          runningRequest.trailingRequested = true
+        }
+        return runningRequest.promise
+      }
+
+      runningRequest.controller.abort()
+    }
+
+    return executeWorkbenchRequest(context, true)
+  }
+
+  const reloadWorkbenchData = (options: WorkbenchRefreshOptions = {}) =>
+    loadWorkbenchData(options)
 
   const clearWorkbench = () => {
-    workbenchRequestSeq += 1
-    loadingSeq += 1
+    activeRequest?.controller.abort()
+    activeRequest = null
+    cleanerRequestSeq += 1
     loading.value = false
+    cleanersLoading.value = false
     workbenchData.value = null
     loadError.value = ''
     cleanerList.value = []
@@ -563,16 +668,7 @@ export const useHomeTaskWorkbench = () => {
   }
 
   const loadWorkbench = async () => {
-    const currentLoadingSeq = loadingSeq + 1
-    loadingSeq = currentLoadingSeq
-    loading.value = true
-    try {
-      await Promise.all([loadCleaners(), loadWorkbenchData()])
-    } finally {
-      if (currentLoadingSeq === loadingSeq) {
-        loading.value = false
-      }
-    }
+    await Promise.all([loadCleaners(), loadWorkbenchData()])
   }
 
   const changeWorkbenchType = async (type: WorkbenchTaskTypeFilter) => {
@@ -600,7 +696,7 @@ export const useHomeTaskWorkbench = () => {
         return
       }
 
-      await loadWorkbenchData()
+      await reloadWorkbenchData({ markTrailing: true })
       ElMessage.success(t('pages.home.workbench.assignSuccess'))
     } catch (error) {
       console.error('Failed to assign home workbench task:', error)
@@ -608,6 +704,15 @@ export const useHomeTaskWorkbench = () => {
     } finally {
       assigningTaskId.value = null
     }
+  }
+
+  const disposeWorkbench = () => {
+    disposed = true
+    activeRequest?.controller.abort()
+    activeRequest = null
+    cleanerRequestSeq += 1
+    loading.value = false
+    cleanersLoading.value = false
   }
 
   return {
@@ -630,6 +735,7 @@ export const useHomeTaskWorkbench = () => {
     assignTask,
     changeWorkbenchType,
     clearWorkbench,
+    disposeWorkbench,
     reloadWorkbenchData,
   }
 }

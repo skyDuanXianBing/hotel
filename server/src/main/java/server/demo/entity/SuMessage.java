@@ -17,7 +17,15 @@ import java.time.LocalDateTime;
         },
         indexes = {
                 @Index(name = "idx_su_msg_thread_sent", columnList = "thread_id,sent_at"),
-                @Index(name = "idx_su_msg_store_sent", columnList = "store_id,sent_at")
+                @Index(name = "idx_su_msg_store_sent", columnList = "store_id,sent_at"),
+                @Index(
+                        name = "idx_su_msg_awaiting_reply_cover",
+                        columnList = "store_id,thread_id,sent_at DESC,id DESC,sender_type,delivery_status"
+                ),
+                @Index(
+                        name = "idx_su_msg_unread_by_thread",
+                        columnList = "store_id,thread_id,sender_type,is_read"
+                )
         }
 )
 public class SuMessage {
@@ -160,4 +168,3 @@ public class SuMessage {
         this.deliveryStatus = deliveryStatus;
     }
 }
-

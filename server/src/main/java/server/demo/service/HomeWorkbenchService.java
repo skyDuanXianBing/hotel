@@ -2,6 +2,8 @@ package server.demo.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import server.demo.dto.CleaningTaskDTO;
 import server.demo.dto.SuMessagingThreadDTO;
@@ -43,6 +45,7 @@ import java.util.Objects;
 
 @Service
 public class HomeWorkbenchService {
+    private static final Logger logger = LoggerFactory.getLogger(HomeWorkbenchService.class);
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 100;
 
@@ -144,10 +147,29 @@ public class HomeWorkbenchService {
                 ? buildOrderItems(storeId, businessDate) : List.of();
         appendItems(TYPE_ORDER, orderItems, typeCounts, allItems);
 
-        SuMessagingThreadPageResponse messagePage = suMessagingService.listAwaitingReplyThreadPage(storeId, 0, limit);
-        List<HomeWorkbenchItemDTO> messageItems = buildMessageItems(messagePage);
-        typeCounts.put(TYPE_MESSAGE, messagePage.getTotalElements());
-        typeAvailability.put(TYPE_MESSAGE, true);
+        List<HomeWorkbenchItemDTO> messageItems = List.of();
+        long awaitingReplyCount = 0L;
+        boolean messageAvailable = true;
+        try {
+            if (TYPE_ALL.equals(selectedType) || TYPE_MESSAGE.equals(selectedType)) {
+                SuMessagingThreadPageResponse messagePage =
+                        suMessagingService.listAwaitingReplyThreadPage(storeId, 0, limit);
+                messageItems = buildMessageItems(messagePage);
+                awaitingReplyCount = messagePage.getTotalElements();
+            } else {
+                awaitingReplyCount = suMessagingService.countAwaitingReplyThreads(storeId);
+            }
+        } catch (RuntimeException exception) {
+            messageAvailable = false;
+            logger.warn(
+                    "[HomeWorkbench] awaiting-reply section degraded. storeId={}, selectedType={}, error={}",
+                    storeId,
+                    selectedType,
+                    exception.getMessage()
+            );
+        }
+        typeCounts.put(TYPE_MESSAGE, awaitingReplyCount);
+        typeAvailability.put(TYPE_MESSAGE, messageAvailable);
         allItems.addAll(messageItems);
 
         OtherItems otherResult = buildOtherItems(isManagerContext(), limit);

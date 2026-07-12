@@ -331,10 +331,7 @@ public class SuMessagingService {
      * A staff message is effective only after it has committed with delivery_status=SENT.
      */
     public SuMessagingThreadPageResponse listAwaitingReplyThreadPage(Long storeId, Integer page, Integer size) {
-        Long contextStoreId = StoreContextUtils.requireStoreId();
-        if (storeId == null || !storeId.equals(contextStoreId)) {
-            throw new IllegalArgumentException("门店上下文不一致");
-        }
+        requireMatchingStoreContext(storeId);
 
         int currentPage = normalizePage(page);
         int pageSize = normalizeThreadPageSize(size);
@@ -343,8 +340,17 @@ public class SuMessagingService {
                 storeId,
                 PageRequest.of(currentPage, pageSize)
         );
-        List<SuMessagingThreadDTO> items = threadPage.getContent().stream()
-                .map(thread -> toThreadDTO(storeId, thread, today))
+        List<SuMessageThread> threads = threadPage.getContent();
+        Map<Long, Reservation> reservationByThreadId =
+                reservationBookingKeyResolver.findFirstReservationsForThreads(storeId, threads);
+        Map<Long, Long> unreadByThreadId = loadUnreadCounts(storeId, threads);
+        List<SuMessagingThreadDTO> items = threads.stream()
+                .map(thread -> toThreadDTO(
+                        thread,
+                        reservationByThreadId.get(thread.getId()),
+                        unreadByThreadId.getOrDefault(thread.getId(), 0L),
+                        today
+                ))
                 .toList();
         fillAirbnbInquiryRoomTypeNames(storeId, items);
         return new SuMessagingThreadPageResponse(
@@ -357,12 +363,63 @@ public class SuMessagingService {
         );
     }
 
+    public long countAwaitingReplyThreads(Long storeId) {
+        requireMatchingStoreContext(storeId);
+        return threadRepository.countAwaitingReplyByStoreId(storeId);
+    }
+
+    private void requireMatchingStoreContext(Long storeId) {
+        Long contextStoreId = StoreContextUtils.requireStoreId();
+        if (storeId == null || !storeId.equals(contextStoreId)) {
+            throw new IllegalArgumentException("门店上下文不一致");
+        }
+    }
+
+    private Map<Long, Long> loadUnreadCounts(Long storeId, List<SuMessageThread> threads) {
+        if (threads == null || threads.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> threadIds = threads.stream()
+                .map(SuMessageThread::getId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+        if (threadIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> result = new HashMap<>();
+        for (SuMessageRepository.ThreadUnreadCountRow row
+                : messageRepository.countUnreadByStoreIdAndThreadIds(
+                        storeId,
+                        threadIds,
+                        SuMessagingSenderType.GUEST
+                )) {
+            if (row != null && row.getThreadId() != null) {
+                result.put(row.getThreadId(), row.getUnreadCount() != null ? row.getUnreadCount() : 0L);
+            }
+        }
+        return result;
+    }
+
     private SuMessagingThreadDTO toThreadDTO(Long storeId, SuMessageThread thread) {
         return toThreadDTO(storeId, thread, currentStoreDate(storeId));
     }
 
     private SuMessagingThreadDTO toThreadDTO(Long storeId, SuMessageThread thread, LocalDate today) {
         Reservation reservation = resolveReservationForThread(storeId, thread);
+        long unreadCount = messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(
+                thread.getId(),
+                SuMessagingSenderType.GUEST
+        );
+        return toThreadDTO(thread, reservation, unreadCount, today);
+    }
+
+    private SuMessagingThreadDTO toThreadDTO(
+            SuMessageThread thread,
+            Reservation reservation,
+            long unreadCount,
+            LocalDate today
+    ) {
         String effectiveReservationStatus = resolveEffectiveReservationStatus(reservation, today);
         SuMessagingThreadDTO dto = new SuMessagingThreadDTO();
         dto.setId(thread.getId());
@@ -383,7 +440,7 @@ public class SuMessagingService {
         dto.setLastMessage(thread.getLastMessage());
         dto.setLastActivity(toUtcOffset(thread.getLastActivity()));
         dto.setClosed(Boolean.TRUE.equals(thread.getClosed()));
-        dto.setUnreadCount(messageRepository.countByThread_IdAndSenderTypeAndIsReadFalse(thread.getId(), SuMessagingSenderType.GUEST));
+        dto.setUnreadCount(unreadCount);
         return dto;
     }
 

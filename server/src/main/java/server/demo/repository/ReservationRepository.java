@@ -180,6 +180,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
     List<Reservation> findByStoreIdAndExternalBookingKey(Long storeId, String externalBookingKey);
 
     @Query("""
+           SELECT DISTINCT r
+           FROM Reservation r
+           LEFT JOIN FETCH r.room room
+           LEFT JOIN FETCH room.roomType
+           WHERE r.storeId = :storeId
+             AND (
+                 r.externalBookingKey IN :lookupKeys
+                 OR r.channelOrderNumber IN :lookupKeys
+                 OR r.orderNumber IN :lookupKeys
+             )
+           ORDER BY r.createdAt DESC
+           """)
+    List<Reservation> findByStoreIdAndAnyBookingKeyInWithRoomType(
+           @Param("storeId") Long storeId,
+           @Param("lookupKeys") List<String> lookupKeys
+    );
+
+    @Query("""
             SELECT DISTINCT r
             FROM Reservation r
             LEFT JOIN FETCH r.room room

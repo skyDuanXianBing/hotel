@@ -229,6 +229,38 @@ class HomeWorkbenchServiceTest {
     }
 
     @Test
+    void getWorkbench_withNonMessageTypeUsesCountWithoutHydratingMessageDtos() {
+        when(suMessagingService.countAwaitingReplyThreads(STORE_ID)).thenReturn(12L);
+
+        HomeWorkbenchResponse response = service.getWorkbench(
+                LocalDate.of(2026, 6, 12),
+                20,
+                "other"
+        );
+
+        assertEquals(12L, response.getTypeSummaries().get(3).getCount());
+        Mockito.verify(suMessagingService).countAwaitingReplyThreads(STORE_ID);
+        Mockito.verify(suMessagingService, never())
+                .listAwaitingReplyThreadPage(anyLong(), anyInt(), anyInt());
+    }
+
+    @Test
+    void getWorkbench_messageCountFailureDegradesWithoutFailingOtherType() {
+        when(suMessagingService.countAwaitingReplyThreads(STORE_ID))
+                .thenThrow(new RuntimeException("query timeout"));
+
+        HomeWorkbenchResponse response = service.getWorkbench(
+                LocalDate.of(2026, 6, 12),
+                20,
+                "other"
+        );
+
+        assertTrue(response.getItems().isEmpty());
+        assertEquals(0L, response.getTypeSummaries().get(3).getCount());
+        assertFalse(response.getTypeSummaries().get(3).isConnected());
+    }
+
+    @Test
     void getWorkbench_outputsFrontendActionContractForCleaningAssignment() {
         LocalDate businessDate = LocalDate.of(2026, 6, 12);
         CleaningTaskDTO task = new CleaningTaskDTO();

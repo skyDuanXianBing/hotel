@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
         indexes = {
                 @Index(name = "idx_su_msg_thread_store_last", columnList = "store_id,last_activity"),
                 @Index(name = "idx_su_msg_thread_store_channel", columnList = "store_id,channel_id"),
+                @Index(name = "idx_su_msg_thread_open", columnList = "store_id,closed,id"),
                 @Index(
                         name = "idx_su_msg_thread_kb_due",
                         columnList = "knowledge_pending,knowledge_extract_after,knowledge_extracting_until,store_id,id"

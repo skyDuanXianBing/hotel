@@ -21,6 +21,12 @@ public interface SuMessageRepository extends JpaRepository<SuMessage, Long> {
         Long getUnreadThreadCount();
     }
 
+    interface ThreadUnreadCountRow {
+        Long getThreadId();
+
+        Long getUnreadCount();
+    }
+
     Optional<SuMessage> findByStoreIdAndExternalMessageId(Long storeId, String externalMessageId);
 
     Optional<SuMessage> findByStoreIdAndId(Long storeId, Long id);
@@ -148,6 +154,21 @@ public interface SuMessageRepository extends JpaRepository<SuMessage, Long> {
     boolean existsByStoreIdAndThread_IdAndIdGreaterThan(Long storeId, Long threadId, Long id);
 
     long countByThread_IdAndSenderTypeAndIsReadFalse(Long threadId, SuMessagingSenderType senderType);
+
+    @Query("""
+            SELECT m.thread.id AS threadId, COUNT(m) AS unreadCount
+            FROM SuMessage m
+            WHERE m.storeId = :storeId
+              AND m.thread.id IN :threadIds
+              AND m.senderType = :senderType
+              AND m.isRead = false
+            GROUP BY m.thread.id
+            """)
+    List<ThreadUnreadCountRow> countUnreadByStoreIdAndThreadIds(
+            @Param("storeId") Long storeId,
+            @Param("threadIds") List<Long> threadIds,
+            @Param("senderType") SuMessagingSenderType senderType
+    );
 
     boolean existsByThread_IdAndSenderType(Long threadId, SuMessagingSenderType senderType);
 

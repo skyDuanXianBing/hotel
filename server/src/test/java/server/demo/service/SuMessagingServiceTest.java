@@ -7,6 +7,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import server.demo.context.StoreContext;
+import server.demo.context.StoreContextHolder;
 import server.demo.dto.SuMessagingMessagePageResponse;
 import server.demo.dto.SuMessagingSendRequest;
 import server.demo.dto.SuMessagingThreadDTO;
@@ -50,6 +52,58 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SuMessagingServiceTest {
+
+    @Test
+    void listAwaitingReplyThreadPageHydratesUnreadAndReservationsInBatches() {
+        SuMessageThreadRepository threadRepository = Mockito.mock(SuMessageThreadRepository.class);
+        SuMessageRepository messageRepository = Mockito.mock(SuMessageRepository.class);
+        ReservationRepository reservationRepository = Mockito.mock(ReservationRepository.class);
+        SuMessagingService service = newService(threadRepository, messageRepository, reservationRepository);
+        SuMessageThread first = newThread(41L, SuMessagingService.CHANNEL_BOOKING, "T41", "B41", "B");
+        SuMessageThread second = newThread(42L, SuMessagingService.CHANNEL_BOOKING, "T42", "B42", "B");
+        Reservation firstReservation = newReservation(
+                141L,
+                ReservationStatus.CONFIRMED,
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(2)
+        );
+        firstReservation.setExternalBookingKey("B41");
+        SuMessageRepository.ThreadUnreadCountRow unreadRow =
+                Mockito.mock(SuMessageRepository.ThreadUnreadCountRow.class);
+
+        when(threadRepository.findAwaitingReplyPageByStoreId(26L, PageRequest.of(0, 20)))
+                .thenReturn(new PageImpl<>(List.of(first, second), PageRequest.of(0, 20), 2));
+        when(reservationRepository.findByStoreIdAndAnyBookingKeyInWithRoomType(eq(26L), any()))
+                .thenReturn(List.of(firstReservation));
+        when(unreadRow.getThreadId()).thenReturn(41L);
+        when(unreadRow.getUnreadCount()).thenReturn(3L);
+        when(messageRepository.countUnreadByStoreIdAndThreadIds(
+                eq(26L),
+                eq(List.of(41L, 42L)),
+                eq(SuMessagingSenderType.GUEST)
+        )).thenReturn(List.of(unreadRow));
+
+        StoreContextHolder.setContext(new StoreContext(7L, 26L, "ADMIN"));
+        try {
+            SuMessagingThreadPageResponse response = service.listAwaitingReplyThreadPage(26L, 0, 20);
+
+            assertEquals(2, response.getItems().size());
+            assertEquals(141L, response.getItems().get(0).getReservationId());
+            assertEquals(3L, response.getItems().get(0).getUnreadCount());
+            assertEquals(0L, response.getItems().get(1).getUnreadCount());
+            Mockito.verify(reservationRepository, Mockito.times(1))
+                    .findByStoreIdAndAnyBookingKeyInWithRoomType(eq(26L), any());
+            Mockito.verify(messageRepository, Mockito.times(1)).countUnreadByStoreIdAndThreadIds(
+                    eq(26L),
+                    eq(List.of(41L, 42L)),
+                    eq(SuMessagingSenderType.GUEST)
+            );
+            Mockito.verify(messageRepository, Mockito.never())
+                    .countByThread_IdAndSenderTypeAndIsReadFalse(any(), any());
+        } finally {
+            StoreContextHolder.clear();
+        }
+    }
 
     @Test
     void listThreadPage_shouldReturnClientFieldsAndClampSize() throws Exception {
